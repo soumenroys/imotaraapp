@@ -1,9 +1,21 @@
 import "./globals.css";
 import { Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 
 const inter = Inter({ subsets: ["latin"] });
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-export const metadata = {
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
+};
+
+export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Imotara — An Immortal Friend for Your Emotions",
   description:
     "A quiet, charitable exploration at the edge of feeling, memory and meaning. A companion that notices — without surveillance or ads.",
@@ -16,13 +28,17 @@ export const metadata = {
     "mental health",
     "empathy",
   ],
-  metadataBase: new URL("https://imotara.com"),
+  authors: [{ name: "Soumen Roy", url: "https://soumenroy.com" }],
+  category: "AI Companion",
+  applicationName: "Imotara",
+  manifest: "/site.webmanifest",
   openGraph: {
+    type: "website",
+    url: siteUrl,
+    siteName: "Imotara",
     title: "Imotara — An Immortal Friend for Your Emotions",
     description:
       "A companion that listens, remembers, and grows with your emotions — quietly, ethically, and forever.",
-    url: "https://imotara.com",
-    siteName: "Imotara",
     images: [
       {
         url: "/og-image.png",
@@ -32,7 +48,6 @@ export const metadata = {
       },
     ],
     locale: "en_US",
-    type: "website",
   },
   twitter: {
     card: "summary_large_image",
@@ -47,9 +62,37 @@ export const metadata = {
     shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
-  authors: [{ name: "Soumen Roy", url: "https://soumenroy.com" }],
-  category: "AI Companion",
+  alternates: {
+    canonical: siteUrl,
+  },
 };
+
+function JsonLd() {
+  const site = siteUrl;
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    url: site,
+    name: "Imotara",
+    description: "An immortal friend for your emotions.",
+    publisher: {
+      "@type": "Organization",
+      name: "Imotara",
+      url: site,
+      logo: {
+        "@type": "ImageObject",
+        url: `${site}/og-image.png`,
+      },
+    },
+    inLanguage: "en",
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  );
+}
 
 export default function RootLayout({
   children,
@@ -59,53 +102,16 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-zinc-50 dark:bg-black">
       <body
-        className={`${inter.className} flex flex-col min-h-screen text-zinc-800 dark:text-zinc-100`}
+        className={`${inter.className} flex min-h-screen flex-col text-zinc-900 dark:text-zinc-100`}
       >
-        {/* Header */}
-        <header className="sticky top-0 z-50 flex items-center justify-between border-b border-zinc-200 bg-white/70 px-8 py-5 backdrop-blur dark:border-zinc-800 dark:bg-black/50">
-          <a
-            href="/"
-            className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100"
-          >
-            imotara<span className="text-indigo-500">★</span>
-          </a>
-          <nav className="flex gap-6 text-sm text-zinc-600 dark:text-zinc-400">
-            <a
-              href="/"
-              className="hover:text-indigo-500 transition-colors duration-200"
-            >
-              Home
-            </a>
-            <a
-              href="/about"
-              className="hover:text-indigo-500 transition-colors duration-200"
-            >
-              About
-            </a>
-            <a
-              href="/connect"
-              className="hover:text-indigo-500 transition-colors duration-200"
-            >
-              Connect
-            </a>
-            <a
-              href="/chat"
-              className="hover:text-indigo-500 transition-colors duration-200"
-            >
-              Chat
-            </a>
-          </nav>
-        </header>
+        <SiteHeader />
 
-        {/* Page Content */}
-        <main className="flex-1 flex flex-col items-center justify-center px-8 py-16">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
           {children}
         </main>
 
-        {/* Footer */}
-        <footer className="border-t border-zinc-200 py-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-600">
-          © {new Date().getFullYear()} Imotara. All rights reserved.
-        </footer>
+        <JsonLd />
+        <SiteFooter />
       </body>
     </html>
   );

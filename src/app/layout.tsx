@@ -61,10 +61,14 @@ export default function RootLayout({
       <body
         className={`${inter.className} flex flex-col min-h-screen text-zinc-800 dark:text-zinc-100`}
       >
-        <header className="flex justify-between items-center px-8 py-6 border-b border-zinc-200 dark:border-zinc-800">
-          <h1 className="text-2xl font-semibold tracking-tight">
+        {/* Header */}
+        <header className="sticky top-0 z-50 flex items-center justify-between border-b border-zinc-200 bg-white/70 px-8 py-5 backdrop-blur dark:border-zinc-800 dark:bg-black/50">
+          <a
+            href="/"
+            className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100"
+          >
             imotara<span className="text-indigo-500">★</span>
-          </h1>
+          </a>
           <nav className="flex gap-6 text-sm text-zinc-600 dark:text-zinc-400">
             <a
               href="/"
@@ -84,14 +88,22 @@ export default function RootLayout({
             >
               Connect
             </a>
+            <a
+              href="/chat"
+              className="hover:text-indigo-500 transition-colors duration-200"
+            >
+              Chat
+            </a>
           </nav>
         </header>
 
+        {/* Page Content */}
         <main className="flex-1 flex flex-col items-center justify-center px-8 py-16">
           {children}
         </main>
 
-        <footer className="text-center py-6 text-sm text-zinc-500 dark:text-zinc-600 border-t border-zinc-200 dark:border-zinc-800">
+        {/* Footer */}
+        <footer className="border-t border-zinc-200 py-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-600">
           © {new Date().getFullYear()} Imotara. All rights reserved.
         </footer>
       </body>

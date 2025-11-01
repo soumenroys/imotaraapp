@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MessageSquare, Plus, Send, Trash2, Download, Eraser } from 'lucide-react';
+import MoodSummaryCard from '@/components/imotara/MoodSummaryCard';
+import type { AppMessage } from '@/lib/imotara/useAnalysis';
 
 type Role = 'user' | 'assistant' | 'system';
 type Message = { id: string; role: Role; content: string; createdAt: number };
@@ -14,6 +16,11 @@ function uid() {
 }
 function prettyDate(ts: number) {
   return new Date(ts).toLocaleString();
+}
+
+// Narrow Message → AppMessage by excluding 'system'
+function isAppMessage(m: Message): m is AppMessage {
+  return m.role === 'user' || m.role === 'assistant';
 }
 
 export default function ChatPage() {
@@ -29,8 +36,10 @@ export default function ChatPage() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as { threads: Thread[]; activeId?: string | null };
-        setThreads(parsed.threads ?? []);
-        setActiveId(parsed.activeId ?? parsed.threads?.[0]?.id ?? null);
+        const initialThreads = parsed.threads ?? [];
+        setThreads(initialThreads);
+        // set the active id to stored value or fallback to first thread
+        setActiveId(parsed.activeId ?? initialThreads[0]?.id ?? null);
       } else {
         const seed: Thread = {
           id: uid(),
@@ -54,6 +63,14 @@ export default function ChatPage() {
     }
   }, []);
 
+  // Auto-recover if activeId points to a non-existent thread
+  useEffect(() => {
+    const found = threads.find((t) => t.id === activeId);
+    if (!found && threads.length > 0) {
+      setActiveId(threads[0].id);
+    }
+  }, [threads, activeId]);
+
   // Save to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ threads, activeId }));
@@ -64,11 +81,17 @@ export default function ChatPage() {
     [threads, activeId]
   );
 
+  // Messages prepared for analysis (exclude 'system')
+  const appMessages: AppMessage[] = useMemo(() => {
+    const msgs = activeThread?.messages ?? [];
+    return msgs.filter(isAppMessage);
+  }, [activeThread?.messages]);
+
   // Auto-scroll when messages change
   useEffect(() => {
     if (!listRef.current) return;
     listRef.current.scrollTop = listRef.current.scrollHeight;
-  }, [activeThread?.messages.length]);
+  }, [activeThread?.messages?.length]);
 
   // Auto-size composer
   useEffect(() => {
@@ -257,7 +280,7 @@ export default function ChatPage() {
             </button>
             <button
               onClick={newThread}
-              className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              className="inline-flex items-center gap-1 rounded-2xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
               <Plus className="h-4 w-4" /> New
             </button>
@@ -269,6 +292,8 @@ export default function ChatPage() {
             <EmptyState />
           ) : (
             <div className="mx-auto max-w-3xl space-y-4">
+              {/* Mood summary for the last 10 messages (system messages excluded) */}
+              <MoodSummaryCard messages={appMessages} windowSize={10} mode="local" />
               {activeThread.messages.map((m) => (
                 <Bubble key={m.id} role={m.role} content={m.content} time={m.createdAt} />
               ))}

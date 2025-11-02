@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { MessageSquare, Plus, Send, Trash2, Download, Eraser } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { MessageSquare, Plus, Send, Trash2, Download, Eraser, RefreshCw } from 'lucide-react';
 import MoodSummaryCard from '@/components/imotara/MoodSummaryCard';
 import type { AppMessage } from '@/lib/imotara/useAnalysis';
+import { syncHistory } from '@/lib/imotara/syncHistory';
+import ConflictReviewButton from '@/components/imotara/ConflictReviewButton';
 
 type Role = 'user' | 'assistant' | 'system';
 type Message = { id: string; role: Role; content: string; createdAt: number };
@@ -18,62 +20,93 @@ function prettyDate(ts: number) {
   return new Date(ts).toLocaleString();
 }
 
-// Narrow Message → AppMessage by excluding 'system'
 function isAppMessage(m: Message): m is AppMessage {
   return m.role === 'user' || m.role === 'assistant';
 }
 
+async function fetchRemoteHistory(): Promise<unknown[]> {
+  try {
+    const res = await fetch('/api/history', { method: 'GET' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (Array.isArray(data)) return data;
+    if (Array.isArray((data as any)?.items)) return (data as any).items;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+async function persistMergedHistory(merged: unknown): Promise<void> {
+  try {
+    const mod: any = await import('@/lib/imotara/history');
+    if (typeof mod.setHistory === 'function') {
+      await mod.setHistory(merged);
+      return;
+    }
+    if (typeof mod.saveLocalHistory === 'function') {
+      await mod.saveLocalHistory(merged);
+      return;
+    }
+    if (typeof mod.saveHistory === 'function') {
+      await mod.saveHistory(merged);
+      return;
+    }
+  } catch {
+    // ignore
+  }
+}
+
 export default function ChatPage() {
-  const [threads, setThreads] = useState<Thread[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  // --- Initial load ---
+  const [{ initialThreads, initialActiveId }] = useState(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw) as { threads: Thread[]; activeId?: string | null };
+        const t = Array.isArray(parsed.threads) ? parsed.threads : [];
+        const a = parsed.activeId ?? (t[0]?.id ?? null);
+        return { initialThreads: t, initialActiveId: a };
+      }
+    } catch {}
+    const seed: Thread = {
+      id: uid(),
+      title: 'First conversation',
+      createdAt: Date.now(),
+      messages: [
+        {
+          id: uid(),
+          role: 'assistant',
+          content:
+            "Hi, I'm Imotara — a quiet companion. This is a local-only demo (no backend). Try sending me a message!",
+          createdAt: Date.now(),
+        },
+      ],
+    };
+    return { initialThreads: [seed], initialActiveId: seed.id };
+  });
+
+  const [threads, setThreads] = useState<Thread[]>(initialThreads);
+  const [activeId, setActiveId] = useState<string | null>(initialActiveId);
   const [draft, setDraft] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load from localStorage (once)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { threads: Thread[]; activeId?: string | null };
-        const initialThreads = parsed.threads ?? [];
-        setThreads(initialThreads);
-        // set the active id to stored value or fallback to first thread
-        setActiveId(parsed.activeId ?? initialThreads[0]?.id ?? null);
-      } else {
-        const seed: Thread = {
-          id: uid(),
-          title: 'First conversation',
-          createdAt: Date.now(),
-          messages: [
-            {
-              id: uid(),
-              role: 'assistant',
-              content:
-                "Hi, I'm Imotara — a quiet companion. This is a local-only demo (no backend). Try sending me a message!",
-              createdAt: Date.now(),
-            },
-          ],
-        };
-        setThreads([seed]);
-        setActiveId(seed.id);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+  // --- Sync state ---
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+  const [syncedCount, setSyncedCount] = useState<number | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
-  // Auto-recover if activeId points to a non-existent thread
   useEffect(() => {
     const found = threads.find((t) => t.id === activeId);
-    if (!found && threads.length > 0) {
-      setActiveId(threads[0].id);
-    }
+    if (!found && threads.length > 0) setActiveId(threads[0].id);
   }, [threads, activeId]);
 
-  // Save to localStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ threads, activeId }));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ threads, activeId }));
+    } catch {}
   }, [threads, activeId]);
 
   const activeThread = useMemo(
@@ -81,25 +114,41 @@ export default function ChatPage() {
     [threads, activeId]
   );
 
-  // Messages prepared for analysis (exclude 'system')
   const appMessages: AppMessage[] = useMemo(() => {
     const msgs = activeThread?.messages ?? [];
     return msgs.filter(isAppMessage);
   }, [activeThread?.messages]);
 
-  // Auto-scroll when messages change
   useEffect(() => {
-    if (!listRef.current) return;
-    listRef.current.scrollTop = listRef.current.scrollHeight;
+    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [activeThread?.messages?.length]);
 
-  // Auto-size composer
   useEffect(() => {
     const el = composerRef.current;
     if (!el) return;
     el.style.height = '0px';
     el.style.height = Math.min(200, el.scrollHeight) + 'px';
   }, [draft]);
+
+  const runSync = useCallback(async () => {
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const remoteRaw = await fetchRemoteHistory();
+      const merged = await syncHistory(remoteRaw);
+      await persistMergedHistory(merged);
+      setSyncedCount(Array.isArray(merged) ? merged.length : null);
+      setLastSyncAt(Date.now());
+    } catch (e: any) {
+      setSyncError(e?.message ?? 'Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') void runSync();
+  }, [runSync]);
 
   function newThread() {
     const t: Thread = { id: uid(), title: 'New conversation', createdAt: Date.now(), messages: [] };
@@ -108,7 +157,6 @@ export default function ChatPage() {
     setDraft('');
     setTimeout(() => composerRef.current?.focus(), 0);
   }
-
   function deleteThread(id: string) {
     setThreads((prev) => prev.filter((t) => t.id !== id));
     if (activeId === id) {
@@ -119,12 +167,22 @@ export default function ChatPage() {
 
   function renameActive(title: string) {
     if (!activeThread) return;
-    setThreads((prev) => prev.map((t) => (t.id === activeThread.id ? { ...t, title } : t)));
+    setThreads((prev) =>
+      prev.map((t) => (t.id === activeThread.id ? { ...t, title } : t))
+    );
   }
 
   function sendMessage() {
     const text = draft.trim();
-    if (!text || !activeThread) return;
+    if (!text) return;
+
+    let targetId = activeId;
+    if (!targetId) {
+      const t: Thread = { id: uid(), title: 'New conversation', createdAt: Date.now(), messages: [] };
+      setThreads((prev) => [t, ...prev]);
+      setActiveId(t.id);
+      targetId = t.id;
+    }
 
     const userMsg: Message = { id: uid(), role: 'user', content: text, createdAt: Date.now() };
     const assistantMsg: Message = {
@@ -137,7 +195,7 @@ export default function ChatPage() {
 
     setThreads((prev) =>
       prev.map((t) =>
-        t.id === activeThread.id
+        t.id === targetId
           ? {
               ...t,
               title:
@@ -160,18 +218,16 @@ export default function ChatPage() {
     }
   }
 
-  // --- NEW FEATURES ---
-
-  /** Clear messages in the current thread */
   function clearChat() {
     if (!activeThread) return;
     if (!confirm('Clear all messages in this conversation?')) return;
     setThreads((prev) =>
-      prev.map((t) => (t.id === activeThread.id ? { ...t, messages: [] } : t))
+      prev.map((t) =>
+        t.id === activeThread.id ? { ...t, messages: [] } : t
+      )
     );
   }
 
-  /** Download all chats as JSON */
   function exportJSON() {
     const blob = new Blob([JSON.stringify({ threads }, null, 2)], {
       type: 'application/json',
@@ -262,8 +318,27 @@ export default function ChatPage() {
             <h1 className="truncate text-base font-semibold">{activeThread?.title ?? 'Conversation'}</h1>
           </div>
 
-          {/* NEW header buttons */}
+          {/* Header buttons incl. Sync + Conflict Review */}
           <div className="flex items-center gap-2">
+            <div className="hidden text-xs text-zinc-500 sm:block">
+              {syncing
+                ? 'Syncing…'
+                : lastSyncAt
+                ? `Synced ${syncedCount ?? 0} · ${prettyDate(lastSyncAt)}`
+                : 'Not synced yet'}
+              {syncError ? ` · ${syncError}` : ''}
+            </div>
+            <button
+              onClick={runSync}
+              disabled={syncing}
+              className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              title="Sync local ↔ remote history"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} /> Sync Now
+            </button>
+
+            <ConflictReviewButton />
+
             <button
               onClick={clearChat}
               className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
@@ -292,7 +367,6 @@ export default function ChatPage() {
             <EmptyState />
           ) : (
             <div className="mx-auto max-w-3xl space-y-4">
-              {/* Mood summary for the last 10 messages (system messages excluded) */}
               <MoodSummaryCard messages={appMessages} windowSize={10} mode="local" />
               {activeThread.messages.map((m) => (
                 <Bubble key={m.id} role={m.role} content={m.content} time={m.createdAt} />
@@ -312,9 +386,10 @@ export default function ChatPage() {
               rows={1}
               className="max-h-[200px] flex-1 resize-none rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-600"
             />
+            {/* Send button — active thread is guaranteed; auto-create if missing */}
             <button
               onClick={sendMessage}
-              disabled={!draft.trim() || !activeThread}
+              disabled={!draft.trim()}
               className="inline-flex h-11 items-center gap-2 rounded-2xl border border-zinc-300 px-4 text-sm font-medium hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
               <Send className="h-4 w-4" /> Send

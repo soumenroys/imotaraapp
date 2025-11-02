@@ -1,8 +1,10 @@
+// src/app/layout.tsx
 import "./globals.css";
 import { Inter } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import { SyncStatusBar } from "@/components/imotara/SyncStatus"; // ✅ added for auto-sync UI
 
 const inter = Inter({ subsets: ["latin"] });
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -109,6 +111,9 @@ export default function RootLayout({
         <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
           {children}
         </main>
+
+        {/* ✅ Added: persistent sync status indicator for Step 13.3-E */}
+        <SyncStatusBar />
 
         <JsonLd />
         <SiteFooter />

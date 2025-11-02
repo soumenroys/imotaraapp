@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { SyncStatusBar } from "@/components/imotara/SyncStatus"; // ✅ added for auto-sync UI
+import SyncStatusBar from "@/components/imotara/SyncStatusBar";
 
 const inter = Inter({ subsets: ["latin"] });
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -102,7 +102,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="bg-zinc-50 dark:bg-black">
+    <html lang="en" className="bg-zinc-50 dark:bg-black" suppressHydrationWarning>
       <body
         className={`${inter.className} flex min-h-screen flex-col text-zinc-900 dark:text-zinc-100`}
       >
@@ -112,7 +112,7 @@ export default function RootLayout({
           {children}
         </main>
 
-        {/* ✅ Added: persistent sync status indicator for Step 13.3-E */}
+        {/* ✅ Global sync bar */}
         <SyncStatusBar />
 
         <JsonLd />

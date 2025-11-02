@@ -16,8 +16,24 @@ const STORAGE_KEY = 'imotara.chat.v1';
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
-function prettyDate(ts: number) {
-  return new Date(ts).toLocaleString();
+
+/** Client-only date text to avoid SSR/client locale & TZ mismatches */
+function DateText({ ts }: { ts: number }) {
+  const [text, setText] = useState<string>('');
+  useEffect(() => {
+    const fmt = new Intl.DateTimeFormat('en-GB', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      timeZone: 'UTC',
+    });
+    setText(fmt.format(new Date(ts)));
+  }, [ts]);
+  return <span suppressHydrationWarning>{text || ''}</span>;
 }
 
 function isAppMessage(m: Message): m is AppMessage {
@@ -40,25 +56,18 @@ async function fetchRemoteHistory(): Promise<unknown[]> {
 async function persistMergedHistory(merged: unknown): Promise<void> {
   try {
     const mod: any = await import('@/lib/imotara/history');
-    if (typeof mod.setHistory === 'function') {
-      await mod.setHistory(merged);
-      return;
-    }
-    if (typeof mod.saveLocalHistory === 'function') {
-      await mod.saveLocalHistory(merged);
-      return;
-    }
-    if (typeof mod.saveHistory === 'function') {
-      await mod.saveHistory(merged);
-      return;
-    }
-  } catch {
-    // ignore
-  }
+    if (typeof mod.setHistory === 'function') { await mod.setHistory(merged); return; }
+    if (typeof mod.saveLocalHistory === 'function') { await mod.saveLocalHistory(merged); return; }
+    if (typeof mod.saveHistory === 'function') { await mod.saveHistory(merged); return; }
+  } catch { /* ignore */ }
 }
 
 export default function ChatPage() {
-  // --- Initial load ---
+  // 1) Mount gate to avoid SSR/client mismatches for any localStorage-driven UI
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  // 2) Sync, threads, activeId are initialized *deterministically* but we won't render them until mounted
   const [{ initialThreads, initialActiveId }] = useState(() => {
     try {
       const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
@@ -69,19 +78,17 @@ export default function ChatPage() {
         return { initialThreads: t, initialActiveId: a };
       }
     } catch {}
+    // seed if nothing in storage
     const seed: Thread = {
       id: uid(),
       title: 'First conversation',
       createdAt: Date.now(),
-      messages: [
-        {
-          id: uid(),
-          role: 'assistant',
-          content:
-            "Hi, I'm Imotara — a quiet companion. This is a local-only demo (no backend). Try sending me a message!",
-          createdAt: Date.now(),
-        },
-      ],
+      messages: [{
+        id: uid(),
+        role: 'assistant',
+        content: "Hi, I'm Imotara — a quiet companion. This is a local-only demo (no backend). Try sending me a message!",
+        createdAt: Date.now(),
+      }],
     };
     return { initialThreads: [seed], initialActiveId: seed.id };
   });
@@ -98,16 +105,18 @@ export default function ChatPage() {
   const [syncedCount, setSyncedCount] = useState<number | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
+  // Keep activeId valid (runs on client after mount)
   useEffect(() => {
+    if (!mounted) return;
     const found = threads.find((t) => t.id === activeId);
     if (!found && threads.length > 0) setActiveId(threads[0].id);
-  }, [threads, activeId]);
+  }, [mounted, threads, activeId]);
 
+  // Persist to localStorage (client only)
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ threads, activeId }));
-    } catch {}
-  }, [threads, activeId]);
+    if (!mounted) return;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ threads, activeId })); } catch {}
+  }, [mounted, threads, activeId]);
 
   const activeThread = useMemo(
     () => threads.find((t) => t.id === activeId) ?? null,
@@ -119,17 +128,22 @@ export default function ChatPage() {
     return msgs.filter(isAppMessage);
   }, [activeThread?.messages]);
 
+  // Scroll to bottom when messages change (client only)
   useEffect(() => {
+    if (!mounted) return;
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-  }, [activeThread?.messages?.length]);
+  }, [mounted, activeThread?.messages?.length]);
 
+  // Auto-size composer (client only)
   useEffect(() => {
+    if (!mounted) return;
     const el = composerRef.current;
     if (!el) return;
     el.style.height = '0px';
     el.style.height = Math.min(200, el.scrollHeight) + 'px';
-  }, [draft]);
+  }, [mounted, draft]);
 
+  // Initial sync (client only)
   const runSync = useCallback(async () => {
     setSyncing(true);
     setSyncError(null);
@@ -146,9 +160,7 @@ export default function ChatPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') void runSync();
-  }, [runSync]);
+  useEffect(() => { if (mounted) void runSync(); }, [mounted, runSync]);
 
   function newThread() {
     const t: Thread = { id: uid(), title: 'New conversation', createdAt: Date.now(), messages: [] };
@@ -157,6 +169,7 @@ export default function ChatPage() {
     setDraft('');
     setTimeout(() => composerRef.current?.focus(), 0);
   }
+
   function deleteThread(id: string) {
     setThreads((prev) => prev.filter((t) => t.id !== id));
     if (activeId === id) {
@@ -167,9 +180,7 @@ export default function ChatPage() {
 
   function renameActive(title: string) {
     if (!activeThread) return;
-    setThreads((prev) =>
-      prev.map((t) => (t.id === activeThread.id ? { ...t, title } : t))
-    );
+    setThreads((prev) => prev.map((t) => (t.id === activeThread.id ? { ...t, title } : t)));
   }
 
   function sendMessage() {
@@ -188,8 +199,7 @@ export default function ChatPage() {
     const assistantMsg: Message = {
       id: uid(),
       role: 'assistant',
-      content:
-        "I hear you. In the real app, I'd respond with empathy and context. For now, this is a local preview 😊",
+      content: "I hear you. In the real app, I'd respond with empathy and context. For now, this is a local preview 😊",
       createdAt: Date.now() + 1,
     };
 
@@ -198,10 +208,7 @@ export default function ChatPage() {
         t.id === targetId
           ? {
               ...t,
-              title:
-                t.messages.length === 0
-                  ? text.slice(0, 40) + (text.length > 40 ? '…' : '')
-                  : t.title,
+              title: t.messages.length === 0 ? text.slice(0, 40) + (text.length > 40 ? '…' : '') : t.title,
               messages: [...t.messages, userMsg, assistantMsg],
             }
           : t
@@ -212,32 +219,21 @@ export default function ChatPage() {
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   }
 
   function clearChat() {
     if (!activeThread) return;
     if (!confirm('Clear all messages in this conversation?')) return;
-    setThreads((prev) =>
-      prev.map((t) =>
-        t.id === activeThread.id ? { ...t, messages: [] } : t
-      )
-    );
+    setThreads((prev) => prev.map((t) => (t.id === activeThread.id ? { ...t, messages: [] } : t)));
   }
 
   function exportJSON() {
-    const blob = new Blob([JSON.stringify({ threads }, null, 2)], {
-      type: 'application/json',
-    });
+    const blob = new Blob([JSON.stringify({ threads }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
+    const a = document.createElement('a'); a.href = url;
     a.download = `imotara_chat_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    a.click(); URL.revokeObjectURL(url);
   }
 
   return (
@@ -256,57 +252,57 @@ export default function ChatPage() {
         </div>
 
         <div className="flex-1 space-y-1 overflow-auto pr-1">
-          {threads.length === 0 && (
+          {!mounted ? (
+            // Skeleton during SSR to avoid mismatches
+            <div className="select-none rounded-lg border border-dashed border-zinc-200 p-4 text-sm text-zinc-500 dark:border-zinc-800" suppressHydrationWarning>
+              Loading…
+            </div>
+          ) : threads.length === 0 ? (
             <div className="select-none rounded-lg border border-dashed border-zinc-200 p-4 text-sm text-zinc-500 dark:border-zinc-800">
               No conversations yet. Create one.
             </div>
-          )}
-          {threads.map((t) => {
-            const isActive = t.id === activeId;
-            return (
-              <div
-                key={t.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setActiveId(t.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setActiveId(t.id);
-                  }
-                }}
-                className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left ${
-                  isActive ? 'bg-zinc-100 dark:bg-zinc-800' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                }`}
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4 shrink-0 opacity-70" />
-                    <input
-                      className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-400 ${
-                        isActive ? 'font-medium' : ''
-                      }`}
-                      value={t.id === activeId ? (activeThread?.title ?? '') : t.title}
-                      onChange={(e) => t.id === activeId && renameActive(e.target.value)}
-                      placeholder="Untitled"
-                    />
-                  </div>
-                  <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{prettyDate(t.createdAt)}</p>
-                </div>
-                <button
-                  className="ml-2 hidden rounded-lg p-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 group-hover:block"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteThread(t.id);
+          ) : (
+            threads.map((t) => {
+              const isActive = t.id === activeId;
+              return (
+                <div
+                  key={t.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setActiveId(t.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveId(t.id); }
                   }}
-                  aria-label="Delete"
-                  title="Delete"
+                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left ${
+                    isActive ? 'bg-zinc-100 dark:bg-zinc-800' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  }`}
                 >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            );
-          })}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 shrink-0 opacity-70" />
+                      <input
+                        className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-400 ${isActive ? 'font-medium' : ''}`}
+                        value={t.id === activeId ? (activeThread?.title ?? '') : t.title}
+                        onChange={(e) => t.id === activeId && renameActive(e.target.value)}
+                        placeholder="Untitled"
+                      />
+                    </div>
+                    <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">
+                      <DateText ts={t.createdAt} />
+                    </p>
+                  </div>
+                  <button
+                    className="ml-2 hidden rounded-lg p-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 group-hover:block"
+                    onClick={(e) => { e.stopPropagation(); deleteThread(t.id); }}
+                    aria-label="Delete"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })
+          )}
         </div>
       </aside>
 
@@ -315,17 +311,15 @@ export default function ChatPage() {
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white/70 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/50">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5 opacity-70" />
-            <h1 className="truncate text-base font-semibold">{activeThread?.title ?? 'Conversation'}</h1>
+            <h1 className="truncate text-base font-semibold">
+              {/* Avoid SSR/client mismatch by delaying title to client */}
+              <span suppressHydrationWarning>{mounted ? (activeThread?.title ?? 'Conversation') : ''}</span>
+            </h1>
           </div>
 
-          {/* Header buttons incl. Sync + Conflict Review */}
           <div className="flex items-center gap-2">
             <div className="hidden text-xs text-zinc-500 sm:block">
-              {syncing
-                ? 'Syncing…'
-                : lastSyncAt
-                ? `Synced ${syncedCount ?? 0} · ${prettyDate(lastSyncAt)}`
-                : 'Not synced yet'}
+              {syncing ? 'Syncing…' : lastSyncAt ? `Synced ${syncedCount ?? 0}` : 'Not synced yet'}
               {syncError ? ` · ${syncError}` : ''}
             </div>
             <button
@@ -363,7 +357,13 @@ export default function ChatPage() {
         </header>
 
         <div ref={listRef} className="flex-1 overflow-auto px-4 py-4 sm:px-6">
-          {!activeThread || activeThread.messages.length === 0 ? (
+          {!mounted ? (
+            <div className="mx-auto max-w-3xl">
+              <div className="mt-8 rounded-2xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700" suppressHydrationWarning>
+                Loading…
+              </div>
+            </div>
+          ) : !activeThread || activeThread.messages.length === 0 ? (
             <EmptyState />
           ) : (
             <div className="mx-auto max-w-3xl space-y-4">
@@ -420,18 +420,13 @@ function Bubble({ role, content, time }: { role: Role; content: string; time: nu
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
         className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[75%] ${
-          isUser
-            ? 'bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900'
-            : 'bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100'
+          isUser ? 'bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900'
+                 : 'bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100'
         }`}
       >
         <div className="whitespace-pre-wrap">{content}</div>
-        <div
-          className={`mt-1 text-[11px] ${
-            isUser ? 'text-zinc-300 dark:text-zinc-500' : 'text-zinc-500'
-          }`}
-        >
-          {prettyDate(time)} · {isUser ? 'You' : role === 'assistant' ? 'Imotara' : 'System'}
+        <div className={`mt-1 text-[11px] ${isUser ? 'text-zinc-300 dark:text-zinc-500' : 'text-zinc-500'}`}>
+          <DateText ts={time} /> · {isUser ? 'You' : role === 'assistant' ? 'Imotara' : 'System'}
         </div>
       </div>
     </div>

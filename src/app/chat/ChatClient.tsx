@@ -1,129 +1,213 @@
-'use client';
+// src/app/chat/ChatClient.tsx
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { MessageSquare, Plus, Send, Trash2 } from 'lucide-react';
-import { useImotaraEngine } from '@/hooks/useImotara';
-import EmotionTags from '@/components/imotara/EmotionTags';
-import ToneReflection from '@/components/imotara/ToneReflection';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MessageSquare, Plus, Send, Trash2, Download, Eraser, RefreshCw } from "lucide-react";
+import MoodSummaryCard from "@/components/imotara/MoodSummaryCard";
+import type { AppMessage } from "@/lib/imotara/useAnalysis";
+import { syncHistory } from "@/lib/imotara/syncHistory";
+import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
 
-/* ────────────────────────────────────────────────────────────
-   Types
-────────────────────────────────────────────────────────────── */
-
-type Role = 'user' | 'assistant' | 'system';
-
-type MessageMeta = {
-  sentiment?: 'positive' | 'neutral' | 'negative';
-  emotions?: string[];
-  tones?: string[];
-  confidence?: number;
-  reflection?: string; // short, generated line
-};
-
-type Message = { id: string; role: Role; content: string; createdAt: number; meta?: MessageMeta };
+type Role = "user" | "assistant" | "system";
+type Message = { id: string; role: Role; content: string; createdAt: number; meta?: unknown };
 type Thread = { id: string; title: string; createdAt: number; messages: Message[] };
 
-/* ────────────────────────────────────────────────────────────
-   Consts & helpers
-────────────────────────────────────────────────────────────── */
-
-// bumped version to avoid conflicts with older structure if any
-const STORAGE_KEY = 'imotara.chat.v2';
-const TOGGLE_KEY = 'imotara.analysis.enabled';
+const STORAGE_KEY = "imotara.chat.v1";
 
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
-function prettyDate(ts: number) {
-  return new Date(ts).toLocaleString();
-}
-function cn(...parts: Array<string | false | null | undefined>) {
-  return parts.filter(Boolean).join(' ');
+
+// Narrow Message → AppMessage by excluding 'system'
+function isAppMessage(m: Message): m is AppMessage {
+  return m.role === "user" || m.role === "assistant";
 }
 
-/* ────────────────────────────────────────────────────────────
-   Component
-────────────────────────────────────────────────────────────── */
+/** Client-only date text to avoid SSR/client locale & TZ mismatches (pure via useMemo) */
+function DateText({ ts }: { ts: number }) {
+  const text = useMemo(() => {
+    try {
+      const fmt = new Intl.DateTimeFormat("en-GB", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+        timeZone: "UTC",
+      });
+      return fmt.format(new Date(ts));
+    } catch {
+      return "";
+    }
+  }, [ts]);
+  return <span suppressHydrationWarning>{text}</span>;
+}
+
+async function fetchRemoteHistory(): Promise<unknown[]> {
+  try {
+    const res = await fetch("/api/history", { method: "GET" });
+    if (!res.ok) return [];
+    const data: unknown = await res.json();
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === "object" && Array.isArray((data as { items?: unknown[] }).items)) {
+      return (data as { items: unknown[] }).items;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+async function persistMergedHistory(merged: unknown): Promise<void> {
+  try {
+    const mod: Record<string, unknown> = await import("@/lib/imotara/history");
+    const setHistory = mod.setHistory as ((items: unknown) => Promise<void> | void) | undefined;
+    const saveLocalHistory = mod.saveLocalHistory as
+      | ((items: unknown) => Promise<void> | void)
+      | undefined;
+    const saveHistory = mod.saveHistory as
+      | ((items: unknown) => Promise<void> | void)
+      | undefined;
+
+    if (typeof setHistory === "function") {
+      await setHistory(merged);
+      return;
+    }
+    if (typeof saveLocalHistory === "function") {
+      await saveLocalHistory(merged);
+      return;
+    }
+    if (typeof saveHistory === "function") {
+      await saveHistory(merged);
+      return;
+    }
+  } catch {
+    // ignore
+  }
+}
 
 export default function ChatClient() {
-  const { enrich } = useImotaraEngine();
+  // Mount flag for any client-only UI decisions (no SSR mismatch)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const [threads, setThreads] = useState<Thread[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
-  const [analysisEnabled, setAnalysisEnabled] = useState<boolean>(true);
+  // Initialize threads/activeId deterministically from localStorage (no setState in effect)
+  const [{ initialThreads, initialActiveId }] = useState(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw) as { threads: Thread[]; activeId?: string | null };
+        const t = Array.isArray(parsed.threads) ? parsed.threads : [];
+        const a = parsed.activeId ?? (t[0]?.id ?? null);
+        return { initialThreads: t, initialActiveId: a };
+      }
+    } catch {
+      // ignore
+    }
+    // seed if nothing in storage
+    const seed: Thread = {
+      id: uid(),
+      title: "First conversation",
+      createdAt: Date.now(),
+      messages: [
+        {
+          id: uid(),
+          role: "assistant",
+          content:
+            "Hi, I'm Imotara — a quiet companion. This is a local-only demo (no backend). Try sending me a message!",
+          createdAt: Date.now(),
+        },
+      ],
+    };
+    return { initialThreads: [seed], initialActiveId: seed.id };
+  });
 
+  const [threads, setThreads] = useState<Thread[]>(initialThreads);
+  const [activeId, setActiveId] = useState<string | null>(initialActiveId);
+  const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load from localStorage (once)
+  // --- Sync state ---
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+  const [syncedCount, setSyncedCount] = useState<number | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Keep activeId valid (runs on client after mount)
   useEffect(() => {
+    if (!mounted) return;
+    const found = threads.find((t) => t.id === activeId);
+    if (!found && threads.length > 0) setActiveId(threads[0].id);
+  }, [mounted, threads, activeId]);
+
+  // Persist to localStorage (client only)
+  useEffect(() => {
+    if (!mounted) return;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { threads: Thread[]; activeId?: string | null };
-        setThreads(parsed.threads ?? []);
-        setActiveId(parsed.activeId ?? parsed.threads?.[0]?.id ?? null);
-      } else {
-        const seed: Thread = {
-          id: uid(),
-          title: 'First conversation',
-          createdAt: Date.now(),
-          messages: [
-            {
-              id: uid(),
-              role: 'assistant',
-              content:
-                "Hi, I'm Imotara — a quiet companion. This is a local-only demo (no backend). Try sending me a message!",
-              createdAt: Date.now(),
-            },
-          ],
-        };
-        setThreads([seed]);
-        setActiveId(seed.id);
-      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ threads, activeId }));
     } catch {
-      /* ignore */
+      // ignore
     }
-
-    const rawToggle = localStorage.getItem(TOGGLE_KEY);
-    if (rawToggle != null) setAnalysisEnabled(rawToggle === 'true');
-  }, []);
-
-  // Save threads to localStorage
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ threads, activeId }));
-  }, [threads, activeId]);
-
-  // Save toggle to localStorage
-  useEffect(() => {
-    localStorage.setItem(TOGGLE_KEY, String(analysisEnabled));
-  }, [analysisEnabled]);
+  }, [mounted, threads, activeId]);
 
   const activeThread = useMemo(
     () => threads.find((t) => t.id === activeId) ?? null,
     [threads, activeId]
   );
 
-  // Auto-scroll when messages change
-  useEffect(() => {
-    if (!listRef.current) return;
-    listRef.current.scrollTop = listRef.current.scrollHeight;
-  }, [activeThread?.messages.length]);
+  // Messages prepared for analysis (exclude 'system')
+  const appMessages: AppMessage[] = useMemo(() => {
+    const msgs = activeThread?.messages ?? [];
+    return msgs.filter(isAppMessage);
+  }, [activeThread?.messages]);
 
-  // Auto-size composer
+  // Scroll to bottom when messages change (client only)
   useEffect(() => {
+    if (!mounted) return;
+    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [mounted, activeThread?.messages?.length]);
+
+  // Auto-size composer (client only)
+  useEffect(() => {
+    if (!mounted) return;
     const el = composerRef.current;
     if (!el) return;
-    el.style.height = '0px';
-    el.style.height = Math.min(200, el.scrollHeight) + 'px';
-  }, [draft]);
+    el.style.height = "0px";
+    el.style.height = Math.min(200, el.scrollHeight) + "px";
+  }, [mounted, draft]);
+
+  // Initial sync (client only)
+  const runSync = useCallback(async () => {
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const remoteRaw = await fetchRemoteHistory();
+      const merged = await syncHistory(remoteRaw);
+      await persistMergedHistory(merged);
+      setSyncedCount(Array.isArray(merged) ? merged.length : null);
+      setLastSyncAt(Date.now());
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Sync failed";
+      setSyncError(msg);
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mounted) void runSync();
+  }, [mounted, runSync]);
 
   function newThread() {
-    const t: Thread = { id: uid(), title: 'New conversation', createdAt: Date.now(), messages: [] };
+    const t: Thread = { id: uid(), title: "New conversation", createdAt: Date.now(), messages: [] };
     setThreads((prev) => [t, ...prev]);
     setActiveId(t.id);
-    setDraft('');
+    setDraft("");
     setTimeout(() => composerRef.current?.focus(), 0);
   }
 
@@ -142,58 +226,80 @@ export default function ChatClient() {
 
   function sendMessage() {
     const text = draft.trim();
-    if (!text || !activeThread) return;
+    if (!text) return;
 
-    // analysis meta (optional based on toggle)
-    const meta = analysisEnabled ? enrich(text) : undefined;
+    let targetId = activeId;
+    if (!targetId) {
+      const t: Thread = {
+        id: uid(),
+        title: "New conversation",
+        createdAt: Date.now(),
+        messages: [],
+      };
+      setThreads((prev) => [t, ...prev]);
+      setActiveId(t.id);
+      targetId = t.id;
+    }
 
-    const userMsg: Message = { id: uid(), role: 'user', content: text, createdAt: Date.now(), meta };
-
-    // minimal local assistant reply
-    const assistantMsg: Message = analysisEnabled
-      ? {
-          id: uid(),
-          role: 'assistant',
-          content:
-            meta?.sentiment === 'negative'
-              ? "Thanks for opening up. I’m here. Would you like a gentle next step, or just to be heard?"
-              : meta?.sentiment === 'positive'
-              ? 'Love that spark. Want to unpack what made this feel good so you can repeat it?'
-              : 'Got it. Would a quick reflection help, or should we explore options?',
-          createdAt: Date.now() + 1,
-          meta: { reflection: meta?.reflection },
-        }
-      : {
-          id: uid(),
-          role: 'assistant',
-          content:
-            'Message received. (Analysis is off — turn it on using the toggle in the header to see tags and reflections.)',
-          createdAt: Date.now() + 1,
-        };
+    const userMsg: Message = {
+      id: uid(),
+      role: "user",
+      content: text,
+      createdAt: Date.now(),
+    };
+    const assistantMsg: Message = {
+      id: uid(),
+      role: "assistant",
+      content:
+        "I hear you. In the real app, I'd respond with empathy and context. For now, this is a local preview 😊",
+      createdAt: Date.now() + 1,
+    };
 
     setThreads((prev) =>
       prev.map((t) =>
-        t.id === activeThread.id
+        t.id === targetId
           ? {
               ...t,
               title:
                 t.messages.length === 0
-                  ? text.slice(0, 40) + (text.length > 40 ? '…' : '')
+                  ? text.slice(0, 40) + (text.length > 40 ? "…" : "")
                   : t.title,
               messages: [...t.messages, userMsg, assistantMsg],
             }
           : t
       )
     );
-    setDraft('');
+    setDraft("");
     setTimeout(() => composerRef.current?.focus(), 0);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
+  }
+
+  /** Clear messages in the current thread */
+  function clearChat() {
+    if (!activeThread) return;
+    if (!confirm("Clear all messages in this conversation?")) return;
+    setThreads((prev) =>
+      prev.map((t) => (t.id === activeThread.id ? { ...t, messages: [] } : t))
+    );
+  }
+
+  /** Download all chats as JSON */
+  function exportJSON() {
+    const blob = new Blob([JSON.stringify({ threads }, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `imotara_chat_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -201,7 +307,9 @@ export default function ChatClient() {
       {/* Sidebar */}
       <aside className="hidden w-72 flex-col border-r border-zinc-200 bg-white/60 p-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/50 sm:flex">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-zinc-500">Conversations</h2>
+          <h2 className="text-sm font-medium uppercase tracking-wider text-zinc-500">
+            Conversations
+          </h2>
           <button
             onClick={newThread}
             className="inline-flex items-center gap-1 rounded-xl border border-zinc-200 px-2.5 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
@@ -212,59 +320,69 @@ export default function ChatClient() {
         </div>
 
         <div className="flex-1 space-y-1 overflow-auto pr-1">
-          {threads.length === 0 && (
+          {!mounted ? (
+            <div
+              className="select-none rounded-lg border border-dashed border-zinc-200 p-4 text-sm text-zinc-500 dark:border-zinc-800"
+              suppressHydrationWarning
+            >
+              Loading…
+            </div>
+          ) : threads.length === 0 ? (
             <div className="select-none rounded-lg border border-dashed border-zinc-200 p-4 text-sm text-zinc-500 dark:border-zinc-800">
               No conversations yet. Create one.
             </div>
-          )}
-          {threads.map((t) => {
-            const isActive = t.id === activeId;
-            return (
-              <div
-                key={t.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setActiveId(t.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setActiveId(t.id);
-                  }
-                }}
-                className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left ${
-                  isActive ? 'bg-zinc-100 dark:bg-zinc-800' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                }`}
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4 shrink-0 opacity-70" />
-                    <input
-                      className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-400 ${
-                        isActive ? 'font-medium' : ''
-                      }`}
-                      value={t.id === activeId ? (activeThread?.title ?? '') : t.title}
-                      onChange={(e) => t.id === activeId && renameActive(e.target.value)}
-                      placeholder="Untitled"
-                    />
-                  </div>
-                  <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{prettyDate(t.createdAt)}</p>
-                </div>
-
-                {/* inner delete button (no longer inside a button) */}
-                <button
-                  className="ml-2 hidden rounded-lg p-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 group-hover:block"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteThread(t.id);
+          ) : (
+            threads.map((t) => {
+              const isActive = t.id === activeId;
+              return (
+                <div
+                  key={t.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setActiveId(t.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setActiveId(t.id);
+                    }
                   }}
-                  aria-label="Delete"
-                  title="Delete"
+                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left ${
+                    isActive
+                      ? "bg-zinc-100 dark:bg-zinc-800"
+                      : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  }`}
                 >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            );
-          })}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 shrink-0 opacity-70" />
+                      <input
+                        className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-400 ${
+                          isActive ? "font-medium" : ""
+                        }`}
+                        value={t.id === activeId ? (activeThread?.title ?? "") : t.title}
+                        onChange={(e) => t.id === activeId && renameActive(e.target.value)}
+                        placeholder="Untitled"
+                      />
+                    </div>
+                    <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">
+                      <DateText ts={t.createdAt} />
+                    </p>
+                  </div>
+                  <button
+                    className="ml-2 hidden rounded-lg p-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 group-hover:block"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteThread(t.id);
+                    }}
+                    aria-label="Delete"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })
+          )}
         </div>
       </aside>
 
@@ -273,64 +391,70 @@ export default function ChatClient() {
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white/70 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/50">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5 opacity-70" />
-            <h1 className="truncate text-base font-semibold">{activeThread?.title ?? 'Conversation'}</h1>
+            <h1 className="truncate text-base font-semibold">
+              <span suppressHydrationWarning>
+                {mounted ? (activeThread?.title ?? "Conversation") : ""}
+              </span>
+            </h1>
           </div>
 
-          {/* Analysis toggle */}
-          <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-            <span className="select-none">Emotion analysis</span>
+          <div className="flex items-center gap-2">
+            <div className="hidden text-xs text-zinc-500 sm:block">
+              {syncing ? "Syncing…" : lastSyncAt ? `Synced ${syncedCount ?? 0}` : "Not synced yet"}
+              {syncError ? ` · ${syncError}` : ""}
+            </div>
             <button
-              type="button"
-              onClick={() => setAnalysisEnabled((v) => !v)}
-              className={cn(
-                'relative h-6 w-11 rounded-full border transition',
-                analysisEnabled
-                  ? 'border-emerald-300 bg-emerald-500/90'
-                  : 'border-zinc-300 bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800'
-              )}
-              aria-pressed={analysisEnabled}
-              aria-label="Toggle emotion analysis"
+              onClick={runSync}
+              disabled={syncing}
+              className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              title="Sync local ↔ remote history"
             >
-              <span
-                className={cn(
-                  'absolute top-1/2 h-4 w-4 -translate-y-1/2 transform rounded-full bg-white transition',
-                  analysisEnabled ? 'right-1' : 'left-1'
-                )}
-              />
+              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} /> Sync Now
             </button>
-          </label>
+
+            <ConflictReviewButton />
+
+            <button
+              onClick={clearChat}
+              className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              title="Clear current conversation"
+            >
+              <Eraser className="h-4 w-4" /> Clear
+            </button>
+            <button
+              onClick={exportJSON}
+              className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              title="Download all conversations as JSON"
+            >
+              <Download className="h-4 w-4" /> Export
+            </button>
+            <button
+              onClick={newThread}
+              className="inline-flex items-center gap-1 rounded-2xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              <Plus className="h-4 w-4" /> New
+            </button>
+          </div>
         </header>
 
-        {!analysisEnabled && (
-          <div className="mx-auto mt-2 w-full max-w-3xl rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-300">
-            Analysis is off. Messages won’t be processed for sentiment or tags.
-          </div>
-        )}
-
         <div ref={listRef} className="flex-1 overflow-auto px-4 py-4 sm:px-6">
-          {!activeThread || activeThread.messages.length === 0 ? (
+          {!mounted ? (
+            <div className="mx-auto max-w-3xl">
+              <div
+                className="mt-8 rounded-2xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700"
+                suppressHydrationWarning
+              >
+                Loading…
+              </div>
+            </div>
+          ) : !activeThread || activeThread.messages.length === 0 ? (
             <EmptyState />
           ) : (
             <div className="mx-auto max-w-3xl space-y-4">
+              {/* Mood summary for the last 10 messages (system messages excluded) */}
+              <MoodSummaryCard messages={appMessages} windowSize={10} mode="local" />
               {activeThread.messages.map((m) => (
-                <div key={m.id} className="space-y-2">
-                  <Bubble role={m.role} content={m.content} time={m.createdAt} />
-                  {/* Show tags/reflection only when enabled and meta exists */}
-                  {analysisEnabled && m.role === 'user' && m.meta && (
-                    <>
-                      <EmotionTags
-                        className="mt-1"
-                        emotions={m.meta.emotions ?? []}
-                        sentiment={m.meta.sentiment ?? 'neutral'}
-                        confidence={m.meta.confidence}
-                      />
-                      <ToneReflection text={m.meta.reflection ?? ''} />
-                    </>
-                  )}
-                  {analysisEnabled && m.role === 'assistant' && m.meta?.reflection && (
-                    <ToneReflection text={m.meta.reflection} />
-                  )}
-                </div>
+                <Bubble key={m.id} role={m.role} content={m.content} time={m.createdAt} />
               ))}
             </div>
           )}
@@ -347,9 +471,10 @@ export default function ChatClient() {
               rows={1}
               className="max-h-[200px] flex-1 resize-none rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-600"
             />
+            {/* Send button */}
             <button
               onClick={sendMessage}
-              disabled={!draft.trim() || !activeThread}
+              disabled={!draft.trim()}
               className="inline-flex h-11 items-center gap-2 rounded-2xl border border-zinc-300 px-4 text-sm font-medium hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
               <Send className="h-4 w-4" /> Send
@@ -375,19 +500,23 @@ function EmptyState() {
 }
 
 function Bubble({ role, content, time }: { role: Role; content: string; time: number }) {
-  const isUser = role === 'user';
+  const isUser = role === "user";
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
         className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[75%] ${
           isUser
-            ? 'bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900'
-            : 'bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100'
+            ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900"
+            : "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
         }`}
       >
         <div className="whitespace-pre-wrap">{content}</div>
-        <div className={`mt-1 text-[11px] ${isUser ? 'text-zinc-300 dark:text-zinc-500' : 'text-zinc-500'}`}>
-          {prettyDate(time)} · {isUser ? 'You' : role === 'assistant' ? 'Imotara' : 'System'}
+        <div
+          className={`mt-1 text-[11px] ${
+            isUser ? "text-zinc-300 dark:text-zinc-500" : "text-zinc-500"
+          }`}
+        >
+          <DateText ts={time} /> · {isUser ? "You" : role === "assistant" ? "Imotara" : "System"}
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { create, StateCreator } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { Emotion, AnalysisResult } from "@/types/analysis";
 
+/* ----------------------------- Types ----------------------------- */
 export type EmotionRecord = {
   id: string;
   timestamp: number;
@@ -18,7 +19,7 @@ type EmotionHistoryState = {
   clear: () => void;
 };
 
-// ---- Helpers: tolerant extraction from unknown AnalysisResult shapes ----
+/* --------------------------- Helpers ----------------------------- */
 const EMOTIONS: Emotion[] = [
   "joy",
   "sadness",
@@ -30,35 +31,42 @@ const EMOTIONS: Emotion[] = [
 ];
 
 const isEmotion = (v: unknown): v is Emotion =>
-  typeof v === "string" && (EMOTIONS as string[]).includes(v);
+  typeof v === "string" && (EMOTIONS as readonly string[]).includes(v);
 
-const coerceEmotion = (src: any): Emotion => {
-  // Try common locations/names for the dominant emotion
+/** Safely read a nested path (e.g. ['overall','emotion']) from unknown input. */
+function getPath(obj: unknown, path: readonly string[]): unknown {
+  let cur: unknown = obj;
+  for (const key of path) {
+    if (!cur || typeof cur !== "object") return undefined;
+    cur = (cur as Record<string, unknown>)[key];
+  }
+  return cur;
+}
+
+function coerceEmotion(src: unknown): Emotion {
   const candidates: unknown[] = [
-    src?.overall?.emotion,
-    src?.overall?.dominantEmotion,
-    src?.dominantEmotion,
-    src?.emotion,
-    src?.tag?.emotion,
-    src?.summary?.dominant?.emotion,
-    src?.summary?.emotion,
+    getPath(src, ["overall", "emotion"]),
+    getPath(src, ["overall", "dominantEmotion"]),
+    getPath(src, ["dominantEmotion"]),
+    getPath(src, ["emotion"]),
+    getPath(src, ["tag", "emotion"]),
+    getPath(src, ["summary", "dominant", "emotion"]),
+    getPath(src, ["summary", "emotion"]),
   ];
   for (const c of candidates) {
     if (isEmotion(c)) return c;
   }
   return "neutral";
-};
+}
 
-const coerceIntensity = (src: any): number => {
-  // Normalize intensity into [0,1] if value provided in [0,100]
+function coerceIntensity(src: unknown): number {
   const candidates: unknown[] = [
-    src?.overall?.intensity,
-    src?.intensity,
-    src?.score,
-    src?.overall?.confidence,
-    src?.confidence,
+    getPath(src, ["overall", "intensity"]),
+    getPath(src, ["intensity"]),
+    getPath(src, ["score"]),
+    getPath(src, ["overall", "confidence"]),
+    getPath(src, ["confidence"]),
   ];
-
   for (const c of candidates) {
     if (typeof c === "number" && Number.isFinite(c)) {
       if (c > 1) return Math.max(0, Math.min(1, c / 100)); // assume percentage
@@ -66,28 +74,31 @@ const coerceIntensity = (src: any): number => {
       return c;
     }
   }
-  return 0.5; // reasonable default
-};
+  return 0.5;
+}
 
-const coerceSummary = (src: any): string | undefined => {
-  const s = src?.summary;
-
+function coerceSummary(src: unknown): string | undefined {
+  const s = getPath(src, ["summary"]);
   if (s == null) return undefined;
 
   if (typeof s === "string") return s;
 
-  // Common object shapes: { text }, { note }, { overview }, { sentences: [...] }, etc.
   if (typeof s === "object") {
+    const so = s as Record<string, unknown>;
+
+    const sentences = Array.isArray(so.sentences)
+      ? (so.sentences as unknown[]).filter((x): x is string => typeof x === "string")
+      : null;
+
     const textLike =
-      (typeof s.text === "string" && s.text) ||
-      (typeof s.note === "string" && s.note) ||
-      (typeof s.overview === "string" && s.overview) ||
-      (Array.isArray(s.sentences) && s.sentences.filter((x: unknown) => typeof x === "string").join(" ")) ||
-      (typeof s.brief === "string" && s.brief);
+      (typeof so.text === "string" && so.text) ||
+      (typeof so.note === "string" && so.note) ||
+      (typeof so.overview === "string" && so.overview) ||
+      (sentences && sentences.join(" ")) ||
+      (typeof so.brief === "string" && so.brief);
 
-    if (textLike) return String(textLike).slice(0, 500); // avoid oversized localStorage entries
+    if (textLike) return String(textLike).slice(0, 500);
 
-    // last resort: very compact JSON preview
     try {
       const json = JSON.stringify(s);
       return json.length > 500 ? json.slice(0, 497) + "..." : json;
@@ -97,30 +108,35 @@ const coerceSummary = (src: any): string | undefined => {
   }
 
   return undefined;
+}
+
+/* ------------------------ Storage (SSR-safe) --------------------- */
+const memoryStorage: Storage = {
+  length: 0,
+  clear: () => {},
+  getItem: () => null,
+  key: () => null,
+  removeItem: () => {},
+  setItem: () => {},
 };
 
-// ---- SSR-safe localStorage shim (Next.js App Router friendly) ----
 const storage: Storage =
-  typeof window !== "undefined"
+  typeof window !== "undefined" && window.localStorage
     ? window.localStorage
-    : ({
-        getItem: () => null,
-        setItem: () => {},
-        removeItem: () => {},
-      } as unknown as Storage);
+    : memoryStorage;
 
-// Safe UUID for both browser and SSR
-const safeUUID = (): string =>
-  (globalThis as any)?.crypto?.randomUUID?.() ??
-  `imotara-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+/** Safe UUID for browser & SSR without any-casts */
+const safeUUID = (): string => {
+  const g = globalThis as unknown as { crypto?: { randomUUID?: () => string } };
+  if (g.crypto?.randomUUID) return g.crypto.randomUUID();
+  return `imotara-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
 
-// ---- Store ----
+/* --------------------------- Store ------------------------------- */
 const initializer: StateCreator<EmotionHistoryState> = (set) => ({
   records: [],
   addRecord: (record: EmotionRecord) =>
-    set((state) => ({
-      records: [...state.records, record],
-    })),
+    set((state) => ({ records: [...state.records, record] })),
   bulkAdd: (results: AnalysisResult[]) =>
     set((state) => ({
       records: [
@@ -128,9 +144,9 @@ const initializer: StateCreator<EmotionHistoryState> = (set) => ({
         ...results.map((r) => ({
           id: safeUUID(),
           timestamp: Date.now(),
-          emotion: coerceEmotion(r as any),
-          intensity: coerceIntensity(r as any),
-          summary: coerceSummary(r as any),
+          emotion: coerceEmotion(r),
+          intensity: coerceIntensity(r),
+          summary: coerceSummary(r),
         })),
       ],
     })),

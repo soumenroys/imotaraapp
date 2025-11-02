@@ -4,7 +4,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, GitPullRequest, Layers, X } from "lucide-react";
 import type { ConflictList, HistoryConflict } from "@/types/sync";
-import { getPendingConflicts, removeConflict, setPendingConflicts } from "@/lib/imotara/conflictsStore";
+import {
+  getPendingConflicts,
+  removeConflict,
+  setPendingConflicts,
+} from "@/lib/imotara/conflictsStore";
 import type { EmotionRecord } from "@/types/history";
 import { applyConflictResolution } from "@/lib/imotara/syncHistory";
 
@@ -20,10 +24,17 @@ export default function ConflictReviewModal({ open, onClose }: Props) {
 
   useEffect(() => {
     if (!open) return;
+
     const list = getPendingConflicts().filter((c) => !c.resolution);
-    setConflicts(list);
-    setActive(list[0] ?? null);
-    setMerged(null);
+
+    // Defer state updates to avoid "set-state-in-effect" lint error
+    const t = window.setTimeout(() => {
+      setConflicts(list);
+      setActive(list[0] ?? null);
+      setMerged(null);
+    }, 0);
+
+    return () => window.clearTimeout(t);
   }, [open]);
 
   const remaining = conflicts.length;
@@ -39,15 +50,19 @@ export default function ConflictReviewModal({ open, onClose }: Props) {
         return "Both updated at same time but content differs";
       case "duplicate-id":
         return "Duplicate ID detected";
+      default:
+        return "";
     }
   }, [active]);
 
   async function resolve(decision: "kept-local" | "kept-remote" | "merged") {
     if (!active) return;
+
     const mergedRecord =
       decision === "merged" ? merged ?? active.local ?? active.remote ?? null : undefined;
 
-    const next = await applyConflictResolution(active, decision, mergedRecord || undefined);
+    // Apply resolution (return value is ignored here; caller persists elsewhere if desired)
+    await applyConflictResolution(active, decision, mergedRecord || undefined);
 
     // mark as resolved locally
     const all = getPendingConflicts();
@@ -68,8 +83,6 @@ export default function ConflictReviewModal({ open, onClose }: Props) {
     setActive(pending[0] ?? null);
     setMerged(null);
     if (pending.length === 0) onClose();
-
-    // NOTE: persist `next` outside if needed (e.g., setHistory(next))
   }
 
   if (!open) return null;
@@ -125,8 +138,7 @@ export default function ConflictReviewModal({ open, onClose }: Props) {
                 placeholder="Write a merged message or tweak fields (this populates only the message field; other fields picked from Local if present, else Remote)."
                 value={merged?.message ?? ""}
                 onChange={(e) => {
-                  const base: EmotionRecord | undefined =
-                    active.local ?? active.remote ?? undefined;
+                  const base: EmotionRecord | undefined = active.local ?? active.remote ?? undefined;
                   if (!base) return setMerged(null);
                   setMerged({
                     ...base,

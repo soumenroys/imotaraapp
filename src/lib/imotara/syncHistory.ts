@@ -10,17 +10,12 @@ import type { Emotion } from "@/types/analysis";
  * Normalization helpers
  * ---------------------------------------------------------------------------*/
 
-/**
- * Coerce unknown/string to your Emotion union.
- * If not a string, fall back to "neutral".
- */
+/** Coerce unknown/string to your Emotion union. */
 function safeCastEmotion(val: unknown): Emotion {
   return typeof val === "string" ? (val as Emotion) : ("neutral" as Emotion);
 }
 
-/**
- * Coerce unknown/string to your RecordSource union or leave undefined.
- */
+/** Coerce unknown/string to your RecordSource union or leave undefined. */
 function safeCastSource(val: unknown): RecordSource | undefined {
   return typeof val === "string" ? (val as RecordSource) : undefined;
 }
@@ -42,12 +37,13 @@ function normalizeRecord(input: unknown): EmotionRecord {
       ? (obj.timestamp as number)
       : Date.now();
 
-  // createdAt MUST be present per EmotionRecord type
   const createdAt: number =
     typeof obj.createdAt === "number" ? (obj.createdAt as number) : updatedAt;
 
   const id: string =
-    typeof obj.id === "string" && (obj.id as string).length > 0 ? (obj.id as string) : uuidv4();
+    typeof obj.id === "string" && (obj.id as string).length > 0
+      ? (obj.id as string)
+      : uuidv4();
 
   const emotion: Emotion = safeCastEmotion(obj.emotion);
   const intensity: number =
@@ -56,7 +52,6 @@ function normalizeRecord(input: unknown): EmotionRecord {
   const source: RecordSource | undefined = safeCastSource(obj.source);
   const message: string = typeof obj.message === "string" ? (obj.message as string) : "";
 
-  // Construct strictly with fields defined on EmotionRecord
   const record: EmotionRecord = {
     id,
     message,
@@ -70,9 +65,7 @@ function normalizeRecord(input: unknown): EmotionRecord {
   return record;
 }
 
-/**
- * Normalize a list which may contain partially typed objects (e.g., remote payloads).
- */
+/** Normalize a list which may contain partially typed objects (e.g., remote payloads). */
 export function normalizeIncoming(list: unknown[]): EmotionRecord[] {
   if (!Array.isArray(list)) return [];
   return list.map((item) => normalizeRecord(item));
@@ -82,16 +75,17 @@ export function normalizeIncoming(list: unknown[]): EmotionRecord[] {
  * Conflict detection
  * ---------------------------------------------------------------------------*/
 
-/**
- * Compare two records for "content difference", ignoring id/createdAt/updatedAt.
- */
+/** Compare two records for "content difference", ignoring id/createdAt/updatedAt. */
 function isContentDifferent(a: EmotionRecord, b: EmotionRecord): boolean {
   const ignore = new Set(["id", "createdAt", "updatedAt"]);
-  const keys = new Set<string>([...Object.keys(a as object), ...Object.keys(b as object)]);
+  const aObj = a as unknown as Record<string, unknown>;
+  const bObj = b as unknown as Record<string, unknown>;
+
+  const keys = new Set<string>([...Object.keys(aObj), ...Object.keys(bObj)]);
   for (const k of keys) {
     if (ignore.has(k)) continue;
-    const va = JSON.stringify((a as any)[k] ?? null);
-    const vb = JSON.stringify((b as any)[k] ?? null);
+    const va = JSON.stringify(aObj[k] ?? null);
+    const vb = JSON.stringify(bObj[k] ?? null);
     if (va !== vb) return true;
   }
   return false;
@@ -123,9 +117,7 @@ function makeConflict(
   };
 }
 
-/**
- * Detect conflicts between local and remote arrays.
- */
+/** Detect conflicts between local and remote arrays. */
 export function detectConflicts(local: EmotionRecord[], remote: EmotionRecord[]): ConflictList {
   const byIdLocal = new Map<string, EmotionRecord>(local.map((r) => [r.id, r]));
   const byIdRemote = new Map<string, EmotionRecord>(remote.map((r) => [r.id, r]));
@@ -146,7 +138,6 @@ export function detectConflicts(local: EmotionRecord[], remote: EmotionRecord[])
       }
     } else {
       const reason: ConflictReason = lt > rt ? "newer-local" : "newer-remote";
-      // Surface only if the actual content differs
       if (isContentDifferent(lrec, rrec)) {
         conflicts.push(makeConflict(id, lrec, rrec, reason));
       }
@@ -163,7 +154,7 @@ export function detectConflicts(local: EmotionRecord[], remote: EmotionRecord[])
 
   // Deduplicate by recordId + reason
   const unique = new Map<string, HistoryConflict>(
-    conflicts.map((c) => [c.recordId + "::" + c.reason, c])
+    conflicts.map((c) => [`${c.recordId}::${c.reason}`, c])
   );
   return Array.from(unique.values());
 }
@@ -175,13 +166,8 @@ export function detectConflicts(local: EmotionRecord[], remote: EmotionRecord[])
 /**
  * Merge with auto policy (newer updatedAt wins), while surfacing conflicts
  * for the Manual Conflict Review UI.
- *
- * Pass raw remote items (they’ll be normalized here).
  */
-export function mergeWithConflicts(
-  local: EmotionRecord[],
-  remoteRaw: unknown[]
-): EmotionRecord[] {
+export function mergeWithConflicts(local: EmotionRecord[], remoteRaw: unknown[]): EmotionRecord[] {
   const remote = normalizeIncoming(remoteRaw);
 
   const conflicts = detectConflicts(local, remote);
@@ -209,15 +195,15 @@ export function mergeWithConflicts(
 
 /**
  * Apply a single conflict resolution and return the updated array.
- * NOTE: This function no longer persists. Persist the returned array
- * using whatever setter your history module exposes.
+ * NOTE: This function does not persist. Persist the returned array
+ * using your history module (e.g., setHistory).
  */
 export async function applyConflictResolution(
   conflict: HistoryConflict,
   decision: "kept-local" | "kept-remote" | "merged",
   mergedRecord?: EmotionRecord
 ): Promise<EmotionRecord[]> {
-  const local = await getHistory();
+  const local = getHistory();
   const idx = local.findIndex((r) => r.id === conflict.recordId);
 
   // Normalize inbound objects just to be safe
@@ -235,7 +221,7 @@ export async function applyConflictResolution(
     replacement = normalizedMerged ?? normalizedLocal ?? normalizedRemote ?? null;
   }
 
-  let next = [...local];
+  const next = [...local];
   if (replacement) {
     if (idx >= 0) next[idx] = replacement;
     else next.push(replacement);
@@ -244,7 +230,6 @@ export async function applyConflictResolution(
     next.splice(idx, 1);
   }
 
-  // IMPORTANT: caller must persist `next` via your own history setter.
   return next;
 }
 
@@ -260,8 +245,7 @@ export async function applyConflictResolution(
  * await setHistory(merged); // <-- persist using your history module
  */
 export async function syncHistory(remoteRaw: unknown[]): Promise<EmotionRecord[]> {
-  const local = await getHistory();
+  const local = getHistory();
   const merged = mergeWithConflicts(local, remoteRaw);
-  // IMPORTANT: caller must persist `merged` via your own history setter.
   return merged;
 }

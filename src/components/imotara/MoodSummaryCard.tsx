@@ -1,4 +1,4 @@
-// src/components/MoodSummaryCard.tsx
+// src/components/imotara/MoodSummaryCard.tsx
 "use client";
 
 import { memo } from "react";
@@ -9,7 +9,7 @@ import { Sparkles, Activity } from "lucide-react";
 type Props = {
   messages: AppMessage[];
   windowSize?: number;
-  mode?: AnalyzeMode;        // "local" | "api"
+  mode?: AnalyzeMode; // "local" | "api"
   className?: string;
 };
 
@@ -46,7 +46,7 @@ export default memo(function MoodSummaryCard({
 }: Props) {
   const { result, loading, error } = useAnalysis(messages, windowSize, mode);
 
-  // Basic guardrails for first render
+  // Error state
   if (error) {
     return (
       <div className={`rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 ${className}`}>
@@ -55,11 +55,23 @@ export default memo(function MoodSummaryCard({
     );
   }
 
+  // Loading/empty states
+  if (loading && !result) {
+    return (
+      <div className={`rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 ${className}`}>
+        <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <Activity className="h-4 w-4 animate-spin" aria-hidden="true" />
+          <span>Analyzing recent messages…</span>
+        </div>
+      </div>
+    );
+  }
+
   if (!result) {
     return (
       <div className={`rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 ${className}`}>
         <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-          <Activity className="h-4 w-4" />
+          <Activity className="h-4 w-4" aria-hidden="true" />
           <span>Waiting for messages…</span>
         </div>
       </div>
@@ -71,14 +83,16 @@ export default memo(function MoodSummaryCard({
   const domEmoji = EMOJI[dom] ?? "😐";
   const domLabel = LABEL[dom] ?? "Neutral";
 
-  // Turn averages into a tiny list, sorted desc
-  const avgEntries = Object.entries(snapshot.averages || {}).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0)).slice(0, 4);
+  // Sort averages desc and take top 4
+  const avgEntries = Object.entries(snapshot.averages || {})
+    .sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
+    .slice(0, 4);
 
   return (
     <section className={`rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 bg-white/70 dark:bg-zinc-900/40 backdrop-blur ${className}`}>
       <header className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-zinc-800 dark:text-zinc-100 flex items-center gap-2">
-          <Sparkles className="h-4 w-4" />
+        <h3 className="flex items-center gap-2 text-sm font-medium text-zinc-800 dark:text-zinc-100">
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
           Mood Summary
         </h3>
         <span className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -108,7 +122,7 @@ export default memo(function MoodSummaryCard({
           {avgEntries.map(([emotion, val]) => (
             <li
               key={emotion}
-              className="flex items-center justify-between rounded-xl border border-zinc-200 dark:border-zinc-800 px-3 py-2"
+              className="flex items-center justify-between rounded-xl border border-zinc-200 px-3 py-2 dark:border-zinc-800"
               title={`${LABEL[emotion] ?? emotion}: ${fmtPct(val)}`}
             >
               <span className="inline-flex items-center gap-2 text-sm">

@@ -1,4 +1,4 @@
-// src/app/emotion/history/page.tsx
+// src/app/imotara/history/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -36,17 +36,20 @@ export default function EmotionHistoryPage() {
 
   const emotions = useMemo(() => getEmotionsSet(all), [all]);
 
+  // --- Fixed filtering logic ---
   const filtered = useMemo(() => {
     const fromTs = from ? new Date(from).setHours(0, 0, 0, 0) : undefined;
     const toTs = to ? new Date(to).setHours(23, 59, 59, 999) : undefined;
 
     return all.filter((s) => {
       if (source !== "all" && s.source !== source) return false;
-      if (fromTs && s.timestamp < fromTs) return false;
-      if (toTs && s.timestamp > toTs) return false;
+
+      const t = s.createdAt ?? s.updatedAt ?? 0;
+      if (fromTs && t < fromTs) return false;
+      if (toTs && t > toTs) return false;
+
       if (emotion === "all") return true;
-      const has = s.tags?.some((t) => t.emotion === emotion);
-      return !!has;
+      return s.emotion === emotion;
     });
   }, [all, source, from, to, emotion]);
 

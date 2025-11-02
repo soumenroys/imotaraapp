@@ -149,9 +149,10 @@ async function callSync(
  * Public API
  * --------------------------------------------------------- */
 export async function runBidirectionalSync(
-  setStatus?: (s: Partial<SyncSummary>) => void,
+  onPatch?: (patch: Partial<SyncSummary>) => void,
   opts?: { signal?: AbortSignal }
 ): Promise<SyncSummary> {
+  // Start with a local summary to return at the end
   const summary: SyncSummary = {
     phase: "syncing",
     queued: 0,
@@ -159,13 +160,14 @@ export async function runBidirectionalSync(
     pulled: 0,
     conflicts: 0,
   };
-  setStatus?.(summary);
+
+  onPatch?.({ phase: "syncing", queued: 0, pushed: 0, pulled: 0, conflicts: 0 });
 
   // 1) read local state + queue
   const local = getLocalHistory();
   const queue = getQueue();
   summary.queued = queue.length;
-  setStatus?.(summary);
+  onPatch?.({ queued: queue.length });
 
   // 2) push queue + pull server changes
   const envelope: SyncEnvelope = {
@@ -177,15 +179,18 @@ export async function runBidirectionalSync(
   try {
     const { serverChanges: pulled } = await callSync(envelope, opts?.signal);
     serverChanges = pulled ?? [];
-  } catch (e: any) {
-    summary.phase = navigator.onLine ? "error" : "offline";
-    summary.lastError = String(e?.message ?? e);
-    setStatus?.(summary);
-    throw e;
+  } catch (err: unknown) {
+    const isOnline = typeof navigator !== "undefined" ? navigator.onLine : false;
+    summary.phase = isOnline ? "error" : "offline";
+    summary.lastError =
+      err instanceof Error ? err.message : String(err);
+    onPatch?.({ phase: summary.phase, lastError: summary.lastError });
+    throw err;
   }
 
   summary.pulled = serverChanges.length;
   summary.pushed = queue.length;
+  onPatch?.({ pulled: summary.pulled, pushed: summary.pushed });
 
   // 3) clear queue after successful push
   clearQueue();
@@ -193,16 +198,18 @@ export async function runBidirectionalSync(
   // 4) merge & persist
   const { merged, conflicts } = mergeRecords(local, serverChanges);
   summary.conflicts = conflicts.length;
+  onPatch?.({ conflicts: conflicts.length });
 
   saveLocalHistory(merged);
   setLastSyncAt(Date.now());
 
   summary.lastSuccessAt = Date.now();
   summary.phase = conflicts.length ? "resolving" : "done";
-  setStatus?.(summary);
+  onPatch?.({ lastSuccessAt: summary.lastSuccessAt, phase: summary.phase });
 
-  // final state
+  // Final patch to settle in done
   summary.phase = "done";
-  setStatus?.(summary);
+  onPatch?.({ phase: "done" });
+
   return summary;
 }

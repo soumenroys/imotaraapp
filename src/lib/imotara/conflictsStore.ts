@@ -1,11 +1,12 @@
 // src/lib/imotara/conflictsStore.ts
 "use client";
 
-import type { ConflictList, HistoryConflict } from "@/types/sync";
+import type { ConflictList } from "@/types/sync";
 
 const KEY = "imotara.history.conflicts";
 
-export function getPendingConflicts(): ConflictList {
+/* ----------------------------- JSON helpers ----------------------------- */
+function readConflicts(): ConflictList {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(KEY);
@@ -15,27 +16,39 @@ export function getPendingConflicts(): ConflictList {
   }
 }
 
-export function setPendingConflicts(list: ConflictList) {
+function writeConflicts(list: ConflictList): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(KEY, JSON.stringify(list));
 }
 
-export function upsertConflicts(newOnes: ConflictList) {
-  const existing = getPendingConflicts();
-  const byId = new Map(existing.map((c) => [c.id, c]));
+/* ----------------------------- Public API ------------------------------- */
+export function getPendingConflicts(): ConflictList {
+  return readConflicts();
+}
+
+export function setPendingConflicts(list: ConflictList): void {
+  writeConflicts(list);
+}
+
+export function upsertConflicts(newOnes: ConflictList): void {
+  const existing = readConflicts();
+  const byId = new Map<string, (ConflictList[number])>(
+    existing.map((c) => [c.id, c])
+  );
   for (const c of newOnes) byId.set(c.id, c);
-  setPendingConflicts(Array.from(byId.values()));
+  writeConflicts(Array.from(byId.values()));
 }
 
-export function removeConflict(conflictId: string) {
-  const filtered = getPendingConflicts().filter((c) => c.id !== conflictId);
-  setPendingConflicts(filtered);
+export function removeConflict(conflictId: string): void {
+  const filtered = readConflicts().filter((c) => c.id !== conflictId);
+  writeConflicts(filtered);
 }
 
-export function clearAllConflicts() {
-  setPendingConflicts([]);
+export function clearAllConflicts(): void {
+  writeConflicts([]);
 }
 
+/** Count unresolved conflicts; SSR-safe (returns 0 on server). */
 export function useConflictsCount(): number {
   if (typeof window === "undefined") return 0;
   try {

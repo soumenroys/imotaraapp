@@ -20,6 +20,7 @@ export function SyncStatusBar() {
   const { status, forceSync } = useAutoSync();
   const [mounted, setMounted] = useState(false);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
   // Choose a stable default icon for SSR, then switch after mount

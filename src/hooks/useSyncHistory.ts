@@ -1,137 +1,108 @@
 // src/hooks/useSyncHistory.ts
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EmotionRecord } from "@/types/history";
-import { pullAndMergeFromApi } from "@/lib/imotara/syncHistory";
-
-/**
- * Hook to auto-pull remote history and merge with local, then ask the caller to persist.
- * We do NOT import a setter from your history module (since it's not exported in your repo).
- * Instead, pass an `onPersist` callback that writes the merged array to your store.
- *
- * Example:
- * const sync = useSyncHistory({
- *   onPersist: async (merged) => { /* save to your store * / },
- *   intervalMs: 60000,
- *   runOnMount: true,
- * });
- */
+import type { Conflict, SyncPlan } from "@/types/sync";
+import { syncHistoryStep } from "@/lib/imotara/syncHistory";
+import { getSyncState } from "@/lib/imotara/historyPersist";
 
 export type SyncState = "idle" | "syncing" | "synced" | "offline" | "error";
 
 type UseSyncHistoryOptions = {
-  /** Persist function to store the merged list locally (required for durable sync). */
+  /** Optional: caller gets the latest local array after a sync (for custom stores). */
   onPersist?: (merged: EmotionRecord[]) => Promise<void> | void;
   /** How often to auto-sync (ms). Default: 60s */
   intervalMs?: number;
-  /** Pass through to GET /api/history — if you maintain an incremental token externally. */
-  initialSyncToken?: string;
-  /** Only if you prefer time-based incremental pulls. */
-  since?: number;
-  /** NEW: run an immediate sync on mount. Default: true */
+  /** Immediate sync on mount. Default: true */
   runOnMount?: boolean;
 };
 
-export function useSyncHistory(options: UseSyncHistoryOptions = {}) {
-  const {
-    onPersist,
-    intervalMs = 60_000,
-    initialSyncToken,
-    since,
-    runOnMount = true,
-  } = options;
+export default function useSyncHistory(options: UseSyncHistoryOptions = {}) {
+  const { onPersist, intervalMs = 60_000, runOnMount = true } = options;
 
+  // public state (kept similar to your original)
   const [state, setState] = useState<SyncState>("idle");
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
-  const [remoteCount, setRemoteCount] = useState<number>(0);
-  const [syncToken, setSyncToken] = useState<string | undefined>(initialSyncToken);
+  const [remoteCount, setRemoteCount] = useState<number>(0); // derived from plan.applyRemote
+  const [syncToken, setSyncToken] = useState<string | undefined>(undefined);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  const inFlightRef = useRef<boolean>(false);
-  const abortRef = useRef<AbortController | null>(null);
-  const mountedRef = useRef<boolean>(false);
+  // extra debug / next-step UI surfaces
+  const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  const [lastPlan, setLastPlan] = useState<SyncPlan | null>(null);
+
+  // lifecyle guards
+  const inFlightRef = useRef(false);
+  const mountedRef = useRef(false);
 
   const doSync = useCallback(async () => {
-    if (inFlightRef.current) return; // prevent overlapping runs
+    if (inFlightRef.current) return; // prevent overlap
 
-    // If browser reports offline, skip (but allow manual trigger to try).
+    // Offline short-circuit (still allow manual tries if you want—here we skip)
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       setState("offline");
       return;
     }
 
     inFlightRef.current = true;
+    setIsSyncing(true);
     setState("syncing");
     setLastError(null);
 
-    const abort = new AbortController();
-    abortRef.current = abort;
-
     try {
-      const { merged, remoteCount, syncToken: newToken } = await pullAndMergeFromApi({
-        syncToken,
-        since,
-        signal: abort.signal,
-      });
-
-      // Persist if caller provided a handler; otherwise warn (one time).
-      if (onPersist) {
-        await onPersist(merged);
-      } else {
-        // eslint-disable-next-line no-console
-        console.warn(
-          "[useSyncHistory] No onPersist handler provided — merged history NOT saved. " +
-            "Pass onPersist to write merged records to your store."
-        );
-      }
-
+      // One conservative sync step (pull delta, plan, apply safe changes, persist state)
+      const { plan, local } = await syncHistoryStep();
       if (!mountedRef.current) return;
 
-      setRemoteCount(remoteCount);
-      if (newToken) setSyncToken(newToken);
+      setLastPlan(plan);
+      setConflicts(plan.conflicts);
+      setRemoteCount(plan.applyRemote.length); // diagnostic: how many came from server this step
+
+      // expose for external stores (optional)
+      if (onPersist) {
+        await onPersist(local);
+        if (!mountedRef.current) return;
+      }
+
+      const s = getSyncState();
+      setLastSyncedAt(s.lastSyncedAt ?? null);
+      setSyncToken((s.syncToken ?? undefined) as string | undefined);
+
       setState("synced");
-      setLastSyncedAt(Date.now());
     } catch (err: any) {
       if (!mountedRef.current) return;
-      if (err?.name === "AbortError") {
-        // Silent cancel (component unmounted or replaced run)
-        inFlightRef.current = false;
-        return;
-      }
       setState("error");
       setLastError(String(err?.message ?? err));
     } finally {
       inFlightRef.current = false;
-      abortRef.current = null;
+      setIsSyncing(false);
     }
-  }, [onPersist, since, syncToken]);
+  }, [onPersist]);
 
-  // Manual trigger for UI
+  // Manual trigger (kept name similar to your earlier API)
   const manualSync = useCallback(async () => {
     await doSync();
   }, [doSync]);
 
-  // Setup: initial sync on mount (configurable)
+  // Mount / unmount
   useEffect(() => {
     mountedRef.current = true;
 
     if (runOnMount) {
-      doSync(); // fire immediately on mount
+      doSync();
     }
+
+    // initialize token from persisted state (useful for debug)
+    const s = getSyncState();
+    setSyncToken((s.syncToken ?? undefined) as string | undefined);
+    setLastSyncedAt(s.lastSyncedAt ?? null);
 
     return () => {
       mountedRef.current = false;
-      // cancel in-flight
-      if (abortRef.current) {
-        try {
-          abortRef.current.abort();
-        } catch {
-          /* noop */
-        }
-      }
     };
   }, [doSync, runOnMount]);
 
-  // Re-sync when tab gains focus / page becomes visible
+  // Re-sync on tab visibility
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
@@ -142,7 +113,7 @@ export function useSyncHistory(options: UseSyncHistoryOptions = {}) {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [doSync]);
 
-  // Re-sync when network comes back online
+  // Re-sync when network comes back
   useEffect(() => {
     const onOnline = () => doSync();
     window.addEventListener("online", onOnline);
@@ -159,19 +130,20 @@ export function useSyncHistory(options: UseSyncHistoryOptions = {}) {
   }, [doSync, intervalMs]);
 
   return {
-    /** Overall sync state for a small UI chip. */
+    // actions
+    manualSync,   // (was your manual trigger)
+    runSync: doSync, // alias for clarity going forward
+
+    // state (kept similar to your existing surfaces)
     state,
-    /** UTC ms timestamp when we last fully synced (push not handled here). */
+    isSyncing,
     lastSyncedAt,
-    /** Most recent fetch/merge error (if any). */
     lastError,
-    /** Count of remote records received in the last pull (diagnostic). */
     remoteCount,
-    /** Current incremental token (if your API returns one). */
     syncToken,
-    /** Call to trigger a sync manually (e.g., button click). */
-    manualSync,
+
+    // for upcoming Step 14.2 UI
+    conflicts,
+    lastPlan,
   };
 }
-
-export default useSyncHistory;

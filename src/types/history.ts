@@ -25,6 +25,9 @@ export type EmotionRecord = {
   updatedAt: number; // epoch ms
   source?: RecordSource;
   deleted?: boolean; // soft-delete flag for tombstones
+
+  /** NEW: revision counter for 3-way merge (optional for backward compatibility) */
+  rev?: number;
 };
 
 /** Minimal create/update payloads for queueing local changes */

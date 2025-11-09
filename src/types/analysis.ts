@@ -21,15 +21,28 @@ export type EmotionTag = {
   span?: { start: number; end: number };
 };
 
+// ───────────────────────────────────────────────────────────────────────────────
+// INPUT SHAPES
+// ───────────────────────────────────────────────────────────────────────────────
+
 // A single user message (or journal line) to analyze locally
+// NOTE: For compatibility, we keep both `text` (existing) and `message` (new).
+//       Use `message ?? text` at call sites if needed.
 export type AnalysisInput = {
   id: string;               // message id in your chat log
-  text: string;
-  createdAt: number;        // epoch ms
-  role: "user" | "assistant";
+  /** Canonical message field going forward */
+  message?: string;
+  /** Legacy alias kept for older call sites */
+  text?: string;
+  createdAt?: number;       // epoch ms (optional to avoid SSR hydration diffs)
+  role?: "user" | "assistant";
 };
 
-// Per-message local analysis outcome
+// ───────────────────────────────────────────────────────────────────────────────
+// PER-MESSAGE ANALYSIS
+// ───────────────────────────────────────────────────────────────────────────────
+
+// Rich per-message outcome (your current model)
 export type PerMessageAnalysis = {
   id: string;               // mirrors AnalysisInput.id
   dominant: EmotionTag;     // the “winner” emotion for this message
@@ -39,7 +52,17 @@ export type PerMessageAnalysis = {
     polarity: number;       // -1..1 (negative..positive)
     arousal?: number;       // 0..1 (calm..excited) — reserved
   };
+
+  // Back-compat minimal fields (for simpler analyzers / tooling)
+  // These mirror the lightweight shape some modules expect.
+  emotion?: Emotion;        // equals dominant.emotion
+  intensity?: number;       // equals dominant.intensity
+  explanation?: string;     // brief reason string when provided
 };
+
+// ───────────────────────────────────────────────────────────────────────────────
+// REFLECTIONS & SNAPSHOTS
+// ───────────────────────────────────────────────────────────────────────────────
 
 // Reflection is a short natural-language note about recent feelings
 export type Reflection = {
@@ -51,7 +74,7 @@ export type Reflection = {
 
 // Rolling mood snapshot for the last N items (e.g., 7 messages or 24h)
 export type MoodSnapshot = {
-  window: { from: number; to: number }; // epoch ms range
+  window: { from: number; to: number }; // epoch ms range  ✅ fixed colon
   // weighted average intensity per emotion in the window
   averages: Partial<Record<Emotion, number>>; // 0..1 per emotion
   dominant: Emotion; // the highest average emotion
@@ -63,17 +86,39 @@ export type MoodSummary = {
   details?: string;   // one-liner: “Positivity trended up this evening.”
 };
 
-// What the analyzer returns for a batch of messages
+// ───────────────────────────────────────────────────────────────────────────────
+// BATCH RESULT
+// ───────────────────────────────────────────────────────────────────────────────
+
+// What the analyzer returns for a batch of messages (rich model)
 export type AnalysisResult = {
   perMessage: PerMessageAnalysis[];
   snapshot: MoodSnapshot;     // last window (we’ll start with ‘last 10 msgs’)
   summary: MoodSummary;       // 1–2 lines for the card
   reflections: Reflection[];  // zero or more short notes
   computedAt: number;         // epoch ms
+
+  // Back-compat fields for simpler analyzers:
+  // `timestamp` mirrors `computedAt`
+  // `items` mirrors `perMessage` in a simplified shape
+  timestamp?: number;
+  items?: Array<{
+    id: string;
+    emotion: Emotion;
+    intensity: number;
+    explanation?: string;
+  }>;
 };
 
+// ───────────────────────────────────────────────────────────────────────────────
+// FUNCTION SIGNATURES
+// ───────────────────────────────────────────────────────────────────────────────
+
 // The local analyzer function signature (pure & side-effect free)
-export type AnalyzeLocal = (inputs: AnalysisInput[], options?: {
-  // how many recent messages to include in snapshot (default: 10)
-  windowSize?: number;
-}) => Promise<AnalysisResult>;
+export type AnalyzeLocal = (
+  inputs: AnalysisInput[],
+  options?: {
+    // how many recent messages to include in snapshot (default: 10)
+    windowSize?: number;
+  }
+) => Promise<AnalysisResult>;

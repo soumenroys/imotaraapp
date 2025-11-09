@@ -1,42 +1,41 @@
 // src/lib/imotara/analyzeLocal.ts
-import {
+import type {
   AnalyzeLocal,
   AnalysisInput,
   AnalysisResult,
+  PerMessageAnalysis,
   Emotion,
   EmotionTag,
   MoodSnapshot,
-  PerMessageAnalysis,
   Reflection,
 } from "@/types/analysis";
-import { useEmotionHistory } from "@/store/emotionHistory";
 
 // --- 1) Tiny word lists for a first-pass heuristic (local-only) ---
 const LEXICON: Record<Emotion, string[]> = {
   joy: [
     "happy","glad","joy","delighted","great","awesome","love","loved","grateful",
-    "excited","relieved","proud","peaceful","calm","satisfied","content"
+    "excited","relieved","proud","peaceful","calm","satisfied","content",
   ],
   sadness: [
     "sad","down","unhappy","depressed","lonely","cry","crying","upset","hurt",
-    "disappointed","gloomy","heartbroken","miserable"
+    "disappointed","gloomy","heartbroken","miserable",
   ],
   anger: [
     "angry","mad","furious","annoyed","frustrated","irritated","rage","enraged",
-    "pissed","resent","hate","hated"
+    "pissed","resent","hate","hated",
   ],
   fear: [
     "afraid","scared","fear","anxious","anxiety","worried","worry","nervous",
-    "terrified","panic","panicking","uncertain"
+    "terrified","panic","panicking","uncertain",
   ],
   disgust: [
-    "disgust","gross","revolting","nauseated","repulsed","sickened","yuck","ew"
+    "disgust","gross","revolting","nauseated","repulsed","sickened","yuck","ew",
   ],
   surprise: [
-    "surprised","shocked","wow","unexpected","amazed","astonished","suddenly"
+    "surprised","shocked","wow","unexpected","amazed","astonished","suddenly",
   ],
   neutral: [
-    // no-op bucket, used when others are weak
+    // intentionally empty; used as fallback
   ],
 };
 
@@ -127,14 +126,17 @@ function oneLineDetail(delta: number): string | undefined {
 
 function windowOf(inputs: AnalysisInput[], size: number) {
   const slice = inputs.slice(-size);
-  const from = slice[0]?.createdAt ?? Date.now();
-  const to = slice[slice.length - 1]?.createdAt ?? Date.now();
+  const now = Date.now();
+  // Prefer provided timestamps; fall back to now to avoid SSR/Hydration drift
+  const from = slice[0]?.createdAt ?? now;
+  const to = slice[slice.length - 1]?.createdAt ?? now;
   return { slice, from, to };
 }
 
 // --- 3) Per-message analysis ---
 function analyzeMessage(msg: AnalysisInput): PerMessageAnalysis {
-  const tokens = tokenize(msg.text);
+  const raw = (msg.message ?? msg.text ?? "").trim();
+  const tokens = tokenize(raw);
 
   const rawScores: Partial<Record<Emotion, number>> = {};
   (Object.keys(LEXICON) as Emotion[]).forEach((e) => {
@@ -156,6 +158,13 @@ function analyzeMessage(msg: AnalysisInput): PerMessageAnalysis {
     dominant,
     all: allTags,
     heuristics: { polarity },
+
+    // Back-compat minimal fields
+    emotion: dominant.emotion,
+    intensity: dominant.intensity,
+    explanation: dominant.emotion === "neutral"
+      ? "No strong affective keywords detected."
+      : `Keywords aligned with ${dominant.emotion}.`,
   };
 }
 
@@ -242,16 +251,23 @@ export const analyzeLocal: AnalyzeLocal = async (inputs, options) => {
   // Reflections
   const reflections = buildReflections(perMessage);
 
+  const computedAt = Date.now();
+
   const result: AnalysisResult = {
     perMessage,
     snapshot,
     summary: { headline, details },
     reflections,
-    computedAt: Date.now(),
+    computedAt,
+    // Back-compat mirrors for simpler consumers
+    timestamp: computedAt,
+    items: perMessage.map((p) => ({
+      id: p.id,
+      emotion: p.emotion ?? p.dominant.emotion,
+      intensity: p.intensity ?? p.dominant.intensity,
+      explanation: p.explanation,
+    })),
   };
-
-  // ✅ Log into Emotion History (store expects an array)
-  useEmotionHistory.getState().bulkAdd([result]);
 
   return result;
 };

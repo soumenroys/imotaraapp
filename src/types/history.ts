@@ -1,5 +1,7 @@
 // src/types/history.ts
 
+import type { Choice, FollowUp } from "./choice";
+
 export type Emotion =
   | "joy"
   | "sadness"
@@ -28,6 +30,38 @@ export type EmotionRecord = {
 
   /** NEW: revision counter for 3-way merge (optional for backward compatibility) */
   rev?: number;
+
+  // -----------------------------
+  // Choice-driven metadata (optional)
+  // -----------------------------
+  /** Dedupbed topic tags for this record (e.g., ["sleep", "work"]). */
+  topicTags?: string[];
+
+  /** Mark this record as important/starred. */
+  important?: boolean;
+
+  /** Lightweight follow-ups associated with this record. */
+  followUps?: FollowUp[];
+
+  // -----------------------------
+  // Choice UI state (optional)
+  // -----------------------------
+  /** Choices that the UI can render as pills/buttons for this record. */
+  choices?: Choice[];
+
+  /** Choice IDs that have already been applied (for idempotence). */
+  appliedChoices?: string[];
+
+  /**
+   * Optional local helper for Undo:
+   * ring buffer of recent applications with minimal snapshots.
+   * This is local-only; servers can ignore it.
+   */
+  _appliedChoiceHistory?: Array<{
+    choiceId: string;
+    prevSnapshot: Partial<EmotionRecord>;
+    appliedAt: number; // epoch ms
+  }>;
 };
 
 /** Minimal create/update payloads for queueing local changes */
@@ -36,7 +70,10 @@ export type UpsertPayload = Omit<EmotionRecord, "createdAt" | "updatedAt"> & {
   createdAt?: number;
 };
 
-export type ConflictKind = "field_divergence" | "concurrent_edit" | "delete_vs_edit";
+export type ConflictKind =
+  | "field_divergence"
+  | "concurrent_edit"
+  | "delete_vs_edit";
 
 export type Conflict = {
   id: string;

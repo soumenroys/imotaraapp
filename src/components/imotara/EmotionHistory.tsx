@@ -1,13 +1,26 @@
+// src/components/imotara/EmotionHistory.tsx
 'use client';
 
 import { useEffect, useMemo, useState } from "react";
 import type { EmotionRecord } from "@/types/history";
 import { getHistory } from "@/lib/imotara/history";
 import { saveHistory } from "@/lib/imotara/historyPersist";
-import useSyncHistory from "@/hooks/useSyncHistory";
 import SyncStatusChip from "@/components/imotara/SyncStatusChip";
 import { pushAllLocalToApi, pushPendingToApi } from "@/lib/imotara/syncHistory";
 import { computePending } from "@/lib/imotara/pushLedger";
+
+// simple upsert merge (remote -> local)
+function mergeRemote(local: EmotionRecord[], incoming: EmotionRecord[]): EmotionRecord[] {
+  if (!Array.isArray(incoming) || incoming.length === 0) return local;
+  const map = new Map(local.map((r) => [r.id, r]));
+  for (const rec of incoming) {
+    const prev = map.get(rec.id);
+    map.set(rec.id, { ...(prev ?? ({} as EmotionRecord)), ...rec });
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+  );
+}
 
 export default function EmotionHistory() {
   const [items, setItems] = useState<EmotionRecord[]>([]);
@@ -15,65 +28,97 @@ export default function EmotionHistory() {
   const [apiInfo, setApiInfo] = useState<string>("");
   const [pendingCount, setPendingCount] = useState<number>(0);
 
-  // Initial load of local store
+  // manual sync state
+  const [state, setState] = useState<"idle" | "syncing" | "synced" | "error">("idle");
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
+
+  // Initial load of local store (async)
   useEffect(() => {
-    try {
-      const local = getHistory();
-      setItems(local);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("[EmotionHistory] getHistory failed:", err);
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const local = await getHistory();
+        if (!cancelled) setItems(Array.isArray(local) ? local : []);
+      } catch (err) {
+        if (!cancelled) setItems([]);
+        // eslint-disable-next-line no-console
+        console.error("[EmotionHistory] getHistory failed:", err);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  // Recompute pending count whenever items change
+  // Recompute pending whenever items change
   useEffect(() => {
     try {
-      setPendingCount(computePending(items).length);
+      setPendingCount(Array.isArray(items) ? computePending(items).length : 0);
     } catch {
       setPendingCount(0);
     }
   }, [items]);
 
-  const sync = useSyncHistory({
-    // Reflect merged records in UI, and persist them too.
-    onPersist: async (merged) => {
-      try {
-        setItems(merged);
-        saveHistory(merged); // ✅ persist to localStorage
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error("[EmotionHistory] onPersist failed:", err);
-      }
-    },
-    intervalMs: 60_000, // 60s periodic pull
-  });
-
   const subtitle = useMemo(() => {
-    if (sync.state === "synced" && sync.lastSyncedAt) {
-      const d = new Date(sync.lastSyncedAt);
+    if (state === "synced" && lastSyncedAt) {
+      const d = new Date(lastSyncedAt);
       return `Last synced ${d.toLocaleTimeString()}`;
     }
-    if (sync.state === "offline") return "Offline — will retry when online";
-    if (sync.state === "error" && sync.lastError) return `Error: ${sync.lastError}`;
-    if (sync.state === "syncing") return "Syncing…";
-    return "";
-  }, [sync.state, sync.lastSyncedAt, sync.lastError]);
+    if (state === "syncing") return "Syncing…";
+    if (state === "error" && lastError) return `Error: ${lastError}`;
+    return "Idle";
+  }, [state, lastSyncedAt, lastError]);
 
   const debugLine = useMemo(() => {
-    const t = sync.lastSyncedAt ? new Date(sync.lastSyncedAt).toLocaleString() : "—";
-    return `state=${sync.state} | lastSyncedAt=${t}`;
-  }, [sync.state, sync.lastSyncedAt]);
+    const t = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : "—";
+    return `state=${state} | lastSyncedAt=${t}`;
+  }, [state, lastSyncedAt]);
+
+  // Manual “Sync now”
+  async function manualSync() {
+    try {
+      setState("syncing");
+      setLastError(null);
+
+      const res = await fetch("/api/history", { method: "GET" });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`GET /api/history ${res.status} ${res.statusText} — ${text}`);
+      }
+      const json: any = await res.json().catch(() => ({}));
+      const incoming: EmotionRecord[] =
+        Array.isArray(json) ? json :
+        Array.isArray(json?.records) ? json.records : [];
+
+      const latestLocal = await getHistory();
+      const merged = mergeRemote(Array.isArray(latestLocal) ? latestLocal : [], incoming);
+      await saveHistory(merged);
+      setItems(merged);
+      setState("synced");
+      setLastSyncedAt(Date.now());
+    } catch (err: any) {
+      setState("error");
+      setLastError(String(err?.message ?? err));
+    }
+  }
+
+  // 👉 Auto-sync every 5 minutes when the tab is visible
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        void manualSync();
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, []);
 
   async function handleDelete(id: string) {
     const ok = typeof window !== "undefined" ? window.confirm("Delete this entry?") : true;
     if (!ok) return;
 
-    // Optimistic UI: hide immediately
     const prev = items;
-    const next = prev.filter((r) => r.id !== id);
+    const next = Array.isArray(prev) ? prev.filter((r) => r.id !== id) : [];
     setItems(next);
-    saveHistory(next); // persist optimistic change
+    await saveHistory(next);
 
     try {
       const res = await fetch("/api/history", {
@@ -85,24 +130,24 @@ export default function EmotionHistory() {
         const text = await res.text().catch(() => "");
         throw new Error(`DELETE failed: ${res.status} ${res.statusText} — ${text}`);
       }
-      const json = await res.json();
-      setPushInfo(`Deleted ${Array.isArray(json?.deletedIds) ? json.deletedIds.length : 0} item(s).`);
-      // Pull to reconcile (server may have different state)
-      await sync.manualSync();
+      const json = await res.json().catch(() => ({}));
+      const deletedCount = Array.isArray(json?.deletedIds) ? json.deletedIds.length : 0;
+      setPushInfo(`Deleted ${deletedCount} item(s).`);
+      await manualSync();
     } catch (err: any) {
-      // Roll back UI and persistence
       setItems(prev);
-      saveHistory(prev);
+      await saveHistory(prev);
       setPushInfo(`Delete failed: ${String(err?.message ?? err)}`);
     }
   }
 
+  const safeItems: EmotionRecord[] = Array.isArray(items) ? items : [];
+
   return (
     <section className="w-full">
-      {/* Error banner if sync lastError present */}
-      {sync.state === "error" && sync.lastError && (
+      {state === "error" && lastError && (
         <div className="mb-3 rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300">
-          Sync error: {sync.lastError}
+          Sync error: {lastError}
         </div>
       )}
 
@@ -110,22 +155,16 @@ export default function EmotionHistory() {
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <SyncStatusChip
-            state={sync.state}
-            lastSyncedAt={sync.lastSyncedAt}
-            pendingCount={pendingCount}  // ✅ now wired
-            conflictCount={0}            // TODO: wire from conflicts store
+            state={state === "syncing" ? "syncing" : state === "error" ? "error" : "synced"}
+            lastSyncedAt={lastSyncedAt}
+            pendingCount={pendingCount}
+            conflictsCount={0}
           />
           <span className="text-sm text-zinc-500 dark:text-zinc-400">{subtitle}</span>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={async () => {
-              try {
-                await sync.manualSync();
-              } catch (err: any) {
-                console.error("[EmotionHistory] manualSync failed:", err);
-              }
-            }}
+            onClick={manualSync}
             className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"
             title="Force pull & merge now"
           >
@@ -136,14 +175,15 @@ export default function EmotionHistory() {
             onClick={async () => {
               try {
                 setPushInfo("Pushing pending…");
-                const res = await pushPendingToApi();
+                const res: any = await pushPendingToApi();
+                const attempted = Number(res?.attempted ?? 0);
+                const accepted = Number(res?.accepted ?? res?.acceptedCount ?? 0);
+                const rejected = Number(res?.rejected ?? res?.rejectedCount ?? 0);
                 setPushInfo(
-                  `Pending push: attempted ${res.attempted}; accepted ${res.accepted}${
-                    res.rejected ? `, rejected ${res.rejected}` : ""
-                  }`
+                  `Pending push: attempted ${attempted}; accepted ${accepted}${rejected ? `, rejected ${rejected}` : ""}`
                 );
-                // Refresh pending count after push using the latest local store
-                setPendingCount(computePending(getHistory()).length);
+                const latest = await getHistory();
+                setPendingCount(computePending(latest).length);
               } catch (err: any) {
                 setPushInfo(`Push pending failed: ${String(err?.message ?? err)}`);
               }
@@ -154,18 +194,20 @@ export default function EmotionHistory() {
             {`Push pending${pendingCount ? ` (${pendingCount})` : ""}`}
           </button>
 
-          {/* Optional: keep full push for testing */}
           <button
             onClick={async () => {
               try {
                 setPushInfo("Pushing all…");
-                const res = await pushAllLocalToApi();
+                const res: any = await pushAllLocalToApi();
+                const attempted = Number(res?.attempted ?? 0);
+                const accepted = Array.isArray(res?.acceptedIds) ? res.acceptedIds.length : Number(res?.accepted ?? 0);
+                const rejectedLen =
+                  Array.isArray(res?.rejected) ? res.rejected.length : Number(res?.rejected ?? 0);
                 setPushInfo(
-                  `Pushed ${res.attempted}; accepted ${res.acceptedIds.length}${
-                    res.rejected?.length ? `, rejected ${res.rejected.length}` : ""
-                  }`
+                  `Pushed ${attempted}; accepted ${accepted}${rejectedLen ? `, rejected ${rejectedLen}` : ""}`
                 );
-                setPendingCount(computePending(getHistory()).length);
+                const latest = await getHistory();
+                setPendingCount(computePending(latest).length);
               } catch (err: any) {
                 setPushInfo(`Push all failed: ${String(err?.message ?? err)}`);
               }
@@ -181,13 +223,13 @@ export default function EmotionHistory() {
               try {
                 setApiInfo("Checking…");
                 const res = await fetch("/api/history", { method: "GET" });
-                const json = await res.json();
+                const json = await res.json().catch(() => ({}));
                 if (Array.isArray(json)) {
                   setApiInfo(`GET /api/history returned array: length=${json.length}`);
                 } else if (json && typeof json === "object" && "records" in json) {
-                  const recs = Array.isArray(json.records) ? json.records : [];
+                  const recs = Array.isArray((json as any).records) ? (json as any).records : [];
                   setApiInfo(
-                    `GET /api/history envelope: records=${recs.length}, serverTs=${json.serverTs ?? "—"}`
+                    `GET /api/history envelope: records=${recs.length}, serverTs=${(json as any).serverTs ?? "—"}`
                   );
                 } else {
                   setApiInfo(`GET /api/history unexpected shape: ${JSON.stringify(json).slice(0, 200)}…`);
@@ -213,17 +255,13 @@ export default function EmotionHistory() {
 
       {/* Simple list of history items */}
       <ul className="space-y-3">
-        {items.map((r) => {
+        {safeItems.map((r) => {
           const ts = typeof r.updatedAt === "number" ? r.updatedAt : r.createdAt;
           const when = ts ? new Date(ts).toLocaleString() : "—";
-          const intensity =
-            typeof r.intensity === "number" ? r.intensity.toFixed(2) : "—";
+          const intensity = typeof r.intensity === "number" ? r.intensity.toFixed(2) : "—";
 
           return (
-            <li
-              key={r.id}
-              className="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800"
-            >
+            <li key={r.id} className="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-500 dark:text-zinc-400">{when}</div>
                 <div className="flex items-center gap-2">
@@ -245,7 +283,7 @@ export default function EmotionHistory() {
             </li>
           );
         })}
-        {items.length === 0 && (
+        {safeItems.length === 0 && (
           <li className="rounded-2xl border border-dashed border-zinc-300 p-6 text-center text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
             No history yet.
           </li>

@@ -27,11 +27,11 @@ async function fetchRemoteSince(
     );
     if (!res.ok) return { records: [], nextSyncToken: syncToken ?? null };
 
-    const data = await res.json().catch(() => ({}));
-    const records = Array.isArray(data?.records)
-      ? (data.records as EmotionRecord[])
+    const data = await res.json().catch(() => ({} as any));
+    const records = Array.isArray((data as any)?.records)
+      ? ((data as any).records as EmotionRecord[])
       : [];
-    const nextSyncToken = data?.nextSyncToken ?? syncToken ?? null;
+    const nextSyncToken = (data as any)?.nextSyncToken ?? syncToken ?? null;
     return { records, nextSyncToken };
   } catch {
     // Network error → treat as no delta (retry next time)
@@ -117,4 +117,45 @@ export async function syncHistoryStep(): Promise<{
   });
 
   return { plan, local: getHistory() };
+}
+
+/* ------------------------------------------------------------------ */
+/* Compatibility helpers for UI components                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Apply user-approved conflict resolutions.
+ * Merges the chosen records into local, advances shadow, and persists.
+ * (When you add server push, call it here too.)
+ */
+export async function applyConflictResolution(resolved: EmotionRecord[]): Promise<void> {
+  if (!Array.isArray(resolved) || resolved.length === 0) return;
+
+  // Upsert chosen versions locally
+  const local0 = getHistory();
+  const local1 = applyRemoteToLocal(local0, resolved);
+  if (local1 !== local0) saveHistory(local1);
+
+  // Advance shadow for these records so they no longer appear as conflicts
+  const sync0 = getSyncState();
+  const shadow1 = updateShadow(sync0.shadow, resolved);
+  saveSyncState({
+    ...sync0,
+    shadow: shadow1,
+    lastSyncedAt: Date.now(),
+  });
+}
+
+/**
+ * TEMP compatibility stubs for older components.
+ * Keep EmotionHistory.tsx compiling; wire real push logic later.
+ */
+export async function pushAllLocalToApi(): Promise<void> {
+  // TODO: implement full push-all flow (local → API)
+  return;
+}
+
+export async function pushPendingToApi(): Promise<void> {
+  // TODO: implement push-pending flow using a ledger
+  return;
 }

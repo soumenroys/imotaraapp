@@ -1,47 +1,134 @@
 // src/lib/imotara/history.ts
+//
+// Canonical local history accessors used by the app.
+// - Client-only (safe on SSR: returns [] server-side)
+// - Reads/writes from localStorage
+// - Backward-compatible with BOTH keys:
+//     "imotara:history:v1"  (preferred)
+//     "imotara.history.v1"  (legacy)
+//
+
 "use client";
 
 import { v4 as uuid } from "uuid";
 import type { Emotion, EmotionRecord } from "@/types/history";
 
-// Keep storage consistent with sync manager
-const KEY = "imotara.history.v1";
+// Preferred key first; we also read legacy to stay compatible
+const KEYS = ["imotara:history:v1", "imotara.history.v1"] as const;
+type StorageKey = (typeof KEYS)[number];
+const PRIMARY_KEY: StorageKey = KEYS[0];
 
-/** Read entire local history from localStorage (safe parse). */
-function readAll(): EmotionRecord[] {
-  if (typeof window === "undefined") return [];
+// ---------------- internal helpers ----------------
+
+function isClient() {
+  return typeof window !== "undefined" && typeof localStorage !== "undefined";
+}
+
+function safeParse(raw: string | null): EmotionRecord[] {
+  if (!raw) return [];
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     // basic shape guard
-    return parsed.filter(
-      (x) =>
+    return (parsed as unknown[]).filter(
+      (x: any) =>
         typeof x?.id === "string" &&
         typeof x?.message === "string" &&
         typeof x?.emotion === "string" &&
         typeof x?.intensity === "number" &&
         typeof x?.createdAt === "number" &&
         typeof x?.updatedAt === "number"
-    );
+    ) as EmotionRecord[];
   } catch {
     return [];
   }
 }
 
-/** Write entire local history to localStorage. */
-function writeAll(items: EmotionRecord[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(KEY, JSON.stringify(items));
+function readFirstAvailable(): { key: StorageKey; list: EmotionRecord[] } {
+  if (!isClient()) return { key: PRIMARY_KEY, list: [] };
+  for (const k of KEYS) {
+    const list = safeParse(localStorage.getItem(k));
+    if (list.length) return { key: k, list };
+  }
+  // if none found, default to primary key
+  return { key: PRIMARY_KEY, list: [] };
+}
+
+function writeAll(key: StorageKey, items: EmotionRecord[]) {
+  if (!isClient()) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(items));
+  } catch {
+    // ignore quota errors in dev
+  }
+}
+
+// Normalize: newest-first
+function sortNewest(list: EmotionRecord[]) {
+  return list.slice().sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+}
+
+// ---------------- public API ----------------
+
+/** Get the entire emotion history (client: localStorage). Async for ergonomics. */
+export async function getHistory(): Promise<EmotionRecord[]> {
+  const { list } = readFirstAvailable();
+  return sortNewest(list);
+}
+
+/** Synchronous getter (occasionally handy). */
+export function getHistorySync(): EmotionRecord[] {
+  const { list } = readFirstAvailable();
+  return sortNewest(list);
 }
 
 /**
- * saveSample
- * Create (or upsert) a single record in local history.
- * This replaces the old EmotionSample-based API with EmotionRecord.
+ * Replace the entire history array (writes to primary key).
+ * Prefer patch/upsert for incremental updates.
  */
-export function saveSample(partial: {
+export async function setHistory(list: EmotionRecord[]): Promise<void> {
+  writeAll(PRIMARY_KEY, sortNewest(list));
+}
+
+/** Append or replace by id (newer-wins by updatedAt). */
+export async function upsertHistory(records: EmotionRecord[]): Promise<void> {
+  const { key, list } = readFirstAvailable();
+  const map = new Map<string, EmotionRecord>(list.map((r) => [r.id, r]));
+  for (const r of records) {
+    const prev = map.get(r.id);
+    if (!prev) {
+      map.set(r.id, r);
+      continue;
+    }
+    // last-writer-wins via updatedAt
+    const next =
+      (r.updatedAt ?? 0) >= (prev.updatedAt ?? 0)
+        ? { ...prev, ...r }
+        : prev;
+    map.set(r.id, next);
+  }
+  // bound storage to last 5000
+  const nextList = sortNewest(Array.from(map.values())).slice(0, 5000);
+  writeAll(key, nextList);
+}
+
+/** Remove a record by id (hard delete from local; elsewhere you may soft-delete). */
+export async function removeFromHistory(id: string): Promise<void> {
+  const { key, list } = readFirstAvailable();
+  writeAll(
+    key,
+    list.filter((r) => r.id !== id)
+  );
+}
+
+// ---------------- convenience + legacy-compatible helpers ----------------
+
+/**
+ * saveSample
+ * Convenience for creating a single record quickly (used by dev seed).
+ * Upserts using the same newer-wins rule.
+ */
+export async function saveSample(partial: {
   id?: string;
   message: string;
   emotion: Emotion;
@@ -51,10 +138,8 @@ export function saveSample(partial: {
   updatedAt?: number;
   deleted?: boolean;
 }) {
-  const existing = readAll();
   const now = Date.now();
-
-  const record: EmotionRecord = {
+  const rec: EmotionRecord = {
     id: partial.id ?? uuid(),
     message: partial.message,
     emotion: partial.emotion,
@@ -64,36 +149,8 @@ export function saveSample(partial: {
     source: partial.source ?? "local",
     deleted: partial.deleted ?? false,
   };
-
-  // upsert by id (replace if exists)
-  const idx = existing.findIndex((r) => r.id === record.id);
-  if (idx >= 0) {
-    // last-writer-wins by updatedAt
-    const prev = existing[idx];
-    existing[idx] =
-      (record.updatedAt ?? 0) >= (prev.updatedAt ?? 0) ? record : prev;
-  } else {
-    existing.push(record);
-  }
-
-  // keep only latest 5k by updatedAt to bound storage
-  const trimmed = existing
-    .slice()
-    .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
-    .slice(0, 5000);
-
-  writeAll(trimmed);
-  return record;
-}
-
-/** Return local history newest-first. */
-export function getHistory(): EmotionRecord[] {
-  return readAll().sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
-}
-
-/** Clear all local history. */
-export function clearHistory() {
-  writeAll([]);
+  await upsertHistory([rec]);
+  return rec;
 }
 
 /** Unique set of emotions present in the given items. */
@@ -106,7 +163,7 @@ export function getEmotionsSet(items: EmotionRecord[]): Emotion[] {
 /**
  * primaryTag
  * Compatibility helper for old code that expected a "primary tag".
- * For EmotionRecord, the "primary" is just the (emotion, intensity) pair.
+ * For EmotionRecord, the "primary" is the (emotion, intensity) pair.
  */
 export function primaryTag(
   sample: EmotionRecord

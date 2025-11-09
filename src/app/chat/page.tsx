@@ -5,8 +5,12 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { MessageSquare, Plus, Send, Trash2, Download, Eraser, RefreshCw } from "lucide-react";
 import MoodSummaryCard from "@/components/imotara/MoodSummaryCard";
 import type { AppMessage } from "@/lib/imotara/useAnalysis";
-import { syncHistory } from "@/lib/imotara/syncHistory";
+import { syncHistory } from "@/lib/imotara/syncHistoryAdapter";
 import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
+
+// 👇 analysis imports
+import type { AnalysisResult } from "@/types/analysis";
+import { runLocalAnalysis } from "@/lib/imotara/runLocalAnalysis";
 
 type Role = "user" | "assistant" | "system";
 type Message = { id: string; role: Role; content: string; createdAt: number };
@@ -123,6 +127,10 @@ export default function ChatPage() {
   const [syncedCount, setSyncedCount] = useState<number | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
+  // analysis state
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [analyzing, setAnalyzing] = useState(false); // spinner flag
+
   // Keep activeId valid after mount
   useEffect(() => {
     if (!mounted) return;
@@ -147,6 +155,33 @@ export default function ChatPage() {
     const msgs = activeThread?.messages ?? [];
     return msgs.filter(isAppMessage);
   }, [activeThread?.messages]);
+
+  // run analysis whenever messages change (console-only)
+  useEffect(() => {
+    if (!mounted) return;
+    const msgs = activeThread?.messages ?? [];
+    if (msgs.length === 0) {
+      setAnalysis(null);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await runLocalAnalysis(msgs, 10);
+        if (!cancelled) {
+          setAnalysis(res);
+          console.log("[imotara] analysis:", res.summary.headline, res);
+        }
+      } catch (err) {
+        console.error("[imotara] analysis failed:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, activeThread?.messages]);
 
   // Scroll on message change
   useEffect(() => {
@@ -184,6 +219,21 @@ export default function ChatPage() {
   useEffect(() => {
     if (mounted) void runSync();
   }, [mounted, runSync]);
+
+  // manual re-analyze helper
+  async function triggerAnalyze() {
+    if (!activeThread?.messages?.length) return;
+    setAnalyzing(true);
+    try {
+      const res = await runLocalAnalysis(activeThread.messages, 10);
+      setAnalysis(res);
+      console.log("[imotara] manual analysis:", res.summary.headline, res);
+    } catch (err) {
+      console.error("[imotara] manual analysis failed:", err);
+    } finally {
+      setAnalyzing(false);
+    }
+  }
 
   function newThread() {
     const t: Thread = { id: uid(), title: "New conversation", createdAt: Date.now(), messages: [] };
@@ -356,10 +406,33 @@ export default function ChatPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* analysis headline pill */}
+            {analysis?.summary?.headline ? (
+              <span
+                className="hidden rounded-full border border-zinc-300 px-2 py-1 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-400 sm:inline"
+                title="Local emotion snapshot"
+              >
+                {analysis.summary.headline}
+              </span>
+            ) : null}
+
             <div className="hidden text-xs text-zinc-500 sm:block">
               {syncing ? "Syncing…" : lastSyncAt ? `Synced ${syncedCount ?? 0}` : "Not synced yet"}
               {syncError ? ` · ${syncError}` : ""}
             </div>
+
+            {/* Re-analyze button with spinner */}
+            <button
+              onClick={triggerAnalyze}
+              disabled={analyzing || !(activeThread?.messages?.length)}
+              aria-busy={analyzing ? true : undefined}
+              className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              title="Run local emotion analysis now"
+            >
+              {analyzing ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}
+              Re-analyze
+            </button>
+
             <button
               onClick={runSync}
               disabled={syncing}

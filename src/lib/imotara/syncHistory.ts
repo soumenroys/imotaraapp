@@ -9,17 +9,18 @@ import {
   saveSyncState,
 } from "@/lib/imotara/historyPersist";
 import { buildPlanMarkConflicts } from "@/lib/imotara/conflict";
+import { computePending } from "@/lib/imotara/pushLedger";
+
+/* ------------------------------------------------------------------ */
+/*                         FETCH (incremental)                         */
+/* ------------------------------------------------------------------ */
 
 /**
- * (Stub) Incremental remote fetch. Replace with your real API later.
- * If you already have /api/history, wire it here.
+ * Incremental remote fetch. Replace with your real API later.
  */
 async function fetchRemoteSince(
   syncToken?: string | null
-): Promise<{
-  records: EmotionRecord[];
-  nextSyncToken?: string | null;
-}> {
+): Promise<{ records: EmotionRecord[]; nextSyncToken?: string | null }> {
   try {
     const res = await fetch(
       "/api/history?since=" + encodeURIComponent(syncToken ?? ""),
@@ -34,128 +35,214 @@ async function fetchRemoteSince(
     const nextSyncToken = (data as any)?.nextSyncToken ?? syncToken ?? null;
     return { records, nextSyncToken };
   } catch {
-    // Network error → treat as no delta (retry next time)
     return { records: [], nextSyncToken: syncToken ?? null };
   }
 }
 
-/** Apply an array of remote records to the local list (upsert + tombstones). */
-function applyRemoteToLocal(
-  local: EmotionRecord[],
-  incoming: EmotionRecord[]
-): EmotionRecord[] {
-  if (!incoming.length) return local;
+/* ------------------------------------------------------------------ */
+/*                       LOCAL APPLY / SHADOW HELPERS                  */
+/* ------------------------------------------------------------------ */
 
+/** Upsert remote records into local (keeps tombstones). */
+function applyRemoteToLocal(local: EmotionRecord[], incoming: EmotionRecord[]): EmotionRecord[] {
+  if (!incoming.length) return local;
   const map = new Map(local.map((r) => [r.id, r]));
   for (const rec of incoming) {
-    // Keep tombstones so deleted items don’t reappear
     const prev = map.get(rec.id);
     map.set(rec.id, { ...(prev ?? ({} as EmotionRecord)), ...rec });
   }
-
-  // Optional: newest first for UI
-  return Array.from(map.values()).sort(
-    (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
-  );
+  return Array.from(map.values()).sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
 }
 
-/** Update shadow revs for records we successfully reconciled this step. */
+/** Advance shadow revs for records we reconciled. */
 function updateShadow(
   shadow: SyncState["shadow"],
   applied: EmotionRecord[]
 ): SyncState["shadow"] {
   if (!applied.length) return shadow;
   const next = { ...shadow };
-  for (const r of applied) {
-    // If r.rev is missing, treat as 0 to stay consistent with conflict.ts defaults
-    next[r.id] = r.rev ?? 0;
-  }
+  for (const r of applied) next[r.id] = r.rev ?? 0;
   return next;
 }
 
-/**
- * Run one conservative sync step:
- * - Pull remote delta (incremental)
- * - Plan safe changes vs conflicts
- * - Apply only non-conflicting changes locally
- * - Persist updated local history + sync state
- */
-export async function syncHistoryStep(): Promise<{
-  plan: SyncPlan;
-  local: EmotionRecord[];
-}> {
-  const local0 = getHistory();
+/* ------------------------------------------------------------------ */
+/*                               SYNC STEP                             */
+/* ------------------------------------------------------------------ */
+
+export async function syncHistoryStep(): Promise<{ plan: SyncPlan; local: EmotionRecord[] }> {
+  const local0 = await getHistory();
   const sync0 = getSyncState();
 
-  // 1) Pull remote delta (since last token)
-  const { records: remoteDelta, nextSyncToken } = await fetchRemoteSince(
-    sync0.syncToken
-  );
+  const { records: remoteDelta, nextSyncToken } = await fetchRemoteSince(sync0.syncToken);
 
-  // 2) Build plan that marks conflicts (no auto-merge)
   const plan = buildPlanMarkConflicts(local0, remoteDelta, sync0);
 
-  // 3) Apply safe remote changes to local
   const local1 = applyRemoteToLocal(local0, plan.applyRemote);
 
-  // (Optional push) If you already have POST /api/history, you can push plan.applyLocal here later.
+  if (local1 !== local0) await saveHistory(local1);
 
-  // 4) Persist local history if changed
-  if (local1 !== local0) saveHistory(local1);
-
-  // 5) Advance shadow for applied records (both directions)
   const advancedShadow = updateShadow(sync0.shadow, [
     ...plan.applyRemote,
     ...plan.applyLocal,
   ]);
 
-  // 6) Save sync state (advance token only if fetch worked)
   saveSyncState({
     shadow: advancedShadow,
     syncToken: nextSyncToken ?? sync0.syncToken ?? null,
     lastSyncedAt: Date.now(),
   });
 
-  return { plan, local: getHistory() };
+  return { plan, local: await getHistory() };
 }
 
 /* ------------------------------------------------------------------ */
-/* Compatibility helpers for UI components                             */
+/*                              PUSH HELPERS                           */
 /* ------------------------------------------------------------------ */
 
-/**
- * Apply user-approved conflict resolutions.
- * Merges the chosen records into local, advances shadow, and persists.
- * (When you add server push, call it here too.)
- */
-export async function applyConflictResolution(resolved: EmotionRecord[]): Promise<void> {
-  if (!Array.isArray(resolved) || resolved.length === 0) return;
+type PushResult = { attempted: number; acceptedIds: string[]; rejected?: string[] };
 
-  // Upsert chosen versions locally
-  const local0 = getHistory();
-  const local1 = applyRemoteToLocal(local0, resolved);
-  if (local1 !== local0) saveHistory(local1);
+/** Push only pending local records (detected via computePending). */
+export async function pushPendingToApi(): Promise<PushResult> {
+  const local = await getHistory();
+  const toSend = computePending(local);
+  if (!toSend.length) return { attempted: 0, acceptedIds: [] };
 
-  // Advance shadow for these records so they no longer appear as conflicts
-  const sync0 = getSyncState();
-  const shadow1 = updateShadow(sync0.shadow, resolved);
-  saveSyncState({
-    ...sync0,
-    shadow: shadow1,
-    lastSyncedAt: Date.now(),
+  const res = await fetch("/api/history", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ records: toSend }),
   });
+
+  let data: any = {};
+  try {
+    data = await res.json();
+  } catch {
+    /* ignore */
+  }
+
+  const acceptedIds: string[] = Array.isArray(data?.acceptedIds)
+    ? data.acceptedIds
+    : Array.isArray(data?.accepted)
+    ? data.accepted
+    : res.ok
+    ? toSend.map((r) => r.id)
+    : [];
+
+  const rejected: string[] | undefined = Array.isArray(data?.rejected) ? data.rejected : undefined;
+
+  if (acceptedIds.length) {
+    const byId = new Map(local.map((r) => [r.id, r]));
+    const sync = getSyncState();
+    const shadow = { ...sync.shadow };
+    for (const id of acceptedIds) {
+      const rec = byId.get(id);
+      if (rec) shadow[id] = rec.rev ?? 0;
+    }
+    saveSyncState({ ...sync, shadow, lastSyncedAt: Date.now() });
+  }
+
+  return { attempted: toSend.length, acceptedIds, rejected };
 }
+
+/** Push ALL local records (debug/first-load helper). */
+export async function pushAllLocalToApi(): Promise<PushResult> {
+  const local = await getHistory();
+
+  const res = await fetch("/api/history", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ records: local }),
+  });
+
+  let data: any = {};
+  try {
+    data = await res.json();
+  } catch {
+    /* ignore */
+  }
+
+  const acceptedIds: string[] = Array.isArray(data?.acceptedIds)
+    ? data.acceptedIds
+    : Array.isArray(data?.accepted)
+    ? data.accepted
+    : res.ok
+    ? local.map((r) => r.id)
+    : [];
+
+  const rejected: string[] | undefined = Array.isArray(data?.rejected) ? data.rejected : undefined;
+
+  if (acceptedIds.length) {
+    const byId = new Map(local.map((r) => [r.id, r]));
+    const sync = getSyncState();
+    const shadow = { ...sync.shadow };
+    for (const id of acceptedIds) {
+      const rec = byId.get(id);
+      if (rec) shadow[id] = rec.rev ?? 0;
+    }
+    saveSyncState({ ...sync, shadow, lastSyncedAt: Date.now() });
+  }
+
+  return { attempted: local.length, acceptedIds, rejected };
+}
+
+/* ------------------------------------------------------------------ */
+/*                       CONFLICT RESOLUTION API                       */
+/* ------------------------------------------------------------------ */
 
 /**
- * TEMP compatibility stubs for older components.
- * Keep EmotionHistory.tsx compiling; wire real push logic later.
+ * Minimal shape expected from the Conflict Review UI.
+ * `keep` tells us which side to keep for a given `id`.
  */
-export async function pushAllLocalToApi(): Promise<void> {
-  // TODO: implement full push-all flow (local → API)
-  return;
-}
+export type ConflictDecision = {
+  id: string;
+  keep: "local" | "remote";
+  local?: EmotionRecord | null;
+  remote?: EmotionRecord | null;
+};
 
-export async function pushPendingToApi(): Promise<void> {
-  // TODO: implement push-pending flow using a ledger
-  return;
+/**
+ * Apply the chosen conflict resolutions locally and advance the shadow so
+ * these items stop appearing as conflicts/pending. This does NOT push to the
+ * server; it’s purely a local reconciliation step. Push can happen later.
+ */
+export async function applyConflictResolution(
+  decisions: ConflictDecision[]
+): Promise<{ applied: number; local: EmotionRecord[] }> {
+  if (!Array.isArray(decisions) || !decisions.length) {
+    return { applied: 0, local: await getHistory() };
+  }
+
+  const local0 = await getHistory();
+  const byId = new Map(local0.map((r) => [r.id, r]));
+  const map = new Map(local0.map((r) => [r.id, r]));
+  const applied: EmotionRecord[] = [];
+
+  for (const d of decisions) {
+    const chosen =
+      d.keep === "local" ? (d.local ?? byId.get(d.id) ?? null) : (d.remote ?? null);
+    if (!chosen) continue;
+
+    // Upsert chosen record
+    const prev = map.get(d.id);
+    const merged: EmotionRecord = { ...(prev ?? ({} as EmotionRecord)), ...chosen };
+
+    // Ensure timestamps/rev are sane
+    if (typeof merged.updatedAt !== "number") merged.updatedAt = Date.now();
+    if (typeof merged.rev !== "number") merged.rev = (prev?.rev ?? 0);
+
+    map.set(d.id, merged);
+    applied.push(merged);
+  }
+
+  const local1 = Array.from(map.values()).sort(
+    (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+  );
+  await saveHistory(local1);
+
+  // Advance shadow for all applied records so they no longer show as conflicts
+  const sync = getSyncState();
+  const shadow = updateShadow(sync.shadow, applied);
+  saveSyncState({ ...sync, shadow, lastSyncedAt: Date.now() });
+
+  return { applied: applied.length, local: local1 };
 }

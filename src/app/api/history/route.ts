@@ -102,7 +102,7 @@ export async function GET(request: Request) {
  * Body (back-compat):
  *   - NEW preferred: { records: EmotionRecord[] }
  *   - OLD (compat):  EmotionRecord[]
- * Upserts with LWW; returns { acceptedIds, rejected? }
+ * Upserts with LWW; returns { attempted, acceptedIds, rejected?, serverTs }
  * --------------------------------------------------------------------------*/
 export async function POST(request: Request) {
   try {
@@ -115,6 +115,7 @@ export async function POST(request: Request) {
       ? body.records
       : [];
 
+    const attempted = list.length;
     const acceptedIds: string[] = [];
     const rejected: { id?: string; reason: string }[] = [];
 
@@ -130,7 +131,12 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { acceptedIds, rejected: rejected.length ? rejected : undefined },
+      {
+        attempted,
+        acceptedIds,
+        rejected: rejected.length ? rejected : undefined,
+        serverTs: Date.now(),
+      },
       { status: 200 }
     );
   } catch (err: any) {

@@ -73,6 +73,42 @@ export default function EmotionHistory() {
   // detailed conflict list (server newer than local)
   const [conflictItems, setConflictItems] = useState<ConflictItem[]>([]);
 
+  // ⬇️ single-level undo snapshot (20s window)
+  const [undoSnapshot, setUndoSnapshot] = useState<EmotionRecord[] | null>(null);
+  const [undoLabel, setUndoLabel] = useState<string | null>(null);
+  const undoTimerRef = useRef<number | null>(null);
+
+  function clearUndoTimer() {
+    if (undoTimerRef.current) {
+      window.clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+  }
+
+  function offerUndo(prevItems: EmotionRecord[], label: string) {
+    setUndoSnapshot(prevItems);
+    setUndoLabel(label);
+    clearUndoTimer();
+    undoTimerRef.current = window.setTimeout(() => {
+      setUndoSnapshot(null);
+      setUndoLabel(null);
+      undoTimerRef.current = null;
+    }, 20_000);
+  }
+
+  function performUndo() {
+    if (!undoSnapshot) return;
+    const prev = undoSnapshot;
+    setItems(prev);
+    setSummary(computeEmotionSummary(prev.filter((r) => !r.deleted)));
+    saveHistory(prev);
+    setPendingCount(computePending(prev).length);
+    setUndoSnapshot(null);
+    setUndoLabel(null);
+    clearUndoTimer();
+    // NOTE: we do not automatically restore conflictItems; the user can re-sync to re-evaluate
+  }
+
   // Load lastConflictAt from localStorage once
   useEffect(() => {
     try {
@@ -108,7 +144,7 @@ export default function EmotionHistory() {
         const list = Array.isArray(local) ? local : [];
         if (!cancelled) {
           setItems(list);
-          setSummary(computeEmotionSummary(list));
+          setSummary(computeEmotionSummary(list.filter((r) => !r.deleted)));
         }
       } catch (err) {
         if (!cancelled) {
@@ -132,7 +168,8 @@ export default function EmotionHistory() {
       setPendingCount(0);
     }
     try {
-      setSummary(computeEmotionSummary(Array.isArray(items) ? items : []));
+      const base = Array.isArray(items) ? items : [];
+      setSummary(computeEmotionSummary(base.filter((r) => !r.deleted)));
     } catch {
       // no-op; keep previous summary
     }
@@ -229,7 +266,7 @@ export default function EmotionHistory() {
       const merged = mergeRemote(localList, incoming);
       await saveHistory(merged);
       setItems(merged);
-      setSummary(computeEmotionSummary(merged));
+      setSummary(computeEmotionSummary(merged.filter((r) => !r.deleted)));
 
       // if we actually pulled newer server updates, show “Pulled just now” for 2s
       if (serverNewer > 0) {
@@ -270,7 +307,7 @@ export default function EmotionHistory() {
     const prev = items;
     const next = Array.isArray(prev) ? prev.filter((r) => r.id !== id) : [];
     setItems(next);
-    setSummary(computeEmotionSummary(next));
+    setSummary(computeEmotionSummary(next.filter((r) => !r.deleted)));
     await saveHistory(next);
 
     try {
@@ -289,7 +326,7 @@ export default function EmotionHistory() {
       await manualSync();
     } catch (err: any) {
       setItems(prev);
-      setSummary(computeEmotionSummary(prev)); // rollback
+      setSummary(computeEmotionSummary(prev.filter((r) => !r.deleted))); // rollback
       await saveHistory(prev);
       setPushInfo(`Delete failed: ${String(err?.message ?? err)}`);
     }
@@ -309,13 +346,67 @@ export default function EmotionHistory() {
     const base = Array.isArray(items) ? items : [];
     const next = [rec, ...base];
     setItems(next);
-    setSummary(computeEmotionSummary(next));
+    setSummary(computeEmotionSummary(next.filter((r) => !r.deleted)));
     setLastAddedId(rec.id); // mark for scroll
     saveHistory(next);
     setPendingCount(computePending(next).length);
   }
 
-  // ⬇️ Inline modal component (now lists conflict details) — Step 14-B.11-B
+  // ⬇️ helpers to apply server choice (with Undo)
+  async function applyServerVersion(id: string, serverRec: EmotionRecord) {
+    const prevItems = Array.isArray(items) ? items : [];
+    const idx = prevItems.findIndex((r) => r.id === id);
+    let next: EmotionRecord[];
+    if (idx >= 0) {
+      next = [...prevItems];
+      next[idx] = serverRec;
+    } else {
+      next = [serverRec, ...prevItems];
+    }
+    setItems(next);
+    setSummary(computeEmotionSummary(next.filter((r) => !r.deleted)));
+    await saveHistory(next);
+    setPendingCount(computePending(next).length);
+
+    // remove resolved conflict from the modal list
+    setConflictItems((list) => list.filter((c) => c.id !== id));
+    setConflicts((n) => Math.max(0, n - 1));
+
+    // offer undo
+    offerUndo(prevItems, "Replaced with server version");
+  }
+
+  async function applyServerVersionForAll() {
+    const prevItems = Array.isArray(items) ? items : [];
+    const serverRecs = conflictItems
+      .map((c) => c.server)
+      .filter((r): r is EmotionRecord => !!r);
+
+    if (serverRecs.length === 0) return;
+
+    // update/insert each server rec
+    const map = new Map(prevItems.map((r) => [r.id, r]));
+    for (const rec of serverRecs) {
+      map.set(rec.id, rec);
+    }
+    const next = Array.from(map.values()).sort(
+      (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+    );
+
+    setItems(next);
+    setSummary(computeEmotionSummary(next.filter((r) => !r.deleted)));
+    await saveHistory(next);
+    setPendingCount(computePending(next).length);
+
+    // clear conflicts
+    setConflictItems([]);
+    setConflicts(0);
+
+    // offer undo
+    offerUndo(prevItems, "Replaced all with server versions");
+  }
+
+  // ⬇️ Inline modal component (now lists conflict details + actions)
   function ConflictModal({
     open,
     onClose,
@@ -397,9 +488,20 @@ export default function EmotionHistory() {
                           </div>
                         </div>
                       </div>
-                      <span className="shrink-0 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:border-amber-600/60 dark:bg-amber-900/30 dark:text-amber-300">
-                        server newer
-                      </span>
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:border-amber-600/60 dark:bg-amber-900/30 dark:text-amber-300">
+                          server newer
+                        </span>
+                        <button
+                          onClick={() => {
+                            if (it.server) void applyServerVersion(it.id, it.server);
+                          }}
+                          className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                          title="Replace local copy with the server version"
+                        >
+                          Use server version
+                        </button>
+                      </div>
                     </div>
                   </li>
                 ))}
@@ -407,23 +509,38 @@ export default function EmotionHistory() {
             )}
           </div>
 
-          <div className="mt-4 flex justify-end gap-2">
-            <button
-              onClick={onClose}
-              className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
-            >
-              Close
-            </button>
-            <button
-              onClick={async () => {
-                await manualSync();
-                onClose();
-              }}
-              className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
-              title="Pull and merge from server"
-            >
-              Pull all
-            </button>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-xs text-zinc-500 dark:text-zinc-400">
+              {items.length > 0 ? "You can apply one-by-one or all at once." : "Nothing to review."}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={onClose}
+                className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              >
+                Close
+              </button>
+              <button
+                onClick={async () => {
+                  await manualSync();
+                  onClose();
+                }}
+                className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                title="Pull and merge from server"
+              >
+                Pull all
+              </button>
+              <button
+                onClick={async () => {
+                  await applyServerVersionForAll();
+                  onClose();
+                }}
+                className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                title="Replace local copies with server versions for all listed items"
+              >
+                Use server for all
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -431,12 +548,28 @@ export default function EmotionHistory() {
   }
 
   const safeItems: EmotionRecord[] = Array.isArray(items) ? items : [];
+  // ⬇️ Only show non-deleted items in the UI
+  const visibleItems = safeItems.filter((r) => !r.deleted);
 
   return (
     <section className="w-full">
       {state === "error" && lastError && (
         <div className="mb-3 rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300">
           Sync error: {lastError}
+        </div>
+      )}
+
+      {/* Undo bar */}
+      {undoSnapshot && (
+        <div className="mb-3 flex items-center justify-between rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+          <span>{undoLabel ?? "Change applied."}</span>
+          <button
+            onClick={performUndo}
+            className="rounded-lg border border-emerald-300 px-2 py-1 text-xs font-medium hover:bg-emerald-100 dark:border-emerald-700 dark:hover:bg-emerald-800"
+            title="Revert the last change"
+          >
+            Undo
+          </button>
         </div>
       )}
 
@@ -646,7 +779,7 @@ export default function EmotionHistory() {
 
       {/* Simple list of history items */}
       <ul className="space-y-3">
-        {safeItems.map((r) => {
+        {visibleItems.map((r) => {
           const ts =
             typeof r.updatedAt === "number" ? r.updatedAt : r.createdAt;
           const when = ts ? new Date(ts).toLocaleString() : "—";
@@ -690,7 +823,7 @@ export default function EmotionHistory() {
         })}
 
         {/* Empty-state with CTA */}
-        {safeItems.length === 0 && (
+        {visibleItems.length === 0 && (
           <li className="rounded-2xl border border-dashed border-zinc-300 p-6 text-center text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
             <div>No history yet.</div>
             <button

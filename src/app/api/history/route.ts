@@ -72,20 +72,80 @@ function upsertLWW(incoming: EmotionRecord) {
   return false;
 }
 
-/* ----------------------------------------------------------------------------
- * GET /api/history?since=<ms>&syncToken=<opaque>
- * Returns an envelope: { records, syncToken?, serverTs }
- * For MVP we ignore syncToken and optionally filter by `since`.
- * --------------------------------------------------------------------------*/
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const sinceParam = searchParams.get("since");
-  const since = sinceParam ? Number(sinceParam) : undefined;
-
+/** Return records with optional filtering and shape. */
+function listRecords(opts: {
+  since?: number;
+  includeDeleted?: boolean;
+}) {
+  const { since, includeDeleted } = opts;
   let records = Array.from(store.values());
 
   if (typeof since === "number" && Number.isFinite(since)) {
     records = records.filter((r) => (r.updatedAt ?? 0) >= since);
+  }
+
+  if (!includeDeleted) {
+    records = records.filter((r) => r.deleted !== true);
+  }
+
+  // Sort newest-first for consistency
+  records.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+  return records;
+}
+
+/** Dev-only: "touch" recent items to simulate server-newer conflicts. */
+function touchRecent(n: number) {
+  if (n <= 0) return [];
+  const now = Date.now();
+  const all = Array.from(store.values()).sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+  const picked = all.slice(0, n);
+  for (const rec of picked) {
+    const bumped = { ...rec, updatedAt: now };
+    store.set(bumped.id, bumped);
+  }
+  return picked.map((r) => r.id);
+}
+
+/* ----------------------------------------------------------------------------
+ * GET /api/history
+ *
+ * Query params:
+ *   since=<ms>            -> only records with updatedAt >= since
+ *   includeDeleted=1      -> include tombstoned records as well
+ *   mode=array            -> return raw array (back-compat / easier debugging)
+ *   dev_touchN=<int>      -> DEV ONLY: bump updatedAt on top-N records to simulate
+ *                            "server newer" conflicts (use after client has local copies)
+ *   dev_wipe=1            -> DEV ONLY: clear the in-memory store
+ *
+ * Default response (envelope):
+ *   { records, syncToken?: string, serverTs: number }
+ * --------------------------------------------------------------------------*/
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+
+  // Dev toggles
+  const devWipe = searchParams.get("dev_wipe") === "1";
+  if (devWipe) {
+    store.clear();
+    return NextResponse.json({ ok: true, wiped: true, serverTs: Date.now() }, { status: 200 });
+  }
+  const touchN = Number(searchParams.get("dev_touchN") ?? "0");
+  if (Number.isFinite(touchN) && touchN > 0) {
+    const ids = touchRecent(touchN);
+    // fall through to normal GET so you can see the updated records immediately
+  }
+
+  // Normal filters
+  const sinceParam = searchParams.get("since");
+  const since = sinceParam ? Number(sinceParam) : undefined;
+  const includeDeleted = searchParams.get("includeDeleted") === "1";
+  const mode = searchParams.get("mode"); // "array" | undefined
+
+  const records = listRecords({ since, includeDeleted });
+
+  // Back-compat / simple inspection
+  if (mode === "array") {
+    return NextResponse.json(records, { status: 200 });
   }
 
   const envelope = {

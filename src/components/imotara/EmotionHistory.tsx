@@ -1,17 +1,27 @@
 // src/components/imotara/EmotionHistory.tsx
 'use client';
 
+import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { EmotionRecord } from "@/types/history";
 import { getHistory } from "@/lib/imotara/history";
 import { saveHistory } from "@/lib/imotara/historyPersist";
 import SyncStatusChip from "@/components/imotara/SyncStatusChip";
-import { pushAllLocalToApi, pushPendingToApi } from "@/lib/imotara/syncHistory";
+import {
+  pushAllLocalToApi,
+  pushPendingToApi,
+  enqueueConflicts,
+  retryQueuedConflicts,
+} from "@/lib/imotara/syncHistory";
 import { computePending } from "@/lib/imotara/pushLedger";
 
 // ⬇️ imports for summary card
 import EmotionSummaryCard from "@/components/imotara/EmotionSummaryCard";
 import { computeEmotionSummary } from "@/lib/imotara/summary";
+
+// ⬇️ Step 14-C-4: conflict preview imports
+import { detectConflicts } from "@/lib/imotara/conflictDetect";
+import type { ConflictPreview } from "@/lib/imotara/syncHistory";
 
 // simple upsert merge (remote -> local)
 function mergeRemote(local: EmotionRecord[], incoming: EmotionRecord[]): EmotionRecord[] {
@@ -73,6 +83,9 @@ export default function EmotionHistory() {
   // detailed conflict list (server newer than local)
   const [conflictItems, setConflictItems] = useState<ConflictItem[]>([]);
 
+  // ⬇️ Step 14-C-4: read-only conflict previews for UI use later
+  const [conflictPreviews, setConflictPreviews] = useState<ConflictPreview[]>([]);
+
   // ⬇️ single-level undo snapshot (20s window)
   const [undoSnapshot, setUndoSnapshot] = useState<EmotionRecord[] | null>(null);
   const [undoLabel, setUndoLabel] = useState<string | null>(null);
@@ -100,7 +113,7 @@ export default function EmotionHistory() {
     if (!undoSnapshot) return;
     const prev = undoSnapshot;
     setItems(prev);
-    setSummary(computeEmotionSummary(prev.filter((r) => !r.deleted)));
+    setSummary(computeEmotionSummary(prev.filter((r) => !(r as any).deleted)));
     saveHistory(prev);
     setPendingCount(computePending(prev).length);
     setUndoSnapshot(null);
@@ -144,7 +157,7 @@ export default function EmotionHistory() {
         const list = Array.isArray(local) ? local : [];
         if (!cancelled) {
           setItems(list);
-          setSummary(computeEmotionSummary(list.filter((r) => !r.deleted)));
+          setSummary(computeEmotionSummary(list.filter((r) => !(r as any).deleted)));
         }
       } catch (err) {
         if (!cancelled) {
@@ -169,7 +182,7 @@ export default function EmotionHistory() {
     }
     try {
       const base = Array.isArray(items) ? items : [];
-      setSummary(computeEmotionSummary(base.filter((r) => !r.deleted)));
+      setSummary(computeEmotionSummary(base.filter((r) => !(r as any).deleted)));
     } catch {
       // no-op; keep previous summary
     }
@@ -198,6 +211,59 @@ export default function EmotionHistory() {
     const t = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : "—";
     return `state=${state} | lastSyncedAt=${t}`;
   }, [state, lastSyncedAt]);
+
+  // ⬇️ Step 14-C-6: smarter tooltip for Review button (handles string | {field: string})
+  const reviewTooltip = useMemo(() => {
+    if (!conflictPreviews?.length) return "Review conflicts";
+
+    const seen = new Set<string>();
+    const extractField = (d: unknown): string | null => {
+      if (typeof d === "string") return d;
+      if (d && typeof d === "object" && "field" in (d as any)) {
+        return String((d as any).field);
+      }
+      return null;
+    };
+    for (const p of conflictPreviews) {
+      for (const d of p.diffs ?? []) {
+        const key = extractField(d);
+        if (key) {
+          seen.add(key);
+          if (seen.size >= 2) break;
+        }
+      }
+      if (seen.size >= 2) break;
+    }
+    const keys = Array.from(seen);
+    return keys.length
+      ? `Review conflicts — e.g., ${keys.join(", ")} changed`
+      : "Review conflicts";
+  }, [conflictPreviews]);
+
+  // ⬇️ Step 14-C-7: compact hint line based on conflictPreviews (first 3 unique fields)
+  const previewHint = useMemo(() => {
+    if (!conflictPreviews?.length) return "";
+    const seen = new Set<string>();
+    const pick = (d: unknown) =>
+      typeof d === "string"
+        ? d
+        : d && typeof d === "object" && "field" in (d as any)
+        ? String((d as any).field)
+        : null;
+
+    for (const p of conflictPreviews) {
+      for (const d of p.diffs ?? []) {
+        const k = pick(d);
+        if (k) {
+          seen.add(k);
+          if (seen.size >= 3) break;
+        }
+      }
+      if (seen.size >= 3) break;
+    }
+    const list = Array.from(seen);
+    return list.length ? `Detected changes: ${list.join(", ")}` : "";
+  }, [conflictPreviews]);
 
   // Manual “Sync now”
   async function manualSync() {
@@ -246,6 +312,47 @@ export default function EmotionHistory() {
       setConflicts(serverNewer);
       setConflictItems(details.sort((a, b) => b.serverTs - a.serverTs));
 
+      // ⬇️ Step 14-C-4: compute read-only conflict previews for future UI
+      if (details.length > 0) {
+        const previews: ConflictPreview[] = [];
+        for (const it of details) {
+          if (it.local && it.server) {
+            const { diffs, summary } = detectConflicts(it.local, it.server);
+            if (Array.isArray(diffs) ? diffs.length > 0 : !!diffs) {
+              // normalize to { id, diffs, summary, local, remote }
+              const normalized: ConflictPreview = {
+                id: it.id,
+                diffs: Array.isArray(diffs)
+                  ? (diffs as any[]).map((d) =>
+                      typeof d === "string" ? d : d?.field ? String(d.field) : String(d)
+                    )
+                  : [String(diffs)],
+                summary,
+                local: it.local,
+                remote: it.server,
+              };
+              previews.push(normalized);
+            }
+          }
+        }
+        setConflictPreviews(previews);
+
+        // ⬇️ NEW: persist into the conflict queue so it survives reloads
+        try {
+          enqueueConflicts(previews);
+        } catch {
+          /* ignore queue errors */
+        }
+
+        // optional debug
+        if (previews.length) {
+          // eslint-disable-next-line no-console
+          console.debug("[Imotara] Conflict previews:", previews);
+        }
+      } else {
+        setConflictPreviews([]);
+      }
+
       // if conflicts found, persist timestamp + flash for ~10s
       if (serverNewer > 0) {
         const now = Date.now();
@@ -255,7 +362,7 @@ export default function EmotionHistory() {
             localStorage.setItem("imotara:lastConflictAt", String(now));
           }
         } catch {
-          /* ignore */
+        /* ignore */
         }
         setConflictFresh(true);
         setTimeout(() => setConflictFresh(false), 10_000);
@@ -266,7 +373,7 @@ export default function EmotionHistory() {
       const merged = mergeRemote(localList, incoming);
       await saveHistory(merged);
       setItems(merged);
-      setSummary(computeEmotionSummary(merged.filter((r) => !r.deleted)));
+      setSummary(computeEmotionSummary(merged.filter((r) => !(r as any).deleted)));
 
       // if we actually pulled newer server updates, show “Pulled just now” for 2s
       if (serverNewer > 0) {
@@ -307,7 +414,7 @@ export default function EmotionHistory() {
     const prev = items;
     const next = Array.isArray(prev) ? prev.filter((r) => r.id !== id) : [];
     setItems(next);
-    setSummary(computeEmotionSummary(next.filter((r) => !r.deleted)));
+    setSummary(computeEmotionSummary(next.filter((r) => !(r as any).deleted)));
     await saveHistory(next);
 
     try {
@@ -326,7 +433,7 @@ export default function EmotionHistory() {
       await manualSync();
     } catch (err: any) {
       setItems(prev);
-      setSummary(computeEmotionSummary(prev.filter((r) => !r.deleted))); // rollback
+      setSummary(computeEmotionSummary(prev.filter((r) => !(r as any).deleted))); // rollback
       await saveHistory(prev);
       setPushInfo(`Delete failed: ${String(err?.message ?? err)}`);
     }
@@ -346,7 +453,7 @@ export default function EmotionHistory() {
     const base = Array.isArray(items) ? items : [];
     const next = [rec, ...base];
     setItems(next);
-    setSummary(computeEmotionSummary(next.filter((r) => !r.deleted)));
+    setSummary(computeEmotionSummary(next.filter((r) => !(r as any).deleted)));
     setLastAddedId(rec.id); // mark for scroll
     saveHistory(next);
     setPendingCount(computePending(next).length);
@@ -364,7 +471,7 @@ export default function EmotionHistory() {
       next = [serverRec, ...prevItems];
     }
     setItems(next);
-    setSummary(computeEmotionSummary(next.filter((r) => !r.deleted)));
+    setSummary(computeEmotionSummary(next.filter((r) => !(r as any).deleted)));
     await saveHistory(next);
     setPendingCount(computePending(next).length);
 
@@ -394,7 +501,7 @@ export default function EmotionHistory() {
     );
 
     setItems(next);
-    setSummary(computeEmotionSummary(next.filter((r) => !r.deleted)));
+    setSummary(computeEmotionSummary(next.filter((r) => !(r as any).deleted)));
     await saveHistory(next);
     setPendingCount(computePending(next).length);
 
@@ -549,7 +656,7 @@ export default function EmotionHistory() {
 
   const safeItems: EmotionRecord[] = Array.isArray(items) ? items : [];
   // ⬇️ Only show non-deleted items in the UI
-  const visibleItems = safeItems.filter((r) => !r.deleted);
+  const visibleItems = safeItems.filter((r) => !(r as any).deleted);
 
   return (
     <section className="w-full">
@@ -611,13 +718,17 @@ export default function EmotionHistory() {
                   {conflicts} update{conflicts > 1 ? "s" : ""} on server — Pull
                 </button>
 
-                {/* open the review modal */}
+                {/* open the review modal (now with count pill + smart tooltip) */}
                 <button
                   onClick={() => setShowConflictModal(true)}
-                  className="rounded-full border border-zinc-300 px-2.5 py-0.5 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                  title="Review conflicts"
+                  className="relative rounded-full border border-zinc-300 px-2.5 py-0.5 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                  title={reviewTooltip}
                 >
                   Review
+                  {/* tiny count pill */}
+                  <span className="ml-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full border border-amber-300 bg-amber-100 px-1.5 text-[10px] font-medium text-amber-800 dark:border-amber-600/60 dark:bg-amber-900/30 dark:text-amber-300">
+                    {Math.max(conflictPreviews.length || 0, conflicts)}
+                  </span>
                 </button>
               </>
             )}
@@ -709,6 +820,25 @@ export default function EmotionHistory() {
             Push all
           </button>
 
+          {/* NEW: Retry queued conflicts (default prefers remote) */}
+          <button
+            onClick={async () => {
+              try {
+                const { applied, remaining } = await retryQueuedConflicts("prefer-remote");
+                setPushInfo(
+                  `Conflict retry: applied ${applied}${remaining ? `; remaining ${remaining}` : ""}`
+                );
+                await manualSync();
+              } catch (err: any) {
+                setPushInfo(`Retry queued failed: ${String(err?.message ?? err)}`);
+              }
+            }}
+            className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"
+            title="Apply queued conflict resolutions (prefer remote)"
+          >
+            Retry queued
+          </button>
+
           <button
             onClick={async () => {
               try {
@@ -768,6 +898,7 @@ export default function EmotionHistory() {
       {/* Debug + operation result lines */}
       <div className="mb-3 space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
         <div>{debugLine}</div>
+        {previewHint && <div className="text-[11px] opacity-80">{previewHint}</div>}
         {pushInfo && <div>{pushInfo}</div>}
         {apiInfo && <div>{apiInfo}</div>}
       </div>
@@ -834,8 +965,7 @@ export default function EmotionHistory() {
               Add a sample entry
             </button>
             <div className="mt-2 text-xs">
-              or{" "}
-              <a
+              or <a
                 href="/dev/seed"
                 className="underline underline-offset-2 hover:no-underline"
                 title="Open the developer seeding page"

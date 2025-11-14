@@ -1,6 +1,7 @@
 // src/components/imotara/EmotionMiniTimeline.tsx
 "use client";
 
+import { useState } from "react";
 import type { EmotionRecord } from "@/types/history";
 
 type TimelineRecord = EmotionRecord & {
@@ -14,6 +15,8 @@ type Props = {
 
 export default function EmotionMiniTimeline({ records }: Props) {
   if (!records || records.length === 0) return null;
+
+  const [hoverLabel, setHoverLabel] = useState<string | null>(null);
 
   // Sort by time ascending (older to newer)
   const sorted = [...records].sort((a, b) => {
@@ -59,31 +62,76 @@ export default function EmotionMiniTimeline({ records }: Props) {
           const base =
             "group absolute -top-1 h-3 w-3 -translate-x-1/2 rounded-full ring-1 transition-transform hover:scale-110";
 
-          const colorClass = hasConflict
-            ? "bg-amber-500 ring-amber-300/80 dark:bg-amber-400 dark:ring-amber-600/80"
-            : isPending
-            ? "bg-blue-500 ring-blue-300/80 dark:bg-blue-400 dark:ring-blue-600/80"
-            : "bg-zinc-400 ring-zinc-300/80 dark:bg-zinc-500 dark:ring-zinc-700/80";
+          // Source-aware colour logic
+          let colorClass =
+            "bg-zinc-400 ring-zinc-300/80 dark:bg-zinc-500 dark:ring-zinc-700/80"; // default
 
-          const title =
-            (record.message?.trim() || "(no message)") +
-            (record.emotion ? ` — ${record.emotion}` : "");
+          if (hasConflict) {
+            colorClass =
+              "bg-amber-500 ring-amber-300/80 dark:bg-amber-400 dark:ring-amber-600/80";
+          } else if (isPending) {
+            colorClass =
+              "bg-blue-500 ring-blue-300/80 dark:bg-blue-400 dark:ring-blue-600/80";
+          } else if (record.source === "chat") {
+            colorClass =
+              "bg-purple-500 ring-purple-300/80 dark:bg-purple-400 dark:ring-purple-600/80";
+          } else if (record.source === "local") {
+            colorClass =
+              "bg-blue-400 ring-blue-200/80 dark:bg-blue-300 dark:ring-blue-500/80";
+          }
+
+          // Source-aware label
+          const rawSource = record.source;
+          const sourceLabel =
+            rawSource === "chat"
+              ? "Chat"
+              : rawSource === "local"
+                ? "Local"
+                : rawSource === "remote"
+                  ? "Remote"
+                  : rawSource === "merged"
+                    ? "Merged"
+                    : undefined;
+
+          const parts: string[] = [];
+          if (sourceLabel) parts.push(`[${sourceLabel}]`);
+          const msg = record.message?.trim() || "(no message)";
+          parts.push(msg);
+          if (record.emotion) parts.push(`(${record.emotion})`);
+          const label = parts.join(" ");
 
           return (
             <div
               key={record.id}
               className={`${base} ${colorClass}`}
               style={{ left: `${x}%` }}
-              title={title}
+              title={label}
+              onMouseEnter={() => setHoverLabel(label)}
+              onMouseLeave={() =>
+                setHoverLabel((current) => (current === label ? null : current))
+              }
             />
           );
         })}
       </div>
 
+      {/* hover label below the bar */}
+      {hoverLabel && (
+        <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+          {hoverLabel}
+        </div>
+      )}
+
       {/* tiny legend */}
       <div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-zinc-500 dark:text-zinc-400">
         <span className="flex items-center gap-1">
           <span className="inline-block h-2 w-2 rounded-full bg-zinc-400" /> Synced
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2 w-2 rounded-full bg-blue-400" /> Local
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2 w-2 rounded-full bg-purple-500" /> Chat
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block h-2 w-2 rounded-full bg-blue-500" /> Pending

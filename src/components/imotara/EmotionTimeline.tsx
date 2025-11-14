@@ -74,7 +74,7 @@ export default function EmotionTimeline({ items }: Props) {
                   anyRecord.localOnly ?? anyRecord.pending
                 );
 
-                // nicer label for source (local/remote/merged)
+                // nicer label for source (local/remote/merged/chat)
                 // default to "local" when missing so the badge still appears
                 const rawSource = r.source ?? "local";
                 const sourceLabel =
@@ -84,7 +84,9 @@ export default function EmotionTimeline({ items }: Props) {
                       ? "Remote"
                       : rawSource === "merged"
                         ? "Merged"
-                        : rawSource;
+                        : rawSource === "chat"
+                          ? "Chat"
+                          : rawSource;
 
                 return (
                   <li

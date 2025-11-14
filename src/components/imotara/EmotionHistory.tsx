@@ -19,6 +19,9 @@ import { computePending } from "@/lib/imotara/pushLedger";
 import EmotionSummaryCard from "@/components/imotara/EmotionSummaryCard";
 import { computeEmotionSummary } from "@/lib/imotara/summary";
 
+// ⬇️ Step 14-C-10: mini timeline visualization
+import EmotionMiniTimeline from "@/components/imotara/EmotionMiniTimeline";
+
 // ⬇️ Step 14-C-4: conflict preview imports
 import { detectConflicts } from "@/lib/imotara/conflictDetect";
 import type { ConflictPreview } from "@/lib/imotara/syncHistory";
@@ -125,7 +128,10 @@ export default function EmotionHistory() {
   // Load lastConflictAt from localStorage once
   useEffect(() => {
     try {
-      const raw = typeof window !== "undefined" ? localStorage.getItem("imotara:lastConflictAt") : null;
+      const raw =
+        typeof window !== "undefined"
+          ? localStorage.getItem("imotara:lastConflictAt")
+          : null;
       if (raw) {
         const ts = Number(raw);
         if (Number.isFinite(ts)) setLastConflictAt(ts);
@@ -157,7 +163,9 @@ export default function EmotionHistory() {
         const list = Array.isArray(local) ? local : [];
         if (!cancelled) {
           setItems(list);
-          setSummary(computeEmotionSummary(list.filter((r) => !(r as any).deleted)));
+          setSummary(
+            computeEmotionSummary(list.filter((r) => !(r as any).deleted))
+          );
         }
       } catch (err) {
         if (!cancelled) {
@@ -182,7 +190,9 @@ export default function EmotionHistory() {
     }
     try {
       const base = Array.isArray(items) ? items : [];
-      setSummary(computeEmotionSummary(base.filter((r) => !(r as any).deleted)));
+      setSummary(
+        computeEmotionSummary(base.filter((r) => !(r as any).deleted))
+      );
     } catch {
       // no-op; keep previous summary
     }
@@ -274,16 +284,21 @@ export default function EmotionHistory() {
       const res = await fetch("/api/history", { method: "GET" });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        throw new Error(`GET /api/history ${res.status} ${res.statusText} — ${text}`);
+        throw new Error(
+          `GET /api/history ${res.status} ${res.statusText} — ${text}`
+        );
       }
       const json: any = await res.json().catch(() => ({}));
-      const incoming: EmotionRecord[] =
-        Array.isArray(json) ? json : Array.isArray(json?.records) ? json.records : [];
+      const incoming: EmotionRecord[] = Array.isArray(json)
+        ? json
+        : Array.isArray(json?.records)
+        ? json.records
+        : [];
 
       // compute conflicts (server newer than local for same id) + collect details
       const latestLocal = await getHistory();
       const localList = Array.isArray(latestLocal) ? latestLocal : [];
-      const localMap = new Map(localList.map(r => [r.id, r]));
+      const localMap = new Map(localList.map((r) => [r.id, r]));
       let serverNewer = 0;
       const details: ConflictItem[] = [];
 
@@ -324,7 +339,11 @@ export default function EmotionHistory() {
                 id: it.id,
                 diffs: Array.isArray(diffs)
                   ? (diffs as any[]).map((d) =>
-                      typeof d === "string" ? d : d?.field ? String(d.field) : String(d)
+                      typeof d === "string"
+                        ? d
+                        : d?.field
+                        ? String(d.field)
+                        : String(d)
                     )
                   : [String(diffs)],
                 summary,
@@ -362,7 +381,7 @@ export default function EmotionHistory() {
             localStorage.setItem("imotara:lastConflictAt", String(now));
           }
         } catch {
-        /* ignore */
+          /* ignore */
         }
         setConflictFresh(true);
         setTimeout(() => setConflictFresh(false), 10_000);
@@ -373,7 +392,9 @@ export default function EmotionHistory() {
       const merged = mergeRemote(localList, incoming);
       await saveHistory(merged);
       setItems(merged);
-      setSummary(computeEmotionSummary(merged.filter((r) => !(r as any).deleted)));
+      setSummary(
+        computeEmotionSummary(merged.filter((r) => !(r as any).deleted))
+      );
 
       // if we actually pulled newer server updates, show “Pulled just now” for 2s
       if (serverNewer > 0) {
@@ -400,7 +421,10 @@ export default function EmotionHistory() {
   // Auto-sync every 5 minutes when the tab is visible
   useEffect(() => {
     const interval = setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState === "visible"
+      ) {
         void manualSync();
       }
     }, 5 * 60 * 1000);
@@ -408,13 +432,18 @@ export default function EmotionHistory() {
   }, []);
 
   async function handleDelete(id: string) {
-    const ok = typeof window !== "undefined" ? window.confirm("Delete this entry?") : true;
+    const ok =
+      typeof window !== "undefined"
+        ? window.confirm("Delete this entry?")
+        : true;
     if (!ok) return;
 
     const prev = items;
     const next = Array.isArray(prev) ? prev.filter((r) => r.id !== id) : [];
     setItems(next);
-    setSummary(computeEmotionSummary(next.filter((r) => !(r as any).deleted)));
+    setSummary(
+      computeEmotionSummary(next.filter((r) => !(r as any).deleted))
+    );
     await saveHistory(next);
 
     try {
@@ -425,15 +454,21 @@ export default function EmotionHistory() {
       });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        throw new Error(`DELETE failed: ${res.status} ${res.statusText} — ${text}`);
+        throw new Error(
+          `DELETE failed: ${res.status} ${res.statusText} — ${text}`
+        );
       }
       const json = await res.json().catch(() => ({}));
-      const deletedCount = Array.isArray(json?.deletedIds) ? json.deletedIds.length : 0;
+      const deletedCount = Array.isArray(json?.deletedIds)
+        ? json.deletedIds.length
+        : 0;
       setPushInfo(`Deleted ${deletedCount} item(s).`);
       await manualSync();
     } catch (err: any) {
       setItems(prev);
-      setSummary(computeEmotionSummary(prev.filter((r) => !(r as any).deleted))); // rollback
+      setSummary(
+        computeEmotionSummary(prev.filter((r) => !(r as any).deleted))
+      ); // rollback
       await saveHistory(prev);
       setPushInfo(`Delete failed: ${String(err?.message ?? err)}`);
     }
@@ -453,7 +488,9 @@ export default function EmotionHistory() {
     const base = Array.isArray(items) ? items : [];
     const next = [rec, ...base];
     setItems(next);
-    setSummary(computeEmotionSummary(next.filter((r) => !(r as any).deleted)));
+    setSummary(
+      computeEmotionSummary(next.filter((r) => !(r as any).deleted))
+    );
     setLastAddedId(rec.id); // mark for scroll
     saveHistory(next);
     setPendingCount(computePending(next).length);
@@ -471,7 +508,9 @@ export default function EmotionHistory() {
       next = [serverRec, ...prevItems];
     }
     setItems(next);
-    setSummary(computeEmotionSummary(next.filter((r) => !(r as any).deleted)));
+    setSummary(
+      computeEmotionSummary(next.filter((r) => !(r as any).deleted))
+    );
     await saveHistory(next);
     setPendingCount(computePending(next).length);
 
@@ -501,7 +540,9 @@ export default function EmotionHistory() {
     );
 
     setItems(next);
-    setSummary(computeEmotionSummary(next.filter((r) => !(r as any).deleted)));
+    setSummary(
+      computeEmotionSummary(next.filter((r) => !(r as any).deleted))
+    );
     await saveHistory(next);
     setPendingCount(computePending(next).length);
 
@@ -551,7 +592,8 @@ export default function EmotionHistory() {
             Server updates available
           </h3>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            We detected <strong>{conflicts}</strong> newer update{conflicts === 1 ? "" : "s"} on the server
+            We detected <strong>{conflicts}</strong> newer update
+            {conflicts === 1 ? "" : "s"} on the server
             {lastConflictAt
               ? ` (since ${new Date(lastConflictAt).toLocaleString()})`
               : ""}.
@@ -618,7 +660,9 @@ export default function EmotionHistory() {
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs text-zinc-500 dark:text-zinc-400">
-              {items.length > 0 ? "You can apply one-by-one or all at once." : "Nothing to review."}
+              {items.length > 0
+                ? "You can apply one-by-one or all at once."
+                : "Nothing to review."}
             </div>
             <div className="flex gap-2">
               <button
@@ -658,6 +702,16 @@ export default function EmotionHistory() {
   // ⬇️ Only show non-deleted items in the UI
   const visibleItems = safeItems.filter((r) => !(r as any).deleted);
 
+  // ⬇️ Derived flags for pending + conflict (used by mini timeline)
+  const pendingList = computePending(safeItems);
+  const pendingSet = new Set(pendingList.map((p: any) => p.id));
+  const conflictSet = new Set(conflictItems.map((c) => c.id));
+  const timelineItems = visibleItems.map((r) => ({
+    ...r,
+    pending: pendingSet.has(r.id),
+    conflict: conflictSet.has(r.id),
+  }));
+
   return (
     <section className="w-full">
       {state === "error" && lastError && (
@@ -684,7 +738,9 @@ export default function EmotionHistory() {
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <SyncStatusChip
-            state={state === "syncing" ? "syncing" : state === "error" ? "error" : "synced"}
+            state={
+              state === "syncing" ? "syncing" : state === "error" ? "error" : "synced"
+            }
             lastSyncedAt={lastSyncedAt}
             pendingCount={pendingCount}
             conflictsCount={conflicts}
@@ -694,8 +750,10 @@ export default function EmotionHistory() {
             aria-live="polite"
           >
             <span>{subtitle}</span>
-            {(state === "synced") && (Number(pendingCount) <= 0 || justSynced) && (
-              <span className="text-green-600 dark:text-green-400 text-sm">✅ All changes synced</span>
+            {state === "synced" && (Number(pendingCount) <= 0 || justSynced) && (
+              <span className="text-green-600 dark:text-green-400 text-sm">
+                ✅ All changes synced
+              </span>
             )}
 
             {/* tiny orange conflict pill (fresh ones pulse for ~10s) */}
@@ -707,11 +765,13 @@ export default function EmotionHistory() {
                     "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium",
                     "border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200",
                     "dark:border-amber-600/60 dark:bg-amber-900/30 dark:text-amber-300",
-                    conflictFresh ? "ring-2 ring-amber-400/70 animate-pulse" : ""
+                    conflictFresh ? "ring-2 ring-amber-400/70 animate-pulse" : "",
                   ].join(" ")}
                   title={
                     lastConflictAt
-                      ? `Server has newer versions (since ${new Date(lastConflictAt).toLocaleTimeString()}). Click to pull & merge.`
+                      ? `Server has newer versions (since ${new Date(
+                          lastConflictAt
+                        ).toLocaleTimeString()}). Click to pull & merge.`
                       : "Server has newer versions for some items. Click to pull & merge."
                   }
                 >
@@ -756,14 +816,12 @@ export default function EmotionHistory() {
                 setPushInfo("Pushing pending…");
                 const res: any = await pushPendingToApi();
                 const attempted = Number(res?.attempted ?? 0);
-                const accepted =
-                  Array.isArray(res?.acceptedIds)
-                    ? res.acceptedIds.length
-                    : Number(res?.accepted ?? res?.acceptedCount ?? 0);
-                const rejected =
-                  Array.isArray(res?.rejected)
-                    ? res.rejected.length
-                    : Number(res?.rejected ?? res?.rejectedCount ?? 0);
+                const accepted = Array.isArray(res?.acceptedIds)
+                  ? res.acceptedIds.length
+                  : Number(res?.accepted ?? res?.acceptedCount ?? 0);
+                const rejected = Array.isArray(res?.rejected)
+                  ? res.rejected.length
+                  : Number(res?.rejected ?? res?.rejectedCount ?? 0);
 
                 setPushInfo(
                   `Pending push: attempted ${attempted}; accepted ${accepted}${
@@ -824,9 +882,13 @@ export default function EmotionHistory() {
           <button
             onClick={async () => {
               try {
-                const { applied, remaining } = await retryQueuedConflicts("prefer-remote");
+                const { applied, remaining } = await retryQueuedConflicts(
+                  "prefer-remote"
+                );
                 setPushInfo(
-                  `Conflict retry: applied ${applied}${remaining ? `; remaining ${remaining}` : ""}`
+                  `Conflict retry: applied ${applied}${
+                    remaining ? `; remaining ${remaining}` : ""
+                  }`
                 );
                 await manualSync();
               } catch (err: any) {
@@ -846,7 +908,9 @@ export default function EmotionHistory() {
                 const res = await fetch("/api/history", { method: "GET" });
                 const json = await res.json().catch(() => ({}));
                 if (Array.isArray(json)) {
-                  setApiInfo(`GET /api/history returned array: length=${json.length}`);
+                  setApiInfo(
+                    `GET /api/history returned array: length=${json.length}`
+                  );
                 } else if (json && typeof json === "object" && "records" in json) {
                   const recs = Array.isArray((json as any).records)
                     ? (json as any).records
@@ -858,10 +922,9 @@ export default function EmotionHistory() {
                   );
                 } else {
                   setApiInfo(
-                    `GET /api/history unexpected shape: ${JSON.stringify(json).slice(
-                      0,
-                      200
-                    )}…`
+                    `GET /api/history unexpected shape: ${JSON.stringify(
+                      json
+                    ).slice(0, 200)}…`
                   );
                 }
               } catch (err: any) {
@@ -898,7 +961,9 @@ export default function EmotionHistory() {
       {/* Debug + operation result lines */}
       <div className="mb-3 space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
         <div>{debugLine}</div>
-        {previewHint && <div className="text-[11px] opacity-80">{previewHint}</div>}
+        {previewHint && (
+          <div className="text-[11px] opacity-80">{previewHint}</div>
+        )}
         {pushInfo && <div>{pushInfo}</div>}
         {apiInfo && <div>{apiInfo}</div>}
       </div>
@@ -907,6 +972,13 @@ export default function EmotionHistory() {
       <div className="mb-4">
         <EmotionSummaryCard summary={toCardSummary(summary)} />
       </div>
+
+      {/* Mini timeline visualization (uses flagged records) */}
+      {timelineItems.length > 0 && (
+        <div className="mb-4">
+          <EmotionMiniTimeline records={timelineItems} />
+        </div>
+      )}
 
       {/* Simple list of history items */}
       <ul className="space-y-3">
@@ -920,7 +992,9 @@ export default function EmotionHistory() {
           // attach ref to the last-added item for smooth scroll (callback returns void)
           const liRef =
             r.id === lastAddedId
-              ? (el: HTMLLIElement | null) => { lastAddedRef.current = el; }
+              ? (el: HTMLLIElement | null) => {
+                  lastAddedRef.current = el;
+                }
               : undefined;
 
           return (
@@ -947,7 +1021,9 @@ export default function EmotionHistory() {
                 </div>
               </div>
               <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-800 dark:text-zinc-100">
-                {r.message || <span className="opacity-60">(no message)</span>}
+                {r.message || (
+                  <span className="opacity-60">(no message)</span>
+                )}
               </div>
             </li>
           );
@@ -965,7 +1041,8 @@ export default function EmotionHistory() {
               Add a sample entry
             </button>
             <div className="mt-2 text-xs">
-              or <a
+              or{" "}
+              <a
                 href="/dev/seed"
                 className="underline underline-offset-2 hover:no-underline"
                 title="Open the developer seeding page"

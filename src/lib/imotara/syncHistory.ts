@@ -9,7 +9,7 @@ import {
   saveSyncState,
 } from "@/lib/imotara/historyPersist";
 import { buildPlanMarkConflicts } from "@/lib/imotara/conflict";
-import { computePending } from "@/lib/imotara/pushLedger";
+import { computePending, markPushed } from "@/lib/imotara/pushLedger";
 import { detectConflicts } from "@/lib/imotara/conflictDetect";
 
 /* ------------------------------------------------------------------ */
@@ -18,7 +18,7 @@ import { detectConflicts } from "@/lib/imotara/conflictDetect";
 
 export type ConflictPreview = {
   id: string;
-  diffs: string[];       // normalized to strings
+  diffs: string[]; // normalized to strings
   summary: string;
   local?: EmotionRecord | null;
   remote?: EmotionRecord | null;
@@ -483,9 +483,15 @@ export async function pushPendingToApi(): Promise<PushResult> {
     ? toSend.map((r) => r.id)
     : [];
 
-  const rejected: string[] | undefined = Array.isArray(data?.rejected) ? data.rejected : undefined;
+  const rejected: string[] | undefined = Array.isArray(data?.rejected)
+    ? data.rejected
+    : undefined;
 
   if (acceptedIds.length) {
+    // 1) mark pushed in the ledger so computePending() drops them
+    markPushed(acceptedIds, local);
+
+    // 2) advance shadow revs for accepted records
     const byId = new Map(local.map((r) => [r.id, r]));
     const sync = getSyncState();
     const shadow = { ...sync.shadow };
@@ -524,9 +530,15 @@ export async function pushAllLocalToApi(): Promise<PushResult> {
     ? local.map((r) => r.id)
     : [];
 
-  const rejected: string[] | undefined = Array.isArray(data?.rejected) ? data.rejected : undefined;
+  const rejected: string[] | undefined = Array.isArray(data?.rejected)
+    ? data.rejected
+    : undefined;
 
   if (acceptedIds.length) {
+    // 1) mark pushed in ledger for all accepted records
+    markPushed(acceptedIds, local);
+
+    // 2) advance shadow revs for accepted records
     const byId = new Map(local.map((r) => [r.id, r]));
     const sync = getSyncState();
     const shadow = { ...sync.shadow };

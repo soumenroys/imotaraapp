@@ -19,21 +19,23 @@ function normalizeIncoming(input: any): EmotionRecord | null {
   const id = typeof input.id === "string" && input.id.length > 0 ? input.id : null;
   if (!id) return null;
 
-  const now = Date.now();
-
   const message = typeof input.message === "string" ? input.message : "";
   const emotion = typeof input.emotion === "string" ? input.emotion : "neutral";
   const intensity = typeof input.intensity === "number" ? input.intensity : 0;
 
+  // 🔹 IMPORTANT CHANGE:
+  // Trust client timestamps instead of replacing with Date.now().
+  // If they are missing/invalid, we fall back to 0 so LWW still works,
+  // but we don't generate fresh "now" timestamps that confuse sync.
   const createdAt =
     typeof input.createdAt === "number" && Number.isFinite(input.createdAt)
       ? input.createdAt
-      : now;
+      : 0;
 
   const updatedAt =
     typeof input.updatedAt === "number" && Number.isFinite(input.updatedAt)
       ? input.updatedAt
-      : now;
+      : createdAt;
 
   const rec: EmotionRecord = {
     id,

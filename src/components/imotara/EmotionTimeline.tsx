@@ -61,6 +61,11 @@ export default function EmotionTimeline({ items }: Props) {
                     ? `${tag.emotion} · ${(tag.intensity * 100).toFixed(0)}%`
                     : String(r.emotion);
 
+                // derive flags from optional properties (used by sync system)
+                const anyRecord = r as any;
+                const isPending = Boolean(anyRecord.localOnly ?? anyRecord.pending);
+                const hasConflict = Boolean(anyRecord.conflict);
+
                 return (
                   <li
                     key={r.id}
@@ -80,8 +85,22 @@ export default function EmotionTimeline({ items }: Props) {
                           {r.source ? ` · ${r.source}` : ""}
                         </div>
                       </div>
-                      <div className="shrink-0 text-right text-xs text-zinc-500">
-                        {when ? format(new Date(when), "HH:mm:ss") : "--:--:--"}
+                      <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-zinc-500">
+                        <div className="flex items-center gap-1">
+                          {hasConflict && (
+                            <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:border-amber-600/60 dark:bg-amber-900/30 dark:text-amber-300">
+                              Conflict
+                            </span>
+                          )}
+                          {isPending && (
+                            <span className="rounded-full border border-blue-300 bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800 dark:border-blue-500/60 dark:bg-blue-900/30 dark:text-blue-300">
+                              Pending
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          {when ? format(new Date(when), "HH:mm:ss") : "--:--:--"}
+                        </div>
                       </div>
                     </div>
                   </li>

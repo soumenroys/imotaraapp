@@ -37,7 +37,9 @@ export default function EmotionTimeline({ items }: Props) {
   return (
     <div className="space-y-6">
       {/* Mini timeline showing sync / pending / conflict pulses across the whole history */}
-      <EmotionMiniTimeline records={items} />
+      <div className="mt-4">
+        <EmotionMiniTimeline records={items} />
+      </div>
 
       {days.map(([dayKey, recs]) => {
         // Sort records within a day by time ascending
@@ -67,8 +69,8 @@ export default function EmotionTimeline({ items }: Props) {
 
                 // derive flags from optional properties (used by sync system)
                 const anyRecord = r as any;
-                const isPending = Boolean(anyRecord.localOnly ?? anyRecord.pending);
                 const hasConflict = Boolean(anyRecord.conflict);
+                const isPending = Boolean(anyRecord.localOnly ?? anyRecord.pending);
 
                 return (
                   <li

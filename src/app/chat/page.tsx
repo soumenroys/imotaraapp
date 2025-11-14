@@ -2,7 +2,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { MessageSquare, Plus, Send, Trash2, Download, Eraser, RefreshCw } from "lucide-react";
+import {
+  MessageSquare,
+  Plus,
+  Send,
+  Trash2,
+  Download,
+  Eraser,
+  RefreshCw,
+} from "lucide-react";
 import MoodSummaryCard from "@/components/imotara/MoodSummaryCard";
 import type { AppMessage } from "@/lib/imotara/useAnalysis";
 import { syncHistory } from "@/lib/imotara/syncHistoryAdapter";
@@ -18,7 +26,12 @@ import type { Emotion } from "@/types/history";
 
 type Role = "user" | "assistant" | "system";
 type Message = { id: string; role: Role; content: string; createdAt: number };
-type Thread = { id: string; title: string; createdAt: number; messages: Message[] };
+type Thread = {
+  id: string;
+  title: string;
+  createdAt: number;
+  messages: Message[];
+};
 
 const STORAGE_KEY = "imotara.chat.v1";
 
@@ -58,7 +71,11 @@ async function fetchRemoteHistory(): Promise<unknown[]> {
     if (!res.ok) return [];
     const data: unknown = await res.json();
     if (Array.isArray(data)) return data;
-    if (data && typeof data === "object" && Array.isArray((data as { items?: unknown[] }).items)) {
+    if (
+      data &&
+      typeof data === "object" &&
+      Array.isArray((data as { items?: unknown[] }).items)
+    ) {
       return (data as { items: unknown[] }).items;
     }
     return [];
@@ -69,8 +86,12 @@ async function fetchRemoteHistory(): Promise<unknown[]> {
 
 async function persistMergedHistory(merged: unknown): Promise<void> {
   try {
-    const mod: Record<string, unknown> = await import("@/lib/imotara/history");
-    const setHistory = mod.setHistory as ((items: unknown) => Promise<void> | void) | undefined;
+    const mod: Record<string, unknown> = await import(
+      "@/lib/imotara/history"
+    );
+    const setHistory = mod.setHistory as
+      | ((items: unknown) => Promise<void> | void)
+      | undefined;
     const saveLocalHistory = mod.saveLocalHistory as
       | ((items: unknown) => Promise<void> | void)
       | undefined;
@@ -79,8 +100,10 @@ async function persistMergedHistory(merged: unknown): Promise<void> {
       | undefined;
 
     if (typeof setHistory === "function") return void (await setHistory(merged));
-    if (typeof saveLocalHistory === "function") return void (await saveLocalHistory(merged));
-    if (typeof saveHistory === "function") return void (await saveHistory(merged));
+    if (typeof saveLocalHistory === "function")
+      return void (await saveLocalHistory(merged));
+    if (typeof saveHistory === "function")
+      return void (await saveHistory(merged));
   } catch {
     // ignore
   }
@@ -110,7 +133,6 @@ async function logUserMessageToHistory(
     // If caller didn't specify emotion/intensity, try to infer from local analysis
     if (!opts) {
       try {
-        // Reuse the same analyzer the chat page already uses
         const res = (await runLocalAnalysis([msg] as any, 1)) as any;
         const summary = res?.summary;
 
@@ -143,12 +165,16 @@ async function logUserMessageToHistory(
       message: text,
       emotion,
       intensity,
+      // keep as "local" to match current RecordSource union
       source: "local",
       createdAt: msg.createdAt,
       updatedAt: msg.createdAt,
     });
   } catch (err) {
-    console.error("[imotara] failed to log chat message to history:", err);
+    console.error(
+      "[imotara] failed to log chat message to history:",
+      err
+    );
   }
 }
 
@@ -160,9 +186,15 @@ export default function ChatPage() {
   // Deterministic init (no setState inside effects)
   const [{ initialThreads, initialActiveId }] = useState(() => {
     try {
-      const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+      const raw =
+        typeof window !== "undefined"
+          ? localStorage.getItem(STORAGE_KEY)
+          : null;
       if (raw) {
-        const parsed = JSON.parse(raw) as { threads: Thread[]; activeId?: string | null };
+        const parsed = JSON.parse(raw) as {
+          threads: Thread[];
+          activeId?: string | null;
+        };
         const t = Array.isArray(parsed.threads) ? parsed.threads : [];
         const a = parsed.activeId ?? (t[0]?.id ?? null);
         return { initialThreads: t, initialActiveId: a };
@@ -212,7 +244,10 @@ export default function ChatPage() {
   useEffect(() => {
     if (!mounted) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ threads, activeId }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ threads, activeId })
+      );
     } catch { }
   }, [mounted, threads, activeId]);
 
@@ -256,7 +291,8 @@ export default function ChatPage() {
   // Scroll on message change
   useEffect(() => {
     if (!mounted) return;
-    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+    if (listRef.current)
+      listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [mounted, activeThread?.messages?.length]);
 
   // Auto-size composer
@@ -306,7 +342,12 @@ export default function ChatPage() {
   }
 
   function newThread() {
-    const t: Thread = { id: uid(), title: "New conversation", createdAt: Date.now(), messages: [] };
+    const t: Thread = {
+      id: uid(),
+      title: "New conversation",
+      createdAt: Date.now(),
+      messages: [],
+    };
     setThreads((prev) => [t, ...prev]);
     setActiveId(t.id);
     setDraft("");
@@ -323,7 +364,11 @@ export default function ChatPage() {
 
   function renameActive(title: string) {
     if (!activeThread) return;
-    setThreads((prev) => prev.map((t) => (t.id === activeThread.id ? { ...t, title } : t)));
+    setThreads((prev) =>
+      prev.map((t) =>
+        t.id === activeThread.id ? { ...t, title } : t
+      )
+    );
   }
 
   function sendMessage() {
@@ -332,13 +377,23 @@ export default function ChatPage() {
 
     let targetId = activeId;
     if (!targetId) {
-      const t: Thread = { id: uid(), title: "New conversation", createdAt: Date.now(), messages: [] };
+      const t: Thread = {
+        id: uid(),
+        title: "New conversation",
+        createdAt: Date.now(),
+        messages: [],
+      };
       setThreads((prev) => [t, ...prev]);
       setActiveId(t.id);
       targetId = t.id;
     }
 
-    const userMsg: Message = { id: uid(), role: "user", content: text, createdAt: Date.now() };
+    const userMsg: Message = {
+      id: uid(),
+      role: "user",
+      content: text,
+      createdAt: Date.now(),
+    };
     const assistantMsg: Message = {
       id: uid(),
       role: "assistant",
@@ -352,7 +407,11 @@ export default function ChatPage() {
         t.id === targetId
           ? {
             ...t,
-            title: t.messages.length === 0 ? text.slice(0, 40) + (text.length > 40 ? "…" : "") : t.title,
+            title:
+              t.messages.length === 0
+                ? text.slice(0, 40) +
+                (text.length > 40 ? "…" : "")
+                : t.title,
             messages: [...t.messages, userMsg, assistantMsg],
           }
           : t
@@ -360,7 +419,6 @@ export default function ChatPage() {
     );
 
     // Fire-and-forget: log this user message into Emotion History.
-    // Currently uses neutral defaults; later we will pass real emotion + intensity via the second argument.
     void logUserMessageToHistory(userMsg);
 
     setDraft("");
@@ -377,15 +435,23 @@ export default function ChatPage() {
   function clearChat() {
     if (!activeThread) return;
     if (!confirm("Clear all messages in this conversation?")) return;
-    setThreads((prev) => prev.map((t) => (t.id === activeThread.id ? { ...t, messages: [] } : t)));
+    setThreads((prev) =>
+      prev.map((t) =>
+        t.id === activeThread.id ? { ...t, messages: [] } : t
+      )
+    );
   }
 
   function exportJSON() {
-    const blob = new Blob([JSON.stringify({ threads }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ threads }, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `imotara_chat_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `imotara_chat_${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -394,8 +460,10 @@ export default function ChatPage() {
     <div className="mx-auto flex h-[calc(100vh-0px)] w-full max-w-7xl bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-100">
       {/* Sidebar */}
       <aside className="hidden w-72 flex-col border-r border-zinc-200 bg-white/60 p-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/50 sm:flex">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-zinc-500">Conversations</h2>
+        <div className="mb-3 flex items-center justify_between">
+          <h2 className="text-sm font-medium uppercase tracking-wider text-zinc-500">
+            Conversations
+          </h2>
           <button
             onClick={newThread}
             className="inline-flex items-center gap-1 rounded-xl border border-zinc-200 px-2.5 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
@@ -432,7 +500,9 @@ export default function ChatPage() {
                       setActiveId(t.id);
                     }
                   }}
-                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left ${isActive ? "bg-zinc-100 dark:bg-zinc-800" : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left ${isActive
+                      ? "bg-zinc-100 dark:bg-zinc-800"
+                      : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     }`}
                 >
                   <div className="min-w-0">
@@ -441,8 +511,15 @@ export default function ChatPage() {
                       <input
                         className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-400 ${isActive ? "font-medium" : ""
                           }`}
-                        value={t.id === activeId ? (activeThread?.title ?? "") : t.title}
-                        onChange={(e) => t.id === activeId && renameActive(e.target.value)}
+                        value={
+                          t.id === activeId
+                            ? activeThread?.title ?? ""
+                            : t.title
+                        }
+                        onChange={(e) =>
+                          t.id === activeId &&
+                          renameActive(e.target.value)
+                        }
                         placeholder="Untitled"
                       />
                     </div>
@@ -474,7 +551,9 @@ export default function ChatPage() {
           <div className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5 opacity-70" />
             <h1 className="truncate text-base font-semibold">
-              <span suppressHydrationWarning>{mounted ? (activeThread?.title ?? "Conversation") : ""}</span>
+              <span suppressHydrationWarning>
+                {mounted ? activeThread?.title ?? "Conversation" : ""}
+              </span>
             </h1>
           </div>
 
@@ -490,7 +569,11 @@ export default function ChatPage() {
             ) : null}
 
             <div className="hidden text-xs text-zinc-500 sm:block">
-              {syncing ? "Syncing…" : lastSyncAt ? `Synced ${syncedCount ?? 0}` : "Not synced yet"}
+              {syncing
+                ? "Syncing…"
+                : lastSyncAt
+                  ? `Synced ${syncedCount ?? 0}`
+                  : "Not synced yet"}
               {syncError ? ` · ${syncError}` : ""}
             </div>
 
@@ -502,7 +585,9 @@ export default function ChatPage() {
               className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
               title="Run local emotion analysis now"
             >
-              {analyzing ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}
+              {analyzing ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : null}
               Re-analyze
             </button>
 
@@ -512,21 +597,24 @@ export default function ChatPage() {
               className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
               title="Sync local ↔ remote history"
             >
-              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} /> Sync Now
+              <RefreshCw
+                className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`}
+              />{" "}
+              Sync Now
             </button>
 
             <ConflictReviewButton />
 
             <button
               onClick={clearChat}
-              className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
               title="Clear current conversation"
             >
               <Eraser className="h-4 w-4" /> Clear
             </button>
             <button
               onClick={exportJSON}
-              className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
               title="Download all conversations as JSON"
             >
               <Download className="h-4 w-4" /> Export
@@ -540,7 +628,10 @@ export default function ChatPage() {
           </div>
         </header>
 
-        <div ref={listRef} className="flex-1 overflow-auto px-4 py-4 sm:px-6">
+        <div
+          ref={listRef}
+          className="flex-1 overflow-auto px-4 py-4 sm:px-6"
+        >
           {!mounted ? (
             <div className="mx-auto max-w-3xl">
               <div
@@ -554,9 +645,18 @@ export default function ChatPage() {
             <EmptyState />
           ) : (
             <div className="mx-auto max-w-3xl space-y-4">
-              <MoodSummaryCard messages={appMessages} windowSize={10} mode="local" />
+              <MoodSummaryCard
+                messages={appMessages}
+                windowSize={10}
+                mode="local"
+              />
               {activeThread.messages.map((m) => (
-                <Bubble key={m.id} role={m.role} content={m.content} time={m.createdAt} />
+                <Bubble
+                  key={m.id}
+                  role={m.role}
+                  content={m.content}
+                  time={m.createdAt}
+                />
               ))}
             </div>
           )}
@@ -593,26 +693,39 @@ function EmptyState() {
       <div className="mt-8 rounded-2xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
         <p className="text-base font-medium">Start a conversation</p>
         <p className="mt-1 text-sm text-zinc-500">
-          This is a local demo of Imotara’s chat UI. Messages are saved only in your browser.
+          This is a local demo of Imotara’s chat UI. Messages are saved only in
+          your browser.
         </p>
       </div>
     </div>
   );
 }
 
-function Bubble({ role, content, time }: { role: Role; content: string; time: number }) {
+function Bubble({
+  role,
+  content,
+  time,
+}: {
+  role: Role;
+  content: string;
+  time: number;
+}) {
   const isUser = role === "user";
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
         className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[75%] ${isUser
-          ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900"
-          : "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
+            ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900"
+            : "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
           }`}
       >
         <div className="whitespace-pre-wrap">{content}</div>
-        <div className={`mt-1 text-[11px] ${isUser ? "text-zinc-300 dark:text-zinc-500" : "text-zinc-500"}`}>
-          <DateText ts={time} /> · {isUser ? "You" : role === "assistant" ? "Imotara" : "System"}
+        <div
+          className={`mt-1 text-[11px] ${isUser ? "text-zinc-300 dark:text-zinc-500" : "text-zinc-500"
+            }`}
+        >
+          <DateText ts={time} /> ·{" "}
+          {isUser ? "You" : role === "assistant" ? "Imotara" : "System"}
         </div>
       </div>
     </div>

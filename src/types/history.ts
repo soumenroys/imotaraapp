@@ -11,7 +11,14 @@ export type Emotion =
   | "surprise"
   | "neutral";
 
-export type RecordSource = "local" | "remote" | "merged";
+/**
+ * RecordSource:
+ * - local: created/owned locally
+ * - remote: came from server
+ * - merged: result of conflict merge
+ * - chat: originated from chat UI
+ */
+export type RecordSource = "local" | "remote" | "merged" | "chat";
 
 /**
  * Canonical record persisted locally and remotely.
@@ -25,7 +32,10 @@ export type EmotionRecord = {
   intensity: number; // 0..1
   createdAt: number; // epoch ms
   updatedAt: number; // epoch ms
+
+  // ✅ NOW ALLOWS "chat"
   source?: RecordSource;
+
   deleted?: boolean; // soft-delete flag for tombstones
 
   /** NEW: revision counter for 3-way merge (optional for backward compatibility) */

@@ -70,7 +70,21 @@ export default function EmotionTimeline({ items }: Props) {
                 // derive flags from optional properties (used by sync system)
                 const anyRecord = r as any;
                 const hasConflict = Boolean(anyRecord.conflict);
-                const isPending = Boolean(anyRecord.localOnly ?? anyRecord.pending);
+                const isPending = Boolean(
+                  anyRecord.localOnly ?? anyRecord.pending
+                );
+
+                // nicer label for source (local/remote/merged)
+                // default to "local" when missing so the badge still appears
+                const rawSource = r.source ?? "local";
+                const sourceLabel =
+                  rawSource === "local"
+                    ? "Local"
+                    : rawSource === "remote"
+                      ? "Remote"
+                      : rawSource === "merged"
+                        ? "Merged"
+                        : rawSource;
 
                 return (
                   <li
@@ -86,9 +100,13 @@ export default function EmotionTimeline({ items }: Props) {
                             <em className="text-zinc-500">No message</em>
                           )}
                         </div>
-                        <div className="mt-1 text-xs text-zinc-500">
-                          {tagText}
-                          {r.source ? ` · ${r.source}` : ""}
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                          <span>{tagText}</span>
+                          {sourceLabel && (
+                            <span className="inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                              {sourceLabel}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-zinc-500">
@@ -105,7 +123,9 @@ export default function EmotionTimeline({ items }: Props) {
                           )}
                         </div>
                         <div className="text-right">
-                          {when ? format(new Date(when), "HH:mm:ss") : "--:--:--"}
+                          {when
+                            ? format(new Date(when), "HH:mm:ss")
+                            : "--:--:--"}
                         </div>
                       </div>
                     </div>

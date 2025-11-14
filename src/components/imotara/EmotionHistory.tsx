@@ -258,8 +258,8 @@ export default function EmotionHistory() {
       typeof d === "string"
         ? d
         : d && typeof d === "object" && "field" in (d as any)
-        ? String((d as any).field)
-        : null;
+          ? String((d as any).field)
+          : null;
 
     for (const p of conflictPreviews) {
       for (const d of p.diffs ?? []) {
@@ -292,8 +292,8 @@ export default function EmotionHistory() {
       const incoming: EmotionRecord[] = Array.isArray(json)
         ? json
         : Array.isArray(json?.records)
-        ? json.records
-        : [];
+          ? json.records
+          : [];
 
       // compute conflicts (server newer than local for same id) + collect details
       const latestLocal = await getHistory();
@@ -339,12 +339,12 @@ export default function EmotionHistory() {
                 id: it.id,
                 diffs: Array.isArray(diffs)
                   ? (diffs as any[]).map((d) =>
-                      typeof d === "string"
-                        ? d
-                        : d?.field
+                    typeof d === "string"
+                      ? d
+                      : d?.field
                         ? String(d.field)
                         : String(d)
-                    )
+                  )
                   : [String(diffs)],
                 summary,
                 local: it.local,
@@ -770,8 +770,8 @@ export default function EmotionHistory() {
                   title={
                     lastConflictAt
                       ? `Server has newer versions (since ${new Date(
-                          lastConflictAt
-                        ).toLocaleTimeString()}). Click to pull & merge.`
+                        lastConflictAt
+                      ).toLocaleTimeString()}). Click to pull & merge.`
                       : "Server has newer versions for some items. Click to pull & merge."
                   }
                 >
@@ -824,8 +824,7 @@ export default function EmotionHistory() {
                   : Number(res?.rejected ?? res?.rejectedCount ?? 0);
 
                 setPushInfo(
-                  `Pending push: attempted ${attempted}; accepted ${accepted}${
-                    rejected ? `, rejected ${rejected}` : ""
+                  `Pending push: attempted ${attempted}; accepted ${accepted}${rejected ? `, rejected ${rejected}` : ""
                   }`
                 );
 
@@ -858,8 +857,7 @@ export default function EmotionHistory() {
                   : Number(res?.rejected ?? 0);
 
                 setPushInfo(
-                  `Pushed ${attempted}; accepted ${accepted}${
-                    rejectedLen ? `, rejected ${rejectedLen}` : ""
+                  `Pushed ${attempted}; accepted ${accepted}${rejectedLen ? `, rejected ${rejectedLen}` : ""
                   }`
                 );
 
@@ -886,8 +884,7 @@ export default function EmotionHistory() {
                   "prefer-remote"
                 );
                 setPushInfo(
-                  `Conflict retry: applied ${applied}${
-                    remaining ? `; remaining ${remaining}` : ""
+                  `Conflict retry: applied ${applied}${remaining ? `; remaining ${remaining}` : ""
                   }`
                 );
                 await manualSync();
@@ -916,8 +913,7 @@ export default function EmotionHistory() {
                     ? (json as any).records
                     : [];
                   setApiInfo(
-                    `GET /api/history envelope: records=${recs.length}, serverTs=${
-                      (json as any).serverTs ?? "—"
+                    `GET /api/history envelope: records=${recs.length}, serverTs=${(json as any).serverTs ?? "—"
                     }`
                   );
                 } else {
@@ -993,9 +989,20 @@ export default function EmotionHistory() {
           const liRef =
             r.id === lastAddedId
               ? (el: HTMLLIElement | null) => {
-                  lastAddedRef.current = el;
-                }
+                lastAddedRef.current = el;
+              }
               : undefined;
+
+          // human-readable source badge; default to Local if missing
+          const rawSource = r.source ?? "local";
+          const sourceLabel =
+            rawSource === "local"
+              ? "Local"
+              : rawSource === "remote"
+                ? "Remote"
+                : rawSource === "merged"
+                  ? "Merged"
+                  : String(rawSource);
 
           return (
             <li
@@ -1008,6 +1015,11 @@ export default function EmotionHistory() {
                   {when}
                 </div>
                 <div className="flex items-center gap-2">
+                  {sourceLabel && (
+                    <span className="inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                      {sourceLabel}
+                    </span>
+                  )}
                   <span className="rounded-full px-2 py-0.5 text-xs text-zinc-600 dark:text-zinc-300">
                     {r.emotion} • {intensity}
                   </span>

@@ -4,6 +4,7 @@
 import { format } from "date-fns";
 import { primaryTag } from "@/lib/imotara/history";
 import type { EmotionRecord } from "@/types/history";
+import EmotionMiniTimeline from "@/components/imotara/EmotionMiniTimeline";
 
 type Props = {
   items: EmotionRecord[];
@@ -35,6 +36,9 @@ export default function EmotionTimeline({ items }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Mini timeline showing sync / pending / conflict pulses across the whole history */}
+      <EmotionMiniTimeline records={items} />
+
       {days.map(([dayKey, recs]) => {
         // Sort records within a day by time ascending
         const sorted = recs

@@ -12,6 +12,10 @@ import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
 import type { AnalysisResult } from "@/types/analysis";
 import { runLocalAnalysis } from "@/lib/imotara/runLocalAnalysis";
 
+// 👇 history import for Chat → History linkage
+import { saveSample } from "@/lib/imotara/history";
+import type { Emotion } from "@/types/history";
+
 type Role = "user" | "assistant" | "system";
 type Message = { id: string; role: Role; content: string; createdAt: number };
 type Thread = { id: string; title: string; createdAt: number; messages: Message[] };
@@ -82,6 +86,72 @@ async function persistMergedHistory(merged: unknown): Promise<void> {
   }
 }
 
+// 👇 options for emotion-aware logging
+type HistoryEmotionOptions = {
+  emotion?: Emotion;
+  intensity?: number;
+};
+
+// 👇 helper to log a user chat message into Emotion History
+// Tries to derive emotion & intensity using runLocalAnalysis when opts not provided.
+// Falls back safely to neutral / 0.3 if anything is missing.
+async function logUserMessageToHistory(
+  msg: Message,
+  opts?: HistoryEmotionOptions
+): Promise<void> {
+  try {
+    const text = msg.content.trim();
+    if (!text) return;
+
+    let emotion: Emotion = opts?.emotion ?? "neutral";
+    let intensity: number =
+      typeof opts?.intensity === "number" ? opts.intensity : 0.3;
+
+    // If caller didn't specify emotion/intensity, try to infer from local analysis
+    if (!opts) {
+      try {
+        // Reuse the same analyzer the chat page already uses
+        const res = (await runLocalAnalysis([msg] as any, 1)) as any;
+        const summary = res?.summary;
+
+        const inferredEmotion =
+          summary?.primaryEmotion ??
+          summary?.emotion ??
+          summary?.tag ??
+          null;
+
+        const inferredIntensity =
+          typeof summary?.intensity === "number"
+            ? summary.intensity
+            : null;
+
+        if (inferredEmotion) {
+          emotion = inferredEmotion as Emotion;
+        }
+        if (inferredIntensity !== null) {
+          intensity = inferredIntensity;
+        }
+      } catch (e) {
+        console.warn(
+          "[imotara] local analysis for history logging failed, using neutral:",
+          e
+        );
+      }
+    }
+
+    await saveSample({
+      message: text,
+      emotion,
+      intensity,
+      source: "local",
+      createdAt: msg.createdAt,
+      updatedAt: msg.createdAt,
+    });
+  } catch (err) {
+    console.error("[imotara] failed to log chat message to history:", err);
+  }
+}
+
 export default function ChatPage() {
   // Avoid SSR/client mismatches for localStorage-driven UI
   const [mounted, setMounted] = useState(false);
@@ -97,7 +167,7 @@ export default function ChatPage() {
         const a = parsed.activeId ?? (t[0]?.id ?? null);
         return { initialThreads: t, initialActiveId: a };
       }
-    } catch {}
+    } catch { }
     const seed: Thread = {
       id: uid(),
       title: "First conversation",
@@ -143,7 +213,7 @@ export default function ChatPage() {
     if (!mounted) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ threads, activeId }));
-    } catch {}
+    } catch { }
   }, [mounted, threads, activeId]);
 
   const activeThread = useMemo(
@@ -281,13 +351,18 @@ export default function ChatPage() {
       prev.map((t) =>
         t.id === targetId
           ? {
-              ...t,
-              title: t.messages.length === 0 ? text.slice(0, 40) + (text.length > 40 ? "…" : "") : t.title,
-              messages: [...t.messages, userMsg, assistantMsg],
-            }
+            ...t,
+            title: t.messages.length === 0 ? text.slice(0, 40) + (text.length > 40 ? "…" : "") : t.title,
+            messages: [...t.messages, userMsg, assistantMsg],
+          }
           : t
       )
     );
+
+    // Fire-and-forget: log this user message into Emotion History.
+    // Currently uses neutral defaults; later we will pass real emotion + intensity via the second argument.
+    void logUserMessageToHistory(userMsg);
+
     setDraft("");
     setTimeout(() => composerRef.current?.focus(), 0);
   }
@@ -357,17 +432,15 @@ export default function ChatPage() {
                       setActiveId(t.id);
                     }
                   }}
-                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left ${
-                    isActive ? "bg-zinc-100 dark:bg-zinc-800" : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                  }`}
+                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left ${isActive ? "bg-zinc-100 dark:bg-zinc-800" : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    }`}
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <MessageSquare className="h-4 w-4 shrink-0 opacity-70" />
                       <input
-                        className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-400 ${
-                          isActive ? "font-medium" : ""
-                        }`}
+                        className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-400 ${isActive ? "font-medium" : ""
+                          }`}
                         value={t.id === activeId ? (activeThread?.title ?? "") : t.title}
                         onChange={(e) => t.id === activeId && renameActive(e.target.value)}
                         placeholder="Untitled"
@@ -532,11 +605,10 @@ function Bubble({ role, content, time }: { role: Role; content: string; time: nu
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[75%] ${
-          isUser
-            ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900"
-            : "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
-        }`}
+        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[75%] ${isUser
+          ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900"
+          : "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
+          }`}
       >
         <div className="whitespace-pre-wrap">{content}</div>
         <div className={`mt-1 text-[11px] ${isUser ? "text-zinc-300 dark:text-zinc-500" : "text-zinc-500"}`}>

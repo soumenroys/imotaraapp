@@ -11,7 +11,7 @@
 "use client";
 
 import { v4 as uuid } from "uuid";
-import type { Emotion, EmotionRecord } from "@/types/history";
+import type { Emotion, EmotionRecord, RecordSource } from "@/types/history";
 
 // Preferred key first; we also read legacy to stay compatible
 const KEYS = ["imotara:history:v1", "imotara.history.v1"] as const;
@@ -128,7 +128,7 @@ export async function removeFromHistory(id: string): Promise<void> {
  * Convenience for creating a single record quickly (used by dev seed).
  * Upserts using the same newer-wins rule.
  *
- * NOTE: We deliberately allow extra fields (e.g. sessionId, messageId)
+ * NOTE: We deliberately allow extra fields (e.g. sessionId, messageId, chatMessageId)
  * and carry them through into EmotionRecord so History can link back to chat.
  */
 export async function saveSample(
@@ -137,10 +137,15 @@ export async function saveSample(
     message: string;
     emotion: Emotion;
     intensity: number; // 0..1
-    source?: "local" | "remote" | "merged";
+    source?: RecordSource;
     createdAt?: number;
     updatedAt?: number;
     deleted?: boolean;
+
+    // chat/session linkage meta
+    sessionId?: string;
+    messageId?: string;
+    chatMessageId?: string;
   } & Record<string, any>
 ) {
   const now = Date.now();

@@ -47,8 +47,14 @@ export type EmotionRecord = {
   /** ID of the chat session / thread this record belongs to (e.g. chatId). */
   sessionId?: string;
 
-  /** ID of the specific chat message that produced this record (if applicable). */
+  /** ID of the specific chat message that produced this record (legacy field). */
   messageId?: string;
+
+  /**
+   * Canonical chat-message ID for linking records back to the chat UI.
+   * New code should prefer this over `messageId` where possible.
+   */
+  chatMessageId?: string;
 
   // -----------------------------
   // Choice-driven metadata (optional)

@@ -1,6 +1,7 @@
 // src/components/imotara/EmotionHistory.tsx
-'use client';
+"use client";
 
+import Link from "next/link";
 import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -28,7 +29,10 @@ import { detectConflicts } from "@/lib/imotara/conflictDetect";
 import type { ConflictPreview } from "@/lib/imotara/syncHistory";
 
 // simple upsert merge (remote -> local)
-function mergeRemote(local: EmotionRecord[], incoming: EmotionRecord[]): EmotionRecord[] {
+function mergeRemote(
+  local: EmotionRecord[],
+  incoming: EmotionRecord[]
+): EmotionRecord[] {
   if (!Array.isArray(incoming) || incoming.length === 0) return local;
   const map = new Map(local.map((r) => [r.id, r]));
   for (const rec of incoming) {
@@ -56,7 +60,9 @@ export default function EmotionHistory() {
   const [pendingCount, setPendingCount] = useState<number>(0);
 
   // manual sync state
-  const [state, setState] = useState<"idle" | "syncing" | "synced" | "error">("idle");
+  const [state, setState] = useState<"idle" | "syncing" | "synced" | "error">(
+    "idle"
+  );
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
@@ -88,17 +94,22 @@ export default function EmotionHistory() {
   const [conflictItems, setConflictItems] = useState<ConflictItem[]>([]);
 
   // ⬇️ Step 14-C-4: read-only conflict previews for UI use later
-  const [conflictPreviews, setConflictPreviews] = useState<ConflictPreview[]>([]);
+  const [conflictPreviews, setConflictPreviews] = useState<ConflictPreview[]>(
+    []
+  );
 
   // ⬇️ single-level undo snapshot (20s window)
-  const [undoSnapshot, setUndoSnapshot] = useState<EmotionRecord[] | null>(null);
+  const [undoSnapshot, setUndoSnapshot] = useState<EmotionRecord[] | null>(
+    null
+  );
   const [undoLabel, setUndoLabel] = useState<string | null>(null);
   const undoTimerRef = useRef<number | null>(null);
 
   // ⬇️ NEW: session-aware filter (from chat sessions)
   const searchParams = useSearchParams();
   const urlSessionId = (searchParams?.get("sessionId") ?? "").trim();
-  const [sessionFilter, setSessionFilter] = useState<string>(urlSessionId);
+  const [sessionFilter, setSessionFilter] =
+    useState<string>(urlSessionId);
 
   function clearUndoTimer() {
     if (undoTimerRef.current) {
@@ -122,7 +133,9 @@ export default function EmotionHistory() {
     if (!undoSnapshot) return;
     const prev = undoSnapshot;
     setItems(prev);
-    setSummary(computeEmotionSummary(prev.filter((r) => !(r as any).deleted)));
+    setSummary(
+      computeEmotionSummary(prev.filter((r) => !(r as any).deleted))
+    );
     saveHistory(prev);
     setPendingCount(computePending(prev).length);
     setUndoSnapshot(null);
@@ -170,7 +183,9 @@ export default function EmotionHistory() {
         if (!cancelled) {
           setItems(list);
           setSummary(
-            computeEmotionSummary(list.filter((r) => !(r as any).deleted))
+            computeEmotionSummary(
+              list.filter((r) => !(r as any).deleted)
+            )
           );
         }
       } catch (err) {
@@ -207,7 +222,10 @@ export default function EmotionHistory() {
   // after items update, if we have a "lastAdded" item, scroll to it smoothly
   useEffect(() => {
     if (lastAddedId && lastAddedRef.current) {
-      lastAddedRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      lastAddedRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
       const t = setTimeout(() => setLastAddedId(null), 600);
       return () => clearTimeout(t);
     }
@@ -602,7 +620,8 @@ export default function EmotionHistory() {
             {conflicts === 1 ? "" : "s"} on the server
             {lastConflictAt
               ? ` (since ${new Date(lastConflictAt).toLocaleString()})`
-              : ""}.
+              : ""}{" "}
+            .
           </p>
 
           <div className="mt-4 max-h-72 overflow-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -617,7 +636,9 @@ export default function EmotionHistory() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {it.server?.emotion ?? it.local?.emotion ?? "unknown"}{" "}
+                          {it.server?.emotion ??
+                            it.local?.emotion ??
+                            "unknown"}{" "}
                           <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
                             • id: {it.id}
                           </span>
@@ -759,7 +780,11 @@ export default function EmotionHistory() {
         <div className="flex items-center gap-2">
           <SyncStatusChip
             state={
-              state === "syncing" ? "syncing" : state === "error" ? "error" : "synced"
+              state === "syncing"
+                ? "syncing"
+                : state === "error"
+                  ? "error"
+                  : "synced"
             }
             lastSyncedAt={lastSyncedAt}
             pendingCount={pendingCount}
@@ -838,7 +863,9 @@ export default function EmotionHistory() {
                 const attempted = Number(res?.attempted ?? 0);
                 const accepted = Array.isArray(res?.acceptedIds)
                   ? res.acceptedIds.length
-                  : Number(res?.accepted ?? res?.acceptedCount ?? 0);
+                  : Number(
+                    res?.accepted ?? res?.acceptedCount ?? 0
+                  );
                 const rejected = Array.isArray(res?.rejected)
                   ? res.rejected.length
                   : Number(res?.rejected ?? res?.rejectedCount ?? 0);
@@ -854,7 +881,9 @@ export default function EmotionHistory() {
                 // ensure UI reflects server state immediately
                 await manualSync();
               } catch (err: any) {
-                setPushInfo(`Push pending failed: ${String(err?.message ?? err)}`);
+                setPushInfo(
+                  `Push pending failed: ${String(err?.message ?? err)}`
+                );
               }
             }}
             className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"
@@ -909,7 +938,9 @@ export default function EmotionHistory() {
                 );
                 await manualSync();
               } catch (err: any) {
-                setPushInfo(`Retry queued failed: ${String(err?.message ?? err)}`);
+                setPushInfo(
+                  `Retry queued failed: ${String(err?.message ?? err)}`
+                );
               }
             }}
             className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"
@@ -928,7 +959,11 @@ export default function EmotionHistory() {
                   setApiInfo(
                     `GET /api/history returned array: length=${json.length}`
                   );
-                } else if (json && typeof json === "object" && "records" in json) {
+                } else if (
+                  json &&
+                  typeof json === "object" &&
+                  "records" in json
+                ) {
                   const recs = Array.isArray((json as any).records)
                     ? (json as any).records
                     : [];
@@ -1050,6 +1085,8 @@ export default function EmotionHistory() {
                   ? "Merged"
                   : String(rawSource);
 
+          const hasChatLink = !!(r.sessionId && r.messageId);
+
           return (
             <li
               ref={liRef}
@@ -1077,6 +1114,19 @@ export default function EmotionHistory() {
                   <span className="rounded-full px-2 py-0.5 text-xs text-zinc-600 dark:text-zinc-300">
                     {r.emotion} • {intensity}
                   </span>
+                  {hasChatLink && (
+                    <Link
+                      href={`/chat?sessionId=${encodeURIComponent(
+                        r.sessionId as string
+                      )}&messageId=${encodeURIComponent(
+                        r.messageId as string
+                      )}`}
+                      className="rounded-lg border border-zinc-200 px-2 py-0.5 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                      title="Open this moment in chat"
+                    >
+                      View in chat
+                    </Link>
+                  )}
                   <button
                     onClick={() => handleDelete(r.id)}
                     className="rounded-lg border border-zinc-200 px-2 py-0.5 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"

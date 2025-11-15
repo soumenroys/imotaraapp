@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   MessageSquare,
   Plus,
@@ -194,51 +195,27 @@ async function logUserMessageToHistory(
 }
 
 export default function ChatPage() {
+  const searchParams = useSearchParams();
+  const urlSessionId = (searchParams?.get("sessionId") ?? "").trim();
+  const urlMessageId = (searchParams?.get("messageId") ?? "").trim();
+
   // Avoid SSR/client mismatches for localStorage-driven UI
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // Deterministic init (no setState inside effects)
-  const [{ initialThreads, initialActiveId }] = useState(() => {
-    try {
-      const raw =
-        typeof window !== "undefined"
-          ? localStorage.getItem(STORAGE_KEY)
-          : null;
-      if (raw) {
-        const parsed = JSON.parse(raw) as {
-          threads: Thread[];
-          activeId?: string | null;
-        };
-        const t = Array.isArray(parsed.threads) ? parsed.threads : [];
-        const a = parsed.activeId ?? (t[0]?.id ?? null);
-        return { initialThreads: t, initialActiveId: a };
-      }
-    } catch { }
-    const seedId = uid();
-    const seed: Thread = {
-      id: seedId,
-      title: "First conversation",
-      createdAt: Date.now(),
-      messages: [
-        {
-          id: uid(),
-          role: "assistant",
-          content:
-            "Hi, I'm Imotara — a quiet companion. This is a local-only demo (no backend). Try sending me a message!",
-          createdAt: Date.now(),
-          sessionId: seedId,
-        },
-      ],
-    };
-    return { initialThreads: [seed], initialActiveId: seed.id };
-  });
-
-  const [threads, setThreads] = useState<Thread[]>(initialThreads);
-  const [activeId, setActiveId] = useState<string | null>(initialActiveId);
+  // ✅ Hydration-safe initial state (no Date.now/Math.random on server)
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+
+  // ⬇️ NEW: for deep-link scroll + highlight
+  const messageTargetRef = useRef<HTMLDivElement | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] =
+    useState<string | null>(null);
+  const usedMessageIdRef = useRef<string | null>(null);
 
   // Sync state
   const [syncing, setSyncing] = useState(false);
@@ -250,12 +227,101 @@ export default function ChatPage() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false); // spinner flag
 
+  // ✅ Load threads from localStorage or seed AFTER mount (client only)
+  useEffect(() => {
+    if (!mounted) return;
+
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as {
+          threads: Thread[];
+          activeId?: string | null;
+        };
+        const t = Array.isArray(parsed.threads) ? parsed.threads : [];
+        const a = parsed.activeId ?? (t[0]?.id ?? null);
+        setThreads(t);
+        setActiveId(a);
+        return;
+      }
+    } catch {
+      // ignore parse/storage errors
+    }
+
+    // Seed a first conversation if nothing in storage
+    const seedId = uid();
+    const now = Date.now();
+    const seed: Thread = {
+      id: seedId,
+      title: "First conversation",
+      createdAt: now,
+      messages: [
+        {
+          id: uid(),
+          role: "assistant",
+          content:
+            "Hi, I'm Imotara — a quiet companion. This is a local-only demo (no backend). Try sending me a message!",
+          createdAt: now,
+          sessionId: seedId,
+        },
+      ],
+    };
+    setThreads([seed]);
+    setActiveId(seedId);
+  }, [mounted]);
+
   // Keep activeId valid after mount
   useEffect(() => {
     if (!mounted) return;
     const found = threads.find((t) => t.id === activeId);
     if (!found && threads.length > 0) setActiveId(threads[0].id);
   }, [mounted, threads, activeId]);
+
+  // Respect sessionId from URL on first mounts/changes
+  useEffect(() => {
+    if (!mounted) return;
+    if (!urlSessionId) return;
+    const match = threads.find((t) => t.id === urlSessionId);
+    if (match && match.id !== activeId) {
+      setActiveId(match.id);
+    }
+  }, [mounted, urlSessionId, threads, activeId]);
+
+  const activeThread = useMemo(
+    () => threads.find((t) => t.id === activeId) ?? null,
+    [threads, activeId]
+  );
+
+  // ⬇️ NEW: when messageId is present in URL, scroll & highlight that bubble once
+  useEffect(() => {
+    if (!mounted) return;
+    if (!urlMessageId) return;
+    if (!activeThread) return;
+
+    // avoid re-running for the same messageId
+    if (usedMessageIdRef.current === urlMessageId) return;
+
+    const exists = activeThread.messages.some((m) => m.id === urlMessageId);
+    if (!exists) return;
+
+    usedMessageIdRef.current = urlMessageId;
+    setHighlightedMessageId(urlMessageId);
+
+    // let the ref settle, then scroll
+    setTimeout(() => {
+      const el = messageTargetRef.current;
+      if (el && listRef.current) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 50);
+  }, [mounted, urlMessageId, activeThread]);
+
+  // ⬇️ NEW: auto-clear highlight after a few seconds
+  useEffect(() => {
+    if (!highlightedMessageId) return;
+    const t = window.setTimeout(() => setHighlightedMessageId(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [highlightedMessageId]);
 
   // Persist to localStorage on client
   useEffect(() => {
@@ -265,13 +331,10 @@ export default function ChatPage() {
         STORAGE_KEY,
         JSON.stringify({ threads, activeId })
       );
-    } catch { }
+    } catch {
+      // ignore
+    }
   }, [mounted, threads, activeId]);
-
-  const activeThread = useMemo(
-    () => threads.find((t) => t.id === activeId) ?? null,
-    [threads, activeId]
-  );
 
   const appMessages: AppMessage[] = useMemo(() => {
     const msgs = activeThread?.messages ?? [];
@@ -305,7 +368,7 @@ export default function ChatPage() {
     };
   }, [mounted, activeThread?.messages]);
 
-  // Scroll on message change
+  // Scroll on message change (generic bottom scroll)
   useEffect(() => {
     if (!mounted) return;
     if (listRef.current)
@@ -692,6 +755,16 @@ export default function ChatPage() {
                   role={m.role}
                   content={m.content}
                   time={m.createdAt}
+                  highlighted={m.id === highlightedMessageId}
+                  attachRef={
+                    m.id === urlMessageId
+                      ? (el) => {
+                        if (el) {
+                          messageTargetRef.current = el;
+                        }
+                      }
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -741,20 +814,35 @@ function Bubble({
   role,
   content,
   time,
+  highlighted,
+  attachRef,
 }: {
   role: Role;
   content: string;
   time: number;
+  highlighted?: boolean;
+  attachRef?: (el: HTMLDivElement | null) => void;
 }) {
   const isUser = role === "user";
+
+  const bubbleClass = [
+    "max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[75%]",
+    isUser
+      ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900"
+      : "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100",
+    highlighted
+      ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-zinc-900 animate-pulse"
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[75%] ${isUser
-            ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900"
-            : "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
-          }`}
-      >
+    <div
+      ref={attachRef}
+      className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+    >
+      <div className={bubbleClass}>
         <div className="whitespace-pre-wrap">{content}</div>
         <div
           className={`mt-1 text-[11px] ${isUser

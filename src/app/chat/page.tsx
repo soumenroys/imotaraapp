@@ -1,6 +1,7 @@
 // src/app/chat/page.tsx
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   MessageSquare,
@@ -25,7 +26,14 @@ import { saveSample } from "@/lib/imotara/history";
 import type { Emotion } from "@/types/history";
 
 type Role = "user" | "assistant" | "system";
-type Message = { id: string; role: Role; content: string; createdAt: number };
+type Message = {
+  id: string;
+  role: Role;
+  content: string;
+  createdAt: number;
+  /** ID of the chat session / thread this message belongs to */
+  sessionId?: string;
+};
 type Thread = {
   id: string;
   title: string;
@@ -161,7 +169,9 @@ async function logUserMessageToHistory(
       }
     }
 
-    await saveSample({
+    // Build payload separately and cast to any so we can include
+    // the new linking fields without fighting older saveSample typings.
+    const payload: any = {
       message: text,
       emotion,
       intensity,
@@ -169,7 +179,12 @@ async function logUserMessageToHistory(
       source: "local",
       createdAt: msg.createdAt,
       updatedAt: msg.createdAt,
-    });
+      // 🔗 session linkage into EmotionRecord
+      sessionId: msg.sessionId,
+      messageId: msg.id,
+    };
+
+    await saveSample(payload);
   } catch (err) {
     console.error(
       "[imotara] failed to log chat message to history:",
@@ -200,8 +215,9 @@ export default function ChatPage() {
         return { initialThreads: t, initialActiveId: a };
       }
     } catch { }
+    const seedId = uid();
     const seed: Thread = {
-      id: uid(),
+      id: seedId,
       title: "First conversation",
       createdAt: Date.now(),
       messages: [
@@ -211,6 +227,7 @@ export default function ChatPage() {
           content:
             "Hi, I'm Imotara — a quiet companion. This is a local-only demo (no backend). Try sending me a message!",
           createdAt: Date.now(),
+          sessionId: seedId,
         },
       ],
     };
@@ -388,18 +405,22 @@ export default function ChatPage() {
       targetId = t.id;
     }
 
+    const now = Date.now();
+
     const userMsg: Message = {
       id: uid(),
       role: "user",
       content: text,
-      createdAt: Date.now(),
+      createdAt: now,
+      sessionId: targetId,
     };
     const assistantMsg: Message = {
       id: uid(),
       role: "assistant",
       content:
         "I hear you. In the real app, I'd respond with empathy and context. For now, this is a local preview 😊",
-      createdAt: Date.now() + 1,
+      createdAt: now + 1,
+      sessionId: targetId,
     };
 
     setThreads((prev) =>
@@ -577,6 +598,21 @@ export default function ChatPage() {
               {syncError ? ` · ${syncError}` : ""}
             </div>
 
+            {/* NEW: View this session in Emotion History */}
+            <Link
+              href={
+                activeThread
+                  ? `/history?sessionId=${encodeURIComponent(
+                    activeThread.id
+                  )}`
+                  : "/history"
+              }
+              className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              title="Open Emotion History filtered to this chat session"
+            >
+              History
+            </Link>
+
             {/* Re-analyze button with spinner */}
             <button
               onClick={triggerAnalyze}
@@ -594,7 +630,7 @@ export default function ChatPage() {
             <button
               onClick={runSync}
               disabled={syncing}
-              className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              className="inline-flex items-around gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
               title="Sync local ↔ remote history"
             >
               <RefreshCw
@@ -721,7 +757,9 @@ function Bubble({
       >
         <div className="whitespace-pre-wrap">{content}</div>
         <div
-          className={`mt-1 text-[11px] ${isUser ? "text-zinc-300 dark:text-zinc-500" : "text-zinc-500"
+          className={`mt-1 text-[11px] ${isUser
+              ? "text-zinc-300 dark:text-zinc-500"
+              : "text-zinc-500"
             }`}
         >
           <DateText ts={time} /> ·{" "}

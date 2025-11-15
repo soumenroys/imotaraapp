@@ -3,6 +3,7 @@
 
 import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { EmotionRecord } from "@/types/history";
 import { getHistory } from "@/lib/imotara/history";
 import { saveHistory } from "@/lib/imotara/historyPersist";
@@ -93,6 +94,11 @@ export default function EmotionHistory() {
   const [undoSnapshot, setUndoSnapshot] = useState<EmotionRecord[] | null>(null);
   const [undoLabel, setUndoLabel] = useState<string | null>(null);
   const undoTimerRef = useRef<number | null>(null);
+
+  // ⬇️ NEW: session-aware filter (from chat sessions)
+  const searchParams = useSearchParams();
+  const urlSessionId = (searchParams?.get("sessionId") ?? "").trim();
+  const [sessionFilter, setSessionFilter] = useState<string>(urlSessionId);
 
   function clearUndoTimer() {
     if (undoTimerRef.current) {
@@ -702,11 +708,25 @@ export default function EmotionHistory() {
   // ⬇️ Only show non-deleted items in the UI
   const visibleItems = safeItems.filter((r) => !(r as any).deleted);
 
+  // ⬇️ Session-based filtered view: when a filter is set, we show only records
+  // whose sessionId contains that text (case-insensitive).
+  const filteredItems = useMemo(() => {
+    const q = sessionFilter.trim().toLowerCase();
+    if (!q) return visibleItems;
+    return visibleItems.filter((r) =>
+      (r.sessionId ?? "").toLowerCase().includes(q)
+    );
+  }, [visibleItems, sessionFilter]);
+
   // ⬇️ Derived flags for pending + conflict (used by mini timeline)
   const pendingList = computePending(safeItems);
   const pendingSet = new Set(pendingList.map((p: any) => p.id));
   const conflictSet = new Set(conflictItems.map((c) => c.id));
-  const timelineItems = visibleItems.map((r) => ({
+
+  // For the mini-timeline: show the filtered slice if a sessionFilter is active,
+  // otherwise show the full visible list.
+  const baseForTimeline = sessionFilter.trim() ? filteredItems : visibleItems;
+  const timelineItems = baseForTimeline.map((r) => ({
     ...r,
     pending: pendingSet.has(r.id),
     conflict: conflictSet.has(r.id),
@@ -964,6 +984,32 @@ export default function EmotionHistory() {
         {apiInfo && <div>{apiInfo}</div>}
       </div>
 
+      {/* Session filter — links Emotion History to chat sessions via sessionId */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+        <label className="flex-1 min-w-[200px]">
+          <div className="mb-1">
+            Filter by chat session ID{" "}
+            <span className="opacity-70">(optional)</span>
+          </div>
+          <input
+            value={sessionFilter}
+            onChange={(e) => setSessionFilter(e.target.value)}
+            placeholder="Paste or type a session id from chat…"
+            className="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500"
+          />
+        </label>
+        {sessionFilter && (
+          <button
+            type="button"
+            onClick={() => setSessionFilter("")}
+            className="rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            title="Clear session filter"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
       {/* Emotion Summary Card */}
       <div className="mb-4">
         <EmotionSummaryCard summary={toCardSummary(summary)} />
@@ -978,7 +1024,7 @@ export default function EmotionHistory() {
 
       {/* Simple list of history items */}
       <ul className="space-y-3">
-        {visibleItems.map((r) => {
+        {filteredItems.map((r) => {
           const ts =
             typeof r.updatedAt === "number" ? r.updatedAt : r.createdAt;
           const when = ts ? new Date(ts).toLocaleString() : "—";
@@ -1010,14 +1056,22 @@ export default function EmotionHistory() {
               key={r.id}
               className="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div className="text-sm text-zinc-500 dark:text-zinc-400">
                   {when}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {sourceLabel && (
                     <span className="inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                       {sourceLabel}
+                    </span>
+                  )}
+                  {r.sessionId && (
+                    <span
+                      className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700 dark:border-indigo-600/60 dark:bg-indigo-900/30 dark:text-indigo-200"
+                      title={`Linked to chat session: ${r.sessionId}`}
+                    >
+                      Chat session
                     </span>
                   )}
                   <span className="rounded-full px-2 py-0.5 text-xs text-zinc-600 dark:text-zinc-300">
@@ -1041,7 +1095,7 @@ export default function EmotionHistory() {
           );
         })}
 
-        {/* Empty-state with CTA */}
+        {/* Global empty-state (no history at all) */}
         {visibleItems.length === 0 && (
           <li className="rounded-2xl border border-dashed border-zinc-300 p-6 text-center text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
             <div>No history yet.</div>
@@ -1064,6 +1118,18 @@ export default function EmotionHistory() {
             </div>
           </li>
         )}
+
+        {/* Filtered empty-state: there is history, but none for this session filter */}
+        {visibleItems.length > 0 &&
+          sessionFilter.trim() &&
+          filteredItems.length === 0 && (
+            <li className="rounded-2xl border border-dashed border-zinc-300 p-6 text-center text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+              <div>No entries match this chat session filter.</div>
+              <div className="mt-1 text-xs opacity-80">
+                Try clearing the filter to see all records.
+              </div>
+            </li>
+          )}
       </ul>
 
       {/* ⬇️ Render the conflict review modal */}

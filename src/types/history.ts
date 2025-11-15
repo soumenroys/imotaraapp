@@ -42,6 +42,15 @@ export type EmotionRecord = {
   rev?: number;
 
   // -----------------------------
+  // Chat / session linking
+  // -----------------------------
+  /** ID of the chat session / thread this record belongs to (e.g. chatId). */
+  sessionId?: string;
+
+  /** ID of the specific chat message that produced this record (if applicable). */
+  messageId?: string;
+
+  // -----------------------------
   // Choice-driven metadata (optional)
   // -----------------------------
   /** Dedupbed topic tags for this record (e.g., ["sleep", "work"]). */

@@ -127,19 +127,26 @@ export async function removeFromHistory(id: string): Promise<void> {
  * saveSample
  * Convenience for creating a single record quickly (used by dev seed).
  * Upserts using the same newer-wins rule.
+ *
+ * NOTE: We deliberately allow extra fields (e.g. sessionId, messageId)
+ * and carry them through into EmotionRecord so History can link back to chat.
  */
-export async function saveSample(partial: {
-  id?: string;
-  message: string;
-  emotion: Emotion;
-  intensity: number; // 0..1
-  source?: "local" | "remote" | "merged";
-  createdAt?: number;
-  updatedAt?: number;
-  deleted?: boolean;
-}) {
+export async function saveSample(
+  partial: {
+    id?: string;
+    message: string;
+    emotion: Emotion;
+    intensity: number; // 0..1
+    source?: "local" | "remote" | "merged";
+    createdAt?: number;
+    updatedAt?: number;
+    deleted?: boolean;
+  } & Record<string, any>
+) {
   const now = Date.now();
-  const rec: EmotionRecord = {
+
+  const rec = {
+    ...(partial as any),
     id: partial.id ?? uuid(),
     message: partial.message,
     emotion: partial.emotion,
@@ -148,7 +155,8 @@ export async function saveSample(partial: {
     updatedAt: partial.updatedAt ?? now,
     source: partial.source ?? "local",
     deleted: partial.deleted ?? false,
-  };
+  } as EmotionRecord;
+
   await upsertHistory([rec]);
   return rec;
 }

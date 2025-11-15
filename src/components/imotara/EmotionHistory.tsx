@@ -108,8 +108,25 @@ export default function EmotionHistory() {
   // ⬇️ NEW: session-aware filter (from chat sessions)
   const searchParams = useSearchParams();
   const urlSessionId = (searchParams?.get("sessionId") ?? "").trim();
-  const [sessionFilter, setSessionFilter] =
-    useState<string>(urlSessionId);
+  const [sessionFilter, setSessionFilter] = useState<string>(urlSessionId);
+
+  // ⬇️ NEW (Step 17.2): track if user manually changed the filter, and
+  // whether we've already auto-scrolled for the initial URL sessionId.
+  const [sessionFilterTouched, setSessionFilterTouched] = useState(false);
+  const [initialSessionScrollDone, setInitialSessionScrollDone] =
+    useState(false);
+
+  // ⬇️ NEW (Step 17.4): soft highlight state for the input
+  const highlightSessionInput =
+    !!urlSessionId &&
+    sessionFilter === urlSessionId &&
+    !sessionFilterTouched;
+
+  // ⬇️ NEW (Step 17.2): ref to the first filtered list item for auto-scroll
+  const firstFilteredRef = useRef<HTMLLIElement | null>(null);
+
+  // ⬇️ NEW (Step 17.5): ref to the session filter input for auto-focus
+  const sessionFilterInputRef = useRef<HTMLInputElement | null>(null);
 
   function clearUndoTimer() {
     if (undoTimerRef.current) {
@@ -739,6 +756,36 @@ export default function EmotionHistory() {
     );
   }, [visibleItems, sessionFilter]);
 
+  // ⬇️ NEW (Step 17.2): auto-scroll when arriving via /history?sessionId=...
+  useEffect(() => {
+    // Only if URL has a sessionId and user has NOT touched the filter yet
+    if (!urlSessionId) return;
+    if (sessionFilterTouched) return;
+    if (initialSessionScrollDone) return;
+    if (!filteredItems.length) return;
+
+    if (firstFilteredRef.current) {
+      firstFilteredRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      setInitialSessionScrollDone(true);
+    }
+  }, [
+    urlSessionId,
+    sessionFilterTouched,
+    initialSessionScrollDone,
+    filteredItems,
+  ]);
+
+  // ⬇️ NEW (Step 17.5): auto-focus the session filter input
+  useEffect(() => {
+    if (!urlSessionId) return;
+    if (sessionFilterTouched) return;
+    if (!sessionFilterInputRef.current) return;
+    sessionFilterInputRef.current.focus();
+  }, [urlSessionId, sessionFilterTouched]);
+
   // ⬇️ Derived flags for pending + conflict (used by mini timeline)
   const pendingList = computePending(safeItems);
   const pendingSet = new Set(pendingList.map((p: any) => p.id));
@@ -791,12 +838,12 @@ export default function EmotionHistory() {
             conflictsCount={conflicts}
           />
           <span
-            className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2"
+            className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400"
             aria-live="polite"
           >
             <span>{subtitle}</span>
             {state === "synced" && (Number(pendingCount) <= 0 || justSynced) && (
-              <span className="text-green-600 dark:text-green-400 text-sm">
+              <span className="text-sm text-green-600 dark:text-green-400">
                 ✅ All changes synced
               </span>
             )}
@@ -968,8 +1015,7 @@ export default function EmotionHistory() {
                     ? (json as any).records
                     : [];
                   setApiInfo(
-                    `GET /api/history envelope: records=${recs.length}, serverTs=${(json as any).serverTs ?? "—"
-                    }`
+                    `GET /api/history envelope: records=${recs.length}, serverTs=${(json as any).serverTs ?? "—"}`
                   );
                 } else {
                   setApiInfo(
@@ -1021,22 +1067,47 @@ export default function EmotionHistory() {
 
       {/* Session filter — links Emotion History to chat sessions via sessionId */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-600 dark:text-zinc-400">
-        <label className="flex-1 min-w-[200px]">
+        <label className="min-w-[200px] flex-1">
           <div className="mb-1">
             Filter by chat session ID{" "}
             <span className="opacity-70">(optional)</span>
           </div>
           <input
+            ref={sessionFilterInputRef}
             value={sessionFilter}
-            onChange={(e) => setSessionFilter(e.target.value)}
+            onChange={(e) => {
+              setSessionFilter(e.target.value);
+              setSessionFilterTouched(true); // user manually changed
+            }}
             placeholder="Paste or type a session id from chat…"
-            className="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-500"
+            className={[
+              "w-full rounded-lg px-2 py-1 text-xs",
+              "bg-white text-zinc-800 placeholder:text-zinc-400",
+              "dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500",
+              highlightSessionInput
+                ? "border border-indigo-400 ring-2 ring-indigo-300/40 dark:border-indigo-500 dark:ring-indigo-400/30"
+                : "border border-zinc-300 dark:border-zinc-700",
+              "focus:outline-none focus:ring-2 focus:ring-zinc-300 focus:border-zinc-400",
+              "dark:focus:ring-zinc-600 dark:focus:border-zinc-500",
+            ].join(" ")}
           />
+          {/* soft hint when deep-linked and filter untouched */}
+          {urlSessionId &&
+            sessionFilter === urlSessionId &&
+            !sessionFilterTouched && (
+              <div className="mt-1 text-[11px] text-indigo-500 dark:text-indigo-300">
+                Showing records linked to session{" "}
+                <span className="break-all font-semibold">{urlSessionId}</span>
+              </div>
+            )}
         </label>
         {sessionFilter && (
           <button
             type="button"
-            onClick={() => setSessionFilter("")}
+            onClick={() => {
+              setSessionFilter("");
+              setSessionFilterTouched(true); // user action, so don't auto-scroll anymore
+            }}
             className="rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
             title="Clear session filter"
           >
@@ -1059,20 +1130,25 @@ export default function EmotionHistory() {
 
       {/* Simple list of history items */}
       <ul className="space-y-3">
-        {filteredItems.map((r) => {
+        {filteredItems.map((r, index) => {
           const ts =
             typeof r.updatedAt === "number" ? r.updatedAt : r.createdAt;
           const when = ts ? new Date(ts).toLocaleString() : "—";
           const intensity =
             typeof r.intensity === "number" ? r.intensity.toFixed(2) : "—";
 
-          // attach ref to the last-added item for smooth scroll (callback returns void)
+          // attach ref to the last-added item for smooth scroll
+          // and for the first filtered item when coming from /history?sessionId=...
           const liRef =
             r.id === lastAddedId
               ? (el: HTMLLIElement | null) => {
                 lastAddedRef.current = el;
               }
-              : undefined;
+              : sessionFilter.trim() && index === 0
+                ? (el: HTMLLIElement | null) => {
+                  firstFilteredRef.current = el;
+                }
+                : undefined;
 
           // human-readable source badge; default to Local if missing
           const rawSource = r.source ?? "local";

@@ -108,7 +108,19 @@ export default function EmotionHistory() {
   // ⬇️ NEW: session-aware filter (from chat sessions)
   const searchParams = useSearchParams();
   const urlSessionId = (searchParams?.get("sessionId") ?? "").trim();
+  const urlMessageId = (searchParams?.get("messageId") ?? "").trim();
   const [sessionFilter, setSessionFilter] = useState<string>(urlSessionId);
+
+  // NEW — Step 17.9: hint when landing with messageId deep link
+  const [showDeepLinkHint, setShowDeepLinkHint] = useState(false);
+
+  // show the hint only on first load when messageId present
+  useEffect(() => {
+    if (!urlMessageId) return;
+    setShowDeepLinkHint(true);
+    const t = setTimeout(() => setShowDeepLinkHint(false), 5000);
+    return () => clearTimeout(t);
+  }, [urlMessageId]);
 
   // ⬇️ NEW (Step 17.2): track if user manually changed the filter, and
   // whether we've already auto-scrolled for the initial URL sessionId.
@@ -127,6 +139,12 @@ export default function EmotionHistory() {
 
   // ⬇️ NEW (Step 17.5): ref to the session filter input for auto-focus
   const sessionFilterInputRef = useRef<HTMLInputElement | null>(null);
+
+  // ⬇️ NEW: deep-link to a specific messageId (from Chat → History)
+  const [highlightedMessageId, setHighlightedMessageId] =
+    useState<string | null>(null);
+  const messageTargetRef = useRef<HTMLLIElement | null>(null);
+  const usedMessageIdRef = useRef<string | null>(null);
 
   function clearUndoTimer() {
     if (undoTimerRef.current) {
@@ -235,6 +253,17 @@ export default function EmotionHistory() {
       // no-op; keep previous summary
     }
   }, [items]);
+
+  // Step 17.7 — Reapply deep-link filter after sync/updates
+  useEffect(() => {
+    if (!urlSessionId) return;
+    if (sessionFilterTouched) return;
+
+    // Ensure sessionFilter stays locked to URL sessionId
+    if (sessionFilter !== urlSessionId) {
+      setSessionFilter(urlSessionId);
+    }
+  }, [items, urlSessionId, sessionFilterTouched, sessionFilter]);
 
   // after items update, if we have a "lastAdded" item, scroll to it smoothly
   useEffect(() => {
@@ -756,10 +785,39 @@ export default function EmotionHistory() {
     );
   }, [visibleItems, sessionFilter]);
 
-  // ⬇️ NEW (Step 17.2): auto-scroll when arriving via /history?sessionId=...
+  // ⬇️ NEW: deep-linked scroll + highlight for a specific messageId
   useEffect(() => {
-    // Only if URL has a sessionId and user has NOT touched the filter yet
+    if (!urlMessageId) return;
+    if (usedMessageIdRef.current === urlMessageId) return;
+
+    const exists = visibleItems.some(
+      (r: any) => r.messageId === urlMessageId
+    );
+    if (!exists) return;
+
+    usedMessageIdRef.current = urlMessageId;
+    setHighlightedMessageId(urlMessageId);
+
+    setTimeout(() => {
+      const el = messageTargetRef.current;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 50);
+  }, [urlMessageId, visibleItems]);
+
+  // auto-clear message highlight after a few seconds
+  useEffect(() => {
+    if (!highlightedMessageId) return;
+    const t = window.setTimeout(() => setHighlightedMessageId(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [highlightedMessageId]);
+
+  // ⬇️ NEW (Step 17.2): auto-scroll when arriving via /history?sessionId=...
+  // If a specific messageId is present, we let the message-based scroll win
+  useEffect(() => {
     if (!urlSessionId) return;
+    if (urlMessageId) return; // message-specific deep-link takes priority
     if (sessionFilterTouched) return;
     if (initialSessionScrollDone) return;
     if (!filteredItems.length) return;
@@ -773,6 +831,7 @@ export default function EmotionHistory() {
     }
   }, [
     urlSessionId,
+    urlMessageId,
     sessionFilterTouched,
     initialSessionScrollDone,
     filteredItems,
@@ -785,6 +844,28 @@ export default function EmotionHistory() {
     if (!sessionFilterInputRef.current) return;
     sessionFilterInputRef.current.focus();
   }, [urlSessionId, sessionFilterTouched]);
+
+  // ⬇️ NEW (Step 17.6): ESC clears the filter & blurs input when focused
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape" || event.key === "Esc") {
+        if (!sessionFilter) return;
+        if (document.activeElement === sessionFilterInputRef.current) {
+          event.preventDefault();
+          setSessionFilter("");
+          setSessionFilterTouched(true);
+          // stop future auto-scroll for this deep link
+          setInitialSessionScrollDone(true);
+          sessionFilterInputRef.current?.blur();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [sessionFilter]);
 
   // ⬇️ Derived flags for pending + conflict (used by mini timeline)
   const pendingList = computePending(safeItems);
@@ -1015,7 +1096,8 @@ export default function EmotionHistory() {
                     ? (json as any).records
                     : [];
                   setApiInfo(
-                    `GET /api/history envelope: records=${recs.length}, serverTs=${(json as any).serverTs ?? "—"}`
+                    `GET /api/history envelope: records=${recs.length}, serverTs=${(json as any).serverTs ?? "—"
+                    }`
                   );
                 } else {
                   setApiInfo(
@@ -1101,20 +1183,40 @@ export default function EmotionHistory() {
               </div>
             )}
         </label>
-        {sessionFilter && (
-          <button
-            type="button"
-            onClick={() => {
-              setSessionFilter("");
-              setSessionFilterTouched(true); // user action, so don't auto-scroll anymore
-            }}
-            className="rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
-            title="Clear session filter"
-          >
-            Clear
-          </button>
-        )}
+
+        <div className="flex items-center gap-2">
+          {urlSessionId && (
+            <Link
+              href={`/chat?sessionId=${encodeURIComponent(urlSessionId)}`}
+              className="rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              title="Open this session in chat"
+            >
+              ← Back to chat
+            </Link>
+          )}
+
+          {sessionFilter && (
+            <button
+              type="button"
+              onClick={() => {
+                setSessionFilter("");
+                setSessionFilterTouched(true); // user action, so don't auto-scroll anymore
+              }}
+              className="rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              title="Clear session filter"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Step 17.9 — Deep link hint */}
+      {showDeepLinkHint && (
+        <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-600/60 dark:bg-amber-900/30 dark:text-amber-300 animate-pulse">
+          Jumped here from chat — highlighted message below.
+        </div>
+      )}
 
       {/* Emotion Summary Card */}
       <div className="mb-4">
@@ -1137,18 +1239,28 @@ export default function EmotionHistory() {
           const intensity =
             typeof r.intensity === "number" ? r.intensity.toFixed(2) : "—";
 
-          // attach ref to the last-added item for smooth scroll
-          // and for the first filtered item when coming from /history?sessionId=...
+          const isMessageTarget =
+            !!urlMessageId && r.messageId === urlMessageId;
+          const highlightedByMessage =
+            !!highlightedMessageId && r.messageId === highlightedMessageId;
+
+          // attach ref to the last-added item for smooth scroll,
+          // or to the first filtered item when coming from /history?sessionId=...,
+          // or to the specific deep-linked messageId target
           const liRef =
-            r.id === lastAddedId
+            isMessageTarget
               ? (el: HTMLLIElement | null) => {
-                lastAddedRef.current = el;
+                messageTargetRef.current = el;
               }
-              : sessionFilter.trim() && index === 0
+              : r.id === lastAddedId
                 ? (el: HTMLLIElement | null) => {
-                  firstFilteredRef.current = el;
+                  lastAddedRef.current = el;
                 }
-                : undefined;
+                : sessionFilter.trim() && index === 0
+                  ? (el: HTMLLIElement | null) => {
+                    firstFilteredRef.current = el;
+                  }
+                  : undefined;
 
           // human-readable source badge; default to Local if missing
           const rawSource = r.source ?? "local";
@@ -1167,7 +1279,12 @@ export default function EmotionHistory() {
             <li
               ref={liRef}
               key={r.id}
-              className="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800"
+              className={[
+                "rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800",
+                highlightedByMessage
+                  ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-zinc-900 animate-pulse"
+                  : "",
+              ].join(" ")}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm text-zinc-500 dark:text-zinc-400">

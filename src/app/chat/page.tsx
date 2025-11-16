@@ -585,8 +585,8 @@ export default function ChatPage() {
                     }
                   }}
                   className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left ${isActive
-                      ? "bg-zinc-100 dark:bg-zinc-800"
-                      : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    ? "bg-zinc-100 dark:bg-zinc-800"
+                    : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     }`}
                 >
                   <div className="min-w-0">
@@ -667,7 +667,10 @@ export default function ChatPage() {
                 activeThread
                   ? `/history?sessionId=${encodeURIComponent(
                     activeThread.id
-                  )}`
+                  )}${urlMessageId
+                    ? `&messageId=${encodeURIComponent(urlMessageId)}`
+                    : ""
+                  }`
                   : "/history"
               }
               className="inline-flex items-center gap-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
@@ -752,10 +755,12 @@ export default function ChatPage() {
               {activeThread.messages.map((m) => (
                 <Bubble
                   key={m.id}
+                  id={m.id}
                   role={m.role}
                   content={m.content}
                   time={m.createdAt}
                   highlighted={m.id === highlightedMessageId}
+                  sessionId={m.sessionId ?? activeThread.id}
                   attachRef={
                     m.id === urlMessageId
                       ? (el) => {
@@ -811,17 +816,21 @@ function EmptyState() {
 }
 
 function Bubble({
+  id,
   role,
   content,
   time,
   highlighted,
   attachRef,
+  sessionId,
 }: {
+  id: string;
   role: Role;
   content: string;
   time: number;
   highlighted?: boolean;
   attachRef?: (el: HTMLDivElement | null) => void;
+  sessionId?: string;
 }) {
   const isUser = role === "user";
 
@@ -846,12 +855,25 @@ function Bubble({
         <div className="whitespace-pre-wrap">{content}</div>
         <div
           className={`mt-1 text-[11px] ${isUser
-              ? "text-zinc-300 dark:text-zinc-500"
-              : "text-zinc-500"
+            ? "text-zinc-300 dark:text-zinc-500"
+            : "text-zinc-500"
             }`}
         >
           <DateText ts={time} /> ·{" "}
           {isUser ? "You" : role === "assistant" ? "Imotara" : "System"}
+          {isUser && sessionId ? (
+            <>
+              {" · "}
+              <Link
+                href={`/history?sessionId=${encodeURIComponent(
+                  sessionId
+                )}&messageId=${encodeURIComponent(id)}`}
+                className="underline hover:text-amber-500"
+              >
+                View in History →
+              </Link>
+            </>
+          ) : null}
         </div>
       </div>
     </div>

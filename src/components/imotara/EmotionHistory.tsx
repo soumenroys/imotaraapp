@@ -28,6 +28,9 @@ import EmotionMiniTimeline from "@/components/imotara/EmotionMiniTimeline";
 import { detectConflicts } from "@/lib/imotara/conflictDetect";
 import type { ConflictPreview } from "@/lib/imotara/syncHistory";
 
+// ⬇️ Consent hook (read-only indicator)
+import { useAnalysisConsent } from "../../lib/imotara/analysisConsent";
+
 // simple upsert merge (remote -> local)
 function mergeRemote(
   local: EmotionRecord[],
@@ -145,6 +148,22 @@ export default function EmotionHistory() {
     useState<string | null>(null);
   const messageTargetRef = useRef<HTMLLIElement | null>(null);
   const usedMessageIdRef = useRef<string | null>(null);
+
+  // ⬇️ Consent mode (read-only indicator in header)
+  const { mode: consentMode } = useAnalysisConsent();
+  const consentLabel =
+    consentMode === "remote-allowed"
+      ? "Remote analysis allowed"
+      : consentMode === "local-only"
+        ? "On-device only"
+        : "Analysis mode: unknown";
+
+  const consentClass =
+    consentMode === "remote-allowed"
+      ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-600/60 dark:bg-emerald-900/30 dark:text-emerald-300"
+      : consentMode === "local-only"
+        ? "border-zinc-300 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+        : "border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400";
 
   function clearUndoTimer() {
     if (undoTimerRef.current) {
@@ -624,6 +643,22 @@ export default function EmotionHistory() {
     offerUndo(prevItems, "Replaced all with server versions");
   }
 
+  // ⬇️ small helper to trigger downloads for export
+  function downloadFile(filename: string, mime: string, content: string) {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   // ⬇️ Inline modal component (now lists conflict details + actions)
   function ConflictModal({
     open,
@@ -903,9 +938,9 @@ export default function EmotionHistory() {
         </div>
       )}
 
-      {/* Header with status chip and manual controls */}
+      {/* Header with status chip, consent indicator and manual controls */}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <SyncStatusChip
             state={
               state === "syncing"
@@ -973,8 +1008,20 @@ export default function EmotionHistory() {
               </span>
             )}
           </span>
+
+          {/* NEW: tiny read-only consent indicator */}
+          <span
+            className={[
+              "hidden sm:inline-flex items-center rounded-full border px-2 py-0.5 text-[11px]",
+              consentClass,
+            ].join(" ")}
+            title="Current emotion analysis mode for this browser"
+          >
+            {consentLabel}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={manualSync}
             className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"
@@ -1114,6 +1161,90 @@ export default function EmotionHistory() {
             title="Ping GET /api/history to verify API shape/availability"
           >
             Check API
+          </button>
+
+          {/* NEW: Export buttons (JSON + CSV) for current filtered list */}
+          <button
+            onClick={() => {
+              const data = filteredItems;
+              const payload = JSON.stringify(data, null, 2);
+              const today = new Date().toISOString().slice(0, 10);
+              downloadFile(
+                `imotara-history-${today}.json`,
+                "application/json",
+                payload
+              );
+            }}
+            className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"
+            title="Download the currently visible history as JSON"
+          >
+            Export JSON
+          </button>
+
+          <button
+            onClick={() => {
+              const escapeCsv = (val: unknown): string => {
+                if (val === null || val === undefined) return "";
+                const s = String(val).replace(/"/g, '""');
+                if (s.includes(",") || s.includes("\n") || s.includes('"')) {
+                  return `"${s}"`;
+                }
+                return s;
+              };
+
+              const headers = [
+                "id",
+                "createdAt",
+                "updatedAt",
+                "emotion",
+                "intensity",
+                "message",
+                "sessionId",
+                "source",
+                "messageId",
+              ];
+              const rows: string[] = [];
+              rows.push(headers.join(","));
+
+              filteredItems.forEach((r) => {
+                const created =
+                  typeof r.createdAt === "number"
+                    ? new Date(r.createdAt).toISOString()
+                    : "";
+                const updated =
+                  typeof r.updatedAt === "number"
+                    ? new Date(r.updatedAt).toISOString()
+                    : "";
+                const cols = [
+                  escapeCsv(r.id),
+                  escapeCsv(created),
+                  escapeCsv(updated),
+                  escapeCsv(r.emotion),
+                  escapeCsv(
+                    typeof r.intensity === "number"
+                      ? r.intensity.toFixed(3)
+                      : ""
+                  ),
+                  escapeCsv(r.message ?? ""),
+                  escapeCsv(r.sessionId ?? ""),
+                  escapeCsv(r.source ?? ""),
+                  escapeCsv((r as any).messageId ?? ""),
+                ];
+                rows.push(cols.join(","));
+              });
+
+              const csv = rows.join("\n");
+              const today = new Date().toISOString().slice(0, 10);
+              downloadFile(
+                `imotara-history-${today}.csv`,
+                "text/csv",
+                csv
+              );
+            }}
+            className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"
+            title="Download the currently visible history as CSV"
+          >
+            Export CSV
           </button>
 
           {/* quick local test record */}

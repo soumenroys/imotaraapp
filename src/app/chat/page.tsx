@@ -20,7 +20,7 @@ import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
 // ⬇️ analysis-consent toggle UI
 import AnalysisConsentToggle from "@/components/imotara/AnalysisConsentToggle";
 // ⬇️ NEW: read current consent mode from shared hook
-import { useAnalysisConsent } from "@/lib/imotara/analysisConsent";
+import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 
 // 👇 analysis imports
 import type { AnalysisResult } from "@/types/analysis";
@@ -235,9 +235,9 @@ export default function ChatPage() {
   // ⬇️ NEW: read current analysis consent mode (shared with EmotionHistory)
   const { mode } = useAnalysisConsent();
   const consentLabel =
-    mode === "remote-allowed"
-      ? "Remote analysis ON (local + remote)"
-      : "On-device only (local analysis)";
+    mode === "allow-remote"
+      ? "Remote analysis allowed"
+      : "On-device only";
 
   // ✅ Load threads from localStorage or seed AFTER mount (client only)
   useEffect(() => {
@@ -573,12 +573,10 @@ export default function ChatPage() {
         <div className="mb-2 hidden text-[11px] text-zinc-500 sm:block">
           <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             <span
-              className={`h-1.5 w-1.5 rounded-full ${mode === "remote-allowed" ? "bg-emerald-500" : "bg-zinc-400"
+              className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-500" : "bg-zinc-400"
                 }`}
             />
-            {mode === "remote-allowed"
-              ? "Remote analysis allowed"
-              : "On-device only"}
+            {consentLabel}
           </span>
         </div>
 
@@ -724,15 +722,19 @@ export default function ChatPage() {
                 <span
                   className={[
                     "hidden sm:inline-flex items-center rounded-full border px-2 py-0.5 text-[11px]",
-                    mode === "remote-allowed"
+                    mode === "allow-remote"
                       ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-600/60 dark:bg-emerald-900/30 dark:text-emerald-300"
                       : "border-zinc-300 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
                   ].join(" ")}
                   title="Current emotion analysis mode"
                 >
-                  {mode === "remote-allowed"
-                    ? "● Remote allowed"
-                    : "● On-device only"}
+                  <span
+                    className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${mode === "allow-remote"
+                        ? "bg-emerald-500"
+                        : "bg-zinc-400"
+                      }`}
+                  />
+                  {consentLabel}
                 </span>
               </div>
             </div>
@@ -886,7 +888,7 @@ export default function ChatPage() {
           <div className="mx-auto mb-1 flex max-w-3xl justify-end">
             <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
               <span
-                className={`h-1.5 w-1.5 rounded-full ${mode === "remote-allowed" ? "bg-emerald-500" : "bg-zinc-400"
+                className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-500" : "bg-zinc-400"
                   }`}
               />
               {consentLabel}

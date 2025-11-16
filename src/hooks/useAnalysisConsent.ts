@@ -1,38 +1,43 @@
 // src/hooks/useAnalysisConsent.ts
-//
-// Simple React hook around the analysis-consent helpers.
-// UI can use this to show a toggle:
-//   - "Local only"       (default, safest)
-//   - "Allow remote"     (send text to backend/API for analysis)
+"use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-    getAnalysisConsentMode,
-    setAnalysisConsentMode,
     type AnalysisConsentMode,
-} from "@/lib/imotara/consent";
+    loadConsentMode,
+    saveConsentMode,
+} from "@/lib/imotara/analysisConsent";
 
-export function useAnalysisConsent() {
-    const [mode, setMode] = useState < AnalysisConsentMode > ("local-only");
+type UseAnalysisConsentResult = {
+    mode: AnalysisConsentMode;
+    setMode: (mode: AnalysisConsentMode) => void;
+    ready: boolean;
+    isLocalOnly: boolean;
+    isRemoteAllowed: boolean;
+};
+
+export function useAnalysisConsent(): UseAnalysisConsentResult {
+    const [mode, setModeState] = useState<AnalysisConsentMode>("local-only");
     const [ready, setReady] = useState(false);
 
-    // On mount, read from localStorage
+    // Load from localStorage once on mount
     useEffect(() => {
         if (typeof window === "undefined") return;
-        const current = getAnalysisConsentMode();
-        setMode(current);
+
+        const initial = loadConsentMode();
+        setModeState(initial);
         setReady(true);
     }, []);
 
-    const updateMode = (next: AnalysisConsentMode) => {
-        setMode(next);
-        setAnalysisConsentMode(next);
-    };
+    const setMode = useCallback((next: AnalysisConsentMode) => {
+        setModeState(next);
+        saveConsentMode(next);
+    }, []);
 
     return {
-        mode,          // "local-only" | "allow-remote"
-        setMode: updateMode,
-        ready,         // true once we've read the stored value
+        mode,
+        setMode,
+        ready,
         isLocalOnly: mode === "local-only",
         isRemoteAllowed: mode === "allow-remote",
     };

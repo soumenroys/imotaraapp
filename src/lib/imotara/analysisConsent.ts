@@ -1,55 +1,47 @@
 // src/lib/imotara/analysisConsent.ts
-"use client";
 
-import * as React from "react";
+export type AnalysisConsentMode = "local-only" | "allow-remote";
 
-export type AnalysisConsentMode = "local-only" | "remote-allowed";
+const STORAGE_KEY = "imotara.analysisConsent.v1";
 
-const STORAGE_KEY = "imotara:analysisConsentMode";
+/**
+ * Read the stored consent mode from localStorage.
+ * Falls back safely to "local-only" if anything goes wrong.
+ */
+export function loadConsentMode(): AnalysisConsentMode {
+    if (typeof window === "undefined") {
+        return "local-only";
+    }
 
-function readInitialMode(): AnalysisConsentMode {
-    if (typeof window === "undefined") return "local-only";
     try {
         const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (raw === "remote-allowed" || raw === "local-only") {
+        if (!raw) return "local-only";
+
+        const parsed = JSON.parse(raw) as { mode?: AnalysisConsentMode } | null;
+        if (parsed && (parsed.mode === "local-only" || parsed.mode === "allow-remote")) {
+            return parsed.mode;
+        }
+
+        // older format: raw string
+        if (raw === "local-only" || raw === "allow-remote") {
             return raw;
         }
+
+        return "local-only";
     } catch {
-        // ignore
+        return "local-only";
     }
-    return "local-only";
 }
 
 /**
- * Global-ish consent hook backed by localStorage.
- * - mode: "local-only" | "remote-allowed"
- * - setMode: set explicitly
- * - toggleMode: convenience helper to flip between modes
+ * Persist the consent mode to localStorage.
  */
-export function useAnalysisConsent() {
-    const [mode, setModeState] = React.useState<AnalysisConsentMode>(() =>
-        readInitialMode()
-    );
+export function saveConsentMode(mode: AnalysisConsentMode): void {
+    if (typeof window === "undefined") return;
 
-    // keep localStorage in sync
-    React.useEffect(() => {
-        if (typeof window === "undefined") return;
-        try {
-            window.localStorage.setItem(STORAGE_KEY, mode);
-        } catch {
-            // ignore storage errors
-        }
-    }, [mode]);
-
-    const setMode = React.useCallback((next: AnalysisConsentMode) => {
-        setModeState(next);
-    }, []);
-
-    const toggleMode = React.useCallback(() => {
-        setModeState((prev) =>
-            prev === "local-only" ? "remote-allowed" : "local-only"
-        );
-    }, []);
-
-    return { mode, setMode, toggleMode };
+    try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode }));
+    } catch {
+        // ignore quota / storage errors
+    }
 }

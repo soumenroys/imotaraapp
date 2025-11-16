@@ -29,7 +29,7 @@ import { detectConflicts } from "@/lib/imotara/conflictDetect";
 import type { ConflictPreview } from "@/lib/imotara/syncHistory";
 
 // ⬇️ Consent hook (read-only indicator)
-import { useAnalysisConsent } from "../../lib/imotara/analysisConsent";
+import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 
 // simple upsert merge (remote -> local)
 function mergeRemote(
@@ -152,14 +152,14 @@ export default function EmotionHistory() {
   // ⬇️ Consent mode (read-only indicator in header)
   const { mode: consentMode } = useAnalysisConsent();
   const consentLabel =
-    consentMode === "remote-allowed"
+    consentMode === "allow-remote"
       ? "Remote analysis allowed"
       : consentMode === "local-only"
         ? "On-device only"
         : "Analysis mode: unknown";
 
   const consentClass =
-    consentMode === "remote-allowed"
+    consentMode === "allow-remote"
       ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-600/60 dark:bg-emerald-900/30 dark:text-emerald-300"
       : consentMode === "local-only"
         ? "border-zinc-300 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"

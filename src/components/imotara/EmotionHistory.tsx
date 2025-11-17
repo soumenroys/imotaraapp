@@ -585,7 +585,8 @@ export default function EmotionHistory() {
     setPendingCount(computePending(next).length);
   }
 
-  // ⬇️ helpers to apply server choice (with Undo)
+  // ⬇️ helpers to apply server / local choice (with Undo)
+
   async function applyServerVersion(id: string, serverRec: EmotionRecord) {
     const prevItems = Array.isArray(items) ? items : [];
     const idx = prevItems.findIndex((r) => r.id === id);
@@ -609,6 +610,35 @@ export default function EmotionHistory() {
 
     // offer undo
     offerUndo(prevItems, "Replaced with server version");
+  }
+
+  async function applyLocalVersion(id: string, localRec?: EmotionRecord | null) {
+    const prevItems = Array.isArray(items) ? items : [];
+    let next = prevItems;
+
+    if (localRec) {
+      const idx = prevItems.findIndex((r) => r.id === id);
+      if (idx >= 0) {
+        next = [...prevItems];
+        next[idx] = localRec;
+      } else {
+        next = [localRec, ...prevItems];
+      }
+    }
+
+    if (next !== prevItems) {
+      setItems(next);
+      setSummary(
+        computeEmotionSummary(next.filter((r) => !(r as any).deleted))
+      );
+      await saveHistory(next);
+      setPendingCount(computePending(next).length);
+    }
+
+    setConflictItems((list) => list.filter((c) => c.id !== id));
+    setConflicts((n) => Math.max(0, n - 1));
+
+    offerUndo(prevItems, "Kept local version");
   }
 
   async function applyServerVersionForAll() {
@@ -643,6 +673,14 @@ export default function EmotionHistory() {
     offerUndo(prevItems, "Replaced all with server versions");
   }
 
+  function keepLocalForAll() {
+    const prevItems = Array.isArray(items) ? items : [];
+    // we intentionally do not change items; we only mark all conflicts as resolved
+    setConflictItems([]);
+    setConflicts(0);
+    offerUndo(prevItems, "Kept local versions for all conflicts");
+  }
+
   // ⬇️ small helper to trigger downloads for export
   function downloadFile(filename: string, mime: string, content: string) {
     if (typeof window === "undefined" || typeof document === "undefined") {
@@ -661,22 +699,18 @@ export default function EmotionHistory() {
 
   // ⬇️ Inline modal component (now lists conflict details + actions)
   function ConflictModal({
-    open,
     onClose,
     conflicts,
     lastConflictAt,
     items,
   }: {
-    open: boolean;
     onClose: () => void;
     conflicts: number;
     lastConflictAt: number | null;
     items: ConflictItem[];
   }) {
-    if (!open) return null;
-
     const fmt = (ts: number) => (ts ? new Date(ts).toLocaleString() : "—");
-    const preview = (s?: string) =>
+    const previewMsg = (s?: string) =>
       s ? (s.length > 60 ? `${s.slice(0, 60)}…` : s) : "(no message)";
 
     return (
@@ -712,56 +746,81 @@ export default function EmotionHistory() {
               </div>
             ) : (
               <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {items.map((it) => (
-                  <li key={it.id} className="p-3 text-sm">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {it.server?.emotion ??
-                            it.local?.emotion ??
-                            "unknown"}{" "}
-                          <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                            • id: {it.id}
+                {items.map((it) => {
+                  const previewForItem = conflictPreviews.find(
+                    (p) => p.id === it.id
+                  );
+
+                  return (
+                    <li key={it.id} className="p-3 text-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                            {it.server?.emotion ??
+                              it.local?.emotion ??
+                              "unknown"}{" "}
+                            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                              • id: {it.id}
+                            </span>
+                          </div>
+                          <div className="mt-1 grid grid-cols-2 gap-3 text-xs text-zinc-600 dark:text-zinc-400">
+                            <div>
+                              <div className="uppercase tracking-wide text-[10px] text-zinc-400 dark:text-zinc-500">
+                                Server
+                              </div>
+                              <div>{fmt(it.serverTs)}</div>
+                              <div className="mt-0.5 italic">
+                                {previewMsg(it.server?.message)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="uppercase tracking-wide text-[10px] text-zinc-400 dark:text-zinc-500">
+                                Local
+                              </div>
+                              <div>{fmt(it.localTs)}</div>
+                              <div className="mt-0.5 italic">
+                                {previewMsg(it.local?.message)}
+                              </div>
+                            </div>
+                          </div>
+
+                          {previewForItem &&
+                            previewForItem.diffs &&
+                            previewForItem.diffs.length > 0 && (
+                              <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                Changed fields:{" "}
+                                {previewForItem.diffs.join(", ")}
+                              </div>
+                            )}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-2">
+                          <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:border-amber-600/60 dark:bg-amber-900/30 dark:text-amber-300">
+                            server newer
                           </span>
-                        </div>
-                        <div className="mt-1 grid grid-cols-2 gap-3 text-xs text-zinc-600 dark:text-zinc-400">
-                          <div>
-                            <div className="uppercase tracking-wide text-[10px] text-zinc-400 dark:text-zinc-500">
-                              Server
-                            </div>
-                            <div>{fmt(it.serverTs)}</div>
-                            <div className="mt-0.5 italic">
-                              {preview(it.server?.message)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="uppercase tracking-wide text-[10px] text-zinc-400 dark:text-zinc-500">
-                              Local
-                            </div>
-                            <div>{fmt(it.localTs)}</div>
-                            <div className="mt-0.5 italic">
-                              {preview(it.local?.message)}
-                            </div>
-                          </div>
+                          <button
+                            onClick={() => {
+                              void applyLocalVersion(it.id, it.local ?? null);
+                            }}
+                            className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                            title="Keep your local copy and dismiss this conflict"
+                          >
+                            Keep local
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (it.server)
+                                void applyServerVersion(it.id, it.server);
+                            }}
+                            className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                            title="Replace local copy with the server version"
+                          >
+                            Use server
+                          </button>
                         </div>
                       </div>
-                      <div className="flex shrink-0 flex-col items-end gap-2">
-                        <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:border-amber-600/60 dark:bg-amber-900/30 dark:text-amber-300">
-                          server newer
-                        </span>
-                        <button
-                          onClick={() => {
-                            if (it.server) void applyServerVersion(it.id, it.server);
-                          }}
-                          className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
-                          title="Replace local copy with the server version"
-                        >
-                          Use server version
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -769,15 +828,25 @@ export default function EmotionHistory() {
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs text-zinc-500 dark:text-zinc-400">
               {items.length > 0
-                ? "You can apply one-by-one or all at once."
+                ? "You can apply one-by-one or resolve all at once."
                 : "Nothing to review."}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={onClose}
                 className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
               >
                 Close
+              </button>
+              <button
+                onClick={() => {
+                  keepLocalForAll();
+                  onClose();
+                }}
+                className="rounded-xl border px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                title="Keep all local copies and mark conflicts as resolved"
+              >
+                Keep local for all
               </button>
               <button
                 onClick={async () => {
@@ -1507,13 +1576,14 @@ export default function EmotionHistory() {
       </ul>
 
       {/* ⬇️ Render the conflict review modal */}
-      <ConflictModal
-        open={showConflictModal}
-        onClose={() => setShowConflictModal(false)}
-        conflicts={conflicts}
-        lastConflictAt={lastConflictAt}
-        items={conflictItems}
-      />
+      {showConflictModal && (
+        <ConflictModal
+          onClose={() => setShowConflictModal(false)}
+          conflicts={conflicts}
+          lastConflictAt={lastConflictAt}
+          items={conflictItems}
+        />
+      )}
     </section>
   );
 }

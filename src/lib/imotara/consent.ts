@@ -1,37 +1,25 @@
 // src/lib/imotara/consent.ts
 //
-// Central helper for user's consent about emotion analysis:
-// - "local-only"      → analyze emotions only on-device / locally
-// - "allow-remote"    → allow sending text to the backend / API for analysis
-//
-// This is stored in localStorage so the choice survives reloads.
+// Backwards-compatible wrapper around the shared analysisConsent helpers.
+// Kept for older imports; all logic now lives in analysisConsent.ts so
+// there is a single source of truth (including legacy storage keys).
 
-export type AnalysisConsentMode = "local-only" | "allow-remote";
+import {
+    loadConsentMode,
+    saveConsentMode,
+    type AnalysisConsentMode,
+} from "./analysisConsent";
 
-const STORAGE_KEY = "imotara:analysisConsent";
+export type { AnalysisConsentMode };
 
 export function getAnalysisConsentMode(): AnalysisConsentMode {
-    if (typeof window === "undefined") return "local-only";
-    try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (raw === "allow-remote" || raw === "local-only") {
-            return raw;
-        }
-    } catch {
-        // ignore storage errors and fall back to safest option
-    }
-    return "local-only";
+    return loadConsentMode();
 }
 
 export function setAnalysisConsentMode(mode: AnalysisConsentMode) {
-    if (typeof window === "undefined") return;
-    try {
-        window.localStorage.setItem(STORAGE_KEY, mode);
-    } catch {
-        // ignore storage errors
-    }
+    saveConsentMode(mode);
 }
 
 export function hasAllowedRemoteAnalysis(): boolean {
-    return getAnalysisConsentMode() === "allow-remote";
+    return loadConsentMode() === "allow-remote";
 }

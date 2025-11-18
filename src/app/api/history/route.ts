@@ -23,7 +23,7 @@ function normalizeIncoming(input: any): EmotionRecord | null {
   const emotion = typeof input.emotion === "string" ? input.emotion : "neutral";
   const intensity = typeof input.intensity === "number" ? input.intensity : 0;
 
-  // 🔹 IMPORTANT CHANGE:
+  // 🔹 IMPORTANT:
   // Trust client timestamps instead of replacing with Date.now().
   // If they are missing/invalid, we fall back to 0 so LWW still works,
   // but we don't generate fresh "now" timestamps that confuse sync.
@@ -99,7 +99,9 @@ function listRecords(opts: {
 function touchRecent(n: number) {
   if (n <= 0) return [];
   const now = Date.now();
-  const all = Array.from(store.values()).sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+  const all = Array.from(store.values()).sort(
+    (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+  );
   const picked = all.slice(0, n);
   for (const rec of picked) {
     const bumped = { ...rec, updatedAt: now };
@@ -129,8 +131,12 @@ export async function GET(request: Request) {
   const devWipe = searchParams.get("dev_wipe") === "1";
   if (devWipe) {
     store.clear();
-    return NextResponse.json({ ok: true, wiped: true, serverTs: Date.now() }, { status: 200 });
+    return NextResponse.json(
+      { ok: true, wiped: true, serverTs: Date.now() },
+      { status: 200 }
+    );
   }
+
   const touchN = Number(searchParams.get("dev_touchN") ?? "0");
   if (Number.isFinite(touchN) && touchN > 0) {
     const ids = touchRecent(touchN);
@@ -150,10 +156,15 @@ export async function GET(request: Request) {
     return NextResponse.json(records, { status: 200 });
   }
 
+  const serverTs = Date.now();
+
   const envelope = {
     records,
-    syncToken: undefined as string | undefined, // plug real tokens when you add a DB
-    serverTs: Date.now(),
+    // 🔹 Simple incremental strategy:
+    // client sends `since=<previous syncToken>`, we filter by updatedAt >= since,
+    // and we return a fresh syncToken based on the current server timestamp.
+    syncToken: String(serverTs),
+    serverTs,
   };
 
   return NextResponse.json(envelope, { status: 200 });
@@ -174,8 +185,8 @@ export async function POST(request: Request) {
     const list: any[] = Array.isArray(body)
       ? body
       : Array.isArray(body?.records)
-      ? body.records
-      : [];
+        ? body.records
+        : [];
 
     const attempted = list.length;
     const acceptedIds: string[] = [];
@@ -230,16 +241,20 @@ export async function DELETE(request: Request) {
     for (const id of ids) {
       const existing = store.get(id);
       const tombstone: EmotionRecord = existing
-        ? { ...existing, deleted: true, updatedAt: Math.max(existing.updatedAt ?? 0, ts) }
+        ? {
+          ...existing,
+          deleted: true,
+          updatedAt: Math.max(existing.updatedAt ?? 0, ts),
+        }
         : {
-            id,
-            message: "",
-            emotion: "neutral",
-            intensity: 0,
-            createdAt: ts,
-            updatedAt: ts,
-            deleted: true,
-          };
+          id,
+          message: "",
+          emotion: "neutral",
+          intensity: 0,
+          createdAt: ts,
+          updatedAt: ts,
+          deleted: true,
+        };
 
       const ok = upsertLWW(tombstone);
       if (ok) deletedIds.push(id);

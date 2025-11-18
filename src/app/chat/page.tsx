@@ -608,8 +608,8 @@ export default function ChatPage() {
                     }
                   }}
                   className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left ${isActive
-                      ? "bg-zinc-100 dark:bg-zinc-800"
-                      : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    ? "bg-zinc-100 dark:bg-zinc-800"
+                    : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     }`}
                 >
                   <div className="min-w-0">
@@ -682,12 +682,12 @@ export default function ChatPage() {
                 <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                   <span
                     className={`h-1.5 w-1.5 rounded-full ${syncing
-                        ? "bg-amber-500"
-                        : syncError
-                          ? "bg-red-500"
-                          : lastSyncAt
-                            ? "bg-emerald-500"
-                            : "bg-zinc-400"
+                      ? "bg-amber-500"
+                      : syncError
+                        ? "bg-red-500"
+                        : lastSyncAt
+                          ? "bg-emerald-500"
+                          : "bg-zinc-400"
                       }`}
                   />
                   {syncing
@@ -715,8 +715,14 @@ export default function ChatPage() {
                   Sync now
                 </button>
 
-                {/* Conflicts entrypoint */}
-                <ConflictReviewButton />
+                {/* Conflicts entrypoint – now routes to History page */}
+                <Link
+                  href="/history"
+                  className="inline-flex"
+                  title="Open Emotion History to review conflicts"
+                >
+                  <ConflictReviewButton />
+                </Link>
 
                 {/* NEW: tiny read-only consent indicator in header */}
                 <span
@@ -730,8 +736,8 @@ export default function ChatPage() {
                 >
                   <span
                     className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${mode === "allow-remote"
-                        ? "bg-emerald-500"
-                        : "bg-zinc-400"
+                      ? "bg-emerald-500"
+                      : "bg-zinc-400"
                       }`}
                   />
                   {consentLabel}
@@ -973,8 +979,8 @@ function Bubble({
         <div className="whitespace-pre-wrap">{content}</div>
         <div
           className={`mt-1 text-[11px] ${isUser
-              ? "text-zinc-300 dark:text-zinc-500"
-              : "text-zinc-500"
+            ? "text-zinc-300 dark:text-zinc-500"
+            : "text-zinc-500"
             }`}
         >
           <DateText ts={time} /> ·{" "}

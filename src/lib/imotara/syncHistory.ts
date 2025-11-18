@@ -181,7 +181,8 @@ export function dequeueConflictDecisions(ids: string[]) {
  * Returns the total queue length after merge.
  */
 export function queueConflictDecisions(decisions: ConflictDecision[]): number {
-  if (!Array.isArray(decisions) || decisions.length === 0) return getDecisionQueue().length;
+  if (!Array.isArray(decisions) || decisions.length === 0)
+    return getDecisionQueue().length;
 
   const existing = loadDecisionQueue();
   const byId = new Map(existing.map((d) => [d.id, d]));
@@ -235,7 +236,16 @@ async function fetchRemoteSince(
     const records = Array.isArray((data as any)?.records)
       ? ((data as any).records as EmotionRecord[])
       : [];
-    const nextSyncToken = (data as any)?.nextSyncToken ?? syncToken ?? null;
+
+    // 🔹 IMPORTANT FIX:
+    // Prefer `data.syncToken` from the API, fall back to `data.nextSyncToken`,
+    // and finally to the previous syncToken if neither is present.
+    const nextSyncToken =
+      (data as any)?.syncToken ??
+      (data as any)?.nextSyncToken ??
+      syncToken ??
+      null;
+
     return { records, nextSyncToken };
   } catch {
     return { records: [], nextSyncToken: syncToken ?? null };
@@ -247,14 +257,19 @@ async function fetchRemoteSince(
 /* ------------------------------------------------------------------ */
 
 /** Upsert remote records into local (keeps tombstones). */
-function applyRemoteToLocal(local: EmotionRecord[], incoming: EmotionRecord[]): EmotionRecord[] {
+function applyRemoteToLocal(
+  local: EmotionRecord[],
+  incoming: EmotionRecord[]
+): EmotionRecord[] {
   if (!incoming.length) return local;
   const map = new Map(local.map((r) => [r.id, r]));
   for (const rec of incoming) {
     const prev = map.get(rec.id);
     map.set(rec.id, { ...(prev ?? ({} as EmotionRecord)), ...rec });
   }
-  return Array.from(map.values()).sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+  return Array.from(map.values()).sort(
+    (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+  );
 }
 
 /** Advance shadow revs for records we reconciled. */
@@ -272,11 +287,16 @@ function updateShadow(
 /*                               SYNC STEP                             */
 /* ------------------------------------------------------------------ */
 
-export async function syncHistoryStep(): Promise<{ plan: SyncPlan; local: EmotionRecord[] }> {
+export async function syncHistoryStep(): Promise<{
+  plan: SyncPlan;
+  local: EmotionRecord[];
+}> {
   const local0 = await getHistory();
   const sync0 = getSyncState();
 
-  const { records: remoteDelta, nextSyncToken } = await fetchRemoteSince(sync0.syncToken);
+  const { records: remoteDelta, nextSyncToken } = await fetchRemoteSince(
+    sync0.syncToken
+  );
 
   const plan = buildPlanMarkConflicts(local0, remoteDelta, sync0);
 
@@ -306,7 +326,10 @@ export async function syncHistoryStep(): Promise<{ plan: SyncPlan; local: Emotio
  * Preview differences between two versions of the same record.
  * No write/merge is performed; safe for UI usage.
  */
-export function previewRecordConflict(local: EmotionRecord, remote: EmotionRecord) {
+export function previewRecordConflict(
+  local: EmotionRecord,
+  remote: EmotionRecord
+) {
   return detectConflicts(local, remote);
 }
 
@@ -339,8 +362,12 @@ export function summarizePlanConflicts(plan: SyncPlan): ConflictPreview[] {
     // normalize diffs to string[]
     const dnorm: string[] = Array.isArray(diffs)
       ? diffs.map((d: any) =>
-          typeof d === "string" ? d : d?.field ? String(d.field) : String(d)
-        )
+        typeof d === "string"
+          ? d
+          : d?.field
+            ? String(d.field)
+            : String(d)
+      )
       : [String(diffs)];
 
     previews.push({ id, diffs: dnorm, summary, local, remote });
@@ -378,7 +405,9 @@ export async function applyConflictResolution(
 
   for (const d of decisions) {
     const chosen =
-      d.keep === "local" ? (d.local ?? byId.get(d.id) ?? null) : (d.remote ?? null);
+      d.keep === "local"
+        ? (d.local ?? byId.get(d.id) ?? null)
+        : (d.remote ?? null);
     if (!chosen) continue;
 
     // Upsert chosen record
@@ -387,7 +416,7 @@ export async function applyConflictResolution(
 
     // Ensure timestamps/rev are sane
     if (typeof merged.updatedAt !== "number") merged.updatedAt = Date.now();
-    if (typeof merged.rev !== "number") merged.rev = (prev?.rev ?? 0);
+    if (typeof merged.rev !== "number") merged.rev = prev?.rev ?? 0;
 
     map.set(d.id, merged);
     applied.push(merged);
@@ -454,7 +483,11 @@ export async function retryQueuedConflicts(
 /*                              PUSH HELPERS                           */
 /* ------------------------------------------------------------------ */
 
-type PushResult = { attempted: number; acceptedIds: string[]; rejected?: string[] };
+type PushResult = {
+  attempted: number;
+  acceptedIds: string[];
+  rejected?: string[];
+};
 
 /** Push only pending local records (detected via computePending). */
 export async function pushPendingToApi(): Promise<PushResult> {
@@ -478,10 +511,10 @@ export async function pushPendingToApi(): Promise<PushResult> {
   const acceptedIds: string[] = Array.isArray(data?.acceptedIds)
     ? data.acceptedIds
     : Array.isArray(data?.accepted)
-    ? data.accepted
-    : res.ok
-    ? toSend.map((r) => r.id)
-    : [];
+      ? data.accepted
+      : res.ok
+        ? toSend.map((r) => r.id)
+        : [];
 
   const rejected: string[] | undefined = Array.isArray(data?.rejected)
     ? data.rejected
@@ -525,10 +558,10 @@ export async function pushAllLocalToApi(): Promise<PushResult> {
   const acceptedIds: string[] = Array.isArray(data?.acceptedIds)
     ? data.acceptedIds
     : Array.isArray(data?.accepted)
-    ? data.accepted
-    : res.ok
-    ? local.map((r) => r.id)
-    : [];
+      ? data.accepted
+      : res.ok
+        ? local.map((r) => r.id)
+        : [];
 
   const rejected: string[] | undefined = Array.isArray(data?.rejected)
     ? data.rejected

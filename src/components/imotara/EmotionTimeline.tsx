@@ -19,11 +19,11 @@ export default function EmotionTimeline({ items }: Props) {
     );
   }
 
-  // Group by day (YYYY-MM-DD), newest day first — no Date.now() fallback
+  // Group by day (YYYY-MM-DD), newest day first
   const byDay = new Map<string, EmotionRecord[]>();
   for (const r of items) {
     const t = r.createdAt ?? r.updatedAt ?? 0;
-    if (!t) continue; // skip items with no timestamp to keep SSR deterministic
+    if (!t) continue;
     const dayKey = format(new Date(t), "yyyy-MM-dd");
     const arr = byDay.get(dayKey);
     if (arr) arr.push(r);
@@ -36,13 +36,12 @@ export default function EmotionTimeline({ items }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Mini timeline showing sync / pending / conflict pulses across the whole history */}
+      {/* Mini timeline */}
       <div className="mt-4">
         <EmotionMiniTimeline records={items} />
       </div>
 
       {days.map(([dayKey, recs]) => {
-        // Sort records within a day by time ascending
         const sorted = recs
           .slice()
           .sort((a, b) => {
@@ -58,24 +57,24 @@ export default function EmotionTimeline({ items }: Props) {
             <div className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
               {dayLabel}
             </div>
+
             <ul className="space-y-2">
               {sorted.map((r) => {
-                const when = r.updatedAt ?? r.createdAt ?? 0; // deterministic; no Date.now()
-                const tag = primaryTag(r); // { emotion, intensity }
+                const when = r.updatedAt ?? r.createdAt ?? 0;
+                const tag = primaryTag(r);
                 const tagText =
                   tag && typeof tag.intensity === "number"
                     ? `${tag.emotion} · ${(tag.intensity * 100).toFixed(0)}%`
                     : String(r.emotion);
 
-                // derive flags from optional properties (used by sync system)
                 const anyRecord = r as any;
+
                 const hasConflict = Boolean(anyRecord.conflict);
                 const isPending = Boolean(
                   anyRecord.localOnly ?? anyRecord.pending
                 );
+                const isServerConfirmed = Boolean(anyRecord.serverConfirmed);
 
-                // nicer label for source (local/remote/merged/chat)
-                // default to "local" when missing so the badge still appears
                 const rawSource = r.source ?? "local";
                 const sourceLabel =
                   rawSource === "local"
@@ -91,7 +90,8 @@ export default function EmotionTimeline({ items }: Props) {
                 return (
                   <li
                     key={r.id}
-                    className="rounded-xl border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+                    className={`rounded-xl border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900${isServerConfirmed ? " server-confirmed" : ""
+                      }`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
@@ -102,8 +102,10 @@ export default function EmotionTimeline({ items }: Props) {
                             <em className="text-zinc-500">No message</em>
                           )}
                         </div>
+
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                           <span>{tagText}</span>
+
                           {sourceLabel && (
                             <span className="inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                               {sourceLabel}
@@ -111,6 +113,7 @@ export default function EmotionTimeline({ items }: Props) {
                           )}
                         </div>
                       </div>
+
                       <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-zinc-500">
                         <div className="flex items-center gap-1">
                           {hasConflict && (
@@ -118,12 +121,14 @@ export default function EmotionTimeline({ items }: Props) {
                               Conflict
                             </span>
                           )}
+
                           {isPending && (
                             <span className="rounded-full border border-blue-300 bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800 dark:border-blue-500/60 dark:bg-blue-900/30 dark:text-blue-300">
                               Pending
                             </span>
                           )}
                         </div>
+
                         <div className="text-right">
                           {when
                             ? format(new Date(when), "HH:mm:ss")

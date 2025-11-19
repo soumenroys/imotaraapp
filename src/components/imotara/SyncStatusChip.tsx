@@ -1,22 +1,17 @@
 // src/components/imotara/SyncStatusChip.tsx
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { RefreshCw, CheckCircle2, AlertTriangle, WifiOff } from 'lucide-react';
 
 export type ChipState = 'idle' | 'syncing' | 'synced' | 'offline' | 'error';
 
 type Props = {
   state: ChipState;
-  /** UTC ms when last sync completed */
   lastSyncedAt?: number | null;
-  /** Number of pending conflicts (shown as a red badge when > 0) */
   conflictsCount?: number;
-  /** Optional diagnostic: pending local items not yet pushed */
   pendingCount?: number;
-  /** Click to trigger a manual sync */
   onSync?: () => void;
-  /** Optional className passthrough */
   className?: string;
 };
 
@@ -42,44 +37,57 @@ export default function SyncStatusChip({
   const isWarn = state === 'offline';
   const isBusy = state === 'syncing';
 
+  // Soft synced pulse
+  const [pulse, setPulse] = useState(false);
+
+  useEffect(() => {
+    if (state === 'synced') {
+      setPulse(true);
+      const t = setTimeout(() => setPulse(false), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [state]);
+
   const base =
-    'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs';
+    'relative inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs';
   const theme = isDanger
     ? 'border-red-500/40 text-red-600 dark:text-red-400'
     : isWarn
-    ? 'border-yellow-500/40 text-yellow-700 dark:text-yellow-300'
-    : isBusy
-    ? 'border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300'
-    : 'border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300';
+      ? 'border-yellow-500/40 text-yellow-700 dark:text-yellow-300'
+      : isBusy
+        ? 'border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300'
+        : 'border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300';
+
+  const pulseClass = pulse ? 'before:absolute before:inset-0 before:rounded-full before:bg-green-400/20 before:animate-pulse-soft' : '';
 
   const Icon =
     state === 'error'
       ? AlertTriangle
       : state === 'offline'
-      ? WifiOff
-      : state === 'synced'
-      ? CheckCircle2
-      : RefreshCw;
+        ? WifiOff
+        : state === 'synced'
+          ? CheckCircle2
+          : RefreshCw;
 
   const title =
     state === 'synced' && lastSyncedAt
       ? `All changes saved at ${formatTime(lastSyncedAt)}`
       : state === 'offline'
-      ? 'Offline — will retry when online'
-      : state === 'syncing'
-      ? 'Sync in progress'
-      : state === 'error'
-      ? 'Last sync failed'
-      : 'Idle';
+        ? 'Offline — will retry when online'
+        : state === 'syncing'
+          ? 'Sync in progress'
+          : state === 'error'
+            ? 'Last sync failed'
+            : 'Idle';
 
   return (
-    <div className={`${base} ${theme} ${className}`}>
+    <div className={`${base} ${theme} ${pulseClass} ${className}`}>
       <button
         type="button"
         onClick={onSync}
         disabled={isBusy && !onSync}
         title={title}
-        className="inline-flex items-center gap-2"
+        className="relative z-10 inline-flex items-center gap-2"
       >
         <Icon className={isBusy ? 'animate-spin' : ''} size={14} />
         <span className="capitalize">{state}</span>
@@ -100,7 +108,6 @@ export default function SyncStatusChip({
         </span>
       )}
 
-      {/* Optional pending chip */}
       {pendingCount > 0 && (
         <span
           title={`${pendingCount} pending local item${pendingCount > 1 ? 's' : ''}`}

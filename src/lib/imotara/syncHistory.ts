@@ -237,7 +237,7 @@ async function fetchRemoteSince(
       ? ((data as any).records as EmotionRecord[])
       : [];
 
-    // 🔹 IMPORTANT FIX:
+    // 🔹 IMPORTANT:
     // Prefer `data.syncToken` from the API, fall back to `data.nextSyncToken`,
     // and finally to the previous syncToken if neither is present.
     const nextSyncToken =
@@ -412,7 +412,10 @@ export async function applyConflictResolution(
 
     // Upsert chosen record
     const prev = map.get(d.id);
-    const merged: EmotionRecord = { ...(prev ?? ({} as EmotionRecord)), ...chosen };
+    const merged: EmotionRecord = {
+      ...(prev ?? ({} as EmotionRecord)),
+      ...chosen,
+    };
 
     // Ensure timestamps/rev are sane
     if (typeof merged.updatedAt !== "number") merged.updatedAt = Date.now();
@@ -489,7 +492,12 @@ type PushResult = {
   rejected?: string[];
 };
 
-/** Push only pending local records (detected via computePending). */
+/**
+ * Push only pending local records (detected via computePending).
+ * All `acceptedIds` from the server are effectively "server-confirmed"
+ * writes: we record that fact in the push ledger + shadow so future
+ * sync steps and UI can treat them as fully reconciled.
+ */
 export async function pushPendingToApi(): Promise<PushResult> {
   const local = await getHistory();
   const toSend = computePending(local);
@@ -522,6 +530,7 @@ export async function pushPendingToApi(): Promise<PushResult> {
 
   if (acceptedIds.length) {
     // 1) mark pushed in the ledger so computePending() drops them
+    //    (this is where we conceptually mark them as "server-confirmed").
     markPushed(acceptedIds, local);
 
     // 2) advance shadow revs for accepted records
@@ -538,7 +547,11 @@ export async function pushPendingToApi(): Promise<PushResult> {
   return { attempted: toSend.length, acceptedIds, rejected };
 }
 
-/** Push ALL local records (debug/first-load helper). */
+/**
+ * Push ALL local records (debug/first-load helper).
+ * Same semantics as pushPendingToApi: acceptedIds are treated as
+ * fully "server-confirmed" and written into the ledger+shadow.
+ */
 export async function pushAllLocalToApi(): Promise<PushResult> {
   const local = await getHistory();
 

@@ -42,6 +42,35 @@ export type EmotionRecord = {
   rev?: number;
 
   // -----------------------------
+  // Sync metadata (local-only helpers)
+  // -----------------------------
+  /**
+   * Mark that this record exists only locally (has never been pushed).
+   * Used by the pending/push ledger & UI pills.
+   */
+  localOnly?: boolean;
+
+  /**
+   * Mark that this record is queued for push to the server.
+   * Often derived from the push ledger rather than stored permanently.
+   */
+  pending?: boolean;
+
+  /**
+   * Optional flag indicating that this record is currently involved
+   * in a conflict (local vs remote divergence). The conflict engine
+   * may also keep richer state separately.
+   */
+  conflict?: boolean;
+
+  /**
+   * Optional flag indicating that this record has been confirmed
+   * by the server (i.e., part of an acceptedIds set in a push).
+   * This is a convenience for UI only; servers can ignore it.
+   */
+  serverConfirmed?: boolean;
+
+  // -----------------------------
   // Chat / session linking
   // -----------------------------
   /** ID of the chat session / thread this record belongs to (e.g. chatId). */

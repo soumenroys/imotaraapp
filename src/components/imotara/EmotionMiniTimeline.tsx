@@ -35,6 +35,9 @@ export default function EmotionMiniTimeline({ records }: Props) {
   const maxTs = times[times.length - 1];
   const span = maxTs - minTs || 1;
 
+  // check if any record is server confirmed
+  const anyConfirmed = sorted.some((r) => Boolean((r as any).serverConfirmed));
+
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-300">
       <div className="mb-2 flex items-center justify-between">
@@ -58,11 +61,12 @@ export default function EmotionMiniTimeline({ records }: Props) {
 
           const isPending = Boolean(record.pending ?? (record as any).localOnly);
           const hasConflict = Boolean(record.conflict);
+          const isServerConfirmed = Boolean((record as any).serverConfirmed);
 
           const base =
             "group absolute -top-1 h-3 w-3 -translate-x-1/2 rounded-full ring-1 transition-transform hover:scale-110";
 
-          // Source-aware colour logic
+          // Source-aware colours
           let colorClass =
             "bg-zinc-400 ring-zinc-300/80 dark:bg-zinc-500 dark:ring-zinc-700/80"; // default
 
@@ -80,7 +84,12 @@ export default function EmotionMiniTimeline({ records }: Props) {
               "bg-blue-400 ring-blue-200/80 dark:bg-blue-300 dark:ring-blue-500/80";
           }
 
-          // Source-aware label
+          // ⭐ server-confirmed rim highlight
+          if (isServerConfirmed) {
+            colorClass += " ring-green-400/70 dark:ring-green-500/70";
+          }
+
+          // label generation
           const rawSource = record.source;
           const sourceLabel =
             rawSource === "chat"
@@ -115,7 +124,7 @@ export default function EmotionMiniTimeline({ records }: Props) {
         })}
       </div>
 
-      {/* hover label below the bar */}
+      {/* hover label */}
       {hoverLabel && (
         <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
           {hoverLabel}
@@ -139,6 +148,13 @@ export default function EmotionMiniTimeline({ records }: Props) {
         <span className="flex items-center gap-1">
           <span className="inline-block h-2 w-2 rounded-full bg-amber-500" /> Conflict
         </span>
+
+        {/* ⭐ server-confirmed legend (only if applicable) */}
+        {anyConfirmed && (
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full bg-green-500" /> Confirmed
+          </span>
+        )}
       </div>
     </div>
   );

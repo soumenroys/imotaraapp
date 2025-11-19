@@ -1,53 +1,60 @@
-'use client';
+"use client";
 
-import React, { useMemo, useState } from 'react';
-import type { Conflict } from '@/types/sync';
+import React, { useMemo, useState } from "react";
+import type { ConflictPreview } from "@/lib/imotara/syncHistory";
 
-type Choice = 'local' | 'remote';
+type ChoiceKeep = "local" | "remote";
 
 type Props = {
   open: boolean;
-  conflicts: Conflict[];
+  conflicts: ConflictPreview[]; // synced with real sync engine
   onClose: () => void;
-  /** Called with the user’s choices; parent will handle applying later */
-  onSubmit: (choices: Array<{ id: string; keep: Choice }>) => void;
+  onSubmit: (choices: Array<{ id: string; keep: ChoiceKeep }>) => void;
 };
 
-export default function ConflictPanel({ open, conflicts, onClose, onSubmit }: Props) {
-  const [choices, setChoices] = useState<Record<string, Choice>>({});
+export default function ConflictPanel({
+  open,
+  conflicts,
+  onClose,
+  onSubmit,
+}: Props) {
+  const [choices, setChoices] = useState<Record<string, ChoiceKeep>>({});
 
-  // initialize defaults only when conflicts change (prefer newest by updatedAt)
+  // initialize defaults when conflict IDs change (most recent updatedAt wins)
   useMemo(() => {
-    const init: Record<string, Choice> = {};
+    const initial: Record<string, ChoiceKeep> = {};
     for (const c of conflicts) {
       const lu = c.local?.updatedAt ?? 0;
       const ru = c.remote?.updatedAt ?? 0;
-      init[c.id] = lu >= ru ? 'local' : 'remote';
+      initial[c.id] = lu >= ru ? "local" : "remote";
     }
-    setChoices(init);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(conflicts.map(c => c.id))]);
+    setChoices(initial);
+  }, [conflicts.map((c) => c.id).join(",")]);
 
   if (!open) return null;
 
   const submit = () => {
-    const payload = conflicts.map(c => ({ id: c.id, keep: choices[c.id] ?? 'local' }));
+    const payload = conflicts.map((c) => ({
+      id: c.id,
+      keep: choices[c.id] ?? "local",
+    }));
     onSubmit(payload);
   };
 
   return (
     <div className="fixed inset-0 z-50">
-      {/* Backdrop */}
+      {/* backdrop */}
       <div
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden
       />
 
-      {/* Panel */}
+      {/* panel */}
       <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-3xl rounded-t-2xl bg-white shadow-xl dark:bg-zinc-900">
+        {/* header */}
         <div className="flex items-center justify-between border-b border-zinc-200 p-4 dark:border-zinc-800">
-          <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             Resolve Conflicts
           </h2>
           <button
@@ -58,6 +65,7 @@ export default function ConflictPanel({ open, conflicts, onClose, onSubmit }: Pr
           </button>
         </div>
 
+        {/* conflict list */}
         <div className="max-h-[60vh] overflow-auto p-4">
           {conflicts.length === 0 ? (
             <p className="text-sm text-zinc-500">No conflicts to resolve.</p>
@@ -68,16 +76,31 @@ export default function ConflictPanel({ open, conflicts, onClose, onSubmit }: Pr
                   key={c.id}
                   className="rounded-xl border border-zinc-200 p-3 text-sm dark:border-zinc-800"
                 >
+                  {/* title row */}
                   <div className="mb-2 flex items-center justify-between">
                     <div className="font-medium text-zinc-800 dark:text-zinc-100">
-                      Record: <span className="font-mono text-xs">{c.id}</span>
+                      Record:{" "}
+                      <span className="font-mono text-xs text-zinc-500">
+                        {c.id}
+                      </span>
                     </div>
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                      {c.reason}
-                    </span>
+
+                    {/* summary badge */}
+                    {c.summary && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                        {c.summary}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Preview rows */}
+                  {/* diff info */}
+                  {Array.isArray(c.diffs) && c.diffs.length > 0 && (
+                    <div className="mb-2 text-[10px] text-zinc-500 dark:text-zinc-400">
+                      Changed fields: {c.diffs.join(", ")}
+                    </div>
+                  )}
+
+                  {/* 2-column comparison */}
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {/* Local */}
                     <div className="rounded-lg border border-zinc-200 p-2 dark:border-zinc-800">
@@ -85,22 +108,35 @@ export default function ConflictPanel({ open, conflicts, onClose, onSubmit }: Pr
                         <span className="text-xs font-semibold">Local</span>
                         <span className="text-[10px] text-zinc-500">
                           {c.local?.updatedAt
-                            ? new Date(c.local.updatedAt).toLocaleString()
-                            : '—'}
+                            ? new Date(
+                              c.local.updatedAt
+                            ).toLocaleString()
+                            : "—"}
                         </span>
                       </div>
+
                       <div className="text-xs text-zinc-600 dark:text-zinc-300">
-                        <div><b>Emotion:</b> {c.local?.emotion ?? '—'}</div>
-                        <div><b>Intensity:</b> {c.local?.intensity ?? '—'}</div>
-                        <div className="line-clamp-3"><b>Message:</b> {c.local?.message ?? '—'}</div>
+                        <div>
+                          <b>Emotion:</b> {c.local?.emotion ?? "—"}
+                        </div>
+                        <div>
+                          <b>Intensity:</b> {c.local?.intensity ?? "—"}
+                        </div>
+                        <div className="line-clamp-3">
+                          <b>Message:</b> {c.local?.message ?? "—"}
+                        </div>
                       </div>
+
                       <label className="mt-2 inline-flex items-center gap-2 text-xs">
                         <input
                           type="radio"
                           name={`choice-${c.id}`}
-                          checked={(choices[c.id] ?? 'local') === 'local'}
+                          checked={(choices[c.id] ?? "local") === "local"}
                           onChange={() =>
-                            setChoices((prev) => ({ ...prev, [c.id]: 'local' }))
+                            setChoices((prev) => ({
+                              ...prev,
+                              [c.id]: "local",
+                            }))
                           }
                         />
                         Keep Local
@@ -113,22 +149,35 @@ export default function ConflictPanel({ open, conflicts, onClose, onSubmit }: Pr
                         <span className="text-xs font-semibold">Remote</span>
                         <span className="text-[10px] text-zinc-500">
                           {c.remote?.updatedAt
-                            ? new Date(c.remote.updatedAt).toLocaleString()
-                            : '—'}
+                            ? new Date(
+                              c.remote.updatedAt
+                            ).toLocaleString()
+                            : "—"}
                         </span>
                       </div>
+
                       <div className="text-xs text-zinc-600 dark:text-zinc-300">
-                        <div><b>Emotion:</b> {c.remote?.emotion ?? '—'}</div>
-                        <div><b>Intensity:</b> {c.remote?.intensity ?? '—'}</div>
-                        <div className="line-clamp-3"><b>Message:</b> {c.remote?.message ?? '—'}</div>
+                        <div>
+                          <b>Emotion:</b> {c.remote?.emotion ?? "—"}
+                        </div>
+                        <div>
+                          <b>Intensity:</b> {c.remote?.intensity ?? "—"}
+                        </div>
+                        <div className="line-clamp-3">
+                          <b>Message:</b> {c.remote?.message ?? "—"}
+                        </div>
                       </div>
+
                       <label className="mt-2 inline-flex items-center gap-2 text-xs">
                         <input
                           type="radio"
                           name={`choice-${c.id}`}
-                          checked={(choices[c.id] ?? 'local') === 'remote'}
+                          checked={(choices[c.id] ?? "local") === "remote"}
                           onChange={() =>
-                            setChoices((prev) => ({ ...prev, [c.id]: 'remote' }))
+                            setChoices((prev) => ({
+                              ...prev,
+                              [c.id]: "remote",
+                            }))
                           }
                         />
                         Keep Remote
@@ -141,10 +190,13 @@ export default function ConflictPanel({ open, conflicts, onClose, onSubmit }: Pr
           )}
         </div>
 
+        {/* footer */}
         <div className="flex items-center justify-between border-t border-zinc-200 p-3 dark:border-zinc-800">
           <div className="text-xs text-zinc-500">
-            {conflicts.length} conflict{conflicts.length === 1 ? '' : 's'}
+            {conflicts.length} conflict
+            {conflicts.length === 1 ? "" : "s"}
           </div>
+
           <div className="flex gap-2">
             <button
               className="rounded-lg border border-zinc-300 px-3 py-1 text-xs text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
@@ -152,6 +204,7 @@ export default function ConflictPanel({ open, conflicts, onClose, onSubmit }: Pr
             >
               Cancel
             </button>
+
             <button
               className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
               onClick={submit}

@@ -1,39 +1,41 @@
-'use client';
+// src/components/imotara/TopBar.tsx
+"use client";
 
-import { useState } from 'react';
-import useSyncHistory from '@/hooks/useSyncHistory';
-import SyncStatusChip from '@/components/imotara/SyncStatusChip';
-import ConflictPanel from '@/components/imotara/ConflictPanel';
+import { useState } from "react";
+import useSyncHistory from "@/hooks/useSyncHistory";
+import SyncStatusChip from "@/components/imotara/SyncStatusChip";
+import ConflictPanel from "@/components/imotara/ConflictPanel";
 
 export default function TopBar() {
-  // use the sync hook you already have
+  // Use the sync hook you already have
   const { runSync, state, conflicts, lastSyncedAt, isSyncing } = useSyncHistory({
     runOnMount: true,
     intervalMs: 60000, // auto sync every 60s
   });
 
-  // for opening/closing the conflict panel
+  // For opening/closing the conflict panel
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+    <div className="flex items-center justify-between border-b border-zinc-200 bg-white/80 px-4 py-2 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/70">
+      <div className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
         Imotara
       </div>
 
       <div className="flex items-center gap-3">
         <SyncStatusChip
-          state={isSyncing ? 'syncing' : state}
+          state={isSyncing ? "syncing" : state}
           lastSyncedAt={lastSyncedAt}
           conflictsCount={conflicts.length}
           onSync={runSync}
         />
 
         <button
-          className="rounded-lg border border-zinc-300 px-3 py-1 text-xs hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          type="button"
+          className="rounded-lg border border-zinc-300 px-3 py-1 text-xs text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           onClick={() => setOpen(true)}
           disabled={conflicts.length === 0}
-          title={conflicts.length ? 'Review conflicts' : 'No conflicts'}
+          title={conflicts.length ? "Review conflicts" : "No conflicts"}
         >
           Review
         </button>
@@ -44,8 +46,8 @@ export default function TopBar() {
         conflicts={conflicts}
         onClose={() => setOpen(false)}
         onSubmit={(choices) => {
-          // we’ll wire real “apply” logic in Baby Step 8
-          console.log('User choices:', choices);
+          // Real "apply" logic can be wired here later
+          console.log("User choices:", choices);
           setOpen(false);
         }}
       />

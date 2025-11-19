@@ -51,7 +51,7 @@ export default function SiteHeader() {
           })}
         </nav>
 
-        {/* RIGHT: Global Conflicts button (reuses working component) */}
+        {/* RIGHT: Global Conflicts button (shared component) */}
         <div className="flex items-center">
           <ConflictReviewButton />
         </div>

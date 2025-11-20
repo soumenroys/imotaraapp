@@ -1,8 +1,21 @@
 @import "tailwindcss";
 
+/* -------------------------------------------------- */
+/* 🌌 Aurora Calm – Global Theme                      */
+/* -------------------------------------------------- */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base colors (dark-first, calm palette) */
+  --background: #030712;          /* very dark navy */
+  --foreground: #e5e7eb;          /* zinc-200 */
+
+  /* Accent system for Aurora Calm */
+  --im-accent: #6366f1;           /* indigo-500 */
+  --im-accent-soft: #4f46e5;      /* indigo-600 */
+  --im-accent-secondary: #22c55e; /* emerald-500 */
+  --im-surface: rgba(15, 23, 42, 0.75); /* slate-900 with alpha */
+  --im-surface-soft: rgba(15, 23, 42, 0.6);
+  --im-border-soft: rgba(148, 163, 184, 0.35); /* slate-400/35 */
 }
 
 @theme inline {
@@ -12,22 +25,92 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
+/* Optional light mode (still using calm colors) */
+@media (prefers-color-scheme: light) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #f9fafb;  /* zinc-50 */
+    --foreground: #020617;  /* slate-950 */
+    --im-surface: rgba(255, 255, 255, 0.9);
+    --im-surface-soft: rgba(255, 255, 255, 0.8);
+    --im-border-soft: rgba(148, 163, 184, 0.25);
   }
 }
 
+/* -------------------------------------------------- */
+/* 🌌 Global body styling                             */
+/* -------------------------------------------------- */
+
 body {
-  background: var(--background);
+  min-height: 100vh;
+  margin: 0;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+
+  /* Aurora Calm gradient background */
+  background:
+    radial-gradient(circle at 0% 0%, #1e293b 0%, transparent 45%),
+    radial-gradient(circle at 100% 100%, #4f46e5 0%, transparent 45%),
+    radial-gradient(circle at 0% 100%, #0f766e 0%, transparent 45%),
+    #020617; /* slate-950 fallback */
+
+  background-attachment: fixed;
 }
 
-/* ---------------------------------------------- */
-/*  ⭐ Soft pulse animation for SyncStatusChip     */
-/* ---------------------------------------------- */
+/* -------------------------------------------------- */
+/* 🧊 Reusable “glass” helpers for Imotara            */
+/* (you can apply these via className)                */
+/* -------------------------------------------------- */
+
+/* Main glass surface for cards (History, Chat, etc.) */
+.imotara-glass-card {
+  background: var(--im-surface);
+  border-radius: 1.25rem; /* ~rounded-2xl */
+  border: 1px solid var(--im-border-soft);
+  backdrop-filter: blur(18px);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.65),
+    0 0 0 0.5px rgba(148, 163, 184, 0.25);
+}
+
+/* Softer, secondary glass (inner sections, timeline rail shells) */
+.imotara-glass-soft {
+  background: var(--im-surface-soft);
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  backdrop-filter: blur(14px);
+}
+
+/* Soft pill-style badges (for timeline legend, status chips, etc.) */
+.imotara-pill {
+  border-radius: 9999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.8);
+  padding: 0.15rem 0.55rem;
+  font-size: 0.7rem;
+}
+
+/* Accent underline / ring for active navigation items */
+.imotara-nav-active {
+  position: relative;
+}
+
+.imotara-nav-active::after {
+  content: "";
+  position: absolute;
+  left: 0.9rem;
+  right: 0.9rem;
+  bottom: -0.2rem;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    rgba(99, 102, 241, 0.9),
+    rgba(56, 189, 248, 0.9)
+  );
+}
+
+/* -------------------------------------------------- */
+/*  ⭐ Soft pulse animation for SyncStatusChip         */
+/* -------------------------------------------------- */
 @keyframes pulse-soft {
   0% {
     opacity: 0.4;
@@ -44,9 +127,9 @@ body {
   animation: pulse-soft 1.2s ease-in-out infinite;
 }
 
-/* ---------------------------------------------- */
-/*  ⭐ Rim highlight for server-confirmed records  */
-/* ---------------------------------------------- */
+/* -------------------------------------------------- */
+/*  ⭐ Rim highlight for server-confirmed records      */
+/* -------------------------------------------------- */
 .server-confirmed {
   box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.5); /* green-500 50% */
 }

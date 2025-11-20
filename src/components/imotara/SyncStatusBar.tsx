@@ -1,15 +1,15 @@
 // src/components/imotara/SyncStatusBar.tsx
-'use client';
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import useSyncHistory, { type SyncState } from "@/hooks/useSyncHistory";
 
 /**
  * Global Sync Status Bar (bottom fixed)
- * Micro–polish:
- * - fade-in when freshly synced
- * - soft hover for the sync button
- * - subtle glass effect background
+ * Aurora Calm styling:
+ * - glassy bar floating above the gradient background
+ * - small glowing status dot
+ * - soft fade when freshly synced
  */
 
 export default function SyncStatusBar() {
@@ -30,8 +30,8 @@ export default function SyncStatusBar() {
 
   const { dotClass, label, sub } = useMemo(() => {
     const stateToDot: Record<SyncState, string> = {
-      syncing: "bg-blue-500",
-      synced: "bg-emerald-500",
+      syncing: "bg-sky-400",
+      synced: "bg-emerald-400",
       offline: "bg-zinc-400",
       error: "bg-red-500",
       idle: "bg-zinc-400",
@@ -62,32 +62,38 @@ export default function SyncStatusBar() {
   }, [sync.state, sync.lastSyncedAt, sync.lastError]);
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-5xl px-6 pb-4 pointer-events-none">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-5xl justify-center px-4 pb-4">
       <div
-        className={`pointer-events-auto flex items-center justify-between rounded-2xl border border-zinc-200 px-3 py-2 text-sm shadow-sm backdrop-blur
-                    dark:border-zinc-800 
-                    bg-white/80 dark:bg-black/60
-                    transition-opacity duration-500
-                    ${pulse ? "opacity-100" : "opacity-95"}`}
+        className={`pointer-events-auto flex w-full items-center justify-between gap-3 rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-zinc-50 shadow-lg shadow-sky-900/30 backdrop-blur-md dark:bg-black/60 transition-opacity duration-500 ${pulse ? "opacity-100" : "opacity-90"
+          }`}
       >
-        <div className="flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
-          <span className="font-medium">{label}</span>
+        {/* Left: status dot + label */}
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${dotClass} shadow-[0_0_8px_rgba(255,255,255,0.4)]`}
+          />
+          <span className="text-xs font-medium">{label}</span>
           {sub && (
-            <span className="text-zinc-500 dark:text-zinc-400">• {sub}</span>
+            <span className="hidden truncate text-[11px] text-zinc-300 sm:inline">
+              • {sub}
+            </span>
           )}
         </div>
 
+        {/* Right: manual sync button */}
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={sync.manualSync}
-            className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs 
-                       hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900
-                       transition-colors"
+            disabled={sync.state === "syncing"}
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[11px] font-medium text-zinc-50 shadow-sm transition hover:bg-white/10 disabled:opacity-40"
             title="Force sync now"
           >
-            Sync now
+            <span
+              className={`inline-block h-3 w-3 rounded-full border border-white/40 ${sync.state === "syncing" ? "animate-pulse-soft bg-sky-400" : "bg-transparent"
+                }`}
+            />
+            <span>{sync.state === "syncing" ? "Syncing…" : "Sync now"}</span>
           </button>
         </div>
       </div>

@@ -1,56 +1,102 @@
-// src/components/imotara/TopBar.tsx
+// src/components/imotara/SyncStatusBar.tsx
 "use client";
 
-import { useState } from "react";
-import useSyncHistory from "@/hooks/useSyncHistory";
-import SyncStatusChip from "@/components/imotara/SyncStatusChip";
-import ConflictPanel from "@/components/imotara/ConflictPanel";
+import { useEffect, useMemo, useState } from "react";
+import useSyncHistory, { type SyncState } from "@/hooks/useSyncHistory";
 
-export default function TopBar() {
-  // Use the sync hook you already have
-  const { runSync, state, conflicts, lastSyncedAt, isSyncing } = useSyncHistory({
-    runOnMount: true,
-    intervalMs: 60000, // auto sync every 60s
+/**
+ * Global Sync Status Bar (bottom fixed)
+ * Aurora Calm styling:
+ * - glassy bar floating above the gradient background
+ * - small glowing status dot
+ * - soft fade when freshly synced
+ */
+
+export default function SyncStatusBar() {
+  const sync = useSyncHistory({
+    intervalMs: 0,
+    runOnMount: false,
   });
 
-  // For opening/closing the conflict panel
-  const [open, setOpen] = useState(false);
+  // ⭐ fade-in animation trigger on newly synced state
+  const [pulse, setPulse] = useState(false);
+  useEffect(() => {
+    if (sync.state === "synced") {
+      setPulse(true);
+      const t = setTimeout(() => setPulse(false), 1000);
+      return () => clearTimeout(t);
+    }
+  }, [sync.state]);
+
+  const { dotClass, label, sub } = useMemo(() => {
+    const stateToDot: Record<SyncState, string> = {
+      syncing: "bg-sky-400",
+      synced: "bg-emerald-400",
+      offline: "bg-zinc-400",
+      error: "bg-red-500",
+      idle: "bg-zinc-400",
+    };
+    const lc = stateToDot[sync.state] ?? "bg-zinc-400";
+
+    const lbl =
+      sync.state === "syncing"
+        ? "Syncing"
+        : sync.state === "synced"
+          ? "Synced"
+          : sync.state === "offline"
+            ? "Offline"
+            : sync.state === "error"
+              ? "Error"
+              : "Idle";
+
+    let sub = "";
+    if (sync.state === "synced" && sync.lastSyncedAt) {
+      sub = `Last synced ${new Date(sync.lastSyncedAt).toLocaleTimeString()}`;
+    } else if (sync.state === "offline") {
+      sub = "Will retry when back online";
+    } else if (sync.state === "error" && sync.lastError) {
+      sub = sync.lastError;
+    }
+
+    return { dotClass: lc, label: lbl, sub };
+  }, [sync.state, sync.lastSyncedAt, sync.lastError]);
 
   return (
-    <div className="flex items-center justify-between border-b border-zinc-200 bg-white/80 px-4 py-2 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/70">
-      <div className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-        Imotara
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-5xl justify-center px-4 pb-4">
+      <div
+        className={`pointer-events-auto flex w-full items-center justify-between gap-3 rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-zinc-50 shadow-lg shadow-sky-900/30 backdrop-blur-md dark:bg-black/60 transition-opacity duration-500 ${pulse ? "opacity-100" : "opacity-90"
+          }`}
+      >
+        {/* Left: status dot + label */}
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${dotClass} shadow-[0_0_8px_rgba(255,255,255,0.4)]`}
+          />
+          <span className="text-xs font-medium">{label}</span>
+          {sub && (
+            <span className="hidden truncate text-[11px] text-zinc-300 sm:inline">
+              • {sub}
+            </span>
+          )}
+        </div>
+
+        {/* Right: manual sync button */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={sync.manualSync}
+            disabled={sync.state === "syncing"}
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[11px] font-medium text-zinc-50 shadow-sm transition hover:bg-white/10 disabled:opacity-40"
+            title="Force sync now"
+          >
+            <span
+              className={`inline-block h-3 w-3 rounded-full border border-white/40 ${sync.state === "syncing" ? "animate-pulse-soft bg-sky-400" : "bg-transparent"
+                }`}
+            />
+            <span>{sync.state === "syncing" ? "Syncing…" : "Sync now"}</span>
+          </button>
+        </div>
       </div>
-
-      <div className="flex items-center gap-3">
-        <SyncStatusChip
-          state={isSyncing ? "syncing" : state}
-          lastSyncedAt={lastSyncedAt}
-          conflictsCount={conflicts.length}
-          onSync={runSync}
-        />
-
-        <button
-          type="button"
-          className="rounded-lg border border-zinc-300 px-3 py-1 text-xs text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-          onClick={() => setOpen(true)}
-          disabled={conflicts.length === 0}
-          title={conflicts.length ? "Review conflicts" : "No conflicts"}
-        >
-          Review
-        </button>
-      </div>
-
-      <ConflictPanel
-        open={open}
-        conflicts={conflicts}
-        onClose={() => setOpen(false)}
-        onSubmit={(choices) => {
-          // Real "apply" logic can be wired here later
-          console.log("User choices:", choices);
-          setOpen(false);
-        }}
-      />
     </div>
   );
 }

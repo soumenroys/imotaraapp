@@ -1008,7 +1008,7 @@ export default function EmotionHistory() {
       )}
 
       {/* Header with status chip, consent indicator and manual controls */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 shadow-sm backdrop-blur-md dark:bg-zinc-900/50">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 shadow-sm backdrop-blur-md dark:bg-white/10">
         <div className="flex flex-wrap items-center gap-2">
           <SyncStatusChip
             state={
@@ -1130,7 +1130,7 @@ export default function EmotionHistory() {
                 );
               }
             }}
-            className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/15 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
             title="Push only changed/new records"
           >
             {`Push pending${pendingCount ? ` (${pendingCount})` : ""}`}
@@ -1163,7 +1163,7 @@ export default function EmotionHistory() {
                 setPushInfo(`Push all failed: ${String(err?.message ?? err)}`);
               }
             }}
-            className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/15 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
             title="Push all local records to server"
           >
             Push all
@@ -1187,7 +1187,7 @@ export default function EmotionHistory() {
                 );
               }
             }}
-            className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/15 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
             title="Apply queued conflict resolutions (prefer remote)"
           >
             Retry queued
@@ -1226,7 +1226,7 @@ export default function EmotionHistory() {
                 setApiInfo(`API check failed: ${String(err?.message ?? err)}`);
               }
             }}
-            className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/15 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
             title="Ping GET /api/history to verify API shape/availability"
           >
             Check API
@@ -1244,7 +1244,7 @@ export default function EmotionHistory() {
                 payload
               );
             }}
-            className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/15 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
             title="Download the currently visible history as JSON"
           >
             Export JSON
@@ -1310,7 +1310,7 @@ export default function EmotionHistory() {
                 csv
               );
             }}
-            className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/15 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
             title="Download the currently visible history as CSV"
           >
             Export CSV
@@ -1319,7 +1319,7 @@ export default function EmotionHistory() {
           {/* quick local test record */}
           <button
             onClick={addDemo}
-            className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/15 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
             title="Insert one local record for testing"
           >
             Add demo
@@ -1338,7 +1338,7 @@ export default function EmotionHistory() {
       </div>
 
       {/* Debug + operation result lines */}
-      <div className="mb-3 space-y-1 rounded-2xl border border-white/5 bg-white/5 px-3 py-2 text-xs text-zinc-600 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-300">
+      <div className="mb-3 space-y-1 rounded-2xl border border-white/5 bg-white/5 px-3 py-2 text-xs text-zinc-600 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
         <div>{debugLine}</div>
         {previewHint && (
           <div className="text-[11px] opacity-80">{previewHint}</div>
@@ -1348,7 +1348,7 @@ export default function EmotionHistory() {
       </div>
 
       {/* Session filter — links Emotion History to chat sessions via sessionId */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-zinc-600 shadow-sm backdrop-blur-md dark:bg-zinc-900/60 dark:text-zinc-300">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-zinc-600 shadow-sm backdrop-blur-md dark:bg-white/5 dark:text-zinc-300">
         <label className="min-w-[200px] flex-1">
           <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             Filter by chat session ID{" "}
@@ -1421,13 +1421,13 @@ export default function EmotionHistory() {
       )}
 
       {/* Emotion Summary Card */}
-      <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-3 shadow-sm backdrop-blur-md dark:bg-zinc-900/60">
+      <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-3 shadow-sm backdrop-blur-md dark:bg-white/5">
         <EmotionSummaryCard summary={toCardSummary(summary)} />
       </div>
 
       {/* Mini timeline visualization (uses flagged records) */}
       {timelineItems.length > 0 && (
-        <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-3 shadow-sm backdrop-blur-md dark:bg-zinc-900/60">
+        <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-3 shadow-sm backdrop-blur-md dark:bg-white/5">
           <EmotionMiniTimeline records={timelineItems} />
         </div>
       )}
@@ -1482,7 +1482,7 @@ export default function EmotionHistory() {
               ref={liRef}
               key={r.id}
               className={[
-                "rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm backdrop-blur-md dark:bg-zinc-900/60",
+                "rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm backdrop-blur-md dark:bg-white/5",
                 highlightedByMessage
                   ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-transparent animate-pulse"
                   : "",
@@ -1542,7 +1542,7 @@ export default function EmotionHistory() {
 
         {/* Global empty-state (no history at all) */}
         {visibleItems.length === 0 && (
-          <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center text-zinc-700 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-300">
+          <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center text-zinc-700 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-white/5 dark:text-zinc-300">
             <div>No history yet.</div>
             <button
               onClick={addDemo}
@@ -1568,7 +1568,7 @@ export default function EmotionHistory() {
         {visibleItems.length > 0 &&
           sessionFilter.trim() &&
           filteredItems.length === 0 && (
-            <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center text-zinc-700 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-300">
+            <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center text-zinc-700 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-white/5 dark:text-zinc-300">
               <div>No entries match this chat session filter.</div>
               <div className="mt-1 text-xs opacity-80">
                 Try clearing the filter to see all records.

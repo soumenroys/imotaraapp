@@ -107,7 +107,13 @@ export default function HistoryPage() {
         {/* BODY                                                 */}
         {/* ---------------------------------------------------- */}
         <section className="flex-1 overflow-auto pt-4">
-          <div className="mx-auto max-w-5xl">
+          <div className="mx-auto max-w-5xl space-y-2">
+            {/* Small helper text about export */}
+            <p className="px-1 text-[11px] text-zinc-400">
+              Tip: Use “Export JSON” to download a copy of your emotion history
+              as a file you can keep or back up.
+            </p>
+
             <div className="imotara-glass-card rounded-2xl px-3 py-3 sm:px-4 sm:py-4">
               <EmotionHistory />
             </div>

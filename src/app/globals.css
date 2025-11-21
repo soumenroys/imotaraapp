@@ -13,8 +13,11 @@
   --im-accent: #6366f1;           /* indigo-500 */
   --im-accent-soft: #4f46e5;      /* indigo-600 */
   --im-accent-secondary: #22c55e; /* emerald-500 */
-  --im-surface: rgba(15, 23, 42, 0.75); /* slate-900 with alpha */
-  --im-surface-soft: rgba(15, 23, 42, 0.6);
+
+  /* 👉 Slightly lighter glass surfaces so tiles aren't pure black */
+  --im-surface: rgba(15, 23, 42, 0.58);      /* was 0.75 */
+  --im-surface-soft: rgba(15, 23, 42, 0.42); /* was 0.6 */
+
   --im-border-soft: rgba(148, 163, 184, 0.35); /* slate-400/35 */
 }
 
@@ -65,7 +68,8 @@ body {
   background: var(--im-surface);
   border-radius: 1.25rem; /* ~rounded-2xl */
   border: 1px solid var(--im-border-soft);
-  backdrop-filter: blur(18px);
+  /* 👉 Slightly more vivid glass effect */
+  backdrop-filter: blur(18px) saturate(140%);
   box-shadow:
     0 18px 40px rgba(0, 0, 0, 0.65),
     0 0 0 0.5px rgba(148, 163, 184, 0.25);

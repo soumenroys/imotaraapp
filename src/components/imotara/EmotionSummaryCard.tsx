@@ -116,7 +116,7 @@ export default function EmotionSummaryCard({ summary }: Props) {
 
   if (!summary) {
     return (
-      <div className="w-full rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+      <div className="imotara-glass-soft w-full p-4 text-sm text-zinc-300">
         <div className="animate-pulse">Computing emotion summary…</div>
       </div>
     );
@@ -145,7 +145,7 @@ export default function EmotionSummaryCard({ summary }: Props) {
   const top3 = topK(frequency, 3, total);
 
   return (
-    <div className="w-full rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="imotara-glass-soft w-full p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <h3 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
           Emotion Summary
@@ -168,12 +168,16 @@ export default function EmotionSummaryCard({ summary }: Props) {
               />
             </div>
             <button
-              className="rounded-lg border border-zinc-300 px-2 py-1 text-[10px] uppercase tracking-wide hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:border-zinc-700 dark:hover:bg-zinc-900 dark:focus-visible:ring-zinc-600"
-              onClick={() => setScaleMode((m) => (m === "absolute" ? "relative" : "absolute"))}
+              className="rounded-lg border border-zinc-300 px-2 py-1 text-[10px] uppercase tracking-wide hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:border-zinc-700 dark:hover:bg-zinc-900/60 dark:focus-visible:ring-zinc-600"
+              onClick={() =>
+                setScaleMode((m) => (m === "absolute" ? "relative" : "absolute"))
+              }
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  setScaleMode((m) => (m === "absolute" ? "relative" : "absolute"));
+                  setScaleMode((m) =>
+                    m === "absolute" ? "relative" : "absolute"
+                  );
                 }
               }}
               aria-pressed={scaleMode === "relative"}
@@ -210,13 +214,13 @@ export default function EmotionSummaryCard({ summary }: Props) {
           {top3.map((t) => (
             <li
               key={t.label}
-              className="flex items-center justify-between rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
+              className="imotara-glass-soft flex items-center justify-between px-3 py-2 text-sm border border-zinc-700/60"
               title={`${t.label}: ${t.pct}% of ${total} entries`}
             >
               <span className="inline-flex items-center gap-2">
                 <span className="text-base leading-none">{t.emoji}</span>
                 <span className="text-zinc-800 dark:text-zinc-100">
-                  {t.label.replace(/\b\w/g, c => c.toUpperCase())}
+                  {t.label.replace(/\b\w/g, (c) => c.toUpperCase())}
                 </span>
               </span>
               <span className="text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
@@ -236,10 +240,18 @@ export default function EmotionSummaryCard({ summary }: Props) {
   );
 }
 
-function Stat({ label, value, title }: { label: string; value: string; title?: string }) {
+function Stat({
+  label,
+  value,
+  title,
+}: {
+  label: string;
+  value: string;
+  title?: string;
+}) {
   return (
     <div
-      className="rounded-xl border border-zinc-200 p-3 text-sm dark:border-zinc-800"
+      className="imotara-glass-soft p-3 text-sm border border-zinc-700/60"
       title={title}
     >
       <div className="text-zinc-500 dark:text-zinc-400">{label}</div>

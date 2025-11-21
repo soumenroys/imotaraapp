@@ -1338,7 +1338,7 @@ export default function EmotionHistory() {
       </div>
 
       {/* Debug + operation result lines */}
-      <div className="mb-3 space-y-1 rounded-2xl border border-white/5 bg-white/5 px-3 py-2 text-xs text-zinc-600 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
+      <div className="mb-3 space-y-1 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-zinc-600 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5/60 dark:text-zinc-300">
         <div>{debugLine}</div>
         {previewHint && (
           <div className="text-[11px] opacity-80">{previewHint}</div>

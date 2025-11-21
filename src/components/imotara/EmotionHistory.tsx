@@ -632,8 +632,8 @@ export default function EmotionHistory() {
         computeEmotionSummary(next.filter((r) => !(r as any).deleted))
       );
       await saveHistory(next);
-      setPendingCount(computePending(next).length);
     }
+    setPendingCount(computePending(next).length);
 
     setConflictItems((list) => list.filter((c) => c.id !== id));
     setConflicts((n) => Math.max(0, n - 1));
@@ -1338,7 +1338,7 @@ export default function EmotionHistory() {
       </div>
 
       {/* Debug + operation result lines */}
-      <div className="mb-3 space-y-1 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-zinc-600 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5/60 dark:text-zinc-300">
+      <div className="mb-3 space-y-1 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-zinc-600 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
         <div>{debugLine}</div>
         {previewHint && (
           <div className="text-[11px] opacity-80">{previewHint}</div>
@@ -1482,7 +1482,7 @@ export default function EmotionHistory() {
               ref={liRef}
               key={r.id}
               className={[
-                "rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm backdrop-blur-md dark:bg-white/5",
+                "imotara-history-item p-4 shadow-sm",
                 highlightedByMessage
                   ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-transparent animate-pulse"
                   : "",

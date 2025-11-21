@@ -47,58 +47,73 @@ export default function HistoryPage() {
     <main className="mx-auto flex h-[calc(100vh-0px)] w-full max-w-7xl px-4 py-6 text-zinc-50 sm:px-6">
       <div className="flex flex-1 flex-col">
         {/* ---------------------------------------------------- */}
-        {/* HEADER – Aurora glass, aligned with Chat UI          */}
+        {/* HEADER – Aurora glass with subtle glow / depth       */}
         {/* ---------------------------------------------------- */}
-        <header className="sticky top-0 z-20">
-          <div className="imotara-glass-card flex flex-col gap-2 rounded-2xl px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            {/* LEFT: Icon + Title */}
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-zinc-50 shadow-sm">
-                <MessageSquare className="h-4 w-4" />
+        <header className="sticky top-0 z-20" aria-label="Emotion history header">
+          <div className="relative">
+            {/* Soft aurora glow behind the header card */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-4 -top-4 h-10 rounded-full bg-[radial-gradient(circle_at_10%_0%,rgba(129,140,248,0.38),transparent_55%),radial-gradient(circle_at_90%_0%,rgba(52,211,153,0.34),transparent_55%)] opacity-80 blur-2 sm:inset-x-6 sm:h-11"
+            />
+
+            <div className="imotara-glass-card flex flex-col gap-2 rounded-2xl px-4 py-3 shadow-lg transition-colors duration-200 hover:bg-white/10 sm:flex-row sm:items-center sm:justify-between">
+              {/* LEFT */}
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-zinc-50 shadow-sm">
+                  <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold text-zinc-50">
+                    Emotion History
+                  </p>
+                  <p className="text-xs text-zinc-300">
+                    Timeline of how your conversations felt over time.
+                  </p>
+                </div>
               </div>
 
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-zinc-50">
-                  Emotion History
-                </p>
-                <p className="text-xs text-zinc-300">
-                  Timeline of how your conversations felt over time.
-                </p>
-              </div>
-            </div>
-
-            {/* RIGHT: Consent status + Actions */}
-            <div className="flex flex-wrap items-center gap-2 text-[11px] sm:justify-end">
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-zinc-100">
+              {/* RIGHT */}
+              <div className="flex flex-wrap items-center gap-2 text-[11px] sm:justify-end">
                 <span
-                  className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-400"
-                    }`}
-                />
-                {consentLabel}
-              </span>
+                  className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-zinc-100"
+                  aria-label={`Current analysis mode: ${consentLabel}`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-400"
+                      }`}
+                    aria-hidden="true"
+                  />
+                  {consentLabel}
+                </span>
 
-              <span className="hidden max-w-xs text-[11px] text-zinc-400 sm:inline">
-                Emotion analysis mode is shared between Chat and History.
-              </span>
+                <span className="hidden max-w-xs text-[11px] text-zinc-400 sm:inline">
+                  Emotion analysis mode is shared between Chat and History.
+                </span>
 
-              {/* Export JSON */}
-              <button
-                type="button"
-                onClick={handleExport}
-                disabled={exporting}
-                className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-zinc-200 transition hover:bg-white/10 hover:text-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <span>{exporting ? "Exporting…" : "Export JSON"}</span>
-              </button>
+                {/* Export */}
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  disabled={exporting}
+                  aria-busy={exporting}
+                  aria-label="Export full emotion history as JSON"
+                  className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-zinc-200 transition hover:bg-white/10 hover:text-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span>{exporting ? "Exporting…" : "Export JSON"}</span>
+                </button>
 
-              {/* Back to Chat */}
-              <Link
-                href="/chat"
-                className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-zinc-200 transition hover:bg-white/10 hover:text-zinc-50"
-              >
-                <MessageSquare className="h-3 w-3" />
-                <span>Back to Chat</span>
-              </Link>
+                {/* Back */}
+                <Link
+                  href="/chat"
+                  aria-label="Back to chat"
+                  className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-zinc-200 transition hover:bg-white/10 hover:text-zinc-50"
+                >
+                  <MessageSquare className="h-3 w-3" aria-hidden="true" />
+                  <span>Back to Chat</span>
+                </Link>
+              </div>
             </div>
           </div>
         </header>
@@ -106,17 +121,21 @@ export default function HistoryPage() {
         {/* ---------------------------------------------------- */}
         {/* BODY                                                 */}
         {/* ---------------------------------------------------- */}
-        <section className="flex-1 overflow-auto pt-4">
-          <div className="mx-auto max-w-5xl space-y-2">
-            {/* Small helper text about export */}
+        <section className="flex-1 overflow-auto pt-6">
+          <div className="mx-auto max-w-5xl space-y-4">
+            {/* Tip text */}
             <p className="px-1 text-[11px] text-zinc-400">
               Tip: Use “Export JSON” to download a copy of your emotion history
               as a file you can keep or back up.
             </p>
 
-            <div className="imotara-glass-card rounded-2xl px-3 py-3 sm:px-4 sm:py-4">
+            {/* ⭐ LIGHTER MAIN CARD — more airy, more like Chat UI */}
+            <div className="imotara-glass-soft rounded-2xl px-4 py-5 sm:px-5 sm:py-6">
               <EmotionHistory />
             </div>
+
+            {/* bottom spacing for breathing room */}
+            <div className="h-6" />
           </div>
         </section>
       </div>

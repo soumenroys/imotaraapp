@@ -64,11 +64,21 @@ export default function SyncStatusBar() {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-5xl justify-center px-4 pb-4">
       <div
-        className={`pointer-events-auto flex w-full items-center justify-between gap-3 rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-zinc-50 shadow-lg shadow-sky-900/30 backdrop-blur-md dark:bg-black/60 transition-opacity duration-500 ${pulse ? "opacity-100" : "opacity-90"
-          }`}
+        className={[
+          "pointer-events-auto flex w-full items-center justify-between gap-3 rounded-2xl border border-white/15",
+          "bg-white/12 text-xs text-zinc-50 shadow-lg shadow-sky-900/30 backdrop-blur-md",
+          "dark:bg-black/65",
+          "transition-opacity duration-500",
+          pulse ? "opacity-100" : "opacity-90",
+        ].join(" ")}
+        aria-label="Imotara sync status"
       >
         {/* Left: status dot + label */}
-        <div className="flex min-w-0 items-center gap-2">
+        <div
+          className="flex min-w-0 items-center gap-2"
+          role="status"
+          aria-live="polite"
+        >
           <span
             className={`h-2.5 w-2.5 rounded-full ${dotClass} shadow-[0_0_8px_rgba(255,255,255,0.4)]`}
           />
@@ -86,12 +96,21 @@ export default function SyncStatusBar() {
             type="button"
             onClick={sync.manualSync}
             disabled={sync.state === "syncing"}
-            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[11px] font-medium text-zinc-50 shadow-sm transition hover:bg-white/10 disabled:opacity-40"
+            aria-busy={sync.state === "syncing" ? "true" : "false"}
+            className={[
+              "inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1",
+              "text-[11px] font-medium text-zinc-50 shadow-sm transition",
+              "hover:bg-white/10 disabled:opacity-40",
+            ].join(" ")}
             title="Force sync now"
           >
             <span
-              className={`inline-block h-3 w-3 rounded-full border border-white/40 ${sync.state === "syncing" ? "animate-pulse-soft bg-sky-400" : "bg-transparent"
-                }`}
+              className={[
+                "inline-block h-3 w-3 rounded-full border border-white/40",
+                sync.state === "syncing"
+                  ? "animate-pulse-soft bg-sky-400"
+                  : "bg-transparent",
+              ].join(" ")}
             />
             <span>{sync.state === "syncing" ? "Syncing…" : "Sync now"}</span>
           </button>

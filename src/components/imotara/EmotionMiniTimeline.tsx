@@ -36,14 +36,18 @@ export default function EmotionMiniTimeline({ records }: Props) {
 
   const minTs = times[0];
   const maxTs = times[times.length - 1];
-  const span = maxTs - minTs || 1;
+  const span = maxTs - minTs;
+  const safeSpan = span === 0 ? 1 : span;
 
   return (
     <div className="relative h-4 w-full">
       {sorted.map((record) => {
         const t = record.createdAt ?? record.updatedAt ?? 0;
         if (!t) return null;
-        const x = ((t - minTs) / span) * 100;
+
+        // If all timestamps are identical, place dots in the middle instead of far-left.
+        const x =
+          span === 0 ? 50 : ((t - minTs) / safeSpan) * 100;
 
         const isPending = Boolean(record.pending ?? (record as any).localOnly);
         const hasConflict = Boolean(record.conflict);

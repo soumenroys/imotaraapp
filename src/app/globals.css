@@ -14,7 +14,7 @@
   --im-accent-soft: #4f46e5;      /* indigo-600 */
   --im-accent-secondary: #22c55e; /* emerald-500 */
 
-  /* 👉 Slightly lighter glass surfaces so tiles aren't pure black */
+  /* Slightly lighter surfaces to avoid “black tiles” */
   --im-surface: rgba(15, 23, 42, 0.58);      /* was 0.75 */
   --im-surface-soft: rgba(15, 23, 42, 0.42); /* was 0.6 */
 
@@ -33,6 +33,7 @@
   :root {
     --background: #f9fafb;  /* zinc-50 */
     --foreground: #020617;  /* slate-950 */
+
     --im-surface: rgba(255, 255, 255, 0.9);
     --im-surface-soft: rgba(255, 255, 255, 0.8);
     --im-border-soft: rgba(148, 163, 184, 0.25);
@@ -60,7 +61,6 @@ body {
 
 /* -------------------------------------------------- */
 /* 🧊 Reusable “glass” helpers for Imotara            */
-/* (you can apply these via className)                */
 /* -------------------------------------------------- */
 
 /* Main glass surface for cards (History, Chat, etc.) */
@@ -68,7 +68,6 @@ body {
   background: var(--im-surface);
   border-radius: 1.25rem; /* ~rounded-2xl */
   border: 1px solid var(--im-border-soft);
-  /* 👉 Slightly more vivid glass effect */
   backdrop-filter: blur(18px) saturate(140%);
   box-shadow:
     0 18px 40px rgba(0, 0, 0, 0.65),
@@ -81,6 +80,14 @@ body {
   border-radius: 1rem;
   border: 1px solid rgba(148, 163, 184, 0.25);
   backdrop-filter: blur(14px);
+}
+
+/* NEW — Stabilized glass tile surface for history list items */
+.imotara-history-item {
+  background: var(--im-surface-soft);
+  border: 1px solid var(--im-border-soft);
+  backdrop-filter: blur(14px);
+  border-radius: 1rem;
 }
 
 /* Soft pill-style badges (for timeline legend, status chips, etc.) */
@@ -132,14 +139,33 @@ body {
 }
 
 /* -------------------------------------------------- */
+/*  ⭐ Aurora pulse for deep-linked highlights         */
+/*     (used by messageId-highlight in history list)  */
+/* -------------------------------------------------- */
+@keyframes imotaraPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.0);
+  }
+  40% {
+    transform: scale(1.015);
+    box-shadow: 0 0 18px 0 rgba(251, 191, 36, 0.35);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.0);
+  }
+}
+
+/* -------------------------------------------------- */
 /*  ⭐ Rim highlight for server-confirmed records      */
 /* -------------------------------------------------- */
 .server-confirmed {
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.5); /* green-500 50% */
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.5);
 }
 
 @media (prefers-color-scheme: dark) {
   .server-confirmed {
-    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.6); /* slightly brighter */
+    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.6);
   }
 }

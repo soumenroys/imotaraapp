@@ -553,7 +553,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-0px)] w-full max-w-7xl px-3 text-zinc-100 sm:px-4">
+    <div className="mx-auto flex h-[calc(100vh-0px)] w-full max-w-7xl px-3 py-4 text-zinc-100 sm:px-4">
       {/* Sidebar */}
       <aside className="hidden w-72 flex-col gap-3 p-4 sm:flex imotara-glass-card">
         <div className="mb-1 flex items-center justify-between">
@@ -613,7 +613,7 @@ export default function ChatPage() {
                     }`}
                 >
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items' gap-2">
                       <MessageSquare className="h-4 w-4 shrink-0 text-zinc-400" />
                       <input
                         className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-500 ${isActive ? "font-semibold text-zinc-100" : "text-zinc-200"
@@ -674,7 +674,7 @@ export default function ChatPage() {
                       </span>
                     </p>
                     <p className="text-xs text-zinc-400">
-                      Private local preview of Imotara&apos;s chat.
+                      Private local preview. In this demo, messages never leave this browser.
                     </p>
                   </div>
                 </div>

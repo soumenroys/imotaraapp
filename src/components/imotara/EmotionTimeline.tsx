@@ -49,9 +49,9 @@ export default function EmotionTimeline({ items }: Props) {
   const totalEntries = items.length;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-12">
       {/* MINI TIMELINE AREA */}
-      <div className="imotara-glass-card mt-4 p-4">
+      <div className="imotara-glass-card mt-4 rounded-2xl p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
             Overall Timeline
@@ -72,7 +72,7 @@ export default function EmotionTimeline({ items }: Props) {
           </div>
         </div>
 
-        {/* Legend row stays outside mini-component */}
+        {/* Legend row (aligned with EmotionMiniTimeline colors) */}
         <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-zinc-400">
           <span className="imotara-pill flex items-center gap-1">
             <span className="h-2 w-2 rounded-full bg-emerald-400" />
@@ -83,15 +83,15 @@ export default function EmotionTimeline({ items }: Props) {
             Local
           </span>
           <span className="imotara-pill flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-sky-400" />
+            <span className="h-2 w-2 rounded-full bg-purple-400" />
             Chat
           </span>
           <span className="imotara-pill flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-amber-400" />
+            <span className="h-2 w-2 rounded-full bg-sky-400" />
             Pending
           </span>
           <span className="imotara-pill flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-rose-400" />
+            <span className="h-2 w-2 rounded-full bg-amber-400" />
             Conflict
           </span>
         </div>
@@ -112,7 +112,7 @@ export default function EmotionTimeline({ items }: Props) {
         return (
           <section
             key={dayKey}
-            className="imotara-glass-soft rounded-2xl p-5 shadow-lg"
+            className="imotara-glass-soft rounded-2xl bg-white/[0.08] p-5 shadow-lg ring-1 ring-white/5 transition-colors hover:bg-white/[0.12] dark:bg-white/5 dark:hover:bg-white/10"
           >
             <div className="mb-4 flex items-center justify-between">
               <div className="text-sm font-semibold text-zinc-200">
@@ -159,8 +159,10 @@ export default function EmotionTimeline({ items }: Props) {
                 return (
                   <li
                     key={r.id}
-                    className={`relative rounded-xl border border-white/10 bg-white/[0.06] p-4 shadow-md backdrop-blur-md transition-all hover:bg-white/[0.12] dark:border-zinc-800/40 dark:bg-black/40 dark:hover:bg-black/55 ${isServerConfirmed ? "ring-1 ring-emerald-500/40" : ""
-                      }`}
+                    className={[
+                      "imotara-history-item relative p-4 shadow-md transition-all hover:shadow-lg",
+                      isServerConfirmed ? "ring-1 ring-emerald-500/40" : "",
+                    ].join(" ")}
                   >
                     {/* Glow dot at left */}
                     <div
@@ -197,7 +199,7 @@ export default function EmotionTimeline({ items }: Props) {
                           )}
 
                           {isPending && (
-                            <span className="rounded-full border border-blue-400/50 bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-300 backdrop-blur-sm">
+                            <span className="rounded-full border border-sky-400/50 bg-sky-500/20 px-2 py-0.5 text-[10px] text-sky-200 backdrop-blur-sm">
                               Pending
                             </span>
                           )}

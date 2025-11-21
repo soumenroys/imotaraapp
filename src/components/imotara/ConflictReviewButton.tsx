@@ -42,23 +42,34 @@ export default function ConflictReviewButton() {
   return (
     <>
       <button
+        type="button"
         onClick={handleClick}
         title={hasConflicts ? "Review sync conflicts" : "No sync conflicts"}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className={[
-          "relative inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all backdrop-blur-md",
+          "relative inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs sm:text-sm font-medium",
+          "transition-all backdrop-blur-md",
           hasConflicts
-            ? "border border-amber-500/50 bg-amber-400/20 text-amber-100 hover:bg-amber-400/30"
+            ? "border border-amber-500/60 bg-amber-400/20 text-amber-100 hover:bg-amber-400/30 shadow-sm"
             : "border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 dark:bg-zinc-900/40 dark:text-zinc-400",
         ].join(" ")}
       >
         <AlertTriangle
           className={`h-4 w-4 ${hasConflicts ? "text-amber-300" : "text-zinc-400"
             }`}
+          aria-hidden="true"
         />
-        Conflicts
+        <span className="hidden sm:inline">Conflicts</span>
+        <span className="sm:hidden">Conf</span>
+
+        {/* Count pill with live-updating announcement */}
         <span
+          aria-live="polite"
+          aria-atomic="true"
           className={[
-            "ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold shadow-md",
+            "ml-1 inline-flex min-w-[1.5rem] items-center justify-center rounded-full px-1.5 py-0.5",
+            "text-[10px] font-bold shadow-md tabular-nums",
             hasConflicts
               ? "bg-amber-400 text-amber-900"
               : "bg-zinc-700 text-zinc-200 dark:bg-zinc-800",
@@ -68,7 +79,7 @@ export default function ConflictReviewButton() {
         </span>
       </button>
 
-      {/* Modal */}
+      {/* Modal (remains always mounted; visibility controlled by `open`) */}
       <ConflictReviewModal open={open} onClose={() => setOpen(false)} />
     </>
   );

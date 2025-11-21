@@ -1,3 +1,4 @@
+// src/components/imotara/ConflictPanel.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -70,12 +71,18 @@ export default function ConflictPanel({
       role="dialog"
       aria-modal="true"
       aria-labelledby="conflict-panel-title"
+      onKeyDown={(e) => {
+        if (e.key === "Escape" || e.key === "Esc") {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
     >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-md"
         onClick={onClose}
-        aria-hidden
+        aria-hidden="true"
       />
 
       {/* Panel (Aurora glass bottom sheet) */}
@@ -97,6 +104,7 @@ export default function ConflictPanel({
           </div>
 
           <button
+            type="button"
             className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] text-zinc-100 shadow-sm transition hover:bg-white/20"
             onClick={onClose}
           >
@@ -217,6 +225,7 @@ export default function ConflictPanel({
                           <input
                             type="radio"
                             name={`choice-${c.id}`}
+                            value="local"
                             checked={localSelected}
                             onChange={() =>
                               setChoices((prev) => ({
@@ -288,6 +297,7 @@ export default function ConflictPanel({
                           <input
                             type="radio"
                             name={`choice-${c.id}`}
+                            value="remote"
                             checked={remoteSelected}
                             onChange={() =>
                               setChoices((prev) => ({
@@ -316,7 +326,9 @@ export default function ConflictPanel({
             </div>
             {hasConflicts && (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] text-zinc-300">Quick actions:</span>
+                <span className="text-[11px] text-zinc-300">
+                  Quick actions:
+                </span>
                 <button
                   type="button"
                   className="rounded-full border border-white/20 bg-white/5 px-2 py-0.5 text-[11px] text-zinc-100 transition hover:bg-white/10"
@@ -337,6 +349,7 @@ export default function ConflictPanel({
 
           <div className="flex justify-end gap-2">
             <button
+              type="button"
               className="rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs text-zinc-100 transition hover:bg-white/10"
               onClick={onClose}
             >
@@ -344,6 +357,7 @@ export default function ConflictPanel({
             </button>
 
             <button
+              type="button"
               className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-medium text-emerald-950 shadow-sm transition hover:bg-emerald-400 disabled:opacity-60"
               onClick={submit}
               disabled={!hasConflicts}

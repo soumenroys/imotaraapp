@@ -114,9 +114,10 @@ function Sparkline({
 export default function EmotionSummaryCard({ summary }: Props) {
   const [scaleMode, setScaleMode] = useState<"absolute" | "relative">("absolute");
 
+  // Loading state – keep behavior, just slightly nicer text hierarchy
   if (!summary) {
     return (
-      <div className="imotara-glass-soft w-full p-4 text-sm text-zinc-300">
+      <div className="w-full text-sm text-zinc-400">
         <div className="animate-pulse">Computing emotion summary…</div>
       </div>
     );
@@ -139,17 +140,27 @@ export default function EmotionSummaryCard({ summary }: Props) {
     "Average intensity of entries from the last 7 days. Shows recent mood pressure (0% = calm, 100% = intense).";
   const avgTip =
     "Average intensity across all saved entries. Higher = more intense feelings overall.";
-  const domTip =
-    "Most frequent emotion label in your saved history.";
+  const domTip = "Most frequent emotion label in your saved history.";
 
   const top3 = topK(frequency, 3, total);
 
+  const dominantLabel = dominantEmotion ? titleCase(dominantEmotion) : "—";
+  const dominantEmoji = dominantEmotion
+    ? EMOJI[dominantEmotion] ?? "🙂"
+    : null;
+
   return (
-    <div className="imotara-glass-soft w-full p-4">
+    <div className="w-full space-y-3 text-sm text-zinc-900 dark:text-zinc-100">
+      {/* Header row */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <h3 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-          Emotion Summary
-        </h3>
+        <div>
+          <h3 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Emotion Summary
+          </h3>
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+            A quick snapshot of how your emotions show up over time.
+          </p>
+        </div>
 
         {/* Right block: last 7d % + sparkline + scale toggle */}
         <div className="flex flex-col items-end">
@@ -157,7 +168,10 @@ export default function EmotionSummaryCard({ summary }: Props) {
             className="text-xs text-zinc-500 dark:text-zinc-400"
             title={last7dTip}
           >
-            Last 7 days avg intensity: <strong>{pct(last7dAvgIntensity)}</strong>
+            Last 7 days intensity:{" "}
+            <strong className="font-medium text-zinc-800 dark:text-zinc-100">
+              {pct(last7dAvgIntensity)}
+            </strong>
           </span>
 
           <div className="mt-1 flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
@@ -168,7 +182,7 @@ export default function EmotionSummaryCard({ summary }: Props) {
               />
             </div>
             <button
-              className="rounded-lg border border-zinc-300 px-2 py-1 text-[10px] uppercase tracking-wide hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:border-zinc-700 dark:hover:bg-zinc-900/60 dark:focus-visible:ring-zinc-600"
+              className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-wide shadow-sm backdrop-blur-sm hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:border-white/15 dark:bg-white/5 dark:hover:bg-white/10 dark:focus-visible:ring-zinc-600"
               onClick={() =>
                 setScaleMode((m) => (m === "absolute" ? "relative" : "absolute"))
               }
@@ -199,40 +213,61 @@ export default function EmotionSummaryCard({ summary }: Props) {
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Stat label="Entries" value={String(total)} />
-        <Stat label="Avg Intensity" value={pct(avgIntensity)} title={avgTip} />
+      {/* Key stats row */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat
-          label="Dominant Emotion"
-          value={dominantEmotion ? titleCase(dominantEmotion) : "—"}
+          label="Entries"
+          value={String(total)}
+          title="Total number of emotion records in your history."
+        />
+        <Stat
+          label="Avg intensity"
+          value={pct(avgIntensity)}
+          title={avgTip}
+        />
+        <Stat
+          label="Dominant emotion"
+          value={
+            dominantEmoji
+              ? `${dominantEmoji} ${dominantLabel}`
+              : dominantLabel
+          }
           title={domTip}
+          highlight={!!dominantEmotion}
         />
       </div>
 
+      {/* Top emotions list */}
       {top3.length > 0 && (
-        <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {top3.map((t) => (
-            <li
-              key={t.label}
-              className="imotara-glass-soft flex items-center justify-between px-3 py-2 text-sm border border-zinc-700/60"
-              title={`${t.label}: ${t.pct}% of ${total} entries`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <span className="text-base leading-none">{t.emoji}</span>
-                <span className="text-zinc-800 dark:text-zinc-100">
-                  {t.label.replace(/\b\w/g, (c) => c.toUpperCase())}
+        <div className="space-y-1">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Top emotions
+          </p>
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {top3.map((t) => (
+              <li
+                key={t.label}
+                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-white/5"
+                title={`${t.label}: ${t.pct}% of ${total} entries`}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <span className="text-base leading-none">{t.emoji}</span>
+                  <span className="text-zinc-900 dark:text-zinc-100">
+                    {t.label.replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </span>
                 </span>
-              </span>
-              <span className="text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
-                {t.pct}%
-              </span>
-            </li>
-          ))}
-        </ul>
+                <span className="text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
+                  {t.pct}%
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
+      {/* Global empty-state when total = 0 (logic unchanged) */}
       {total === 0 && (
-        <div className="mt-3 rounded-xl border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+        <div className="rounded-xl border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
           No history yet — add your first entry to see trends here.
         </div>
       )}
@@ -244,20 +279,38 @@ function Stat({
   label,
   value,
   title,
+  highlight = false,
 }: {
   label: string;
   value: string;
   title?: string;
+  highlight?: boolean;
 }) {
+  const wrapperClasses = [
+    "rounded-xl p-3 text-sm shadow-sm backdrop-blur-sm",
+    "border border-white/10 bg-white/5 dark:border-white/10 dark:bg-white/5",
+    highlight
+      ? "ring-1 ring-emerald-400/60"
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const valueClasses = [
+    "mt-1 text-lg font-medium",
+    highlight
+      ? "text-emerald-500 dark:text-emerald-300"
+      : "text-zinc-900 dark:text-zinc-100",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div
-      className="imotara-glass-soft p-3 text-sm border border-zinc-700/60"
-      title={title}
-    >
-      <div className="text-zinc-500 dark:text-zinc-400">{label}</div>
-      <div className="mt-1 text-lg font-medium text-zinc-900 dark:text-zinc-100">
-        {value}
+    <div className={wrapperClasses} title={title}>
+      <div className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        {label}
       </div>
+      <div className={valueClasses}>{value}</div>
     </div>
   );
 }

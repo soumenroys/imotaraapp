@@ -19,10 +19,12 @@ type Props = {
  * - Parent (EmotionTimeline) is responsible for the background rail + legend
  */
 export default function EmotionMiniTimeline({ records }: Props) {
-  if (!records || records.length === 0) return null;
+  // Defensive: always operate on a safe array
+  const safeRecords = Array.isArray(records) ? records : [];
+  if (!safeRecords.length) return null;
 
   // Sort by time ascending (older to newer)
-  const sorted = [...records].sort((a, b) => {
+  const sorted = [...safeRecords].sort((a, b) => {
     const ta = a.createdAt ?? a.updatedAt ?? 0;
     const tb = b.createdAt ?? b.updatedAt ?? 0;
     return ta - tb;
@@ -40,14 +42,16 @@ export default function EmotionMiniTimeline({ records }: Props) {
   const safeSpan = span === 0 ? 1 : span;
 
   return (
-    <div className="relative h-4 w-full">
+    <div
+      className="relative h-4 w-full"
+      aria-hidden="true"
+    >
       {sorted.map((record) => {
         const t = record.createdAt ?? record.updatedAt ?? 0;
         if (!t) return null;
 
         // If all timestamps are identical, place dots in the middle instead of far-left.
-        const x =
-          span === 0 ? 50 : ((t - minTs) / safeSpan) * 100;
+        const x = span === 0 ? 50 : ((t - minTs) / safeSpan) * 100;
 
         const isPending = Boolean(record.pending ?? (record as any).localOnly);
         const hasConflict = Boolean(record.conflict);

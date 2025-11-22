@@ -31,6 +31,9 @@ import { runAnalysisWithConsent } from "@/lib/imotara/runAnalysisWithConsent";
 import { saveSample } from "@/lib/imotara/history";
 import type { Emotion } from "@/types/history";
 
+// ⬇️ shared app top bar
+import TopBar from "@/components/imotara/TopBar";
+
 type Role = "user" | "assistant" | "system";
 type Message = {
   id: string;
@@ -553,357 +556,29 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-0px)] w-full max-w-7xl px-3 py-4 text-zinc-100 sm:px-4">
-      {/* Sidebar */}
-      <aside className="hidden w-72 flex-col gap-3 p-4 sm:flex imotara-glass-card">
-        <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
-            Conversations
-          </h2>
-          <button
-            onClick={newThread}
-            className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10"
-            aria-label="New conversation"
-          >
-            <Plus className="h-4 w-4" /> New
-          </button>
-        </div>
+    <>
+      {/* Global app top bar with nav + sync chip + conflicts */}
+      <TopBar title="Chat" showSyncChip showConflictsButton />
 
-        {/* NEW: tiny consent indicator in the sidebar */}
-        <div className="mb-2 hidden text-[11px] text-zinc-400 sm:block">
-          <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-zinc-300 backdrop-blur-sm">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-500"
-                }`}
-            />
-            {consentLabel}
-          </span>
-        </div>
-
-        <div className="flex-1 space-y-1 overflow-auto pr-1">
-          {!mounted ? (
-            <div
-              className="select-none rounded-xl border border-dashed border-white/20 bg-white/5 p-4 text-sm text-zinc-400"
-              suppressHydrationWarning
+      <div className="mx-auto flex h-[calc(100vh-0px)] w-full max-w-7xl px-3 py-4 text-zinc-100 sm:px-4">
+        {/* Sidebar */}
+        <aside className="hidden w-72 flex-col gap-3 p-4 sm:flex imotara-glass-card">
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+              Conversations
+            </h2>
+            <button
+              onClick={newThread}
+              className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10"
+              aria-label="New conversation"
             >
-              Loading…
-            </div>
-          ) : threads.length === 0 ? (
-            <div className="select-none rounded-xl border border-dashed border-white/20 bg-white/5 p-4 text-sm text-zinc-400">
-              No conversations yet. Create one.
-            </div>
-          ) : (
-            threads.map((t) => {
-              const isActive = t.id === activeId;
-              return (
-                <div
-                  key={t.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setActiveId(t.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setActiveId(t.id);
-                    }
-                  }}
-                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isActive
-                    ? "bg-white/10 shadow-md"
-                    : "hover:bg-white/5"
-                    }`}
-                >
-                  <div className="min-w-0">
-                    <div className="flex items' gap-2">
-                      <MessageSquare className="h-4 w-4 shrink-0 text-zinc-400" />
-                      <input
-                        className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-500 ${isActive ? "font-semibold text-zinc-100" : "text-zinc-200"
-                          }`}
-                        value={
-                          t.id === activeId
-                            ? activeThread?.title ?? ""
-                            : t.title
-                        }
-                        onChange={(e) =>
-                          t.id === activeId &&
-                          renameActive(e.target.value)
-                        }
-                        placeholder="Untitled"
-                      />
-                    </div>
-                    <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">
-                      <DateText ts={t.createdAt} />
-                    </p>
-                  </div>
-                  <button
-                    className="ml-2 hidden rounded-lg p-1 text-zinc-400 hover:bg-white/10 group-hover:block"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteThread(t.id);
-                    }}
-                    aria-label="Delete"
-                    title="Delete"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </aside>
-
-      {/* Main */}
-      <main className="flex flex-1 flex-col">
-        {/* HEADER: wrapped in glass card */}
-        <header className="sticky top-0 z-10 px-3 pt-3 sm:px-4">
-          <div className="imotara-glass-card px-3 py-3">
-            <div className="flex flex-col gap-2">
-              {/* Row 1: title + sync */}
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                {/* Left: icon + title */}
-                <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-white shadow-[0_10px_30px_rgba(15,23,42,0.8)]">
-                    <MessageSquare className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-zinc-50">
-                      <span suppressHydrationWarning>
-                        {mounted
-                          ? activeThread?.title ?? "Conversation"
-                          : ""}
-                      </span>
-                    </p>
-                    <p className="text-xs text-zinc-400">
-                      Private local preview. In this demo, messages never leave this browser.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Right: sync status + buttons + consent indicator */}
-                <div className="flex flex-wrap items-center justify-start gap-2 text-[11px] sm:justify-end">
-                  {/* Sync status chip */}
-                  <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/40 px-2 py-1 text-[11px] text-zinc-200 backdrop-blur-sm">
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${syncing
-                        ? "bg-amber-400"
-                        : syncError
-                          ? "bg-red-500"
-                          : lastSyncAt
-                            ? "bg-emerald-400"
-                            : "bg-zinc-500"
-                        }`}
-                    />
-                    {syncing
-                      ? "Syncing…"
-                      : lastSyncAt
-                        ? `Synced ${syncedCount ?? 0}`
-                        : "Not synced yet"}
-                  </span>
-                  {syncError ? (
-                    <span className="text-[11px] text-red-400">
-                      {syncError}
-                    </span>
-                  ) : null}
-
-                  {/* Sync button */}
-                  <button
-                    onClick={runSync}
-                    disabled={syncing}
-                    className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-sm transition hover:bg-white/10 disabled:opacity-60"
-                    title="Sync local ↔ remote history"
-                  >
-                    <RefreshCw
-                      className={`h-3 w-3 ${syncing ? "animate-spin" : ""
-                        }`}
-                    />
-                    Sync now
-                  </button>
-
-                  {/* Conflicts entrypoint – now routes to History page */}
-                  <Link
-                    href="/history"
-                    className="inline-flex"
-                    title="Open Emotion History to review conflicts"
-                  >
-                    <ConflictReviewButton />
-                  </Link>
-
-                  {/* NEW: tiny read-only consent indicator in header */}
-                  <span
-                    className={[
-                      "hidden sm:inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] backdrop-blur-sm",
-                      mode === "allow-remote"
-                        ? "border-emerald-300/70 bg-emerald-500/10 text-emerald-200"
-                        : "border-zinc-500/70 bg-black/40 text-zinc-300",
-                    ].join(" ")}
-                    title="Current emotion analysis mode"
-                  >
-                    <span
-                      className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${mode === "allow-remote"
-                        ? "bg-emerald-400"
-                        : "bg-zinc-500"
-                        }`}
-                    />
-                    {consentLabel}
-                  </span>
-                </div>
-              </div>
-
-              {/* Row 2: analysis + consent + actions */}
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                {/* Left: analysis & consent */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-[11px] font-medium text-zinc-400">
-                    Emotion analysis mode
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* analysis headline pill */}
-                    {analysis?.summary?.headline ? (
-                      <span
-                        className="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-xs text-zinc-100 backdrop-blur-sm"
-                        title="Emotion snapshot for this conversation"
-                      >
-                        {analysis.summary.headline}
-                      </span>
-                    ) : (
-                      <span className="rounded-full border border-dashed border-white/20 bg-black/30 px-2 py-1 text-xs text-zinc-400">
-                        No analysis yet
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <AnalysisConsentToggle />
-                    <span className="text-[11px] text-zinc-400">
-                      {consentLabel}
-                    </span>
-                  </div>
-
-                  <p className="mt-1 max-w-xs text-[11px] text-zinc-500">
-                    Use the toggle to switch between local-only and remote
-                    analysis. Your words stay on-device unless you explicitly
-                    allow remote.
-                  </p>
-                </div>
-
-                {/* Right: actions */}
-                <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
-                  {/* View this session in Emotion History */}
-                  <Link
-                    href={
-                      activeThread
-                        ? `/history?sessionId=${encodeURIComponent(
-                          activeThread.id
-                        )}${urlMessageId
-                          ? `&messageId=${encodeURIComponent(
-                            urlMessageId
-                          )}`
-                          : ""
-                        }`
-                        : "/history"
-                    }
-                    className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 sm:text-sm"
-                    title="Open Emotion History filtered to this chat session"
-                  >
-                    History
-                  </Link>
-
-                  {/* Re-analyze button with spinner */}
-                  <button
-                    onClick={triggerAnalyze}
-                    disabled={
-                      analyzing || !(activeThread?.messages?.length)
-                    }
-                    aria-busy={analyzing ? true : undefined}
-                    className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 disabled:opacity-60 sm:text-sm"
-                    title="Run emotion analysis now (respects your consent setting)"
-                  >
-                    {analyzing ? (
-                      <RefreshCw className="h-3 w-3 animate-spin sm:h-4 sm:w-4" />
-                    ) : null}
-                    Re-analyze
-                  </button>
-
-                  {/* Clear / Export / New */}
-                  <button
-                    onClick={clearChat}
-                    className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 disabled:opacity-60 sm:text-sm"
-                    title="Clear current conversation"
-                  >
-                    <Eraser className="h-3 w-3 sm:h-4 sm:w-4" /> Clear
-                  </button>
-                  <button
-                    onClick={exportJSON}
-                    className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 disabled:opacity-60 sm:text-sm"
-                    title="Download all conversations as JSON"
-                  >
-                    <Download className="h-3 w-3 sm:h-4 sm:w-4" /> Export
-                  </button>
-                  <button
-                    onClick={newThread}
-                    className="inline-flex items-center gap-1 rounded-2xl border border-white/15 bg-gradient-to-r from-indigo-500/70 via-sky-500/70 to-emerald-400/80 px-3 py-1.5 text-xs font-medium text-white shadow-md transition hover:brightness-110 sm:text-sm"
-                  >
-                    <Plus className="h-3 w-3 sm:h-4 sm:w-4" /> New
-                  </button>
-                </div>
-              </div>
-            </div>
+              <Plus className="h-4 w-4" /> New
+            </button>
           </div>
-        </header>
 
-        <div
-          ref={listRef}
-          className="flex-1 overflow-auto px-4 py-4 sm:px-6"
-        >
-          {!mounted ? (
-            <div className="mx-auto max-w-3xl">
-              <div
-                className="mt-8 rounded-2xl border border-dashed border-white/20 bg-black/30 p-8 text-center text-zinc-400"
-                suppressHydrationWarning
-              >
-                Loading…
-              </div>
-            </div>
-          ) : !activeThread || activeThread.messages.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="mx-auto max-w-3xl space-y-4">
-              <div className="imotara-glass-card p-4">
-                <MoodSummaryCard
-                  messages={appMessages}
-                  windowSize={10}
-                  mode="local"
-                />
-              </div>
-              {activeThread.messages.map((m) => (
-                <Bubble
-                  key={m.id}
-                  id={m.id}
-                  role={m.role}
-                  content={m.content}
-                  time={m.createdAt}
-                  highlighted={m.id === highlightedMessageId}
-                  sessionId={m.sessionId ?? activeThread.id}
-                  attachRef={
-                    m.id === urlMessageId
-                      ? (el) => {
-                        if (el) {
-                          messageTargetRef.current = el;
-                        }
-                      }
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="border-t border-white/10 px-3 pb-3 pt-2 sm:px-4">
-          {/* NEW: tiny consent mode indicator above composer */}
-          <div className="mx-auto mb-1 flex max-w-3xl justify-end">
-            <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/40 px-2.5 py-1 text-[11px] text-zinc-200 backdrop-blur-sm">
+          {/* NEW: tiny consent indicator in the sidebar */}
+          <div className="mb-2 hidden text-[11px] text-zinc-400 sm:block">
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-zinc-300 backdrop-blur-sm">
               <span
                 className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-500"
                   }`}
@@ -912,27 +587,363 @@ export default function ChatPage() {
             </span>
           </div>
 
-          <div className="mx-auto flex max-w-3xl items-end gap-2">
-            <textarea
-              ref={composerRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder="Type your message… (Enter to send, Shift+Enter for newline)"
-              rows={1}
-              className="max-h-[200px] flex-1 resize-none rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-indigo-400/70 focus:ring-1 focus:ring-indigo-500/60"
-            />
-            <button
-              onClick={sendMessage}
-              disabled={!draft.trim()}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/15 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 px-4 text-sm font-medium text-white shadow-lg transition hover:brightness-110 disabled:opacity-50"
-            >
-              <Send className="h-4 w-4" /> Send
-            </button>
+          <div className="flex-1 space-y-1 overflow-auto pr-1">
+            {!mounted ? (
+              <div
+                className="select-none rounded-xl border border-dashed border-white/20 bg-white/5 p-4 text-sm text-zinc-400"
+                suppressHydrationWarning
+              >
+                Loading…
+              </div>
+            ) : threads.length === 0 ? (
+              <div className="select-none rounded-xl border border-dashed border-white/20 bg-white/5 p-4 text-sm text-zinc-400">
+                No conversations yet. Create one.
+              </div>
+            ) : (
+              threads.map((t) => {
+                const isActive = t.id === activeId;
+                return (
+                  <div
+                    key={t.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setActiveId(t.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setActiveId(t.id);
+                      }
+                    }}
+                    className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isActive
+                      ? "bg-white/10 shadow-md"
+                      : "hover:bg-white/5"
+                      }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items' gap-2">
+                        <MessageSquare className="h-4 w-4 shrink-0 text-zinc-400" />
+                        <input
+                          className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-500 ${isActive
+                            ? "font-semibold text-zinc-100"
+                            : "text-zinc-200"
+                            }`}
+                          value={
+                            t.id === activeId
+                              ? activeThread?.title ?? ""
+                              : t.title
+                          }
+                          onChange={(e) =>
+                            t.id === activeId &&
+                            renameActive(e.target.value)
+                          }
+                          placeholder="Untitled"
+                        />
+                      </div>
+                      <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">
+                        <DateText ts={t.createdAt} />
+                      </p>
+                    </div>
+                    <button
+                      className="ml-2 hidden rounded-lg p-1 text-zinc-400 hover:bg-white/10 group-hover:block"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteThread(t.id);
+                      }}
+                      aria-label="Delete"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                );
+              })
+            )}
           </div>
-        </div>
-      </main>
-    </div>
+        </aside>
+
+        {/* Main */}
+        <main className="flex flex-1 flex-col">
+          {/* HEADER: wrapped in glass card */}
+          <header className="px-3 pt-3 sm:px-4">
+            <div className="imotara-glass-card px-3 py-3">
+              <div className="flex flex-col gap-2">
+                {/* Row 1: title + sync */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  {/* Left: icon + title */}
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-white shadow-[0_10px_30px_rgba(15,23,42,0.8)]">
+                      <MessageSquare className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-zinc-50">
+                        <span suppressHydrationWarning>
+                          {mounted
+                            ? activeThread?.title ?? "Conversation"
+                            : ""}
+                        </span>
+                      </p>
+                      <p className="text-xs text-zinc-400">
+                        Private local preview. In this demo, messages never
+                        leave this browser.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right: sync status + buttons + consent indicator */}
+                  <div className="flex flex-wrap items-center justify-start gap-2 text-[11px] sm:justify-end">
+                    {/* Sync status chip */}
+                    <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/40 px-2 py-1 text-[11px] text-zinc-200 backdrop-blur-sm">
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${syncing
+                          ? "bg-amber-400"
+                          : syncError
+                            ? "bg-red-500"
+                            : lastSyncAt
+                              ? "bg-emerald-400"
+                              : "bg-zinc-500"
+                          }`}
+                      />
+                      {syncing
+                        ? "Syncing…"
+                        : lastSyncAt
+                          ? `Synced ${syncedCount ?? 0}`
+                          : "Not synced yet"}
+                    </span>
+                    {syncError ? (
+                      <span className="text-[11px] text-red-400">
+                        {syncError}
+                      </span>
+                    ) : null}
+
+                    {/* Sync button */}
+                    <button
+                      onClick={runSync}
+                      disabled={syncing}
+                      className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-sm transition hover:bg-white/10 disabled:opacity-60"
+                      title="Sync local ↔ remote history"
+                    >
+                      <RefreshCw
+                        className={`h-3 w-3 ${syncing ? "animate-spin" : ""
+                          }`}
+                      />
+                      Sync now
+                    </button>
+
+                    {/* Conflicts entrypoint – now routes to History page */}
+                    <Link
+                      href="/history"
+                      className="inline-flex"
+                      title="Open Emotion History to review conflicts"
+                    >
+                      <ConflictReviewButton />
+                    </Link>
+
+                    {/* NEW: tiny read-only consent indicator in header */}
+                    <span
+                      className={[
+                        "hidden sm:inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] backdrop-blur-sm",
+                        mode === "allow-remote"
+                          ? "border-emerald-300/70 bg-emerald-500/10 text-emerald-200"
+                          : "border-zinc-500/70 bg-black/40 text-zinc-300",
+                      ].join(" ")}
+                      title="Current emotion analysis mode"
+                    >
+                      <span
+                        className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${mode === "allow-remote"
+                          ? "bg-emerald-400"
+                          : "bg-zinc-500"
+                          }`}
+                      />
+                      {consentLabel}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Row 2: analysis + consent + actions */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  {/* Left: analysis & consent */}
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[11px] font-medium text-zinc-400">
+                      Emotion analysis mode
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* analysis headline pill */}
+                      {analysis?.summary?.headline ? (
+                        <span
+                          className="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-xs text-zinc-100 backdrop-blur-sm"
+                          title="Emotion snapshot for this conversation"
+                        >
+                          {analysis.summary.headline}
+                        </span>
+                      ) : (
+                        <span className="rounded-full border border-dashed border-white/20 bg-black/30 px-2 py-1 text-xs text-zinc-400">
+                          No analysis yet
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <AnalysisConsentToggle />
+                      <span className="text-[11px] text-zinc-400">
+                        {consentLabel}
+                      </span>
+                    </div>
+
+                    <p className="mt-1 max-w-xs text-[11px] text-zinc-500">
+                      Use the toggle to switch between local-only and remote
+                      analysis. Your words stay on-device unless you explicitly
+                      allow remote.
+                    </p>
+                  </div>
+
+                  {/* Right: actions */}
+                  <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+                    {/* View this session in Emotion History */}
+                    <Link
+                      href={
+                        activeThread
+                          ? `/history?sessionId=${encodeURIComponent(
+                            activeThread.id
+                          )}${urlMessageId
+                            ? `&messageId=${encodeURIComponent(
+                              urlMessageId
+                            )}`
+                            : ""
+                          }`
+                          : "/history"
+                      }
+                      className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 sm:text-sm"
+                      title="Open Emotion History filtered to this chat session"
+                    >
+                      History
+                    </Link>
+
+                    {/* Re-analyze button with spinner */}
+                    <button
+                      onClick={triggerAnalyze}
+                      disabled={
+                        analyzing || !(activeThread?.messages?.length)
+                      }
+                      aria-busy={analyzing ? true : undefined}
+                      className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 disabled:opacity-60 sm:text-sm"
+                      title="Run emotion analysis now (respects your consent setting)"
+                    >
+                      {analyzing ? (
+                        <RefreshCw className="h-3 w-3 animate-spin sm:h-4 sm:w-4" />
+                      ) : null}
+                      Re-analyze
+                    </button>
+
+                    {/* Clear / Export / New */}
+                    <button
+                      onClick={clearChat}
+                      className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 disabled:opacity-60 sm:text-sm"
+                      title="Clear current conversation"
+                    >
+                      <Eraser className="h-3 w-3 sm:h-4 sm:w-4" /> Clear
+                    </button>
+                    <button
+                      onClick={exportJSON}
+                      className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 disabled:opacity-60 sm:text-sm"
+                      title="Download all conversations as JSON"
+                    >
+                      <Download className="h-3 w-3 sm:h-4 sm:w-4" /> Export
+                    </button>
+                    <button
+                      onClick={newThread}
+                      className="inline-flex items-center gap-1 rounded-2xl border border-white/15 bg-gradient-to-r from-indigo-500/70 via-sky-500/70 to-emerald-400/80 px-3 py-1.5 text-xs font-medium text-white shadow-md transition hover:brightness-110 sm:text-sm"
+                    >
+                      <Plus className="h-3 w-3 sm:h-4 sm:w-4" /> New
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <div
+            ref={listRef}
+            className="flex-1 overflow-auto px-4 py-4 sm:px-6"
+          >
+            {!mounted ? (
+              <div className="mx-auto max-w-3xl">
+                <div
+                  className="mt-8 rounded-2xl border border-dashed border-white/20 bg-black/30 p-8 text-center text-zinc-400"
+                  suppressHydrationWarning
+                >
+                  Loading…
+                </div>
+              </div>
+            ) : !activeThread || activeThread.messages.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <div className="mx-auto max-w-3xl space-y-4">
+                <div className="imotara-glass-card p-4">
+                  <MoodSummaryCard
+                    messages={appMessages}
+                    windowSize={10}
+                    mode="local"
+                  />
+                </div>
+                {activeThread.messages.map((m) => (
+                  <Bubble
+                    key={m.id}
+                    id={m.id}
+                    role={m.role}
+                    content={m.content}
+                    time={m.createdAt}
+                    highlighted={m.id === highlightedMessageId}
+                    sessionId={m.sessionId ?? activeThread.id}
+                    attachRef={
+                      m.id === urlMessageId
+                        ? (el) => {
+                          if (el) {
+                            messageTargetRef.current = el;
+                          }
+                        }
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-white/10 px-3 pb-3 pt-2 sm:px-4">
+            {/* NEW: tiny consent mode indicator above composer */}
+            <div className="mx-auto mb-1 flex max-w-3xl justify-end">
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/40 px-2.5 py-1 text-[11px] text-zinc-200 backdrop-blur-sm">
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-500"
+                    }`}
+                />
+                {consentLabel}
+              </span>
+            </div>
+
+            <div className="mx-auto flex max-w-3xl items-end gap-2">
+              <textarea
+                ref={composerRef}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder="Type your message… (Enter to send, Shift+Enter for newline)"
+                rows={1}
+                className="max-h-[200px] flex-1 resize-none rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-indigo-400/70 focus:ring-1 focus:ring-indigo-500/60"
+              />
+              <button
+                onClick={sendMessage}
+                disabled={!draft.trim()}
+                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/15 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 px-4 text-sm font-medium text-white shadow-lg transition hover:brightness-110 disabled:opacity-50"
+              >
+                <Send className="h-4 w-4" /> Send
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    </>
   );
 }
 

@@ -12,6 +12,22 @@ import useSyncHistory, { type SyncState } from "@/hooks/useSyncHistory";
  * - soft fade when freshly synced
  */
 
+const STATE_TO_DOT: Record<SyncState, string> = {
+  syncing: "bg-sky-400",
+  synced: "bg-emerald-400",
+  offline: "bg-zinc-400",
+  error: "bg-red-500",
+  idle: "bg-zinc-400",
+};
+
+const STATE_TO_LABEL: Record<SyncState, string> = {
+  syncing: "Syncing",
+  synced: "Synced",
+  offline: "Offline",
+  error: "Error",
+  idle: "Idle",
+};
+
 export default function SyncStatusBar() {
   const sync = useSyncHistory({
     intervalMs: 0,
@@ -20,6 +36,7 @@ export default function SyncStatusBar() {
 
   // ⭐ fade-in animation trigger on newly synced state
   const [pulse, setPulse] = useState(false);
+
   useEffect(() => {
     if (sync.state === "synced") {
       setPulse(true);
@@ -29,25 +46,8 @@ export default function SyncStatusBar() {
   }, [sync.state]);
 
   const { dotClass, label, sub } = useMemo(() => {
-    const stateToDot: Record<SyncState, string> = {
-      syncing: "bg-sky-400",
-      synced: "bg-emerald-400",
-      offline: "bg-zinc-400",
-      error: "bg-red-500",
-      idle: "bg-zinc-400",
-    };
-    const lc = stateToDot[sync.state] ?? "bg-zinc-400";
-
-    const lbl =
-      sync.state === "syncing"
-        ? "Syncing"
-        : sync.state === "synced"
-          ? "Synced"
-          : sync.state === "offline"
-            ? "Offline"
-            : sync.state === "error"
-              ? "Error"
-              : "Idle";
+    const dotClass = STATE_TO_DOT[sync.state] ?? "bg-zinc-400";
+    const label = STATE_TO_LABEL[sync.state] ?? "Idle";
 
     let sub = "";
     if (sync.state === "synced" && sync.lastSyncedAt) {
@@ -58,19 +58,16 @@ export default function SyncStatusBar() {
       sub = sync.lastError;
     }
 
-    return { dotClass: lc, label: lbl, sub };
+    return { dotClass, label, sub };
   }, [sync.state, sync.lastSyncedAt, sync.lastError]);
+
+  const isSyncing = sync.state === "syncing";
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-5xl justify-center px-4 pb-4">
       <div
-        className={[
-          "pointer-events-auto flex w-full items-center justify-between gap-3 rounded-2xl border border-white/15",
-          "bg-white/12 text-xs text-zinc-50 shadow-lg shadow-sky-900/30 backdrop-blur-md",
-          "dark:bg-black/65",
-          "transition-opacity duration-500",
-          pulse ? "opacity-100" : "opacity-90",
-        ].join(" ")}
+        className={`pointer-events-auto flex w-full items-center justify-between gap-3 rounded-2xl border border-white/15 bg-white/12 text-xs text-zinc-50 shadow-lg shadow-sky-900/30 backdrop-blur-md dark:bg-black/65 transition-opacity duration-500 ${pulse ? "opacity-100" : "opacity-90"
+          }`}
         aria-label="Imotara sync status"
       >
         {/* Left: status dot + label */}
@@ -95,24 +92,16 @@ export default function SyncStatusBar() {
           <button
             type="button"
             onClick={sync.manualSync}
-            disabled={sync.state === "syncing"}
-            aria-busy={sync.state === "syncing" ? "true" : "false"}
-            className={[
-              "inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1",
-              "text-[11px] font-medium text-zinc-50 shadow-sm transition",
-              "hover:bg-white/10 disabled:opacity-40",
-            ].join(" ")}
+            disabled={isSyncing}
+            aria-busy={isSyncing ? "true" : "false"}
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[11px] font-medium text-zinc-50 shadow-sm transition hover:bg-white/10 disabled:opacity-40"
             title="Force sync now"
           >
             <span
-              className={[
-                "inline-block h-3 w-3 rounded-full border border-white/40",
-                sync.state === "syncing"
-                  ? "animate-pulse-soft bg-sky-400"
-                  : "bg-transparent",
-              ].join(" ")}
+              className={`inline-block h-3 w-3 rounded-full border border-white/40 ${isSyncing ? "animate-pulse-soft bg-sky-400" : "bg-transparent"
+                }`}
             />
-            <span>{sync.state === "syncing" ? "Syncing…" : "Sync now"}</span>
+            <span>{isSyncing ? "Syncing…" : "Sync now"}</span>
           </button>
         </div>
       </div>

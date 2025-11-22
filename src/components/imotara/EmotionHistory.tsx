@@ -986,7 +986,10 @@ export default function EmotionHistory() {
   }));
 
   return (
-    <section className="w-full space-y-3 text-sm text-zinc-900 dark:text-zinc-100">
+    <section
+      className="w-full space-y-3 text-sm text-zinc-900 dark:text-zinc-100"
+      aria-label="Emotion history timeline and sync controls"
+    >
       {state === "error" && lastError && (
         <div className="mb-3 rounded-xl border border-red-500/60 bg-red-500/10 px-4 py-2 text-sm text-red-100 shadow-sm backdrop-blur-sm">
           Sync error: {lastError}
@@ -1008,7 +1011,7 @@ export default function EmotionHistory() {
       )}
 
       {/* Header with status chip, consent indicator and manual controls */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 shadow-sm backdrop-blur-md dark:bg-white/10">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 shadow-sm backdrop-blur-md dark:bg.white/10">
         <div className="flex flex-wrap items-center gap-2">
           <SyncStatusChip
             state={

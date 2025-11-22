@@ -22,9 +22,13 @@ type Props = {
 };
 
 export default function EmotionTimeline({ items }: Props) {
-  if (!items || items.length === 0) {
+  // ⬇️ Defensive guard: always work with a safe array
+  const safeItems = Array.isArray(items) ? items : [];
+  const totalEntries = safeItems.length;
+
+  if (!safeItems || safeItems.length === 0) {
     return (
-      <div className="imotara-glass-soft rounded-2xl p-6 text-sm text-zinc-400">
+      <div className="imotara-glass-soft rounded-2xl p-6 text-sm text-zinc-500 dark:text-zinc-400">
         No history to display yet. As you chat with Imotara, your emotional
         timeline will grow here.
       </div>
@@ -33,9 +37,9 @@ export default function EmotionTimeline({ items }: Props) {
 
   // Group items per day
   const byDay = new Map<string, EmotionRecord[]>();
-  for (const r of items) {
+  for (const r of safeItems) {
     const t = r.createdAt ?? r.updatedAt ?? 0;
-    if (!t) continue;
+    if (!t || Number.isNaN(t)) continue;
     const dayKey = format(new Date(t), "yyyy-MM-dd");
     const arr = byDay.get(dayKey);
     if (arr) arr.push(r);
@@ -46,17 +50,18 @@ export default function EmotionTimeline({ items }: Props) {
     a < b ? 1 : a > b ? -1 : 0
   );
 
-  const totalEntries = items.length;
-
   return (
-    <div className="space-y-12">
+    <div className="space-y-12" aria-label="Emotion timeline">
       {/* MINI TIMELINE AREA */}
-      <div className="imotara-glass-card mt-4 rounded-2xl p-4">
+      <section
+        className="imotara-glass-card mt-4 rounded-2xl p-4"
+        aria-label="Overall emotion timeline"
+      >
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             Overall Timeline
           </h3>
-          <span className="imotara-pill text-[10px] text-zinc-300">
+          <span className="imotara-pill text-[10px] text-zinc-500 dark:text-zinc-300">
             {totalEntries} entr{totalEntries === 1 ? "y" : "ies"}
           </span>
         </div>
@@ -67,13 +72,16 @@ export default function EmotionTimeline({ items }: Props) {
           <div className="h-1.5 w-full rounded-full bg-gradient-to-r from-indigo-600/35 via-sky-500/25 to-emerald-500/35" />
 
           {/* Emotion dots rendered by MiniTimeline */}
-          <div className="pointer-events-none absolute inset-0 flex items-center">
-            <EmotionMiniTimeline records={items} />
+          <div
+            className="pointer-events-none absolute inset-0 flex items-center"
+            aria-hidden="true"
+          >
+            <EmotionMiniTimeline records={safeItems} />
           </div>
         </div>
 
         {/* Legend row (aligned with EmotionMiniTimeline colors) */}
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-zinc-400">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-zinc-500 dark:text-zinc-400">
           <span className="imotara-pill flex items-center gap-1">
             <span className="h-2 w-2 rounded-full bg-emerald-400" />
             Synced
@@ -95,7 +103,7 @@ export default function EmotionTimeline({ items }: Props) {
             Conflict
           </span>
         </div>
-      </div>
+      </section>
 
       {/* DAILY SECTIONS */}
       {days.map(([dayKey, recs]) => {
@@ -107,23 +115,30 @@ export default function EmotionTimeline({ items }: Props) {
             return ta - tb;
           });
 
-        const dayLabel = format(new Date(dayKey), "EEEE, MMM d yyyy");
+        let dayLabel = dayKey;
+        try {
+          dayLabel = format(new Date(dayKey), "EEEE, MMM d yyyy");
+        } catch {
+          // fall back to raw key if formatting fails
+          dayLabel = dayKey;
+        }
 
         return (
           <section
             key={dayKey}
-            className="imotara-glass-soft rounded-2xl bg-white/[0.08] p-5 shadow-lg ring-1 ring-white/5 transition-colors hover:bg-white/[0.12] dark:bg-white/5 dark:hover:bg-white/10"
+            className="imotara-glass-soft rounded-2xl bg-white/[0.08] p-5 shadow-lg ring-1 ring-white/5 transition-colors hover:bg-white/[0.12] dark:bg-white/5 dark:ring-white/10 dark:hover:bg-white/10"
+            aria-label={`Entries for ${dayLabel}`}
           >
             <div className="mb-4 flex items-center justify-between">
-              <div className="text-sm font-semibold text-zinc-200">
+              <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-200">
                 {dayLabel}
               </div>
-              <div className="text-[11px] text-zinc-400">
+              <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
                 {sorted.length} entr{sorted.length === 1 ? "y" : "ies"}
               </div>
             </div>
 
-            <ul className="space-y-3">
+            <ul className="space-y-3" role="list">
               {sorted.map((r) => {
                 const when = r.updatedAt ?? r.createdAt ?? 0;
                 const tag = primaryTag(r);
@@ -156,6 +171,15 @@ export default function EmotionTimeline({ items }: Props) {
                           ? "Chat"
                           : rawSource;
 
+                const messageText =
+                  r.message?.trim() && r.message.trim().length > 0
+                    ? r.message
+                    : "No message";
+
+                const timeText = when
+                  ? format(new Date(when), "HH:mm:ss")
+                  : "--:--:--";
+
                 return (
                   <li
                     key={r.id}
@@ -163,52 +187,54 @@ export default function EmotionTimeline({ items }: Props) {
                       "imotara-history-item relative p-4 shadow-md transition-all hover:shadow-lg",
                       isServerConfirmed ? "ring-1 ring-emerald-500/40" : "",
                     ].join(" ")}
+                    aria-label={`Emotion ${tagText || r.emotion} at ${timeText}`}
                   >
                     {/* Glow dot at left */}
                     <div
-                      className={`absolute left-[-14px] top-5 h-3 w-3 rounded-full bg-gradient-to-br ${glowColors} shadow-[0_0_12px_rgba(255,255,255,0.35)]`}
+                      className={`pointer-events-none absolute left-[-14px] top-5 h-3 w-3 rounded-full bg-gradient-to-br ${glowColors} shadow-[0_0_12px_rgba(255,255,255,0.35)]`}
+                      aria-hidden="true"
                     />
 
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="line-clamp-3 whitespace-pre-wrap text-sm text-zinc-200">
+                        <div className="line-clamp-3 whitespace-pre-wrap text-sm text-zinc-900 dark:text-zinc-200">
                           {r.message?.trim() ? (
                             r.message
                           ) : (
-                            <em className="text-zinc-500">No message</em>
+                            <em className="text-zinc-500 dark:text-zinc-400">
+                              No message
+                            </em>
                           )}
                         </div>
 
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-400">
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                           <span>{tagText}</span>
 
                           {sourceLabel && (
-                            <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] text-zinc-300 backdrop-blur-sm">
+                            <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] text-zinc-700 backdrop-blur-sm dark:text-zinc-200">
                               {sourceLabel}
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex shrink-0 flex-col items-end gap-2 text-xs text-zinc-400">
+                      <div className="flex shrink-0 flex-col items-end gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                         <div className="flex items-center gap-1">
                           {hasConflict && (
-                            <span className="rounded-full border border-amber-400/50 bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-300 backdrop-blur-sm">
+                            <span className="rounded-full border border-amber-400/50 bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-900 backdrop-blur-sm dark:text-amber-200">
                               Conflict
                             </span>
                           )}
 
                           {isPending && (
-                            <span className="rounded-full border border-sky-400/50 bg-sky-500/20 px-2 py-0.5 text-[10px] text-sky-200 backdrop-blur-sm">
+                            <span className="rounded-full border border-sky-400/50 bg-sky-500/20 px-2 py-0.5 text-[10px] text-sky-900 backdrop-blur-sm dark:text-sky-100">
                               Pending
                             </span>
                           )}
                         </div>
 
-                        <div className="text-right text-zinc-300">
-                          {when
-                            ? format(new Date(when), "HH:mm:ss")
-                            : "--:--:--"}
+                        <div className="text-right text-zinc-600 dark:text-zinc-300">
+                          {timeText}
                         </div>
                       </div>
                     </div>

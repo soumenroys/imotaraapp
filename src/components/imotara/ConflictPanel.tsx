@@ -21,33 +21,37 @@ export default function ConflictPanel({
 }: Props) {
   const [choices, setChoices] = useState<Record<string, ChoiceKeep>>({});
 
+  // Defensive: always operate on a safe array
+  const list: ConflictPreview[] = Array.isArray(conflicts)
+    ? conflicts
+    : [];
+  const hasConflicts = list.length > 0;
+
   // Initialize defaults when the panel opens or conflicts change
   useEffect(() => {
     if (!open) return;
-    if (!Array.isArray(conflicts) || conflicts.length === 0) {
+    if (!hasConflicts) {
       setChoices({});
       return;
     }
 
     const initial: Record<string, ChoiceKeep> = {};
-    for (const c of conflicts) {
+    for (const c of list) {
       const lu = c.local?.updatedAt ?? 0;
       const ru = c.remote?.updatedAt ?? 0;
       initial[c.id] = lu >= ru ? "local" : "remote";
     }
     setChoices(initial);
-  }, [open, conflicts]);
+  }, [open, hasConflicts, list]);
 
   if (!open) return null;
-
-  const hasConflicts = conflicts.length > 0;
 
   const submit = () => {
     if (!hasConflicts) {
       onClose();
       return;
     }
-    const payload = conflicts.map((c) => ({
+    const payload = list.map((c) => ({
       id: c.id,
       keep: choices[c.id] ?? "local",
     }));
@@ -56,7 +60,7 @@ export default function ConflictPanel({
 
   const setAll = (keep: ChoiceKeep) => {
     const next: Record<string, ChoiceKeep> = {};
-    for (const c of conflicts) {
+    for (const c of list) {
       next[c.id] = keep;
     }
     setChoices(next);
@@ -71,6 +75,7 @@ export default function ConflictPanel({
       role="dialog"
       aria-modal="true"
       aria-labelledby="conflict-panel-title"
+      aria-describedby="conflict-panel-description"
       onKeyDown={(e) => {
         if (e.key === "Escape" || e.key === "Esc") {
           e.stopPropagation();
@@ -96,7 +101,10 @@ export default function ConflictPanel({
             >
               Resolve Conflicts
             </h2>
-            <p className="text-[11px] text-zinc-300">
+            <p
+              id="conflict-panel-description"
+              className="text-[11px] text-zinc-300"
+            >
               Choose whether to keep your local edit or the version from the
               server. Fields with a soft highlight differ between local and
               remote.
@@ -118,7 +126,7 @@ export default function ConflictPanel({
             <p className="text-sm text-zinc-200">No conflicts to resolve.</p>
           ) : (
             <ul className="space-y-3">
-              {conflicts.map((c) => {
+              {list.map((c) => {
                 const choice = choices[c.id] ?? "local";
                 const localSelected = choice === "local";
                 const remoteSelected = choice === "remote";
@@ -126,6 +134,10 @@ export default function ConflictPanel({
                 const emotionChanged = isFieldChanged(c, "emotion");
                 const intensityChanged = isFieldChanged(c, "intensity");
                 const messageChanged = isFieldChanged(c, "message");
+
+                const changedCount = Array.isArray(c.diffs)
+                  ? c.diffs.length
+                  : 0;
 
                 return (
                   <li
@@ -148,6 +160,14 @@ export default function ConflictPanel({
                             {c.summary}
                           </span>
                         )}
+
+                        {changedCount > 0 && (
+                          <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] text-zinc-200 ring-1 ring-white/15">
+                            {changedCount} field
+                            {changedCount === 1 ? "" : "s"} changed
+                          </span>
+                        )}
+
                         <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-zinc-200">
                           Keeping:{" "}
                           <span className="font-semibold text-emerald-200">
@@ -321,8 +341,8 @@ export default function ConflictPanel({
         <div className="flex flex-col gap-2 border-t border-white/10 px-4 py-3 text-xs text-zinc-200 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1">
             <div>
-              {conflicts.length} conflict
-              {conflicts.length === 1 ? "" : "s"}
+              {list.length} conflict
+              {list.length === 1 ? "" : "s"}
             </div>
             {hasConflicts && (
               <div className="flex flex-wrap items-center gap-2">

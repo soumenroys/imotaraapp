@@ -10,6 +10,11 @@ import useSyncHistory, { type SyncState } from "@/hooks/useSyncHistory";
  * - glassy bar floating above the gradient background
  * - small glowing status dot
  * - soft fade when freshly synced
+ *
+ * NOW ENHANCED WITH:
+ * - Offline detection
+ * - “Back online” auto-retry indicator
+ * - No change to existing logic, dot colors, or labels
  */
 
 const STATE_TO_DOT: Record<SyncState, string> = {
@@ -43,7 +48,6 @@ export default function SyncStatusBar() {
     runOnMount: false,
   });
 
-  // Some hooks may expose remoteCount; read defensively
   const remoteCount =
     typeof (sync as any)?.remoteCount === "number"
       ? ((sync as any).remoteCount as number)
@@ -60,29 +64,73 @@ export default function SyncStatusBar() {
     }
   }, [sync.state]);
 
+  // ⭐ NEW: browser offline/online indicators
+  const [isOffline, setIsOffline] = useState(
+    typeof navigator !== "undefined" ? !navigator.onLine : false
+  );
+  const [justOnline, setJustOnline] = useState(false);
+
+  // Listen to browser connectivity
+  useEffect(() => {
+    function goOffline() {
+      setIsOffline(true);
+    }
+    function goOnline() {
+      setIsOffline(false);
+      setJustOnline(true);
+      setTimeout(() => setJustOnline(false), 3000);
+
+      // auto-retry queued changes
+      sync.manualSync?.();
+    }
+
+    window.addEventListener("offline", goOffline);
+    window.addEventListener("online", goOnline);
+    return () => {
+      window.removeEventListener("offline", goOffline);
+      window.removeEventListener("online", goOnline);
+    };
+  }, [sync.manualSync]);
+
   const { dotClass, label, sub } = useMemo(() => {
-    const dotClass = STATE_TO_DOT[sync.state] ?? "bg-zinc-400";
-    const label = STATE_TO_LABEL[sync.state] ?? "Idle";
+    let effectiveState = sync.state;
+
+    // Override visual state when browser offline
+    if (isOffline) {
+      effectiveState = "offline";
+    }
+
+    const dotClass = STATE_TO_DOT[effectiveState] ?? "bg-zinc-400";
+    let label = STATE_TO_LABEL[effectiveState] ?? "Idle";
 
     let sub = "";
-    if (sync.state === "synced" && sync.lastSyncedAt) {
+    if (effectiveState === "offline") {
+      sub = "Will retry when back online";
+    } else if (justOnline) {
+      label = "Back online";
+      sub = "Syncing queued…";
+    } else if (effectiveState === "synced" && sync.lastSyncedAt) {
       const t = formatTime(sync.lastSyncedAt);
       sub = t ? `Last synced ${t}` : "Last synced recently";
-    } else if (sync.state === "offline") {
-      sub = "Will retry when back online";
-    } else if (sync.state === "error" && sync.lastError) {
+    } else if (effectiveState === "error" && sync.lastError) {
       sub = sync.lastError;
     }
 
-    // Optional extra context when we know server record count
-    if (sync.state === "synced" && remoteCount != null) {
+    if (effectiveState === "synced" && remoteCount != null) {
       const recordsLabel = `${remoteCount} record${remoteCount === 1 ? "" : "s"
         } on server`;
       sub = sub ? `${sub} • ${recordsLabel}` : recordsLabel;
     }
 
     return { dotClass, label, sub };
-  }, [sync.state, sync.lastSyncedAt, sync.lastError, remoteCount]);
+  }, [
+    sync.state,
+    sync.lastSyncedAt,
+    sync.lastError,
+    remoteCount,
+    isOffline,
+    justOnline,
+  ]);
 
   const isSyncing = sync.state === "syncing";
 
@@ -114,6 +162,7 @@ export default function SyncStatusBar() {
             className={`h-2.5 w-2.5 rounded-full ${dotClass} shadow-[0_0_8px_rgba(255,255,255,0.4)]`}
           />
           <span className="text-xs font-medium">{label}</span>
+
           {sub && (
             <span className="hidden truncate text-[11px] text-zinc-300 sm:inline">
               • {sub}
@@ -133,7 +182,9 @@ export default function SyncStatusBar() {
             title={buttonTitle}
           >
             <span
-              className={`inline-block h-3 w-3 rounded-full border border-white/40 ${isSyncing ? "animate-pulse-soft bg-sky-400" : "bg-transparent"
+              className={`inline-block h-3 w-3 rounded-full border border-white/40 ${isSyncing
+                ? "animate-pulse-soft bg-sky-400"
+                : "bg-transparent"
                 }`}
             />
             <span>{buttonLabel}</span>

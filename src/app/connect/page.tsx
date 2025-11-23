@@ -9,17 +9,25 @@ export const metadata = {
 
 export default function ConnectPage() {
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-16 text-zinc-50 sm:px-6">
+    <main
+      className="mx-auto w-full max-w-5xl px-4 py-16 text-zinc-50 sm:px-6"
+      aria-labelledby="connect-title"
+    >
       {/* Header */}
       <header className="mb-10 max-w-3xl">
-        <div className="imotara-glass-card px-6 py-6 sm:px-8 sm:py-8">
+        <div className="imotara-glass-card rounded-2xl px-6 py-6 shadow-xl backdrop-blur-md sm:px-8 sm:py-8">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">
             Imotara · Connect
           </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl">
+
+          <h1
+            id="connect-title"
+            className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl"
+          >
             Connect with the Imotara team
           </h1>
-          <p className="mt-4 leading-7 text-zinc-300">
+
+          <p className="mt-4 leading-7 text-zinc-300 sm:text-base">
             We’d love to hear from you — whether you’re sharing feedback,
             exploring partnerships, or need help. Choose a quick contact option
             or drop us a message using the form. Submitting the form will open
@@ -31,7 +39,8 @@ export default function ConnectPage() {
       <div className="mt-6 grid gap-8 lg:grid-cols-2">
         {/* Quick contact cards */}
         <section className="space-y-4">
-          <div className="imotara-glass-soft rounded-2xl p-6">
+          {/* Email */}
+          <div className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
             <h2 className="text-lg font-medium text-zinc-50">Email</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
               The best way to reach us for support, feedback, or press.
@@ -46,7 +55,8 @@ export default function ConnectPage() {
             </div>
           </div>
 
-          <div className="imotara-glass-soft rounded-2xl p-6">
+          {/* Social */}
+          <div className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
             <h2 className="text-lg font-medium text-zinc-50">Social</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
               Follow updates, announcements, and behind-the-scenes notes.
@@ -79,7 +89,8 @@ export default function ConnectPage() {
             </div>
           </div>
 
-          <div className="imotara-glass-soft rounded-2xl p-6">
+          {/* Partnerships */}
+          <div className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
             <h2 className="text-lg font-medium text-zinc-50">Partnerships</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
               Research collaborations, well-being programs, or platform
@@ -96,12 +107,12 @@ export default function ConnectPage() {
           </div>
         </section>
 
-        {/* Contact form (mailto-based, no Formspree) */}
-        <section className="imotara-glass-card rounded-2xl p-6 sm:p-7">
+        {/* Contact form */}
+        <section className="imotara-glass-card rounded-2xl p-6 shadow-xl backdrop-blur-md sm:p-7">
           <h2 className="text-lg font-medium text-zinc-50">Send a message</h2>
 
           <p className="mt-3 text-sm text-zinc-300">
-            This form will open your default email app and pre-fill the details.
+            This form will open your default email app and pre-fill the message.
             You can review everything before sending.
           </p>
 
@@ -112,6 +123,7 @@ export default function ConnectPage() {
             className="mt-6 space-y-5"
           >
             <div className="grid gap-5 sm:grid-cols-2">
+              {/* Name */}
               <div className="flex flex-col">
                 <label
                   htmlFor="name"
@@ -123,11 +135,12 @@ export default function ConnectPage() {
                   id="name"
                   name="name"
                   required
-                  className="mt-2 rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/60"
+                  className="mt-2 rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/60"
                   placeholder="Your name"
                 />
               </div>
 
+              {/* Email */}
               <div className="flex flex-col">
                 <label
                   htmlFor="email"
@@ -140,12 +153,13 @@ export default function ConnectPage() {
                   name="email"
                   type="email"
                   required
-                  className="mt-2 rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/60"
+                  className="mt-2 rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/60"
                   placeholder="you@example.com"
                 />
               </div>
             </div>
 
+            {/* Topic */}
             <div className="flex flex-col">
               <label
                 htmlFor="topic"
@@ -156,8 +170,8 @@ export default function ConnectPage() {
               <select
                 id="topic"
                 name="topic"
-                className="mt-2 w-full rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/60"
                 defaultValue="General"
+                className="mt-2 w-full rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/60"
               >
                 <option>General</option>
                 <option>Feedback</option>
@@ -167,6 +181,7 @@ export default function ConnectPage() {
               </select>
             </div>
 
+            {/* Message */}
             <div className="flex flex-col">
               <label
                 htmlFor="message"
@@ -179,11 +194,12 @@ export default function ConnectPage() {
                 name="message"
                 rows={5}
                 required
-                className="mt-2 rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/60"
+                className="mt-2 rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/60"
                 placeholder="How can we help?"
               />
             </div>
 
+            {/* Consent */}
             <div className="flex items-start gap-3">
               <input
                 id="consent"
@@ -196,8 +212,8 @@ export default function ConnectPage() {
                 htmlFor="consent"
                 className="text-sm leading-6 text-zinc-300"
               >
-                I agree that Imotara may use this information to contact me
-                about my request. See our{" "}
+                I agree that Imotara may use this information to contact me.
+                See our{" "}
                 <Link
                   href="/privacy"
                   className="underline decoration-emerald-300/70 underline-offset-4 hover:text-emerald-200"
@@ -208,6 +224,7 @@ export default function ConnectPage() {
               </label>
             </div>
 
+            {/* Submit */}
             <div className="flex items-center gap-3">
               <button
                 type="submit"
@@ -216,14 +233,14 @@ export default function ConnectPage() {
                 Open in email app
               </button>
               <p className="text-xs text-zinc-400">
-                Your default mail client will open with this message ready to
-                send.
+                Your mail app will be opened with details pre-filled.
               </p>
             </div>
           </form>
         </section>
       </div>
 
+      {/* Footer note */}
       <p className="mt-10 max-w-3xl text-xs text-zinc-400">
         For urgent safety concerns, please contact local emergency services.
         Imotara is a reflective tool and not a substitute for professional care.

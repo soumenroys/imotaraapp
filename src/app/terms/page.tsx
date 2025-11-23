@@ -9,13 +9,16 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <PageShell>
+    <PageShell aria-labelledby="terms-title">
       {/* Hero / Intro */}
-      <section className="imotara-glass-card rounded-2xl px-6 py-8 sm:px-8 sm:py-10">
+      <section className="imotara-glass-card rounded-2xl px-6 py-8 shadow-xl backdrop-blur-md sm:px-8 sm:py-10">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">
           Imotara · Terms
         </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl">
+        <h1
+          id="terms-title"
+          className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl"
+        >
           Terms of Service
         </h1>
         <p className="mt-5 leading-7 text-zinc-300">
@@ -25,7 +28,7 @@ export default function TermsPage() {
       </section>
 
       {/* 1) Eligibility & Accounts */}
-      <section className="mt-8 imotara-glass-soft rounded-2xl p-6">
+      <section className="mt-8 imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
         <h2 className="text-xl font-medium text-zinc-50">
           1) Eligibility &amp; Accounts
         </h2>
@@ -37,7 +40,7 @@ export default function TermsPage() {
       </section>
 
       {/* 2) Acceptable Use */}
-      <section className="mt-6 imotara-glass-soft rounded-2xl p-6">
+      <section className="mt-6 imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
         <h2 className="text-xl font-medium text-zinc-50">2) Acceptable Use</h2>
         <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
           <li>No illegal activity, harassment, or infringement of others’ rights.</li>
@@ -47,12 +50,12 @@ export default function TermsPage() {
       </section>
 
       {/* 3) Your Content */}
-      <section className="mt-6 imotara-glass-soft rounded-2xl p-6">
+      <section className="mt-6 imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
         <h2 className="text-xl font-medium text-zinc-50">3) Your Content</h2>
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           You retain ownership of content you enter. You grant us a limited,
-          revocable license to process that content solely to operate and
-          improve the features you use, consistent with our{" "}
+          revocable license to process that content solely to operate and improve
+          the features you use, consistent with our{" "}
           <Link
             href="/privacy"
             className="underline decoration-emerald-300/70 underline-offset-4 hover:text-emerald-200"
@@ -64,7 +67,7 @@ export default function TermsPage() {
       </section>
 
       {/* 4) Feedback */}
-      <section className="mt-6 imotara-glass-soft rounded-2xl p-6">
+      <section className="mt-6 imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
         <h2 className="text-xl font-medium text-zinc-50">4) Feedback</h2>
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           If you send suggestions or feedback, you allow us to use them without
@@ -73,7 +76,7 @@ export default function TermsPage() {
       </section>
 
       {/* 5) Disclaimers */}
-      <section className="mt-6 imotara-glass-soft rounded-2xl p-6">
+      <section className="mt-6 imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
         <h2 className="text-xl font-medium text-zinc-50">5) Disclaimers</h2>
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           Imotara is provided “as is.” We make no warranties of fitness for a
@@ -90,18 +93,18 @@ export default function TermsPage() {
       </section>
 
       {/* 6) Liability */}
-      <section className="mt-6 imotara-glass-soft rounded-2xl p-6">
+      <section className="mt-6 imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
         <h2 className="text-xl font-medium text-zinc-50">6) Liability</h2>
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           To the extent permitted by law, Imotara and its affiliates are not
           liable for indirect, incidental, special, consequential, or exemplary
-          damages. Our total liability is limited to the amount you paid (if
-          any) in the 12 months preceding the claim.
+          damages. Our total liability is limited to the amount you paid (if any)
+          in the 12 months preceding the claim.
         </p>
       </section>
 
       {/* 7) Indemnity */}
-      <section className="mt-6 imotara-glass-soft rounded-2xl p-6">
+      <section className="mt-6 imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
         <h2 className="text-xl font-medium text-zinc-50">7) Indemnity</h2>
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           You agree to indemnify and hold harmless Imotara from claims arising
@@ -110,7 +113,7 @@ export default function TermsPage() {
       </section>
 
       {/* 8) Termination */}
-      <section className="mt-6 imotara-glass-soft rounded-2xl p-6">
+      <section className="mt-6 imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
         <h2 className="text-xl font-medium text-zinc-50">8) Termination</h2>
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           You may stop using the service at any time. We may suspend or
@@ -121,7 +124,7 @@ export default function TermsPage() {
       </section>
 
       {/* 9) Governing Law */}
-      <section className="mt-6 imotara-glass-soft rounded-2xl p-6">
+      <section className="mt-6 imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
         <h2 className="text-xl font-medium text-zinc-50">9) Governing Law</h2>
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           These terms are governed by the laws of India. Courts in Kolkata, West
@@ -131,7 +134,7 @@ export default function TermsPage() {
       </section>
 
       {/* 10) Changes */}
-      <section className="mt-6 imotara-glass-soft rounded-2xl p-6">
+      <section className="mt-6 imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
         <h2 className="text-xl font-medium text-zinc-50">10) Changes</h2>
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           We may update these terms as the product evolves. We’ll post updates
@@ -144,7 +147,7 @@ export default function TermsPage() {
       </section>
 
       {/* Contact */}
-      <section className="mt-6 imotara-glass-soft rounded-2xl p-6">
+      <section className="mt-6 imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
         <h2 className="text-xl font-medium text-zinc-50">Contact</h2>
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           Questions about these terms?{" "}

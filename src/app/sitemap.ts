@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const now = new Date(); // valid Date object for lastModified
+  const now = new Date();
 
   return [
-    // Core product surfaces
+    // --- Core surfaces ---
     {
       url: `${base}/`,
       lastModified: now,
@@ -25,7 +25,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
 
-    // Supporting & marketing pages
+    // --- Supporting pages ---
     {
       url: `${base}/connect`,
       lastModified: now,
@@ -51,12 +51,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     },
 
-    // Settings (low priority but still discoverable)
+    // --- Settings page (discoverable but low priority) ---
     {
       url: `${base}/settings`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.4,
+    },
+
+    // --- Helpful static PWA endpoints ---
+    {
+      url: `${base}/manifest.webmanifest`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${base}/robots.txt`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.3,
     },
   ] satisfies MetadataRoute.Sitemap;
 }

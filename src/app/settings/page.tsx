@@ -6,6 +6,7 @@ import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
 
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
+const IMOTARA_VERSION = "Imotara Web Beta v0.9.7";
 
 export default function SettingsPage() {
     const { mode } = useAnalysisConsent();
@@ -49,11 +50,12 @@ export default function SettingsPage() {
     }
 
     async function handleClearHistory() {
-        const ok = typeof window !== "undefined"
-            ? window.confirm(
-                "Clear all emotion history on this device? This cannot be undone."
-            )
-            : true;
+        const ok =
+            typeof window !== "undefined"
+                ? window.confirm(
+                    "Clear all emotion history on this device? This cannot be undone."
+                )
+                : true;
         if (!ok) return;
 
         try {
@@ -80,9 +82,7 @@ export default function SettingsPage() {
         try {
             setBusy("all");
             setStatus(null);
-            // Clear chat threads (local-only)
             window.localStorage.removeItem(CHAT_STORAGE_KEY);
-            // Clear emotion history (local-only)
             await saveHistory([]);
             setStatus(
                 "All local Imotara data (chat + emotion history) cleared on this device."
@@ -130,7 +130,9 @@ export default function SettingsPage() {
                             ].join(" ")}
                         >
                             <span
-                                className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-500"
+                                className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote"
+                                    ? "bg-emerald-400"
+                                    : "bg-zinc-500"
                                     }`}
                             />
                             {consentLabel}
@@ -205,7 +207,7 @@ export default function SettingsPage() {
                     )}
                 </section>
 
-                {/* Data & privacy copy (future expansion) */}
+                {/* Data & privacy copy */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                     <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
                         Data &amp; privacy
@@ -238,6 +240,11 @@ export default function SettingsPage() {
                         pages.
                     </p>
                 </section>
+
+                {/* Version footer */}
+                <footer className="pt-6 pb-2 text-center text-[11px] text-zinc-500">
+                    <span className="opacity-80">{IMOTARA_VERSION}</span>
+                </footer>
             </div>
         </main>
     );

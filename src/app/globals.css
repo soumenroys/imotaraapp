@@ -41,7 +41,7 @@ body {
   min-height: 100vh;
 }
 
-/* Explicit dark html background to avoid any white flash or mismatched shells */
+/* Explicit dark html background to avoid any white flash */
 html {
   background-color: var(--background);
 }
@@ -50,31 +50,30 @@ body {
   margin: 0;
   color: var(--foreground);
 
-  /* Aurora Calm gradient background (bluish + teal) */
+  /* Aurora gradient */
   background:
     radial-gradient(circle at 0% 0%, #1e293b 0%, transparent 45%),
     radial-gradient(circle at 100% 0%, #0f172a 0%, transparent 45%),
     radial-gradient(circle at 0% 100%, #0f766e 0%, transparent 45%),
     radial-gradient(circle at 100% 100%, #4f46e5 0%, transparent 50%),
-    #020617; /* solid slate-950 fallback */
+    #020617;
 
   background-attachment: fixed;
 }
 
-/* Softer selection color for readability */
+/* Softer selection color */
 ::selection {
-  background: rgba(129, 140, 248, 0.45); /* indigo-400/45 */
-  color: #f9fafb; /* zinc-50 */
+  background: rgba(129, 140, 248, 0.45);
+  color: #f9fafb;
 }
 
 /* -------------------------------------------------- */
-/* 🧊 Reusable “glass” helpers for Imotara            */
+/* 🧊 Reusable “glass” helpers                        */
 /* -------------------------------------------------- */
 
-/* Main glass surface for cards (Chat, History, hero sections) */
 .imotara-glass-card {
   background: var(--im-surface);
-  border-radius: 1.25rem; /* ~rounded-2xl */
+  border-radius: 1.25rem;
   border: 1px solid var(--im-border-soft);
   backdrop-filter: blur(18px) saturate(140%);
   box-shadow:
@@ -82,7 +81,6 @@ body {
     0 0 0 0.5px rgba(148, 163, 184, 0.25);
 }
 
-/* Softer, secondary glass (inner sections, timeline rail shells) */
 .imotara-glass-soft {
   background: var(--im-surface-soft);
   border-radius: 1rem;
@@ -90,7 +88,6 @@ body {
   backdrop-filter: blur(14px) saturate(130%);
 }
 
-/* Stabilized glass tile surface for history list items */
 .imotara-history-item {
   background: var(--im-surface-soft);
   border: 1px solid var(--im-border-soft);
@@ -98,7 +95,6 @@ body {
   border-radius: 1rem;
 }
 
-/* Soft pill-style badges (timeline legend, status chips, etc.) */
 .imotara-pill {
   border-radius: 9999px;
   border: 1px solid rgba(148, 163, 184, 0.35);
@@ -107,11 +103,9 @@ body {
   font-size: 0.7rem;
 }
 
-/* Accent underline / ring for active navigation items */
 .imotara-nav-active {
   position: relative;
 }
-
 .imotara-nav-active::after {
   content: "";
   position: absolute;
@@ -128,7 +122,7 @@ body {
 }
 
 /* -------------------------------------------------- */
-/*  ⭐ Soft pulse animation for SyncStatusChip         */
+/* ⭐ Soft pulse for SyncStatusChip                    */
 /* -------------------------------------------------- */
 
 @keyframes pulse-soft {
@@ -148,8 +142,7 @@ body {
 }
 
 /* -------------------------------------------------- */
-/*  ⭐ Aurora pulse for deep-linked highlights         */
-/*     (used by messageId-highlight in history list)  */
+/* ⭐ Aurora pulse for deep-linked highlights          */
 /* -------------------------------------------------- */
 
 @keyframes imotaraPulse {
@@ -168,9 +161,67 @@ body {
 }
 
 /* -------------------------------------------------- */
-/*  ⭐ Rim highlight for server-confirmed records      */
+/* ⭐ Rim highlight for server-confirmed records        */
 /* -------------------------------------------------- */
 
 .server-confirmed {
   box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.55);
+}
+
+/* -------------------------------------------------- */
+/* ⭐ NEW: Fade-in animation for PageShell + pages     */
+/* -------------------------------------------------- */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.45s ease-out;
+}
+
+/* Slight upward fade option (not used yet, optional) */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out;
+}
+
+/* -------------------------------------------------- */
+/* ⭐ NEW: Soft shimmer ping for loading dot ring       */
+/* -------------------------------------------------- */
+
+@keyframes ping-soft {
+  0% {
+    transform: scale(1);
+    opacity: 0.25;
+  }
+  70% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.animate-ping-soft {
+  animation: ping-soft 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
 }

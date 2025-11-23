@@ -8,13 +8,19 @@ export const metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-16 text-zinc-50 sm:px-6">
+    <main
+      className="mx-auto w-full max-w-5xl px-4 py-16 text-zinc-50 sm:px-6"
+      aria-labelledby="privacy-title"
+    >
       {/* Hero / Intro */}
-      <section className="imotara-glass-card px-6 py-8 sm:px-8 sm:py-10">
+      <section className="imotara-glass-card rounded-2xl px-6 py-8 shadow-xl backdrop-blur-md sm:px-8 sm:py-10">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">
           Imotara · Privacy
         </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl">
+        <h1
+          id="privacy-title"
+          className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl"
+        >
           Privacy Policy
         </h1>
         <p className="mt-5 leading-7 text-zinc-300">
@@ -32,7 +38,7 @@ export default function PrivacyPage() {
       {/* Content sections */}
       <div className="mt-8 space-y-6">
         {/* Core Principles */}
-        <section className="imotara-glass-soft rounded-2xl p-6">
+        <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
           <h2 className="text-xl font-medium text-zinc-50">Core Principles</h2>
           <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
             <li>
@@ -55,7 +61,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* What We Collect */}
-        <section className="imotara-glass-soft rounded-2xl p-6">
+        <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
           <h2 className="text-xl font-medium text-zinc-50">What We Collect</h2>
           <p className="mt-3 text-sm text-zinc-300">
             Depending on your usage and settings:
@@ -81,7 +87,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Storage & Security */}
-        <section className="imotara-glass-soft rounded-2xl p-6">
+        <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
           <h2 className="text-xl font-medium text-zinc-50">
             Storage &amp; Security
           </h2>
@@ -94,7 +100,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Your Choices */}
-        <section className="imotara-glass-soft rounded-2xl p-6">
+        <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
           <h2 className="text-xl font-medium text-zinc-50">Your Choices</h2>
           <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
             <li>
@@ -113,7 +119,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Sharing with Third Parties */}
-        <section className="imotara-glass-soft rounded-2xl p-6">
+        <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
           <h2 className="text-xl font-medium text-zinc-50">
             Sharing with Third Parties
           </h2>
@@ -126,7 +132,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Children */}
-        <section className="imotara-glass-soft rounded-2xl p-6">
+        <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
           <h2 className="text-xl font-medium text-zinc-50">Children</h2>
           <p className="mt-3 text-sm leading-7 text-zinc-300">
             Imotara is not directed to children under 13. If you believe a child
@@ -135,7 +141,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Updates */}
-        <section className="imotara-glass-soft rounded-2xl p-6">
+        <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
           <h2 className="text-xl font-medium text-zinc-50">
             Updates to this Policy
           </h2>
@@ -149,7 +155,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Contact */}
-        <section className="imotara-glass-soft rounded-2xl p-6">
+        <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
           <h2 className="text-xl font-medium text-zinc-50">Contact</h2>
           <p className="mt-3 text-sm leading-7 text-zinc-300">
             Have a privacy question or request?{" "}

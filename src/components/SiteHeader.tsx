@@ -20,7 +20,7 @@ export default function SiteHeader() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-white/15 bg-white/80 bg-[radial-gradient(circle_at_0%_0%,rgba(129,140,248,0.16),transparent_55%),radial-gradient(circle_at_100%_0%,rgba(45,212,191,0.16),transparent_55%)] backdrop-blur-xl transition-colors dark:border-zinc-800/80 dark:bg-black/70">
+    <header className="sticky top-0 z-40 w-full border-b border-white/12 bg-white/75 bg-[radial-gradient(circle_at_0%_0%,rgba(129,140,248,0.16),transparent_55%),radial-gradient(circle_at_100%_0%,rgba(45,212,191,0.16),transparent_55%)] backdrop-blur-xl transition-colors dark:border-zinc-800/80 dark:bg-black/70">
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4 sm:px-6">
         {/* LEFT: Logo / brand */}
         <Link
@@ -35,24 +35,34 @@ export default function SiteHeader() {
         </Link>
 
         {/* CENTER: Navigation */}
-        <nav className="flex max-w-[55vw] items-center justify-center gap-1 overflow-x-auto text-xs text-zinc-600 sm:max-w-none sm:gap-3 sm:text-sm dark:text-zinc-300">
+        <nav
+          className="flex max-w-[55vw] items-center justify-center gap-1 overflow-x-auto text-xs text-zinc-600 sm:max-w-none sm:gap-3 sm:text-sm dark:text-zinc-300"
+          aria-label="Main navigation"
+        >
           {links.map((l) => {
             const active =
               l.href === "/"
                 ? pathname === "/"
                 : pathname.startsWith(l.href);
 
+            const base =
+              "relative whitespace-nowrap rounded-full px-2.5 py-1 transition-colors";
+            const activeClass = [
+              "imotara-nav-active",
+              "bg-zinc-900/90 text-zinc-50 shadow-sm ring-1 ring-white/25",
+              "dark:bg-zinc-100 dark:text-zinc-900",
+            ].join(" ");
+            const inactiveClass =
+              "text-zinc-700 hover:bg-white/60 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900/70 dark:hover:text-zinc-50";
+
             return (
               <Link
                 key={l.href}
                 href={l.href}
                 aria-current={active ? "page" : undefined}
-                className={[
-                  "whitespace-nowrap rounded-full px-2.5 py-1 transition-colors",
-                  active
-                    ? "bg-zinc-900/90 text-zinc-50 shadow-sm ring-1 ring-white/30 dark:bg-zinc-100 dark:text-zinc-900"
-                    : "text-zinc-700 hover:bg-white/60 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900/70 dark:hover:text-zinc-50",
-                ].join(" ")}
+                className={[base, active ? activeClass : inactiveClass].join(
+                  " "
+                )}
               >
                 {l.label}
               </Link>

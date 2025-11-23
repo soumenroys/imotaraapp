@@ -4,7 +4,11 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare, History as HistoryIcon } from "lucide-react";
+import {
+  MessageSquare,
+  History as HistoryIcon,
+  Settings as SettingsIcon,
+} from "lucide-react";
 
 import SyncStatusChip from "@/components/imotara/SyncStatusChip";
 import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
@@ -28,6 +32,7 @@ export default function TopBar({
 
   const isChat = pathname?.startsWith("/chat");
   const isHistory = pathname?.startsWith("/history");
+  const isSettings = pathname?.startsWith("/settings");
 
   const effectiveTitle = title ?? "Imotara";
 
@@ -39,7 +44,7 @@ export default function TopBar({
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/10 bg-gradient-to-r from-slate-950/80 via-slate-900/80 to-slate-950/80 px-4 py-2 backdrop-blur-md">
-      <div className="mx-auto flex max-w-5xl items-center gap-3">
+      <div className="mx-auto flex w-full max-w-7xl items-center gap-3">
         {/* Left: logo + title */}
         <div className="flex flex-1 items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-400 text-xs font-bold text-slate-950 shadow-lg">
@@ -56,7 +61,10 @@ export default function TopBar({
         </div>
 
         {/* Center: main navigation */}
-        <nav className="hidden items-center gap-1 rounded-full bg-white/5 p-1 text-xs text-slate-200 shadow-sm sm:flex">
+        <nav
+          className="hidden items-center gap-1 rounded-full bg-white/5 p-1 text-xs text-slate-200 shadow-sm sm:flex"
+          aria-label="Imotara primary navigation"
+        >
           <NavPill
             href="/chat"
             active={isChat}
@@ -71,6 +79,14 @@ export default function TopBar({
           >
             History
           </NavPill>
+          {/* Settings entry, aligned with Settings page */}
+          <NavPill
+            href="/settings"
+            active={isSettings}
+            icon={<SettingsIcon className="h-3.5 w-3.5" />}
+          >
+            Settings
+          </NavPill>
         </nav>
 
         {/* Right: sync + conflicts */}
@@ -80,7 +96,7 @@ export default function TopBar({
               <SyncStatusChip
                 state={sync.state}
                 lastSyncedAt={sync.lastSyncedAt}
-                pendingCount={0}
+                pendingCount={0} // keep fixed; hook doesn't expose pending count
                 conflictsCount={sync.conflicts.length}
                 onSync={sync.manualSync}
               />

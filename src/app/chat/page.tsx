@@ -620,7 +620,7 @@ export default function ChatPage() {
                       }`}
                   >
                     <div className="min-w-0">
-                      <div className="flex items' gap-2">
+                      <div className="flex items-center gap-2">
                         <MessageSquare className="h-4 w-4 shrink-0 text-zinc-400" />
                         <input
                           className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-500 ${isActive
@@ -675,14 +675,14 @@ export default function ChatPage() {
                       <MessageSquare className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-zinc-50">
+                      <p className="truncate text-base font-semibold text-zinc-50">
                         <span suppressHydrationWarning>
                           {mounted
                             ? activeThread?.title ?? "Conversation"
                             : ""}
                         </span>
                       </p>
-                      <p className="text-xs text-zinc-400">
+                      <p className="text-sm text-zinc-400">
                         Private local preview. In this demo, messages never
                         leave this browser.
                       </p>
@@ -723,8 +723,7 @@ export default function ChatPage() {
                       title="Sync local ↔ remote history"
                     >
                       <RefreshCw
-                        className={`h-3 w-3 ${syncing ? "animate-spin" : ""
-                          }`}
+                        className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`}
                       />
                       Sync now
                     </button>
@@ -758,12 +757,11 @@ export default function ChatPage() {
                     </span>
                   </div>
                 </div>
-
                 {/* Row 2: analysis + consent + actions */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   {/* Left: analysis & consent */}
                   <div className="flex flex-col gap-2">
-                    <p className="text-[11px] font-medium text-zinc-400">
+                    <p className="text-xs font-medium text-zinc-400">
                       Emotion analysis mode
                     </p>
 
@@ -785,12 +783,12 @@ export default function ChatPage() {
 
                     <div className="flex items-center gap-2">
                       <AnalysisConsentToggle />
-                      <span className="text-[11px] text-zinc-400">
+                      <span className="text-xs text-zinc-400">
                         {consentLabel}
                       </span>
                     </div>
 
-                    <p className="mt-1 max-w-xs text-[11px] text-zinc-500">
+                    <p className="mt-1 max-w-xs text-xs text-zinc-500">
                       Use the toggle to switch between local-only and remote
                       analysis. Your words stay on-device unless you explicitly
                       allow remote.
@@ -920,6 +918,13 @@ export default function ChatPage() {
                 />
                 {consentLabel}
               </span>
+            </div>
+
+            {/* ⭐ NEW: micro-copy for sync clarity */}
+            <div className="mx-auto mb-1 max-w-3xl">
+              <p className="pr-1 text-right text-xs text-zinc-500">
+                Your chat is saved locally and synced when online.
+              </p>
             </div>
 
             <div className="mx-auto flex max-w-3xl items-end gap-2">

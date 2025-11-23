@@ -1,7 +1,7 @@
 // src/components/imotara/ConflictPanel.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { ConflictPreview } from "@/lib/imotara/syncHistory";
 
 type ChoiceKeep = "local" | "remote";
@@ -22,27 +22,54 @@ export default function ConflictPanel({
   const [choices, setChoices] = useState<Record<string, ChoiceKeep>>({});
 
   // Defensive: always operate on a safe array
-  const list: ConflictPreview[] = Array.isArray(conflicts)
-    ? conflicts
-    : [];
+  const list: ConflictPreview[] = Array.isArray(conflicts) ? conflicts : [];
   const hasConflicts = list.length > 0;
+
+  // Focus: move focus to the Close button when the panel opens (accessibility)
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (open && closeButtonRef.current) {
+      try {
+        closeButtonRef.current.focus();
+      } catch {
+        // ignore focus errors
+      }
+    }
+  }, [open]);
 
   // Initialize defaults when the panel opens or conflicts change
   useEffect(() => {
     if (!open) return;
-    if (!hasConflicts) {
+
+    if (!Array.isArray(conflicts) || conflicts.length === 0) {
       setChoices({});
       return;
     }
 
-    const initial: Record<string, ChoiceKeep> = {};
-    for (const c of list) {
+    const nextInitial: Record<string, ChoiceKeep> = {};
+    for (const c of conflicts) {
       const lu = c.local?.updatedAt ?? 0;
       const ru = c.remote?.updatedAt ?? 0;
-      initial[c.id] = lu >= ru ? "local" : "remote";
+      nextInitial[c.id] = lu >= ru ? "local" : "remote";
     }
-    setChoices(initial);
-  }, [open, hasConflicts, list]);
+
+    // Avoid unnecessary re-renders if nothing actually changed
+    setChoices((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(nextInitial);
+      if (prevKeys.length === nextKeys.length) {
+        let same = true;
+        for (const k of nextKeys) {
+          if (prev[k] !== nextInitial[k]) {
+            same = false;
+            break;
+          }
+        }
+        if (same) return prev;
+      }
+      return nextInitial;
+    });
+  }, [open, conflicts]);
 
   if (!open) return null;
 
@@ -112,6 +139,7 @@ export default function ConflictPanel({
           </div>
 
           <button
+            ref={closeButtonRef}
             type="button"
             className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] text-zinc-100 shadow-sm transition hover:bg-white/20"
             onClick={onClose}

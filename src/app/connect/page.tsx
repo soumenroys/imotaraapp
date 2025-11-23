@@ -7,11 +7,6 @@ export const metadata = {
     "Ways to reach the Imotara team for feedback, partnerships, or support.",
 };
 
-const FORMSPREE_ID = process.env.NEXT_PUBLIC_FORMSPREE_ID;
-const formAction = FORMSPREE_ID
-  ? `https://formspree.io/f/${FORMSPREE_ID}`
-  : "mailto:support@imotara.com";
-
 export default function ConnectPage() {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-16 text-zinc-50 sm:px-6">
@@ -27,7 +22,8 @@ export default function ConnectPage() {
           <p className="mt-4 leading-7 text-zinc-300">
             We’d love to hear from you — whether you’re sharing feedback,
             exploring partnerships, or need help. Choose a quick contact option
-            or drop us a message using the form.
+            or drop us a message using the form. Submitting the form will open
+            your email app with the details pre-filled.
           </p>
         </div>
       </header>
@@ -100,47 +96,27 @@ export default function ConnectPage() {
           </div>
         </section>
 
-        {/* Contact form */}
+        {/* Contact form (mailto-based, no Formspree) */}
         <section className="imotara-glass-card rounded-2xl p-6 sm:p-7">
           <h2 className="text-lg font-medium text-zinc-50">Send a message</h2>
 
-          {!FORMSPREE_ID && (
-            <p className="mt-3 text-sm text-amber-300">
-              Tip: Set{" "}
-              <code className="rounded bg-black/40 px-1.5 py-0.5 text-xs">
-                NEXT_PUBLIC_FORMSPREE_ID
-              </code>{" "}
-              in your environment to enable the contact form. Until then, it
-              will open your mail client.
-            </p>
-          )}
+          <p className="mt-3 text-sm text-zinc-300">
+            This form will open your default email app and pre-fill the details.
+            You can review everything before sending.
+          </p>
 
           <form
-            action={formAction}
-            method={FORMSPREE_ID ? "POST" : "GET"}
+            action="mailto:support@imotara.com"
+            method="GET"
+            encType="text/plain"
             className="mt-6 space-y-5"
           >
-            {/* Honeypot (anti-bot) */}
-            <input
-              type="text"
-              name="_gotcha"
-              tabIndex={-1}
-              autoComplete="off"
-              className="hidden"
-              aria-hidden="true"
-            />
-            {/* Optional redirect after submit (Formspree) */}
-            {FORMSPREE_ID && (
-              <input
-                type="hidden"
-                name="_subject"
-                value="New message from imotara.com"
-              />
-            )}
-
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="flex flex-col">
-                <label htmlFor="name" className="text-sm font-medium text-zinc-100">
+                <label
+                  htmlFor="name"
+                  className="text-sm font-medium text-zinc-100"
+                >
                   Name
                 </label>
                 <input
@@ -153,7 +129,10 @@ export default function ConnectPage() {
               </div>
 
               <div className="flex flex-col">
-                <label htmlFor="email" className="text-sm font-medium text-zinc-100">
+                <label
+                  htmlFor="email"
+                  className="text-sm font-medium text-zinc-100"
+                >
                   Email
                 </label>
                 <input
@@ -168,7 +147,10 @@ export default function ConnectPage() {
             </div>
 
             <div className="flex flex-col">
-              <label htmlFor="topic" className="text-sm font-medium text-zinc-100">
+              <label
+                htmlFor="topic"
+                className="text-sm font-medium text-zinc-100"
+              >
                 Topic
               </label>
               <select
@@ -186,7 +168,10 @@ export default function ConnectPage() {
             </div>
 
             <div className="flex flex-col">
-              <label htmlFor="message" className="text-sm font-medium text-zinc-100">
+              <label
+                htmlFor="message"
+                className="text-sm font-medium text-zinc-100"
+              >
                 Message
               </label>
               <textarea
@@ -228,10 +213,11 @@ export default function ConnectPage() {
                 type="submit"
                 className="rounded-full bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-sky-900/50 transition hover:brightness-110"
               >
-                Send message
+                Open in email app
               </button>
               <p className="text-xs text-zinc-400">
-                Response time: typically 1–2 business days.
+                Your default mail client will open with this message ready to
+                send.
               </p>
             </div>
           </form>

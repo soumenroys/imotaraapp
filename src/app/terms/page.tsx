@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PageShell from "@/components/imotara/PageShell";
 
 export const metadata = {
   title: "Terms of Service — Imotara",
@@ -8,9 +9,9 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-16 text-zinc-50 sm:px-6">
+    <PageShell>
       {/* Hero / Intro */}
-      <section className="imotara-glass-card px-6 py-8 sm:px-8 sm:py-10">
+      <section className="imotara-glass-card rounded-2xl px-6 py-8 sm:px-8 sm:py-10">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">
           Imotara · Terms
         </p>
@@ -77,8 +78,14 @@ export default function TermsPage() {
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           Imotara is provided “as is.” We make no warranties of fitness for a
           particular purpose, availability, or accuracy. Imotara is a reflective
-          aid and <strong>not medical, psychological, or legal advice</strong>.
-          If you need help, please seek professional support.
+          aid and{" "}
+          <strong>not medical, psychological, or legal advice</strong>. Use of
+          Imotara does{" "}
+          <strong>
+            not create a doctor–patient, therapist–client, or similar
+            professional relationship
+          </strong>
+          . If you need help, please seek professional support.
         </p>
       </section>
 
@@ -157,6 +164,6 @@ export default function TermsPage() {
           .
         </p>
       </section>
-    </main>
+    </PageShell>
   );
 }

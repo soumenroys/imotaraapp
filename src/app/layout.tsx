@@ -5,6 +5,7 @@ import type { Metadata, Viewport } from "next";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import SyncStatusBar from "@/components/imotara/SyncStatusBar";
+import LocalDataNotice from "@/components/imotara/LocalDataNotice";
 
 const inter = Inter({ subsets: ["latin"] });
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -18,7 +19,11 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Imotara — An Immortal Friend for Your Emotions",
+  // ⬇️ Title template so child pages can just set "About", "History", etc.
+  title: {
+    default: "Imotara — An Immortal Friend for Your Emotions",
+    template: "%s · Imotara",
+  },
   description:
     "A quiet, charitable exploration at the edge of feeling, memory and meaning. A companion that notices — without surveillance or ads.",
   keywords: [
@@ -116,8 +121,9 @@ export default function RootLayout({
           {children}
         </main>
 
-        {/* Existing global sync bar (keep for now; remove later if redundant) */}
+        {/* Global sync bar + local-storage notice overlays */}
         <SyncStatusBar />
+        <LocalDataNotice />
 
         <JsonLd />
         <SiteFooter />

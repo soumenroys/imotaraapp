@@ -4,7 +4,7 @@
 import Link from "next/link";
 import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import type { EmotionRecord } from "@/types/history";
 import { getHistory } from "@/lib/imotara/history";
 import { saveHistory } from "@/lib/imotara/historyPersist";
@@ -164,6 +164,12 @@ export default function EmotionHistory() {
       : consentMode === "local-only"
         ? "border-zinc-300 bg-zinc-50/80 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300"
         : "border-zinc-200 bg-zinc-50/80 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400";
+
+  const router = useRouter();
+
+  // ⬇️ NEW: Offline tracking + auto-retry flag
+  const [isOffline, setIsOffline] = useState(false);
+  const autoRetryRef = useRef(false);
 
   function clearUndoTimer() {
     if (undoTimerRef.current) {
@@ -364,8 +370,24 @@ export default function EmotionHistory() {
     return list.length ? `Detected changes: ${list.join(", ")}` : "";
   }, [conflictPreviews]);
 
-  // Manual “Sync now”
+  // Manual “Sync now” (now offline-aware)
   async function manualSync() {
+    // Offline guard: keep changes local, schedule auto-retry
+    if (
+      typeof window !== "undefined" &&
+      typeof navigator !== "undefined" &&
+      !navigator.onLine
+    ) {
+      setIsOffline(true);
+      setState("idle");
+      setLastError(null);
+      setPushInfo(
+        "Offline — changes are stored locally and will sync when you’re back online."
+      );
+      autoRetryRef.current = true;
+      return;
+    }
+
     try {
       setState("syncing");
       setLastError(null);
@@ -507,6 +529,61 @@ export default function EmotionHistory() {
     }
   }
 
+  // ⬇️ NEW: Listen for online/offline and auto-retry if something was queued
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof navigator === "undefined") {
+      return;
+    }
+
+    // initial state
+    setIsOffline(!navigator.onLine);
+
+    const handleOnline = () => {
+      setIsOffline(false);
+      if (!autoRetryRef.current) return;
+
+      autoRetryRef.current = false;
+      setPushInfo("Back online — syncing queued changes…");
+
+      (async () => {
+        try {
+          const latest = await getHistory();
+          const pending = computePending(latest);
+          setPendingCount(pending.length);
+
+          // best-effort: push pending first, then pull+merge
+          if (pending.length > 0) {
+            try {
+              await pushPendingToApi();
+            } catch {
+              // swallow — manual controls remain available
+            }
+          }
+
+          await manualSync();
+          setPushInfo("Back online — queued changes synced (where possible).");
+        } catch (err: any) {
+          setPushInfo(
+            `Auto-resync failed: ${String(err?.message ?? err)}`
+          );
+        }
+      })();
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Auto-sync every 5 minutes when the tab is visible
   useEffect(() => {
     const interval = setInterval(() => {
@@ -536,6 +613,21 @@ export default function EmotionHistory() {
     await saveHistory(next);
 
     try {
+      // Offline-safe delete: if offline, we treat it as local-only, and let
+      // future manual sync / server-side reconciliation handle it.
+      if (
+        typeof window !== "undefined" &&
+        typeof navigator !== "undefined" &&
+        !navigator.onLine
+      ) {
+        setIsOffline(true);
+        autoRetryRef.current = true;
+        setPushInfo(
+          "Offline — deleted locally. Server delete will be attempted when you’re back online."
+        );
+        return;
+      }
+
       const res = await fetch("/api/history", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -1011,7 +1103,7 @@ export default function EmotionHistory() {
       )}
 
       {/* Header with status chip, consent indicator and manual controls */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 shadow-sm backdrop-blur-md dark:bg.white/10">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 shadow-sm backdrop-blur-md dark:bg-white/10">
         <div className="flex flex-wrap items-center gap-2">
           <SyncStatusChip
             state={
@@ -1026,7 +1118,7 @@ export default function EmotionHistory() {
             conflictsCount={conflicts}
           />
           <span
-            className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300"
+            className="flex flex-wrap items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300"
             aria-live="polite"
           >
             <span>{subtitle}</span>
@@ -1079,6 +1171,13 @@ export default function EmotionHistory() {
                 Pulled just now
               </span>
             )}
+
+            {/* NEW: Offline indicator */}
+            {isOffline && (
+              <span className="text-[11px] font-medium text-amber-600 dark:text-amber-300">
+                Offline — changes stay on this device and will sync later.
+              </span>
+            )}
           </span>
 
           {/* NEW: tiny read-only consent indicator */}
@@ -1104,6 +1203,20 @@ export default function EmotionHistory() {
 
           <button
             onClick={async () => {
+              // Offline-safe push pending
+              if (
+                typeof window !== "undefined" &&
+                typeof navigator !== "undefined" &&
+                !navigator.onLine
+              ) {
+                setIsOffline(true);
+                autoRetryRef.current = true;
+                setPushInfo(
+                  "Offline — pending changes will stay queued locally and be pushed when you’re back online."
+                );
+                return;
+              }
+
               try {
                 setPushInfo("Pushing pending…");
                 const res: any = await pushPendingToApi();
@@ -1141,6 +1254,20 @@ export default function EmotionHistory() {
 
           <button
             onClick={async () => {
+              // Offline-safe push all
+              if (
+                typeof window !== "undefined" &&
+                typeof navigator !== "undefined" &&
+                !navigator.onLine
+              ) {
+                setIsOffline(true);
+                autoRetryRef.current = true;
+                setPushInfo(
+                  "Offline — all local records will be pushed when you’re back online."
+                );
+                return;
+              }
+
               try {
                 setPushInfo("Pushing all…");
                 const res: any = await pushAllLocalToApi();
@@ -1198,6 +1325,17 @@ export default function EmotionHistory() {
 
           <button
             onClick={async () => {
+              // Offline-safe API check
+              if (
+                typeof window !== "undefined" &&
+                typeof navigator !== "undefined" &&
+                !navigator.onLine
+              ) {
+                setIsOffline(true);
+                setApiInfo("Offline — cannot reach /api/history right now.");
+                return;
+              }
+
               try {
                 setApiInfo("Checking…");
                 const res = await fetch("/api/history", { method: "GET" });
@@ -1235,7 +1373,7 @@ export default function EmotionHistory() {
             Check API
           </button>
 
-          {/* NEW: Export buttons (JSON + CSV) for current filtered list */}
+          {/* Export buttons (JSON + CSV) for current filtered list */}
           <button
             onClick={() => {
               const data = filteredItems;
@@ -1484,8 +1622,19 @@ export default function EmotionHistory() {
             <li
               ref={liRef}
               key={r.id}
+              onClick={() => {
+                if (hasChatLink) {
+                  router.push(
+                    `/chat?sessionId=${encodeURIComponent(
+                      r.sessionId as string
+                    )}&messageId=${encodeURIComponent(
+                      r.messageId as string
+                    )}`
+                  );
+                }
+              }}
               className={[
-                "imotara-history-item p-4 shadow-sm",
+                "imotara-history-item p-4 shadow-sm cursor-pointer transition hover:bg-white/10",
                 highlightedByMessage
                   ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-transparent animate-pulse"
                   : "",
@@ -1521,12 +1670,16 @@ export default function EmotionHistory() {
                       )}`}
                       className="rounded-lg border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
                       title="Open this moment in chat"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       View in chat
                     </Link>
                   )}
                   <button
-                    onClick={() => handleDelete(r.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDelete(r.id);
+                    }}
                     className="rounded-lg border border-white/15 bg-white/10 px-2 py-0.5 text-[11px] text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
                     title="Soft-delete this entry"
                   >

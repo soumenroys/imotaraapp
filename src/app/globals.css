@@ -1,12 +1,15 @@
 @import "tailwindcss";
 
 /* -------------------------------------------------- */
-/* 🌌 Aurora Calm – Global Theme                      */
+/* 🌌 Aurora Calm – Global Theme (Dark-first, fixed)  */
 /* -------------------------------------------------- */
 
 :root {
-  /* Base colors (dark-first, calm palette) */
-  --background: #030712;          /* very dark navy */
+  /* We stick to a single, dark Aurora theme regardless of OS setting */
+  color-scheme: dark;
+
+  /* Base colors */
+  --background: #020617;          /* slate-950 */
   --foreground: #e5e7eb;          /* zinc-200 */
 
   /* Accent system for Aurora Calm */
@@ -14,10 +17,11 @@
   --im-accent-soft: #4f46e5;      /* indigo-600 */
   --im-accent-secondary: #22c55e; /* emerald-500 */
 
-  /* Slightly lighter surfaces to avoid “black tiles” */
-  --im-surface: rgba(15, 23, 42, 0.58);      /* was 0.75 */
-  --im-surface-soft: rgba(15, 23, 42, 0.42); /* was 0.6 */
+  /* Surfaces: tuned for readable contrast on dark aurora bg */
+  --im-surface: rgba(15, 23, 42, 0.78);      /* deep navy glass */
+  --im-surface-soft: rgba(15, 23, 42, 0.6);  /* softer inner glass */
 
+  /* Borders */
   --im-border-soft: rgba(148, 163, 184, 0.35); /* slate-400/35 */
 }
 
@@ -28,49 +32,53 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Optional light mode (still using calm colors) */
-@media (prefers-color-scheme: light) {
-  :root {
-    --background: #f9fafb;  /* zinc-50 */
-    --foreground: #020617;  /* slate-950 */
-
-    --im-surface: rgba(255, 255, 255, 0.9);
-    --im-surface-soft: rgba(255, 255, 255, 0.8);
-    --im-border-soft: rgba(148, 163, 184, 0.25);
-  }
-}
-
 /* -------------------------------------------------- */
 /* 🌌 Global body styling                             */
 /* -------------------------------------------------- */
 
+html,
 body {
   min-height: 100vh;
+}
+
+/* Explicit dark html background to avoid any white flash or mismatched shells */
+html {
+  background-color: var(--background);
+}
+
+body {
   margin: 0;
   color: var(--foreground);
 
-  /* Aurora Calm gradient background */
+  /* Aurora Calm gradient background (bluish + teal) */
   background:
     radial-gradient(circle at 0% 0%, #1e293b 0%, transparent 45%),
-    radial-gradient(circle at 100% 100%, #4f46e5 0%, transparent 45%),
+    radial-gradient(circle at 100% 0%, #0f172a 0%, transparent 45%),
     radial-gradient(circle at 0% 100%, #0f766e 0%, transparent 45%),
-    #020617; /* slate-950 fallback */
+    radial-gradient(circle at 100% 100%, #4f46e5 0%, transparent 50%),
+    #020617; /* solid slate-950 fallback */
 
   background-attachment: fixed;
+}
+
+/* Softer selection color for readability */
+::selection {
+  background: rgba(129, 140, 248, 0.45); /* indigo-400/45 */
+  color: #f9fafb; /* zinc-50 */
 }
 
 /* -------------------------------------------------- */
 /* 🧊 Reusable “glass” helpers for Imotara            */
 /* -------------------------------------------------- */
 
-/* Main glass surface for cards (History, Chat, etc.) */
+/* Main glass surface for cards (Chat, History, hero sections) */
 .imotara-glass-card {
   background: var(--im-surface);
   border-radius: 1.25rem; /* ~rounded-2xl */
   border: 1px solid var(--im-border-soft);
   backdrop-filter: blur(18px) saturate(140%);
   box-shadow:
-    0 18px 40px rgba(0, 0, 0, 0.65),
+    0 18px 40px rgba(0, 0, 0, 0.75),
     0 0 0 0.5px rgba(148, 163, 184, 0.25);
 }
 
@@ -79,22 +87,22 @@ body {
   background: var(--im-surface-soft);
   border-radius: 1rem;
   border: 1px solid rgba(148, 163, 184, 0.25);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px) saturate(130%);
 }
 
-/* NEW — Stabilized glass tile surface for history list items */
+/* Stabilized glass tile surface for history list items */
 .imotara-history-item {
   background: var(--im-surface-soft);
   border: 1px solid var(--im-border-soft);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px) saturate(130%);
   border-radius: 1rem;
 }
 
-/* Soft pill-style badges (for timeline legend, status chips, etc.) */
+/* Soft pill-style badges (timeline legend, status chips, etc.) */
 .imotara-pill {
   border-radius: 9999px;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(15, 23, 42, 0.9);
   padding: 0.15rem 0.55rem;
   font-size: 0.7rem;
 }
@@ -122,6 +130,7 @@ body {
 /* -------------------------------------------------- */
 /*  ⭐ Soft pulse animation for SyncStatusChip         */
 /* -------------------------------------------------- */
+
 @keyframes pulse-soft {
   0% {
     opacity: 0.4;
@@ -142,6 +151,7 @@ body {
 /*  ⭐ Aurora pulse for deep-linked highlights         */
 /*     (used by messageId-highlight in history list)  */
 /* -------------------------------------------------- */
+
 @keyframes imotaraPulse {
   0% {
     transform: scale(1);
@@ -160,12 +170,7 @@ body {
 /* -------------------------------------------------- */
 /*  ⭐ Rim highlight for server-confirmed records      */
 /* -------------------------------------------------- */
-.server-confirmed {
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.5);
-}
 
-@media (prefers-color-scheme: dark) {
-  .server-confirmed {
-    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.6);
-  }
+.server-confirmed {
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.55);
 }

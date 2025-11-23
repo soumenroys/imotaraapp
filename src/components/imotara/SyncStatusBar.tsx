@@ -28,11 +28,26 @@ const STATE_TO_LABEL: Record<SyncState, string> = {
   idle: "Idle",
 };
 
+function formatTime(ts?: number | null) {
+  if (!ts) return "";
+  try {
+    return new Date(ts).toLocaleTimeString();
+  } catch {
+    return "";
+  }
+}
+
 export default function SyncStatusBar() {
   const sync = useSyncHistory({
     intervalMs: 0,
     runOnMount: false,
   });
+
+  // Some hooks may expose remoteCount; read defensively
+  const remoteCount =
+    typeof (sync as any)?.remoteCount === "number"
+      ? ((sync as any).remoteCount as number)
+      : null;
 
   // ⭐ fade-in animation trigger on newly synced state
   const [pulse, setPulse] = useState(false);
@@ -51,17 +66,36 @@ export default function SyncStatusBar() {
 
     let sub = "";
     if (sync.state === "synced" && sync.lastSyncedAt) {
-      sub = `Last synced ${new Date(sync.lastSyncedAt).toLocaleTimeString()}`;
+      const t = formatTime(sync.lastSyncedAt);
+      sub = t ? `Last synced ${t}` : "Last synced recently";
     } else if (sync.state === "offline") {
       sub = "Will retry when back online";
     } else if (sync.state === "error" && sync.lastError) {
       sub = sync.lastError;
     }
 
+    // Optional extra context when we know server record count
+    if (sync.state === "synced" && remoteCount != null) {
+      const recordsLabel = `${remoteCount} record${remoteCount === 1 ? "" : "s"
+        } on server`;
+      sub = sub ? `${sub} • ${recordsLabel}` : recordsLabel;
+    }
+
     return { dotClass, label, sub };
-  }, [sync.state, sync.lastSyncedAt, sync.lastError]);
+  }, [sync.state, sync.lastSyncedAt, sync.lastError, remoteCount]);
 
   const isSyncing = sync.state === "syncing";
+
+  const buttonLabel = isSyncing
+    ? "Syncing…"
+    : sync.state === "error"
+      ? "Retry sync"
+      : "Sync now";
+
+  const buttonTitle =
+    sync.state === "error"
+      ? "Last sync failed — click to retry"
+      : "Force sync now";
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-5xl justify-center px-4 pb-4">
@@ -94,14 +128,15 @@ export default function SyncStatusBar() {
             onClick={sync.manualSync}
             disabled={isSyncing}
             aria-busy={isSyncing ? "true" : "false"}
+            aria-label={buttonLabel}
             className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[11px] font-medium text-zinc-50 shadow-sm transition hover:bg-white/10 disabled:opacity-40"
-            title="Force sync now"
+            title={buttonTitle}
           >
             <span
               className={`inline-block h-3 w-3 rounded-full border border-white/40 ${isSyncing ? "animate-pulse-soft bg-sky-400" : "bg-transparent"
                 }`}
             />
-            <span>{isSyncing ? "Syncing…" : "Sync now"}</span>
+            <span>{buttonLabel}</span>
           </button>
         </div>
       </div>

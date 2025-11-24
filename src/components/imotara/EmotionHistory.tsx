@@ -31,6 +31,9 @@ import type { ConflictPreview } from "@/lib/imotara/syncHistory";
 // ⬇️ Consent hook (read-only indicator)
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 
+// ⬇️ Teen-Insight helper
+import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
+
 // simple upsert merge (remote -> local)
 function mergeRemote(
   local: EmotionRecord[],
@@ -1103,7 +1106,7 @@ export default function EmotionHistory() {
       )}
 
       {/* Header with status chip, consent indicator and manual controls */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 shadow-sm backdrop-blur-md dark:bg-white/10">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 shadow-sm backdrop-blur-md dark:bg.white/10">
         <div className="flex flex-wrap items-center gap-2">
           <SyncStatusChip
             state={
@@ -1153,7 +1156,7 @@ export default function EmotionHistory() {
                 {/* open the review modal (now with count pill + smart tooltip) */}
                 <button
                   onClick={() => setShowConflictModal(true)}
-                  className="relative rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-xs text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+                  className="relative rounded-full border border-white/20 bg.white/10 px-2.5 py-0.5 text-xs text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
                   title={reviewTooltip}
                 >
                   Review
@@ -1195,7 +1198,7 @@ export default function EmotionHistory() {
         <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
           <button
             onClick={manualSync}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
             title="Force pull & merge now"
           >
             Sync now
@@ -1246,7 +1249,7 @@ export default function EmotionHistory() {
                 );
               }
             }}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
             title="Push only changed/new records"
           >
             {`Push pending${pendingCount ? ` (${pendingCount})` : ""}`}
@@ -1293,7 +1296,7 @@ export default function EmotionHistory() {
                 setPushInfo(`Push all failed: ${String(err?.message ?? err)}`);
               }
             }}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
             title="Push all local records to server"
           >
             Push all
@@ -1317,7 +1320,7 @@ export default function EmotionHistory() {
                 );
               }
             }}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg.white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
             title="Apply queued conflict resolutions (prefer remote)"
           >
             Retry queued
@@ -1367,7 +1370,7 @@ export default function EmotionHistory() {
                 setApiInfo(`API check failed: ${String(err?.message ?? err)}`);
               }
             }}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg.white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
             title="Ping GET /api/history to verify API shape/availability"
           >
             Check API
@@ -1385,7 +1388,7 @@ export default function EmotionHistory() {
                 payload
               );
             }}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg.white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
             title="Download the currently visible history as JSON"
           >
             Export JSON
@@ -1451,7 +1454,7 @@ export default function EmotionHistory() {
                 csv
               );
             }}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg.white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
             title="Download the currently visible history as CSV"
           >
             Export CSV
@@ -1460,7 +1463,7 @@ export default function EmotionHistory() {
           {/* quick local test record */}
           <button
             onClick={addDemo}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg.white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
             title="Insert one local record for testing"
           >
             Add demo
@@ -1479,7 +1482,7 @@ export default function EmotionHistory() {
       </div>
 
       {/* Debug + operation result lines */}
-      <div className="mb-3 space-y-1 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-zinc-600 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
+      <div className="mb-3 space-y-1 rounded-2xl border border-white/10 bg.white/10 px-3 py-2 text-xs text-zinc-600 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg.white/5 dark:text-zinc-300">
         <div>{debugLine}</div>
         {previewHint && (
           <div className="text-[11px] opacity-80">{previewHint}</div>
@@ -1489,7 +1492,7 @@ export default function EmotionHistory() {
       </div>
 
       {/* Session filter — links Emotion History to chat sessions via sessionId */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-zinc-600 shadow-sm backdrop-blur-md dark:bg-white/5 dark:text-zinc-300">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg.white/5 p-3 text-xs text-zinc-600 shadow-sm backdrop-blur-md dark:bg.white/5 dark:text-zinc-300">
         <label className="min-w-[200px] flex-1">
           <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             Filter by chat session ID{" "}
@@ -1507,8 +1510,8 @@ export default function EmotionHistory() {
             placeholder="Paste or type a session id from chat…"
             className={[
               "w-full rounded-lg px-2 py-1 text-xs",
-              "bg-white/80 text-zinc-800 placeholder:text-zinc-400",
-              "dark:bg-zinc-900/80 dark:text-zinc-100 dark:placeholder:text-zinc-500",
+              "bg.white/80 text-zinc-800 placeholder:text-zinc-400",
+              "dark:bg.zinc-900/80 dark:text-zinc-100 dark:placeholder:text-zinc-500",
               highlightSessionInput
                 ? "border border-indigo-400 ring-2 ring-indigo-300/40 dark:border-indigo-500 dark:ring-indigo-400/30"
                 : "border border-white/20 dark:border-white/15",
@@ -1531,7 +1534,7 @@ export default function EmotionHistory() {
           {urlSessionId && (
             <Link
               href={`/chat?sessionId=${encodeURIComponent(urlSessionId)}`}
-              className="rounded-lg border border-white/15 bg-white/10 px-2 py-1 text-xs text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+              className="rounded-lg border border-white/15 bg.white/10 px-2 py-1 text-xs text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
               title="Open this session in chat"
             >
               ← Back to chat
@@ -1545,7 +1548,7 @@ export default function EmotionHistory() {
                 setSessionFilter("");
                 setSessionFilterTouched(true); // user action, so don't auto-scroll anymore
               }}
-              className="rounded-lg border border-white/15 bg-white/10 px-2 py-1 text-xs text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+              className="rounded-lg border border-white/15 bg.white/10 px-2 py-1 text-xs text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
               title="Clear session filter"
             >
               Clear
@@ -1562,13 +1565,13 @@ export default function EmotionHistory() {
       )}
 
       {/* Emotion Summary Card */}
-      <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-3 shadow-sm backdrop-blur-md dark:bg-white/5">
+      <div className="mb-4 rounded-2xl border border-white/10 bg.white/5 p-3 shadow-sm backdrop-blur-md dark:bg.white/5">
         <EmotionSummaryCard summary={toCardSummary(summary)} />
       </div>
 
       {/* Mini timeline visualization (uses flagged records) */}
       {timelineItems.length > 0 && (
-        <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-3 shadow-sm backdrop-blur-md dark:bg-white/5">
+        <div className="mb-4 rounded-2xl border border-white/10 bg.white/5 p-3 shadow-sm backdrop-blur-md dark:bg.white/5">
           <EmotionMiniTimeline records={timelineItems} />
         </div>
       )}
@@ -1618,6 +1621,27 @@ export default function EmotionHistory() {
 
           const hasChatLink = !!(r.sessionId && r.messageId);
 
+          // Teen-Insight: derive a gentle reflection if we have both message & some reflection-like text
+          const reflectionRaw =
+            (r as any).reflection ??
+            (r as any).summary ??
+            (r as any).notes ??
+            "";
+          const reflection =
+            typeof reflectionRaw === "string"
+              ? reflectionRaw.trim()
+              : "";
+          const teenInsight =
+            r.message &&
+              reflection &&
+              r.emotion
+              ? buildTeenInsight({
+                message: r.message,
+                emotion: String(r.emotion),
+                reflection,
+              })
+              : null;
+
           return (
             <li
               ref={liRef}
@@ -1634,7 +1658,7 @@ export default function EmotionHistory() {
                 }
               }}
               className={[
-                "imotara-history-item p-4 shadow-sm cursor-pointer transition hover:bg-white/10",
+                "imotara-history-item p-4 shadow-sm cursor-pointer transition hover:bg.white/10",
                 highlightedByMessage
                   ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-transparent animate-pulse"
                   : "",
@@ -1646,7 +1670,7 @@ export default function EmotionHistory() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-[11px]">
                   {sourceLabel && (
-                    <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-medium text-zinc-700 shadow-sm backdrop-blur-sm dark:text-zinc-100">
+                    <span className="inline-flex items-center rounded-full border border-white/20 bg.white/10 px-2 py-0.5 text-[10px] font-medium text-zinc-700 shadow-sm backdrop-blur-sm dark:text-zinc-100">
                       {sourceLabel}
                     </span>
                   )}
@@ -1658,7 +1682,7 @@ export default function EmotionHistory() {
                       Chat session
                     </span>
                   )}
-                  <span className="rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-zinc-700 shadow-sm backdrop-blur-sm dark:text-zinc-100">
+                  <span className="rounded-full bg.white/5 px-2 py-0.5 text-[11px] text-zinc-700 shadow-sm backdrop-blur-sm dark:text-zinc-100">
                     {r.emotion} • {intensity}
                   </span>
                   {hasChatLink && (
@@ -1668,7 +1692,7 @@ export default function EmotionHistory() {
                       )}&messageId=${encodeURIComponent(
                         r.messageId as string
                       )}`}
-                      className="rounded-lg border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+                      className="rounded-lg border border-white/20 bg.white/10 px-2 py-0.5 text-[11px] text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
                       title="Open this moment in chat"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -1680,7 +1704,7 @@ export default function EmotionHistory() {
                       e.stopPropagation();
                       void handleDelete(r.id);
                     }}
-                    className="rounded-lg border border-white/15 bg-white/10 px-2 py-0.5 text-[11px] text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+                    className="rounded-lg border border-white/15 bg.white/10 px-2 py-0.5 text-[11px] text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
                     title="Soft-delete this entry"
                   >
                     Delete
@@ -1692,17 +1716,29 @@ export default function EmotionHistory() {
                   <span className="opacity-70">(no message)</span>
                 )}
               </div>
+
+              {/* Teen-Insight block (gentle, optional) */}
+              {teenInsight && (
+                <div className="mt-3 rounded-xl border border-violet-500/35 bg-violet-500/10 px-3 py-2 text-xs text-violet-50 shadow-sm">
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-200/90">
+                    Teen Insight
+                  </div>
+                  <div className="whitespace-pre-line text-[12px] leading-relaxed text-violet-50/95">
+                    {teenInsight}
+                  </div>
+                </div>
+              )}
             </li>
           );
         })}
 
         {/* Global empty-state (no history at all) */}
         {visibleItems.length === 0 && (
-          <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center text-zinc-700 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-white/5 dark:text-zinc-300">
+          <li className="rounded-2xl border border-dashed border-white/20 bg.white/5 p-6 text-center text-zinc-700 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg.white/5 dark:text-zinc-300">
             <div>No history yet.</div>
             <button
               onClick={addDemo}
-              className="mt-3 inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+              className="mt-3 inline-flex items-center justify-center rounded-xl border border-white/20 bg.white/10 px-3 py-1.5 text-sm font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
               title="Insert one neutral sample entry"
             >
               Add a sample entry
@@ -1724,7 +1760,7 @@ export default function EmotionHistory() {
         {visibleItems.length > 0 &&
           sessionFilter.trim() &&
           filteredItems.length === 0 && (
-            <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center text-zinc-700 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-white/5 dark:text-zinc-300">
+            <li className="rounded-2xl border border-dashed border-white/20 bg.white/5 p-6 text-center text-zinc-700 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg.white/5 dark:text-zinc-300">
               <div>No entries match this chat session filter.</div>
               <div className="mt-1 text-xs opacity-80">
                 Try clearing the filter to see all records.

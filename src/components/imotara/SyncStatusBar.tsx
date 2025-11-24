@@ -14,6 +14,7 @@ import useSyncHistory, { type SyncState } from "@/hooks/useSyncHistory";
  * NOW ENHANCED WITH:
  * - Offline detection
  * - “Back online” auto-retry indicator
+ * - Hydration-safe label rendering (avoids Offline vs Idle mismatch)
  * - No change to existing logic, dot colors, or labels
  */
 
@@ -69,6 +70,12 @@ export default function SyncStatusBar() {
     typeof navigator !== "undefined" ? !navigator.onLine : false
   );
   const [justOnline, setJustOnline] = useState(false);
+
+  // ⭐ Hydration guard: know when we are mounted on the client
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Listen to browser connectivity
   useEffect(() => {
@@ -132,6 +139,12 @@ export default function SyncStatusBar() {
     justOnline,
   ]);
 
+  // 🛡️ Hydration-safe versions:
+  // - On the server + first client hydration, we show a neutral "Sync"
+  //   label and no subtext. After mount, we swap to the real values.
+  const renderedLabel = mounted ? label : "Sync";
+  const renderedSub = mounted ? sub : "";
+
   const isSyncing = sync.state === "syncing";
 
   const buttonLabel = isSyncing
@@ -161,11 +174,11 @@ export default function SyncStatusBar() {
           <span
             className={`h-2.5 w-2.5 rounded-full ${dotClass} shadow-[0_0_8px_rgba(255,255,255,0.4)]`}
           />
-          <span className="text-xs font-medium">{label}</span>
+          <span className="text-xs font-medium">{renderedLabel}</span>
 
-          {sub && (
+          {renderedSub && (
             <span className="hidden truncate text-[11px] text-zinc-300 sm:inline">
-              • {sub}
+              • {renderedSub}
             </span>
           )}
         </div>

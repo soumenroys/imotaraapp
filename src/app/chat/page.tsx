@@ -1,7 +1,6 @@
 // src/app/chat/page.tsx
 "use client";
 
-
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
@@ -23,25 +22,23 @@ import AnalysisConsentToggle from "@/components/imotara/AnalysisConsentToggle";
 // ⬇️ shared consent hook
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 
-
 // 👇 analysis imports
 import type { AnalysisResult } from "@/types/analysis";
 import { runLocalAnalysis } from "@/lib/imotara/runLocalAnalysis";
 import { runAnalysisWithConsent } from "@/lib/imotara/runAnalysisWithConsent";
 
-
 // 👇 history import for Chat → History linkage
 import { saveSample } from "@/lib/imotara/history";
 import type { Emotion } from "@/types/history";
 
-
 // ⬇️ shared app top bar
 import TopBar from "@/components/imotara/TopBar";
 
+// ⬇️ Teen-Insight generator
+import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
 
 type Role = "user" | "assistant" | "system";
 type DebugEmotionSource = "analysis" | "fallback" | "unknown";
-
 
 type Message = {
   id: string;
@@ -51,12 +48,10 @@ type Message = {
   /** ID of the chat session / thread this message belongs to */
   sessionId?: string;
 
-
   // 🔍 optional debug fields for assistant replies
   debugEmotion?: string;
   debugEmotionSource?: DebugEmotionSource;
 };
-
 
 type Thread = {
   id: string;
@@ -65,14 +60,11 @@ type Thread = {
   messages: Message[];
 };
 
-
 const STORAGE_KEY = "imotara.chat.v1";
-
 
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
-
 
 /** Pure, client-only date text (no setState in effect) */
 function DateText({ ts }: { ts: number }) {
@@ -96,11 +88,9 @@ function DateText({ ts }: { ts: number }) {
   return <span suppressHydrationWarning>{text}</span>;
 }
 
-
 function isAppMessage(m: Message): m is AppMessage {
   return m.role === "user" || m.role === "assistant";
 }
-
 
 async function fetchRemoteHistory(): Promise<unknown[]> {
   try {
@@ -121,7 +111,6 @@ async function fetchRemoteHistory(): Promise<unknown[]> {
   }
 }
 
-
 async function persistMergedHistory(merged: unknown): Promise<void> {
   try {
     const mod: Record<string, unknown> = await import(
@@ -137,7 +126,6 @@ async function persistMergedHistory(merged: unknown): Promise<void> {
       | ((items: unknown) => Promise<void> | void)
       | undefined;
 
-
     if (typeof setHistory === "function") return void (await setHistory(merged));
     if (typeof saveLocalHistory === "function")
       return void (await saveLocalHistory(merged));
@@ -148,13 +136,11 @@ async function persistMergedHistory(merged: unknown): Promise<void> {
   }
 }
 
-
 // 👇 options for emotion-aware logging
 type HistoryEmotionOptions = {
   emotion?: Emotion;
   intensity?: number;
 };
-
 
 // 👇 helper to log a user chat message into Emotion History
 // Tries to derive emotion & intensity using runLocalAnalysis when opts not provided.
@@ -167,11 +153,9 @@ async function logUserMessageToHistory(
     const text = msg.content.trim();
     if (!text) return;
 
-
     let emotion: Emotion = opts?.emotion ?? "neutral";
     let intensity: number =
       typeof opts?.intensity === "number" ? opts.intensity : 0.3;
-
 
     // If caller didn't specify emotion/intensity, try to infer from local analysis
     if (!opts) {
@@ -179,19 +163,16 @@ async function logUserMessageToHistory(
         const res = (await runLocalAnalysis([msg] as any, 1)) as any;
         const summary = res?.summary;
 
-
         const inferredEmotion =
           summary?.primaryEmotion ??
           summary?.emotion ??
           summary?.tag ??
           null;
 
-
         const inferredIntensity =
           typeof summary?.intensity === "number"
             ? summary.intensity
             : null;
-
 
         if (inferredEmotion) {
           emotion = inferredEmotion as Emotion;
@@ -206,7 +187,6 @@ async function logUserMessageToHistory(
         );
       }
     }
-
 
     // Build payload separately and cast to any so we can include
     // the new linking fields without fighting older saveSample typings.
@@ -223,7 +203,6 @@ async function logUserMessageToHistory(
       messageId: msg.id,
     };
 
-
     await saveSample(payload);
   } catch (err) {
     console.error(
@@ -233,27 +212,22 @@ async function logUserMessageToHistory(
   }
 }
 
-
 export default function ChatPage() {
   const searchParams = useSearchParams();
   const urlSessionId = (searchParams?.get("sessionId") ?? "").trim();
   const urlMessageId = (searchParams?.get("messageId") ?? "").trim();
 
-
   // Avoid SSR/client mismatches for localStorage-driven UI
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-
 
   // ✅ Hydration-safe initial state (no Date.now/Math.random on server)
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
-
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
-
 
   // ⬇️ for deep-link scroll + highlight
   const messageTargetRef = useRef<HTMLDivElement | null>(null);
@@ -261,18 +235,15 @@ export default function ChatPage() {
     useState<string | null>(null);
   const usedMessageIdRef = useRef<string | null>(null);
 
-
   // Sync state
   const [syncing, setSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const [syncedCount, setSyncedCount] = useState<number | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-
   // analysis state
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false); // spinner flag (also reused for reply-generation)
-
 
   // ⬇️ read current analysis consent mode (shared with EmotionHistory)
   const { mode } = useAnalysisConsent();
@@ -281,11 +252,9 @@ export default function ChatPage() {
       ? "Remote analysis allowed"
       : "On-device only";
 
-
   // ✅ Load threads from localStorage or seed AFTER mount (client only)
   useEffect(() => {
     if (!mounted) return;
-
 
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -303,7 +272,6 @@ export default function ChatPage() {
     } catch {
       // ignore parse/storage errors
     }
-
 
     // Seed a first conversation if nothing in storage
     const seedId = uid();
@@ -327,14 +295,12 @@ export default function ChatPage() {
     setActiveId(seedId);
   }, [mounted]);
 
-
   // Keep activeId valid after mount
   useEffect(() => {
     if (!mounted) return;
     const found = threads.find((t) => t.id === activeId);
     if (!found && threads.length > 0) setActiveId(threads[0].id);
   }, [mounted, threads, activeId]);
-
 
   // Respect sessionId from URL on first mounts/changes
   useEffect(() => {
@@ -346,12 +312,10 @@ export default function ChatPage() {
     }
   }, [mounted, urlSessionId, threads, activeId]);
 
-
   const activeThread = useMemo(
     () => threads.find((t) => t.id === activeId) ?? null,
     [threads, activeId]
   );
-
 
   // when messageId is present in URL, scroll & highlight that bubble once
   useEffect(() => {
@@ -359,18 +323,14 @@ export default function ChatPage() {
     if (!urlMessageId) return;
     if (!activeThread) return;
 
-
     // avoid re-running for the same messageId
     if (usedMessageIdRef.current === urlMessageId) return;
-
 
     const exists = activeThread.messages.some((m) => m.id === urlMessageId);
     if (!exists) return;
 
-
     usedMessageIdRef.current = urlMessageId;
     setHighlightedMessageId(urlMessageId);
-
 
     // let the ref settle, then scroll
     setTimeout(() => {
@@ -381,14 +341,12 @@ export default function ChatPage() {
     }, 50);
   }, [mounted, urlMessageId, activeThread]);
 
-
   // auto-clear highlight after a few seconds
   useEffect(() => {
     if (!highlightedMessageId) return;
     const t = window.setTimeout(() => setHighlightedMessageId(null), 4000);
     return () => window.clearTimeout(t);
   }, [highlightedMessageId]);
-
 
   // Persist to localStorage on client
   useEffect(() => {
@@ -403,12 +361,10 @@ export default function ChatPage() {
     }
   }, [mounted, threads, activeId]);
 
-
   const appMessages: AppMessage[] = useMemo(() => {
     const msgs = activeThread?.messages ?? [];
     return msgs.filter(isAppMessage);
   }, [activeThread?.messages]);
-
 
   // run analysis whenever messages change (console-only, consent-aware)
   useEffect(() => {
@@ -418,7 +374,6 @@ export default function ChatPage() {
       setAnalysis(null);
       return;
     }
-
 
     let cancelled = false;
     (async () => {
@@ -433,12 +388,10 @@ export default function ChatPage() {
       }
     })();
 
-
     return () => {
       cancelled = true;
     };
   }, [mounted, activeThread?.messages]);
-
 
   // Scroll on message change (generic bottom scroll)
   useEffect(() => {
@@ -446,7 +399,6 @@ export default function ChatPage() {
     if (listRef.current)
       listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [mounted, activeThread?.messages?.length]);
-
 
   // Auto-size composer
   useEffect(() => {
@@ -456,7 +408,6 @@ export default function ChatPage() {
     el.style.height = "0px";
     el.style.height = Math.min(200, el.scrollHeight) + "px";
   }, [mounted, draft]);
-
 
   // Initial sync
   const runSync = useCallback(async () => {
@@ -476,12 +427,10 @@ export default function ChatPage() {
     }
   }, []);
 
-
   useEffect(() => {
     if (mounted) void runSync();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted]);
-
 
   // manual re-analyze helper
   async function triggerAnalyze() {
@@ -498,7 +447,6 @@ export default function ChatPage() {
     }
   }
 
-
   // 🔹 helper: derive emotion from summary + last message text
   function deriveEmotionFromSummaryAndText(
     summary: any,
@@ -507,11 +455,8 @@ export default function ChatPage() {
     const rawFromSummary =
       summary?.primaryEmotion ?? summary?.emotion ?? summary?.tag ?? "";
 
-
     let emotion = String(rawFromSummary || "").toLowerCase().trim();
     let source: DebugEmotionSource = "unknown";
-
-
 
     // 🔁 Normalize summary emotion aliases to canonical buckets
     const aliasMap: Record<string, string> = {
@@ -548,7 +493,6 @@ export default function ChatPage() {
       "normal",
     ]);
 
-
     // last user message in this group
     const lastUser = [...msgsForAnalysis]
       .slice()
@@ -556,13 +500,11 @@ export default function ChatPage() {
       .find((m) => m.role === "user");
     const text = (lastUser?.content ?? "").toLowerCase();
 
-
     // If summary emotion is present and not neutral-ish → analysis wins
     if (emotion && !neutralish.has(emotion)) {
       source = "analysis";
       return { emotion, source };
     }
-
 
     // Otherwise fall back to keyword heuristic on last user text
     if (
@@ -602,11 +544,44 @@ export default function ChatPage() {
       return { emotion: "happy", source: "fallback" };
     }
 
-
     // default if no hits at all
     return { emotion: "neutral", source: "unknown" };
   }
 
+  // 🔹 Teen-Insight for the latest user message in this conversation
+  const teenInsight = useMemo(() => {
+    if (!analysis?.summary) return null;
+    const summary: any = analysis.summary;
+    const msgs = activeThread?.messages ?? [];
+    if (!msgs.length) return null;
+
+    const lastUser = [...msgs]
+      .slice()
+      .reverse()
+      .find((m) => m.role === "user");
+    if (!lastUser) return null;
+
+    const derived = deriveEmotionFromSummaryAndText(summary, msgs);
+    const emotion = derived.emotion;
+
+    const reflectionRaw =
+      summary.reflection ??
+      summary.explanation ??
+      summary.coachingTip ??
+      summary.nextStep ??
+      summary.adviceLong ??
+      summary.adviceShort ??
+      "";
+
+    const reflection = String(reflectionRaw || "").trim();
+    if (!emotion || !reflection) return null;
+
+    return buildTeenInsight({
+      message: lastUser.content,
+      emotion,
+      reflection,
+    });
+  }, [analysis, activeThread?.messages]);
 
   // 🔹 AI-style assistant reply generator (consent-aware, emotion templated + keyword fallback)
   async function generateAssistantReply(
@@ -619,16 +594,13 @@ export default function ChatPage() {
       let debugEmotion: string | undefined;
       let debugEmotionSource: DebugEmotionSource = "unknown";
 
-
       try {
         const res = (await runAnalysisWithConsent(
           msgsForAnalysis,
           10
         )) as AnalysisResult | null;
 
-
         const summary: any = res?.summary ?? {};
-
 
         const derived = deriveEmotionFromSummaryAndText(
           summary,
@@ -637,22 +609,18 @@ export default function ChatPage() {
         debugEmotion = derived.emotion;
         debugEmotionSource = derived.source;
 
-
         const emotion = derived.emotion;
-
 
         const intensity =
           typeof summary.intensity === "number" ? summary.intensity : 0.4;
         const tone =
           typeof summary.tone === "string" ? summary.tone.toLowerCase() : "";
 
-
         const advice =
           summary.adviceShort ??
           summary.coachingTip ??
           summary.nextStep ??
           "";
-
 
         const strengthLabel =
           intensity < 0.25
@@ -661,18 +629,15 @@ export default function ChatPage() {
               ? "a pretty strong"
               : "an intense";
 
-
         const adviceTail =
           advice && String(advice).trim().length > 0
             ? ` ${String(advice).trim()}`
             : " If you’d like, you can tell me a little more about what’s going on.";
 
-
         const toneHint =
           tone && tone !== "neutral"
             ? ` I’ll try to stay ${tone} and on your side while we talk.`
             : "";
-
 
         // Emotion-specific templates
         switch (emotion) {
@@ -687,7 +652,6 @@ export default function ChatPage() {
               toneHint;
             break;
 
-
           case "anxious":
           case "worried":
           case "nervous":
@@ -701,7 +665,6 @@ export default function ChatPage() {
               toneHint;
             break;
 
-
           case "angry":
           case "frustrated":
           case "irritated":
@@ -714,7 +677,6 @@ export default function ChatPage() {
               toneHint;
             break;
 
-
           case "stressed":
           case "overwhelmed":
           case "burnt out":
@@ -726,7 +688,6 @@ export default function ChatPage() {
               adviceTail +
               toneHint;
             break;
-
 
           case "happy":
           case "joy":
@@ -743,7 +704,6 @@ export default function ChatPage() {
               toneHint;
             break;
 
-
           case "lonely":
           case "isolated":
             replyText =
@@ -753,7 +713,6 @@ export default function ChatPage() {
               adviceTail +
               toneHint;
             break;
-
 
           default:
             // neutral / mixed / unknown
@@ -769,11 +728,9 @@ export default function ChatPage() {
         console.error("[imotara] reply analysis failed:", err);
       }
 
-
       const safeReply =
         (replyText && String(replyText).trim()) ||
         "I hear you. I may not have the perfect words yet, but I’m here to stay with you and keep listening.";
-
 
       const assistantMsg: Message = {
         id: uid(),
@@ -784,7 +741,6 @@ export default function ChatPage() {
         debugEmotion,
         debugEmotionSource,
       };
-
 
       setThreads((prev) =>
         prev.map((t) =>
@@ -797,7 +753,6 @@ export default function ChatPage() {
       setAnalyzing(false);
     }
   }
-
 
   function newThread() {
     const t: Thread = {
@@ -812,7 +767,6 @@ export default function ChatPage() {
     setTimeout(() => composerRef.current?.focus(), 0);
   }
 
-
   function deleteThread(id: string) {
     setThreads((prev) => prev.filter((t) => t.id !== id));
     if (activeId === id) {
@@ -820,7 +774,6 @@ export default function ChatPage() {
       setActiveId(remaining[0]?.id ?? null);
     }
   }
-
 
   function renameActive(title: string) {
     if (!activeThread) return;
@@ -831,15 +784,12 @@ export default function ChatPage() {
     );
   }
 
-
   function sendMessage() {
     const text = draft.trim();
     if (!text) return;
 
-
     let targetId = activeId;
     let createdNewThread = false;
-
 
     if (!targetId) {
       const t: Thread = {
@@ -854,12 +804,9 @@ export default function ChatPage() {
       createdNewThread = true;
     }
 
-
     if (!targetId) return; // safety
 
-
     const now = Date.now();
-
 
     const userMsg: Message = {
       id: uid(),
@@ -869,7 +816,6 @@ export default function ChatPage() {
       sessionId: targetId,
     };
 
-
     // Base messages for analysis: existing messages in that thread + this user message
     let existingThread: Thread | undefined;
     if (!createdNewThread && targetId) {
@@ -877,7 +823,6 @@ export default function ChatPage() {
     }
     const baseMessages = existingThread?.messages ?? [];
     const msgsForAnalysis = [...baseMessages, userMsg];
-
 
     setThreads((prev) =>
       prev.map((t) =>
@@ -895,19 +840,15 @@ export default function ChatPage() {
       )
     );
 
-
     // Fire-and-forget: log this user message into Emotion History.
     void logUserMessageToHistory(userMsg);
-
 
     // 🔹 Fire-and-forget: generate an AI-style assistant reply
     void generateAssistantReply(targetId, msgsForAnalysis);
 
-
     setDraft("");
     setTimeout(() => composerRef.current?.focus(), 0);
   }
-
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -915,7 +856,6 @@ export default function ChatPage() {
       sendMessage();
     }
   }
-
 
   function clearChat() {
     if (!activeThread) return;
@@ -926,7 +866,6 @@ export default function ChatPage() {
       )
     );
   }
-
 
   function exportJSON() {
     const blob = new Blob([JSON.stringify({ threads }, null, 2)], {
@@ -942,12 +881,10 @@ export default function ChatPage() {
     URL.revokeObjectURL(url);
   }
 
-
   return (
     <>
       {/* Global app top bar with nav + sync chip + conflicts */}
       <TopBar title="Chat" showSyncChip showConflictsButton />
-
 
       <div className="mx-auto flex h-[calc(100vh-0px)] w-full max-w-7xl px-3 py-4 text-zinc-100 sm:px-4">
         {/* Sidebar */}
@@ -965,7 +902,6 @@ export default function ChatPage() {
             </button>
           </div>
 
-
           {/* tiny consent indicator in the sidebar */}
           <div className="mb-2 hidden text-[11px] text-zinc-400 sm:block">
             <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-zinc-300 backdrop-blur-sm">
@@ -976,7 +912,6 @@ export default function ChatPage() {
               {consentLabel}
             </span>
           </div>
-
 
           <div className="flex-1 space-y-1 overflow-auto pr-1">
             {!mounted ? (
@@ -1052,7 +987,6 @@ export default function ChatPage() {
           </div>
         </aside>
 
-
         {/* Main */}
         <main className="flex flex-1 flex-col">
           {/* HEADER: wrapped in glass card */}
@@ -1081,7 +1015,6 @@ export default function ChatPage() {
                     </div>
                   </div>
 
-
                   {/* Right: sync status + buttons + consent indicator */}
                   <div className="flex flex-wrap items-center justify-start gap-2 text-[11px] sm:justify-end">
                     {/* Sync status chip */}
@@ -1108,7 +1041,6 @@ export default function ChatPage() {
                       </span>
                     ) : null}
 
-
                     {/* Sync button */}
                     <button
                       onClick={runSync}
@@ -1123,7 +1055,6 @@ export default function ChatPage() {
                       Sync now
                     </button>
 
-
                     {/* Conflicts entrypoint – routes to History page */}
                     <Link
                       href="/history"
@@ -1132,7 +1063,6 @@ export default function ChatPage() {
                     >
                       <ConflictReviewButton />
                     </Link>
-
 
                     {/* read-only consent indicator in header */}
                     <span
@@ -1162,7 +1092,6 @@ export default function ChatPage() {
                       Emotion analysis mode
                     </p>
 
-
                     <div className="flex flex-wrap items-center gap-2">
                       {/* analysis headline pill */}
                       {analysis?.summary?.headline ? (
@@ -1179,6 +1108,17 @@ export default function ChatPage() {
                       )}
                     </div>
 
+                    {/* Teen-Insight card */}
+                    {teenInsight && (
+                      <div className="mt-1 rounded-2xl border border-violet-500/35 bg-violet-500/10 px-3 py-3 text-xs text-violet-50 shadow-sm">
+                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-200/90">
+                          Teen Insight
+                        </div>
+                        <div className="whitespace-pre-line text-[12px] leading-relaxed text-violet-50/95">
+                          {teenInsight}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-2">
                       <AnalysisConsentToggle />
@@ -1187,14 +1127,12 @@ export default function ChatPage() {
                       </span>
                     </div>
 
-
                     <p className="mt-1 max-w-xs text-xs text-zinc-500">
                       Use the toggle to switch between local-only and remote
                       analysis. Your words stay on-device unless you explicitly
                       allow remote.
                     </p>
                   </div>
-
 
                   {/* Right: actions */}
                   <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
@@ -1218,7 +1156,6 @@ export default function ChatPage() {
                       History
                     </Link>
 
-
                     {/* Re-analyze button with spinner */}
                     <button
                       onClick={triggerAnalyze}
@@ -1234,7 +1171,6 @@ export default function ChatPage() {
                       ) : null}
                       Re-analyze
                     </button>
-
 
                     {/* Clear / Export / New */}
                     <button
@@ -1262,7 +1198,6 @@ export default function ChatPage() {
               </div>
             </div>
           </header>
-
 
           {/* BODY: messages + mood summary */}
           <div
@@ -1315,7 +1250,6 @@ export default function ChatPage() {
             )}
           </div>
 
-
           {/* COMPOSER */}
           <div className="border-t border-white/10 px-3 pb-3 pt-2 sm:px-4">
             {/* tiny consent mode indicator above composer */}
@@ -1329,14 +1263,12 @@ export default function ChatPage() {
               </span>
             </div>
 
-
             {/* micro-copy for sync clarity */}
             <div className="mx-auto mb-1 max-w-3xl">
               <p className="pr-1 text-right text-xs text-zinc-500">
                 Your chat is saved locally and synced when online.
               </p>
             </div>
-
 
             <div className="mx-auto flex max-w-3xl items-end gap-2">
               <textarea
@@ -1363,7 +1295,6 @@ export default function ChatPage() {
   );
 }
 
-
 function EmptyState() {
   return (
     <div className="mx-auto max-w-3xl">
@@ -1377,7 +1308,6 @@ function EmptyState() {
     </div>
   );
 }
-
 
 function Bubble({
   id,
@@ -1402,7 +1332,6 @@ function Bubble({
 }) {
   const isUser = role === "user";
 
-
   const bubbleClass = [
     "max-w-[85%] rounded-2xl px-4 py-3 text-sm sm:max-w-[75%] transition-all",
     isUser
@@ -1415,12 +1344,10 @@ function Bubble({
     .filter(Boolean)
     .join(" ");
 
-
   const showDebug =
     role === "assistant" &&
     typeof debugEmotion === "string" &&
     debugEmotion.trim().length > 0;
-
 
   return (
     <div

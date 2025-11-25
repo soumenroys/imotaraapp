@@ -25,6 +25,9 @@ export type AppMessage = {
   role: "user" | "assistant";
 };
 
+/**
+ * Convert chat messages into AnalysisInput[] for analyzer backends.
+ */
 export function toAnalysisInputs(msgs: AppMessage[]): AnalysisInput[] {
   return msgs.map((m) => ({
     id: m.id,
@@ -37,7 +40,11 @@ export function toAnalysisInputs(msgs: AppMessage[]): AnalysisInput[] {
 /**
  * useAnalysis
  * - Chooses local or api analyzer based on `mode` (or env default).
- * - Same API as useLocalAnalysis, so we can swap later with 1-line change.
+ * - When mode === "api", it goes through /api/analyze (which is now AI-aware).
+ * - When mode === "local", it uses purely client-side heuristics.
+ *
+ * The hook API is unchanged so existing consumers continue to work:
+ *   const { result, loading, error, mode } = useAnalysis(messages);
  */
 export function useAnalysis(
   messages: AppMessage[],
@@ -55,6 +62,7 @@ export function useAnalysis(
 
   useEffect(() => {
     let cancelled = false;
+
     async function run() {
       try {
         setLoading(true);
@@ -75,8 +83,16 @@ export function useAnalysis(
         if (!cancelled) setLoading(false);
       }
     }
-    if (inputs.length) run();
-    else setResult(null);
+
+    if (inputs.length) {
+      // We have messages → run selected analyzer
+      run();
+    } else {
+      // No messages: ensure we reset state cleanly
+      setResult(null);
+      setLoading(false);
+      setError(null);
+    }
 
     return () => {
       cancelled = true;

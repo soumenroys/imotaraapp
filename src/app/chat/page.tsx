@@ -62,6 +62,14 @@ type Thread = {
 
 const STORAGE_KEY = "imotara.chat.v1";
 
+// 🔹 Build-time analysis implementation mode (local vs api)
+// This reflects how the engine is wired in this build,
+// independent of per-user consent (allow-remote vs on-device).
+const ANALYSIS_IMPL: "local" | "api" =
+  (process.env.NEXT_PUBLIC_IMOTARA_ANALYSIS as "local" | "api") === "api"
+    ? "api"
+    : "local";
+
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
@@ -1131,6 +1139,13 @@ export default function ChatPage() {
                       Use the toggle to switch between local-only and remote
                       analysis. Your words stay on-device unless you explicitly
                       allow remote.
+                    </p>
+
+                    {/* Engine implementation hint: local vs Cloud AI */}
+                    <p className="mt-0.5 max-w-xs text-[11px] text-zinc-500">
+                      {ANALYSIS_IMPL === "api"
+                        ? "Engine: Cloud AI via /api/analyze (used only when remote analysis is allowed)."
+                        : "Engine: On-device analysis only. Remote AI is disabled in this build."}
                     </p>
                   </div>
 

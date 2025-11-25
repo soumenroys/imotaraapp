@@ -1,42 +1,59 @@
 // src/lib/imotara/runAnalysisWithConsent.ts
 //
-// Single entry-point for chat emotion analysis that respects the
-// user's consent choice:
+// Single entry point for chat emotion analysis that respects:
+//   - Build-time engine mode (local vs api)
+//   - User consent: "local-only" vs "allow-remote"
 //
-//   - "local-only"   → keep everything on-device
-//   - "allow-remote" → later we may call the backend/API
+// Final behavior:
+//   • Always compute a local baseline (offline-friendly, safe).
+//   • If user allows remote AND the build is API-enabled,
+//       attempt remote analysis via /api/analyze.
+//   • If remote fails → fallback to localResult (no crash).
 //
-// For now, both modes still run the same local analysis, but the
-// consent check is centralized here so wiring remote will be trivial.
+// 100% backward compatible.
 
 import type { AnalysisResult } from "@/types/analysis";
 import { runLocalAnalysis } from "@/lib/imotara/runLocalAnalysis";
 import { hasAllowedRemoteAnalysis } from "@/lib/imotara/consent";
-// In a later step we may use this:
-// import { analyzeRemote } from "@/lib/imotara/analyzeRemote";
+import { analyzeRemote } from "@/lib/imotara/analyzeRemote";
 
-// We intentionally keep the inputs as `any[]` so both Message[] and
-// AppMessage[] can be passed without fighting TS in older code paths.
+// Build-time analysis implementation ("local" | "api")
+const ENGINE_IMPL: "local" | "api" =
+    (process.env.NEXT_PUBLIC_IMOTARA_ANALYSIS as "local" | "api") === "api"
+        ? "api"
+        : "local";
+
+// Inputs are loosely typed (AppMessage[] or Message[])
 export async function runAnalysisWithConsent(
     inputs: any[],
     windowSize = 10
 ): Promise<AnalysisResult> {
-    // Always compute a local baseline first (safest + offline-friendly).
+    // 1) Always compute local baseline (safe and offline)
     const localResult = await runLocalAnalysis(inputs as any, windowSize);
 
-    // Check whether the user has allowed remote analysis.
-    const remoteAllowed =
+    // 2) Check if user allows remote AI
+    const userAllowsRemote =
         typeof window !== "undefined" && hasAllowedRemoteAnalysis();
 
-    if (!remoteAllowed) {
-        // Strict local-only mode.
+    // 3) Check if engine build supports API
+    const apiEnabled = ENGINE_IMPL === "api";
+
+    // If either (user disallows) OR (engine is local-only) → return local
+    if (!userAllowsRemote || !apiEnabled) {
         return localResult;
     }
 
-    // 🔜 In a later step, we may:
-    //  - call analyzeRemote(inputs, { windowSize })
-    //  - blend/fallback with `localResult`
-    //
-    // For Step 18, we still keep behavior identical and return local.
-    return localResult;
+    // 4) Attempt remote analysis (Cloud AI)
+    try {
+        const remoteResult = await analyzeRemote(inputs as any, { windowSize });
+
+        // IMPORTANT:
+        // remoteResult must match AnalysisResult. /api/analyze now always returns
+        // a proper structure (AI-enriched summary + reflections), with graceful fallback.
+        return remoteResult;
+    } catch (err) {
+        console.error("[imotara] Remote analysis failed, falling back to local:", err);
+        // Fallback quietly to local
+        return localResult;
+    }
 }

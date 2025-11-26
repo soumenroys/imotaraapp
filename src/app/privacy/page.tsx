@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PrivacyActionsPanel from "@/components/imotara/PrivacyActionsPanel";
 
 export const metadata = {
   title: "Privacy Policy — Imotara",
@@ -99,6 +100,46 @@ export default function PrivacyPage() {
           </p>
         </section>
 
+        {/* How the Current Web Preview Works */}
+        <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
+          <h2 className="text-xl font-medium text-zinc-50">
+            How the Current Web Preview Works (On This Device)
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-zinc-300">
+            The current Imotara web preview focuses on{" "}
+            <strong>on-device processing</strong> first. That means:
+          </p>
+          <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
+            <li>
+              <strong>Chat messages &amp; mood history</strong> are stored
+              locally in your browser (for example, in local storage or a
+              similar mechanism) so you can see past conversations and emotion
+              trends on this device.
+            </li>
+            <li>
+              <strong>Emotion analysis</strong> is currently performed locally
+              in this preview build; remote/AI-backend analysis will only be
+              enabled when you explicitly allow it.
+            </li>
+            <li>
+              <strong>Consent settings</strong> (such as &quot;on-device
+              only&quot; vs future cloud/remote analysis modes) are also stored
+              locally and can be changed in the app.
+            </li>
+            <li>
+              <strong>Sync and cloud features</strong> are under active
+              development. Until those are available and clearly explained, your
+              conversations and emotion history in this preview are not used to
+              train ads or sold to third parties.
+            </li>
+          </ul>
+          <p className="mt-3 text-xs text-zinc-400">
+            If you clear your browser data (like site storage or local storage),
+            you may lose locally stored chat history and mood logs on this
+            device.
+          </p>
+        </section>
+
         {/* Your Choices */}
         <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
           <h2 className="text-xl font-medium text-zinc-50">Your Choices</h2>
@@ -116,6 +157,15 @@ export default function PrivacyPage() {
               features anytime.
             </li>
           </ul>
+          <p className="mt-3 text-xs text-zinc-400">
+            In the early web preview, most data lives only in your browser on
+            this device. As we introduce secure account-based sync and export
+            tools, this section will be expanded with step-by-step
+            instructions.
+          </p>
+
+          {/* 🔐 Live local Export/Delete controls */}
+          <PrivacyActionsPanel />
         </section>
 
         {/* Sharing with Third Parties */}
@@ -150,7 +200,7 @@ export default function PrivacyPage() {
             version here and, when appropriate, notify you in-app or via email.
           </p>
           <p className="mt-2 text-xs text-zinc-400">
-            Effective date: Nov 1, 2025 • Last updated: Nov 1, 2025
+            Effective date: Nov 1, 2025 • Last updated: Nov 26, 2025
           </p>
         </section>
 

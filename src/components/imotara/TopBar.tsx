@@ -20,6 +20,15 @@ type TopBarProps = {
   showConflictsButton?: boolean;
 };
 
+const HEADER_CLASS =
+  "sticky top-0 z-30 border-b border-white/10 bg-[radial-gradient(circle_at_0%_0%,rgba(129,140,248,0.18),transparent_60%),radial-gradient(circle_at_100%_0%,rgba(45,212,191,0.18),transparent_60%)] bg-black/70 backdrop-blur-xl px-4 py-2 animate-fade-in";
+
+const LOGO_CLASS =
+  "flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-xs font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,0.55)]";
+
+const NAV_CLASS =
+  "hidden sm:flex items-center gap-1 rounded-full bg-white/5 px-2 py-1 shadow-sm text-xs text-zinc-200";
+
 export default function TopBar({
   title,
   showSyncChip = true,
@@ -39,29 +48,11 @@ export default function TopBar({
   });
 
   return (
-    <header
-      className="
-        sticky top-0 z-30
-        border-b border-white/10
-        bg-[radial-gradient(circle_at_0%_0%,rgba(129,140,248,0.18),transparent_60%),radial-gradient(circle_at_100%_0%,rgba(45,212,191,0.18),transparent_60%)]
-        bg-black/70
-        backdrop-blur-xl
-        px-4 py-2
-        animate-fade-in
-      "
-    >
+    <header className={HEADER_CLASS}>
       <div className="mx-auto flex w-full max-w-7xl items-center gap-3">
         {/* LEFT: Logo + title */}
         <div className="flex flex-1 items-center gap-2">
-          <div
-            className="
-              flex h-8 w-8 items-center justify-center rounded-xl
-              bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400
-              text-xs font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,0.55)]
-            "
-          >
-            io
-          </div>
+          <div className={LOGO_CLASS}>io</div>
 
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-zinc-50">
@@ -74,14 +65,7 @@ export default function TopBar({
         </div>
 
         {/* CENTER NAV */}
-        <nav
-          aria-label="Imotara primary navigation"
-          className="
-            hidden sm:flex items-center gap-1 rounded-full
-            bg-white/5 px-2 py-1 shadow-sm text-xs
-            text-zinc-200
-          "
-        >
+        <nav aria-label="Imotara primary navigation" className={NAV_CLASS}>
           <NavPill
             href="/chat"
             active={isChat}

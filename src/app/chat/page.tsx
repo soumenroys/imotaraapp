@@ -37,6 +37,9 @@ import TopBar from "@/components/imotara/TopBar";
 // ⬇️ Teen-Insight generator
 import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
 
+// ⬇️ Reply origin badge (local vs Cloud AI)
+import ReplyOriginBadge from "@/components/imotara/ReplyOriginBadge";
+
 type Role = "user" | "assistant" | "system";
 type DebugEmotionSource = "analysis" | "fallback" | "unknown";
 
@@ -51,6 +54,9 @@ type Message = {
   // 🔍 optional debug fields for assistant replies
   debugEmotion?: string;
   debugEmotionSource?: DebugEmotionSource;
+
+  // 🔍 actual origin of assistant reply (AI vs template)
+  replySource?: "openai" | "fallback";
 };
 
 type Thread = {
@@ -209,12 +215,42 @@ async function logUserMessageToHistory(
       // 🔗 session linkage into EmotionRecord
       sessionId: msg.sessionId,
       messageId: msg.id,
+      entryKind: "user",
     };
 
     await saveSample(payload);
   } catch (err) {
     console.error(
       "[imotara] failed to log chat message to history:",
+      err
+    );
+  }
+}
+
+// 👇 helper to log an assistant reply into Emotion History
+// We treat assistant entries as structural context only (no emotion).
+async function logAssistantMessageToHistory(msg: Message): Promise<void> {
+  try {
+    const text = msg.content.trim();
+    if (!text) return;
+
+    const payload: any = {
+      message: text,
+      emotion: "neutral",
+      intensity: 0,
+      source: "local",
+      createdAt: msg.createdAt,
+      updatedAt: msg.createdAt,
+      sessionId: msg.sessionId,
+      messageId: msg.id,
+      entryKind: "assistant",
+      replySource: msg.replySource ?? "fallback",
+    };
+
+    await saveSample(payload);
+  } catch (err) {
+    console.error(
+      "[imotara] failed to log assistant message to history:",
       err
     );
   }
@@ -591,24 +627,26 @@ export default function ChatPage() {
     });
   }, [analysis, activeThread?.messages]);
 
-  // 🔹 AI-style assistant reply generator (consent-aware, emotion templated + keyword fallback)
+  // 🔹 AI-style assistant reply generator (consent-aware; prefers AI, falls back to templates)
   async function generateAssistantReply(
     threadId: string,
     msgsForAnalysis: Message[]
   ) {
     setAnalyzing(true);
     try {
-      let replyText: string | null = null;
       let debugEmotion: string | undefined;
       let debugEmotionSource: DebugEmotionSource = "unknown";
+      let summary: any = {};
 
+      //
+      // STEP 1 — run consent-aware emotion analysis
+      //
       try {
         const res = (await runAnalysisWithConsent(
           msgsForAnalysis,
           10
         )) as AnalysisResult | null;
-
-        const summary: any = res?.summary ?? {};
+        summary = res?.summary ?? {};
 
         const derived = deriveEmotionFromSummaryAndText(
           summary,
@@ -616,13 +654,92 @@ export default function ChatPage() {
         );
         debugEmotion = derived.emotion;
         debugEmotionSource = derived.source;
+      } catch (err) {
+        console.error("[imotara] reply analysis failed:", err);
+      }
 
-        const emotion = derived.emotion;
+      //
+      // STEP 2 — attempt AI chat reply (only if remote is allowed + engine is API)
+      //
+      let aiReply: string | null = null;
 
+      if (mode === "allow-remote" && ANALYSIS_IMPL === "api") {
+        try {
+          const recentForApi = msgsForAnalysis.slice(-6).map((m) => ({
+            role: m.role,
+            content: m.content,
+          }));
+
+          const emotionHint =
+            typeof debugEmotion === "string" &&
+              debugEmotion.trim().length > 0
+              ? debugEmotion
+              : "";
+
+          const aiRes = await fetch("/api/chat-reply", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: recentForApi,
+              emotion: emotionHint,
+            }),
+          });
+
+          if (aiRes.ok) {
+            const data = await aiRes.json();
+            const text = (data?.text ?? "").toString().trim();
+            const from = data?.meta?.from ?? "unknown";
+
+            if (text && from === "openai") {
+              aiReply = text;
+            }
+          }
+        } catch (err) {
+          console.warn("[imotara] AI chat reply failed, falling back:", err);
+        }
+      }
+
+      //
+      // STEP 3 — if AI gave us a reply → use it
+      //
+      if (aiReply) {
+        const assistantMsg: Message = {
+          id: uid(),
+          role: "assistant",
+          content: aiReply,
+          createdAt: Date.now(),
+          sessionId: threadId,
+          debugEmotion,
+          debugEmotionSource,
+          replySource: "openai",
+        };
+
+        setThreads((prev) =>
+          prev.map((t) =>
+            t.id === threadId
+              ? { ...t, messages: [...t.messages, assistantMsg] }
+              : t
+          )
+        );
+
+        // Fire-and-forget: log assistant reply into Emotion History
+        void logAssistantMessageToHistory(assistantMsg);
+
+        return; // AI successfully responded
+      }
+
+      //
+      // STEP 4 — AI unavailable → use existing emotion-based templates
+      //
+      let fallbackReply: string | null = null;
+
+      try {
         const intensity =
           typeof summary.intensity === "number" ? summary.intensity : 0.4;
         const tone =
-          typeof summary.tone === "string" ? summary.tone.toLowerCase() : "";
+          typeof summary.tone === "string"
+            ? summary.tone.toLowerCase()
+            : "";
 
         const advice =
           summary.adviceShort ??
@@ -647,84 +764,61 @@ export default function ChatPage() {
             ? ` I’ll try to stay ${tone} and on your side while we talk.`
             : "";
 
-        // Emotion-specific templates
+        const emotion = debugEmotion ?? "neutral";
+
         switch (emotion) {
           case "sad":
-          case "down":
-          case "depressed":
-            replyText =
+            fallbackReply =
               `I’m really glad you chose to share this with me. ` +
               `It sounds like you’re carrying ${strengthLabel} kind of sadness right now.` +
               ` You don’t have to push yourself to “be okay” for me.` +
               adviceTail +
               toneHint;
             break;
-
           case "anxious":
-          case "worried":
-          case "nervous":
-          case "fear":
-          case "afraid":
-            replyText =
+            fallbackReply =
               `This does sound like a lot to hold inside. ` +
               `I can hear there’s ${strengthLabel} sense of anxiety or worry in what you wrote.` +
               ` It’s completely valid to feel this way.` +
               adviceTail +
               toneHint;
             break;
-
           case "angry":
-          case "frustrated":
-          case "irritated":
-          case "furious":
-            replyText =
+            fallbackReply =
               `Your frustration makes sense in the way you’ve described things.` +
               ` It sounds like ${strengthLabel} wave of anger or irritation is present for you.` +
               ` I’m not here to judge that — I’m here to help you unpack it, if you want.` +
               adviceTail +
               toneHint;
             break;
-
           case "stressed":
-          case "overwhelmed":
-          case "burnt out":
-          case "burned out":
-            replyText =
+            fallbackReply =
               `This feels like a heavy load to be carrying on your own.` +
               ` I’m sensing ${strengthLabel} feeling of stress or overwhelm in your words.` +
               ` It’s okay to admit that it’s a lot — that’s not a weakness.` +
               adviceTail +
               toneHint;
             break;
-
           case "happy":
-          case "joy":
-          case "joyful":
-          case "excited":
-          case "optimistic":
-            replyText =
+            fallbackReply =
               `There’s a real spark of something warm in what you shared.` +
-              ` It sounds like you’re feeling ${strengthLabel} sense of ${emotion}.` +
+              ` It sounds like you’re feeling ${strengthLabel} sense of happiness.` +
               ` I’m genuinely happy to hear this with you.` +
               (advice
                 ? ` ${String(advice).trim()}`
                 : " If you want, we can explore how to keep nurturing this feeling.") +
               toneHint;
             break;
-
           case "lonely":
-          case "isolated":
-            replyText =
+            fallbackReply =
               `Feeling disconnected or alone like this can be really tough.` +
               ` I’m sensing ${strengthLabel} feeling of loneliness in what you wrote.` +
               ` I’m here with you in this space, even if it’s just through text right now.` +
               adviceTail +
               toneHint;
             break;
-
           default:
-            // neutral / mixed / unknown
-            replyText =
+            fallbackReply =
               `Thanks for opening up to me. ` +
               `What you shared feels like a more even, mixed emotional space — not purely positive or negative.` +
               ` I’m here to sit with whatever is there, even if it feels vague or hard to label.` +
@@ -733,11 +827,11 @@ export default function ChatPage() {
             break;
         }
       } catch (err) {
-        console.error("[imotara] reply analysis failed:", err);
+        console.error("[imotara] fallback reply failed:", err);
       }
 
       const safeReply =
-        (replyText && String(replyText).trim()) ||
+        (fallbackReply && fallbackReply.trim()) ||
         "I hear you. I may not have the perfect words yet, but I’m here to stay with you and keep listening.";
 
       const assistantMsg: Message = {
@@ -748,6 +842,7 @@ export default function ChatPage() {
         sessionId: threadId,
         debugEmotion,
         debugEmotionSource,
+        replySource: "fallback",
       };
 
       setThreads((prev) =>
@@ -757,6 +852,9 @@ export default function ChatPage() {
             : t
         )
       );
+
+      // Fire-and-forget: log assistant reply into Emotion History
+      void logAssistantMessageToHistory(assistantMsg);
     } finally {
       setAnalyzing(false);
     }
@@ -1187,6 +1285,15 @@ export default function ChatPage() {
                       Re-analyze
                     </button>
 
+                    {/* Privacy & data info */}
+                    <Link
+                      href="/privacy"
+                      className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-black/40 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 sm:text-sm"
+                      title="See how Imotara handles your data and privacy"
+                    >
+                      Privacy
+                    </Link>
+
                     {/* Clear / Export / New */}
                     <button
                       onClick={clearChat}
@@ -1250,6 +1357,7 @@ export default function ChatPage() {
                     sessionId={m.sessionId ?? activeThread.id}
                     debugEmotion={m.debugEmotion}
                     debugEmotionSource={m.debugEmotionSource}
+                    replySource={m.replySource}
                     attachRef={
                       m.id === urlMessageId
                         ? (el) => {
@@ -1278,10 +1386,15 @@ export default function ChatPage() {
               </span>
             </div>
 
-            {/* micro-copy for sync clarity */}
-            <div className="mx-auto mb-1 max-w-3xl">
+            {/* micro-copy for sync clarity + safety note */}
+            <div className="mx-auto mb-1 max-w-3xl space-y-0.5">
               <p className="pr-1 text-right text-xs text-zinc-500">
                 Your chat is saved locally and synced when online.
+              </p>
+              <p className="pr-1 text-right text-[11px] text-zinc-600">
+                Imotara is not an emergency or crisis service. If you are in
+                danger or feel like you might hurt yourself, please reach out to
+                a trusted adult or local helpline immediately.
               </p>
             </div>
 
@@ -1334,6 +1447,7 @@ function Bubble({
   sessionId,
   debugEmotion,
   debugEmotionSource,
+  replySource,
 }: {
   id: string;
   role: Role;
@@ -1344,14 +1458,59 @@ function Bubble({
   sessionId?: string;
   debugEmotion?: string;
   debugEmotionSource?: DebugEmotionSource;
+  replySource?: "openai" | "fallback";
 }) {
   const isUser = role === "user";
+
+  // 🌈 Option-C assistant styling + micro animation
+  const assistantBase = [
+    "relative",
+    "bg-gradient-to-br from-slate-900/85 via-slate-900/80 to-indigo-950/85",
+    "text-zinc-100",
+    "border border-indigo-400/40",
+    "backdrop-blur-md",
+    "shadow-[0_18px_40px_rgba(15,23,42,0.9)]",
+    "before:absolute before:-left-1.5 before:top-2 before:bottom-2 before:w-[3px]",
+    "before:rounded-full",
+    "before:bg-gradient-to-b",
+    "before:from-indigo-400/90 before:via-sky-400/85 before:to-emerald-400/90",
+    "animate-imotaraAssistantIn",
+    "im-assistant-breath-glow",
+  ];
+
+  // Slight visual boost when reply came from Cloud AI
+  if (replySource === "openai") {
+    assistantBase.push(
+      "border-emerald-400/60",
+      "shadow-[0_18px_40px_rgba(16,185,129,0.8)]"
+    );
+  }
+
+  const assistantClass = assistantBase.join(" ");
+
+  // ✨ Hover breathing glow only for assistant bubbles
+  const assistantHover: string[] = [];
+  if (!isUser) {
+    assistantHover.push(
+      "hover:scale-[1.01]",
+      "hover:shadow-[0_0_28px_rgba(129,140,248,0.7)]",
+      "hover:brightness-110",
+      "hover:saturate-125"
+    );
+    if (replySource === "openai") {
+      assistantHover.push(
+        "hover:shadow-[0_0_36px_rgba(52,211,153,0.85)]",
+        "hover:translate-y-[-1px]"
+      );
+    }
+  }
 
   const bubbleClass = [
     "max-w-[85%] rounded-2xl px-4 py-3 text-sm sm:max-w-[75%] transition-all",
     isUser
       ? "bg-gradient-to-br from-indigo-500/80 via-sky-500/80 to-emerald-400/80 text-white shadow-[0_18px_40px_rgba(15,23,42,0.85)]"
-      : "bg-white/10 text-zinc-100 border border-white/15 backdrop-blur-md shadow-md",
+      : assistantClass,
+    ...assistantHover,
     highlighted
       ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-black/40 animate-pulse"
       : "",
@@ -1361,8 +1520,10 @@ function Bubble({
 
   const showDebug =
     role === "assistant" &&
-    typeof debugEmotion === "string" &&
-    debugEmotion.trim().length > 0;
+    (debugEmotion || debugEmotionSource || replySource);
+
+  const originForBadge =
+    replySource === "openai" ? "openai" : replySource ? "local-fallback" : "unknown";
 
   return (
     <div
@@ -1371,12 +1532,13 @@ function Bubble({
     >
       <div className={bubbleClass}>
         <div className="whitespace-pre-wrap">{content}</div>
+
+        {/* meta line */}
         <div
           className={`mt-1 text-[11px] ${isUser ? "text-zinc-100/80" : "text-zinc-300"
             }`}
         >
-          <DateText ts={time} /> ·{" "}
-          {isUser ? "You" : role === "assistant" ? "Imotara" : "System"}
+          <DateText ts={time} /> · {isUser ? "You" : "Imotara"}
           {isUser && sessionId ? (
             <>
               {" · "}
@@ -1391,15 +1553,28 @@ function Bubble({
             </>
           ) : null}
         </div>
-        {showDebug ? (
-          <div className="mt-0.5 text-[10px] text-zinc-500">
-            (emotion: {debugEmotion}
-            {debugEmotionSource
-              ? `, source: ${debugEmotionSource}`
-              : ""}
-            )
+
+        {/* Debug / origin footer */}
+        {showDebug && (
+          <div className="mt-0.5 flex items-center gap-1 text-[10px] text-zinc-500">
+            {replySource && (
+              <>
+                <ReplyOriginBadge origin={originForBadge as any} />
+                <span className="text-zinc-600">·</span>
+              </>
+            )}
+            <span>
+              emotion:{" "}
+              <span className="font-medium">
+                {debugEmotion ?? "unknown"}
+              </span>
+              , derived:{" "}
+              <span className="font-medium">
+                {debugEmotionSource ?? "unknown"}
+              </span>
+            </span>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );

@@ -225,3 +225,53 @@ body {
 .animate-ping-soft {
   animation: ping-soft 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
+
+@keyframes imotaraAssistantIn {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: brightness(0.75);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0px);
+    filter: brightness(1.07);
+  }
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+.animate-imotaraAssistantIn {
+  animation: imotaraAssistantIn 0.45s ease-out both;
+}
+
+/* -------------------------------------------------- */
+/* ✨ Assistant Bubble – Hover Breathing Glow         */
+/* -------------------------------------------------- */
+
+@keyframes im-breath-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.0);   /* transparent start */
+    transform: translateY(0) scale(1);
+  }
+  35% {
+    box-shadow: 0 0 28px 0 rgba(129, 140, 248, 0.35); /* indigo-400 glow */
+    transform: translateY(-1px) scale(1.03);
+  }
+  70% {
+    box-shadow: 0 0 18px 0 rgba(129, 140, 248, 0.2);
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Utility class: apply on the assistant bubble container */
+.im-assistant-breath-glow:hover {
+  animation: im-breath-glow 1.8s ease-in-out infinite;
+  transition: transform 0.25s ease-out, box-shadow 0.25s ease-out;
+}

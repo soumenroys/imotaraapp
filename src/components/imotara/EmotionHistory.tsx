@@ -34,6 +34,51 @@ import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 // ⬇️ Teen-Insight helper
 import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
 
+import { AlertTriangle } from "lucide-react";
+
+// Friendly emoji/label maps for both classic + AI-expanded emotions
+const EMOJI: Record<string, string> = {
+  joy: "😊",
+  happiness: "😊",
+  happy: "😊",
+  sadness: "😔",
+  sad: "😔",
+  anger: "😠",
+  angry: "😠",
+  fear: "😟",
+  anxious: "😟",
+  anxiety: "😟",
+  stress: "😣",
+  stressed: "😣",
+  disgust: "😣",
+  surprise: "😲",
+  lonely: "🥺",
+  isolation: "🥺",
+  mixed: "😶‍🌫️",
+  neutral: "😐",
+};
+
+const LABEL: Record<string, string> = {
+  joy: "Joy",
+  happiness: "Happiness",
+  happy: "Happy",
+  sadness: "Sadness",
+  sad: "Sad",
+  anger: "Anger",
+  angry: "Anger",
+  fear: "Fear",
+  anxious: "Anxious",
+  anxiety: "Anxious",
+  stress: "Stress",
+  stressed: "Stressed",
+  disgust: "Disgust",
+  surprise: "Surprise",
+  lonely: "Lonely",
+  isolation: "Lonely",
+  mixed: "Mixed",
+  neutral: "Neutral",
+};
+
 // simple upsert merge (remote -> local)
 function mergeRemote(
   local: EmotionRecord[],
@@ -984,6 +1029,21 @@ export default function EmotionHistory() {
     );
   }, [visibleItems, sessionFilter]);
 
+  // ⬇️ NEW: collect any safetyNote strings from visible records
+  const safetyNotes = useMemo(() => {
+    const notes: string[] = [];
+    for (const rec of visibleItems) {
+      const raw = (rec as any)?.safetyNote;
+      if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        if (trimmed) notes.push(trimmed);
+      }
+    }
+    return notes;
+  }, [visibleItems]);
+
+  const firstSafetyNote = safetyNotes.length > 0 ? safetyNotes[0] : null;
+
   // ⬇️ NEW: deep-linked scroll + highlight for a specific messageId
   useEffect(() => {
     if (!urlMessageId) return;
@@ -1296,7 +1356,7 @@ export default function EmotionHistory() {
                 setPushInfo(`Push all failed: ${String(err?.message ?? err)}`);
               }
             }}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg.white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
             title="Push all local records to server"
           >
             Push all
@@ -1370,7 +1430,7 @@ export default function EmotionHistory() {
                 setApiInfo(`API check failed: ${String(err?.message ?? err)}`);
               }
             }}
-            className="rounded-2xl border border-white/15 bg.white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg.white/20 dark:text-zinc-100"
+            className="rounded-2xl border border-white/15 bg.white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-md hover:bg.white/20 dark:text-zinc-100"
             title="Ping GET /api/history to verify API shape/availability"
           >
             Check API
@@ -1569,6 +1629,17 @@ export default function EmotionHistory() {
         <EmotionSummaryCard summary={toCardSummary(summary)} />
       </div>
 
+      {/* Gentle global safety note (if any record carries safetyNote) */}
+      {firstSafetyNote && (
+        <div className="mb-4 flex items-start gap-2 rounded-2xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-50 shadow-sm backdrop-blur-sm">
+          <AlertTriangle className="mt-[2px] h-3.5 w-3.5 flex-shrink-0 text-amber-300" />
+          <p className="leading-snug">
+            <span className="font-semibold">Gentle safety note:</span>{" "}
+            {firstSafetyNote}
+          </p>
+        </div>
+      )}
+
       {/* Mini timeline visualization (uses flagged records) */}
       {timelineItems.length > 0 && (
         <div className="mb-4 rounded-2xl border border-white/10 bg.white/5 p-3 shadow-sm backdrop-blur-md dark:bg.white/5">
@@ -1582,8 +1653,18 @@ export default function EmotionHistory() {
           const ts =
             typeof r.updatedAt === "number" ? r.updatedAt : r.createdAt;
           const when = ts ? new Date(ts).toLocaleString() : "—";
+
+          const intensityValue =
+            typeof r.intensity === "number" ? r.intensity : null;
           const intensity =
-            typeof r.intensity === "number" ? r.intensity.toFixed(2) : "—";
+            intensityValue != null ? intensityValue.toFixed(2) : "—";
+
+          const emotionKey = (r.emotion ?? "neutral")
+            .toString()
+            .toLowerCase();
+          const emotionLabel =
+            LABEL[emotionKey] ?? (r.emotion || "Neutral");
+          const emotionEmoji = EMOJI[emotionKey] ?? "😐";
 
           const isMessageTarget =
             !!urlMessageId && r.messageId === urlMessageId;
@@ -1608,6 +1689,11 @@ export default function EmotionHistory() {
                   }
                   : undefined;
 
+          // entry kind: user vs assistant
+          const isAssistant =
+            (r as any).entryKind === "assistant" ||
+            (r as any).role === "assistant";
+
           // human-readable source badge; default to Local if missing
           const rawSource = r.source ?? "local";
           const sourceLabel =
@@ -1621,7 +1707,7 @@ export default function EmotionHistory() {
 
           const hasChatLink = !!(r.sessionId && r.messageId);
 
-          // Teen-Insight: derive a gentle reflection if we have both message & some reflection-like text
+          // Teen-Insight: derive a gentle reflection only for user entries
           const reflectionRaw =
             (r as any).reflection ??
             (r as any).summary ??
@@ -1632,7 +1718,8 @@ export default function EmotionHistory() {
               ? reflectionRaw.trim()
               : "";
           const teenInsight =
-            r.message &&
+            !isAssistant &&
+              r.message &&
               reflection &&
               r.emotion
               ? buildTeenInsight({
@@ -1669,11 +1756,30 @@ export default function EmotionHistory() {
                   {when}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                  {/* Assistant flag badge */}
+                  {isAssistant && (
+                    <span
+                      className="inline-flex items-center rounded-full border border-violet-300/80 bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-100 shadow-sm backdrop-blur-sm"
+                      title="Imotara's reply (AI assistant), logged for context"
+                    >
+                      Assistant reply
+                    </span>
+                  )}
+
+                  {/* Source badge (local/remote/merged) */}
                   {sourceLabel && (
-                    <span className="inline-flex items-center rounded-full border border-white/20 bg.white/10 px-2 py-0.5 text-[10px] font-medium text-zinc-700 shadow-sm backdrop-blur-sm dark:text-zinc-100">
+                    <span
+                      className="inline-flex items-center rounded-full border border-white/20 bg.white/10 px-2 py-0.5 text-[10px] font-medium text-zinc-700 shadow-sm backdrop-blur-sm dark:text-zinc-100"
+                      title={
+                        isAssistant
+                          ? `Storage source for this assistant reply: ${sourceLabel}`
+                          : "Storage source for this entry"
+                      }
+                    >
                       {sourceLabel}
                     </span>
                   )}
+
                   {r.sessionId && (
                     <span
                       className="inline-flex items-center rounded-full border border-indigo-300/70 bg-indigo-500/15 px-2 py-0.5 text-[10px] font-medium text-indigo-100 shadow-sm backdrop-blur-sm"
@@ -1682,9 +1788,29 @@ export default function EmotionHistory() {
                       Chat session
                     </span>
                   )}
-                  <span className="rounded-full bg.white/5 px-2 py-0.5 text-[11px] text-zinc-700 shadow-sm backdrop-blur-sm dark:text-zinc-100">
-                    {r.emotion} • {intensity}
+
+                  {/* Emotion badge – now using AI-friendly label + emoji, but raw value kept in title */}
+                  <span
+                    className={[
+                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] shadow-sm backdrop-blur-sm",
+                      isAssistant
+                        ? "border border-zinc-300/60 bg-zinc-100/15 text-zinc-50 dark:border-zinc-600/70 dark:bg-zinc-900/60"
+                        : "bg.white/5 text-zinc-700 dark:text-zinc-100",
+                    ].join(" ")}
+                    title={
+                      isAssistant
+                        ? `Emotion tag for this assistant reply (used for timeline only). Raw: ${r.emotion ?? "unknown"
+                        }`
+                        : `Emotion and intensity detected for this entry. Raw: ${r.emotion ?? "unknown"
+                        }`
+                    }
+                  >
+                    {isAssistant && "AI • "}
+                    <span aria-hidden="true">{emotionEmoji}</span>
+                    <span>{emotionLabel}</span>
+                    <span>• {intensity}</span>
                   </span>
+
                   {hasChatLink && (
                     <Link
                       href={`/chat?sessionId=${encodeURIComponent(
@@ -1717,7 +1843,7 @@ export default function EmotionHistory() {
                 )}
               </div>
 
-              {/* Teen-Insight block (gentle, optional) */}
+              {/* Teen-Insight block (gentle, optional) — only for user messages */}
               {teenInsight && (
                 <div className="mt-3 rounded-xl border border-violet-500/35 bg-violet-500/10 px-3 py-2 text-xs text-violet-50 shadow-sm">
                   <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-200/90">

@@ -69,8 +69,6 @@ type Thread = {
 const STORAGE_KEY = "imotara.chat.v1";
 
 // 🔹 Build-time analysis implementation mode (local vs api)
-// This reflects how the engine is wired in this build,
-// independent of per-user consent (allow-remote vs on-device).
 const ANALYSIS_IMPL: "local" | "api" =
   (process.env.NEXT_PUBLIC_IMOTARA_ANALYSIS as "local" | "api") === "api"
     ? "api"
@@ -157,8 +155,6 @@ type HistoryEmotionOptions = {
 };
 
 // 👇 helper to log a user chat message into Emotion History
-// Tries to derive emotion & intensity using runLocalAnalysis when opts not provided.
-// Falls back safely to neutral / 0.3 if anything is missing.
 async function logUserMessageToHistory(
   msg: Message,
   opts?: HistoryEmotionOptions
@@ -202,17 +198,13 @@ async function logUserMessageToHistory(
       }
     }
 
-    // Build payload separately and cast to any so we can include
-    // the new linking fields without fighting older saveSample typings.
     const payload: any = {
       message: text,
       emotion,
       intensity,
-      // keep as "local" to match current RecordSource union
       source: "local",
       createdAt: msg.createdAt,
       updatedAt: msg.createdAt,
-      // 🔗 session linkage into EmotionRecord
       sessionId: msg.sessionId,
       messageId: msg.id,
       entryKind: "user",
@@ -228,7 +220,6 @@ async function logUserMessageToHistory(
 }
 
 // 👇 helper to log an assistant reply into Emotion History
-// We treat assistant entries as structural context only (no emotion).
 async function logAssistantMessageToHistory(msg: Message): Promise<void> {
   try {
     const text = msg.content.trim();
@@ -261,11 +252,9 @@ export default function ChatPage() {
   const urlSessionId = (searchParams?.get("sessionId") ?? "").trim();
   const urlMessageId = (searchParams?.get("messageId") ?? "").trim();
 
-  // Avoid SSR/client mismatches for localStorage-driven UI
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // ✅ Hydration-safe initial state (no Date.now/Math.random on server)
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -273,30 +262,25 @@ export default function ChatPage() {
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
-  // ⬇️ for deep-link scroll + highlight
   const messageTargetRef = useRef<HTMLDivElement | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] =
     useState<string | null>(null);
   const usedMessageIdRef = useRef<string | null>(null);
 
-  // Sync state
   const [syncing, setSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const [syncedCount, setSyncedCount] = useState<number | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  // analysis state
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-  const [analyzing, setAnalyzing] = useState(false); // spinner flag (also reused for reply-generation)
+  const [analyzing, setAnalyzing] = useState(false);
 
-  // ⬇️ read current analysis consent mode (shared with EmotionHistory)
   const { mode } = useAnalysisConsent();
   const consentLabel =
     mode === "allow-remote"
       ? "Remote analysis allowed"
       : "On-device only";
 
-  // ✅ Load threads from localStorage or seed AFTER mount (client only)
   useEffect(() => {
     if (!mounted) return;
 
@@ -314,10 +298,9 @@ export default function ChatPage() {
         return;
       }
     } catch {
-      // ignore parse/storage errors
+      // ignore
     }
 
-    // Seed a first conversation if nothing in storage
     const seedId = uid();
     const now = Date.now();
     const seed: Thread = {
@@ -339,14 +322,12 @@ export default function ChatPage() {
     setActiveId(seedId);
   }, [mounted]);
 
-  // Keep activeId valid after mount
   useEffect(() => {
     if (!mounted) return;
     const found = threads.find((t) => t.id === activeId);
     if (!found && threads.length > 0) setActiveId(threads[0].id);
   }, [mounted, threads, activeId]);
 
-  // Respect sessionId from URL on first mounts/changes
   useEffect(() => {
     if (!mounted) return;
     if (!urlSessionId) return;
@@ -361,13 +342,11 @@ export default function ChatPage() {
     [threads, activeId]
   );
 
-  // when messageId is present in URL, scroll & highlight that bubble once
   useEffect(() => {
     if (!mounted) return;
     if (!urlMessageId) return;
     if (!activeThread) return;
 
-    // avoid re-running for the same messageId
     if (usedMessageIdRef.current === urlMessageId) return;
 
     const exists = activeThread.messages.some((m) => m.id === urlMessageId);
@@ -376,7 +355,6 @@ export default function ChatPage() {
     usedMessageIdRef.current = urlMessageId;
     setHighlightedMessageId(urlMessageId);
 
-    // let the ref settle, then scroll
     setTimeout(() => {
       const el = messageTargetRef.current;
       if (el && listRef.current) {
@@ -385,14 +363,12 @@ export default function ChatPage() {
     }, 50);
   }, [mounted, urlMessageId, activeThread]);
 
-  // auto-clear highlight after a few seconds
   useEffect(() => {
     if (!highlightedMessageId) return;
     const t = window.setTimeout(() => setHighlightedMessageId(null), 4000);
     return () => window.clearTimeout(t);
   }, [highlightedMessageId]);
 
-  // Persist to localStorage on client
   useEffect(() => {
     if (!mounted) return;
     try {
@@ -410,7 +386,6 @@ export default function ChatPage() {
     return msgs.filter(isAppMessage);
   }, [activeThread?.messages]);
 
-  // run analysis whenever messages change (console-only, consent-aware)
   useEffect(() => {
     if (!mounted) return;
     const msgs = activeThread?.messages ?? [];
@@ -437,14 +412,12 @@ export default function ChatPage() {
     };
   }, [mounted, activeThread?.messages]);
 
-  // Scroll on message change (generic bottom scroll)
   useEffect(() => {
     if (!mounted) return;
     if (listRef.current)
       listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [mounted, activeThread?.messages?.length]);
 
-  // Auto-size composer
   useEffect(() => {
     if (!mounted) return;
     const el = composerRef.current;
@@ -453,7 +426,6 @@ export default function ChatPage() {
     el.style.height = Math.min(200, el.scrollHeight) + "px";
   }, [mounted, draft]);
 
-  // Initial sync
   const runSync = useCallback(async () => {
     setSyncing(true);
     setSyncError(null);
@@ -476,7 +448,6 @@ export default function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted]);
 
-  // manual re-analyze helper
   async function triggerAnalyze() {
     if (!activeThread?.messages?.length) return;
     setAnalyzing(true);
@@ -491,7 +462,6 @@ export default function ChatPage() {
     }
   }
 
-  // 🔹 helper: derive emotion from summary + last message text
   function deriveEmotionFromSummaryAndText(
     summary: any,
     msgsForAnalysis: Message[]
@@ -502,7 +472,6 @@ export default function ChatPage() {
     let emotion = String(rawFromSummary || "").toLowerCase().trim();
     let source: DebugEmotionSource = "unknown";
 
-    // 🔁 Normalize summary emotion aliases to canonical buckets
     const aliasMap: Record<string, string> = {
       down: "sad",
       depressed: "sad",
@@ -537,20 +506,17 @@ export default function ChatPage() {
       "normal",
     ]);
 
-    // last user message in this group
     const lastUser = [...msgsForAnalysis]
       .slice()
       .reverse()
       .find((m) => m.role === "user");
     const text = (lastUser?.content ?? "").toLowerCase();
 
-    // If summary emotion is present and not neutral-ish → analysis wins
     if (emotion && !neutralish.has(emotion)) {
       source = "analysis";
       return { emotion, source };
     }
 
-    // Otherwise fall back to keyword heuristic on last user text
     if (
       /lonely|alone|isolated|nobody cares|no one cares/.test(text)
     ) {
@@ -588,11 +554,9 @@ export default function ChatPage() {
       return { emotion: "happy", source: "fallback" };
     }
 
-    // default if no hits at all
     return { emotion: "neutral", source: "unknown" };
   }
 
-  // 🔹 Teen-Insight for the latest user message in this conversation
   const teenInsight = useMemo(() => {
     if (!analysis?.summary) return null;
     const summary: any = analysis.summary;
@@ -627,7 +591,6 @@ export default function ChatPage() {
     });
   }, [analysis, activeThread?.messages]);
 
-  // 🔹 AI-style assistant reply generator (consent-aware; prefers AI, falls back to templates)
   async function generateAssistantReply(
     threadId: string,
     msgsForAnalysis: Message[]
@@ -638,9 +601,6 @@ export default function ChatPage() {
       let debugEmotionSource: DebugEmotionSource = "unknown";
       let summary: any = {};
 
-      //
-      // STEP 1 — run consent-aware emotion analysis
-      //
       try {
         const res = (await runAnalysisWithConsent(
           msgsForAnalysis,
@@ -658,9 +618,6 @@ export default function ChatPage() {
         console.error("[imotara] reply analysis failed:", err);
       }
 
-      //
-      // STEP 2 — attempt AI chat reply (only if remote is allowed + engine is API)
-      //
       let aiReply: string | null = null;
 
       if (mode === "allow-remote" && ANALYSIS_IMPL === "api") {
@@ -699,9 +656,6 @@ export default function ChatPage() {
         }
       }
 
-      //
-      // STEP 3 — if AI gave us a reply → use it
-      //
       if (aiReply) {
         const assistantMsg: Message = {
           id: uid(),
@@ -722,15 +676,11 @@ export default function ChatPage() {
           )
         );
 
-        // Fire-and-forget: log assistant reply into Emotion History
         void logAssistantMessageToHistory(assistantMsg);
 
-        return; // AI successfully responded
+        return;
       }
 
-      //
-      // STEP 4 — AI unavailable → use existing emotion-based templates
-      //
       let fallbackReply: string | null = null;
 
       try {
@@ -853,7 +803,6 @@ export default function ChatPage() {
         )
       );
 
-      // Fire-and-forget: log assistant reply into Emotion History
       void logAssistantMessageToHistory(assistantMsg);
     } finally {
       setAnalyzing(false);
@@ -910,7 +859,7 @@ export default function ChatPage() {
       createdNewThread = true;
     }
 
-    if (!targetId) return; // safety
+    if (!targetId) return;
 
     const now = Date.now();
 
@@ -922,7 +871,6 @@ export default function ChatPage() {
       sessionId: targetId,
     };
 
-    // Base messages for analysis: existing messages in that thread + this user message
     let existingThread: Thread | undefined;
     if (!createdNewThread && targetId) {
       existingThread = threads.find((t) => t.id === targetId);
@@ -946,10 +894,7 @@ export default function ChatPage() {
       )
     );
 
-    // Fire-and-forget: log this user message into Emotion History.
     void logUserMessageToHistory(userMsg);
-
-    // 🔹 Fire-and-forget: generate an AI-style assistant reply
     void generateAssistantReply(targetId, msgsForAnalysis);
 
     setDraft("");
@@ -989,7 +934,6 @@ export default function ChatPage() {
 
   return (
     <>
-      {/* Global app top bar with nav + sync chip + conflicts */}
       <TopBar title="Chat" showSyncChip showConflictsButton />
 
       <div className="mx-auto flex h-[calc(100vh-0px)] w-full max-w-7xl px-3 py-4 text-zinc-100 sm:px-4">
@@ -1008,7 +952,6 @@ export default function ChatPage() {
             </button>
           </div>
 
-          {/* tiny consent indicator in the sidebar */}
           <div className="mb-2 hidden text-[11px] text-zinc-400 sm:block">
             <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-zinc-300 backdrop-blur-sm">
               <span
@@ -1095,13 +1038,10 @@ export default function ChatPage() {
 
         {/* Main */}
         <main className="flex flex-1 flex-col">
-          {/* HEADER: wrapped in glass card */}
           <header className="px-3 pt-3 sm:px-4">
             <div className="imotara-glass-card px-3 py-3">
               <div className="flex flex-col gap-2">
-                {/* Row 1: title + sync */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  {/* Left: icon + title */}
                   <div className="flex min-w-0 items-center gap-2">
                     <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-white shadow-[0_10px_30px_rgba(15,23,42,0.8)]">
                       <MessageSquare className="h-4 w-4" />
@@ -1121,9 +1061,7 @@ export default function ChatPage() {
                     </div>
                   </div>
 
-                  {/* Right: sync status + buttons + consent indicator */}
                   <div className="flex flex-wrap items-center justify-start gap-2 text-[11px] sm:justify-end">
-                    {/* Sync status chip */}
                     <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/40 px-2 py-1 text-[11px] text-zinc-200 backdrop-blur-sm">
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${syncing
@@ -1147,7 +1085,6 @@ export default function ChatPage() {
                       </span>
                     ) : null}
 
-                    {/* Sync button */}
                     <button
                       onClick={runSync}
                       disabled={syncing}
@@ -1161,7 +1098,6 @@ export default function ChatPage() {
                       Sync now
                     </button>
 
-                    {/* Conflicts entrypoint – routes to History page */}
                     <Link
                       href="/history"
                       className="inline-flex"
@@ -1170,7 +1106,6 @@ export default function ChatPage() {
                       <ConflictReviewButton />
                     </Link>
 
-                    {/* read-only consent indicator in header */}
                     <span
                       className={[
                         "hidden sm:inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] backdrop-blur-sm",
@@ -1190,16 +1125,14 @@ export default function ChatPage() {
                     </span>
                   </div>
                 </div>
-                {/* Row 2: analysis + consent + actions */}
+
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  {/* Left: analysis & consent */}
                   <div className="flex flex-col gap-2">
                     <p className="text-xs font-medium text-zinc-400">
                       Emotion analysis mode
                     </p>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      {/* analysis headline pill */}
                       {analysis?.summary?.headline ? (
                         <span
                           className="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-xs text-zinc-100 backdrop-blur-sm"
@@ -1214,7 +1147,6 @@ export default function ChatPage() {
                       )}
                     </div>
 
-                    {/* Teen-Insight card */}
                     {teenInsight && (
                       <div className="mt-1 rounded-2xl border border-violet-500/35 bg-violet-500/10 px-3 py-3 text-xs text-violet-50 shadow-sm">
                         <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-200/90">
@@ -1239,7 +1171,6 @@ export default function ChatPage() {
                       allow remote.
                     </p>
 
-                    {/* Engine implementation hint: local vs Cloud AI */}
                     <p className="mt-0.5 max-w-xs text-[11px] text-zinc-500">
                       {ANALYSIS_IMPL === "api"
                         ? "Engine: Cloud AI via /api/analyze (used only when remote analysis is allowed)."
@@ -1247,9 +1178,7 @@ export default function ChatPage() {
                     </p>
                   </div>
 
-                  {/* Right: actions */}
                   <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
-                    {/* View this session in Emotion History */}
                     <Link
                       href={
                         activeThread
@@ -1269,7 +1198,6 @@ export default function ChatPage() {
                       History
                     </Link>
 
-                    {/* Re-analyze button with spinner */}
                     <button
                       onClick={triggerAnalyze}
                       disabled={
@@ -1285,7 +1213,6 @@ export default function ChatPage() {
                       Re-analyze
                     </button>
 
-                    {/* Privacy & data info */}
                     <Link
                       href="/privacy"
                       className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-black/40 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 sm:text-sm"
@@ -1294,7 +1221,6 @@ export default function ChatPage() {
                       Privacy
                     </Link>
 
-                    {/* Clear / Export / New */}
                     <button
                       onClick={clearChat}
                       className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 disabled:opacity-60 sm:text-sm"
@@ -1321,7 +1247,6 @@ export default function ChatPage() {
             </div>
           </header>
 
-          {/* BODY: messages + mood summary */}
           <div
             ref={listRef}
             className="flex-1 overflow-auto px-4 py-4 sm:px-6"
@@ -1373,9 +1298,7 @@ export default function ChatPage() {
             )}
           </div>
 
-          {/* COMPOSER */}
           <div className="border-t border-white/10 px-3 pb-3 pt-2 sm:px-4">
-            {/* tiny consent mode indicator above composer */}
             <div className="mx-auto mb-1 flex max-w-3xl justify-end">
               <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/40 px-2.5 py-1 text-[11px] text-zinc-200 backdrop-blur-sm">
                 <span
@@ -1386,7 +1309,6 @@ export default function ChatPage() {
               </span>
             </div>
 
-            {/* micro-copy for sync clarity + safety note */}
             <div className="mx-auto mb-1 max-w-3xl space-y-0.5">
               <p className="pr-1 text-right text-xs text-zinc-500">
                 Your chat is saved locally and synced when online.
@@ -1462,7 +1384,6 @@ function Bubble({
 }) {
   const isUser = role === "user";
 
-  // 🌈 Option-C assistant styling + micro animation
   const assistantBase = [
     "relative",
     "bg-gradient-to-br from-slate-900/85 via-slate-900/80 to-indigo-950/85",
@@ -1478,7 +1399,6 @@ function Bubble({
     "im-assistant-breath-glow",
   ];
 
-  // Slight visual boost when reply came from Cloud AI
   if (replySource === "openai") {
     assistantBase.push(
       "border-emerald-400/60",
@@ -1488,7 +1408,6 @@ function Bubble({
 
   const assistantClass = assistantBase.join(" ");
 
-  // ✨ Hover breathing glow only for assistant bubbles
   const assistantHover: string[] = [];
   if (!isUser) {
     assistantHover.push(
@@ -1508,7 +1427,7 @@ function Bubble({
   const bubbleClass = [
     "max-w-[85%] rounded-2xl px-4 py-3 text-sm sm:max-w-[75%] transition-all",
     isUser
-      ? "bg-gradient-to-br from-indigo-500/80 via-sky-500/80 to-emerald-400/80 text-white shadow-[0_18px_40px_rgba(15,23,42,0.85)]"
+      ? "bg-gradient-to-br from-indigo-500/80 via-sky-500/80 to-emerald-400/80 text-white shadow-[0_18px_40px_rgba(15,23,42,0.85)] hover:scale-[1.01] hover:brightness-110"
       : assistantClass,
     ...assistantHover,
     highlighted
@@ -1533,7 +1452,6 @@ function Bubble({
       <div className={bubbleClass}>
         <div className="whitespace-pre-wrap">{content}</div>
 
-        {/* meta line */}
         <div
           className={`mt-1 text-[11px] ${isUser ? "text-zinc-100/80" : "text-zinc-300"
             }`}
@@ -1554,7 +1472,6 @@ function Bubble({
           ) : null}
         </div>
 
-        {/* Debug / origin footer */}
         {showDebug && (
           <div className="mt-0.5 flex items-center gap-1 text-[10px] text-zinc-500">
             {replySource && (

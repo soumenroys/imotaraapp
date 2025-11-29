@@ -133,10 +133,7 @@ export async function callImotaraAI(
     try {
         // For Responses API we can combine system + user into one input string.
         const combinedInput =
-            systemPrompt +
-            "\n\n" +
-            "User has shared the following:\n\n" +
-            prompt;
+            systemPrompt + "\n\n" + "User has shared the following:\n\n" + prompt;
 
         const response = await fetch(endpoint, {
             method: "POST",

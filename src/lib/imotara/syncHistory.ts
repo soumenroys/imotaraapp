@@ -287,35 +287,60 @@ function updateShadow(
 /*                               SYNC STEP                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Simple in-memory lock so we don't run overlapping syncHistoryStep()
+ * calls (e.g., double-click on "Sync now" or fast re-renders).
+ *
+ * If another sync is in flight, we return a safe no-op plan + current local
+ * state, without touching history or syncState.
+ */
+let syncInFlight = false;
+
 export async function syncHistoryStep(): Promise<{
   plan: SyncPlan;
   local: EmotionRecord[];
 }> {
-  const local0 = await getHistory();
-  const sync0 = getSyncState();
+  if (syncInFlight) {
+    // No-op plan: nothing to apply; caller can safely ignore.
+    const localSafe = await getHistory();
+    const emptyPlan: SyncPlan = {
+      applyLocal: [],
+      applyRemote: [],
+      conflicts: [],
+    };
+    return { plan: emptyPlan, local: localSafe };
+  }
 
-  const { records: remoteDelta, nextSyncToken } = await fetchRemoteSince(
-    sync0.syncToken
-  );
+  syncInFlight = true;
+  try {
+    const local0 = await getHistory();
+    const sync0 = getSyncState();
 
-  const plan = buildPlanMarkConflicts(local0, remoteDelta, sync0);
+    const { records: remoteDelta, nextSyncToken } = await fetchRemoteSince(
+      sync0.syncToken
+    );
 
-  const local1 = applyRemoteToLocal(local0, plan.applyRemote);
+    const plan = buildPlanMarkConflicts(local0, remoteDelta, sync0);
 
-  if (local1 !== local0) await saveHistory(local1);
+    const local1 = applyRemoteToLocal(local0, plan.applyRemote);
 
-  const advancedShadow = updateShadow(sync0.shadow, [
-    ...plan.applyRemote,
-    ...plan.applyLocal,
-  ]);
+    if (local1 !== local0) await saveHistory(local1);
 
-  saveSyncState({
-    shadow: advancedShadow,
-    syncToken: nextSyncToken ?? sync0.syncToken ?? null,
-    lastSyncedAt: Date.now(),
-  });
+    const advancedShadow = updateShadow(sync0.shadow, [
+      ...plan.applyRemote,
+      ...plan.applyLocal,
+    ]);
 
-  return { plan, local: await getHistory() };
+    saveSyncState({
+      shadow: advancedShadow,
+      syncToken: nextSyncToken ?? sync0.syncToken ?? null,
+      lastSyncedAt: Date.now(),
+    });
+
+    return { plan, local: await getHistory() };
+  } finally {
+    syncInFlight = false;
+  }
 }
 
 /* ------------------------------------------------------------------ */

@@ -66,7 +66,7 @@ export default function HistoryPage() {
                 className="pointer-events-none absolute inset-x-4 -top-4 h-10 rounded-full bg-[radial-gradient(circle_at_10%_0%,rgba(129,140,248,0.38),transparent_55%),radial-gradient(circle_at_90%_0%,rgba(52,211,153,0.34),transparent_55%)] opacity-80 blur-2 sm:inset-x-6 sm:h-11"
               />
 
-              <div className="imotara-glass-card flex flex-col gap-2 rounded-2xl px-4 py-3 shadow-lg sm:flex-row sm:items-center sm:justify-between">
+              <div className="imotara-glass-card animate-fade-in flex flex-col gap-2 rounded-2xl px-4 py-3 shadow-lg sm:flex-row sm:items-center sm:justify-between">
                 {/* LEFT */}
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-white shadow-[0_10px_30px_rgba(15,23,42,0.8)]">
@@ -79,6 +79,17 @@ export default function HistoryPage() {
                     </p>
                     <p className="text-xs text-zinc-400">
                       Timeline of how your conversations felt over time.
+                    </p>
+                    {/* Data controls hint – mirrors Chat header tone */}
+                    <p className="mt-1 text-[11px] text-zinc-500">
+                      You can sync and review conflicts here, and{" "}
+                      <Link
+                        href="/privacy"
+                        className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300"
+                      >
+                        download or delete what’s stored on this device
+                      </Link>{" "}
+                      anytime.
                     </p>
                   </div>
                 </div>
@@ -137,12 +148,26 @@ export default function HistoryPage() {
           {/* ---------------------------------------------------- */}
           <section className="flex-1 overflow-auto pt-6">
             <div className="mx-auto max-w-5xl space-y-4">
-              {/* Tip text */}
-              <p className="px-1 text-[11px] text-zinc-500">
-                Tip: Use “Export JSON” to download a backup of your emotion
-                history. You can keep this file, or import it into your own
-                tools later.
-              </p>
+              {/* Tip text + mini legend + guidance hint */}
+              <div className="space-y-1 px-1">
+                <p className="text-[11px] text-zinc-500">
+                  Tip: Use “Export JSON” to download a backup of your emotion
+                  history. You can keep this file or import it into your own
+                  tools later.
+                </p>
+                <p className="text-[11px] text-zinc-600">
+                  Legend:{" "}
+                  <span className="text-emerald-300">●</span> synced entries ·{" "}
+                  <span className="text-amber-300">●</span> entries with
+                  conflicts you can review in the Conflicts panel.
+                </p>
+                {/* Guidance hint for teens – no functional change */}
+                <p className="text-[11px] text-zinc-500">
+                  Each entry below represents a moment from your conversations.
+                  You can open items to see more detail or jump back into Chat
+                  from linked messages.
+                </p>
+              </div>
 
               {/* Main history card */}
               <div className="imotara-glass-soft rounded-2xl px-4 py-5 sm:px-5 sm:py-6">

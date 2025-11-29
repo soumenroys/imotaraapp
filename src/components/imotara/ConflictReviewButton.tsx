@@ -39,6 +39,19 @@ export default function ConflictReviewButton() {
 
   const hasConflicts = count > 0;
 
+  const baseButtonClasses =
+    "relative inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs sm:text-sm font-medium " +
+    "transition-all backdrop-blur-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 " +
+    "focus-visible:ring-offset-2 focus-visible:ring-offset-transparent";
+
+  const variantClasses = hasConflicts
+    ? // Conflicts present: slightly brighter, glowing, clearly clickable
+    "border border-amber-500/60 bg-amber-400/20 text-amber-100 hover:bg-amber-400/30 " +
+    "shadow-sm shadow-amber-500/40 cursor-pointer animate-pulse-soft"
+    : // No conflicts: neutral, calm
+    "border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 dark:bg-zinc-900/40 " +
+    "dark:text-zinc-400 cursor-default";
+
   return (
     <>
       <button
@@ -47,13 +60,7 @@ export default function ConflictReviewButton() {
         title={hasConflicts ? "Review sync conflicts" : "No sync conflicts"}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className={[
-          "relative inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs sm:text-sm font-medium",
-          "transition-all backdrop-blur-md",
-          hasConflicts
-            ? "border border-amber-500/60 bg-amber-400/20 text-amber-100 hover:bg-amber-400/30 shadow-sm"
-            : "border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 dark:bg-zinc-900/40 dark:text-zinc-400",
-        ].join(" ")}
+        className={`${baseButtonClasses} ${variantClasses}`}
       >
         <AlertTriangle
           className={`h-4 w-4 ${hasConflicts ? "text-amber-300" : "text-zinc-400"

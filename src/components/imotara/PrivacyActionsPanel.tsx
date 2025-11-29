@@ -97,6 +97,7 @@ export default function PrivacyActionsPanel() {
             setExportState("error");
             setMessage("Something went wrong while exporting your data.");
         } finally {
+            // Small auto-reset of visual state; does NOT affect the downloaded file.
             setTimeout(() => setExportState("idle"), 2000);
         }
     };
@@ -155,9 +156,18 @@ export default function PrivacyActionsPanel() {
             setDeleteState("error");
             setMessage("Something went wrong while deleting your data.");
         } finally {
+            // Visual reset only, real deletion has already happened above.
             setTimeout(() => setDeleteState("idle"), 2500);
         }
     };
+
+    // Derive a subtle tone for the status message (does not change behavior)
+    const messageToneClass =
+        deleteState === "error" || exportState === "error"
+            ? "text-rose-300"
+            : deleteState === "done" || exportState === "done"
+                ? "text-emerald-300"
+                : "text-zinc-400";
 
     return (
         <div className="mt-4 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-4 shadow-inner">
@@ -206,8 +216,12 @@ export default function PrivacyActionsPanel() {
                 </p>
             </div>
 
+            {/* Status message area (screen-reader friendly) */}
             {message && (
-                <p className="mt-3 text-xs text-zinc-400">
+                <p
+                    className={`mt-3 text-xs ${messageToneClass}`}
+                    aria-live="polite"
+                >
                     {message}
                 </p>
             )}

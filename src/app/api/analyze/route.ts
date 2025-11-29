@@ -11,6 +11,9 @@
 //   via `callImotaraAI`, while preserving safe fallbacks if AI is disabled.
 // - NEW: If AI returns a dominant emotion + intensity, we gently map that
 //   into snapshot.dominant and snapshot.averages.
+// - NEW (safe): options.windowSize (if provided) is used to define the
+//   analysis/AI "window" in terms of the most recent N messages, without
+//   dropping per-message results for older items.
 
 import { NextResponse } from "next/server";
 import type {
@@ -24,6 +27,13 @@ import { callImotaraAI } from "@/lib/imotara/aiClient";
 type AnalyzeRequestBody = {
   inputs: AnalysisInput[];
   options?: {
+    /**
+     * Optional soft window hint: how many of the *most recent* messages
+     * should be used for the aggregate snapshot + AI context.
+     *
+     * - Per-message analysis is still returned for all inputs.
+     * - If omitted or <= 0, all inputs are used.
+     */
     windowSize?: number;
   };
 };
@@ -63,6 +73,51 @@ export async function POST(req: Request) {
       source: "model" as const,
     };
 
+    // If there are no usable inputs at all, return a neutral baseline
+    if (inputs.length === 0) {
+      const result: AnalysisResult = {
+        perMessage: [],
+        snapshot: {
+          window: { from: now, to: now },
+          averages: { neutral: 0.2 },
+          dominant: neutralEmotion,
+        },
+        summary: {
+          headline: "Even and steady overall",
+          details: "Remote analysis stub served by /api/analyze.",
+        },
+        reflections: [
+          {
+            text: "No messages were provided, so this is a neutral baseline.",
+            createdAt: now,
+            relatedIds: [],
+          },
+        ],
+        computedAt: now,
+      };
+
+      return NextResponse.json(result, { status: 200 });
+    }
+
+    /**
+     * windowInputs: the subset of inputs used for the aggregate snapshot
+     * and AI context. If windowSize is provided (>0), we look at only the
+     * most recent N; otherwise we use all inputs.
+     *
+     * Per-message analysis below still covers ALL inputs for backward
+     * compatibility.
+     */
+    const rawWindowSize = body?.options?.windowSize;
+    const windowSize =
+      typeof rawWindowSize === "number" && Number.isFinite(rawWindowSize)
+        ? Math.max(0, Math.floor(rawWindowSize))
+        : 0;
+
+    const windowInputs =
+      windowSize > 0
+        ? inputs.slice(-Math.min(windowSize, inputs.length))
+        : inputs;
+
     const perMessage: PerMessageAnalysis[] = inputs.map((m) => ({
       id: m.id,
       dominant: neutralTag,
@@ -87,8 +142,9 @@ export async function POST(req: Request) {
     // If AI is disabled or fails, the above stub texts remain.
     // ---------------------------------------------------------
     try {
-      // Take only the most recent messages for AI context
-      const recent = inputs.slice(-MAX_MESSAGES_FOR_AI);
+      // Take only the most recent messages for AI context, within the
+      // chosen window and capped by MAX_MESSAGES_FOR_AI.
+      const recent = windowInputs.slice(-MAX_MESSAGES_FOR_AI);
 
       // Combine recent user-visible text into one prompt string,
       // while respecting a max character budget.
@@ -275,8 +331,8 @@ export async function POST(req: Request) {
       console.error("[/api/analyze] AI enrichment error:", aiErr);
     }
 
-    const firstCreated = inputs[0]?.createdAt;
-    const lastCreated = inputs[inputs.length - 1]?.createdAt;
+    const firstCreated = windowInputs[0]?.createdAt;
+    const lastCreated = windowInputs[windowInputs.length - 1]?.createdAt;
 
     const result: AnalysisResult = {
       perMessage,
@@ -296,6 +352,7 @@ export async function POST(req: Request) {
         {
           text: reflectionText,
           createdAt: now,
+          // last message in the *full* list, to keep behaviour consistent
           relatedIds: perMessage.slice(-1).map((x) => x.id),
         },
       ],

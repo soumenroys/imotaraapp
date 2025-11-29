@@ -49,8 +49,8 @@ export default function SyncStatusChip({
   }, [state]);
 
   const base =
-    "relative inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white/80 backdrop-blur-sm " +
-    "shadow-sm dark:bg-zinc-900/70";
+    "relative inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs bg-white/80 backdrop-blur-sm shadow-sm dark:bg-zinc-900/70";
+
   const theme = isDanger
     ? "border-red-500/40 text-red-700 dark:text-red-300"
     : isWarn
@@ -87,14 +87,21 @@ export default function SyncStatusChip({
   const safeConflicts = Math.max(0, conflictsCount || 0);
   const safePending = Math.max(0, pendingCount || 0);
 
+  // Purely visual: whether the chip can be clicked to trigger sync
+  const isClickable = !!onSync && !isBusy;
+  const wrapperInteractive = isClickable
+    ? "cursor-pointer hover:shadow-[0_0_14px_rgba(56,189,248,0.45)] hover:border-sky-300/70 transition-shadow transition-colors"
+    : "cursor-default";
+
   return (
     <div
-      className={`${base} ${theme} ${pulseClass} ${className}`}
+      className={`${base} ${theme} ${pulseClass} ${wrapperInteractive} ${className}`}
       aria-live="polite"
     >
       <button
         type="button"
         onClick={onSync}
+        // NOTE: keep existing behavior: only disable when busy and no onSync
         disabled={isBusy && !onSync}
         title={title}
         aria-label={title}

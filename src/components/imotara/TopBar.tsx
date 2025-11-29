@@ -120,15 +120,18 @@ type NavPillProps = {
 };
 
 function NavPill({ href, active, icon, children }: NavPillProps) {
+  const base =
+    "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs transition-colors transition-shadow";
+  const activeClasses =
+    "bg-gradient-to-r from-indigo-500 to-sky-400 text-black font-medium shadow-sm shadow-indigo-500/40";
+  const inactiveClasses =
+    "text-zinc-200 hover:bg-white/10 hover:border-white/20 border border-transparent";
+
   return (
     <Link
       href={href}
-      className={[
-        "inline-flex items-center gap-1 rounded-full px-3 py-1 transition",
-        active
-          ? "bg-indigo-500 text-black font-medium shadow-sm"
-          : "text-zinc-200 hover:bg-white/10",
-      ].join(" ")}
+      aria-current={active ? "page" : undefined}
+      className={`${base} ${active ? activeClasses : inactiveClasses}`}
     >
       {icon}
       <span>{children}</span>

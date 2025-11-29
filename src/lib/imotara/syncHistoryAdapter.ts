@@ -12,13 +12,17 @@ export async function syncHistory(remoteRaw: unknown): Promise<unknown> {
   const def = (anyMod as { default?: unknown }).default;
 
   const fn =
-    typeof named === "function" ? (named as (x: unknown) => Promise<unknown> | unknown)
-    : typeof def === "function" ? (def as (x: unknown) => Promise<unknown> | unknown)
-    : null;
+    typeof named === "function"
+      ? (named as (x: unknown) => Promise<unknown> | unknown)
+      : typeof def === "function"
+        ? (def as (x: unknown) => Promise<unknown> | unknown)
+        : null;
 
   if (!fn) {
     // fall back to passthrough to avoid hard crash
-    console.warn("[imotara] syncHistory adapter: no function export found, returning input");
+    console.warn(
+      "[imotara] syncHistory adapter: no function export found, returning input"
+    );
     return remoteRaw;
   }
   return await fn(remoteRaw);

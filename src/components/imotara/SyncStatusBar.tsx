@@ -16,6 +16,10 @@ import useSyncHistory, { type SyncState } from "@/hooks/useSyncHistory";
  * - “Back online” auto-retry indicator
  * - Hydration-safe label rendering (avoids Offline vs Idle mismatch)
  * - No change to existing logic, dot colors, or labels
+ *
+ * Small visual tweak (this revision):
+ * - Sync button has clearer enabled/hover states
+ * - Error state shows a subtle red accent on the button
  */
 
 const STATE_TO_DOT: Record<SyncState, string> = {
@@ -146,22 +150,22 @@ export default function SyncStatusBar() {
   const renderedSub = mounted ? sub : "";
 
   const isSyncing = sync.state === "syncing";
+  const isErrorState = sync.state === "error";
 
   const buttonLabel = isSyncing
     ? "Syncing…"
-    : sync.state === "error"
+    : isErrorState
       ? "Retry sync"
       : "Sync now";
 
-  const buttonTitle =
-    sync.state === "error"
-      ? "Last sync failed — click to retry"
-      : "Force sync now";
+  const buttonTitle = isErrorState
+    ? "Last sync failed — click to retry"
+    : "Force sync now";
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-5xl justify-center px-4 pb-4">
       <div
-        className={`pointer-events-auto flex w-full items-center justify-between gap-3 rounded-2xl border border-white/15 bg-white/12 text-xs text-zinc-50 shadow-lg shadow-sky-900/30 backdrop-blur-md dark:bg-black/65 transition-opacity duration-500 ${pulse ? "opacity-100" : "opacity-90"
+        className={`pointer-events-auto flex w-full items-center justify-between gap-3 rounded-2xl border border-white/18 bg-black/70 text-xs text-zinc-50 shadow-lg shadow-sky-900/40 backdrop-blur-md transition-opacity duration-500 ${pulse ? "opacity-100" : "opacity-95"
           }`}
         aria-label="Imotara sync status"
       >
@@ -191,7 +195,17 @@ export default function SyncStatusBar() {
             disabled={isSyncing}
             aria-busy={isSyncing ? "true" : "false"}
             aria-label={buttonLabel}
-            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[11px] font-medium text-zinc-50 shadow-sm transition hover:bg-white/10 disabled:opacity-40"
+            className={[
+              "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium shadow-sm transition",
+              "bg-white/10 text-zinc-50 border-white/30",
+              "hover:bg-white/16 hover:border-sky-300/70 hover:shadow-[0_0_18px_rgba(56,189,248,0.55)]",
+              "disabled:opacity-40 disabled:hover:shadow-none",
+              isErrorState
+                ? "border-red-400/70 hover:border-red-300/80"
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             title={buttonTitle}
           >
             <span

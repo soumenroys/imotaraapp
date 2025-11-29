@@ -75,10 +75,7 @@ function upsertLWW(incoming: EmotionRecord) {
 }
 
 /** Return records with optional filtering and shape. */
-function listRecords(opts: {
-  since?: number;
-  includeDeleted?: boolean;
-}) {
+function listRecords(opts: { since?: number; includeDeleted?: boolean }) {
   const { since, includeDeleted } = opts;
   let records = Array.from(store.values());
 
@@ -122,7 +119,7 @@ function touchRecent(n: number) {
  *   dev_wipe=1            -> DEV ONLY: clear the in-memory store
  *
  * Default response (envelope):
- *   { records, syncToken?: string, serverTs: number }
+ *   { records, syncToken?: string, serverTs: number, serverCount?: number }
  * --------------------------------------------------------------------------*/
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -151,6 +148,11 @@ export async function GET(request: Request) {
 
   const records = listRecords({ since, includeDeleted });
 
+  // Total *non-deleted* records on server for debug/UI.
+  const serverCount = Array.from(store.values()).filter(
+    (r) => r.deleted !== true
+  ).length;
+
   // Back-compat / simple inspection
   if (mode === "array") {
     return NextResponse.json(records, { status: 200 });
@@ -165,6 +167,7 @@ export async function GET(request: Request) {
     // and we return a fresh syncToken based on the current server timestamp.
     syncToken: String(serverTs),
     serverTs,
+    serverCount,
   };
 
   return NextResponse.json(envelope, { status: 200 });

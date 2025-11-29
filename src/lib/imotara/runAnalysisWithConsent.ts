@@ -62,6 +62,16 @@ export async function runAnalysisWithConsent(
     // 1) Always compute local baseline (safe and offline)
     const localResult = await runLocalAnalysis(inputs as any, windowSize);
 
+    // Short-circuit: nothing to analyze → no need to hit remote
+    if (!inputs || inputs.length === 0) {
+        if (typeof window !== "undefined") {
+            console.debug(
+                "[imotara] runAnalysisWithConsent → no inputs; returning LOCAL baseline only."
+            );
+        }
+        return localResult;
+    }
+
     // 2) Check if user allows remote AI (browser-only)
     const isBrowser = typeof window !== "undefined";
     const userAllowsRemote = isBrowser && hasAllowedRemoteAnalysis();

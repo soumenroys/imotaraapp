@@ -209,3 +209,28 @@ export function toChartSeries(
       };
     });
 }
+// ---------------------------------------------------------------------------
+// Clear all history helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Clear all stored emotion history via the history API.
+ * This keeps behavior compatible with older versions that
+ * called clearHistory() from the History page.
+ */
+export async function clearHistory(): Promise<void> {
+  try {
+    const res = await fetch("/api/history", {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.error("Failed to clear history:", res.status, text);
+      throw new Error("Failed to clear history");
+    }
+  } catch (err) {
+    console.error("Error in clearHistory:", err);
+    throw err;
+  }
+}

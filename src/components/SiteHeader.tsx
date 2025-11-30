@@ -16,6 +16,19 @@ const links = [
   { href: "/terms", label: "Terms" },
 ];
 
+// Stable class strings (avoid hydration mismatch from multi-line templates)
+const NAV_CLASS =
+  "flex-1 mx-3 overflow-x-auto whitespace-nowrap scrollbar-none flex items-center gap-1 text-xs sm:gap-3 sm:text-sm text-zinc-600 dark:text-zinc-300";
+
+const BASE_LINK_CLASS =
+  "inline-flex whitespace-nowrap rounded-full px-2.5 py-1 transition-colors";
+
+const ACTIVE_LINK_CLASS =
+  "imotara-nav-active bg-zinc-900/90 text-zinc-50 shadow-sm ring-1 ring-white/25 dark:bg-zinc-100 dark:text-zinc-900";
+
+const INACTIVE_LINK_CLASS =
+  "text-zinc-700 hover:bg-white/60 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900/70 dark:hover:text-zinc-50";
+
 export default function SiteHeader() {
   const pathname = usePathname();
 
@@ -34,35 +47,23 @@ export default function SiteHeader() {
           <span className="hidden sm:inline">Imotara</span>
         </Link>
 
-        {/* CENTER: Navigation */}
-        <nav
-          className="flex max-w-[55vw] items-center justify-center gap-1 overflow-x-auto text-xs text-zinc-600 sm:max-w-none sm:gap-3 sm:text-sm dark:text-zinc-300"
-          aria-label="Main navigation"
-        >
+        {/* CENTER: Navigation — horizontally scrollable on mobile */}
+        <nav className={NAV_CLASS} aria-label="Main navigation">
           {links.map((l) => {
             const active =
               l.href === "/"
                 ? pathname === "/"
                 : pathname.startsWith(l.href);
 
-            const base =
-              "relative whitespace-nowrap rounded-full px-2.5 py-1 transition-colors";
-            const activeClass = [
-              "imotara-nav-active",
-              "bg-zinc-900/90 text-zinc-50 shadow-sm ring-1 ring-white/25",
-              "dark:bg-zinc-100 dark:text-zinc-900",
-            ].join(" ");
-            const inactiveClass =
-              "text-zinc-700 hover:bg-white/60 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900/70 dark:hover:text-zinc-50";
+            const linkClasses = `${BASE_LINK_CLASS} ${active ? ACTIVE_LINK_CLASS : INACTIVE_LINK_CLASS
+              }`;
 
             return (
               <Link
                 key={l.href}
                 href={l.href}
                 aria-current={active ? "page" : undefined}
-                className={[base, active ? activeClass : inactiveClass].join(
-                  " "
-                )}
+                className={linkClasses}
               >
                 {l.label}
               </Link>
@@ -70,7 +71,7 @@ export default function SiteHeader() {
           })}
         </nav>
 
-        {/* RIGHT: Global Conflicts button (shared component) */}
+        {/* RIGHT: Global Conflicts button */}
         <div className="flex items-center justify-end pl-3">
           <ConflictReviewButton />
         </div>

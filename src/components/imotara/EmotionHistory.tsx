@@ -1745,7 +1745,7 @@ export default function EmotionHistory() {
                 }
               }}
               className={[
-                "imotara-history-item p-4 shadow-sm cursor-pointer transition hover:bg.white/10",
+                "imotara-history-item p-4 shadow-sm cursor-pointer transition-transform duration-150 hover:bg.white/10 hover:-translate-y-0.5 hover:shadow-md",
                 highlightedByMessage
                   ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-transparent animate-pulse"
                   : "",

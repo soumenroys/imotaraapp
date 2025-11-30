@@ -160,7 +160,7 @@ export default memo(function MoodSummaryCard({
 
   return (
     <section
-      className={`rounded-2xl border border-white/12 bg-slate-950/70 px-4 py-4 text-xs text-zinc-200 shadow-[0_18px_40px_rgba(15,23,42,0.85)] backdrop-blur-md ${className}`}
+      className={`rounded-2xl border border-white/12 bg-slate-950/70 px-4 py-4 text-xs text-zinc-200 shadow-[0_18px_40px_rgba(15,23,42,0.85)] backdrop-blur-md transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,23,42,0.95)] hover:border-white/18 ${className}`}
     >
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -234,7 +234,7 @@ export default memo(function MoodSummaryCard({
             return (
               <li
                 key={emotion}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/80 px-2.5 py-1.5"
+                className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/80 px-2.5 py-1.5 text-[11px] transition-transform transition-colors duration-150 hover:-translate-y-0.5 hover:bg-slate-900 hover:border-white/20"
                 title={`${label}: ${fmtPct(val)}`}
               >
                 <span className="inline-flex items-center gap-1.5 text-[11px]">

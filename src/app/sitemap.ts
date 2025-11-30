@@ -61,7 +61,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
     // --- Helpful static PWA endpoints ---
     {
-      url: `${base}/manifest.webmanifest`,
+      url: `${base}/site.webmanifest`, // ⬅️ match layout.tsx manifest path
       lastModified: now,
       changeFrequency: "yearly",
       priority: 0.3,

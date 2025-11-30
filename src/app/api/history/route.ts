@@ -227,20 +227,64 @@ export async function POST(request: Request) {
 
 /* ----------------------------------------------------------------------------
  * DELETE /api/history
- * Body: { ids: string[], updatedAt?: number }
- * Applies tombstone (deleted:true) per id with LWW.
+ *
+ * Two modes (both LWW-safe and backwards compatible):
+ *
+ * 1) Targeted delete (existing behavior):
+ *    Body: { ids: string[], updatedAt?: number }
+ *    -> Applies tombstone (deleted:true) per id with LWW.
+ *
+ * 2) Global delete (new, for privacy / remote wipe):
+ *    Body: {} or no body at all (e.g., plain DELETE with no payload)
+ *    -> Applies tombstone to ALL known records in the store.
+ *       This is used by /api/delete-remote as a best-effort "clear everything".
  * --------------------------------------------------------------------------*/
 export async function DELETE(request: Request) {
   try {
-    const body = await request.json();
+    let body: any = {};
+    try {
+      // If there is no body, this will throw; we then treat as {}.
+      body = await request.json();
+    } catch {
+      body = {};
+    }
+
     const ids: string[] = Array.isArray(body?.ids) ? body.ids : [];
+    const now = Date.now();
     const ts =
       typeof body?.updatedAt === "number" && Number.isFinite(body.updatedAt)
         ? body.updatedAt
-        : Date.now();
+        : now;
 
     const deletedIds: string[] = [];
 
+    // 🔹 Mode 2: Global delete when no ids are provided.
+    if (ids.length === 0) {
+      // Apply tombstone to all known records so that sync clients
+      // can still converge using LWW semantics.
+      const all = Array.from(store.values());
+      for (const rec of all) {
+        const tombstone: EmotionRecord = {
+          ...rec,
+          deleted: true,
+          updatedAt: Math.max(rec.updatedAt ?? 0, ts),
+        };
+        const ok = upsertLWW(tombstone);
+        if (ok) deletedIds.push(rec.id);
+      }
+
+      // If there were no records yet, deletedIds will simply be [].
+      return NextResponse.json(
+        {
+          mode: "all",
+          deletedIds,
+          serverTs: Date.now(),
+        },
+        { status: 200 }
+      );
+    }
+
+    // 🔹 Mode 1: Targeted delete (previous behavior, unchanged).
     for (const id of ids) {
       const existing = store.get(id);
       const tombstone: EmotionRecord = existing
@@ -263,7 +307,10 @@ export async function DELETE(request: Request) {
       if (ok) deletedIds.push(id);
     }
 
-    return NextResponse.json({ deletedIds }, { status: 200 });
+    return NextResponse.json(
+      { mode: "byIds", deletedIds, serverTs: Date.now() },
+      { status: 200 }
+    );
   } catch (err: any) {
     // eslint-disable-next-line no-console
     console.error("DELETE /api/history error:", err);

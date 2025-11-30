@@ -90,7 +90,7 @@ export default function SyncStatusChip({
   // Purely visual: whether the chip can be clicked to trigger sync
   const isClickable = !!onSync && !isBusy;
   const wrapperInteractive = isClickable
-    ? "cursor-pointer hover:shadow-[0_0_14px_rgba(56,189,248,0.45)] hover:border-sky-300/70 transition-shadow transition-colors"
+    ? "cursor-pointer transition-shadow transition-colors transition-transform hover:shadow-[0_0_14px_rgba(56,189,248,0.45)] hover:border-sky-300/70 hover:-translate-y-0.5"
     : "cursor-default";
 
   return (

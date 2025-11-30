@@ -72,6 +72,15 @@ export const metadata: Metadata = {
   alternates: {
     canonical: siteUrl,
   },
+  // 🔓 Allow search engines to index and follow links (public beta)
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
 };
 
 function JsonLd() {

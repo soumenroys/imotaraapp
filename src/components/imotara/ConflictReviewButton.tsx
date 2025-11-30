@@ -41,16 +41,17 @@ export default function ConflictReviewButton() {
 
   const baseButtonClasses =
     "relative inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs sm:text-sm font-medium " +
-    "transition-all backdrop-blur-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 " +
+    "transition-all duration-150 backdrop-blur-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 " +
     "focus-visible:ring-offset-2 focus-visible:ring-offset-transparent";
 
   const variantClasses = hasConflicts
     ? // Conflicts present: slightly brighter, glowing, clearly clickable
-    "border border-amber-500/60 bg-amber-400/20 text-amber-100 hover:bg-amber-400/30 " +
-    "shadow-sm shadow-amber-500/40 cursor-pointer animate-pulse-soft"
-    : // No conflicts: neutral, calm
-    "border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 dark:bg-zinc-900/40 " +
-    "dark:text-zinc-400 cursor-default";
+    "border border-amber-500/60 bg-amber-400/20 text-amber-100 " +
+    "shadow-sm shadow-amber-500/40 cursor-pointer " +
+    "hover:bg-amber-400/30 hover:shadow-md hover:shadow-amber-400/60 hover:-translate-y-0.5"
+    : // No conflicts: neutral, calm, no “fake” hover glow
+    "border border-white/10 bg-white/5 text-zinc-300 " +
+    "dark:bg-zinc-900/40 dark:text-zinc-400 cursor-default";
 
   return (
     <>

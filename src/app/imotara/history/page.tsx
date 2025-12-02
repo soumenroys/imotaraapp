@@ -12,10 +12,12 @@ import {
   toChartSeries,
 } from "@/lib/imotara/history";
 import type { Emotion } from "@/types/analysis";
+import type { EmotionRecord } from "@/types/history";
 import { Trash2 } from "lucide-react";
 
 export default function EmotionHistoryPage() {
-  const [all, setAll] = useState(getHistory());
+  // All history records – now explicitly EmotionRecord[] (not a Promise)
+  const [all, setAll] = useState<EmotionRecord[]>([]);
 
   // filters
   const [emotion, setEmotion] = useState<Emotion | "all">("all");
@@ -23,12 +25,36 @@ export default function EmotionHistoryPage() {
   const [from, setFrom] = useState<string | undefined>();
   const [to, setTo] = useState<string | undefined>();
 
-  // auto-refresh when storage changes (basic focus poll)
+  // auto-refresh when storage changes (basic focus poll + initial load)
   useEffect(() => {
-    const onFocus = () => setAll(getHistory());
+    let cancelled = false;
+
+    const loadHistory = async () => {
+      try {
+        const data = await getHistory();
+        if (!cancelled) {
+          setAll(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setAll([]);
+        }
+      }
+    };
+
+    const onFocus = () => {
+      void loadHistory();
+    };
+
     window.addEventListener("focus", onFocus);
-    const iv = setInterval(onFocus, 3000);
+    void loadHistory(); // initial load
+
+    const iv = setInterval(() => {
+      void loadHistory();
+    }, 3000);
+
     return () => {
+      cancelled = true;
       window.removeEventListener("focus", onFocus);
       clearInterval(iv);
     };

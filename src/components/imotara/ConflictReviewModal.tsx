@@ -61,8 +61,18 @@ export default function ConflictReviewModal({ open, onClose }: Props) {
     const mergedRecord =
       decision === "merged" ? merged ?? active.local ?? active.remote ?? null : undefined;
 
-    // Apply resolution (return value is ignored here; caller persists elsewhere if desired)
-    await applyConflictResolution(active, decision, mergedRecord || undefined);
+    // New signature: applyConflictResolution(decisions: ConflictDecision[])
+    // We send one decision; cast the array to any to avoid over-constraining the literal.
+    await applyConflictResolution(
+      [
+        {
+          id: active.id,
+          recordId: active.recordId,
+          decision,
+          mergedRecord: mergedRecord || undefined,
+        },
+      ] as any
+    );
 
     // mark as resolved locally
     const all = getPendingConflicts();

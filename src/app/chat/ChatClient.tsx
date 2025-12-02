@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquare, Plus, Send, Trash2, Download, Eraser, RefreshCw } from "lucide-react";
 import MoodSummaryCard from "@/components/imotara/MoodSummaryCard";
 import type { AppMessage } from "@/lib/imotara/useAnalysis";
-import { syncHistory } from "@/lib/imotara/syncHistory";
+// ❌ removed: import { syncHistory } from "@/lib/imotara/syncHistory";
 import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
 
 type Role = "user" | "assistant" | "system";
@@ -86,6 +86,16 @@ async function persistMergedHistory(merged: unknown): Promise<void> {
   } catch {
     // ignore
   }
+}
+
+/**
+ * Local shim for history sync.
+ * For now we just pass remote data through unchanged.
+ * This keeps Chat sync behavior working without depending on an external
+ * syncHistory export that no longer exists.
+ */
+async function syncHistory(remoteRaw: unknown[]): Promise<unknown> {
+  return remoteRaw;
 }
 
 export default function ChatClient() {
@@ -259,13 +269,13 @@ export default function ChatClient() {
       prev.map((t) =>
         t.id === targetId
           ? {
-              ...t,
-              title:
-                t.messages.length === 0
-                  ? text.slice(0, 40) + (text.length > 40 ? "…" : "")
-                  : t.title,
-              messages: [...t.messages, userMsg, assistantMsg],
-            }
+            ...t,
+            title:
+              t.messages.length === 0
+                ? text.slice(0, 40) + (text.length > 40 ? "…" : "")
+                : t.title,
+            messages: [...t.messages, userMsg, assistantMsg],
+          }
           : t
       )
     );
@@ -346,19 +356,17 @@ export default function ChatClient() {
                       setActiveId(t.id);
                     }
                   }}
-                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left ${
-                    isActive
-                      ? "bg-zinc-100 dark:bg-zinc-800"
-                      : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                  }`}
+                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left ${isActive
+                    ? "bg-zinc-100 dark:bg-zinc-800"
+                    : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    }`}
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <MessageSquare className="h-4 w-4 shrink-0 opacity-70" />
                       <input
-                        className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-400 ${
-                          isActive ? "font-medium" : ""
-                        }`}
+                        className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-400 ${isActive ? "font-medium" : ""
+                          }`}
                         value={t.id === activeId ? (activeThread?.title ?? "") : t.title}
                         onChange={(e) => t.id === activeId && renameActive(e.target.value)}
                         placeholder="Untitled"
@@ -504,17 +512,15 @@ function Bubble({ role, content, time }: { role: Role; content: string; time: nu
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[75%] ${
-          isUser
-            ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900"
-            : "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
-        }`}
+        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[75%] ${isUser
+          ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900"
+          : "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
+          }`}
       >
         <div className="whitespace-pre-wrap">{content}</div>
         <div
-          className={`mt-1 text-[11px] ${
-            isUser ? "text-zinc-300 dark:text-zinc-500" : "text-zinc-500"
-          }`}
+          className={`mt-1 text-[11px] ${isUser ? "text-zinc-300 dark:text-zinc-500" : "text-zinc-500"
+            }`}
         >
           <DateText ts={time} /> · {isUser ? "You" : role === "assistant" ? "Imotara" : "System"}
         </div>

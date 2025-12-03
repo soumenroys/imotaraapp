@@ -630,11 +630,23 @@ export default function ChatPage() {
 
           if (aiRes.ok) {
             const data = await aiRes.json();
-            const text = (data?.text ?? "").toString().trim();
-            const from = data?.meta?.from ?? "unknown";
 
-            if (text && from === "openai") {
+            // Be tolerant about response shape: accept text/reply/message
+            const text = (
+              data?.text ??
+              data?.reply ??
+              data?.message ??
+              ""
+            )
+              .toString()
+              .trim();
+
+            if (text) {
               aiReply = text;
+              console.log(
+                "[imotara] using remote AI reply:",
+                text.slice(0, 120)
+              );
             }
           }
         } catch (err) {
@@ -664,7 +676,7 @@ export default function ChatPage() {
 
         void logAssistantMessageToHistory(assistantMsg);
 
-        // Option C: auto-focus composer when assistant reply arrives
+        // Auto-focus composer when assistant reply arrives
         setTimeout(() => composerRef.current?.focus(), 0);
 
         return;
@@ -794,7 +806,7 @@ export default function ChatPage() {
 
       void logAssistantMessageToHistory(assistantMsg);
 
-      // Option C: focus when fallback reply is shown
+      // Focus when fallback reply is shown
       setTimeout(() => composerRef.current?.focus(), 0);
     } finally {
       setAnalyzing(false);

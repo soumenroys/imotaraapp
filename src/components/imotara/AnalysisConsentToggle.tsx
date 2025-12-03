@@ -7,11 +7,10 @@ import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 /**
  * Compact sliding toggle for emotion-analysis consent.
  *
- * - "local-only" (default, safest)   → analysis stays in the browser
- * - "allow-remote"                   → text may be sent to the backend/API
+ * - "local-only"   → analysis stays in the browser
+ * - "allow-remote" → text may be sent to the backend/API
  *
- * The label "Emotion analysis mode" and longer description
- * are provided by the parent (e.g. /chat header).
+ * The Chat page shows the longer labels (“Remote analysis allowed” etc.).
  */
 export default function AnalysisConsentToggle() {
     const {
@@ -22,53 +21,58 @@ export default function AnalysisConsentToggle() {
         isRemoteAllowed,
     } = useAnalysisConsent();
 
-    // While loading from localStorage, avoid flicker
-    if (!ready) {
-        return (
-            <div className="inline-flex flex-col gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                <div className="inline-flex h-5 w-9 items-center justify-center rounded-full border border-dashed border-zinc-500/40 bg-zinc-800/60">
-                    <span className="h-3 w-3 animate-pulse rounded-full bg-zinc-600" />
-                </div>
-            </div>
-        );
-    }
-
-    function handleToggle() {
-        // 🔧 IMPORTANT: matches AnalysisConsentMode = "local-only" | "allow-remote"
-        setMode(isRemoteAllowed ? "local-only" : "allow-remote");
-    }
+    const handleToggle = () => {
+        if (!ready) return;
+        setMode(isLocalOnly ? "allow-remote" : "local-only");
+    };
 
     return (
-        <div className="inline-flex flex-col gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-            {/* Slider switch */}
+        <div className="flex flex-col gap-1">
             <button
                 type="button"
                 onClick={handleToggle}
+                disabled={!ready}
                 aria-pressed={isRemoteAllowed}
-                aria-label={
-                    isRemoteAllowed
-                        ? "Remote analysis enabled"
-                        : "Remote analysis disabled, on-device only"
-                }
+                aria-label="Toggle emotion analysis between local-only and remote"
                 className={[
-                    "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400",
-                    "focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950",
-                    isRemoteAllowed
-                        ? "border-emerald-400 bg-emerald-500/80"
-                        : "border-zinc-500 bg-zinc-700/70 dark:bg-zinc-800",
+                    "relative inline-flex h-7 w-24 items-center rounded-full border border-white/15",
+                    "bg-black/50 px-1 text-[10px] font-medium text-zinc-300",
+                    "shadow-sm backdrop-blur-sm transition",
+                    "hover:bg-white/5 hover:-translate-y-0.5 hover:shadow-md",
+                    "disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none",
                 ].join(" ")}
             >
+                {/* Sliding pill */}
                 <span
                     className={[
-                        "inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
-                        isRemoteAllowed ? "translate-x-4" : "translate-x-0.5",
+                        "absolute top-0.5 bottom-0.5 w-[46%] rounded-full",
+                        "bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400",
+                        "shadow-md transition-transform duration-200",
+                        isRemoteAllowed ? "translate-x-[44px]" : "translate-x-0",
                     ].join(" ")}
                 />
+
+                {/* Labels */}
+                <span
+                    className={[
+                        "relative flex-1 text-center",
+                        isLocalOnly ? "text-white" : "text-zinc-300",
+                    ].join(" ")}
+                >
+                    Local
+                </span>
+                <span
+                    className={[
+                        "relative flex-1 text-center",
+                        isRemoteAllowed ? "text-white" : "text-zinc-300",
+                    ].join(" ")}
+                >
+                    Cloud
+                </span>
             </button>
 
-            {/* Tiny helper line (optional) */}
-            <p className="max-w-xs text-[10px] leading-snug text-zinc-500 dark:text-zinc-500">
+            {/* Tiny helper line */}
+            <p className="max-w-xs text-[10px] leading-snug text-zinc-500">
                 Your choice is stored only on this device.{" "}
                 {isLocalOnly
                     ? "Right now, Imotara analyzes emotions locally in your browser."

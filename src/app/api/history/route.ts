@@ -12,31 +12,49 @@ const store: Map<string, EmotionRecord> = new Map();
  * Helpers
  * --------------------------------------------------------------------------*/
 
-/** Coerce a loose object into a strict EmotionRecord or return null if invalid. */
+/**
+ * Coerce a loose object into a strict EmotionRecord or return null if invalid.
+ *
+ * Supports both:
+ *   • Full EmotionRecord-like objects from the web app:
+ *       { id, message, emotion, intensity, createdAt, updatedAt, ... }
+ *   • Simplified mobile payloads:
+ *       { id, text, from, timestamp, source? }
+ */
 function normalizeIncoming(input: any): EmotionRecord | null {
   if (!input || typeof input !== "object") return null;
 
   const id = typeof input.id === "string" && input.id.length > 0 ? input.id : null;
   if (!id) return null;
 
-  const message = typeof input.message === "string" ? input.message : "";
+  // Prefer "message" (web), fall back to "text" (mobile)
+  const message =
+    typeof input.message === "string"
+      ? input.message
+      : typeof input.text === "string"
+        ? input.text
+        : "";
+
   const emotion = typeof input.emotion === "string" ? input.emotion : "neutral";
   const intensity = typeof input.intensity === "number" ? input.intensity : 0;
 
-  // 🔹 IMPORTANT:
-  // Trust client timestamps instead of replacing with Date.now().
-  // If they are missing/invalid, we fall back to 0 so LWW still works,
-  // but we don't generate fresh "now" timestamps that confuse sync.
-  const createdAt =
+  // Prefer explicit createdAt/updatedAt; fall back to timestamp from mobile
+  const createdAtCandidate =
     typeof input.createdAt === "number" && Number.isFinite(input.createdAt)
       ? input.createdAt
-      : 0;
+      : typeof input.timestamp === "number" && Number.isFinite(input.timestamp)
+        ? input.timestamp
+        : 0;
 
-  const updatedAt =
+  const updatedAtCandidate =
     typeof input.updatedAt === "number" && Number.isFinite(input.updatedAt)
       ? input.updatedAt
-      : createdAt;
+      : createdAtCandidate;
 
+  const createdAt = createdAtCandidate;
+  const updatedAt = updatedAtCandidate;
+
+  // Build the base record first
   const rec: EmotionRecord = {
     id,
     message,
@@ -44,10 +62,17 @@ function normalizeIncoming(input: any): EmotionRecord | null {
     intensity,
     createdAt,
     updatedAt,
-    // Keep optional flags if present
-    ...(input.source ? { source: input.source } : {}),
-    ...(input.deleted === true ? { deleted: true } : {}),
   };
+
+  // Attach source if present (either from "source" or mobile "from")
+  if (input.source || input.from) {
+    (rec as any).source = (input.source ?? input.from) as any;
+  }
+
+  // Attach deleted flag if present
+  if (input.deleted === true) {
+    rec.deleted = true;
+  }
 
   return rec;
 }
@@ -178,6 +203,7 @@ export async function GET(request: Request) {
  * Body (back-compat):
  *   - NEW preferred: { records: EmotionRecord[] }
  *   - OLD (compat):  EmotionRecord[]
+ *   - Mobile:        { id, text, from, timestamp, source? }[]
  * Upserts with LWW; returns { attempted, acceptedIds, rejected?, serverTs }
  * --------------------------------------------------------------------------*/
 export async function POST(request: Request) {

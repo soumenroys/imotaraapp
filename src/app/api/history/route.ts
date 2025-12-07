@@ -1,12 +1,12 @@
 // src/app/api/history/route.ts
 import { NextResponse } from "next/server";
 import type { EmotionRecord } from "@/types/history";
-
-/**
- * In-memory store for dev. Resets on server restart/hot reload.
- * Swap this Map out for a DB (e.g., Postgres/Supabase/Mongo) later.
- */
-const store: Map<string, EmotionRecord> = new Map();
+import {
+  getAllRecords,
+  getRecordsSince,
+  upsertRecords,
+  clearAllRecords,
+} from "./store";
 
 /* ----------------------------------------------------------------------------
  * Helpers
@@ -77,24 +77,28 @@ function normalizeIncoming(input: any): EmotionRecord | null {
   return rec;
 }
 
-/** Last-Write-Wins by updatedAt. If equal, prefer incoming (server convergence). */
+/**
+ * Last-Write-Wins by updatedAt. If equal, prefer incoming (server convergence).
+ * Uses the shared store under ./store.
+ */
 function upsertLWW(incoming: EmotionRecord) {
-  const existing = store.get(incoming.id);
+  const all = getAllRecords();
+  const existing = all.find((r) => r.id === incoming.id);
+
   if (!existing) {
-    store.set(incoming.id, incoming);
+    upsertRecords([incoming]);
     return true;
   }
+
   const lt = existing.updatedAt ?? 0;
   const rt = incoming.updatedAt ?? 0;
-  if (rt > lt) {
-    store.set(incoming.id, incoming);
-    return true;
-  }
-  if (rt === lt) {
+
+  if (rt > lt || rt === lt) {
     // Prefer incoming on ties to converge clients with server
-    store.set(incoming.id, incoming);
+    upsertRecords([incoming]);
     return true;
   }
+
   // incoming older than existing -> ignore
   return false;
 }
@@ -102,10 +106,13 @@ function upsertLWW(incoming: EmotionRecord) {
 /** Return records with optional filtering and shape. */
 function listRecords(opts: { since?: number; includeDeleted?: boolean }) {
   const { since, includeDeleted } = opts;
-  let records = Array.from(store.values());
+
+  let records: EmotionRecord[];
 
   if (typeof since === "number" && Number.isFinite(since)) {
-    records = records.filter((r) => (r.updatedAt ?? 0) >= since);
+    records = getRecordsSince(since);
+  } else {
+    records = getAllRecords();
   }
 
   if (!includeDeleted) {
@@ -121,14 +128,15 @@ function listRecords(opts: { since?: number; includeDeleted?: boolean }) {
 function touchRecent(n: number) {
   if (n <= 0) return [];
   const now = Date.now();
-  const all = Array.from(store.values()).sort(
+  const all = getAllRecords().sort(
     (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
   );
   const picked = all.slice(0, n);
-  for (const rec of picked) {
-    const bumped = { ...rec, updatedAt: now };
-    store.set(bumped.id, bumped);
-  }
+  const bumped = picked.map<EmotionRecord>((rec) => ({
+    ...rec,
+    updatedAt: now,
+  }));
+  upsertRecords(bumped);
   return picked.map((r) => r.id);
 }
 
@@ -152,7 +160,7 @@ export async function GET(request: Request) {
   // Dev toggles
   const devWipe = searchParams.get("dev_wipe") === "1";
   if (devWipe) {
-    store.clear();
+    clearAllRecords();
     return NextResponse.json(
       { ok: true, wiped: true, serverTs: Date.now() },
       { status: 200 }
@@ -174,9 +182,7 @@ export async function GET(request: Request) {
   const records = listRecords({ since, includeDeleted });
 
   // Total *non-deleted* records on server for debug/UI.
-  const serverCount = Array.from(store.values()).filter(
-    (r) => r.deleted !== true
-  ).length;
+  const serverCount = getAllRecords().filter((r) => r.deleted !== true).length;
 
   // Back-compat / simple inspection
   if (mode === "array") {
@@ -288,7 +294,7 @@ export async function DELETE(request: Request) {
     if (ids.length === 0) {
       // Apply tombstone to all known records so that sync clients
       // can still converge using LWW semantics.
-      const all = Array.from(store.values());
+      const all = getAllRecords();
       for (const rec of all) {
         const tombstone: EmotionRecord = {
           ...rec,
@@ -312,7 +318,7 @@ export async function DELETE(request: Request) {
 
     // 🔹 Mode 1: Targeted delete (previous behavior, unchanged).
     for (const id of ids) {
-      const existing = store.get(id);
+      const existing = getAllRecords().find((r) => r.id === id);
       const tombstone: EmotionRecord = existing
         ? {
           ...existing,

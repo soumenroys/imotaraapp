@@ -1,39 +1,48 @@
 // src/app/api/history/sync/route.ts
 import { NextResponse } from "next/server";
 import type { EmotionRecord, SyncEnvelope, SyncResponse } from "@/types/history";
+import {
+  getRecordsSince,
+  upsertRecords,
+} from "../store";
 
-// Simulated server store (in-memory). Replace with DB later.
-let SERVER_STORE: EmotionRecord[] = [];
-
-function upsertServer(records: EmotionRecord[]) {
-  const idx = new Map(SERVER_STORE.map((r) => [r.id, r]));
-  for (const rec of records) {
-    const prev = idx.get(rec.id);
-    if (!prev || (rec.updatedAt ?? 0) >= (prev.updatedAt ?? 0)) {
-      idx.set(rec.id, { ...rec });
-    }
-  }
-  SERVER_STORE = Array.from(idx.values()).sort(
-    (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
-  );
-}
+/**
+ * Sync endpoint used by the web EmotionHistory sync engine.
+ * Now uses the shared in-memory store so that:
+ *   - /api/history
+ *   - /api/history?mode=array
+ *   - /api/history/sync
+ * all operate on the SAME backend state.
+ */
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as SyncEnvelope;
 
-    // 1) Apply client changes
+    // 1) Apply client changes (Last-Write-Wins handled by upsertRecords)
     if (Array.isArray(body.clientChanges) && body.clientChanges.length) {
-      upsertServer(body.clientChanges);
+      // We assume clientChanges are already well-formed EmotionRecord objects.
+      // upsertRecords will:
+      //   - validate ids
+      //   - compare updatedAt/createdAt
+      //   - keep the newest version per id
+      upsertRecords(body.clientChanges as EmotionRecord[]);
     }
 
     // 2) Compute server changes since clientSince
     const since = body.clientSince ?? 0;
-    const serverChanges = SERVER_STORE.filter((r) => (r.updatedAt ?? 0) > since);
+    const serverChanges = getRecordsSince(since);
 
     const payload: SyncResponse = { serverChanges };
     return NextResponse.json(payload, { status: 200 });
-  } catch {
-    return NextResponse.json({ serverChanges: [] } satisfies SyncResponse, { status: 400 });
+  } catch (err) {
+    // In case of malformed body or any other error, keep contract:
+    // return { serverChanges: [] } with 400.
+    // eslint-disable-next-line no-console
+    console.error("POST /api/history/sync error:", err);
+    return NextResponse.json(
+      { serverChanges: [] } satisfies SyncResponse,
+      { status: 400 }
+    );
   }
 }

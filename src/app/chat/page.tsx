@@ -86,19 +86,27 @@ function isAppMessage(m: Message): m is AppMessage {
   return m.role === "user" || m.role === "assistant";
 }
 
+/**
+ * Fetch remote history for sync.
+ * Supports:
+ *   • raw array              -> [ ...records ]
+ *   • { items: [...] }       -> { items }
+ *   • { records: [...] }     -> { records, syncToken, ... }  (new envelope)
+ */
 async function fetchRemoteHistory(): Promise<unknown[]> {
   try {
     const res = await fetch("/api/history", { method: "GET" });
     if (!res.ok) return [];
     const data: unknown = await res.json();
+
     if (Array.isArray(data)) return data;
-    if (
-      data &&
-      typeof data === "object" &&
-      Array.isArray((data as { items?: unknown[] }).items)
-    ) {
-      return (data as { items: unknown[] }).items;
+
+    if (data && typeof data === "object") {
+      const obj = data as Record<string, unknown>;
+      if (Array.isArray(obj.records)) return obj.records as unknown[];
+      if (Array.isArray(obj.items)) return obj.items as unknown[];
     }
+
     return [];
   } catch {
     return [];
@@ -135,6 +143,31 @@ type HistoryEmotionOptions = {
   emotion?: Emotion;
   intensity?: number;
 };
+
+/**
+ * Push a minimal EmotionRecord to the backend /api/history store.
+ * This is additive and does not replace any existing local logging.
+ */
+async function pushToRemoteHistory(entry: {
+  id: string;
+  message: string;
+  emotion: Emotion;
+  intensity: number;
+  createdAt: number;
+  updatedAt: number;
+  source: "user" | "assistant";
+}): Promise<void> {
+  try {
+    await fetch("/api/history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify([entry]),
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[imotara] pushToRemoteHistory failed:", err);
+  }
+}
 
 async function logUserMessageToHistory(
   msg: Message,
@@ -188,7 +221,19 @@ async function logUserMessageToHistory(
       entryKind: "user",
     };
 
+    // Existing local / history.ts logging (unchanged)
     await saveSample(payload);
+
+    // NEW: push a normalized EmotionRecord to backend store
+    await pushToRemoteHistory({
+      id: msg.id,
+      message: text,
+      emotion,
+      intensity,
+      createdAt: msg.createdAt,
+      updatedAt: msg.createdAt,
+      source: "user",
+    });
   } catch (err) {
     console.error(
       "[imotara] failed to log chat message to history:",
@@ -215,7 +260,19 @@ async function logAssistantMessageToHistory(msg: Message): Promise<void> {
       replySource: msg.replySource ?? "fallback",
     };
 
+    // Existing local / history.ts logging (unchanged)
     await saveSample(payload);
+
+    // NEW: push a normalized EmotionRecord to backend store
+    await pushToRemoteHistory({
+      id: msg.id,
+      message: text,
+      emotion: "neutral",
+      intensity: 0,
+      createdAt: msg.createdAt,
+      updatedAt: msg.createdAt,
+      source: "assistant",
+    });
   } catch (err) {
     console.error(
       "[imotara] failed to log assistant message to history:",

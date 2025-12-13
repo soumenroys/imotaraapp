@@ -6,7 +6,7 @@ import { getCurrentLicenseStatus } from "@/lib/imotara/license";
  * Lightweight license status endpoint.
  *
  * For now, this:
- *   - ALWAYS returns a "valid", "pro" license
+ *   - Returns the current license status object
  *   - Exposes the current mode ("off" | "log" | "enforce")
  *
  * ❗ It does NOT enforce or block anything.
@@ -15,11 +15,21 @@ import { getCurrentLicenseStatus } from "@/lib/imotara/license";
 export async function GET() {
     const status = getCurrentLicenseStatus();
 
-    return NextResponse.json(
+    const res = NextResponse.json(
         {
             ok: true,
+
+            // ✅ Convenience: allow UI to read mode without drilling
+            mode: status?.mode ?? process.env.NEXT_PUBLIC_IMOTARA_LICENSE_MODE ?? "off",
+
+            // ✅ Backward-compatible payload (keep as-is)
             license: status,
         },
         { status: 200 }
     );
+
+    // ✅ Always fresh (no caching)
+    res.headers.set("Cache-Control", "no-store");
+
+    return res;
 }

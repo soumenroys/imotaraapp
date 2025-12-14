@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
 
+const SHOW_DONATION_RECEIPTS = process.env.NODE_ENV !== "production";
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 const IMOTARA_VERSION = "Imotara Web Beta v0.9.7";
 
@@ -232,8 +233,10 @@ export default function SettingsPage() {
         // Read-only licensing status on page load
         refreshLicenseStatus();
 
-        // Recent donations (read-only)
-        refreshDonations();
+        // Recent donations (read-only) — DEV ONLY
+        if (SHOW_DONATION_RECEIPTS) {
+            refreshDonations();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -476,7 +479,7 @@ export default function SettingsPage() {
                 </section>
 
                 {/* NEW: Recent donations (web) — rendered client-only to avoid hydration mismatch */}
-                {mounted && (
+                {mounted && SHOW_DONATION_RECEIPTS && (
                     <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>

@@ -1,4 +1,5 @@
 // src/app/api/history/route.ts
+import { isAdminRequest, isProd } from "@/lib/prodGuard";
 import { NextResponse } from "next/server";
 import type { EmotionRecord } from "@/types/history";
 import {
@@ -14,20 +15,16 @@ import {
 
 /**
  * Coerce a loose object into a strict EmotionRecord or return null if invalid.
- *
- * Supports both:
- *   • Full EmotionRecord-like objects from the web app:
- *       { id, message, emotion, intensity, createdAt, updatedAt, ... }
- *   • Simplified mobile payloads:
- *       { id, text, from, timestamp, source? }
+ * Keeps /api/history tolerant to older/mobile payload shapes.
  */
-function normalizeIncoming(input: any): EmotionRecord | null {
+function coerceEmotionRecord(input: any): EmotionRecord | null {
   if (!input || typeof input !== "object") return null;
 
-  const id = typeof input.id === "string" && input.id.length > 0 ? input.id : null;
+  const id = typeof input.id === "string" ? input.id.trim() : "";
   if (!id) return null;
 
-  // Prefer "message" (web), fall back to "text" (mobile)
+  // Web sends: { message }
+  // Mobile sends: { text }
   const message =
     typeof input.message === "string"
       ? input.message
@@ -35,121 +32,131 @@ function normalizeIncoming(input: any): EmotionRecord | null {
         ? input.text
         : "";
 
-  const emotion = typeof input.emotion === "string" ? input.emotion : "neutral";
-  const intensity = typeof input.intensity === "number" ? input.intensity : 0;
+  if (!message) return null;
 
-  // Prefer explicit createdAt/updatedAt; fall back to timestamp from mobile
+  const emotion =
+    typeof input.emotion === "string" && input.emotion.trim()
+      ? (input.emotion as any)
+      : "neutral";
+
+  const intensity =
+    typeof input.intensity === "number" && Number.isFinite(input.intensity)
+      ? input.intensity
+      : undefined;
+
   const createdAtCandidate =
     typeof input.createdAt === "number" && Number.isFinite(input.createdAt)
       ? input.createdAt
       : typeof input.timestamp === "number" && Number.isFinite(input.timestamp)
         ? input.timestamp
-        : 0;
+        : Date.now();
 
   const updatedAtCandidate =
     typeof input.updatedAt === "number" && Number.isFinite(input.updatedAt)
       ? input.updatedAt
       : createdAtCandidate;
 
-  const createdAt = createdAtCandidate;
-  const updatedAt = updatedAtCandidate;
-
-  // Build the base record first
   const rec: EmotionRecord = {
     id,
     message,
     emotion,
     intensity,
-    createdAt,
-    updatedAt,
+    createdAt: createdAtCandidate,
+    updatedAt: updatedAtCandidate,
   };
 
-  // Attach source if present (either from "source" or mobile "from")
+  // Optional: source (web) / from (mobile)
   if (input.source || input.from) {
     (rec as any).source = (input.source ?? input.from) as any;
   }
 
-  // Attach deleted flag if present
+  // Optional: deleted
   if (input.deleted === true) {
     rec.deleted = true;
   }
 
+  // Optional pass-through fields (safe)
+  if (typeof input.sessionId === "string") rec.sessionId = input.sessionId;
+  if (typeof input.messageId === "string") rec.messageId = input.messageId;
+  if (typeof input.chatMessageId === "string") rec.chatMessageId = input.chatMessageId;
+  if (Array.isArray(input.tags)) (rec as any).tags = input.tags;
+
   return rec;
 }
 
+function coerceRecordsFromBody(body: any): EmotionRecord[] {
+  // New preferred: { records: EmotionRecord[] }
+  if (body && typeof body === "object" && Array.isArray(body.records)) {
+    return body.records.map(coerceEmotionRecord).filter(Boolean) as EmotionRecord[];
+  }
+
+  // Old compat: EmotionRecord[]
+  if (Array.isArray(body)) {
+    return body.map(coerceEmotionRecord).filter(Boolean) as EmotionRecord[];
+  }
+
+  // Mobile compat: single record-ish object
+  const single = coerceEmotionRecord(body);
+  return single ? [single] : [];
+}
+
 /**
- * Last-Write-Wins by updatedAt. If equal, prefer incoming (server convergence).
- * Uses the shared store under ./store.
+ * Last-write-wins upsert for a single record.
+ * Behavior preserved from the previous in-memory approach:
+ * newer updatedAt (or createdAt) wins.
  */
-function upsertLWW(incoming: EmotionRecord) {
-  const all = getAllRecords();
+async function upsertLWW(incoming: EmotionRecord): Promise<void> {
+  const all = await getAllRecords();
   const existing = all.find((r) => r.id === incoming.id);
 
   if (!existing) {
-    upsertRecords([incoming]);
-    return true;
+    await upsertRecords([incoming]);
+    return;
   }
 
-  const lt = existing.updatedAt ?? 0;
-  const rt = incoming.updatedAt ?? 0;
+  const existingTime = (existing.updatedAt ?? existing.createdAt ?? 0) as number;
+  const incomingTime = (incoming.updatedAt ?? incoming.createdAt ?? 0) as number;
 
-  if (rt > lt || rt === lt) {
-    // Prefer incoming on ties to converge clients with server
-    upsertRecords([incoming]);
-    return true;
+  if (incomingTime >= existingTime) {
+    await upsertRecords([incoming]);
   }
-
-  // incoming older than existing -> ignore
-  return false;
 }
 
-/** Return records with optional filtering and shape. */
-function listRecords(opts: { since?: number; includeDeleted?: boolean }) {
-  const { since, includeDeleted } = opts;
+/**
+ * DEV ONLY helper:
+ * bump updatedAt for the most-recent N records to simulate server-newer conflicts.
+ * Preserves your existing dev_touchN behavior.
+ */
+async function touchRecent(n: number): Promise<string[]> {
+  if (!Number.isFinite(n) || n <= 0) return [];
 
-  let records: EmotionRecord[];
-
-  if (typeof since === "number" && Number.isFinite(since)) {
-    records = getRecordsSince(since);
-  } else {
-    records = getAllRecords();
-  }
-
-  if (!includeDeleted) {
-    records = records.filter((r) => r.deleted !== true);
-  }
-
-  // Sort newest-first for consistency
-  records.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
-  return records;
-}
-
-/** Dev-only: "touch" recent items to simulate server-newer conflicts. */
-function touchRecent(n: number) {
-  if (n <= 0) return [];
   const now = Date.now();
-  const all = getAllRecords().sort(
-    (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+  const all = await getAllRecords();
+
+  const sorted = all.sort(
+    (a: EmotionRecord, b: EmotionRecord) =>
+      ((b.updatedAt ?? 0) as number) - ((a.updatedAt ?? 0) as number)
   );
-  const picked = all.slice(0, n);
-  const bumped = picked.map<EmotionRecord>((rec) => ({
+
+  const picked = sorted.slice(0, n);
+
+  const bumped = picked.map<EmotionRecord>((rec: EmotionRecord) => ({
     ...rec,
     updatedAt: now,
   }));
-  upsertRecords(bumped);
-  return picked.map((r) => r.id);
+
+  await upsertRecords(bumped);
+
+  return picked.map((r: EmotionRecord) => r.id);
 }
 
 /* ----------------------------------------------------------------------------
  * GET /api/history
- *
- * Query params:
- *   since=<ms>            -> only records with updatedAt >= since
- *   includeDeleted=1      -> include tombstoned records as well
+ * Query:
  *   mode=array            -> return raw array (back-compat / easier debugging)
- *   dev_touchN=<int>      -> DEV ONLY: bump updatedAt on top-N records to simulate
- *                            "server newer" conflicts (use after client has local copies)
- *   dev_wipe=1            -> DEV ONLY: clear the in-memory store
+ *   since=<ms>            -> return records updated after ms (array mode only)
+ *   dev_touchN=<int>      -> DEV ONLY: bump updatedAt on top-N records
+ *   dev_wipe=1            -> DEV ONLY: clear the store
  *
  * Default response (envelope):
  *   { records, syncToken?: string, serverTs: number, serverCount?: number }
@@ -157,10 +164,16 @@ function touchRecent(n: number) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
-  // Dev toggles
+  // DEV: wipe all records
+  // DEV toggles (blocked in production unless admin header is present)
+  const admin = isAdminRequest(request);
+
   const devWipe = searchParams.get("dev_wipe") === "1";
   if (devWipe) {
-    clearAllRecords();
+    if (isProd() && !admin) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+    await clearAllRecords();
     return NextResponse.json(
       { ok: true, wiped: true, serverTs: Date.now() },
       { status: 200 }
@@ -169,33 +182,39 @@ export async function GET(request: Request) {
 
   const touchN = Number(searchParams.get("dev_touchN") ?? "0");
   if (Number.isFinite(touchN) && touchN > 0) {
-    const ids = touchRecent(touchN);
-    // fall through to normal GET so you can see the updated records immediately
+    if (isProd() && !admin) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+    const ids = await touchRecent(touchN);
+    return NextResponse.json(
+      { ok: true, touched: ids, serverTs: Date.now() },
+      { status: 200 }
+    );
   }
 
-  // Normal filters
-  const sinceParam = searchParams.get("since");
-  const since = sinceParam ? Number(sinceParam) : undefined;
-  const includeDeleted = searchParams.get("includeDeleted") === "1";
-  const mode = searchParams.get("mode"); // "array" | undefined
+  const mode = searchParams.get("mode") ?? "envelope";
+  const since = Number(searchParams.get("since") ?? "0");
 
-  const records = listRecords({ since, includeDeleted });
-
-  // Total *non-deleted* records on server for debug/UI.
-  const serverCount = getAllRecords().filter((r) => r.deleted !== true).length;
-
-  // Back-compat / simple inspection
+  // Array mode (back-compat)
   if (mode === "array") {
-    return NextResponse.json(records, { status: 200 });
+    if (Number.isFinite(since) && since > 0) {
+      const rows = await getRecordsSince(since);
+      return NextResponse.json(rows, { status: 200 });
+    }
+    const rows = await getAllRecords();
+    return NextResponse.json(rows, { status: 200 });
   }
 
+  // Default envelope mode
+  const records = await getAllRecords();
   const serverTs = Date.now();
+
+  // Preserve prior semantics: count excludes deleted
+  const serverCount = records.filter((r: EmotionRecord) => r.deleted !== true).length;
 
   const envelope = {
     records,
-    // 🔹 Simple incremental strategy:
-    // client sends `since=<previous syncToken>`, we filter by updatedAt >= since,
-    // and we return a fresh syncToken based on the current server timestamp.
+    // serverTs acts as a simple syncToken for this server
     syncToken: String(serverTs),
     serverTs,
     serverCount,
@@ -209,145 +228,41 @@ export async function GET(request: Request) {
  * Body (back-compat):
  *   - NEW preferred: { records: EmotionRecord[] }
  *   - OLD (compat):  EmotionRecord[]
- *   - Mobile:        { id, text, from, timestamp, source? }[]
- * Upserts with LWW; returns { attempted, acceptedIds, rejected?, serverTs }
+ *   - Mobile:        { id, text, from, timestamp, emotion, intensity }
+ *
+ * Response:
+ *   { ok: true, acceptedIds: string[], serverTs: number, serverCount?: number }
  * --------------------------------------------------------------------------*/
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const records = coerceRecordsFromBody(body);
 
-    // Accept both {records:[...]} and raw array for backward compatibility
-    const list: any[] = Array.isArray(body)
-      ? body
-      : Array.isArray(body?.records)
-        ? body.records
-        : [];
-
-    const attempted = list.length;
-    const acceptedIds: string[] = [];
-    const rejected: { id?: string; reason: string }[] = [];
-
-    for (const raw of list) {
-      const rec = normalizeIncoming(raw);
-      if (!rec) {
-        rejected.push({ reason: "invalid-record" });
-        continue;
-      }
-      const ok = upsertLWW(rec);
-      if (ok) acceptedIds.push(rec.id);
-      else rejected.push({ id: rec.id, reason: "older-than-existing" });
+    // Preserve LWW semantics record-by-record (safer than blind batch overwrite)
+    for (const rec of records) {
+      await upsertLWW(rec);
     }
+
+    const serverTs = Date.now();
+
+    // Preserve prior semantics: count excludes deleted
+    const all = await getAllRecords();
+    const serverCount = all.filter((r: EmotionRecord) => r.deleted !== true).length;
 
     return NextResponse.json(
       {
-        attempted,
-        acceptedIds,
-        rejected: rejected.length ? rejected : undefined,
-        serverTs: Date.now(),
+        ok: true,
+        acceptedIds: records.map((r) => r.id),
+        serverTs,
+        serverCount,
       },
       { status: 200 }
     );
-  } catch (err: any) {
+  } catch (err) {
     // eslint-disable-next-line no-console
     console.error("POST /api/history error:", err);
     return NextResponse.json(
-      { error: String(err?.message ?? err) },
-      { status: 400 }
-    );
-  }
-}
-
-/* ----------------------------------------------------------------------------
- * DELETE /api/history
- *
- * Two modes (both LWW-safe and backwards compatible):
- *
- * 1) Targeted delete (existing behavior):
- *    Body: { ids: string[], updatedAt?: number }
- *    -> Applies tombstone (deleted:true) per id with LWW.
- *
- * 2) Global delete (new, for privacy / remote wipe):
- *    Body: {} or no body at all (e.g., plain DELETE with no payload)
- *    -> Applies tombstone to ALL known records in the store.
- *       This is used by /api/delete-remote as a best-effort "clear everything".
- * --------------------------------------------------------------------------*/
-export async function DELETE(request: Request) {
-  try {
-    let body: any = {};
-    try {
-      // If there is no body, this will throw; we then treat as {}.
-      body = await request.json();
-    } catch {
-      body = {};
-    }
-
-    const ids: string[] = Array.isArray(body?.ids) ? body.ids : [];
-    const now = Date.now();
-    const ts =
-      typeof body?.updatedAt === "number" && Number.isFinite(body.updatedAt)
-        ? body.updatedAt
-        : now;
-
-    const deletedIds: string[] = [];
-
-    // 🔹 Mode 2: Global delete when no ids are provided.
-    if (ids.length === 0) {
-      // Apply tombstone to all known records so that sync clients
-      // can still converge using LWW semantics.
-      const all = getAllRecords();
-      for (const rec of all) {
-        const tombstone: EmotionRecord = {
-          ...rec,
-          deleted: true,
-          updatedAt: Math.max(rec.updatedAt ?? 0, ts),
-        };
-        const ok = upsertLWW(tombstone);
-        if (ok) deletedIds.push(rec.id);
-      }
-
-      // If there were no records yet, deletedIds will simply be [].
-      return NextResponse.json(
-        {
-          mode: "all",
-          deletedIds,
-          serverTs: Date.now(),
-        },
-        { status: 200 }
-      );
-    }
-
-    // 🔹 Mode 1: Targeted delete (previous behavior, unchanged).
-    for (const id of ids) {
-      const existing = getAllRecords().find((r) => r.id === id);
-      const tombstone: EmotionRecord = existing
-        ? {
-          ...existing,
-          deleted: true,
-          updatedAt: Math.max(existing.updatedAt ?? 0, ts),
-        }
-        : {
-          id,
-          message: "",
-          emotion: "neutral",
-          intensity: 0,
-          createdAt: ts,
-          updatedAt: ts,
-          deleted: true,
-        };
-
-      const ok = upsertLWW(tombstone);
-      if (ok) deletedIds.push(id);
-    }
-
-    return NextResponse.json(
-      { mode: "byIds", deletedIds, serverTs: Date.now() },
-      { status: 200 }
-    );
-  } catch (err: any) {
-    // eslint-disable-next-line no-console
-    console.error("DELETE /api/history error:", err);
-    return NextResponse.json(
-      { error: String(err?.message ?? err) },
+      { ok: false, acceptedIds: [], serverTs: Date.now() },
       { status: 400 }
     );
   }

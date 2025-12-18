@@ -115,9 +115,7 @@ async function fetchRemoteHistory(): Promise<unknown[]> {
 
 async function persistMergedHistory(merged: unknown): Promise<void> {
   try {
-    const mod: Record<string, unknown> = await import(
-      "@/lib/imotara/history"
-    );
+    const mod: Record<string, unknown> = await import("@/lib/imotara/history");
     const setHistory = mod.setHistory as
       | ((items: unknown) => Promise<void> | void)
       | undefined;
@@ -186,14 +184,9 @@ async function logUserMessageToHistory(
         const res = (await runLocalAnalysis([msg] as any, 1)) as any;
         const summary = res?.summary;
         const inferredEmotion =
-          summary?.primaryEmotion ??
-          summary?.emotion ??
-          summary?.tag ??
-          null;
+          summary?.primaryEmotion ?? summary?.emotion ?? summary?.tag ?? null;
         const inferredIntensity =
-          typeof summary?.intensity === "number"
-            ? summary.intensity
-            : null;
+          typeof summary?.intensity === "number" ? summary.intensity : null;
 
         if (inferredEmotion) {
           emotion = inferredEmotion as Emotion;
@@ -235,10 +228,7 @@ async function logUserMessageToHistory(
       source: "user",
     });
   } catch (err) {
-    console.error(
-      "[imotara] failed to log chat message to history:",
-      err
-    );
+    console.error("[imotara] failed to log chat message to history:", err);
   }
 }
 
@@ -274,10 +264,7 @@ async function logAssistantMessageToHistory(msg: Message): Promise<void> {
       source: "assistant",
     });
   } catch (err) {
-    console.error(
-      "[imotara] failed to log assistant message to history:",
-      err
-    );
+    console.error("[imotara] failed to log assistant message to history:", err);
   }
 }
 
@@ -311,6 +298,9 @@ export default function ChatPage() {
 
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+
+  // ✅ NEW: header details toggle (collapses long header content by default)
+  const [showHeaderDetails, setShowHeaderDetails] = useState(false);
 
   const { mode } = useAnalysisConsent();
   const consentLabel =
@@ -407,10 +397,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!mounted) return;
     try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ threads, activeId })
-      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ threads, activeId }));
     } catch {
       // ignore
     }
@@ -552,14 +539,10 @@ export default function ChatPage() {
       return { emotion, source };
     }
 
-    if (
-      /lonely|alone|isolated|nobody cares|no one cares/.test(text)
-    ) {
+    if (/lonely|alone|isolated|nobody cares|no one cares/.test(text)) {
       return { emotion: "lonely", source: "fallback" };
     }
-    if (
-      /sad|depressed|miserable|crying|heartbroken|upset|empty/.test(text)
-    ) {
+    if (/sad|depressed|miserable|crying|heartbroken|upset|empty/.test(text)) {
       return { emotion: "sad", source: "fallback" };
     }
     if (
@@ -569,9 +552,7 @@ export default function ChatPage() {
     ) {
       return { emotion: "anxious", source: "fallback" };
     }
-    if (
-      /angry|furious|rage|irritated|annoyed|frustrated|pissed/.test(text)
-    ) {
+    if (/angry|furious|rage|irritated|annoyed|frustrated|pissed/.test(text)) {
       return { emotion: "angry", source: "fallback" };
     }
     if (
@@ -651,10 +632,7 @@ export default function ChatPage() {
         )) as AnalysisResult | null;
         summary = res?.summary ?? {};
 
-        const derived = deriveEmotionFromSummaryAndText(
-          summary,
-          msgsForAnalysis
-        );
+        const derived = deriveEmotionFromSummaryAndText(summary, msgsForAnalysis);
         debugEmotion = derived.emotion;
         debugEmotionSource = derived.source;
       } catch (err) {
@@ -671,8 +649,7 @@ export default function ChatPage() {
           }));
 
           const emotionHint =
-            typeof debugEmotion === "string" &&
-              debugEmotion.trim().length > 0
+            typeof debugEmotion === "string" && debugEmotion.trim().length > 0
               ? debugEmotion
               : "";
 
@@ -689,12 +666,7 @@ export default function ChatPage() {
             const data = await aiRes.json();
 
             // Be tolerant about response shape: accept text/reply/message
-            const text = (
-              data?.text ??
-              data?.reply ??
-              data?.message ??
-              ""
-            )
+            const text = (data?.text ?? data?.reply ?? data?.message ?? "")
               .toString()
               .trim();
 
@@ -725,9 +697,7 @@ export default function ChatPage() {
 
         setThreads((prev) =>
           prev.map((t) =>
-            t.id === threadId
-              ? { ...t, messages: [...t.messages, assistantMsg] }
-              : t
+            t.id === threadId ? { ...t, messages: [...t.messages, assistantMsg] } : t
           )
         );
 
@@ -742,25 +712,14 @@ export default function ChatPage() {
       let fallbackReply: string | null = null;
 
       try {
-        const intensity =
-          typeof summary.intensity === "number" ? summary.intensity : 0.4;
+        const intensity = typeof summary.intensity === "number" ? summary.intensity : 0.4;
         const tone =
-          typeof summary.tone === "string"
-            ? summary.tone.toLowerCase()
-            : "";
+          typeof summary.tone === "string" ? summary.tone.toLowerCase() : "";
 
-        const advice =
-          summary.adviceShort ??
-          summary.coachingTip ??
-          summary.nextStep ??
-          "";
+        const advice = summary.adviceShort ?? summary.coachingTip ?? summary.nextStep ?? "";
 
         const strengthLabel =
-          intensity < 0.25
-            ? "a gentle"
-            : intensity < 0.6
-              ? "a pretty strong"
-              : "an intense";
+          intensity < 0.25 ? "a gentle" : intensity < 0.6 ? "a pretty strong" : "an intense";
 
         const adviceTail =
           advice && String(advice).trim().length > 0
@@ -855,9 +814,7 @@ export default function ChatPage() {
 
       setThreads((prev) =>
         prev.map((t) =>
-          t.id === threadId
-            ? { ...t, messages: [...t.messages, assistantMsg] }
-            : t
+          t.id === threadId ? { ...t, messages: [...t.messages, assistantMsg] } : t
         )
       );
 
@@ -893,9 +850,7 @@ export default function ChatPage() {
   function renameActive(title: string) {
     if (!activeThread) return;
     setThreads((prev) =>
-      prev.map((t) =>
-        t.id === activeThread.id ? { ...t, title } : t
-      )
+      prev.map((t) => (t.id === activeThread.id ? { ...t, title } : t))
     );
   }
 
@@ -945,8 +900,7 @@ export default function ChatPage() {
             ...t,
             title:
               t.messages.length === 0
-                ? text.slice(0, 40) +
-                (text.length > 40 ? "…" : "")
+                ? text.slice(0, 40) + (text.length > 40 ? "…" : "")
                 : t.title,
             messages: [...t.messages, userMsg],
           }
@@ -971,9 +925,7 @@ export default function ChatPage() {
     if (!activeThread) return;
     if (!confirm("Clear all messages in this conversation?")) return;
     setThreads((prev) =>
-      prev.map((t) =>
-        t.id === activeThread.id ? { ...t, messages: [] } : t
-      )
+      prev.map((t) => (t.id === activeThread.id ? { ...t, messages: [] } : t))
     );
   }
 
@@ -984,9 +936,7 @@ export default function ChatPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `imotara_chat_${new Date()
-      .toISOString()
-      .slice(0, 10)}.json`;
+    a.download = `imotara_chat_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -1004,7 +954,7 @@ export default function ChatPage() {
             </h2>
             <button
               onClick={newThread}
-              className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-md duration-150"
+              className="inline-flex items-center gap-1 rounded-xl border border-sky-400/25 bg-gradient-to-r from-indigo-500/20 via-sky-500/15 to-emerald-400/15 px-3 py-1.5 text-xs text-zinc-100 shadow-sm backdrop-blur-sm transition hover:brightness-110 hover:-translate-y-0.5 hover:shadow-md duration-150 sm:text-sm"
               aria-label="New conversation"
             >
               <Plus className="h-4 w-4" /> New
@@ -1067,8 +1017,7 @@ export default function ChatPage() {
                               : t.title
                           }
                           onChange={(e) =>
-                            t.id === activeId &&
-                            renameActive(e.target.value)
+                            t.id === activeId && renameActive(e.target.value)
                           }
                           placeholder="Untitled"
                         />
@@ -1109,99 +1058,141 @@ export default function ChatPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-zinc-50 sm:text-base">
                         <span suppressHydrationWarning>
-                          {mounted
-                            ? activeThread?.title ?? "Conversation"
-                            : ""}
+                          {mounted ? activeThread?.title ?? "Conversation" : ""}
                         </span>
                       </p>
                       <p className="text-[11px] text-zinc-400 sm:hidden">
                         Private preview · Local-first by default.
                       </p>
+
+                      {/* Desktop: keep the "nice" header line always. Collapse only the extra details by default. */}
                       <div className="hidden space-y-0.5 sm:block">
                         <p className="text-sm text-zinc-400">
                           Private preview. Analysis and replies respect your
                           consent settings.
                         </p>
-                        <p className="text-xs text-zinc-500">
-                          You can{" "}
-                          <Link
-                            href="/privacy"
-                            className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300"
-                          >
-                            download or delete what’s stored on this device
-                          </Link>{" "}
-                          anytime.
-                        </p>
+
+                        {showHeaderDetails && (
+                          <p className="text-xs text-zinc-500">
+                            You can{" "}
+                            <Link
+                              href="/privacy"
+                              className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300"
+                            >
+                              download or delete what’s stored on this device
+                            </Link>{" "}
+                            anytime.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center justify-start gap-2 text-[11px] sm:justify-end">
-                    <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/40 px-2 py-1 text-[11px] text-zinc-200 backdrop-blur-sm">
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${syncing
-                          ? "bg-amber-400"
-                          : syncError
-                            ? "bg-red-500"
-                            : lastSyncAt
-                              ? "bg-emerald-400"
-                              : "bg-zinc-500"
-                          }`}
-                      />
-                      {syncing
-                        ? "Syncing…"
-                        : lastSyncAt
-                          ? `Synced ${syncedCount ?? 0}`
-                          : "Not synced yet"}
-                    </span>
-                    {syncError ? (
-                      <span className="text-[11px] text-red-400">
-                        {syncError}
-                      </span>
-                    ) : null}
-                    <button
-                      onClick={runSync}
-                      disabled={syncing}
-                      className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-sm transition hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-md duration-150 disabled:opacity-60"
-                      title="Sync local ↔ remote history"
-                    >
-                      <RefreshCw
-                        className={`h-3 w-3 ${syncing ? "animate-spin" : ""
-                          }`}
-                      />
-                      Sync now
-                    </button>
-                    <Link
-                      href="/history"
-                      className="inline-flex"
-                      title="Open Emotion History to review conflicts"
-                    >
-                      <ConflictReviewButton />
-                    </Link>
-                    <span
-                      className={[
-                        "hidden sm:inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] backdrop-blur-sm",
-                        mode === "allow-remote"
-                          ? "border-emerald-300/70 bg-emerald-500/10 text-emerald-200"
-                          : "border-zinc-500/70 bg-black/40 text-zinc-300",
-                      ].join(" ")}
-                      title="Current emotion analysis mode"
-                    >
-                      <span
-                        className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${mode === "allow-remote"
-                          ? "bg-emerald-400"
-                          : "bg-zinc-500"
-                          }`}
-                      />
-                      {consentLabel}
-                    </span>
+
+                  <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:min-w-[360px]">
+                    {/* Shared base style – SAME as bottom buttons */}
+                    {(() => {
+                      const baseBtn =
+                        "inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl " +
+                        "border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 " +
+                        "px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] " +
+                        "backdrop-blur-sm transition hover:border-indigo-300/45 hover:brightness-110";
+
+                      return (
+                        <>
+                          {/* Synced status */}
+                          <div
+                            className={baseBtn}
+                            title={
+                              syncError
+                                ? syncError
+                                : syncing
+                                  ? "Sync in progress"
+                                  : lastSyncAt
+                                    ? `Last synced: ${syncedCount ?? 0} records`
+                                    : "Not synced yet"
+                            }
+                          >
+                            <span
+                              className={`h-2 w-2 rounded-full ${syncing
+                                ? "bg-amber-400"
+                                : syncError
+                                  ? "bg-red-500"
+                                  : lastSyncAt
+                                    ? "bg-emerald-400"
+                                    : "bg-zinc-500"
+                                }`}
+                            />
+                            {syncing
+                              ? "Syncing…"
+                              : lastSyncAt
+                                ? `Synced ${syncedCount ?? 0}`
+                                : "Not synced yet"}
+                          </div>
+
+                          {/* Sync now */}
+                          <button
+                            onClick={runSync}
+                            disabled={syncing}
+                            className={`${baseBtn} disabled:opacity-60`}
+                            type="button"
+                          >
+                            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                            Sync now
+                          </button>
+
+                          {/* Conflicts */}
+                          <Link
+                            href="/history"
+                            title="Review sync conflicts"
+                            className={`${baseBtn} px-6`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <ConflictReviewButton />
+                            </div>
+                          </Link>
+
+                          {/* Consent mode – keep GREEN, normalize size */}
+                          <div
+                            className={[
+                              "inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl px-5 text-sm font-medium",
+                              "shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm",
+                              mode === "allow-remote"
+                                ? "border border-emerald-300/70 bg-emerald-500/10 text-emerald-200"
+                                : "border border-zinc-500/70 bg-black/40 text-zinc-300",
+                            ].join(" ")}
+                          >
+                            <span
+                              className={`h-2 w-2 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-500"
+                                }`}
+                            />
+                            {consentLabel}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-col gap-2">
-                    <p className="text-xs font-medium text-zinc-400">
-                      Emotion analysis mode
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-xs font-medium text-zinc-400">
+                        Emotion analysis mode
+                      </p>
+
+                      {/* ✅ NEW: Show/Hide details toggle (does not remove any feature; only collapses long header content) */}
+                      <button
+                        onClick={() => setShowHeaderDetails((v) => !v)}
+                        className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-md duration-150"
+                        type="button"
+                        aria-expanded={showHeaderDetails}
+                        aria-label={
+                          showHeaderDetails ? "Hide header details" : "Show header details"
+                        }
+                      >
+                        {showHeaderDetails ? "Hide details" : "Show details"}
+                      </button>
+                    </div>
 
                     <div className="flex flex-wrap items-center gap-2">
                       {analysis?.summary?.headline ? (
@@ -1218,7 +1209,8 @@ export default function ChatPage() {
                       )}
                     </div>
 
-                    {teenInsight && (
+                    {/* ✅ Collapsible header details: Teen Insight, guidance, engine text */}
+                    {showHeaderDetails && teenInsight && (
                       <div className="mt-1 hidden rounded-2xl border border-violet-500/35 bg-violet-500/10 px-3 py-3 text-xs text-violet-50 shadow-sm sm:block">
                         <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-200/90">
                           Teen Insight
@@ -1231,39 +1223,35 @@ export default function ChatPage() {
 
                     <div className="flex items-center gap-2">
                       <AnalysisConsentToggle />
-                      <span className="text-xs text-zinc-400">
-                        {consentLabel}
-                      </span>
+                      <span className="text-xs text-zinc-400">{consentLabel}</span>
                     </div>
 
-                    <p className="mt-1 hidden max-w-xs text-xs text-zinc-500 sm:block">
-                      Use the toggle to switch between local-only and remote
-                      analysis. Your words stay on-device unless you explicitly
-                      allow remote.
-                    </p>
+                    {showHeaderDetails && (
+                      <>
+                        <p className="mt-1 hidden max-w-xs text-xs text-zinc-500 sm:block">
+                          Use the toggle to switch between local-only and remote
+                          analysis. Your words stay on-device unless you explicitly
+                          allow remote.
+                        </p>
 
-                    <p className="mt-0.5 hidden max-w-xs text-[11px] text-zinc-500 sm:block">
-                      {ANALYSIS_IMPL === "api"
-                        ? "Engine: Cloud AI via /api/analyze (used only when remote analysis is allowed)."
-                        : "Engine: On-device analysis only. Remote AI is disabled in this build."}
-                    </p>
+                        <p className="mt-0.5 hidden max-w-xs text-[11px] text-zinc-500 sm:block">
+                          {ANALYSIS_IMPL === "api"
+                            ? "Engine: Cloud AI via /api/analyze (used only when remote analysis is allowed)."
+                            : "Engine: On-device analysis only. Remote AI is disabled in this build."}
+                        </p>
+                      </>
+                    )}
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:justify-items-end">
                     <Link
                       href={
                         activeThread
-                          ? `/history?sessionId=${encodeURIComponent(
-                            activeThread.id
-                          )}${urlMessageId
-                            ? `&messageId=${encodeURIComponent(
-                              urlMessageId
-                            )}`
-                            : ""
+                          ? `/history?sessionId=${encodeURIComponent(activeThread.id)}${urlMessageId ? `&messageId=${encodeURIComponent(urlMessageId)}` : ""
                           }`
                           : "/history"
                       }
-                      className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-md duration-150 sm:text-sm"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
                       title="Open Emotion History filtered to this chat session"
                     >
                       History
@@ -1271,12 +1259,11 @@ export default function ChatPage() {
 
                     <button
                       onClick={triggerAnalyze}
-                      disabled={
-                        analyzing || !(activeThread?.messages?.length)
-                      }
+                      disabled={analyzing || !(activeThread?.messages?.length)}
                       aria-busy={analyzing ? true : undefined}
-                      className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-md duration-150 disabled:opacity-60 sm:text-sm"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 disabled:opacity-60"
                       title="Run emotion analysis now (respects your consent setting)"
+                      type="button"
                     >
                       {analyzing ? (
                         <RefreshCw className="h-3 w-3 animate-spin sm:h-4 sm:w-4" />
@@ -1286,7 +1273,7 @@ export default function ChatPage() {
 
                     <Link
                       href="/privacy"
-                      className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-black/40 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-md duration-150 sm:text-sm"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
                       title="See how Imotara handles your data and privacy"
                     >
                       Privacy
@@ -1294,21 +1281,26 @@ export default function ChatPage() {
 
                     <button
                       onClick={clearChat}
-                      className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-md duration-150 disabled:opacity-60 sm:text-sm"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
                       title="Clear current conversation"
+                      type="button"
                     >
                       <Eraser className="h-3 w-3 sm:h-4 sm:w-4" /> Clear
                     </button>
+
                     <button
                       onClick={exportJSON}
-                      className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-md duration-150 disabled:opacity-60 sm:text-sm"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
                       title="Download all conversations as JSON"
+                      type="button"
                     >
                       <Download className="h-3 w-3 sm:h-4 sm:w-4" /> Export
                     </button>
+
                     <button
                       onClick={newThread}
-                      className="inline-flex items-center gap-1 rounded-2xl border border-white/15 bg-gradient-to-r from-indigo-500/70 via-sky-500/70 to-emerald-400/80 px-3 py-1.5 text-xs font-medium text-white shadow-md transition hover:brightness-110 hover:-translate-y-0.5 hover:shadow-lg duration-150 sm:text-sm"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/25 via-sky-500/20 to-emerald-400/20 px-5 text-sm font-medium text-white shadow-[0_12px_34px_rgba(15,23,42,0.65)] backdrop-blur-sm transition hover:border-indigo-300/55 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/60"
+                      type="button"
                     >
                       <Plus className="h-3 w-3 sm:h-4 sm:w-4" /> New
                     </button>
@@ -1321,7 +1313,7 @@ export default function ChatPage() {
           {/* BODY */}
           <div
             ref={listRef}
-            className="flex-1 overflow-auto px-4 py-4 sm:px-6"
+            className="flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:px-6"
           >
             {!mounted ? (
               <div className="mx-auto max-w-3xl">
@@ -1337,11 +1329,7 @@ export default function ChatPage() {
             ) : (
               <div className="mx-auto max-w-3xl space-y-4">
                 <div className="imotara-glass-card p-4">
-                  <MoodSummaryCard
-                    messages={appMessages}
-                    windowSize={10}
-                    mode="local"
-                  />
+                  <MoodSummaryCard messages={appMessages} windowSize={10} mode="local" />
                 </div>
                 {activeThread.messages.map((m) => (
                   <Bubble
@@ -1371,26 +1359,24 @@ export default function ChatPage() {
           </div>
 
           {/* COMPOSER */}
-          <div className="border-t border-white/10 px-3 pb-3 pt-2 sm:px-4">
-            <div className="mx-auto mb-1 flex max-w-3xl justify-end">
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/40 px-2.5 py-1 text-[11px] text-zinc-200 backdrop-blur-sm">
+          <div className="border-t border-white/10 px-3 pb-2 pt-1 sm:px-4">
+            <div className="mx-auto mb-1 flex max-w-3xl items-center justify-end gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/40 px-2 py-0.5 text-[11px] text-zinc-200 backdrop-blur-sm">
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-500"
                     }`}
                 />
                 {consentLabel}
               </span>
-            </div>
 
-            <div className="mx-auto mb-1 max-w-3xl space-y-0.5">
-              <p className="pr-1 text-right text-xs text-zinc-500">
-                Your chat is saved locally and synced when online.
-              </p>
-              <p className="pr-1 text-right text-[11px] text-zinc-600">
-                Imotara is not an emergency or crisis service. If you are in
-                danger or feel like you might hurt yourself, please reach out to
-                a trusted adult or local helpline immediately.
-              </p>
+              <details className="group">
+                <summary className="cursor-pointer list-none rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] text-zinc-200 hover:bg-white/10">
+                  Info
+                </summary>
+                <div className="mt-1 max-w-[520px] text-right text-[11px] leading-relaxed text-zinc-500">
+                  Your chat is saved locally and synced when online. Imotara is not an emergency or crisis service. If you are in danger or feel like you might hurt yourself, please reach out to a trusted adult or local helpline immediately.
+                </div>
+              </details>
             </div>
 
             <div className="mx-auto flex max-w-3xl items-end gap-2">
@@ -1407,6 +1393,7 @@ export default function ChatPage() {
                 onClick={sendMessage}
                 disabled={!draft.trim()}
                 className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/15 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 px-4 text-sm font-medium text-white shadow-lg transition hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[0_0_28px_rgba(129,140,248,0.7)] duration-150 disabled:opacity-50"
+                type="button"
               >
                 <Send className="h-4 w-4" /> Send
               </button>
@@ -1424,8 +1411,7 @@ function EmptyState() {
       <div className="mt-8 rounded-2xl border border-dashed border-white/20 bg-black/30 p-8 text-center text-zinc-200">
         <p className="text-base font-medium">Start a conversation</p>
         <p className="mt-1 text-sm text-zinc-400">
-          This is a preview of Imotara’s chat. Messages are saved in your
-          browser, and analysis/replies respect your consent settings.
+          This is a preview of Imotara’s chat. Messages are saved in your browser, and analysis/replies respect your consent settings.
         </p>
       </div>
     </div>
@@ -1509,11 +1495,14 @@ function Bubble({
     .join(" ");
 
   const showDebug =
-    role === "assistant" &&
-    (debugEmotion || debugEmotionSource || replySource);
+    role === "assistant" && (debugEmotion || debugEmotionSource || replySource);
 
   const originForBadge =
-    replySource === "openai" ? "openai" : replySource ? "local-fallback" : "unknown";
+    replySource === "openai"
+      ? "openai"
+      : replySource
+        ? "local-fallback"
+        : "unknown";
 
   return (
     <div
@@ -1553,10 +1542,8 @@ function Bubble({
             )}
             <span>
               emotion:{" "}
-              <span className="font-medium">
-                {debugEmotion ?? "unknown"}
-              </span>
-              , derived:{" "}
+              <span className="font-medium">{debugEmotion ?? "unknown"}</span>,
+              derived:{" "}
               <span className="font-medium">
                 {debugEmotionSource ?? "unknown"}
               </span>

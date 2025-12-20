@@ -943,7 +943,9 @@ export default function ChatPage() {
 
   return (
     <>
-      <TopBar title="Chat" showSyncChip showConflictsButton />
+      <div className="mx-auto w-full max-w-7xl px-3 pt-3 sm:px-4">
+        <TopBar title="Chat" showSyncChip showConflictsButton />
+      </div>
 
       <div className="mx-auto flex h-[calc(100vh-0px)] w-full max-w-7xl px-3 py-4 text-zinc-100 sm:px-4">
         {/* Sidebar */}
@@ -1004,24 +1006,25 @@ export default function ChatPage() {
                       }`}
                   >
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 shrink-0 text-zinc-400" />
-                        <input
-                          className={`w-full truncate bg-transparent text-sm outline-none placeholder:text-zinc-500 ${isActive
-                            ? "font-semibold text-zinc-100"
-                            : "text-zinc-200"
-                            }`}
-                          value={
-                            t.id === activeId
-                              ? activeThread?.title ?? ""
-                              : t.title
-                          }
-                          onChange={(e) =>
-                            t.id === activeId && renameActive(e.target.value)
-                          }
-                          placeholder="Untitled"
-                        />
+                      <div className="w-full max-w-[420px]">
+                        {/* Render as a block (not in a horizontal flex row) so the help text never overlaps */}
+                        <AnalysisConsentToggle showHelp={showHeaderDetails} />
                       </div>
+
+                      {showHeaderDetails && (
+                        <div className="mt-1 hidden max-w-[420px] space-y-1 sm:block">
+                          <p className="text-xs leading-relaxed text-zinc-500">
+                            Use the toggle to switch between local-only and remote analysis. Your words
+                            stay on-device unless you explicitly allow remote.
+                          </p>
+
+                          <p className="text-[11px] leading-relaxed text-zinc-500">
+                            {ANALYSIS_IMPL === "api"
+                              ? "Engine: Cloud AI via /api/analyze (used only when remote analysis is allowed)."
+                              : "Engine: On-device analysis only. Remote AI is disabled in this build."}
+                          </p>
+                        </div>
+                      )}
                       <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">
                         <DateText ts={t.createdAt} />
                       </p>
@@ -1071,124 +1074,119 @@ export default function ChatPage() {
                           Private preview. Analysis and replies respect your
                           consent settings.
                         </p>
-
                         {showHeaderDetails && (
-                          <p className="text-xs text-zinc-500">
-                            You can{" "}
-                            <Link
-                              href="/privacy"
-                              className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300"
-                            >
-                              download or delete what’s stored on this device
-                            </Link>{" "}
-                            anytime.
-                          </p>
+                          <>
+                            <p className="text-xs text-zinc-500">
+                              You can{" "}
+                              <Link
+                                href="/privacy"
+                                className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300"
+                              >
+                                download or delete what’s stored on this device
+                              </Link>{" "}
+                              anytime.
+                            </p>
+
+                            <p className="text-xs text-zinc-500">
+                              Your choice is stored only on this device. Right now, Imotara analyzes emotions
+                              locally in your browser.
+                            </p>
+                          </>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:min-w-[360px]">
-                    {/* Shared base style – SAME as bottom buttons */}
-                    {(() => {
-                      const baseBtn =
-                        "inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl " +
-                        "border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 " +
-                        "px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] " +
-                        "backdrop-blur-sm transition hover:border-indigo-300/45 hover:brightness-110";
+                  <div className="flex w-full flex-col gap-2 sm:ml-auto sm:max-w-[720px]">
+                    {/* Shared width wrapper to align with action buttons below */}
+                    <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-1">
 
-                      return (
-                        <>
-                          {/* Synced status */}
-                          <div
-                            className={baseBtn}
-                            title={
-                              syncError
-                                ? syncError
-                                : syncing
-                                  ? "Sync in progress"
-                                  : lastSyncAt
-                                    ? `Last synced: ${syncedCount ?? 0} records`
-                                    : "Not synced yet"
-                            }
-                          >
-                            <span
-                              className={`h-2 w-2 rounded-full ${syncing
-                                ? "bg-amber-400"
-                                : syncError
-                                  ? "bg-red-500"
-                                  : lastSyncAt
-                                    ? "bg-emerald-400"
-                                    : "bg-zinc-500"
-                                }`}
-                            />
-                            {syncing
-                              ? "Syncing…"
+                      {/* Status chip: Sync status */}
+                      <div
+                        className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full
+                border border-white/15 bg-black/25 px-3 text-xs text-white/90
+                backdrop-blur-sm"
+                        title={
+                          syncError
+                            ? syncError
+                            : syncing
+                              ? "Sync in progress"
                               : lastSyncAt
-                                ? `Synced ${syncedCount ?? 0}`
-                                : "Not synced yet"}
-                          </div>
+                                ? `Last synced: ${syncedCount ?? 0} records`
+                                : "Not synced yet"
+                        }
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${syncing
+                            ? "bg-amber-400"
+                            : syncError
+                              ? "bg-red-500"
+                              : lastSyncAt
+                                ? "bg-emerald-400"
+                                : "bg-zinc-500"
+                            }`}
+                        />
+                        <span>
+                          {syncing
+                            ? "Syncing…"
+                            : lastSyncAt
+                              ? `Synced ${syncedCount ?? 0}`
+                              : "Not synced"}
+                        </span>
+                      </div>
 
-                          {/* Sync now */}
-                          <button
-                            onClick={runSync}
-                            disabled={syncing}
-                            className={`${baseBtn} disabled:opacity-60`}
-                            type="button"
-                          >
-                            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-                            Sync now
-                          </button>
+                      {/* Action button: Sync now */}
+                      <button
+                        onClick={runSync}
+                        disabled={syncing}
+                        className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full
+                border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10
+                px-3 text-xs font-medium text-white
+                backdrop-blur-sm transition hover:brightness-110 disabled:opacity-60"
+                        type="button"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
+                        Sync now
+                      </button>
 
-                          {/* Conflicts */}
-                          <Link
-                            href="/history"
-                            title="Review sync conflicts"
-                            className={`${baseBtn} px-6`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <ConflictReviewButton />
-                            </div>
-                          </Link>
+                      {/* Status chip: Analysis mode */}
+                      <div
+                        className={`inline-flex h-7 w-full items-center justify-center gap-2 rounded-full
+                px-3 text-xs backdrop-blur-sm ${mode === "allow-remote"
+                            ? "border border-emerald-300/50 bg-emerald-500/10 text-emerald-200"
+                            : "border border-white/15 bg-black/25 text-white/90"
+                          }`}
+                        title="Emotion analysis mode"
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-400"
+                            }`}
+                        />
+                        {mode === "allow-remote"
+                          ? "Remote analysis allowed"
+                          : "On-device only"}
+                      </div>
 
-                          {/* Consent mode – keep GREEN, normalize size */}
-                          <div
-                            className={[
-                              "inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl px-5 text-sm font-medium",
-                              "shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm",
-                              mode === "allow-remote"
-                                ? "border border-emerald-300/70 bg-emerald-500/10 text-emerald-200"
-                                : "border border-zinc-500/70 bg-black/40 text-zinc-300",
-                            ].join(" ")}
-                          >
-                            <span
-                              className={`h-2 w-2 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-500"
-                                }`}
-                            />
-                            {consentLabel}
-                          </div>
-                        </>
-                      );
-                    })()}
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2 sm:-mt-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-xs font-medium text-zinc-400">
-                        Emotion analysis mode
-                      </p>
+                      <p className="text-xs font-medium text-zinc-400">Emotion analysis mode</p>
 
-                      {/* ✅ NEW: Show/Hide details toggle (does not remove any feature; only collapses long header content) */}
+                      {/* ✅ NEW: Show/Hide details toggle */}
                       <button
                         onClick={() => setShowHeaderDetails((v) => !v)}
-                        className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-zinc-100 shadow-sm transition hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-md duration-150"
+                        className={[
+                          "inline-flex h-7 w-full max-w-[320px] items-center justify-center",
+                          "rounded-full border border-white/15 bg-white/5 px-3 text-xs text-white/90 backdrop-blur-sm",
+                          "transition duration-150 hover:bg-white/10",
+                        ].join(" ")}
                         type="button"
                         aria-expanded={showHeaderDetails}
-                        aria-label={
-                          showHeaderDetails ? "Hide header details" : "Show header details"
-                        }
+                        aria-label={showHeaderDetails ? "Hide header details" : "Show header details"}
                       >
                         {showHeaderDetails ? "Hide details" : "Show details"}
                       </button>
@@ -1197,13 +1195,17 @@ export default function ChatPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       {analysis?.summary?.headline ? (
                         <span
-                          className="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-xs text-zinc-100 backdrop-blur-sm"
+                          className="inline-flex h-7 w-full max-w-[320px] items-center justify-center rounded-full
+                                      border border-white/15 bg-white/5 px-3 text-xs text-zinc-100 backdrop-blur-sm"
                           title="Emotion snapshot for this conversation"
                         >
                           {analysis.summary.headline}
                         </span>
                       ) : (
-                        <span className="rounded-full border border-dashed border-white/20 bg-black/30 px-2 py-1 text-xs text-zinc-400">
+                        <span
+                          className="inline-flex h-7 w-full max-w-[320px] items-center justify-center rounded-full
+                                      border border-dashed border-white/20 bg-black/30 px-3 text-xs text-zinc-400 backdrop-blur-sm"
+                        >
                           No analysis yet
                         </span>
                       )}
@@ -1221,29 +1223,30 @@ export default function ChatPage() {
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2">
-                      <AnalysisConsentToggle />
-                      <span className="text-xs text-zinc-400">{consentLabel}</span>
+                    {/* Force the Local/Cloud toggle to occupy the same “h-9 slot” */}
+                    <div className="w-full max-w-[320px]">
+                      <div className="h-9 w-full">
+                        <AnalysisConsentToggle showHelp={showHeaderDetails} />
+                      </div>
                     </div>
 
                     {showHeaderDetails && (
-                      <>
-                        <p className="mt-1 hidden max-w-xs text-xs text-zinc-500 sm:block">
-                          Use the toggle to switch between local-only and remote
-                          analysis. Your words stay on-device unless you explicitly
-                          allow remote.
+                      <div className="mt-1 hidden max-w-xs space-y-2 sm:block">
+                        <p className="text-xs leading-relaxed text-zinc-500">
+                          Use the toggle to switch between local-only and remote analysis. Your words stay
+                          on-device unless you explicitly allow remote.
                         </p>
 
-                        <p className="mt-0.5 hidden max-w-xs text-[11px] text-zinc-500 sm:block">
+                        <p className="text-[11px] leading-relaxed text-zinc-500">
                           {ANALYSIS_IMPL === "api"
                             ? "Engine: Cloud AI via /api/analyze (used only when remote analysis is allowed)."
                             : "Engine: On-device analysis only. Remote AI is disabled in this build."}
                         </p>
-                      </>
+                      </div>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:justify-items-end">
+                  <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:w-full sm:max-w-[720px] sm:grid-cols-3 sm:justify-items-stretch">
                     <Link
                       href={
                         activeThread
@@ -1265,9 +1268,7 @@ export default function ChatPage() {
                       title="Run emotion analysis now (respects your consent setting)"
                       type="button"
                     >
-                      {analyzing ? (
-                        <RefreshCw className="h-3 w-3 animate-spin sm:h-4 sm:w-4" />
-                      ) : null}
+                      {analyzing ? <RefreshCw className="h-3 w-3 animate-spin sm:h-4 sm:w-4" /> : null}
                       Re-analyze
                     </button>
 

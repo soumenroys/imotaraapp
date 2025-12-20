@@ -70,11 +70,6 @@ export default function SiteHeader() {
             );
           })}
         </nav>
-
-        {/* RIGHT: Global Conflicts button */}
-        <div className="flex items-center justify-end pl-3">
-          <ConflictReviewButton />
-        </div>
       </div>
     </header>
   );

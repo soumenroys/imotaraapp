@@ -67,15 +67,6 @@ export default function AnalysisConsentToggle({
                     Cloud
                 </span>
             </button>
-
-            {/* Tiny helper line */}
-            {showHelp && (
-                <p className="mt-2 text-xs text-zinc-500">
-                    {mode === "allow-remote"
-                        ? "Imotara may send your message to the backend/API for emotion analysis (as permitted by your consent settings)."
-                        : "Your choice is stored only on this device. Right now, Imotara analyzes emotions locally in your browser."}
-                </p>
-            )}
         </div>
     );
 }

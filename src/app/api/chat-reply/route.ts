@@ -4,8 +4,11 @@
 // shared AI client (callImotaraAI). This is used by the Chat page
 // to optionally upgrade the local/fallback reply templates.
 //
-// Request shape:
+// Request shape (current):
 //   POST { messages: { role: "user" | "assistant" | "system"; content: string }[], emotion?: string }
+//
+// Extra compatibility (safe additions):
+//   Also accepts POST { text: string } or { message: string } and converts to messages[].
 //
 // Response shape:
 //   Same as ImotaraAIResponse from aiClient: { text, meta }
@@ -20,19 +23,59 @@ type ChatReplyRequest = {
         content: string;
     }[];
     emotion?: string;
+
+    // compat: some callers may send a single text field
+    text?: string;
+    message?: string;
 };
 
 // keep context + prompt modest
 const MAX_TURNS = 8;
 const MAX_CHARS = 4000;
 
+function isBadPlaceholderText(s: string): boolean {
+    const t = (s ?? "").trim();
+    if (!t) return true;
+
+    // The exact string you reported + common variants
+    return (
+        t.includes("soft, placeholder reply") ||
+        t.includes("I tried to connect to Imotara's AI engine") ||
+        t.includes("but something went wrong")
+    );
+}
+
+export async function GET() {
+    // Friendly response so opening in browser doesn't show 405
+    return NextResponse.json(
+        {
+            ok: true,
+            endpoint: "/api/chat-reply",
+            methods: ["GET", "POST"],
+            expects:
+                'POST { messages: [{ role: "user", content: "..." }], emotion?: "neutral" }',
+            compat: 'Also accepts POST { text: "..." } or { message: "..." }',
+        },
+        { status: 200 }
+    );
+}
+
 export async function POST(req: Request) {
     try {
         const body = (await req.json()) as ChatReplyRequest | null;
 
-        const rawMessages = Array.isArray(body?.messages)
-            ? body!.messages
-            : [];
+        // Allow single-text payloads without breaking existing behaviour
+        let rawMessages = Array.isArray(body?.messages) ? body!.messages : [];
+
+        if (!rawMessages.length) {
+            const single =
+                (typeof body?.text === "string" ? body.text : "") ||
+                (typeof body?.message === "string" ? body.message : "");
+            const cleaned = single.trim();
+            if (cleaned) {
+                rawMessages = [{ role: "user", content: cleaned }];
+            }
+        }
 
         // Keep only last few turns for context, and ensure valid shapes
         const recent = rawMessages
@@ -41,9 +84,7 @@ export async function POST(req: Request) {
                     m &&
                     typeof m.content === "string" &&
                     m.content.trim().length > 0 &&
-                    (m.role === "user" ||
-                        m.role === "assistant" ||
-                        m.role === "system")
+                    (m.role === "user" || m.role === "assistant" || m.role === "system")
             )
             .slice(-MAX_TURNS);
 
@@ -95,14 +136,33 @@ export async function POST(req: Request) {
             temperature: 0.8,
         });
 
-        // We always return the AI response shape, but the client
-        // will only *use* it as primary text if meta.from === "openai"
-        // and text is non-empty.
+        // ✅ ROOT-CAUSE FIX:
+        // If the AI client returns a placeholder/failure string, do NOT pass it through as a valid reply.
+        // Return text="" and meta.from !== "openai" so the Chat page uses its existing fallback reply.
+        const candidate = (ai?.text ?? "").trim();
+
+        // Only flag as placeholder if there IS text and it matches known bad strings.
+        // Empty text now means: AI unavailable → let fallback logic happen naturally.
+        if (candidate && isBadPlaceholderText(candidate)) {
+            return NextResponse.json(
+                {
+                    text: "",
+                    meta: {
+                        ...(ai?.meta ?? {}),
+                        from: "fallback",
+                        reason: "filtered-placeholder-reply",
+                    },
+                },
+                { status: 200 }
+            );
+        }
+        // Normal successful path
         return NextResponse.json(ai, { status: 200 });
     } catch (err) {
         console.error("[/api/chat-reply] error:", err);
-        // We still return a valid ImotaraAIResponse shape so the client
-        // can simply ignore it (meta.from !== "openai") and fall back.
+
+        // Return a valid ImotaraAIResponse shape so the client can ignore it
+        // (meta.from !== "openai") and fall back gracefully.
         const fallback: ImotaraAIResponse = {
             text: "",
             meta: {

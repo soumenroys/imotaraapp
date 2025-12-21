@@ -105,7 +105,13 @@ export default function TopBar({
             </div>
           )}
 
-          {showConflictsButton && <ConflictReviewButton />}
+          {showConflictsButton && (
+            <div className="hidden sm:block h-7">
+              <div className="h-7">
+                <ConflictReviewButton />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

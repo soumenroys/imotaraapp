@@ -61,6 +61,29 @@ function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+function emotionGlowClass(e?: string | null): string {
+  const k = (e ?? "").toLowerCase().trim();
+
+  // Subtle emotion-aware glow for Aurora Calm theme
+  if (["joy", "happy", "happiness"].includes(k))
+    return "ring-1 ring-emerald-300/25 shadow-[0_0_0_1px_rgba(16,185,129,0.10),0_18px_40px_rgba(16,185,129,0.08)]";
+
+  if (["sad", "sadness", "lonely", "isolation"].includes(k))
+    return "ring-1 ring-sky-300/25 shadow-[0_0_0_1px_rgba(56,189,248,0.10),0_18px_40px_rgba(56,189,248,0.08)]";
+
+  if (["anger", "angry"].includes(k))
+    return "ring-1 ring-rose-300/25 shadow-[0_0_0_1px_rgba(244,63,94,0.10),0_18px_40px_rgba(244,63,94,0.08)]";
+
+  if (["fear", "anxious", "anxiety", "stress", "stressed"].includes(k))
+    return "ring-1 ring-amber-300/25 shadow-[0_0_0_1px_rgba(251,191,36,0.10),0_18px_40px_rgba(251,191,36,0.08)]";
+
+  if (["surprise"].includes(k))
+    return "ring-1 ring-violet-300/25 shadow-[0_0_0_1px_rgba(167,139,250,0.10),0_18px_40px_rgba(167,139,250,0.08)]";
+
+  // neutral / mixed / unknown
+  return "ring-1 ring-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_18px_40px_rgba(2,6,23,0.35)]";
+}
+
 function DateText({ ts }: { ts: number }) {
   const text = useMemo(() => {
     try {
@@ -318,8 +341,26 @@ export default function ChatPage() {
           activeId?: string | null;
         };
         const t = Array.isArray(parsed.threads) ? parsed.threads : [];
-        const a = parsed.activeId ?? (t[0]?.id ?? null);
-        setThreads(t);
+
+        // Normalize old data: if title is default but messages exist, derive a title
+        const normalized = t.map((th) => {
+          const title = (th?.title ?? "").trim();
+          const isDefaultTitle =
+            !title || title.toLowerCase() === "new conversation";
+
+          const firstUser = (th?.messages ?? []).find((m) => m?.role === "user");
+          const firstText = (firstUser?.content ?? "").trim();
+
+          if (isDefaultTitle && firstText) {
+            const clipped = firstText.slice(0, 40) + (firstText.length > 40 ? "…" : "");
+            return { ...th, title: clipped };
+          }
+
+          return th;
+        });
+
+        const a = parsed.activeId ?? (normalized[0]?.id ?? null);
+        setThreads(normalized);
         setActiveId(a);
         return;
       }
@@ -640,6 +681,7 @@ export default function ChatPage() {
       }
 
       let aiReply: string | null = null;
+      let aiMetaFrom: string | null = null; // "openai" | "fallback" | "disabled" | "error" (server-defined)
 
       if (mode === "allow-remote" && ANALYSIS_IMPL === "api") {
         try {
@@ -665,6 +707,11 @@ export default function ChatPage() {
           if (aiRes.ok) {
             const data = await aiRes.json();
 
+            // capture meta.from if provided by /api/chat-reply
+            aiMetaFrom = (data?.meta?.from ?? data?.from ?? null)
+              ? String(data?.meta?.from ?? data?.from)
+              : null;
+
             // Be tolerant about response shape: accept text/reply/message
             const text = (data?.text ?? data?.reply ?? data?.message ?? "")
               .toString()
@@ -672,10 +719,7 @@ export default function ChatPage() {
 
             if (text) {
               aiReply = text;
-              console.log(
-                "[imotara] using remote AI reply:",
-                text.slice(0, 120)
-              );
+              console.log("[imotara] using remote AI reply:", text.slice(0, 120));
             }
           }
         } catch (err) {
@@ -692,7 +736,7 @@ export default function ChatPage() {
           sessionId: threadId,
           debugEmotion,
           debugEmotionSource,
-          replySource: "openai",
+          replySource: aiMetaFrom === "openai" ? "openai" : "fallback",
         };
 
         setThreads((prev) =>
@@ -828,14 +872,22 @@ export default function ChatPage() {
   }
 
   function newThread() {
-    const t: Thread = {
-      id: uid(),
-      title: "New conversation",
-      createdAt: Date.now(),
+    const createdAt = Date.now();
+
+    const th = {
+      id: crypto.randomUUID(),
+      title: `Conversation — ${new Date(createdAt).toLocaleString()}`,
       messages: [],
+      createdAt,
     };
-    setThreads((prev) => [t, ...prev]);
-    setActiveId(t.id);
+
+    // Prepend new thread to the existing list
+    setThreads((prev) => [th, ...prev]);
+
+    // Make it active
+    setActiveId(th.id);
+
+    // Clear draft input
     setDraft("");
   }
 
@@ -963,16 +1015,6 @@ export default function ChatPage() {
             </button>
           </div>
 
-          <div className="mb-2 hidden text-[11px] text-zinc-400 sm:block">
-            <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-zinc-300 backdrop-blur-sm">
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-500"
-                  }`}
-              />
-              {consentLabel}
-            </span>
-          </div>
-
           <div className="flex-1 space-y-1 overflow-auto pr-1">
             {!mounted ? (
               <div
@@ -1006,28 +1048,21 @@ export default function ChatPage() {
                       }`}
                   >
                     <div className="min-w-0">
-                      <div className="w-full max-w-[420px]">
-                        {/* Render as a block (not in a horizontal flex row) so the help text never overlaps */}
-                        <AnalysisConsentToggle showHelp={showHeaderDetails} />
-                      </div>
-
-                      {showHeaderDetails && (
-                        <div className="mt-1 hidden max-w-[420px] space-y-1 sm:block">
-                          <p className="text-xs leading-relaxed text-zinc-500">
-                            Use the toggle to switch between local-only and remote analysis. Your words
-                            stay on-device unless you explicitly allow remote.
-                          </p>
-
-                          <p className="text-[11px] leading-relaxed text-zinc-500">
-                            {ANALYSIS_IMPL === "api"
-                              ? "Engine: Cloud AI via /api/analyze (used only when remote analysis is allowed)."
-                              : "Engine: On-device analysis only. Remote AI is disabled in this build."}
-                          </p>
-                        </div>
-                      )}
-                      <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">
-                        <DateText ts={t.createdAt} />
+                      {/* Conversation title */}
+                      <p
+                        className={`truncate text-sm font-medium ${isActive ? "text-zinc-50" : "text-zinc-100"
+                          }`}
+                        title={t.title}
+                      >
+                        {t.title || "Conversation"}
                       </p>
+
+                      {/* Meta row: date + (optional) small mode badge */}
+                      <div className="mt-0.5 flex items-center gap-2">
+                        <p className="line-clamp-1 text-xs text-zinc-500">
+                          <DateText ts={t.createdAt} />
+                        </p>
+                      </div>
                     </div>
                     <button
                       className="ml-2 hidden rounded-lg p-1 text-zinc-400 hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-sm transition duration-150 group-hover:block"
@@ -1055,7 +1090,7 @@ export default function ChatPage() {
               <div className="flex flex-col gap-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-white shadow-[0_10px_30px_rgba(15,23,42,0.8)] sm:h-9 sm:w-9">
+                    <div className="flex h-9 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-white shadow-[0_10px_30px_rgba(15,23,42,0.8)] sm:h-10 sm:w-12">
                       <MessageSquare className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
@@ -1070,28 +1105,24 @@ export default function ChatPage() {
 
                       {/* Desktop: keep the "nice" header line always. Collapse only the extra details by default. */}
                       <div className="hidden space-y-0.5 sm:block">
-                        <p className="text-sm text-zinc-400">
-                          Private preview. Analysis and replies respect your
-                          consent settings.
+                        <p
+                          className={`text-sm text-zinc-400 ${showHeaderDetails ? "mb-3" : "mb-1"
+                            }`}
+                        >
+                          Private preview. Analysis and replies respect your consent settings.
                         </p>
-                        {showHeaderDetails && (
-                          <>
-                            <p className="text-xs text-zinc-500">
-                              You can{" "}
-                              <Link
-                                href="/privacy"
-                                className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300"
-                              >
-                                download or delete what’s stored on this device
-                              </Link>{" "}
-                              anytime.
-                            </p>
 
-                            <p className="text-xs text-zinc-500">
-                              Your choice is stored only on this device. Right now, Imotara analyzes emotions
-                              locally in your browser.
-                            </p>
-                          </>
+                        {showHeaderDetails && (
+                          <p className="mb-3 text-xs text-zinc-500">
+                            You can{" "}
+                            <Link
+                              href="/privacy"
+                              className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300"
+                            >
+                              download or delete what’s stored on this device
+                            </Link>{" "}
+                            anytime.
+                          </p>
                         )}
                       </div>
                     </div>
@@ -1173,43 +1204,42 @@ export default function ChatPage() {
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-col gap-2 sm:-mt-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-xs font-medium text-zinc-400">Emotion analysis mode</p>
+                    <p className="text-xs font-medium text-zinc-400">Emotion analysis mode</p>
 
-                      {/* ✅ NEW: Show/Hide details toggle */}
-                      <button
-                        onClick={() => setShowHeaderDetails((v) => !v)}
-                        className={[
-                          "inline-flex h-7 w-full max-w-[320px] items-center justify-center",
-                          "rounded-full border border-white/15 bg-white/5 px-3 text-xs text-white/90 backdrop-blur-sm",
-                          "transition duration-150 hover:bg-white/10",
-                        ].join(" ")}
-                        type="button"
-                        aria-expanded={showHeaderDetails}
-                        aria-label={showHeaderDetails ? "Hide header details" : "Show header details"}
+                    {/* ✅ Show/Hide details toggle — fixed width */}
+                    <button
+                      onClick={() => setShowHeaderDetails((v) => !v)}
+                      className={[
+                        "inline-flex h-7 w-full max-w-[320px] items-center justify-center",
+                        "rounded-full border border-white/15 bg-white/5 px-3 text-xs text-white/90 backdrop-blur-sm",
+                        "transition duration-150 hover:bg-white/10",
+                      ].join(" ")}
+                      type="button"
+                      aria-expanded={showHeaderDetails}
+                      aria-label={showHeaderDetails ? "Hide header details" : "Show header details"}
+                    >
+                      {showHeaderDetails ? "Hide details" : "Show details"}
+                    </button>
+
+                    {/* ✅ Headline capsule — fixed width + truncate (prevents text spilling above) */}
+                    {analysis?.summary?.headline ? (
+                      <span
+                        className="inline-flex h-7 w-full max-w-[320px] items-center justify-center overflow-hidden rounded-full
+                 border border-white/15 bg-white/5 px-3 text-xs text-zinc-100 backdrop-blur-sm"
+                        title={analysis.summary.headline}
                       >
-                        {showHeaderDetails ? "Hide details" : "Show details"}
-                      </button>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      {analysis?.summary?.headline ? (
-                        <span
-                          className="inline-flex h-7 w-full max-w-[320px] items-center justify-center rounded-full
-                                      border border-white/15 bg-white/5 px-3 text-xs text-zinc-100 backdrop-blur-sm"
-                          title="Emotion snapshot for this conversation"
-                        >
+                        <span className="w-full truncate text-center">
                           {analysis.summary.headline}
                         </span>
-                      ) : (
-                        <span
-                          className="inline-flex h-7 w-full max-w-[320px] items-center justify-center rounded-full
-                                      border border-dashed border-white/20 bg-black/30 px-3 text-xs text-zinc-400 backdrop-blur-sm"
-                        >
-                          No analysis yet
-                        </span>
-                      )}
-                    </div>
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex h-7 w-full max-w-[320px] items-center justify-center rounded-full
+                 border border-dashed border-white/20 bg-black/30 px-3 text-xs text-zinc-400 backdrop-blur-sm"
+                      >
+                        No analysis yet
+                      </span>
+                    )}
 
                     {/* ✅ Collapsible header details: Teen Insight, guidance, engine text */}
                     {showHeaderDetails && teenInsight && (
@@ -1223,7 +1253,7 @@ export default function ChatPage() {
                       </div>
                     )}
 
-                    {/* Force the Local/Cloud toggle to occupy the same “h-9 slot” */}
+                    {/* ✅ Local/Cloud toggle — same width as the two pills above */}
                     <div className="w-full max-w-[320px]">
                       <div className="h-9 w-full">
                         <AnalysisConsentToggle showHelp={showHeaderDetails} />
@@ -1231,17 +1261,25 @@ export default function ChatPage() {
                     </div>
 
                     {showHeaderDetails && (
-                      <div className="mt-1 hidden max-w-xs space-y-2 sm:block">
-                        <p className="text-xs leading-relaxed text-zinc-500">
-                          Use the toggle to switch between local-only and remote analysis. Your words stay
-                          on-device unless you explicitly allow remote.
-                        </p>
+                      <div className="mt-1 max-w-[520px] space-y-2 text-left">
+                        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+                          <p className="text-xs leading-5 text-zinc-300/90">
+                            Your choice is stored only on this device. Right now, Imotara analyzes emotions locally in your
+                            browser.
+                          </p>
 
-                        <p className="text-[11px] leading-relaxed text-zinc-500">
-                          {ANALYSIS_IMPL === "api"
-                            ? "Engine: Cloud AI via /api/analyze (used only when remote analysis is allowed)."
-                            : "Engine: On-device analysis only. Remote AI is disabled in this build."}
-                        </p>
+                          <p className="mt-2 text-xs leading-5 text-zinc-300/90">
+                            Your words stay on-device unless you explicitly allow remote.
+                          </p>
+
+                          <div className="mt-3 h-px w-full bg-white/10" />
+
+                          <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+                            {ANALYSIS_IMPL === "api"
+                              ? "Engine: Cloud AI via /api/analyze (used only when remote analysis is allowed)."
+                              : "Engine: On-device analysis only. Remote AI is disabled in this build."}
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1361,25 +1399,6 @@ export default function ChatPage() {
 
           {/* COMPOSER */}
           <div className="border-t border-white/10 px-3 pb-2 pt-1 sm:px-4">
-            <div className="mx-auto mb-1 flex max-w-3xl items-center justify-end gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/40 px-2 py-0.5 text-[11px] text-zinc-200 backdrop-blur-sm">
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-500"
-                    }`}
-                />
-                {consentLabel}
-              </span>
-
-              <details className="group">
-                <summary className="cursor-pointer list-none rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] text-zinc-200 hover:bg-white/10">
-                  Info
-                </summary>
-                <div className="mt-1 max-w-[520px] text-right text-[11px] leading-relaxed text-zinc-500">
-                  Your chat is saved locally and synced when online. Imotara is not an emergency or crisis service. If you are in danger or feel like you might hurt yourself, please reach out to a trusted adult or local helpline immediately.
-                </div>
-              </details>
-            </div>
-
             <div className="mx-auto flex max-w-3xl items-end gap-2">
               <textarea
                 ref={composerRef}

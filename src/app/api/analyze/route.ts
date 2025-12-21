@@ -14,6 +14,11 @@
 // - NEW (safe): options.windowSize (if provided) is used to define the
 //   analysis/AI "window" in terms of the most recent N messages, without
 //   dropping per-message results for older items.
+//
+// FIX (Dec 2025):
+// - Add GET handler to avoid browser "HTTP 405" when visiting /api/analyze.
+// - Accept legacy payload { text: string } by converting it into inputs[],
+//   so chat calls that send "text" don't fall into the empty-input baseline.
 
 import { NextResponse } from "next/server";
 import type {
@@ -25,7 +30,8 @@ import type {
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 
 type AnalyzeRequestBody = {
-  inputs: AnalysisInput[];
+  // Primary (current) contract
+  inputs?: AnalysisInput[];
   options?: {
     /**
      * Optional soft window hint: how many of the *most recent* messages
@@ -36,7 +42,28 @@ type AnalyzeRequestBody = {
      */
     windowSize?: number;
   };
+
+  // Legacy contract (some callers still send { text: "..." })
+  text?: string;
+  id?: string;
+  createdAt?: number;
 };
+
+export async function GET() {
+  // A friendly health/info response for browsers and simple checks.
+  return NextResponse.json(
+    {
+      ok: true,
+      endpoint: "/api/analyze",
+      methods: ["GET", "POST"],
+      howToUse:
+        'POST JSON: { "inputs": [{ "id": "m1", "text": "hello", "createdAt": 123 }], "options": { "windowSize": 25 } }',
+      legacy:
+        'Also accepts legacy POST JSON: { "text": "hello" } (will be converted to inputs[0]).',
+    },
+    { status: 200 }
+  );
+}
 
 // Limit how much context we send to the LLM
 const MAX_MESSAGES_FOR_AI = 25;
@@ -62,8 +89,38 @@ export async function POST(req: Request) {
     const body = (await req.json()) as AnalyzeRequestBody | null;
 
     const now = Date.now();
+
+    // -----------------------------
+    // Inputs: support both contracts
+    // -----------------------------
     const rawInputs = Array.isArray(body?.inputs) ? body!.inputs : [];
-    const inputs: AnalysisInput[] = rawInputs.filter(Boolean);
+    let inputs: AnalysisInput[] = rawInputs.filter(Boolean);
+
+    // Legacy: if inputs is empty but text exists, convert it to a single input
+    if (inputs.length === 0) {
+      const maybeText = typeof body?.text === "string" ? body.text.trim() : "";
+      if (maybeText) {
+        const legacyId =
+          typeof body?.id === "string" && body.id.trim()
+            ? body.id.trim()
+            : `legacy-${now}`;
+        const legacyCreatedAt =
+          typeof body?.createdAt === "number" && Number.isFinite(body.createdAt)
+            ? body.createdAt
+            : now;
+
+        // We keep this permissive to avoid breaking if AnalysisInput shape evolves.
+        inputs = [
+          {
+            id: legacyId,
+            // common field names used across the app
+            text: maybeText,
+            content: maybeText,
+            createdAt: legacyCreatedAt,
+          } as any as AnalysisInput,
+        ];
+      }
+    }
 
     const neutralEmotion: Emotion = "neutral";
 
@@ -119,7 +176,7 @@ export async function POST(req: Request) {
         : inputs;
 
     const perMessage: PerMessageAnalysis[] = inputs.map((m) => ({
-      id: m.id,
+      id: (m as any).id,
       dominant: neutralTag,
       all: [neutralTag],
       heuristics: { polarity: 0 },
@@ -150,7 +207,8 @@ export async function POST(req: Request) {
       // while respecting a max character budget.
       let combinedText = recent
         .map((m) => {
-          const maybeText = (m as any).text ?? (m as any).content ?? "";
+          const maybeText =
+            (m as any).text ?? (m as any).content ?? (m as any).message ?? "";
           const t = typeof maybeText === "string" ? maybeText.trim() : "";
           return t;
         })
@@ -289,8 +347,7 @@ export async function POST(req: Request) {
               balanced: "neutral" as Emotion,
             };
 
-            const mappedDominant =
-              dominantMap[dominantRaw] ?? neutralEmotion;
+            const mappedDominant = dominantMap[dominantRaw] ?? neutralEmotion;
             snapshotDominant = mappedDominant;
 
             const rawIntensity = parsed.intensity;
@@ -331,8 +388,8 @@ export async function POST(req: Request) {
       console.error("[/api/analyze] AI enrichment error:", aiErr);
     }
 
-    const firstCreated = windowInputs[0]?.createdAt;
-    const lastCreated = windowInputs[windowInputs.length - 1]?.createdAt;
+    const firstCreated = (windowInputs[0] as any)?.createdAt;
+    const lastCreated = (windowInputs[windowInputs.length - 1] as any)?.createdAt;
 
     const result: AnalysisResult = {
       perMessage,

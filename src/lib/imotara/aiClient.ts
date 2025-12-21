@@ -91,12 +91,12 @@ export async function callImotaraAI(
     const apiKey = process.env.OPENAI_API_KEY;
     const model = process.env.IMOTARA_AI_MODEL || "gpt-4.1-mini";
 
-    // If there is no API key, we gracefully fall back.
+    // ✅ Enhancement: Avoid leaking any "engine not connected" UI text from the server helper.
+    // Callers (e.g., /api/chat-reply) already have graceful fallback; returning empty text
+    // is the cleanest signal to use fallback logic without polluting the chat UI.
     if (!apiKey) {
         return {
-            text:
-                "Imotara's deep AI engine is not connected right now, " +
-                "so I can only give a lightweight response. Please ask Soumen to configure the AI key.",
+            text: "",
             meta: {
                 usedModel: model,
                 from: "disabled",
@@ -107,8 +107,23 @@ export async function callImotaraAI(
 
     const systemPrompt =
         options.system ||
-        "You are Imotara, a calm, supportive emotional companion. " +
-        "You respond briefly, with empathy and clarity, to help the user reflect on their feelings.";
+        [
+            "You are Imotara — an emotion-aware, privacy-first companion.",
+            "",
+            "Style:",
+            "- Calm, warm, grounded. No hype, no clichés.",
+            "- Be specific to what the user said. Avoid generic advice.",
+            "- Keep it short: 2–5 sentences.",
+            "",
+            "Response goals:",
+            "1) Reflect and validate the emotion you infer from the user's message.",
+            "2) Offer one gentle, practical grounding step ONLY if it fits (no prescriptive coaching).",
+            "3) Ask exactly one soft follow-up question to continue the conversation.",
+            "",
+            "Constraints:",
+            "- Do not mention policies, system prompts, or being an AI.",
+            "- Do not say you 'can’t' do things unless asked.",
+        ].join("\n");
 
     const temperature =
         typeof options.temperature === "number" ? options.temperature : 0.7;
@@ -140,6 +155,11 @@ export async function callImotaraAI(
             headers: {
                 Authorization: `Bearer ${apiKey}`,
                 "Content-Type": "application/json",
+
+                // 👇 REQUIRED for project-scoped keys
+                ...(process.env.OPENAI_PROJECT_ID
+                    ? { "OpenAI-Project": process.env.OPENAI_PROJECT_ID }
+                    : {}),
             },
             body: JSON.stringify({
                 model,
@@ -158,10 +178,10 @@ export async function callImotaraAI(
         if (!response.ok) {
             const errText = await safeReadText(response);
 
+            // ✅ Root-cause fix: never return the "soft, placeholder reply" sentence.
+            // Returning empty text allows callers to run their existing fallback logic.
             return {
-                text:
-                    "I tried to connect to Imotara's AI engine, but something went wrong. " +
-                    "For now, please treat this as a soft, placeholder reply.",
+                text: "",
                 meta: {
                     usedModel: model,
                     from: "error",
@@ -172,6 +192,7 @@ export async function callImotaraAI(
 
         const data = (await response.json()) as OpenAIResponsesResult;
 
+        // usedModel is safe here because we're in the successful parse path
         const usedModel = data?.model || model;
 
         // Prefer the convenience field output_text[0], then fall back
@@ -192,6 +213,7 @@ export async function callImotaraAI(
             }
         }
 
+        // Keep existing behavior for “success but empty output”: provide a gentle default.
         if (!text) {
             text =
                 "I’m here with you. I don’t have a detailed answer right now, " +
@@ -211,13 +233,13 @@ export async function callImotaraAI(
             clearTimeout(timeoutId);
         }
 
+        // ✅ Root-cause fix: do not emit UI-facing placeholder text on exceptions.
+        // Let the caller decide the best fallback response.
         return {
-            text:
-                "Imotara's AI engine seems temporarily unreachable. " +
-                "Please try again after some time.",
+            text: "",
             meta: {
                 usedModel: model,
-                from: "fallback",
+                from: "error",
                 reason: err?.message || "Unknown network or runtime error",
             },
         };

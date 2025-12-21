@@ -40,7 +40,7 @@ export default function ConflictReviewButton() {
   const hasConflicts = count > 0;
 
   const baseButtonClasses =
-    "relative inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs sm:text-sm font-medium " +
+    "relative inline-flex h-7 items-center gap-2 rounded-full px-3 text-xs font-medium " +
     "transition-all duration-150 backdrop-blur-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 " +
     "focus-visible:ring-offset-2 focus-visible:ring-offset-transparent";
 
@@ -64,8 +64,7 @@ export default function ConflictReviewButton() {
         className={`${baseButtonClasses} ${variantClasses}`}
       >
         <AlertTriangle
-          className={`h-4 w-4 ${hasConflicts ? "text-amber-300" : "text-zinc-400"
-            }`}
+          className={`h-3.5 w-3.5 ${hasConflicts ? "text-amber-300" : "text-zinc-400"}`}
           aria-hidden="true"
         />
         <span className="hidden sm:inline">Conflicts</span>
@@ -76,8 +75,8 @@ export default function ConflictReviewButton() {
           aria-live="polite"
           aria-atomic="true"
           className={[
-            "ml-1 inline-flex min-w-[1.5rem] items-center justify-center rounded-full px-1.5 py-0.5",
-            "text-[10px] font-bold shadow-md tabular-nums",
+            "ml-1 inline-flex h-4 min-w-[1.25rem] items-center justify-center rounded-full px-1.5",
+            "text-[10px] font-bold shadow-md tabular-nums leading-none",
             hasConflicts
               ? "bg-amber-400 text-amber-900"
               : "bg-zinc-700 text-zinc-200 dark:bg-zinc-800",

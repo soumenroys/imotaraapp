@@ -368,8 +368,7 @@ export default function ChatPage() {
           const title = (th?.title ?? "").trim();
           const isDefaultTitle =
             !title || title.toLowerCase() === "new conversation";
-
-          const firstUser = (th?.messages ?? []).find((m) => m?.role === "user");
+          const firstUser = (th?.messages ?? []).find((m: any) => m?.role === "user");
           const firstText = (firstUser?.content ?? "").trim();
 
           if (isDefaultTitle && firstText) {

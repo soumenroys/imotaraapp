@@ -27,6 +27,8 @@ import type { Emotion } from "@/types/history";
 import TopBar from "@/components/imotara/TopBar";
 import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
 import ReplyOriginBadge from "@/components/imotara/ReplyOriginBadge";
+import { getChatToneCopy } from "@/lib/imotara/chatTone";
+import { adaptReflectionTone } from "@/lib/imotara/reflectionTone";
 
 type Role = "user" | "assistant" | "system";
 type DebugEmotionSource = "analysis" | "fallback" | "unknown";
@@ -95,7 +97,7 @@ function DateText({ ts }: { ts: number }) {
         minute: "2-digit",
         second: "2-digit",
         hour12: false,
-        timeZone: "UTC",
+        // Important: use user's local timezone (do NOT force UTC)
       });
       return fmt.format(new Date(ts));
     } catch {
@@ -328,6 +330,7 @@ export default function ChatPage() {
   const { mode } = useAnalysisConsent();
   const consentLabel =
     mode === "allow-remote" ? "Remote analysis allowed" : "On-device only";
+  const chatTone = useMemo(() => getChatToneCopy(), []);
 
   // Load threads (client only)
   useEffect(() => {
@@ -342,8 +345,26 @@ export default function ChatPage() {
         };
         const t = Array.isArray(parsed.threads) ? parsed.threads : [];
 
+        // ✅ Timestamp hardening: normalize legacy seconds -> ms (10-digit -> 13-digit)
+        const normalizeTs = (ts: unknown): number => {
+          const n = typeof ts === "number" ? ts : Number(ts);
+          if (!Number.isFinite(n)) return Date.now();
+          return n < 1e12 ? n * 1000 : n;
+        };
+
+        const hardened = t.map((th) => ({
+          ...th,
+          createdAt: normalizeTs((th as any).createdAt),
+          messages: Array.isArray((th as any).messages)
+            ? (th as any).messages.map((m: any) => ({
+              ...m,
+              createdAt: normalizeTs(m?.createdAt),
+            }))
+            : [],
+        }));
+
         // Normalize old data: if title is default but messages exist, derive a title
-        const normalized = t.map((th) => {
+        const normalized = hardened.map((th) => {
           const title = (th?.title ?? "").trim();
           const isDefaultTitle =
             !title || title.toLowerCase() === "new conversation";
@@ -760,7 +781,10 @@ export default function ChatPage() {
         const tone =
           typeof summary.tone === "string" ? summary.tone.toLowerCase() : "";
 
-        const advice = summary.adviceShort ?? summary.coachingTip ?? summary.nextStep ?? "";
+        const rawAdvice =
+          summary.adviceShort ?? summary.coachingTip ?? summary.nextStep ?? "";
+
+        const advice = adaptReflectionTone(String(rawAdvice || ""));
 
         const strengthLabel =
           intensity < 0.25 ? "a gentle" : intensity < 0.6 ? "a pretty strong" : "an intense";
@@ -1405,7 +1429,7 @@ export default function ChatPage() {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={onKeyDown}
-                placeholder="Type your message… (Enter to send, Shift+Enter for newline)"
+                placeholder={`${chatTone.placeholder} (Enter to send, Shift+Enter for newline)`}
                 rows={1}
                 className="max-h-[200px] flex-1 resize-none rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-indigo-400/70 focus:ring-1 focus:ring-indigo-500/60"
               />

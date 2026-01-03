@@ -9,6 +9,9 @@ const SHOW_DONATION_RECEIPTS = process.env.NODE_ENV !== "production";
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 const IMOTARA_VERSION = "Imotara Web Beta v0.9.7";
 
+// NOTE: "imotara.profile.v1" is owned by the Tone & Context profile (ImotaraProfileV1) below.
+// Do not define a second schema for the same storage key, otherwise settings will reset.
+
 /** Razorpay Checkout (web) */
 declare global {
     interface Window {
@@ -34,6 +37,456 @@ type LicenseStatusResponse = {
     message?: string;
     error?: string;
 };
+
+// ===== NEW: Tone & Context Preferences (local-only) =====
+
+type Gender = "female" | "male" | "nonbinary" | "prefer_not" | "other";
+type AgeRange =
+    | "under_13"
+    | "13_17"
+    | "18_24"
+    | "25_34"
+    | "35_44"
+    | "45_54"
+    | "55_64"
+    | "65_plus"
+    | "prefer_not";
+
+type ImotaraProfileV1 = {
+    user: {
+        name?: string;
+        ageRange?: AgeRange;
+        gender?: Gender;
+    };
+    companion: {
+        enabled?: boolean;
+        name?: string;
+        ageRange?: AgeRange;
+        gender?: Gender;
+        relationship?:
+        | "mentor"
+        | "friend"
+        | "elder"
+        | "coach"
+        | "sibling"
+        | "junior_buddy"
+        | "parent_like"
+        | "partner_like"
+        | "prefer_not";
+    };
+};
+
+const PROFILE_STORAGE_KEY = "imotara.profile.v1";
+
+function safeParseProfile(json: string | null): ImotaraProfileV1 | null {
+    if (!json) return null;
+    try {
+        return JSON.parse(json) as ImotaraProfileV1;
+    } catch {
+        return null;
+    }
+}
+
+function TinyBadge({ children }: { children: React.ReactNode }) {
+    return (
+        <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-200 ring-1 ring-white/10">
+            {children}
+        </span>
+    );
+}
+
+function ToneAndContextTile() {
+    const [loaded, setLoaded] = useState(false);
+    const [toast, setToast] = useState<string | null>(null);
+
+    // Personal info
+    const [userName, setUserName] = useState("");
+    const [userAge, setUserAge] = useState<AgeRange>("prefer_not");
+    const [userGender, setUserGender] = useState<Gender>("prefer_not");
+
+    // Expected companion details (tone guidance)
+    const [compEnabled, setCompEnabled] = useState(false);
+    const [compName, setCompName] = useState("");
+    const [compAge, setCompAge] = useState<AgeRange>("prefer_not");
+    const [compGender, setCompGender] = useState<Gender>("prefer_not");
+    const [compRel, setCompRel] = useState<
+        | "mentor"
+        | "friend"
+        | "sibling"
+        | "junior_buddy"
+        | "elder"
+        | "coach"
+        | "parent_like"
+        | "partner_like"
+        | "prefer_not"
+    >("prefer_not");
+
+    useEffect(() => {
+        // Hydration-safe: only read localStorage after mount
+        const existing = safeParseProfile(window.localStorage.getItem(PROFILE_STORAGE_KEY));
+        if (existing) {
+            setUserName(existing.user?.name ?? "");
+            setUserAge((existing.user?.ageRange as AgeRange) ?? "prefer_not");
+            setUserGender((existing.user?.gender as Gender) ?? "prefer_not");
+
+            const enabled = !!existing.companion?.enabled;
+            setCompEnabled(enabled);
+            setCompName(existing.companion?.name ?? "");
+            setCompAge((existing.companion?.ageRange as AgeRange) ?? "prefer_not");
+            setCompGender((existing.companion?.gender as Gender) ?? "prefer_not");
+            setCompRel((existing.companion?.relationship as any) ?? "prefer_not");
+        }
+        setLoaded(true);
+    }, []);
+
+    const profile: ImotaraProfileV1 = useMemo(() => {
+        return {
+            user: {
+                name: userName.trim() || undefined,
+                ageRange: userAge === "prefer_not" ? undefined : userAge,
+                gender: userGender === "prefer_not" ? undefined : userGender,
+            },
+            companion: {
+                enabled: compEnabled,
+                name: compEnabled ? (compName.trim() || undefined) : undefined,
+                ageRange: compEnabled ? (compAge === "prefer_not" ? undefined : compAge) : undefined,
+                gender: compEnabled ? (compGender === "prefer_not" ? undefined : compGender) : undefined,
+                relationship: compEnabled ? (compRel === "prefer_not" ? undefined : compRel) : undefined,
+            },
+        };
+    }, [userName, userAge, userGender, compEnabled, compName, compAge, compGender, compRel]);
+
+    // ✅ NEW: visual "active" state (green) for selects once a real choice is set
+    const selectActiveClass = (active: boolean) =>
+        active ? "border-emerald-400/40 text-emerald-200" : "";
+
+    // ✅ NEW: Auto-save on change (fixes reset when navigating to Chat and back)
+    useEffect(() => {
+        if (!loaded) return;
+        try {
+            window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+            window.dispatchEvent(new CustomEvent("imotara:profile-updated", { detail: profile }));
+        } catch (e) {
+            console.error("[imotara] profile autosave failed:", e);
+        }
+    }, [loaded, profile]);
+
+    function save() {
+        try {
+            window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+            window.dispatchEvent(new CustomEvent("imotara:profile-updated", { detail: profile }));
+            setToast("Saved ✓");
+            window.setTimeout(() => setToast(null), 1800);
+        } catch (e) {
+            console.error("[imotara] profile save failed:", e);
+            setToast("Save failed");
+            window.setTimeout(() => setToast(null), 2200);
+        }
+    }
+
+    function reset() {
+        try {
+            window.localStorage.removeItem(PROFILE_STORAGE_KEY);
+        } catch {
+            // ignore
+        }
+        setUserName("");
+        setUserAge("prefer_not");
+        setUserGender("prefer_not");
+        setCompEnabled(false);
+        setCompName("");
+        setCompAge("prefer_not");
+        setCompGender("prefer_not");
+        setCompRel("prefer_not");
+        setToast("Reset ✓");
+        window.setTimeout(() => setToast(null), 1800);
+
+        // ✅ NEW: notify listeners immediately that profile is cleared
+        try {
+            window.dispatchEvent(new CustomEvent("imotara:profile-updated", { detail: null }));
+        } catch {
+            // ignore
+        }
+    }
+
+    if (!loaded) return null;
+
+    return (
+        <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
+                            Tone &amp; Context Preferences
+                        </h2>
+                        <TinyBadge>optional</TinyBadge>
+                        <TinyBadge>local-only</TinyBadge>
+                    </div>
+
+                    <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
+                        This helps Imotara adjust communication tone based on your context and the kind of companion voice you prefer.
+                    </p>
+
+                    <p className="mt-2 text-[11px] text-zinc-500">
+                        Imotara does not replace human relationships. These settings only guide how reflections are written.
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={reset}
+                        className="rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-zinc-100 shadow-sm transition hover:bg-white/20"
+                    >
+                        Reset
+                    </button>
+                    <button
+                        type="button"
+                        onClick={save}
+                        className="rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-zinc-100 shadow-sm transition hover:bg-white/20"
+                    >
+                        Save
+                    </button>
+                </div>
+            </div>
+
+            {toast && (
+                <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-200">
+                    {toast}
+                </div>
+            )}
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {/* Personal info */}
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-400">Personal info</p>
+
+                    <div className="mt-3 grid gap-3">
+                        <label className="grid gap-1">
+                            <span className="text-xs text-zinc-300">Name (optional)</span>
+                            <input
+                                value={userName}
+                                onChange={(e) => setUserName(e.target.value)}
+                                placeholder="e.g., Soumen"
+                                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-white/20"
+                            />
+                        </label>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="grid gap-1">
+                                <span className="text-xs text-zinc-300">Age range</span>
+                                <select
+                                    value={userAge}
+                                    onChange={(e) => setUserAge(e.target.value as AgeRange)}
+                                    className={[
+                                        "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                        selectActiveClass(userAge !== "prefer_not"),
+                                    ].join(" ")}
+                                >
+                                    <option value="prefer_not">Prefer not to say</option>
+                                    <option value="under_13">Under 13</option>
+                                    <option value="13_17">13–17</option>
+                                    <option value="18_24">18–24</option>
+                                    <option value="25_34">25–34</option>
+                                    <option value="35_44">35–44</option>
+                                    <option value="45_54">45–54</option>
+                                    <option value="55_64">55–64</option>
+                                    <option value="65_plus">65+</option>
+                                </select>
+                            </label>
+
+                            <label className="grid gap-1">
+                                <span className="text-xs text-zinc-300">Gender</span>
+                                <select
+                                    value={userGender}
+                                    onChange={(e) => setUserGender(e.target.value as Gender)}
+                                    className={[
+                                        "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                        selectActiveClass(userGender !== "prefer_not"),
+                                    ].join(" ")}
+                                >
+                                    <option value="prefer_not">Prefer not to say</option>
+                                    <option value="female">Female</option>
+                                    <option value="male">Male</option>
+                                    <option value="nonbinary">Non-binary</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <p className="text-[11px] text-zinc-500">Used only to make wording feel more natural. Not shared.</p>
+                    </div>
+                </div>
+
+                {/* Expected companion info */}
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-400">Expected companion tone</p>
+                            <p className="mt-1 text-[11px] text-zinc-500">
+                                Optional. This is tone guidance only (not identity simulation).
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setCompEnabled(prev => {
+                                    const next = !prev;
+
+                                    const existing =
+                                        (safeParseProfile(
+                                            window.localStorage.getItem(PROFILE_STORAGE_KEY)
+                                        ) as ImotaraProfileV1) || {};
+
+                                    const updated = {
+                                        ...existing,
+                                        companion: {
+                                            ...existing.companion,
+                                            enabled: next,
+                                        },
+                                    };
+
+                                    window.localStorage.setItem(
+                                        PROFILE_STORAGE_KEY,
+                                        JSON.stringify(updated)
+                                    );
+
+                                    return next;
+                                });
+                            }}
+                            aria-label="Toggle expected companion tone"
+                            className={[
+                                "relative h-8 w-14 rounded-full p-1 transition-colors duration-200",
+                                compEnabled
+                                    ? "bg-emerald-500/30 border border-emerald-400/50"
+                                    : "bg-zinc-700/40 border border-zinc-600/40",
+                            ].join(" ")}
+                        >
+                            <span
+                                className={[
+                                    "block h-6 w-6 rounded-full transition-transform duration-200",
+                                    compEnabled
+                                        ? "translate-x-6 bg-emerald-200"
+                                        : "translate-x-0 bg-zinc-300",
+                                ].join(" ")}
+                            />
+                        </button>
+                    </div>
+
+                    {!compEnabled ? (
+                        <p className="mt-3 text-[11px] text-zinc-400">Turn on to set preferred companion characteristics.</p>
+                    ) : (
+                        <div className="mt-3 grid gap-3">
+                            <label className="grid gap-1">
+                                <span className="text-xs text-zinc-300">Companion name (optional)</span>
+                                <input
+                                    value={compName}
+                                    onChange={(e) => setCompName(e.target.value)}
+                                    placeholder="e.g., A calm friend voice"
+                                    className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-white/20"
+                                />
+                            </label>
+
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <label className="grid gap-1">
+                                    <span className="text-xs text-zinc-300">Age range</span>
+                                    <select
+                                        value={compAge}
+                                        onChange={(e) => setCompAge(e.target.value as AgeRange)}
+                                        className={[
+                                            "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                            selectActiveClass(compAge !== "prefer_not"),
+                                        ].join(" ")}
+                                    >
+                                        <option value="prefer_not">Prefer not to say</option>
+                                        <option value="under_13">Under 13</option>
+                                        <option value="13_17">13–17</option>
+                                        <option value="18_24">18–24</option>
+                                        <option value="25_34">25–34</option>
+                                        <option value="35_44">35–44</option>
+                                        <option value="45_54">45–54</option>
+                                        <option value="55_64">55–64</option>
+                                        <option value="65_plus">65+</option>
+                                    </select>
+                                </label>
+
+                                <label className="grid gap-1">
+                                    <span className="text-xs text-zinc-300">Gender</span>
+                                    <select
+                                        value={compGender}
+                                        onChange={(e) => setCompGender(e.target.value as Gender)}
+                                        className={[
+                                            "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                            selectActiveClass(compGender !== "prefer_not"),
+                                        ].join(" ")}
+                                    >
+                                        <option value="prefer_not">Prefer not to say</option>
+                                        <option value="female">Female</option>
+                                        <option value="male">Male</option>
+                                        <option value="nonbinary">Non-binary</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </label>
+                            </div>
+
+                            <label className="grid gap-1">
+                                <span className="text-xs text-zinc-300">Relationship vibe</span>
+                                <select
+                                    value={compRel}
+                                    onChange={(e) => {
+                                        const next = e.target.value as any;
+                                        setCompRel(next);
+
+                                        const existing =
+                                            (safeParseProfile(
+                                                window.localStorage.getItem(PROFILE_STORAGE_KEY)
+                                            ) as ImotaraProfileV1) || {};
+
+                                        const updated: ImotaraProfileV1 = {
+                                            ...existing,
+                                            companion: {
+                                                ...existing.companion,
+                                                relationship: next === "prefer_not" ? undefined : next,
+                                            },
+                                        };
+
+                                        window.localStorage.setItem(
+                                            PROFILE_STORAGE_KEY,
+                                            JSON.stringify(updated)
+                                        );
+                                    }}
+                                    className={[
+                                        "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                        selectActiveClass(compRel !== "prefer_not"),
+                                    ].join(" ")}
+                                >
+                                    <option value="prefer_not">Prefer not to specify</option>
+                                    <option value="mentor">Mentor</option>
+                                    <option value="elder">Elder</option>
+                                    <option value="friend">Friend</option>
+                                    <option value="coach">Coach</option>
+                                    <option value="sibling">Sibling (younger/peer vibe)</option>
+                                    <option value="junior_buddy">Junior buddy (younger vibe)</option>
+                                    <option value="parent_like">Parent-like (tone only)</option>
+                                    <option value="partner_like">Partner-like (tone only)</option>
+                                </select>
+                            </label>
+
+                            <p className="text-[11px] text-zinc-500">
+                                This only influences how Imotara phrases reflections (warmth, directness, pacing).
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <p className="mt-3 text-[11px] text-zinc-500">Stored only in this browser. Reset clears it.</p>
+        </section>
+    );
+}
+
+// ===== Existing helpers =====
 
 function formatINRFromPaise(paise: number) {
     const rupees = paise / 100;
@@ -387,6 +840,9 @@ export default function SettingsPage() {
                     </div>
                 </section>
 
+                {/* NEW: Tone & Context Preferences (client-only safe) */}
+                {mounted && <ToneAndContextTile />}
+
                 {/* NEW: Licensing status */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -438,9 +894,7 @@ export default function SettingsPage() {
                     </div>
 
                     {lic?.error && (
-                        <p className="mt-3 text-[11px] text-rose-200/90">
-                            {lic.error}
-                        </p>
+                        <p className="mt-3 text-[11px] text-rose-200/90">{lic.error}</p>
                     )}
                 </section>
 
@@ -501,9 +955,7 @@ export default function SettingsPage() {
                             </button>
                         </div>
 
-                        {donError && (
-                            <p className="mt-3 text-[11px] text-rose-200/90">{donError}</p>
-                        )}
+                        {donError && <p className="mt-3 text-[11px] text-rose-200/90">{donError}</p>}
 
                         {!donError && donations.length === 0 && (
                             <p className="mt-3 text-[11px] text-zinc-400">
@@ -514,10 +966,7 @@ export default function SettingsPage() {
                         {donations.length > 0 && (
                             <div className="mt-4 space-y-2">
                                 {donations.map((d) => (
-                                    <div
-                                        key={d.id}
-                                        className="rounded-2xl border border-white/10 bg-white/5 p-4"
-                                    >
+                                    <div key={d.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                                         <div className="flex flex-wrap items-center justify-between gap-2">
                                             <p className="text-sm font-semibold text-zinc-50">
                                                 {formatINRFromPaise(Number(d.amount_paise || 0))}
@@ -557,9 +1006,7 @@ export default function SettingsPage() {
                             disabled={busy !== null}
                             className="rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-zinc-100 shadow-sm transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {busy === "chat" || busy === "all"
-                                ? "Clearing chat…"
-                                : "Clear Chat conversations"}
+                            {busy === "chat" || busy === "all" ? "Clearing chat…" : "Clear Chat conversations"}
                         </button>
 
                         <button
@@ -568,9 +1015,7 @@ export default function SettingsPage() {
                             disabled={busy !== null}
                             className="rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-zinc-100 shadow-sm transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {busy === "history" || busy === "all"
-                                ? "Clearing history…"
-                                : "Clear Emotion History"}
+                            {busy === "history" || busy === "all" ? "Clearing history…" : "Clear Emotion History"}
                         </button>
 
                         <button
@@ -588,9 +1033,7 @@ export default function SettingsPage() {
 
                 {/* Data & privacy copy */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                        Data &amp; privacy
-                    </h2>
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Data &amp; privacy</h2>
                     <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
                         Imotara is designed as a quiet, local-first experiment. Most data is
                         stored only in this browser unless you explicitly allow remote
@@ -603,17 +1046,11 @@ export default function SettingsPage() {
 
                     <p className="mt-3 text-[11px] text-zinc-500">
                         For full details, see our{" "}
-                        <Link
-                            href="/privacy"
-                            className="underline underline-offset-2 hover:text-zinc-300"
-                        >
+                        <Link href="/privacy" className="underline underline-offset-2 hover:text-zinc-300">
                             Privacy
                         </Link>{" "}
                         and{" "}
-                        <Link
-                            href="/terms"
-                            className="underline underline-offset-2 hover:text-zinc-300"
-                        >
+                        <Link href="/terms" className="underline underline-offset-2 hover:text-zinc-300">
                             Terms
                         </Link>{" "}
                         pages.

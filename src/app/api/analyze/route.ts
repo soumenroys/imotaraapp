@@ -19,6 +19,12 @@
 // - Add GET handler to avoid browser "HTTP 405" when visiting /api/analyze.
 // - Accept legacy payload { text: string } by converting it into inputs[],
 //   so chat calls that send "text" don't fall into the empty-input baseline.
+//
+// STEP 3 (Jan 2026) — Tone context for Remote AI:
+// - Server cannot read localStorage.
+// - So we accept an OPTIONAL `toneContext` object in the request body.
+// - If provided, we inject a compact "Tone & Context Guidance" snippet into the AI prompt.
+// - Backward compatible: callers not sending toneContext behave exactly the same.
 
 import { NextResponse } from "next/server";
 import type {
@@ -28,6 +34,44 @@ import type {
   PerMessageAnalysis,
 } from "@/types/analysis";
 import { callImotaraAI } from "@/lib/imotara/aiClient";
+import { buildToneContextPromptSnippet } from "@/lib/imotara/promptProfile";
+
+// ---- NEW: Optional tone context (client-provided) ----
+type ToneGender = "female" | "male" | "nonbinary" | "prefer_not" | "other";
+type ToneAgeRange =
+  | "under_13"
+  | "13_17"
+  | "18_24"
+  | "25_34"
+  | "35_44"
+  | "45_54"
+  | "55_64"
+  | "65_plus"
+  | "prefer_not";
+
+type ToneRelationship =
+  | "mentor"
+  | "friend"
+  | "elder"
+  | "coach"
+  | "parent_like"
+  | "partner_like"
+  | "prefer_not";
+
+type ToneContextPayload = {
+  user?: {
+    name?: string;
+    ageRange?: ToneAgeRange;
+    gender?: ToneGender;
+  };
+  companion?: {
+    enabled?: boolean;
+    name?: string;
+    ageRange?: ToneAgeRange;
+    gender?: ToneGender;
+    relationship?: ToneRelationship;
+  };
+};
 
 type AnalyzeRequestBody = {
   // Primary (current) contract
@@ -42,6 +86,9 @@ type AnalyzeRequestBody = {
      */
     windowSize?: number;
   };
+
+  // NEW: Optional tone guidance (local-only profile)
+  toneContext?: ToneContextPayload;
 
   // Legacy contract (some callers still send { text: "..." })
   text?: string;
@@ -60,6 +107,8 @@ export async function GET() {
         'POST JSON: { "inputs": [{ "id": "m1", "text": "hello", "createdAt": 123 }], "options": { "windowSize": 25 } }',
       legacy:
         'Also accepts legacy POST JSON: { "text": "hello" } (will be converted to inputs[0]).',
+      toneContext:
+        'Optional: include "toneContext" to shape remote AI tone (localStorage is not accessible on server).',
     },
     { status: 200 }
   );
@@ -72,6 +121,60 @@ const MAX_COMBINED_CHARS = 6000;
 function safeNumber(value: unknown, fallback: number): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   return fallback;
+}
+
+// NEW: build server-safe prompt snippet from client-provided toneContext
+function buildToneSnippetFromPayload(t?: ToneContextPayload): string {
+  if (!t) return "";
+
+  const userName =
+    typeof t.user?.name === "string" ? t.user.name.trim() : "";
+  const userAge = t.user?.ageRange;
+  const userGender = t.user?.gender;
+
+  const enabled = !!t.companion?.enabled;
+  const compName =
+    enabled && typeof t.companion?.name === "string"
+      ? t.companion.name.trim()
+      : "";
+  const compAge = enabled ? t.companion?.ageRange : undefined;
+  const compGender = enabled ? t.companion?.gender : undefined;
+  const compRel = enabled ? t.companion?.relationship : undefined;
+
+  const hasAny =
+    !!userName ||
+    (userAge && userAge !== "prefer_not") ||
+    (userGender && userGender !== "prefer_not") ||
+    (enabled &&
+      (!!compName ||
+        (compAge && compAge !== "prefer_not") ||
+        (compGender && compGender !== "prefer_not") ||
+        (compRel && compRel !== "prefer_not")));
+
+  if (!hasAny) return "";
+
+  const lines: string[] = [];
+  lines.push("Tone & Context Guidance (tone only; do NOT roleplay a real person):");
+  if (userName) lines.push(`- User name (optional): ${userName}`);
+  if (userAge && userAge !== "prefer_not") lines.push(`- User age range: ${userAge}`);
+  if (userGender && userGender !== "prefer_not") lines.push(`- User gender: ${userGender}`);
+
+  if (enabled) {
+    lines.push("- Preferred companion tone (wording guidance only):");
+    if (compRel && compRel !== "prefer_not") lines.push(`  - Relationship vibe: ${compRel}`);
+    if (compAge && compAge !== "prefer_not") lines.push(`  - Age tone: ${compAge}`);
+    if (compGender && compGender !== "prefer_not") lines.push(`  - Gender tone: ${compGender}`);
+    if (compName) lines.push(`  - Companion name (optional): ${compName}`);
+    lines.push(
+      "- Adjust warmth/directness/pacing accordingly, but avoid dependency cues."
+    );
+  }
+
+  lines.push(
+    "- Never claim you are a parent/partner/friend/real person. You are Imotara: a reflective, privacy-first companion."
+  );
+
+  return lines.join("\n");
 }
 
 // Shape we *ask* the AI to return (JSON). Parsing is always defensive.
@@ -89,6 +192,40 @@ export async function POST(req: Request) {
     const body = (await req.json()) as AnalyzeRequestBody | null;
 
     const now = Date.now();
+
+    // NEW: Tone context (optional) + mapped hints
+    const toneContext = body?.toneContext;
+    const toneHints = deriveToneHints(toneContext);
+
+    // ---------------- Tone mapping (tone-only, no roleplay) ----------------
+    function deriveToneHints(toneContext: any): string {
+      const rel = String(toneContext?.companion?.relationship || "").toLowerCase();
+
+      const base =
+        "Tone shaping rules: Do not roleplay a real person. Do not claim identity or relationship. Do not encourage dependency. Adjust only warmth, pacing, directness, and wording.";
+
+      const map: Record<string, string> = {
+        mentor:
+          "Vibe: mentor. Calm, wise, supportive. Gentle structure, reflective questions. Slightly formal but warm.",
+        coach:
+          "Vibe: coach. Clear, action-oriented, short steps. Encourage small wins. Direct but kind.",
+        elder:
+          "Vibe: elder. Slow pacing, reassuring, grounded. Emphasize perspective and patience.",
+        friend:
+          "Vibe: friend. Casual, warm, non-judgmental. Simple language. Avoid preachy tone.",
+        sibling:
+          "Vibe: sibling (younger/peer). Light, friendly, slightly playful but respectful.",
+        junior_buddy:
+          "Vibe: junior buddy (younger). Extra simple language, upbeat encouragement, short sentences.",
+        parent_like:
+          "Vibe: parent-like. Protective warmth, soothing reassurance. Avoid control.",
+        partner_like:
+          "Vibe: partner-like. Emotionally attuned and supportive. Avoid romantic or sexual language.",
+      };
+
+      const specific = map[rel];
+      return specific ? `${base}\n${specific}` : base;
+    }
 
     // -----------------------------
     // Inputs: support both contracts
@@ -217,6 +354,7 @@ export async function POST(req: Request) {
 
       if (combinedText.length > MAX_COMBINED_CHARS) {
         combinedText = combinedText.slice(-MAX_COMBINED_CHARS);
+        combinedText = combinedText.slice(-MAX_COMBINED_CHARS);
       }
 
       if (!combinedText) {
@@ -226,11 +364,19 @@ export async function POST(req: Request) {
           );
         }
       } else {
+        // ---- STEP 3: optional tone snippet (client-provided) ----
+        // 1) Prefer request toneContext (server-safe)
+        // 2) Fallback to buildToneContextPromptSnippet() (may be empty on server)
+        const toneSnippet =
+          buildToneSnippetFromPayload(body?.toneContext) ||
+          buildToneContextPromptSnippet();
+
         // Ask the AI for a *structured* emotional profile.
         const prompt = [
           "You are Imotara, a calm, supportive emotional companion.",
           "You respond with warmth, validation, and gentle guidance.",
           "",
+          ...(toneSnippet ? [toneSnippet, ""] : []),
           "The following are recent messages from the user (most recent at the end):",
           "",
           combinedText,
@@ -253,7 +399,11 @@ export async function POST(req: Request) {
           "- Avoid clinical wording; sound like a kind, grounded friend.",
         ].join("\n");
 
-        const ai = await callImotaraAI(prompt, {
+        const finalPrompt = toneHints
+          ? `${toneHints}\n\n${prompt}`
+          : prompt;
+
+        const ai = await callImotaraAI(finalPrompt, {
           maxTokens: 260,
           temperature: 0.7,
         });

@@ -7,6 +7,7 @@
 
 import type { AnalysisInput, AnalysisResult } from "@/types/analysis";
 import { useEmotionHistory } from "@/store/emotionHistory";
+import { getImotaraProfile } from "@/lib/imotara/profile";
 
 export type AnalyzeFn = (
   inputs: AnalysisInput[],
@@ -45,7 +46,8 @@ export const analyzeRemote: AnalyzeFn = async (inputs, options) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           inputs,
-          options: { windowSize: options?.windowSize },
+          options,
+          toneContext: getImotaraProfile() ?? undefined,
         }),
       },
       15000

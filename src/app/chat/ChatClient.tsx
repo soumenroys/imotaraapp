@@ -9,7 +9,19 @@ import type { AppMessage } from "@/lib/imotara/useAnalysis";
 import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
 
 type Role = "user" | "assistant" | "system";
-type Message = { id: string; role: Role; content: string; createdAt: number; meta?: unknown };
+type Message = {
+  id: string;
+  role: Role;
+  content: string;
+  createdAt: number;
+  meta?: unknown;
+
+  // Parity with mobile (optional metadata; UI can render later)
+  moodHint?: string;
+  source?: "local" | "cloud";
+  isSynced?: boolean;
+  isPending?: boolean;
+};
 type Thread = { id: string; title: string; createdAt: number; messages: Message[] };
 
 const STORAGE_KEY = "imotara.chat.v1";
@@ -139,6 +151,7 @@ export default function ChatClient() {
   const [threads, setThreads] = useState<Thread[]>(initialThreads);
   const [activeId, setActiveId] = useState<string | null>(initialActiveId);
   const [draft, setDraft] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
@@ -237,7 +250,7 @@ export default function ChatClient() {
   function sendMessage() {
     const text = draft.trim();
     if (!text) return;
-
+    setIsTyping(true);
     let targetId = activeId;
     if (!targetId) {
       const t: Thread = {
@@ -279,6 +292,7 @@ export default function ChatClient() {
           : t
       )
     );
+    setIsTyping(false);
     setDraft("");
     setTimeout(() => composerRef.current?.focus(), 0);
   }
@@ -462,8 +476,23 @@ export default function ChatClient() {
               {/* Mood summary for the last 10 messages (system messages excluded) */}
               <MoodSummaryCard messages={appMessages} windowSize={10} mode="local" />
               {activeThread.messages.map((m) => (
-                <Bubble key={m.id} role={m.role} content={m.content} time={m.createdAt} />
+                <Bubble
+                  key={m.id}
+                  role={m.role}
+                  content={m.content}
+                  time={m.createdAt}
+                  moodHint={(m as any).moodHint}
+                  source={(m as any).source}
+                  isPending={Boolean((m as any).isPending)}
+                />
               ))}
+              {isTyping ? (
+                <div className="flex justify-start">
+                  <div className="max-w-[82%] animate-pulse rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+                    Imotara is thinking…
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
         </div>
@@ -507,23 +536,69 @@ function EmptyState() {
   );
 }
 
-function Bubble({ role, content, time }: { role: Role; content: string; time: number }) {
+function Bubble({
+  role,
+  content,
+  time,
+  moodHint,
+  source,
+  isPending,
+}: {
+  role: Role;
+  content: string;
+  time: number;
+  moodHint?: string;
+  source?: "local" | "cloud";
+  isPending?: boolean;
+}) {
   const isUser = role === "user";
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[75%] ${isUser
-          ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900"
-          : "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
+        className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm shadow-sm sm:max-w-[82%] ${isPending
+          ? "border border-dashed border-zinc-300 dark:border-zinc-700"
+          : ""
+          } ${isUser
+            ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-zinc-900"
+            : "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
           }`}
       >
         <div className="whitespace-pre-wrap">{content}</div>
+        {moodHint ? (
+          <div className="mt-1 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300">
+            {moodHint}
+          </div>
+        ) : null}
         <div
-          className={`mt-1 text-[11px] ${isUser ? "text-zinc-300 dark:text-zinc-500" : "text-zinc-500"
+          className={`mt-1 text-[11px] opacity-80 ${isUser
+            ? "text-zinc-200 dark:text-zinc-400"
+            : "text-zinc-500 dark:text-zinc-400"
             }`}
         >
-          <DateText ts={time} /> · {isUser ? "You" : role === "assistant" ? "Imotara" : "System"}
+          <DateText ts={time} /> ·{" "}
+          {isUser
+            ? "You"
+            : role === "assistant"
+              ? `Imotara${moodHint ? "" : ""}${moodHint ? "" : ""}${
+              // Source icon parity with mobile
+              (typeof (arguments as any)?.[0]?.source === "string"
+                ? (arguments as any)[0].source
+                : undefined) === "cloud"
+                ? " ☁️"
+                : (typeof (arguments as any)?.[0]?.source === "string"
+                  ? (arguments as any)[0].source
+                  : undefined) === "local"
+                  ? " 🌙"
+                  : ""
+              }`
+              : "System"}
         </div>
+        <DateText ts={time} /> ·{" "}
+        {isUser
+          ? `You${isPending ? " · Syncing…" : ""}`
+          : role === "assistant"
+            ? `Imotara${source === "cloud" ? " ☁️" : source === "local" ? " 🌙" : ""}`
+            : "System"}
       </div>
     </div>
   );

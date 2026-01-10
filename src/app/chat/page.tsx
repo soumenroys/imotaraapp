@@ -1123,6 +1123,8 @@ export default function ChatPage() {
                         </span>
                       </p>
                       <p className="text-[11px] text-zinc-400 sm:hidden">
+                        A calm space to talk about your feelings.
+                        <span className="text-zinc-500"> · </span>
                         Private preview · Local-first by default.
                       </p>
 
@@ -1132,7 +1134,7 @@ export default function ChatPage() {
                           className={`text-sm text-zinc-400 ${showHeaderDetails ? "mb-3" : "mb-1"
                             }`}
                         >
-                          Private preview. Analysis and replies respect your consent settings.
+                          A calm space to talk about your feelings. Analysis and replies respect your consent settings.
                         </p>
 
                         {showHeaderDetails && (
@@ -1151,15 +1153,12 @@ export default function ChatPage() {
                     </div>
                   </div>
 
-                  <div className="flex w-full flex-col gap-2 sm:ml-auto sm:max-w-[720px]">
-                    {/* Shared width wrapper to align with action buttons below */}
-                    <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-1">
-
+                  {/* ✅ PARITY: top capsules become a single row on desktop */}
+                  <div className="w-full sm:ml-auto sm:max-w-[720px]">
+                    <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
                       {/* Status chip: Sync status */}
                       <div
-                        className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full
-                border border-white/15 bg-black/25 px-3 text-xs text-white/90
-                backdrop-blur-sm"
+                        className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-black/25 px-3 text-xs text-white/90 backdrop-blur-sm"
                         title={
                           syncError
                             ? syncError
@@ -1193,10 +1192,7 @@ export default function ChatPage() {
                       <button
                         onClick={runSync}
                         disabled={syncing}
-                        className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full
-                border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10
-                px-3 text-xs font-medium text-white
-                backdrop-blur-sm transition hover:brightness-110 disabled:opacity-60"
+                        className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-3 text-xs font-medium text-white backdrop-blur-sm transition hover:brightness-110 disabled:opacity-60"
                         type="button"
                       >
                         <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
@@ -1205,10 +1201,9 @@ export default function ChatPage() {
 
                       {/* Status chip: Analysis mode */}
                       <div
-                        className={`inline-flex h-7 w-full items-center justify-center gap-2 rounded-full
-                px-3 text-xs backdrop-blur-sm ${mode === "allow-remote"
-                            ? "border border-emerald-300/50 bg-emerald-500/10 text-emerald-200"
-                            : "border border-white/15 bg-black/25 text-white/90"
+                        className={`inline-flex h-7 w-full items-center justify-center gap-2 rounded-full px-3 text-xs backdrop-blur-sm ${mode === "allow-remote"
+                          ? "border border-emerald-300/50 bg-emerald-500/10 text-emerald-200"
+                          : "border border-white/15 bg-black/25 text-white/90"
                           }`}
                         title="Emotion analysis mode"
                       >
@@ -1216,20 +1211,19 @@ export default function ChatPage() {
                           className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-400"
                             }`}
                         />
-                        {mode === "allow-remote"
-                          ? "Remote analysis allowed"
-                          : "On-device only"}
+                        {mode === "allow-remote" ? "Remote allowed" : "On-device only"}
                       </div>
-
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-col gap-2 sm:-mt-3">
+                {/* ✅ PARITY: compact left stack + consistent alignment on desktop */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex flex-col gap-2 sm:w-[340px] sm:flex-none sm:pt-1">
+                    {/* Label kept (mobile-style: small + subtle) */}
                     <p className="text-xs font-medium text-zinc-400">Emotion analysis mode</p>
 
-                    {/* ✅ Show/Hide details toggle — fixed width */}
+                    {/* Show/Hide details toggle — fixed width */}
                     <button
                       onClick={() => setShowHeaderDetails((v) => !v)}
                       className={[
@@ -1244,11 +1238,10 @@ export default function ChatPage() {
                       {showHeaderDetails ? "Hide details" : "Show details"}
                     </button>
 
-                    {/* ✅ Headline capsule — fixed width + truncate (prevents text spilling above) */}
+                    {/* Headline capsule — fixed width + truncate (prevents text spilling above) */}
                     {analysis?.summary?.headline ? (
                       <span
-                        className="inline-flex h-7 w-full max-w-[320px] items-center justify-center overflow-hidden rounded-full
-                 border border-white/15 bg-white/5 px-3 text-xs text-zinc-100 backdrop-blur-sm"
+                        className="inline-flex h-7 w-full max-w-[320px] items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/5 px-3 text-xs text-zinc-100 backdrop-blur-sm"
                         title={analysis.summary.headline}
                       >
                         <span className="w-full truncate text-center">
@@ -1257,14 +1250,13 @@ export default function ChatPage() {
                       </span>
                     ) : (
                       <span
-                        className="inline-flex h-7 w-full max-w-[320px] items-center justify-center rounded-full
-                 border border-dashed border-white/20 bg-black/30 px-3 text-xs text-zinc-400 backdrop-blur-sm"
+                        className="inline-flex h-7 w-full max-w-[320px] items-center justify-center rounded-full border border-dashed border-white/20 bg-black/30 px-3 text-xs text-zinc-400 backdrop-blur-sm"
                       >
                         No analysis yet
                       </span>
                     )}
 
-                    {/* ✅ Collapsible header details: Teen Insight, guidance, engine text */}
+                    {/* Collapsible header details: Teen Insight, guidance, engine text */}
                     {showHeaderDetails && teenInsight && (
                       <div className="mt-1 hidden rounded-2xl border border-violet-500/35 bg-violet-500/10 px-3 py-3 text-xs text-violet-50 shadow-sm sm:block">
                         <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-200/90">
@@ -1276,7 +1268,7 @@ export default function ChatPage() {
                       </div>
                     )}
 
-                    {/* ✅ Local/Cloud toggle — same width as the two pills above */}
+                    {/* Local/Cloud toggle — same width as pills above */}
                     <div className="w-full max-w-[320px]">
                       <div className="h-9 w-full">
                         <AnalysisConsentToggle showHelp={showHeaderDetails} />

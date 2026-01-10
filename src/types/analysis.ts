@@ -96,6 +96,17 @@ export type AnalysisResult = {
   snapshot: MoodSnapshot;     // last window (we’ll start with ‘last 10 msgs’)
   summary: MoodSummary;       // 1–2 lines for the card
   reflections: Reflection[];  // zero or more short notes
+
+  /**
+   * Optional: separate Reflection Seed Card prompts for UI.
+   * Backward compatible: chat reflections remain unchanged.
+   */
+  reflectionSeedCard?: {
+    prompts: string[];     // 1–2 short prompts
+    createdAt: number;
+    relatedIds: string[];  // message ids relevant to the seed
+  };
+
   computedAt: number;         // epoch ms
 
   // Back-compat fields for simpler analyzers:

@@ -42,6 +42,21 @@ export type ResponseBlueprint = {
         enabled: boolean;
         requiresConsent: true;
     };
+
+    /**
+     * Phase-2 (still v1): Conversational humanization guidance.
+     * These are OPTIONAL so no existing features break if callers ignore them.
+     */
+    goals?: string[];
+
+    hardRules?: string[];
+
+    flow?: {
+        softMirror?: { lines?: [1, 2] | [1, 3] | [2, 3] };
+        meaningBridge?: { lines?: [1, 2] | [1, 3] | [2, 3] };
+        oneNextMove?: { count?: 1 };
+        openDoor?: { type?: "question_or_permission"; count?: 1 };
+    };
 };
 
 export const DEFAULT_RESPONSE_BLUEPRINT: ResponseBlueprint = {
@@ -50,12 +65,36 @@ export const DEFAULT_RESPONSE_BLUEPRINT: ResponseBlueprint = {
     structureLevel: 3,
     sectionOrder: ["ack", "core", "options", "reflection", "safety"],
     avoidHeadings: true,
+
     reflectionSeedCard: {
         enabled: true,
         maxPrompts: 2,
     },
+
     memoryContinuity: {
         enabled: false,
         requiresConsent: true,
+    },
+
+    // --- Phase-2 humanization guidance (still v1) ---
+    goals: [
+        "Single flowing voice; no visible step-structure.",
+        "Empathy + meaning + one next move woven together.",
+        "Short, calm, non-lecture tone.",
+    ],
+
+    hardRules: [
+        "No headings, no numbered structure, no explicit 'analysis' labels.",
+        "Default to paragraphs; avoid bullets unless user explicitly asks.",
+        "Avoid advice-stacking: ONE next move only.",
+        "Keep it short: typically 8–10 lines max for normal inputs.",
+        "End with either ONE easy question or a permission line (not both).",
+    ],
+
+    flow: {
+        softMirror: { lines: [1, 2] },
+        meaningBridge: { lines: [1, 3] },
+        oneNextMove: { count: 1 },
+        openDoor: { type: "question_or_permission", count: 1 },
     },
 };

@@ -36,8 +36,9 @@ import type {
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { buildToneContextPromptSnippet } from "@/lib/imotara/promptProfile";
 
-// Response behavior blueprint (design hook; no output change yet)
+// Response behavior blueprint (design hook)
 import { getResponseBlueprint } from "@/lib/ai/response/getResponseBlueprint";
+import type { ResponseBlueprint } from "@/lib/ai/response/responseBlueprint";
 
 // ---- NEW: Optional tone context (client-provided) ----
 type ToneGender = "female" | "male" | "nonbinary" | "prefer_not" | "other";
@@ -130,16 +131,13 @@ function safeNumber(value: unknown, fallback: number): number {
 function buildToneSnippetFromPayload(t?: ToneContextPayload): string {
   if (!t) return "";
 
-  const userName =
-    typeof t.user?.name === "string" ? t.user.name.trim() : "";
+  const userName = typeof t.user?.name === "string" ? t.user.name.trim() : "";
   const userAge = t.user?.ageRange;
   const userGender = t.user?.gender;
 
   const enabled = !!t.companion?.enabled;
   const compName =
-    enabled && typeof t.companion?.name === "string"
-      ? t.companion.name.trim()
-      : "";
+    enabled && typeof t.companion?.name === "string" ? t.companion.name.trim() : "";
   const compAge = enabled ? t.companion?.ageRange : undefined;
   const compGender = enabled ? t.companion?.gender : undefined;
   const compRel = enabled ? t.companion?.relationship : undefined;
@@ -168,9 +166,7 @@ function buildToneSnippetFromPayload(t?: ToneContextPayload): string {
     if (compAge && compAge !== "prefer_not") lines.push(`  - Age tone: ${compAge}`);
     if (compGender && compGender !== "prefer_not") lines.push(`  - Gender tone: ${compGender}`);
     if (compName) lines.push(`  - Companion name (optional): ${compName}`);
-    lines.push(
-      "- Adjust warmth/directness/pacing accordingly, but avoid dependency cues."
-    );
+    lines.push("- Adjust warmth/directness/pacing accordingly, but avoid dependency cues.");
   }
 
   lines.push(
@@ -178,6 +174,119 @@ function buildToneSnippetFromPayload(t?: ToneContextPayload): string {
   );
 
   return lines.join("\n");
+}
+
+// --- Phase-2 (still v1): prompt + output humanization helpers (conservative) ---
+
+function buildBlueprintGuidanceSnippet(bp: ResponseBlueprint): string {
+  const lines: string[] = [];
+
+  // Keep it short and safe—only the most relevant lines.
+  if (bp.avoidHeadings) {
+    lines.push("- Do not use headings or section labels.");
+  }
+
+  // If provided, include a compact subset of hard rules.
+  if (Array.isArray(bp.hardRules) && bp.hardRules.length) {
+    lines.push("- Response rules (follow closely):");
+    for (const r of bp.hardRules.slice(0, 6)) lines.push(`  - ${r}`);
+  }
+
+  // Flow intent
+  if (bp.flow) {
+    lines.push("- Flow intent: one flowing voice; weave empathy + meaning + one next move.");
+    lines.push("- End with either one easy question OR one permission line (not both).");
+  }
+
+  return lines.length ? lines.join("\n") : "";
+}
+
+function humanizeReflectionText(text: string, bp: ResponseBlueprint): string {
+  // If no guidance, do nothing.
+  if (!text || (!bp.avoidHeadings && !bp.flow && !bp.hardRules)) return text;
+
+  let s = String(text).trim();
+  if (!s) return s;
+
+  // Normalize newlines
+  s = s.replace(/\r\n/g, "\n");
+
+  // Remove obvious heading-style lines (very conservative)
+  // Examples: "Summary:", "Steps:", "Next steps:", "Reflection:"
+  s = s
+    .split("\n")
+    .filter((line) => {
+      const t = line.trim();
+      if (!t) return true;
+      if (!bp.avoidHeadings) return true;
+      return !/^(summary|steps?|next steps?|action steps?|reflection|analysis|takeaway|plan)\s*:/i.test(t);
+    })
+    .join("\n")
+    .trim();
+
+  // Convert numbered/bulleted suggestions into ONE next move only.
+  // If bullets exist, keep the first bullet content and rewrite lightly.
+  const lines = s.split("\n").map((x) => x.trim());
+  const bulletIdx = lines.findIndex((l) => /^([-*•]|(\d+[\).\]]))\s+/.test(l));
+  if (bulletIdx !== -1) {
+    const firstBullet = lines[bulletIdx].replace(/^([-*•]|(\d+[\).\]]))\s+/, "").trim();
+    // Keep any text before bullets as context, but drop the rest of the bullet list.
+    const before = lines.slice(0, bulletIdx).filter(Boolean).join(" ");
+    const stitched = [before, firstBullet].filter(Boolean).join("\n\n").trim();
+    s = stitched;
+  }
+
+  // Ensure the ending is either ONE question OR ONE permission line.
+  // Strategy:
+  // - If there are multiple questions, keep only the first question sentence.
+  // - If there is a question AND a permission line at end, drop the permission line.
+  // - If there is no question, allow one permission line; otherwise leave as-is.
+  const sentenceSplit = s
+    .replace(/\n{3,}/g, "\n\n")
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  // Extract all question sentences
+  const allText = sentenceSplit.join(" ");
+  const questionMatches: string[] = allText.match(/[^?]*\?/g) ?? [];
+  const hasQuestion = questionMatches.length > 0;
+
+  // Identify permission-ish closing line
+  const permissionRegex =
+    /\b(if you want|if you'd like|we can|we could|want me to|shall we)\b/i;
+
+  if (hasQuestion) {
+    const firstQ = questionMatches[0].trim();
+    // Remove all question sentences from body, then append only firstQ
+    let body = allText.replace(/[^?]*\?/g, " ").replace(/\s+/g, " ").trim();
+
+    // If body ends with permission-like phrase, remove that trailing sentence fragment conservatively
+    // (We only remove if it looks like a standalone permission sentence.)
+    body = body.replace(/(?:\bif you want\b|\bif you'd like\b|\bwe can\b)[^.?!]*[.?!]\s*$/i, "").trim();
+
+    s = [body, firstQ].filter(Boolean).join("\n\n").trim();
+  } else {
+    // No question: allow ONE permission line at the end if present; otherwise do nothing.
+    // If multiple permission lines exist, keep only the last paragraph if it contains permission.
+    if (sentenceSplit.length >= 2) {
+      const last = sentenceSplit[sentenceSplit.length - 1];
+      const prev = sentenceSplit[sentenceSplit.length - 2];
+      const lastHasPermission = permissionRegex.test(last);
+      const prevHasPermission = permissionRegex.test(prev);
+
+      if (lastHasPermission && prevHasPermission) {
+        // Drop the earlier permission paragraph
+        const kept = sentenceSplit.slice(0, -2).concat(last);
+        s = kept.join("\n\n").trim();
+      }
+    }
+  }
+
+  // Final tidy: avoid excessive length
+  s = s.replace(/\n{3,}/g, "\n\n").trim();
+
+  return s;
 }
 
 // Shape we *ask* the AI to return (JSON). Parsing is always defensive.
@@ -200,11 +309,7 @@ export async function POST(req: Request) {
 
     const now = Date.now();
 
-    // NEW: Tone context (optional) + mapped hints
-    const toneContext = body?.toneContext;
-    const toneHints = deriveToneHints(toneContext);
-
-    // Response blueprint (design hook only; do not change outputs yet)
+    // Response blueprint (central behavior config)
     const responseBlueprint = getResponseBlueprint();
 
     // Soft structure hint (internal, prompt-only)
@@ -244,6 +349,10 @@ export async function POST(req: Request) {
       const specific = map[rel];
       return specific ? `${base}\n${specific}` : base;
     }
+
+    // NEW: Tone context (optional) + mapped hints
+    const toneContext = body?.toneContext;
+    const toneHints = deriveToneHints(toneContext);
 
     // -----------------------------
     // Inputs: support both contracts
@@ -349,12 +458,11 @@ export async function POST(req: Request) {
     let snapshotDominant: Emotion = neutralEmotion;
     let snapshotAverages: Record<string, number> = { neutral: 0.2 };
 
-    // ---------------------------------------------------------
-    // Optional AI enrichment: only if an AI key is configured.
-    // If AI is disabled or fails, the above stub texts remain.
-    // ---------------------------------------------------------
-    // ✅ ADD this before try so it is in scope for `result`
+    // ✅ reflection seeds in scope for `result`
     let reflectionSeeds: string[] = [];
+
+    // Blueprint guidance snippet (prompt-only)
+    const blueprintGuidance = buildBlueprintGuidanceSnippet(responseBlueprint);
 
     try {
       // Take only the most recent messages for AI context, within the
@@ -380,12 +488,10 @@ export async function POST(req: Request) {
 
       if (!combinedText) {
         if (process.env.NODE_ENV !== "production") {
-          console.warn(
-            "[/api/analyze] No usable text from inputs; skipping AI enrichment."
-          );
+          console.warn("[/api/analyze] No usable text from inputs; skipping AI enrichment.");
         }
       } else {
-        // ---- STEP 3: optional tone snippet (client-provided) ----
+        // ---- optional tone snippet (client-provided) ----
         // 1) Prefer request toneContext (server-safe)
         // 2) Fallback to buildToneContextPromptSnippet() (may be empty on server)
         const toneSnippet =
@@ -398,6 +504,7 @@ export async function POST(req: Request) {
           "You respond with warmth, validation, and gentle guidance.",
           "",
           ...(toneSnippet ? [toneSnippet, ""] : []),
+          ...(blueprintGuidance ? [blueprintGuidance, ""] : []),
           "The following are recent messages from the user (most recent at the end):",
           "",
           combinedText,
@@ -499,6 +606,9 @@ export async function POST(req: Request) {
               reflectionText = ai.text;
             }
 
+            // --- Phase-2 (still v1): humanize final reflection output ---
+            reflectionText = humanizeReflectionText(reflectionText, responseBlueprint);
+
             // NEW: map dominant_emotion + intensity into snapshot.* if present
             const dominantRaw =
               typeof parsed.dominant_emotion === "string"
@@ -547,7 +657,7 @@ export async function POST(req: Request) {
             summaryHeadline = "AI emotional insight";
             summaryDetails =
               "This summary and reflection were enriched by Imotara's AI engine.";
-            reflectionText = ai.text;
+            reflectionText = humanizeReflectionText(ai.text, responseBlueprint);
           }
         } else if (process.env.NODE_ENV !== "production") {
           try {

@@ -801,7 +801,7 @@ export default function SettingsPage() {
                         Emotion analysis mode
                     </h2>
                     <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
-                        This mode is shared between Chat and History and is stored only in
+                        This mode is shared between Chat, History, and Settings and is stored only in
                         this browser.
                     </p>
 
@@ -819,7 +819,7 @@ export default function SettingsPage() {
                             {consentLabel}
                         </span>
 
-                        <span className="text-[11px] text-zinc-400">
+                        <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] text-zinc-300">
                             Change this from the Chat page using the toggle.
                         </span>
                     </div>

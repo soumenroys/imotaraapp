@@ -80,6 +80,9 @@ export default function HistoryPage() {
                     <p className="text-xs text-zinc-400">
                       Timeline of how your conversations felt over time.
                     </p>
+                    <p className="text-[11px] text-zinc-500">
+                      Grouped by day (Today / Yesterday) to make patterns easier to spot.
+                    </p>
                     {/* Data controls hint – mirrors Chat header tone */}
                     <p className="mt-1 text-[11px] text-zinc-500">
                       You can sync and review conflicts here, and{" "}
@@ -163,14 +166,20 @@ export default function HistoryPage() {
                 </p>
                 {/* Guidance hint for teens – no functional change */}
                 <p className="text-[11px] text-zinc-500">
-                  Each entry below represents a moment from your conversations.
-                  You can open items to see more detail or jump back into Chat
+                  Each entry below represents a moment from your conversations. You can open items to see more
+                  detail or jump back into{" "}
+                  <Link
+                    href="/chat"
+                    className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300"
+                  >
+                    Chat
+                  </Link>{" "}
                   from linked messages.
                 </p>
               </div>
 
               {/* Main history card */}
-              <div className="imotara-glass-soft rounded-2xl px-4 py-5 sm:px-5 sm:py-6">
+              <div className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                 <EmotionHistory />
               </div>
 

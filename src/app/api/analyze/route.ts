@@ -36,6 +36,9 @@ import type {
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { buildToneContextPromptSnippet } from "@/lib/imotara/promptProfile";
 
+// Response behavior blueprint (design hook; no output change yet)
+import { getResponseBlueprint } from "@/lib/ai/response/getResponseBlueprint";
+
 // ---- NEW: Optional tone context (client-provided) ----
 type ToneGender = "female" | "male" | "nonbinary" | "prefer_not" | "other";
 type ToneAgeRange =
@@ -184,6 +187,10 @@ type ImotaraAIDeepInsight = {
   intensity?: number; // 0–1
   secondary_emotions?: string[];
   reflection?: string;
+
+  // NEW: reflection seed prompts for a separate UI card
+  reflection_seeds?: string[]; // 0–2 short prompts
+
   safety_note?: string;
 };
 
@@ -196,6 +203,17 @@ export async function POST(req: Request) {
     // NEW: Tone context (optional) + mapped hints
     const toneContext = body?.toneContext;
     const toneHints = deriveToneHints(toneContext);
+
+    // Response blueprint (design hook only; do not change outputs yet)
+    const responseBlueprint = getResponseBlueprint();
+
+    // Soft structure hint (internal, prompt-only)
+    const structureHint =
+      responseBlueprint.structureLevel <= 2
+        ? "Prefer a free-flowing, conversational style."
+        : responseBlueprint.structureLevel >= 4
+          ? "Prefer a gently structured response, but without headings."
+          : "Balance natural flow with light internal structure.";
 
     // ---------------- Tone mapping (tone-only, no roleplay) ----------------
     function deriveToneHints(toneContext: any): string {
@@ -335,6 +353,9 @@ export async function POST(req: Request) {
     // Optional AI enrichment: only if an AI key is configured.
     // If AI is disabled or fails, the above stub texts remain.
     // ---------------------------------------------------------
+    // ✅ ADD this before try so it is in scope for `result`
+    let reflectionSeeds: string[] = [];
+
     try {
       // Take only the most recent messages for AI context, within the
       // chosen window and capped by MAX_MESSAGES_FOR_AI.
@@ -390,6 +411,7 @@ export async function POST(req: Request) {
           '  "intensity": number,        // 0.0–1.0, how strong the feeling seems overall',
           '  "secondary_emotions": string[],',
           '  "reflection": string,       // 1–3 sentences, gentle supportive response',
+          '  "reflection_seeds": string[], // 0–2 short prompts for a separate Reflection Seed Card',
           '  "safety_note": string       // empty string if no specific safety concern',
           "}",
           "",
@@ -397,11 +419,12 @@ export async function POST(req: Request) {
           "- Do NOT include any text before or after the JSON.",
           "- Do NOT give medical or crisis advice.",
           "- Avoid clinical wording; sound like a kind, grounded friend.",
+          "- Avoid explicit headings like 'Summary', 'Steps', 'Next steps'. Keep it natural.",
+          "- Keep the reflection supportive and brief (1–3 sentences).",
+          structureHint,
         ].join("\n");
 
-        const finalPrompt = toneHints
-          ? `${toneHints}\n\n${prompt}`
-          : prompt;
+        const finalPrompt = toneHints ? `${toneHints}\n\n${prompt}` : prompt;
 
         const ai = await callImotaraAI(finalPrompt, {
           maxTokens: 260,
@@ -420,6 +443,7 @@ export async function POST(req: Request) {
           // Try to parse the JSON. If it fails, we gracefully fall back
           // to using the raw text as a reflection.
           let parsed: ImotaraAIDeepInsight | null = null;
+
           try {
             parsed = JSON.parse(ai.text) as ImotaraAIDeepInsight;
           } catch (e) {
@@ -438,14 +462,21 @@ export async function POST(req: Request) {
                 : "";
 
             const trimmedReflection =
-              typeof parsed.reflection === "string"
-                ? parsed.reflection.trim()
-                : "";
+              typeof parsed.reflection === "string" ? parsed.reflection.trim() : "";
 
             const safetyNote =
-              typeof parsed.safety_note === "string"
-                ? parsed.safety_note.trim()
-                : "";
+              typeof parsed.safety_note === "string" ? parsed.safety_note.trim() : "";
+
+            // ✅ ASSIGN to the outer variable (do NOT redeclare)
+            reflectionSeeds =
+              responseBlueprint.reflectionSeedCard.enabled &&
+                Array.isArray(parsed.reflection_seeds)
+                ? parsed.reflection_seeds
+                  .filter((x) => typeof x === "string")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+                  .slice(0, responseBlueprint.reflectionSeedCard.maxPrompts)
+                : [];
 
             // Use AI summary if available; otherwise keep default headline.
             if (trimmedSummary) {
@@ -507,8 +538,6 @@ export async function POST(req: Request) {
                 : 0.4;
 
             // Build a simple averages map:
-            // - main emotion gets "intensity"
-            // - neutral gets the remaining "calm" space if dominant isn't neutral
             snapshotAverages = { [snapshotDominant]: intensity };
             if (snapshotDominant !== "neutral") {
               snapshotAverages.neutral = Math.max(0, 1 - intensity);
@@ -563,6 +592,17 @@ export async function POST(req: Request) {
           relatedIds: perMessage.slice(-1).map((x) => x.id),
         },
       ],
+
+      ...(reflectionSeeds.length > 0
+        ? {
+          reflectionSeedCard: {
+            prompts: reflectionSeeds,
+            createdAt: now,
+            relatedIds: perMessage.slice(-1).map((x) => x.id),
+          },
+        }
+        : {}),
+
       computedAt: now,
     };
 

@@ -1393,6 +1393,45 @@ export default function ChatPage() {
                 <div className="imotara-glass-card p-4">
                   <MoodSummaryCard messages={appMessages} windowSize={10} mode="local" />
                 </div>
+
+                {/* Reflection Seed Card (quiet prompts; optional) */}
+                {analysis?.reflectionSeedCard?.prompts?.length ? (
+                  <div className="imotara-glass-card p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-50">Reflection seeds</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-400">
+                          If you want, pick one to reflect on — no pressure.
+                        </p>
+                      </div>
+
+                      <span className="rounded-full border border-white/15 bg-black/30 px-2.5 py-1 text-[11px] text-zinc-300">
+                        Optional
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {analysis.reflectionSeedCard.prompts.map((p, i) => (
+                        <button
+                          key={`${i}-${p}`}
+                          type="button"
+                          onClick={() => {
+                            const next = p.trim();
+                            if (!next) return;
+                            setDraft((prev) => (prev?.trim() ? `${prev}\n\n${next}` : next));
+                            // keep it tiny: no auto-send, just helps start writing
+                            setTimeout(() => composerRef.current?.focus(), 0);
+                          }}
+                          className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-left text-[12px] text-zinc-100 shadow-sm transition hover:bg-white/10 hover:brightness-110"
+                          title="Add to composer"
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 {activeThread.messages.map((m) => (
                   <Bubble
                     key={m.id}

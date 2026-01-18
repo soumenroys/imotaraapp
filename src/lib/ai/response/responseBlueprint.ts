@@ -59,6 +59,28 @@ export type ResponseBlueprint = {
     };
 };
 
+// ---- Canonical Imotara Response Contract (Platform-agnostic) ----
+
+export type ReflectionIntent = "reflect" | "clarify" | "reframe";
+
+export interface ReflectionSeed {
+    title: string; // short label shown to user
+    prompt: string; // 1-line reflective prompt
+    intent: ReflectionIntent;
+}
+
+export interface ImotaraResponse {
+    reflectionSeed?: ReflectionSeed;
+    message: string;
+    followUp?: string;
+
+    // Contract versions (optional for backward compatibility)
+    meta?: {
+        styleContract: "1.0";
+        blueprint: "1.0";
+    };
+}
+
 export const DEFAULT_RESPONSE_BLUEPRINT: ResponseBlueprint = {
     version: "v1",
     tone: "calm",

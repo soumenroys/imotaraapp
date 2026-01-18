@@ -22,6 +22,7 @@ import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import type { AnalysisResult } from "@/types/analysis";
 import { runLocalAnalysis } from "@/lib/imotara/runLocalAnalysis";
 import { runAnalysisWithConsent } from "@/lib/imotara/runAnalysisWithConsent";
+import { runRespondWithConsent } from "@/lib/imotara/runRespondWithConsent";
 import { saveSample } from "@/lib/imotara/history";
 import type { Emotion } from "@/types/history";
 import TopBar from "@/components/imotara/TopBar";
@@ -29,6 +30,8 @@ import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
 import ReplyOriginBadge from "@/components/imotara/ReplyOriginBadge";
 import { getChatToneCopy } from "@/lib/imotara/chatTone";
 import { adaptReflectionTone } from "@/lib/imotara/reflectionTone";
+import { getReflectionSeedCard } from "@/lib/imotara/reflectionSeedContract";
+import type { ReflectionSeed } from "@/lib/ai/response/responseBlueprint";
 
 type Role = "user" | "assistant" | "system";
 type DebugEmotionSource = "analysis" | "fallback" | "unknown";
@@ -42,6 +45,15 @@ type Message = {
   debugEmotion?: string;
   debugEmotionSource?: DebugEmotionSource;
   replySource?: "openai" | "fallback";
+
+  // ✅ NEW: parity response metadata (from /api/respond)
+  reflectionSeed?: ReflectionSeed;
+  followUp?: string;
+
+  // ✅ Debug/diagnostics metadata (optional; report-only)
+  meta?: {
+    compatibility?: any;
+  };
 };
 
 type Thread = {
@@ -328,6 +340,7 @@ export default function ChatPage() {
   const [showHeaderDetails, setShowHeaderDetails] = useState(false);
 
   const { mode } = useAnalysisConsent();
+  const remoteAllowed = mode === "allow-remote";
   const consentLabel =
     mode === "allow-remote" ? "Remote analysis allowed" : "On-device only";
   const chatTone = useMemo(() => getChatToneCopy(), []);
@@ -469,7 +482,7 @@ export default function ChatPage() {
     return msgs.filter(isAppMessage);
   }, [activeThread?.messages]);
 
-  // analysis side-effect
+  // analysis side-effect (AnalysisResult stays on analysis pipeline)
   useEffect(() => {
     if (!mounted) return;
     const msgs = activeThread?.messages ?? [];
@@ -481,9 +494,9 @@ export default function ChatPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await runAnalysisWithConsent(msgs, 10);
+        const res = (await runAnalysisWithConsent(msgs, 10)) as AnalysisResult | null;
         if (!cancelled) {
-          setAnalysis(res as AnalysisResult);
+          setAnalysis(res);
           console.log("[imotara] analysis:", res?.summary?.headline, res);
         }
       } catch (err) {
@@ -535,8 +548,12 @@ export default function ChatPage() {
     if (!activeThread?.messages?.length) return;
     setAnalyzing(true);
     try {
-      const res = await runAnalysisWithConsent(activeThread.messages, 10);
-      setAnalysis(res as AnalysisResult);
+      const res = (await runAnalysisWithConsent(
+        activeThread.messages,
+        10
+      )) as AnalysisResult | null;
+
+      setAnalysis(res);
       console.log("[imotara] manual analysis:", res?.summary?.headline, res);
     } catch (err) {
       console.error("[imotara] manual analysis failed:", err);
@@ -702,48 +719,33 @@ export default function ChatPage() {
 
       let aiReply: string | null = null;
       let aiMetaFrom: string | null = null; // "openai" | "fallback" | "disabled" | "error" (server-defined)
+      let reflectionSeed: ReflectionSeed | undefined;
+      let followUp: string | undefined;
+      let compatibility: any | undefined;
 
-      if (mode === "allow-remote" && ANALYSIS_IMPL === "api") {
+      if (remoteAllowed && ANALYSIS_IMPL === "api") {
         try {
-          const recentForApi = msgsForAnalysis.slice(-6).map((m) => ({
-            role: m.role,
-            content: m.content,
-          }));
+          const resp = await runRespondWithConsent(
+            // last user message
+            msgsForAnalysis[msgsForAnalysis.length - 1]?.content ?? "",
+            remoteAllowed,
+            { threadId }
+          );
 
-          const emotionHint =
-            typeof debugEmotion === "string" && debugEmotion.trim().length > 0
-              ? debugEmotion
-              : "";
+          const text = (resp?.message ?? "").toString().trim();
+          if (text) {
+            aiReply = text;
+            reflectionSeed = resp.reflectionSeed;
+            followUp = resp.followUp;
 
-          const aiRes = await fetch("/api/chat-reply", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              messages: recentForApi,
-              emotion: emotionHint,
-            }),
-          });
+            // ✅ Compatibility Gate (report-only): capture meta if present
+            compatibility = (resp as any)?.meta?.compatibility ?? (resp as any)?.response?.meta?.compatibility;
 
-          if (aiRes.ok) {
-            const data = await aiRes.json();
-
-            // capture meta.from if provided by /api/chat-reply
-            aiMetaFrom = (data?.meta?.from ?? data?.from ?? null)
-              ? String(data?.meta?.from ?? data?.from)
-              : null;
-
-            // Be tolerant about response shape: accept text/reply/message
-            const text = (data?.text ?? data?.reply ?? data?.message ?? "")
-              .toString()
-              .trim();
-
-            if (text) {
-              aiReply = text;
-              console.log("[imotara] using remote AI reply:", text.slice(0, 120));
-            }
+            aiMetaFrom = "openai";
+            console.log("[imotara] using /api/respond reply:", text.slice(0, 120));
           }
         } catch (err) {
-          console.warn("[imotara] AI chat reply failed, falling back:", err);
+          console.warn("[imotara] /api/respond failed, falling back:", err);
         }
       }
 
@@ -757,6 +759,13 @@ export default function ChatPage() {
           debugEmotion,
           debugEmotionSource,
           replySource: aiMetaFrom === "openai" ? "openai" : "fallback",
+
+          // ✅ NEW: parity metadata from /api/respond
+          reflectionSeed,
+          followUp,
+
+          // ✅ Debug/diagnostics metadata (optional; report-only)
+          meta: compatibility ? { compatibility } : undefined,
         };
 
         setThreads((prev) =>
@@ -1291,9 +1300,45 @@ export default function ChatPage() {
 
                           <p className="mt-3 text-[11px] leading-5 text-zinc-400">
                             {ANALYSIS_IMPL === "api"
-                              ? "Engine: Cloud AI via /api/analyze (used only when remote analysis is allowed)."
+                              ? "Engine: Cloud AI via /api/respond (parity endpoint for Web/iOS/Android)."
                               : "Engine: On-device analysis only. Remote AI is disabled in this build."}
                           </p>
+
+                          {/* Compatibility Gate (report-only): Debug UI surface */}
+                          {(() => {
+                            const compat =
+                              (analysis as any)?.response?.meta?.compatibility ??
+                              (analysis as any)?.meta?.compatibility;
+
+                            if (!compat) return null;
+
+                            const summary =
+                              typeof compat?.summary === "string"
+                                ? compat.summary
+                                : compat?.ok === true
+                                  ? "OK"
+                                  : "NOT OK";
+
+                            return (
+                              <>
+                                <div className="mt-3 h-px w-full bg-white/10" />
+                                <div className="mt-3">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-300">
+                                      Compatibility Gate
+                                    </div>
+                                    <div className="text-[11px] text-zinc-200">
+                                      {summary}
+                                    </div>
+                                  </div>
+
+                                  <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-black/30 p-3 text-[11px] text-zinc-200">
+                                    {JSON.stringify(compat, null, 2)}
+                                  </pre>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}
@@ -1445,6 +1490,9 @@ export default function ChatPage() {
                         }
                         : undefined
                     }
+                    reflectionSeed={m.reflectionSeed}
+                    followUp={m.followUp}
+                    meta={m.meta}
                   />
                 ))}
               </div>
@@ -1503,6 +1551,9 @@ function Bubble({
   debugEmotion,
   debugEmotionSource,
   replySource,
+  reflectionSeed,
+  followUp,
+  meta,
 }: {
   id: string;
   role: Role;
@@ -1514,8 +1565,15 @@ function Bubble({
   debugEmotion?: string;
   debugEmotionSource?: DebugEmotionSource;
   replySource?: "openai" | "fallback";
+  reflectionSeed?: ReflectionSeed;
+  followUp?: string;
+  meta?: { compatibility?: any };
 }) {
   const isUser = role === "user";
+
+  const seed = !isUser
+    ? getReflectionSeedCard({ message: content, reflectionSeed } as any)
+    : null;
 
   const assistantBase = [
     "relative",
@@ -1584,13 +1642,48 @@ function Bubble({
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
     >
       <div className={bubbleClass}>
+        {!isUser && seed ? (
+          <div className="mb-2 rounded-2xl border border-white/15 bg-black/30 px-3 py-2 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[12px] font-semibold text-zinc-100">{seed.title}</p>
+              <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-300">
+                {seed.label}
+              </span>
+            </div>
+            <p className="mt-1 text-[12px] leading-relaxed text-zinc-200/90">
+              {seed.prompt}
+            </p>
+          </div>
+        ) : null}
+
         <div className="whitespace-pre-wrap">{content}</div>
+        {role === "assistant" && followUp?.trim() ? (
+          <div className="mt-2 text-sm text-zinc-200/90">
+            {followUp.trim()}
+          </div>
+        ) : null}
 
         <div
           className={`mt-1 text-[11px] ${isUser ? "text-zinc-100/80" : "text-zinc-300"
             }`}
         >
           <DateText ts={time} /> · {isUser ? "You" : "Imotara"}
+          {!isUser && meta?.compatibility ? (
+            <span
+              className={[
+                "ml-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px]",
+                meta.compatibility.ok === true
+                  ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"
+                  : "border-rose-400/40 bg-rose-400/10 text-rose-100",
+              ].join(" ")}
+            >
+              {typeof meta.compatibility.summary === "string"
+                ? meta.compatibility.summary
+                : meta.compatibility.ok === true
+                  ? "OK"
+                  : "Issues"}
+            </span>
+          ) : null}
           {isUser && sessionId ? (
             <>
               {" · "}

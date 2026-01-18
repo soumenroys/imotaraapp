@@ -78,6 +78,9 @@ export interface ImotaraResponse {
     meta?: {
         styleContract: "1.0";
         blueprint: "1.0";
+
+        // Debug / compatibility inspection (server-added; clients may ignore)
+        blueprintUsed?: ResponseBlueprint;
     };
 }
 

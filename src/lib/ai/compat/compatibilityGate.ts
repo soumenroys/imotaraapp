@@ -67,6 +67,15 @@ export function compatibilityGate(resp: ImotaraResponse): CompatReport {
         if (meta.blueprint !== "1.0") {
             issues.push({ code: "wrong_blueprint", detail: `blueprint=${String(meta.blueprint)}` });
         }
+
+        // ✅ Baby Step 11.2 — make tone enforcement measurable
+        // Expect the response layer to echo applied tone choices here.
+        if (!meta.toneEcho) {
+            issues.push({
+                code: "missing_meta",
+                detail: "meta.toneEcho is missing (cannot verify companion/age/gender tone application)",
+            });
+        }
     }
 
     return { ok: issues.length === 0, issues };

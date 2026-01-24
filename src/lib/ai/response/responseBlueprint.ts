@@ -81,6 +81,19 @@ export interface ImotaraResponse {
 
         // Debug / compatibility inspection (server-added; clients may ignore)
         blueprintUsed?: ResponseBlueprint;
+
+        // Phase 4 — QA-only soft enforcement notes
+        // (Clients should ignore; never show raw notes to end users.)
+        softEnforcement?: {
+            message?: {
+                severity: "none" | "low";
+                notes: string[];
+            };
+            followUp?: {
+                severity: "none" | "low";
+                notes: string[];
+            };
+        };
     };
 }
 

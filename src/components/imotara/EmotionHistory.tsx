@@ -36,6 +36,9 @@ import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
 
 import { AlertTriangle } from "lucide-react";
 
+// Public release: hide remote sync controls until fully stable
+const ENABLE_REMOTE_SYNC = false;
+
 // Friendly emoji/label maps for both classic + AI-expanded emotions
 const EMOJI: Record<string, string> = {
   joy: "😊",
@@ -1326,182 +1329,187 @@ export default function EmotionHistory() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-          <button
-            onClick={manualSync}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
-            title="Force pull & merge now"
-          >
-            Sync now
-          </button>
+          {ENABLE_REMOTE_SYNC ? (
+            <>
+              <button
+                onClick={manualSync}
+                className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+                title="Force pull & merge now"
+              >
+                Sync now
+              </button>
 
-          <button
-            onClick={async () => {
-              // Offline-safe push pending
-              if (
-                typeof window !== "undefined" &&
-                typeof navigator !== "undefined" &&
-                !navigator.onLine
-              ) {
-                setIsOffline(true);
-                autoRetryRef.current = true;
-                setPushInfo(
-                  "Offline — pending changes will stay queued locally and be pushed when you’re back online."
-                );
-                return;
-              }
+              <button
+                onClick={async () => {
+                  // Offline-safe push pending
+                  if (
+                    typeof window !== "undefined" &&
+                    typeof navigator !== "undefined" &&
+                    !navigator.onLine
+                  ) {
+                    setIsOffline(true);
+                    autoRetryRef.current = true;
+                    setPushInfo(
+                      "Offline — pending changes will stay queued locally and be pushed when you’re back online."
+                    );
+                    return;
+                  }
 
-              try {
-                setPushInfo("Pushing pending…");
-                const res: any = await pushPendingToApi();
-                const attempted = Number(res?.attempted ?? 0);
-                const accepted = Array.isArray(res?.acceptedIds)
-                  ? res.acceptedIds.length
-                  : Number(res?.accepted ?? res?.acceptedCount ?? 0);
-                const rejected = Array.isArray(res?.rejected)
-                  ? res.rejected.length
-                  : Number(res?.rejected ?? res?.rejectedCount ?? 0);
+                  try {
+                    setPushInfo("Pushing pending…");
+                    const res: any = await pushPendingToApi();
+                    const attempted = Number(res?.attempted ?? 0);
+                    const accepted = Array.isArray(res?.acceptedIds)
+                      ? res.acceptedIds.length
+                      : Number(res?.accepted ?? res?.acceptedCount ?? 0);
+                    const rejected = Array.isArray(res?.rejected)
+                      ? res.rejected.length
+                      : Number(res?.rejected ?? res?.rejectedCount ?? 0);
 
-                setPushInfo(
-                  `Pending push: attempted ${attempted}; accepted ${accepted}${rejected ? `, rejected ${rejected}` : ""
-                  }`
-                );
+                    setPushInfo(
+                      `Pending push: attempted ${attempted}; accepted ${accepted}${rejected ? `, rejected ${rejected}` : ""
+                      }`
+                    );
 
-                const latest = await getHistory();
-                setPendingCount(computePending(latest).length);
+                    const latest = await getHistory();
+                    setPendingCount(computePending(latest).length);
 
-                // ensure UI reflects server state immediately
-                await manualSync();
-              } catch (err: any) {
-                setPushInfo(
-                  `Push pending failed: ${String(err?.message ?? err)}`
-                );
-              }
-            }}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
-            title="Push only changed/new records"
-          >
-            {`Push pending${pendingCount ? ` (${pendingCount})` : ""}`}
-          </button>
+                    // ensure UI reflects server state immediately
+                    await manualSync();
+                  } catch (err: any) {
+                    setPushInfo(`Push pending failed: ${String(err?.message ?? err)}`);
+                  }
+                }}
+                className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+                title="Push only changed/new records"
+              >
+                {`Push pending${pendingCount ? ` (${pendingCount})` : ""}`}
+              </button>
 
-          <button
-            onClick={async () => {
-              // Offline-safe push all
-              if (
-                typeof window !== "undefined" &&
-                typeof navigator !== "undefined" &&
-                !navigator.onLine
-              ) {
-                setIsOffline(true);
-                autoRetryRef.current = true;
-                setPushInfo(
-                  "Offline — all local records will be pushed when you’re back online."
-                );
-                return;
-              }
+              <button
+                onClick={async () => {
+                  // Offline-safe push all
+                  if (
+                    typeof window !== "undefined" &&
+                    typeof navigator !== "undefined" &&
+                    !navigator.onLine
+                  ) {
+                    setIsOffline(true);
+                    autoRetryRef.current = true;
+                    setPushInfo(
+                      "Offline — all local records will be pushed when you’re back online."
+                    );
+                    return;
+                  }
 
-              try {
-                setPushInfo("Pushing all…");
-                const res: any = await pushAllLocalToApi();
-                const attempted = Number(res?.attempted ?? 0);
-                const accepted = Array.isArray(res?.acceptedIds)
-                  ? res.acceptedIds.length
-                  : Number(res?.accepted ?? 0);
-                const rejectedLen = Array.isArray(res?.rejected)
-                  ? res.rejected.length
-                  : Number(res?.rejected ?? 0);
+                  try {
+                    setPushInfo("Pushing all…");
+                    const res: any = await pushAllLocalToApi();
+                    const attempted = Number(res?.attempted ?? 0);
+                    const accepted = Array.isArray(res?.acceptedIds)
+                      ? res.acceptedIds.length
+                      : Number(res?.accepted ?? 0);
+                    const rejectedLen = Array.isArray(res?.rejected)
+                      ? res.rejected.length
+                      : Number(res?.rejected ?? 0);
 
-                setPushInfo(
-                  `Pushed ${attempted}; accepted ${accepted}${rejectedLen ? `, rejected ${rejectedLen}` : ""
-                  }`
-                );
+                    setPushInfo(
+                      `Pushed ${attempted}; accepted ${accepted}${rejectedLen ? `, rejected ${rejectedLen}` : ""
+                      }`
+                    );
 
-                const latest = await getHistory();
-                setPendingCount(computePending(latest).length);
+                    const latest = await getHistory();
+                    setPendingCount(computePending(latest).length);
 
-                // ensure UI reflects server state immediately
-                await manualSync();
-              } catch (err: any) {
-                setPushInfo(`Push all failed: ${String(err?.message ?? err)}`);
-              }
-            }}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
-            title="Push all local records to server"
-          >
-            Push all
-          </button>
+                    // ensure UI reflects server state immediately
+                    await manualSync();
+                  } catch (err: any) {
+                    setPushInfo(`Push all failed: ${String(err?.message ?? err)}`);
+                  }
+                }}
+                className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+                title="Push all local records to server"
+              >
+                Push all
+              </button>
 
-          {/* NEW: Retry queued conflicts (default prefers remote) */}
-          <button
-            onClick={async () => {
-              try {
-                const { applied, remaining } = await retryQueuedConflicts(
-                  "prefer-remote"
-                );
-                setPushInfo(
-                  `Conflict retry: applied ${applied}${remaining ? `; remaining ${remaining}` : ""
-                  }`
-                );
-                await manualSync();
-              } catch (err: any) {
-                setPushInfo(
-                  `Retry queued failed: ${String(err?.message ?? err)}`
-                );
-              }
-            }}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
-            title="Apply queued conflict resolutions (prefer remote)"
-          >
-            Retry queued
-          </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const { applied, remaining } = await retryQueuedConflicts(
+                      "prefer-remote"
+                    );
+                    setPushInfo(
+                      `Conflict retry: applied ${applied}${remaining ? `; remaining ${remaining}` : ""
+                      }`
+                    );
+                    await manualSync();
+                  } catch (err: any) {
+                    setPushInfo(`Retry queued failed: ${String(err?.message ?? err)}`);
+                  }
+                }}
+                className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+                title="Apply queued conflict resolutions (prefer remote)"
+              >
+                Retry queued
+              </button>
 
-          <button
-            onClick={async () => {
-              // Offline-safe API check
-              if (
-                typeof window !== "undefined" &&
-                typeof navigator !== "undefined" &&
-                !navigator.onLine
-              ) {
-                setIsOffline(true);
-                setApiInfo("Offline — cannot reach /api/history right now.");
-                return;
-              }
+              <button
+                onClick={async () => {
+                  // Offline-safe API check
+                  if (
+                    typeof window !== "undefined" &&
+                    typeof navigator !== "undefined" &&
+                    !navigator.onLine
+                  ) {
+                    setIsOffline(true);
+                    setApiInfo("Offline — cannot reach /api/history right now.");
+                    return;
+                  }
 
-              try {
-                setApiInfo("Checking…");
-                const res = await fetch("/api/history", { method: "GET" });
-                const json = await res.json().catch(() => ({}));
-                if (Array.isArray(json)) {
-                  setApiInfo(
-                    `GET /api/history returned array: length=${json.length}`
-                  );
-                } else if (json && typeof json === "object" && "records" in json) {
-                  const recs = Array.isArray((json as any).records)
-                    ? (json as any).records
-                    : [];
-                  setApiInfo(
-                    `GET /api/history envelope: records=${recs.length}, serverTs=${(json as any).serverTs ?? "—"
-                    }`
-                  );
-                } else {
-                  setApiInfo(
-                    `GET /api/history unexpected shape: ${JSON.stringify(json).slice(
-                      0,
-                      200
-                    )}…`
-                  );
-                }
-              } catch (err: any) {
-                setApiInfo(`API check failed: ${String(err?.message ?? err)}`);
-              }
-            }}
-            className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-md hover:bg-white/20 dark:text-zinc-100"
-            title="Ping GET /api/history to verify API shape/availability"
-          >
-            Check API
-          </button>
+                  try {
+                    setApiInfo("Checking…");
+                    const res = await fetch("/api/history", { method: "GET" });
+                    const json = await res.json().catch(() => ({}));
+                    if (Array.isArray(json)) {
+                      setApiInfo(`GET /api/history returned array: length=${json.length}`);
+                    } else if (json && typeof json === "object" && "records" in json) {
+                      const recs = Array.isArray((json as any).records)
+                        ? (json as any).records
+                        : [];
+                      setApiInfo(
+                        `GET /api/history envelope: records=${recs.length}, serverTs=${(json as any).serverTs ?? "—"
+                        }`
+                      );
+                    } else {
+                      setApiInfo(
+                        `GET /api/history unexpected shape: ${JSON.stringify(json).slice(
+                          0,
+                          200
+                        )}…`
+                      );
+                    }
+                  } catch (err: any) {
+                    setApiInfo(`API check failed: ${String(err?.message ?? err)}`);
+                  }
+                }}
+                className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-md hover:bg-white/20 dark:text-zinc-100"
+                title="Ping GET /api/history to verify API shape/availability"
+              >
+                Check API
+              </button>
+            </>
+          ) : (
+            // Public release: show a small, non-clickable indicator instead of remote controls
+            <span
+              className="rounded-2xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400"
+              title="Remote sync controls are temporarily hidden for public release"
+            >
+              Remote sync hidden
+            </span>
+          )}
 
-          {/* Export buttons (JSON + CSV) for current filtered list */}
+          {/* Export buttons + local demo are safe to keep */}
           <button
             onClick={() => {
               const data = filteredItems;
@@ -1579,7 +1587,6 @@ export default function EmotionHistory() {
             Export CSV
           </button>
 
-          {/* quick local test record */}
           <button
             onClick={addDemo}
             className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
@@ -1588,7 +1595,6 @@ export default function EmotionHistory() {
             Add demo
           </button>
 
-          {/* subtle link to seed page */}
           <span className="text-zinc-300/70 dark:text-zinc-700">•</span>
           <a
             href="/dev/seed"

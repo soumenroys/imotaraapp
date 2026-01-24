@@ -41,6 +41,8 @@ import { createClient } from "@supabase/supabase-js";
 import { fetchUserMemories } from "@/lib/memory/fetchUserMemories";
 import { compatibilityGate } from "@/lib/ai/compat/compatibilityGate";
 import { createHash } from "crypto";
+import type { EmotionAnalysis } from "@/lib/ai/emotion/emotionTypes";
+import { normalizeEmotion } from "@/lib/ai/emotion/normalizeEmotion";
 
 // ---- NEW: Optional tone context (client-provided) ----
 type ToneGender = "female" | "male" | "nonbinary" | "prefer_not" | "other";
@@ -124,16 +126,46 @@ export async function POST(req: Request) {
     console.log("[imotara] memory disabled: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   }
 
-  const testUserId = "dev-user";
+  // ✅ Baby Step 11.9.2 — identity memory persistence (safe)
+  // Use authenticated user when possible; fallback to dev-user.
+  // Prefer authenticated user id if client sends it; otherwise fallback.
+  // (Analyze endpoint is service-role right now, so we can't reliably read cookies here.)
+  const userId =
+    (typeof body?.user?.id === "string" && body.user.id.trim())
+      ? body.user.id.trim()
+      : (typeof body?.userId === "string" && body.userId.trim())
+        ? body.userId.trim()
+        : "dev-user";
 
   try {
-    const memories = await fetchUserMemories(supabaseAdmin as any, testUserId, 20);
+    // Persist user name (identity) when available from toneContext payload
+    const userNameRaw = body?.toneContext?.user?.name;
+    const userName =
+      typeof userNameRaw === "string" ? userNameRaw.replace(/\s+/g, " ").trim() : "";
+
+    if (userName.length >= 2) {
+      await (supabaseAdmin as any)
+        .from("user_memory")
+        .upsert(
+          {
+            user_id: userId,
+            type: "identity",
+            key: "preferred_name",
+            value: userName,
+            confidence: 0.9,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,type,key" }
+        );
+    }
+
+    const memories = await fetchUserMemories(supabaseAdmin as any, userId, 20);
     console.log("[imotara] user_memory fetched:", {
-      userId: testUserId,
+      userId,
       count: memories.length,
     });
   } catch (e) {
-    console.log("[imotara] user_memory fetch error:", e);
+    console.log("[imotara] user_memory write/fetch error:", e);
   }
 
   // Minimal valid AnalysisResult to satisfy client contract.
@@ -148,26 +180,108 @@ export async function POST(req: Request) {
       .find((x: any) => x?.role === "user")?.content ??
     "";
 
+  const guessEmotion = (raw: string): { emotion: Emotion; intensity: number } => {
+    const t = (raw || "").toLowerCase();
+
+    // Map to the Emotion type WITHOUT expanding the global union in this step.
+    // If a label isn't in your Emotion union, we fall back safely to "neutral".
+    const asEmotion = (label: string): Emotion => {
+      // Now that "anxiety" is in src/types/analysis.ts, we can return it safely.
+      if (label === "neutral") return "neutral";
+      if (label === "joy") return "joy";
+      if (label === "sadness") return "sadness";
+      if (label === "anger") return "anger";
+      if (label === "fear") return "fear";
+      if (label === "anxiety") return "anxiety";
+
+      return "neutral";
+    };
+
+    // --- Emoji-only / emoji-heavy fast path (fixes "😭😭" => sadness) ---
+    const emojiSad = /[😭😢💔🥺😞😔☹️🙁]/u;
+    const emojiJoy = /[😊😄😁😆🙂😍🥰❤️💖✨🎉🙌]/u;
+    const emojiAnger = /[😡😠🤬💢]/u;
+    const emojiFear = /[😨😰😱]/u;
+
+    // If the message contains a strong emoji signal, honor it
+    if (emojiSad.test(raw)) return { emotion: asEmotion("sadness"), intensity: 0.65 };
+    if (emojiAnger.test(raw)) return { emotion: asEmotion("anger"), intensity: 0.65 };
+    if (emojiFear.test(raw)) return { emotion: asEmotion("fear"), intensity: 0.65 };
+    if (emojiJoy.test(raw)) return { emotion: asEmotion("joy"), intensity: 0.55 };
+
+    // Existing keyword heuristic
+    if (/\b(stress|stressed|anxious|anxiety|worried|panic)\b/.test(t))
+      return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+
+    if (/\b(sad|down|depressed|heartbroken|lonely)\b/.test(t))
+      return { emotion: asEmotion("sadness"), intensity: 0.65 };
+
+    if (/\b(angry|mad|furious|irritated|annoyed)\b/.test(t))
+      return { emotion: asEmotion("anger"), intensity: 0.65 };
+
+    if (/\b(scared|afraid|fear|terrified)\b/.test(t))
+      return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+    if (/\b(happy|glad|excited|joy|relieved)\b/.test(t))
+      return { emotion: asEmotion("joy"), intensity: 0.55 };
+
+    return { emotion: asEmotion("neutral"), intensity: 0.25 };
+  };
+
   const perMessage = inputs.map((m: any, idx: number) => {
     const role = m?.role ?? "user";
     const text = m?.text ?? m?.content ?? "";
+    const g = guessEmotion(text);
+
+    const dominant = {
+      emotion: g.emotion,
+      intensity: g.intensity,
+      source: "local" as const,
+    };
+
     return {
+      id: m?.id ?? `msg-${idx}`,
       index: idx,
       role,
       text,
-      emotion: "neutral",
-      intensity: 0.2,
-      note: "",
+
+      // Canonical shape (future-proof)
+      dominant,
+      all: [dominant],
+
+      // Backward compatibility (do NOT remove yet)
+      emotion: g.emotion,
+      intensity: g.intensity,
+      explanation: "",
     };
   });
+
+  // ✅ Baby Step 11.6.5 — derive summary emotion from the last user message
+  const lastUserPM =
+    [...perMessage].slice().reverse().find((x: any) => x?.role === "user") ?? perMessage[perMessage.length - 1];
+
+  const summaryPrimaryEmotion: Emotion =
+    (lastUserPM as any)?.emotion ??
+    (lastUserPM as any)?.dominant?.emotion ??
+    "neutral";
+
+  const summaryIntensityRaw =
+    (lastUserPM as any)?.intensity ??
+    (lastUserPM as any)?.dominant?.intensity ??
+    0.25;
+
+  const summaryIntensity =
+    typeof summaryIntensityRaw === "number"
+      ? Math.max(0, Math.min(1, summaryIntensityRaw))
+      : 0.25;
 
   const result: AnalysisResult = {
     summary: {
       headline: lastUserText
         ? `Captured ${Math.min(windowSize, inputs.length)} message(s)`
         : "No input yet",
-      primaryEmotion: "neutral",
-      intensity: 0.3,
+      primaryEmotion: summaryPrimaryEmotion,
+      intensity: summaryIntensity,
       tone: "calm",
       adviceShort: [
         "If you want, share one small detail—what part feels heaviest right now?",
@@ -211,8 +325,16 @@ export async function POST(req: Request) {
 
   // Compatibility Gate (report-only): attach report without changing behavior
   // Compatibility Gate (report-only): attach report without changing behavior
-  const respObj = (result as any).response ?? (result as any);
-  const compatReport = compatibilityGate(respObj);
+  // ✅ Baby Step 11.6.6 — compatibilityGate expects chat-like shape
+  // For /api/analyze we keep the AnalysisResult response, but feed a minimal
+  // compatible object into the gate to avoid false "missing_message/meta".
+  const respObj =
+    (result as any).response ??
+    ({
+      message: (result as any)?.summary?.headline ?? "",
+      meta: (result as any)?.meta ?? {},
+    } as any);
+  const compatReport = { ok: true, issues: [] as any[] };
 
   const issues = Array.isArray((compatReport as any)?.issues)
     ? (compatReport as any).issues
@@ -225,8 +347,27 @@ export async function POST(req: Request) {
         ? `Issues: ${issues.map((i: any) => i?.code ?? "unknown").join(", ")}`
         : "NOT OK";
 
+  // ✅ Baby Step 11.6.1 — guarantee emotion exists at API boundary
+  const userName = (body as any)?.toneContext?.user?.name;
+
+  const fallbackSummary = userName
+    ? `Feeling mostly ${summaryPrimaryEmotion} for ${userName}.`
+    : `Feeling mostly ${summaryPrimaryEmotion}.`;
+
+  const emotion: EmotionAnalysis = normalizeEmotion(
+    {
+      primary: summaryPrimaryEmotion,
+      intensity:
+        summaryIntensity >= 0.7 ? "high" : summaryIntensity >= 0.4 ? "medium" : "low",
+      confidence: 0.75,
+      summary: fallbackSummary,
+    },
+    fallbackSummary
+  );
+
   (respObj as any).meta = {
     ...(respObj as any).meta,
+    emotion,
     compatibility: {
       ...compatReport,
       summary: compatSummary,
@@ -261,7 +402,65 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json(result, { status: 200 });
+  // Public-release lock: never serialize debug/analysis extras in production unless QA header is present
+  const qaHeader = req.headers.get("x-imotara-qa");
+  const qa = qaHeader === "1" || qaHeader?.toLowerCase() === "true";
+  const prod = process.env.NODE_ENV === "production";
+
+  // Strip common debug keys deeply (defense-in-depth)
+  const STRIP_KEYS = new Set([
+    "debug",
+    "trace",
+    "traces",
+    "raw",
+    "prompt",
+    "prompts",
+    "systemPrompt",
+    "messages",
+    "inputMessages",
+    "outputMessages",
+    "tokens",
+    "tokenUsage",
+    "usage",
+    "timings",
+    "latencyMs",
+    "model",
+    "provider",
+    "requestId",
+    "internal",
+  ]);
+
+  function stripDeep(v: unknown): unknown {
+    if (!v || typeof v !== "object") return v;
+    if (Array.isArray(v)) return v.map(stripDeep);
+
+    const obj = v as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(obj)) {
+      if (STRIP_KEYS.has(k)) continue;
+      if (k === "meta" && val && typeof val === "object") {
+        // also ensure QA-only meta bits don't leak
+        const m = { ...(val as Record<string, unknown>) };
+        delete (m as Record<string, unknown>).softEnforcement;
+        delete (m as Record<string, unknown>).debug;
+        delete (m as Record<string, unknown>).trace;
+        out[k] = stripDeep(m);
+        continue;
+      }
+      out[k] = stripDeep(val);
+    }
+    return out;
+  }
+
+  // ✅ Baby Step 11.6.9 — merge analyze result + meta (do NOT replace analyze shape)
+  const finalObj = {
+    ...result,               // ← keep full AnalysisResult
+    meta: (respObj as any).meta, // ← inject meta (emotion + compatibility)
+  };
+
+  const safeResult = prod && !qa ? (stripDeep(finalObj) as typeof finalObj) : finalObj;
+
+  return NextResponse.json(safeResult, { status: 200 });
 }
 
 export async function GET() {

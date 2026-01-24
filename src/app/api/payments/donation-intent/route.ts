@@ -8,8 +8,7 @@ const DONATION_ENABLED =
     (process.env.IMOTARA_DONATION_ENABLED || "").toLowerCase() === "true";
 
 type Body = {
-    amount: number; // paise
-    currency: string; // "inr"
+    presetId: "inr_49" | "inr_99" | "inr_199" | "inr_499" | "inr_999";
     purpose?: string;
     platform?: "mobile" | "web";
 };
@@ -31,24 +30,23 @@ export async function POST(req: Request) {
 
         assertEnv();
 
-        const body = (await req.json()) as Body;
-        const amount = body?.amount;
-        const currency = (body?.currency || "inr").toLowerCase();
+        // ✅ Server-authoritative donation presets (paise)
+        const DONATION_PRESETS: Record<Body["presetId"], number> = {
+            inr_49: 4900,
+            inr_99: 9900,
+            inr_199: 19900,
+            inr_499: 49900,
+            inr_999: 99900,
+        };
 
-        if (
-            typeof amount !== "number" ||
-            !Number.isFinite(amount) ||
-            amount <= 0
-        ) {
-            return NextResponse.json(
-                { ok: false, error: "Invalid amount." },
-                { status: 400 }
-            );
-        }
+        const body = (await req.json().catch(() => ({} as any))) as Partial<Body>;
 
-        if (currency !== "inr") {
+        const presetId = body?.presetId as Body["presetId"] | undefined;
+        const amount = presetId ? DONATION_PRESETS[presetId] : undefined;
+
+        if (!presetId || typeof amount !== "number") {
             return NextResponse.json(
-                { ok: false, error: "Only INR is supported." },
+                { ok: false, error: "Invalid donation preset." },
                 { status: 400 }
             );
         }

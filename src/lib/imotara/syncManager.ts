@@ -192,10 +192,7 @@ export async function runBidirectionalSync(
   summary.pushed = queue.length;
   onPatch?.({ pulled: summary.pulled, pushed: summary.pushed });
 
-  // 3) clear queue after successful push
-  clearQueue();
-
-  // 4) merge & persist
+  // 3) merge & persist
   const { merged, conflicts } = mergeRecords(local, serverChanges);
   summary.conflicts = conflicts.length;
   onPatch?.({ conflicts: conflicts.length });
@@ -203,12 +200,14 @@ export async function runBidirectionalSync(
   saveLocalHistory(merged);
   setLastSyncAt(Date.now());
 
+  // 4) clear queue only AFTER local state is safely persisted
+  clearQueue();
+
   summary.lastSuccessAt = Date.now();
   summary.phase = conflicts.length ? "resolving" : "done";
   onPatch?.({ lastSuccessAt: summary.lastSuccessAt, phase: summary.phase });
 
   // Final patch to settle in done
-  summary.phase = "done";
   onPatch?.({ phase: "done" });
 
   return summary;

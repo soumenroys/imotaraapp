@@ -18,6 +18,7 @@ export function middleware(req: NextRequest) {
         "/_debug",
         "/admin/dev",
         "/internal",
+        "/license-debug",
     ];
 
     if (blockedPrefixes.some((p) => pathname === p || pathname.startsWith(p + "/"))) {

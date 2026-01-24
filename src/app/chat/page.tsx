@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, type KeyboardEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   MessageSquare,
@@ -53,6 +53,7 @@ type Message = {
   // ✅ Debug/diagnostics metadata (optional; report-only)
   meta?: {
     compatibility?: any;
+    analysisSource?: "local" | "cloud";
   };
 };
 
@@ -64,6 +65,9 @@ type Thread = {
 };
 
 const STORAGE_KEY = "imotara.chat.v1";
+
+// Public release: hide remote sync controls until fully stable
+const ENABLE_REMOTE_SYNC = false;
 
 // Build-time analysis implementation mode
 const ANALYSIS_IMPL: "local" | "api" =
@@ -343,7 +347,23 @@ export default function ChatPage() {
   const remoteAllowed = mode === "allow-remote";
   const consentLabel =
     mode === "allow-remote" ? "Remote analysis allowed" : "On-device only";
-  const chatTone = useMemo(() => getChatToneCopy(), []);
+  // ✅ SSR-stable placeholder to avoid hydration mismatch
+  // Server render must NOT depend on localStorage / client-only settings.
+  const [composerPlaceholder, setComposerPlaceholder] = useState(
+    "Write what’s on your mind… (Enter to send, Shift+Enter for newline)"
+  );
+
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      const p = getChatToneCopy()?.placeholder;
+      if (typeof p === "string" && p.trim().length > 0) {
+        setComposerPlaceholder(p.trim());
+      }
+    } catch {
+      // keep default
+    }
+  }, [mounted]);
 
   // Load threads (client only)
   useEffect(() => {
@@ -716,11 +736,15 @@ export default function ChatPage() {
       } catch (err) {
         console.error("[imotara] reply analysis failed:", err);
       }
-
       let aiReply: string | null = null;
-      let aiMetaFrom: string | null = null; // "openai" | "fallback" | "disabled" | "error" (server-defined)
+      let aiMetaFrom: string | null = null;
       let reflectionSeed: ReflectionSeed | undefined;
       let followUp: string | undefined;
+
+      // ✅ MUST be declared before ANY conditional usage
+      let analysisSource: "local" | "cloud" | null = null;
+
+      // Optional diagnostics (report-only)
       let compatibility: any | undefined;
 
       if (remoteAllowed && ANALYSIS_IMPL === "api") {
@@ -729,7 +753,15 @@ export default function ChatPage() {
             // last user message
             msgsForAnalysis[msgsForAnalysis.length - 1]?.content ?? "",
             remoteAllowed,
-            { threadId }
+            {
+              threadId,
+
+              // ✅ Baby Step 9.2 — parity with mobile
+              recentMessages: msgsForAnalysis.slice(-6).map((m) => ({
+                role: m.role === "user" ? "user" : "assistant",
+                content: m.content,
+              })),
+            } as any
           );
 
           const text = (resp?.message ?? "").toString().trim();
@@ -739,7 +771,14 @@ export default function ChatPage() {
             followUp = resp.followUp;
 
             // ✅ Compatibility Gate (report-only): capture meta if present
-            compatibility = (resp as any)?.meta?.compatibility ?? (resp as any)?.response?.meta?.compatibility;
+            compatibility =
+              (resp as any)?.meta?.compatibility ??
+              (resp as any)?.response?.meta?.compatibility;
+
+            analysisSource =
+              ((resp as any)?.meta?.analysisSource ??
+                (resp as any)?.response?.meta?.analysisSource ??
+                null) as "local" | "cloud" | null;
 
             aiMetaFrom = "openai";
             console.log("[imotara] using /api/respond reply:", text.slice(0, 120));
@@ -765,7 +804,13 @@ export default function ChatPage() {
           followUp,
 
           // ✅ Debug/diagnostics metadata (optional; report-only)
-          meta: compatibility ? { compatibility } : undefined,
+          meta:
+            compatibility || analysisSource
+              ? {
+                ...(compatibility ? { compatibility } : {}),
+                ...(analysisSource !== null ? { analysisSource } : {}),
+              }
+              : undefined,
         };
 
         setThreads((prev) =>
@@ -998,7 +1043,7 @@ export default function ChatPage() {
     setDraft("");
   }
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+  function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -1197,16 +1242,23 @@ export default function ChatPage() {
                         </span>
                       </div>
 
-                      {/* Action button: Sync now */}
-                      <button
-                        onClick={runSync}
-                        disabled={syncing}
-                        className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-3 text-xs font-medium text-white backdrop-blur-sm transition hover:brightness-110 disabled:opacity-60"
-                        type="button"
-                      >
-                        <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
-                        Sync now
-                      </button>
+                      {/* Action button: Sync now (hidden for public release until stable) */}
+                      {ENABLE_REMOTE_SYNC ? (
+                        <button
+                          onClick={runSync}
+                          disabled={syncing}
+                          className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-3 text-xs font-medium text-white backdrop-blur-sm transition hover:brightness-110 disabled:opacity-60"
+                          type="button"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
+                          Sync now
+                        </button>
+                      ) : (
+                        // keep layout stable (3-column grid) without exposing broken control
+                        <span className="inline-flex h-7 w-full items-center justify-center rounded-full border border-white/10 bg-black/20 px-3 text-xs text-white/40">
+                          —
+                        </span>
+                      )}
 
                       {/* Status chip: Analysis mode */}
                       <div
@@ -1296,13 +1348,16 @@ export default function ChatPage() {
                             Your words stay on-device unless you explicitly allow remote.
                           </p>
 
-                          <div className="mt-3 h-px w-full bg-white/10" />
-
-                          <p className="mt-3 text-[11px] leading-5 text-zinc-400">
-                            {ANALYSIS_IMPL === "api"
-                              ? "Engine: Cloud AI via /api/respond (parity endpoint for Web/iOS/Android)."
-                              : "Engine: On-device analysis only. Remote AI is disabled in this build."}
-                          </p>
+                          {mounted &&
+                            typeof window !== "undefined" &&
+                            window.localStorage.getItem("imotaraQa") === "1" && (
+                              <>
+                                <div className="mt-3 h-px w-full bg-white/10" />
+                                <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+                                  Tip: You can switch between on-device and remote analysis anytime using the toggle above.
+                                </p>
+                              </>
+                            )}
 
                           {/* Compatibility Gate (report-only): Debug UI surface */}
                           {(() => {
@@ -1507,7 +1562,8 @@ export default function ChatPage() {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={onKeyDown}
-                placeholder={`${chatTone.placeholder} (Enter to send, Shift+Enter for newline)`}
+                placeholder={composerPlaceholder}
+                suppressHydrationWarning
                 rows={1}
                 className="max-h-[200px] flex-1 resize-none rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-indigo-400/70 focus:ring-1 focus:ring-indigo-500/60"
               />
@@ -1567,7 +1623,7 @@ function Bubble({
   replySource?: "openai" | "fallback";
   reflectionSeed?: ReflectionSeed;
   followUp?: string;
-  meta?: { compatibility?: any };
+  meta?: { compatibility?: any; analysisSource?: "local" | "cloud"; softEnforcement?: any };
 }) {
   const isUser = role === "user";
 
@@ -1627,7 +1683,9 @@ function Bubble({
     .join(" ");
 
   const showDebug =
-    role === "assistant" && (debugEmotion || debugEmotionSource || replySource);
+    process.env.NODE_ENV !== "production" &&
+    role === "assistant" &&
+    (debugEmotion || debugEmotionSource || replySource);
 
   const originForBadge =
     replySource === "openai"
@@ -1684,6 +1742,9 @@ function Bubble({
                   : "Issues"}
             </span>
           ) : null}
+          {!isUser && meta?.softEnforcement ? (
+            <SoftEnforcementNotes meta={meta} />
+          ) : null}
           {isUser && sessionId ? (
             <>
               {" · "}
@@ -1719,5 +1780,55 @@ function Bubble({
         )}
       </div>
     </div>
+  );
+}
+
+function SoftEnforcementNotes({ meta }: { meta: any }) {
+  const [qa] = useState(() => {
+    // Public-release lock: QA UI must never activate in production
+    if (process.env.NODE_ENV === "production") return false;
+    try {
+      return window.localStorage.getItem("imotaraQa") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  if (process.env.NODE_ENV === "production") return null;
+  if (!qa) return null;
+
+  const msgNotes: string[] = meta?.softEnforcement?.message?.notes ?? [];
+  const fuNotes: string[] = meta?.softEnforcement?.followUp?.notes ?? [];
+  const all = [
+    ...msgNotes.map((n) => `message: ${n}`),
+    ...fuNotes.map((n) => `followUp: ${n}`),
+  ];
+
+  if (!all.length) {
+    return (
+      <details className="ml-2 inline-block align-middle">
+        <summary className="cursor-pointer select-none text-[11px] text-zinc-400">
+          QA notes
+        </summary>
+        <div className="mt-1 rounded-xl border border-white/10 bg-black/30 px-2 py-1 text-[11px] text-zinc-300">
+          (none)
+        </div>
+      </details>
+    );
+  }
+
+  return (
+    <details className="ml-2 inline-block align-middle">
+      <summary className="cursor-pointer select-none text-[11px] text-amber-200/80">
+        QA notes
+      </summary>
+      <div className="mt-1 rounded-xl border border-white/10 bg-black/30 px-2 py-1 text-[11px] text-zinc-200">
+        <ul className="list-inside list-disc space-y-0.5">
+          {all.map((n, i) => (
+            <li key={i}>{n}</li>
+          ))}
+        </ul>
+      </div>
+    </details>
   );
 }

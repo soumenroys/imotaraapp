@@ -13,29 +13,39 @@ import type {
 // --- 1) Tiny word lists for a first-pass heuristic (local-only) ---
 const LEXICON: Record<Emotion, string[]> = {
   joy: [
-    "happy","glad","joy","delighted","great","awesome","love","loved","grateful",
-    "excited","relieved","proud","peaceful","calm","satisfied","content",
+    "happy", "glad", "joy", "delighted", "great", "awesome", "love", "loved", "grateful",
+    "excited", "relieved", "proud", "peaceful", "calm", "satisfied", "content",
+    "😊", "😄", "😁", "😆", "🙂", "😍", "🥰", "❤️", "💖", "✨", "🎉", "🙌",
   ],
   sadness: [
-    "sad","down","unhappy","depressed","lonely","cry","crying","upset","hurt",
-    "disappointed","gloomy","heartbroken","miserable",
+    "sad", "down", "unhappy", "depressed", "lonely", "cry", "crying", "upset", "hurt",
+    "disappointed", "gloomy", "heartbroken", "miserable",
+    "😢", "😭", "☹️", "🙁", "😞", "😔", "💔", "🥺", "😞",
   ],
   anger: [
-    "angry","mad","furious","annoyed","frustrated","irritated","rage","enraged",
-    "pissed","resent","hate","hated",
+    "angry", "mad", "furious", "annoyed", "frustrated", "irritated", "rage", "enraged",
+    "pissed", "resent", "hate", "hated",
+    "😡", "😠", "🤬", "💢",
   ],
   fear: [
-    "afraid","scared","fear","anxious","anxiety","worried","worry","nervous",
-    "terrified","panic","panicking","uncertain",
+    "afraid", "scared", "fear", "anxious", "anxiety", "worried", "worry", "nervous",
+    "terrified", "panic", "panicking", "uncertain",
+    "😨", "😰", "😱", "🫨",
   ],
   disgust: [
-    "disgust","gross","revolting","nauseated","repulsed","sickened","yuck","ew",
+    "disgust", "gross", "revolting", "nauseated", "repulsed", "sickened", "yuck", "ew",
   ],
   surprise: [
-    "surprised","shocked","wow","unexpected","amazed","astonished","suddenly",
+    "surprised", "shocked", "wow", "unexpected", "amazed", "astonished", "suddenly",
+    "😮", "😲", "🤯",
+  ],
+  anxiety: [
+    "anxious", "anxiety", "worried", "worry", "panic", "panicky", "nervous", "uneasy",
+    "stressed", "stress", "overwhelmed", "overwhelm", "burnt out", "burned out",
+    "😟", "😬", "🫠", "😰", "😨", "😥",
   ],
   neutral: [
-    // intentionally empty; used as fallback
+    "😐", "😑", "🫤",
   ],
 };
 
@@ -47,16 +57,41 @@ const POLARITY_WEIGHT: Record<Emotion, number> = {
   sadness: -1,
   anger: -0.9,
   fear: -0.8,
+  anxiety: -0.7,
   disgust: -0.9,
 };
 
 // --- 2) Helpers ---
 function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
+  const raw = String(text || "");
+  const lower = raw.toLowerCase();
+
+  // Normalize emoji variation selector (FE0F) so "☹️" and "☹" match consistently
+  const stripVS16 = (s: string) => s.replace(/\uFE0F/g, "");
+
+  // words (letters / numbers)
+  const wordTokens = stripVS16(lower)
     .replace(/[^\p{L}\p{N}\s']/gu, " ")
     .split(/\s+/)
     .filter(Boolean);
+
+  /**
+   * emojis:
+   * Prefer Extended_Pictographic when supported (more accurate),
+   * fallback to a range-based matcher if the runtime doesn’t support it.
+   */
+  let emojiTokensRaw: string[] = [];
+  try {
+    // Most modern runtimes support this and it catches 😭, ❤️, etc. reliably
+    emojiTokensRaw = raw.match(/\p{Extended_Pictographic}/gu) ?? [];
+  } catch {
+    // Fallback: broad emoji ranges (covers most emoji codepoints)
+    emojiTokensRaw = raw.match(/[\u{2600}-\u{27BF}\u{1F100}-\u{1FAFF}]/gu) ?? [];
+  }
+
+  const emojiTokens = emojiTokensRaw.map((e) => stripVS16(e));
+
+  return [...wordTokens, ...emojiTokens];
 }
 
 function scoreEmotion(tokens: string[], words: string[]): number {
@@ -135,7 +170,15 @@ function windowOf(inputs: AnalysisInput[], size: number) {
 
 // --- 3) Per-message analysis ---
 function analyzeMessage(msg: AnalysisInput): PerMessageAnalysis {
-  const raw = (msg.message ?? msg.text ?? "").trim();
+  // /api/analyze sends { role, content }
+  // older/local callers may send { message } or { text }
+  const raw = (
+    (msg as any).content ??
+    (msg as any).message ??
+    (msg as any).text ??
+    ""
+  ).trim();
+
   const tokens = tokenize(raw);
 
   const rawScores: Partial<Record<Emotion, number>> = {};

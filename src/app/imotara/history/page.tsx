@@ -11,12 +11,11 @@ import {
   getHistory,
   toChartSeries,
 } from "@/lib/imotara/history";
-import type { Emotion } from "@/types/analysis";
-import type { EmotionRecord } from "@/types/history";
+import type { Emotion, EmotionRecord } from "@/types/history";
 import { Trash2 } from "lucide-react";
 
 export default function EmotionHistoryPage() {
-  // All history records – now explicitly EmotionRecord[] (not a Promise)
+  // All history records – explicitly EmotionRecord[]
   const [all, setAll] = useState<EmotionRecord[]>([]);
 
   // filters
@@ -32,13 +31,9 @@ export default function EmotionHistoryPage() {
     const loadHistory = async () => {
       try {
         const data = await getHistory();
-        if (!cancelled) {
-          setAll(data);
-        }
+        if (!cancelled) setAll(data);
       } catch {
-        if (!cancelled) {
-          setAll([]);
-        }
+        if (!cancelled) setAll([]);
       }
     };
 
@@ -62,7 +57,6 @@ export default function EmotionHistoryPage() {
 
   const emotions = useMemo(() => getEmotionsSet(all), [all]);
 
-  // --- Fixed filtering logic ---
   const filtered = useMemo(() => {
     const fromTs = from ? new Date(from).setHours(0, 0, 0, 0) : undefined;
     const toTs = to ? new Date(to).setHours(23, 59, 59, 999) : undefined;
@@ -79,7 +73,17 @@ export default function EmotionHistoryPage() {
     });
   }, [all, source, from, to, emotion]);
 
-  const chartData = useMemo(() => toChartSeries(filtered, emotion), [filtered, emotion]);
+  // Chart focus must match the Emotion union used by EmotionRecord/emotion history.
+  // If some UI state ever provides "anxiety", map it to "fear" for chart filtering.
+  const chartFocus: "all" | Emotion | undefined =
+    (emotion as any) === "anxiety"
+      ? "fear"
+      : (emotion as "all" | Emotion | undefined);
+
+  const chartData = useMemo(
+    () => toChartSeries(filtered, chartFocus),
+    [filtered, chartFocus]
+  );
 
   const onReset = () => {
     setEmotion("all");
@@ -90,7 +94,7 @@ export default function EmotionHistoryPage() {
 
   const onClearAll = () => {
     if (confirm("Delete ALL saved emotion history on this device?")) {
-      clearHistory();
+      void clearHistory();
       setAll([]);
     }
   };
@@ -99,11 +103,15 @@ export default function EmotionHistoryPage() {
     <main className="mx-auto w-full max-w-5xl px-6 py-10 text-zinc-900 dark:text-zinc-100">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Emotion History</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Emotion History
+          </h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Review past messages, filter by emotion or date, and track intensity trends.
+            Review past messages, filter by emotion or date, and track intensity
+            trends.
           </p>
         </div>
+
         <button
           onClick={onClearAll}
           className="mt-3 inline-flex items-center gap-2 self-start rounded-xl border border-red-300 px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/30"
@@ -117,7 +125,7 @@ export default function EmotionHistoryPage() {
         <EmotionFilterBar
           emotions={emotions}
           selectedEmotion={emotion}
-          onEmotionChange={setEmotion}
+          onEmotionChange={(e) => setEmotion((e === "anxiety" ? "fear" : e) as Emotion | "all")}
           from={from}
           to={to}
           onFromChange={setFrom}

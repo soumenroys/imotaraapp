@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest"
+    "test": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "npm run typecheck && npm run build",
+    "donation:check": "node -e \"fetch('http://localhost:3000/api/payments/donation-intent',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({presetId:'inr_99',purpose:'imotara_donation',platform:'web'})}).then(r=>r.json()).then(j=>{console.log(j); if(!j.ok) process.exit(1);}).catch(e=>{console.error(e); process.exit(1);});\""
   },
   "engines": {
     "node": ">=20"
@@ -17,6 +20,7 @@
     "@prisma/client": "^6.18.0",
     "@radix-ui/react-icons": "^1.3.2",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.78.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -45,7 +49,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
     "tailwindcss": "^4",
-    "typescript": "^5",
+    "typescript": "^5.9.3",
     "vite-tsconfig-paths": "^6.0.4",
     "vitest": "^4.0.17"
   }

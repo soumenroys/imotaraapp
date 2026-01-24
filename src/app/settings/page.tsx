@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
@@ -552,6 +552,10 @@ export default function SettingsPage() {
     const [donating, setDonating] = useState(false);
     const [donateStatus, setDonateStatus] = useState<string | null>(null);
 
+    // Razorpay script readiness (prevents "nothing happened" + spam clicks)
+    const [rzLoading, setRzLoading] = useState(false);
+    const [rzReady, setRzReady] = useState(false);
+
     // Licensing (web)
     const [lic, setLic] = useState<LicenseStatusResponse | null>(null);
     const [licLoading, setLicLoading] = useState(false);
@@ -568,10 +572,10 @@ export default function SettingsPage() {
 
     const DONATION_PRESETS = useMemo(
         () => [
-            { id: "d-99", label: "₹99", amount: 9900 },
-            { id: "d-199", label: "₹199", amount: 19900 },
-            { id: "d-499", label: "₹499", amount: 49900 },
-            { id: "d-999", label: "₹999", amount: 99900 },
+            { id: "inr_99", label: "₹99", amount: 9900 },
+            { id: "inr_199", label: "₹199", amount: 19900 },
+            { id: "inr_499", label: "₹499", amount: 49900 },
+            { id: "inr_999", label: "₹999", amount: 99900 },
         ],
         []
     );
@@ -679,12 +683,70 @@ export default function SettingsPage() {
         }
     }
 
+    // ✅ Webhook can lag; poll receipts briefly so user sees confirmation automatically.
+    // - Uses useRef so overlap-guard persists across re-renders
+    // - Provides calm status updates
+    const pollRunningRef = useRef(false);
+
+    async function pollDonationConfirmation(paymentId?: string) {
+        if (!paymentId) return;
+
+        // Prevent overlapping polls (double click / repeated handler calls)
+        if (pollRunningRef.current) return;
+        pollRunningRef.current = true;
+
+        try {
+            for (let i = 0; i < 7; i++) {
+                try {
+                    const res = await fetch("/api/donations/recent?limit=10", { method: "GET" });
+                    const json = await res.json().catch(() => null);
+
+                    const ok = !!(json as any)?.ok;
+                    const items = Array.isArray((json as any)?.items) ? (json as any).items : [];
+
+                    // keep UI list fresh even while polling
+                    if (ok) setDonations(items);
+
+                    const found =
+                        Array.isArray(items) &&
+                        items.some((d: any) => d?.razorpay_payment_id === paymentId);
+
+                    if (found) {
+                        setDonateStatus("Donation confirmed. Thank you for supporting Imotara 🙏");
+                        return;
+                    }
+
+                    // Gentle progress hints (non-spammy)
+                    if (i === 1) setDonateStatus("Confirming receipt… (webhook may take a moment)");
+                    if (i === 4) setDonateStatus("Still confirming… thanks for your patience 🙏");
+                } catch {
+                    // ignore (settings must never break)
+                }
+
+                await new Promise((r) => setTimeout(r, 1200));
+            }
+
+            setDonateStatus(
+                "Checkout completed. Receipt may take a little longer to appear. You can refresh Recent Donations shortly."
+            );
+        } finally {
+            pollRunningRef.current = false;
+        }
+    }
+
     useEffect(() => {
         // ✅ ensure client-only rendering for locale-dependent content
         setMounted(true);
 
         // Read-only licensing status on page load
         refreshLicenseStatus();
+
+        // Preload Razorpay script in the background for smoother UX
+        setRzLoading(true);
+        loadRazorpayScript()
+            .then((ok) => setRzReady(!!ok))
+            .catch(() => setRzReady(false))
+            .finally(() => setRzLoading(false));
 
         // Recent donations (read-only) — DEV ONLY
         if (SHOW_DONATION_RECEIPTS) {
@@ -693,25 +755,30 @@ export default function SettingsPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    async function handleDonate(amount: number) {
+    async function handleDonate(presetId: string, presetLabel: string) {
         if (typeof window === "undefined") return;
 
         try {
             setDonating(true);
             setDonateStatus(null);
 
-            const scriptOk = await loadRazorpayScript();
-            if (!scriptOk) {
-                setDonateStatus("Failed to load Razorpay checkout script.");
-                return;
+            // ✅ If script isn't ready yet, fail softly (buttons are disabled anyway)
+            if (typeof window === "undefined") return;
+
+            // If Razorpay isn't already present, try loading once
+            if (!(window as any).Razorpay) {
+                const scriptOk = await loadRazorpayScript();
+                if (!scriptOk) {
+                    setDonateStatus("Checkout is still loading. Please try again in a moment.");
+                    return;
+                }
             }
 
             const res = await fetch("/api/payments/donation-intent", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    amount,
-                    currency: "inr",
+                    presetId,
                     purpose: "imotara_donation",
                     platform: "web",
                 }),
@@ -747,20 +814,34 @@ export default function SettingsPage() {
                 handler: function (response: any) {
                     // Note: real verification is via webhook on server; this is only UX feedback.
                     setDonateStatus(
-                        `Thank you 🙏 Donation initiated successfully. Payment ID: ${response?.razorpay_payment_id || "—"
-                        }`
+                        `Checkout completed. Payment ID: ${response?.razorpay_payment_id || "—"}. Confirming receipt…`
                     );
-                    // Refresh list (it may still remain empty until webhook records it)
+
+                    // Refresh list immediately (may still be empty until webhook records it)
                     refreshDonations();
+
+                    // 🔁 Auto-confirm once webhook records the receipt
+                    void pollDonationConfirmation(response?.razorpay_payment_id);
                 },
                 modal: {
                     ondismiss: function () {
-                        setDonateStatus("Donation cancelled.");
+                        setDonateStatus("Checkout closed. No payment was made.");
                     },
                 },
             };
 
-            const rzp = new window.Razorpay(options);
+            const rzp = new (window as any).Razorpay(options);
+
+            // ✅ Handle failure without breaking settings/chat
+            rzp.on("payment.failed", function (resp: any) {
+                const msg =
+                    resp?.error?.description ||
+                    resp?.error?.reason ||
+                    resp?.error?.code ||
+                    "Please try again.";
+                setDonateStatus(`Payment failed. ${msg}`);
+            });
+
             rzp.open();
         } catch (e: any) {
             setDonateStatus(e?.message || "Donation failed.");
@@ -913,8 +994,8 @@ export default function SettingsPage() {
                             <button
                                 key={p.id}
                                 type="button"
-                                onClick={() => handleDonate(p.amount)}
-                                disabled={donating}
+                                onClick={() => handleDonate(p.id, p.label)}
+                                disabled={donating || rzLoading || !rzReady}
                                 className="rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-zinc-100 shadow-sm transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
                                 title={`Donate ${formatINRFromPaise(p.amount)}`}
                             >

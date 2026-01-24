@@ -5,9 +5,16 @@ export async function respondRemote(input: {
     message: string;
     context?: unknown;
 }): Promise<ImotaraResponse> {
+    const qa =
+        typeof window !== "undefined" &&
+        window.localStorage.getItem("imotaraQa") === "1";
+
     const res = await fetch("/api/respond", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            ...(qa ? { "x-imotara-qa": "1" } : {}),
+        },
         body: JSON.stringify({
             message: input.message,
             context: input.context,

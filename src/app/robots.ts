@@ -6,7 +6,8 @@ export default function robots(): MetadataRoute.Robots {
         rules: [
             {
                 userAgent: "*",
-                allow: "/",   // Allow full indexing
+                allow: "/",           // Allow full indexing
+                disallow: ["/api/health"], // But discourage indexing health endpoint
             },
         ],
         sitemap: "/sitemap.xml",

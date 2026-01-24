@@ -6,6 +6,7 @@ export type Emotion =
   | "sadness"
   | "anger"
   | "fear"
+  | "anxiety"
   | "disgust"
   | "surprise"
   | "neutral";

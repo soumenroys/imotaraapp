@@ -7,6 +7,7 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 import { fetchUserMemories } from "@/lib/memory/fetchUserMemories";
 import { selectPinnedRecall } from "@/lib/memory/memoryRelevance";
+import { buildLocalReply } from "@/lib/ai/local/localReplyEngine";
 
 export async function POST(req: Request) {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
@@ -111,6 +112,23 @@ export async function POST(req: Request) {
                 { score: 0, type: "error", key: "fetchUserMemories_failed" },
             ];
         }
+    }
+
+    // ✅ Local analysis mode: use lightweight local reply engine
+    if (analysisSource === "local") {
+        const local = buildLocalReply(message, toneContext);
+
+        return NextResponse.json(
+            {
+                ...local,
+                meta: {
+                    styleContract: "1.0",
+                    blueprint: "1.0",
+                    analysisSource: "local",
+                },
+            },
+            { status: 200 }
+        );
     }
 
     const result = await runImotara({

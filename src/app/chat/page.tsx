@@ -32,6 +32,7 @@ import { getChatToneCopy } from "@/lib/imotara/chatTone";
 import { adaptReflectionTone } from "@/lib/imotara/reflectionTone";
 import { getReflectionSeedCard } from "@/lib/imotara/reflectionSeedContract";
 import type { ReflectionSeed } from "@/lib/ai/response/responseBlueprint";
+import { buildLocalReply } from "@/lib/ai/local/localReplyEngine";
 
 type Role = "user" | "assistant" | "system";
 type DebugEmotionSource = "analysis" | "fallback" | "unknown";
@@ -830,92 +831,23 @@ export default function ChatPage() {
       let fallbackReply: string | null = null;
 
       try {
-        const intensity = typeof summary.intensity === "number" ? summary.intensity : 0.4;
-        const tone =
-          typeof summary.tone === "string" ? summary.tone.toLowerCase() : "";
+        const lastUser =
+          msgsForAnalysis.slice().reverse().find((m) => m.role === "user");
 
-        const rawAdvice =
-          summary.adviceShort ?? summary.coachingTip ?? summary.nextStep ?? "";
+        const userText = lastUser?.content ?? "";
+        const local = buildLocalReply(userText);
 
-        const advice = adaptReflectionTone(String(rawAdvice || ""));
+        fallbackReply = local.message;
 
-        const strengthLabel =
-          intensity < 0.25 ? "a gentle" : intensity < 0.6 ? "a pretty strong" : "an intense";
+        // ✅ type-safe: ensure title is always a string
+        reflectionSeed = local.reflectionSeed
+          ? { ...local.reflectionSeed, title: local.reflectionSeed.title ?? "" }
+          : undefined;
 
-        const adviceTail =
-          advice && String(advice).trim().length > 0
-            ? ` ${String(advice).trim()}`
-            : " If you’d like, you can tell me a little more about what’s going on.";
-
-        const toneHint =
-          tone && tone !== "neutral"
-            ? ` I’ll try to stay ${tone} and on your side while we talk.`
-            : "";
-
-        const emotion = debugEmotion ?? "neutral";
-
-        switch (emotion) {
-          case "sad":
-            fallbackReply =
-              `I’m really glad you chose to share this with me. ` +
-              `It sounds like you’re carrying ${strengthLabel} kind of sadness right now.` +
-              ` You don’t have to push yourself to “be okay” for me.` +
-              adviceTail +
-              toneHint;
-            break;
-          case "anxious":
-            fallbackReply =
-              `This does sound like a lot to hold inside. ` +
-              `I can hear there’s ${strengthLabel} sense of anxiety or worry in what you wrote.` +
-              ` It’s completely valid to feel this way.` +
-              adviceTail +
-              toneHint;
-            break;
-          case "angry":
-            fallbackReply =
-              `Your frustration makes sense in the way you’ve described things.` +
-              ` It sounds like ${strengthLabel} wave of anger or irritation is present for you.` +
-              ` I’m not here to judge that — I’m here to help you unpack it, if you want.` +
-              adviceTail +
-              toneHint;
-            break;
-          case "stressed":
-            fallbackReply =
-              `This feels like a heavy load to be carrying on your own.` +
-              ` I’m sensing ${strengthLabel} feeling of stress or overwhelm in your words.` +
-              ` It’s okay to admit that it’s a lot — that’s not a weakness.` +
-              adviceTail +
-              toneHint;
-            break;
-          case "happy":
-            fallbackReply =
-              `There’s a real spark of something warm in what you shared.` +
-              ` It sounds like you’re feeling ${strengthLabel} sense of happiness.` +
-              ` I’m genuinely happy to hear this with you.` +
-              (advice
-                ? ` ${String(advice).trim()}`
-                : " If you want, we can explore how to keep nurturing this feeling.") +
-              toneHint;
-            break;
-          case "lonely":
-            fallbackReply =
-              `Feeling disconnected or alone like this can be really tough.` +
-              ` I’m sensing ${strengthLabel} feeling of loneliness in what you wrote.` +
-              ` I’m here with you in this space, even if it’s just through text right now.` +
-              adviceTail +
-              toneHint;
-            break;
-          default:
-            fallbackReply =
-              `Thanks for opening up to me. ` +
-              `What you shared feels like a more even, mixed emotional space — not purely positive or negative.` +
-              ` I’m here to sit with whatever is there, even if it feels vague or hard to label.` +
-              adviceTail +
-              toneHint;
-            break;
-        }
+        // Mark analysis source explicitly
+        analysisSource = "local";
       } catch (err) {
-        console.error("[imotara] fallback reply failed:", err);
+        console.error("[imotara] local fallback reply failed:", err);
       }
 
       const safeReply =

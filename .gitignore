@@ -58,3 +58,5 @@ node_modules/
 # --- mac / zip noise ---
 .DS_Store
 __MACOSX/
+
+.dev-web.log

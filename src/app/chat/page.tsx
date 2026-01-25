@@ -831,20 +831,27 @@ export default function ChatPage() {
       let fallbackReply: string | null = null;
 
       try {
-        const lastUser =
-          msgsForAnalysis.slice().reverse().find((m) => m.role === "user");
+        // ✅ derive user message safely from msgsForAnalysis
+        const lastUser = [...msgsForAnalysis]
+          .slice()
+          .reverse()
+          .find((m) => m.role === "user");
 
-        const userText = lastUser?.content ?? "";
+        const userText = (lastUser?.content ?? "").trim();
+
         const local = buildLocalReply(userText);
 
         fallbackReply = local.message;
 
-        // ✅ type-safe: ensure title is always a string
+        // ✅ ensure ReflectionSeed type safety
         reflectionSeed = local.reflectionSeed
-          ? { ...local.reflectionSeed, title: local.reflectionSeed.title ?? "" }
+          ? {
+            intent: local.reflectionSeed.intent,
+            title: local.reflectionSeed.title ?? "",
+            prompt: local.reflectionSeed.prompt,
+          }
           : undefined;
 
-        // Mark analysis source explicitly
         analysisSource = "local";
       } catch (err) {
         console.error("[imotara] local fallback reply failed:", err);

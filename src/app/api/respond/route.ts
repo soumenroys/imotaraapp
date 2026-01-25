@@ -31,7 +31,7 @@ export async function POST(req: Request) {
             "");
 
     const message = typeof rawMessage === "string" ? rawMessage : String(rawMessage ?? "");
-
+    console.log("[QA] /api/respond message:", message);
     const baseCtx = (body?.context ?? body?.options ?? {}) as Record<string, unknown>;
 
     const toneContext =
@@ -169,8 +169,14 @@ export async function POST(req: Request) {
         analysisSource,
     };
 
+    // 🔒 Contract guard: allow ONLY one ask channel
+    if ((result as any)?.followUp && (result as any)?.reflectionSeed) {
+        (result as any).reflectionSeed = null;
+    }
+
     return NextResponse.json(
         {
+            requestId: (body as any)?.requestId ?? null,
             ...result,
             meta: {
                 styleContract: "1.0",

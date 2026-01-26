@@ -60,3 +60,4 @@ node_modules/
 __MACOSX/
 
 .dev-web.log
+.vercel_last_url

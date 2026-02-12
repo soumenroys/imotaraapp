@@ -62,7 +62,13 @@ async function performRemoteDelete() {
             };
         }
     } catch (err) {
-        console.error("[Imotara] /api/delete-remote: delete failed", err);
+        const PROD = process.env.NODE_ENV === "production";
+        const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
+
+        if (SHOULD_LOG) {
+            console.warn("[Imotara] /api/delete-remote: delete failed", String(err));
+        }
+
         remoteDeleteResult = {
             status: "error",
             error: "history-delete-failed",

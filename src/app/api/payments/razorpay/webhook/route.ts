@@ -64,16 +64,30 @@ export async function POST(req: Request) {
             }
         }
 
-        // For now: log only (Step 2 will store in DB/log table)
-        console.log("✅ Razorpay webhook verified:", {
-            event: event?.event,
-            created_at: event?.created_at,
-            payloadKeys: event?.payload ? Object.keys(event.payload) : [],
-        });
+        const PROD = process.env.NODE_ENV === "production";
+        const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
+
+        // Dev-only: minimal verification log (no raw payload)
+        if (SHOULD_LOG) {
+            console.warn("✅ Razorpay webhook verified:", {
+                event: event?.event,
+                created_at: event?.created_at,
+                payloadKeys: event?.payload ? Object.keys(event.payload) : [],
+            });
+        }
 
         return NextResponse.json({ ok: true });
     } catch (err: any) {
-        console.error("razorpay webhook error:", err);
-        return NextResponse.json({ ok: false, error: "Webhook handler error" }, { status: 500 });
+        const PROD = process.env.NODE_ENV === "production";
+        const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
+
+        if (SHOULD_LOG) {
+            console.warn("razorpay webhook error:", String(err));
+        }
+
+        return NextResponse.json(
+            { ok: false, error: "Webhook handler error" },
+            { status: 500 }
+        );
     }
 }

@@ -9,6 +9,115 @@ import { fetchUserMemories } from "@/lib/memory/fetchUserMemories";
 import { selectPinnedRecall } from "@/lib/memory/memoryRelevance";
 import { buildLocalReply } from "@/lib/ai/local/localReplyEngine";
 
+type LanguageCode =
+    | "en"
+    | "hi" // Hindi
+    | "mr" // Marathi
+    | "ur" // Urdu
+    | "or" // Odia (Oriya)
+    | "zh" // Mandarin Chinese
+    | "es" // Spanish
+    | "ar" // Standard Arabic
+    | "fr" // French
+    | "pt" // Portuguese
+    | "ru" // Russian
+    | "id" // Indonesian
+    | "bn" // Bengali
+    | "ta"
+    | "te"
+    | "gu"
+    | "pa"
+    | "kn"
+    | "ml";
+
+const LANGUAGE_NAME: Record<LanguageCode, string> = {
+    en: "English",
+    hi: "Hindi",
+    mr: "Marathi",
+    ur: "Urdu",
+    or: "Odia",
+    zh: "Mandarin Chinese",
+    es: "Spanish",
+    ar: "Standard Arabic",
+    fr: "French",
+    pt: "Portuguese",
+    ru: "Russian",
+    id: "Indonesian",
+    bn: "Bengali",
+    ta: "Tamil",
+    te: "Telugu",
+    gu: "Gujarati",
+    pa: "Punjabi",
+    kn: "Kannada",
+    ml: "Malayalam",
+};
+
+function coerceLanguageCode(raw: unknown): LanguageCode | undefined {
+    if (typeof raw !== "string") return undefined;
+    const s = raw.trim().toLowerCase();
+    if (!s) return undefined;
+
+    // Accept "en-US" style
+    const base = s.split(/[-_]/)[0];
+
+    // Direct matches
+    const allowed = new Set<LanguageCode>([
+        "en", "hi", "mr", "ur", "or", "zh", "es", "ar", "fr", "pt", "ru", "id", "bn", "ta", "te", "gu", "pa", "kn", "ml",
+    ]);
+    if (allowed.has(base as LanguageCode)) return base as LanguageCode;
+
+    return undefined;
+}
+
+function derivePreferredLanguage(
+    baseCtx: Record<string, unknown>,
+    message: string
+): { preferredLanguage?: LanguageCode; languageDirective: string } {
+    // 1) Explicit (if any client already sends it)
+    const explicit =
+        coerceLanguageCode((baseCtx as any)?.preferredLanguage) ||
+        coerceLanguageCode((baseCtx as any)?.language) ||
+        coerceLanguageCode((baseCtx as any)?.languageCode) ||
+        coerceLanguageCode((baseCtx as any)?.targetLanguage);
+
+    // 2) Hints from page.tsx (new)
+    const hints = ((baseCtx as any)?.languageHints ?? {}) as Record<string, unknown>;
+    const guess =
+        coerceLanguageCode((hints as any)?.languageGuess) ||
+        coerceLanguageCode((hints as any)?.navigatorLanguage);
+
+    // 3) Script fallback (server-side safe)
+    const t = String(message ?? "").trim();
+    const hasDevanagari = /[\u0900-\u097F]/.test(t); // Hindi/Marathi often
+    const hasBengali = /[\u0980-\u09FF]/.test(t);
+    const hasTamil = /[\u0B80-\u0BFF]/.test(t);
+    const hasTelugu = /[\u0C00-\u0C7F]/.test(t);
+    const hasGujarati = /[\u0A80-\u0AFF]/.test(t);
+    const hasGurmukhi = /[\u0A00-\u0A7F]/.test(t);
+    const hasKannada = /[\u0C80-\u0CFF]/.test(t);
+    const hasMalayalam = /[\u0D00-\u0D7F]/.test(t);
+
+    const scriptDerived: LanguageCode | undefined =
+        hasDevanagari ? "hi" :
+            hasBengali ? "bn" :
+                hasTamil ? "ta" :
+                    hasTelugu ? "te" :
+                        hasGujarati ? "gu" :
+                            hasGurmukhi ? "pa" :
+                                hasKannada ? "kn" :
+                                    hasMalayalam ? "ml" :
+                                        undefined;
+
+    const preferredLanguage = explicit ?? guess ?? scriptDerived;
+
+    // Don’t hard-force if user is mixed; prefer user's language, tie-break with preferredLanguage.
+    const languageDirective = preferredLanguage
+        ? `Language policy: Reply in the user's language when clear. If unclear or mixed, prefer ${LANGUAGE_NAME[preferredLanguage]} (${preferredLanguage}).`
+        : `Language policy: Reply in the user's language when clear. If unclear, default to English.`;
+
+    return { preferredLanguage, languageDirective };
+}
+
 export async function POST(req: Request) {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
@@ -31,7 +140,15 @@ export async function POST(req: Request) {
             "");
 
     const message = typeof rawMessage === "string" ? rawMessage : String(rawMessage ?? "");
-    console.log("[QA] /api/respond message:", message);
+
+    const PROD = process.env.NODE_ENV === "production";
+    const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
+
+    // QA-only (dev) log: never log full user content in production
+    if (qa && SHOULD_LOG) {
+        console.warn("[QA] /api/respond message:", message.slice(0, 200));
+    }
+
     const baseCtx = (body?.context ?? body?.options ?? {}) as Record<string, unknown>;
 
     const toneContext =
@@ -114,27 +231,64 @@ export async function POST(req: Request) {
         }
     }
 
-    // ✅ Local analysis mode: use lightweight local reply engine
     if (analysisSource === "local") {
         const local = buildLocalReply(message, toneContext);
+
+        // ✅ Contract normalization (additive):
+        // Ensure meta.emotionLabel exists even in local analysis mode.
+        // Prefer local.meta.emotionLabel if present, else derive from local.meta.emotion.primary if available.
+        const localMeta = ((local as any)?.meta ?? {}) as Record<string, unknown>;
+        const directLabel =
+            typeof (localMeta as any)?.emotionLabel === "string"
+                ? String((localMeta as any).emotionLabel).trim().toLowerCase()
+                : "";
+
+        const primary =
+            typeof (localMeta as any)?.emotion?.primary === "string"
+                ? String((localMeta as any).emotion.primary).trim().toLowerCase()
+                : "";
+
+        const derivedLabel =
+            primary === "sadness"
+                ? "sad"
+                : primary === "fear" || primary === "anxiety"
+                    ? "anxious"
+                    : primary === "anger"
+                        ? "angry"
+                        : primary === "joy"
+                            ? "joy"
+                            : primary === "neutral"
+                                ? "neutral"
+                                : primary;
+
+        const emotionLabel = directLabel || derivedLabel || undefined;
 
         return NextResponse.json(
             {
                 ...local,
                 meta: {
+                    ...localMeta,
                     styleContract: "1.0",
                     blueprint: "1.0",
                     analysisSource: "local",
+                    ...(emotionLabel ? { emotionLabel } : {}),
                 },
             },
             { status: 200 }
         );
     }
 
+    const { preferredLanguage, languageDirective } = derivePreferredLanguage(baseCtx, message);
+
     const result = await runImotara({
         userMessage: message,
         sessionContext: {
             ...baseCtx,
+
+            // ✅ NEW: language fields (safe even if downstream ignores)
+            preferredLanguage,
+            languageDirective,
+
             pinnedRecall,
             pinnedRecallRelevant,
             ...(qa ? { debug: true, pinnedRecallDebugTop } : {}),
@@ -155,19 +309,67 @@ export async function POST(req: Request) {
             return m;
         })();
 
+    // ✅ Baby Step 3.5 — emoji-only positive override (display/meta only)
+    // Prevents cases like 😊❤️ showing "sadness/anger" in Cloud AI debug label.
+    const deriveEmojiPositive = (raw: string): boolean => {
+        const s = String(raw ?? "").trim().replace(/\uFE0F/g, ""); // ❤️ → ❤ consistently
+        if (!s) return false;
+
+        // emoji-only (allow ❤ U+2764 too, not always Extended_Pictographic)
+        const emojiOnlyPattern = /^[\p{Extended_Pictographic}\u2764]+$/u;
+        if (!emojiOnlyPattern.test(s)) return false;
+
+        // positive/affectionate set
+        return /[😊🙂☺😄😁😍🥰😘😻❤❤️🧡💛💚💙💜💕💞💖💗💓💘✨🎉🥳👍🙌👏]/u.test(s);
+    };
+
+    const currentPrimary = (safeMeta as any)?.emotion?.primary as string | undefined;
+    const negativePrimaries = new Set(["sadness", "anger", "fear", "anxiety"]);
+
+    const shouldEmojiOverride =
+        deriveEmojiPositive(message) && (!!currentPrimary && negativePrimaries.has(currentPrimary));
+
+    const emotionInput = shouldEmojiOverride
+        ? {
+            ...((safeMeta as any)?.emotion ?? {}),
+            primary: "joy",
+            overriddenBy: "emoji",
+        }
+        : (safeMeta as any)?.emotion;
+
     // ✅ Baby Step 11.6.1 — guarantee emotion exists at API boundary
-    const emotion: EmotionAnalysis = normalizeEmotion(
-        (safeMeta as any)?.emotion,
-        "Neutral or mixed feelings."
-    );
+    const emotion: EmotionAnalysis = normalizeEmotion(emotionInput, "Neutral or mixed feelings.");
+
+    // ✅ Contract normalization (additive):
+    // Provide a stable, short emotionLabel for clients (mobile/web/dev QA).
+    // We derive it from emotion.primary without changing any detection logic.
+    const emotionPrimary = String((emotion as any)?.primary ?? "").toLowerCase();
+
+    const emotionLabel =
+        emotionPrimary === "sadness"
+            ? "sad"
+            : emotionPrimary === "fear" || emotionPrimary === "anxiety"
+                ? "anxious"
+                : emotionPrimary === "anger"
+                    ? "angry"
+                    : emotionPrimary === "joy"
+                        ? "joy"
+                        : emotionPrimary === "neutral"
+                            ? "neutral"
+                            : // fallback: keep primary if it is a non-empty string, else neutral
+                            (emotionPrimary || "neutral");
 
     const metaWithEmotion: Record<string, unknown> = {
         ...safeMeta,
         emotion,
 
+        // ✅ NEW: canonical emotion label at API boundary (non-breaking)
+        emotionLabel,
+
         // ✅ Baby Step 3.4.1 — exposed for UI parity
         analysisSource,
     };
+
 
     // 🔒 Contract guard: allow ONLY one ask channel
     if ((result as any)?.followUp && (result as any)?.reflectionSeed) {

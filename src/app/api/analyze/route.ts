@@ -43,6 +43,8 @@ import { compatibilityGate } from "@/lib/ai/compat/compatibilityGate";
 import { createHash } from "crypto";
 import type { EmotionAnalysis } from "@/lib/ai/emotion/emotionTypes";
 import { normalizeEmotion } from "@/lib/ai/emotion/normalizeEmotion";
+import { BN_SAD_REGEX, HI_STRESS_REGEX, isConfusedText } from "@/lib/emotion/keywordMaps";
+
 
 // ---- NEW: Optional tone context (client-provided) ----
 type ToneGender = "female" | "male" | "nonbinary" | "prefer_not" | "other";
@@ -108,359 +110,433 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({} as any));
 
-  // 🧪 Tests should never call remote AI
-  if (process.env.NODE_ENV === "test") {
-    body.analysisMode = "local";
-  }
-
-  const inputs = Array.isArray(body?.inputs) ? body.inputs : [];
-  const windowSize =
-    typeof body?.options?.windowSize === "number" ? body.options.windowSize : 10;
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  const supabaseAdmin =
-    supabaseUrl && serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null;
-
-  if (!supabaseAdmin) {
-    console.log("[imotara] memory disabled: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-  }
-
-  // ✅ Baby Step 11.9.2 — identity memory persistence (safe)
-  // Use authenticated user when possible; fallback to dev-user.
-  // Prefer authenticated user id if client sends it; otherwise fallback.
-  // (Analyze endpoint is service-role right now, so we can't reliably read cookies here.)
-  const userId =
-    (typeof body?.user?.id === "string" && body.user.id.trim())
-      ? body.user.id.trim()
-      : (typeof body?.userId === "string" && body.userId.trim())
-        ? body.userId.trim()
-        : "dev-user";
+  const PROD = process.env.NODE_ENV === "production";
+  const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
 
   try {
-    // Persist user name (identity) when available from toneContext payload
-    const userNameRaw = body?.toneContext?.user?.name;
-    const userName =
-      typeof userNameRaw === "string" ? userNameRaw.replace(/\s+/g, " ").trim() : "";
+    // 🧪 Tests should never call remote AI
+    if (process.env.NODE_ENV === "test") {
+      body.analysisMode = "local";
+    }
 
-    if (userName.length >= 2) {
-      await (supabaseAdmin as any)
-        .from("user_memory")
-        .upsert(
-          {
-            user_id: userId,
-            type: "identity",
-            key: "preferred_name",
-            value: userName,
-            confidence: 0.9,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id,type,key" }
+    const inputs = Array.isArray(body?.inputs) ? body.inputs : [];
+    const windowSize =
+      typeof body?.options?.windowSize === "number" ? body.options.windowSize : 10;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    const supabaseAdmin =
+      supabaseUrl && serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null;
+
+    if (!supabaseAdmin) {
+      if (SHOULD_LOG) {
+        console.warn(
+          "[imotara] memory disabled: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
         );
-    }
-
-    const memories = await fetchUserMemories(supabaseAdmin as any, userId, 20);
-    console.log("[imotara] user_memory fetched:", {
-      userId,
-      count: memories.length,
-    });
-  } catch (e) {
-    console.log("[imotara] user_memory write/fetch error:", e);
-  }
-
-  // Minimal valid AnalysisResult to satisfy client contract.
-  const lastUserText =
-    [...inputs]
-      .slice()
-      .reverse()
-      .find((x: any) => x?.role === "user")?.text ??
-    [...inputs]
-      .slice()
-      .reverse()
-      .find((x: any) => x?.role === "user")?.content ??
-    "";
-
-  const guessEmotion = (raw: string): { emotion: Emotion; intensity: number } => {
-    const t = (raw || "").toLowerCase();
-
-    // Map to the Emotion type WITHOUT expanding the global union in this step.
-    // If a label isn't in your Emotion union, we fall back safely to "neutral".
-    const asEmotion = (label: string): Emotion => {
-      // Now that "anxiety" is in src/types/analysis.ts, we can return it safely.
-      if (label === "neutral") return "neutral";
-      if (label === "joy") return "joy";
-      if (label === "sadness") return "sadness";
-      if (label === "anger") return "anger";
-      if (label === "fear") return "fear";
-      if (label === "anxiety") return "anxiety";
-
-      return "neutral";
-    };
-
-    // --- Emoji-only / emoji-heavy fast path (fixes "😭😭" => sadness) ---
-    const emojiSad = /[😭😢💔🥺😞😔☹️🙁]/u;
-    const emojiJoy = /[😊😄😁😆🙂😍🥰❤️💖✨🎉🙌]/u;
-    const emojiAnger = /[😡😠🤬💢]/u;
-    const emojiFear = /[😨😰😱]/u;
-
-    // If the message contains a strong emoji signal, honor it
-    if (emojiSad.test(raw)) return { emotion: asEmotion("sadness"), intensity: 0.65 };
-    if (emojiAnger.test(raw)) return { emotion: asEmotion("anger"), intensity: 0.65 };
-    if (emojiFear.test(raw)) return { emotion: asEmotion("fear"), intensity: 0.65 };
-    if (emojiJoy.test(raw)) return { emotion: asEmotion("joy"), intensity: 0.55 };
-
-    // Existing keyword heuristic
-    if (/\b(stress|stressed|anxious|anxiety|worried|panic)\b/.test(t))
-      return { emotion: asEmotion("anxiety"), intensity: 0.65 };
-
-    if (/\b(sad|down|depressed|heartbroken|lonely)\b/.test(t))
-      return { emotion: asEmotion("sadness"), intensity: 0.65 };
-
-    if (/\b(angry|mad|furious|irritated|annoyed)\b/.test(t))
-      return { emotion: asEmotion("anger"), intensity: 0.65 };
-
-    if (/\b(scared|afraid|fear|terrified)\b/.test(t))
-      return { emotion: asEmotion("fear"), intensity: 0.65 };
-
-    if (/\b(happy|glad|excited|joy|relieved)\b/.test(t))
-      return { emotion: asEmotion("joy"), intensity: 0.55 };
-
-    return { emotion: asEmotion("neutral"), intensity: 0.25 };
-  };
-
-  const perMessage = inputs.map((m: any, idx: number) => {
-    const role = m?.role ?? "user";
-    const text = m?.text ?? m?.content ?? "";
-    const g = guessEmotion(text);
-
-    const dominant = {
-      emotion: g.emotion,
-      intensity: g.intensity,
-      source: "local" as const,
-    };
-
-    return {
-      id: m?.id ?? `msg-${idx}`,
-      index: idx,
-      role,
-      text,
-
-      // Canonical shape (future-proof)
-      dominant,
-      all: [dominant],
-
-      // Backward compatibility (do NOT remove yet)
-      emotion: g.emotion,
-      intensity: g.intensity,
-      explanation: "",
-    };
-  });
-
-  // ✅ Baby Step 11.6.5 — derive summary emotion from the last user message
-  const lastUserPM =
-    [...perMessage].slice().reverse().find((x: any) => x?.role === "user") ?? perMessage[perMessage.length - 1];
-
-  const summaryPrimaryEmotion: Emotion =
-    (lastUserPM as any)?.emotion ??
-    (lastUserPM as any)?.dominant?.emotion ??
-    "neutral";
-
-  const summaryIntensityRaw =
-    (lastUserPM as any)?.intensity ??
-    (lastUserPM as any)?.dominant?.intensity ??
-    0.25;
-
-  const summaryIntensity =
-    typeof summaryIntensityRaw === "number"
-      ? Math.max(0, Math.min(1, summaryIntensityRaw))
-      : 0.25;
-
-  const result: AnalysisResult = {
-    summary: {
-      headline: lastUserText
-        ? `Captured ${Math.min(windowSize, inputs.length)} message(s)`
-        : "No input yet",
-      primaryEmotion: summaryPrimaryEmotion,
-      intensity: summaryIntensity,
-      tone: "calm",
-      adviceShort: [
-        "If you want, share one small detail—what part feels heaviest right now?",
-        "Where should we start: what happened, what you’re feeling, or what you need next?",
-        "What would be the most helpful thing for me to understand first—one sentence is enough.",
-        "Do you want comfort, clarity, or a practical next step right now?",
-      ][(perMessage.length ?? 0) % 4],
-
-      reflection: [
-        "What do you most wish someone would understand about this?",
-        "If this had a name, what would you call the feeling?",
-        "What’s the smallest next step that would feel kind to you?",
-        "What would make today feel even 5% lighter?",
-      ][(perMessage.length ?? 0) % 4],
-    },
-
-    // ✅ REQUIRED by your client validator
-    perMessage,
-
-    reflectionSeedCard: ((perMessage.length ?? 0) % 2 === 0) ? {
-      prompts: [
-        [
-          "What feeling is most present right now?",
-          "What would ‘support’ look like in the next 24 hours?",
-        ],
-        [
-          "What part of this hurts the most?",
-          "What would help you feel safe right now?",
-        ],
-        [
-          "What do you want to be true by tonight?",
-          "What’s one small thing you can do in the next hour?",
-        ],
-        [
-          "What are you afraid might happen next?",
-          "If you could ask for one thing, what would it be?",
-        ],
-      ][(perMessage.length ?? 0) % 4],
-    } : undefined,
-  } as any;
-
-  // Compatibility Gate (report-only): attach report without changing behavior
-  // Compatibility Gate (report-only): attach report without changing behavior
-  // ✅ Baby Step 11.6.6 — compatibilityGate expects chat-like shape
-  // For /api/analyze we keep the AnalysisResult response, but feed a minimal
-  // compatible object into the gate to avoid false "missing_message/meta".
-  const respObj =
-    (result as any).response ??
-    ({
-      message: (result as any)?.summary?.headline ?? "",
-      meta: (result as any)?.meta ?? {},
-    } as any);
-  const compatReport = { ok: true, issues: [] as any[] };
-
-  const issues = Array.isArray((compatReport as any)?.issues)
-    ? (compatReport as any).issues
-    : [];
-
-  const compatSummary =
-    (compatReport as any)?.ok === true
-      ? "OK"
-      : issues.length
-        ? `Issues: ${issues.map((i: any) => i?.code ?? "unknown").join(", ")}`
-        : "NOT OK";
-
-  // ✅ Baby Step 11.6.1 — guarantee emotion exists at API boundary
-  const userName = (body as any)?.toneContext?.user?.name;
-
-  const fallbackSummary = userName
-    ? `Feeling mostly ${summaryPrimaryEmotion} for ${userName}.`
-    : `Feeling mostly ${summaryPrimaryEmotion}.`;
-
-  const emotion: EmotionAnalysis = normalizeEmotion(
-    {
-      primary: summaryPrimaryEmotion,
-      intensity:
-        summaryIntensity >= 0.7 ? "high" : summaryIntensity >= 0.4 ? "medium" : "low",
-      confidence: 0.75,
-      summary: fallbackSummary,
-    },
-    fallbackSummary
-  );
-
-  (respObj as any).meta = {
-    ...(respObj as any).meta,
-    emotion,
-    compatibility: {
-      ...compatReport,
-      summary: compatSummary,
-    },
-  };
-
-  // Report-only server log (only when issues exist)
-  // 🔇 Silence logs during tests
-  if (process.env.NODE_ENV !== "test") {
-    if (compatReport && (compatReport as any).ok === false) {
-      // Report-only server log (only when issues exist) + request fingerprint (no message content)
-      const fingerprintSource =
-        `${req.headers.get("user-agent") || ""}|${req.headers.get("x-forwarded-for") || ""}|${Date.now()}`;
-
-      const requestFingerprint = createHash("sha256")
-        .update(fingerprintSource)
-        .digest("hex")
-        .slice(0, 12);
-
-      console.warn("[compatibilityGate] NOT OK", {
-        requestFingerprint,
-        issues: (compatReport as any).issues,
-      });
-    } else if (
-      compatReport &&
-      Array.isArray((compatReport as any).issues) &&
-      (compatReport as any).issues.length
-    ) {
-      console.warn("[compatibilityGate] Issues detected", {
-        issues: (compatReport as any).issues,
-      });
-    }
-  }
-
-  // Public-release lock: never serialize debug/analysis extras in production unless QA header is present
-  const qaHeader = req.headers.get("x-imotara-qa");
-  const qa = qaHeader === "1" || qaHeader?.toLowerCase() === "true";
-  const prod = process.env.NODE_ENV === "production";
-
-  // Strip common debug keys deeply (defense-in-depth)
-  const STRIP_KEYS = new Set([
-    "debug",
-    "trace",
-    "traces",
-    "raw",
-    "prompt",
-    "prompts",
-    "systemPrompt",
-    "messages",
-    "inputMessages",
-    "outputMessages",
-    "tokens",
-    "tokenUsage",
-    "usage",
-    "timings",
-    "latencyMs",
-    "model",
-    "provider",
-    "requestId",
-    "internal",
-  ]);
-
-  function stripDeep(v: unknown): unknown {
-    if (!v || typeof v !== "object") return v;
-    if (Array.isArray(v)) return v.map(stripDeep);
-
-    const obj = v as Record<string, unknown>;
-    const out: Record<string, unknown> = {};
-    for (const [k, val] of Object.entries(obj)) {
-      if (STRIP_KEYS.has(k)) continue;
-      if (k === "meta" && val && typeof val === "object") {
-        // also ensure QA-only meta bits don't leak
-        const m = { ...(val as Record<string, unknown>) };
-        delete (m as Record<string, unknown>).softEnforcement;
-        delete (m as Record<string, unknown>).debug;
-        delete (m as Record<string, unknown>).trace;
-        out[k] = stripDeep(m);
-        continue;
       }
-      out[k] = stripDeep(val);
     }
-    return out;
+
+    // ✅ Baby Step 11.9.2 — identity memory persistence (safe)
+    // Use authenticated user when possible; fallback to dev-user.
+    // Prefer authenticated user id if client sends it; otherwise fallback.
+    // (Analyze endpoint is service-role right now, so we can't reliably read cookies here.)
+    const userId =
+      (typeof body?.user?.id === "string" && body.user.id.trim())
+        ? body.user.id.trim()
+        : (typeof body?.userId === "string" && body.userId.trim())
+          ? body.userId.trim()
+          : "dev-user";
+
+    try {
+      // Persist user name (identity) when available from toneContext payload
+      const userNameRaw = body?.toneContext?.user?.name;
+      const userName =
+        typeof userNameRaw === "string" ? userNameRaw.replace(/\s+/g, " ").trim() : "";
+
+      if (userName.length >= 2) {
+        await (supabaseAdmin as any)
+          .from("user_memory")
+          .upsert(
+            {
+              user_id: userId,
+              type: "identity",
+              key: "preferred_name",
+              value: userName,
+              confidence: 0.9,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id,type,key" }
+          );
+      }
+
+      const memories = await fetchUserMemories(supabaseAdmin as any, userId, 20);
+      if (SHOULD_LOG) {
+        console.warn("[imotara] user_memory fetched:", {
+          userId,
+          count: memories.length,
+        });
+      }
+    } catch (e) {
+      if (SHOULD_LOG) {
+        console.warn("[imotara] user_memory write/fetch error:", String(e));
+      }
+    }
+
+    // Minimal valid AnalysisResult to satisfy client contract.
+    const lastUserText =
+      [...inputs]
+        .slice()
+        .reverse()
+        .find((x: any) => x?.role === "user")?.text ??
+      [...inputs]
+        .slice()
+        .reverse()
+        .find((x: any) => x?.role === "user")?.content ??
+      "";
+
+    const guessEmotion = (raw: string): { emotion: Emotion; intensity: number } => {
+      const t = raw
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+
+
+      // Map to the Emotion type WITHOUT expanding the global union in this step.
+      // If a label isn't in your Emotion union, we fall back safely to "neutral".
+      const asEmotion = (label: string): Emotion => {
+        // Now that "anxiety" is in src/types/analysis.ts, we can return it safely.
+        if (label === "neutral") return "neutral";
+        if (label === "joy") return "joy";
+        if (label === "sadness") return "sadness";
+        if (label === "anger") return "anger";
+        if (label === "fear") return "fear";
+        if (label === "anxiety") return "anxiety";
+
+        // ✅ Parity: "can't focus / scattered" maps to confused (server-side analyze)
+        // Cast keeps this additive even if Emotion union evolves.
+        if (label === "confused") return ("confused" as unknown) as Emotion;
+
+        return "neutral";
+      };
+
+      // ✅ Explicit neutral emojis (prevent accidental joy classification)
+      // Thumbs-up is acknowledgement, NOT emotion
+      if (/^[\s👍]+$/.test(raw)) {
+        return { emotion: asEmotion("neutral"), intensity: 0.25 };
+      }
+
+      // --- Emoji-only / emoji-heavy fast path (fixes "😭😭" => sadness) ---
+      const emojiSad = /[😭😢💔🥺😞😔☹️🙁]/u;
+
+      // ✅ Add 😂🤣 so laughter emoji maps to joy
+      const emojiJoy = /[😊😄😁😆🙂😍🥰😂🤣❤️💖✨🎉🙌]/u;
+
+      const emojiAnger = /[😡😠🤬💢]/u;
+      const emojiFear = /[😨😰😱]/u;
+
+      // If the message contains a strong emoji signal, honor it
+      if (emojiSad.test(raw)) return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (emojiAnger.test(raw)) return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (emojiFear.test(raw)) return { emotion: asEmotion("fear"), intensity: 0.65 };
+      if (emojiJoy.test(raw)) return { emotion: asEmotion("joy"), intensity: 0.55 };
+
+      // ✅ Non-English keyword boosts (additive only)
+      // Centralized in src/lib/emotion/keywordMaps.ts to prevent drift across the codebase.
+      if (BN_SAD_REGEX.test(raw)) return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (HI_STRESS_REGEX.test(raw)) return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+
+      // Existing keyword heuristic (English)
+      if (/\b(stress|stressed|anxious|anxiety|worried|panic)\b/.test(t))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+
+      if (/\b(sad|down|depressed|heartbroken|lonely)\b/.test(t))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+
+      if (/\b(angry|mad|furious|irritated|annoyed)\b/.test(t))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+
+      if (/\b(scared|afraid|fear|terrified)\b/.test(t))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      // ✅ Confusion / scattered focus (centralized)
+      // EN + HI + BN are maintained in keywordMaps.ts for consistency.
+      if (isConfusedText(raw)) return { emotion: asEmotion("confused"), intensity: 0.55 };
+
+
+      if (/\b(happy|glad|excited|joy|relieved)\b/.test(t))
+        return { emotion: asEmotion("joy"), intensity: 0.55 };
+
+      return { emotion: asEmotion("neutral"), intensity: 0.25 };
+
+    };
+
+    const DEV = process.env.NODE_ENV !== "production";
+
+    const perMessage = inputs.map((m: any, idx: number) => {
+      const role = m?.role ?? "user";
+      const text = m?.text ?? m?.content ?? "";
+      const g = guessEmotion(text);
+
+      const dominant = {
+        emotion: g.emotion,
+        intensity: g.intensity,
+        source: "local" as const,
+      };
+
+      // DEV-only match echo (will be stripped in production by stripDeep)
+      const debugMatches = DEV
+        ? (() => {
+          const raw = String(text ?? "");
+          const t = raw.trim().toLowerCase().replace(/\s+/g, " ");
+          return {
+            bnSad: BN_SAD_REGEX.test(raw),
+            hiStress: HI_STRESS_REGEX.test(raw),
+            confused: isConfusedText(raw),
+            enSad: /\b(sad|down|depressed|heartbroken|lonely)\b/.test(t),
+            enAnx: /\b(stress|stressed|anxious|anxiety|worried|panic)\b/.test(t),
+            containsMoodOff: /\bmood\s+off\b/i.test(raw),
+            normalized: t,
+            sample: raw.slice(0, 120),
+          };
+        })()
+        : undefined;
+
+      return {
+        id: m?.id ?? `msg-${idx}`,
+        index: idx,
+        role,
+        text,
+
+        // Canonical shape (future-proof)
+        dominant,
+        all: [dominant],
+
+        // Backward compatibility (do NOT remove yet)
+        emotion: g.emotion,
+        intensity: g.intensity,
+        explanation: "",
+
+        ...(debugMatches ? { debug: { matches: debugMatches } } : {}),
+      };
+    });
+
+
+    // ✅ Baby Step 11.6.5 — derive summary emotion from the last user message
+    const lastUserPM =
+      [...perMessage].slice().reverse().find((x: any) => x?.role === "user") ?? perMessage[perMessage.length - 1];
+
+    const summaryPrimaryEmotion: Emotion =
+      (lastUserPM as any)?.emotion ??
+      (lastUserPM as any)?.dominant?.emotion ??
+      "neutral";
+
+    const summaryIntensityRaw =
+      (lastUserPM as any)?.intensity ??
+      (lastUserPM as any)?.dominant?.intensity ??
+      0.25;
+
+    const summaryIntensity =
+      typeof summaryIntensityRaw === "number"
+        ? Math.max(0, Math.min(1, summaryIntensityRaw))
+        : 0.25;
+
+    const result: AnalysisResult = {
+      summary: {
+        headline: lastUserText
+          ? `Captured ${Math.min(windowSize, inputs.length)} message(s)`
+          : "No input yet",
+        primaryEmotion: summaryPrimaryEmotion,
+        intensity: summaryIntensity,
+        tone: "calm",
+        adviceShort: [
+          "If you want, share one small detail—what part feels heaviest right now?",
+          "Where should we start: what happened, what you’re feeling, or what you need next?",
+          "What would be the most helpful thing for me to understand first—one sentence is enough.",
+          "Do you want comfort, clarity, or a practical next step right now?",
+        ][(perMessage.length ?? 0) % 4],
+
+        reflection: [
+          "What do you most wish someone would understand about this?",
+          "If this had a name, what would you call the feeling?",
+          "What’s the smallest next step that would feel kind to you?",
+          "What would make today feel even 5% lighter?",
+        ][(perMessage.length ?? 0) % 4],
+      },
+
+      // ✅ REQUIRED by your client validator
+      perMessage,
+
+      reflectionSeedCard: ((perMessage.length ?? 0) % 2 === 0) ? {
+        prompts: [
+          [
+            "What feeling is most present right now?",
+            "What would ‘support’ look like in the next 24 hours?",
+          ],
+          [
+            "What part of this hurts the most?",
+            "What would help you feel safe right now?",
+          ],
+          [
+            "What do you want to be true by tonight?",
+            "What’s one small thing you can do in the next hour?",
+          ],
+          [
+            "What are you afraid might happen next?",
+            "If you could ask for one thing, what would it be?",
+          ],
+        ][(perMessage.length ?? 0) % 4],
+      } : undefined,
+    } as any;
+
+    // Compatibility Gate (report-only): attach report without changing behavior
+    // Compatibility Gate (report-only): attach report without changing behavior
+    // ✅ Baby Step 11.6.6 — compatibilityGate expects chat-like shape
+    // For /api/analyze we keep the AnalysisResult response, but feed a minimal
+    // compatible object into the gate to avoid false "missing_message/meta".
+    const respObj =
+      (result as any).response ??
+      ({
+        message: (result as any)?.summary?.headline ?? "",
+        meta: (result as any)?.meta ?? {},
+      } as any);
+    const compatReport = { ok: true, issues: [] as any[] };
+
+    const issues = Array.isArray((compatReport as any)?.issues)
+      ? (compatReport as any).issues
+      : [];
+
+    const compatSummary =
+      (compatReport as any)?.ok === true
+        ? "OK"
+        : issues.length
+          ? `Issues: ${issues.map((i: any) => i?.code ?? "unknown").join(", ")}`
+          : "NOT OK";
+
+    // ✅ Baby Step 11.6.1 — guarantee emotion exists at API boundary
+    const userName = (body as any)?.toneContext?.user?.name;
+
+    const fallbackSummary = userName
+      ? `Feeling mostly ${summaryPrimaryEmotion} for ${userName}.`
+      : `Feeling mostly ${summaryPrimaryEmotion}.`;
+
+    const emotion: EmotionAnalysis = normalizeEmotion(
+      {
+        primary: summaryPrimaryEmotion,
+        intensity:
+          summaryIntensity >= 0.7 ? "high" : summaryIntensity >= 0.4 ? "medium" : "low",
+        confidence: 0.75,
+        summary: fallbackSummary,
+      },
+      fallbackSummary
+    );
+
+    (respObj as any).meta = {
+      ...(respObj as any).meta,
+      emotion,
+      compatibility: {
+        ...compatReport,
+        summary: compatSummary,
+      },
+    };
+
+    // Report-only server log (only when issues exist)
+    // 🔇 Silence logs during tests + production
+    if (SHOULD_LOG) {
+      if (compatReport && (compatReport as any).ok === false) {
+        // Report-only server log (only when issues exist) + request fingerprint (no message content)
+        const fingerprintSource =
+          `${req.headers.get("user-agent") || ""}|${req.headers.get("x-forwarded-for") || ""}|${Date.now()}`;
+
+        const requestFingerprint = createHash("sha256")
+          .update(fingerprintSource)
+          .digest("hex")
+          .slice(0, 12);
+
+        console.warn("[compatibilityGate] NOT OK", {
+          requestFingerprint,
+          issues: (compatReport as any).issues,
+        });
+      } else if (
+        compatReport &&
+        Array.isArray((compatReport as any).issues) &&
+        (compatReport as any).issues.length
+      ) {
+        console.warn("[compatibilityGate] Issues detected", {
+          issues: (compatReport as any).issues,
+        });
+      }
+    }
+
+
+    // Public-release lock: never serialize debug/analysis extras in production unless QA header is present
+    const qaHeader = req.headers.get("x-imotara-qa");
+    const qa = qaHeader === "1" || qaHeader?.toLowerCase() === "true";
+    const prod = process.env.NODE_ENV === "production";
+
+    // Strip common debug keys deeply (defense-in-depth)
+    const STRIP_KEYS = new Set([
+      "debug",
+      "trace",
+      "traces",
+      "raw",
+      "prompt",
+      "prompts",
+      "systemPrompt",
+      "messages",
+      "inputMessages",
+      "outputMessages",
+      "tokens",
+      "tokenUsage",
+      "usage",
+      "timings",
+      "latencyMs",
+      "model",
+      "provider",
+      "requestId",
+      "internal",
+    ]);
+
+    function stripDeep(v: unknown): unknown {
+      if (!v || typeof v !== "object") return v;
+      if (Array.isArray(v)) return v.map(stripDeep);
+
+      const obj = v as Record<string, unknown>;
+      const out: Record<string, unknown> = {};
+      for (const [k, val] of Object.entries(obj)) {
+        if (STRIP_KEYS.has(k)) continue;
+        if (k === "meta" && val && typeof val === "object") {
+          // also ensure QA-only meta bits don't leak
+          const m = { ...(val as Record<string, unknown>) };
+          delete (m as Record<string, unknown>).softEnforcement;
+          delete (m as Record<string, unknown>).debug;
+          delete (m as Record<string, unknown>).trace;
+          out[k] = stripDeep(m);
+          continue;
+        }
+        out[k] = stripDeep(val);
+      }
+      return out;
+    }
+
+    // ✅ Baby Step 11.6.9 — merge analyze result + meta (do NOT replace analyze shape)
+    const finalObj = {
+      ...result,               // ← keep full AnalysisResult
+      meta: (respObj as any).meta, // ← inject meta (emotion + compatibility)
+    };
+
+    const safeResult = prod && !qa ? (stripDeep(finalObj) as typeof finalObj) : finalObj;
+
+    return NextResponse.json(safeResult, { status: 200 });
+
+  } catch (err) {
+    if (SHOULD_LOG) {
+      console.warn("[imotara] /api/analyze POST failed:", String(err));
+    }
+    return NextResponse.json(
+      { ok: false, error: "internal_error" },
+      { status: 500 }
+    );
   }
-
-  // ✅ Baby Step 11.6.9 — merge analyze result + meta (do NOT replace analyze shape)
-  const finalObj = {
-    ...result,               // ← keep full AnalysisResult
-    meta: (respObj as any).meta, // ← inject meta (emotion + compatibility)
-  };
-
-  const safeResult = prod && !qa ? (stripDeep(finalObj) as typeof finalObj) : finalObj;
-
-  return NextResponse.json(safeResult, { status: 200 });
 }
 
 export async function GET() {

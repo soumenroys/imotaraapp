@@ -159,7 +159,12 @@ export async function POST(req: Request) {
         // Normal successful path
         return NextResponse.json(ai, { status: 200 });
     } catch (err) {
-        console.error("[/api/chat-reply] error:", err);
+        const PROD = process.env.NODE_ENV === "production";
+        const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
+
+        if (SHOULD_LOG) {
+            console.warn("[/api/chat-reply] error:", String(err));
+        }
 
         // Return a valid ImotaraAIResponse shape so the client can ignore it
         // (meta.from !== "openai") and fall back gracefully.

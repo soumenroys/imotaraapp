@@ -32,3 +32,10 @@ export function middleware(req: NextRequest) {
 export const config = {
     matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
 };
+
+// Next.js expects proxy.ts to export either a default function or a named `proxy` function.
+// Keep existing middleware logic untouched and provide a proxy entrypoint.
+export default function proxy(req: NextRequest) {
+    // If your file already exports `middleware`, this will work:
+    return (middleware as any)(req);
+}

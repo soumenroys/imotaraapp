@@ -95,7 +95,13 @@ export async function POST(req: Request) {
             },
         });
     } catch (err: any) {
-        console.error("donation-intent error:", err);
+        const PROD = process.env.NODE_ENV === "production";
+        const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
+
+        if (SHOULD_LOG) {
+            console.warn("donation-intent error:", String(err));
+        }
+
         return NextResponse.json(
             {
                 ok: false,

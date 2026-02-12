@@ -81,7 +81,16 @@ export async function GET() {
             },
         });
     } catch (error) {
-        console.error("[Imotara] /api/export: response construction failed", error);
+        const PROD = process.env.NODE_ENV === "production";
+        const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
+
+        if (SHOULD_LOG) {
+            console.warn(
+                "[Imotara] /api/export: response construction failed",
+                String(error)
+            );
+        }
+
         return NextResponse.json(
             {
                 error: "export_failed",

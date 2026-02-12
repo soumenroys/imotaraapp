@@ -266,8 +266,13 @@ export async function POST(request: Request) {
       { status: 200 }
     );
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error("POST /api/history error:", err);
+    const PROD = process.env.NODE_ENV === "production";
+    const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
+
+    if (SHOULD_LOG) {
+      console.warn("POST /api/history error:", String(err));
+    }
+
     return NextResponse.json(
       { ok: false, acceptedIds: [], serverTs: Date.now() },
       { status: 400 }

@@ -61,7 +61,8 @@ export const metadata: Metadata = {
     title: "Imotara — An Immortal Friend for Your Emotions",
     description:
       "An emotion-aware companion that listens, learns, and grows with you — quietly, ethically, and forever.",
-    creator: "@imotara",
+    creator: "@imotara4x",
+    site: "@imotara4x",
     images: ["/og-image.png"],
   },
   icons: {

@@ -1194,8 +1194,12 @@ export default function ChatPage() {
                         </button>
                       ) : (
                         // keep layout stable (3-column grid) without exposing broken control
-                        <span className="inline-flex h-7 w-full items-center justify-center rounded-full border border-white/10 bg-black/20 px-3 text-xs text-white/40">
-                          —
+                        <span
+                          className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-black/25 px-3 text-xs text-white/60 backdrop-blur-sm"
+                          title="Cloud sync will be available in a future update"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" />
+                          Cloud (Soon)
                         </span>
                       )}
 
@@ -1211,7 +1215,7 @@ export default function ChatPage() {
                           className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-400"
                             }`}
                         />
-                        {mode === "allow-remote" ? "Remote allowed" : "On-device only"}
+                        {mode === "allow-remote" ? "Remote allowed" : "Local only"}
                       </div>
                     </div>
                   </div>

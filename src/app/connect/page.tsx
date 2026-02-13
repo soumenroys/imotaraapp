@@ -47,10 +47,10 @@ export default function ConnectPage() {
             </p>
             <div className="mt-4">
               <a
-                href="mailto:support@imotara.com"
+                href="mailto:info@imotara.com"
                 className="inline-flex items-center rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm text-zinc-100 shadow-sm transition hover:bg-white/10"
               >
-                support@imotara.com
+                info@imotara.com
               </a>
             </div>
           </div>
@@ -62,30 +62,64 @@ export default function ConnectPage() {
               Follow updates, announcements, and behind-the-scenes notes.
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <a
-                href="https://x.com/imotara"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-zinc-100 shadow-sm transition hover:bg-white/10"
-              >
-                X (Twitter)
-              </a>
-              <a
-                href="https://www.linkedin.com/company/imotara"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-zinc-100 shadow-sm transition hover:bg-white/10"
-              >
-                LinkedIn
-              </a>
-              <a
-                href="https://github.com/imotara"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-zinc-100 shadow-sm transition hover:bg-white/10"
-              >
-                GitHub
-              </a>
+              {[
+                {
+                  label: "X",
+                  href: "https://x.com/imotara4me",
+                  icon: (
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      className="h-4 w-4"
+                      fill="currentColor"
+                    >
+                      <path d="M18.9 2H22l-6.8 7.8L23 22h-6.8l-5.3-6.8L4.9 22H2l7.4-8.5L1 2h7l4.8 6.1L18.9 2Zm-1.2 18h1.7L7.3 3.9H5.5L17.7 20Z" />
+                    </svg>
+                  ),
+                },
+                {
+                  label: "LinkedIn",
+                  href: "https://linkedin.com/in/imotara-4me-5b77753b0",
+                  icon: (
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      className="h-4 w-4"
+                      fill="currentColor"
+                    >
+                      <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.86-3.04-1.86 0-2.14 1.45-2.14 2.95v5.66H9.35V9h3.41v1.56h.05c.48-.9 1.65-1.86 3.39-1.86 3.63 0 4.3 2.39 4.3 5.49v6.26ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.11 20.45H3.57V9h3.54v11.45ZM22 2H2v20h20V2Z" />
+                    </svg>
+                  ),
+                },
+                // {
+                //   label: "Facebook",
+                //   href: "https://facebook.com/imotara",
+                //   icon: (
+                //     <svg
+                //       viewBox="0 0 24 24"
+                //       aria-hidden="true"
+                //       className="h-4 w-4"
+                //       fill="currentColor"
+                //     >
+                //       <path d="M22 12a10 10 0 1 0-11.63 9.87v-6.99H7.9V12h2.47V9.8c0-2.44 1.45-3.8 3.67-3.8 1.06 0 2.17.19 2.17.19v2.39h-1.22c-1.21 0-1.59.75-1.59 1.52V12h2.7l-.43 2.88h-2.27v6.99A10 10 0 0 0 22 12Z" />
+                //     </svg>
+                //   ),
+                // },
+              ].map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-zinc-100 shadow-sm transition hover:bg-white/10"
+                  aria-label={`Open Imotara on ${item.label}`}
+                >
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-black/30">
+                    {item.icon}
+                  </span>
+                  <span>{item.label}</span>
+                </a>
+              ))}
             </div>
           </div>
 
@@ -98,10 +132,10 @@ export default function ConnectPage() {
             </p>
             <div className="mt-4">
               <a
-                href="mailto:partnerships@imotara.com?subject=Partnership%20Inquiry"
+                href="mailto:info@imotara.com?subject=Partnership%20Inquiry"
                 className="inline-flex items-center rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm text-zinc-100 shadow-sm transition hover:bg-white/10"
               >
-                partnerships@imotara.com
+                info@imotara.com
               </a>
             </div>
           </div>

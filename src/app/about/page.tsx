@@ -13,7 +13,6 @@ export default function AboutPage() {
       aria-labelledby="about-title"
     >
       <div className="space-y-6 text-sm">
-
         {/* Hero / Intro */}
         <section className="imotara-glass-card rounded-2xl px-4 py-5 shadow-xl backdrop-blur-md sm:px-6 sm:py-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-400">
@@ -38,7 +37,8 @@ export default function AboutPage() {
         {/* Divider */}
         <div className="h-[1px] w-full bg-white/5" />
 
-        {/* Principles + Roadmap + History */}
+        {/* Principles + Commitment + History */}
+
         <section className="space-y-4">
           {/* History (full-width) */}
           <div className="imotara-glass-soft rounded-2xl px-4 py-4 shadow-md backdrop-blur-md sm:px-5 sm:py-5">
@@ -78,7 +78,8 @@ export default function AboutPage() {
             </p>
           </div>
 
-          {/* Principles + Roadmap (side-by-side on desktop, stacked on mobile) */}
+          {/* Principles + Commitment (side-by-side on desktop, stacked on mobile) */}
+
           <div className="grid gap-4 md:grid-cols-2">
             {/* Principles */}
             <div className="imotara-glass-soft rounded-2xl px-4 py-4 shadow-md backdrop-blur-md sm:px-5 sm:py-5">
@@ -100,31 +101,33 @@ export default function AboutPage() {
               </ul>
             </div>
 
-            {/* Roadmap */}
+            {/* Commitment */}
             <div className="imotara-glass-soft rounded-2xl px-4 py-4 shadow-md backdrop-blur-md sm:px-5 sm:py-5">
               <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                Roadmap
+                Our Commitment
               </h2>
 
               <p className="mt-3 text-xs leading-6 text-zinc-300 sm:text-sm">
-                <span className="font-medium text-zinc-200">Imotara today:</span>{" "}
-                a calm, local-first companion for journaling, reflection, and
-                gentle pattern awareness — designed to stay private, simple, and
-                offline-safe by default.
+                Imotara is designed to stay calm, private, and respectful — not
+                addictive, not noisy, and never built around engagement tricks.
               </p>
 
-              <p className="mt-3 text-xs leading-6 text-zinc-300 sm:text-sm">
-                <span className="font-medium text-zinc-200">What’s next:</span>{" "}
-                thoughtful improvements that keep the same promise — clarity,
-                consent, and control. New features will be added carefully, without
-                changing Imotara’s quiet nature or introducing engagement tricks.
-              </p>
-
-              <p className="mt-3 text-xs leading-6 text-zinc-300 sm:text-sm">
-                Imotara is built for the long run — a steady space you can return
-                to, where your data remains yours and your pace is respected.
-              </p>
+              <ul className="mt-3 list-disc space-y-2 pl-5 text-xs leading-6 text-zinc-300 sm:text-sm">
+                <li>
+                  <span className="font-medium text-zinc-200">Privacy-first:</span>{" "}
+                  your data remains yours, with clear consent and control.
+                </li>
+                <li>
+                  <span className="font-medium text-zinc-200">Local-first:</span>{" "}
+                  core experiences should work even when you’re offline.
+                </li>
+                <li>
+                  <span className="font-medium text-zinc-200">Gentle by design:</span>{" "}
+                  reflection and clarity over pressure, streaks, or dopamine loops.
+                </li>
+              </ul>
             </div>
+
           </div>
         </section>
       </div>

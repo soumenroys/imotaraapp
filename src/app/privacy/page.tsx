@@ -45,9 +45,11 @@ export default function PrivacyPage() {
             young people and families, not for ad-tracking or selling data.
           </p>
           <p className="mt-3 text-xs text-zinc-400">
-            This page describes how data is handled in the current experience and
-            how we intend to evolve as more cloud features are added.
+            This page explains how data is handled in the current Imotara
+            experience. If we introduce new data flows in the future, we will
+            update this policy and ask for consent where required.
           </p>
+
         </section>
 
         {/* Content sections */}
@@ -145,11 +147,12 @@ export default function PrivacyPage() {
                 stored locally and can be changed in the app.
               </li>
               <li>
-                <strong>Sync and cloud features</strong> are under active
-                development. Until those are available and clearly explained,
-                your conversations and emotion history in this version are not
-                used to train ads or sold to third parties.
+                <strong>Sync and cloud features</strong> (where available) are
+                always opt-in and explained in-app. We don’t sell personal data,
+                and we don’t use your conversations or emotion history to train
+                advertising systems.
               </li>
+
             </ul>
             <p className="mt-3 text-xs text-zinc-400">
               If you clear your browser data (like site storage or local
@@ -176,11 +179,11 @@ export default function PrivacyPage() {
               </li>
             </ul>
             <p className="mt-3 text-xs text-zinc-400">
-              In the early web version, most data lives only in your browser on
-              this device. As we introduce secure account-based sync and export
-              tools, this section will be expanded with step-by-step
-              instructions.
+              In the current web experience, most data lives only in your
+              browser on this device. Use the controls below to export or delete
+              data available in this experience.
             </p>
+
 
             {/* 🔐 Live local Export/Delete controls */}
             <PrivacyActionsPanel />

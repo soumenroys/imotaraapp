@@ -54,8 +54,8 @@ export default function TermsPage() {
         <h2 className="text-xl font-medium text-zinc-50">3) Your Content</h2>
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           You retain ownership of content you enter. You grant us a limited,
-          revocable license to process that content solely to operate and improve
-          the features you use, consistent with our{" "}
+          revocable license to process that content solely to provide, maintain,
+          and operate the features you use, consistent with our{" "}
           <Link
             href="/privacy"
             className="underline decoration-emerald-300/70 underline-offset-4 hover:text-emerald-200"
@@ -64,6 +64,7 @@ export default function TermsPage() {
           </Link>
           .
         </p>
+
       </section>
 
       {/* 4) Feedback */}

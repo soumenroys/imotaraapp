@@ -54,175 +54,219 @@ export default function PrivacyPage() {
 
         {/* Content sections */}
         <div className="mt-8 space-y-6">
+          {/* Scope */}
+          <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
+            <h2 className="text-xl font-medium text-zinc-50">Scope</h2>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              This Privacy Policy applies to the Imotara web application, the Imotara iOS
+              and Android mobile applications, and any cloud sync services associated
+              with Imotara. It does not apply to third-party websites or services that
+              may be linked from within the app.
+            </p>
+          </section>
+
           {/* Core Principles */}
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
-            <h2 className="text-xl font-medium text-zinc-50">
-              Core Principles
-            </h2>
+            <h2 className="text-xl font-medium text-zinc-50">Core Principles</h2>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
               <li>
-                <strong>Consent-first</strong>: features that need cloud use
-                clear, explicit opt-ins.
+                <strong>Consent-first</strong>: optional cloud and advanced features use
+                clear opt-ins.
               </li>
               <li>
-                <strong>Minimalism by default</strong>: collect only what’s
-                essential.
+                <strong>Local-first</strong>: wherever possible, data stays on your
+                device.
               </li>
               <li>
-                <strong>Transparency</strong>: plain language, no dark patterns.
+                <strong>Data minimization</strong>: we collect only what’s required to
+                operate the service.
               </li>
               <li>
-                <strong>Control</strong>: export and delete options wherever
+                <strong>No ad-tech</strong>: we do not run advertising tracking systems
+                inside Imotara.
+              </li>
+              <li>
+                <strong>No sale of personal data</strong>.
+              </li>
+              <li>
+                <strong>User control</strong>: export and deletion options wherever
                 technically feasible.
               </li>
-              <li>No ads, no sale of personal data.</li>
             </ul>
           </section>
 
           {/* What We Collect */}
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
+            <h2 className="text-xl font-medium text-zinc-50">Information We Collect</h2>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              We collect information only when necessary to provide the service.
+            </p>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <p className="text-sm font-semibold text-zinc-100">
+                  Account information (optional)
+                </p>
+                <p className="mt-1 text-sm leading-7 text-zinc-300">
+                  If you create an account, we may collect your email address and
+                  authentication credentials.
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold text-zinc-100">User content</p>
+                <p className="mt-1 text-sm leading-7 text-zinc-300">
+                  When you use Imotara, you may choose to enter chat messages, journal
+                  entries, reflections, emotion logs, and mood history. You control what
+                  you choose to enter.
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold text-zinc-100">
+                  Device &amp; technical data
+                </p>
+                <p className="mt-1 text-sm leading-7 text-zinc-300">
+                  To keep the app reliable, we may collect basic diagnostic data such as
+                  app version, device type, operating system version, crash reports, and
+                  anonymous performance metrics. We do not collect advertising
+                  identifiers for tracking purposes.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Local-first architecture */}
+          <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
             <h2 className="text-xl font-medium text-zinc-50">
-              What We Collect
+              Local-First Storage (Default)
             </h2>
-            <p className="mt-3 text-sm text-zinc-300">
-              Depending on your usage and settings:
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              Imotara is designed to prioritize local processing. On both web and mobile,
+              chat history, emotion logs, and preferences may be stored locally on your
+              device to provide continuity and a better experience.
+            </p>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              If you uninstall the app (mobile) or clear browser storage (web), locally
+              stored data may be removed.
+            </p>
+          </section>
+
+          {/* Cloud sync */}
+          <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
+            <h2 className="text-xl font-medium text-zinc-50">Cloud Sync</h2>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              When cloud sync is enabled, a private encrypted copy of selected history
+              may be stored on secure servers to support backup and multi-device
+              continuity.
             </p>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
-              <li>
-                <strong>Account basics</strong> (if you create an account):
-                email and authentication data.
-              </li>
-              <li>
-                <strong>App content</strong> you choose to enter (e.g., journal
-                notes, reflections).
-              </li>
-              <li>
-                <strong>Device &amp; usage</strong>: anonymous diagnostics to
-                keep the app reliable.
-              </li>
-              <li>
-                <strong>Optional cloud features</strong>: only when you opt in;
-                we’ll explain the why and where.
-              </li>
+              <li>Data is encrypted in transit (HTTPS/TLS).</li>
+              <li>Data is encrypted at rest where supported by infrastructure.</li>
+              <li>Your conversations are not publicly visible.</li>
+              <li>Your conversations are not sold.</li>
+              <li>Your conversations are not used for advertising systems.</li>
             </ul>
           </section>
 
-          {/* Storage & Security */}
+          {/* Legal basis */}
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
-            <h2 className="text-xl font-medium text-zinc-50">
-              Storage &amp; Security
-            </h2>
+            <h2 className="text-xl font-medium text-zinc-50">Legal Basis</h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              We prioritize local processing where possible. For cloud-backed
-              features, data is encrypted in transit and at rest. We use
-              industry-standard controls, access minimization, and audits to
-              protect your information.
+              Depending on your jurisdiction, we process information to provide the
+              service, based on user consent (for optional features), performance of the
+              service, legitimate interests in security and reliability, and compliance
+              with legal obligations where applicable. You may withdraw consent for
+              optional cloud features at any time.
             </p>
           </section>
 
-          {/* How the Current Web Experience Works */}
+          {/* Retention */}
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
-            <h2 className="text-xl font-medium text-zinc-50">
-              How the Current Web Experience Works (On This Device)
-            </h2>
+            <h2 className="text-xl font-medium text-zinc-50">Data Retention</h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              The current Imotara web experience focuses on{" "}
-              <strong>on-device processing</strong> first. That means:
+              Local data remains on your device unless you delete it or uninstall the
+              app/clear browser storage. Cloud-synced data remains until you request
+              deletion, delete your account, or retention limits require removal.
             </p>
+          </section>
+
+          {/* Your rights + actions */}
+          <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
+            <h2 className="text-xl font-medium text-zinc-50">Your Rights &amp; Controls</h2>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
               <li>
-                <strong>Chat messages &amp; mood history</strong> are stored
-                locally in your browser (for example, in local storage or a
-                similar mechanism) so you can see past conversations and emotion
-                trends on this device.
+                <strong>Export</strong>: request a machine-readable copy of your data.
               </li>
               <li>
-                <strong>Emotion analysis</strong> is currently performed locally
-                in this version; remote/AI-backend analysis will only be
-                enabled when you explicitly allow it.
+                <strong>Delete</strong>: request deletion of cloud-stored history and/or
+                account data (subject to legal/operational limits).
               </li>
               <li>
-                <strong>Consent settings</strong> (such as &quot;on-device
-                only&quot; vs future cloud/remote analysis modes) are also
-                stored locally and can be changed in the app.
-              </li>
-              <li>
-                <strong>Sync and cloud features</strong> (where available) are
-                always opt-in and explained in-app. We don’t sell personal data,
-                and we don’t use your conversations or emotion history to train
-                advertising systems.
-              </li>
-
-            </ul>
-            <p className="mt-3 text-xs text-zinc-400">
-              If you clear your browser data (like site storage or local
-              storage), you may lose locally stored chat history and mood logs
-              on this device.
-            </p>
-          </section>
-
-          {/* Your Choices */}
-          <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
-            <h2 className="text-xl font-medium text-zinc-50">Your Choices</h2>
-            <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
-              <li>
-                <strong>Export</strong>: request a machine-readable copy of your
-                data.
-              </li>
-              <li>
-                <strong>Delete</strong>: request deletion of your account and
-                associated data (subject to legal/operational limits).
-              </li>
-              <li>
-                <strong>Opt out</strong>: disable optional analytics or cloud
-                features anytime.
+                <strong>Opt out</strong>: disable optional cloud features and consent-based
+                processing where available.
               </li>
             </ul>
-            <p className="mt-3 text-xs text-zinc-400">
-              In the current web experience, most data lives only in your
-              browser on this device. Use the controls below to export or delete
-              data available in this experience.
-            </p>
 
-
-            {/* 🔐 Live local Export/Delete controls */}
-            <PrivacyActionsPanel />
-          </section>
-
-          {/* Sharing with Third Parties */}
-          <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
-            <h2 className="text-xl font-medium text-zinc-50">
-              Sharing with Third Parties
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-zinc-300">
-              We don’t sell personal data. We may use vetted processors (e.g.,
-              cloud infrastructure, analytics) bound by contracts to process
-              data on our behalf and under our instructions. We may also
-              disclose information if required by law or to prevent harm.
-            </p>
+            {/* 🔐 Live Export/Delete controls */}
+            <div className="mt-5">
+              <PrivacyActionsPanel />
+            </div>
           </section>
 
           {/* Children */}
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
             <h2 className="text-xl font-medium text-zinc-50">Children</h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              Imotara is not directed to children under 13. If you believe a
-              child has provided personal data, please contact us to remove it.
+              Imotara is not directed to children under 13. If you believe a child has
+              provided personal data, please contact us and we will take steps to delete
+              it.
+            </p>
+          </section>
+
+          {/* Sharing */}
+          <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
+            <h2 className="text-xl font-medium text-zinc-50">
+              Data Sharing &amp; Processors
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              We do not sell personal data. We may use contracted service providers (for
+              example, hosting providers) who process data on our behalf under
+              contractual safeguards and our instructions. We may disclose information
+              if required by law, to prevent harm, or to protect platform integrity.
+            </p>
+          </section>
+
+          {/* International transfers */}
+          <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
+            <h2 className="text-xl font-medium text-zinc-50">
+              International Data Transfers
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              If data is processed outside your country of residence, we take reasonable
+              measures to ensure appropriate protection consistent with applicable laws.
+            </p>
+          </section>
+
+          {/* Security */}
+          <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
+            <h2 className="text-xl font-medium text-zinc-50">Security</h2>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              We use encrypted communication (HTTPS/TLS), access limitation, and
+              infrastructure safeguards to protect your information. No system can
+              guarantee absolute security, but we continuously improve protections.
             </p>
           </section>
 
           {/* Updates */}
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
-            <h2 className="text-xl font-medium text-zinc-50">
-              Updates to this Policy
-            </h2>
+            <h2 className="text-xl font-medium text-zinc-50">Updates to this Policy</h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              We may update this policy as features evolve. We’ll post the new
-              version here and, when appropriate, notify you in-app or via
-              email.
+              We may update this policy as features evolve. We’ll post the new version
+              here and, when appropriate, notify you in-app or via email.
             </p>
             <p className="mt-2 text-xs text-zinc-400">
-              Effective date: Nov 1, 2025 • Last updated: Nov 26, 2025
+              Effective date: Nov 1, 2025 • Last updated: Feb 14, 2026
             </p>
           </section>
 
@@ -242,7 +286,7 @@ export default function PrivacyPage() {
                 href="mailto:support@imotara.com"
                 className="underline decoration-indigo-300/70 underline-offset-4 hover:text-indigo-200"
               >
-                support@imotara.com
+                info@imotara.com
               </a>
               .
             </p>

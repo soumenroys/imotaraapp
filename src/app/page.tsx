@@ -106,9 +106,6 @@ export default function Home() {
         <div className="imotara-glass-card px-6 py-8 sm:px-8 sm:py-10">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">
             <span>Imotara · Emotional Companion</span>
-            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-200 ring-1 ring-emerald-400/40">
-              Web beta
-            </span>
           </div>
 
           <h1 className="mt-4 text-left text-4xl font-semibold tracking-tight text-zinc-50 sm:text-5xl">
@@ -147,7 +144,7 @@ export default function Home() {
             </div>
 
             <p className="max-w-sm text-xs text-zinc-400">
-              Local-first preview. Your words are stored in this browser. Remote
+              Local-first by default. Your words are stored in this browser. Remote
               analysis happens only if you explicitly allow it in settings.
             </p>
           </div>

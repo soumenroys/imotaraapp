@@ -8,10 +8,10 @@ export const metadata = {
     "How Imotara collects, stores, and protects your data — with consent, clarity, and control.",
 };
 
-// Optional build label for quick debugging / preview info
+// Optional build label for quick debugging info
 const BUILD_LABEL =
   process.env.NEXT_PUBLIC_IMOTARA_BUILD_LABEL ??
-  "0.1.0-web-preview · local-first";
+  "0.1.0 · local-first";
 
 export default function PrivacyPage() {
   return (
@@ -45,7 +45,7 @@ export default function PrivacyPage() {
             young people and families, not for ad-tracking or selling data.
           </p>
           <p className="mt-3 text-xs text-zinc-400">
-            This page describes how data is handled in the current preview and
+            This page describes how data is handled in the current experience and
             how we intend to evolve as more cloud features are added.
           </p>
         </section>
@@ -118,13 +118,13 @@ export default function PrivacyPage() {
             </p>
           </section>
 
-          {/* How the Current Web Preview Works */}
+          {/* How the Current Web Experience Works */}
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
             <h2 className="text-xl font-medium text-zinc-50">
-              How the Current Web Preview Works (On This Device)
+              How the Current Web Experience Works (On This Device)
             </h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              The current Imotara web preview focuses on{" "}
+              The current Imotara web experience focuses on{" "}
               <strong>on-device processing</strong> first. That means:
             </p>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
@@ -136,7 +136,7 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Emotion analysis</strong> is currently performed locally
-                in this preview build; remote/AI-backend analysis will only be
+                in this version; remote/AI-backend analysis will only be
                 enabled when you explicitly allow it.
               </li>
               <li>
@@ -147,7 +147,7 @@ export default function PrivacyPage() {
               <li>
                 <strong>Sync and cloud features</strong> are under active
                 development. Until those are available and clearly explained,
-                your conversations and emotion history in this preview are not
+                your conversations and emotion history in this version are not
                 used to train ads or sold to third parties.
               </li>
             </ul>
@@ -176,7 +176,7 @@ export default function PrivacyPage() {
               </li>
             </ul>
             <p className="mt-3 text-xs text-zinc-400">
-              In the early web preview, most data lives only in your browser on
+              In the early web version, most data lives only in your browser on
               this device. As we introduce secure account-based sync and export
               tools, this section will be expanded with step-by-step
               instructions.
@@ -248,7 +248,7 @@ export default function PrivacyPage() {
 
         {/* Tiny build/version footer */}
         <footer className="mt-6 text-center text-[11px] text-zinc-500">
-          Imotara preview · {BUILD_LABEL}
+          Imotara · {BUILD_LABEL}
         </footer>
       </main>
     </>

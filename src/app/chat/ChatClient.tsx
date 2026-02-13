@@ -274,7 +274,7 @@ export default function ChatClient() {
       id: uid(),
       role: "assistant",
       content:
-        "I hear you. In the real app, I'd respond with empathy and context. For now, this is a local preview 😊",
+        "I hear you. I’m here with you — take your time. If you’d like, tell me a little more about what’s making it feel this way.",
       createdAt: Date.now() + 1,
     };
 

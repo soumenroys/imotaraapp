@@ -142,7 +142,7 @@ export default function PrivacyActionsPanel() {
                 meta: {
                     exportedAt: timestamp,
                     app: "Imotara",
-                    environment: "web-preview",
+                    environment: "web",
                     note:
                         "This file contains a best-effort export of Imotara-related data from this browser's local storage.",
                 },
@@ -279,7 +279,7 @@ export default function PrivacyActionsPanel() {
         if (typeof window === "undefined") return;
 
         const confirmed = window.confirm(
-            "This will ask Imotara to clear any synced/remote copy of your history for this preview (if such a copy exists).\n\nIt will NOT delete anything stored only on this browser. For that, use the device delete option.\n\nContinue with remote delete?"
+            "This will ask Imotara to clear any synced/remote copy of your history for this app (if such a copy exists).\n\nIt will NOT delete anything stored only on this browser. For that, use the device delete option.\n\nContinue with remote delete?"
         );
         if (!confirmed) return;
 
@@ -294,7 +294,7 @@ export default function PrivacyActionsPanel() {
 
             setRemoteDeleteState("done");
             setMessage(
-                "If a synced/remote copy existed for this preview, it has now been asked to delete. You can export again later to verify."
+                "If a synced/remote copy existed for this app, it has now been asked to delete. You can export again later to verify."
             );
         } catch (err) {
             console.error("Imotara remote delete failed:", err);
@@ -406,7 +406,7 @@ export default function PrivacyActionsPanel() {
             </p>
             <p className="mt-2 text-sm text-zinc-300">
                 These controls affect the data Imotara uses in this browser and, where
-                available, any synced copy for this preview experience. You stay in
+                available, any synced copy for this experience. You stay in
                 control here.
             </p>
 
@@ -441,7 +441,7 @@ export default function PrivacyActionsPanel() {
                         : "Download cloud copy (if available)"}
                 </button>
                 <p className="text-[11px] text-zinc-500">
-                    If Imotara keeps a synced history for this preview in the cloud, this
+                    If Imotara keeps a synced history for this app in the cloud, this
                     downloads that copy as a JSON file. If no remote data exists yet, the
                     file will say so.
                 </p>
@@ -459,7 +459,7 @@ export default function PrivacyActionsPanel() {
                         : "Delete cloud copy (if any)"}
                 </button>
                 <p className="text-[11px] text-zinc-500">
-                    This asks Imotara to clear any synced/remote history for this preview
+                    This asks Imotara to clear any synced/remote history for this app
                     (if such a copy exists). It does not touch data stored only on this
                     browser.
                 </p>

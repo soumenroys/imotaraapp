@@ -433,7 +433,7 @@ export default function ChatPage() {
           id: uid(),
           role: "assistant",
           content:
-            "Hi, I'm Imotara — a quiet companion. This is a preview of the chat experience. Try sending me a message.",
+            "Hi, I’m Imotara — a quiet companion. Try sending me a message.",
           createdAt: now,
           sessionId: seedId,
         },
@@ -1118,7 +1118,7 @@ export default function ChatPage() {
                       <p className="text-[11px] text-zinc-400 sm:hidden">
                         A calm space to talk about your feelings.
                         <span className="text-zinc-500"> · </span>
-                        Private preview · Local-first by default.
+                        Local-first by default.
                       </p>
 
                       {/* Desktop: keep the "nice" header line always. Collapse only the extra details by default. */}
@@ -1532,7 +1532,7 @@ function EmptyState() {
       <div className="mt-8 rounded-2xl border border-dashed border-white/20 bg-black/30 p-8 text-center text-zinc-200">
         <p className="text-base font-medium">Start a conversation</p>
         <p className="mt-1 text-sm text-zinc-400">
-          This is a preview of Imotara’s chat. Messages are saved in your browser, and analysis/replies respect your consent settings.
+          Messages are saved in your browser, and analysis/replies respect your consent settings.
         </p>
       </div>
     </div>

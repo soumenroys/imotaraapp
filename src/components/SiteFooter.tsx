@@ -2,7 +2,18 @@ import Link from "next/link";
 
 export default function SiteFooter() {
   const year = new Date().getFullYear();
-  const version = "Web Beta v0.9.7";
+
+  // Single source of truth (set in Vercel env as NEXT_PUBLIC_APP_VERSION)
+  // Fallback to package.json version for local builds.
+  let raw =
+    (process.env.NEXT_PUBLIC_APP_VERSION || "").trim() ||
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    (require("../../package.json")?.version ?? "");
+
+  // Normalize: ensure consistent "vX.X.X" format
+  const version = raw
+    ? `v${raw.replace(/^v/i, "").trim()}`
+    : "v—";
 
   return (
     <footer className="mt-auto border-t border-white/10 bg-gradient-to-t from-black/75 via-slate-950/60 to-transparent backdrop-blur-xl">
@@ -14,8 +25,7 @@ export default function SiteFooter() {
               Imotara · Quiet Emotional Companion
             </p>
             <p className="text-[11px] text-zinc-500 sm:text-xs">
-              © {year} Imotara. All rights reserved. Experimental local-first
-              preview — not a medical or crisis service.
+              © {year} Imotara. All rights reserved. Not a medical or crisis service.
             </p>
 
             {/* Version indicator */}

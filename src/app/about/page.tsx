@@ -40,8 +40,7 @@ export default function AboutPage() {
 
         {/* Principles + Roadmap + History */}
         <section className="space-y-4">
-
-          {/* History */}
+          {/* History (full-width) */}
           <div className="imotara-glass-soft rounded-2xl px-4 py-4 shadow-md backdrop-blur-md sm:px-5 sm:py-5">
             <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
               History
@@ -79,50 +78,53 @@ export default function AboutPage() {
             </p>
           </div>
 
-          {/* Principles */}
-          <div className="imotara-glass-soft rounded-2xl px-4 py-4 shadow-md backdrop-blur-md sm:px-5 sm:py-5">
-            <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-              Principles
-            </h2>
+          {/* Principles + Roadmap (side-by-side on desktop, stacked on mobile) */}
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Principles */}
+            <div className="imotara-glass-soft rounded-2xl px-4 py-4 shadow-md backdrop-blur-md sm:px-5 sm:py-5">
+              <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
+                Principles
+              </h2>
 
-            <ul className="mt-3 list-disc space-y-2 pl-5 text-xs leading-6 text-zinc-300 sm:text-sm">
-              <li>User data sovereignty and consent-first design.</li>
-              <li>Calm, humane technology — no noise, no dopamine traps.</li>
-              <li>
-                Long-term emotional memory with clear, transparent controls
-                for you to delete, export, or move anywhere.
-              </li>
-              <li>
-                Local-first architecture: everything stays on your device
-                unless you explicitly say otherwise.
-              </li>
-            </ul>
-          </div>
+              <ul className="mt-3 list-disc space-y-2 pl-5 text-xs leading-6 text-zinc-300 sm:text-sm">
+                <li>User data sovereignty and consent-first design.</li>
+                <li>Calm, humane technology — no noise, no dopamine traps.</li>
+                <li>
+                  Long-term emotional memory with clear, transparent controls
+                  for you to delete, export, or move anywhere.
+                </li>
+                <li>
+                  Local-first architecture: everything stays on your device
+                  unless you explicitly say otherwise.
+                </li>
+              </ul>
+            </div>
 
-          {/* Roadmap */}
-          <div className="imotara-glass-soft rounded-2xl px-4 py-4 shadow-md backdrop-blur-md sm:px-5 sm:py-5">
-            <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-              Roadmap
-            </h2>
+            {/* Roadmap */}
+            <div className="imotara-glass-soft rounded-2xl px-4 py-4 shadow-md backdrop-blur-md sm:px-5 sm:py-5">
+              <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
+                Roadmap
+              </h2>
 
-            <p className="mt-3 text-xs leading-6 text-zinc-300 sm:text-sm">
-              <span className="font-medium text-zinc-200">Imotara today:</span>{" "}
-              a calm, local-first companion for journaling, reflection, and
-              gentle pattern awareness — designed to stay private, simple, and
-              offline-safe by default.
-            </p>
+              <p className="mt-3 text-xs leading-6 text-zinc-300 sm:text-sm">
+                <span className="font-medium text-zinc-200">Imotara today:</span>{" "}
+                a calm, local-first companion for journaling, reflection, and
+                gentle pattern awareness — designed to stay private, simple, and
+                offline-safe by default.
+              </p>
 
-            <p className="mt-3 text-xs leading-6 text-zinc-300 sm:text-sm">
-              <span className="font-medium text-zinc-200">What’s next:</span>{" "}
-              thoughtful improvements that keep the same promise — clarity,
-              consent, and control. New features will be added carefully, without
-              changing Imotara’s quiet nature or introducing engagement tricks.
-            </p>
+              <p className="mt-3 text-xs leading-6 text-zinc-300 sm:text-sm">
+                <span className="font-medium text-zinc-200">What’s next:</span>{" "}
+                thoughtful improvements that keep the same promise — clarity,
+                consent, and control. New features will be added carefully, without
+                changing Imotara’s quiet nature or introducing engagement tricks.
+              </p>
 
-            <p className="mt-3 text-xs leading-6 text-zinc-300 sm:text-sm">
-              Imotara is built for the long run — a steady space you can return
-              to, where your data remains yours and your pace is respected.
-            </p>
+              <p className="mt-3 text-xs leading-6 text-zinc-300 sm:text-sm">
+                Imotara is built for the long run — a steady space you can return
+                to, where your data remains yours and your pace is respected.
+              </p>
+            </div>
           </div>
         </section>
       </div>

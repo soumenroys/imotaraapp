@@ -5,7 +5,7 @@
 // Goal (privacy-first, non-breaking):
 // - Tries to delete any remote/synced history by calling /api/history with DELETE.
 // - If that endpoint is not implemented yet, we still return a friendly JSON
-//   payload explaining that remote delete is not available in this preview.
+//   payload explaining that remote delete is not available in this release.
 // - Does NOT touch browser localStorage (that is handled in PrivacyActionsPanel).
 //
 // You can later wire this to a button like
@@ -83,7 +83,7 @@ async function performRemoteDelete() {
             app: "Imotara",
             kind: "server-history-delete",
             note:
-                "Best-effort attempt to delete any remote/synced history for this preview.",
+                "Best-effort attempt to delete any remote/synced history for this release.",
         },
         remoteDeleteResult,
     };

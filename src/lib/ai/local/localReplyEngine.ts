@@ -89,7 +89,7 @@ export function buildLocalReply(message: string, toneContext?: ToneContext): Loc
         `Should we focus on what you’re feeling, or what you can do next?`,
     ];
 
-    // Keep local-mode metadata out of the user-facing message (prevents repetitive "preview" feel)
+    // Keep local-mode metadata out of the user-facing message (prevents repetitive placeholder feel)
     const localNote = "";
 
     const intent = pick(["clarify", "reflect", "reframe"] as const, seed >>> 3);

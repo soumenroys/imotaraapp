@@ -73,7 +73,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: siteUrl,
   },
-  // 🔓 Allow search engines to index and follow links (public beta)
+  // 🔓 Allow search engines to index and follow links (public release)
   robots: {
     index: true,
     follow: true,
@@ -123,11 +123,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body
-        className={`${inter.className} flex min-h-screen flex-col text-zinc-900 dark:text-zinc-100`}
+        className={`${inter.className} flex min-h-screen flex-col pb-24 text-zinc-900 dark:text-zinc-100`}
       >
         <SiteHeader />
 
-        <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10 pb-28">
           {children}
         </main>
 

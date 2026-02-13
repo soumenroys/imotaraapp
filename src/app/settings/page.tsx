@@ -7,7 +7,6 @@ import { saveHistory } from "@/lib/imotara/historyPersist";
 
 const SHOW_DONATION_RECEIPTS = process.env.NODE_ENV !== "production";
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
-const IMOTARA_VERSION = "Imotara Web Beta v0.9.7";
 
 // NOTE: "imotara.profile.v1" is owned by the Tone & Context profile (ImotaraProfileV1) below.
 // Do not define a second schema for the same storage key, otherwise settings will reset.
@@ -1137,11 +1136,7 @@ export default function SettingsPage() {
                         pages.
                     </p>
                 </section>
-
-                {/* Version footer */}
-                <footer className="pt-6 pb-2 text-center text-[11px] text-zinc-500">
-                    <span className="opacity-80">{IMOTARA_VERSION}</span>
-                </footer>
+                {/* Version footer intentionally removed (global footer already shows version) */}
             </div>
         </main>
     );

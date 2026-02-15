@@ -65,7 +65,47 @@ type Thread = {
   messages: Message[];
 };
 
-const STORAGE_KEY = "imotara.chat.v1";
+const LEGACY_CHAT_KEY = "imotara.chat.v1";
+
+
+// ✅ Scope remote history per local user (so incognito/device doesn't see others)
+const PROFILE_KEY = "imotara.profile.v1";
+const LOCAL_USER_KEY = "imotara.localUserId.v1";
+
+function safeParseJSON<T>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function getOrCreateLocalUserId(): string {
+  if (typeof window === "undefined") return "server";
+  const existing = window.localStorage.getItem(LOCAL_USER_KEY);
+  if (existing && existing.trim()) return existing.trim();
+
+  const created =
+    Math.random().toString(36).slice(2) + "-" + Date.now().toString(36);
+  window.localStorage.setItem(LOCAL_USER_KEY, created);
+  return created;
+}
+
+function getUserScopeId(): string {
+  if (typeof window === "undefined") return "";
+  const prof = safeParseJSON<{ id?: string }>(window.localStorage.getItem(PROFILE_KEY));
+  const pid = typeof prof?.id === "string" ? prof.id.trim() : "";
+  return pid || getOrCreateLocalUserId();
+}
+
+function getLocalChatKey(): string {
+  if (typeof window === "undefined") return LEGACY_CHAT_KEY;
+  const uid = getUserScopeId(); // profile id if present, else local user id
+  return `imotara.chat.v1.${uid}`;
+}
+
+
 
 // Public release: hide remote sync controls until fully stable
 const ENABLE_REMOTE_SYNC = false;
@@ -137,7 +177,11 @@ function isAppMessage(m: Message): m is AppMessage {
  */
 async function fetchRemoteHistory(): Promise<unknown[]> {
   try {
-    const res = await fetch("/api/history", { method: "GET" });
+    const res = await fetch("/api/history", {
+      method: "GET",
+      headers: { "x-imotara-user": getUserScopeId() },
+    });
+
     if (!res.ok) return [];
     const data: unknown = await res.json();
 
@@ -200,9 +244,13 @@ async function pushToRemoteHistory(entry: {
   try {
     await fetch("/api/history", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-imotara-user": getUserScopeId(),
+      },
       body: JSON.stringify([entry]),
     });
+
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn("[imotara] pushToRemoteHistory failed:", err);
@@ -371,7 +419,18 @@ export default function ChatPage() {
     if (!mounted) return;
 
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const key = getLocalChatKey();
+      const raw = localStorage.getItem(key) ?? localStorage.getItem(LEGACY_CHAT_KEY);
+
+      // One-time migrate legacy chats into the per-user key (keep legacy key for safety)
+      if (!localStorage.getItem(key) && raw) {
+        try {
+          localStorage.setItem(key, raw);
+        } catch {
+          // ignore
+        }
+      }
+
       if (raw) {
         const parsed = JSON.parse(raw) as {
           threads: Thread[];
@@ -492,7 +551,8 @@ export default function ChatPage() {
   useEffect(() => {
     if (!mounted) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ threads, activeId }));
+      localStorage.setItem(getLocalChatKey(), JSON.stringify({ threads, activeId }));
+
     } catch {
       // ignore
     }
@@ -1131,17 +1191,25 @@ export default function ChatPage() {
                         </p>
 
                         {showHeaderDetails && (
-                          <p className="mb-3 text-xs text-zinc-500">
-                            You can{" "}
-                            <Link
-                              href="/privacy"
-                              className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300"
-                            >
-                              download or delete what’s stored on this device
-                            </Link>{" "}
-                            anytime.
-                          </p>
+                          <div className="mb-3 space-y-2 text-xs text-zinc-500">
+                            <p>
+                              You can{" "}
+                              <Link
+                                href="/privacy"
+                                className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300"
+                              >
+                                download or delete what’s stored on this device
+                              </Link>{" "}
+                              anytime.
+                            </p>
+
+                            <p>
+                              Note: Private/Incognito windows may not keep messages after you close them (browser
+                              privacy behavior).
+                            </p>
+                          </div>
                         )}
+
                       </div>
                     </div>
                   </div>

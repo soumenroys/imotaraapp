@@ -13,6 +13,29 @@ import {
  * Helpers
  * --------------------------------------------------------------------------*/
 
+const USER_SCOPE_HEADER = "x-imotara-user";
+
+function sanitizeScope(raw: string | null): string {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  // keep it simple + safe for PK prefix
+  return s.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+}
+
+function scopedId(scope: string, id: string): string {
+  return `${scope}:${id}`;
+}
+
+function unscopedId(scope: string, id: string): string {
+  const p = `${scope}:`;
+  return id.startsWith(p) ? id.slice(p.length) : id;
+}
+
+function getScopeFromRequest(req: Request): string {
+  return sanitizeScope(req.headers.get(USER_SCOPE_HEADER));
+}
+
+
 /**
  * Coerce a loose object into a strict EmotionRecord or return null if invalid.
  * Keeps /api/history tolerant to older/mobile payload shapes.
@@ -213,8 +236,16 @@ export async function GET(request: Request) {
   }
 
   // Default envelope mode
-  const records = await getAllRecords();
+  const scope = getScopeFromRequest(request);
+  let records = await getAllRecords();
   const serverTs = Date.now();
+
+  if (scope) {
+    records = records
+      .filter((r: EmotionRecord) => typeof r.id === "string" && r.id.startsWith(`${scope}:`))
+      .map((r: EmotionRecord) => ({ ...r, id: unscopedId(scope, r.id) }));
+  }
+
 
   // Preserve prior semantics: count excludes deleted
   const serverCount = records.filter((r: EmotionRecord) => r.deleted !== true).length;
@@ -244,11 +275,17 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const records = coerceRecordsFromBody(body);
+    const scope = getScopeFromRequest(request);
 
     // Preserve LWW semantics record-by-record (safer than blind batch overwrite)
     for (const rec of records) {
+      if (scope && rec?.id) {
+        // Store scoped ID in DB, but keep client-visible IDs unscoped
+        rec.id = scopedId(scope, String(rec.id));
+      }
       await upsertLWW(rec);
     }
+
 
     const serverTs = Date.now();
 
@@ -259,7 +296,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: true,
-        acceptedIds: records.map((r) => r.id),
+        acceptedIds: records.map((r) => (scope ? unscopedId(scope, r.id) : r.id)),
         serverTs,
         serverCount,
       },

@@ -2,8 +2,15 @@
 import type { EmotionRecord } from "@/types/history";
 import type { SyncState } from "@/types/sync";
 
-const STORAGE_KEY = "imotara.history";
+// Keep aligned with src/lib/imotara/history.ts
+const PRIMARY_HISTORY_KEY = "imotara:history:v1";
+const LEGACY_HISTORY_KEY = "imotara.history.v1";
+
+// Old/junk key used by earlier persistence helper (clean up safely)
+const JUNK_HISTORY_KEY = "imotara.history";
+
 const SYNC_STATE_KEY = "imotara.syncState.v1";
+
 
 /**
  * Persist the full history to localStorage.
@@ -12,14 +19,22 @@ const SYNC_STATE_KEY = "imotara.syncState.v1";
 export function saveHistory(records: EmotionRecord[]): void {
   try {
     const payload = JSON.stringify(records ?? []);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, payload);
-    }
+    if (typeof window === "undefined") return;
+
+    // Write to the canonical key the app reads from
+    window.localStorage.setItem(PRIMARY_HISTORY_KEY, payload);
+
+    // Also write the legacy key for backward compatibility
+    window.localStorage.setItem(LEGACY_HISTORY_KEY, payload);
+
+    // Clean up the old/junk key so it doesn't confuse future debugging
+    window.localStorage.removeItem(JUNK_HISTORY_KEY);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("[historyPersist] saveHistory failed:", err);
   }
 }
+
 
 /**
  * Read all stored history records from localStorage.
@@ -28,13 +43,18 @@ export function saveHistory(records: EmotionRecord[]): void {
 export function getHistory(): EmotionRecord[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(PRIMARY_HISTORY_KEY) ??
+      window.localStorage.getItem(LEGACY_HISTORY_KEY) ??
+      window.localStorage.getItem(JUNK_HISTORY_KEY);
+
     if (!raw) return [];
     return JSON.parse(raw) as EmotionRecord[];
   } catch {
     return [];
   }
 }
+
 
 /**
  * ---- Sync state persistence ----

@@ -71,11 +71,26 @@ const LEGACY_CHAT_KEY = "imotara.chat.v1";
 const PROFILE_KEY = "imotara.profile.v1";
 const LOCAL_USER_KEY = "imotara.localUserId.v1";
 
+// ✅ Remote consent key (shared with Settings)
+const CONSENT_KEY = "imotara.consent.v1";
+
 // ✅ Optional “Link Key” for cross-device continuity (same person on web + mobile)
 // If present, this becomes the remote user scope.
 // (We’ll add UI for this later; for now it’s just a storage hook.)
 const CHAT_LINK_KEY = "imotara.linkKey.v1";
 const CHAT_USER_HEADER = "x-imotara-user";
+
+function getAllowRemote(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem(CONSENT_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return !!parsed?.allowRemote;
+  } catch {
+    return false;
+  }
+}
 
 
 function safeParseJSON<T>(raw: string | null): T | null {
@@ -113,6 +128,7 @@ function getLocalChatKey(): string {
 
 function getChatRemoteScope(): string {
   if (typeof window === "undefined") return "";
+  if (!getAllowRemote()) return "";
   try {
     const link = (window.localStorage.getItem(CHAT_LINK_KEY) ?? "").trim();
     if (link) return link.slice(0, 80); // keep consistent with server sanitization
@@ -811,6 +827,9 @@ export default function ChatPage() {
     if (pulledRemoteChatRef.current) return;
     pulledRemoteChatRef.current = true;
 
+    // ✅ Respect user consent: only pull remote chat when allowRemote is ON
+    if (!getAllowRemote()) return;
+
     (async () => {
       const remote = await fetchRemoteChatMessages();
       if (!remote.length) return;
@@ -818,6 +837,7 @@ export default function ChatPage() {
       setThreads((prev) => mergeRemoteChatIntoThreads(prev, remote));
     })();
   }, [mounted]);
+
 
 
   async function triggerAnalyze() {

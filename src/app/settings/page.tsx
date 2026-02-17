@@ -8,6 +8,10 @@ import { saveHistory } from "@/lib/imotara/historyPersist";
 const SHOW_DONATION_RECEIPTS = process.env.NODE_ENV !== "production";
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 
+// Cross-device Chat Link Key (same value on web + mobile => same remote chat scope)
+const CHAT_LINK_KEY = "imotara.linkKey.v1";
+
+
 
 // NOTE: "imotara.profile.v1" is owned by the Tone & Context profile (ImotaraProfileV1) below.
 // Do not define a second schema for the same storage key, otherwise settings will reset.
@@ -528,6 +532,52 @@ function loadRazorpayScript(): Promise<boolean> {
 export default function SettingsPage() {
     const { mode } = useAnalysisConsent();
 
+    // Cross-device chat link key (optional)
+    const [linkKey, setLinkKey] = useState("");
+    const [linkKeyStatus, setLinkKeyStatus] = useState<string | null>(null);
+
+    function saveLinkKey() {
+        const next = (linkKey ?? "").trim();
+        try {
+            if (!next) {
+                localStorage.removeItem(CHAT_LINK_KEY);
+                setLinkKey("");
+                setLinkKeyStatus("Link Key cleared.");
+                return;
+            }
+            // keep reasonably short (server also sanitizes)
+            const safe = next.slice(0, 80);
+            localStorage.setItem(CHAT_LINK_KEY, safe);
+            setLinkKey(safe);
+            setLinkKeyStatus("Link Key saved on this device.");
+        } catch {
+            setLinkKeyStatus("Could not save Link Key (storage blocked).");
+        }
+    }
+
+    function clearLinkKey() {
+        try {
+            localStorage.removeItem(CHAT_LINK_KEY);
+        } catch { }
+        setLinkKey("");
+        setLinkKeyStatus("Link Key cleared.");
+    }
+
+    async function copyLinkKey() {
+        const v = (linkKey ?? "").trim();
+        if (!v) {
+            setLinkKeyStatus("Nothing to copy.");
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(v);
+            setLinkKeyStatus("Copied.");
+        } catch {
+            setLinkKeyStatus("Copy failed. You can select and copy manually.");
+        }
+    }
+
+
     // ✅ Hydration-safe: render certain sections only after mount
     const [mounted, setMounted] = useState(false);
 
@@ -738,8 +788,15 @@ export default function SettingsPage() {
         // ✅ ensure client-only rendering for locale-dependent content
         setMounted(true);
 
+        // Load Link Key (optional)
+        try {
+            const raw = localStorage.getItem(CHAT_LINK_KEY);
+            if (raw) setLinkKey(raw);
+        } catch { }
+
         // Read-only licensing status on page load
         refreshLicenseStatus();
+
 
         // Preload Razorpay script in the background for smoother UX
         setRzLoading(true);
@@ -919,6 +976,60 @@ export default function SettingsPage() {
                             View Emotion History
                         </Link>
                     </div>
+                </section>
+
+                {/* Cross-device continuity (optional) */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
+                        Link this device (optional)
+                    </h2>
+                    <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
+                        If you enter the same Link Key on both Web and Mobile, your remote chat history
+                        will appear on both. Treat this key like a private password.
+                    </p>
+
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
+                        <input
+                            value={linkKey}
+                            onChange={(e) => {
+                                setLinkKey(e.target.value);
+                                setLinkKeyStatus(null);
+                            }}
+                            placeholder="Paste a Link Key (e.g., 8–20 characters)"
+                            className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-white/20"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={saveLinkKey}
+                                className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-zinc-100 shadow-sm transition hover:bg-white/20"
+                            >
+                                Save
+                            </button>
+                            <button
+                                type="button"
+                                onClick={copyLinkKey}
+                                className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-zinc-100 shadow-sm transition hover:bg-white/20"
+                            >
+                                Copy
+                            </button>
+                            <button
+                                type="button"
+                                onClick={clearLinkKey}
+                                className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-xs text-zinc-100 shadow-sm transition hover:bg-black/45"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+
+                    {linkKeyStatus ? (
+                        <p className="mt-2 text-xs text-zinc-400">{linkKeyStatus}</p>
+                    ) : null}
+
+                    <p className="mt-3 text-[11px] text-zinc-500">
+                        Tip: Use a short memorable phrase (no spaces) and set the same value on mobile later.
+                    </p>
                 </section>
 
                 {/* NEW: Tone & Context Preferences (client-only safe) */}

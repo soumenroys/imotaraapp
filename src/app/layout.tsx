@@ -8,7 +8,18 @@ import SyncStatusBar from "@/components/imotara/SyncStatusBar";
 import LocalDataNotice from "@/components/imotara/LocalDataNotice";
 
 const inter = Inter({ subsets: ["latin"] });
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const siteUrl = (() => {
+  const explicit = (process.env.NEXT_PUBLIC_SITE_URL || "").trim();
+  if (explicit) return explicit.replace(/\/+$/, "");
+
+  // Vercel provides this in production. It's the host without protocol.
+  const vercel = (process.env.VERCEL_URL || "").trim();
+  if (vercel) return `https://${vercel}`.replace(/\/+$/, "");
+
+  // Local dev fallback only
+  return "http://localhost:3000";
+})();
+
 
 export const viewport: Viewport = {
   themeColor: [

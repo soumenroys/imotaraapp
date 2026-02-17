@@ -8,6 +8,7 @@ import { saveHistory } from "@/lib/imotara/historyPersist";
 const SHOW_DONATION_RECEIPTS = process.env.NODE_ENV !== "production";
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 
+
 // NOTE: "imotara.profile.v1" is owned by the Tone & Context profile (ImotaraProfileV1) below.
 // Do not define a second schema for the same storage key, otherwise settings will reset.
 

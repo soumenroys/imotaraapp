@@ -98,6 +98,19 @@ export function useAnalysisConsent(): UseAnalysisConsentResult {
         } catch (err) {
             console.warn("[imotara] failed to save analysis consent mode", err);
         }
+
+        // ✅ Mirror consent for chat-remote sync gate
+        // Chat reads: imotara.consent.v1 = { allowRemote: boolean, updatedAt: number }
+        try {
+            const allowRemote = next === "allow-remote";
+            localStorage.setItem(
+                "imotara.consent.v1",
+                JSON.stringify({ allowRemote, updatedAt: Date.now() })
+            );
+        } catch {
+            // ignore storage errors
+        }
+
     }, []);
 
     return {

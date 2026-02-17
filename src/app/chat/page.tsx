@@ -82,15 +82,48 @@ const CHAT_USER_HEADER = "x-imotara-user";
 
 function getAllowRemote(): boolean {
   if (typeof window === "undefined") return false;
+
+  // 1) New mirror key (if present)
   try {
     const raw = window.localStorage.getItem(CONSENT_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    return !!parsed?.allowRemote;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.allowRemote === "boolean") return parsed.allowRemote;
+    }
   } catch {
-    return false;
+    // ignore
   }
+
+  // 2) Primary key used by your app today
+  try {
+    const raw = window.localStorage.getItem("imotara.analysisConsent.v1");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Supports either { mode: "allow-remote" | ... } OR { allowRemote: boolean }
+      if (typeof parsed?.allowRemote === "boolean") return parsed.allowRemote;
+      if (typeof parsed?.mode === "string") return parsed.mode === "allow-remote";
+    }
+  } catch {
+    // ignore
+  }
+
+  // 3) Legacy/simple flag
+  try {
+    const raw = window.localStorage.getItem("imotara:allow-remote-analysis");
+    if (raw != null) {
+      const v = raw.trim().toLowerCase();
+      if (v === "true" || v === "1" || v === "yes" || v === "on") return true;
+      if (v === "false" || v === "0" || v === "no" || v === "off") return false;
+      // If someone stored JSON boolean
+      if (v === "null" || v === "undefined" || v === "") return false;
+    }
+  } catch {
+    // ignore
+  }
+
+  return false;
 }
+
 
 
 function safeParseJSON<T>(raw: string | null): T | null {

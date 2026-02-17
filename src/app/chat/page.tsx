@@ -67,10 +67,16 @@ type Thread = {
 
 const LEGACY_CHAT_KEY = "imotara.chat.v1";
 
-
-// ✅ Scope remote history per local user (so incognito/device doesn't see others)
+// ✅ Scope per local user/profile
 const PROFILE_KEY = "imotara.profile.v1";
 const LOCAL_USER_KEY = "imotara.localUserId.v1";
+
+// ✅ Optional “Link Key” for cross-device continuity (same person on web + mobile)
+// If present, this becomes the remote user scope.
+// (We’ll add UI for this later; for now it’s just a storage hook.)
+const CHAT_LINK_KEY = "imotara.linkKey.v1";
+const CHAT_USER_HEADER = "x-imotara-user";
+
 
 function safeParseJSON<T>(raw: string | null): T | null {
   if (!raw) return null;
@@ -103,6 +109,179 @@ function getLocalChatKey(): string {
   if (typeof window === "undefined") return LEGACY_CHAT_KEY;
   const uid = getUserScopeId(); // profile id if present, else local user id
   return `imotara.chat.v1.${uid}`;
+}
+
+function getChatRemoteScope(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    const link = (window.localStorage.getItem(CHAT_LINK_KEY) ?? "").trim();
+    if (link) return link.slice(0, 80); // keep consistent with server sanitization
+  } catch {
+    // ignore
+  }
+  // Fallback: local profile/local id (device scoped)
+  return getUserScopeId();
+}
+
+async function pushChatMessageToRemote(args: {
+  id: string;
+  threadId: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  createdAtMs: number;
+  meta?: any;
+}): Promise<void> {
+  const scope = getChatRemoteScope();
+  if (!scope) return;
+
+  try {
+    const iso = new Date(args.createdAtMs).toISOString();
+    await fetch("/api/chat/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        [CHAT_USER_HEADER]: scope,
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            id: args.id,
+            thread_id: args.threadId,
+            role: args.role,
+            content: args.content,
+            created_at: iso,
+            updated_at: iso,
+            meta: args.meta ?? {},
+          },
+        ],
+      }),
+    });
+  } catch {
+    // fire-and-forget: never block UI
+  }
+}
+
+type RemoteChatRow = {
+  id?: string;
+  thread_id?: string;
+  threadId?: string;
+  role?: "user" | "assistant" | "system" | string;
+  content?: string;
+  created_at?: string;
+  createdAt?: string;
+  meta?: any;
+};
+
+async function fetchRemoteChatMessages(): Promise<RemoteChatRow[]> {
+  const scope = getChatRemoteScope();
+  if (!scope) return [];
+
+  try {
+    const res = await fetch("/api/chat/messages", {
+      method: "GET",
+      headers: { "x-imotara-user": scope },
+    });
+    if (!res.ok) return [];
+
+    const data: any = await res.json();
+
+    // Support: array OR { items: [...] } OR { records: [...] }
+    if (Array.isArray(data)) return data as RemoteChatRow[];
+    if (data && typeof data === "object") {
+      if (Array.isArray(data.items)) return data.items as RemoteChatRow[];
+      if (Array.isArray(data.records)) return data.records as RemoteChatRow[];
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function toMs(ts: unknown): number {
+  if (!ts) return Date.now();
+  if (typeof ts === "number") return ts < 1e12 ? ts * 1000 : ts;
+  const s = String(ts);
+  const d = new Date(s);
+  const ms = d.getTime();
+  return Number.isFinite(ms) ? ms : Date.now();
+}
+
+function mergeRemoteChatIntoThreads(
+  current: Thread[],
+  remoteRows: RemoteChatRow[]
+): Thread[] {
+  // Normalize rows -> Message, grouped by threadId
+  const byThread = new Map<string, Message[]>();
+
+  for (const r of remoteRows) {
+    const id = (r.id ?? "").toString().trim();
+    const threadId = (r.thread_id ?? r.threadId ?? "").toString().trim();
+    const role = (r.role ?? "user") as any;
+    const content = (r.content ?? "").toString();
+    if (!id || !threadId || !content) continue;
+
+    const createdAt = toMs(r.created_at ?? r.createdAt);
+
+    const msg: Message = {
+      id,
+      role: role === "assistant" || role === "system" ? role : "user",
+      content,
+      createdAt,
+      sessionId: threadId,
+      meta: r.meta,
+    };
+
+    const list = byThread.get(threadId) ?? [];
+    list.push(msg);
+    byThread.set(threadId, list);
+  }
+
+  // Build a fast lookup of existing message ids per thread
+  const existingByThread = new Map<string, Set<string>>();
+  for (const t of current) {
+    existingByThread.set(t.id, new Set(t.messages.map((m) => m.id)));
+  }
+
+  // Merge
+  const merged: Thread[] = [...current];
+
+  for (const [threadId, incoming] of byThread.entries()) {
+    incoming.sort((a, b) => a.createdAt - b.createdAt);
+
+    const idx = merged.findIndex((t) => t.id === threadId);
+
+    if (idx === -1) {
+      // New thread from remote
+      const firstUser = incoming.find((m) => m.role === "user");
+      const titleBase = (firstUser?.content ?? "Conversation").trim();
+      const title =
+        titleBase.slice(0, 40) + (titleBase.length > 40 ? "…" : "");
+
+      merged.push({
+        id: threadId,
+        title,
+        createdAt: incoming[0]?.createdAt ?? Date.now(),
+        messages: incoming,
+      });
+      continue;
+    }
+
+    // Existing thread: add only missing messages
+    const seen = existingByThread.get(threadId) ?? new Set<string>();
+    const toAdd = incoming.filter((m) => !seen.has(m.id));
+
+    if (toAdd.length) {
+      const next = [...merged[idx].messages, ...toAdd].sort(
+        (a, b) => a.createdAt - b.createdAt
+      );
+      merged[idx] = { ...merged[idx], messages: next };
+    }
+  }
+
+  // Keep newest threads first (optional)
+  merged.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+
+  return merged;
 }
 
 
@@ -625,6 +804,22 @@ export default function ChatPage() {
     if (mounted) void runSync();
   }, [mounted, runSync]);
 
+  const pulledRemoteChatRef = useRef(false);
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (pulledRemoteChatRef.current) return;
+    pulledRemoteChatRef.current = true;
+
+    (async () => {
+      const remote = await fetchRemoteChatMessages();
+      if (!remote.length) return;
+
+      setThreads((prev) => mergeRemoteChatIntoThreads(prev, remote));
+    })();
+  }, [mounted]);
+
+
   async function triggerAnalyze() {
     if (!activeThread?.messages?.length) return;
     setAnalyzing(true);
@@ -880,6 +1075,16 @@ export default function ChatPage() {
           )
         );
 
+        void pushChatMessageToRemote({
+          id: assistantMsg.id,
+          threadId,
+          role: "assistant",
+          content: assistantMsg.content,
+          createdAtMs: assistantMsg.createdAt,
+          meta: { replySource: assistantMsg.replySource ?? "fallback" },
+        });
+
+
         void logAssistantMessageToHistory(assistantMsg);
 
         // Auto-focus composer when assistant reply arrives
@@ -937,6 +1142,16 @@ export default function ChatPage() {
           t.id === threadId ? { ...t, messages: [...t.messages, assistantMsg] } : t
         )
       );
+
+      void pushChatMessageToRemote({
+        id: assistantMsg.id,
+        threadId,
+        role: "assistant",
+        content: assistantMsg.content,
+        createdAtMs: assistantMsg.createdAt,
+        meta: { replySource: assistantMsg.replySource ?? "fallback" },
+      });
+
 
       void logAssistantMessageToHistory(assistantMsg);
 
@@ -1035,6 +1250,16 @@ export default function ChatPage() {
           : t
       )
     );
+
+    void pushChatMessageToRemote({
+      id: userMsg.id,
+      threadId: targetId,
+      role: "user",
+      content: userMsg.content,
+      createdAtMs: userMsg.createdAt,
+      meta: { sessionId: userMsg.sessionId ?? targetId },
+    });
+
 
     void logUserMessageToHistory(userMsg);
     void generateAssistantReply(targetId, msgsForAnalysis, userMsg.id);

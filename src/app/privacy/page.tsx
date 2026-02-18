@@ -11,7 +11,7 @@ export const metadata = {
 // Optional build label for quick debugging info
 const BUILD_LABEL =
   process.env.NEXT_PUBLIC_IMOTARA_BUILD_LABEL ??
-  "0.1.0 · local-first";
+  "1.0.2 · local-first";
 
 export default function PrivacyPage() {
   return (

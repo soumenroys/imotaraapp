@@ -37,7 +37,7 @@ import type {
 
 // Response behavior blueprint (design hook)
 import type { ResponseBlueprint } from "@/lib/ai/response/responseBlueprint";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
 import { fetchUserMemories } from "@/lib/memory/fetchUserMemories";
 import { compatibilityGate } from "@/lib/ai/compat/compatibilityGate";
 import { createHash } from "crypto";
@@ -122,30 +122,50 @@ export async function POST(req: Request) {
     const inputs = Array.isArray(body?.inputs) ? body.inputs : [];
     const windowSize =
       typeof body?.options?.windowSize === "number" ? body.options.windowSize : 10;
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    const supabaseAdmin =
-      supabaseUrl && serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null;
+    let supabaseAdmin: any = null;
+    try {
+      supabaseAdmin = getSupabaseAdmin();
+    } catch {
+      supabaseAdmin = null;
+    }
 
     if (!supabaseAdmin) {
       if (SHOULD_LOG) {
         console.warn(
-          "[imotara] memory disabled: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+          "[imotara] memory disabled: missing SUPABASE env (admin client unavailable)"
         );
       }
     }
 
+
     // ✅ Baby Step 11.9.2 — identity memory persistence (safe)
     // Use authenticated user when possible; fallback to dev-user.
     // Prefer authenticated user id if client sends it; otherwise fallback.
-    // (Analyze endpoint is service-role right now, so we can't reliably read cookies here.)
-    const userId =
-      (typeof body?.user?.id === "string" && body.user.id.trim())
-        ? body.user.id.trim()
-        : (typeof body?.userId === "string" && body.userId.trim())
-          ? body.userId.trim()
-          : "dev-user";
+    // User identity is derived from Supabase Auth cookies via getSupabaseUserServerClient().
+    // body.user.id is ignored for memory access (spoof protection).
+
+    let preferredNameGlobal = "";
+
+    // ✅ Spoof-proof identity: derive from Supabase Auth cookie (anonymous auth supported)
+    let userId = "dev-user";
+    try {
+      const supabaseUser = await getSupabaseUserServerClient();
+      const { data } = await supabaseUser.auth.getUser();
+      const authedUserId = data?.user?.id ?? "";
+
+      if (authedUserId) {
+        userId = authedUserId;
+      } else if (process.env.NODE_ENV === "production") {
+        // In production, do not use shared dev-user identity
+        userId = ""; // disables memory access safely
+      }
+    } catch {
+      if (process.env.NODE_ENV === "production") {
+        userId = "";
+      }
+    }
+
+
 
     try {
       // Persist user name (identity) when available from toneContext payload
@@ -169,13 +189,78 @@ export async function POST(req: Request) {
           );
       }
 
+      // ✅ Minimal memory extraction from last user message: preferred name
+      // Adds memory even if toneContext.user.name is missing (e.g., "Hi I am Soumen")
+      try {
+        const lastUser = [...inputs].reverse().find((m: any) => m?.role === "user")?.text ?? "";
+        const t = String(lastUser).trim();
+
+        // Patterns: "I am X", "I'm X", "my name is X", "preferred name is X"
+        const m =
+          t.match(/\b(?:preferred name is|my preferred name is|my name is|i am|i'm)\s+([A-Za-z][A-Za-z\s.'-]{0,40})\b/i);
+
+        if (m?.[1]) {
+          const preferredName = m[1].trim();
+
+          if (preferredName.length >= 2 && preferredName.length <= 48) {
+            const upsertRes = await (supabaseAdmin as any)
+              .from("user_memory")
+              .upsert(
+                {
+                  user_id: userId,
+                  type: "identity",
+                  key: "preferred_name",
+                  value: preferredName,
+                  confidence: 0.8,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: "user_id,type,key" }
+              );
+
+            if (upsertRes?.error) {
+              console.warn(
+                "[imotara] user_memory write/fetch error:",
+                String(upsertRes.error?.message ?? upsertRes.error)
+              );
+            } else if (SHOULD_LOG) {
+              console.warn("[imotara] user_memory upserted:", {
+                userId,
+                key: "preferred_name",
+                value: preferredName,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        if (SHOULD_LOG) {
+          console.warn("[imotara] user_memory write/fetch error:", String(e));
+        }
+      }
+
+
       const memories = await fetchUserMemories(supabaseAdmin as any, userId, 20);
+
+      const preferredNameFromMemory =
+        Array.isArray(memories)
+          ? (memories.find((m: any) => m?.key === "preferred_name")?.value ?? "")
+          : "";
+
+      const preferredName =
+        typeof preferredNameFromMemory === "string"
+          ? preferredNameFromMemory.replace(/\s+/g, " ").trim()
+          : "";
+
+      preferredNameGlobal = preferredName;
+
+
       if (SHOULD_LOG) {
         console.warn("[imotara] user_memory fetched:", {
           userId,
-          count: memories.length,
+          count: Array.isArray(memories) ? memories.length : 0,
+          hasPreferredName: !!preferredName,
         });
       }
+
     } catch (e) {
       if (SHOULD_LOG) {
         console.warn("[imotara] user_memory write/fetch error:", String(e));
@@ -413,11 +498,18 @@ export async function POST(req: Request) {
           : "NOT OK";
 
     // ✅ Baby Step 11.6.1 — guarantee emotion exists at API boundary
-    const userName = (body as any)?.toneContext?.user?.name;
+    const userNameFromTone = (body as any)?.toneContext?.user?.name;
+    const toneName =
+      typeof userNameFromTone === "string" ? userNameFromTone.replace(/\s+/g, " ").trim() : "";
 
-    const fallbackSummary = userName
-      ? `Feeling mostly ${summaryPrimaryEmotion} for ${userName}.`
+    // Prefer toneContext name if present, else use stored preferred_name
+    const finalName = toneName || preferredNameGlobal;
+
+
+    const fallbackSummary = finalName
+      ? `Feeling mostly ${summaryPrimaryEmotion} for ${finalName}.`
       : `Feeling mostly ${summaryPrimaryEmotion}.`;
+
 
     const emotion: EmotionAnalysis = normalizeEmotion(
       {

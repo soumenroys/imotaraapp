@@ -17,7 +17,14 @@ import { NextResponse } from "next/server";
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import type { ImotaraAIResponse } from "@/lib/imotara/aiClient";
 
+import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
+import { fetchUserMemories } from "@/lib/memory/fetchUserMemories";
+
+
 type ChatReplyRequest = {
+    user?: { id?: string; name?: string };
+    // ✅ Privacy guard: when false, server will not read user_memory
+    allowMemory?: boolean;
     messages?: {
         role: "user" | "assistant" | "system";
         content: string;
@@ -90,6 +97,41 @@ export async function POST(req: Request) {
 
         const emotion = (body?.emotion || "").toLowerCase().trim();
 
+        // ✅ Optional memory: preferred name (spoof-proof)
+        // - Identify user via Supabase Auth from cookies (anonymous auth supported)
+        // - Use admin client only to read memory rows (bypasses RLS), BUT ONLY for the authenticated user id
+        let preferredName = "";
+        try {
+            const allowMemory = body?.allowMemory !== false; // default true (backward compatible)
+            if (allowMemory) {
+                const supabaseUser = await getSupabaseUserServerClient();
+                const { data } = await supabaseUser.auth.getUser();
+                let authedUserId = data?.user?.id ?? "";
+
+                // ✅ In production, if not authenticated, do not read memory
+                if (!authedUserId && process.env.NODE_ENV === "production") {
+                    authedUserId = "";
+                }
+
+                if (authedUserId) {
+                    const supabaseAdmin = getSupabaseAdmin();
+                    const memories = await fetchUserMemories(supabaseAdmin as any, authedUserId, 20);
+
+                    const raw =
+                        Array.isArray(memories)
+                            ? (memories.find((m: any) => m?.key === "preferred_name")?.value ?? "")
+                            : "";
+
+                    preferredName = typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
+                }
+
+            }
+        } catch {
+            // no-op: never block chat replies if memory fetch fails
+        }
+
+
+
         let conversationText = recent
             .map((m) => {
                 const label =
@@ -111,6 +153,10 @@ export async function POST(req: Request) {
             ? `The user currently seems to be feeling: ${emotion}.\n`
             : "";
 
+        const nameHint = preferredName
+            ? `The user's preferred name is: ${preferredName}.\nUse it naturally (not every line).\n`
+            : "";
+
         const prompt = [
             "The following is a chat between a teenager and Imotara, a calm, supportive emotional companion.",
             "Imotara speaks in 2–3 short sentences, with warmth, validation, and gentle encouragement.",
@@ -118,6 +164,7 @@ export async function POST(req: Request) {
             "Imotara sounds like a caring, emotionally-aware friend — not a therapist, doctor, or hotline.",
             "",
             emotionHint,
+            nameHint,
             "Here is the recent conversation context (most recent at the end):",
             conversationText || "(No previous context; this is the first message.)",
             "",

@@ -49,6 +49,17 @@ export default function PrivacyPage() {
             experience. If we introduce new data flows in the future, we will
             update this policy and ask for consent where required.
           </p>
+          <p className="mt-3 text-xs text-zinc-500">
+            Imotara is currently operated independently from India. For privacy-related
+            inquiries, you may contact us at{" "}
+            <a
+              href="mailto:info@imotara.com"
+              className="underline decoration-indigo-300/70 underline-offset-4 hover:text-indigo-200"
+            >
+              info@imotara.com
+            </a>.
+          </p>
+
 
         </section>
 
@@ -108,10 +119,23 @@ export default function PrivacyPage() {
                   Account information (optional)
                 </p>
                 <p className="mt-1 text-sm leading-7 text-zinc-300">
-                  If you create an account, we may collect your email address and
-                  authentication credentials.
+                  Imotara can use an anonymous sign-in identifier to keep your synced data separated
+                  without requiring email or phone. If you choose to upgrade to a full account in the
+                  future (where available), we may collect an email address for authentication.
+                </p>
+
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold text-zinc-100">
+                  Anonymous identifier (default)
+                </p>
+                <p className="mt-1 text-sm leading-7 text-zinc-300">
+                  Imotara may generate or use an anonymous sign-in identifier to keep your data separated
+                  and to support optional cloud sync, without requiring your real name, email, or phone.
                 </p>
               </div>
+
 
               <div>
                 <p className="text-sm font-semibold text-zinc-100">User content</p>
@@ -156,18 +180,48 @@ export default function PrivacyPage() {
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
             <h2 className="text-xl font-medium text-zinc-50">Cloud Sync</h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              When cloud sync is enabled, a private encrypted copy of selected history
-              may be stored on secure servers to support backup and multi-device
-              continuity.
+              When cloud sync is enabled, Imotara stores a private copy of selected data on secure
+              servers to support backup and multi-device continuity. Cloud sync is optional and can
+              be turned off at any time.
             </p>
+
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
               <li>Data is encrypted in transit (HTTPS/TLS).</li>
-              <li>Data is encrypted at rest where supported by infrastructure.</li>
-              <li>Your conversations are not publicly visible.</li>
-              <li>Your conversations are not sold.</li>
-              <li>Your conversations are not used for advertising systems.</li>
+              <li>Data is protected with per-user access controls (row-level security) so only your account can access it.</li>
+              <li>
+                We use an <span className="text-zinc-100">anonymous sign-in</span> identifier to keep your synced data separated,
+                even if you never provide email or phone.
+              </li>
+              <li>
+                If you choose to share your name in the app (for example, “My preferred name is …”), it may be saved as an
+                optional preference to personalize your experience.
+              </li>
+              <li>Your conversations are not publicly visible, not sold, and not used for advertising systems.</li>
+              <li>You can request export or deletion using the controls on this page.</li>
             </ul>
           </section>
+
+          <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
+            <h2 className="text-xl font-medium text-zinc-50">
+              AI Processing &amp; Automated Responses
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              Imotara uses artificial intelligence models to generate reflective and supportive
+              responses to the messages you choose to enter. Some processing may occur locally
+              on your device, while certain features may involve secure cloud-based AI services.
+            </p>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              Your conversations are not sold and are not used for advertising systems. Where
+              external AI service providers are used, data is processed under contractual
+              safeguards and only for the purpose of generating responses within the app.
+            </p>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              AI-generated responses are automated and may not always be perfect. Imotara is
+              designed as a supportive companion and does not provide medical, legal, or
+              crisis advice.
+            </p>
+          </section>
+
 
           {/* Legal basis */}
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
@@ -230,12 +284,27 @@ export default function PrivacyPage() {
               Data Sharing &amp; Processors
             </h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              We do not sell personal data. We may use contracted service providers (for
-              example, hosting providers) who process data on our behalf under
-              contractual safeguards and our instructions. We may disclose information
-              if required by law, to prevent harm, or to protect platform integrity.
+              We do not sell personal data. We use a small number of service providers to run
+              the app and deliver optional features, under contractual safeguards and our instructions.
+            </p>
+
+            <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
+              <li>
+                <strong>Cloud database &amp; sync</strong>: Supabase (stores optional synced data with per-user access controls).
+              </li>
+              <li>
+                <strong>AI response generation</strong>: a contracted AI service provider may process text you submit to generate replies (only for providing the feature).
+              </li>
+              <li>
+                <strong>Hosting</strong>: our hosting providers deliver the web experience and APIs.
+              </li>
+            </ul>
+
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              We may disclose information if required by law, to prevent harm, or to protect platform integrity.
             </p>
           </section>
+
 
           {/* International transfers */}
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
@@ -283,7 +352,7 @@ export default function PrivacyPage() {
               </Link>{" "}
               or email{" "}
               <a
-                href="mailto:support@imotara.com"
+                href="mailto:info@imotara.com"
                 className="underline decoration-indigo-300/70 underline-offset-4 hover:text-indigo-200"
               >
                 info@imotara.com

@@ -335,7 +335,7 @@ export default function PrivacyPage() {
               here and, when appropriate, notify you in-app or via email.
             </p>
             <p className="mt-2 text-xs text-zinc-400">
-              Effective date: Nov 1, 2025 • Last updated: Feb 14, 2026
+              Effective date: Nov 1, 2025 • Last updated: Feb 18, 2026
             </p>
           </section>
 

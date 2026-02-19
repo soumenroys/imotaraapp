@@ -8,6 +8,7 @@
 ## Change Log (append-only)
 | Date | Area | What changed | Files | Risk | Verified |
 |------|------|--------------|-------|------|----------|
+| 2026-02-19 | Cleanup | Removed unused 1024x1024 PNG assets from public/ | public/ | Zero | Yes 
 
 ## Planned Items
 - [ ] (TBD)

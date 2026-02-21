@@ -91,6 +91,65 @@ function makeReflectionSeed(userMessage: string): ImotaraResponse["reflectionSee
     };
 }
 
+type SupportedLanguage = "en" | "hi" | "bn";
+
+function getPreferredLanguage(ctx: SessionContext): SupportedLanguage {
+    const raw = String((ctx as any)?.preferredLanguage ?? "").trim().toLowerCase();
+    // Accept both base and BCP-47 tags
+    if (raw === "hi" || raw.startsWith("hi-")) return "hi";
+    if (raw === "bn" || raw.startsWith("bn-")) return "bn";
+    return "en";
+}
+
+function draftResponseForLanguage(userMessage: string, ctx: SessionContext): ImotaraResponse {
+    const lang = getPreferredLanguage(ctx);
+    if (lang === "en") return draftResponse(userMessage, ctx);
+
+    // Minimal localized fallback (keeps existing logic intact for English,
+    // ensures non-English settings never get an English response).
+    const msg = oneLine(userMessage);
+    const name = getUserName(ctx);
+    const rel = pickRelationshipTone(ctx);
+
+    const opener =
+        lang === "hi"
+            ? rel === "friend"
+                ? (name ? `समझ गया, ${name}.` : "समझ गया.")
+                : rel === "mentor"
+                    ? (name ? `मैं सुन रहा हूँ, ${name}.` : "मैं सुन रहा हूँ.")
+                    : rel === "coach"
+                        ? (name ? `ठीक है, ${name}.` : "ठीक है.")
+                        : (name ? `मैं समझ रहा हूँ, ${name}.` : "मैं समझ रहा हूँ.")
+            : // bn
+            rel === "friend"
+                ? (name ? `বুঝলাম, ${name}.` : "বুঝলাম.")
+                : rel === "mentor"
+                    ? (name ? `আমি শুনছি, ${name}.` : "আমি শুনছি.")
+                    : rel === "coach"
+                        ? (name ? `ঠিক আছে, ${name}.` : "ঠিক আছে.")
+                        : (name ? `আমি বুঝতে পারছি, ${name}.` : "আমি বুঝতে পারছি.");
+
+    const message =
+        lang === "hi"
+            ? `${opener} मैं आपके साथ हूँ। अभी इस पल में सबसे भारी क्या लग रहा है?`
+            : `${opener} আমি আপনার পাশে আছি। এই মুহূর্তে সবচেয়ে ভারী কী লাগছে?`;
+
+    const followUp =
+        lang === "hi"
+            ? "अभी आपके लिए सबसे ज़्यादा मदद क्या होगी — सुकून, स्पष्टता, या एक छोटा अगला कदम?"
+            : "এই মুহূর্তে আপনার সবচেয়ে দরকার কী — সান্ত্বনা, পরিষ্কার বোঝা, না একদম ছোট পরের পদক্ষেপ?";
+
+    return {
+        message,
+        followUp,
+        meta: {
+            styleContract: "1.0",
+            blueprint: "1.0",
+            blueprintUsed: DEFAULT_RESPONSE_BLUEPRINT,
+        },
+    };
+}
+
 function draftResponse(userMessage: string, ctx: SessionContext): ImotaraResponse {
     // IMPORTANT: response MUST be driven by current userMessage (history is only for avoiding repeats)
     const msg = oneLine(userMessage);
@@ -346,7 +405,7 @@ export async function runImotara(input: {
         };
     }
 
-    const response = await draftResponse(userMessage, ctx);
+    const response = await draftResponseForLanguage(userMessage, ctx);
 
     const useName =
         (ctx as any)?.toneContext?.user?.useName !== false;

@@ -110,11 +110,13 @@ function derivePreferredLanguage(
 
     const preferredLanguage = explicit ?? guess ?? scriptDerived;
 
-    // Don’t hard-force if user is mixed; prefer user's language, tie-break with preferredLanguage.
-    const languageDirective = preferredLanguage
-        ? `Language policy: Reply in the user's language when clear. If unclear or mixed, prefer ${LANGUAGE_NAME[preferredLanguage]} (${preferredLanguage}).`
-        : `Language policy: Reply in the user's language when clear. If unclear, default to English.`;
-
+    // If the client explicitly set a preferred language (Settings/mobile), enforce it strictly.
+    // Otherwise, keep the softer "reply in user's language when clear" behavior.
+    const languageDirective = explicit
+        ? `Language policy (strict): Reply ONLY in ${LANGUAGE_NAME[explicit]} (${explicit}). Do not mix languages. Do not switch languages mid-reply. Do not transliterate unless the user asks.`
+        : preferredLanguage
+            ? `Language policy: Reply in the user's language when clear. If unclear or mixed, prefer ${LANGUAGE_NAME[preferredLanguage]} (${preferredLanguage}).`
+            : `Language policy: Reply in the user's language when clear. If unclear, default to English.`;
     return { preferredLanguage, languageDirective };
 }
 
@@ -150,6 +152,17 @@ export async function POST(req: Request) {
     }
 
     const baseCtx = (body?.context ?? body?.options ?? {}) as Record<string, unknown>;
+
+    // Merge top-level language fields into the context used for language derivation.
+    // This keeps backward compatibility (context-first) while supporting simple clients (top-level).
+    const langCtx = {
+        ...baseCtx,
+        preferredLanguage: (body as any)?.preferredLanguage ?? (baseCtx as any)?.preferredLanguage,
+        language: (body as any)?.language ?? (baseCtx as any)?.language,
+        languageCode: (body as any)?.languageCode ?? (baseCtx as any)?.languageCode,
+        targetLanguage: (body as any)?.targetLanguage ?? (baseCtx as any)?.targetLanguage,
+        languageHints: (baseCtx as any)?.languageHints ?? (body as any)?.languageHints,
+    } as Record<string, unknown>;
 
     const toneContext =
         (body?.toneContext ?? (baseCtx as any)?.toneContext ?? undefined) as unknown;
@@ -278,7 +291,7 @@ export async function POST(req: Request) {
         );
     }
 
-    const { preferredLanguage, languageDirective } = derivePreferredLanguage(baseCtx, message);
+    const { preferredLanguage, languageDirective } = derivePreferredLanguage(langCtx, message);
 
     const result = await runImotara({
         userMessage: message,
@@ -368,8 +381,11 @@ export async function POST(req: Request) {
 
         // ✅ Baby Step 3.4.1 — exposed for UI parity
         analysisSource,
-    };
 
+        // ✅ Mobile/Web language parity: always expose what the server decided to use
+        // (Additive; safe for older clients)
+        ...(preferredLanguage ? { languageUsed: preferredLanguage } : {}),
+    };
 
     // 🔒 Contract guard: allow ONLY one ask channel
     if ((result as any)?.followUp && (result as any)?.reflectionSeed) {

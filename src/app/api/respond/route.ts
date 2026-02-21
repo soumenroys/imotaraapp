@@ -389,14 +389,6 @@ export async function POST(req: Request) {
 
         // ✅ Mobile/Web language parity
         ...(preferredLanguage ? { languageUsed: preferredLanguage } : {}),
-
-        // 🧪 TEMP DEBUG (remove after): show what server saw
-        __langDebug: {
-            bodyPreferredLanguage: (body as any)?.preferredLanguage ?? null,
-            bodyPreferredLanguageTag: (body as any)?.preferredLanguageTag ?? null,
-            bodyLanguage: (body as any)?.language ?? null,
-            headerAcceptLanguage: req.headers.get("accept-language") ?? null,
-        },
     };
 
     // 🔒 Contract guard: allow ONLY one ask channel

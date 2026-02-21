@@ -384,12 +384,19 @@ export async function POST(req: Request) {
         // ✅ NEW: canonical emotion label at API boundary (non-breaking)
         emotionLabel,
 
-        // ✅ Baby Step 3.4.1 — exposed for UI parity
+        // ✅ exposed for UI parity
         analysisSource,
 
-        // ✅ Mobile/Web language parity: always expose what the server decided to use
-        // (Additive; safe for older clients)
+        // ✅ Mobile/Web language parity
         ...(preferredLanguage ? { languageUsed: preferredLanguage } : {}),
+
+        // 🧪 TEMP DEBUG (remove after): show what server saw
+        __langDebug: {
+            bodyPreferredLanguage: (body as any)?.preferredLanguage ?? null,
+            bodyPreferredLanguageTag: (body as any)?.preferredLanguageTag ?? null,
+            bodyLanguage: (body as any)?.language ?? null,
+            headerAcceptLanguage: req.headers.get("accept-language") ?? null,
+        },
     };
 
     // 🔒 Contract guard: allow ONLY one ask channel

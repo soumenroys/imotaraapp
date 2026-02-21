@@ -292,6 +292,11 @@ export async function POST(req: Request) {
     }
 
     const { preferredLanguage, languageDirective } = derivePreferredLanguage(langCtx, message);
+    console.warn("[LANG_DEBUG]", {
+        explicitFromBody: (body as any)?.preferredLanguage,
+        acceptLanguage: req.headers.get("accept-language"),
+        derivedPreferredLanguage: preferredLanguage,
+    });
 
     const result = await runImotara({
         userMessage: message,

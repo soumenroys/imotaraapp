@@ -354,36 +354,60 @@ export async function POST(req: Request) {
         const langBase: "en" | "hi" | "bn" =
             preferredLanguage === "hi" ? "hi" : preferredLanguage === "bn" ? "bn" : "en";
 
-        const idx = stableIndex(`${langBase}:${message}`, 4);
-
         const bank: Record<"en" | "hi" | "bn", readonly string[]> = {
             en: [
                 "I hear you. I’m right here with you. What’s the biggest worry behind that anxiety right now?",
-                "Thank you for saying that. Let’s slow it down together—what part feels most uncomfortable in your body or mind?",
-                "That sounds really heavy. If we take one small step: what happened just before you started feeling anxious today?",
-                "I’m with you. Would you like comfort first, or a practical step to feel a little steadier right now?",
+                "Thank you for telling me. Let’s slow it down together—where do you feel the anxiety most (chest, stomach, thoughts)?",
+                "That sounds heavy. If we take one small step: what happened just before you started feeling anxious today?",
+                "I’m with you. Do you want comfort first, or a practical step to feel a little steadier right now?",
             ],
             hi: [
                 "मैं समझ रहा/रही हूँ। मैं आपके साथ हूँ। इस चिंता के पीछे सबसे बड़ा डर क्या लग रहा है अभी?",
-                "बताने के लिए धन्यवाद। हम धीरे-धीरे चलेंगे—ये बेचैनी आपको शरीर में कहाँ महसूस हो रही है?",
-                "ये वाकई भारी लग रहा है। एक छोटा कदम लें: आज बेचैनी शुरू होने से ठीक पहले क्या हुआ था?",
-                "मैं आपके साथ हूँ। आपको अभी क्या ज़्यादा चाहिए—थोड़ा सुकून या कोई छोटा-सा practical step?",
+                "बताने के लिए धन्यवाद। धीरे-धीरे चलते हैं—ये बेचैनी आपको शरीर में कहाँ सबसे ज़्यादा महसूस हो रही है?",
+                "ये सच में भारी लग रहा है। एक छोटा कदम: आज बेचैनी शुरू होने से ठीक पहले क्या हुआ था?",
+                "मैं आपके साथ हूँ। अभी आपको क्या ज़्यादा चाहिए—थोड़ा सुकून या कोई छोटा-सा practical step?",
             ],
             bn: [
                 "আমি বুঝতে পারছি—আমি আপনার পাশে আছি। এই দুশ্চিন্তার ভেতরে সবচেয়ে বড় ভয়টা কী মনে হচ্ছে এখন?",
-                "বলেছেন বলে ধন্যবাদ। ধীরে ধীরে নিই—এই অস্থিরতা আপনি শরীরে কোথায় বেশি টের পাচ্ছেন?",
+                "বলেছেন বলে ধন্যবাদ। ধীরে ধীরে নিই—এই অস্থিরতা আপনি শরীরে কোথায় সবচেয়ে বেশি টের পাচ্ছেন?",
                 "শুনে মনে হচ্ছে বিষয়টা ভারী। ছোট করে শুরু করি: আজ অস্থির লাগা শুরু হওয়ার ঠিক আগে কী হয়েছিল?",
                 "আমি আপনার সাথে আছি। এখন আপনার জন্য কী বেশি দরকার—একটু সান্ত্বনা, নাকি ছোট একটা পরের পদক্ষেপ?",
             ],
         };
 
-        const finalText = bank[langBase][idx] ?? bank.en[0];
+        const current = currentReplyText;
+        const isTooGeneric =
+            current.length < 70 &&
+            /(got you|i['’]m with you|i hear you|tense or worried)/i.test(current);
 
-        // ✅ Ensure all client variants stay consistent
-        (result as any).replyText = finalText;
-        (result as any).message = finalText;
-        if (typeof (result as any).reply === "string") {
-            (result as any).reply = finalText;
+        const shouldHumanize = isDuplicate || looksLikeTemplate || isTooGeneric;
+
+        if (shouldHumanize) {
+            const seed = [
+                langBase,
+                message,
+                String((body as any)?.requestId ?? ""),
+                lastAssistantText,
+            ].join("|");
+
+            let idx = stableIndex(seed, bank[langBase].length);
+
+            let candidate = bank[langBase][idx] ?? bank.en[0];
+
+            // If candidate would still repeat, rotate once.
+            if (
+                (lastAssistantText && candidate === lastAssistantText) ||
+                (current && candidate === current)
+            ) {
+                idx = (idx + 1) % bank[langBase].length;
+                candidate = bank[langBase][idx] ?? bank.en[0];
+            }
+
+            (result as any).replyText = candidate;
+            (result as any).message = candidate;
+            if (typeof (result as any).reply === "string") {
+                (result as any).reply = candidate;
+            }
         }
     }
 
@@ -485,6 +509,11 @@ export async function POST(req: Request) {
         }
     }
 
+    const buildSha =
+        process.env.VERCEL_GIT_COMMIT_SHA ??
+        process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ??
+        null;
+
     return NextResponse.json(
         {
             requestId: (body as any)?.requestId ?? null,
@@ -493,6 +522,8 @@ export async function POST(req: Request) {
                 styleContract: "1.0",
                 blueprint: "1.0",
                 ...metaWithEmotion,
+                // ✅ helps us confirm exactly which deployment mobile is hitting
+                buildSha,
             },
         },
         { status: 200 }

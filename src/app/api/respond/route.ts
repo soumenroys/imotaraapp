@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { runImotara } from "@/lib/ai/orchestrator/runImotara";
 import type { EmotionAnalysis } from "@/lib/ai/emotion/emotionTypes";
 import { normalizeEmotion } from "@/lib/ai/emotion/normalizeEmotion";
@@ -313,6 +314,75 @@ export async function POST(req: Request) {
         },
         toneContext, // ✅ enables companion tone + personal references consistently
     });
+
+    // ✅ Anti-repeat + humanize guard (cloud): only touches replyText when we detect repetition.
+    // Uses recentMessages when available (mobile/web parity) and keeps response schema unchanged.
+    type RecentMsg = { role?: string; content?: string; text?: string };
+
+    const recentMessages = (baseCtx as any)?.recentMessages as RecentMsg[] | undefined;
+
+    const lastAssistantText = (() => {
+        const arr = Array.isArray(recentMessages) ? recentMessages : [];
+        for (let i = arr.length - 1; i >= 0; i--) {
+            const m = arr[i];
+            if (m && String(m.role ?? "").toLowerCase() === "assistant") {
+                const t = (m.content ?? m.text ?? "").toString().trim();
+                if (t) return t;
+            }
+        }
+        return "";
+    })();
+
+    const currentReplyText = String((result as any)?.replyText ?? (result as any)?.reply ?? "").trim();
+
+    const looksLikeTemplate =
+        /^got you\.\s*i['’]m with you in this\./i.test(currentReplyText) ||
+        /it sounds like something is making you feel tense or worried\./i.test(currentReplyText);
+
+    const isDuplicate = !!lastAssistantText && !!currentReplyText && lastAssistantText === currentReplyText;
+
+    const stableIndex = (seed: string, modulo: number) => {
+        if (modulo <= 0) return 0;
+        const hex = createHash("sha1").update(seed).digest("hex");
+        const n = parseInt(hex.slice(0, 8), 16);
+        return Number.isFinite(n) ? n % modulo : 0;
+    };
+
+    if ((result as any)?.ok === true && (isDuplicate || looksLikeTemplate)) {
+        // Only guarantee en/hi/bn here (matches current mobile language modes).
+        // For other languages, fall back to English safely.
+        const langBase: "en" | "hi" | "bn" =
+            preferredLanguage === "hi" ? "hi" : preferredLanguage === "bn" ? "bn" : "en";
+
+        const idx = stableIndex(`${langBase}:${message}`, 4);
+
+        const bank: Record<"en" | "hi" | "bn", readonly string[]> = {
+            en: [
+                "I hear you. I’m right here with you. What’s the biggest worry behind that anxiety right now?",
+                "Thank you for saying that. Let’s slow it down together—what part feels most uncomfortable in your body or mind?",
+                "That sounds really heavy. If we take one small step: what happened just before you started feeling anxious today?",
+                "I’m with you. Would you like comfort first, or a practical step to feel a little steadier right now?",
+            ],
+            hi: [
+                "मैं समझ रहा/रही हूँ। मैं आपके साथ हूँ। इस चिंता के पीछे सबसे बड़ा डर क्या लग रहा है अभी?",
+                "बताने के लिए धन्यवाद। हम धीरे-धीरे चलेंगे—ये बेचैनी आपको शरीर में कहाँ महसूस हो रही है?",
+                "ये वाकई भारी लग रहा है। एक छोटा कदम लें: आज बेचैनी शुरू होने से ठीक पहले क्या हुआ था?",
+                "मैं आपके साथ हूँ। आपको अभी क्या ज़्यादा चाहिए—थोड़ा सुकून या कोई छोटा-सा practical step?",
+            ],
+            bn: [
+                "আমি বুঝতে পারছি—আমি আপনার পাশে আছি। এই দুশ্চিন্তার ভেতরে সবচেয়ে বড় ভয়টা কী মনে হচ্ছে এখন?",
+                "বলেছেন বলে ধন্যবাদ। ধীরে ধীরে নিই—এই অস্থিরতা আপনি শরীরে কোথায় বেশি টের পাচ্ছেন?",
+                "শুনে মনে হচ্ছে বিষয়টা ভারী। ছোট করে শুরু করি: আজ অস্থির লাগা শুরু হওয়ার ঠিক আগে কী হয়েছিল?",
+                "আমি আপনার সাথে আছি। এখন আপনার জন্য কী বেশি দরকার—একটু সান্ত্বনা, নাকি ছোট একটা পরের পদক্ষেপ?",
+            ],
+        };
+
+        (result as any).replyText = bank[langBase][idx] ?? bank.en[0];
+        // Keep reply (if some clients read "reply" instead of "replyText")
+        if (typeof (result as any).reply === "string") {
+            (result as any).reply = (result as any).replyText;
+        }
+    }
 
     // Public-release lock: never serialize QA-only metadata unless QA header is present
     const resultMeta =

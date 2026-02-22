@@ -137,7 +137,6 @@ export async function POST(req: Request) {
       }
     }
 
-
     // ✅ Baby Step 11.9.2 — identity memory persistence (safe)
     // Use authenticated user when possible; fallback to dev-user.
     // Prefer authenticated user id if client sends it; otherwise fallback.
@@ -164,8 +163,6 @@ export async function POST(req: Request) {
         userId = "";
       }
     }
-
-
 
     try {
       // Persist user name (identity) when available from toneContext payload
@@ -278,6 +275,22 @@ export async function POST(req: Request) {
         .reverse()
         .find((x: any) => x?.role === "user")?.content ??
       "";
+
+    function detectLanguageBase(text: string): "en" | "hi" | "bn" {
+      const t = String(text ?? "");
+      // Bengali block
+      if (/[\u0980-\u09FF]/.test(t)) return "bn";
+      // Devanagari block (Hindi)
+      if (/[\u0900-\u097F]/.test(t)) return "hi";
+      return "en";
+    }
+
+    function stableVariantIndex(seed: string, modulo: number): number {
+      if (modulo <= 0) return 0;
+      const hex = createHash("sha1").update(seed).digest("hex");
+      const n = parseInt(hex.slice(0, 8), 16);
+      return Number.isFinite(n) ? n % modulo : 0;
+    }
 
     const guessEmotion = (raw: string): { emotion: Emotion; intensity: number } => {
       const t = raw
@@ -433,19 +446,63 @@ export async function POST(req: Request) {
         primaryEmotion: summaryPrimaryEmotion,
         intensity: summaryIntensity,
         tone: "calm",
-        adviceShort: [
-          "If you want, share one small detail—what part feels heaviest right now?",
-          "Where should we start: what happened, what you’re feeling, or what you need next?",
-          "What would be the most helpful thing for me to understand first—one sentence is enough.",
-          "Do you want comfort, clarity, or a practical next step right now?",
-        ][(perMessage.length ?? 0) % 4],
 
-        reflection: [
-          "What do you most wish someone would understand about this?",
-          "If this had a name, what would you call the feeling?",
-          "What’s the smallest next step that would feel kind to you?",
-          "What would make today feel even 5% lighter?",
-        ][(perMessage.length ?? 0) % 4],
+        // ✅ Humanized + non-robotic: deterministic variety based on the latest user text
+        adviceShort: (() => {
+          const langBase = detectLanguageBase(lastUserText);
+          const idx = stableVariantIndex(`${langBase}:${lastUserText}`, 4);
+
+          const bank: Record<"en" | "hi" | "bn", readonly string[]> = {
+            en: [
+              "I’m here with you. What’s the main thing weighing on you right now?",
+              "Thank you for sharing that. What feeling is strongest at this moment?",
+              "Let’s take it gently. What happened just before you started feeling this way?",
+              "Do you want comfort first, or a practical next step—what would help most right now?",
+            ],
+            hi: [
+              "मैं आपके साथ हूँ। अभी सबसे ज़्यादा क्या भारी लग रहा है?",
+              "बताने के लिए धन्यवाद। इस समय सबसे तेज़ भावना कौन-सी है?",
+              "चलिए धीरे-धीरे चलते हैं। ये भावना शुरू होने से ठीक पहले क्या हुआ था?",
+              "आपको अभी क्या ज्यादा मदद करेगा—थोड़ा सुकून या कोई छोटा-सा अगला कदम?",
+            ],
+            bn: [
+              "আমি আপনার পাশে আছি। এই মুহূর্তে সবচেয়ে বেশি কী আপনাকে ভারী লাগছে?",
+              "বলেছেন বলে ধন্যবাদ। এখন সবচেয়ে শক্তিশালী অনুভূতিটা কী?",
+              "চলুন ধীরে ধীরে এগোই। এটা শুরু হওয়ার ঠিক আগে কী হয়েছিল?",
+              "এখন আপনার জন্য কী বেশি দরকার—একটু সান্ত্বনা, নাকি ছোট একটা পরের পদক্ষেপ?",
+            ],
+          };
+
+          return bank[langBase][idx] ?? bank.en[idx] ?? bank.en[0];
+        })(),
+
+        reflection: (() => {
+          const langBase = detectLanguageBase(lastUserText);
+          const idx = stableVariantIndex(`r:${langBase}:${lastUserText}`, 4);
+
+          const bank: Record<"en" | "hi" | "bn", readonly string[]> = {
+            en: [
+              "If you could change just one thing about today, what would you change first?",
+              "What do you wish someone would understand about what you’re going through?",
+              "Where do you feel this most—mind, chest, stomach, shoulders?",
+              "What would make the next 10 minutes feel a little safer or lighter?",
+            ],
+            hi: [
+              "अगर आज की बस एक चीज़ बदल सकते, तो सबसे पहले क्या बदलते?",
+              "आप क्या चाहते हैं कि लोग आपकी इस स्थिति के बारे में समझें?",
+              "ये भावना शरीर में कहाँ सबसे ज़्यादा महसूस हो रही है—छाती, पेट, कंधे, या मन में?",
+              "अगले 10 मिनट थोड़ा आसान लगें—उसके लिए क्या मदद करेगा?",
+            ],
+            bn: [
+              "আজকের শুধু একটা জিনিস বদলাতে পারলে—প্রথমে কী বদলাতেন?",
+              "আপনি চান মানুষ আপনার এই অবস্থাটা নিয়ে কী বুঝুক?",
+              "এই অনুভূতিটা শরীরে কোথায় সবচেয়ে বেশি টের পাচ্ছেন—বুক, পেট, কাঁধ, না মাথায়?",
+              "আগের ১০ মিনিট একটু হালকা লাগার জন্য কী করলে ভালো হতে পারে?",
+            ],
+          };
+
+          return bank[langBase][idx] ?? bank.en[idx] ?? bank.en[0];
+        })(),
       },
 
       // ✅ REQUIRED by your client validator

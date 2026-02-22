@@ -469,6 +469,22 @@ export async function POST(req: Request) {
         (result as any).reflectionSeed = null;
     }
 
+    // ✅ Mobile renders replyText. Ensure replyText is ALWAYS present (and consistent with message).
+    const finalText = String(
+        (result as any)?.replyText ??
+        (result as any)?.message ??
+        (result as any)?.reply ??
+        ""
+    ).trim();
+
+    if (finalText) {
+        (result as any).replyText = finalText;
+        (result as any).message = finalText;
+        if (typeof (result as any).reply === "string") {
+            (result as any).reply = finalText;
+        }
+    }
+
     return NextResponse.json(
         {
             requestId: (body as any)?.requestId ?? null,

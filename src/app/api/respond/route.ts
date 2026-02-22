@@ -348,7 +348,7 @@ export async function POST(req: Request) {
         return Number.isFinite(n) ? n % modulo : 0;
     };
 
-    if ((result as any)?.ok === true && (isDuplicate || looksLikeTemplate)) {
+    if ((result as any)?.ok === true) {
         // Only guarantee en/hi/bn here (matches current mobile language modes).
         // For other languages, fall back to English safely.
         const langBase: "en" | "hi" | "bn" =

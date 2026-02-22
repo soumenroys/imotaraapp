@@ -377,10 +377,13 @@ export async function POST(req: Request) {
             ],
         };
 
-        (result as any).replyText = bank[langBase][idx] ?? bank.en[0];
-        // Keep reply (if some clients read "reply" instead of "replyText")
+        const finalText = bank[langBase][idx] ?? bank.en[0];
+
+        // ✅ Ensure all client variants stay consistent
+        (result as any).replyText = finalText;
+        (result as any).message = finalText;
         if (typeof (result as any).reply === "string") {
-            (result as any).reply = (result as any).replyText;
+            (result as any).reply = finalText;
         }
     }
 

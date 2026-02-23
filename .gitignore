@@ -68,3 +68,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .dev-web.log
+
+#vscode settings
+.vscode/

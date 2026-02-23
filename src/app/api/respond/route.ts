@@ -53,6 +53,24 @@ const LANGUAGE_NAME: Record<LanguageCode, string> = {
     ml: "Malayalam",
 };
 
+function getRequestIdFromBody(body: Record<string, unknown>): string {
+    const fromBody = (body as any)?.requestId;
+    if (typeof fromBody === "string" && fromBody.trim()) return fromBody.trim();
+
+    // Prefer crypto.randomUUID when available (Node 18+ / modern runtimes)
+    const c = (globalThis as any)?.crypto;
+    if (c?.randomUUID && typeof c.randomUUID === "function") return c.randomUUID();
+
+    // Fallback (still unique enough for request-scoped salt)
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function stableVariantFromId(id: string, mod: number): number {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    return mod <= 0 ? 0 : h % mod;
+}
+
 function coerceLanguageCode(raw: unknown): LanguageCode | undefined {
     if (typeof raw !== "string") return undefined;
     const s = raw.trim().toLowerCase();
@@ -292,28 +310,54 @@ export async function POST(req: Request) {
         );
     }
 
-    const { preferredLanguage, languageDirective } = derivePreferredLanguage(langCtx, message);
+    const requestId = getRequestIdFromBody(body);
+
+const { preferredLanguage, languageDirective } = derivePreferredLanguage(langCtx, message);
+
+// Keep debug logs out of production unless QA + dev
+if (qa && SHOULD_LOG) {
     console.warn("[LANG_DEBUG]", {
+        requestId,
         explicitFromBody: (body as any)?.preferredLanguage,
         acceptLanguage: req.headers.get("accept-language"),
         derivedPreferredLanguage: preferredLanguage,
     });
+}
 
-    const result = await runImotara({
-        userMessage: message,
-        sessionContext: {
-            ...baseCtx,
+// Anti-repeat directive: deterministic per requestId, so repeated prompts don't lock into one phrasing.
+const antiRepeatVariants = [
+    "Variation policy: Use fresh wording. Avoid common generic advice phrases. Offer 1 concrete micro-step and 1 short reflective question. Do not repeat the same sentence structure across replies.",
+    "Variation policy: Do NOT reuse stock templates. Keep it human, specific, and slightly different in phrasing. Give 1 actionable step and 1 gentle check-in question.",
+    "Variation policy: Avoid clichés. Change the opening line style. Provide 1 practical step the user can do in 30 seconds and ask 1 follow-up question.",
+    "Variation policy: Write naturally (not like a template). Give 1 grounding or planning step and 1 curiosity question. Do not repeat the same advice phrasing.",
+    "Variation policy: Keep it empathetic and specific. Avoid repeating the same coping-technique script. Give 1 tiny step + 1 question to continue the conversation.",
+] as const;
 
-            // ✅ NEW: language fields (safe even if downstream ignores)
-            preferredLanguage,
-            languageDirective,
+const antiRepeatDirective =
+    antiRepeatVariants[stableVariantFromId(requestId, antiRepeatVariants.length)];
 
-            pinnedRecall,
-            pinnedRecallRelevant,
-            ...(qa ? { debug: true, pinnedRecallDebugTop } : {}),
-        },
-        toneContext, // ✅ enables companion tone + personal references consistently
-    });
+// Add a generationSalt field for downstream (safe even if ignored)
+const generationSalt = `rid:${requestId}`;
+
+const result = await runImotara({
+    userMessage: message,
+    sessionContext: {
+        ...baseCtx,
+
+        // ✅ language fields (safe even if downstream ignores)
+        preferredLanguage,
+        languageDirective: `${languageDirective}\n${antiRepeatDirective}`,
+
+        // ✅ new: request-scoped variation helpers (safe if ignored)
+        requestId,
+        generationSalt,
+
+        pinnedRecall,
+        pinnedRecallRelevant,
+        ...(qa ? { debug: true, pinnedRecallDebugTop } : {}),
+    },
+    toneContext, // ✅ enables companion tone + personal references consistently
+});
 
     // ✅ Anti-repeat + humanize guard (cloud): only touches replyText when we detect repetition.
     // Uses recentMessages when available (mobile/web parity) and keeps response schema unchanged.
@@ -516,7 +560,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
         {
-            requestId: (body as any)?.requestId ?? null,
+            requestId,
             ...result,
             meta: {
                 styleContract: "1.0",

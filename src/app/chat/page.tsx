@@ -2,7 +2,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, useCallback, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  type KeyboardEvent,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import {
   MessageSquare,
@@ -101,7 +108,8 @@ function getAllowRemote(): boolean {
       const parsed = JSON.parse(raw);
       // Supports either { mode: "allow-remote" | ... } OR { allowRemote: boolean }
       if (typeof parsed?.allowRemote === "boolean") return parsed.allowRemote;
-      if (typeof parsed?.mode === "string") return parsed.mode === "allow-remote";
+      if (typeof parsed?.mode === "string")
+        return parsed.mode === "allow-remote";
     }
   } catch {
     // ignore
@@ -123,8 +131,6 @@ function getAllowRemote(): boolean {
 
   return false;
 }
-
-
 
 function safeParseJSON<T>(raw: string | null): T | null {
   if (!raw) return null;
@@ -148,7 +154,9 @@ function getOrCreateLocalUserId(): string {
 
 function getUserScopeId(): string {
   if (typeof window === "undefined") return "";
-  const prof = safeParseJSON<{ id?: string }>(window.localStorage.getItem(PROFILE_KEY));
+  const prof = safeParseJSON<{ id?: string }>(
+    window.localStorage.getItem(PROFILE_KEY),
+  );
   const pid = typeof prof?.id === "string" ? prof.id.trim() : "";
   return pid || getOrCreateLocalUserId();
 }
@@ -257,7 +265,7 @@ function toMs(ts: unknown): number {
 
 function mergeRemoteChatIntoThreads(
   current: Thread[],
-  remoteRows: RemoteChatRow[]
+  remoteRows: RemoteChatRow[],
 ): Thread[] {
   // Normalize rows -> Message, grouped by threadId
   const byThread = new Map<string, Message[]>();
@@ -303,8 +311,7 @@ function mergeRemoteChatIntoThreads(
       // New thread from remote
       const firstUser = incoming.find((m) => m.role === "user");
       const titleBase = (firstUser?.content ?? "Conversation").trim();
-      const title =
-        titleBase.slice(0, 40) + (titleBase.length > 40 ? "…" : "");
+      const title = titleBase.slice(0, 40) + (titleBase.length > 40 ? "…" : "");
 
       merged.push({
         id: threadId,
@@ -321,7 +328,7 @@ function mergeRemoteChatIntoThreads(
 
     if (toAdd.length) {
       const next = [...merged[idx].messages, ...toAdd].sort(
-        (a, b) => a.createdAt - b.createdAt
+        (a, b) => a.createdAt - b.createdAt,
       );
       merged[idx] = { ...merged[idx], messages: next };
     }
@@ -332,8 +339,6 @@ function mergeRemoteChatIntoThreads(
 
   return merged;
 }
-
-
 
 // Public release: hide remote sync controls until fully stable
 const ENABLE_REMOTE_SYNC = false;
@@ -440,7 +445,8 @@ async function persistMergedHistory(merged: unknown): Promise<void> {
       | ((items: unknown) => Promise<void> | void)
       | undefined;
 
-    if (typeof setHistory === "function") return void (await setHistory(merged));
+    if (typeof setHistory === "function")
+      return void (await setHistory(merged));
     if (typeof saveLocalHistory === "function")
       return void (await saveLocalHistory(merged));
     if (typeof saveHistory === "function")
@@ -478,7 +484,6 @@ async function pushToRemoteHistory(entry: {
       },
       body: JSON.stringify([entry]),
     });
-
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn("[imotara] pushToRemoteHistory failed:", err);
@@ -487,7 +492,7 @@ async function pushToRemoteHistory(entry: {
 
 async function logUserMessageToHistory(
   msg: Message,
-  opts?: HistoryEmotionOptions
+  opts?: HistoryEmotionOptions,
 ): Promise<void> {
   try {
     const text = msg.content.trim();
@@ -515,7 +520,7 @@ async function logUserMessageToHistory(
       } catch (e) {
         console.warn(
           "[imotara] local analysis for history logging failed, using neutral:",
-          e
+          e,
         );
       }
     }
@@ -602,8 +607,9 @@ export default function ChatPage() {
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
   const messageTargetRef = useRef<HTMLDivElement | null>(null);
-  const [highlightedMessageId, setHighlightedMessageId] =
-    useState<string | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<
+    string | null
+  >(null);
   const usedMessageIdRef = useRef<string | null>(null);
 
   // 🔒 Idempotency guard: remember last user message we replied to
@@ -627,7 +633,7 @@ export default function ChatPage() {
   // ✅ SSR-stable placeholder to avoid hydration mismatch
   // Server render must NOT depend on localStorage / client-only settings.
   const [composerPlaceholder, setComposerPlaceholder] = useState(
-    "Write what’s on your mind… (Enter to send, Shift+Enter for newline)"
+    "Write what’s on your mind… (Enter to send, Shift+Enter for newline)",
   );
 
   useEffect(() => {
@@ -648,7 +654,8 @@ export default function ChatPage() {
 
     try {
       const key = getLocalChatKey();
-      const raw = localStorage.getItem(key) ?? localStorage.getItem(LEGACY_CHAT_KEY);
+      const raw =
+        localStorage.getItem(key) ?? localStorage.getItem(LEGACY_CHAT_KEY);
 
       // One-time migrate legacy chats into the per-user key (keep legacy key for safety)
       if (!localStorage.getItem(key) && raw) {
@@ -678,9 +685,9 @@ export default function ChatPage() {
           createdAt: normalizeTs((th as any).createdAt),
           messages: Array.isArray((th as any).messages)
             ? (th as any).messages.map((m: any) => ({
-              ...m,
-              createdAt: normalizeTs(m?.createdAt),
-            }))
+                ...m,
+                createdAt: normalizeTs(m?.createdAt),
+              }))
             : [],
         }));
 
@@ -689,18 +696,21 @@ export default function ChatPage() {
           const title = (th?.title ?? "").trim();
           const isDefaultTitle =
             !title || title.toLowerCase() === "new conversation";
-          const firstUser = (th?.messages ?? []).find((m: any) => m?.role === "user");
+          const firstUser = (th?.messages ?? []).find(
+            (m: any) => m?.role === "user",
+          );
           const firstText = (firstUser?.content ?? "").trim();
 
           if (isDefaultTitle && firstText) {
-            const clipped = firstText.slice(0, 40) + (firstText.length > 40 ? "…" : "");
+            const clipped =
+              firstText.slice(0, 40) + (firstText.length > 40 ? "…" : "");
             return { ...th, title: clipped };
           }
 
           return th;
         });
 
-        const a = parsed.activeId ?? (normalized[0]?.id ?? null);
+        const a = parsed.activeId ?? normalized[0]?.id ?? null;
         setThreads(normalized);
         setActiveId(a);
         return;
@@ -747,7 +757,7 @@ export default function ChatPage() {
 
   const activeThread = useMemo(
     () => threads.find((t) => t.id === activeId) ?? null,
-    [threads, activeId]
+    [threads, activeId],
   );
 
   useEffect(() => {
@@ -779,8 +789,10 @@ export default function ChatPage() {
   useEffect(() => {
     if (!mounted) return;
     try {
-      localStorage.setItem(getLocalChatKey(), JSON.stringify({ threads, activeId }));
-
+      localStorage.setItem(
+        getLocalChatKey(),
+        JSON.stringify({ threads, activeId }),
+      );
     } catch {
       // ignore
     }
@@ -803,7 +815,10 @@ export default function ChatPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = (await runAnalysisWithConsent(msgs, 10)) as AnalysisResult | null;
+        const res = (await runAnalysisWithConsent(
+          msgs,
+          10,
+        )) as AnalysisResult | null;
         if (!cancelled) {
           setAnalysis(res);
           console.log("[imotara] analysis:", res?.summary?.headline, res);
@@ -871,15 +886,13 @@ export default function ChatPage() {
     })();
   }, [mounted]);
 
-
-
   async function triggerAnalyze() {
     if (!activeThread?.messages?.length) return;
     setAnalyzing(true);
     try {
       const res = (await runAnalysisWithConsent(
         activeThread.messages,
-        10
+        10,
       )) as AnalysisResult | null;
 
       setAnalysis(res);
@@ -893,12 +906,14 @@ export default function ChatPage() {
 
   function deriveEmotionFromSummaryAndText(
     summary: any,
-    msgsForAnalysis: Message[]
+    msgsForAnalysis: Message[],
   ): { emotion: string; source: DebugEmotionSource } {
     const rawFromSummary =
       summary?.primaryEmotion ?? summary?.emotion ?? summary?.tag ?? "";
 
-    let emotion = String(rawFromSummary || "").toLowerCase().trim();
+    let emotion = String(rawFromSummary || "")
+      .toLowerCase()
+      .trim();
     let source: DebugEmotionSource = "unknown";
 
     const aliasMap: Record<string, string> = {
@@ -954,7 +969,7 @@ export default function ChatPage() {
     }
     if (
       /anxious|anxiety|worried|worry|panic|scared|afraid|fear|terrified|nervous/.test(
-        text
+        text,
       )
     ) {
       return { emotion: "anxious", source: "fallback" };
@@ -964,14 +979,14 @@ export default function ChatPage() {
     }
     if (
       /stressed|stress|overwhelmed|burnt out|burned out|too much|can't handle|cant handle/.test(
-        text
+        text,
       )
     ) {
       return { emotion: "stressed", source: "fallback" };
     }
     if (
       /happy|excited|joy|joyful|glad|grateful|thankful|optimistic|hopeful|thrilled/.test(
-        text
+        text,
       )
     ) {
       return { emotion: "happy", source: "fallback" };
@@ -1018,7 +1033,7 @@ export default function ChatPage() {
   async function generateAssistantReply(
     threadId: string,
     msgsForAnalysis: Message[],
-    userMessageId: string
+    userMessageId: string,
   ) {
     const replyKey = `${threadId}:${userMessageId}`;
     if (lastReplyKeyRef.current === replyKey) {
@@ -1035,11 +1050,14 @@ export default function ChatPage() {
       try {
         const res = (await runAnalysisWithConsent(
           msgsForAnalysis,
-          10
+          10,
         )) as AnalysisResult | null;
         summary = res?.summary ?? {};
 
-        const derived = deriveEmotionFromSummaryAndText(summary, msgsForAnalysis);
+        const derived = deriveEmotionFromSummaryAndText(
+          summary,
+          msgsForAnalysis,
+        );
         debugEmotion = derived.emotion;
         debugEmotionSource = derived.source;
       } catch (err) {
@@ -1070,7 +1088,7 @@ export default function ChatPage() {
                 role: m.role === "user" ? "user" : "assistant",
                 content: m.content,
               })),
-            } as any
+            } as any,
           );
 
           const text = (resp?.message ?? "").toString().trim();
@@ -1084,13 +1102,15 @@ export default function ChatPage() {
               (resp as any)?.meta?.compatibility ??
               (resp as any)?.response?.meta?.compatibility;
 
-            analysisSource =
-              ((resp as any)?.meta?.analysisSource ??
-                (resp as any)?.response?.meta?.analysisSource ??
-                null) as "local" | "cloud" | null;
+            analysisSource = ((resp as any)?.meta?.analysisSource ??
+              (resp as any)?.response?.meta?.analysisSource ??
+              null) as "local" | "cloud" | null;
 
             aiMetaFrom = "openai";
-            console.log("[imotara] using /api/respond reply:", text.slice(0, 120));
+            console.log(
+              "[imotara] using /api/respond reply:",
+              text.slice(0, 120),
+            );
           }
         } catch (err) {
           console.warn("[imotara] /api/respond failed, falling back:", err);
@@ -1116,16 +1136,18 @@ export default function ChatPage() {
           meta:
             compatibility || analysisSource
               ? {
-                ...(compatibility ? { compatibility } : {}),
-                ...(analysisSource !== null ? { analysisSource } : {}),
-              }
+                  ...(compatibility ? { compatibility } : {}),
+                  ...(analysisSource !== null ? { analysisSource } : {}),
+                }
               : undefined,
         };
 
         setThreads((prev) =>
           prev.map((t) =>
-            t.id === threadId ? { ...t, messages: [...t.messages, assistantMsg] } : t
-          )
+            t.id === threadId
+              ? { ...t, messages: [...t.messages, assistantMsg] }
+              : t,
+          ),
         );
 
         void pushChatMessageToRemote({
@@ -1136,7 +1158,6 @@ export default function ChatPage() {
           createdAtMs: assistantMsg.createdAt,
           meta: { replySource: assistantMsg.replySource ?? "fallback" },
         });
-
 
         void logAssistantMessageToHistory(assistantMsg);
 
@@ -1164,10 +1185,10 @@ export default function ChatPage() {
         // ✅ ensure ReflectionSeed type safety
         reflectionSeed = local.reflectionSeed
           ? {
-            intent: local.reflectionSeed.intent,
-            title: local.reflectionSeed.title ?? "",
-            prompt: local.reflectionSeed.prompt,
-          }
+              intent: local.reflectionSeed.intent,
+              title: local.reflectionSeed.title ?? "",
+              prompt: local.reflectionSeed.prompt,
+            }
           : undefined;
 
         analysisSource = "local";
@@ -1192,8 +1213,10 @@ export default function ChatPage() {
 
       setThreads((prev) =>
         prev.map((t) =>
-          t.id === threadId ? { ...t, messages: [...t.messages, assistantMsg] } : t
-        )
+          t.id === threadId
+            ? { ...t, messages: [...t.messages, assistantMsg] }
+            : t,
+        ),
       );
 
       void pushChatMessageToRemote({
@@ -1204,7 +1227,6 @@ export default function ChatPage() {
         createdAtMs: assistantMsg.createdAt,
         meta: { replySource: assistantMsg.replySource ?? "fallback" },
       });
-
 
       void logAssistantMessageToHistory(assistantMsg);
 
@@ -1246,7 +1268,7 @@ export default function ChatPage() {
   function renameActive(title: string) {
     if (!activeThread) return;
     setThreads((prev) =>
-      prev.map((t) => (t.id === activeThread.id ? { ...t, title } : t))
+      prev.map((t) => (t.id === activeThread.id ? { ...t, title } : t)),
     );
   }
 
@@ -1293,15 +1315,15 @@ export default function ChatPage() {
       prev.map((t) =>
         t.id === targetId
           ? {
-            ...t,
-            title:
-              t.messages.length === 0
-                ? text.slice(0, 40) + (text.length > 40 ? "…" : "")
-                : t.title,
-            messages: [...t.messages, userMsg],
-          }
-          : t
-      )
+              ...t,
+              title:
+                t.messages.length === 0
+                  ? text.slice(0, 40) + (text.length > 40 ? "…" : "")
+                  : t.title,
+              messages: [...t.messages, userMsg],
+            }
+          : t,
+      ),
     );
 
     void pushChatMessageToRemote({
@@ -1312,7 +1334,6 @@ export default function ChatPage() {
       createdAtMs: userMsg.createdAt,
       meta: { sessionId: userMsg.sessionId ?? targetId },
     });
-
 
     void logUserMessageToHistory(userMsg);
     void generateAssistantReply(targetId, msgsForAnalysis, userMsg.id);
@@ -1331,7 +1352,7 @@ export default function ChatPage() {
     if (!activeThread) return;
     if (!confirm("Clear all messages in this conversation?")) return;
     setThreads((prev) =>
-      prev.map((t) => (t.id === activeThread.id ? { ...t, messages: [] } : t))
+      prev.map((t) => (t.id === activeThread.id ? { ...t, messages: [] } : t)),
     );
   }
 
@@ -1396,16 +1417,18 @@ export default function ChatPage() {
                         setActiveId(t.id);
                       }
                     }}
-                    className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isActive
-                      ? "bg-white/10 shadow-md"
-                      : "hover:bg-white/5 hover:-translate-y-0.5 hover:shadow-sm duration-150"
-                      }`}
+                    className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${
+                      isActive
+                        ? "bg-white/10 shadow-md"
+                        : "hover:bg-white/5 hover:-translate-y-0.5 hover:shadow-sm duration-150"
+                    }`}
                   >
                     <div className="min-w-0">
                       {/* Conversation title */}
                       <p
-                        className={`truncate text-sm font-medium ${isActive ? "text-zinc-50" : "text-zinc-100"
-                          }`}
+                        className={`truncate text-sm font-medium ${
+                          isActive ? "text-zinc-50" : "text-zinc-100"
+                        }`}
                         title={t.title}
                       >
                         {t.title || "Conversation"}
@@ -1450,7 +1473,9 @@ export default function ChatPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-zinc-50 sm:text-base">
                         <span suppressHydrationWarning>
-                          {mounted ? activeThread?.title ?? "Conversation" : ""}
+                          {mounted
+                            ? (activeThread?.title ?? "Conversation")
+                            : ""}
                         </span>
                       </p>
                       <p className="text-[11px] text-zinc-400 sm:hidden">
@@ -1462,10 +1487,12 @@ export default function ChatPage() {
                       {/* Desktop: keep the "nice" header line always. Collapse only the extra details by default. */}
                       <div className="hidden space-y-0.5 sm:block">
                         <p
-                          className={`text-sm text-zinc-400 ${showHeaderDetails ? "mb-3" : "mb-1"
-                            }`}
+                          className={`text-sm text-zinc-400 ${
+                            showHeaderDetails ? "mb-3" : "mb-1"
+                          }`}
                         >
-                          A calm space to talk about your feelings. Analysis and replies respect your consent settings.
+                          A calm space to talk about your feelings. Analysis and
+                          replies respect your consent settings.
                         </p>
 
                         {showHeaderDetails && (
@@ -1482,12 +1509,12 @@ export default function ChatPage() {
                             </p>
 
                             <p>
-                              Note: Private/Incognito windows may not keep messages after you close them (browser
-                              privacy behavior).
+                              Note: Private/Incognito windows may not keep
+                              messages after you close them (browser privacy
+                              behavior).
                             </p>
                           </div>
                         )}
-
                       </div>
                     </div>
                   </div>
@@ -1509,14 +1536,15 @@ export default function ChatPage() {
                         }
                       >
                         <span
-                          className={`h-1.5 w-1.5 rounded-full ${syncing
-                            ? "bg-amber-400"
-                            : syncError
-                              ? "bg-red-500"
-                              : lastSyncAt
-                                ? "bg-emerald-400"
-                                : "bg-zinc-500"
-                            }`}
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            syncing
+                              ? "bg-amber-400"
+                              : syncError
+                                ? "bg-red-500"
+                                : lastSyncAt
+                                  ? "bg-emerald-400"
+                                  : "bg-zinc-500"
+                          }`}
                         />
                         <span>
                           {syncing
@@ -1535,7 +1563,9 @@ export default function ChatPage() {
                           className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-3 text-xs font-medium text-white backdrop-blur-sm transition hover:brightness-110 disabled:opacity-60"
                           type="button"
                         >
-                          <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
+                          <RefreshCw
+                            className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`}
+                          />
                           Sync now
                         </button>
                       ) : (
@@ -1551,17 +1581,23 @@ export default function ChatPage() {
 
                       {/* Status chip: Analysis mode */}
                       <div
-                        className={`inline-flex h-7 w-full items-center justify-center gap-2 rounded-full px-3 text-xs backdrop-blur-sm ${mode === "allow-remote"
-                          ? "border border-emerald-300/50 bg-emerald-500/10 text-emerald-200"
-                          : "border border-white/15 bg-black/25 text-white/90"
-                          }`}
+                        className={`inline-flex h-7 w-full items-center justify-center gap-2 rounded-full px-3 text-xs backdrop-blur-sm ${
+                          mode === "allow-remote"
+                            ? "border border-emerald-300/50 bg-emerald-500/10 text-emerald-200"
+                            : "border border-white/15 bg-black/25 text-white/90"
+                        }`}
                         title="Emotion analysis mode"
                       >
                         <span
-                          className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-400"
-                            }`}
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            mode === "allow-remote"
+                              ? "bg-emerald-400"
+                              : "bg-zinc-400"
+                          }`}
                         />
-                        {mode === "allow-remote" ? "Remote allowed" : "Local only"}
+                        {mode === "allow-remote"
+                          ? "Remote allowed"
+                          : "Local only"}
                       </div>
                     </div>
                   </div>
@@ -1571,7 +1607,9 @@ export default function ChatPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex flex-col gap-2 sm:w-[340px] sm:flex-none sm:pt-1">
                     {/* Label kept (mobile-style: small + subtle) */}
-                    <p className="text-xs font-medium text-zinc-400">Emotion analysis mode</p>
+                    <p className="text-xs font-medium text-zinc-400">
+                      Emotion analysis mode
+                    </p>
 
                     {/* Show/Hide details toggle — fixed width */}
                     <button
@@ -1583,7 +1621,11 @@ export default function ChatPage() {
                       ].join(" ")}
                       type="button"
                       aria-expanded={showHeaderDetails}
-                      aria-label={showHeaderDetails ? "Hide header details" : "Show header details"}
+                      aria-label={
+                        showHeaderDetails
+                          ? "Hide header details"
+                          : "Show header details"
+                      }
                     >
                       {showHeaderDetails ? "Hide details" : "Show details"}
                     </button>
@@ -1599,9 +1641,7 @@ export default function ChatPage() {
                         </span>
                       </span>
                     ) : (
-                      <span
-                        className="inline-flex h-7 w-full max-w-[320px] items-center justify-center rounded-full border border-dashed border-white/20 bg-black/30 px-3 text-xs text-zinc-400 backdrop-blur-sm"
-                      >
+                      <span className="inline-flex h-7 w-full max-w-[320px] items-center justify-center rounded-full border border-dashed border-white/20 bg-black/30 px-3 text-xs text-zinc-400 backdrop-blur-sm">
                         No analysis yet
                       </span>
                     )}
@@ -1629,21 +1669,26 @@ export default function ChatPage() {
                       <div className="mt-1 max-w-[520px] space-y-2 text-left">
                         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
                           <p className="text-xs leading-5 text-zinc-300/90">
-                            Your choice is stored only on this device. Right now, Imotara analyzes emotions locally in your
+                            Your choice is stored only on this device. Right
+                            now, Imotara analyzes emotions locally in your
                             browser.
                           </p>
 
                           <p className="mt-2 text-xs leading-5 text-zinc-300/90">
-                            Your words stay on-device unless you explicitly allow remote.
+                            Your words stay on-device unless you explicitly
+                            allow remote.
                           </p>
 
                           {mounted &&
                             typeof window !== "undefined" &&
-                            window.localStorage.getItem("imotaraQa") === "1" && (
+                            window.localStorage.getItem("imotaraQa") ===
+                              "1" && (
                               <>
                                 <div className="mt-3 h-px w-full bg-white/10" />
                                 <p className="mt-3 text-[11px] leading-5 text-zinc-400">
-                                  Tip: You can switch between on-device and remote analysis anytime using the toggle above.
+                                  Tip: You can switch between on-device and
+                                  remote analysis anytime using the toggle
+                                  above.
                                 </p>
                               </>
                             )}
@@ -1651,7 +1696,8 @@ export default function ChatPage() {
                           {/* Compatibility Gate (report-only): Debug UI surface */}
                           {(() => {
                             const compat =
-                              (analysis as any)?.response?.meta?.compatibility ??
+                              (analysis as any)?.response?.meta
+                                ?.compatibility ??
                               (analysis as any)?.meta?.compatibility;
 
                             if (!compat) return null;
@@ -1692,8 +1738,11 @@ export default function ChatPage() {
                     <Link
                       href={
                         activeThread
-                          ? `/history?sessionId=${encodeURIComponent(activeThread.id)}${urlMessageId ? `&messageId=${encodeURIComponent(urlMessageId)}` : ""
-                          }`
+                          ? `/history?sessionId=${encodeURIComponent(activeThread.id)}${
+                              urlMessageId
+                                ? `&messageId=${encodeURIComponent(urlMessageId)}`
+                                : ""
+                            }`
                           : "/history"
                       }
                       className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
@@ -1704,13 +1753,15 @@ export default function ChatPage() {
 
                     <button
                       onClick={triggerAnalyze}
-                      disabled={analyzing || !(activeThread?.messages?.length)}
+                      disabled={analyzing || !activeThread?.messages?.length}
                       aria-busy={analyzing ? true : undefined}
                       className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 disabled:opacity-60"
                       title="Run emotion analysis now (respects your consent setting)"
                       type="button"
                     >
-                      {analyzing ? <RefreshCw className="h-3 w-3 animate-spin sm:h-4 sm:w-4" /> : null}
+                      {analyzing ? (
+                        <RefreshCw className="h-3 w-3 animate-spin sm:h-4 sm:w-4" />
+                      ) : null}
                       Re-analyze
                     </button>
 
@@ -1772,7 +1823,11 @@ export default function ChatPage() {
             ) : (
               <div className="mx-auto max-w-3xl space-y-4">
                 <div className="imotara-glass-card p-4">
-                  <MoodSummaryCard messages={appMessages} windowSize={10} mode="local" />
+                  <MoodSummaryCard
+                    messages={appMessages}
+                    windowSize={10}
+                    mode="local"
+                  />
                 </div>
 
                 {/* Reflection Seed Card (quiet prompts; optional) */}
@@ -1780,7 +1835,9 @@ export default function ChatPage() {
                   <div className="imotara-glass-card p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-zinc-50">Reflection seeds</p>
+                        <p className="text-sm font-semibold text-zinc-50">
+                          Reflection seeds
+                        </p>
                         <p className="mt-0.5 text-[11px] text-zinc-400">
                           If you want, pick one to reflect on — no pressure.
                         </p>
@@ -1799,7 +1856,9 @@ export default function ChatPage() {
                           onClick={() => {
                             const next = p.trim();
                             if (!next) return;
-                            setDraft((prev) => (prev?.trim() ? `${prev}\n\n${next}` : next));
+                            setDraft((prev) =>
+                              prev?.trim() ? `${prev}\n\n${next}` : next,
+                            );
                             // keep it tiny: no auto-send, just helps start writing
                             setTimeout(() => composerRef.current?.focus(), 0);
                           }}
@@ -1828,10 +1887,10 @@ export default function ChatPage() {
                     attachRef={
                       m.id === urlMessageId
                         ? (el) => {
-                          if (el) {
-                            messageTargetRef.current = el;
+                            if (el) {
+                              messageTargetRef.current = el;
+                            }
                           }
-                        }
                         : undefined
                     }
                     reflectionSeed={m.reflectionSeed}
@@ -1878,7 +1937,8 @@ function EmptyState() {
       <div className="mt-8 rounded-2xl border border-dashed border-white/20 bg-black/30 p-8 text-center text-zinc-200">
         <p className="text-base font-medium">Start a conversation</p>
         <p className="mt-1 text-sm text-zinc-400">
-          Messages are saved in your browser, and analysis/replies respect your consent settings.
+          Messages are saved in your browser, and analysis/replies respect your
+          consent settings.
         </p>
       </div>
     </div>
@@ -1912,7 +1972,11 @@ function Bubble({
   replySource?: "openai" | "fallback";
   reflectionSeed?: ReflectionSeed;
   followUp?: string;
-  meta?: { compatibility?: any; analysisSource?: "local" | "cloud"; softEnforcement?: any };
+  meta?: {
+    compatibility?: any;
+    analysisSource?: "local" | "cloud";
+    softEnforcement?: any;
+  };
 }) {
   const isUser = role === "user";
 
@@ -1938,7 +2002,7 @@ function Bubble({
   if (replySource === "openai") {
     assistantBase.push(
       "border-emerald-400/60",
-      "shadow-[0_18px_40px_rgba(16,185,129,0.8)]"
+      "shadow-[0_18px_40px_rgba(16,185,129,0.8)]",
     );
   }
 
@@ -1948,18 +2012,18 @@ function Bubble({
       "hover:scale-[1.01]",
       "hover:shadow-[0_0_28px_rgba(129,140,248,0.7)]",
       "hover:brightness-110",
-      "hover:saturate-125"
+      "hover:saturate-125",
     );
     if (replySource === "openai") {
       assistantHover.push(
         "hover:shadow-[0_0_36px_rgba(52,211,153,0.85)]",
-        "hover:translate-y-[-1px]"
+        "hover:translate-y-[-1px]",
       );
     }
   }
 
   const bubbleClass = [
-    "max-w-[85%] rounded-2xl px-4 py-3 text-sm sm:max-w-[75%] transition-all",
+    "min-w-0 max-w-[85%] rounded-2xl px-4 py-3 text-sm sm:max-w-[75%] transition-all",
     isUser
       ? "bg-gradient-to-br from-indigo-500/80 via-sky-500/80 to-emerald-400/80 text-white shadow-[0_18px_40px_rgba(15,23,42,0.85)]"
       : assistantBase.join(" "),
@@ -1992,7 +2056,9 @@ function Bubble({
         {!isUser && seed ? (
           <div className="mb-2 rounded-2xl border border-white/15 bg-black/30 px-3 py-2 backdrop-blur-sm">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[12px] font-semibold text-zinc-100">{seed.title}</p>
+              <p className="text-[12px] font-semibold text-zinc-100">
+                {seed.title}
+              </p>
               <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-300">
                 {seed.label}
               </span>
@@ -2003,16 +2069,17 @@ function Bubble({
           </div>
         ) : null}
 
-        <div className="whitespace-pre-wrap">{content}</div>
+        <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+          {content}
+        </div>
         {role === "assistant" && followUp?.trim() ? (
-          <div className="mt-2 text-sm text-zinc-200/90">
-            {followUp.trim()}
-          </div>
+          <div className="mt-2 text-sm text-zinc-200/90">{followUp.trim()}</div>
         ) : null}
 
         <div
-          className={`mt-1 text-[11px] ${isUser ? "text-zinc-100/80" : "text-zinc-300"
-            }`}
+          className={`mt-1 text-[11px] ${
+            isUser ? "text-zinc-100/80" : "text-zinc-300"
+          }`}
         >
           <DateText ts={time} /> · {isUser ? "You" : "Imotara"}
           {!isUser && meta?.compatibility ? (
@@ -2039,7 +2106,7 @@ function Bubble({
               {" · "}
               <Link
                 href={`/history?sessionId=${encodeURIComponent(
-                  sessionId
+                  sessionId,
                 )}&messageId=${encodeURIComponent(id)}`}
                 className="underline decoration-amber-300/70 underline-offset-2 hover:text-amber-300"
               >

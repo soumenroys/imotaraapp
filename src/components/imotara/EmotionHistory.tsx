@@ -85,7 +85,7 @@ const LABEL: Record<string, string> = {
 // simple upsert merge (remote -> local)
 function mergeRemote(
   local: EmotionRecord[],
-  incoming: EmotionRecord[]
+  incoming: EmotionRecord[],
 ): EmotionRecord[] {
   if (!Array.isArray(incoming) || incoming.length === 0) return local;
   const map = new Map(local.map((r) => [r.id, r]));
@@ -94,7 +94,7 @@ function mergeRemote(
     map.set(rec.id, { ...(prev ?? ({} as EmotionRecord)), ...rec });
   }
   return Array.from(map.values()).sort(
-    (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+    (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0),
   );
 }
 
@@ -119,58 +119,62 @@ function getCardToneClasses(emotionKey: string, isAssistant: boolean) {
   // assistant baseline is a touch more violet; user baseline a touch more sky
   const base = isAssistant
     ? {
-      border: "border-violet-400/25",
-      bg: "bg-violet-500/8",
-      hover: "hover:bg-violet-500/12",
-    }
+        border: "border-violet-400/25",
+        bg: "bg-violet-500/8",
+        hover: "hover:bg-violet-500/12",
+      }
     : {
-      border: "border-sky-400/20",
-      bg: "bg-sky-500/8",
-      hover: "hover:bg-sky-500/12",
-    };
+        border: "border-sky-400/20",
+        bg: "bg-sky-500/8",
+        hover: "hover:bg-sky-500/12",
+      };
 
   // emotion accent glows (very soft)
   // Using arbitrary shadow values keeps it visible but not “neon”.
   const accent =
     e === "joy" || e === "happy" || e === "happiness"
       ? {
-        ring: "ring-1 ring-amber-300/25",
-        glow: "shadow-[0_0_0_1px_rgba(253,230,138,0.12),0_0_26px_rgba(253,230,138,0.10)]",
-      }
+          ring: "ring-1 ring-amber-300/25",
+          glow: "shadow-[0_0_0_1px_rgba(253,230,138,0.12),0_0_26px_rgba(253,230,138,0.10)]",
+        }
       : e === "sad" || e === "sadness" || e === "lonely" || e === "isolation"
         ? {
-          ring: "ring-1 ring-sky-300/25",
-          glow: "shadow-[0_0_0_1px_rgba(125,211,252,0.12),0_0_26px_rgba(125,211,252,0.10)]",
-        }
+            ring: "ring-1 ring-sky-300/25",
+            glow: "shadow-[0_0_0_1px_rgba(125,211,252,0.12),0_0_26px_rgba(125,211,252,0.10)]",
+          }
         : e === "anger" || e === "angry"
           ? {
-            ring: "ring-1 ring-rose-300/20",
-            glow: "shadow-[0_0_0_1px_rgba(253,164,175,0.10),0_0_24px_rgba(253,164,175,0.08)]",
-          }
-          : e === "fear" || e === "anxious" || e === "anxiety" || e === "stress" || e === "stressed"
-            ? {
-              ring: "ring-1 ring-violet-300/20",
-              glow: "shadow-[0_0_0_1px_rgba(196,181,253,0.10),0_0_24px_rgba(196,181,253,0.08)]",
+              ring: "ring-1 ring-rose-300/20",
+              glow: "shadow-[0_0_0_1px_rgba(253,164,175,0.10),0_0_24px_rgba(253,164,175,0.08)]",
             }
+          : e === "fear" ||
+              e === "anxious" ||
+              e === "anxiety" ||
+              e === "stress" ||
+              e === "stressed"
+            ? {
+                ring: "ring-1 ring-violet-300/20",
+                glow: "shadow-[0_0_0_1px_rgba(196,181,253,0.10),0_0_24px_rgba(196,181,253,0.08)]",
+              }
             : e === "surprise"
               ? {
-                ring: "ring-1 ring-fuchsia-300/18",
-                glow: "shadow-[0_0_0_1px_rgba(249,168,212,0.10),0_0_22px_rgba(249,168,212,0.08)]",
-              }
+                  ring: "ring-1 ring-fuchsia-300/18",
+                  glow: "shadow-[0_0_0_1px_rgba(249,168,212,0.10),0_0_22px_rgba(249,168,212,0.08)]",
+                }
               : e === "disgust"
                 ? {
-                  ring: "ring-1 ring-emerald-300/18",
-                  glow: "shadow-[0_0_0_1px_rgba(110,231,183,0.10),0_0_22px_rgba(110,231,183,0.08)]",
-                }
+                    ring: "ring-1 ring-emerald-300/18",
+                    glow: "shadow-[0_0_0_1px_rgba(110,231,183,0.10),0_0_22px_rgba(110,231,183,0.08)]",
+                  }
                 : e === "mixed"
                   ? {
-                    ring: "ring-1 ring-indigo-300/18",
-                    glow: "shadow-[0_0_0_1px_rgba(165,180,252,0.10),0_0_22px_rgba(165,180,252,0.08)]",
-                  }
+                      ring: "ring-1 ring-indigo-300/18",
+                      glow: "shadow-[0_0_0_1px_rgba(165,180,252,0.10),0_0_22px_rgba(165,180,252,0.08)]",
+                    }
                   : {
-                    ring: "ring-1 ring-white/10",
-                    glow: "shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_0_18px_rgba(255,255,255,0.04)]",
-                  };
+                      ring: "ring-1 ring-white/10",
+                      glow: "shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_0_18px_rgba(255,255,255,0.04)]",
+                    };
 
   return {
     baseBorder: base.border,
@@ -189,7 +193,7 @@ export default function EmotionHistory() {
 
   // manual sync state
   const [state, setState] = useState<"idle" | "syncing" | "synced" | "error">(
-    "idle"
+    "idle",
   );
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
@@ -198,8 +202,9 @@ export default function EmotionHistory() {
   const [justSynced, setJustSynced] = useState(false);
 
   // keep computed summary here
-  const [summary, setSummary] =
-    useState<ReturnType<typeof computeEmotionSummary> | null>(null);
+  const [summary, setSummary] = useState<ReturnType<
+    typeof computeEmotionSummary
+  > | null>(null);
 
   // track and scroll to the last-added item
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
@@ -223,12 +228,12 @@ export default function EmotionHistory() {
 
   // ⬇️ Step 14-C-4: read-only conflict previews for UI use later
   const [conflictPreviews, setConflictPreviews] = useState<ConflictPreview[]>(
-    []
+    [],
   );
 
   // ⬇️ single-level undo snapshot (20s window)
   const [undoSnapshot, setUndoSnapshot] = useState<EmotionRecord[] | null>(
-    null
+    null,
   );
   const [undoLabel, setUndoLabel] = useState<string | null>(null);
   const undoTimerRef = useRef<number | null>(null);
@@ -258,9 +263,7 @@ export default function EmotionHistory() {
 
   // ⬇️ NEW (Step 17.4): soft highlight state for the input
   const highlightSessionInput =
-    !!urlSessionId &&
-    sessionFilter === urlSessionId &&
-    !sessionFilterTouched;
+    !!urlSessionId && sessionFilter === urlSessionId && !sessionFilterTouched;
 
   // ⬇️ NEW (Step 17.2): ref to the first filtered list item for auto-scroll
   const firstFilteredRef = useRef<HTMLLIElement | null>(null);
@@ -269,8 +272,9 @@ export default function EmotionHistory() {
   const sessionFilterInputRef = useRef<HTMLInputElement | null>(null);
 
   // ⬇️ NEW: deep-link to a specific messageId (from Chat → History)
-  const [highlightedMessageId, setHighlightedMessageId] =
-    useState<string | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<
+    string | null
+  >(null);
   const messageTargetRef = useRef<HTMLLIElement | null>(null);
   const usedMessageIdRef = useRef<string | null>(null);
 
@@ -318,9 +322,7 @@ export default function EmotionHistory() {
     if (!undoSnapshot) return;
     const prev = undoSnapshot;
     setItems(prev);
-    setSummary(
-      computeEmotionSummary(prev.filter((r) => !(r as any).deleted))
-    );
+    setSummary(computeEmotionSummary(prev.filter((r) => !(r as any).deleted)));
     saveHistory(prev);
     setPendingCount(computePending(prev).length);
     setUndoSnapshot(null);
@@ -368,9 +370,7 @@ export default function EmotionHistory() {
         if (!cancelled) {
           setItems(list);
           setSummary(
-            computeEmotionSummary(
-              list.filter((r) => !(r as any).deleted)
-            )
+            computeEmotionSummary(list.filter((r) => !(r as any).deleted)),
           );
         }
       } catch (err) {
@@ -397,7 +397,7 @@ export default function EmotionHistory() {
     try {
       const base = Array.isArray(items) ? items : [];
       setSummary(
-        computeEmotionSummary(base.filter((r) => !(r as any).deleted))
+        computeEmotionSummary(base.filter((r) => !(r as any).deleted)),
       );
     } catch {
       // no-op; keep previous summary
@@ -507,7 +507,7 @@ export default function EmotionHistory() {
       setState("idle");
       setLastError(null);
       setPushInfo(
-        "Offline — changes are stored locally and will sync when you’re back online."
+        "Offline — changes are stored locally and will sync when you’re back online.",
       );
       autoRetryRef.current = true;
       return;
@@ -521,7 +521,7 @@ export default function EmotionHistory() {
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         throw new Error(
-          `GET /api/history ${res.status} ${res.statusText} — ${text}`
+          `GET /api/history ${res.status} ${res.statusText} — ${text}`,
         );
       }
       const json: any = await res.json().catch(() => ({}));
@@ -575,12 +575,12 @@ export default function EmotionHistory() {
                 id: it.id,
                 diffs: Array.isArray(diffs)
                   ? (diffs as any[]).map((d) =>
-                    typeof d === "string"
-                      ? d
-                      : d?.field
-                        ? String(d.field)
-                        : String(d)
-                  )
+                      typeof d === "string"
+                        ? d
+                        : d?.field
+                          ? String(d.field)
+                          : String(d),
+                    )
                   : [String(diffs)],
                 summary,
                 local: it.local,
@@ -629,7 +629,7 @@ export default function EmotionHistory() {
       await saveHistory(merged);
       setItems(merged);
       setSummary(
-        computeEmotionSummary(merged.filter((r) => !(r as any).deleted))
+        computeEmotionSummary(merged.filter((r) => !(r as any).deleted)),
       );
 
       // if we actually pulled newer server updates, show “Pulled just now” for 2s
@@ -709,14 +709,17 @@ export default function EmotionHistory() {
 
   // Auto-sync every 5 minutes when the tab is visible
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (
-        typeof document !== "undefined" &&
-        document.visibilityState === "visible"
-      ) {
-        void manualSync();
-      }
-    }, 5 * 60 * 1000);
+    const interval = setInterval(
+      () => {
+        if (
+          typeof document !== "undefined" &&
+          document.visibilityState === "visible"
+        ) {
+          void manualSync();
+        }
+      },
+      5 * 60 * 1000,
+    );
     return () => clearInterval(interval);
   }, []);
 
@@ -730,9 +733,7 @@ export default function EmotionHistory() {
     const prev = items;
     const next = Array.isArray(prev) ? prev.filter((r) => r.id !== id) : [];
     setItems(next);
-    setSummary(
-      computeEmotionSummary(next.filter((r) => !(r as any).deleted))
-    );
+    setSummary(computeEmotionSummary(next.filter((r) => !(r as any).deleted)));
     await saveHistory(next);
 
     try {
@@ -746,7 +747,7 @@ export default function EmotionHistory() {
         setIsOffline(true);
         autoRetryRef.current = true;
         setPushInfo(
-          "Offline — deleted locally. Server delete will be attempted when you’re back online."
+          "Offline — deleted locally. Server delete will be attempted when you’re back online.",
         );
         return;
       }
@@ -759,7 +760,7 @@ export default function EmotionHistory() {
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         throw new Error(
-          `DELETE failed: ${res.status} ${res.statusText} — ${text}`
+          `DELETE failed: ${res.status} ${res.statusText} — ${text}`,
         );
       }
       const json = await res.json().catch(() => ({}));
@@ -771,7 +772,7 @@ export default function EmotionHistory() {
     } catch (err: any) {
       setItems(prev);
       setSummary(
-        computeEmotionSummary(prev.filter((r) => !(r as any).deleted))
+        computeEmotionSummary(prev.filter((r) => !(r as any).deleted)),
       ); // rollback
       await saveHistory(prev);
       setPushInfo(`Delete failed: ${String(err?.message ?? err)}`);
@@ -792,9 +793,7 @@ export default function EmotionHistory() {
     const base = Array.isArray(items) ? items : [];
     const next = [rec, ...base];
     setItems(next);
-    setSummary(
-      computeEmotionSummary(next.filter((r) => !(r as any).deleted))
-    );
+    setSummary(computeEmotionSummary(next.filter((r) => !(r as any).deleted)));
     setLastAddedId(rec.id); // mark for scroll
     saveHistory(next);
     setPendingCount(computePending(next).length);
@@ -813,9 +812,7 @@ export default function EmotionHistory() {
       next = [serverRec, ...prevItems];
     }
     setItems(next);
-    setSummary(
-      computeEmotionSummary(next.filter((r) => !(r as any).deleted))
-    );
+    setSummary(computeEmotionSummary(next.filter((r) => !(r as any).deleted)));
     await saveHistory(next);
     setPendingCount(computePending(next).length);
 
@@ -827,7 +824,10 @@ export default function EmotionHistory() {
     offerUndo(prevItems, "Replaced with server version");
   }
 
-  async function applyLocalVersion(id: string, localRec?: EmotionRecord | null) {
+  async function applyLocalVersion(
+    id: string,
+    localRec?: EmotionRecord | null,
+  ) {
     const prevItems = Array.isArray(items) ? items : [];
     let next = prevItems;
 
@@ -844,7 +844,7 @@ export default function EmotionHistory() {
     if (next !== prevItems) {
       setItems(next);
       setSummary(
-        computeEmotionSummary(next.filter((r) => !(r as any).deleted))
+        computeEmotionSummary(next.filter((r) => !(r as any).deleted)),
       );
       await saveHistory(next);
     }
@@ -870,13 +870,11 @@ export default function EmotionHistory() {
       map.set(rec.id, rec);
     }
     const next = Array.from(map.values()).sort(
-      (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+      (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0),
     );
 
     setItems(next);
-    setSummary(
-      computeEmotionSummary(next.filter((r) => !(r as any).deleted))
-    );
+    setSummary(computeEmotionSummary(next.filter((r) => !(r as any).deleted)));
     await saveHistory(next);
     setPendingCount(computePending(next).length);
 
@@ -963,7 +961,7 @@ export default function EmotionHistory() {
               <ul className="divide-y divide-white/5">
                 {items.map((it) => {
                   const previewForItem = conflictPreviews.find(
-                    (p) => p.id === it.id
+                    (p) => p.id === it.id,
                   );
 
                   return (
@@ -1100,7 +1098,7 @@ export default function EmotionHistory() {
     const q = sessionFilter.trim().toLowerCase();
     if (!q) return visibleItems;
     return visibleItems.filter((r) =>
-      (r.sessionId ?? "").toLowerCase().includes(q)
+      (r.sessionId ?? "").toLowerCase().includes(q),
     );
   }, [visibleItems, sessionFilter]);
 
@@ -1258,11 +1256,12 @@ export default function EmotionHistory() {
             aria-live="polite"
           >
             <span>{subtitle}</span>
-            {state === "synced" && (Number(pendingCount) <= 0 || justSynced) && (
-              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                ✅ All changes synced
-              </span>
-            )}
+            {state === "synced" &&
+              (Number(pendingCount) <= 0 || justSynced) && (
+                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                  ✅ All changes synced
+                </span>
+              )}
 
             {/* tiny orange conflict pill (fresh ones pulse for ~10s) */}
             {conflicts > 0 && (
@@ -1273,13 +1272,15 @@ export default function EmotionHistory() {
                     "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium backdrop-blur-sm",
                     "border-amber-300 bg-amber-500/15 text-amber-900 hover:bg-amber-500/25",
                     "dark:border-amber-500/70 dark:bg-amber-500/15 dark:text-amber-50 dark:hover:bg-amber-500/25",
-                    conflictFresh ? "ring-2 ring-amber-400/70 animate-pulse" : "",
+                    conflictFresh
+                      ? "ring-2 ring-amber-400/70 animate-pulse"
+                      : "",
                   ].join(" ")}
                   title={
                     lastConflictAt
                       ? `Server has newer versions (since ${new Date(
-                        lastConflictAt
-                      ).toLocaleTimeString()}). Click to pull & merge.`
+                          lastConflictAt,
+                        ).toLocaleTimeString()}). Click to pull & merge.`
                       : "Server has newer versions for some items. Click to pull & merge."
                   }
                 >
@@ -1350,7 +1351,7 @@ export default function EmotionHistory() {
                     setIsOffline(true);
                     autoRetryRef.current = true;
                     setPushInfo(
-                      "Offline — pending changes will stay queued locally and be pushed when you’re back online."
+                      "Offline — pending changes will stay queued locally and be pushed when you’re back online.",
                     );
                     return;
                   }
@@ -1367,8 +1368,9 @@ export default function EmotionHistory() {
                       : Number(res?.rejected ?? res?.rejectedCount ?? 0);
 
                     setPushInfo(
-                      `Pending push: attempted ${attempted}; accepted ${accepted}${rejected ? `, rejected ${rejected}` : ""
-                      }`
+                      `Pending push: attempted ${attempted}; accepted ${accepted}${
+                        rejected ? `, rejected ${rejected}` : ""
+                      }`,
                     );
 
                     const latest = await getHistory();
@@ -1377,7 +1379,9 @@ export default function EmotionHistory() {
                     // ensure UI reflects server state immediately
                     await manualSync();
                   } catch (err: any) {
-                    setPushInfo(`Push pending failed: ${String(err?.message ?? err)}`);
+                    setPushInfo(
+                      `Push pending failed: ${String(err?.message ?? err)}`,
+                    );
                   }
                 }}
                 className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
@@ -1397,7 +1401,7 @@ export default function EmotionHistory() {
                     setIsOffline(true);
                     autoRetryRef.current = true;
                     setPushInfo(
-                      "Offline — all local records will be pushed when you’re back online."
+                      "Offline — all local records will be pushed when you’re back online.",
                     );
                     return;
                   }
@@ -1414,8 +1418,9 @@ export default function EmotionHistory() {
                       : Number(res?.rejected ?? 0);
 
                     setPushInfo(
-                      `Pushed ${attempted}; accepted ${accepted}${rejectedLen ? `, rejected ${rejectedLen}` : ""
-                      }`
+                      `Pushed ${attempted}; accepted ${accepted}${
+                        rejectedLen ? `, rejected ${rejectedLen}` : ""
+                      }`,
                     );
 
                     const latest = await getHistory();
@@ -1424,7 +1429,9 @@ export default function EmotionHistory() {
                     // ensure UI reflects server state immediately
                     await manualSync();
                   } catch (err: any) {
-                    setPushInfo(`Push all failed: ${String(err?.message ?? err)}`);
+                    setPushInfo(
+                      `Push all failed: ${String(err?.message ?? err)}`,
+                    );
                   }
                 }}
                 className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
@@ -1436,16 +1443,18 @@ export default function EmotionHistory() {
               <button
                 onClick={async () => {
                   try {
-                    const { applied, remaining } = await retryQueuedConflicts(
-                      "prefer-remote"
-                    );
+                    const { applied, remaining } =
+                      await retryQueuedConflicts("prefer-remote");
                     setPushInfo(
-                      `Conflict retry: applied ${applied}${remaining ? `; remaining ${remaining}` : ""
-                      }`
+                      `Conflict retry: applied ${applied}${
+                        remaining ? `; remaining ${remaining}` : ""
+                      }`,
                     );
                     await manualSync();
                   } catch (err: any) {
-                    setPushInfo(`Retry queued failed: ${String(err?.message ?? err)}`);
+                    setPushInfo(
+                      `Retry queued failed: ${String(err?.message ?? err)}`,
+                    );
                   }
                 }}
                 className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
@@ -1463,7 +1472,9 @@ export default function EmotionHistory() {
                     !navigator.onLine
                   ) {
                     setIsOffline(true);
-                    setApiInfo("Offline — cannot reach /api/history right now.");
+                    setApiInfo(
+                      "Offline — cannot reach /api/history right now.",
+                    );
                     return;
                   }
 
@@ -1472,25 +1483,33 @@ export default function EmotionHistory() {
                     const res = await fetch("/api/history", { method: "GET" });
                     const json = await res.json().catch(() => ({}));
                     if (Array.isArray(json)) {
-                      setApiInfo(`GET /api/history returned array: length=${json.length}`);
-                    } else if (json && typeof json === "object" && "records" in json) {
+                      setApiInfo(
+                        `GET /api/history returned array: length=${json.length}`,
+                      );
+                    } else if (
+                      json &&
+                      typeof json === "object" &&
+                      "records" in json
+                    ) {
                       const recs = Array.isArray((json as any).records)
                         ? (json as any).records
                         : [];
                       setApiInfo(
-                        `GET /api/history envelope: records=${recs.length}, serverTs=${(json as any).serverTs ?? "—"
-                        }`
+                        `GET /api/history envelope: records=${recs.length}, serverTs=${
+                          (json as any).serverTs ?? "—"
+                        }`,
                       );
                     } else {
                       setApiInfo(
-                        `GET /api/history unexpected shape: ${JSON.stringify(json).slice(
-                          0,
-                          200
-                        )}…`
+                        `GET /api/history unexpected shape: ${JSON.stringify(
+                          json,
+                        ).slice(0, 200)}…`,
                       );
                     }
                   } catch (err: any) {
-                    setApiInfo(`API check failed: ${String(err?.message ?? err)}`);
+                    setApiInfo(
+                      `API check failed: ${String(err?.message ?? err)}`,
+                    );
                   }
                 }}
                 className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-md hover:bg-white/20 dark:text-zinc-100"
@@ -1518,7 +1537,7 @@ export default function EmotionHistory() {
               downloadFile(
                 `imotara-history-${today}.json`,
                 "application/json",
-                payload
+                payload,
               );
             }}
             className="rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
@@ -1567,7 +1586,9 @@ export default function EmotionHistory() {
                   escapeCsv(updated),
                   escapeCsv(r.emotion),
                   escapeCsv(
-                    typeof r.intensity === "number" ? r.intensity.toFixed(3) : ""
+                    typeof r.intensity === "number"
+                      ? r.intensity.toFixed(3)
+                      : "",
                   ),
                   escapeCsv(r.message ?? ""),
                   escapeCsv(r.sessionId ?? ""),
@@ -1609,7 +1630,9 @@ export default function EmotionHistory() {
       {/* Debug + operation result lines */}
       <div className="mb-3 space-y-1 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-zinc-600 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
         <div>{debugLine}</div>
-        {previewHint && <div className="text-[11px] opacity-80">{previewHint}</div>}
+        {previewHint && (
+          <div className="text-[11px] opacity-80">{previewHint}</div>
+        )}
         {pushInfo && <div>{pushInfo}</div>}
         {apiInfo && <div>{apiInfo}</div>}
       </div>
@@ -1619,7 +1642,9 @@ export default function EmotionHistory() {
         <label className="min-w-[200px] flex-1">
           <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             Filter by chat session ID{" "}
-            <span className="opacity-70 normal-case font-normal">(optional)</span>
+            <span className="opacity-70 normal-case font-normal">
+              (optional)
+            </span>
           </div>
           <input
             ref={sessionFilterInputRef}
@@ -1641,12 +1666,14 @@ export default function EmotionHistory() {
             ].join(" ")}
           />
           {/* soft hint when deep-linked and filter untouched */}
-          {urlSessionId && sessionFilter === urlSessionId && !sessionFilterTouched && (
-            <div className="mt-1 text-[11px] text-indigo-500 dark:text-indigo-300">
-              Showing records linked to session{" "}
-              <span className="break-all font-semibold">{urlSessionId}</span>
-            </div>
-          )}
+          {urlSessionId &&
+            sessionFilter === urlSessionId &&
+            !sessionFilterTouched && (
+              <div className="mt-1 text-[11px] text-indigo-500 dark:text-indigo-300">
+                Showing records linked to session{" "}
+                <span className="break-all font-semibold">{urlSessionId}</span>
+              </div>
+            )}
         </label>
 
         <div className="flex items-center gap-2">
@@ -1709,42 +1736,45 @@ export default function EmotionHistory() {
       {/* Simple list of history items */}
       <ul className="space-y-3">
         {filteredItems.map((r, index) => {
-          const ts = typeof r.updatedAt === "number" ? r.updatedAt : r.createdAt;
+          const ts =
+            typeof r.updatedAt === "number" ? r.updatedAt : r.createdAt;
           const when = ts ? new Date(ts).toLocaleString() : "—";
 
           const intensityValue =
             typeof r.intensity === "number" ? r.intensity : null;
-          const intensity = intensityValue != null ? intensityValue.toFixed(2) : "—";
+          const intensity =
+            intensityValue != null ? intensityValue.toFixed(2) : "—";
 
           const emotionKey = (r.emotion ?? "neutral").toString().toLowerCase();
           const emotionLabel = LABEL[emotionKey] ?? (r.emotion || "Neutral");
           const emotionEmoji = EMOJI[emotionKey] ?? "😐";
 
-          const isMessageTarget = !!urlMessageId && r.messageId === urlMessageId;
+          const isMessageTarget =
+            !!urlMessageId && r.messageId === urlMessageId;
           const highlightedByMessage =
             !!highlightedMessageId && r.messageId === highlightedMessageId;
 
           // attach ref to the last-added item for smooth scroll,
           // or to the first filtered item when coming from /history?sessionId=...,
           // or to the specific deep-linked messageId target
-          const liRef =
-            isMessageTarget
-              ? (el: HTMLLIElement | null) => {
+          const liRef = isMessageTarget
+            ? (el: HTMLLIElement | null) => {
                 messageTargetRef.current = el;
               }
-              : r.id === lastAddedId
-                ? (el: HTMLLIElement | null) => {
+            : r.id === lastAddedId
+              ? (el: HTMLLIElement | null) => {
                   lastAddedRef.current = el;
                 }
-                : sessionFilter.trim() && index === 0
-                  ? (el: HTMLLIElement | null) => {
+              : sessionFilter.trim() && index === 0
+                ? (el: HTMLLIElement | null) => {
                     firstFilteredRef.current = el;
                   }
-                  : undefined;
+                : undefined;
 
           // entry kind: user vs assistant
           const isAssistant =
-            (r as any).entryKind === "assistant" || (r as any).role === "assistant";
+            (r as any).entryKind === "assistant" ||
+            (r as any).role === "assistant";
 
           // human-readable source badge; default to Local if missing
           const rawSource = r.source ?? "local";
@@ -1761,15 +1791,19 @@ export default function EmotionHistory() {
 
           // Teen-Insight: derive a gentle reflection only for user entries
           const reflectionRaw =
-            (r as any).reflection ?? (r as any).summary ?? (r as any).notes ?? "";
-          const reflection = typeof reflectionRaw === "string" ? reflectionRaw.trim() : "";
+            (r as any).reflection ??
+            (r as any).summary ??
+            (r as any).notes ??
+            "";
+          const reflection =
+            typeof reflectionRaw === "string" ? reflectionRaw.trim() : "";
           const teenInsight =
             !isAssistant && r.message && reflection && r.emotion
               ? buildTeenInsight({
-                message: r.message,
-                emotion: String(r.emotion),
-                reflection,
-              })
+                  message: r.message,
+                  emotion: String(r.emotion),
+                  reflection,
+                })
               : null;
 
           const tone = getCardToneClasses(emotionKey, isAssistant);
@@ -1782,8 +1816,8 @@ export default function EmotionHistory() {
                 if (hasChatLink) {
                   router.push(
                     `/chat?sessionId=${encodeURIComponent(
-                      r.sessionId as string
-                    )}&messageId=${encodeURIComponent(r.messageId as string)}`
+                      r.sessionId as string,
+                    )}&messageId=${encodeURIComponent(r.messageId as string)}`,
                   );
                 }
               }}
@@ -1867,10 +1901,12 @@ export default function EmotionHistory() {
                     ].join(" ")}
                     title={
                       isAssistant
-                        ? `Emotion tag for this assistant reply (used for timeline only). Raw: ${r.emotion ?? "unknown"
-                        }`
-                        : `Emotion and intensity detected for this entry. Raw: ${r.emotion ?? "unknown"
-                        }`
+                        ? `Emotion tag for this assistant reply (used for timeline only). Raw: ${
+                            r.emotion ?? "unknown"
+                          }`
+                        : `Emotion and intensity detected for this entry. Raw: ${
+                            r.emotion ?? "unknown"
+                          }`
                     }
                   >
                     {isAssistant && "AI • "}
@@ -1882,7 +1918,7 @@ export default function EmotionHistory() {
                   {hasChatLink && (
                     <Link
                       href={`/chat?sessionId=${encodeURIComponent(
-                        r.sessionId as string
+                        r.sessionId as string,
                       )}&messageId=${encodeURIComponent(r.messageId as string)}`}
                       className="rounded-lg border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] text-zinc-900 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
                       title="Open this moment in chat"
@@ -1907,7 +1943,7 @@ export default function EmotionHistory() {
               {/* Message text: reduce glare but keep readable */}
               <div
                 className={[
-                  "mt-2 whitespace-pre-wrap text-sm leading-6",
+                  "mt-2 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-6",
                   isAssistant ? "text-zinc-50/85" : "text-zinc-50/88",
                 ].join(" ")}
               >
@@ -1956,14 +1992,16 @@ export default function EmotionHistory() {
         )}
 
         {/* Filtered empty-state: there is history, but none for this session filter */}
-        {visibleItems.length > 0 && sessionFilter.trim() && filteredItems.length === 0 && (
-          <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center text-zinc-700 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-white/5 dark:text-zinc-300">
-            <div>No entries match this chat session filter.</div>
-            <div className="mt-1 text-xs opacity-80">
-              Try clearing the filter to see all records.
-            </div>
-          </li>
-        )}
+        {visibleItems.length > 0 &&
+          sessionFilter.trim() &&
+          filteredItems.length === 0 && (
+            <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center text-zinc-700 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-white/5 dark:text-zinc-300">
+              <div>No entries match this chat session filter.</div>
+              <div className="mt-1 text-xs opacity-80">
+                Try clearing the filter to see all records.
+              </div>
+            </li>
+          )}
       </ul>
 
       {/* ⬇️ Render the conflict review modal */}

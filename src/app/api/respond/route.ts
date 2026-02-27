@@ -172,23 +172,56 @@ function derivePreferredLanguage(
 function deriveFormatterTone(
   toneContext: unknown,
 ): "close_friend" | "calm_companion" | "coach" | "mentor" {
-  const raw =
-    typeof toneContext === "string"
-      ? toneContext
-      : toneContext &&
-          typeof toneContext === "object" &&
-          "companion" in (toneContext as any)
-        ? String((toneContext as any).companion ?? "")
-        : "";
+  // 1) Direct string tone (back-compat)
+  if (typeof toneContext === "string") {
+    const v = toneContext.trim().toLowerCase();
+    if (v === "calm_companion" || v === "calm" || v === "companion")
+      return "calm_companion";
+    if (v === "coach") return "coach";
+    if (v === "mentor") return "mentor";
+    if (v === "friend" || v === "close_friend") return "close_friend";
+    return "close_friend";
+  }
 
-  const v = raw.trim().toLowerCase();
+  // 2) Settings object shape: { user: {...}, companion: {...} }
+  if (toneContext && typeof toneContext === "object") {
+    const obj = toneContext as any;
+    const c = obj?.companion;
 
-  if (v === "calm_companion" || v === "calm" || v === "companion")
-    return "calm_companion";
-  if (v === "coach") return "coach";
-  if (v === "mentor") return "mentor";
+    // If companion is already a string (rare, but keep safe)
+    if (typeof c === "string") {
+      const v = c.trim().toLowerCase();
+      if (v === "calm_companion" || v === "calm" || v === "companion")
+        return "calm_companion";
+      if (v === "coach") return "coach";
+      if (v === "mentor") return "mentor";
+      return "close_friend";
+    }
 
-  // default
+    // If companion is the settings object
+    if (c && typeof c === "object") {
+      const enabled = c?.enabled === true;
+
+      // ✅ Your rule: toggle OFF => calm + comforting (gentle therapist-ish)
+      if (!enabled) return "calm_companion";
+
+      // toggle ON => map relationship vibe into the formatter’s tone buckets
+      const rel = String(c?.relationship ?? "").toLowerCase();
+
+      if (rel === "coach") return "coach";
+
+      // mentor-ish bucket
+      if (rel === "mentor" || rel === "elder" || rel === "parent_like")
+        return "mentor";
+
+      // friend-ish bucket (these still matter in prompt hints elsewhere,
+      // but formatter needs a smaller set of banks)
+      // friend / sibling / junior_buddy / partner_like / prefer_not
+      return "close_friend";
+    }
+  }
+
+  // default fallback
   return "close_friend";
 }
 

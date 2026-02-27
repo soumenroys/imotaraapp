@@ -378,33 +378,30 @@ function userAsksForSuggestion(s: string): boolean {
   );
 }
 
-function userMentionsHunger(s: string): boolean {
-  const t = (s ?? "").toLowerCase();
-  return /\b(hungry|hunger|bhook|bhookh|khana|khabo|khabo|khabar)\b/.test(t);
-}
-
 function suggestionBridgeBank(lang: string): readonly string[] {
   const l = normalizeLang(lang);
 
-  // Keep these as "helpful suggestions + 1 tiny clarifying question" (human flow)
+  // Suggestion bridges are now emotion-first and generic.
+  // Still "1 tiny step + 1 gentle handoff question" to keep the conversation human.
+
   if (l === "hi") {
     return [
-      "अगर जल्दी है: केला/फल + दही, या ब्रेड/अंडा। अगर भरपेट चाहिए: दाल-चावल/रोटी-सब्ज़ी। आप veg हो या non-veg, और घर में क्या available है?",
-      "हल्का चाहिए तो फल/दही; भरपेट चाहिए तो दाल-चावल/पराठा/अंडा। अभी तुम घर पर हो या बाहर?",
+      "अगर चाहो तो अभी एक छोटा कदम: थोड़ा पानी, 3 धीमी साँसें, या 60 सेकंड स्ट्रेच। अभी तुम्हें क्या सबसे ज़्यादा चाहिए—आराम या clarity?",
+      "हम इसे बहुत छोटा रख सकते हैं: 5 मिनट टहलना, चेहरा धोना, या बस आँखें बंद करके साँस गिनना। अभी तुम्हारे लिए सबसे आसान क्या होगा?",
     ] as const;
   }
 
   if (l === "bn") {
     return [
-      "দ্রুত হলে: ফল/কলা + দই, বা ব্রেড/ডিম। পেটভরে চাইলে: ডাল-ভাত/রুটি-সবজি। আপনি veg না non-veg, আর বাসায় কী আছে?",
-      "হালকা হলে ফল/দই; ভরপেট হলে ডাল-ভাত/রুটি-সবজি/ডিম। আপনি এখন বাসায় নাকি বাইরে?",
+      "চাইলে এখন একটা ছোট্ট পদক্ষেপ: একটু পানি, ৩টা ধীরে শ্বাস, বা ৬০ সেকেন্ড স্ট্রেচ। এই মুহূর্তে সবচেয়ে দরকার কী—আরাম নাকি পরিষ্কারভাবে ভাবা?",
+      "আমরা একেবারে ছোট করে শুরু করতে পারি: ৫ মিনিট হাঁটা, মুখ ধোয়া, বা শুধু শ্বাস গোনা। এখন তোমার জন্য সবচেয়ে সহজটা কী হবে?",
     ] as const;
   }
 
   // default EN
   return [
-    "If you want something quick: fruit/banana + curd, or bread + eggs. If you want filling: rice+dal or roti+sabzi. Are you veg or non-veg, and what do you have at home?",
-    "Light option: fruit/curd/tea. Filling option: rice+dal/roti+eggs. Are you at home or ordering?",
+    "If you want a tiny step: sip water, take 3 slow breaths, or stretch for 60 seconds. What would help most right now—comfort or clarity?",
+    "We can keep it very small: a 5-minute walk, a quick reset (wash face), or jot one feeling down. Which feels easiest to start with?",
   ] as const;
 }
 
@@ -435,8 +432,8 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   if (input.intent === "practical") {
     // Practical intent → action-oriented bridge (still human, but not comfort-framing)
     bridges = practicalBridgeBank(lang, tone);
-  } else if (userAsksForSuggestion(userMsg) || userMentionsHunger(userMsg)) {
-    // Emotional intent + explicit request for suggestion (or hunger) → give concrete suggestions
+  } else if (userAsksForSuggestion(userMsg)) {
+    // Emotional intent + explicit request for suggestion → give concrete suggestions
     bridges = suggestionBridgeBank(lang);
   } else {
     bridges = useStatementBridge
@@ -458,16 +455,142 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   // Phase 3: optional bridge (skip in suggestion mode to avoid "template stacking")
 
   const isSuggestionMode =
-    input.intent !== "practical" &&
-    (userAsksForSuggestion(userMsg) || userMentionsHunger(userMsg));
+    input.intent !== "practical" && userAsksForSuggestion(userMsg);
 
-  console.log("[imotara] isSuggestionMode =", isSuggestionMode);
+  // --- Hard guarantees (the "architecture gate") ---
+  // 1) Always 3 phases (reaction + insight + bridge)
+  // 2) At least 3 sentences total (min 3 sentence-ending punctuations)
+  // 3) Max 1 question across the whole message
 
-  if (isSuggestionMode) {
-    // Insight already contains the helpful suggestion + usually a clarifying question.
-    // Adding another bridge makes the conversation feel robotic/looping.
-    return `${reaction} ${insight}`.trim();
+  const endPunct =
+    lang === "ur"
+      ? "۔"
+      : ["hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa"].includes(lang)
+        ? "।"
+        : ".";
+
+  const sentenceEndRe = /[.!?؟？।۔]/g;
+  const questionRe = /[?؟？]/g;
+
+  const ensureEndsLikeSentence = (s: string): string => {
+    const t = (s ?? "").trim();
+    if (!t) return "";
+    if (/[.!?…؟？।۔]$/.test(t)) return t;
+    return `${t}${endPunct}`;
+  };
+
+  const limitToOneQuestion = (s: string): string => {
+    let seen = 0;
+    return (s ?? "").replace(questionRe, (m) => {
+      seen += 1;
+      return seen <= 1 ? m : endPunct;
+    });
+  };
+
+  // Build the three parts explicitly.
+  const phase1 = ensureEndsLikeSentence(reaction);
+
+  // --- NEW: use model-written "bridge-like" closing sentence when available ---
+  // Goal: keep 3 phases but avoid repetitive template bridges when the model already
+  // ends with a natural engagement / next-step sentence.
+  const splitIntoSentences = (s: string): string[] => {
+    const t = (s ?? "").trim();
+    if (!t) return [];
+    // Split on common sentence endings (including Indic/Urdu punctuations).
+    // Keep it simple and robust; we re-add punctuation via ensureEndsLikeSentence.
+    return t
+      .split(/[.!?؟？।۔]+/g)
+      .map((x) => x.trim())
+      .filter(Boolean);
+  };
+
+  const looksLikeBridgeLine = (s: string): boolean => {
+    const t = (s ?? "").trim().toLowerCase();
+    if (!t) return false;
+
+    // Engagement / continuation cues (English-heavy; safe fallbacks for other langs)
+    // We only use this as a "prefer model tail" hint, not as a hard requirement.
+    const cues = [
+      "do you want",
+      "would you like",
+      "can we",
+      "we can",
+      "let’s",
+      "let's",
+      "tell me",
+      "share",
+      "what feels",
+      "what would help",
+      "want most",
+      "next step",
+      "right now",
+      "with you",
+      "i’m with you",
+      "i am with you",
+      "if you want",
+      "whenever you’re ready",
+      "whenever you're ready",
+    ];
+
+    // If it’s short but clearly an invitation, still count it
+    const hasCue = cues.some((c) => t.includes(c));
+
+    // Also treat a trailing question-like sentence as a bridge candidate
+    // (even without cue words), because it naturally hands the convo back.
+    const hasQuestionToken = /[?؟？]/.test(s);
+
+    // Avoid treating pure lists as bridge
+    const looksListy =
+      t.includes("•") ||
+      t.includes("- ") ||
+      (t.includes(",") && t.split(",").length >= 4);
+
+    return (hasCue || hasQuestionToken) && !looksListy;
+  };
+
+  let phase2Raw = (insight ?? "").trim();
+  let phase3 = ensureEndsLikeSentence(bridge);
+
+  const sentences = splitIntoSentences(phase2Raw);
+  if (sentences.length >= 2) {
+    const tail = sentences[sentences.length - 1].trim();
+    const head = sentences.slice(0, -1).join(`${endPunct} `).trim();
+
+    // Only steal the model tail if:
+    // - it looks like a bridge/hand-off
+    // - AND we still have meaningful insight left in Phase 2 after removing it
+    if (looksLikeBridgeLine(tail) && head.length >= 12) {
+      phase2Raw = head;
+      phase3 = ensureEndsLikeSentence(tail);
+    }
   }
 
-  return `${reaction} ${insight}\n\n${bridge}`.trim();
+  const phase2 = ensureEndsLikeSentence(phase2Raw);
+
+  // If we're in suggestion mode and the insight already contains a question,
+  // keep the suggestions but turn the extra question(s) into statements.
+  if (isSuggestionMode && insightAlreadyHasQuestion(lang, phase2Raw)) {
+    phase3 = limitToOneQuestion(phase3);
+    // If insight already had the 1 allowed question, we must remove all questions from phase3.
+    if ((phase2Raw.match(questionRe) ?? []).length > 0) {
+      phase3 = (phase3 ?? "").replace(questionRe, endPunct);
+    }
+  }
+
+  let out = `${phase1} ${phase2}\n\n${phase3}`.trim();
+
+  // Global clamp: max 1 question mark in the final output.
+  out = limitToOneQuestion(out);
+
+  // Ensure minimum 3 sentences total (reaction + insight + bridge can still be fragments).
+  const sentenceCount = (out.match(sentenceEndRe) ?? []).length;
+  if (sentenceCount < 3) {
+    const extra = bridgeStatementBank(lang, tone)[
+      (h + 7) % bridgeStatementBank(lang, tone).length
+    ];
+    out = `${out}\n${ensureEndsLikeSentence(extra)}`;
+    out = limitToOneQuestion(out);
+  }
+
+  return out;
 }

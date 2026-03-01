@@ -26,6 +26,13 @@ export type FormatReplyInput = {
   // raw user message (needed for continuity + suggestion requests)
   userMessage?: string;
 
+  /**
+   * Optional: a model-generated bridge/handoff line (e.g., followUp).
+   * If provided, formatter will use this as Phase 3 instead of selecting
+   * from internal bridge banks (avoids hardcoded closers).
+   */
+  externalBridge?: string;
+
   lang?: string;
   tone?: ImotaraPersonaTone;
   seed?: string;
@@ -628,7 +635,8 @@ export function formatImotaraReply(input: FormatReplyInput): string {
       : bridgeBank(lang, tone);
   }
 
-  const bridge = bridges[h % bridges.length];
+  const bridgeRaw =
+    (input.externalBridge ?? "").trim() || bridges[h % bridges.length];
 
   let insight = greeting
     ? greetingInsightBank(lang, tone)[
@@ -741,7 +749,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   };
 
   let phase2Raw = (insight ?? "").trim();
-  let phase3 = ensureEndsLikeSentence(bridge);
+  let phase3 = ensureEndsLikeSentence(bridgeRaw);
 
   const sentences = splitIntoSentences(phase2Raw);
   if (sentences.length >= 2) {

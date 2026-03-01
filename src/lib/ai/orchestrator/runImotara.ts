@@ -1,7 +1,11 @@
 // src/lib/ai/orchestrator/runImotara.ts
 
-import type { ImotaraResponse } from "../response/responseBlueprint";
+import type {
+  ImotaraResponse,
+  ResponseTone,
+} from "../response/responseBlueprint";
 import { DEFAULT_RESPONSE_BLUEPRINT } from "../response/responseBlueprint";
+import { getResponseBlueprint } from "../response/getResponseBlueprint";
 import { applySoftEnforcement } from "@/lib/ai/guardrails/softEnforcement";
 import type { EmotionAnalysis } from "@/lib/ai/emotion/emotionTypes";
 import { normalizeEmotion } from "@/lib/ai/emotion/normalizeEmotion";
@@ -24,6 +28,47 @@ function oneLine(s: string): string {
   return String(s ?? "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function inferBlueprintTone(userMessage: string): ResponseTone {
+  const s = String(userMessage ?? "").toLowerCase();
+
+  // Work / study stress → coach
+  if (
+    s.includes("office") ||
+    s.includes("work") ||
+    s.includes("boss") ||
+    s.includes("deadline") ||
+    s.includes("pressure") ||
+    s.includes("project") ||
+    s.includes("meeting") ||
+    s.includes("client") ||
+    s.includes("study") ||
+    s.includes("exam") ||
+    s.includes("college") ||
+    s.includes("assignment")
+  ) {
+    return "coach";
+  }
+
+  // Burnout / shutdown → supportive
+  if (
+    s.includes("burnout") ||
+    s.includes("exhaust") ||
+    s.includes("tired") ||
+    s.includes("drained") ||
+    s.includes("empty") ||
+    s.includes("numb") ||
+    s.includes("no energy") ||
+    s.includes("can't do this") ||
+    s.includes("meaningless") ||
+    s.includes("hopeless")
+  ) {
+    return "supportive";
+  }
+
+  // Default
+  return "calm";
 }
 
 function cap(s: string, max: number): string {
@@ -453,7 +498,9 @@ function draftResponseForLanguage(
     meta: {
       styleContract: "1.0",
       blueprint: "1.0",
-      blueprintUsed: DEFAULT_RESPONSE_BLUEPRINT,
+      blueprintUsed: getResponseBlueprint({
+        tone: inferBlueprintTone(userMessage),
+      }),
     },
   };
 }
@@ -865,7 +912,9 @@ function draftResponse(
   const meta: ImotaraResponse["meta"] = {
     styleContract: "1.0",
     blueprint: "1.0",
-    blueprintUsed: DEFAULT_RESPONSE_BLUEPRINT,
+    blueprintUsed: getResponseBlueprint({
+      tone: inferBlueprintTone(userMessage),
+    }),
   };
 
   // ✅ Baby Step 11.3 — echo applied/requested tone choices for QA/compat gate
@@ -1059,7 +1108,9 @@ export async function runImotara(input: {
       meta: {
         styleContract: "1.0",
         blueprint: "1.0",
-        blueprintUsed: DEFAULT_RESPONSE_BLUEPRINT,
+        blueprintUsed: getResponseBlueprint({
+          tone: inferBlueprintTone(userMessage),
+        }),
       },
     };
   }

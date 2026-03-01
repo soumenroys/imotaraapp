@@ -11,6 +11,9 @@ import { selectPinnedRecall } from "@/lib/memory/memoryRelevance";
 import { buildLocalReply } from "@/lib/ai/local/localReplyEngine";
 import { formatImotaraReply } from "@/lib/imotara/response/responseFormatter";
 
+import type { ResponseTone } from "@/lib/ai/response/responseBlueprint";
+import { buildBridgeDirectiveForTone } from "@/lib/imotara/promptProfile";
+
 type LanguageCode =
   | "en"
   | "hi" // Hindi
@@ -223,6 +226,49 @@ function deriveFormatterTone(
 
   // default fallback
   return "close_friend";
+}
+
+function inferBridgeTone(message: string, toneContext: unknown): ResponseTone {
+  // 1) Companion/profile tone (if user selected it)
+  const formatterTone = deriveFormatterTone(toneContext);
+  let base: ResponseTone =
+    formatterTone === "coach"
+      ? "coach"
+      : formatterTone === "mentor"
+        ? "practical"
+        : formatterTone === "calm_companion"
+          ? "calm"
+          : "supportive";
+
+  // 2) Message context bias (your D: work vs burnout vs practical)
+  const t = String(message ?? "")
+    .toLowerCase()
+    .trim();
+
+  // Work / study stress → coach
+  if (
+    /\b(work|office|boss|manager|client|deadline|meeting|shift|project|job|salary|performance|interview|exam|study|college|school|assignment)\b/.test(
+      t,
+    )
+  ) {
+    return "coach";
+  }
+
+  // Burnout / shutdown → supportive (presence > progress)
+  if (
+    /\b(burn(ed)?\s*out|burnout|exhausted|drained|empty|numb|done with|can’t take|can't take|what’s the point|what is the point|tired of everything)\b/.test(
+      t,
+    )
+  ) {
+    return "supportive";
+  }
+
+  // Direct “how/steps/help” → practical
+  if (/\b(what should i do|help me|how do i|how to|steps?|plan)\b/.test(t)) {
+    return "practical";
+  }
+
+  return base;
 }
 
 function detectReplyIntent(message: string): "emotional" | "practical" {
@@ -490,6 +536,10 @@ export async function POST(req: Request) {
     "Sometimes use a simple presence statement instead of steering with another question.",
   ].join(" ");
 
+  // ✅ Tone-aware closing line directive (coach != supportive)
+  const bridgeTone = inferBridgeTone(message, toneContext);
+  const bridgeDirective = buildBridgeDirectiveForTone(bridgeTone);
+
   // Add a generationSalt field for downstream (safe even if ignored)
   const generationSalt = `rid:${requestId}`;
 
@@ -498,9 +548,12 @@ export async function POST(req: Request) {
     sessionContext: {
       ...baseCtx,
 
+      // ✅ context bias input (safe even if downstream ignores)
+      contextText: message,
+
       // ✅ language fields (safe even if downstream ignores)
       preferredLanguage,
-      languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${anchorPhraseDirective}`,
+      languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${anchorPhraseDirective}\n${bridgeDirective}`,
 
       // ✅ new: request-scoped variation helpers (safe if ignored)
       requestId,
@@ -597,10 +650,13 @@ export async function POST(req: Request) {
         sessionContext: {
           ...baseCtx,
 
+          // ✅ context bias input (safe even if downstream ignores)
+          contextText: message,
+
           preferredLanguage,
 
           // keep existing directives + add retry directive
-          languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${retryDirective}`,
+          languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${retryDirective}\n${bridgeDirective}`,
 
           // request-scoped variation changes so the model doesn't “stick” to prior phrasing
           requestId,
@@ -743,6 +799,11 @@ export async function POST(req: Request) {
   // Decide intent once (avoid drift between formatter + debug)
   const detectedIntent = detectReplyIntent(message);
 
+  const externalBridge =
+    typeof (result as any)?.followUp === "string"
+      ? ((result as any).followUp as string)
+      : undefined;
+
   // ✅ PERMANENT ARCHITECTURE GATE:
   // Force EVERY cloud reply into the Three-Part Humanized Communication framework.
   // (Reaction → Insight → Bridge) + removes "As an AI" markers + deterministic variability.
@@ -750,6 +811,10 @@ export async function POST(req: Request) {
     ? formatImotaraReply({
         raw: rawText,
         userMessage: message,
+
+        // ✅ model-generated Phase 3 (no hardcoded bridge bank)
+        externalBridge,
+
         lang: preferredLanguage ?? "en",
         tone: deriveFormatterTone(toneContext),
         intent: detectedIntent,

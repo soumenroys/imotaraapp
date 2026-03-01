@@ -127,3 +127,45 @@ export function deriveResponseToneFromToneContext(
       return "calm";
   }
 }
+
+/**
+ * Tone-aware "conversational bridge" directive.
+ * Use this to shape the *closing line* so coach sounds like coach,
+ * supportive sounds like supportive, etc. (Still max 1 question.)
+ */
+export function buildBridgeDirectiveForTone(tone: ResponseTone): string {
+  switch (tone) {
+    case "coach":
+      return [
+        "Conversational Bridge (Coach):",
+        "- End with ONE tiny next move or ONE clarifying question (max 1).",
+        "- Sound steady + practical (avoid over-soothing lines like 'I’m right here with you').",
+        "- Example endings: 'Pick the one pressure point (workload/people/uncertainty) and we’ll do one small step.'",
+      ].join("\n");
+
+    case "supportive":
+      return [
+        "Conversational Bridge (Supportive):",
+        "- End with gentle presence, then ONE optional question (max 1).",
+        "- Avoid pushing action; offer choice: talk more vs tiny relief step.",
+        "- Example endings: 'Do you want to tell me what part feels heaviest, or try one tiny easing step first?'",
+      ].join("\n");
+
+    case "practical":
+      return [
+        "Conversational Bridge (Practical):",
+        "- End with ONE concrete option or ONE short question (max 1).",
+        "- Keep it simple and specific (no long lists).",
+        "- Example endings: 'Want a quick 2-minute reset or a small plan for the next hour?'",
+      ].join("\n");
+
+    case "calm":
+    default:
+      return [
+        "Conversational Bridge (Calm):",
+        "- End with slow reassurance + ONE gentle question (max 1) if helpful.",
+        "- Keep language soft, not dramatic.",
+        "- Example endings: 'No rush — what would feel a little lighter right now?'",
+      ].join("\n");
+  }
+}

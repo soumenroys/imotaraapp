@@ -36,52 +36,29 @@ import type {
 } from "@/types/analysis";
 
 // Response behavior blueprint (design hook)
-import type { ResponseBlueprint } from "@/lib/ai/response/responseBlueprint";
-import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
+import type {
+  ResponseBlueprint,
+  ResponseTone,
+} from "@/lib/ai/response/responseBlueprint";
+import { getResponseBlueprint } from "@/lib/ai/response/getResponseBlueprint";
+import {
+  deriveResponseToneFromToneContext,
+  type ToneContextPayload,
+} from "@/lib/imotara/promptProfile";
+import {
+  getSupabaseAdmin,
+  getSupabaseUserServerClient,
+} from "@/lib/supabaseServer";
 import { fetchUserMemories } from "@/lib/memory/fetchUserMemories";
 import { compatibilityGate } from "@/lib/ai/compat/compatibilityGate";
 import { createHash } from "crypto";
 import type { EmotionAnalysis } from "@/lib/ai/emotion/emotionTypes";
 import { normalizeEmotion } from "@/lib/ai/emotion/normalizeEmotion";
-import { BN_SAD_REGEX, HI_STRESS_REGEX, isConfusedText } from "@/lib/emotion/keywordMaps";
-
-
-// ---- NEW: Optional tone context (client-provided) ----
-type ToneGender = "female" | "male" | "nonbinary" | "prefer_not" | "other";
-type ToneAgeRange =
-  | "under_13"
-  | "13_17"
-  | "18_24"
-  | "25_34"
-  | "35_44"
-  | "45_54"
-  | "55_64"
-  | "65_plus"
-  | "prefer_not";
-
-type ToneRelationship =
-  | "mentor"
-  | "friend"
-  | "elder"
-  | "coach"
-  | "parent_like"
-  | "partner_like"
-  | "prefer_not";
-
-type ToneContextPayload = {
-  user?: {
-    name?: string;
-    ageRange?: ToneAgeRange;
-    gender?: ToneGender;
-  };
-  companion?: {
-    enabled?: boolean;
-    name?: string;
-    ageRange?: ToneAgeRange;
-    gender?: ToneGender;
-    relationship?: ToneRelationship;
-  };
-};
+import {
+  BN_SAD_REGEX,
+  HI_STRESS_REGEX,
+  isConfusedText,
+} from "@/lib/emotion/keywordMaps";
 
 type AnalyzeRequestBody = {
   // Primary (current) contract
@@ -108,7 +85,7 @@ type AnalyzeRequestBody = {
 
 export const runtime = "nodejs";
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({} as any));
+  const body = await req.json().catch(() => ({}) as any);
 
   const PROD = process.env.NODE_ENV === "production";
   const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
@@ -121,7 +98,9 @@ export async function POST(req: Request) {
 
     const inputs = Array.isArray(body?.inputs) ? body.inputs : [];
     const windowSize =
-      typeof body?.options?.windowSize === "number" ? body.options.windowSize : 10;
+      typeof body?.options?.windowSize === "number"
+        ? body.options.windowSize
+        : 10;
     let supabaseAdmin: any = null;
     try {
       supabaseAdmin = getSupabaseAdmin();
@@ -132,7 +111,7 @@ export async function POST(req: Request) {
     if (!supabaseAdmin) {
       if (SHOULD_LOG) {
         console.warn(
-          "[imotara] memory disabled: missing SUPABASE env (admin client unavailable)"
+          "[imotara] memory disabled: missing SUPABASE env (admin client unavailable)",
         );
       }
     }
@@ -168,33 +147,36 @@ export async function POST(req: Request) {
       // Persist user name (identity) when available from toneContext payload
       const userNameRaw = body?.toneContext?.user?.name;
       const userName =
-        typeof userNameRaw === "string" ? userNameRaw.replace(/\s+/g, " ").trim() : "";
+        typeof userNameRaw === "string"
+          ? userNameRaw.replace(/\s+/g, " ").trim()
+          : "";
 
       if (userName.length >= 2) {
-        await (supabaseAdmin as any)
-          .from("user_memory")
-          .upsert(
-            {
-              user_id: userId,
-              type: "identity",
-              key: "preferred_name",
-              value: userName,
-              confidence: 0.9,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id,type,key" }
-          );
+        await (supabaseAdmin as any).from("user_memory").upsert(
+          {
+            user_id: userId,
+            type: "identity",
+            key: "preferred_name",
+            value: userName,
+            confidence: 0.9,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,type,key" },
+        );
       }
 
       // ✅ Minimal memory extraction from last user message: preferred name
       // Adds memory even if toneContext.user.name is missing (e.g., "Hi I am Soumen")
       try {
-        const lastUser = [...inputs].reverse().find((m: any) => m?.role === "user")?.text ?? "";
+        const lastUser =
+          [...inputs].reverse().find((m: any) => m?.role === "user")?.text ??
+          "";
         const t = String(lastUser).trim();
 
         // Patterns: "I am X", "I'm X", "my name is X", "preferred name is X"
-        const m =
-          t.match(/\b(?:preferred name is|my preferred name is|my name is|i am|i'm)\s+([A-Za-z][A-Za-z\s.'-]{0,40})\b/i);
+        const m = t.match(
+          /\b(?:preferred name is|my preferred name is|my name is|i am|i'm)\s+([A-Za-z][A-Za-z\s.'-]{0,40})\b/i,
+        );
 
         if (m?.[1]) {
           const preferredName = m[1].trim();
@@ -211,13 +193,13 @@ export async function POST(req: Request) {
                   confidence: 0.8,
                   updated_at: new Date().toISOString(),
                 },
-                { onConflict: "user_id,type,key" }
+                { onConflict: "user_id,type,key" },
               );
 
             if (upsertRes?.error) {
               console.warn(
                 "[imotara] user_memory write/fetch error:",
-                String(upsertRes.error?.message ?? upsertRes.error)
+                String(upsertRes.error?.message ?? upsertRes.error),
               );
             } else if (SHOULD_LOG) {
               console.warn("[imotara] user_memory upserted:", {
@@ -234,13 +216,15 @@ export async function POST(req: Request) {
         }
       }
 
+      const memories = await fetchUserMemories(
+        supabaseAdmin as any,
+        userId,
+        20,
+      );
 
-      const memories = await fetchUserMemories(supabaseAdmin as any, userId, 20);
-
-      const preferredNameFromMemory =
-        Array.isArray(memories)
-          ? (memories.find((m: any) => m?.key === "preferred_name")?.value ?? "")
-          : "";
+      const preferredNameFromMemory = Array.isArray(memories)
+        ? (memories.find((m: any) => m?.key === "preferred_name")?.value ?? "")
+        : "";
 
       const preferredName =
         typeof preferredNameFromMemory === "string"
@@ -249,7 +233,6 @@ export async function POST(req: Request) {
 
       preferredNameGlobal = preferredName;
 
-
       if (SHOULD_LOG) {
         console.warn("[imotara] user_memory fetched:", {
           userId,
@@ -257,7 +240,6 @@ export async function POST(req: Request) {
           hasPreferredName: !!preferredName,
         });
       }
-
     } catch (e) {
       if (SHOULD_LOG) {
         console.warn("[imotara] user_memory write/fetch error:", String(e));
@@ -292,12 +274,10 @@ export async function POST(req: Request) {
       return Number.isFinite(n) ? n % modulo : 0;
     }
 
-    const guessEmotion = (raw: string): { emotion: Emotion; intensity: number } => {
-      const t = raw
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, " ");
-
+    const guessEmotion = (
+      raw: string,
+    ): { emotion: Emotion; intensity: number } => {
+      const t = raw.trim().toLowerCase().replace(/\s+/g, " ");
 
       // Map to the Emotion type WITHOUT expanding the global union in this step.
       // If a label isn't in your Emotion union, we fall back safely to "neutral".
@@ -312,7 +292,7 @@ export async function POST(req: Request) {
 
         // ✅ Parity: "can't focus / scattered" maps to confused (server-side analyze)
         // Cast keeps this additive even if Emotion union evolves.
-        if (label === "confused") return ("confused" as unknown) as Emotion;
+        if (label === "confused") return "confused" as unknown as Emotion;
 
         return "neutral";
       };
@@ -333,15 +313,21 @@ export async function POST(req: Request) {
       const emojiFear = /[😨😰😱]/u;
 
       // If the message contains a strong emoji signal, honor it
-      if (emojiSad.test(raw)) return { emotion: asEmotion("sadness"), intensity: 0.65 };
-      if (emojiAnger.test(raw)) return { emotion: asEmotion("anger"), intensity: 0.65 };
-      if (emojiFear.test(raw)) return { emotion: asEmotion("fear"), intensity: 0.65 };
-      if (emojiJoy.test(raw)) return { emotion: asEmotion("joy"), intensity: 0.55 };
+      if (emojiSad.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (emojiAnger.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (emojiFear.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+      if (emojiJoy.test(raw))
+        return { emotion: asEmotion("joy"), intensity: 0.55 };
 
       // ✅ Non-English keyword boosts (additive only)
       // Centralized in src/lib/emotion/keywordMaps.ts to prevent drift across the codebase.
-      if (BN_SAD_REGEX.test(raw)) return { emotion: asEmotion("sadness"), intensity: 0.65 };
-      if (HI_STRESS_REGEX.test(raw)) return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (BN_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (HI_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
 
       // Existing keyword heuristic (English)
       if (/\b(stress|stressed|anxious|anxiety|worried|panic)\b/.test(t))
@@ -358,14 +344,13 @@ export async function POST(req: Request) {
 
       // ✅ Confusion / scattered focus (centralized)
       // EN + HI + BN are maintained in keywordMaps.ts for consistency.
-      if (isConfusedText(raw)) return { emotion: asEmotion("confused"), intensity: 0.55 };
-
+      if (isConfusedText(raw))
+        return { emotion: asEmotion("confused"), intensity: 0.55 };
 
       if (/\b(happy|glad|excited|joy|relieved)\b/.test(t))
         return { emotion: asEmotion("joy"), intensity: 0.55 };
 
       return { emotion: asEmotion("neutral"), intensity: 0.25 };
-
     };
 
     const DEV = process.env.NODE_ENV !== "production";
@@ -384,19 +369,21 @@ export async function POST(req: Request) {
       // DEV-only match echo (will be stripped in production by stripDeep)
       const debugMatches = DEV
         ? (() => {
-          const raw = String(text ?? "");
-          const t = raw.trim().toLowerCase().replace(/\s+/g, " ");
-          return {
-            bnSad: BN_SAD_REGEX.test(raw),
-            hiStress: HI_STRESS_REGEX.test(raw),
-            confused: isConfusedText(raw),
-            enSad: /\b(sad|down|depressed|heartbroken|lonely)\b/.test(t),
-            enAnx: /\b(stress|stressed|anxious|anxiety|worried|panic)\b/.test(t),
-            containsMoodOff: /\bmood\s+off\b/i.test(raw),
-            normalized: t,
-            sample: raw.slice(0, 120),
-          };
-        })()
+            const raw = String(text ?? "");
+            const t = raw.trim().toLowerCase().replace(/\s+/g, " ");
+            return {
+              bnSad: BN_SAD_REGEX.test(raw),
+              hiStress: HI_STRESS_REGEX.test(raw),
+              confused: isConfusedText(raw),
+              enSad: /\b(sad|down|depressed|heartbroken|lonely)\b/.test(t),
+              enAnx: /\b(stress|stressed|anxious|anxiety|worried|panic)\b/.test(
+                t,
+              ),
+              containsMoodOff: /\bmood\s+off\b/i.test(raw),
+              normalized: t,
+              sample: raw.slice(0, 120),
+            };
+          })()
         : undefined;
 
       return {
@@ -418,10 +405,13 @@ export async function POST(req: Request) {
       };
     });
 
-
     // ✅ Baby Step 11.6.5 — derive summary emotion from the last user message
     const lastUserPM =
-      [...perMessage].slice().reverse().find((x: any) => x?.role === "user") ?? perMessage[perMessage.length - 1];
+      [...perMessage]
+        .slice()
+        .reverse()
+        .find((x: any) => x?.role === "user") ??
+      perMessage[perMessage.length - 1];
 
     const summaryPrimaryEmotion: Emotion =
       (lastUserPM as any)?.emotion ??
@@ -438,6 +428,11 @@ export async function POST(req: Request) {
         ? Math.max(0, Math.min(1, summaryIntensityRaw))
         : 0.25;
 
+    const responseTone: ResponseTone = deriveResponseToneFromToneContext(
+      body?.toneContext,
+    );
+    const responseBlueprint = getResponseBlueprint({ tone: responseTone });
+
     const result: AnalysisResult = {
       summary: {
         headline: lastUserText
@@ -445,89 +440,208 @@ export async function POST(req: Request) {
           : "No input yet",
         primaryEmotion: summaryPrimaryEmotion,
         intensity: summaryIntensity,
-        tone: "calm",
+        tone: responseTone,
 
-        // ✅ Humanized + non-robotic: deterministic variety based on the latest user text
+        // ✅ Humanized + tone-aware: deterministic variety based on latest user text
         adviceShort: (() => {
           const langBase = detectLanguageBase(lastUserText);
           const idx = stableVariantIndex(`${langBase}:${lastUserText}`, 4);
 
-          const bank: Record<"en" | "hi" | "bn", readonly string[]> = {
-            en: [
-              "I’m here with you. What’s the main thing weighing on you right now?",
-              "Thank you for sharing that. What feeling is strongest at this moment?",
-              "Let’s take it gently. What happened just before you started feeling this way?",
-              "Do you want comfort first, or a practical next step—what would help most right now?",
-            ],
-            hi: [
-              "मैं आपके साथ हूँ। अभी सबसे ज़्यादा क्या भारी लग रहा है?",
-              "बताने के लिए धन्यवाद। इस समय सबसे तेज़ भावना कौन-सी है?",
-              "चलिए धीरे-धीरे चलते हैं। ये भावना शुरू होने से ठीक पहले क्या हुआ था?",
-              "आपको अभी क्या ज्यादा मदद करेगा—थोड़ा सुकून या कोई छोटा-सा अगला कदम?",
-            ],
-            bn: [
-              "আমি আপনার পাশে আছি। এই মুহূর্তে সবচেয়ে বেশি কী আপনাকে ভারী লাগছে?",
-              "বলেছেন বলে ধন্যবাদ। এখন সবচেয়ে শক্তিশালী অনুভূতিটা কী?",
-              "চলুন ধীরে ধীরে এগোই। এটা শুরু হওয়ার ঠিক আগে কী হয়েছিল?",
-              "এখন আপনার জন্য কী বেশি দরকার—একটু সান্ত্বনা, নাকি ছোট একটা পরের পদক্ষেপ?",
-            ],
+          const toneKey: "coach" | "supportive" | "calm" =
+            responseTone === "coach"
+              ? "coach"
+              : responseTone === "supportive"
+                ? "supportive"
+                : "calm";
+
+          const bank: Record<
+            "en" | "hi" | "bn",
+            Record<"coach" | "supportive" | "calm", readonly string[]>
+          > = {
+            en: {
+              coach: [
+                "Hey. I’m here with you. If you’d like, we could gently pick one small thing to move forward on.",
+                "We don’t have to solve everything. Would it feel okay to choose one tiny step we could take together?",
+                "We can go at your pace. Is there one small thing we could make a little easier right now?",
+                "If it feels right, we could choose just one simple next step and start there.",
+              ],
+              supportive: [
+                "I’m here with you. What’s the main thing weighing on you right now?",
+                "Thank you for sharing that. What feeling is strongest at this moment?",
+                "Let’s take it gently. What happened just before you started feeling this way?",
+                "Do you want comfort first, or a practical next step—what would help most right now?",
+              ],
+              calm: [
+                "I’m here with you. What’s the main thing weighing on you right now?",
+                "Thank you for sharing that. What feeling is strongest at this moment?",
+                "Let’s take it gently. What happened just before you started feeling this way?",
+                "Do you want comfort first, or a practical next step—what would help most right now?",
+              ],
+            },
+
+            hi: {
+              coach: [
+                "ठीक है — चलिए इसे एक छोटे कदम में बदलते हैं। अभी सबसे बड़ी रुकावट क्या लग रही है?",
+                "हम इसे संभाल सकते हैं। अगले 2 मिनट में आप कौन-सा छोटा-सा कदम उठा सकते हैं?",
+                "मैं आपके साथ हूँ — और हम आगे बढ़ेंगे। आज सबसे पहले किस चीज़ को आसान बनाएं?",
+                "अगर आज सिर्फ एक प्राथमिकता चुननी हो, तो वो क्या होनी चाहिए?",
+              ],
+              supportive: [
+                "मैं आपके साथ हूँ। अभी सबसे ज़्यादा क्या भारी लग रहा है?",
+                "बताने के लिए धन्यवाद। इस समय सबसे तेज़ भावना कौन-सी है?",
+                "चलिए धीरे-धीरे चलते हैं। ये भावना शुरू होने से ठीक पहले क्या हुआ था?",
+                "आपको अभी क्या ज्यादा मदद करेगा—थोड़ा सुकून या कोई छोटा-सा अगला कदम?",
+              ],
+              calm: [
+                "मैं आपके साथ हूँ। अभी सबसे ज़्यादा क्या भारी लग रहा है?",
+                "बताने के लिए धन्यवाद। इस समय सबसे तेज़ भावना कौन-सी है?",
+                "चलिए धीरे-धीरे चलते हैं। ये भावना शुरू होने से ठीक पहले क्या हुआ था?",
+                "आपको अभी क्या ज्यादा मदद करेगा—थोड़ा सुकून या कोई छोटा-सा अगला कदम?",
+              ],
+            },
+
+            bn: {
+              coach: [
+                "ঠিক আছে — চলুন এটাকে একটা ছোট পদক্ষেপে নামাই। এখন সবচেয়ে বড় বাধাটা কী মনে হচ্ছে?",
+                "এটা আমরা সামলাতে পারব। পরের ২ মিনিটে আপনি কোন ছোট কাজটা করতে পারেন?",
+                "আমি আপনার পাশে আছি — আর আমরা এগোবো। আজ প্রথমে কোন জিনিসটা সহজ করি?",
+                "আজ যদি শুধু একটা অগ্রাধিকার ঠিক করতে হয়—সেটা কী হবে?",
+              ],
+              supportive: [
+                "আমি আপনার পাশে আছি। এই মুহূর্তে সবচেয়ে বেশি কী আপনাকে ভারী লাগছে?",
+                "বলেছেন বলে ধন্যবাদ। এখন সবচেয়ে শক্তিশালী অনুভূতিটা কী?",
+                "চলুন ধীরে ধীরে এগোই। এটা শুরু হওয়ার ঠিক আগে কী হয়েছিল?",
+                "এখন আপনার জন্য কী বেশি দরকার—একটু সান্ত্বনা, নাকি ছোট একটা পরের পদক্ষেপ?",
+              ],
+              calm: [
+                "আমি আপনার পাশে আছি। এই মুহূর্তে সবচেয়ে বেশি কী আপনাকে ভারী লাগছে?",
+                "বলেছেন বলে ধন্যবাদ। এখন সবচেয়ে শক্তিশালী অনুভূতিটা কী?",
+                "চলুন ধীরে ধীরে এগোই। এটা শুরু হওয়ার ঠিক আগে কী হয়েছিল?",
+                "এখন আপনার জন্য কী বেশি দরকার—একটু সান্ত্বনা, নাকি ছোট একটা পরের পদক্ষেপ?",
+              ],
+            },
           };
 
-          return bank[langBase][idx] ?? bank.en[idx] ?? bank.en[0];
+          return (
+            bank[langBase][toneKey][idx] ??
+            bank.en[toneKey][idx] ??
+            bank.en[toneKey][0]
+          );
         })(),
 
         reflection: (() => {
           const langBase = detectLanguageBase(lastUserText);
           const idx = stableVariantIndex(`r:${langBase}:${lastUserText}`, 4);
 
-          const bank: Record<"en" | "hi" | "bn", readonly string[]> = {
-            en: [
-              "If you could change just one thing about today, what would you change first?",
-              "What do you wish someone would understand about what you’re going through?",
-              "Where do you feel this most—mind, chest, stomach, shoulders?",
-              "What would make the next 10 minutes feel a little safer or lighter?",
-            ],
-            hi: [
-              "अगर आज की बस एक चीज़ बदल सकते, तो सबसे पहले क्या बदलते?",
-              "आप क्या चाहते हैं कि लोग आपकी इस स्थिति के बारे में समझें?",
-              "ये भावना शरीर में कहाँ सबसे ज़्यादा महसूस हो रही है—छाती, पेट, कंधे, या मन में?",
-              "अगले 10 मिनट थोड़ा आसान लगें—उसके लिए क्या मदद करेगा?",
-            ],
-            bn: [
-              "আজকের শুধু একটা জিনিস বদলাতে পারলে—প্রথমে কী বদলাতেন?",
-              "আপনি চান মানুষ আপনার এই অবস্থাটা নিয়ে কী বুঝুক?",
-              "এই অনুভূতিটা শরীরে কোথায় সবচেয়ে বেশি টের পাচ্ছেন—বুক, পেট, কাঁধ, না মাথায়?",
-              "আগের ১০ মিনিট একটু হালকা লাগার জন্য কী করলে ভালো হতে পারে?",
-            ],
+          const toneKey: "coach" | "supportive" | "calm" =
+            responseTone === "coach"
+              ? "coach"
+              : responseTone === "supportive"
+                ? "supportive"
+                : "calm";
+
+          const bank: Record<
+            "en" | "hi" | "bn",
+            Record<"coach" | "supportive" | "calm", readonly string[]>
+          > = {
+            en: {
+              coach: [
+                "What’s the smallest version of progress you’d accept in the next 10 minutes?",
+                "What’s one obstacle we can remove or reduce *today*?",
+                "If you did one brave little thing right now, what would it be?",
+                "What would a ‘good enough’ next step look like—super small, super doable?",
+              ],
+              supportive: [
+                "If you could change just one thing about today, what would you change first?",
+                "What do you wish someone would understand about what you’re going through?",
+                "Where do you feel this most—mind, chest, stomach, shoulders?",
+                "What would make the next 10 minutes feel a little safer or lighter?",
+              ],
+              calm: [
+                "If you could change just one thing about today, what would you change first?",
+                "What do you wish someone would understand about what you’re going through?",
+                "Where do you feel this most—mind, chest, stomach, shoulders?",
+                "What would make the next 10 minutes feel a little safer or lighter?",
+              ],
+            },
+
+            hi: {
+              coach: [
+                "अगले 10 मिनट में ‘छोटी-सी प्रगति’ कैसी दिखेगी?",
+                "आज कौन-सी एक रुकावट हम थोड़ा कम कर सकते हैं?",
+                "अगर अभी एक छोटा-सा साहसी कदम लें, तो वो क्या होगा?",
+                "‘बस इतना काफी है’ वाला अगला कदम कैसा होगा—बहुत छोटा, बहुत आसान?",
+              ],
+              supportive: [
+                "अगर आज की बस एक चीज़ बदल सकते, तो सबसे पहले क्या बदलते?",
+                "आप क्या चाहते हैं कि लोग आपकी इस स्थिति के बारे में समझें?",
+                "ये भावना शरीर में कहाँ सबसे ज़्यादा महसूस हो रही है—छाती, पेट, कंधे, या मन में?",
+                "अगले 10 मिनट थोड़ा आसान लगें—उसके लिए क्या मदद करेगा?",
+              ],
+              calm: [
+                "अगर आज की बस एक चीज़ बदल सकते, तो सबसे पहले क्या बदलते?",
+                "आप क्या चाहते हैं कि लोग आपकी इस स्थिति के बारे में समझें?",
+                "ये भावना शरीर में कहाँ सबसे ज़्यादा महसूस हो रही है—छाती, पेट, कंधे, या मन में?",
+                "अगले 10 मिनट थोड़ा आसान लगें—उसके लिए क्या मदद करेगा?",
+              ],
+            },
+
+            bn: {
+              coach: [
+                "পরের ১০ মিনিটে ‘ছোট্ট অগ্রগতি’ বলতে আপনার কাছে কী বোঝায়?",
+                "আজ কোন একটা বাধা আমরা একটু কমাতে পারি?",
+                "এখন যদি একটুখানি সাহসী ছোট পদক্ষেপ নেন, সেটা কী হবে?",
+                "‘এটুকু হলেই চলবে’—এমন পরের পদক্ষেপটা কেমন হতে পারে?",
+              ],
+              supportive: [
+                "আজকের শুধু একটা জিনিস বদলাতে পারলে—প্রথমে কী বদলাতেন?",
+                "আপনি চান মানুষ আপনার এই অবস্থাটা নিয়ে কী বুঝুক?",
+                "এই অনুভূতিটা শরীরে কোথায় সবচেয়ে বেশি টের পাচ্ছেন—বুক, পেট, কাঁধ, না মাথায়?",
+                "আগের ১০ মিনিট একটু হালকা লাগার জন্য কী করলে ভালো হতে পারে?",
+              ],
+              calm: [
+                "আজকের শুধু একটা জিনিস বদলাতে পারলে—প্রথমে কী বদলাতেন?",
+                "আপনি চান মানুষ আপনার এই অবস্থাটা নিয়ে কী বুঝুক?",
+                "এই অনুভূতিটা শরীরে কোথায় সবচেয়ে বেশি টের পাচ্ছেন—বুক, পেট, কাঁধ, না মাথায়?",
+                "আগের ১০ মিনিট একটু হালকা লাগার জন্য কী করলে ভালো হতে পারে?",
+              ],
+            },
           };
 
-          return bank[langBase][idx] ?? bank.en[idx] ?? bank.en[0];
+          return (
+            bank[langBase][toneKey][idx] ??
+            bank.en[toneKey][idx] ??
+            bank.en[toneKey][0]
+          );
         })(),
       },
 
       // ✅ REQUIRED by your client validator
       perMessage,
 
-      reflectionSeedCard: ((perMessage.length ?? 0) % 2 === 0) ? {
-        prompts: [
-          [
-            "What feeling is most present right now?",
-            "What would ‘support’ look like in the next 24 hours?",
-          ],
-          [
-            "What part of this hurts the most?",
-            "What would help you feel safe right now?",
-          ],
-          [
-            "What do you want to be true by tonight?",
-            "What’s one small thing you can do in the next hour?",
-          ],
-          [
-            "What are you afraid might happen next?",
-            "If you could ask for one thing, what would it be?",
-          ],
-        ][(perMessage.length ?? 0) % 4],
-      } : undefined,
+      reflectionSeedCard:
+        (perMessage.length ?? 0) % 2 === 0
+          ? {
+              prompts: [
+                [
+                  "What feeling is most present right now?",
+                  "What would ‘support’ look like in the next 24 hours?",
+                ],
+                [
+                  "What part of this hurts the most?",
+                  "What would help you feel safe right now?",
+                ],
+                [
+                  "What do you want to be true by tonight?",
+                  "What’s one small thing you can do in the next hour?",
+                ],
+                [
+                  "What are you afraid might happen next?",
+                  "If you could ask for one thing, what would it be?",
+                ],
+              ][(perMessage.length ?? 0) % 4],
+            }
+          : undefined,
     } as any;
 
     // Compatibility Gate (report-only): attach report without changing behavior
@@ -557,26 +671,30 @@ export async function POST(req: Request) {
     // ✅ Baby Step 11.6.1 — guarantee emotion exists at API boundary
     const userNameFromTone = (body as any)?.toneContext?.user?.name;
     const toneName =
-      typeof userNameFromTone === "string" ? userNameFromTone.replace(/\s+/g, " ").trim() : "";
+      typeof userNameFromTone === "string"
+        ? userNameFromTone.replace(/\s+/g, " ").trim()
+        : "";
 
     // Prefer toneContext name if present, else use stored preferred_name
     const finalName = toneName || preferredNameGlobal;
-
 
     const fallbackSummary = finalName
       ? `Feeling mostly ${summaryPrimaryEmotion} for ${finalName}.`
       : `Feeling mostly ${summaryPrimaryEmotion}.`;
 
-
     const emotion: EmotionAnalysis = normalizeEmotion(
       {
         primary: summaryPrimaryEmotion,
         intensity:
-          summaryIntensity >= 0.7 ? "high" : summaryIntensity >= 0.4 ? "medium" : "low",
+          summaryIntensity >= 0.7
+            ? "high"
+            : summaryIntensity >= 0.4
+              ? "medium"
+              : "low",
         confidence: 0.75,
         summary: fallbackSummary,
       },
-      fallbackSummary
+      fallbackSummary,
     );
 
     (respObj as any).meta = {
@@ -593,8 +711,7 @@ export async function POST(req: Request) {
     if (SHOULD_LOG) {
       if (compatReport && (compatReport as any).ok === false) {
         // Report-only server log (only when issues exist) + request fingerprint (no message content)
-        const fingerprintSource =
-          `${req.headers.get("user-agent") || ""}|${req.headers.get("x-forwarded-for") || ""}|${Date.now()}`;
+        const fingerprintSource = `${req.headers.get("user-agent") || ""}|${req.headers.get("x-forwarded-for") || ""}|${Date.now()}`;
 
         const requestFingerprint = createHash("sha256")
           .update(fingerprintSource)
@@ -615,7 +732,6 @@ export async function POST(req: Request) {
         });
       }
     }
-
 
     // Public-release lock: never serialize debug/analysis extras in production unless QA header is present
     const qaHeader = req.headers.get("x-imotara-qa");
@@ -668,22 +784,38 @@ export async function POST(req: Request) {
     }
 
     // ✅ Baby Step 11.6.9 — merge analyze result + meta (do NOT replace analyze shape)
-    const finalObj = {
-      ...result,               // ← keep full AnalysisResult
-      meta: (respObj as any).meta, // ← inject meta (emotion + compatibility)
+
+    // --- Debug-only: echo which response blueprint tone would be used ---
+    const debugTone: ResponseTone = deriveResponseToneFromToneContext(
+      body?.toneContext,
+    );
+
+    const debugBlueprint = getResponseBlueprint({ tone: debugTone });
+
+    const metaMerged = {
+      ...((respObj as any).meta ?? {}),
+      // ✅ Debug echo (safe, additive)
+      responseBlueprintTone: debugBlueprint.tone,
+      responseBlueprintStructureLevel: debugBlueprint.structureLevel,
+      responseBlueprintVersion: debugBlueprint.version,
     };
 
-    const safeResult = prod && !qa ? (stripDeep(finalObj) as typeof finalObj) : finalObj;
+    const finalObj = {
+      ...result, // ← keep full AnalysisResult
+      meta: metaMerged,
+    };
+
+    const safeResult =
+      prod && !qa ? (stripDeep(finalObj) as typeof finalObj) : finalObj;
 
     return NextResponse.json(safeResult, { status: 200 });
-
   } catch (err) {
     if (SHOULD_LOG) {
       console.warn("[imotara] /api/analyze POST failed:", String(err));
     }
     return NextResponse.json(
       { ok: false, error: "internal_error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -702,7 +834,7 @@ export async function GET() {
       toneContext:
         'Optional: include "toneContext" to shape remote AI tone (localStorage is not accessible on server).',
     },
-    { status: 200 }
+    { status: 200 },
   );
 }
 
@@ -725,7 +857,9 @@ function buildToneSnippetFromPayload(t?: ToneContextPayload): string {
 
   const enabled = !!t.companion?.enabled;
   const compName =
-    enabled && typeof t.companion?.name === "string" ? t.companion.name.trim() : "";
+    enabled && typeof t.companion?.name === "string"
+      ? t.companion.name.trim()
+      : "";
   const compAge = enabled ? t.companion?.ageRange : undefined;
   const compGender = enabled ? t.companion?.gender : undefined;
   const compRel = enabled ? t.companion?.relationship : undefined;
@@ -743,22 +877,31 @@ function buildToneSnippetFromPayload(t?: ToneContextPayload): string {
   if (!hasAny) return "";
 
   const lines: string[] = [];
-  lines.push("Tone & Context Guidance (tone only; do NOT roleplay a real person):");
+  lines.push(
+    "Tone & Context Guidance (tone only; do NOT roleplay a real person):",
+  );
   if (userName) lines.push(`- User name (optional): ${userName}`);
-  if (userAge && userAge !== "prefer_not") lines.push(`- User age range: ${userAge}`);
-  if (userGender && userGender !== "prefer_not") lines.push(`- User gender: ${userGender}`);
+  if (userAge && userAge !== "prefer_not")
+    lines.push(`- User age range: ${userAge}`);
+  if (userGender && userGender !== "prefer_not")
+    lines.push(`- User gender: ${userGender}`);
 
   if (enabled) {
     lines.push("- Preferred companion tone (wording guidance only):");
-    if (compRel && compRel !== "prefer_not") lines.push(`  - Relationship vibe: ${compRel}`);
-    if (compAge && compAge !== "prefer_not") lines.push(`  - Age tone: ${compAge}`);
-    if (compGender && compGender !== "prefer_not") lines.push(`  - Gender tone: ${compGender}`);
+    if (compRel && compRel !== "prefer_not")
+      lines.push(`  - Relationship vibe: ${compRel}`);
+    if (compAge && compAge !== "prefer_not")
+      lines.push(`  - Age tone: ${compAge}`);
+    if (compGender && compGender !== "prefer_not")
+      lines.push(`  - Gender tone: ${compGender}`);
     if (compName) lines.push(`  - Companion name (optional): ${compName}`);
-    lines.push("- Adjust warmth/directness/pacing accordingly, but avoid dependency cues.");
+    lines.push(
+      "- Adjust warmth/directness/pacing accordingly, but avoid dependency cues.",
+    );
   }
 
   lines.push(
-    "- Never claim you are a parent/partner/friend/real person. You are Imotara: a reflective, privacy-first companion."
+    "- Never claim you are a parent/partner/friend/real person. You are Imotara: a reflective, privacy-first companion.",
   );
 
   // --- Anti-monotony variation (rotates by message count) ---
@@ -770,7 +913,9 @@ function buildToneSnippetFromPayload(t?: ToneContextPayload): string {
   ][Math.floor(Date.now() / 60000) % 4];
 
   lines.push(variation);
-  lines.push("Ask at most ONE question in this turn. If a question was already asked recently, answer directly without asking another.");
+  lines.push(
+    "Ask at most ONE question in this turn. If a question was already asked recently, answer directly without asking another.",
+  );
   return lines.join("\n");
 }
 
@@ -792,8 +937,12 @@ function buildBlueprintGuidanceSnippet(bp: ResponseBlueprint): string {
 
   // Flow intent
   if (bp.flow) {
-    lines.push("- Flow intent: one flowing voice; weave empathy + meaning + one next move.");
-    lines.push("- End with either one easy question OR one permission line (not both).");
+    lines.push(
+      "- Flow intent: one flowing voice; weave empathy + meaning + one next move.",
+    );
+    lines.push(
+      "- End with either one easy question OR one permission line (not both).",
+    );
   }
 
   return lines.length ? lines.join("\n") : "";
@@ -817,7 +966,9 @@ function humanizeReflectionText(text: string, bp: ResponseBlueprint): string {
       const t = line.trim();
       if (!t) return true;
       if (!bp.avoidHeadings) return true;
-      return !/^(summary|steps?|next steps?|action steps?|reflection|analysis|takeaway|plan)\s*:/i.test(t);
+      return !/^(summary|steps?|next steps?|action steps?|reflection|analysis|takeaway|plan)\s*:/i.test(
+        t,
+      );
     })
     .join("\n")
     .trim();
@@ -827,7 +978,9 @@ function humanizeReflectionText(text: string, bp: ResponseBlueprint): string {
   const lines = s.split("\n").map((x) => x.trim());
   const bulletIdx = lines.findIndex((l) => /^([-*•]|(\d+[\).\]]))\s+/.test(l));
   if (bulletIdx !== -1) {
-    const firstBullet = lines[bulletIdx].replace(/^([-*•]|(\d+[\).\]]))\s+/, "").trim();
+    const firstBullet = lines[bulletIdx]
+      .replace(/^([-*•]|(\d+[\).\]]))\s+/, "")
+      .trim();
     // Keep any text before bullets as context, but drop the rest of the bullet list.
     const before = lines.slice(0, bulletIdx).filter(Boolean).join(" ");
     const stitched = [before, firstBullet].filter(Boolean).join("\n\n").trim();
@@ -857,11 +1010,19 @@ function humanizeReflectionText(text: string, bp: ResponseBlueprint): string {
   if (hasQuestion) {
     const firstQ = questionMatches[0].trim();
     // Remove all question sentences from body, then append only firstQ
-    let body = allText.replace(/[^?]*\?/g, " ").replace(/\s+/g, " ").trim();
+    let body = allText
+      .replace(/[^?]*\?/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
 
     // If body ends with permission-like phrase, remove that trailing sentence fragment conservatively
     // (We only remove if it looks like a standalone permission sentence.)
-    body = body.replace(/(?:\bif you want\b|\bif you'd like\b|\bwe can\b)[^.?!]*[.?!]\s*$/i, "").trim();
+    body = body
+      .replace(
+        /(?:\bif you want\b|\bif you'd like\b|\bwe can\b)[^.?!]*[.?!]\s*$/i,
+        "",
+      )
+      .trim();
 
     s = [body, firstQ].filter(Boolean).join("\n\n").trim();
   } else {

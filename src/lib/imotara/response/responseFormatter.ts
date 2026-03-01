@@ -128,11 +128,46 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
     ],
   } as const;
 
-  const bank = tone === "calm_companion" ? calmCompanion : closeFriend;
+  // ✅ Coach: still soft + permission-based, but more directional + “we” tone
+  const coach = {
+    en: [
+      "I’m right here with you. If you’d like, we can pick one small thing to move forward on—gently.",
+      "We can go at your pace. Want us to choose one tiny next step together?",
+      "No pressure—just one small direction. What would you like us to make a little easier first?",
+    ],
+    hi: [
+      "मैं यहीं हूँ। अगर तुम चाहो, तो हम धीरे-धीरे एक छोटा-सा कदम साथ में चुन सकते हैं।",
+      "हम तुम्हारी गति से चलेंगे। चाहो तो एक tiny next step साथ में तय करें?",
+      "कोई दबाव नहीं—बस एक छोटी दिशा। सबसे पहले क्या थोड़ा आसान करें?",
+    ],
+  } as const;
+
+  // ✅ Mentor: softer clarity + gentle framing (not “coach-y”)
+  const mentor = {
+    en: [
+      "If you want, we can slow it down and make sense of it—one piece at a time.",
+      "Would it help if we name what matters most here, before choosing a next step?",
+      "We can keep it simple—what part feels most important to understand first?",
+    ],
+    hi: [
+      "अगर तुम चाहो, तो हम इसे धीरे-धीरे समझ सकते हैं—एक-एक हिस्से में।",
+      "क्या पहले ये समझना मदद करेगा कि यहाँ सबसे ज़्यादा क्या मायने रखता है—फिर next step लें?",
+      "चलो इसे सरल रखते हैं—सबसे पहले क्या समझना सबसे ज़रूरी लगेगा?",
+    ],
+  } as const;
+
+  const bank =
+    tone === "calm_companion"
+      ? calmCompanion
+      : tone === "coach"
+        ? coach
+        : tone === "mentor"
+          ? mentor
+          : closeFriend;
 
   // fall back to English if lang not present in the bank
   const key = normalizeLang(lang) as "en" | "hi";
-  return bank[key] ?? bank.en;
+  return (bank as any)[key] ?? bank.en;
 }
 
 function bridgeStatementBank(
@@ -378,6 +413,29 @@ function userAsksForSuggestion(s: string): boolean {
   );
 }
 
+function isLowSignalUserTurn(msg: string): boolean {
+  const raw = String(msg ?? "").trim();
+  if (!raw) return true;
+
+  const t = raw.toLowerCase();
+
+  // Common ultra-short / low-context turns
+  if (/^(hi|hello|hey|yo|hii+|hiii+|ok|okay|hmm+|help|life)$/i.test(t))
+    return true;
+
+  // Short length / few words → low signal
+  const words = t.match(/[\p{L}\p{N}]+/gu) ?? [];
+  if (raw.length <= 12) return true;
+  if (words.length <= 2) return true;
+  if (words.length <= 4 && raw.length <= 22) return true;
+
+  // Emoji/punctuation-only or almost-no-text
+  const alphaNumCount = (t.match(/[\p{L}\p{N}]/gu) ?? []).length;
+  if (alphaNumCount === 0) return true;
+
+  return false;
+}
+
 function suggestionBridgeBank(lang: string): readonly string[] {
   const l = normalizeLang(lang);
 
@@ -405,6 +463,133 @@ function suggestionBridgeBank(lang: string): readonly string[] {
   ] as const;
 }
 
+function isGreetingOnly(msg: string): boolean {
+  const t = (msg ?? "").trim().toLowerCase();
+  if (!t) return false;
+
+  // Strip common punctuation/emojis
+  const cleaned = t.replace(/[!.,?？۔।🙏🙂😊👋]+/g, "").trim();
+
+  // Very short greeting-only inputs
+  const greetings = new Set([
+    "hi",
+    "hello",
+    "hey",
+    "yo",
+    "hii",
+    "hiii",
+    "hola",
+    "namaste",
+    "namaskar",
+    "bonjour",
+    "good morning",
+    "good afternoon",
+    "good evening",
+  ]);
+
+  return greetings.has(cleaned);
+}
+
+function greetingInsightBank(
+  lang: string,
+  tone: ImotaraPersonaTone,
+): readonly string[] {
+  const closeFriend = {
+    en: [
+      "Hi 🙂 I’m here with you.",
+      "Hey 👋 I’m right here.",
+      "Hi. I’m with you — no rush.",
+    ],
+    hi: [
+      "हाय 🙂 मैं तुम्हारे साथ हूँ।",
+      "हेy 👋 मैं यहीं हूँ।",
+      "हाय। मैं तुम्हारे साथ हूँ — कोई जल्दी नहीं।",
+    ],
+  } as const;
+
+  const coach = {
+    en: [
+      "Hey 👋 I’m here with you — gently, at your pace.",
+      "Hi. I’m with you. We can take this one small step at a time.",
+      "Hey 🙂 I’m right here — we’ll keep it simple and soft.",
+    ],
+    hi: [
+      "हेy 👋 मैं तुम्हारे साथ हूँ — धीरे-धीरे, तुम्हारी गति से।",
+      "हाय। मैं तुम्हारे साथ हूँ। हम इसे छोटे-छोटे कदमों में ले सकते हैं।",
+      "हेy 🙂 मैं यहीं हूँ — इसे सरल और नरम रखेंगे।",
+    ],
+  } as const;
+
+  const calm = {
+    en: [
+      "Hello. I’m here with you.",
+      "Hi. We can stay gentle and take it slowly.",
+      "Hello 🙂 I’m with you — calm and steady.",
+    ],
+    hi: [
+      "नमस्ते। मैं तुम्हारे साथ हूँ।",
+      "हाय। हम इसे धीरे-धीरे और सहजता से ले सकते हैं।",
+      "नमस्ते 🙂 मैं तुम्हारे साथ हूँ — शांत और स्थिर।",
+    ],
+  } as const;
+
+  const bank =
+    tone === "coach" ? coach : tone === "calm_companion" ? calm : closeFriend;
+
+  const key = normalizeLang(lang) as "en" | "hi";
+  return (bank as any)[key] ?? bank.en;
+}
+
+function greetingBridgeBank(
+  lang: string,
+  tone: ImotaraPersonaTone,
+): readonly string[] {
+  const closeFriend = {
+    en: [
+      "How are you doing right now?",
+      "What’s on your mind today?",
+      "What would you like from me right now?",
+    ],
+    hi: [
+      "अभी तुम कैसे हो?",
+      "आज तुम्हारे मन में क्या चल रहा है?",
+      "अभी तुम्हें मुझसे क्या चाहिए?",
+    ],
+  } as const;
+
+  const coach = {
+    en: [
+      "Want us to gently pick one small thing to focus on?",
+      "Would it help to choose one tiny next step together?",
+      "Where would you like us to begin — softly and simply?",
+    ],
+    hi: [
+      "क्या हम धीरे-से एक छोटी-सी चीज़ चुनें जिस पर ध्यान दें?",
+      "क्या एक tiny next step साथ में तय करना मदद करेगा?",
+      "तुम चाहो तो हम कहाँ से शुरू करें — नरमी से, सरलता से?",
+    ],
+  } as const;
+
+  const calm = {
+    en: [
+      "Would you like to share what brought you here today?",
+      "Do you want comfort first, or just a quiet check-in?",
+      "Where would you like to begin?",
+    ],
+    hi: [
+      "क्या तुम बताना चाहोगे कि आज यहाँ आने की वजह क्या है?",
+      "पहले थोड़ा सुकून चाहिए, या बस एक शांत check-in?",
+      "तुम कहाँ से शुरू करना चाहोगे?",
+    ],
+  } as const;
+
+  const bank =
+    tone === "coach" ? coach : tone === "calm_companion" ? calm : closeFriend;
+
+  const key = normalizeLang(lang) as "en" | "hi";
+  return (bank as any)[key] ?? bank.en;
+}
+
 export function formatImotaraReply(input: FormatReplyInput): string {
   const lang = normalizeLang(input.lang);
   const tone: ImotaraPersonaTone = input.tone ?? "close_friend";
@@ -427,13 +612,15 @@ export function formatImotaraReply(input: FormatReplyInput): string {
 
   const userMsg = input.userMessage ?? "";
 
-  console.log("[imotara] formatter userMsg =", userMsg);
+  // --- Greeting mode: make “hi” feel human ---
+  const greeting = isGreetingOnly(userMsg);
 
-  if (input.intent === "practical") {
-    // Practical intent → action-oriented bridge (still human, but not comfort-framing)
+  if (greeting) {
+    // Phase 2 becomes a friendly presence line, Phase 3 becomes the only question
+    bridges = greetingBridgeBank(lang, tone);
+  } else if (input.intent === "practical") {
     bridges = practicalBridgeBank(lang, tone);
   } else if (userAsksForSuggestion(userMsg)) {
-    // Emotional intent + explicit request for suggestion → give concrete suggestions
     bridges = suggestionBridgeBank(lang);
   } else {
     bridges = useStatementBridge
@@ -443,7 +630,12 @@ export function formatImotaraReply(input: FormatReplyInput): string {
 
   const bridge = bridges[h % bridges.length];
 
-  let insight = stripRoboticMarkers(input.raw);
+  let insight = greeting
+    ? greetingInsightBank(lang, tone)[
+        h % greetingInsightBank(lang, tone).length
+      ]
+    : stripRoboticMarkers(input.raw);
+
   insight = removeLeadingInterjection(insight);
 
   // If the model returned nothing meaningful, keep it empty (caller already has fallback logic)
@@ -580,10 +772,96 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   let out = `${phase1} ${phase2}\n\n${phase3}`.trim();
 
   // Global clamp: max 1 question mark in the final output.
+  // NOTE: We now soften the contract for low-signal turns (so it feels less template-y),
+  // while preserving the greeting-only special behavior you already added.
   out = limitToOneQuestion(out);
 
-  // Ensure minimum 3 sentences total (reaction + insight + bridge can still be fragments).
+  // Soft contract: keep 3-phase as a guideline, allow natural variation for low-signal turns.
+  // Excludes practical + suggestion flows where structure is more useful.
+  const softContract =
+    !greeting &&
+    input.intent !== "practical" &&
+    !isSuggestionMode &&
+    isLowSignalUserTurn(userMsg);
+
   const sentenceCount = (out.match(sentenceEndRe) ?? []).length;
+
+  if (greeting) {
+    // Greeting mode: sometimes end with presence only (no question).
+    const shouldEndWithPresenceOnly = h % 2 === 0;
+
+    if (shouldEndWithPresenceOnly) {
+      out = `${phase1} ${phase2}`.trim();
+      out = limitToOneQuestion(out);
+    }
+
+    // If still too short (rare), add a greeting-safe presence statement.
+    const sc2 = (out.match(sentenceEndRe) ?? []).length;
+    if (sc2 < 2) {
+      const safePresence =
+        tone === "coach"
+          ? "We can keep it simple and soft."
+          : tone === "calm_companion"
+            ? "We can take it gently."
+            : "I’m right here with you.";
+      out = `${out}\n${ensureEndsLikeSentence(safePresence)}`.trim();
+      out = limitToOneQuestion(out);
+    }
+
+    return out;
+  }
+
+  // For low-signal turns, prefer reflection + presence and usually avoid questions.
+  if (softContract) {
+    const userAskedQ = /[?？]/.test(userMsg);
+
+    // If Phase 2 contains a question (common), soften it into a statement for low-signal turns.
+    const phase2Presence = ensureEndsLikeSentence(
+      String(phase2).replace(questionRe, endPunct).replace(/\s+/g, " ").trim(),
+    );
+
+    // Bias: ~60% presence-only, ~30% presence+handoff statement, ~10% normal 3-phase.
+    // Deterministic (stable for testing).
+    const roll =
+      Math.abs(hash32(`soft:${lang}:${tone}:${seed}:${userMsg}`)) % 10;
+
+    if (roll < 6) {
+      // Presence-only (2 phases)
+      out = `${phase1} ${phase2Presence}`.trim();
+    } else if (roll < 9) {
+      // Presence + gentle statement handoff (no question)
+      const extraStatement = bridgeStatementBank(lang, tone)[
+        (h + 3) % bridgeStatementBank(lang, tone).length
+      ];
+      out = `${phase1} ${phase2Presence}\n\n${ensureEndsLikeSentence(
+        extraStatement,
+      )}`.trim();
+    } else {
+      // Normal 3-phase (rare)
+      out = `${phase1} ${phase2}\n\n${phase3}`.trim();
+    }
+
+    // If the user didn't ask a question, we usually shouldn't ask one here.
+    if (!userAskedQ) {
+      out = out.replace(questionRe, endPunct);
+    }
+
+    out = limitToOneQuestion(out);
+
+    // Ensure minimum 2 sentences (don’t force 3)
+    const sc = (out.match(sentenceEndRe) ?? []).length;
+    if (sc < 2) {
+      const extra = bridgeStatementBank(lang, tone)[
+        (h + 7) % bridgeStatementBank(lang, tone).length
+      ];
+      out = `${out}\n${ensureEndsLikeSentence(extra)}`.trim();
+      out = limitToOneQuestion(out);
+    }
+
+    return out;
+  }
+
+  // Default (strict-ish): keep minimum 3 sentences
   if (sentenceCount < 3) {
     const extra = bridgeStatementBank(lang, tone)[
       (h + 7) % bridgeStatementBank(lang, tone).length

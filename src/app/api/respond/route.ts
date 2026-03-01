@@ -483,6 +483,13 @@ export async function POST(req: Request) {
       stableVariantFromId(requestId, antiRepeatVariants.length)
     ];
 
+  // ✅ Reduce “anchor phrase” frequency (don’t ban—just avoid overuse)
+  const anchorPhraseDirective = [
+    "Avoid overusing the same signature phrases. It’s okay to use them occasionally, but don’t repeat them often.",
+    'If they appeared recently, rephrase instead of repeating them verbatim: "Got you", "I’m with you in this", "I hear you", "What’s one small detail", "What feels like the next move".',
+    "Sometimes use a simple presence statement instead of steering with another question.",
+  ].join(" ");
+
   // Add a generationSalt field for downstream (safe even if ignored)
   const generationSalt = `rid:${requestId}`;
 
@@ -493,7 +500,7 @@ export async function POST(req: Request) {
 
       // ✅ language fields (safe even if downstream ignores)
       preferredLanguage,
-      languageDirective: `${languageDirective}\n${antiRepeatDirective}`,
+      languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${anchorPhraseDirective}`,
 
       // ✅ new: request-scoped variation helpers (safe if ignored)
       requestId,
@@ -558,28 +565,10 @@ export async function POST(req: Request) {
           ? "bn"
           : "en";
 
-    const bank: Record<"en" | "hi" | "bn", readonly string[]> = {
-      en: [
-        "I hear you. I’m right here with you. What’s the biggest worry behind that anxiety right now?",
-        "Thank you for telling me. Let’s slow it down together—where do you feel the anxiety most (chest, stomach, thoughts)?",
-        "That sounds heavy. If we take one small step: what happened just before you started feeling anxious today?",
-        "I’m with you. Do you want comfort first, or a practical step to feel a little steadier right now?",
-      ],
-      hi: [
-        "मैं समझ रहा/रही हूँ। मैं आपके साथ हूँ। इस चिंता के पीछे सबसे बड़ा डर क्या लग रहा है अभी?",
-        "बताने के लिए धन्यवाद। धीरे-धीरे चलते हैं—ये बेचैनी आपको शरीर में कहाँ सबसे ज़्यादा महसूस हो रही है?",
-        "ये सच में भारी लग रहा है। एक छोटा कदम: आज बेचैनी शुरू होने से ठीक पहले क्या हुआ था?",
-        "मैं आपके साथ हूँ। अभी आपको क्या ज़्यादा चाहिए—थोड़ा सुकून या कोई छोटा-सा practical step?",
-      ],
-      bn: [
-        "আমি বুঝতে পারছি—আমি আপনার পাশে আছি। এই দুশ্চিন্তার ভেতরে সবচেয়ে বড় ভয়টা কী মনে হচ্ছে এখন?",
-        "বলেছেন বলে ধন্যবাদ। ধীরে ধীরে নিই—এই অস্থিরতা আপনি শরীরে কোথায় সবচেয়ে বেশি টের পাচ্ছেন?",
-        "শুনে মনে হচ্ছে বিষয়টা ভারী। ছোট করে শুরু করি: আজ অস্থির লাগা শুরু হওয়ার ঠিক আগে কী হয়েছিল?",
-        "আমি আপনার সাথে আছি। এখন আপনার জন্য কী বেশি দরকার—একটু সান্ত্বনা, নাকি ছোট একটা পরের পদক্ষেপ?",
-      ],
-    };
-
     const current = currentReplyText;
+
+    // Detect “template / duplicate / too-generic” replies.
+    // ✅ But instead of hardcoded replacement lines, we ask the model to regenerate with a strong rephrase directive.
     const isTooGeneric =
       current.length < 70 &&
       /(got you|i['’]m with you|i hear you|tense or worried)/i.test(current);
@@ -587,30 +576,67 @@ export async function POST(req: Request) {
     const shouldHumanize = isDuplicate || looksLikeTemplate || isTooGeneric;
 
     if (shouldHumanize) {
-      const seed = [
-        langBase,
-        message,
-        String((body as any)?.requestId ?? ""),
-        lastAssistantText,
-      ].join("|");
+      const retryDirective =
+        [
+          "RETRY_REPHRASE:",
+          "Rewrite your reply with fresh wording and a more human, spontaneous feel.",
+          "Do NOT reuse any full sentence from your previous reply.",
+          "Avoid template phrases like: 'Got you', 'I'm with you in this', 'We can go gentle'.",
+          "Keep it soft, permission-based, and collaborative ('we' tone).",
+          "Follow the 3-phase structure: (1) brief human reaction, (2) real insight, (3) gentle bridge.",
+          "Max 1 question total.",
+          langBase === "hi"
+            ? "Language: Hindi."
+            : langBase === "bn"
+              ? "Language: Bengali."
+              : "Language: English.",
+        ].join("\n") + "\n";
 
-      let idx = stableIndex(seed, bank[langBase].length);
+      const retry = await runImotara({
+        userMessage: message,
+        sessionContext: {
+          ...baseCtx,
 
-      let candidate = bank[langBase][idx] ?? bank.en[0];
+          preferredLanguage,
 
-      // If candidate would still repeat, rotate once.
+          // keep existing directives + add retry directive
+          languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${retryDirective}`,
+
+          // request-scoped variation changes so the model doesn't “stick” to prior phrasing
+          requestId,
+          generationSalt: `${generationSalt}:retry1`,
+
+          pinnedRecall,
+          pinnedRecallRelevant,
+
+          ...(qa ? { debug: true, pinnedRecallDebugTop } : {}),
+        },
+        toneContext,
+      });
+
+      const retryText = String(
+        (retry as any)?.replyText ?? (retry as any)?.reply ?? "",
+      ).trim();
+
+      // Only apply if it actually changed and looks non-empty
       if (
-        (lastAssistantText && candidate === lastAssistantText) ||
-        (current && candidate === current)
+        (retry as any)?.ok === true &&
+        retryText &&
+        retryText !== currentReplyText
       ) {
-        idx = (idx + 1) % bank[langBase].length;
-        candidate = bank[langBase][idx] ?? bank.en[0];
-      }
+        (result as any).replyText = retryText;
+        (result as any).message = retryText;
+        if (typeof (result as any).reply === "string") {
+          (result as any).reply = retryText;
+        }
 
-      (result as any).replyText = candidate;
-      (result as any).message = candidate;
-      if (typeof (result as any).reply === "string") {
-        (result as any).reply = candidate;
+        // Optional debug-only note (won’t leak in public mode due to your safeMeta logic below)
+        if (qa) {
+          (result as any).meta = {
+            ...((result as any).meta ?? {}),
+            regeneration: { attempt: 1, reason: "duplicate/template/generic" },
+          };
+        }
       }
     }
   }

@@ -132,6 +132,155 @@ function pickVariant(seed: string, count: number): number {
   return count <= 0 ? 0 : (h >>> 0) % count;
 }
 
+function isGreetingOnly(input: string): boolean {
+  const raw = String(input ?? "")
+    .trim()
+    .toLowerCase();
+  if (!raw) return false;
+
+  // Remove common punctuation / emojis that often accompany greetings
+  const cleaned = raw.replace(/[!.,?¿¡，。！？।🙏🙂😊👋]+/g, "").trim();
+
+  // Treat these as greeting-only
+  const greetings = new Set([
+    "hi",
+    "hello",
+    "hey",
+    "yo",
+    "hii",
+    "hiii",
+    "hola",
+    "namaste",
+    "namaskar",
+    "bonjour",
+    "good morning",
+    "good afternoon",
+    "good evening",
+  ]);
+
+  return greetings.has(cleaned);
+}
+
+function tokenizeLite(s: string): string[] {
+  const t = String(s ?? "").toLowerCase();
+  // unicode-safe word extraction
+  const parts = t.match(/[\p{L}\p{N}]+/gu) ?? [];
+  return parts.filter(Boolean);
+}
+
+// Intent: user is complaining about repetition / questioning if system is real / calling it bot-like
+function detectMetaComplaintIntent(input: string): boolean {
+  const text = String(input ?? "");
+  const tokens = tokenizeLite(text);
+  if (tokens.length === 0) return false;
+
+  // Token categories (NOT exact phrases)
+  const identityTokens = new Set([
+    "ai",
+    "bot",
+    "robot",
+    "script",
+    "automated",
+    "human",
+    "real",
+    "genuine",
+    // Hinglish/Hindi/Bengali common forms
+    "बॉट",
+    "रोबोट",
+    "एआई",
+    "মানুষ",
+    "বট",
+  ]);
+
+  const repeatTokens = new Set([
+    "repeat",
+    "repeating",
+    "repeated",
+    "again",
+    "same",
+    "always",
+    "everytime",
+    "eachtime",
+    "template",
+    "copy",
+    "paste",
+    // Hinglish/Hindi/Bengali
+    "dobara",
+    "dubara",
+    "phir",
+    "baar",
+    "barbar",
+    "abar",
+    "বারবার",
+    "ফের",
+    "दोबारा",
+    "फिर",
+    "बार",
+  ]);
+
+  const complaintTokens = new Set([
+    "why",
+    "stop",
+    "annoying",
+    "irritating",
+    "boring",
+    "weird",
+    "same",
+    "again",
+    // Hinglish/Hindi/Bengali
+    "kyu",
+    "kyun",
+    "please",
+    "pls",
+    "mat",
+    "band",
+    "क्यों",
+    "क्यूँ",
+    "मत",
+    "बंद",
+    "কেন",
+    "বন্ধ",
+  ]);
+
+  const addressTokens = new Set(["you", "your", "imotara"]);
+
+  let score = 0;
+  let hasIdentity = false;
+  let hasRepeat = false;
+  let hasComplaint = false;
+  let hasAddress = false;
+
+  for (const w of tokens) {
+    if (identityTokens.has(w)) hasIdentity = true;
+    if (repeatTokens.has(w)) hasRepeat = true;
+    if (complaintTokens.has(w)) hasComplaint = true;
+    if (addressTokens.has(w)) hasAddress = true;
+  }
+
+  if (hasIdentity) score += 2;
+  if (hasRepeat) score += 2;
+  if (hasComplaint) score += 1;
+  if (hasAddress) score += 1;
+
+  // Extra small signals
+  if (/[?？]/.test(text)) score += 1;
+  if (/!+/.test(text)) score += 1;
+
+  // Decide rules (intent-level, not exact phrases):
+  // 1) Identity + question/you → "are you real / bot?" type
+  if (hasIdentity && (hasAddress || /[?？]/.test(text))) return true;
+
+  // 2) Repeat + complaint + question/you → "why repeat / stop repeating" type
+  if (hasRepeat && hasComplaint && (hasAddress || /[?？]/.test(text)))
+    return true;
+
+  // 3) Strong combined signal
+  if (hasIdentity && hasRepeat) return true;
+
+  // 4) Generic threshold fallback
+  return score >= 4;
+}
+
 // Natural, non-repetitive continuity anchors (NOT always quoting).
 function continuityAnchor(
   lang: "en" | "hi" | "bn",
@@ -309,6 +458,21 @@ function draftResponseForLanguage(
   };
 }
 
+function recentlyUsedAny(
+  ctx: SessionContext,
+  needles: string[],
+  maxTurns: number,
+): boolean {
+  const recent = (ctx?.recent ?? []).slice(-maxTurns);
+  const hay = recent.map((m) => (m?.content ?? "").toLowerCase()).join("\n");
+  return needles.some((n) => hay.includes(n.toLowerCase()));
+}
+
+function pickFrom<T>(seed: string, items: readonly T[]): T {
+  const idx = pickVariant(seed, items.length);
+  return items[idx]!;
+}
+
 function draftResponse(
   userMessage: string,
   ctx: SessionContext,
@@ -320,23 +484,184 @@ function draftResponse(
   const name = getUserName(ctx);
   const rel = pickRelationshipTone(ctx);
 
-  // tone-only opener
-  const opener =
-    rel === "friend"
-      ? name
-        ? `Got you, ${name}.`
-        : "Got you."
-      : rel === "mentor"
-        ? name
-          ? `I’m listening, ${name}.`
-          : "I’m listening."
-        : rel === "coach"
-          ? name
-            ? `Okay, ${name}.`
-            : "Okay."
-          : name
-            ? `I hear you, ${name}.`
-            : "I hear you.";
+  // --- Rotating opener bank to avoid repetition ---
+  // Deterministic hash from seed (no randomness)
+  function hashLite(seed: string): number {
+    let h = 0;
+    for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return h;
+  }
+
+  function isLowSignalUserTurn(input: string): boolean {
+    const text = String(input ?? "")
+      .trim()
+      .toLowerCase();
+
+    // Very short or vague emotional signals
+    if (text.length <= 30) return true;
+
+    // Common low-signal emotional phrases
+    if (
+      text === "life" ||
+      text === "life 😔" ||
+      text === "not feeling good" ||
+      text === "feeling low" ||
+      text === "sad" ||
+      text === "tired"
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function pickFrom<T>(arr: readonly T[], h: number): T {
+    return arr[h % arr.length];
+  }
+
+  function pickFromSeed<T>(seed: string, arr: readonly T[]): T {
+    const h = hashLite(seed);
+    return arr[h % arr.length];
+  }
+
+  function pickOpener(
+    ctx: SessionContext,
+    rel: string,
+    name?: string,
+    seed?: string,
+    maxTurns: number = 20,
+  ): string {
+    const h = hashLite(`${rel}|${name ?? ""}|${seed ?? ""}`);
+
+    const friend = [
+      name ? `Hey ${name}… I’m here.` : "Hey… I’m here.",
+      name ? `Mm. I’m with you, ${name}.` : "Mm. I’m with you.",
+      name ? `Okay ${name}. I hear you.` : "Okay. I hear you.",
+      name ? `I’m right here, ${name}.` : "I’m right here.",
+      name ? `Got you, ${name}.` : "Got you.",
+    ] as const;
+
+    const coach = [
+      name ? `Alright, ${name}.` : "Alright.",
+      name ? `Okay, ${name}.` : "Okay.",
+      name
+        ? `We’ll take this one step at a time, ${name}.`
+        : "We’ll take this one step at a time.",
+    ] as const;
+
+    const mentor = [
+      name ? `I’m listening, ${name}.` : "I’m listening.",
+      name ? `Tell me more, ${name}.` : "Tell me more.",
+      name ? `Go on, ${name}.` : "Go on.",
+    ] as const;
+
+    const elder = [
+      name ? `I’m here, ${name}. Take your time.` : "I’m here. Take your time.",
+      name ? `It’s okay, ${name}. I’m listening.` : "It’s okay. I’m listening.",
+      name ? `Hmm… I hear you, ${name}.` : "Hmm… I hear you.",
+    ] as const;
+
+    const sibling = [
+      name ? `Hey ${name} — I’m here.` : "Hey — I’m here.",
+      name ? `Okay okay, ${name}. I got you.` : "Okay okay. I got you.",
+      name ? `Mm. Tell me, ${name}.` : "Mm. Tell me.",
+    ] as const;
+
+    const juniorBuddy = [
+      name ? `Heyy ${name}! I’m here with you.` : "Heyy! I’m here with you.",
+      name ? `Okayy ${name} — I got you.` : "Okayy — I got you.",
+      name ? `Hmm… I’m listening, ${name}.` : "Hmm… I’m listening.",
+    ] as const;
+
+    const parentLike = [
+      name ? `I’m here, ${name}. No rush.` : "I’m here. No rush.",
+      name
+        ? `It’s okay, ${name}. We’ll go gently.`
+        : "It’s okay. We’ll go gently.",
+      name ? `I’ve got you, ${name}.` : "I’ve got you.",
+    ] as const;
+
+    const partnerLike = [
+      name ? `Hey love — I’m here, ${name}.` : "Hey — I’m here with you.",
+      name ? `I’m right here, ${name}.` : "I’m right here.",
+      name ? `Mm… come here. I’m with you, ${name}.` : "Mm. I’m with you.",
+    ] as const;
+
+    const fallback = [
+      name ? `I hear you, ${name}.` : "I hear you.",
+      name ? `I’m here, ${name}.` : "I’m here.",
+      name ? `Mm. I’m here with you, ${name}.` : "Mm. I’m here with you.",
+    ] as const;
+
+    const normalizeForOpenerMatch = (s: string): string => {
+      return (
+        s
+          // unify ellipsis variants
+          .replace(/\.\.\./g, "…")
+          // collapse whitespace
+          .replace(/\s+/g, " ")
+          // remove leading markdown/quote markers that might precede content
+          .replace(/^[>\-\*\s]+/, "")
+          // normalize punctuation runs (e.g., "!!" "..." ",," etc.)
+          .replace(/([!?.,…])\1+/g, "$1")
+          .trim()
+          .toLowerCase()
+      );
+    };
+
+    const wasOpenerUsedRecently = (opener: string): boolean => {
+      const recent = (ctx?.recent ?? [])
+        .filter((m) => m.role === "assistant")
+        .slice(-maxTurns);
+
+      const o = normalizeForOpenerMatch(opener);
+
+      return recent.some((m) => {
+        const content = normalizeForOpenerMatch(String(m?.content ?? ""));
+
+        // Match at the beginning, but also allow a tiny safety margin where
+        // the assistant might start with a short prefix like "Hey," before the opener.
+        return content.startsWith(o);
+      });
+    };
+
+    const pickFromNoRepeat = <T extends string>(items: readonly T[]): T => {
+      if (items.length === 0) return "" as T;
+      const start = h % items.length;
+
+      // Try to avoid repeating the same opener within a small recent window.
+      for (let i = 0; i < items.length; i++) {
+        const cand = items[(start + i) % items.length]!;
+        if (!wasOpenerUsedRecently(cand)) return cand;
+      }
+
+      // If everything was recently used, fall back to deterministic pick.
+      return items[start]!;
+    };
+
+    switch (rel) {
+      case "friend":
+        return pickFromNoRepeat(friend);
+      case "coach":
+        return pickFromNoRepeat(coach);
+      case "mentor":
+        return pickFromNoRepeat(mentor);
+      case "elder":
+        return pickFromNoRepeat(elder);
+      case "sibling":
+        return pickFromNoRepeat(sibling);
+      case "junior_buddy":
+        return pickFromNoRepeat(juniorBuddy);
+      case "parent_like":
+        return pickFromNoRepeat(parentLike);
+      case "partner_like":
+        return pickFromNoRepeat(partnerLike);
+      default:
+        return pickFromNoRepeat(fallback);
+    }
+  }
+
+  const opener = pickOpener(ctx, rel, name ?? undefined, msg);
 
   // ✅ Continuity: gently anchor to the last user turn (when available)
   const prev = getPreviousUserTurn(ctx, msg);
@@ -349,7 +674,29 @@ function draftResponse(
   let message = "";
   let followUp = "";
 
-  if (
+  // ✅ Greeting-only: be human first, avoid template follow-ups like "comfort/clarity/next step"
+  if (isGreetingOnly(msg)) {
+    const v = pickVariant(`greet:${rel}:${name ?? ""}:${msg}`, 3);
+
+    const greetLine =
+      v === 0
+        ? "Hey 👋 I’m right here with you."
+        : v === 1
+          ? "Hi 🙂 I’m here."
+          : "Hello. I’m with you.";
+
+    message = name ? `${greetLine.replace("Hi", `Hi, ${name}`)}` : greetLine;
+
+    // Leave followUp empty so the formatter greeting-mode can decide:
+    // - sometimes a gentle question
+    // - sometimes presence-only (as per your preference)
+    followUp = "";
+  } else if (detectMetaComplaintIntent(msg)) {
+    message = `${openerWithContext} I’m an AI, but I’m here with you — and you’re right: if it feels repetitive, that’s frustrating.`;
+    followUp =
+      "If you want, tell me what felt repetitive — or just tell me what’s going on, and I’ll respond more naturally from here.";
+  } else if (
+    lower.includes("stranger") ||
     lower.includes("stranger") ||
     lower.includes("met") ||
     lower.includes("someone")
@@ -399,13 +746,111 @@ function draftResponse(
     followUp =
       "Want something quick and practical right now — food, rest, or just a short reset?";
   } else {
-    // memory-aware: avoid asking the same “comfort/clarity/next step” repeatedly
-    const asked = recentlyAsked(ctx, "comfort, clarity, or a next step");
-
     message = `${openerWithContext} I’m with you in this.`;
-    followUp = asked
-      ? "Tell me one small detail about what’s going on right now, and we’ll take it from there."
-      : "We can go gentle — share what you want most right now (comfort, clarity, or a small next step).";
+
+    // ✅ Long-memory: avoid repeating the same fallback style too often (25 turns)
+    const cooldownTurns = 25;
+
+    // We store “keys” as tiny phrases and check recent history for those keys.
+    const usedComfortStyle = recentlyUsedAny(
+      ctx,
+      [
+        "comfort, clarity, or a small next step",
+        "comfort, clarity, or a next step",
+      ],
+      cooldownTurns,
+    );
+
+    const usedListenStyle = recentlyUsedAny(
+      ctx,
+      [
+        "start anywhere",
+        "i'm listening",
+        "tell me what's heaviest",
+        "tell me what's on your mind",
+      ],
+      cooldownTurns,
+    );
+
+    const usedClarifyStyle = recentlyUsedAny(
+      ctx,
+      [
+        "what part feels hardest",
+        "what feels most important",
+        "where should we begin",
+      ],
+      cooldownTurns,
+    );
+
+    // 🟢 Soft “just listen” variants (can be statement-only)
+    const listenBank = [
+      "You don’t have to make it tidy. Start anywhere — I’m listening.",
+      "Take your time. I’m here with you.",
+      "If it feels hard to explain, you can just describe one small piece of it.",
+      "I’m right here. We can sit with it for a moment.",
+    ] as const;
+
+    // 🟡 Gentle clarify variants (one question max, permission-based)
+    const clarifyBank = [
+      "If you feel like sharing, what’s the heaviest part right now?",
+      "Where would you like to begin — softly and simply?",
+      "What part of this feels hardest to carry today?",
+      "What’s one small detail about what’s going on right now?",
+    ] as const;
+
+    // 🔵 Structured option variants (rare; use only when not recently used)
+    const optionsBank = [
+      "If you want, we can go gentle — do you want comfort, clarity, or a small next step?",
+      "What would help most right now — a little comfort, a bit of clarity, or one tiny next step?",
+      "Would you like me to just be here with you, or help you find one small next step?",
+    ] as const;
+
+    // Decide which style to use (prefer listening)
+    // 60% listen, 30% clarify, 10% options (but options suppressed if recently used)
+    const stylePick = pickVariant(
+      `fallbackStyle:${msg}:${rel}:${name ?? ""}`,
+      10,
+    );
+
+    const wantListen = stylePick < 6;
+    const wantClarify = stylePick >= 6 && stylePick < 9;
+    const wantOptions = stylePick >= 9;
+
+    // Presence-first: for low-signal emotional turns, often *don’t* ask a follow-up.
+    // This avoids the “therapist interview” feel and matches: reflect → pause.
+    const lowSignal = isLowSignalUserTurn(msg);
+    const presenceBiasSeed = `presenceBias:${msg}:${rel}:${name ?? ""}`;
+
+    // About ~60% of the time, skip follow-up entirely (no question).
+    const shouldSkipFollowUp = lowSignal && hashLite(presenceBiasSeed) % 10 < 6;
+
+    // Also: if the user already got a question recently, prefer presence.
+    const askedRecently = recentlyAsked(
+      ctx,
+      "small detail about what's going on",
+    );
+
+    if (shouldSkipFollowUp || (lowSignal && askedRecently)) {
+      followUp = ""; // let formatter / UI show just the message
+    } else if (wantListen && !usedListenStyle) {
+      followUp = pickFromSeed(`listen:${msg}:${rel}:${name ?? ""}`, listenBank);
+    } else if (wantClarify && !usedClarifyStyle) {
+      followUp = pickFromSeed(
+        `clarify:${msg}:${rel}:${name ?? ""}`,
+        clarifyBank,
+      );
+    } else if (wantOptions && !usedComfortStyle) {
+      followUp = pickFromSeed(
+        `options:${msg}:${rel}:${name ?? ""}`,
+        optionsBank,
+      );
+    } else {
+      // Fallback if all were recently used: choose the least repetitive “listen” line
+      followUp = pickFromSeed(
+        `listen2:${msg}:${rel}:${name ?? ""}`,
+        listenBank,
+      );
+    }
   }
 
   const userPrefs = {
@@ -504,8 +949,11 @@ function draftResponse(
   // Keep it inside meta so we don't break ImotaraResponse typing
   (meta as any).emotion = emotion;
 
+  const greetingOnly = isGreetingOnly(msg);
+
   return {
-    reflectionSeed: makeReflectionSeed(msg),
+    // ✅ For "hi"/greetings: no structured reflection prompt (keeps it human)
+    reflectionSeed: greetingOnly ? undefined : makeReflectionSeed(msg),
     message: cap(enforcedMessage.adjustedText, 240),
     followUp: cap(enforcedFollowUp.adjustedText, 200),
     meta,

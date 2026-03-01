@@ -615,6 +615,9 @@ export default function ChatPage() {
   // 🔒 Idempotency guard: remember last user message we replied to
   const lastReplyKeyRef = useRef<string | null>(null);
 
+  // 🔒 Idempotency guard: prevent duplicate analysis calls for the same last-user message
+  const lastAnalysisKeyRef = useRef<string | null>(null);
+
   const [syncing, setSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const [syncedCount, setSyncedCount] = useState<number | null>(null);
@@ -807,10 +810,29 @@ export default function ChatPage() {
   useEffect(() => {
     if (!mounted) return;
     const msgs = activeThread?.messages ?? [];
+
     if (msgs.length === 0) {
       setAnalysis(null);
+      lastAnalysisKeyRef.current = null;
       return;
     }
+
+    const last = msgs[msgs.length - 1];
+
+    // ✅ Key idea: only run analysis when the *user* has just spoken.
+    // This avoids the "double-trigger" (user message → assistant message) that can
+    // cause aborted signals even though the server returns 200 OK.
+    if (!last || last.role !== "user") return;
+
+    const key = [
+      String((last as any)?.id ?? ""),
+      String((last as any)?.createdAt ?? ""),
+      String((last as any)?.content ?? "").slice(0, 120),
+      `len=${msgs.length}`,
+    ].join("|");
+
+    if (lastAnalysisKeyRef.current === key) return;
+    lastAnalysisKeyRef.current = key;
 
     let cancelled = false;
     (async () => {
@@ -819,6 +841,7 @@ export default function ChatPage() {
           msgs,
           10,
         )) as AnalysisResult | null;
+
         if (!cancelled) {
           setAnalysis(res);
           console.log("[imotara] analysis:", res?.summary?.headline, res);

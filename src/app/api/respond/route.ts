@@ -276,6 +276,15 @@ function detectReplyIntent(message: string): "emotional" | "practical" {
     .toLowerCase()
     .trim();
 
+  // Capability / feature questions should not be treated as low-signal emotional.
+  if (
+    /\b(what can you do|what do you do|how can you help|how do you help|help me with|your features|what are you capable of)\b/.test(
+      t,
+    )
+  ) {
+    return "practical";
+  }
+
   // Basic human needs belong to the companion lane (warm + continuous),
   // not "task/problem-solving" mode.
   if (
@@ -339,9 +348,32 @@ export async function POST(req: Request) {
   const message =
     typeof rawMessage === "string" ? rawMessage : String(rawMessage ?? "");
 
+  // ✅ Conversation closure intent: user is pausing / ending the chat (walk / talk later / bye)
+  const normalizedMsg = String(message ?? "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // ✅ Strict closure detection: only trigger on clear pause/exit phrases (word-boundary safe)
+  const closurePattern =
+    /\b(bye|good\s*night|goodnight|gn|brb|ttyl|see\s+you|talk\s+later|chat\s+later|catch\s+you|going\s+for\s+a\s+walk|go\s+for\s+a\s+walk|going\s+out|i\s*(?:am|’m|'m)\s+going\s+for\s+a\s+walk|i\s*(?:am|’m|'m)\s+back\s+later|i\s+will\s+talk\s+later|i\s+will\s+chat\s+later)\b/;
+
+  const isClosureIntent =
+    normalizedMsg.length > 0 &&
+    normalizedMsg.length <= 80 && // prevent accidental triggers on long messages
+    closurePattern.test(normalizedMsg);
+
   const PROD = process.env.NODE_ENV === "production";
   const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
 
+  if (qa && SHOULD_LOG) {
+    console.warn("[CLOSURE_DEBUG]", {
+      normalizedMsg,
+      isClosureIntent,
+      rawMessage: message.slice(0, 100),
+    });
+  }
   // QA-only (dev) log: never log full user content in production
   if (qa && SHOULD_LOG) {
     console.warn("[QA] /api/respond message:", message.slice(0, 200));
@@ -540,6 +572,19 @@ export async function POST(req: Request) {
   const bridgeTone = inferBridgeTone(message, toneContext);
   const bridgeDirective = buildBridgeDirectiveForTone(bridgeTone);
 
+  // ✅ Closure directive: if user is pausing, do a warm send-off and DO NOT ask questions.
+  const closureDirective = isClosureIntent
+    ? [
+        "🚫 CLOSURE MODE: User is leaving/pausing (e.g., going for a walk, will talk later, going out).",
+        "ABSOLUTE RULE: Do NOT end with ANY question mark, question word, or open-ended prompt.",
+        "ABSOLUTE RULE: Do NOT use phrases like 'what if', 'have you considered', 'let me know', 'feel free to', or any call-to-action.",
+        "RESPONSE TEMPLATE: Acknowledge their message → add one warm/encouraging statement → gentle send-off ('I'll be here when you get back' or similar).",
+        "TONE: Warm, supportive, brief. 1–2 sentences maximum. End with a period or exclamation mark.",
+        "EXAMPLES OF WHAT NOT TO DO: 'Talk to you later! What will you do on your walk?' or 'See you soon—let me know how it goes!' or 'Enjoy your time—anything you want to talk about first?'",
+        "EXAMPLES OF WHAT TO DO: 'Enjoy your walk! I'll be here whenever you're back.' or 'Take care—I'm right here for you.' or 'Have a great time out. See you soon!'",
+      ].join("\n")
+    : "";
+
   // Add a generationSalt field for downstream (safe even if ignored)
   const generationSalt = `rid:${requestId}`;
 
@@ -553,7 +598,7 @@ export async function POST(req: Request) {
 
       // ✅ language fields (safe even if downstream ignores)
       preferredLanguage,
-      languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${anchorPhraseDirective}\n${bridgeDirective}`,
+      languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${anchorPhraseDirective}\n${bridgeDirective}${closureDirective ? `\n${closureDirective}` : ""}`,
 
       // ✅ new: request-scoped variation helpers (safe if ignored)
       requestId,
@@ -788,6 +833,12 @@ export async function POST(req: Request) {
     (result as any).reflectionSeed = null;
   }
 
+  // ✅ Closure rule: if the user is pausing/ending, never send a follow-up question
+  if (isClosureIntent) {
+    (result as any).followUp = "";
+    (result as any).reflectionSeed = null;
+  }
+
   // ✅ Mobile renders replyText. Ensure replyText is ALWAYS present (and consistent with message).
   const rawText = String(
     (result as any)?.replyText ??
@@ -812,23 +863,101 @@ export async function POST(req: Request) {
         raw: rawText,
         userMessage: message,
 
-        // ✅ model-generated Phase 3 (no hardcoded bridge bank)
-        externalBridge,
+        // 🚫 If closure, do NOT allow formatter to add bridge
+        externalBridge: isClosureIntent ? undefined : externalBridge,
 
         lang: preferredLanguage ?? "en",
         tone: deriveFormatterTone(toneContext),
         intent: detectedIntent,
+
         seed: `${requestId}|${userId}|${preferredLanguage ?? "en"}|${message.slice(0, 80)}`,
+
+        // 🔐 New flag for formatter (safe if ignored in older versions)
+        disableBridge: isClosureIntent,
       })
     : "";
 
   const finalText = (formattedText || rawText).trim();
 
-  if (finalText) {
-    (result as any).replyText = finalText;
-    (result as any).message = finalText;
+  // ✅ Final enforcement: closure replies must not contain questions (even after formatting).
+  const stripQuestions = (t: string): string => {
+    let cleaned = t;
+
+    // Remove sentences that are questions (end with ?)
+    cleaned = cleaned
+      .split(/(?<=[.!?])\s+/)
+      .filter((s) => !s.trim().endsWith("?"))
+      .join(" ")
+      .trim();
+
+    // Remove sentences that start with question words
+    cleaned = cleaned
+      .split(/(?<=[.!?])\s+/)
+      .filter(
+        (s) =>
+          !/^\s*(what|which|how|why|when|where|who|can you|could you|would you|do you|does|did|are you|is|have you|has)\b/i.test(
+            s,
+          ),
+      )
+      .join(" ")
+      .trim();
+
+    // If we end up with nothing or just punctuation, keep first sentence
+    if (!cleaned || cleaned.length < 3) {
+      const parts = t
+        .split(/(?<=[.!?])\s+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      return (parts.length ? parts[0] : "").replace(/[?]+$/, ".").trim();
+    }
+
+    return cleaned;
+  };
+
+  const finalTextNoQ = isClosureIntent ? stripQuestions(finalText) : finalText;
+
+  if (qa && SHOULD_LOG && isClosureIntent) {
+    console.warn("[CLOSURE_REPLY_DEBUG]", {
+      isClosureIntent,
+      beforeStrip: finalText.slice(0, 150),
+      afterStrip: finalTextNoQ.slice(0, 150),
+      hasQuestion: /[?]/.test(finalTextNoQ),
+    });
+  }
+
+  if (finalTextNoQ) {
+    (result as any).replyText = finalTextNoQ;
+    (result as any).message = finalTextNoQ;
     if (typeof (result as any).reply === "string") {
-      (result as any).reply = finalText;
+      (result as any).reply = finalTextNoQ;
+    }
+  }
+
+  // ✅ Populate followUp if empty (unless closure):
+  // Prefer last question; otherwise use last short "bridge" paragraph/line.
+  if (!isClosureIntent) {
+    const existingFollowUp = String((result as any)?.followUp ?? "").trim();
+
+    if (!existingFollowUp) {
+      // 1) Prefer last question sentence if present
+      const qs = finalTextNoQ.match(/[^?]*\?/g);
+      if (qs && qs.length > 0) {
+        const lastQ = qs[qs.length - 1].trim();
+        if (lastQ) (result as any).followUp = lastQ;
+      } else {
+        // 2) Otherwise: pick last paragraph/line as a gentle bridge (non-question)
+        const parts = String(finalTextNoQ)
+          .split(/\n\s*\n/) // paragraph breaks
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        const last = parts.length ? parts[parts.length - 1] : "";
+
+        // Only set if it's reasonably short (avoid copying whole reply)
+        if (last && last.length <= 160) {
+          (result as any).followUp = last;
+        }
+      }
     }
   }
 
@@ -854,9 +983,25 @@ export async function POST(req: Request) {
               debugText: {
                 detectedIntent,
                 userMessage: message,
+
+                // closure proof
+                normalizedMsg,
+                isClosureIntent,
+
+                // text proof
                 rawText,
                 formattedText,
                 finalText,
+                finalTextNoQ: isClosureIntent
+                  ? stripQuestions(finalText)
+                  : finalText,
+
+                // what we actually returned in result fields
+                returned: {
+                  replyText: String((result as any)?.replyText ?? ""),
+                  message: String((result as any)?.message ?? ""),
+                  reply: String((result as any)?.reply ?? ""),
+                },
               },
             }
           : {}),

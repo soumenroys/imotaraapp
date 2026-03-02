@@ -33,6 +33,12 @@ export type FormatReplyInput = {
    */
   externalBridge?: string;
 
+  /**
+   * If true, formatter must NOT append Phase 3 (no conversational bridge).
+   * Used for "closure / pause" states like: "I'll talk later", "going for a walk".
+   */
+  disableBridge?: boolean;
+
   lang?: string;
   tone?: ImotaraPersonaTone;
   seed?: string;
@@ -313,9 +319,9 @@ function practicalBridgeBank(
 ): readonly string[] {
   const closeFriend = {
     en: [
-      "What’s the next tiny step—should we start with the file name or the exact error log?",
+      "What’s the next tiny step—what have you tried so far?",
       "Tell me what you want to achieve in one line, and we’ll pick the smallest next action.",
-      "Share the current output + expected output, and I’ll guide the next step.",
+      "If you share a bit of context, I’ll help you choose the next small move.",
     ],
     hi: [
       "अगला छोटा कदम क्या हो — file name से शुरू करें या exact error log से?",
@@ -373,7 +379,7 @@ function practicalBridgeBank(
     en: [
       "Let’s do this gently: what’s the one concrete thing you want done next?",
       "What’s your smallest acceptable outcome for the next 10 minutes?",
-      "Share the file path + the failing line, and we’ll fix it step by step.",
+      "If you tell me where you feel stuck, we’ll take one steady step together.",
     ],
     hi: [
       "धीरे-धीरे करेंगे: अभी अगला एक concrete काम क्या करना है?",
@@ -703,6 +709,26 @@ export function formatImotaraReply(input: FormatReplyInput): string {
       .map((x) => x.trim())
       .filter(Boolean);
   };
+
+  // ✅ Closure mode: no Phase 3, no questions, keep it short.
+  if (input.disableBridge) {
+    const phase1 = ensureEndsLikeSentence(reaction);
+
+    // Use the already-prepared insight (greeting-safe, robotic markers stripped above).
+    let phase2Raw = String(insight ?? "").trim();
+
+    // Remove any questions entirely in closure mode.
+    phase2Raw = phase2Raw.replace(questionRe, endPunct);
+
+    // Keep it short: at most 2 sentences for the insight.
+    const sents = splitIntoSentences(phase2Raw);
+    const shortInsight =
+      sents.length > 0 ? sents.slice(0, 2).join(`${endPunct} `) : phase2Raw;
+
+    const phase2 = ensureEndsLikeSentence(shortInsight);
+
+    return `${phase1} ${phase2}`.trim();
+  }
 
   const looksLikeBridgeLine = (s: string): boolean => {
     const t = (s ?? "").trim().toLowerCase();

@@ -172,13 +172,15 @@ function recentlyAsked(ctx: SessionContext, needle: string): boolean {
   return assistantText.includes(needle.toLowerCase());
 }
 
-function getPreviousUserTurn(
+function getRecentUserTurns(
   ctx: SessionContext,
   currentMsg: string,
-): string | null {
+  maxTurns: number,
+): string[] {
   const recent = Array.isArray(ctx?.recent) ? ctx.recent : [];
   const cur = oneLine(currentMsg).toLowerCase();
 
+  const out: string[] = [];
   for (let i = recent.length - 1; i >= 0; i--) {
     const m = recent[i];
     if (m?.role !== "user") continue;
@@ -186,12 +188,41 @@ function getPreviousUserTurn(
     const prev = oneLine(m.content ?? "");
     if (!prev) continue;
 
-    // Avoid echoing the same message (common in your language-switch test)
+    // Avoid echoing the same message (common in language-switch / resend cases)
     if (prev.toLowerCase() === cur) continue;
 
-    return cap(prev, 80);
+    out.push(cap(prev, 80));
+    if (out.length >= maxTurns) break;
   }
-  return null;
+  return out;
+}
+
+function getContextUserTurn(
+  ctx: SessionContext,
+  currentMsg: string,
+  maxTurns = 3,
+): string | null {
+  const turns = getRecentUserTurns(ctx, currentMsg, maxTurns);
+  if (!turns.length) return null;
+
+  // Pick the most relevant of the last N user turns using keyword overlap.
+  const curTokens = new Set(tokenizeLite(currentMsg));
+  let best = turns[0]!;
+  let bestScore = -1;
+
+  for (const t of turns) {
+    const toks = tokenizeLite(t);
+    let score = 0;
+    for (const w of toks) if (curTokens.has(w)) score++;
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = t;
+    }
+  }
+
+  // If nothing overlaps, still return the most recent (turns[0])
+  return best;
 }
 
 // Only add a continuity anchor when the user message looks like a follow-up.
@@ -544,7 +575,7 @@ function draftResponseForLanguage(
               ? `আমি বুঝতে পারছি, ${name}.`
               : "আমি বুঝতে পারছি.";
 
-  const prev = getPreviousUserTurn(ctx, msg);
+  const prev = getContextUserTurn(ctx, msg, 3);
   const useAnchor =
     !!prev && shouldUseContinuityAnchor(msg) && sharesKeyword(msg, prev);
   const openerWithContext = useAnchor
@@ -741,17 +772,75 @@ function draftResponse(
       });
     };
 
+    // Style ID = "emotional pattern family" (prevents semantic repetition like
+    // "Got you" / "I got you" / "I've got you" across turns).
+    const openerStyleId = (opener: string): string => {
+      const o = normalizeForOpenerMatch(opener);
+
+      if (
+        o.includes("got you") ||
+        o.includes("i got you") ||
+        o.includes("i’ve got you") ||
+        o.includes("i've got you")
+      ) {
+        return "got_you";
+      }
+      if (
+        o.includes("i’m here") ||
+        o.includes("i'm here") ||
+        o.includes("right here")
+      ) {
+        return "here";
+      }
+      if (o.includes("i’m with you") || o.includes("i'm with you")) {
+        return "with_you";
+      }
+      if (o.includes("i’m listening") || o.includes("i'm listening")) {
+        return "listening";
+      }
+      if (
+        o.startsWith("okay") ||
+        o.startsWith("alright") ||
+        o.includes("one step at a time")
+      ) {
+        return "okay";
+      }
+      if (o.startsWith("hey") || o.startsWith("hi") || o.startsWith("hello")) {
+        return "hello";
+      }
+      return "other";
+    };
+
+    const wasStyleUsedRecently = (styleId: string): boolean => {
+      const recent = (ctx?.recent ?? [])
+        .filter((m) => m.role === "assistant")
+        .slice(-maxTurns);
+
+      return recent.some((m) => {
+        const content = normalizeForOpenerMatch(String(m?.content ?? ""));
+        // Check only the beginning of the assistant message for opener pattern
+        // (avoid false positives deep inside the text).
+        const head = content.slice(0, 80);
+        return openerStyleId(head) === styleId;
+      });
+    };
+
     const pickFromNoRepeat = <T extends string>(items: readonly T[]): T => {
       if (items.length === 0) return "" as T;
       const start = h % items.length;
 
-      // Try to avoid repeating the same opener within a small recent window.
       for (let i = 0; i < items.length; i++) {
         const cand = items[(start + i) % items.length]!;
-        if (!wasOpenerUsedRecently(cand)) return cand;
+        const style = openerStyleId(cand);
+
+        // First preference: avoid same exact opener AND avoid same style family.
+        if (!wasOpenerUsedRecently(cand) && !wasStyleUsedRecently(style))
+          return cand;
+
+        // Second preference: if exact is repeated but style is fresh, still allow.
+        if (!wasStyleUsedRecently(style)) return cand;
       }
 
-      // If everything was recently used, fall back to deterministic pick.
       return items[start]!;
     };
 
@@ -780,7 +869,7 @@ function draftResponse(
   const opener = pickOpener(ctx, rel, name ?? undefined, msg);
 
   // ✅ Continuity: gently anchor to the last user turn (when available)
-  const prev = getPreviousUserTurn(ctx, msg);
+  const prev = getContextUserTurn(ctx, msg, 3);
   const useAnchor =
     !!prev && shouldUseContinuityAnchor(msg) && sharesKeyword(msg, prev);
   const openerWithContext = useAnchor
@@ -1067,11 +1156,9 @@ function draftResponse(
   // Keep it inside meta so we don't break ImotaraResponse typing
   (meta as any).emotion = emotion;
 
-  const greetingOnly = isGreetingOnly(msg);
-
   return {
-    // ✅ For "hi"/greetings: no structured reflection prompt (keeps it human)
-    reflectionSeed: greetingOnly ? undefined : makeReflectionSeed(msg),
+    // ✅ Disable ReflectionSeed entirely (no card, no structured prompt)
+    reflectionSeed: undefined,
     message: cap(enforcedMessage.adjustedText, 240),
     followUp: cap(enforcedFollowUp.adjustedText, 200),
     meta,

@@ -504,6 +504,19 @@ function isGreetingOnly(msg: string): boolean {
   return greetings.has(cleaned);
 }
 
+function isReturnOnly(msg: string): boolean {
+  const t = (msg ?? "").trim().toLowerCase();
+  if (!t) return false;
+
+  const cleaned = t.replace(/[!.,?？۔۔🙏🙂😊👋]+/g, "").trim();
+
+  return (
+    /\b(i\s*(?:am|’m|'m)\s+back|im\s+back|back\s+now|i\s*(?:am|’m|'m)\s+here\s+again|here\s+again|i\s+returned)\b/.test(
+      cleaned,
+    ) || cleaned === "im back"
+  );
+}
+
 function greetingInsightBank(
   lang: string,
   tone: ImotaraPersonaTone,
@@ -645,20 +658,31 @@ export function formatImotaraReply(input: FormatReplyInput): string {
 
   const userMsg = input.userMessage ?? "";
 
-  // --- Greeting mode: make “hi” feel human ---
+  const isReturn = isReturnOnly(userMsg);
+
   const greeting = isGreetingOnly(userMsg);
 
-  if (greeting) {
-    // Phase 2 becomes a friendly presence line, Phase 3 becomes the only question
-    bridges = greetingBridgeBank(lang, tone);
-  } else if (input.intent === "practical") {
-    bridges = practicalBridgeBank(lang, tone);
-  } else if (userAsksForSuggestion(userMsg)) {
-    bridges = suggestionBridgeBank(lang);
+  // --- Return mode: user came back; keep it “what now?” and stop extra probing ---
+  if (isReturn) {
+    bridges = [
+      "What do you want to do right now?",
+      "What should we pick up first?",
+      "What’s the first thing you want from me right now?",
+    ] as const;
   } else {
-    bridges = useStatementBridge
-      ? bridgeStatementBank(lang, tone)
-      : bridgeBank(lang, tone);
+    // --- Greeting mode: make “hi” feel human ---
+
+    if (greeting) {
+      bridges = greetingBridgeBank(lang, tone);
+    } else if (input.intent === "practical") {
+      bridges = practicalBridgeBank(lang, tone);
+    } else if (userAsksForSuggestion(userMsg)) {
+      bridges = suggestionBridgeBank(lang);
+    } else {
+      bridges = useStatementBridge
+        ? bridgeStatementBank(lang, tone)
+        : bridgeBank(lang, tone);
+    }
   }
 
   const bridgeRaw =

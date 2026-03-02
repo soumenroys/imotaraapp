@@ -960,28 +960,43 @@ export async function POST(req: Request) {
     }
   }
 
-  // ✅ Populate followUp if empty (unless closure):
-  // Prefer last question; otherwise use last short "bridge" paragraph/line.
-  if (!isClosureIntent) {
-    const existingFollowUp = String((result as any)?.followUp ?? "").trim();
+  // ✅ FollowUp normalization:
+  // - Closure: never followUp.
+  // - Return: never followUp (the return reply already contains the single allowed question).
+  // - Otherwise: if model provided a followUp but it doesn't match the final message, drop it.
+  //   Then (only if empty) derive a followUp from finalTextNoQ.
+  if (isClosureIntent || isReturnIntent) {
+    (result as any).followUp = "";
+    (result as any).reflectionSeed = null;
+  } else {
+    const finalHasQuestion = /[?؟？]/.test(finalTextNoQ);
 
-    if (!existingFollowUp) {
-      // 1) Prefer last question sentence if present
-      const qs = finalTextNoQ.match(/[^?]*\?/g);
-      if (qs && qs.length > 0) {
-        const lastQ = qs[qs.length - 1].trim();
+    // If model followUp exists but it's not actually present in the final rendered text,
+    // clear it to avoid stale/robotic carry-over lines.
+    const existingFollowUp = String((result as any)?.followUp ?? "").trim();
+    if (existingFollowUp && !finalTextNoQ.includes(existingFollowUp)) {
+      (result as any).followUp = "";
+    }
+
+    // If still empty, derive it from the final formatted text.
+    const nowFollowUp = String((result as any)?.followUp ?? "").trim();
+    if (!nowFollowUp) {
+      if (finalHasQuestion) {
+        // pick the last question sentence (handles newlines too)
+        const qs = finalTextNoQ.match(/[^?؟？]*[?؟？]/g);
+        const lastQ = (qs && qs.length ? qs[qs.length - 1] : "")?.trim();
         if (lastQ) (result as any).followUp = lastQ;
       } else {
-        // 2) Otherwise: pick last paragraph/line as a gentle bridge (non-question)
+        // otherwise: last short paragraph/line as a gentle bridge (non-question)
         const parts = String(finalTextNoQ)
-          .split(/\n\s*\n/) // paragraph breaks
+          .split(/\n\s*\n/)
           .map((s) => s.trim())
           .filter(Boolean);
 
         const last = parts.length ? parts[parts.length - 1] : "";
 
-        // Only set if it's reasonably short (avoid copying whole reply)
-        if (last && last.length <= 160) {
+        // Only set if it's reasonably short and not the whole message
+        if (last && last.length <= 160 && last !== finalTextNoQ) {
           (result as any).followUp = last;
         }
       }

@@ -364,6 +364,16 @@ export async function POST(req: Request) {
     normalizedMsg.length <= 80 && // prevent accidental triggers on long messages
     closurePattern.test(normalizedMsg);
 
+  // ✅ Return / Resume intent (user came back after a pause)
+  const returnPattern =
+    /\b(i\s*(?:am|’m|'m)\s+back|im\s+back|back\s+now|i\s*(?:am|’m|'m)\s+here\s+again|here\s+again|i\s+returned)\b/;
+
+  const isReturnIntent =
+    !isClosureIntent &&
+    normalizedMsg.length > 0 &&
+    normalizedMsg.length <= 80 &&
+    returnPattern.test(normalizedMsg);
+
   const PROD = process.env.NODE_ENV === "production";
   const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
 
@@ -371,6 +381,7 @@ export async function POST(req: Request) {
     console.warn("[CLOSURE_DEBUG]", {
       normalizedMsg,
       isClosureIntent,
+      isReturnIntent,
       rawMessage: message.slice(0, 100),
     });
   }
@@ -572,6 +583,17 @@ export async function POST(req: Request) {
   const bridgeTone = inferBridgeTone(message, toneContext);
   const bridgeDirective = buildBridgeDirectiveForTone(bridgeTone);
 
+  // ✅ Return mode directive (user is back; do "welcome back + what now", not probing)
+  const returnDirective = isReturnIntent
+    ? [
+        "RETURN MODE: The user is back after a pause.",
+        "Reply like a close friend: quick welcome-back, then a simple 'what now?' orientation.",
+        "Do NOT ask them to explain feelings or 'describe one small piece' unless they shared an issue.",
+        "Ask at most ONE short question (e.g., 'What do you want to do right now?').",
+        "Keep it natural and warm (2–4 lines).",
+      ].join("\n")
+    : "";
+
   // ✅ Closure directive: if user is pausing, do a warm send-off and DO NOT ask questions.
   const closureDirective = isClosureIntent
     ? [
@@ -598,7 +620,7 @@ export async function POST(req: Request) {
 
       // ✅ language fields (safe even if downstream ignores)
       preferredLanguage,
-      languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${anchorPhraseDirective}\n${bridgeDirective}${closureDirective ? `\n${closureDirective}` : ""}`,
+      languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${anchorPhraseDirective}\n${bridgeDirective}\n${returnDirective ? `\n${returnDirective}` : ""}\n${closureDirective ? `\n${closureDirective}` : ""}`,
 
       // ✅ new: request-scoped variation helpers (safe if ignored)
       requestId,
@@ -848,7 +870,9 @@ export async function POST(req: Request) {
   ).trim();
 
   // Decide intent once (avoid drift between formatter + debug)
-  const detectedIntent = detectReplyIntent(message);
+  const detectedIntent = isReturnIntent
+    ? "practical"
+    : detectReplyIntent(message);
 
   const externalBridge =
     typeof (result as any)?.followUp === "string"
@@ -867,13 +891,16 @@ export async function POST(req: Request) {
         externalBridge: isClosureIntent ? undefined : externalBridge,
 
         lang: preferredLanguage ?? "en",
-        tone: deriveFormatterTone(toneContext),
+        tone: isReturnIntent
+          ? "close_friend"
+          : deriveFormatterTone(toneContext),
         intent: detectedIntent,
 
         seed: `${requestId}|${userId}|${preferredLanguage ?? "en"}|${message.slice(0, 80)}`,
 
         // 🔐 New flag for formatter (safe if ignored in older versions)
         disableBridge: isClosureIntent,
+        mode: isReturnIntent ? "return" : undefined,
       })
     : "";
 

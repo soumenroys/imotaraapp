@@ -43,6 +43,7 @@ export type FormatReplyInput = {
   tone?: ImotaraPersonaTone;
   seed?: string;
   intent?: "emotional" | "practical";
+  mode?: "return";
 };
 
 function hash32(s: string): number {
@@ -606,6 +607,25 @@ function greetingBridgeBank(
 export function formatImotaraReply(input: FormatReplyInput): string {
   const lang = normalizeLang(input.lang);
   const tone: ImotaraPersonaTone = input.tone ?? "close_friend";
+
+  // ✅ RETURN MODE (user came back after pause)
+  if (input.mode === "return") {
+    const endPunct =
+      lang === "ur"
+        ? "۔"
+        : ["hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa"].includes(lang)
+          ? "।"
+          : ".";
+
+    const lines =
+      lang === "hi"
+        ? ["अरे, वापस आ गए।", "अब क्या करना है?"]
+        : lang === "bn"
+          ? ["ওহ, তুমি ফিরে এসেছো।", "এখন কী করতে চাও?"]
+          : ["Oh — you’re back.", "What do you want to do right now?"];
+
+    return lines.join("\n");
+  }
 
   const seed = (input.seed ?? "").trim() || "imotara";
   const h = hash32(`${lang}|${tone}|${seed}`);

@@ -2070,6 +2070,23 @@ function Bubble({
         ? "local-fallback"
         : "unknown";
 
+  // ✅ Avoid duplicate rendering:
+  // Sometimes `content` already contains the same followUp line (because we now use it as the bridge).
+  // In that case, don't render followUp separately in the bubble.
+  const normForFollowUp = (s: string): string =>
+    String(s ?? "")
+      .replace(/\.\.\./g, "…")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s\.!?؟؟…]+$/g, "");
+
+  const fuNorm = normForFollowUp(followUp?.trim() ?? "");
+  const contentNorm = normForFollowUp(content ?? "");
+
+  const shouldShowFollowUp =
+    role === "assistant" && fuNorm.length > 0 && !contentNorm.includes(fuNorm);
+
   return (
     <div
       ref={attachRef}
@@ -2095,8 +2112,10 @@ function Bubble({
         <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
           {content}
         </div>
-        {role === "assistant" && followUp?.trim() ? (
-          <div className="mt-2 text-sm text-zinc-200/90">{followUp.trim()}</div>
+        {shouldShowFollowUp ? (
+          <div className="mt-2 text-sm text-zinc-200/90">
+            {followUp!.trim()}
+          </div>
         ) : null}
 
         <div

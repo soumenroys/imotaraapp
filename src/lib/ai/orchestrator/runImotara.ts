@@ -51,11 +51,80 @@ function inferBlueprintTone(userMessage: string): ResponseTone {
     return "coach";
   }
 
+  // Bodily needs / immediate physical state → practical
+  // (Important: check this BEFORE burnout/tired, otherwise "tired" steals it.)
+  //
+  // Normalize (Unicode-safe): keep letters/numbers across languages, remove punctuation/emoji noise.
+  const n = s
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const has = (...terms: string[]) => terms.some((t) => n.includes(t));
+  const re = (r: RegExp) => r.test(n);
+
+  if (
+    // English keywords
+    has(
+      "hungry",
+      "hunger",
+      "food",
+      "eat",
+      "meal",
+      "dinner",
+      "lunch",
+      "breakfast",
+      "snack",
+      "thirsty",
+      "water",
+      "drink",
+      "sleepy",
+      "need sleep",
+      "cant sleep",
+      "can't sleep",
+      "insomnia",
+      "headache",
+      "fever",
+      "pain",
+      "stomach",
+      "nausea",
+    ) ||
+    // Short intent patterns (helps: "i want food now", "need to eat", etc.)
+    re(
+      /\b(want|need|craving)\s+(some\s+)?(food|to\s+eat|eat|water|to\s+drink|drink|sleep)\b/i,
+    ) ||
+    re(/\b(can('|)t|cannot)\s+sleep\b/i) ||
+    // Common Indian-language romanizations (minimal but high-impact)
+    has(
+      // Hindi
+      "bhook",
+      "bhuk",
+      "bhookh",
+      "pyaas",
+      "pyas",
+      "pyasa",
+      "pani",
+      "neend",
+      "nind",
+      // Bengali (romanized)
+      "khida",
+      "khida lagche",
+      "khida lagse",
+      "piyas",
+      "jol",
+      "ghum",
+      "ghum pachhe na",
+      "ghum hocche na",
+    )
+  ) {
+    return "practical";
+  }
+
   // Burnout / shutdown → supportive
   if (
     s.includes("burnout") ||
     s.includes("exhaust") ||
-    s.includes("tired") ||
+    s.includes("tired of everything") ||
     s.includes("drained") ||
     s.includes("empty") ||
     s.includes("numb") ||

@@ -777,7 +777,52 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     }
   }
 
-  let out = `${phase1} ${phase2}\n\n${phase3}`.trim();
+  // ✅ Dedupe: if Phase 2 already ends with the same bridge line, don't append it again.
+  const normForDedupe = (s: string): string =>
+    String(s ?? "")
+      .replace(/\.\.\./g, "…")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase()
+      // ignore trailing punctuation differences
+      .replace(/[\s\.!?؟؟…]+$/g, "");
+
+  const phase3Norm = normForDedupe(phase3);
+  const lastPhase2SentenceNorm = normForDedupe(
+    splitIntoSentences(phase2Raw).slice(-1)[0] ?? "",
+  );
+
+  const includePhase3 =
+    phase3Norm.length > 0 && lastPhase2SentenceNorm !== phase3Norm;
+
+  let out = includePhase3
+    ? `${phase1} ${phase2}\n\n${phase3}`.trim()
+    : `${phase1} ${phase2}`.trim();
+
+  // ✅ De-dupe: collapse consecutive duplicate lines (works for model repeats + bridge repeats)
+  const normLine = (s: string): string =>
+    String(s ?? "")
+      .replace(/\.\.\./g, "…")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s\.!?؟؟…]+$/g, "");
+
+  out = out
+    .split("\n")
+    .reduce<string[]>((acc, line) => {
+      const cur = line ?? "";
+      if (acc.length === 0) return [cur];
+
+      const prev = acc[acc.length - 1] ?? "";
+      if (normLine(prev) === normLine(cur) && normLine(cur).length > 0) {
+        return acc; // skip duplicate
+      }
+      return [...acc, cur];
+    }, [])
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 
   // Global clamp: max 1 question mark in the final output.
   // NOTE: We now soften the contract for low-signal turns (so it feels less template-y),

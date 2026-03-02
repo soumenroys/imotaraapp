@@ -147,7 +147,10 @@ export const DEFAULT_RESPONSE_BLUEPRINT: ResponseBlueprint = {
 export const TONE_BLUEPRINT_OVERRIDES: Record<
   ResponseTone,
   Partial<
-    Pick<ResponseBlueprint, "structureLevel" | "goals" | "hardRules" | "flow">
+    Pick<
+      ResponseBlueprint,
+      "structureLevel" | "goals" | "hardRules" | "flow" | "reflectionSeedCard"
+    >
   >
 > = {
   calm: {},
@@ -176,6 +179,12 @@ export const TONE_BLUEPRINT_OVERRIDES: Record<
 
   practical: {
     structureLevel: 4,
+    // ✅ Practical turns should not show the reflection seed card.
+    // These are “do it now” contexts (food / rest / quick plan), so continuity matters more.
+    reflectionSeedCard: {
+      enabled: false,
+      maxPrompts: 1,
+    },
     goals: [
       "Turn emotion into clarity without flattening it.",
       "Offer one concrete next action that’s small and doable right now.",
@@ -273,6 +282,9 @@ export function getBlueprintForTone(
     ...b,
     tone,
     structureLevel: o.structureLevel ?? b.structureLevel,
+
+    reflectionSeedCard: o.reflectionSeedCard ?? b.reflectionSeedCard,
+
     goals: o.goals ?? b.goals,
     hardRules: o.hardRules ?? b.hardRules,
     flow: o.flow ?? b.flow,

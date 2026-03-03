@@ -160,10 +160,8 @@ export async function callImotaraAI(
   const endpoint = `${baseUrl}/v1/responses`;
 
   try {
-    // For Responses API we can combine system + user into one input string.
-    const combinedInput =
-      systemPrompt + "\n\n" + "User has shared the following:\n\n" + prompt;
-
+    // ✅ Use structured input so the model cleanly separates "system" vs "user".
+    // This reduces repetitive template loops and improves continuity/intent-following.
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -177,7 +175,16 @@ export async function callImotaraAI(
       },
       body: JSON.stringify({
         model,
-        input: combinedInput,
+        input: [
+          {
+            role: "system",
+            content: [{ type: "text", text: systemPrompt }],
+          },
+          {
+            role: "user",
+            content: [{ type: "text", text: prompt }],
+          },
+        ],
         max_output_tokens: maxTokens,
         temperature,
       }),

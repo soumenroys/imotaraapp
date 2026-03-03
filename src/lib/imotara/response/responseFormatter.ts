@@ -27,6 +27,12 @@ export type FormatReplyInput = {
   userMessage?: string;
 
   /**
+   * Optional: last assistant message (for de-dup across turns).
+   * Safe to omit; formatter will behave as before.
+   */
+  prevAssistantText?: string;
+
+  /**
    * Optional: a model-generated bridge/handoff line (e.g., followUp).
    * If provided, formatter will use this as Phase 3 instead of selecting
    * from internal bridge banks (avoids hardcoded closers).
@@ -651,22 +657,26 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   }
 
   const seed = (input.seed ?? "").trim() || "imotara";
-  const h = hash32(`${lang}|${tone}|${seed}`);
-  const reactions = reactionBank(lang);
 
+  const userMsg = input.userMessage ?? "";
+  const userMsgOneLine = userMsg.trim().replace(/\s+/g, " ");
+  const rawOneLine = stripRoboticMarkers(input.raw ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 160);
+
+  // ✅ Important: include user message + raw snippet in the hash so bridge lines
+  // don't get stuck repeating the same Bengali closer every turn.
+  // (still deterministic, just not constant across turns)
+  const h = hash32(`${lang}|${tone}|${seed}|${userMsgOneLine}|${rawOneLine}`);
+
+  const reactions = reactionBank(lang);
   const reaction = reactions[h % reactions.length];
 
   // ✅ If insight already asks a question, Phase 3 becomes a non-question bridge line
   // to avoid two consecutive questions.
-  const useStatementBridge = insightAlreadyHasQuestion(
-    lang,
-    stripRoboticMarkers(input.raw),
-  );
+  const useStatementBridge = insightAlreadyHasQuestion(lang, input.raw ?? "");
   let bridges: readonly string[];
-
-  console.log("[imotara] intent detected =", input.intent);
-
-  const userMsg = input.userMessage ?? "";
 
   const isReturn = isReturnOnly(userMsg);
 
@@ -695,8 +705,23 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     }
   }
 
-  const bridgeRaw =
-    (input.externalBridge ?? "").trim() || bridges[h % bridges.length];
+  const external = (input.externalBridge ?? "").trim();
+
+  // deterministic base pick
+  let bIdx = h % bridges.length;
+
+  // ✅ No immediate repeat: if previous assistant ended with the same bridge, rotate once.
+  // Works only when caller provides prevAssistantText; otherwise behaves like before.
+  if (!external && bridges.length > 1) {
+    const prev = (input.prevAssistantText ?? "").trim();
+    const candidate = bridges[bIdx];
+
+    if (prev && prev.endsWith(candidate)) {
+      bIdx = (bIdx + 1) % bridges.length;
+    }
+  }
+
+  const bridgeRaw = external || bridges[bIdx];
 
   let insight = greeting
     ? greetingInsightBank(lang, tone)[

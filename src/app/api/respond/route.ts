@@ -14,6 +14,12 @@ import { formatImotaraReply } from "@/lib/imotara/response/responseFormatter";
 import type { ResponseTone } from "@/lib/ai/response/responseBlueprint";
 import { buildBridgeDirectiveForTone } from "@/lib/imotara/promptProfile";
 
+import {
+  EN_LANG_HINT_REGEX,
+  ROMAN_BN_LANG_HINT_REGEX,
+  ROMAN_HI_LANG_HINT_REGEX,
+} from "@/lib/emotion/keywordMaps";
+
 type LanguageCode =
   | "en"
   | "hi" // Hindi
@@ -114,7 +120,11 @@ function coerceLanguageCode(raw: unknown): LanguageCode | undefined {
 function derivePreferredLanguage(
   baseCtx: Record<string, unknown>,
   message: string,
-): { preferredLanguage?: LanguageCode; languageDirective: string } {
+): {
+  preferredLanguage?: LanguageCode;
+  strictLanguage?: LanguageCode;
+  languageDirective: string;
+} {
   // 1) Explicit (if any client already sends it)
   const explicit =
     coerceLanguageCode((baseCtx as any)?.preferredLanguage) ||
@@ -127,13 +137,22 @@ function derivePreferredLanguage(
     string,
     unknown
   >;
+
+  // ✅ "guess" is low-trust; never let it override real script evidence.
   const guess =
     coerceLanguageCode((hints as any)?.languageGuess) ||
     coerceLanguageCode((hints as any)?.navigatorLanguage);
 
   // 3) Script fallback (server-side safe)
   const t = String(message ?? "").trim();
-  const hasDevanagari = /[\u0900-\u097F]/.test(t); // Hindi/Marathi often
+
+  // ✅ IMPORTANT: Don't treat punctuation like "।" (U+0964) as "Hindi".
+  // Many Bengali users type "।", which lives in the Devanagari block.
+  // So we detect Devanagari LETTERS only (exclude danda + digits).
+  const hasDevanagariLetters = /[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(
+    t,
+  );
+
   const hasBengali = /[\u0980-\u09FF]/.test(t);
   const hasTamil = /[\u0B80-\u0BFF]/.test(t);
   const hasTelugu = /[\u0C00-\u0C7F]/.test(t);
@@ -142,10 +161,80 @@ function derivePreferredLanguage(
   const hasKannada = /[\u0C80-\u0CFF]/.test(t);
   const hasMalayalam = /[\u0D00-\u0D7F]/.test(t);
 
-  const scriptDerived: LanguageCode | undefined = hasDevanagari
-    ? "hi"
-    : hasBengali
-      ? "bn"
+  // ✅ English override (prevents continuity from breaking English messages)
+  // If the message is clearly English (Latin letters + common English words),
+  // and has no Bengali/Devanagari letters, treat it as English for this turn.
+  const hasBn = /[\u0980-\u09FF]/.test(t);
+  const hasHiLetters = /[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(t);
+
+  const latinLetters = (t.match(/[A-Za-z]/g) ?? []).length;
+  const totalLetters = (
+    t.match(/[A-Za-z\u0980-\u09FF\u0904-\u0939\u0958-\u0963\u0971-\u097F]/g) ??
+    []
+  ).length;
+
+  // ✅ Centralized language hint regex (single source of truth)
+  const countHits = (re: RegExp) =>
+    (t.match(new RegExp(re.source, "gi")) ?? []).length;
+
+  const englishWordHits = countHits(EN_LANG_HINT_REGEX);
+
+  // --- Romanized local-language detectors (from keywordMaps.ts)
+  const romanHiHits = countHits(ROMAN_HI_LANG_HINT_REGEX);
+  const romanBnHits = countHits(ROMAN_BN_LANG_HINT_REGEX);
+
+  const latinOnly = !hasBn && !hasHiLetters && totalLetters > 0;
+  const latinHeavy = latinOnly && latinLetters / totalLetters >= 0.8;
+
+  // ✅ Romanized Hindi/Bengali detected → force that language (native script output)
+  if (latinOnly) {
+    if (romanHiHits >= 2) {
+      return {
+        preferredLanguage: "hi",
+        strictLanguage: "hi",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Hindi (hi). Use Devanagari script. Do not mix languages.",
+      };
+    }
+    if (romanBnHits >= 2) {
+      return {
+        preferredLanguage: "bn",
+        strictLanguage: "bn",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Bengali (bn). Use Bengali script. Do not mix languages.",
+      };
+    }
+  }
+
+  // ✅ Clear English signal → strict English
+  const looksEnglish =
+    latinHeavy && englishWordHits >= 2 && romanHiHits < 2 && romanBnHits < 2;
+
+  if (looksEnglish) {
+    return {
+      preferredLanguage: "en",
+      strictLanguage: "en",
+      languageDirective:
+        "Language policy (strict): Reply ONLY in English (en). Do not mix languages.",
+    };
+  }
+
+  // ✅ SAFETY LOCK:
+  // If it's Latin-heavy and NOT romanized hi/bn, default to English anyway.
+  // This prevents continuity from dragging English prompts into Hindi.
+  if (latinHeavy && romanHiHits === 0 && romanBnHits === 0) {
+    return {
+      preferredLanguage: "en",
+      strictLanguage: "en",
+      languageDirective:
+        "Language policy (strict): Reply ONLY in English (en). Do not mix languages.",
+    };
+  }
+
+  const scriptDerived: LanguageCode | undefined = hasBengali
+    ? "bn"
+    : hasDevanagariLetters
+      ? "hi"
       : hasTamil
         ? "ta"
         : hasTelugu
@@ -160,16 +249,67 @@ function derivePreferredLanguage(
                   ? "ml"
                   : undefined;
 
-  const preferredLanguage = explicit ?? guess ?? scriptDerived;
+  // ✅ Priority: explicit > script > guess
+  // This permanently stops Bengali-script messages from being answered in Hindi
+  // just because navigatorLanguage is hi-IN.
+  const preferredLanguage = explicit ?? scriptDerived ?? guess;
 
-  // If the client explicitly set a preferred language (Settings/mobile), enforce it strictly.
-  // Otherwise, keep the softer "reply in user's language when clear" behavior.
-  const languageDirective = explicit
-    ? `Language policy (strict): Reply ONLY in ${LANGUAGE_NAME[explicit]} (${explicit}). Do not mix languages. Do not switch languages mid-reply. Do not transliterate unless the user asks.`
-    : preferredLanguage
-      ? `Language policy: Reply in the user's language when clear. If unclear or mixed, prefer ${LANGUAGE_NAME[preferredLanguage]} (${preferredLanguage}).`
+  console.log("[EXPLICIT]", explicit);
+
+  // ✅ Conversation continuity lock:
+  // If last assistant was clearly Bengali, keep Bengali unless user explicitly asks to switch.
+  const recent = ((baseCtx as any)?.recentMessages ?? []) as Array<any>;
+  let lastAssistantText = "";
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const m = recent[i];
+    if (m && String(m.role ?? "").toLowerCase() === "assistant") {
+      const t = String(m.content ?? m.text ?? "").trim();
+      if (t) {
+        lastAssistantText = t;
+        break;
+      }
+    }
+  }
+
+  const lastWasBn = /[\u0980-\u09FF]/.test(lastAssistantText);
+  const lastWasHi = /[\u0900-\u097F]/.test(lastAssistantText);
+
+  const userAskedSwitch =
+    /\b(english|in english|switch to english|বাংলা|bangla|bengali|hindi|हिंदी|in hindi|switch to hindi)\b/i.test(
+      String(message ?? ""),
+    );
+
+  // ✅ STRICT language lock priority:
+  // 1) current message script (highest confidence)
+  // 2) conversation continuity (if no switch intent)
+  // 3) explicit preference (settings)
+  // 4) none
+  const strictLang =
+    scriptDerived ??
+    (!userAskedSwitch
+      ? lastWasBn
+        ? "bn"
+        : lastWasHi
+          ? "hi"
+          : undefined
+      : undefined) ??
+    explicit;
+
+  // ✅ If we already decided a strict language (continuity/script), never leave preferredLanguage undefined.
+  // This keeps formatting + downstream behavior aligned and prevents en+hi mixing.
+  const effectivePreferred = preferredLanguage ?? strictLang;
+
+  const languageDirective = strictLang
+    ? `Language policy (strict): Reply ONLY in ${LANGUAGE_NAME[strictLang]} (${strictLang}). Do not mix languages. Do not switch languages mid-reply. Do not transliterate unless the user asks.`
+    : effectivePreferred
+      ? `Language policy: Reply in the user's language when clear. If unclear or mixed, prefer ${LANGUAGE_NAME[effectivePreferred]} (${effectivePreferred}).`
       : `Language policy: Reply in the user's language when clear. If unclear, default to English.`;
-  return { preferredLanguage, languageDirective };
+
+  return {
+    preferredLanguage: effectivePreferred,
+    strictLanguage: strictLang,
+    languageDirective,
+  };
 }
 
 function deriveFormatterTone(
@@ -405,8 +545,13 @@ export async function POST(req: Request) {
     languageCode: (body as any)?.languageCode ?? (baseCtx as any)?.languageCode,
     targetLanguage:
       (body as any)?.targetLanguage ?? (baseCtx as any)?.targetLanguage,
+
+    // ✅ Let server infer continuity from chat history (web/mobile parity)
+    recentMessages: (baseCtx as any)?.recentMessages ?? (body as any)?.inputs,
+
+    // ✅ IMPORTANT: request body must win over possibly-stale context
     languageHints:
-      (baseCtx as any)?.languageHints ?? (body as any)?.languageHints,
+      (body as any)?.languageHints ?? (baseCtx as any)?.languageHints,
   } as Record<string, unknown>;
 
   const toneContext = (body?.toneContext ??
@@ -543,10 +688,8 @@ export async function POST(req: Request) {
 
   const requestId = getRequestIdFromBody(body);
 
-  const { preferredLanguage, languageDirective } = derivePreferredLanguage(
-    langCtx,
-    message,
-  );
+  const { preferredLanguage, strictLanguage, languageDirective } =
+    derivePreferredLanguage(langCtx, message);
 
   // Keep debug logs out of production unless QA + dev
   if (qa && SHOULD_LOG) {
@@ -642,6 +785,7 @@ export async function POST(req: Request) {
     | undefined;
 
   const lastAssistantText = (() => {
+    // 1) Prefer baseCtx.recentMessages (web usually)
     const arr = Array.isArray(recentMessages) ? recentMessages : [];
     for (let i = arr.length - 1; i >= 0; i--) {
       const m = arr[i];
@@ -650,6 +794,20 @@ export async function POST(req: Request) {
         if (t) return t;
       }
     }
+
+    // 2) Fallback: body.inputs (mobile often)
+    const inputs = Array.isArray((body as any)?.inputs)
+      ? ((body as any).inputs as Array<any>)
+      : [];
+
+    for (let i = inputs.length - 1; i >= 0; i--) {
+      const x = inputs[i];
+      if (x && String(x.role ?? "").toLowerCase() === "assistant") {
+        const t = String(x.text ?? x.content ?? "").trim();
+        if (t) return t;
+      }
+    }
+
     return "";
   })();
 
@@ -679,21 +837,106 @@ export async function POST(req: Request) {
     // Only guarantee en/hi/bn here (matches current mobile language modes).
     // For other languages, fall back to English safely.
     const langBase: "en" | "hi" | "bn" =
-      preferredLanguage === "hi"
+      (strictLanguage ?? preferredLanguage) === "hi"
         ? "hi"
-        : preferredLanguage === "bn"
+        : (strictLanguage ?? preferredLanguage) === "bn"
           ? "bn"
           : "en";
 
-    const current = currentReplyText;
+    let current = currentReplyText;
+
+    // --- Bengali-specific guards ---
+    const bnAnchorRegex = /আমি আছি\s*[—–-]\s*সহজ করে এগোই[।.!]?\s*$/u;
+
+    const bnAnchorRepeated =
+      langBase === "bn" &&
+      !!lastAssistantText &&
+      bnAnchorRegex.test(lastAssistantText.trim()) &&
+      bnAnchorRegex.test(current.trim());
+
+    // Bengali expected, but model drifted into Devanagari (Hindi)
+    const bnHindiMismatch =
+      langBase === "bn" &&
+      /[\u0900-\u097F]/.test(current) &&
+      !/[\u0980-\u09FF]/.test(current);
+
+    // ✅ Bengali: repeated micro-step line de-dup
+    // "তাড়া নেই। এক ছোট পদক্ষেপ, তারপর আরেকটা।"
+    const bnStepLineRegex =
+      /তাড়া নেই[।.!]?\s*এক ছোট পদক্ষেপ, তারপর আরেকটা[।.!]?\s*$/u;
+
+    const bnStepLineRepeated =
+      langBase === "bn" &&
+      !!lastAssistantText &&
+      bnStepLineRegex.test(String(lastAssistantText).trim()) &&
+      bnStepLineRegex.test(current.trim());
 
     // Detect “template / duplicate / too-generic” replies.
-    // ✅ But instead of hardcoded replacement lines, we ask the model to regenerate with a strong rephrase directive.
     const isTooGeneric =
       current.length < 70 &&
-      /(got you|i['’]m with you|i hear you|tense or worried)/i.test(current);
+      /(got you|i[\'’]m with you|i hear you|tense or worried)/i.test(current);
 
-    const shouldHumanize = isDuplicate || looksLikeTemplate || isTooGeneric;
+    // ✅ Trigger humanize if Bengali drift or repeated Bengali anchor
+    const shouldHumanize =
+      isDuplicate ||
+      looksLikeTemplate ||
+      isTooGeneric ||
+      bnAnchorRepeated ||
+      bnStepLineRepeated ||
+      bnHindiMismatch;
+
+    // ✅ If ONLY the Bengali anchor is repeating (and rest is fine), just swap the ending locally
+    if (
+      !bnHindiMismatch &&
+      bnAnchorRepeated &&
+      !isDuplicate &&
+      !looksLikeTemplate &&
+      !isTooGeneric
+    ) {
+      const variants = [
+        "আমি আছি—ধীরে ধীরে এগোই।",
+        "আমি এখানেই আছি—একটা করে করি।",
+        "আমি আছি—ছোট ছোট করে এগোই।",
+        "আমি আছি—একটু থেমে তারপর চলি।",
+      ] as const;
+
+      const idx = stableIndex(
+        `${requestId}|bn-anchor|${message}|${current}`,
+        variants.length,
+      );
+      current = current.replace(bnAnchorRegex, variants[idx]);
+      (result as any).replyText = current;
+      (result as any).message = current;
+      if (typeof (result as any).reply === "string")
+        (result as any).reply = current;
+    }
+
+    // ✅ If ONLY the Bengali micro-step line is repeating, swap just that line locally
+    if (
+      !bnHindiMismatch &&
+      bnStepLineRepeated &&
+      !isDuplicate &&
+      !looksLikeTemplate &&
+      !isTooGeneric
+    ) {
+      const variants = [
+        "তাড়া নেই—একটু করে এগোই।",
+        "ধীরে ধীরে—একটা করে করি।",
+        "চাপ নেই—আজ শুধু ছোট্ট একটা পদক্ষেপ।",
+        "আমি আছি—এখন একদম ছোট করে শুরু করি।",
+      ] as const;
+
+      const idx = stableIndex(
+        `${requestId}|bn-step|${message}|${current}`,
+        variants.length,
+      );
+
+      current = current.replace(bnStepLineRegex, variants[idx]);
+      (result as any).replyText = current;
+      (result as any).message = current;
+      if (typeof (result as any).reply === "string")
+        (result as any).reply = current;
+    }
 
     if (shouldHumanize) {
       const retryDirective =
@@ -701,6 +944,11 @@ export async function POST(req: Request) {
           "RETRY_REPHRASE:",
           "Rewrite your reply with fresh wording and a more human, spontaneous feel.",
           "Do NOT reuse any full sentence from your previous reply.",
+          ...(langBase === "bn"
+            ? [
+                "Language fix (strict): Reply ONLY in Bengali (bn). Do not use Hindi/Devanagari. Do not mix languages.",
+              ]
+            : []),
           "Avoid template phrases like: 'Got you', 'I'm with you in this', 'We can go gentle'.",
           "Keep it soft, permission-based, and collaborative ('we' tone).",
           "Follow the 3-phase structure: (1) brief human reaction, (2) real insight, (3) gentle bridge.",
@@ -882,15 +1130,46 @@ export async function POST(req: Request) {
   // ✅ PERMANENT ARCHITECTURE GATE:
   // Force EVERY cloud reply into the Three-Part Humanized Communication framework.
   // (Reaction → Insight → Bridge) + removes "As an AI" markers + deterministic variability.
+
+  // ✅ Provide previous assistant text so formatter can avoid repeating the same bridge line back-to-back.
+  const prevAssistantText = (() => {
+    const recent = Array.isArray((baseCtx as any)?.recentMessages)
+      ? ((baseCtx as any).recentMessages as Array<any>)
+      : [];
+
+    for (let i = recent.length - 1; i >= 0; i--) {
+      const m = recent[i];
+      if (m && String(m.role ?? "").toLowerCase() === "assistant") {
+        const t = String(m.content ?? m.text ?? "").trim();
+        if (t) return t;
+      }
+    }
+
+    const inputs = Array.isArray((body as any)?.inputs)
+      ? ((body as any).inputs as Array<any>)
+      : [];
+
+    for (let i = inputs.length - 1; i >= 0; i--) {
+      const x = inputs[i];
+      if (x && String(x.role ?? "").toLowerCase() === "assistant") {
+        const t = String(x.content ?? x.text ?? "").trim();
+        if (t) return t;
+      }
+    }
+
+    return "";
+  })();
+
   const formattedText = rawText
     ? formatImotaraReply({
         raw: rawText,
         userMessage: message,
+        prevAssistantText,
 
         // 🚫 If closure, do NOT allow formatter to add bridge
         externalBridge: isClosureIntent ? undefined : externalBridge,
 
-        lang: preferredLanguage ?? "en",
+        lang: strictLanguage ?? preferredLanguage ?? "en",
         tone: isReturnIntent
           ? "close_friend"
           : deriveFormatterTone(toneContext),
@@ -952,11 +1231,86 @@ export async function POST(req: Request) {
     });
   }
 
-  if (finalTextNoQ) {
-    (result as any).replyText = finalTextNoQ;
-    (result as any).message = finalTextNoQ;
+  // ✅ Bengali anchor/bridge de-dup (prevents repeating: "আমি আছি — সহজ করে এগোই।")
+  let finalTextNoQ2 = finalTextNoQ;
+
+  try {
+    const isBn = preferredLanguage === "bn";
+
+    if (isBn && Array.isArray((body as any)?.inputs)) {
+      const inputs = (body as any).inputs as Array<Record<string, unknown>>;
+
+      const lastAssistantText =
+        [...inputs]
+          .slice()
+          .reverse()
+          .find((x: any) => x?.role === "assistant")?.text ??
+        [...inputs]
+          .slice()
+          .reverse()
+          .find((x: any) => x?.role === "assistant")?.content ??
+        "";
+
+      // --- 1) Anchor line de-dup (only if the *same* anchor repeats back-to-back)
+      const bnAnchorRegex = /আমি আছি\s*[—–-]\s*সহজ করে এগোই[।.!]?\s*$/u;
+
+      const prevHadAnchor =
+        typeof lastAssistantText === "string" &&
+        bnAnchorRegex.test(lastAssistantText.trim());
+
+      const nowHasAnchor =
+        typeof finalTextNoQ2 === "string" &&
+        bnAnchorRegex.test(finalTextNoQ2.trim());
+
+      if (prevHadAnchor && nowHasAnchor) {
+        const variants = [
+          "আমি আছি—ধীরে ধীরে এগোই।",
+          "আমি এখানেই আছি—একটা করে করি।",
+          "আমি আছি—ছোট ছোট করে এগোই।",
+          "আমি আছি—একটু থেমে তারপর চলি।",
+        ] as const;
+
+        let idx = stableVariantFromId(
+          `${requestId}|bn-bridge`,
+          variants.length,
+        );
+
+        const prevTrim = String(lastAssistantText).trim();
+        if (prevTrim.endsWith(variants[idx])) {
+          idx = (idx + 1) % variants.length;
+        }
+
+        finalTextNoQ2 = finalTextNoQ2.replace(bnAnchorRegex, variants[idx]);
+      }
+
+      // --- 2) Bengali micro-step line policy:
+      // If the reply already contains a question, DON'T append any extra "micro-step" line.
+      // This kills the robotic “tail line every time” feeling.
+      const bnStepLineRegex =
+        /(?:\n\s*\n)?তাড়া নেই[।.!]?\s*এক ছোট পদক্ষেপ, তারপর আরেকটা[।.!]?\s*$/u;
+
+      const nowHasStepLine =
+        typeof finalTextNoQ2 === "string" &&
+        bnStepLineRegex.test(finalTextNoQ2.trim());
+
+      const hasQuestion = /[?？]/.test(String(finalTextNoQ2));
+
+      if (nowHasStepLine && hasQuestion) {
+        // remove it completely (keep formatting clean)
+        finalTextNoQ2 = String(finalTextNoQ2)
+          .replace(bnStepLineRegex, "")
+          .trim();
+      }
+    }
+  } catch {
+    // never fail the response because of de-dup logic
+  }
+
+  if (finalTextNoQ2) {
+    (result as any).replyText = finalTextNoQ2;
+    (result as any).message = finalTextNoQ2;
     if (typeof (result as any).reply === "string") {
-      (result as any).reply = finalTextNoQ;
+      (result as any).reply = finalTextNoQ2;
     }
   }
 

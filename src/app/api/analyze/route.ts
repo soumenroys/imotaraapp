@@ -60,6 +60,12 @@ import {
   isConfusedText,
 } from "@/lib/emotion/keywordMaps";
 
+import {
+  EN_LANG_HINT_REGEX,
+  ROMAN_BN_LANG_HINT_REGEX,
+  ROMAN_HI_LANG_HINT_REGEX,
+} from "@/lib/emotion/keywordMaps";
+
 type AnalyzeRequestBody = {
   // Primary (current) contract
   inputs?: AnalysisInput[];
@@ -259,12 +265,39 @@ export async function POST(req: Request) {
       "";
 
     function detectLanguageBase(text: string): "en" | "hi" | "bn" {
-      const t = String(text ?? "");
-      // Bengali block
+      const t = String(text ?? "").trim();
+
+      // 1) Script-based first (most reliable)
       if (/[\u0980-\u09FF]/.test(t)) return "bn";
-      // Devanagari block (Hindi)
-      if (/[\u0900-\u097F]/.test(t)) return "hi";
-      return "en";
+
+      // Devanagari LETTERS only (exclude danda "।" + generic marks)
+      if (/[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(t)) return "hi";
+
+      // 2) Romanized detection using centralized regex (keywordMaps.ts)
+      const countHits = (re: RegExp) =>
+        (t.match(new RegExp(re.source, "gi")) ?? []).length;
+
+      const romanBnHits = countHits(ROMAN_BN_LANG_HINT_REGEX);
+      if (romanBnHits >= 2) return "bn";
+
+      const romanHiHits = countHits(ROMAN_HI_LANG_HINT_REGEX);
+      if (romanHiHits >= 2) return "hi";
+
+      // 3) Strong English detection (prevent “unclear → hi drift”)
+      const englishHits = countHits(EN_LANG_HINT_REGEX);
+      const latinLetters = (t.match(/[A-Za-z]/g) ?? []).length;
+      const totalLetters = (
+        t.match(
+          /[A-Za-z\u0980-\u09FF\u0904-\u0939\u0958-\u0963\u0971-\u097F]/g,
+        ) ?? []
+      ).length;
+
+      const looksEnglish =
+        totalLetters > 0 &&
+        latinLetters / totalLetters > 0.75 &&
+        englishHits >= 2;
+
+      return looksEnglish ? "en" : "en";
     }
 
     function stableVariantIndex(seed: string, modulo: number): number {

@@ -522,9 +522,36 @@ function getPreferredLanguage(ctx: SessionContext): SupportedLanguage {
   const raw = String((ctx as any)?.preferredLanguage ?? "")
     .trim()
     .toLowerCase();
-  // Accept both base and BCP-47 tags
+
+  // 1) Explicit preference wins (Accept both base + BCP-47 tags)
   if (raw === "hi" || raw.startsWith("hi-")) return "hi";
   if (raw === "bn" || raw.startsWith("bn-")) return "bn";
+
+  // 2) Continuity fallback (critical for romanized Bengali / mixed-script turns)
+  // If the last assistant message is clearly Bengali, keep bn.
+  const recent =
+    (Array.isArray((ctx as any)?.recent) && (ctx as any).recent) ||
+    (Array.isArray((ctx as any)?.recentMessages) &&
+      (ctx as any).recentMessages) ||
+    (Array.isArray((ctx as any)?.inputs) && (ctx as any).inputs) ||
+    [];
+
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const m: any = recent[i];
+    if (String(m?.role ?? "").toLowerCase() !== "assistant") continue;
+
+    const t = String(m?.content ?? m?.text ?? "").trim();
+    if (!t) continue;
+
+    // Bengali script
+    if (/[\u0980-\u09FF]/.test(t)) return "bn";
+
+    // Devanagari letters only (exclude danda "।" which causes false Hindi)
+    if (/[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(t)) return "hi";
+
+    break; // last assistant found, no strong signal
+  }
+
   return "en";
 }
 
@@ -585,12 +612,63 @@ function draftResponseForLanguage(
   const message =
     lang === "hi"
       ? `${openerWithContext} मैं आपके साथ हूँ। अभी इस पल में सबसे भारी क्या लग रहा है?`
-      : `${openerWithContext} আমি আপনার পাশে আছি। এই মুহূর্তে সবচেয়ে ভারী কী লাগছে?`;
+      : (() => {
+          // Bengali intent-aware fallback (no more same-line repetition)
+          const t = msg.trim();
+          const tNoPunct = t.replace(/[।!?]+$/g, "").trim();
+
+          const isQuestion =
+            /[?？]$/.test(t) ||
+            /^(কি|কী|কেন|কখন|কোথায়|কিভাবে|কারা|কাকে)\b/i.test(tNoPunct);
+
+          const isGoodbye =
+            /(আমি\s*যাচ্ছি|চলি|চলে\s*যাচ্ছি|বাই|বিদায়|দেখা\s*হবে)/i.test(
+              tNoPunct,
+            );
+
+          // tiny deterministic variation (not random)
+          const seed = tNoPunct.length % 4;
+          const reaction = [
+            "আচ্ছা—শুনছি।",
+            "হুম… বুঝলাম।",
+            "ঠিক আছে, আমি আছি।",
+            "ওহ… বুঝতে পারছি।",
+          ][seed];
+
+          // Goodbye: no question (keeps it human)
+          if (isGoodbye) {
+            return `${reaction} তুমি চাইলে পরে আবার লিখতে পারো। আমি এখানেই থাকব।`;
+          }
+
+          // If user asked a question: don't force "ভারী কী" loop
+          if (isQuestion) {
+            return `${reaction} তুমি প্রশ্নটা করেছো—আমি সেটাতেই থাকছি। প্রসঙ্গটা আরেকটু বলবে?`;
+          }
+
+          // Statement: mirror + one gentle bridge question
+          // Statement-mode: mirror + one gentle bridge question (varied, not a fixed menu)
+          const bridgeVariants = [
+            "এখন তুমি চাইলে একদম ছোট করে শুরু করি—এক লাইনে বলবে, শরীরটা ভারী লাগছে নাকি মনটা?",
+            "তুমি যা বললে সেটা ধরলাম। এখন কোনটা বেশি দরকার—একটু শান্তি, নাকি পরিষ্কারভাবে বুঝে নেওয়া?",
+            "আমি শুনছি। এখন যদি একটা ছোট পদক্ষেপ নিতে চাও, সেটা কী হতে পারে—পানি, শ্বাস, নাকি একটু বিরতি?",
+            "ঠিক আছে। তুমি চাইলে আমি শুধু পাশে থাকি—না কি একটু গুছিয়ে বলতে সাহায্য করি?",
+          ] as const;
+
+          // No requestId in this scope; derive a stable seed from message + context.
+          const seedKey = `${lang}|${name ?? ""}|${msg}|${prev ?? ""}`;
+          // Simple deterministic hash → stable index (no external helper/import needed)
+          let h = 0;
+          for (let i = 0; i < seedKey.length; i++) {
+            h = (h * 31 + seedKey.charCodeAt(i)) >>> 0;
+          }
+          const bIdx = h % bridgeVariants.length;
+          return `${reaction} ${openerWithContext} আমি বুঝতে পারছি। ${bridgeVariants[bIdx]}`;
+        })();
 
   const followUp =
     lang === "hi"
       ? "अभी आपके लिए सबसे ज़्यादा मदद क्या होगी — सुकून, स्पष्टता, या एक छोटा अगला कदम?"
-      : "এই মুহূর্তে আপনার সবচেয়ে দরকার কী — সান্ত্বনা, পরিষ্কার বোঝা, না একদম ছোট পরের পদক্ষেপ?";
+      : "";
 
   return {
     message,

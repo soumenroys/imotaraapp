@@ -1296,6 +1296,9 @@ export default function ChatPage() {
   }
 
   function sendMessage() {
+    // ✅ Guard: don't allow sending a new user message while assistant reply is generating
+    if (analyzing) return;
+
     const text = draft.trim();
     if (!text) return;
 
@@ -1940,7 +1943,7 @@ export default function ChatPage() {
               />
               <button
                 onClick={sendMessage}
-                disabled={!draft.trim()}
+                disabled={analyzing || !draft.trim()}
                 className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/15 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 px-4 text-sm font-medium text-white shadow-lg transition hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[0_0_28px_rgba(129,140,248,0.7)] duration-150 disabled:opacity-50"
                 type="button"
               >

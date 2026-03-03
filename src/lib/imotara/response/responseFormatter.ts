@@ -195,9 +195,14 @@ function bridgeStatementBank(
 
   const closeFriend = {
     en: [
-      "I’m right here with you — we’ll keep it simple.",
+      "Okay. Let’s keep it simple.",
       "No rush. One small move at a time.",
-      "We can handle this gently, together.",
+      "That makes sense.",
+      "We’ll take this gently.",
+      "Thanks for telling me.",
+      "We can steady this, step by step.",
+      "We can pause and breathe for a moment.",
+      "We’ll stay practical and kind.",
     ],
     hi: [
       "मैं यहीं हूँ — इसे सरल रखते हैं।",
@@ -253,9 +258,14 @@ function bridgeStatementBank(
 
   const calmCompanion = {
     en: [
-      "We can go gently. I’m here with you.",
+      "We can go gently.",
       "Let’s keep this soft and simple.",
-      "We’ll take one calm step at a time.",
+      "One calm step at a time.",
+      "We can slow the pace.",
+      "We’ll keep the pressure low.",
+      "We can make room for what you’re feeling.",
+      "It’s okay to take a moment.",
+      "We’ll stay steady and quiet.",
     ],
     hi: [
       "धीरे-धीरे चलते हैं। मैं तुम्हारे साथ हूँ।",
@@ -818,6 +828,55 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     return (hasCue || hasQuestionToken) && !looksListy;
   };
 
+  // --- NEW: anchor phrase suppression (anti-template) ---
+  // If the model already used an empathy anchor, avoid repeating it via our fallback banks.
+  // This is intentionally English-focused; other languages keep existing phrasing.
+  const containsEmpathyAnchor = (s: string): boolean => {
+    const t = String(s ?? "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .replace(/[’]/g, "'") // normalize curly apostrophe
+      .trim();
+
+    if (!t) return false;
+
+    // Keep this list short + high-signal to avoid false positives.
+    const anchors = [
+      "i'm with you",
+      "im with you",
+      "i'm right here with you",
+      "im right here with you",
+      "i'm with you in this",
+      "im with you in this",
+      "i hear you",
+      "got you",
+    ];
+
+    return anchors.some((a) => t.includes(a));
+  };
+
+  const pickStatementAvoidingAnchor = (
+    bank: readonly string[],
+    startIndex: number,
+    context: string,
+  ): string => {
+    if (!Array.isArray(bank) || bank.length === 0) return "";
+
+    const ctxHasAnchor = containsEmpathyAnchor(context);
+
+    // If context has no anchor, return the default deterministic pick.
+    if (!ctxHasAnchor) return bank[startIndex % bank.length] ?? "";
+
+    // Otherwise, try a few alternatives that *don’t* include the anchor phrase.
+    for (let k = 0; k < Math.min(6, bank.length); k++) {
+      const candidate = bank[(startIndex + k) % bank.length] ?? "";
+      if (!containsEmpathyAnchor(candidate)) return candidate;
+    }
+
+    // Worst case: return original (never fail hard)
+    return bank[startIndex % bank.length] ?? "";
+  };
+
   let phase2Raw = (insight ?? "").trim();
   let phase3 = ensureEndsLikeSentence(bridgeRaw);
 
@@ -921,12 +980,16 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     // If still too short (rare), add a greeting-safe presence statement.
     const sc2 = (out.match(sentenceEndRe) ?? []).length;
     if (sc2 < 2) {
-      const safePresence =
-        tone === "coach"
-          ? "We can keep it simple and soft."
-          : tone === "calm_companion"
-            ? "We can take it gently."
-            : "I’m right here with you.";
+      const safePresence = (() => {
+        const context = `${phase1} ${phase2}`.trim();
+        if (tone === "coach") return "We can keep it simple and soft.";
+        if (tone === "calm_companion") return "We can take it gently.";
+
+        // Avoid repeating an anchor if model already used it.
+        return containsEmpathyAnchor(context)
+          ? "No rush. One small step at a time."
+          : "I’m right here with you.";
+      })();
       out = `${out}\n${ensureEndsLikeSentence(safePresence)}`.trim();
       out = limitToOneQuestion(out);
     }
@@ -953,9 +1016,12 @@ export function formatImotaraReply(input: FormatReplyInput): string {
       out = `${phase1} ${phase2Presence}`.trim();
     } else if (roll < 9) {
       // Presence + gentle statement handoff (no question)
-      const extraStatement = bridgeStatementBank(lang, tone)[
-        (h + 3) % bridgeStatementBank(lang, tone).length
-      ];
+      const bank = bridgeStatementBank(lang, tone);
+      const extraStatement = pickStatementAvoidingAnchor(
+        bank,
+        (h + 3) % bank.length,
+        `${phase1} ${phase2Presence} ${insight}`.trim(),
+      );
       out = `${phase1} ${phase2Presence}\n\n${ensureEndsLikeSentence(
         extraStatement,
       )}`.trim();
@@ -974,9 +1040,12 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     // Ensure minimum 2 sentences (don’t force 3)
     const sc = (out.match(sentenceEndRe) ?? []).length;
     if (sc < 2) {
-      const extra = bridgeStatementBank(lang, tone)[
-        (h + 7) % bridgeStatementBank(lang, tone).length
-      ];
+      const bank2 = bridgeStatementBank(lang, tone);
+      const extra = pickStatementAvoidingAnchor(
+        bank2,
+        (h + 7) % bank2.length,
+        out,
+      );
       out = `${out}\n${ensureEndsLikeSentence(extra)}`.trim();
       out = limitToOneQuestion(out);
     }
@@ -986,9 +1055,12 @@ export function formatImotaraReply(input: FormatReplyInput): string {
 
   // Default (strict-ish): keep minimum 3 sentences
   if (sentenceCount < 3) {
-    const extra = bridgeStatementBank(lang, tone)[
-      (h + 7) % bridgeStatementBank(lang, tone).length
-    ];
+    const bank3 = bridgeStatementBank(lang, tone);
+    const extra = pickStatementAvoidingAnchor(
+      bank3,
+      (h + 7) % bank3.length,
+      out,
+    );
     out = `${out}\n${ensureEndsLikeSentence(extra)}`;
     out = limitToOneQuestion(out);
   }

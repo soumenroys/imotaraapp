@@ -951,7 +951,40 @@ function draftResponse(
     followUp =
       "Want something quick and practical right now — food, rest, or just a short reset?";
   } else {
-    message = `${openerWithContext} I’m with you in this.`;
+    // ✅ Avoid template-y repetition ("I'm with you in this.") by using varied, calm presence lines.
+    // Also: if opener already contains an empathy/presence anchor, don't add another.
+    const presenceBank = [
+      "Okay. We’ll keep it simple.",
+      "No rush. One small move at a time.",
+      "That makes sense.",
+      "We can take this gently.",
+      "Thanks for telling me.",
+      "Let’s take one small step.",
+    ] as const;
+
+    const openerText = String(openerWithContext ?? "").trim();
+    const openerLower = openerText
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .replace(/[’]/g, "'")
+      .trim();
+
+    const openerAlreadyHasAnchor =
+      openerLower.includes("i'm with you") ||
+      openerLower.includes("im with you") ||
+      openerLower.includes("i’m with you") ||
+      openerLower.includes("i hear you") ||
+      openerLower.includes("got you") ||
+      openerLower.includes("i'm here") ||
+      openerLower.includes("im here") ||
+      openerLower.includes("i’m here");
+
+    message = openerAlreadyHasAnchor
+      ? openerText
+      : `${openerText} ${pickFromSeed(
+          `presence:${msg}:${rel}:${name ?? ""}`,
+          presenceBank,
+        )}`;
 
     // ✅ Long-memory: avoid repeating the same fallback style too often (25 turns)
     const cooldownTurns = 25;

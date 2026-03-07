@@ -2,6 +2,8 @@
 //
 // Core, reusable formatter that forces every reply into the
 // "Three-Part Humanized Communication" framework.
+
+import { EN_LANG_HINT_REGEX } from "../../emotion/keywordMaps";
 //
 // Phase 1: Spontaneous Reaction
 // Phase 2: Actual Insight/Value
@@ -17,7 +19,8 @@ export type ImotaraPersonaTone =
   | "close_friend"
   | "calm_companion"
   | "coach"
-  | "mentor";
+  | "mentor"
+  | "partner_like";
 
 export type FormatReplyInput = {
   // model-generated reply text (unformatted)
@@ -63,9 +66,48 @@ function hash32(s: string): number {
 }
 
 function normalizeLang(lang?: string): string {
-  const l = (lang ?? "en").toLowerCase().trim();
-  // accept common variants like en-IN, hi-IN etc.
-  return l.split("-")[0] || "en";
+  const l = (lang ?? "").trim().toLowerCase();
+  if (!l) return "en";
+  if (l.startsWith("hi")) return "hi";
+  if (l.startsWith("bn")) return "bn";
+  return l;
+}
+
+// -----------------------------
+// Soft mirroring (Option B)
+// If user mixes native script + clear English, keep native language
+// but allow a couple short English “tags”.
+// -----------------------------
+const SOFT_MIX_EN_TAGS = [
+  "Okay.",
+  "That makes sense.",
+  "Thanks for telling me.",
+] as const;
+
+function wantsSoftMix(userMsg: string, lang: string): boolean {
+  const msg = String(userMsg ?? "");
+  if (!msg) return false;
+
+  const hasLatin = /[A-Za-z]/.test(msg);
+  if (!hasLatin) return false;
+
+  // “Clear English” hint: prevents random Latin names from triggering soft-mix
+  const hasEnglishHint = EN_LANG_HINT_REGEX.test(msg);
+  if (!hasEnglishHint) return false;
+
+  if (lang === "bn") return /[\u0980-\u09FF]/.test(msg); // Bengali script present
+  if (lang === "hi") return /[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(msg); // Devanagari present
+
+  return false;
+}
+
+function statementBridgeBankWithSoftMix(
+  lang: string,
+  tone: ImotaraPersonaTone,
+  userMsg: string,
+): readonly string[] {
+  const base = bridgeStatementBank(lang, tone);
+  return wantsSoftMix(userMsg, lang) ? [...base, ...SOFT_MIX_EN_TAGS] : base;
 }
 
 function stripRoboticMarkers(s: string): string {
@@ -86,38 +128,238 @@ function stripRoboticMarkers(s: string): string {
 
 function removeLeadingInterjection(s: string): string {
   // If model already starts with "Wow!/Hmm!/Oh," etc. we’ll strip it so we can control Phase 1.
-  return s
-    .replace(
-      /^(wow|oh|hmm|huh|really|hey|okay|ok|ah|aww|whoa|mm)\b[!,. ]+/i,
-      "",
-    )
-    .trim();
+  // Also handle "Right... Hmm..." and double interjections like "Hmm... Hmm..."
+  let out = (s ?? "").trim();
+
+  const rx =
+    /^(wow|oh|hmm|huh|really|hey|okay|ok|ah|aww|whoa|mm|right|alright|well)\b[!,.…—\- ]+/i;
+
+  // Strip up to 2 leading interjections (covers "Right... Hmm..." and "Hmm... Hmm...")
+  for (let i = 0; i < 2; i++) {
+    const next = out.replace(rx, "").trim();
+    if (next === out) break;
+    out = next;
+  }
+
+  return out;
 }
 
-function reactionBank(lang: string): string[] {
+function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
   switch (lang) {
     case "hi":
-      return ["अरे…", "ओह!", "हम्म…", "सच?", "अच्छा…", "वाह!"];
+      return [
+        "अरे…",
+        "ओह!",
+        "हम्म…",
+        "सच?",
+        "अच्छा…",
+        "वाह!",
+        // Added variety (still short, human, not therapy-ish)
+        "हूँ… समझ गया।",
+        "ओके…",
+        "ठीक है…",
+        "हम्म… ये भारी लग रहा है।",
+        "अरे यार…",
+        "चलो…",
+      ];
+
     case "bn":
-      return ["আরে…", "ওহ!", "হুঁ…", "সত্যি?", "বাহ!", "আচ্ছা…"];
+      return [
+        "আরে…",
+        "ওহ!",
+        "হুঁ…",
+        "সত্যি?",
+        "বাহ!",
+        "আচ্ছা…",
+        // Added variety (short, friendly, less templated)
+        "ওকে…",
+        "হুঁ… বুঝলাম।",
+        "আচ্ছা—শুনছি।",
+        "উফ… এটা ভারী লাগছে।",
+        "আরে রে…",
+        "ঠিক আছে…",
+      ];
+
     case "ta":
-      return ["அடே…", "ஓஹ்!", "ஹ்ம்…", "உண்மையா?", "வாவ்!", "சரி…"];
+      return [
+        "அடே…",
+        "ஓஹ்!",
+        "ஹ்ம்…",
+        "உண்மையா?",
+        "வாவ்!",
+        "சரி…",
+        "சரி… கேட்கிறேன்.",
+        "ஹ்ம்… புரிகிறது.",
+        "ஓகே…",
+        "உஃ… இது கனமாக இருக்கு.",
+      ];
+
     case "te":
-      return ["అరే…", "ఓహ్!", "హ్మ్…", "నిజమా?", "వావ్!", "సరే…"];
+      return [
+        "అరే…",
+        "ఓహ్!",
+        "హ్మ్…",
+        "నిజమా?",
+        "వావ్!",
+        "సరే…",
+        "సరే… చెప్తూ ఉండు.",
+        "హ్మ్… అర్థమైంది.",
+        "ఓకే…",
+        "అయ్యో… ఇది కష్టం గా ఉంది.",
+      ];
+
     case "mr":
-      return ["अरे…", "ओह!", "हम्म…", "खरंच?", "वा!", "बरं…"];
+      return [
+        "अरे…",
+        "ओह!",
+        "हम्म…",
+        "खरंच?",
+        "वा!",
+        "बरं…",
+        "ठीक आहे…",
+        "हम्म… समजलं.",
+        "ओके…",
+        "अरे यार…",
+      ];
+
     case "gu":
-      return ["અરે…", "ઓહ!", "હમ્મ…", "સાચે?", "વાહ!", "બરાબર…"];
+      return [
+        "અરે…",
+        "ઓહ!",
+        "હમ્મ…",
+        "સાચે?",
+        "વાહ!",
+        "બરાબર…",
+        "ઓકે…",
+        "હમ્મ… સમજાયું.",
+        "બરાબર છે…",
+        "અરે યાર…",
+      ];
+
     case "kn":
-      return ["ಅಯ್ಯೋ…", "ಓಹ್!", "ಹ್ಮ್…", "ನಿಜವಾ?", "ವಾವ್!", "ಸರಿ…"];
+      return [
+        "ಅಯ್ಯೋ…",
+        "ಓಹ್!",
+        "ಹ್ಮ್…",
+        "ನಿಜವಾ?",
+        "ವಾವ್!",
+        "ಸರಿ…",
+        "ಓಕೆ…",
+        "ಹ್ಮ್… ಅರ್ಥ ಆಯ್ತು.",
+        "ಸರಿ—ನಾನು ಕೇಳ್ತಿದ್ದೇನೆ.",
+        "ಅಯ್ಯೋ… ಇದು ಕಷ್ಟ ಆಗ್ತಿದೆ ಅಲ್ವಾ.",
+      ];
+
     case "ml":
-      return ["അയ്യോ…", "ഓ!", "ഹ്മ്…", "ശരിക്കോ?", "വാവ്!", "ശരി…"];
+      return [
+        "അയ്യോ…",
+        "ഓ!",
+        "ഹ്മ്…",
+        "ശരിക്കോ?",
+        "വാവ്!",
+        "ശരി…",
+        "ഓക്കേ…",
+        "ഹ്മ്… മനസ്സിലായി.",
+        "ശരി… പറയൂ, കേൾക്കുന്നു.",
+        "അയ്യോ… ഇത് ബുദ്ധിമുട്ടാണ്.",
+      ];
+
     case "pa":
-      return ["ਅਰੇ…", "ਓਹ!", "ਹੰਮ…", "ਸੱਚ?", "ਵਾਹ!", "ਠੀਕ ਹੈ…"];
+      return [
+        "ਅਰੇ…",
+        "ਓਹ!",
+        "ਹੰਮ…",
+        "ਸੱਚ?",
+        "ਵਾਹ!",
+        "ਠੀਕ ਹੈ…",
+        "ਓਕੇ…",
+        "ਹੰਮ… ਸਮਝ ਆਇਆ।",
+        "ਚੱਲ…",
+        "ਅਰੇ ਯਾਰ…",
+      ];
+
     case "ur":
-      return ["ارے…", "اوہ!", "ہمم…", "سچ؟", "واہ!", "اچھا…"];
-    default:
-      return ["Oh, I see…", "Hmm…", "Whoa.", "Aww…", "Oh!", "Okay…"];
+      return [
+        "ارے…",
+        "اوہ!",
+        "ہمم…",
+        "سچ؟",
+        "واہ!",
+        "اچھا…",
+        "ٹھیک ہے…",
+        "اوکے…",
+        "ہمم… سمجھ گیا۔",
+        "ارے یار…",
+      ];
+
+    default: {
+      if (tone === "coach") {
+        return [
+          "Alright…",
+          "Okay…",
+          "Got it…",
+          "Right…",
+          "Hmm…",
+          "Alright—let’s look at it.",
+          "Okay… I’m with you.",
+          "Got it… let’s steady this.",
+        ];
+      }
+
+      if (tone === "mentor") {
+        return [
+          "Hmm…",
+          "I see…",
+          "Alright…",
+          "Okay…",
+          "Right…",
+          "Hmm… let’s slow it down.",
+          "I see… let’s make sense of it.",
+          "Alright… we can unpack this.",
+        ];
+      }
+
+      if (tone === "calm_companion") {
+        return [
+          "Hmm…",
+          "Oh…",
+          "I see…",
+          "Okay…",
+          "Alright…",
+          "Hmm… I’m here.",
+          "Okay… take your time.",
+          "I see… we can go gently.",
+        ];
+      }
+
+      if (tone === "partner_like") {
+        return [
+          "Hey…",
+          "Hmm…",
+          "I’m here…",
+          "Okay…",
+          "Oh…",
+          "Hey… I’m with you.",
+          "Okay… we’ll take it gently.",
+          "Hmm… I’m right here.",
+        ];
+      }
+
+      return [
+        "Oh, I see…",
+        "Hmm…",
+        "Whoa.",
+        "Aww…",
+        "Oh!",
+        "Okay…",
+        "Got it…",
+        "Right…",
+        "Hmm… that’s a lot.",
+        "Okay—tell me.",
+        "Oh man…",
+        "Alright… I’m here.",
+      ];
+    }
   }
 }
 
@@ -176,6 +418,64 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
     ],
   } as const;
 
+  const partnerLike = {
+    en: [
+      "Do you want to take this one gentle step at a time together?",
+      "What feels heaviest right now—so we can start there softly?",
+      "Where would feel kindest to begin from here?",
+    ],
+    hi: [
+      "क्या हम इसे धीरे-धीरे, एक नरम कदम से साथ में शुरू करें?",
+      "अभी सबसे भारी क्या लग रहा है—ताकि वहीं से आराम से शुरू करें?",
+      "यहाँ से सबसे सहज शुरुआत कहाँ से लगेगी?",
+    ],
+    bn: [
+      "আমরা কি এটা ধীরে ধীরে, একদম ছোট্ট একটা পদক্ষেপ দিয়ে একসাথে শুরু করব?",
+      "এখন সবচেয়ে ভারী কী লাগছে—যেন সেখান থেকেই নরমভাবে শুরু করতে পারি?",
+      "এখান থেকে সবচেয়ে কোমলভাবে কোথা থেকে শুরু করা ভালো হবে?",
+    ],
+    ta: [
+      "இதை நிதானமாக, ஒரு சின்ன step-ஆ சேர்ந்து தொடங்கலாமா?",
+      "இப்போ என்ன தான் அதிகமா கனமாக feel ஆகுது—அங்கிருந்து மெதுவா தொடங்கலாமே?",
+      "இங்கிருந்து எந்த இடத்திலிருந்து தொடங்கினா மனசுக்கு கொஞ்சம் லேசா இருக்கும்?",
+    ],
+    te: [
+      "ఇదిని నెమ్మదిగా, ఒక్క చిన్న అడుగుతో కలిసి మొదలుపెడదామా?",
+      "ఇప్పుడే ఎక్కువగా భారంగా అనిపిస్తున్నది ఏమిటి—అక్కడ్నుంచే మృదువుగా మొదలుపెడదాం?",
+      "ఇక్కడ్నుంచి ఎక్కడి నుండి మొదలెడితే కొంచెం సాంత్వనగా అనిపిస్తుంది?",
+    ],
+    mr: [
+      "हे आपण हळूहळू, एका छोट्या पावलापासून एकत्र सुरू करूया का?",
+      "आत्ता सगळ्यात जड काय वाटतंय—जेणेकरून तिथूनच हलकेपणाने सुरुवात करता येईल?",
+      "इथून पुढे कुठून सुरू केलं तर जरा सौम्य वाटेल?",
+    ],
+    gu: [
+      "આપણે આને ધીમે ધીમે, એક નાનકડા પગથીયા સાથે મળીને શરૂ કરીએ?",
+      "હમણાં સૌથી ભારે શું લાગી રહ્યું છે—એજથી થોડું નરમાઈથી શરૂ કરી શકીએ?",
+      "અહીંથી કઈ જગ્યાએથી શરૂઆત કરીએ તો વધુ સહેજ લાગશે?",
+    ],
+    kn: [
+      "ಇದನ್ನು ನಿಧಾನವಾಗಿ, ಒಂದು ಸಣ್ಣ ಹೆಜ್ಜೆಯಿಂದ ಜೊತೆಗೂಡಿ ಆರಂಭಿಸೋಣವಾ?",
+      "ಈಗ ಹೆಚ್ಚು ಭಾರವಾಗಿರುವುದು ಏನು—ಅಲ್ಲಿಂದಲೇ ಮೃದುವಾಗಿ ಆರಂಭಿಸಬಹುದು?",
+      "ಇಲ್ಲಿಂದ ಯಾವ ಜಾಗದಿಂದ ಶುರು ಮಾಡಿದರೆ ಮನಸ್ಸಿಗೆ ಸ್ವಲ್ಪ ಹಗುರವಾಗುತ್ತದೆ?",
+    ],
+    ml: [
+      "ഇത് മെതുവായി, ഒരു ചെറിയ പടിയിലൂടെ ഒരുമിച്ച് തുടങ്ങാമോ?",
+      "ഇപ്പോൾ ഏറ്റവും ഭാരമായി തോന്നുന്നത് എന്താണ്—അവിടെ നിന്നുതന്നെ സാവധാനം തുടങ്ങാം?",
+      "ഇവിടെ നിന്ന് എവിടെ നിന്നാണ് തുടങ്ങിയത് ഏറ്റവും സുഖകരമാവുക?",
+    ],
+    pa: [
+      "ਕੀ ਅਸੀਂ ਇਹਨੂੰ ਹੌਲੀ-ਹੌਲੀ, ਇਕ ਛੋਟੇ ਕਦਮ ਨਾਲ ਇਕੱਠੇ ਸ਼ੁਰੂ ਕਰੀਏ?",
+      "ਇਸ ਵੇਲੇ ਸਭ ਤੋਂ ਵੱਧ ਭਾਰਾ ਕੀ ਲੱਗ ਰਿਹਾ ਹੈ—ਤਾਂ ਜੋ ਓਥੋਂ ਨਰਮੀ ਨਾਲ ਸ਼ੁਰੂ ਕਰੀਏ?",
+      "ਇੱਥੋਂ ਕਿੱਥੋਂ ਸ਼ੁਰੂ ਕਰੀਏ ਤਾਂ ਸਭ ਤੋਂ ਸੁਖਾਵਾਂ ਲੱਗੇ?",
+    ],
+    ur: [
+      "کیا ہم اسے آہستہ آہستہ، ایک چھوٹے قدم سے ساتھ شروع کریں؟",
+      "ابھی سب سے زیادہ بھاری کیا لگ رہا ہے—تاکہ ہم وہیں سے نرمی سے شروع کریں؟",
+      "یہاں سے کہاں سے آغاز کرنا سب سے نرم محسوس ہوگا؟",
+    ],
+  } as const;
+
   const bank =
     tone === "calm_companion"
       ? calmCompanion
@@ -183,7 +483,9 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
         ? coach
         : tone === "mentor"
           ? mentor
-          : closeFriend;
+          : tone === "partner_like"
+            ? partnerLike
+            : closeFriend;
 
   // fall back to English if lang not present in the bank
   const key = normalizeLang(lang) as "en" | "hi";
@@ -325,7 +627,92 @@ function bridgeStatementBank(
     ],
   } as const;
 
-  const bank = tone === "calm_companion" ? calmCompanion : closeFriend;
+  const partnerLike = {
+    en: [
+      "I’m right here with you.",
+      "We can take this gently together.",
+      "No pressure. We’ll go softly.",
+      "We can stay with this for a moment.",
+      "You don’t have to carry it all at once.",
+    ],
+    hi: [
+      "मैं यहीं हूँ, तुम्हारे साथ।",
+      "हम इसे धीरे-धीरे साथ में संभाल सकते हैं।",
+      "कोई दबाव नहीं। आराम से चलेंगे।",
+      "तुम्हें सब कुछ एक साथ उठाने की ज़रूरत नहीं है।",
+      "हम एक पल यहीं ठहर सकते हैं।",
+    ],
+    bn: [
+      "আমি আছি, তোমার পাশে।",
+      "আমরা এটা ধীরে ধীরে একসাথে সামলাতে পারি।",
+      "কোনো চাপ নেই। আস্তে এগোই।",
+      "সবটা একসাথে তোমাকে বয়ে নিতে হবে না।",
+      "চাইলে আমরা একটু থেমেও থাকতে পারি।",
+    ],
+    ta: [
+      "நான் உன்னோடு இங்க இருக்கேன்.",
+      "இதை நாம மெதுவா சேர்ந்து எடுத்துக்கலாம்.",
+      "அவசரம் எதுவும் இல்லை. நிதானமா போலாம்.",
+      "இத்தனையையும் நீ ஒரே நேரத்தில் சுமக்க வேண்டியதில்லை.",
+      "வேண்டும்னா இங்கே கொஞ்சம் நின்று சுவாசிக்கலாம்.",
+    ],
+    te: [
+      "నేను నీతోనే ఇక్కడ ఉన్నాను.",
+      "ఇదిని మనం నెమ్మదిగా కలిసి తీసుకుందాం.",
+      "ఏ ఒత్తిడి లేదు. మెల్లగా వెళ్దాం.",
+      "ఇది అంతా నువ్వు ఒక్కసారిగా మోసుకోవాల్సిన అవసరం లేదు.",
+      "కావాలంటే మనం కాసేపు ఇక్కడే ఆగొచ్చు.",
+    ],
+    mr: [
+      "मी इथेच आहे, तुझ्यासोबत.",
+      "हे आपण हळूहळू एकत्र हाताळू शकतो.",
+      "कसलाही दबाव नाही. शांतपणे जाऊया.",
+      "सगळं एकाच वेळी उचलायची गरज नाही.",
+      "हवं तर आपण इथे थोडं थांबू शकतो.",
+    ],
+    gu: [
+      "હું અહીં છું, તારી સાથે.",
+      "આપણે આને ધીમે ધીમે સાથે સંભાળી શકીએ.",
+      "કોઈ દબાણ નથી. શાંતિથી આગળ જઈએ.",
+      "આ બધું તારે એકસાથે વહન કરવાની જરૂર નથી.",
+      "ઇચ્છા હોય તો થોડું અહીં જ થંભી શકીએ.",
+    ],
+    kn: [
+      "ನಾನು ಇಲ್ಲೇ ಇದ್ದೇನೆ, ನಿನ್ನ ಜೊತೆ.",
+      "ಇದನ್ನು ನಾವು ನಿಧಾನವಾಗಿ ಜೊತೆಗೂಡಿ ನಿಭಾಯಿಸಬಹುದು.",
+      "ಯಾವ ಒತ್ತಡವೂ ಬೇಡ. ಮೃದುವಾಗಿ ಹೋಗೋಣ.",
+      "ಇದನ್ನೆಲ್ಲಾ ಒಮ್ಮೆಯೇ ನೀನು ಹೊರುವ ಅಗತ್ಯವಿಲ್ಲ.",
+      "ಬೇಕೆಂದರೆ ನಾವು ಇಲ್ಲಿ ಸ್ವಲ್ಪ ತಂಗಬಹುದು.",
+    ],
+    ml: [
+      "ഞാൻ ഇവിടെ തന്നെയുണ്ട്, നിന്നോടൊപ്പം.",
+      "ഇത് നമുക്ക് മെതുവായി ഒരുമിച്ച് കൈകാര്യം ചെയ്യാം.",
+      "ഒന്നും സമ്മർദ്ദമില്ല. പതുക്കെ പോകാം.",
+      "ഇതെല്ലാം നീ ഒരുമിച്ച് ചുമക്കേണ്ടതില്ല.",
+      "വേണമെങ്കിൽ നമുക്ക് ഇവിടെ കുറച്ച് നിൽക്കാം.",
+    ],
+    pa: [
+      "ਮੈਂ ਇੱਥੇ ਹਾਂ, ਤੇਰੇ ਨਾਲ।",
+      "ਅਸੀਂ ਇਹਨੂੰ ਹੌਲੀ-ਹੌਲੀ ਇਕੱਠੇ ਸੰਭਾਲ ਸਕਦੇ ਹਾਂ।",
+      "ਕੋਈ ਦਬਾਅ ਨਹੀਂ। ਅਰਾਮ ਨਾਲ ਚੱਲੀਏ।",
+      "ਇਹ ਸਭ ਕੁਝ ਤੈਨੂੰ ਇੱਕੋ ਵਾਰ ਨਹੀਂ ਝੱਲਣਾ ਪੈਣਾ।",
+      "ਚਾਹੇਂ ਤਾਂ ਅਸੀਂ ਥੋੜ੍ਹਾ ਇੱਥੇ ਹੀ ਰੁਕ ਸਕਦੇ ਹਾਂ।",
+    ],
+    ur: [
+      "میں یہیں ہوں، تمہارے ساتھ۔",
+      "ہم اسے آہستہ آہستہ ساتھ سنبھال سکتے ہیں۔",
+      "کوئی دباؤ نہیں۔ نرمی سے چلتے ہیں۔",
+      "تمہیں سب کچھ ایک ساتھ اٹھانے کی ضرورت نہیں ہے۔",
+      "چاہو تو ہم یہاں تھوڑی دیر ٹھہر سکتے ہیں۔",
+    ],
+  } as const;
+
+  const bank =
+    tone === "calm_companion"
+      ? calmCompanion
+      : tone === "partner_like"
+        ? partnerLike
+        : closeFriend;
   const key = normalizeLang(lang) as keyof typeof closeFriend;
   return (bank as any)[key] ?? bank.en;
 }
@@ -670,9 +1057,6 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   // (still deterministic, just not constant across turns)
   const h = hash32(`${lang}|${tone}|${seed}|${userMsgOneLine}|${rawOneLine}`);
 
-  const reactions = reactionBank(lang);
-  const reaction = reactions[h % reactions.length];
-
   // ✅ If insight already asks a question, Phase 3 becomes a non-question bridge line
   // to avoid two consecutive questions.
   const useStatementBridge = insightAlreadyHasQuestion(lang, input.raw ?? "");
@@ -700,7 +1084,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
       bridges = suggestionBridgeBank(lang);
     } else {
       bridges = useStatementBridge
-        ? bridgeStatementBank(lang, tone)
+        ? statementBridgeBankWithSoftMix(lang, tone, userMsg)
         : bridgeBank(lang, tone);
     }
   }
@@ -725,8 +1109,8 @@ export function formatImotaraReply(input: FormatReplyInput): string {
 
   let insight = greeting
     ? greetingInsightBank(lang, tone)[
-        h % greetingInsightBank(lang, tone).length
-      ]
+    h % greetingInsightBank(lang, tone).length
+    ]
     : stripRoboticMarkers(input.raw);
 
   insight = removeLeadingInterjection(insight);
@@ -772,9 +1156,6 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     });
   };
 
-  // Build the three parts explicitly.
-  const phase1 = ensureEndsLikeSentence(reaction);
-
   // --- NEW: use model-written "bridge-like" closing sentence when available ---
   // Goal: keep 3 phases but avoid repetitive template bridges when the model already
   // ends with a natural engagement / next-step sentence.
@@ -789,10 +1170,14 @@ export function formatImotaraReply(input: FormatReplyInput): string {
       .filter(Boolean);
   };
 
-  // ✅ Closure mode: no Phase 3, no questions, keep it short.
-  if (input.disableBridge) {
-    const phase1 = ensureEndsLikeSentence(reaction);
+  // ✅ Phase 1 (Reaction) — restore missing variable (required for output assembly)
+  // Deterministic pick using the same hash "h" so replies are stable for QA.
+  const reactions = reactionBank(lang, tone);
+  const reaction = reactions[h % reactions.length] ?? reactions[0] ?? "";
+  const phase1 = ensureEndsLikeSentence(reaction);
 
+  // ✅ Closure mode: no Phase 3, no forced reaction, keep it short and natural.
+  if (input.disableBridge) {
     // Use the already-prepared insight (greeting-safe, robotic markers stripped above).
     let phase2Raw = String(insight ?? "").trim();
 
@@ -806,7 +1191,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
 
     const phase2 = ensureEndsLikeSentence(shortInsight);
 
-    return `${phase1} ${phase2}`.trim();
+    return phase2.trim();
   }
 
   const looksLikeBridgeLine = (s: string): boolean => {
@@ -903,8 +1288,26 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   };
 
   let phase2Raw = (insight ?? "").trim();
-  let phase3 = ensureEndsLikeSentence(bridgeRaw);
+  // Remove duplicate sentences inside Phase 2
+  {
+    const sents = splitIntoSentences(phase2Raw);
 
+    if (sents.length > 1) {
+      const seen = new Set<string>();
+      const uniq = sents.filter((s) => {
+        const key = s.trim().toLowerCase();
+        if (!key) return false;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      if (uniq.length !== sents.length) {
+        phase2Raw = uniq.join(" ");
+      }
+    }
+  }
+  let phase3 = ensureEndsLikeSentence(bridgeRaw);
   const sentences = splitIntoSentences(phase2Raw);
   if (sentences.length >= 2) {
     const tail = sentences[sentences.length - 1].trim();
@@ -916,6 +1319,34 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     if (looksLikeBridgeLine(tail) && head.length >= 12) {
       phase2Raw = head;
       phase3 = ensureEndsLikeSentence(tail);
+    }
+  }
+
+  // ✅ De-dupe repeated sentences inside Phase 2
+  // (common when the model repeats “আমি বুঝতে পারছি…” 2–3 times)
+  {
+    const normSent = (s: string): string =>
+      String(s ?? "")
+        .replace(/\.\.\./g, "…")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s\.!?؟？”“…]+$/g, "");
+
+    const sents = splitIntoSentences(phase2Raw);
+    if (sents.length >= 2) {
+      const seen = new Set<string>();
+      const uniq = sents.filter((s) => {
+        const k = normSent(s);
+        if (!k) return false;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+
+      if (uniq.length > 0 && uniq.length !== sents.length) {
+        phase2Raw = uniq.join(`${endPunct} `).trim();
+      }
     }
   }
 
@@ -1022,54 +1453,60 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     return out;
   }
 
-  // For low-signal turns, prefer reflection + presence and usually avoid questions.
+  // For low-signal turns, prefer reflection + presence, but STILL keep 3 phases.
+  // Keep determinism/variety, but only among valid 3-phase outputs.
   if (softContract) {
     const userAskedQ = /[?？]/.test(userMsg);
 
-    // If Phase 2 contains a question (common), soften it into a statement for low-signal turns.
+    // Phase 2: soften any questions into statements for low-signal turns
     const phase2Presence = ensureEndsLikeSentence(
-      String(phase2).replace(questionRe, endPunct).replace(/\s+/g, " ").trim(),
+      String(phase2).replace(questionRe, endPunct).replace(/\s+/g, " ").trim()
     );
 
-    // Bias: ~60% presence-only, ~30% presence+handoff statement, ~10% normal 3-phase.
-    // Deterministic (stable for testing).
-    const roll =
-      Math.abs(hash32(`soft:${lang}:${tone}:${seed}:${userMsg}`)) % 10;
+    const bank = statementBridgeBankWithSoftMix(lang, tone, userMsg);
 
-    if (roll < 6) {
-      // Presence-only (2 phases)
-      out = `${phase1} ${phase2Presence}`.trim();
-    } else if (roll < 9) {
-      // Presence + gentle statement handoff (no question)
-      const bank = bridgeStatementBank(lang, tone);
-      const extraStatement = pickStatementAvoidingAnchor(
+    // Deterministic (stable for testing), but no 2-phase outputs.
+    // 0-5: presence + 1 bridge statement
+    // 6-8: presence + 2 bridge statements (more “friend chatter”)
+    // 9: normal 3-phase (phase3 as-is)
+    const roll = Math.abs(hash32(`soft:${lang}:${tone}:${seed}:${userMsg}`)) % 10;
+
+    if (roll === 9) {
+      out = `${phase1} ${phase2}\n\n${phase3}`.trim();
+    } else {
+      const s1 = pickStatementAvoidingAnchor(
         bank,
         (h + 3) % bank.length,
-        `${phase1} ${phase2Presence} ${insight}`.trim(),
+        `${phase1} ${phase2Presence} ${insight}`.trim()
       );
-      out = `${phase1} ${phase2Presence}\n\n${ensureEndsLikeSentence(
-        extraStatement,
-      )}`.trim();
-    } else {
-      // Normal 3-phase (rare)
-      out = `${phase1} ${phase2}\n\n${phase3}`.trim();
+
+      out = `${phase1} ${phase2Presence}\n\n${ensureEndsLikeSentence(s1)}`.trim();
+
+      if (roll >= 6) {
+        const s2 = pickStatementAvoidingAnchor(
+          bank,
+          (h + 7) % bank.length,
+          out
+        );
+        out = `${out}\n${ensureEndsLikeSentence(s2)}`.trim();
+      }
     }
 
-    // If the user didn't ask a question, we usually shouldn't ask one here.
+    // If the user didn't ask a question, we should not introduce one here.
     if (!userAskedQ) {
       out = out.replace(questionRe, endPunct);
     }
 
+    // Global clamp: max 1 question
     out = limitToOneQuestion(out);
 
-    // Ensure minimum 2 sentences (don’t force 3)
+    // Hard requirement: ensure minimum 3 sentences
     const sc = (out.match(sentenceEndRe) ?? []).length;
-    if (sc < 2) {
-      const bank2 = bridgeStatementBank(lang, tone);
+    if (sc < 3) {
       const extra = pickStatementAvoidingAnchor(
-        bank2,
-        (h + 7) % bank2.length,
-        out,
+        bank,
+        (h + 11) % bank.length,
+        out
       );
       out = `${out}\n${ensureEndsLikeSentence(extra)}`.trim();
       out = limitToOneQuestion(out);
@@ -1080,7 +1517,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
 
   // Default (strict-ish): keep minimum 3 sentences
   if (sentenceCount < 3) {
-    const bank3 = bridgeStatementBank(lang, tone);
+    const bank3 = statementBridgeBankWithSoftMix(lang, tone, userMsg);
     const extra = pickStatementAvoidingAnchor(
       bank3,
       (h + 7) % bank3.length,

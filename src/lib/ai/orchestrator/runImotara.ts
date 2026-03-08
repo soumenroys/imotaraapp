@@ -10,6 +10,11 @@ import { applySoftEnforcement } from "@/lib/ai/guardrails/softEnforcement";
 import type { EmotionAnalysis } from "@/lib/ai/emotion/emotionTypes";
 import { normalizeEmotion } from "@/lib/ai/emotion/normalizeEmotion";
 import { applyFinalResponseGate } from "@/lib/ai/orchestrator/finalResponseGate";
+import {
+  EN_LANG_HINT_REGEX,
+  ROMAN_BN_LANG_HINT_REGEX,
+  ROMAN_HI_LANG_HINT_REGEX,
+} from "@/lib/emotion/keywordMaps";
 
 type SessionContext = {
   persona?: {
@@ -518,7 +523,10 @@ function makeReflectionSeed(
 
 type SupportedLanguage = "en" | "hi" | "bn";
 
-function getPreferredLanguage(ctx: SessionContext): SupportedLanguage {
+function getPreferredLanguage(
+  ctx: SessionContext,
+  currentUserMessage?: string,
+): SupportedLanguage {
   const raw = String((ctx as any)?.preferredLanguage ?? "")
     .trim()
     .toLowerCase();
@@ -527,14 +535,37 @@ function getPreferredLanguage(ctx: SessionContext): SupportedLanguage {
   if (raw === "hi" || raw.startsWith("hi-")) return "hi";
   if (raw === "bn" || raw.startsWith("bn-")) return "bn";
 
-  // 2) Continuity fallback (critical for romanized Bengali / mixed-script turns)
-  // If the last assistant message is clearly Bengali, keep bn.
-  const recent =
+  const msg = String(currentUserMessage ?? "").trim();
+  if (msg) {
+    // 2) Current message script wins (highest confidence)
+    if (/[\u0980-\u09FF]/.test(msg)) return "bn"; // Bengali script
+    if (/[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(msg)) return "hi"; // Devanagari
+
+    // 3) Romanized detection via centralized keywordMaps (conservative)
+    const romanBn = ROMAN_BN_LANG_HINT_REGEX.test(msg);
+    const romanHi = ROMAN_HI_LANG_HINT_REGEX.test(msg);
+    const enHint = EN_LANG_HINT_REGEX.test(msg);
+
+    // If it's clearly English and NOT strongly romanized bn/hi, force English.
+    // This prevents “previous Bengali thread” from dragging an English turn into Bengali.
+    if (enHint && !romanBn && !romanHi) return "en";
+
+    // If one romanized signal is present without the other, honor it.
+    if (romanBn && !romanHi) return "bn";
+    if (romanHi && !romanBn) return "hi";
+    // If both match (rare/ambiguous), fall through to continuity.
+  }
+
+  // 4) Continuity fallback ONLY when current message is ambiguous
+  const recentRaw =
     (Array.isArray((ctx as any)?.recent) && (ctx as any).recent) ||
     (Array.isArray((ctx as any)?.recentMessages) &&
-      (ctx as any).recentMessages) ||
-    (Array.isArray((ctx as any)?.inputs) && (ctx as any).inputs) ||
+      (ctx as any)?.recentMessages) ||
+    (Array.isArray((ctx as any)?.inputs) && (ctx as any)?.inputs) ||
     [];
+
+  // Limit memory window to avoid phrase echo / robotic repetition
+  const recent = recentRaw.slice(-6);
 
   for (let i = recent.length - 1; i >= 0; i--) {
     const m: any = recent[i];
@@ -543,13 +574,10 @@ function getPreferredLanguage(ctx: SessionContext): SupportedLanguage {
     const t = String(m?.content ?? m?.text ?? "").trim();
     if (!t) continue;
 
-    // Bengali script
     if (/[\u0980-\u09FF]/.test(t)) return "bn";
-
-    // Devanagari letters only (exclude danda "।" which causes false Hindi)
     if (/[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(t)) return "hi";
 
-    break; // last assistant found, no strong signal
+    break;
   }
 
   return "en";
@@ -559,7 +587,7 @@ function draftResponseForLanguage(
   userMessage: string,
   ctx: SessionContext,
 ): ImotaraResponse {
-  const lang = getPreferredLanguage(ctx);
+  const lang = getPreferredLanguage(ctx, userMessage);
   if (lang === "en") return draftResponse(userMessage, ctx);
 
   // Minimal localized fallback (keeps existing logic intact for English,
@@ -586,7 +614,7 @@ function draftResponseForLanguage(
               ? `मैं समझ रहा हूँ, ${name}.`
               : "मैं समझ रहा हूँ."
       : // bn
-        rel === "friend"
+      rel === "friend"
         ? name
           ? `বুঝলাম, ${name}.`
           : "বুঝলাম."
@@ -613,57 +641,57 @@ function draftResponseForLanguage(
     lang === "hi"
       ? `${openerWithContext} मैं आपके साथ हूँ। अभी इस पल में सबसे भारी क्या लग रहा है?`
       : (() => {
-          // Bengali intent-aware fallback (no more same-line repetition)
-          const t = msg.trim();
-          const tNoPunct = t.replace(/[।!?]+$/g, "").trim();
+        // Bengali intent-aware fallback (no more same-line repetition)
+        const t = msg.trim();
+        const tNoPunct = t.replace(/[।!?]+$/g, "").trim();
 
-          const isQuestion =
-            /[?？]$/.test(t) ||
-            /^(কি|কী|কেন|কখন|কোথায়|কিভাবে|কারা|কাকে)\b/i.test(tNoPunct);
+        const isQuestion =
+          /[?？]$/.test(t) ||
+          /^(কি|কী|কেন|কখন|কোথায়|কিভাবে|কারা|কাকে)\b/i.test(tNoPunct);
 
-          const isGoodbye =
-            /(আমি\s*যাচ্ছি|চলি|চলে\s*যাচ্ছি|বাই|বিদায়|দেখা\s*হবে)/i.test(
-              tNoPunct,
-            );
+        const isGoodbye =
+          /(আমি\s*যাচ্ছি|চলি|চলে\s*যাচ্ছি|বাই|বিদায়|দেখা\s*হবে)/i.test(
+            tNoPunct,
+          );
 
-          // tiny deterministic variation (not random)
-          const seed = tNoPunct.length % 4;
-          const reaction = [
-            "আচ্ছা—শুনছি।",
-            "হুম… বুঝলাম।",
-            "ঠিক আছে, আমি আছি।",
-            "ওহ… বুঝতে পারছি।",
-          ][seed];
+        // tiny deterministic variation (not random)
+        const seed = tNoPunct.length % 4;
+        const reaction = [
+          "আচ্ছা—শুনছি।",
+          "হুম… বুঝলাম।",
+          "ঠিক আছে, আমি আছি।",
+          "ওহ… বুঝতে পারছি।",
+        ][seed];
 
-          // Goodbye: no question (keeps it human)
-          if (isGoodbye) {
-            return `${reaction} তুমি চাইলে পরে আবার লিখতে পারো। আমি এখানেই থাকব।`;
-          }
+        // Goodbye: no question (keeps it human)
+        if (isGoodbye) {
+          return `${reaction} তুমি চাইলে পরে আবার লিখতে পারো। আমি এখানেই থাকব।`;
+        }
 
-          // If user asked a question: don't force "ভারী কী" loop
-          if (isQuestion) {
-            return `${reaction} তুমি প্রশ্নটা করেছো—আমি সেটাতেই থাকছি। প্রসঙ্গটা আরেকটু বলবে?`;
-          }
+        // If user asked a question: don't force "ভারী কী" loop
+        if (isQuestion) {
+          return `${reaction} তুমি প্রশ্নটা করেছো—আমি সেটাতেই থাকছি। প্রসঙ্গটা আরেকটু বলবে?`;
+        }
 
-          // Statement: mirror + one gentle bridge question
-          // Statement-mode: mirror + one gentle bridge question (varied, not a fixed menu)
-          const bridgeVariants = [
-            "এখন তুমি চাইলে একদম ছোট করে শুরু করি—এক লাইনে বলবে, শরীরটা ভারী লাগছে নাকি মনটা?",
-            "তুমি যা বললে সেটা ধরলাম। এখন কোনটা বেশি দরকার—একটু শান্তি, নাকি পরিষ্কারভাবে বুঝে নেওয়া?",
-            "আমি শুনছি। এখন যদি একটা ছোট পদক্ষেপ নিতে চাও, সেটা কী হতে পারে—পানি, শ্বাস, নাকি একটু বিরতি?",
-            "ঠিক আছে। তুমি চাইলে আমি শুধু পাশে থাকি—না কি একটু গুছিয়ে বলতে সাহায্য করি?",
-          ] as const;
+        // Statement: mirror + one gentle bridge question
+        // Statement-mode: mirror + one gentle bridge question (varied, not a fixed menu)
+        const bridgeVariants = [
+          "এখন তুমি চাইলে একদম ছোট করে শুরু করি—এক লাইনে বলবে, শরীরটা ভারী লাগছে নাকি মনটা?",
+          "তুমি যা বললে সেটা ধরলাম। এখন কোনটা বেশি দরকার—একটু শান্তি, নাকি পরিষ্কারভাবে বুঝে নেওয়া?",
+          "আমি শুনছি। এখন যদি একটা ছোট পদক্ষেপ নিতে চাও, সেটা কী হতে পারে—পানি, শ্বাস, নাকি একটু বিরতি?",
+          "ঠিক আছে। তুমি চাইলে আমি শুধু পাশে থাকি—না কি একটু গুছিয়ে বলতে সাহায্য করি?",
+        ] as const;
 
-          // No requestId in this scope; derive a stable seed from message + context.
-          const seedKey = `${lang}|${name ?? ""}|${msg}|${prev ?? ""}`;
-          // Simple deterministic hash → stable index (no external helper/import needed)
-          let h = 0;
-          for (let i = 0; i < seedKey.length; i++) {
-            h = (h * 31 + seedKey.charCodeAt(i)) >>> 0;
-          }
-          const bIdx = h % bridgeVariants.length;
-          return `${reaction} ${openerWithContext} আমি বুঝতে পারছি। ${bridgeVariants[bIdx]}`;
-        })();
+        // No requestId in this scope; derive a stable seed from message + context.
+        const seedKey = `${lang}|${name ?? ""}|${msg}|${prev ?? ""}`;
+        // Simple deterministic hash → stable index (no external helper/import needed)
+        let h = 0;
+        for (let i = 0; i < seedKey.length; i++) {
+          h = (h * 31 + seedKey.charCodeAt(i)) >>> 0;
+        }
+        const bIdx = h % bridgeVariants.length;
+        return `${reaction} ${openerWithContext} আমি বুঝতে পারছি। ${bridgeVariants[bIdx]}`;
+      })();
 
   const followUp =
     lang === "hi"
@@ -1060,9 +1088,9 @@ function draftResponse(
     message = openerAlreadyHasAnchor
       ? openerText
       : `${openerText} ${pickFromSeed(
-          `presence:${msg}:${rel}:${name ?? ""}`,
-          presenceBank,
-        )}`;
+        `presence:${msg}:${rel}:${name ?? ""}`,
+        presenceBank,
+      )}`;
 
     // ✅ Long-memory: avoid repeating the same fallback style too often (25 turns)
     const cooldownTurns = 25;
@@ -1361,8 +1389,8 @@ export async function runImotara(input: {
 
     const userName =
       useName &&
-      (ctx as any)?.toneContext?.user?.name &&
-      typeof (ctx as any).toneContext.user.name === "string"
+        (ctx as any)?.toneContext?.user?.name &&
+        typeof (ctx as any).toneContext.user.name === "string"
         ? String((ctx as any).toneContext.user.name).trim()
         : "";
 
@@ -1388,8 +1416,8 @@ export async function runImotara(input: {
 
   const userName =
     useName &&
-    (ctx as any)?.toneContext?.user?.name &&
-    typeof (ctx as any).toneContext.user.name === "string"
+      (ctx as any)?.toneContext?.user?.name &&
+      typeof (ctx as any).toneContext.user.name === "string"
       ? String((ctx as any).toneContext.user.name).trim()
       : "";
 
@@ -1546,7 +1574,7 @@ export async function runImotara(input: {
 
   const companionNameForSignoff =
     companionEnabled &&
-    typeof (ctx as any)?.toneContext?.companion?.name === "string"
+      typeof (ctx as any)?.toneContext?.companion?.name === "string"
       ? String((ctx as any).toneContext.companion.name).trim()
       : "";
 

@@ -17,6 +17,21 @@ export const ROMAN_HI_LANG_HINT_REGEX =
 export const ROMAN_BN_LANG_HINT_REGEX =
   /\b(Ki|Hae|hoe|Na|Kemon|Bhalo|Ki khobor|Achi|Ar|Ekhon|Pore|Korcho|Khai|Ghum|Jachhi|Aschi|Bolche|Dekha|Janina|Bujhlam|Sunte|Tumi|Apni|Tui|Amra|Ora|Bari|Baire|Office|College|Bondhu|Ke|Acha|Thik ache|Sotti|Tai|Keno|Kothay|Kobe|Kokhon|Ekdom|Hoyto|Osthir|Cholo|Boka|Pagol|Misti|Dhur|Ghumao|Kotha|Hobe|Bad dao|baad|ami|acho|accho|onekdin|chol|kothao|adda|gosip|gossip|joma|ache|khub|barite|ghor|mon|kharap|lagche)\b/i;
 
+// Romanized Tamil (Latin script) hints
+export const ROMAN_TA_LANG_HINT_REGEX =
+  /\b(enna|epdi|eppadi|seri|sari|inga|anga|ipo|ippo|ennaachu|enna achu|saptiya|saaptiya|veetla|veetle|amma|appa|thambi|akka|anna|nan|naan|unaku|ungal|romba|konjam|nalla|illa|illai|podhum|paravailla|paravala|sollu|pesu|pesa|venum|vendam|paathu|paakalam|irukku|irukka|pogudhu|vandhuten|poiten)\b/i;
+
+// Romanized Telugu (Latin script) hints
+export const ROMAN_TE_LANG_HINT_REGEX =
+  /\b(enti|ela|elaa|em|emi|ippudu|inka|avuna|kaadu|ledu|undhi|undi|unna|unnanu|nenu|nuvvu|meeru|miku|naaku|amma|nanna|anna|akka|tammudu|chelli|baaga|bagundi|chala|konchem|vellu|vastanu|vachanu|cheppu|matladu|tinava|tinnava|em ayindi|emindi|sare|parledu|enduku|ekkada|eppudu)\b/i;
+
+// Tamil emotion hints (kept conservative)
+export const TA_SAD_REGEX =
+  /(romba kashtama irukku|kashtama irukku|manasu kashtama irukku|romba kastama irukku|kastama irukku|manasu kastama irukku|manasu sari illa|manasu seriya illa|romba sogama irukku|sogama irukku|azhuga varudhu|azhudha pola irukku|udalum manasum tired aa irukku)/i;
+
+export const TA_STRESS_REGEX =
+  /(romba pressure irukku|pressure aa irukku|romba tension aa irukku|tension aa irukku|romba stress aa irukku|stress aa irukku|bayama irukku|romba bayama irukku|manasu romba odudhu|thalaila neraya oditu irukku|thalaila romba load irukku)/i;
+
 // English “clearly English” hints (for strict English turns)
 export const EN_LANG_HINT_REGEX =
   /\b(what|when|where|how|the|please|thanks|thank|mom|dad|dinner|lunch|breakfast|tonight|today|tomorrow|coming|home|cook|cooked|cooking|special|birthday|And|To|It|Is|In|My|You|U|Me|I|Yeah|Yep|No|Nah|LOL|LMAO|OMG|Wow|Cool|Nice|Oh|Okay|OK|K|Wait|Actually|Literally|Now|Soon|Later|ASAP|BRB|AFK|On my way|OMW|Think|Know|Want|Doing|Going|Why|Thx|Pls|Sorry|Sry|Hey|Hi|Hello|Bye|Good|Gnite|Take care)\b/i;
@@ -83,8 +98,8 @@ export function debugDetectEmotion(text: string): DebugEmotion | null {
 
   if (isConfusedText(input)) return "confused";
 
-  if (HI_STRESS_REGEX.test(input)) return "stressed";
-  if (BN_SAD_REGEX.test(input)) return "sad";
+  if (HI_STRESS_REGEX.test(input) || TA_STRESS_REGEX.test(input)) return "stressed";
+  if (BN_SAD_REGEX.test(input) || TA_SAD_REGEX.test(input)) return "sad";
 
   return null;
 }

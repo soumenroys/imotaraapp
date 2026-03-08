@@ -18,6 +18,8 @@ import {
   EN_LANG_HINT_REGEX,
   ROMAN_BN_LANG_HINT_REGEX,
   ROMAN_HI_LANG_HINT_REGEX,
+  ROMAN_TA_LANG_HINT_REGEX,
+  ROMAN_TE_LANG_HINT_REGEX,
 } from "@/lib/emotion/keywordMaps";
 
 type LanguageCode =
@@ -182,12 +184,67 @@ function derivePreferredLanguage(
   // --- Romanized local-language detectors (from keywordMaps.ts)
   const romanHiHits = countHits(ROMAN_HI_LANG_HINT_REGEX);
   const romanBnHits = countHits(ROMAN_BN_LANG_HINT_REGEX);
+  const romanTaHits = countHits(ROMAN_TA_LANG_HINT_REGEX);
+  const romanTeHits = countHits(ROMAN_TE_LANG_HINT_REGEX);
 
   const latinOnly = !hasBn && !hasHiLetters && totalLetters > 0;
   const latinHeavy = latinOnly && latinLetters / totalLetters >= 0.8;
 
-  // ✅ Romanized Hindi/Bengali detected → force that language (native script output)
+  // ✅ Romanized Indian-language detection → force that language's native script output
   if (latinOnly) {
+    if (
+      romanHiHits >= 2 &&
+      romanHiHits > romanBnHits &&
+      romanHiHits > romanTaHits &&
+      romanHiHits > romanTeHits
+    ) {
+      return {
+        preferredLanguage: "hi",
+        strictLanguage: "hi",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Hindi (hi). Use Devanagari script. Do not mix languages.",
+      };
+    }
+    if (
+      romanBnHits >= 2 &&
+      romanBnHits > romanHiHits &&
+      romanBnHits > romanTaHits &&
+      romanBnHits > romanTeHits
+    ) {
+      return {
+        preferredLanguage: "bn",
+        strictLanguage: "bn",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Bengali (bn). Use Bengali script. Do not mix languages.",
+      };
+    }
+    if (
+      romanTaHits >= 2 &&
+      romanTaHits > romanHiHits &&
+      romanTaHits > romanBnHits &&
+      romanTaHits >= romanTeHits
+    ) {
+      return {
+        preferredLanguage: "ta",
+        strictLanguage: "ta",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Tamil (ta). Use Tamil script. Do not mix languages.",
+      };
+    }
+    if (
+      romanTeHits >= 2 &&
+      romanTeHits > romanHiHits &&
+      romanTeHits > romanBnHits &&
+      romanTeHits >= romanTaHits
+    ) {
+      return {
+        preferredLanguage: "te",
+        strictLanguage: "te",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Telugu (te). Use Telugu script. Do not mix languages.",
+      };
+    }
+
     if (romanHiHits >= 2) {
       return {
         preferredLanguage: "hi",
@@ -204,11 +261,32 @@ function derivePreferredLanguage(
           "Language policy (strict): Reply ONLY in Bengali (bn). Use Bengali script. Do not mix languages.",
       };
     }
+    if (romanTaHits >= 2) {
+      return {
+        preferredLanguage: "ta",
+        strictLanguage: "ta",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Tamil (ta). Use Tamil script. Do not mix languages.",
+      };
+    }
+    if (romanTeHits >= 2) {
+      return {
+        preferredLanguage: "te",
+        strictLanguage: "te",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Telugu (te). Use Telugu script. Do not mix languages.",
+      };
+    }
   }
 
   // ✅ Clear English signal → strict English
   const looksEnglish =
-    latinHeavy && englishWordHits >= 2 && romanHiHits < 2 && romanBnHits < 2;
+    latinHeavy &&
+    englishWordHits >= 2 &&
+    romanHiHits < 2 &&
+    romanBnHits < 2 &&
+    romanTaHits < 2 &&
+    romanTeHits < 2;
 
   if (looksEnglish) {
     return {
@@ -222,7 +300,13 @@ function derivePreferredLanguage(
   // ✅ SAFETY LOCK:
   // If it's Latin-heavy and NOT romanized hi/bn, default to English anyway.
   // This prevents continuity from dragging English prompts into Hindi.
-  if (latinHeavy && romanHiHits === 0 && romanBnHits === 0) {
+  if (
+    latinHeavy &&
+    romanHiHits === 0 &&
+    romanBnHits === 0 &&
+    romanTaHits === 0 &&
+    romanTeHits === 0
+  ) {
     return {
       preferredLanguage: "en",
       strictLanguage: "en",
@@ -279,21 +363,39 @@ function derivePreferredLanguage(
       String(message ?? ""),
     );
 
-  // ✅ STRICT language lock priority:
+  // ✅ STRICT language
+  // lock priority:
   // 1) current message script (highest confidence)
-  // 2) conversation continuity (if no switch intent)
-  // 3) explicit preference (settings)
-  // 4) none
-  const strictLang =
+  // 2) message-level English safety lock (Latin-heavy, not romanized hi/bn)
+  // 3) conversation continuity (if no switch intent)
+  // 4) explicit preference (settings)
+  // 5) none
+  // If the current message clearly looks English (Latin heavy),
+  // prioritize English before conversation continuity.
+  const strictLangBase =
     scriptDerived ??
-    (!userAskedSwitch
-      ? lastWasBn
-        ? "bn"
-        : lastWasHi
-          ? "hi"
-          : undefined
-      : undefined) ??
+    (latinHeavy && romanHiHits < 2 && romanBnHits < 2
+      ? "en"
+      : (!userAskedSwitch
+        ? lastWasBn
+          ? "bn"
+          : lastWasHi
+            ? "hi"
+            : undefined
+        : undefined)) ??
     explicit;
+
+  // ✅ Belt-and-suspenders:
+  // If the CURRENT message is clearly Latin-heavy and NOT romanized Hindi/Bengali,
+  // never let continuity drag it into bn/hi.
+  const strictLang =
+    latinHeavy &&
+      romanHiHits < 2 &&
+      romanBnHits < 2 &&
+      romanTaHits < 2 &&
+      romanTeHits < 2
+      ? "en"
+      : strictLangBase;
 
   // ✅ If we already decided a strict language (continuity/script), never leave preferredLanguage undefined.
   // This keeps formatting + downstream behavior aligned and prevents en+hi mixing.
@@ -314,7 +416,7 @@ function derivePreferredLanguage(
 
 function deriveFormatterTone(
   toneContext: unknown,
-): "close_friend" | "calm_companion" | "coach" | "mentor" {
+): "close_friend" | "calm_companion" | "coach" | "mentor" | "partner_like" {
   // 1) Direct string tone (back-compat)
   if (typeof toneContext === "string") {
     const v = toneContext.trim().toLowerCase();
@@ -322,6 +424,7 @@ function deriveFormatterTone(
       return "calm_companion";
     if (v === "coach") return "coach";
     if (v === "mentor") return "mentor";
+    if (v === "partner_like" || v === "partner") return "partner_like";
     if (v === "friend" || v === "close_friend") return "close_friend";
     return "close_friend";
   }
@@ -338,6 +441,7 @@ function deriveFormatterTone(
         return "calm_companion";
       if (v === "coach") return "coach";
       if (v === "mentor") return "mentor";
+      if (v === "partner_like" || v === "partner") return "partner_like";
       return "close_friend";
     }
 
@@ -353,13 +457,14 @@ function deriveFormatterTone(
 
       if (rel === "coach") return "coach";
 
+      if (rel === "partner_like") return "partner_like";
+
       // mentor-ish bucket
       if (rel === "mentor" || rel === "elder" || rel === "parent_like")
         return "mentor";
 
-      // friend-ish bucket (these still matter in prompt hints elsewhere,
-      // but formatter needs a smaller set of banks)
-      // friend / sibling / junior_buddy / partner_like / prefer_not
+      // friend-ish bucket
+      // friend / sibling / junior_buddy / prefer_not
       return "close_friend";
     }
   }
@@ -480,8 +585,8 @@ export async function POST(req: Request) {
     body?.text ??
     (Array.isArray(body?.inputs) && (body.inputs as unknown[]).length
       ? (body.inputs as Array<Record<string, unknown>>)[
-          (body.inputs as unknown[]).length - 1
-        ]?.text
+        (body.inputs as unknown[]).length - 1
+      ]?.text
       : "") ??
     "";
 
@@ -558,15 +663,10 @@ export async function POST(req: Request) {
     (baseCtx as any)?.toneContext ??
     undefined) as unknown;
 
-  // ✅ Baby Step 3.4.1 — derive analysis source (single truth)
-  const analysisModeRaw =
-    (baseCtx as any)?.analysisMode ??
-    (baseCtx as any)?.analysis?.mode ??
-    (body as any)?.analysisMode ??
-    (body as any)?.analysis?.mode ??
-    undefined;
-
-  const analysisSource = analysisModeRaw === "local" ? "local" : "cloud";
+  // ✅ /api/respond is the authoritative cloud reply route.
+  // But the badge should reflect whether this request ran in a degraded fallback-like state.
+  // Start as cloud, then downgrade meta only if critical remote dependencies fail.
+  let analysisSource: "cloud" | "local" = "cloud";
 
   // ✅ Baby Step 11.7 — memory relevance guard (inject ONLY if relevant)
   // Prefer user-scoped Supabase (RLS) when cookies exist; fall back to service role.
@@ -628,6 +728,10 @@ export async function POST(req: Request) {
     pinnedRecall = [];
     pinnedRecallRelevant = false;
 
+    // Memory/persistence dependency failed, so report this response as degraded.
+    // This changes only the returned meta badge source, not the reply generation pipeline.
+    analysisSource = "local";
+
     if (qa) {
       pinnedRecallDebugTop = [
         { score: 0, type: "error", key: "fetchUserMemories_failed" },
@@ -635,56 +739,8 @@ export async function POST(req: Request) {
     }
   }
 
-  if (analysisSource === "local") {
-    const local = buildLocalReply(message, toneContext);
-
-    // ✅ Contract normalization (additive):
-    // Ensure meta.emotionLabel exists even in local analysis mode.
-    // Prefer local.meta.emotionLabel if present, else derive from local.meta.emotion.primary if available.
-    const localMeta = ((local as any)?.meta ?? {}) as Record<string, unknown>;
-    const directLabel =
-      typeof (localMeta as any)?.emotionLabel === "string"
-        ? String((localMeta as any).emotionLabel)
-            .trim()
-            .toLowerCase()
-        : "";
-
-    const primary =
-      typeof (localMeta as any)?.emotion?.primary === "string"
-        ? String((localMeta as any).emotion.primary)
-            .trim()
-            .toLowerCase()
-        : "";
-
-    const derivedLabel =
-      primary === "sadness"
-        ? "sad"
-        : primary === "fear" || primary === "anxiety"
-          ? "anxious"
-          : primary === "anger"
-            ? "angry"
-            : primary === "joy"
-              ? "joy"
-              : primary === "neutral"
-                ? "neutral"
-                : primary;
-
-    const emotionLabel = directLabel || derivedLabel || undefined;
-
-    return NextResponse.json(
-      {
-        ...local,
-        meta: {
-          ...localMeta,
-          styleContract: "1.0",
-          blueprint: "1.0",
-          analysisSource: "local",
-          ...(emotionLabel ? { emotionLabel } : {}),
-        },
-      },
-      { status: 200 },
-    );
-  }
+  // /api/respond is cloud-only.
+  // Local/offline reply generation should happen before this route is called.
 
   const requestId = getRequestIdFromBody(body);
 
@@ -703,23 +759,24 @@ export async function POST(req: Request) {
 
   // Anti-repeat directive: deterministic per requestId, so repeated prompts don't lock into one phrasing.
   const antiRepeatVariants = [
-    "Variation policy: Use fresh wording. Avoid common generic advice phrases. Offer 1 concrete micro-step and 1 short reflective question. Do not repeat the same sentence structure across replies.",
-    "Variation policy: Do NOT reuse stock templates. Keep it human, specific, and slightly different in phrasing. Give 1 actionable step and 1 gentle check-in question.",
-    "Variation policy: Avoid clichés. Change the opening line style. Provide 1 practical step the user can do in 30 seconds and ask 1 follow-up question.",
-    "Variation policy: Write naturally (not like a template). Give 1 grounding or planning step and 1 curiosity question. Do not repeat the same advice phrasing.",
-    "Variation policy: Keep it empathetic and specific. Avoid repeating the same coping-technique script. Give 1 tiny step + 1 question to continue the conversation.",
+    "Variation policy: Use fresh wording. Avoid generic therapy phrasing. Offer 1 concrete micro-step. Ask a short question ONLY if it truly helps (otherwise end with a friendly handoff statement).",
+    "Variation policy: Do NOT reuse stock templates. Keep it human, specific, and slightly different in phrasing. Give 1 actionable step. A question is optional—max 1, and keep it casual (friend vibe).",
+    "Variation policy: Avoid clichés. Change the opening line style. Provide 1 practical step the user can do in 30 seconds. If you ask, ask 1 small, natural question—not a clinical probe.",
+    "Variation policy: Write naturally (not like a template). Give 1 grounding or planning step. Prefer a warm closing line over interrogating the user. Max 1 question.",
+    "Variation policy: Keep it empathetic and specific. Avoid repeating the same coping-technique script. Give 1 tiny step, then a simple friendly bridge (question optional, max 1).",
   ] as const;
 
   const antiRepeatDirective =
     antiRepeatVariants[
-      stableVariantFromId(requestId, antiRepeatVariants.length)
+    stableVariantFromId(requestId, antiRepeatVariants.length)
     ];
 
   // ✅ Reduce “anchor phrase” frequency (don’t ban—just avoid overuse)
   const anchorPhraseDirective = [
-    "Avoid overusing the same signature phrases. It’s okay to use them occasionally, but don’t repeat them often.",
+    "Avoid overusing the same signature phrases. It’s okay occasionally, but don’t repeat them often.",
     'If they appeared recently, rephrase instead of repeating them verbatim: "Got you", "I’m with you in this", "I hear you", "What’s one small detail", "What feels like the next move".',
-    "Sometimes use a simple presence statement instead of steering with another question.",
+    'Avoid therapist-style probes like: "Share the one part that’s bothering you most", "Tell me what’s going on right now", "Describe one small piece".',
+    "Friend-default: keep it simple, real, and warm. Prefer a gentle closing line over asking a question unless the user explicitly asked one.",
   ].join(" ");
 
   // ✅ Tone-aware closing line directive (coach != supportive)
@@ -729,34 +786,54 @@ export async function POST(req: Request) {
   // ✅ Return mode directive (user is back; do "welcome back + what now", not probing)
   const returnDirective = isReturnIntent
     ? [
-        "RETURN MODE: The user is back after a pause.",
-        "Reply like a close friend: quick welcome-back, then a simple 'what now?' orientation.",
-        "Do NOT ask them to explain feelings or 'describe one small piece' unless they shared an issue.",
-        "Ask at most ONE short question (e.g., 'What do you want to do right now?').",
-        "Keep it natural and warm (2–4 lines).",
-      ].join("\n")
+      "RETURN MODE: The user is back after a pause.",
+      "Reply like a close friend: quick welcome-back, then a simple 'what now?' orientation.",
+      "Do NOT ask them to explain feelings or 'describe one small piece' unless they shared an issue.",
+      "Ask at most ONE short question (e.g., 'What do you want to do right now?').",
+      "Keep it natural and warm (2–4 lines).",
+    ].join("\n")
     : "";
 
   // ✅ Closure directive: if user is pausing, do a warm send-off and DO NOT ask questions.
   const closureDirective = isClosureIntent
     ? [
-        "🚫 CLOSURE MODE: User is leaving/pausing (e.g., going for a walk, will talk later, going out).",
-        "ABSOLUTE RULE: Do NOT end with ANY question mark, question word, or open-ended prompt.",
-        "ABSOLUTE RULE: Do NOT use phrases like 'what if', 'have you considered', 'let me know', 'feel free to', or any call-to-action.",
-        "RESPONSE TEMPLATE: Acknowledge their message → add one warm/encouraging statement → gentle send-off ('I'll be here when you get back' or similar).",
-        "TONE: Warm, supportive, brief. 1–2 sentences maximum. End with a period or exclamation mark.",
-        "EXAMPLES OF WHAT NOT TO DO: 'Talk to you later! What will you do on your walk?' or 'See you soon—let me know how it goes!' or 'Enjoy your time—anything you want to talk about first?'",
-        "EXAMPLES OF WHAT TO DO: 'Enjoy your walk! I'll be here whenever you're back.' or 'Take care—I'm right here for you.' or 'Have a great time out. See you soon!'",
-      ].join("\n")
+      "🚫 CLOSURE MODE: User is leaving/pausing (e.g., going for a walk, will talk later, going out).",
+      "ABSOLUTE RULE: Do NOT end with ANY question mark, question word, or open-ended prompt.",
+      "ABSOLUTE RULE: Do NOT use phrases like 'what if', 'have you considered', 'let me know', 'feel free to', or any call-to-action.",
+      "RESPONSE TEMPLATE: Acknowledge their message → add one warm/encouraging statement → gentle send-off ('I'll be here when you get back' or similar).",
+      "TONE: Warm, supportive, brief. 1–2 sentences maximum. End with a period or exclamation mark.",
+      "EXAMPLES OF WHAT NOT TO DO: 'Talk to you later! What will you do on your walk?' or 'See you soon—let me know how it goes!' or 'Enjoy your time—anything you want to talk about first?'",
+      "EXAMPLES OF WHAT TO DO: 'Enjoy your walk! I'll be here whenever you're back.' or 'Take care—I'm right here for you.' or 'Have a great time out. See you soon!'",
+    ].join("\n")
     : "";
 
   // Add a generationSalt field for downstream (safe even if ignored)
   const generationSalt = `rid:${requestId}`;
 
+  // ✅ Prevent language continuity from dragging English turns into Bengali/Hindi.
+  // We do NOT delete chat history; we only prune what we feed into the model context.
+  type RecentMsg = { role?: string; content?: string; text?: string };
+
+  const hasBnOrHiLetters = (s: string) =>
+    /[\u0980-\u09FF]/.test(s) || /[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(s);
+
+  const originalRecentMessages = (baseCtx as any)?.recentMessages as
+    | RecentMsg[]
+    | undefined;
+
+  const modelRecentMessages =
+    strictLanguage === "en" && Array.isArray(originalRecentMessages)
+      ? originalRecentMessages.filter((m) => {
+        const c = String(m?.content ?? m?.text ?? "");
+        return !hasBnOrHiLetters(c);
+      })
+      : originalRecentMessages;
+
   const result = await runImotara({
     userMessage: message,
     sessionContext: {
       ...baseCtx,
+      ...(modelRecentMessages ? { recentMessages: modelRecentMessages } : {}),
 
       // ✅ context bias input (safe even if downstream ignores)
       contextText: message,
@@ -775,10 +852,6 @@ export async function POST(req: Request) {
     },
     toneContext, // ✅ enables companion tone + personal references consistently
   });
-
-  // ✅ Anti-repeat + humanize guard (cloud): only touches replyText when we detect repetition.
-  // Uses recentMessages when available (mobile/web parity) and keeps response schema unchanged.
-  type RecentMsg = { role?: string; content?: string; text?: string };
 
   const recentMessages = (baseCtx as any)?.recentMessages as
     | RecentMsg[]
@@ -946,8 +1019,8 @@ export async function POST(req: Request) {
           "Do NOT reuse any full sentence from your previous reply.",
           ...(langBase === "bn"
             ? [
-                "Language fix (strict): Reply ONLY in Bengali (bn). Do not use Hindi/Devanagari. Do not mix languages.",
-              ]
+              "Language fix (strict): Reply ONLY in Bengali (bn). Do not use Hindi/Devanagari. Do not mix languages.",
+            ]
             : []),
           "Avoid template phrases like: 'Got you', 'I'm with you in this', 'We can go gentle'.",
           "Keep it soft, permission-based, and collaborative ('we' tone).",
@@ -1019,11 +1092,11 @@ export async function POST(req: Request) {
   const safeMeta = qa
     ? resultMeta
     : (() => {
-        const m: Record<string, unknown> = { ...resultMeta };
-        delete m.softEnforcement;
-        // ✅ Keep emotion in public release (safe + non-sensitive)
-        return m;
-      })();
+      const m: Record<string, unknown> = { ...resultMeta };
+      delete m.softEnforcement;
+      // ✅ Keep emotion in public release (safe + non-sensitive)
+      return m;
+    })();
 
   // ✅ Baby Step 3.5 — emoji-only positive override (display/meta only)
   // Prevents cases like 😊❤️ showing "sadness/anger" in Cloud AI debug label.
@@ -1053,10 +1126,10 @@ export async function POST(req: Request) {
 
   const emotionInput = shouldEmojiOverride
     ? {
-        ...((safeMeta as any)?.emotion ?? {}),
-        primary: "joy",
-        overriddenBy: "emoji",
-      }
+      ...((safeMeta as any)?.emotion ?? {}),
+      primary: "joy",
+      overriddenBy: "emoji",
+    }
     : (safeMeta as any)?.emotion;
 
   // ✅ Baby Step 11.6.1 — guarantee emotion exists at API boundary
@@ -1082,7 +1155,7 @@ export async function POST(req: Request) {
             : emotionPrimary === "neutral"
               ? "neutral"
               : // fallback: keep primary if it is a non-empty string, else neutral
-                emotionPrimary || "neutral";
+              emotionPrimary || "neutral";
 
   const metaWithEmotion: Record<string, unknown> = {
     ...safeMeta,
@@ -1112,9 +1185,9 @@ export async function POST(req: Request) {
   // ✅ Mobile renders replyText. Ensure replyText is ALWAYS present (and consistent with message).
   const rawText = String(
     (result as any)?.replyText ??
-      (result as any)?.message ??
-      (result as any)?.reply ??
-      "",
+    (result as any)?.message ??
+    (result as any)?.reply ??
+    "",
   ).trim();
 
   // Decide intent once (avoid drift between formatter + debug)
@@ -1162,25 +1235,25 @@ export async function POST(req: Request) {
 
   const formattedText = rawText
     ? formatImotaraReply({
-        raw: rawText,
-        userMessage: message,
-        prevAssistantText,
+      raw: rawText,
+      userMessage: message,
+      prevAssistantText,
 
-        // 🚫 If closure, do NOT allow formatter to add bridge
-        externalBridge: isClosureIntent ? undefined : externalBridge,
+      // 🚫 If closure, do NOT allow formatter to add bridge
+      externalBridge: isClosureIntent ? undefined : externalBridge,
 
-        lang: strictLanguage ?? preferredLanguage ?? "en",
-        tone: isReturnIntent
-          ? "close_friend"
-          : deriveFormatterTone(toneContext),
-        intent: detectedIntent,
+      lang: strictLanguage ?? preferredLanguage ?? "en",
+      tone: isReturnIntent
+        ? "close_friend"
+        : deriveFormatterTone(toneContext),
+      intent: detectedIntent,
 
-        seed: `${requestId}|${userId}|${preferredLanguage ?? "en"}|${message.slice(0, 80)}`,
+      seed: `${requestId}|${userId}|${preferredLanguage ?? "en"}|${message.slice(0, 80)}`,
 
-        // 🔐 New flag for formatter (safe if ignored in older versions)
-        disableBridge: isClosureIntent,
-        mode: isReturnIntent ? "return" : undefined,
-      })
+      // 🔐 New flag for formatter (safe if ignored in older versions)
+      disableBridge: isClosureIntent,
+      mode: isReturnIntent ? "return" : undefined,
+    })
     : "";
 
   const finalText = (formattedText || rawText).trim();
@@ -1376,30 +1449,30 @@ export async function POST(req: Request) {
         // QA-only: lets us verify whether UI renders formatted vs raw
         ...(qa
           ? {
-              debugText: {
-                detectedIntent,
-                userMessage: message,
+            debugText: {
+              detectedIntent,
+              userMessage: message,
 
-                // closure proof
-                normalizedMsg,
-                isClosureIntent,
+              // closure proof
+              normalizedMsg,
+              isClosureIntent,
 
-                // text proof
-                rawText,
-                formattedText,
-                finalText,
-                finalTextNoQ: isClosureIntent
-                  ? stripQuestions(finalText)
-                  : finalText,
+              // text proof
+              rawText,
+              formattedText,
+              finalText,
+              finalTextNoQ: isClosureIntent
+                ? stripQuestions(finalText)
+                : finalText,
 
-                // what we actually returned in result fields
-                returned: {
-                  replyText: String((result as any)?.replyText ?? ""),
-                  message: String((result as any)?.message ?? ""),
-                  reply: String((result as any)?.reply ?? ""),
-                },
+              // what we actually returned in result fields
+              returned: {
+                replyText: String((result as any)?.replyText ?? ""),
+                message: String((result as any)?.message ?? ""),
+                reply: String((result as any)?.reply ?? ""),
               },
-            }
+            },
+          }
           : {}),
       },
     },

@@ -53,9 +53,19 @@ export const analyzeRemote: AnalyzeFn = async (inputs, options) => {
       15000
     );
   } catch (err: any) {
-    // Network failure, server crash, timeout, etc.
+    const msg = String(err?.message || "").toLowerCase();
+    const isAbortLike =
+      err?.name === "AbortError" ||
+      msg.includes("aborted") ||
+      msg.includes("signal is aborted") ||
+      msg.includes("timeout") ||
+      msg.includes("failed to fetch") ||
+      msg.includes("networkerror");
+
     throw new Error(
-      `Remote analyze failed (network/timeout): ${err?.message || "unknown"}`
+      isAbortLike
+        ? "Remote analyze failed (network/timeout): request aborted or network unavailable"
+        : `Remote analyze failed (network/timeout): ${err?.message || "unknown"}`
     );
   }
 

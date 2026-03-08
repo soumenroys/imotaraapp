@@ -67,12 +67,30 @@ export function useAnalysis(
       try {
         setLoading(true);
         setError(null);
+        let out: AnalysisResult;
 
-        const runAnalyze = mode === "api" ? analyzeRemote : analyzeLocal;
-        const out = await runAnalyze(inputs, { windowSize });
+        if (mode === "api") {
+          try {
+            out = await analyzeRemote(inputs, { windowSize });
+          } catch (e) {
+            // Cloud analysis failed (offline / timeout / network issue).
+            // Fall back quietly to local analysis so online mode behavior stays intact,
+            // while offline cloud-selection does not throw noisy browser errors.
+            if (process.env.NODE_ENV !== "production") {
+              console.warn(
+                "[imotara] analyzeRemote failed in useAnalysis; falling back to local analysis:",
+                e,
+              );
+            }
+            out = await analyzeLocal(inputs, { windowSize });
+          }
+        } else {
+          out = await analyzeLocal(inputs, { windowSize });
+        }
 
         if (!cancelled) {
           setResult(out);
+          setError(null);
           if (process.env.NODE_ENV !== "production") {
             console.log(`[imotara] ${mode} AnalysisResult:`, out);
           }

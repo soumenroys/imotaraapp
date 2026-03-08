@@ -40,6 +40,12 @@ import { adaptReflectionTone } from "@/lib/imotara/reflectionTone";
 import { getReflectionSeedCard } from "@/lib/imotara/reflectionSeedContract";
 import type { ReflectionSeed } from "@/lib/ai/response/responseBlueprint";
 import { buildLocalReply } from "@/lib/ai/local/localReplyEngine";
+import {
+  getImotaraProfile,
+  isCompanionContextEnabled,
+} from "@/lib/imotara/profile";
+import { deriveResponseToneFromToneContext } from "@/lib/imotara/promptProfile";
+import { debugDetectEmotion } from "@/lib/emotion/keywordMaps";
 
 type Role = "user" | "assistant" | "system";
 type DebugEmotionSource = "analysis" | "fallback" | "unknown";
@@ -688,9 +694,9 @@ export default function ChatPage() {
           createdAt: normalizeTs((th as any).createdAt),
           messages: Array.isArray((th as any).messages)
             ? (th as any).messages.map((m: any) => ({
-                ...m,
-                createdAt: normalizeTs(m?.createdAt),
-              }))
+              ...m,
+              createdAt: normalizeTs(m?.createdAt),
+            }))
             : [],
         }));
 
@@ -984,31 +990,65 @@ export default function ChatPage() {
       return { emotion, source };
     }
 
-    if (/lonely|alone|isolated|nobody cares|no one cares/.test(text)) {
-      return { emotion: "lonely", source: "fallback" };
+    return deriveEmotionFromUserText(text);
+  }
+
+  function deriveEmotionFromUserText(
+    rawText: string,
+  ): { emotion: string; source: DebugEmotionSource } {
+    const raw = String(rawText || "").trim();
+    const text = raw.toLowerCase();
+
+    if (!text) {
+      return { emotion: "neutral", source: "unknown" };
     }
-    if (/sad|depressed|miserable|crying|heartbroken|upset|empty/.test(text)) {
+
+    const shared = debugDetectEmotion(text);
+    if (shared === "sad") {
       return { emotion: "sad", source: "fallback" };
     }
-    if (
-      /anxious|anxiety|worried|worry|panic|scared|afraid|fear|terrified|nervous/.test(
-        text,
-      )
-    ) {
-      return { emotion: "anxious", source: "fallback" };
+    if (shared === "stressed") {
+      return { emotion: "stressed", source: "fallback" };
     }
-    if (/angry|furious|rage|irritated|annoyed|frustrated|pissed/.test(text)) {
-      return { emotion: "angry", source: "fallback" };
+    if (shared === "confused") {
+      return { emotion: "confused", source: "fallback" };
     }
+
+    // Telugu / Gujarati / Kannada / Odia conservative fallback cues
     if (
-      /stressed|stress|overwhelmed|burnt out|burned out|too much|can't handle|cant handle/.test(
+      /chaala pressure|pressure ga undi|naaku chaala kashtam|kashtam ga undi|bharam ga undi|ಒತ್ತಡ|ತುಂಬ ಒತ್ತಡ|ಖುಬ್ ಒತ್ತಡ|ତଣାବ|ଖୁବ ତଣାବ|ତଣାପୋଡ଼|તણાવ|બહુ તણાવ/.test(
         text,
       )
     ) {
       return { emotion: "stressed", source: "fallback" };
     }
+
     if (
-      /happy|excited|joy|joyful|glad|grateful|thankful|optimistic|hopeful|thrilled/.test(
+      /baadha|chaala bhaaram|ಖರಾಪ|ଖରାପ ଲାଗୁଛି|મને ખોટું લાગે છે|બહુ ખરાબ લાગે છે|kashtam ga undi|kashtama irukku|bharam laga undi/.test(
+        text,
+      )
+    ) {
+      return { emotion: "sad", source: "fallback" };
+    }
+
+    if (
+      /lonely|alone|isolated|nobody cares|no one cares|eka lagche|ekla|akele|akela/.test(
+        text,
+      )
+    ) {
+      return { emotion: "lonely", source: "fallback" };
+    }
+
+    if (
+      /angry|furious|rage|irritated|annoyed|frustrated|pissed|gussa|rag|rosh/.test(
+        text,
+      )
+    ) {
+      return { emotion: "angry", source: "fallback" };
+    }
+
+    if (
+      /happy|excited|joy|joyful|glad|grateful|thankful|optimistic|hopeful|thrilled|khushi|khush|bhalo lagche|valo lagche|ভালো লাগছে/.test(
         text,
       )
     ) {
@@ -1149,7 +1189,12 @@ export default function ChatPage() {
           sessionId: threadId,
           debugEmotion,
           debugEmotionSource,
-          replySource: aiMetaFrom === "openai" ? "openai" : "fallback",
+          replySource:
+            analysisSource === "local"
+              ? "fallback"
+              : aiMetaFrom === "openai"
+                ? "openai"
+                : "fallback",
 
           // ✅ NEW: parity metadata from /api/respond
           reflectionSeed,
@@ -1159,9 +1204,9 @@ export default function ChatPage() {
           meta:
             compatibility || analysisSource
               ? {
-                  ...(compatibility ? { compatibility } : {}),
-                  ...(analysisSource !== null ? { analysisSource } : {}),
-                }
+                ...(compatibility ? { compatibility } : {}),
+                ...(analysisSource !== null ? { analysisSource } : {}),
+              }
               : undefined,
         };
 
@@ -1201,17 +1246,51 @@ export default function ChatPage() {
 
         const userText = (lastUser?.content ?? "").trim();
 
-        const local = buildLocalReply(userText);
+        const profile = getImotaraProfile();
+        const companion = profile?.companion;
+
+        const localToneContext =
+          profile && companion && isCompanionContextEnabled(profile)
+            ? {
+              companion: {
+                name: companion.name?.trim() || "Imotara",
+                relationship: companion.relationship ?? undefined,
+                tone: deriveResponseToneFromToneContext({
+                  companion: {
+                    enabled: !!companion.enabled,
+                    name: companion.name ?? undefined,
+                    ageRange: companion.ageRange ?? undefined,
+                    gender: companion.gender ?? undefined,
+                    relationship: companion.relationship ?? undefined,
+                  },
+                }),
+              },
+            }
+            : undefined;
+
+        const recentUserTexts = msgsForAnalysis
+          .filter((m) => m.role === "user")
+          .map((m) => m.content?.trim() ?? "")
+          .filter(Boolean)
+          .slice(-3, -1);
+
+        const local = buildLocalReply(userText, localToneContext, {
+          recentUserTexts,
+        });
 
         fallbackReply = local.message;
+
+        const localDerived = deriveEmotionFromUserText(userText);
+        debugEmotion = localDerived.emotion;
+        debugEmotionSource = localDerived.source;
 
         // ✅ ensure ReflectionSeed type safety
         reflectionSeed = local.reflectionSeed
           ? {
-              intent: local.reflectionSeed.intent,
-              title: local.reflectionSeed.title ?? "",
-              prompt: local.reflectionSeed.prompt,
-            }
+            intent: local.reflectionSeed.intent,
+            title: local.reflectionSeed.title ?? "",
+            prompt: local.reflectionSeed.prompt,
+          }
           : undefined;
 
         analysisSource = "local";
@@ -1341,13 +1420,13 @@ export default function ChatPage() {
       prev.map((t) =>
         t.id === targetId
           ? {
-              ...t,
-              title:
-                t.messages.length === 0
-                  ? text.slice(0, 40) + (text.length > 40 ? "…" : "")
-                  : t.title,
-              messages: [...t.messages, userMsg],
-            }
+            ...t,
+            title:
+              t.messages.length === 0
+                ? text.slice(0, 40) + (text.length > 40 ? "…" : "")
+                : t.title,
+            messages: [...t.messages, userMsg],
+          }
           : t,
       ),
     );
@@ -1443,18 +1522,16 @@ export default function ChatPage() {
                         setActiveId(t.id);
                       }
                     }}
-                    className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${
-                      isActive
-                        ? "bg-white/10 shadow-md"
-                        : "hover:bg-white/5 hover:-translate-y-0.5 hover:shadow-sm duration-150"
-                    }`}
+                    className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isActive
+                      ? "bg-white/10 shadow-md"
+                      : "hover:bg-white/5 hover:-translate-y-0.5 hover:shadow-sm duration-150"
+                      }`}
                   >
                     <div className="min-w-0">
                       {/* Conversation title */}
                       <p
-                        className={`truncate text-sm font-medium ${
-                          isActive ? "text-zinc-50" : "text-zinc-100"
-                        }`}
+                        className={`truncate text-sm font-medium ${isActive ? "text-zinc-50" : "text-zinc-100"
+                          }`}
                         title={t.title}
                       >
                         {t.title || "Conversation"}
@@ -1513,9 +1590,8 @@ export default function ChatPage() {
                       {/* Desktop: keep the "nice" header line always. Collapse only the extra details by default. */}
                       <div className="hidden space-y-0.5 sm:block">
                         <p
-                          className={`text-sm text-zinc-400 ${
-                            showHeaderDetails ? "mb-3" : "mb-1"
-                          }`}
+                          className={`text-sm text-zinc-400 ${showHeaderDetails ? "mb-3" : "mb-1"
+                            }`}
                         >
                           A calm space to talk about your feelings. Analysis and
                           replies respect your consent settings.
@@ -1562,15 +1638,14 @@ export default function ChatPage() {
                         }
                       >
                         <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            syncing
-                              ? "bg-amber-400"
-                              : syncError
-                                ? "bg-red-500"
-                                : lastSyncAt
-                                  ? "bg-emerald-400"
-                                  : "bg-zinc-500"
-                          }`}
+                          className={`h-1.5 w-1.5 rounded-full ${syncing
+                            ? "bg-amber-400"
+                            : syncError
+                              ? "bg-red-500"
+                              : lastSyncAt
+                                ? "bg-emerald-400"
+                                : "bg-zinc-500"
+                            }`}
                         />
                         <span>
                           {syncing
@@ -1607,19 +1682,17 @@ export default function ChatPage() {
 
                       {/* Status chip: Analysis mode */}
                       <div
-                        className={`inline-flex h-7 w-full items-center justify-center gap-2 rounded-full px-3 text-xs backdrop-blur-sm ${
-                          mode === "allow-remote"
-                            ? "border border-emerald-300/50 bg-emerald-500/10 text-emerald-200"
-                            : "border border-white/15 bg-black/25 text-white/90"
-                        }`}
+                        className={`inline-flex h-7 w-full items-center justify-center gap-2 rounded-full px-3 text-xs backdrop-blur-sm ${mode === "allow-remote"
+                          ? "border border-emerald-300/50 bg-emerald-500/10 text-emerald-200"
+                          : "border border-white/15 bg-black/25 text-white/90"
+                          }`}
                         title="Emotion analysis mode"
                       >
                         <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            mode === "allow-remote"
-                              ? "bg-emerald-400"
-                              : "bg-zinc-400"
-                          }`}
+                          className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote"
+                            ? "bg-emerald-400"
+                            : "bg-zinc-400"
+                            }`}
                         />
                         {mode === "allow-remote"
                           ? "Remote allowed"
@@ -1708,7 +1781,7 @@ export default function ChatPage() {
                           {mounted &&
                             typeof window !== "undefined" &&
                             window.localStorage.getItem("imotaraQa") ===
-                              "1" && (
+                            "1" && (
                               <>
                                 <div className="mt-3 h-px w-full bg-white/10" />
                                 <p className="mt-3 text-[11px] leading-5 text-zinc-400">
@@ -1764,11 +1837,10 @@ export default function ChatPage() {
                     <Link
                       href={
                         activeThread
-                          ? `/history?sessionId=${encodeURIComponent(activeThread.id)}${
-                              urlMessageId
-                                ? `&messageId=${encodeURIComponent(urlMessageId)}`
-                                : ""
-                            }`
+                          ? `/history?sessionId=${encodeURIComponent(activeThread.id)}${urlMessageId
+                            ? `&messageId=${encodeURIComponent(urlMessageId)}`
+                            : ""
+                          }`
                           : "/history"
                       }
                       className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
@@ -1913,10 +1985,10 @@ export default function ChatPage() {
                     attachRef={
                       m.id === urlMessageId
                         ? (el) => {
-                            if (el) {
-                              messageTargetRef.current = el;
-                            }
+                          if (el) {
+                            messageTargetRef.current = el;
                           }
+                        }
                         : undefined
                     }
                     reflectionSeed={m.reflectionSeed}
@@ -2122,9 +2194,8 @@ function Bubble({
         ) : null}
 
         <div
-          className={`mt-1 text-[11px] ${
-            isUser ? "text-zinc-100/80" : "text-zinc-300"
-          }`}
+          className={`mt-1 text-[11px] ${isUser ? "text-zinc-100/80" : "text-zinc-300"
+            }`}
         >
           <DateText ts={time} /> · {isUser ? "You" : "Imotara"}
           {!isUser && meta?.compatibility ? (

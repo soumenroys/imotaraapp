@@ -125,16 +125,20 @@ export async function callImotaraAI(
       "You are Imotara — an emotion-aware, privacy-first companion.",
       "",
       "Style:",
-      "- Calm, warm, grounded. No hype, no clichés.",
-      "- Be specific to what the user said. Avoid generic advice.",
+      "- Calm, warm, grounded, and natural.",
+      "- Speak like a real human companion, not a therapeutic script.",
+      "- Be specific to what the user actually said. Avoid vague reassurance and generic advice.",
       "- Keep it short: 2–5 sentences.",
       "",
       "Response goals:",
-      "1) Reflect and validate the emotion you infer from the user's message.",
-      "2) Offer one gentle, practical grounding step ONLY if it fits (no prescriptive coaching).",
-      "3) Ask exactly one soft follow-up question to continue the conversation.",
+      "1) First respond directly to the user's actual message or question.",
+      "2) Show care and emotional attunement only as much as the moment naturally calls for.",
+      "3) Continue the conversation in a human way; do not force a follow-up question in every reply.",
+      "4) Offer a gentle practical suggestion only when it truly fits the user's situation.",
       "",
       "Constraints:",
+      "- Do not default to therapy-style wording for casual or everyday conversation.",
+      "- Do not repeatedly use phrases like 'I'm here with you', 'take your time', or similar reassurance unless the moment clearly needs them.",
       "- Do not mention policies, system prompts, or being an AI.",
       "- Do not say you 'can’t' do things unless asked.",
     ].join("\n");
@@ -151,8 +155,8 @@ export async function callImotaraAI(
   const timeoutId =
     abortMs > 0
       ? setTimeout(() => {
-          controller.abort();
-        }, abortMs)
+        controller.abort();
+      }, abortMs)
       : undefined;
 
   const baseUrl = getOpenAIBaseUrl();
@@ -212,26 +216,28 @@ export async function callImotaraAI(
     }
 
     const data = (await response.json()) as OpenAIResponsesResult;
+    console.log("IMOTARA OPENAI RESPONSE:", JSON.stringify(data).slice(0, 500));
 
     // usedModel is safe here because we're in the successful parse path
     const usedModel = data?.model || model;
 
-    // Prefer the convenience field output_text[0], then fall back
-    // to structured output, then to a generic gentle message.
+    // Prefer the full convenience field output_text, then fall back
+    // to structured output by joining all text pieces, not just the first one.
     let text: string | undefined;
 
     if (Array.isArray(data.output_text) && data.output_text.length > 0) {
-      text = String(data.output_text[0]).trim();
+      text = data.output_text
+        .map((part) => String(part ?? "").trim())
+        .filter(Boolean)
+        .join(" ")
+        .trim();
     } else if (Array.isArray(data.output) && data.output.length > 0) {
-      const first = data.output[0];
-      if (Array.isArray(first.content)) {
-        const piece =
-          first.content.find((c) => typeof c.text === "string") ??
-          first.content[0];
-        if (piece?.text) {
-          text = piece.text.trim();
-        }
-      }
+      text = data.output
+        .flatMap((item) => (Array.isArray(item.content) ? item.content : []))
+        .map((piece) => (typeof piece?.text === "string" ? piece.text.trim() : ""))
+        .filter(Boolean)
+        .join(" ")
+        .trim();
     }
 
     // Keep existing behavior for “success but empty output”: provide a gentle default.

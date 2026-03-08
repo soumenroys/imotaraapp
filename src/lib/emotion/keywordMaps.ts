@@ -25,6 +25,30 @@ export const ROMAN_TA_LANG_HINT_REGEX =
 export const ROMAN_TE_LANG_HINT_REGEX =
   /\b(enti|ela|elaa|em|emi|ippudu|inka|avuna|kaadu|ledu|undhi|undi|unna|unnanu|nenu|nuvvu|meeru|miku|naaku|amma|nanna|anna|akka|tammudu|chelli|baaga|bagundi|chala|konchem|vellu|vastanu|vachanu|cheppu|matladu|tinava|tinnava|em ayindi|emindi|sare|parledu|enduku|ekkada|eppudu)\b/i;
 
+// Romanized Gujarati (Latin script) hints
+export const ROMAN_GU_LANG_HINT_REGEX =
+  /\b(shu|kem|majama|majamaa|saru|saras|have|hve|tame|hu|hun|mane|tane|aaje|kaal|ghar|bahar|kem cho|su che|barabar|thik|chaalo|chalo|joie|joye|padse|nathi|che|hatu|hase|aavjo|aavyo|javanu|jamyu|jamva|paani)\b/i;
+
+// Romanized Kannada (Latin script) hints
+export const ROMAN_KN_LANG_HINT_REGEX =
+  /\b(yenu|enu|hegide|hegiddiya|hegiddira|sari|chennagide|chenagide|ivattu|naanu|nanu|neenu|ninu|nimge|nanage|amma|appa|anna|akka|thamma|tangi|bega|mane|horage|illi|alli|yaake|yake|elli|yelli|hege|oota|neeru|malagu|barutte|hogutte|banni|hogona|nodona)\b/i;
+
+// Romanized Malayalam (Latin script) hints
+export const ROMAN_ML_LANG_HINT_REGEX =
+  /\b(entha|enthaanu|enthaada|engane|sheri|shari|ippo|ippo|inni|innale|njaan|njan|nee|ningal|enikku|ninakku|amma|achan|chetta|chechi|mone|molu|veettil|purathu|ivide|avide|entha cheyyam|sukham alle|alle|poyi|vannu|kazhicho|vellam|urakkam|saadhanam)\b/i;
+
+// Romanized Punjabi (Latin script) hints
+export const ROMAN_PA_LANG_HINT_REGEX =
+  /\b(ki|kida|kive|kiven|theek|thik|thik aa|theek aa|haanji|hanji|nahi|nhi|aj|kal|hun|tusi|tu|main|mera|meri|sada|sadi|paji|veer|veerji|bhain|maa|papa|ghar|bahar|kithe|kithon|ki haal|haal chaal|changa|vadhiya|roti|paani|sona|aaja|chalo)\b/i;
+
+// Romanized Marathi (Latin script) hints
+export const ROMAN_MR_LANG_HINT_REGEX =
+  /\b(kay|kaay|kasa|kashi|kase|bara|baray|thik|thik aahe|aata|atta|aaj|udya|mi|mee|tu|tumhi|mala|tula|tyala|aamhi|aapan|ahe|aahe|navta|navte|ghari|baher|ithe|tithe|kaay chalay|kay chalalay|sang|bol|yete|jaato|khaala|paani|zhala|zala|chhan)\b/i;
+
+// Romanized Odia (Latin script) hints
+export const ROMAN_OR_LANG_HINT_REGEX =
+  /\b(kana|kanha|kemiti|kemti|bhala|bhal|thik|thik achhi|mu|tume|apana|mo|tora|ama|ghar|bahare|ethi|sethi|aaji|kali|kouthi|kahinki|kebe|khana|pani|asuchi|jauchhi|soiba|thia|chala|dekh)\b/i;
+
 // Tamil emotion hints (kept conservative)
 export const TA_SAD_REGEX =
   /(romba kashtama irukku|kashtama irukku|manasu kashtama irukku|romba kastama irukku|kastama irukku|manasu kastama irukku|manasu sari illa|manasu seriya illa|romba sogama irukku|sogama irukku|azhuga varudhu|azhudha pola irukku|udalum manasum tired aa irukku)/i;

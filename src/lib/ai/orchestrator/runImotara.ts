@@ -13,7 +13,15 @@ import { applyFinalResponseGate } from "@/lib/ai/orchestrator/finalResponseGate"
 import {
   EN_LANG_HINT_REGEX,
   ROMAN_BN_LANG_HINT_REGEX,
+  ROMAN_GU_LANG_HINT_REGEX,
   ROMAN_HI_LANG_HINT_REGEX,
+  ROMAN_KN_LANG_HINT_REGEX,
+  ROMAN_ML_LANG_HINT_REGEX,
+  ROMAN_MR_LANG_HINT_REGEX,
+  ROMAN_OR_LANG_HINT_REGEX,
+  ROMAN_PA_LANG_HINT_REGEX,
+  ROMAN_TA_LANG_HINT_REGEX,
+  ROMAN_TE_LANG_HINT_REGEX,
 } from "@/lib/emotion/keywordMaps";
 
 type SessionContext = {
@@ -521,7 +529,18 @@ function makeReflectionSeed(
   };
 }
 
-type SupportedLanguage = "en" | "hi" | "bn";
+type SupportedLanguage =
+  | "en"
+  | "hi"
+  | "bn"
+  | "ta"
+  | "te"
+  | "gu"
+  | "kn"
+  | "ml"
+  | "pa"
+  | "mr"
+  | "or";
 
 function getPreferredLanguage(
   ctx: SessionContext,
@@ -534,26 +553,161 @@ function getPreferredLanguage(
   // 1) Explicit preference wins (Accept both base + BCP-47 tags)
   if (raw === "hi" || raw.startsWith("hi-")) return "hi";
   if (raw === "bn" || raw.startsWith("bn-")) return "bn";
+  if (raw === "ta" || raw.startsWith("ta-")) return "ta";
+  if (raw === "te" || raw.startsWith("te-")) return "te";
+  if (raw === "gu" || raw.startsWith("gu-")) return "gu";
+  if (raw === "kn" || raw.startsWith("kn-")) return "kn";
+  if (raw === "ml" || raw.startsWith("ml-")) return "ml";
+  if (raw === "pa" || raw.startsWith("pa-")) return "pa";
+  if (raw === "mr" || raw.startsWith("mr-")) return "mr";
+  if (raw === "or" || raw.startsWith("or-")) return "or";
 
   const msg = String(currentUserMessage ?? "").trim();
   if (msg) {
     // 2) Current message script wins (highest confidence)
     if (/[\u0980-\u09FF]/.test(msg)) return "bn"; // Bengali script
-    if (/[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(msg)) return "hi"; // Devanagari
+    if (
+      /[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(msg) ||
+      ROMAN_HI_LANG_HINT_REGEX.test(msg)
+    ) {
+      return "hi"; // Devanagari / Hindi romanized
+    }
+    if (/[\u0B80-\u0BFF]/.test(msg) || ROMAN_TA_LANG_HINT_REGEX.test(msg)) return "ta"; // Tamil
+    if (/[\u0C00-\u0C7F]/.test(msg) || ROMAN_TE_LANG_HINT_REGEX.test(msg)) return "te"; // Telugu
+    if (/[\u0A80-\u0AFF]/.test(msg) || ROMAN_GU_LANG_HINT_REGEX.test(msg)) return "gu"; // Gujarati
+    if (/[\u0C80-\u0CFF]/.test(msg) || ROMAN_KN_LANG_HINT_REGEX.test(msg)) return "kn"; // Kannada
+    if (/[\u0D00-\u0D7F]/.test(msg) || ROMAN_ML_LANG_HINT_REGEX.test(msg)) return "ml"; // Malayalam
+    if (/[\u0A00-\u0A7F]/.test(msg) || ROMAN_PA_LANG_HINT_REGEX.test(msg)) return "pa"; // Punjabi
+    if (/[\u0B00-\u0B7F]/.test(msg) || ROMAN_OR_LANG_HINT_REGEX.test(msg)) return "or"; // Odia
+
+    // Marathi uses Devanagari too, so keep it after generic Devanagari script check
+    // and only use conservative romanized hints here.
+    if (ROMAN_MR_LANG_HINT_REGEX.test(msg)) return "mr";
 
     // 3) Romanized detection via centralized keywordMaps (conservative)
     const romanBn = ROMAN_BN_LANG_HINT_REGEX.test(msg);
     const romanHi = ROMAN_HI_LANG_HINT_REGEX.test(msg);
+    const romanGu = ROMAN_GU_LANG_HINT_REGEX.test(msg);
+    const romanKn = ROMAN_KN_LANG_HINT_REGEX.test(msg);
+    const romanMl = ROMAN_ML_LANG_HINT_REGEX.test(msg);
+    const romanPa = ROMAN_PA_LANG_HINT_REGEX.test(msg);
+    const romanMr = ROMAN_MR_LANG_HINT_REGEX.test(msg);
+    const romanOr = ROMAN_OR_LANG_HINT_REGEX.test(msg);
     const enHint = EN_LANG_HINT_REGEX.test(msg);
 
-    // If it's clearly English and NOT strongly romanized bn/hi, force English.
-    // This prevents “previous Bengali thread” from dragging an English turn into Bengali.
-    if (enHint && !romanBn && !romanHi) return "en";
+    // If it's clearly English and NOT strongly romanized by any supported Indic hint, force English.
+    if (
+      enHint &&
+      !romanBn &&
+      !romanHi &&
+      !romanGu &&
+      !romanKn &&
+      !romanMl &&
+      !romanPa &&
+      !romanMr &&
+      !romanOr
+    ) {
+      return "en";
+    }
 
-    // If one romanized signal is present without the other, honor it.
-    if (romanBn && !romanHi) return "bn";
-    if (romanHi && !romanBn) return "hi";
-    // If both match (rare/ambiguous), fall through to continuity.
+    // If one romanized signal is present without the others, honor it.
+    if (
+      romanBn &&
+      !romanHi &&
+      !romanGu &&
+      !romanKn &&
+      !romanMl &&
+      !romanPa &&
+      !romanMr &&
+      !romanOr
+    ) {
+      return "bn";
+    }
+    if (
+      romanHi &&
+      !romanBn &&
+      !romanGu &&
+      !romanKn &&
+      !romanMl &&
+      !romanPa &&
+      !romanMr &&
+      !romanOr
+    ) {
+      return "hi";
+    }
+    if (
+      romanGu &&
+      !romanBn &&
+      !romanHi &&
+      !romanKn &&
+      !romanMl &&
+      !romanPa &&
+      !romanMr &&
+      !romanOr
+    ) {
+      return "gu";
+    }
+    if (
+      romanKn &&
+      !romanBn &&
+      !romanHi &&
+      !romanGu &&
+      !romanMl &&
+      !romanPa &&
+      !romanMr &&
+      !romanOr
+    ) {
+      return "kn";
+    }
+    if (
+      romanMl &&
+      !romanBn &&
+      !romanHi &&
+      !romanGu &&
+      !romanKn &&
+      !romanPa &&
+      !romanMr &&
+      !romanOr
+    ) {
+      return "ml";
+    }
+    if (
+      romanPa &&
+      !romanBn &&
+      !romanHi &&
+      !romanGu &&
+      !romanKn &&
+      !romanMl &&
+      !romanMr &&
+      !romanOr
+    ) {
+      return "pa";
+    }
+    if (
+      romanMr &&
+      !romanBn &&
+      !romanHi &&
+      !romanGu &&
+      !romanKn &&
+      !romanMl &&
+      !romanPa &&
+      !romanOr
+    ) {
+      return "mr";
+    }
+    if (
+      romanOr &&
+      !romanBn &&
+      !romanHi &&
+      !romanGu &&
+      !romanKn &&
+      !romanMl &&
+      !romanPa &&
+      !romanMr
+    ) {
+      return "or";
+    }
+    // If multiple match (rare/ambiguous), fall through to continuity.
   }
 
   // 4) Continuity fallback ONLY when current message is ambiguous
@@ -574,8 +728,15 @@ function getPreferredLanguage(
     const t = String(m?.content ?? m?.text ?? "").trim();
     if (!t) continue;
 
-    if (/[\u0980-\u09FF]/.test(t)) return "bn";
-    if (/[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(t)) return "hi";
+    if (/[\u0980-\u09FF]/.test(t)) return "bn"; // Bengali
+    if (/[\u0B80-\u0BFF]/.test(t)) return "ta"; // Tamil
+    if (/[\u0C00-\u0C7F]/.test(t)) return "te"; // Telugu
+    if (/[\u0A80-\u0AFF]/.test(t)) return "gu"; // Gujarati
+    if (/[\u0C80-\u0CFF]/.test(t)) return "kn"; // Kannada
+    if (/[\u0D00-\u0D7F]/.test(t)) return "ml"; // Malayalam
+    if (/[\u0A00-\u0A7F]/.test(t)) return "pa"; // Punjabi
+    if (/[\u0B00-\u0B7F]/.test(t)) return "or"; // Odia
+    if (/[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(t)) return "hi"; // Hindi / generic Devanagari fallback
 
     break;
   }
@@ -588,10 +749,14 @@ function draftResponseForLanguage(
   ctx: SessionContext,
 ): ImotaraResponse {
   const lang = getPreferredLanguage(ctx, userMessage);
-  if (lang === "en") return draftResponse(userMessage, ctx);
 
-  // Minimal localized fallback (keeps existing logic intact for English,
-  // ensures non-English settings never get an English response).
+  // Keep explicit localized fallback only for hi / bn.
+  // For every other language, use the generic draft path so we never
+  // misroute unsupported languages into Bengali.
+  if (lang !== "hi" && lang !== "bn") {
+    return draftResponse(userMessage, ctx);
+  }
+
   const msg = oneLine(userMessage);
   const name = getUserName(ctx);
   const rel = pickRelationshipTone(ctx);
@@ -613,8 +778,7 @@ function draftResponseForLanguage(
             : name
               ? `मैं समझ रहा हूँ, ${name}.`
               : "मैं समझ रहा हूँ."
-      : // bn
-      rel === "friend"
+      : rel === "friend"
         ? name
           ? `বুঝলাম, ${name}.`
           : "বুঝলাম."
@@ -639,9 +803,15 @@ function draftResponseForLanguage(
 
   const message =
     lang === "hi"
-      ? `${openerWithContext} मैं आपके साथ हूँ। अभी इस पल में सबसे भारी क्या लग रहा है?`
+      ? `${openerWithContext} ${pickFrom(
+        `hiAck:${msg}:${rel}:${name ?? ""}`,
+        [
+          "ठीक है, मैं यहीं हूँ।",
+          "मैं सुन रहा हूँ।",
+          "हम इसे धीरे-धीरे ले सकते हैं।",
+        ] as const,
+      )}`
       : (() => {
-        // Bengali intent-aware fallback (no more same-line repetition)
         const t = msg.trim();
         const tNoPunct = t.replace(/[।!?]+$/g, "").trim();
 
@@ -654,48 +824,36 @@ function draftResponseForLanguage(
             tNoPunct,
           );
 
-        // tiny deterministic variation (not random)
-        const seed = tNoPunct.length % 4;
-        const reaction = [
-          "আচ্ছা—শুনছি।",
-          "হুম… বুঝলাম।",
-          "ঠিক আছে, আমি আছি।",
-          "ওহ… বুঝতে পারছি।",
-        ][seed];
+        const reaction = pickFrom(
+          `bnAck:${msg}:${rel}:${name ?? ""}`,
+          [
+            "আচ্ছা, আমি আছি।",
+            "হুম, শুনছি।",
+            "ঠিক আছে, আমি আছি।",
+          ] as const,
+        );
 
-        // Goodbye: no question (keeps it human)
         if (isGoodbye) {
-          return `${reaction} তুমি চাইলে পরে আবার লিখতে পারো। আমি এখানেই থাকব।`;
+          return `${reaction} পরে ইচ্ছে হলে আবার লিখতে পারো।`;
         }
 
-        // If user asked a question: don't force "ভারী কী" loop
         if (isQuestion) {
-          return `${reaction} তুমি প্রশ্নটা করেছো—আমি সেটাতেই থাকছি। প্রসঙ্গটা আরেকটু বলবে?`;
+          return `${reaction} তুমি চাইলে আরেকটু বলো।`;
         }
 
-        // Statement: mirror + one gentle bridge question
-        // Statement-mode: mirror + one gentle bridge question (varied, not a fixed menu)
-        const bridgeVariants = [
-          "এখন তুমি চাইলে একদম ছোট করে শুরু করি—এক লাইনে বলবে, শরীরটা ভারী লাগছে নাকি মনটা?",
-          "তুমি যা বললে সেটা ধরলাম। এখন কোনটা বেশি দরকার—একটু শান্তি, নাকি পরিষ্কারভাবে বুঝে নেওয়া?",
-          "আমি শুনছি। এখন যদি একটা ছোট পদক্ষেপ নিতে চাও, সেটা কী হতে পারে—পানি, শ্বাস, নাকি একটু বিরতি?",
-          "ঠিক আছে। তুমি চাইলে আমি শুধু পাশে থাকি—না কি একটু গুছিয়ে বলতে সাহায্য করি?",
-        ] as const;
-
-        // No requestId in this scope; derive a stable seed from message + context.
-        const seedKey = `${lang}|${name ?? ""}|${msg}|${prev ?? ""}`;
-        // Simple deterministic hash → stable index (no external helper/import needed)
-        let h = 0;
-        for (let i = 0; i < seedKey.length; i++) {
-          h = (h * 31 + seedKey.charCodeAt(i)) >>> 0;
-        }
-        const bIdx = h % bridgeVariants.length;
-        return `${reaction} ${openerWithContext} আমি বুঝতে পারছি। ${bridgeVariants[bIdx]}`;
+        return `${openerWithContext} ${reaction}`;
       })();
 
   const followUp =
     lang === "hi"
-      ? "अभी आपके लिए सबसे ज़्यादा मदद क्या होगी — सुकून, स्पष्टता, या एक छोटा अगला कदम?"
+      ? pickFrom(
+        `hiFollow:${msg}:${rel}:${name ?? ""}`,
+        [
+          "अभी सबसे ज़्यादा क्या चाहिए — थोड़ा सुकून, थोड़ी स्पष्टता, या बस साथ?",
+          "अगर कहना चाहो, अभी सबसे भारी हिस्सा कौन सा लग रहा है?",
+          "हम यहीं से धीरे-धीरे शुरू कर सकते हैं — क्या सबसे पहले उसी पर रहना चाहोगे?",
+        ] as const,
+      )
       : "";
 
   return {
@@ -835,9 +993,9 @@ function draftResponse(
     ] as const;
 
     const partnerLike = [
-      name ? `Hey love — I’m here, ${name}.` : "Hey — I’m here with you.",
-      name ? `I’m right here, ${name}.` : "I’m right here.",
-      name ? `Mm… come here. I’m with you, ${name}.` : "Mm. I’m with you.",
+      name ? `Hey ${name} — I’m listening.` : "Hey — I’m listening.",
+      name ? `I’m with you, ${name}. Let’s keep it real.` : "I’m with you. Let’s keep it real.",
+      name ? `Alright ${name}, I’m here. Tell me properly.` : "Alright, I’m here. Tell me properly.",
     ] as const;
 
     const fallback = [
@@ -987,33 +1145,103 @@ function draftResponse(
 
   // ✅ Greeting-only: be human first, avoid template follow-ups like "comfort/clarity/next step"
   if (isGreetingOnly(msg)) {
-    const v = pickVariant(`greet:${rel}:${name ?? ""}:${msg}`, 3);
+    const greetAck = pickFromSeed(
+      `greetAck:${rel}:${name ?? ""}:${msg}`,
+      [
+        name ? `Hey ${name}.` : "Hey.",
+        name ? `Hi ${name}.` : "Hi.",
+        name ? `Hello ${name}.` : "Hello.",
+      ] as const,
+    );
 
-    const greetLine =
-      v === 0
-        ? "Hey 👋 I’m right here with you."
-        : v === 1
-          ? "Hi 🙂 I’m here."
-          : "Hello. I’m with you.";
-
-    message = name ? `${greetLine.replace("Hi", `Hi, ${name}`)}` : greetLine;
-
-    // Leave followUp empty so the formatter greeting-mode can decide:
-    // - sometimes a gentle question
-    // - sometimes presence-only (as per your preference)
+    message = greetAck;
     followUp = "";
+  } else if (
+    !/[?？؟]/.test(msg) &&
+    tokenizeLite(msg).length <= 8 &&
+    /\b(i|im|i'm|am|just|now|today|currently|at|home|resting|relaxing|chilling|working|studying|sleeping)\b/i.test(
+      lower,
+    ) &&
+    !/\b(accident|scary|fear|afraid|panic|hurt|injury|injured|sad|lonely|cry|crying|angry|stress|stressed|anxious|anxiety|worried|depressed|hopeless)\b/i.test(
+      lower,
+    ) &&
+    !lower.includes("trembl") &&
+    !lower.includes("shak")
+  ) {
+    message = `${openerWithContext} ${pickFromSeed(
+      `lifeAck:${msg}:${rel}:${name ?? ""}`,
+      [
+        "Got it.",
+        "Okay.",
+        "Alright.",
+      ] as const,
+    )}`;
+    followUp = "";
+  } else if (
+    /[?？؟]/.test(msg) &&
+    (tokenizeLite(msg).length <= 8 || msg.length <= 48) &&
+    !/\b(accident|scary|fear|afraid|panic|hurt|injury|injured|sad|lonely|cry|crying|angry|stress|stressed|anxious|anxiety|worried|depressed|hopeless)\b/i.test(
+      lower,
+    )
+  ) {
+    if (/\bhow\s+(are|r)\s+(you|u)\b/i.test(lower)) {
+      message = `${openerWithContext} I’m here with you.`;
+      followUp = "";
+    } else if (
+      /\bwhat\s+(are|r)\s+(you|u)\s+doing\b/i.test(lower) ||
+      /\bwhat\s+do\s+(you|u)\s+do\b/i.test(lower)
+    ) {
+      message = `${openerWithContext} I’m here with you.`;
+      followUp = "";
+    } else if (/\bwhere\s+(are|r)\s+(you|u)\b/i.test(lower)) {
+      message = `${openerWithContext} I’m here with you.`;
+      followUp = "";
+    } else {
+      message = `${openerWithContext} I’m here with you.`;
+      followUp = "";
+    }
   } else if (detectMetaComplaintIntent(msg)) {
-    message = `${openerWithContext} I’m an AI, but I’m here with you — and you’re right: if it feels repetitive, that’s frustrating.`;
+    const metaAck = pickFromSeed(
+      `metaAck:${msg}:${rel}:${name ?? ""}`,
+      [
+        "Fair point.",
+        "That’s fair.",
+        "You’re right to call that out.",
+      ] as const,
+    );
+
+    message = `${openerWithContext} ${metaAck}`;
+    followUp = "";
+
+  } else if (
+    /\b(accident|crash|collision|hit|injured|injury)\b/i.test(lower)
+  ) {
+    message = `${openerWithContext} ${pickFromSeed(
+      `accidentAck:${msg}:${rel}:${name ?? ""}`,
+      [
+        "That sounds scary.",
+        "That sounds unsettling.",
+        "That sounds serious.",
+      ] as const,
+    )}`;
+
     followUp =
-      "If you want, tell me what felt repetitive — or just tell me what’s going on, and I’ll respond more naturally from here.";
+      "Are you safe now? If you feel like sharing, tell me what happened.";
+
   } else if (
     lower.includes("stranger") ||
     lower.includes("stranger") ||
     lower.includes("met") ||
     lower.includes("someone")
   ) {
-    message = `${openerWithContext} That sounds like one of those moments that can leave a little ripple — even if it was brief.`;
-    // Keep followUp as a gentle prompt (not a second question) — formatter will handle the single bridge question.
+    message = `${openerWithContext} ${pickFromSeed(
+      `strangerAck:${msg}:${rel}:${name ?? ""}`,
+      [
+        "That kind of moment can stay with you.",
+        "Some brief moments still leave an impression.",
+        "That sounds like it left something with you.",
+      ] as const,
+    )}`;
     followUp =
       "Tell me what stood out most — what they said/did, how you felt, or the situation itself.";
   } else if (
@@ -1021,7 +1249,14 @@ function draftResponse(
     lower.includes("salary") ||
     lower.includes("bonus")
   ) {
-    message = `${openerWithContext} Getting money from work can bring a mix of relief and momentum.`;
+    message = `${openerWithContext} ${pickFromSeed(
+      `moneyAck:${msg}:${rel}:${name ?? ""}`,
+      [
+        "Money can bring a lot of mixed feeling.",
+        "That can carry a mix of relief and pressure.",
+        "That can land with more than one feeling at once.",
+      ] as const,
+    )}`;
     followUp =
       "If you want, tell me which side feels stronger for you — relief, pride, or something else.";
   } else if (
@@ -1031,7 +1266,14 @@ function draftResponse(
     lower.includes("manager") ||
     lower.includes("deadline")
   ) {
-    message = `${openerWithContext} Office pressure can really sit on your mind, especially when it keeps repeating.`;
+    message = `${openerWithContext} ${pickFromSeed(
+      `workAck:${msg}:${rel}:${name ?? ""}`,
+      [
+        "Work pressure can build up quietly.",
+        "That kind of work stress can sit heavy.",
+        "That sounds like work pressure piling up.",
+      ] as const,
+    )}`;
     followUp =
       "Share the one part that’s bothering you most (workload, people, or uncertainty) and we’ll pick a small next step.";
   } else if (
@@ -1042,7 +1284,14 @@ function draftResponse(
     lower.includes("great") ||
     lower.includes("cool")
   ) {
-    message = `${openerWithContext} That sounds really uplifting — it’s lovely to hear that kind of energy from you.`;
+    message = `${openerWithContext} ${pickFromSeed(
+      `happyAck:${msg}:${rel}:${name ?? ""}`,
+      [
+        "That sounds genuinely good.",
+        "That kind of energy feels nice to hear.",
+        "That sounds like a good moment.",
+      ] as const,
+    )}`;
     followUp =
       "If you feel like sharing, tell me what sparked it — a moment, a person, or just one of those rare good days.";
   } else if (
@@ -1053,20 +1302,48 @@ function draftResponse(
     lower.includes("headache") ||
     lower.includes("sick")
   ) {
-    message = `${openerWithContext} Sounds like your body is asking for something simple.`;
+    message = `${openerWithContext} ${pickFromSeed(
+      `bodyAck:${msg}:${rel}:${name ?? ""}`,
+      [
+        "Sounds like your body needs something.",
+        "Sounds like you need a little care right now.",
+        "Sounds like something simple might help first.",
+      ] as const,
+    )}`;
+
     followUp =
       "Want something quick and practical right now — food, rest, or just a short reset?";
+  } // ⚠️ Fear / shock physical signals
+  else if (
+    lower.includes("trembl") ||
+    lower.includes("shak")
+  ) {
+    message = `${openerWithContext} ${pickFromSeed(
+      `fearAck:${msg}:${rel}:${name ?? ""}`,
+      [
+        "That sounds like your body is still on edge.",
+        "That sounds like a shaken-up moment.",
+        "That sounds like it hit your system hard.",
+      ] as const,
+    )}`;
+
+    // force a gentle safety check
+    if (!followUp) {
+      followUp = "Are you somewhere safe right now?";
+    }
   } else {
     // ✅ Avoid template-y repetition ("I'm with you in this.") by using varied, calm presence lines.
     // Also: if opener already contains an empathy/presence anchor, don't add another.
     const presenceBank = [
       "Okay. We’ll keep it simple.",
-      "No rush. One small move at a time.",
+      "No rush. One small step at a time.",
       "That makes sense.",
       "We can take this gently.",
       "Thanks for telling me.",
-      "Let’s take one small step.",
-    ] as const;
+      "I’m here with you.",
+      "Take your time.",
+      "We don’t have to rush this.",
+    ];
 
     const openerText = String(openerWithContext ?? "").trim();
     const openerLower = openerText
@@ -1132,6 +1409,9 @@ function draftResponse(
       "Take your time. I’m here with you.",
       "If it feels hard to explain, you can just describe one small piece of it.",
       "I’m right here. We can sit with it for a moment.",
+      "We don’t have to rush this.",
+      "You can take a breath first — I’m here.",
+      "It’s okay to go slowly with this.",
     ] as const;
 
     // 🟡 Gentle clarify variants (one question max, permission-based)
@@ -1397,8 +1677,15 @@ export async function runImotara(input: {
     const prefix = userName ? `${userName}, ` : "";
 
     return {
-      message: `${prefix}tell me what’s on your mind—one line is enough.`,
-      followUp: "What’s the main thing you want help with right now?",
+      message: `${prefix}${pickFrom(
+        `emptyAck:${userName}`,
+        [
+          "I’m here.",
+          "Go on.",
+          "Tell me a little.",
+        ] as const,
+      )}`,
+      followUp: "",
 
       meta: {
         styleContract: "1.0",

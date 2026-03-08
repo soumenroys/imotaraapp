@@ -852,6 +852,7 @@ export async function POST(req: Request) {
     },
     toneContext, // ✅ enables companion tone + personal references consistently
   });
+  console.log("IMOTARA_RUN_RESULT:", result);
 
   const recentMessages = (baseCtx as any)?.recentMessages as
     | RecentMsg[]
@@ -907,14 +908,10 @@ export async function POST(req: Request) {
   };
 
   if ((result as any)?.ok === true) {
-    // Only guarantee en/hi/bn here (matches current mobile language modes).
-    // For other languages, fall back to English safely.
-    const langBase: "en" | "hi" | "bn" =
-      (strictLanguage ?? preferredLanguage) === "hi"
-        ? "hi"
-        : (strictLanguage ?? preferredLanguage) === "bn"
-          ? "bn"
-          : "en";
+    // Keep the full derived language when available.
+    // This preserves broader multilingual support while keeping
+    // existing Bengali-specific guardrails unchanged below.
+    const langBase: LanguageCode = strictLanguage ?? preferredLanguage ?? "en";
 
     let current = currentReplyText;
 
@@ -1026,11 +1023,7 @@ export async function POST(req: Request) {
           "Keep it soft, permission-based, and collaborative ('we' tone).",
           "Follow the 3-phase structure: (1) brief human reaction, (2) real insight, (3) gentle bridge.",
           "Max 1 question total.",
-          langBase === "hi"
-            ? "Language: Hindi."
-            : langBase === "bn"
-              ? "Language: Bengali."
-              : "Language: English.",
+          `Language: ${LANGUAGE_NAME[langBase]} (${langBase}).`,
         ].join("\n") + "\n";
 
       const retry = await runImotara({
@@ -1233,28 +1226,41 @@ export async function POST(req: Request) {
     return "";
   })();
 
-  const formattedText = rawText
-    ? formatImotaraReply({
-      raw: rawText,
-      userMessage: message,
-      prevAssistantText,
+  const words = String(message ?? "")
+    .trim()
+    .match(/[\p{L}\p{N}]+/gu) ?? [];
 
-      // 🚫 If closure, do NOT allow formatter to add bridge
-      externalBridge: isClosureIntent ? undefined : externalBridge,
+  const shortQuestion =
+    /[?？؟]$/.test(String(message ?? "").trim()) &&
+    words.length <= 8;
 
-      lang: strictLanguage ?? preferredLanguage ?? "en",
-      tone: isReturnIntent
-        ? "close_friend"
-        : deriveFormatterTone(toneContext),
-      intent: detectedIntent,
+  const modelProducedSentence =
+    rawText &&
+    /[.!?।؟]$/.test(rawText.trim());
 
-      seed: `${requestId}|${userId}|${preferredLanguage ?? "en"}|${message.slice(0, 80)}`,
+  const formattedText =
+    rawText && !modelProducedSentence
+      ? formatImotaraReply({
+        raw: rawText,
+        userMessage: message,
+        prevAssistantText,
 
-      // 🔐 New flag for formatter (safe if ignored in older versions)
-      disableBridge: isClosureIntent,
-      mode: isReturnIntent ? "return" : undefined,
-    })
-    : "";
+        // 🚫 If closure, do NOT allow formatter to add bridge
+        externalBridge: isClosureIntent ? undefined : externalBridge,
+
+        lang: strictLanguage ?? preferredLanguage ?? "en",
+        tone: isReturnIntent
+          ? "close_friend"
+          : deriveFormatterTone(toneContext),
+        intent: detectedIntent,
+
+        seed: `${requestId}|${userId}|${preferredLanguage ?? "en"}|${message.slice(0, 80)}`,
+
+        // 🔐 New flag for formatter (safe if ignored in older versions)
+        disableBridge: isClosureIntent,
+        mode: isReturnIntent ? "return" : undefined,
+      })
+      : "";
 
   const finalText = (formattedText || rawText).trim();
 

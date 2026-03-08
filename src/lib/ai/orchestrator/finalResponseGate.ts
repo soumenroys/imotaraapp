@@ -112,8 +112,19 @@ export function applyFinalResponseGate(input: FinalGateInput): ImotaraResponse {
 
     if (contradiction) {
         // Tiny, safe behavior: ask user to resolve, not “pretend” incoherently.
+        // Keep this light, and avoid forcing English when the drafted reply is clearly in another script.
+        const replyText = `${out.message} ${out.followUp}`.trim();
+
         const prompt =
-            "Quick check—do you want me to talk like a kid-friendly friend, or keep a mentor/coach style?";
+            /[\u0980-\u09FF]/.test(replyText)
+                ? "একটা ছোট্ট জিজ্ঞাসা—তুমি কি চাইছ আমি বন্ধুর মতো, সহজভাবে কথা বলি, নাকি mentor/coach-এর মতো থাকি?"
+                : /[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(replyText)
+                    ? "एक छोटा सा सवाल—क्या तुम चाहते हो कि मैं दोस्त की तरह, आसान ढंग से बात करूँ, या mentor/coach वाले अंदाज़ में रहूँ?"
+                    : /[\u0B80-\u0BFF]/.test(replyText)
+                        ? "ஒரு சிறிய கேள்வி — நான் நண்பரைப் போல எளிமையாக பேசட்டுமா, அல்லது mentor/coach மாதிரி தொடரட்டுமா?"
+                        : /[\u0C00-\u0C7F]/.test(replyText)
+                            ? "ఒక చిన్న ప్రశ్న — నేను ఫ్రెండ్‌లా సింపుల్‌గా మాట్లాడాలా, లేక mentor/coach స్టైల్‌లో కొనసాగాలా?"
+                            : "Quick check—do you want me to talk like a kid-friendly friend, or keep a mentor/coach style?";
 
         // Don’t overwrite an existing strong follow-up; append only if short.
         if (!out.followUp) out.followUp = prompt;

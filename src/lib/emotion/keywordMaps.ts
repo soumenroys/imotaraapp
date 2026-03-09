@@ -67,7 +67,8 @@ export const BN_SAD_REGEX =
 export const BN_CONFUSED_REGEX =
   /বুঝতে পারছি না|বুঝতে পারছিনা|মাথা কাজ করছে না|মাথা কাজ করছ না/i;
 
-export const HI_STRESS_REGEX = /(परेशान|तनाव|चिंता|घबराहट|बेचैन)/;
+export const HI_STRESS_REGEX =
+  /(परेशान|तनाव|चिंता|घबराहट|बेचैन|\bpareshaan\b|\bpareshan\b|\btanav\b|\bchinta\b|\bghabrahat\b|\bbechain\b|\btension\b)/i;
 
 // Hindi confusion / mental overload
 export const HI_CONFUSED_REGEX =

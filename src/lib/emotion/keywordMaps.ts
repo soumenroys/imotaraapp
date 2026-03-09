@@ -63,6 +63,9 @@ export const EN_LANG_HINT_REGEX =
 export const BN_SAD_REGEX =
   /(মন খারাপ|খারাপ লাগছে|মন ভালো নেই|মনে ভালো নেই|ভালো নেই|ভাল নেই|ভালো লাগছে না|ভাল লাগছে না|দুঃখ|কষ্ট|কাঁদ|কান্না|একলা|একাকী|\bmon(\s+ta)?\s+kharap\b|\bamar\s+mon(\s+ta)?\s+kharap\b|\bkhub\s+kharap\s+lag(chh?e|che)\b|\bkharap\s+lag(chh?e|che)\b|\bmon\s+bhalo\s+na\b|\b(kichu|kicu|kisu)\s+bhalo\s+lag(chh?e|che)\s+na\b|\bbhalo\s+lag(chh?e|che)\s+na\b|\bmood\s+off\b)/i;
 
+export const BN_STRESS_REGEX =
+  /(চিন্তা|দুশ্চিন্তা|টেনশন|স্ট্রেস|ভয় লাগছে|\bonek\s+chinta\s+hocch?e\b|\bkhub\s+chinta\s+hocch?e\b|\bchinta\s+hocch?e\b|\bstress\s+e\s+achi\b|\bkhub\s+stress\s+e\s+achi\b|\btension\s+e\s+achi\b|\bkhub\s+tension\s+e\s+achi\b)/i;
+
 // Bengali confusion / mental overload
 export const BN_CONFUSED_REGEX =
   /বুঝতে পারছি না|বুঝতে পারছিনা|মাথা কাজ করছে না|মাথা কাজ করছ না/i;
@@ -123,7 +126,8 @@ export function debugDetectEmotion(text: string): DebugEmotion | null {
 
   if (isConfusedText(input)) return "confused";
 
-  if (HI_STRESS_REGEX.test(input) || TA_STRESS_REGEX.test(input)) return "stressed";
+  if (BN_STRESS_REGEX.test(input) || HI_STRESS_REGEX.test(input) || TA_STRESS_REGEX.test(input))
+    return "stressed";
   if (BN_SAD_REGEX.test(input) || TA_SAD_REGEX.test(input)) return "sad";
 
   return null;

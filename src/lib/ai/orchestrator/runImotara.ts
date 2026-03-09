@@ -926,13 +926,13 @@ function draftResponse(
     return false;
   }
 
-  function pickFrom<T>(arr: readonly T[], h: number): T {
+  function pickFromIndex<T>(arr: readonly T[], h: number): T {
     return arr[h % arr.length];
   }
 
   function pickFromSeed<T>(seed: string, arr: readonly T[]): T {
     const h = hashLite(seed);
-    return arr[h % arr.length];
+    return pickFromIndex(arr, h);
   }
 
   function pickOpener(

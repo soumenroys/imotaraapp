@@ -2134,7 +2134,6 @@ function Bubble({
     .join(" ");
 
   const showDebug =
-    process.env.NODE_ENV !== "production" &&
     role === "assistant" &&
     (debugEmotion || debugEmotionSource || replySource);
 

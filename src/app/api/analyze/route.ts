@@ -56,7 +56,14 @@ import type { EmotionAnalysis } from "@/lib/ai/emotion/emotionTypes";
 import { normalizeEmotion } from "@/lib/ai/emotion/normalizeEmotion";
 import {
   BN_SAD_REGEX,
+  BN_ANGER_REGEX,
+  BN_FEAR_REGEX,
   HI_STRESS_REGEX,
+  GU_SAD_REGEX,
+  GU_STRESS_REGEX,
+  GU_ANGER_REGEX,
+  GU_FEAR_REGEX,
+  CRISIS_HINT_REGEX,
   isConfusedText,
 } from "@/lib/emotion/keywordMaps";
 
@@ -336,6 +343,10 @@ export async function POST(req: Request) {
         return { emotion: asEmotion("neutral"), intensity: 0.25 };
       }
 
+      // ✅ Shared crisis / severe distress signal
+      if (CRISIS_HINT_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.95 };
+
       // --- Emoji-only / emoji-heavy fast path (fixes "😭😭" => sadness) ---
       const emojiSad = /[😭😢💔🥺😞😔☹️🙁]/u;
 
@@ -359,6 +370,25 @@ export async function POST(req: Request) {
       // Centralized in src/lib/emotion/keywordMaps.ts to prevent drift across the codebase.
       if (BN_SAD_REGEX.test(raw))
         return { emotion: asEmotion("sadness"), intensity: 0.65 };
+
+      if (BN_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+
+      if (BN_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      if (GU_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+
+      if (GU_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+
+      if (GU_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+
+      if (GU_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
       if (HI_STRESS_REGEX.test(raw))
         return { emotion: asEmotion("anxiety"), intensity: 0.65 };
 
@@ -402,21 +432,21 @@ export async function POST(req: Request) {
       // DEV-only match echo (will be stripped in production by stripDeep)
       const debugMatches = DEV
         ? (() => {
-            const raw = String(text ?? "");
-            const t = raw.trim().toLowerCase().replace(/\s+/g, " ");
-            return {
-              bnSad: BN_SAD_REGEX.test(raw),
-              hiStress: HI_STRESS_REGEX.test(raw),
-              confused: isConfusedText(raw),
-              enSad: /\b(sad|down|depressed|heartbroken|lonely)\b/.test(t),
-              enAnx: /\b(stress|stressed|anxious|anxiety|worried|panic)\b/.test(
-                t,
-              ),
-              containsMoodOff: /\bmood\s+off\b/i.test(raw),
-              normalized: t,
-              sample: raw.slice(0, 120),
-            };
-          })()
+          const raw = String(text ?? "");
+          const t = raw.trim().toLowerCase().replace(/\s+/g, " ");
+          return {
+            bnSad: BN_SAD_REGEX.test(raw),
+            hiStress: HI_STRESS_REGEX.test(raw),
+            confused: isConfusedText(raw),
+            enSad: /\b(sad|down|depressed|heartbroken|lonely)\b/.test(t),
+            enAnx: /\b(stress|stressed|anxious|anxiety|worried|panic)\b/.test(
+              t,
+            ),
+            containsMoodOff: /\bmood\s+off\b/i.test(raw),
+            normalized: t,
+            sample: raw.slice(0, 120),
+          };
+        })()
         : undefined;
 
       return {
@@ -655,25 +685,25 @@ export async function POST(req: Request) {
       reflectionSeedCard:
         (perMessage.length ?? 0) % 2 === 0
           ? {
-              prompts: [
-                [
-                  "What feeling is most present right now?",
-                  "What would ‘support’ look like in the next 24 hours?",
-                ],
-                [
-                  "What part of this hurts the most?",
-                  "What would help you feel safe right now?",
-                ],
-                [
-                  "What do you want to be true by tonight?",
-                  "What’s one small thing you can do in the next hour?",
-                ],
-                [
-                  "What are you afraid might happen next?",
-                  "If you could ask for one thing, what would it be?",
-                ],
-              ][(perMessage.length ?? 0) % 4],
-            }
+            prompts: [
+              [
+                "What feeling is most present right now?",
+                "What would ‘support’ look like in the next 24 hours?",
+              ],
+              [
+                "What part of this hurts the most?",
+                "What would help you feel safe right now?",
+              ],
+              [
+                "What do you want to be true by tonight?",
+                "What’s one small thing you can do in the next hour?",
+              ],
+              [
+                "What are you afraid might happen next?",
+                "If you could ask for one thing, what would it be?",
+              ],
+            ][(perMessage.length ?? 0) % 4],
+          }
           : undefined,
     } as any;
 

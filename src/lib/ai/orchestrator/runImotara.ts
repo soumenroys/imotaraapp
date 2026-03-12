@@ -10,6 +10,7 @@ import { applySoftEnforcement } from "@/lib/ai/guardrails/softEnforcement";
 import type { EmotionAnalysis } from "@/lib/ai/emotion/emotionTypes";
 import { normalizeEmotion } from "@/lib/ai/emotion/normalizeEmotion";
 import { applyFinalResponseGate } from "@/lib/ai/orchestrator/finalResponseGate";
+import { getCrisisResourcesForCountry } from "@/lib/safety/crisisResources";
 import {
   EN_LANG_HINT_REGEX,
   ROMAN_BN_LANG_HINT_REGEX,
@@ -22,6 +23,7 @@ import {
   ROMAN_PA_LANG_HINT_REGEX,
   ROMAN_TA_LANG_HINT_REGEX,
   ROMAN_TE_LANG_HINT_REGEX,
+  CRISIS_HINT_REGEX,
 } from "@/lib/emotion/keywordMaps";
 
 type SessionContext = {
@@ -441,7 +443,7 @@ function detectMetaComplaintIntent(input: string): boolean {
 
 // Natural, non-repetitive continuity anchors (NOT always quoting).
 function continuityAnchor(
-  lang: "en" | "hi" | "bn",
+  lang: "en" | "hi" | "bn" | "gu" | "kn" | "mr",
   prev: string,
   seed: string,
 ): string {
@@ -455,7 +457,6 @@ function continuityAnchor(
       `अच्छा — उसी संदर्भ में,`,
       `हां, उसी point पर,`,
     ] as const;
-    // keep it light; quote only if it's short
     return `${variants[idx]}${shortPrev.length <= 42 ? ` “${shortPrev}”` : ""} `;
   }
 
@@ -464,7 +465,37 @@ function continuityAnchor(
       `ঠিক আছে — সেই কথাটাই ধরে,`,
       `বুঝলাম — ওই অংশটা ধরে,`,
       `আচ্ছা — ওই প্রসঙ্গেই,`,
-      `হ্যাঁ — ওই point টা থেকে,`,
+      `হ্যাঁ — ওই জায়গা থেকে,`,
+    ] as const;
+    return `${variants[idx]} `;
+  }
+
+  if (lang === "gu") {
+    const variants = [
+      `બરાબર — એ જ વાત પરથી,`,
+      `સમજ્યું — એ ભાગ પરથી,`,
+      `સારું — એ જ સંદર્ભમાં,`,
+      `હા — એ જ મુદ્દા પરથી,`,
+    ] as const;
+    return `${variants[idx]}${shortPrev.length <= 42 ? ` “${shortPrev}”` : ""} `;
+  }
+
+  if (lang === "kn") {
+    const variants = [
+      `ಸರಿ — ಅದೇ ಮಾತಿನಿಂದ,`,
+      `ಅರ್ಥವಾಯಿತು — ಆ ಭಾಗದಿಂದ,`,
+      `ಸರಿ — ಅದೇ ಸಂದರ್ಭದಿಂದ,`,
+      `ಹೌದು — ಅದೇ ವಿಷಯದಿಂದ,`,
+    ] as const;
+    return `${variants[idx]}${shortPrev.length <= 42 ? ` “${shortPrev}”` : ""} `;
+  }
+
+  if (lang === "mr") {
+    const variants = [
+      `ठीक आहे — त्याच गोष्टीवरून,`,
+      `समजलं — त्या भागावरून,`,
+      `बरं — त्याच संदर्भातून,`,
+      `हो — त्याच मुद्द्यावरून,`,
     ] as const;
     return `${variants[idx]}${shortPrev.length <= 42 ? ` “${shortPrev}”` : ""} `;
   }
@@ -750,10 +781,18 @@ function draftResponseForLanguage(
 ): ImotaraResponse {
   const lang = getPreferredLanguage(ctx, userMessage);
 
-  // Keep explicit localized fallback only for hi / bn.
-  // For every other language, use the generic draft path so we never
-  // misroute unsupported languages into Bengali.
-  if (lang !== "hi" && lang !== "bn") {
+  // Keep explicit localized fallback for hi / bn / gu / kn / mr.
+  // For every other language, use the generic draft path for now.
+  if (
+    lang !== "hi" &&
+    lang !== "bn" &&
+    lang !== "gu" &&
+    lang !== "kn" &&
+    lang !== "mr"
+  ) {
+    // propagate detected language so downstream formatters can honor it
+    (ctx as any).preferredLanguage = lang;
+
     return draftResponse(userMessage, ctx);
   }
 
@@ -778,21 +817,69 @@ function draftResponseForLanguage(
             : name
               ? `मैं समझ रहा हूँ, ${name}.`
               : "मैं समझ रहा हूँ."
-      : rel === "friend"
-        ? name
-          ? `বুঝলাম, ${name}.`
-          : "বুঝলাম."
-        : rel === "mentor"
+      : lang === "bn"
+        ? rel === "friend"
           ? name
-            ? `আমি শুনছি, ${name}.`
-            : "আমি শুনছি."
-          : rel === "coach"
+            ? `বুঝলাম, ${name}.`
+            : "বুঝলাম."
+          : rel === "mentor"
             ? name
-              ? `ঠিক আছে, ${name}.`
-              : "ঠিক আছে."
-            : name
-              ? `আমি বুঝতে পারছি, ${name}.`
-              : "আমি বুঝতে পারছি.";
+              ? `আমি শুনছি, ${name}.`
+              : "আমি শুনছি."
+            : rel === "coach"
+              ? name
+                ? `ঠিক আছে, ${name}.`
+                : "ঠিক আছে."
+              : name
+                ? `আমি বুঝতে পারছি, ${name}.`
+                : "আমি বুঝতে পারছি."
+        : lang === "gu"
+          ? rel === "friend"
+            ? name
+              ? `સમજી ગયો, ${name}.`
+              : "સમજી ગયો."
+            : rel === "mentor"
+              ? name
+                ? `હું સાંભળી રહ્યો છું, ${name}.`
+                : "હું સાંભળી રહ્યો છું."
+              : rel === "coach"
+                ? name
+                  ? `બરાબર, ${name}.`
+                  : "બરાબર."
+                : name
+                  ? `હું સમજું છું, ${name}.`
+                  : "હું સમજું છું."
+          : lang === "kn"
+            ? rel === "friend"
+              ? name
+                ? `ಅರ್ಥ ಆಯಿತು, ${name}.`
+                : "ಅರ್ಥ ಆಯಿತು."
+              : rel === "mentor"
+                ? name
+                  ? `ನಾನು ಕೇಳುತ್ತಿದ್ದೇನೆ, ${name}.`
+                  : "ನಾನು ಕೇಳುತ್ತಿದ್ದೇನೆ."
+                : rel === "coach"
+                  ? name
+                    ? `ಸರಿ, ${name}.`
+                    : "ಸರಿ."
+                  : name
+                    ? `ನಾನು ಅರ್ಥ ಮಾಡಿಕೊಳ್ಳುತ್ತಿದ್ದೇನೆ, ${name}.`
+                    : "ನಾನು ಅರ್ಥ ಮಾಡಿಕೊಳ್ಳುತ್ತಿದ್ದೇನೆ."
+            : rel === "friend"
+              ? name
+                ? `समजलं, ${name}.`
+                : "समजलं."
+              : rel === "mentor"
+                ? name
+                  ? `मी ऐकतोय, ${name}.`
+                  : "मी ऐकतोय."
+                : rel === "coach"
+                  ? name
+                    ? `ठीक आहे, ${name}.`
+                    : "ठीक आहे."
+                  : name
+                    ? `मी समजून घेतोय, ${name}.`
+                    : "मी समजून घेतोय.";
 
   const prev = getContextUserTurn(ctx, msg, 3);
   const useAnchor =
@@ -811,38 +898,65 @@ function draftResponseForLanguage(
           "हम इसे धीरे-धीरे ले सकते हैं।",
         ] as const,
       )}`
-      : (() => {
-        const t = msg.trim();
-        const tNoPunct = t.replace(/[।!?]+$/g, "").trim();
+      : lang === "bn"
+        ? (() => {
+          const t = msg.trim();
+          const tNoPunct = t.replace(/[।!?]+$/g, "").trim();
 
-        const isQuestion =
-          /[?？]$/.test(t) ||
-          /^(কি|কী|কেন|কখন|কোথায়|কিভাবে|কারা|কাকে)\b/i.test(tNoPunct);
+          const isQuestion =
+            /[?？]$/.test(t) ||
+            /^(কি|কী|কেন|কখন|কোথায়|কিভাবে|কারা|কাকে)\b/i.test(tNoPunct);
 
-        const isGoodbye =
-          /(আমি\s*যাচ্ছি|চলি|চলে\s*যাচ্ছি|বাই|বিদায়|দেখা\s*হবে)/i.test(
-            tNoPunct,
+          const isGoodbye =
+            /(আমি\s*যাচ্ছি|চলি|চলে\s*যাচ্ছি|বাই|বিদায়|দেখা\s*হবে)/i.test(
+              tNoPunct,
+            );
+
+          const reaction = pickFrom(
+            `bnAck:${msg}:${rel}:${name ?? ""}`,
+            [
+              "আচ্ছা, আমি আছি।",
+              "হুম, শুনছি।",
+              "ঠিক আছে, আমি আছি।",
+            ] as const,
           );
 
-        const reaction = pickFrom(
-          `bnAck:${msg}:${rel}:${name ?? ""}`,
-          [
-            "আচ্ছা, আমি আছি।",
-            "হুম, শুনছি।",
-            "ঠিক আছে, আমি আছি।",
-          ] as const,
-        );
+          if (isGoodbye) {
+            return `${reaction} পরে ইচ্ছে হলে আবার লিখতে পারো।`;
+          }
 
-        if (isGoodbye) {
-          return `${reaction} পরে ইচ্ছে হলে আবার লিখতে পারো।`;
-        }
+          if (isQuestion) {
+            return `${reaction} তুমি চাইলে আরেকটু বলো।`;
+          }
 
-        if (isQuestion) {
-          return `${reaction} তুমি চাইলে আরেকটু বলো।`;
-        }
-
-        return `${openerWithContext} ${reaction}`;
-      })();
+          return `${openerWithContext} ${reaction}`;
+        })()
+        : lang === "gu"
+          ? `${openerWithContext} ${pickFrom(
+            `guAck:${msg}:${rel}:${name ?? ""}`,
+            [
+              "બરાબર, હું અહીં છું.",
+              "હું સાંભળી રહ્યો છું.",
+              "આપણે આ ધીમે ધીમે લઈ શકીએ.",
+            ] as const,
+          )}`
+          : lang === "kn"
+            ? `${openerWithContext} ${pickFrom(
+              `knAck:${msg}:${rel}:${name ?? ""}`,
+              [
+                "ಸರಿ, ನಾನು ಇಲ್ಲಿದ್ದೇನೆ.",
+                "ನಾನು ಕೇಳುತ್ತಿದ್ದೇನೆ.",
+                "ನಾವು ಇದನ್ನು ನಿಧಾನವಾಗಿ ತೆಗೆದುಕೊಳ್ಳಬಹುದು.",
+              ] as const,
+            )}`
+            : `${openerWithContext} ${pickFrom(
+              `mrAck:${msg}:${rel}:${name ?? ""}`,
+              [
+                "ठीक आहे, मी इथे आहे.",
+                "मी ऐकतोय.",
+                "आपण हे हळूहळू घेऊ शकतो.",
+              ] as const,
+            )}`;
 
   const followUp =
     lang === "hi"
@@ -854,7 +968,34 @@ function draftResponseForLanguage(
           "हम यहीं से धीरे-धीरे शुरू कर सकते हैं — क्या सबसे पहले उसी पर रहना चाहोगे?",
         ] as const,
       )
-      : "";
+      : lang === "gu"
+        ? pickFrom(
+          `guFollow:${msg}:${rel}:${name ?? ""}`,
+          [
+            "હમણાં સૌથી વધુ શું જોઈએ છે — થોડો આધાર, થોડું સ્પષ્ટપણું, કે ફક્ત સાથ?",
+            "જો કહેવું હોય તો હમણાં સૌથી ભારે શું લાગી રહ્યું છે?",
+            "આપણે અહીંથી ધીમે ધીમે શરૂ કરી શકીએ — પહેલા કયા ભાગ પર રહેવું છે?",
+          ] as const,
+        )
+        : lang === "kn"
+          ? pickFrom(
+            `knFollow:${msg}:${rel}:${name ?? ""}`,
+            [
+              "ಈಗ ನಿಮಗೆ ಹೆಚ್ಚು ಏನು ಬೇಕಾಗಿದೆ — ಸ್ವಲ್ಪ ನೆಮ್ಮದಿ, ಸ್ವಲ್ಪ ಸ್ಪಷ್ಟತೆ, ಅಥವಾ ಕೇವಲ ಜೊತೆ?",
+              "ಹೇಳಬೇಕೆಂದರೆ ಈಗ ಯಾವ ಭಾಗ ಹೆಚ್ಚು ಭಾರವಾಗಿ ಕಾಣುತ್ತಿದೆ?",
+              "ನಾವು ಇಲ್ಲಿಂದ ನಿಧಾನವಾಗಿ ಆರಂಭಿಸಬಹುದು — ಮೊದಲು ಯಾವ ಭಾಗದ ಮೇಲೆ ಉಳಿಯಲು ಇಷ್ಟಪಡುತ್ತೀರಾ?",
+            ] as const,
+          )
+          : lang === "mr"
+            ? pickFrom(
+              `mrFollow:${msg}:${rel}:${name ?? ""}`,
+              [
+                "आत्ता तुला सगळ्यात जास्त काय हवं आहे — थोडा आधार, थोडी स्पष्टता, की फक्त साथ?",
+                "जर सांगावंसं वाटत असेल तर आत्ता सगळ्यात जड काय वाटतंय?",
+                "आपण इथून हळूहळू सुरुवात करू शकतो — आधी कोणत्या भागावर थांबायचं आहे?",
+              ] as const,
+            )
+            : "";
 
   return {
     message,
@@ -1162,7 +1303,7 @@ function draftResponse(
     /\b(i|im|i'm|am|just|now|today|currently|at|home|resting|relaxing|chilling|working|studying|sleeping)\b/i.test(
       lower,
     ) &&
-    !/\b(accident|scary|fear|afraid|panic|hurt|injury|injured|sad|lonely|cry|crying|angry|stress|stressed|anxious|anxiety|worried|depressed|hopeless)\b/i.test(
+    !/\b(accident|scary|fear|afraid|panic|hurt|injury|injured|sad|lonely|cry|crying|angry|stress|stressed|anxious|anxiety|worried|depressed|hopeless|overwhelmed|exhausted|exhaust|drained|heavy|mentally exhausted|emotionally heavy|burnout|burned out|burnt out|empty|numb|meaningless|die|dying|suicide|suicidal|kill myself|end my life|don't want to live|dont want to live|cannot go on|can't go on|cant go on)\b/i.test(
       lower,
     ) &&
     !lower.includes("trembl") &&
@@ -1200,6 +1341,53 @@ function draftResponse(
       message = `${openerWithContext} I’m here with you.`;
       followUp = "";
     }
+  } else if (
+    CRISIS_HINT_REGEX.test(msg)
+  ) {
+    console.log("[IMOTARA_CRISIS_BRANCH]", { msg, lower, rel });
+    const crisisAck = pickFromSeed(
+      `crisisAck:${msg}:${rel}:${name ?? ""}`,
+      [
+        "I’m really glad you said it here. You matter, and I want to stay with you right now.",
+        "Thank you for telling me directly. I'm here with you. We can take this one safe step at a time.",
+        "I’m with you right now. Your safety matters more than anything else in this moment.",
+      ] as const,
+    );
+
+    const crisisFollow = pickFromSeed(
+      `crisisFollow:${msg}:${rel}:${name ?? ""}`,
+      [
+        "Are you in immediate danger right now, or have you already done anything to hurt yourself?",
+        "Can you move a little farther from anything you could use to hurt yourself, and tell me once you have?",
+        "Can you call or message one trusted person right now and stay with me while you do it?",
+      ] as const,
+    );
+
+    const indiaResources = getCrisisResourcesForCountry("IN");
+    const teleManas = indiaResources?.primary?.find(
+      (item) => item.id === "in-tele-manas-14416",
+    );
+
+    const crisisSupportOffer = teleManas
+      ? `If you're in India and want immediate human support, you can call ${teleManas.label} at ${teleManas.contact}. ${teleManas.note ?? ""}`.trim()
+      : "If you're in India and want immediate human support, you can call Tele-MANAS at 14416 or 1800-891-4416. It's a free 24/7 mental health helpline.";
+
+    return {
+      reflectionSeed: undefined,
+      message: cap(
+        `${crisisAck}\n\n${crisisFollow}\n\n${crisisSupportOffer}`,
+        240,
+      ),
+      followUp: "",
+      meta: {
+        styleContract: "1.0",
+        blueprint: "1.0",
+        blueprintUsed: getResponseBlueprint({
+          tone: inferBlueprintTone(userMessage),
+        }),
+      },
+    };
+
   } else if (detectMetaComplaintIntent(msg)) {
     const metaAck = pickFromSeed(
       `metaAck:${msg}:${rel}:${name ?? ""}`,
@@ -1526,11 +1714,11 @@ function draftResponse(
   const inferPrimaryFromText = (text: string): EmotionAnalysis["primary"] => {
     const s = String(text || "").toLowerCase();
 
-    return /\b(stress|stressed|anxious|anxiety|worried|panic|overwhelmed|burnt out|burned out)\b/.test(
+    return /\b(stress|stressed|anxious|anxiety|worried|panic|overwhelmed|burnt out|burned out|mentally exhausted|exhausted|drained)\b/.test(
       s,
     )
       ? "anxiety"
-      : /\b(sad|down|depressed|heartbroken|lonely|cry|crying)\b/.test(s)
+      : /\b(sad|down|depressed|heartbroken|lonely|cry|crying|emotionally heavy|heavy|empty|numb|hopeless|meaningless)\b/.test(s)
         ? "sadness"
         : /\b(angry|mad|furious|irritated|annoyed)\b/.test(s)
           ? "anger"
@@ -1575,11 +1763,17 @@ function draftResponse(
   // Keep it inside meta so we don't break ImotaraResponse typing
   (meta as any).emotion = emotion;
 
+  const isCrisisDraft = CRISIS_HINT_REGEX.test(msg);
+
   return {
     // ✅ Disable ReflectionSeed entirely (no card, no structured prompt)
     reflectionSeed: undefined,
-    message: cap(enforcedMessage.adjustedText, 240),
-    followUp: cap(enforcedFollowUp.adjustedText, 200),
+    message: isCrisisDraft
+      ? cap(message, 240)
+      : cap(enforcedMessage.adjustedText, 240),
+    followUp: isCrisisDraft
+      ? cap(followUp, 200)
+      : cap(enforcedFollowUp.adjustedText, 200),
     meta,
   };
 }
@@ -1763,23 +1957,28 @@ export async function runImotara(input: {
     }
   }
 
+  const isCrisisReply = CRISIS_HINT_REGEX.test(userMessage);
+
   // Personalized greeting (natural, non-creepy, no invented memory)
   // - Uses name only when allowed
   // - Avoids repeating if draft already addressed them
   // - Keeps softOpener as tone guidance
-  if (userName && response?.message) {
-    const firstLine = String(response.message).split("\n")[0] ?? "";
-    const alreadyUsed =
-      firstLine.toLowerCase().includes(userName.toLowerCase()) ||
-      firstLine.toLowerCase().startsWith("hey ");
+  // - But DO NOT add soft opener/greeting to crisis replies
+  if (!isCrisisReply) {
+    if (userName && response?.message) {
+      const firstLine = String(response.message).split("\n")[0] ?? "";
+      const alreadyUsed =
+        firstLine.toLowerCase().includes(userName.toLowerCase()) ||
+        firstLine.toLowerCase().startsWith("hey ");
 
-    if (!alreadyUsed) {
-      response.message = `Hey ${userName} —\n\n${softOpener}${response.message}`;
-    } else if (softOpener) {
+      if (!alreadyUsed) {
+        response.message = `Hey ${userName} —\n\n${softOpener}${response.message}`;
+      } else if (softOpener) {
+        response.message = `${softOpener}${response.message}`;
+      }
+    } else if (softOpener && response?.message) {
       response.message = `${softOpener}${response.message}`;
     }
-  } else if (softOpener && response?.message) {
-    response.message = `${softOpener}${response.message}`;
   }
 
   // ✅ Baby Step 11.7.12 — echo tone settings for transparency/debug
@@ -1874,6 +2073,10 @@ export async function runImotara(input: {
     ) {
       response.message = `${response.message}\n— ${companionNameForSignoff}`;
     }
+  }
+
+  if (isCrisisReply) {
+    return response;
   }
 
   return applyFinalResponseGate({

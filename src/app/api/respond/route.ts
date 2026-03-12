@@ -20,6 +20,12 @@ import {
   ROMAN_HI_LANG_HINT_REGEX,
   ROMAN_TA_LANG_HINT_REGEX,
   ROMAN_TE_LANG_HINT_REGEX,
+  ROMAN_GU_LANG_HINT_REGEX,
+  ROMAN_KN_LANG_HINT_REGEX,
+  ROMAN_ML_LANG_HINT_REGEX,
+  ROMAN_PA_LANG_HINT_REGEX,
+  ROMAN_MR_LANG_HINT_REGEX,
+  ROMAN_OR_LANG_HINT_REGEX,
 } from "@/lib/emotion/keywordMaps";
 
 type LanguageCode =
@@ -186,6 +192,25 @@ function derivePreferredLanguage(
   const romanBnHits = countHits(ROMAN_BN_LANG_HINT_REGEX);
   const romanTaHits = countHits(ROMAN_TA_LANG_HINT_REGEX);
   const romanTeHits = countHits(ROMAN_TE_LANG_HINT_REGEX);
+  const romanGuHits = countHits(ROMAN_GU_LANG_HINT_REGEX);
+  const romanKnHits = countHits(ROMAN_KN_LANG_HINT_REGEX);
+  const romanMlHits = countHits(ROMAN_ML_LANG_HINT_REGEX);
+  const romanPaHits = countHits(ROMAN_PA_LANG_HINT_REGEX);
+  const romanMrHits = countHits(ROMAN_MR_LANG_HINT_REGEX);
+  const romanOrHits = countHits(ROMAN_OR_LANG_HINT_REGEX);
+
+  console.log("[LANG DEBUG]", {
+    romanHiHits,
+    romanBnHits,
+    romanTaHits,
+    romanTeHits,
+    romanGuHits,
+    romanKnHits,
+    romanMlHits,
+    romanPaHits,
+    romanMrHits,
+    romanOrHits,
+  });
 
   const latinOnly = !hasBn && !hasHiLetters && totalLetters > 0;
   const latinHeavy = latinOnly && latinLetters / totalLetters >= 0.8;
@@ -277,16 +302,85 @@ function derivePreferredLanguage(
           "Language policy (strict): Reply ONLY in Telugu (te). Use Telugu script. Do not mix languages.",
       };
     }
+    if (romanGuHits >= 2) {
+      return {
+        preferredLanguage: "gu",
+        strictLanguage: "gu",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Gujarati (gu). Use Gujarati script. Do not mix languages.",
+      };
+    }
+    if (romanKnHits >= 2) {
+      return {
+        preferredLanguage: "kn",
+        strictLanguage: "kn",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Kannada (kn). Use Kannada script. Do not mix languages.",
+      };
+    }
+    if (romanMlHits >= 2) {
+      return {
+        preferredLanguage: "ml",
+        strictLanguage: "ml",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Malayalam (ml). Use Malayalam script. Do not mix languages.",
+      };
+    }
+    if (romanPaHits >= 2) {
+      return {
+        preferredLanguage: "pa",
+        strictLanguage: "pa",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Punjabi (pa). Use Gurmukhi script. Do not mix languages.",
+      };
+    }
+    if (romanMrHits >= 2) {
+      return {
+        preferredLanguage: "mr",
+        strictLanguage: "mr",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Marathi (mr). Use Devanagari script. Do not mix languages.",
+      };
+    }
+    if (romanOrHits >= 2) {
+      return {
+        preferredLanguage: "or",
+        strictLanguage: "or",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Odia (or). Use Odia script. Do not mix languages.",
+      };
+    }
   }
 
   // ✅ Clear English signal → strict English
+  const hasStrongRomanizedIndianSignal =
+    romanHiHits >= 2 ||
+    romanBnHits >= 2 ||
+    romanTaHits >= 2 ||
+    romanTeHits >= 2 ||
+    romanGuHits >= 2 ||
+    romanKnHits >= 2 ||
+    romanMlHits >= 2 ||
+    romanPaHits >= 2 ||
+    romanMrHits >= 2 ||
+    romanOrHits >= 2;
+
+  const hasAnyRomanizedIndianSignal =
+    romanHiHits > 0 ||
+    romanBnHits > 0 ||
+    romanTaHits > 0 ||
+    romanTeHits > 0 ||
+    romanGuHits > 0 ||
+    romanKnHits > 0 ||
+    romanMlHits > 0 ||
+    romanPaHits > 0 ||
+    romanMrHits > 0 ||
+    romanOrHits > 0;
+
   const looksEnglish =
     latinHeavy &&
     englishWordHits >= 2 &&
-    romanHiHits < 2 &&
-    romanBnHits < 2 &&
-    romanTaHits < 2 &&
-    romanTeHits < 2;
+    !hasStrongRomanizedIndianSignal;
 
   if (looksEnglish) {
     return {
@@ -298,15 +392,10 @@ function derivePreferredLanguage(
   }
 
   // ✅ SAFETY LOCK:
-  // If it's Latin-heavy and NOT romanized hi/bn, default to English anyway.
-  // This prevents continuity from dragging English prompts into Hindi.
-  if (
-    latinHeavy &&
-    romanHiHits === 0 &&
-    romanBnHits === 0 &&
-    romanTaHits === 0 &&
-    romanTeHits === 0
-  ) {
+  // If it's Latin-heavy and has no romanized Indian-language signal,
+  // default to English anyway. This prevents continuity from dragging
+  // clear English prompts into another language.
+  if (latinHeavy && !hasAnyRomanizedIndianSignal) {
     return {
       preferredLanguage: "en",
       strictLanguage: "en",
@@ -1183,6 +1272,11 @@ export async function POST(req: Request) {
     "",
   ).trim();
 
+  const isCrisisReply =
+    /\b(i want to die|want to die|kill myself|end my life|don't want to live|dont want to live|cannot go on|can't go on|cant go on)\b/i.test(
+      String(message ?? "").toLowerCase(),
+    );
+
   // Decide intent once (avoid drift between formatter + debug)
   const detectedIntent = isReturnIntent
     ? "practical"
@@ -1398,7 +1492,7 @@ export async function POST(req: Request) {
   // - Return: never followUp (the return reply already contains the single allowed question).
   // - Otherwise: if model provided a followUp but it doesn't match the final message, drop it.
   //   Then (only if empty) derive a followUp from finalTextNoQ.
-  if (isClosureIntent || isReturnIntent) {
+  if (isClosureIntent || isReturnIntent || isCrisisReply) {
     (result as any).followUp = "";
     (result as any).reflectionSeed = null;
   } else {
@@ -1416,7 +1510,7 @@ export async function POST(req: Request) {
     if (!nowFollowUp) {
       if (finalHasQuestion) {
         // pick the last question sentence (handles newlines too)
-        const qs = finalTextNoQ.match(/[^?؟？]*[?؟？]/g);
+        const qs = finalTextNoQ.match(/[^?؟؟]*[?؟？]/g);
         const lastQ = (qs && qs.length ? qs[qs.length - 1] : "")?.trim();
         if (lastQ) (result as any).followUp = lastQ;
       } else {

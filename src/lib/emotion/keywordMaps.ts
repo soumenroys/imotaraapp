@@ -15,7 +15,7 @@ export const ROMAN_HI_LANG_HINT_REGEX =
 
 // Romanized Bengali (Latin script) hints
 export const ROMAN_BN_LANG_HINT_REGEX =
-  /\b(Ki|Hae|hoe|Na|Kemon|Bhalo|Ki khobor|Achi|Ar|Ekhon|Pore|Korcho|Khai|Ghum|Jachhi|Aschi|Bolche|Dekha|Janina|Bujhlam|Sunte|Tumi|Apni|Tui|Amra|Ora|Bari|Baire|Office|College|Bondhu|Ke|Acha|Thik ache|Sotti|Tai|Keno|Kothay|Kobe|Kokhon|Ekdom|Hoyto|Osthir|Cholo|Boka|Pagol|Misti|Dhur|Ghumao|Kotha|Hobe|Bad dao|baad|ami|acho|accho|onekdin|chol|kothao|adda|gosip|gossip|joma|ache|khub|barite|ghor|mon|kharap|lagche|hocche|hochhe|korchi|korchhi|parchi|parchhi)\b/i;
+  /\b(Ki|Hae|hoe|Na|Kemon|Bhalo|Ki khobor|Achi|Ar|Ekhon|Pore|Korcho|Khai|Ghum|Jachhi|Aschi|Bolche|Dekha|Janina|Bujhlam|Sunte|Tumi|Apni|Tui|Amra|Ora|Bari|Baire|Office|College|Bondhu|Ke|Acha|Thik ache|Sotti|Tai|Keno|Kothay|Kobe|Kokhon|Ekdom|Hoyto|Osthir|Cholo|Boka|Pagol|Misti|Dhur|Ghumao|Kotha|Hobe|Bad dao|baad|ami|acho|accho|onekdin|chol|kothao|adda|gosip|gossip|joma|ache|khub|barite|ghor|mon|kharap|lagche|hocche|hochhe|korchi|korchhi|parchi|parchhi|morte|marte|chai|bachte|banchte|icche|ichhe)\b/i;
 
 // Romanized Tamil (Latin script) hints
 export const ROMAN_TA_LANG_HINT_REGEX =
@@ -27,11 +27,27 @@ export const ROMAN_TE_LANG_HINT_REGEX =
 
 // Romanized Gujarati (Latin script) hints
 export const ROMAN_GU_LANG_HINT_REGEX =
-  /\b(shu|kem|majama|majamaa|saru|saras|have|hve|tame|hu|hun|mane|tane|aaje|kaal|ghar|bahar|kem cho|su che|barabar|thik|chaalo|chalo|joie|joye|padse|nathi|che|hatu|hase|aavjo|aavyo|javanu|jamyu|jamva|paani)\b/i;
+  /\b(shu|su|kem|kem cho|majama|majamaa|saru|saras|have|hve|tame|hu|hun|mane|tane|aaje|kaal|ghar|bahar|su che|barabar|thik|chaalo|chalo|joie|joye|padse|nathi|che|hatu|hase|aavjo|aavyo|javanu|jamyu|jamva|paani|thai|thai che|lage che|saru nathi|majama nathi|taklif|darek|thodu|khub)\b/i;
+
+// Gujarati emotion hints (lonely / sadness)
+export const GU_SAD_REGEX =
+  /(એકલા|એકલુ|એકલું|એકલાપણું|મન ખરાબ|ખરાબ લાગે છે|ખૂબ ખરાબ લાગે છે|\bekla\s+lage\s+che\b|\beklu\s+lage\s+che\b|\bman\s+kharap\s+che\b|\bkharab\s+lage\s+che\b|\bbahu\s+ekla\s+lage\s+che\b|\bkhub\s+kharab\s+lage\s+che\b)/i;
+
+// Gujarati emotion hints (stress / anxiety)
+export const GU_STRESS_REGEX =
+  /(ટેન્શન|ચિંતા|ચિંતિત|ઘબરાહટ|દબાણ|બહુ ટેન્શન છે|ખૂબ ટેન્શન છે|મને ટેન્શન છે|\btension\b|\bchinta\b|\bchintit\b|\bghabrahat\b|\bdabaan\b|\bbahu\s+tension\s+che\b|\bkhub\s+tension\s+che\b|\bmane\s+tension\s+che\b)/i;
+
+// Gujarati emotion hints (anger / irritation)
+export const GU_ANGER_REGEX =
+  /(ગુસ્સો|ગુસ્સે|ચીડ|ચીડિયો|ચીડાય છે|ખીજ|ખીજાય છે|બહુ ગુસ્સો આવે છે|ખૂબ ગુસ્સો આવે છે|મને ગુસ્સો આવે છે|\bgusso\b|\bgusse\b|\bchid\b|\bkhij\b|\bbahu\s+gusso\s+aave\s+che\b|\bkhub\s+gusso\s+aave\s+che\b|\bmane\s+gusso\s+aave\s+che\b)/i;
+
+// Gujarati emotion hints (fear / worry)
+export const GU_FEAR_REGEX =
+  /(ડર|ડર લાગે છે|મને ડર લાગે છે|ઘબરાય|ઘબરાઈ ગયો|ઘબરાઈ ગઈ|બહુ ડર લાગે છે|\bdar\b|\bdar\s+lage\s+che\b|\bmane\s+dar\s+lage\s+che\b|\bghabray\b|\bghabrayi\b)/i;
 
 // Romanized Kannada (Latin script) hints
 export const ROMAN_KN_LANG_HINT_REGEX =
-  /\b(yenu|enu|hegide|hegiddiya|hegiddira|sari|chennagide|chenagide|ivattu|naanu|nanu|neenu|ninu|nimge|nanage|amma|appa|anna|akka|thamma|tangi|bega|mane|horage|illi|alli|yaake|yake|elli|yelli|hege|oota|neeru|malagu|barutte|hogutte|banni|hogona|nodona)\b/i;
+  /\b(yenu|enu|hegide|hegiddiya|hegiddira|sari|chennagide|chenagide|ivattu|naanu|nanu|neenu|ninu|nimge|nanage|amma|appa|anna|akka|thamma|tangi|bega|mane|horage|illi|alli|yaake|yake|elli|yelli|hege|oota|neeru|malagu|barutte|hogutte|banni|hogona|nodona|tumba|bejar|besara|agide|ide|illa|nan hatra|saku|swalpa)\b/i;
 
 // Romanized Malayalam (Latin script) hints
 export const ROMAN_ML_LANG_HINT_REGEX =
@@ -43,7 +59,7 @@ export const ROMAN_PA_LANG_HINT_REGEX =
 
 // Romanized Marathi (Latin script) hints
 export const ROMAN_MR_LANG_HINT_REGEX =
-  /\b(kay|kaay|kasa|kashi|kase|bara|baray|thik|thik aahe|aata|atta|aaj|udya|mi|mee|tu|tumhi|mala|tula|tyala|aamhi|aapan|ahe|aahe|navta|navte|ghari|baher|ithe|tithe|kaay chalay|kay chalalay|sang|bol|yete|jaato|khaala|paani|zhala|zala|chhan)\b/i;
+  /\b(kay|kaay|kasa|kashi|kase|bara|baray|thik|thik aahe|aata|atta|aaj|udya|mi|mee|tu|tumhi|mala|tula|tyala|aamhi|aapan|ahe|aahe|navta|navte|ghari|baher|ithe|tithe|kaay chalay|kay chalalay|sang|bol|yete|jaato|khaala|paani|zhala|zala|chhan|khup|ekta|vatat|vatte|aajun|baray nahi|theek nahi|manat|dukhat|rahat nahi)\b/i;
 
 // Romanized Odia (Latin script) hints
 export const ROMAN_OR_LANG_HINT_REGEX =
@@ -66,6 +82,13 @@ export const BN_SAD_REGEX =
 export const BN_STRESS_REGEX =
   /(চিন্তা|দুশ্চিন্তা|টেনশন|স্ট্রেস|ভয় লাগছে|\bonek\s+chinta\s+hocch?e\b|\bkhub\s+chinta\s+hocch?e\b|\bchinta\s+hocch?e\b|\bstress\s+e\s+achi\b|\bkhub\s+stress\s+e\s+achi\b|\btension\s+e\s+achi\b|\bkhub\s+tension\s+e\s+achi\b)/i;
 
+export const BN_ANGER_REGEX =
+  /(রাগ|রেগে আছি|রাগ হচ্ছে|ভীষণ রাগ হচ্ছে|খুব রাগ হচ্ছে|মেজাজ খারাপ|চটে গেছি|\brag\b|\brege\s+achi\b|\brag\s+hocch?e\b|\bkhub\s+rag\s+hocch?e\b|\bmejaj\s+kharap\b|\bchote\s+gechi\b)/i;
+
+// Bengali emotion hints (fear / worry)
+export const BN_FEAR_REGEX =
+  /(ভয়|ভয় লাগছে|খুব ভয় লাগছে|আমার ভয় লাগছে|ডর লাগছে|ভয় পাচ্ছি|\bvoy\b|\bvoy\s+lagch?e\b|\bkhub\s+voy\s+lagch?e\b|\bvoy\s+pachch?i\b)/i;
+
 // Bengali confusion / mental overload
 export const BN_CONFUSED_REGEX =
   /বুঝতে পারছি না|বুঝতে পারছিনা|মাথা কাজ করছে না|মাথা কাজ করছ না/i;
@@ -76,6 +99,10 @@ export const HI_STRESS_REGEX =
 // Hindi confusion / mental overload
 export const HI_CONFUSED_REGEX =
   /samajh nahi aa raha|samajh nahi aa rha|dimag kaam nahi kar raha|dimaag kaam nahi kar raha|समझ नहीं आ रहा|समझ नही आ रहा|दिमाग काम नहीं कर रहा|दिमाग काम नही कर रहा/i;
+
+// Shared crisis / severe distress hints (kept conservative)
+export const CRISIS_HINT_REGEX =
+  /(i\s+want\s+to\s+die|want\s+to\s+die|kill\s+myself|end\s+my\s+life|ending\s+everything|end\s+everything|i\s+feel\s+like\s+ending\s+everything|don'?t\s+want\s+to\s+live|cannot\s+go\s+on|can'?t\s+go\s+on|can'?t\s+take\s+it\s+anymore|cannot\s+take\s+it\s+anymore|life\s+has\s+no\s+meaning|life\s+feels\s+meaningless|ami\s+marte\s+chai|marte\s+chai|ami\s+morte\s+chai|morte\s+chai|ami\s+ar\s+parchi\s+na|ar\s+parchi\s+na|amar\s+bachte\s+ichcha\s+korch?e\s+na|bachte\s+ichhe\s+korch?e\s+na|bachte\s+icche\s+korch?e\s+na|more\s+jete\s+ichhe\s+korch?e|morte\s+ichhe\s+korch?e|bachbo\s+na|banchte\s+chai\s+na|mar\s+jana\s+hai|jeene\s+ka\s+mann\s+nahi|jeene\s+ka\s+man\s+nahi|jeena\s+nahi\s+hai|life\s+ka\s+koi\s+matlab\s+nahi(\s+lag\s+raha)?|main\s+marna\s+chahta\s+hu|main\s+marna\s+chahti\s+hu|main\s+marna\s+chahta\s+hoon|main\s+marna\s+chahti\s+hoon|marna\s+chahta\s+hu|marna\s+chahti\s+hu|marna\s+chahta\s+hoon|marna\s+chahti\s+hoon|main\s+jeena\s+nahi\s+chahta|main\s+jeena\s+nahi\s+chahti|hu\s+marva\s+mangu\s+chu|jivvu\s+nathi|nanage\s+badukalu\s+ishtavilla|আমি\s+মরতে\s+চাই|আমার\s+মরতে\s+ইচ্ছে\s+করছে|বাঁচতে\s+ইচ্ছে\s+করছে\s+না|আমি\s+বাঁচতে\s+চাই\s+না|আমি\s+আর\s+পারছি\s+না|আমার\s+বাঁচতে\s+ইচ্ছা\s+করছে\s+না|মुझे\s+मर\s+जाना\s+है|मैं\s+मरना\s+चाहता\s+हूँ|मैं\s+मरना\s+चाहती\s+हूँ|जीने\s+का\s+मन\s+नहीं\s+है|जीना\s+नहीं\s+है|ज़िंदगी\s+का\s+कोई\s+मतलब\s+नहीं|મારે\s+મરી\s+જવું\s+છે|મને\s+જીવવું\s+નથી|હું\s+મરવા\s+માગું\s+છું|ನನಗೆ\s+ಸಾಯಬೇಕು\s+ಅನಿಸುತ್ತಿದೆ|ನನಗೆ\s+ಬದುಕಲು\s+ಇಷ್ಟವಿಲ್ಲ|ನಾನು\s+ಸಾಯಬೇಕು)/i;
 
 const CONFUSED_EN_TERMS = [
   "cannot focus",

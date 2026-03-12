@@ -48,6 +48,24 @@ function oneLine(s: string): string {
 function inferBlueprintTone(userMessage: string): ResponseTone {
   const s = String(userMessage ?? "").toLowerCase();
 
+  // Strong emotional vulnerability → supportive
+  if (
+    s.includes("overwhelmed") ||
+    s.includes("exhaust") ||
+    s.includes("drained") ||
+    s.includes("empty") ||
+    s.includes("numb") ||
+    s.includes("heavy") ||
+    s.includes("stuck") ||
+    s.includes("lost") ||
+    s.includes("hopeless") ||
+    s.includes("meaningless") ||
+    s.includes("broken") ||
+    s.includes("no energy")
+  ) {
+    return "supportive";
+  }
+
   // Work / study stress → coach
   if (
     s.includes("office") ||

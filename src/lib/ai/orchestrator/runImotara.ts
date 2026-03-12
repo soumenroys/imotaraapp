@@ -1568,8 +1568,26 @@ function draftResponse(
       openerLower.includes("im here") ||
       openerLower.includes("i’m here");
 
+    const needsMoreThanPresence =
+      inferBlueprintTone(msg) === "supportive" ||
+      /\b(overwhelmed|exhaust|exhausted|drained|heavy|empty|numb|hopeless|meaningless|stuck|lost|anxious|anxiety|worried|panic)\b/i.test(
+        lower,
+      );
+
+    const supportivePresenceBank = [
+      "That sounds draining.",
+      "That feels like a lot to carry.",
+      "That kind of heaviness can wear you down.",
+      "We can go gently with this.",
+    ] as const;
+
     message = openerAlreadyHasAnchor
-      ? openerText
+      ? needsMoreThanPresence
+        ? `${openerText} ${pickFromSeed(
+          `supportivePresence:${msg}:${rel}:${name ?? ""}`,
+          supportivePresenceBank,
+        )}`
+        : openerText
       : `${openerText} ${pickFromSeed(
         `presence:${msg}:${rel}:${name ?? ""}`,
         presenceBank,

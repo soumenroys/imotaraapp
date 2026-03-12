@@ -48,7 +48,7 @@ function oneLine(s: string): string {
 function inferBlueprintTone(userMessage: string): ResponseTone {
   const s = String(userMessage ?? "").toLowerCase();
 
-  // Strong emotional vulnerability → supportive
+  // Strong emotional vulnerability / sadness / fear → supportive
   if (
     s.includes("overwhelmed") ||
     s.includes("exhaust") ||
@@ -61,7 +61,19 @@ function inferBlueprintTone(userMessage: string): ResponseTone {
     s.includes("hopeless") ||
     s.includes("meaningless") ||
     s.includes("broken") ||
-    s.includes("no energy")
+    s.includes("no energy") ||
+    s.includes("lonely") ||
+    s.includes("alone") ||
+    s.includes("scared") ||
+    s.includes("afraid") ||
+    s.includes("future") ||
+    s.includes("tired of everything") ||
+    s.includes("don't know what i'm doing") ||
+    s.includes("dont know what i'm doing") ||
+    s.includes("don't know what i am doing") ||
+    s.includes("dont know what i am doing") ||
+    s.includes("nothing feels meaningful") ||
+    s.includes("nothing feels meaningful lately")
   ) {
     return "supportive";
   }

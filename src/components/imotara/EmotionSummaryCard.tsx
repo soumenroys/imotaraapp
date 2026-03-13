@@ -20,8 +20,10 @@ const EMOJI: Record<string, string> = {
   sadness: "😔",
   anger: "😠",
   fear: "😟",
+  anxiety: "😰",
   disgust: "😣",
   surprise: "😲",
+  gratitude: "🙏",
   neutral: "😐",
 };
 

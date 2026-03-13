@@ -38,7 +38,7 @@ function readMode(key: string): AnalysisConsentMode | null {
  */
 export function loadConsentMode(): AnalysisConsentMode {
     if (typeof window === "undefined") {
-        return "local-only";
+        return "allow-remote";
     }
 
     // Prefer the current key, but gracefully fall back to the legacy one
@@ -46,7 +46,7 @@ export function loadConsentMode(): AnalysisConsentMode {
     return (
         readMode(STORAGE_KEY) ??
         readMode(LEGACY_STORAGE_KEY) ??
-        "local-only"
+        "allow-remote"
     );
 }
 

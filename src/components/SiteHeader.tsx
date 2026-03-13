@@ -2,23 +2,28 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
 import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
 
-// Navigation links (Settings grouped with Chat/History)
-const links = [
+// Primary nav — always visible
+const PRIMARY_LINKS = [
   { href: "/", label: "Home" },
   { href: "/chat", label: "Chat" },
   { href: "/history", label: "History" },
+  { href: "/grow", label: "Grow" },
   { href: "/settings", label: "Settings" },
+];
+
+// Overflow nav — behind "···" menu
+const MORE_LINKS = [
   { href: "/connect", label: "Connect" },
   { href: "/about", label: "About" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
 ];
 
-// Stable class strings (avoid hydration mismatch from multi-line templates)
 const NAV_CLASS =
-  "flex-1 mx-3 overflow-x-auto whitespace-nowrap scrollbar-none flex items-center gap-1 text-xs sm:gap-3 sm:text-sm text-zinc-600 dark:text-zinc-300";
+  "flex-1 mx-3 flex items-center gap-1 text-xs sm:gap-2 sm:text-sm text-zinc-600 dark:text-zinc-300";
 
 const BASE_LINK_CLASS =
   "inline-flex whitespace-nowrap rounded-full px-2.5 py-1 transition-colors";
@@ -31,6 +36,28 @@ const INACTIVE_LINK_CLASS =
 
 export default function SiteHeader() {
   const pathname = usePathname();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+    if (moreOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [moreOpen]);
+
+  // Close on route change
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [pathname]);
+
+  const isMoreActive = MORE_LINKS.some((l) => pathname.startsWith(l.href));
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-white/12 bg-white/75 bg-[radial-gradient(circle_at_0%_0%,rgba(129,140,248,0.16),transparent_55%),radial-gradient(circle_at_100%_0%,rgba(45,212,191,0.16),transparent_55%)] backdrop-blur-xl transition-colors dark:border-zinc-800/80 dark:bg-black/70">
@@ -47,28 +74,58 @@ export default function SiteHeader() {
           <span className="hidden sm:inline">Imotara</span>
         </Link>
 
-        {/* CENTER: Navigation — horizontally scrollable on mobile */}
+        {/* CENTER: Primary navigation */}
         <nav className={NAV_CLASS} aria-label="Main navigation">
-          {links.map((l) => {
+          {PRIMARY_LINKS.map((l) => {
             const active =
               l.href === "/"
                 ? pathname === "/"
                 : pathname.startsWith(l.href);
-
-            const linkClasses = `${BASE_LINK_CLASS} ${active ? ACTIVE_LINK_CLASS : INACTIVE_LINK_CLASS
-              }`;
 
             return (
               <Link
                 key={l.href}
                 href={l.href}
                 aria-current={active ? "page" : undefined}
-                className={linkClasses}
+                className={`${BASE_LINK_CLASS} ${active ? ACTIVE_LINK_CLASS : INACTIVE_LINK_CLASS}`}
               >
                 {l.label}
               </Link>
             );
           })}
+
+          {/* More dropdown */}
+          <div className="relative" ref={moreRef}>
+            <button
+              onClick={() => setMoreOpen((v) => !v)}
+              aria-label="More pages"
+              aria-expanded={moreOpen}
+              className={`${BASE_LINK_CLASS} ${isMoreActive ? ACTIVE_LINK_CLASS : INACTIVE_LINK_CLASS} select-none`}
+            >
+              ···
+            </button>
+
+            {moreOpen && (
+              <div className="absolute right-0 top-full mt-1.5 min-w-[120px] rounded-2xl border border-white/15 bg-white/80 py-1.5 shadow-lg backdrop-blur-xl dark:border-zinc-700/60 dark:bg-zinc-900/90">
+                {MORE_LINKS.map((l) => {
+                  const active = pathname.startsWith(l.href);
+                  return (
+                    <Link
+                      key={l.href}
+                      href={l.href}
+                      className={`block px-4 py-2 text-xs transition-colors ${
+                        active
+                          ? "font-semibold text-zinc-900 dark:text-zinc-50"
+                          : "text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
+                      }`}
+                    >
+                      {l.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </nav>
       </div>
     </header>

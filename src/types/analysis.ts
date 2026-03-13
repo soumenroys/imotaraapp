@@ -9,6 +9,7 @@ export type Emotion =
   | "anxiety"
   | "disgust"
   | "surprise"
+  | "gratitude"
   | "neutral";
 
 // Lightweight tag we can attach to messages/reflections

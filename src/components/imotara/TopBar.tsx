@@ -8,6 +8,7 @@ import {
   MessageSquare,
   History as HistoryIcon,
   Settings as SettingsIcon,
+  TrendingUp,
 } from "lucide-react";
 
 import SyncStatusChip from "@/components/imotara/SyncStatusChip";
@@ -39,6 +40,7 @@ export default function TopBar({
   const isChat = pathname?.startsWith("/chat");
   const isHistory = pathname?.startsWith("/history");
   const isSettings = pathname?.startsWith("/settings");
+  const isGrow = pathname?.startsWith("/grow");
 
   const effectiveTitle = title ?? "Imotara";
 
@@ -48,6 +50,7 @@ export default function TopBar({
   });
 
   return (
+    <>
     <header className={HEADER_CLASS}>
       <div className="mx-auto flex w-full max-w-7xl items-center gap-3">
         {/* LEFT: Logo + title */}
@@ -115,6 +118,33 @@ export default function TopBar({
         </div>
       </div>
     </header>
+
+    {/* Mobile bottom navigation — hidden on sm+ */}
+    <nav
+      aria-label="Mobile navigation"
+      className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-white/10 bg-black/85 pb-safe pt-1 backdrop-blur-xl sm:hidden"
+    >
+      <MobileTab href="/chat"     active={isChat}     icon={<MessageSquare className="h-5 w-5" />} label="Chat" />
+      <MobileTab href="/grow"     active={isGrow}     icon={<TrendingUp className="h-5 w-5" />}    label="Grow" />
+      <MobileTab href="/history"  active={isHistory}  icon={<HistoryIcon className="h-5 w-5" />}   label="History" />
+      <MobileTab href="/settings" active={isSettings} icon={<SettingsIcon className="h-5 w-5" />}  label="Settings" />
+    </nav>
+    </>
+  );
+}
+
+function MobileTab({ href, active, icon, label }: { href: string; active?: boolean; icon: ReactNode; label: string }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`flex flex-col items-center gap-0.5 px-4 py-2 text-[10px] transition-colors ${
+        active ? "text-indigo-300" : "text-zinc-500 hover:text-zinc-300"
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+    </Link>
   );
 }
 

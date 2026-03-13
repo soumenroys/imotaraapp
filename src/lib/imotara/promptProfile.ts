@@ -33,16 +33,63 @@ export function buildToneContextPromptSnippet(): string {
 
   if (!hasAny) return "";
 
+  // Age/gender guidance helpers
+  const genderVoiceHint = (gender?: string, role: "companion" | "user" = "companion") => {
+    if (!gender || gender === "prefer_not" || gender === "other") return "";
+    if (role === "companion") {
+      if (gender === "female") {
+        return "  - Companion voice: use feminine first-person verb forms when the language requires it (e.g., Hindi: 'sun rahi hoon' not 'sun raha hoon', 'samajh gayi' not 'samajh gaya').";
+      }
+      if (gender === "nonbinary") {
+        return "  - Companion voice: use neutral/gender-inclusive forms; avoid strongly gendered verb endings.";
+      }
+    }
+    if (role === "user") {
+      if (gender === "female") {
+        return `  - User gender: female — use feminine second-person agreement in gendered languages (e.g., Hindi: 'ho rahi ho', 'sambhal logi').`;
+      }
+      if (gender === "male") {
+        return `  - User gender: male — use masculine second-person agreement in gendered languages.`;
+      }
+    }
+    return "";
+  };
+
+  const ageVoiceHint = (age?: string, role: "companion" | "user" = "user") => {
+    if (!age || age === "prefer_not") return "";
+    if (role === "user") {
+      if (age === "under_13") return "  - User is a child (under 13): keep language very simple, gentle, and age-appropriate. Avoid adult concepts.";
+      if (age === "13_17") return "  - User is a teenager (13–17): be warm and peer-supportive; avoid sounding parental.";
+      if (age === "65_plus") return "  - User is older adult (65+): use unhurried, respectful language; no need to rush them.";
+    }
+    if (role === "companion") {
+      if (age === "under_13" || age === "13_17") return "  - Companion age is young: use a lighter, peer-like tone.";
+      if (age === "65_plus") return "  - Companion age is elder: use a calm, wise, unhurried tone.";
+    }
+    return "";
+  };
+
+  const compVoiceHint = genderVoiceHint(compGender, "companion");
+  const userGenderHint = genderVoiceHint(userGender, "user");
+  const userAgeHint = ageVoiceHint(userAge, "user");
+  const compAgeHint = ageVoiceHint(compAge, "companion");
+
   // Keep this concise and "tone only"
   return [
     "Tone & Context Guidance (tone only; do NOT claim to be a real person):",
-    userName ? `- User name (optional): ${userName}` : "",
+    userName
+      ? `- User name: ${userName} — address them by name occasionally (roughly 1 in 3 replies, never every reply). Use it naturally, e.g. at the start of a sentence: "${userName}, that sounds really hard." Avoid repeating it in the same message.`
+      : "",
     userAge ? `- User age range: ${userAge}` : "",
+    userAgeHint,
     userGender ? `- User gender: ${userGender}` : "",
+    userGenderHint,
     enabled ? "- Preferred companion tone (wording guidance only):" : "",
     enabled && compRel ? `  - Relationship vibe: ${compRel}` : "",
-    enabled && compAge ? `  - Age tone: ${compAge}` : "",
-    enabled && compGender ? `  - Gender tone: ${compGender}` : "",
+    enabled && compAge ? `  - Companion age tone: ${compAge}` : "",
+    compAgeHint,
+    enabled && compGender ? `  - Companion gender: ${compGender}` : "",
+    compVoiceHint,
     enabled && compName ? `  - Companion name: ${compName}` : "",
     enabled
       ? "- Adjust warmth/directness/pacing accordingly, but stay privacy-first and avoid dependency cues."
@@ -51,6 +98,69 @@ export function buildToneContextPromptSnippet(): string {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+// -----------------------------
+// #2: Long-term emotional memory summary for cloud prompt injection
+// -----------------------------
+
+/**
+ * Reads the last N emotion records from localStorage and returns a compact
+ * natural-language summary suitable for injecting into the AI system prompt.
+ * Client-side only — returns "" on server.
+ */
+export function buildEmotionMemorySummary(maxRecords = 30): string {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const raw =
+      window.localStorage.getItem("imotara:history:v1") ??
+      window.localStorage.getItem("imotara.history.v1");
+    if (!raw) return "";
+
+    const parsed = JSON.parse(raw) as any[];
+    if (!Array.isArray(parsed) || parsed.length === 0) return "";
+
+    // Take the most recent N non-deleted records with an emotion
+    const recent = parsed
+      .filter((r) => !r.deleted && r.emotion && r.emotion !== "neutral")
+      .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+      .slice(0, maxRecords);
+
+    if (recent.length === 0) return "";
+
+    // Count emotion frequencies
+    const freq: Record<string, number> = {};
+    for (const r of recent) {
+      freq[r.emotion] = (freq[r.emotion] ?? 0) + 1;
+    }
+
+    // Top 3 emotions by frequency
+    const top = Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([e, c]) => `${e} (${c}×)`);
+
+    // Average intensity
+    const avgIntensity =
+      recent.reduce((s, r) => s + (r.intensity ?? 0.5), 0) / recent.length;
+    const intensityLabel =
+      avgIntensity > 0.7 ? "high" : avgIntensity > 0.4 ? "moderate" : "low";
+
+    // Rough time span
+    const oldest = recent[recent.length - 1]?.createdAt ?? Date.now();
+    const daySpan = Math.round((Date.now() - oldest) / 86_400_000);
+    const spanLabel = daySpan <= 1 ? "today" : daySpan <= 7 ? `last ${daySpan} days` : `last ${Math.round(daySpan / 7)} weeks`;
+
+    return [
+      "User Emotional History (from stored data — use for context, not as script):",
+      `- Dominant emotions over ${spanLabel}: ${top.join(", ")}`,
+      `- Overall intensity trend: ${intensityLabel}`,
+      "- Do not reference this data directly. Use it only to calibrate empathy depth and word choice.",
+    ].join("\n");
+  } catch {
+    return "";
+  }
 }
 
 // -----------------------------
@@ -109,7 +219,9 @@ export function deriveResponseToneFromToneContext(
 ): ResponseTone {
   const enabled = !!t?.companion?.enabled;
   const rel = enabled ? t?.companion?.relationship : undefined;
+  const compAge = enabled ? t?.companion?.ageRange : undefined;
 
+  // Relationship takes priority over age-based fallback
   switch (rel) {
     case "coach":
       return "coach";
@@ -124,8 +236,14 @@ export function deriveResponseToneFromToneContext(
     case "parent_like":
       return "calm";
     default:
-      return "calm";
+      break;
   }
+
+  // No relationship set — use companion age as secondary signal
+  if (compAge === "under_13" || compAge === "13_17") return "supportive";
+  if (compAge === "65_plus" || compAge === "55_64") return "calm";
+
+  return "calm";
 }
 
 /**

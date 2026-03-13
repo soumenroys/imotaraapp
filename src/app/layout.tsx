@@ -6,6 +6,9 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import SyncStatusBar from "@/components/imotara/SyncStatusBar";
 import LocalDataNotice from "@/components/imotara/LocalDataNotice";
+import FirstVisitBanner from "@/components/imotara/FirstVisitBanner";
+import ServiceWorkerRegistration from "@/components/imotara/ServiceWorkerRegistration";
+import OnboardingTour from "@/components/imotara/OnboardingTour";
 
 const inter = Inter({ subsets: ["latin"] });
 const siteUrl = (() => {
@@ -149,6 +152,9 @@ export default function RootLayout({
         {/* Global sync bar + local-storage notice overlays */}
         <SyncStatusBar />
         <LocalDataNotice />
+        <FirstVisitBanner />
+        <OnboardingTour />
+        <ServiceWorkerRegistration />
 
         <JsonLd />
         <SiteFooter />

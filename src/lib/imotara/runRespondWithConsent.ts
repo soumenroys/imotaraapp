@@ -1,7 +1,8 @@
 // src/lib/imotara/runRespondWithConsent.ts
 import type { ImotaraResponse } from "@/lib/ai/response/responseBlueprint";
 import { respondRemote } from "@/lib/imotara/respondRemote";
-import { getImotaraProfile } from "@/lib/imotara/profile"; // ✅ NEW
+import { getImotaraProfile } from "@/lib/imotara/profile";
+import { buildEmotionMemorySummary } from "@/lib/imotara/promptProfile"; // #2
 
 export async function runRespondWithConsent(
     userMessage: string,
@@ -36,7 +37,18 @@ export async function runRespondWithConsent(
             : {};
 
     if (ctxObj.toneContext == null) {
-        ctxObj.toneContext = getImotaraProfile() ?? undefined;
+        const profile = getImotaraProfile() ?? undefined;
+        ctxObj.toneContext = profile;
+        // Surface user's explicit language preference for the language-derivation pipeline
+        if (ctxObj.preferredLanguage == null && profile?.user?.preferredLang) {
+            ctxObj.preferredLanguage = profile.user.preferredLang;
+        }
+    }
+
+    // #2: Inject long-term emotional memory summary so the cloud AI can calibrate empathy depth
+    if (ctxObj.emotionMemory == null) {
+        const memorySummary = buildEmotionMemorySummary(30);
+        if (memorySummary) ctxObj.emotionMemory = memorySummary;
     }
 
     return await respondRemote({ message, context: ctxObj });

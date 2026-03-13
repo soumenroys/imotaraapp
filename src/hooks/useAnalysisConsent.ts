@@ -13,7 +13,7 @@ import {
  * This keeps multiple components (Chat page, toggle, badges) in sync.
  */
 
-let globalMode: AnalysisConsentMode = "local-only";
+let globalMode: AnalysisConsentMode = "allow-remote";
 let initialized = false;
 let initializingPromise: Promise<void> | null = null;
 const listeners = new Set<(mode: AnalysisConsentMode) => void>();

@@ -1,15 +1,51 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
 
-const SHOW_DONATION_RECEIPTS = process.env.NODE_ENV !== "production";
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 
 // Cross-device Chat Link Key (same value on web + mobile => same remote chat scope)
 const CHAT_LINK_KEY = "imotara.linkKey.v1";
+
+// Local-first donation receipts — written immediately on payment success
+// so users always see their history even without server auth.
+const LOCAL_DONATIONS_KEY = "imotara.donations.v1";
+
+type LocalDonationReceipt = {
+    paymentId: string;
+    orderId?: string;
+    amount: number; // paise
+    currency: string;
+    timestamp: number; // epoch ms
+};
+
+function loadLocalDonations(): LocalDonationReceipt[] {
+    if (typeof window === "undefined") return [];
+    try {
+        const raw = window.localStorage.getItem(LOCAL_DONATIONS_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveLocalDonation(receipt: LocalDonationReceipt) {
+    try {
+        const existing = loadLocalDonations();
+        // Deduplicate by paymentId
+        const deduped = existing.filter((r) => r.paymentId !== receipt.paymentId);
+        const updated = [receipt, ...deduped].slice(0, 20); // keep last 20
+        window.localStorage.setItem(LOCAL_DONATIONS_KEY, JSON.stringify(updated));
+    } catch {
+        // ignore quota errors
+    }
+}
+
 
 
 
@@ -40,6 +76,13 @@ type LicenseStatusResponse = {
     mode?: string; // "off" | "log" | "enforce"
     message?: string;
     error?: string;
+    license?: {
+        status?: string; // "valid" | "trial" | "expired"
+        tier?: string;
+        mode?: string;
+        source?: string;
+        expiresAt?: string | null;
+    };
 };
 
 // ===== NEW: Tone & Context Preferences (local-only) =====
@@ -56,11 +99,16 @@ type AgeRange =
     | "65_plus"
     | "prefer_not";
 
+type SupportedLang = "en" | "hi" | "mr" | "bn" | "ta" | "te" | "gu" | "pa" | "kn" | "ml" | "or";
+type ResponseStyle = "comfort" | "reflect" | "motivate" | "advise";
+
 type ImotaraProfileV1 = {
     user: {
         name?: string;
         ageRange?: AgeRange;
         gender?: Gender;
+        preferredLang?: SupportedLang;
+        responseStyle?: ResponseStyle; // #16
     };
     companion: {
         enabled?: boolean;
@@ -107,6 +155,8 @@ function ToneAndContextTile() {
     const [userName, setUserName] = useState("");
     const [userAge, setUserAge] = useState<AgeRange>("prefer_not");
     const [userGender, setUserGender] = useState<Gender>("prefer_not");
+    const [preferredLang, setPreferredLang] = useState<SupportedLang | "auto">("auto");
+    const [responseStyle, setResponseStyle] = useState<ResponseStyle | "auto">("auto"); // #16
 
     // Expected companion details (tone guidance)
     const [compEnabled, setCompEnabled] = useState(false);
@@ -132,6 +182,8 @@ function ToneAndContextTile() {
             setUserName(existing.user?.name ?? "");
             setUserAge((existing.user?.ageRange as AgeRange) ?? "prefer_not");
             setUserGender((existing.user?.gender as Gender) ?? "prefer_not");
+            setPreferredLang((existing.user?.preferredLang as SupportedLang) ?? "auto");
+            setResponseStyle((existing.user?.responseStyle as ResponseStyle) ?? "auto");
 
             const enabled = !!existing.companion?.enabled;
             setCompEnabled(enabled);
@@ -149,6 +201,8 @@ function ToneAndContextTile() {
                 name: userName.trim() || undefined,
                 ageRange: userAge === "prefer_not" ? undefined : userAge,
                 gender: userGender === "prefer_not" ? undefined : userGender,
+                preferredLang: preferredLang === "auto" ? undefined : preferredLang,
+                responseStyle: responseStyle === "auto" ? undefined : responseStyle,
             },
             companion: {
                 enabled: compEnabled,
@@ -158,7 +212,7 @@ function ToneAndContextTile() {
                 relationship: compEnabled ? (compRel === "prefer_not" ? undefined : compRel) : undefined,
             },
         };
-    }, [userName, userAge, userGender, compEnabled, compName, compAge, compGender, compRel]);
+    }, [userName, userAge, userGender, preferredLang, compEnabled, compName, compAge, compGender, compRel]);
 
     // ✅ NEW: visual "active" state (green) for selects once a real choice is set
     const selectActiveClass = (active: boolean) =>
@@ -197,6 +251,8 @@ function ToneAndContextTile() {
         setUserName("");
         setUserAge("prefer_not");
         setUserGender("prefer_not");
+        setPreferredLang("auto");
+        setResponseStyle("auto");
         setCompEnabled(false);
         setCompName("");
         setCompAge("prefer_not");
@@ -288,7 +344,6 @@ function ToneAndContextTile() {
                                     ].join(" ")}
                                 >
                                     <option value="prefer_not">Prefer not to say</option>
-                                    <option value="under_13">Under 13</option>
                                     <option value="13_17">13–17</option>
                                     <option value="18_24">18–24</option>
                                     <option value="25_34">25–34</option>
@@ -297,6 +352,11 @@ function ToneAndContextTile() {
                                     <option value="55_64">55–64</option>
                                     <option value="65_plus">65+</option>
                                 </select>
+                                {userAge === "13_17" && (
+                                    <p className="text-[10px] text-amber-400/80 mt-0.5">
+                                        If you are under 13, please use Imotara with a parent or guardian.
+                                    </p>
+                                )}
                             </label>
 
                             <label className="grid gap-1">
@@ -317,6 +377,59 @@ function ToneAndContextTile() {
                                 </select>
                             </label>
                         </div>
+
+                        <label className="grid gap-1">
+                            <span className="text-xs text-zinc-300">Preferred language</span>
+                            <select
+                                value={preferredLang}
+                                onChange={(e) => setPreferredLang(e.target.value as SupportedLang | "auto")}
+                                className={[
+                                    "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                    selectActiveClass(preferredLang !== "auto"),
+                                ].join(" ")}
+                            >
+                                <option value="auto">Auto-detect</option>
+                                <option value="en">English</option>
+                                <option value="hi">Hindi (हिंदी)</option>
+                                <option value="mr">Marathi (मराठी)</option>
+                                <option value="bn">Bengali (বাংলা)</option>
+                                <option value="ta">Tamil (தமிழ்)</option>
+                                <option value="te">Telugu (తెలుగు)</option>
+                                <option value="gu">Gujarati (ગુજરાતી)</option>
+                                <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+                                <option value="kn">Kannada (ಕನ್ನಡ)</option>
+                                <option value="ml">Malayalam (മലയാളം)</option>
+                                <option value="or">Odia (ଓଡ଼ିଆ)</option>
+                            </select>
+                        </label>
+
+                        {/* #16: Response style preference */}
+                        <label className="grid gap-1">
+                            <span className="text-xs text-zinc-300">How should Imotara respond?</span>
+                            <select
+                                value={responseStyle}
+                                onChange={(e) => setResponseStyle(e.target.value as ResponseStyle | "auto")}
+                                className={[
+                                    "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                    selectActiveClass(responseStyle !== "auto"),
+                                ].join(" ")}
+                            >
+                                <option value="auto">Let Imotara decide</option>
+                                <option value="comfort">Comfort me — be present &amp; warm</option>
+                                <option value="reflect">Help me reflect — ask gentle questions</option>
+                                <option value="motivate">Motivate me — be encouraging &amp; energetic</option>
+                                <option value="advise">Give advice — practical next steps</option>
+                            </select>
+                            {responseStyle !== "auto" && (
+                                <p className="mt-0.5 rounded-xl border border-white/8 bg-white/5 px-3 py-2 text-[11px] italic leading-snug text-zinc-400">
+                                    {responseStyle === "comfort"  && "\u201cThat sounds really hard. I\u2019m here with you \u2014 take all the time you need.\u201d"}
+                                    {responseStyle === "reflect"  && "\u201cWhat do you think that feeling is trying to tell you?\u201d"}
+                                    {responseStyle === "motivate" && "\u201cYou\u2019re doing better than you think. One small step is all it takes today.\u201d"}
+                                    {responseStyle === "advise"   && "\u201cHere\u2019s what might help: start with the smallest task, just to build momentum.\u201d"}
+                                </p>
+                            )}
+                            <p className="text-[10px] text-zinc-500">You can always override this in conversation.</p>
+                        </label>
 
                         <p className="text-[11px] text-zinc-500">Used only to make wording feel more natural. Not shared.</p>
                     </div>
@@ -613,7 +726,6 @@ export default function SettingsPage() {
     // Recent donations (web)
     const [donLoading, setDonLoading] = useState(false);
     const [donations, setDonations] = useState<any[]>([]);
-    const [donError, setDonError] = useState<string | null>(null);
 
     const licenseMode = useMemo(() => {
         // This is a PUBLIC env var and is safe to display.
@@ -622,6 +734,7 @@ export default function SettingsPage() {
 
     const DONATION_PRESETS = useMemo(
         () => [
+            { id: "inr_49", label: "₹49", amount: 4900 },
             { id: "inr_99", label: "₹99", amount: 9900 },
             { id: "inr_199", label: "₹199", amount: 19900 },
             { id: "inr_499", label: "₹499", amount: 49900 },
@@ -711,78 +824,58 @@ export default function SettingsPage() {
     }
 
     async function refreshDonations() {
+        // Always start from local receipts so the list is never empty for anonymous users
+        const local = loadLocalDonations();
+
         try {
             setDonLoading(true);
-            setDonError(null);
 
             const res = await fetch("/api/donations/recent?limit=10", { method: "GET" });
             const json = await res.json();
 
             if (!res.ok || !json?.ok) {
-                setDonError(json?.error || "Failed to load donations");
-                setDonations([]);
+                // Server unavailable / not authed — show local only, no error shown to user
+                setDonations(local);
                 return;
             }
 
-            setDonations(Array.isArray(json.items) ? json.items : []);
-        } catch (e: any) {
-            setDonError(e?.message || "Failed to load donations");
-            setDonations([]);
+            const serverItems: any[] = Array.isArray(json.items) ? json.items : [];
+
+            // Merge: server items take precedence (richer data); fill in any local-only entries
+            const serverPaymentIds = new Set(
+                serverItems.map((d: any) => d.razorpay_payment_id).filter(Boolean)
+            );
+            const localOnly = local.filter((r) => !serverPaymentIds.has(r.paymentId));
+
+            // Normalise local-only items to a display-compatible shape
+            const normalisedLocal = localOnly.map((r) => ({
+                id: r.paymentId,
+                razorpay_payment_id: r.paymentId,
+                razorpay_order_id: r.orderId ?? null,
+                amount_paise: r.amount,
+                currency: r.currency,
+                status: "captured",
+                is_test: false,
+                created_at: new Date(r.timestamp).toISOString(),
+                _source: "local" as const,
+            }));
+
+            // Sort combined list newest-first
+            const combined = [...serverItems, ...normalisedLocal].sort(
+                (a, b) =>
+                    new Date(b.created_at ?? 0).getTime() -
+                    new Date(a.created_at ?? 0).getTime()
+            );
+
+            setDonations(combined);
+        } catch {
+            // Network error — show local only
+            setDonations(local);
         } finally {
             setDonLoading(false);
         }
     }
 
-    // ✅ Webhook can lag; poll receipts briefly so user sees confirmation automatically.
-    // - Uses useRef so overlap-guard persists across re-renders
-    // - Provides calm status updates
-    const pollRunningRef = useRef(false);
-
-    async function pollDonationConfirmation(paymentId?: string) {
-        if (!paymentId) return;
-
-        // Prevent overlapping polls (double click / repeated handler calls)
-        if (pollRunningRef.current) return;
-        pollRunningRef.current = true;
-
-        try {
-            for (let i = 0; i < 7; i++) {
-                try {
-                    const res = await fetch("/api/donations/recent?limit=10", { method: "GET" });
-                    const json = await res.json().catch(() => null);
-
-                    const ok = !!(json as any)?.ok;
-                    const items = Array.isArray((json as any)?.items) ? (json as any).items : [];
-
-                    // keep UI list fresh even while polling
-                    if (ok) setDonations(items);
-
-                    const found =
-                        Array.isArray(items) &&
-                        items.some((d: any) => d?.razorpay_payment_id === paymentId);
-
-                    if (found) {
-                        setDonateStatus("Donation confirmed. Thank you for supporting Imotara 🙏");
-                        return;
-                    }
-
-                    // Gentle progress hints (non-spammy)
-                    if (i === 1) setDonateStatus("Confirming receipt… (webhook may take a moment)");
-                    if (i === 4) setDonateStatus("Still confirming… thanks for your patience 🙏");
-                } catch {
-                    // ignore (settings must never break)
-                }
-
-                await new Promise((r) => setTimeout(r, 1200));
-            }
-
-            setDonateStatus(
-                "Checkout completed. Receipt may take a little longer to appear. You can refresh Recent Donations shortly."
-            );
-        } finally {
-            pollRunningRef.current = false;
-        }
-    }
 
     useEffect(() => {
         // ✅ ensure client-only rendering for locale-dependent content
@@ -805,10 +898,10 @@ export default function SettingsPage() {
             .catch(() => setRzReady(false))
             .finally(() => setRzLoading(false));
 
-        // Recent donations (read-only) — DEV ONLY
-        if (SHOW_DONATION_RECEIPTS) {
-            refreshDonations();
-        }
+        // Load local receipts (always — no auth needed)
+        setDonations(loadLocalDonations());
+        // Also try fetching from server (works when user is signed in)
+        refreshDonations();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -860,8 +953,8 @@ export default function SettingsPage() {
                 order_id: rz.orderId,
                 method: {
                     upi: true,
-                    card: false,
-                    netbanking: false,
+                    card: true,
+                    netbanking: true,
                     wallet: false,
                 },
                 notes: {
@@ -869,16 +962,25 @@ export default function SettingsPage() {
                 },
                 theme: { color: "#38bdf8" },
                 handler: function (response: any) {
-                    // Note: real verification is via webhook on server; this is only UX feedback.
-                    setDonateStatus(
-                        `Checkout completed. Payment ID: ${response?.razorpay_payment_id || "—"}. Confirming receipt…`
-                    );
+                    const pid = response?.razorpay_payment_id as string | undefined;
 
-                    // Refresh list immediately (may still be empty until webhook records it)
-                    refreshDonations();
+                    // ✅ Persist locally immediately — no server auth needed for receipt display
+                    if (pid && rz.amount) {
+                        saveLocalDonation({
+                            paymentId: pid,
+                            orderId: rz.orderId,
+                            amount: rz.amount,
+                            currency: rz.currency || "INR",
+                            timestamp: Date.now(),
+                        });
+                        // Reflect new local receipt in UI immediately
+                        setDonations(loadLocalDonations());
+                    }
 
-                    // 🔁 Auto-confirm once webhook records the receipt
-                    void pollDonationConfirmation(response?.razorpay_payment_id);
+                    setDonateStatus("Donation received — thank you for supporting Imotara 🙏");
+
+                    // Also attempt server refresh (succeeds when user is signed in)
+                    void refreshDonations();
                 },
                 modal: {
                     ondismiss: function () {
@@ -981,7 +1083,7 @@ export default function SettingsPage() {
                 {/* Cross-device continuity (optional) */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                     <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                        Link this device (optional)
+                        Sync with another device (optional)
                     </h2>
                     <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
                         If you enter the same Link Key on both Web and Mobile, your remote chat history
@@ -1037,6 +1139,35 @@ export default function SettingsPage() {
 
                 {/* NEW: Licensing status */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    {/* Launch offer banner */}
+                    {mounted && (() => {
+                        const launchRaw = process.env.NEXT_PUBLIC_IMOTARA_LAUNCH_DATE;
+                        const freeDays = parseInt(process.env.NEXT_PUBLIC_IMOTARA_FREE_DAYS ?? "90", 10) || 90;
+                        if (!launchRaw) return null;
+                        const launchMs = Date.parse(launchRaw);
+                        if (isNaN(launchMs)) return null;
+                        const endsAt = new Date(launchMs + freeDays * 24 * 60 * 60 * 1000);
+                        const active = Date.now() < endsAt.getTime();
+                        if (!active) return null;
+                        return (
+                            <div className="mb-4 flex items-start gap-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3">
+                                <span className="text-lg leading-none">🎁</span>
+                                <div>
+                                    <p className="text-sm font-semibold text-emerald-200">
+                                        Launch offer — everything free for everyone
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-emerald-300/80">
+                                        All features are available at no cost until{" "}
+                                        <span className="font-medium">
+                                            {endsAt.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
+                                        </span>
+                                        . No sign-up, no payment required.
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
@@ -1067,8 +1198,9 @@ export default function SettingsPage() {
                                 {tierLabel}
                             </p>
                             <p className="mt-2 text-xs leading-6 text-zinc-400">
-                                {lic?.message ||
-                                    "Upgrade flows will appear here once web purchase is enabled."}
+                                {lic?.license?.status === "trial"
+                                    ? "Launch offer active — all features unlocked for everyone."
+                                    : lic?.message || "All features are free during the launch period."}
                             </p>
                         </div>
 
@@ -1124,16 +1256,16 @@ export default function SettingsPage() {
                     </p>
                 </section>
 
-                {/* NEW: Recent donations (web) — rendered client-only to avoid hydration mismatch */}
-                {mounted && SHOW_DONATION_RECEIPTS && (
+                {/* Recent donations — always shown, sourced from localStorage + server */}
+                {mounted && (
                     <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                                    Recent Donations
+                                    Your Donations
                                 </h2>
                                 <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
-                                    Receipts appear here after the secure server webhook records the payment.
+                                    Receipts are saved on this device immediately. Server records sync when you're signed in.
                                 </p>
                             </div>
 
@@ -1147,32 +1279,46 @@ export default function SettingsPage() {
                             </button>
                         </div>
 
-                        {donError && <p className="mt-3 text-[11px] text-rose-200/90">{donError}</p>}
-
-                        {!donError && donations.length === 0 && (
-                            <p className="mt-3 text-[11px] text-zinc-400">
-                                No receipts yet. (This is expected until production webhooks are hitting your deployed backend.)
+                        {donations.length === 0 && (
+                            <p className="mt-3 text-[11px] text-zinc-500">
+                                No donations yet on this device.
                             </p>
                         )}
 
                         {donations.length > 0 && (
                             <div className="mt-4 space-y-2">
-                                {donations.map((d) => (
-                                    <div key={d.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                {donations.map((d: any) => (
+                                    <div
+                                        key={d.id ?? d.razorpay_payment_id}
+                                        className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                                    >
                                         <div className="flex flex-wrap items-center justify-between gap-2">
                                             <p className="text-sm font-semibold text-zinc-50">
                                                 {formatINRFromPaise(Number(d.amount_paise || 0))}
                                             </p>
-                                            <p className="text-[11px] text-zinc-400">
-                                                {String(d.status || "—").toUpperCase()}
-                                                {d.is_test ? " · TEST" : ""}
-                                            </p>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[11px] text-zinc-400">
+                                                    {String(d.status || "captured").toUpperCase()}
+                                                </span>
+                                                {d.is_test && (
+                                                    <span className="rounded-full border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300">
+                                                        TEST
+                                                    </span>
+                                                )}
+                                                {d._source === "local" && (
+                                                    <span className="rounded-full border border-sky-400/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] text-sky-300">
+                                                        local
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
-                                        <p className="mt-1 text-[11px] text-zinc-400">
-                                            Payment: {d.razorpay_payment_id || "—"}
+                                        <p className="mt-1 text-[10px] text-zinc-500 font-mono">
+                                            {d.razorpay_payment_id || "—"}
                                         </p>
-                                        <p className="mt-1 text-[11px] text-zinc-500">
-                                            {d.created_at ? new Date(d.created_at).toLocaleString() : ""}
+                                        <p className="mt-0.5 text-[11px] text-zinc-500">
+                                            {d.created_at
+                                                ? new Date(d.created_at).toLocaleString()
+                                                : ""}
                                         </p>
                                     </div>
                                 ))}

@@ -32,18 +32,57 @@ function normalizeMode(mode: string): LicenseMode {
     return "off";
 }
 
+// ── Launch offer ─────────────────────────────────────────────────────────────
+//
+// Set NEXT_PUBLIC_IMOTARA_LAUNCH_DATE to the ISO date of public launch
+// (e.g. "2026-03-14"). All users will receive a "pro" trial for
+// NEXT_PUBLIC_IMOTARA_FREE_DAYS days (default: 90) from that date.
+//
+// After the period expires the app falls back to the normal tier logic.
+// Set NEXT_PUBLIC_IMOTARA_LAUNCH_DATE="" to disable the offer entirely.
+
+export function getLaunchOfferEndsAt(): Date | null {
+    const raw = process.env.NEXT_PUBLIC_IMOTARA_LAUNCH_DATE;
+    if (!raw) return null;
+    const launchMs = Date.parse(raw);
+    if (isNaN(launchMs)) return null;
+    const freeDays =
+        parseInt(process.env.NEXT_PUBLIC_IMOTARA_FREE_DAYS ?? "90", 10) || 90;
+    return new Date(launchMs + freeDays * 24 * 60 * 60 * 1000);
+}
+
+export function isWithinLaunchOffer(): boolean {
+    const endsAt = getLaunchOfferEndsAt();
+    if (!endsAt) return false;
+    return Date.now() < endsAt.getTime();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * Temporary, safe default:
- * - Always returns "valid"
- * - Tier defaults to "free" unless explicitly overridden (env) for QA
+ * Returns the current license status for the requesting context.
  *
- * This avoids the current risky default ("pro") while keeping behavior non-blocking.
+ * Priority:
+ *  1. Launch offer active → "pro" trial (everyone gets full access)
+ *  2. QA override via NEXT_PUBLIC_IMOTARA_LICENSE_TIER env var
+ *  3. Default → "free"
  */
 export function getCurrentLicenseStatus(): LicenseStatus {
     const mode = getLicenseMode();
 
-    // Optional QA override: allows testing UI without billing wiring.
-    // Example: NEXT_PUBLIC_IMOTARA_LICENSE_TIER=pro
+    // 1) Launch offer — all users get "pro" for the trial period
+    if (isWithinLaunchOffer()) {
+        const endsAt = getLaunchOfferEndsAt();
+        return {
+            status: "trial",
+            tier: "pro",
+            mode,
+            source: "internal",
+            expiresAt: endsAt?.toISOString() ?? null,
+        };
+    }
+
+    // 2) QA override
     const tierRaw =
         (process.env.NEXT_PUBLIC_IMOTARA_LICENSE_TIER as string | undefined) ?? "free";
     const tier = normalizeTier(tierRaw);

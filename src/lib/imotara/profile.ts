@@ -12,11 +12,19 @@ export type AgeRange =
     | "65_plus"
     | "prefer_not";
 
+export type SupportedLang =
+    | "en" | "hi" | "mr" | "bn" | "ta" | "te" | "gu" | "pa" | "kn" | "ml" | "or";
+
+/** #16: How the user prefers Imotara to respond by default. */
+export type ResponseStyle = "comfort" | "reflect" | "motivate" | "advise";
+
 export type ImotaraProfileV1 = {
     user?: {
         name?: string;
         ageRange?: AgeRange;
         gender?: Gender;
+        preferredLang?: SupportedLang;
+        responseStyle?: ResponseStyle; // #16
     };
     companion?: {
         enabled?: boolean;

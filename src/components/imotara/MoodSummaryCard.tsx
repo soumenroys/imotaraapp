@@ -213,6 +213,7 @@ export default memo(function MoodSummaryCard({
                     className="block h-1 rounded-full bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400"
                     style={{
                       width: `${Math.max(12, Math.min(100, intensityPct))}%`,
+                      transition: "width 0.7s ease-out",
                     }}
                   />
                 </span>
@@ -263,7 +264,15 @@ export default memo(function MoodSummaryCard({
         </div>
       )}
 
-      <footer className="mt-3 text-[10px] text-zinc-500">
+      {/* #5: Emotion explanation hint — transparent about how detection works */}
+      <div className="mt-2 text-[10px] text-zinc-600">
+        Detected from keywords and patterns in your recent messages.{" "}
+        {mode === "api"
+          ? "Cloud AI analysis active."
+          : "On-device analysis only — your words never leave your browser."}
+      </div>
+
+      <footer className="mt-1 text-[10px] text-zinc-500">
         Window:{" "}
         {new Date(snapshot.window.from).toLocaleString(undefined, {
           hour12: false,

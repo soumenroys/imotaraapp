@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
-import { useAppearance, type Accent, type FontSize } from "@/hooks/useAppearance";
+import { useAppearance, type Accent, type FontSize, type ColorMode } from "@/hooks/useAppearance";
 
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 
@@ -768,7 +768,7 @@ function getStorageSummary() {
 
 export default function SettingsPage() {
     const { mode } = useAnalysisConsent();
-    const { accent, setAccent, fontSize, setFontSize } = useAppearance();
+    const { accent, setAccent, fontSize, setFontSize, colorMode, setColorMode } = useAppearance();
 
     // Cross-device chat link key (optional)
     const [linkKey, setLinkKey] = useState("");
@@ -1539,6 +1539,28 @@ export default function SettingsPage() {
                                     }`}
                                 >
                                     {o.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Color mode */}
+                    <div className="mt-4">
+                        <p className="mb-2 text-xs font-medium text-zinc-400">Color mode</p>
+                        <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                            {(["dark", "light"] as ColorMode[]).map((m) => (
+                                <button
+                                    key={m}
+                                    type="button"
+                                    onClick={() => setColorMode(m)}
+                                    className={`flex items-center gap-1.5 rounded-full px-4 py-1 text-xs transition ${
+                                        colorMode === m
+                                            ? "bg-white/20 text-zinc-50"
+                                            : "text-zinc-400 hover:text-zinc-200"
+                                    }`}
+                                >
+                                    <span aria-hidden>{m === "dark" ? "🌙" : "☀️"}</span>
+                                    {m === "dark" ? "Dark" : "Light"}
                                 </button>
                             ))}
                         </div>

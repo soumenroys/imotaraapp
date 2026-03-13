@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
+import GlobalSearch from "@/components/imotara/GlobalSearch";
 
 // Primary nav — always visible
 const PRIMARY_LINKS = [
@@ -37,7 +38,20 @@ const INACTIVE_LINK_CLASS =
 export default function SiteHeader() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+
+  // Cmd+K / Ctrl+K global shortcut
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -60,74 +74,90 @@ export default function SiteHeader() {
   const isMoreActive = MORE_LINKS.some((l) => pathname.startsWith(l.href));
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-white/12 bg-white/75 bg-[radial-gradient(circle_at_0%_0%,rgba(129,140,248,0.16),transparent_55%),radial-gradient(circle_at_100%_0%,rgba(45,212,191,0.16),transparent_55%)] backdrop-blur-xl transition-colors dark:border-zinc-800/80 dark:bg-black/70">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4 sm:px-6">
-        {/* LEFT: Logo / brand */}
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-sm font-semibold tracking-tight text-zinc-900 transition hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-200"
-          aria-label="Imotara home"
-        >
-          <span className="flex h-7 w-7 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-[11px] font-bold text-white shadow-[0_10px_25px_rgba(15,23,42,0.8)]">
-            I
-          </span>
-          <span className="hidden sm:inline">Imotara</span>
-        </Link>
+    <>
+      {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
 
-        {/* CENTER: Primary navigation */}
-        <nav className={NAV_CLASS} aria-label="Main navigation">
-          {PRIMARY_LINKS.map((l) => {
-            const active =
-              l.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(l.href);
+      <header className="sticky top-0 z-40 w-full border-b border-white/12 bg-white/75 bg-[radial-gradient(circle_at_0%_0%,rgba(129,140,248,0.16),transparent_55%),radial-gradient(circle_at_100%_0%,rgba(45,212,191,0.16),transparent_55%)] backdrop-blur-xl transition-colors dark:border-zinc-800/80 dark:bg-black/70">
+        <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4 sm:px-6">
+          {/* LEFT: Logo / brand */}
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-sm font-semibold tracking-tight text-zinc-900 transition hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-200"
+            aria-label="Imotara home"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-[11px] font-bold text-white shadow-[0_10px_25px_rgba(15,23,42,0.8)]">
+              I
+            </span>
+            <span className="hidden sm:inline">Imotara</span>
+          </Link>
 
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                aria-current={active ? "page" : undefined}
-                className={`${BASE_LINK_CLASS} ${active ? ACTIVE_LINK_CLASS : INACTIVE_LINK_CLASS}`}
+          {/* CENTER: Primary navigation */}
+          <nav className={NAV_CLASS} aria-label="Main navigation">
+            {PRIMARY_LINKS.map((l) => {
+              const active =
+                l.href === "/"
+                  ? pathname === "/"
+                  : pathname.startsWith(l.href);
+
+              return (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`${BASE_LINK_CLASS} ${active ? ACTIVE_LINK_CLASS : INACTIVE_LINK_CLASS}`}
+                >
+                  {l.label}
+                </Link>
+              );
+            })}
+
+            {/* More dropdown */}
+            <div className="relative" ref={moreRef}>
+              <button
+                onClick={() => setMoreOpen((v) => !v)}
+                aria-label="More pages"
+                aria-expanded={moreOpen}
+                className={`${BASE_LINK_CLASS} ${isMoreActive ? ACTIVE_LINK_CLASS : INACTIVE_LINK_CLASS} select-none`}
               >
-                {l.label}
-              </Link>
-            );
-          })}
+                ···
+              </button>
 
-          {/* More dropdown */}
-          <div className="relative" ref={moreRef}>
-            <button
-              onClick={() => setMoreOpen((v) => !v)}
-              aria-label="More pages"
-              aria-expanded={moreOpen}
-              className={`${BASE_LINK_CLASS} ${isMoreActive ? ACTIVE_LINK_CLASS : INACTIVE_LINK_CLASS} select-none`}
-            >
-              ···
-            </button>
+              {moreOpen && (
+                <div className="absolute right-0 top-full mt-1.5 min-w-[120px] rounded-2xl border border-white/15 bg-white/80 py-1.5 shadow-lg backdrop-blur-xl dark:border-zinc-700/60 dark:bg-zinc-900/90">
+                  {MORE_LINKS.map((l) => {
+                    const active = pathname.startsWith(l.href);
+                    return (
+                      <Link
+                        key={l.href}
+                        href={l.href}
+                        className={`block px-4 py-2 text-xs transition-colors ${
+                          active
+                            ? "font-semibold text-zinc-900 dark:text-zinc-50"
+                            : "text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
+                        }`}
+                      >
+                        {l.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </nav>
 
-            {moreOpen && (
-              <div className="absolute right-0 top-full mt-1.5 min-w-[120px] rounded-2xl border border-white/15 bg-white/80 py-1.5 shadow-lg backdrop-blur-xl dark:border-zinc-700/60 dark:bg-zinc-900/90">
-                {MORE_LINKS.map((l) => {
-                  const active = pathname.startsWith(l.href);
-                  return (
-                    <Link
-                      key={l.href}
-                      href={l.href}
-                      className={`block px-4 py-2 text-xs transition-colors ${
-                        active
-                          ? "font-semibold text-zinc-900 dark:text-zinc-50"
-                          : "text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
-                      }`}
-                    >
-                      {l.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </nav>
-      </div>
-    </header>
+          {/* RIGHT: Search button */}
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search (⌘K)"
+            title="Search (⌘K)"
+            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-zinc-500 transition hover:bg-white/10 hover:text-zinc-300 dark:border-zinc-700/60"
+          >
+            <span aria-hidden>🔍</span>
+            <span className="hidden sm:inline text-[10px] opacity-60">⌘K</span>
+          </button>
+        </div>
+      </header>
+    </>
   );
 }

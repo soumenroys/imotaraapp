@@ -25,6 +25,10 @@ import {
   X as XIcon,
   Star,
   Wind,
+  Copy,
+  Check as CheckIcon,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
 import BreathingWidget from "@/components/imotara/BreathingWidget";
@@ -2701,6 +2705,29 @@ export default function ChatPage() {
           </div>
           </div>{/* end emotion-ambient wrapper */}
 
+          {/* End-of-session insight — shown when thread has ≥6 user messages + analysis ready */}
+          {!analyzing &&
+            analysis?.summary?.headline &&
+            (activeThread?.messages.filter((m) => m.role === "user").length ?? 0) >= 6 && (
+            <div className="mx-auto mb-1 max-w-3xl animate-fade-in rounded-2xl border border-indigo-400/15 bg-gradient-to-r from-indigo-500/8 via-sky-500/6 to-emerald-500/6 px-4 py-3">
+              <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-indigo-400/70">
+                Session insight
+              </p>
+              <p className="text-xs text-zinc-300 leading-relaxed">{analysis.summary.headline}</p>
+              {analysis.summary.details && (
+                <p className="mt-0.5 text-[11px] text-zinc-500">{analysis.summary.details}</p>
+              )}
+              <div className="mt-2 flex items-center gap-3">
+                <a href="/grow" className="text-[11px] text-indigo-400/80 underline underline-offset-2 hover:text-indigo-300 transition">
+                  Reflect on this →
+                </a>
+                <a href="/history" className="text-[11px] text-zinc-500 hover:text-zinc-300 transition underline underline-offset-2">
+                  View history →
+                </a>
+              </div>
+            </div>
+          )}
+
           {/* #6: Weekly mood recap banner */}
           {weeklyRecap && !weeklyRecapDismissed && (
             <div className="mx-auto mb-1 flex max-w-3xl items-start justify-between gap-3 rounded-2xl border border-indigo-400/20 bg-indigo-500/10 px-4 py-2.5 text-xs text-indigo-200">
@@ -3142,6 +3169,33 @@ function Bubble({
 }) {
   const isUser = role === "user";
 
+  // ── Copy ──────────────────────────────────────────────────────────
+  const [copied, setCopied] = useState(false);
+  function copyMessage() {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {/* ignore */});
+  }
+
+  // ── TTS ───────────────────────────────────────────────────────────
+  const [speaking, setSpeaking] = useState(false);
+  function toggleSpeak() {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    const utt = new SpeechSynthesisUtterance(content);
+    utt.rate = 0.95;
+    utt.pitch = 1.0;
+    utt.onend = () => setSpeaking(false);
+    utt.onerror = () => setSpeaking(false);
+    setSpeaking(true);
+    window.speechSynthesis.speak(utt);
+  }
+
   const seed = !isUser
     ? getReflectionSeedCard({ message: content, reflectionSeed } as any)
     : null;
@@ -3335,12 +3389,38 @@ function Bubble({
             {reaction && (
               <span className="ml-1 text-[10px] text-zinc-500">you reacted</span>
             )}
+            {/* Copy */}
+            <button
+              type="button"
+              onClick={copyMessage}
+              title="Copy message"
+              className={`ml-auto rounded-full p-1 transition hover:scale-110 ${
+                copied ? "text-emerald-400" : "text-zinc-600 hover:text-zinc-300"
+              }`}
+            >
+              {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+
+            {/* TTS */}
+            {typeof window !== "undefined" && "speechSynthesis" in window && (
+              <button
+                type="button"
+                onClick={toggleSpeak}
+                title={speaking ? "Stop reading" : "Read aloud"}
+                className={`rounded-full p-1 transition hover:scale-110 ${
+                  speaking ? "text-sky-400 animate-pulse" : "text-zinc-600 hover:text-sky-300"
+                }`}
+              >
+                {speaking ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+              </button>
+            )}
+
             {onBookmark && (
               <button
                 type="button"
                 onClick={onBookmark}
                 title={bookmarked ? "Remove bookmark" : "Bookmark this message"}
-                className={`ml-auto rounded-full p-1 transition hover:scale-110 ${
+                className={`rounded-full p-1 transition hover:scale-110 ${
                   bookmarked
                     ? "text-amber-400 animate-star-pop"
                     : "text-zinc-600 hover:text-amber-300"

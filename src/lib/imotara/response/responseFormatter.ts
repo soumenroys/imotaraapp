@@ -1609,13 +1609,30 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   // let it pass through for emotional / conversational turns.
   // Keep formatter structure for greeting / return / practical flows,
   // where deterministic shaping is still useful.
+  const rawSentenceCount = (insight.match(/[.!?؟؟।۔]/g) ?? []).length;
+
   const modelReplyLooksComplete =
     insight &&
     insight.length > 15 &&
-    /[.!?]$/.test(insight.trim());
+    /[.!?؟؟।۔]$/.test(insight.trim());
+
+  const modelReplyLooksNaturallyConversational =
+    insight &&
+    insight.length > 24 &&
+    rawSentenceCount >= 2;
+
+  const userSoundsWarmOrNostalgic =
+    /\b(smiling|smile|remembering|memories|memory|old days|good days|miss those days|nostalgic|grateful|warm|happy)\b/i.test(
+      userMsg,
+    ) ||
+    /\b(mon[e]? pore|mone pore|valo lagche|bhalo lagche|purono diner kotha|yaad aa rahi|yaad aa raha|purane din|accha lag raha|acha lag raha)\b/i.test(
+      userMsg,
+    );
 
   const shouldPreferNaturalModelReply =
-    modelReplyLooksComplete &&
+    (modelReplyLooksComplete ||
+      modelReplyLooksNaturallyConversational ||
+      (userSoundsWarmOrNostalgic && insight && insight.trim().length >= 10)) &&
     !greeting &&
     !isReturn &&
     input.intent !== "practical" &&

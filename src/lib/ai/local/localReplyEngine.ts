@@ -106,6 +106,20 @@ function buildRecentSignature(recentContext?: LocalRecentContext): string {
     return recent.join(" || ");
 }
 
+function hasRecentEmotionalSignal(recentContext?: LocalRecentContext): boolean {
+    const recent = (recentContext?.recentUserTexts ?? [])
+        .map((t) => String(t || "").trim())
+        .filter(Boolean)
+        .slice(-3);
+
+    if (recent.length === 0) return false;
+
+    return recent.some((text) => {
+        const lang = detectLanguage(text, recentContext);
+        return detectSignal(text, lang) !== "okay";
+    });
+}
+
 function detectLanguage(text: string, recentContext?: LocalRecentContext): LocalLanguage {
     const raw = text || "";
     const t = raw.toLowerCase();
@@ -475,6 +489,13 @@ export function buildLocalReply(
         ],
     };
 
+    const carryValidationsEn = [
+        `I can feel this is still sitting with you.`,
+        `This sounds like it is still weighing on you.`,
+        `I’m still with the thread of what you’re carrying.`,
+        `It seems this is still heavy in the background.`,
+    ];
+
     const validationsHi: Record<typeof signal, string[]> = {
         sad: [`Yeh kaafi bhaari lag raha hai.`, `Yeh sach mein chot pahucha sakta hai.`, `Mujhe afsos hai ki tum yeh sab utha rahe ho.`, `Yeh kaafi zyada hai saath le kar chalne ke liye.`],
         anxious: [
@@ -498,6 +519,13 @@ export function buildLocalReply(
         ],
     };
 
+    const carryValidationsHi = [
+        `Lag raha hai yeh baat abhi bhi tumhare andar baithi hui hai.`,
+        `Yeh abhi bhi tum par bhaari si tikki hui lag rahi hai.`,
+        `Jo tum utha rahe ho, uska thread abhi bhi chal raha hai.`,
+        `Lagta hai yeh baat pichhe se abhi bhi weight de rahi hai.`,
+    ];
+
     const validationsBn: Record<typeof signal, string[]> = {
         sad: [`Eta onek bhaari lagchhe.`, `Eta khub kosto dite pare.`, `Dukkho lagchhe je tomake eta niye cholte hochhe.`, `Eta bose thakar jonno onekta.`],
         anxious: [
@@ -520,6 +548,13 @@ export function buildLocalReply(
             `Ekhon mathay shobcheye boro kotha ta ki?`,
         ],
     };
+
+    const carryValidationsBn = [
+        `Mone hochhe eta ekhono tomar moddhe bose ache.`,
+        `Eta ekhono pichhone theke weight dicche mone hochhe.`,
+        `Tumi ja niye cholchho, tar thread ta ekhono cholche.`,
+        `Mone hochhe kothata ekhono bhitor theke bhaari kore rekhechhe.`,
+    ];
 
     const validationsTa: Record<typeof signal, string[]> = {
         sad: [
@@ -632,118 +667,145 @@ export function buildLocalReply(
     const extrasByToneEn: Record<LocalResponseTone, string[]> = {
         calm: [
             ``,
-            `We can go gently.`,
-            `No rush — we’ll take it slowly.`,
-            `Let’s keep this soft and steady.`,
+            `We can stay with one part for now.`,
+            `No need to rush the whole thing.`,
+            `We can keep this steady without forcing it.`,
         ],
         supportive: [
             ``,
-            `You’re not alone in this.`,
-            `I’m staying with you.`,
-            `We can go gently.`,
+            `You do not have to carry the whole weight at once.`,
+            `We can stay with what feels heaviest first.`,
+            `It is okay if this still feels messy.`,
         ],
         practical: [
             ``,
-            `We’ll take it step by step.`,
-            `Let’s keep this manageable.`,
-            `We only need the next small piece.`,
+            `Let’s only look at what matters first.`,
+            `We can keep this workable.`,
+            `One useful piece is enough for now.`,
         ],
         coach: [
             ``,
-            `We’ll take it step by step.`,
-            `Let’s find the next steady move.`,
-            `You do not have to solve it all at once.`,
+            `Let’s find the most workable part first.`,
+            `We only need one steady move right now.`,
+            `You do not need to untangle everything at once.`,
         ],
         "gentle-humor": [
             ``,
-            `We can keep this light and gentle.`,
-            `No rush — one small step is enough.`,
-            `I’m right here with you.`,
+            `We can keep this a little lighter without ignoring it.`,
+            `One small shift is enough for now.`,
+            `I’m still right here with you.`,
         ],
         direct: [
             ``,
-            `Let’s keep this simple.`,
-            `We can handle one part at a time.`,
-            `We only need the next clear step.`,
+            `Let’s keep this clear.`,
+            `We can deal with one real part at a time.`,
+            `Only the next useful piece matters right now.`,
         ],
+    };
+
+    const carryExtrasEn: Record<LocalResponseTone, string[]> = {
+        calm: [`We do not have to force this anywhere yet.`, `We can just stay with it for a moment.`],
+        supportive: [`You do not have to explain it perfectly right now.`, `I’m still here with you in it.`],
+        practical: [`We can keep this simple for now.`, `We only need the next clear piece, not the whole answer.`],
+        coach: [`We can steady this before doing anything else.`, `One grounded step later is enough.`],
+        "gentle-humor": [`We can keep this soft without making it heavy-er.`, `No need to wrestle the whole thing right now.`],
+        direct: [`Let’s not overcomplicate it right now.`, `We can stay with the real part first.`],
     };
 
     const extrasByToneHi: Record<LocalResponseTone, string[]> = {
         calm: [
             ``,
-            `Hum ise aaraam se le sakte hain.`,
-            `Koi jaldi nahi — dheere chalte hain.`,
-            `Ise naram aur steady rakhte hain.`,
+            `Abhi sirf ek hissa pakad kar chal sakte hain.`,
+            `Puri baat ko ek saath sambhalne ki jaldi nahi hai.`,
+            `Ise bina force kiye steady rakha ja sakta hai.`,
         ],
         supportive: [
             ``,
-            `Tum isme akela nahi ho.`,
-            `Main tumhare saath hoon.`,
-            `Hum ise aaraam se le sakte hain.`,
+            `Tumhe sab kuch ek saath uthana nahi hai.`,
+            `Jo sabse bhaari lag raha hai, pehle usi ke saath reh sakte hain.`,
+            `Agar sab kuch abhi bhi uljha lag raha hai, tab bhi theek hai.`,
         ],
         practical: [
             ``,
-            `Hum ise step by step lenge.`,
-            `Ise manageable rakhte hain.`,
-            `Humein bas agla chhota hissa dekhna hai.`,
+            `Chalo pehle wahi dekhte hain jo sabse zaroori hai.`,
+            `Ise manageable rakh sakte hain.`,
+            `Abhi ek kaam ki cheez dekhna kaafi hai.`,
         ],
         coach: [
             ``,
-            `Hum ise step by step lenge.`,
-            `Chalo agla steady move dhoondte hain.`,
-            `Tumhe sab kuch ek saath solve nahi karna hai.`,
+            `Chalo pehle sabse workable hissa dhoondte hain.`,
+            `Abhi sirf ek steady move kaafi hai.`,
+            `Tumhe sab kuch ek saath suljhana nahi hai.`,
         ],
         "gentle-humor": [
             ``,
-            `Hum ise halka aur gentle rakh sakte hain.`,
-            `Koi jaldi nahi — ek chhota step kaafi hai.`,
+            `Ise halka rakh sakte hain bina ignore kiye.`,
+            `Abhi ek chhota shift kaafi hai.`,
             `Main yahin hoon tumhare saath.`,
         ],
         direct: [
             ``,
-            `Ise simple rakhte hain.`,
-            `Hum ek ek part sambhal sakte hain.`,
-            `Humein bas agla clear step dekhna hai.`,
+            `Chalo ise saaf rakhte hain.`,
+            `Hum ek real hissa ek baar mein dekh sakte hain.`,
+            `Abhi bas agla useful hissa kaafi hai.`,
         ],
+    };
+
+    const carryExtrasHi: Record<LocalResponseTone, string[]> = {
+        calm: [`Abhi ise kahin dhakelne ki zarurat nahi hai.`, `Hum bas thodi der iske saath reh sakte hain.`],
+        supportive: [`Tumhe ise perfectly samjhana abhi zaruri nahi hai.`, `Main abhi bhi tumhare saath hoon isme.`],
+        practical: [`Abhi ise simple rakhte hain.`, `Humein poora jawab nahi, bas agla saaf hissa dekhna hai.`],
+        coach: [`Kuch karne se pehle ise steady kar lete hain.`, `Baad mein ek grounded step kaafi hoga.`],
+        "gentle-humor": [`Ise halka rakh sakte hain bina uljhaaye.`, `Abhi poori kushti ladne ki zarurat nahi hai.`],
+        direct: [`Abhi ise overcomplicate nahi karte.`, `Pehle real hissa pakadte hain.`],
     };
 
     const extrasByToneBn: Record<LocalResponseTone, string[]> = {
         calm: [
             ``,
-            `Eta aste aste neowa jabe.`,
-            `Kono taratari nei — aste choli.`,
-            `Eta narm aar steady rakhi.`,
+            `এখন শুধু একটা অংশ ধরে থাকলেই হবে।`,
+            `সবকিছু একসাথে সামলানোর তাড়া নেই।`,
+            `এটাকে জোর না করে steady রাখা যায়।`,
         ],
         supportive: [
             ``,
-            `Tumi ekhane eka nao.`,
-            `Ami pashei achhi.`,
-            `Eta aste aste neowa jabe.`,
+            `তোমাকে সবটা একসাথে বয়ে নিতে হবে না।`,
+            `যেটা সবচেয়ে ভারী লাগছে, আগে সেটার সঙ্গেই থাকি।`,
+            `সবকিছু এখনও এলোমেলো লাগলে তাতেও সমস্যা নেই।`,
         ],
         practical: [
             ``,
-            `Eta step by step nebo.`,
-            `Eta manageable rakhi.`,
-            `Amader sudhu porer chhoto hissa ta dekhlei hobe.`,
+            `চলো আগে সবচেয়ে দরকারি অংশটাই দেখি।`,
+            `এটাকে manageable রাখা যাবে।`,
+            `এখন একটা কাজের জিনিস ধরলেই যথেষ্ট।`,
         ],
         coach: [
             ``,
-            `Eta step by step nebo.`,
-            `Cholo porer steady move ta khunji.`,
-            `Tomake ek sathe shob solve korte hobe na.`,
+            `চলো আগে সবচেয়ে workable অংশটা খুঁজি।`,
+            `এখন শুধু একটা steady move হলেই হবে।`,
+            `সবটা একসাথে মেলাতে হবে না।`,
         ],
         "gentle-humor": [
             ``,
-            `Eta halka aar gentle rakha jete pare.`,
-            `Kono taratari nei — ekta chhoto step e jothesto.`,
-            `Ami ekhanei achhi tomar sathe.`,
+            `এটাকে হালকা রাখা যায়, তবু সিরিয়াস থাকাও যাবে।`,
+            `এখন একটা ছোট shift হলেই যথেষ্ট।`,
+            `আমি এখানেই আছি তোমার সাথে।`,
         ],
         direct: [
             ``,
-            `Eta simple rakhi.`,
-            `Amra ek ek part handle korte parbo.`,
-            `Amader sudhu porer clear step ta dekhte hobe.`,
+            `চলো এটাকে পরিষ্কার রাখি।`,
+            `একবারে একটা বাস্তব অংশ ধরা যায়।`,
+            `এখন শুধু পরের useful অংশটাই যথেষ্ট।`,
         ],
+    };
+
+    const carryExtrasBn: Record<LocalResponseTone, string[]> = {
+        calm: [`এটাকে এখনই কোথাও ঠেলে নিতে হবে না।`, `আমরা একটু সময় শুধু এটার সাথেই থাকতে পারি।`],
+        supportive: [`এখনই একদম ঠিক করে বোঝাতে হবে না।`, `আমি এখনও তোমার সাথেই আছি এতে।`],
+        practical: [`এখন এটাকে simple রাখি।`, `পুরো উত্তর না, শুধু পরের পরিষ্কার অংশটাই যথেষ্ট।`],
+        coach: [`কিছু করার আগে এটাকে steady করি।`, `পরে একটা grounded step হলেই চলবে।`],
+        "gentle-humor": [`এটাকে হালকা রাখা যায়, বেশি জট না বাড়িয়ে।`, `এখন পুরো কুস্তি লড়ার দরকার নেই।`],
+        direct: [`এখন এটাকে overcomplicate না করি।`, `আগে বাস্তব অংশটাই ধরি।`],
     };
 
     const extrasByToneTa: Record<LocalResponseTone, string[]> = {
@@ -887,8 +949,25 @@ export function buildLocalReply(
                         : `If we reframe this gently: what’s one kinder explanation that could also be true?`;
 
     const opener = pick(openers, seed);
-    const validation = pick(validations[signal], seed >>> 1);
-    const extra = pick(extrasByTone[companionTone], seed >>> 5);
+    const hasCarry = signal === "okay" && hasRecentEmotionalSignal(recentContext);
+
+    const validation =
+        hasCarry && bankLanguage === "hi"
+            ? pick(carryValidationsHi, seed >>> 1)
+            : hasCarry && bankLanguage === "bn"
+                ? pick(carryValidationsBn, seed >>> 1)
+                : hasCarry
+                    ? pick(carryValidationsEn, seed >>> 1)
+                    : pick(validations[signal], seed >>> 1);
+
+    const extra =
+        hasCarry && bankLanguage === "hi"
+            ? pick(carryExtrasHi[companionTone], seed >>> 5)
+            : hasCarry && bankLanguage === "bn"
+                ? pick(carryExtrasBn[companionTone], seed >>> 5)
+                : hasCarry
+                    ? pick(carryExtrasEn[companionTone], seed >>> 5)
+                    : pick(extrasByTone[companionTone], seed >>> 5);
 
     const base = `${opener} ${validation}`.trim();
     const finalMsg = dedupeAdjacentSentences(

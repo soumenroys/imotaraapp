@@ -291,25 +291,68 @@ function shouldUseContinuityAnchor(currentMsg: string): boolean {
 }
 
 function sharesKeyword(a: string, b: string): boolean {
-  const clean = (s: string) =>
+  const normalize = (s: string) =>
     oneLine(s)
       .toLowerCase()
       .replace(
         /[^a-z0-9\u0900-\u097F\u0980-\u09FF\u0A00-\u0A7F\u0A80-\u0AFF\u0B80-\u0BFF\u0C00-\u0CFF\u0D00-\u0D7F\s]/g,
         " ",
       )
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const clean = (s: string) =>
+    normalize(s)
       .split(/\s+/)
       .filter((w) => w.length >= 4);
+
+  const cur = normalize(a);
+  const prev = normalize(b);
 
   const A = new Set(clean(a));
   const B = clean(b);
 
-  // if either side has no meaningful tokens, don't anchor
-  if (A.size === 0 || B.length === 0) return false;
-
-  for (const w of B) {
-    if (A.has(w)) return true;
+  // 1) direct keyword overlap still wins
+  if (A.size > 0 && B.length > 0) {
+    for (const w of B) {
+      if (A.has(w)) return true;
+    }
   }
+
+  // 2) short follow-up / referential continuation:
+  // people often continue emotion without repeating nouns
+  const referentialFollowUp =
+    /\b(this|that|it|same|still|again|there|then|because|but|so|also)\b/.test(
+      cur,
+    ) ||
+    /\b(yeh|yah|ye|wo|woh|eta|ota|eita|oita|tai|abar|phir|fir)\b/.test(cur);
+
+  const emotionalSignal =
+    /\b(sad|down|hurt|heavy|empty|numb|lost|stuck|tired|drained|overwhelmed|anxious|worried|scared|afraid|lonely|hopeless|meaningless)\b/.test(
+      cur,
+    ) ||
+    /\b(dukho|kosto|kharap|mon kharap|bhoy|chinta|tension|klanto|eka|udas)\b/.test(
+      cur,
+    ) ||
+    /\b(dukh|bura|thak gaya|thak gayi|akela|dar|tension|bojh|khali|udaas)\b/.test(
+      cur,
+    );
+
+  const prevHasEmotion =
+    /\b(sad|down|hurt|heavy|empty|numb|lost|stuck|tired|drained|overwhelmed|anxious|worried|scared|afraid|lonely|hopeless|meaningless)\b/.test(
+      prev,
+    ) ||
+    /\b(dukho|kosto|kharap|mon kharap|bhoy|chinta|tension|klanto|eka|udas)\b/.test(
+      prev,
+    ) ||
+    /\b(dukh|bura|thak gaya|thak gayi|akela|dar|tension|bojh|khali|udaas)\b/.test(
+      prev,
+    );
+
+  if ((referentialFollowUp || emotionalSignal) && prevHasEmotion) {
+    return true;
+  }
+
   return false;
 }
 
@@ -625,7 +668,11 @@ function getPreferredLanguage(
 
   const msg = String(currentUserMessage ?? "").trim();
   if (msg) {
-    // 2) Current message script wins (highest confidence)
+    // 2) Greeting-only should stay in simple English unless user explicitly set another preference.
+    // This prevents short inputs like "Hi" from inheriting a previous assistant language.
+    if (isGreetingOnly(msg)) return "en";
+
+    // 3) Current message script wins (highest confidence)
     if (/[\u0980-\u09FF]/.test(msg)) return "bn"; // Bengali script
     if (
       /[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(msg) ||
@@ -645,7 +692,7 @@ function getPreferredLanguage(
     // and only use conservative romanized hints here.
     if (ROMAN_MR_LANG_HINT_REGEX.test(msg)) return "mr";
 
-    // 3) Romanized detection via centralized keywordMaps (conservative)
+    // 4) Romanized detection via centralized keywordMaps (conservative)
     const romanBn = ROMAN_BN_LANG_HINT_REGEX.test(msg);
     const romanHi = ROMAN_HI_LANG_HINT_REGEX.test(msg);
     const romanGu = ROMAN_GU_LANG_HINT_REGEX.test(msg);
@@ -1301,14 +1348,32 @@ function draftResponse(
     }
   }
 
-  const opener = pickOpener(ctx, rel, name ?? undefined, msg);
+  const recentAssistantTurns = (ctx?.recent ?? []).filter(
+    (m) => m.role === "assistant",
+  );
+
+  const shouldUseOpener =
+    recentAssistantTurns.length === 0 ||
+    isGreetingOnly(msg) ||
+    pickVariant(
+      `openerUse:${rel}:${name ?? ""}:${msg}:${recentAssistantTurns.length}`,
+      5,
+    ) === 0;
+
+  const opener = shouldUseOpener
+    ? pickOpener(ctx, rel, name ?? undefined, msg)
+    : "";
 
   // ✅ Continuity: gently anchor to the last user turn (when available)
   const prev = getContextUserTurn(ctx, msg, 3);
   const useAnchor =
-    !!prev && shouldUseContinuityAnchor(msg) && sharesKeyword(msg, prev);
+    !!prev &&
+    !!opener &&
+    shouldUseContinuityAnchor(msg) &&
+    sharesKeyword(msg, prev);
+
   const openerWithContext = useAnchor
-    ? `${opener} ${continuityAnchor("en", prev!, msg)}`
+    ? [opener, continuityAnchor("en", prev!, msg)].filter(Boolean).join(" ")
     : opener;
 
   let message = "";
@@ -1512,6 +1577,24 @@ function draftResponse(
     )}`;
     followUp =
       "If you feel like sharing, tell me what sparked it — a moment, a person, or just one of those rare good days.";
+  } else if (
+    /\b(remember|remembering|memories|memory|old days|good days|those days|nostalgic|smiling remembering|miss those days)\b/i.test(
+      lower,
+    ) ||
+    /\b(mone pore|mon[e]? pore|purono diner kotha|yaad aa rahi|yaad aa raha|purane din|accha lag raha|acha lag raha)\b/i.test(
+      lower,
+    )
+  ) {
+    message = `${openerWithContext} ${pickFromSeed(
+      `nostalgiaAck:${msg}:${rel}:${name ?? ""}`,
+      [
+        "That sounds like a warm memory.",
+        "Those kinds of memories can bring a soft smile with them.",
+        "That sounds tender in a good way.",
+      ] as const,
+    )}`;
+    followUp =
+      "If you want, tell me which memory came back most strongly just now.";
   } else if (
     lower.includes("hungry") ||
     lower.includes("tired") ||
@@ -2012,19 +2095,26 @@ export async function runImotara(input: {
   // - Avoids repeating if draft already addressed them
   // - Keeps softOpener as tone guidance
   // - But DO NOT add soft opener/greeting to crisis replies
-  if (!isCrisisReply) {
-    if (userName && response?.message) {
-      const firstLine = String(response.message).split("\n")[0] ?? "";
-      const alreadyUsed =
-        firstLine.toLowerCase().includes(userName.toLowerCase()) ||
-        firstLine.toLowerCase().startsWith("hey ");
+  if (!isCrisisReply && response?.message) {
+    const firstLine = String(response.message).split("\n")[0] ?? "";
+    const firstLineLower = firstLine.toLowerCase().trim();
 
-      if (!alreadyUsed) {
-        response.message = `Hey ${userName} —\n\n${softOpener}${response.message}`;
-      } else if (softOpener) {
-        response.message = `${softOpener}${response.message}`;
-      }
-    } else if (softOpener && response?.message) {
+    const alreadyAddressedNaturally =
+      (userName && firstLineLower.includes(userName.toLowerCase())) ||
+      firstLineLower.startsWith("hey ") ||
+      firstLineLower.startsWith("hi ") ||
+      firstLineLower.startsWith("hello ") ||
+      firstLineLower.startsWith("i’m ") ||
+      firstLineLower.startsWith("i'm ") ||
+      firstLineLower.startsWith("okay") ||
+      firstLineLower.startsWith("alright") ||
+      firstLineLower.startsWith("got it") ||
+      firstLineLower.startsWith("right") ||
+      firstLineLower.startsWith("makes sense");
+
+    if (userName && !alreadyAddressedNaturally) {
+      response.message = `Hey ${userName} —\n\n${response.message}`;
+    } else if (softOpener && !alreadyAddressedNaturally) {
       response.message = `${softOpener}${response.message}`;
     }
   }

@@ -2,13 +2,206 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Download, Pencil, Check, X } from "lucide-react";
+import { Download, Pencil, Check } from "lucide-react";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
 import SkeletonLoader from "@/components/imotara/SkeletonLoader";
 
 // ── Storage ──────────────────────────────────────────────────────────────────
 const STORAGE_KEY = "imotara.reflections.v1";
 const HISTORY_KEY = "imotara:history:v1";
+const FUTURE_LETTERS_KEY = "imotara.futureletters.v1";
+
+// ── Future Letter ─────────────────────────────────────────────────────────────
+type FutureLetter = {
+  id: string;
+  body: string;
+  createdAt: number;
+  unlockAt: number;
+  unlocked: boolean;
+};
+
+function loadFutureLetters(): FutureLetter[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(FUTURE_LETTERS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function saveFutureLetters(letters: FutureLetter[]) {
+  try { window.localStorage.setItem(FUTURE_LETTERS_KEY, JSON.stringify(letters)); } catch { /* ignore */ }
+}
+
+function FutureLetterSection({ showToast }: { showToast: (msg: string, type?: any) => void }) {
+  const [letters, setLetters] = useState<FutureLetter[]>([]);
+  const [body, setBody] = useState("");
+  const [days, setDays] = useState(30);
+  const [showForm, setShowForm] = useState(false);
+  const [revealedId, setRevealedId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setLetters(loadFutureLetters());
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  // Mark any newly unlocked letters
+  const now = Date.now();
+  const lettersWithStatus = letters.map((l) => ({
+    ...l,
+    unlocked: l.unlocked || l.unlockAt <= now,
+  }));
+
+  function saveLetter() {
+    const text = body.trim();
+    if (!text) return;
+    const letter: FutureLetter = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      body: text,
+      createdAt: now,
+      unlockAt: now + days * 86_400_000,
+      unlocked: false,
+    };
+    const updated = [letter, ...letters];
+    setLetters(updated);
+    saveFutureLetters(updated);
+    setBody("");
+    setShowForm(false);
+    showToast(`Letter sealed — unlocks in ${days} day${days !== 1 ? "s" : ""} ✓`);
+  }
+
+  function deleteLetter(id: string) {
+    const updated = letters.filter((l) => l.id !== id);
+    setLetters(updated);
+    saveFutureLetters(updated);
+    showToast("Letter deleted", "info");
+  }
+
+  const unlocked = lettersWithStatus.filter((l) => l.unlocked);
+  const locked = lettersWithStatus.filter((l) => !l.unlocked);
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 shadow-sm backdrop-blur-md">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Letter to future self</p>
+          <p className="text-[11px] text-zinc-500 mt-0.5">Write a note that unlocks on a future date.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowForm((v) => !v)}
+          className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-zinc-300 transition hover:bg-white/10"
+        >
+          {showForm ? "Cancel" : "+ Write"}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="mb-4 space-y-3 animate-fade-in">
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={4}
+            placeholder="Dear future me…"
+            className="w-full resize-none rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-white/25 focus:ring-1 focus:ring-white/10"
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] text-zinc-500">Unlock in</label>
+              {[7, 30, 90, 180, 365].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDays(d)}
+                  className={`rounded-full px-2.5 py-1 text-[10px] transition ${
+                    days === d
+                      ? "bg-indigo-500/40 text-indigo-200 border border-indigo-400/40"
+                      : "border border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"
+                  }`}
+                >
+                  {d === 365 ? "1 yr" : `${d}d`}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={saveLetter}
+              disabled={!body.trim()}
+              className="ml-auto rounded-full bg-gradient-to-r from-indigo-500 to-sky-400 px-4 py-1.5 text-xs font-medium text-black shadow transition hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Seal letter
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Unlocked letters — revealed with animation */}
+      {unlocked.length > 0 && (
+        <div className="mb-3 space-y-2">
+          {unlocked.map((l) => (
+            <div key={l.id} className="rounded-xl border border-emerald-400/25 bg-emerald-500/8 p-3">
+              <p className="mb-1 text-[10px] font-semibold text-emerald-400">
+                ✉ Unlocked · written {Math.round((now - l.createdAt) / 86_400_000)} days ago
+              </p>
+              {revealedId === l.id ? (
+                <div className="animate-fade-in">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-100">{l.body}</p>
+                  <button
+                    type="button"
+                    onClick={() => deleteLetter(l.id)}
+                    className="mt-2 text-[10px] text-zinc-600 hover:text-red-400 transition"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setRevealedId(l.id)}
+                  className="text-xs text-indigo-400 underline underline-offset-2 hover:text-indigo-300 transition"
+                >
+                  Open letter →
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Locked letters */}
+      {locked.length > 0 && (
+        <div className="space-y-1.5">
+          {locked.map((l) => {
+            const daysLeft = Math.ceil((l.unlockAt - now) / 86_400_000);
+            return (
+              <div key={l.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <div>
+                  <p className="text-[11px] text-zinc-300">🔒 Sealed letter</p>
+                  <p className="text-[10px] text-zinc-600">Unlocks in {daysLeft} day{daysLeft !== 1 ? "s" : ""}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => deleteLetter(l.id)}
+                  className="text-[10px] text-zinc-600 hover:text-red-400 transition"
+                >
+                  Delete
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {letters.length === 0 && !showForm && (
+        <p className="text-[11px] text-zinc-600 italic">No letters yet — write one now.</p>
+      )}
+    </div>
+  );
+}
 
 type ReflectionEntry = {
   id: string;
@@ -784,6 +977,9 @@ export default function GrowPage() {
           </p>
         </div>
       )}
+
+      {/* Letter to future self */}
+      <FutureLetterSection showToast={showToast} />
 
       {/* Toast notifications */}
       {toast && (

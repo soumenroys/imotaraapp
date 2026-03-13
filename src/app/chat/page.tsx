@@ -56,6 +56,7 @@ import {
 import { deriveResponseToneFromToneContext, buildEmotionMemorySummary } from "@/lib/imotara/promptProfile";
 import { debugDetectEmotion } from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
+import { hapticTap, hapticEmotion } from "@/lib/imotara/haptic";
 
 type Role = "user" | "assistant" | "system";
 type DebugEmotionSource = "analysis" | "fallback" | "unknown";
@@ -877,6 +878,7 @@ export default function ChatPage() {
   }, [mounted, bookmarks]);
 
   function toggleBookmark(id: string) {
+    hapticTap();
     setBookmarks((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -1031,6 +1033,26 @@ export default function ChatPage() {
     [threads, activeId],
   );
 
+  // Emotion-reactive ambient glow — derived from latest non-neutral emotion in current thread
+  const latestEmotion = useMemo(() => {
+    if (!activeThread?.messages?.length) return null;
+    for (let i = activeThread.messages.length - 1; i >= 0; i--) {
+      const m = activeThread.messages[i];
+      if (m.debugEmotion && m.debugEmotion !== "neutral") return m.debugEmotion.toLowerCase();
+    }
+    return null;
+  }, [activeThread?.messages]);
+
+  const EMOTION_GLOW_COLOR: Record<string, string> = {
+    joy: "rgba(251,191,36,0.10)", happy: "rgba(251,191,36,0.10)", happiness: "rgba(251,191,36,0.10)",
+    sad: "rgba(56,189,248,0.09)", sadness: "rgba(56,189,248,0.09)", lonely: "rgba(56,189,248,0.09)",
+    angry: "rgba(244,63,94,0.09)", anger: "rgba(244,63,94,0.09)",
+    anxious: "rgba(245,158,11,0.09)", anxiety: "rgba(245,158,11,0.09)", stressed: "rgba(245,158,11,0.09)", stress: "rgba(245,158,11,0.09)",
+    fear: "rgba(167,139,250,0.09)",
+    surprise: "rgba(240,171,252,0.09)",
+  };
+  const emotionGlowColor = latestEmotion ? (EMOTION_GLOW_COLOR[latestEmotion] ?? null) : null;
+
   useEffect(() => {
     if (!mounted) return;
     if (!urlMessageId) return;
@@ -1118,6 +1140,7 @@ export default function ChatPage() {
 
         if (!cancelled) {
           setAnalysis(res);
+          if (res?.snapshot?.dominant && res.snapshot.dominant !== "neutral") hapticEmotion();
           console.log("[imotara] analysis:", res?.summary?.headline, res);
         }
       } catch (err) {
@@ -2497,9 +2520,20 @@ export default function ChatPage() {
           </header>
 
           {/* BODY */}
+          <div className="relative flex-1 min-h-0">
+            {/* Emotion-reactive ambient glow — subtle radial tint that shifts with mood */}
+            {emotionGlowColor && (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-0 transition-all duration-[2000ms]"
+                style={{
+                  background: `radial-gradient(ellipse at 75% 12%, ${emotionGlowColor} 0%, transparent 55%)`,
+                }}
+              />
+            )}
           <div
             ref={listRef}
-            className="flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:px-6"
+            className="relative z-10 h-full overflow-y-auto px-4 py-4 sm:px-6"
           >
             {!mounted ? (
               <div className="mx-auto max-w-3xl">
@@ -2665,6 +2699,7 @@ export default function ChatPage() {
               </div>
             )}
           </div>
+          </div>{/* end emotion-ambient wrapper */}
 
           {/* #6: Weekly mood recap banner */}
           {weeklyRecap && !weeklyRecapDismissed && (

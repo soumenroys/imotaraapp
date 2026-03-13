@@ -12,6 +12,7 @@ import OnboardingTour from "@/components/imotara/OnboardingTour";
 import OfflineIndicator from "@/components/imotara/OfflineIndicator";
 import PWAInstallPrompt from "@/components/imotara/PWAInstallPrompt";
 import AppearanceInit from "@/components/imotara/AppearanceInit";
+import PageTransition from "@/components/imotara/PageTransition";
 
 const inter = Inter({ subsets: ["latin"] });
 const siteUrl = (() => {
@@ -149,7 +150,7 @@ export default function RootLayout({
         <SiteHeader />
 
         <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10 pb-28">
-          {children}
+          <PageTransition>{children}</PageTransition>
         </main>
 
         {/* Global sync bar + local-storage notice overlays */}

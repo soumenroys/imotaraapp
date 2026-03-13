@@ -3,10 +3,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MessageSquare, Download, Clock } from "lucide-react";
+import { MessageSquare, Download, Clock, Search, X as XIcon } from "lucide-react";
 import EmotionHistory from "@/components/imotara/EmotionHistory";
 import MoodHeatmap from "@/components/imotara/MoodHeatmap";
 import SkeletonLoader from "@/components/imotara/SkeletonLoader";
+import OnThisDay from "@/components/imotara/OnThisDay";
+import EmotionRadarChart from "@/components/imotara/EmotionRadarChart";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { getHistory } from "@/lib/imotara/history";
 import TopBar from "@/components/imotara/TopBar";
@@ -78,6 +80,8 @@ export default function HistoryPage() {
   const [hasHistory, setHasHistory] = useState(true);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type?: ToastType } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
     setWeeklySummary(computeWeeklySummary());
@@ -202,6 +206,21 @@ export default function HistoryPage() {
                     Settings.
                   </span>
 
+                  {/* Search toggle */}
+                  <button
+                    type="button"
+                    onClick={() => { setShowSearch((v) => !v); setSearchQuery(""); }}
+                    aria-label="Search emotion history"
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] shadow-sm transition ${
+                      showSearch
+                        ? "border-indigo-400/50 bg-indigo-500/20 text-indigo-200"
+                        : "border-white/15 bg-white/5 text-zinc-200 hover:bg-white/10"
+                    }`}
+                  >
+                    <Search className="h-3 w-3" aria-hidden="true" />
+                    <span>Search</span>
+                  </button>
+
                   {/* Export */}
                   <button
                     type="button"
@@ -300,12 +319,43 @@ export default function HistoryPage() {
                 </div>
               )}
 
+              {/* Search bar */}
+              {showSearch && (
+                <div className="animate-fade-in flex items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-3 py-2 backdrop-blur-sm">
+                  <Search className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+                  <input
+                    type="text"
+                    autoFocus
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by emotion or message…"
+                    className="flex-1 bg-transparent text-xs text-zinc-100 placeholder:text-zinc-600 outline-none"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      aria-label="Clear search"
+                      onClick={() => setSearchQuery("")}
+                      className="text-zinc-500 hover:text-zinc-300 transition"
+                    >
+                      <XIcon className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* On This Day — memory flashback */}
+              {!loading && <OnThisDay />}
+
               {/* Mood Heatmap — 12-week calendar */}
               {loading ? (
                 <SkeletonLoader rows={2} variant="card" />
               ) : (
                 <MoodHeatmap />
               )}
+
+              {/* Emotion radar chart */}
+              {!loading && <EmotionRadarChart />}
 
               {/* Main history card */}
               {loading ? (
@@ -338,7 +388,7 @@ export default function HistoryPage() {
                 </div>
               ) : (
                 <div className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                  <EmotionHistory />
+                  <EmotionHistory searchFilter={searchQuery} />
                 </div>
               )}
 

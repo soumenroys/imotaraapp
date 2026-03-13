@@ -187,7 +187,7 @@ function getCardToneClasses(emotionKey: string, isAssistant: boolean) {
   };
 }
 
-export default function EmotionHistory() {
+export default function EmotionHistory({ searchFilter = "" }: { searchFilter?: string }) {
   const [items, setItems] = useState<EmotionRecord[]>([]);
   const [pushInfo, setPushInfo] = useState<string>("");
   const [apiInfo, setApiInfo] = useState<string>("");
@@ -1109,15 +1109,21 @@ export default function EmotionHistory() {
           ? now - 30 * 24 * 60 * 60 * 1000
           : 0;
 
+    const sq = searchFilter.trim().toLowerCase();
     return visibleItems.filter((r) => {
       if (cutoff > 0) {
         const ts = r.createdAt ?? r.updatedAt ?? 0;
         if (ts < cutoff) return false;
       }
       if (q) return (r.sessionId ?? "").toLowerCase().includes(q);
+      if (sq) {
+        const msg = ((r as any).message ?? "").toLowerCase();
+        const em = (r.emotion ?? "").toLowerCase();
+        return msg.includes(sq) || em.includes(sq);
+      }
       return true;
     });
-  }, [visibleItems, sessionFilter, dateWindow]);
+  }, [visibleItems, sessionFilter, dateWindow, searchFilter]);
 
   // When a date window is active, recompute summary over filtered items so
   // the sparkline and stats reflect the selected window.

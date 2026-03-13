@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { hapticBreath } from "@/lib/imotara/haptic";
 
 type Phase = "inhale" | "hold" | "exhale" | "rest";
 
@@ -84,6 +85,7 @@ export default function BreathingWidget({ onClose }: { onClose?: () => void }) {
         secRef.current = seq[nextStep].secs;
         setPhase(seq[nextStep].phase);
         setRemaining(seq[nextStep].secs);
+        hapticBreath();
       }
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };

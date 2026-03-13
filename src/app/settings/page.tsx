@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
+import { useAppearance, type Accent, type FontSize } from "@/hooks/useAppearance";
 
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 
@@ -642,8 +643,132 @@ function loadRazorpayScript(): Promise<boolean> {
     });
 }
 
+// ── DataDashboard sub-component ───────────────────────────────────────────────
+function DataDashboard({ getStorageSummary }: { getStorageSummary: () => { historyCount: number; chatCount: number; reflectionCount: number; totalKB: number } }) {
+    const [summary, setSummary] = useState<ReturnType<typeof getStorageSummary> | null>(null);
+    const [clearing, setClearing] = useState(false);
+    const [clearDays, setClearDays] = useState<30 | 60 | 90>(30);
+    const [clearMsg, setClearMsg] = useState<string | null>(null);
+
+    useEffect(() => { setSummary(getStorageSummary()); }, [getStorageSummary]);
+
+    function autoClear() {
+        if (!confirm(`Delete emotion history older than ${clearDays} days?`)) return;
+        setClearing(true);
+        try {
+            const raw = localStorage.getItem("imotara:history:v1");
+            if (raw) {
+                const all = JSON.parse(raw) as any[];
+                const cutoff = Date.now() - clearDays * 86_400_000;
+                const kept = all.filter((r) => r.createdAt >= cutoff);
+                localStorage.setItem("imotara:history:v1", JSON.stringify(kept));
+                setClearMsg(`Removed ${all.length - kept.length} entries older than ${clearDays} days.`);
+                setSummary(getStorageSummary());
+            }
+        } catch { setClearMsg("Could not clear — storage may be restricted."); }
+        setClearing(false);
+    }
+
+    return (
+        <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+            <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Data on this device</h2>
+            <p className="mt-1 text-xs leading-6 text-zinc-400">A quick summary of what Imotara stores locally in your browser.</p>
+
+            {summary && (
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                    {[
+                        { label: "Emotion entries", value: summary.historyCount },
+                        { label: "Chat messages",   value: summary.chatCount },
+                        { label: "Reflections",     value: summary.reflectionCount },
+                    ].map(({ label, value }) => (
+                        <div key={label} className="rounded-xl border border-white/8 bg-white/5 px-3 py-2 text-center">
+                            <p className="text-lg font-semibold text-zinc-100 tabular-nums">{value}</p>
+                            <p className="text-[10px] text-zinc-500">{label}</p>
+                        </div>
+                    ))}
+                </div>
+            )}
+            {summary && (
+                <p className="mt-2 text-[11px] text-zinc-600">
+                    Approx. {summary.totalKB} KB used in localStorage
+                </p>
+            )}
+
+            {/* Auto-clear */}
+            <div className="mt-4 rounded-xl border border-white/8 bg-white/5 px-3 py-3">
+                <p className="text-xs font-medium text-zinc-300">Auto-clear old history</p>
+                <p className="mt-0.5 text-[11px] text-zinc-500">Remove emotion entries older than a chosen number of days. Chat and reflections are not affected.</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                        {([30, 60, 90] as const).map((d) => (
+                            <button
+                                key={d}
+                                type="button"
+                                onClick={() => setClearDays(d)}
+                                className={`rounded-full px-3 py-1 text-xs transition ${clearDays === d ? "bg-white/20 text-zinc-50" : "text-zinc-400 hover:text-zinc-200"}`}
+                            >
+                                {d}d
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={autoClear}
+                        disabled={clearing}
+                        className="rounded-full border border-red-400/25 bg-red-500/10 px-3 py-1 text-xs text-red-300 transition hover:bg-red-500/20 disabled:opacity-50"
+                    >
+                        {clearing ? "Clearing…" : `Clear older than ${clearDays} days`}
+                    </button>
+                </div>
+                {clearMsg && <p className="mt-1.5 text-[11px] text-emerald-400">{clearMsg}</p>}
+            </div>
+        </section>
+    );
+}
+
+const ACCENT_OPTIONS: { value: Accent; label: string; color: string }[] = [
+    { value: "indigo",  label: "Indigo",  color: "#6366f1" },
+    { value: "teal",    label: "Teal",    color: "#14b8a6" },
+    { value: "rose",    label: "Rose",    color: "#f43f5e" },
+    { value: "amber",   label: "Amber",   color: "#f59e0b" },
+    { value: "emerald", label: "Emerald", color: "#10b981" },
+];
+
+const FONT_OPTIONS: { value: FontSize; label: string }[] = [
+    { value: "sm", label: "Small" },
+    { value: "md", label: "Medium" },
+    { value: "lg", label: "Large" },
+];
+
+const HISTORY_KEY = "imotara:history:v1";
+const CHAT_STORAGE = "imotara.chat.v1";
+const REFLECTIONS_KEY = "imotara.reflections.v1";
+
+function getStorageSummary() {
+    if (typeof window === "undefined") return { historyCount: 0, chatCount: 0, reflectionCount: 0, totalKB: 0 };
+    let historyCount = 0, chatCount = 0, reflectionCount = 0, totalBytes = 0;
+    try {
+        const h = localStorage.getItem(HISTORY_KEY);
+        if (h) { historyCount = (JSON.parse(h) as any[]).filter((r) => !r.deleted).length; totalBytes += h.length; }
+    } catch { /* ignore */ }
+    try {
+        const c = localStorage.getItem(CHAT_STORAGE);
+        if (c) {
+            const threads = JSON.parse(c)?.threads ?? [];
+            chatCount = threads.reduce((s: number, t: any) => s + (t.messages?.length ?? 0), 0);
+            totalBytes += c.length;
+        }
+    } catch { /* ignore */ }
+    try {
+        const r = localStorage.getItem(REFLECTIONS_KEY);
+        if (r) { reflectionCount = (JSON.parse(r) as any[]).length; totalBytes += r.length; }
+    } catch { /* ignore */ }
+    return { historyCount, chatCount, reflectionCount, totalKB: Math.round(totalBytes / 1024) };
+}
+
 export default function SettingsPage() {
     const { mode } = useAnalysisConsent();
+    const { accent, setAccent, fontSize, setFontSize } = useAppearance();
 
     // Cross-device chat link key (optional)
     const [linkKey, setLinkKey] = useState("");
@@ -1368,6 +1493,60 @@ export default function SettingsPage() {
 
                     {status && <p className="mt-3 text-[11px] text-zinc-400">{status}</p>}
                 </section>
+
+                {/* ── Appearance ─────────────────────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Appearance</h2>
+                    <p className="mt-1 text-xs leading-6 text-zinc-400">Accent colour and text size — saved on this device.</p>
+
+                    {/* Accent picker */}
+                    <div className="mt-4">
+                        <p className="mb-2 text-xs font-medium text-zinc-400">Accent colour</p>
+                        <div className="flex flex-wrap gap-2">
+                            {ACCENT_OPTIONS.map((o) => (
+                                <button
+                                    key={o.value}
+                                    type="button"
+                                    onClick={() => setAccent(o.value)}
+                                    title={o.label}
+                                    className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${
+                                        accent === o.value
+                                            ? "border-white/40 bg-white/15 text-zinc-50"
+                                            : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"
+                                    }`}
+                                >
+                                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: o.color }} />
+                                    {o.label}
+                                    {accent === o.value && <span className="ml-0.5 text-[10px] opacity-60">✓</span>}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Font size */}
+                    <div className="mt-4">
+                        <p className="mb-2 text-xs font-medium text-zinc-400">Text size</p>
+                        <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                            {FONT_OPTIONS.map((o) => (
+                                <button
+                                    key={o.value}
+                                    type="button"
+                                    onClick={() => setFontSize(o.value)}
+                                    className={`rounded-full px-4 py-1 text-xs transition ${
+                                        fontSize === o.value
+                                            ? "bg-white/20 text-zinc-50"
+                                            : "text-zinc-400 hover:text-zinc-200"
+                                    }`}
+                                >
+                                    {o.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ── Data dashboard ──────────────────────────────────── */}
+                <DataDashboard getStorageSummary={getStorageSummary} />
 
                 {/* Data & privacy copy */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">

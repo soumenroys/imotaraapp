@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MessageSquare, Download, Clock } from "lucide-react";
 import EmotionHistory from "@/components/imotara/EmotionHistory";
+import MoodHeatmap from "@/components/imotara/MoodHeatmap";
+import SkeletonLoader from "@/components/imotara/SkeletonLoader";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { getHistory } from "@/lib/imotara/history";
 import TopBar from "@/components/imotara/TopBar";
@@ -74,6 +76,7 @@ export default function HistoryPage() {
   const [exporting, setExporting] = useState(false);
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
   const [hasHistory, setHasHistory] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type?: ToastType } | null>(null);
 
   useEffect(() => {
@@ -85,6 +88,7 @@ export default function HistoryPage() {
     } catch {
       setHasHistory(true); // assume data exists on error
     }
+    setLoading(false);
   }, []);
 
   // Align wording with Chat + Settings
@@ -296,8 +300,17 @@ export default function HistoryPage() {
                 </div>
               )}
 
+              {/* Mood Heatmap — 12-week calendar */}
+              {loading ? (
+                <SkeletonLoader rows={2} variant="card" />
+              ) : (
+                <MoodHeatmap />
+              )}
+
               {/* Main history card */}
-              {!hasHistory ? (
+              {loading ? (
+                <SkeletonLoader rows={3} variant="list" />
+              ) : !hasHistory ? (
                 <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-white/15 bg-white/5 px-6 py-12 text-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500/40 via-sky-500/40 to-emerald-400/40 text-2xl">
                     <Clock className="h-6 w-6 text-zinc-400" aria-hidden="true" />

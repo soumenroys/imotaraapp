@@ -23,8 +23,11 @@ import {
   MicOff,
   Search,
   X as XIcon,
+  Star,
+  Wind,
 } from "lucide-react";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
+import BreathingWidget from "@/components/imotara/BreathingWidget";
 import MoodSummaryCard from "@/components/imotara/MoodSummaryCard";
 import type { AppMessage } from "@/lib/imotara/useAnalysis";
 import { syncHistory } from "@/lib/imotara/syncHistoryAdapter";
@@ -780,6 +783,12 @@ export default function ChatPage() {
 
   // #10: Message reactions — local emoji stamps (messageId → emoji)
   const [reactions, setReactions] = useState<Record<string, string>>({});
+
+  // Bookmarks — starred message IDs
+  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
+
+  // Breathing widget visibility
+  const [showBreathing, setShowBreathing] = useState(false);
   // #8: Grow nudge dismissed flag
   const [growNudgeDismissed, setGrowNudgeDismissed] = useState(false);
   // #6: Weekly recap text (computed once on mount)
@@ -851,6 +860,30 @@ export default function ChatPage() {
     if (!mounted) return;
     try { localStorage.setItem("imotara.reactions.v1", JSON.stringify(reactions)); } catch { /* ignore */ }
   }, [mounted, reactions]);
+
+  // Bookmarks: load on mount
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      const raw = localStorage.getItem("imotara.bookmarks.v1");
+      if (raw) setBookmarks(new Set(JSON.parse(raw)));
+    } catch { /* ignore */ }
+  }, [mounted]);
+
+  // Bookmarks: persist on change
+  useEffect(() => {
+    if (!mounted) return;
+    try { localStorage.setItem("imotara.bookmarks.v1", JSON.stringify([...bookmarks])); } catch { /* ignore */ }
+  }, [mounted, bookmarks]);
+
+  function toggleBookmark(id: string) {
+    setBookmarks((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   // #6: Compute weekly mood recap on mount
   useEffect(() => {
@@ -2612,6 +2645,8 @@ export default function ChatPage() {
                         return next;
                       })
                     }
+                    bookmarked={bookmarks.has(m.id)}
+                    onBookmark={() => toggleBookmark(m.id)}
                   />
                 ))}
 
@@ -2706,6 +2741,12 @@ export default function ChatPage() {
 
           {/* COMPOSER */}
           <div className="border-t border-white/10 px-3 pb-1 pt-1 sm:px-4">
+            {/* Breathing widget — shown above composer when toggled */}
+            {showBreathing && (
+              <div className="mx-auto mb-3 max-w-3xl">
+                <BreathingWidget onClose={() => setShowBreathing(false)} />
+              </div>
+            )}
             {/* #11: Sentiment seed chips — quick-tap mood hints for active conversations */}
             {activeThread && activeThread.messages.length > 0 && !draft.trim() && (
               <div className="mx-auto mb-2 flex max-w-3xl flex-wrap gap-1.5">
@@ -2748,6 +2789,20 @@ export default function ChatPage() {
                   {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </button>
               )}
+              {/* Breathing widget toggle */}
+              <button
+                type="button"
+                onClick={() => setShowBreathing((v) => !v)}
+                title="Breathing exercise"
+                className={`h-11 w-11 inline-flex items-center justify-center rounded-2xl border transition ${
+                  showBreathing
+                    ? "border-sky-400/50 bg-sky-500/20 text-sky-300"
+                    : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                }`}
+              >
+                <Wind className="h-4 w-4" />
+              </button>
+
               <button
                 onClick={sendMessage}
                 disabled={analyzing || !draft.trim()}
@@ -2908,8 +2963,34 @@ const OR_TYPE_BELOW: Record<string, string> = {
   or: "ଅଥବା ନୀଚରେ ଟାଇପ୍ କରନ୍ତୁ",
 };
 
+const GREETING_BY_LANG: Record<string, { morning: string; afternoon: string; evening: string; night: string }> = {
+  en: { morning: "Good morning 🌅", afternoon: "Good afternoon ☀️", evening: "Good evening 🌙", night: "Still up? 🌟" },
+  hi: { morning: "शुभ प्रभात 🌅", afternoon: "शुभ दोपहर ☀️", evening: "शुभ संध्या 🌙", night: "अभी भी जाग रहे हो? 🌟" },
+  mr: { morning: "शुभ सकाळ 🌅", afternoon: "शुभ दुपार ☀️", evening: "शुभ संध्याकाळ 🌙", night: "अजूनही जागे आहात? 🌟" },
+  bn: { morning: "শুভ সকাল 🌅", afternoon: "শুভ বিকেল ☀️", evening: "শুভ সন্ধ্যা 🌙", night: "এখনও জেগে? 🌟" },
+  ta: { morning: "காலை வணக்கம் 🌅", afternoon: "மதிய வணக்கம் ☀️", evening: "மாலை வணக்கம் 🌙", night: "இன்னும் விழித்திருக்கிறீர்களா? 🌟" },
+  te: { morning: "శుభోదయం 🌅", afternoon: "శుభ మధ్యాహ్నం ☀️", evening: "శుభ సాయంత్రం 🌙", night: "ఇంకా మేల్కొని ఉన్నారా? 🌟" },
+  kn: { morning: "ಶುಭ ಬೆಳಿಗ್ಗೆ 🌅", afternoon: "ಶುಭ ಮಧ್ಯಾಹ್ನ ☀️", evening: "ಶುಭ ಸಂಜೆ 🌙", night: "ಇನ್ನೂ ಎಚ್ಚರವಾಗಿದ್ದೀರಾ? 🌟" },
+  ml: { morning: "ശുഭ പ്രഭാതം 🌅", afternoon: "ശുഭ ഉച്ചക്ക് ☀️", evening: "ശുഭ സന്ധ്യ 🌙", night: "ഇനിയും ഉണർന്നിരിക്കുന്നോ? 🌟" },
+  gu: { morning: "શુભ સવાર 🌅", afternoon: "શુભ બપોર ☀️", evening: "શુભ સાંજ 🌙", night: "હજી જાગો છો? 🌟" },
+  pa: { morning: "ਸ਼ੁਭ ਸਵੇਰ 🌅", afternoon: "ਸ਼ੁਭ ਦੁਪਹਿਰ ☀️", evening: "ਸ਼ੁਭ ਸ਼ਾਮ 🌙", night: "ਅਜੇ ਵੀ ਜਾਗ ਰਹੇ ਹੋ? 🌟" },
+  or: { morning: "ଶୁଭ ସକାଳ 🌅", afternoon: "ଶୁଭ ଅପରାହ୍ନ ☀️", evening: "ଶୁଭ ସନ୍ଧ୍ୟା 🌙", night: "ଏখনও ଜାଗ୍ରତ? 🌟" },
+};
+
+function getGreeting(lang: string): string {
+  const h = new Date().getHours();
+  const g = GREETING_BY_LANG[lang] ?? GREETING_BY_LANG.en;
+  if (h >= 5 && h < 12) return g.morning;
+  if (h >= 12 && h < 17) return g.afternoon;
+  if (h >= 17 && h < 21) return g.evening;
+  return g.night;
+}
+
 function EmptyState({ onChipSelect, lang = "en" }: { onChipSelect: (text: string) => void; lang?: string }) {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [greeting, setGreeting] = useState("");
+
+  useEffect(() => { setGreeting(getGreeting(lang)); }, [lang]);
 
   const moodOptions = MOOD_OPTIONS_BY_LANG[lang] ?? MOOD_OPTIONS_BY_LANG.en;
   const moodHeading = MOOD_HEADING[lang] ?? MOOD_HEADING.en;
@@ -2923,6 +3004,11 @@ function EmptyState({ onChipSelect, lang = "en" }: { onChipSelect: (text: string
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mt-8 rounded-2xl border border-dashed border-white/20 bg-black/30 p-8 text-center text-zinc-200">
+        {greeting && (
+          <p className="mb-1 text-lg font-semibold text-zinc-100 animate-fade-in" suppressHydrationWarning>
+            {greeting}
+          </p>
+        )}
         <p className="text-base font-medium">Start a conversation</p>
         <p className="mt-1 text-sm text-zinc-400">
           Messages are saved in your browser, and analysis/replies respect your
@@ -2994,6 +3080,8 @@ function Bubble({
   meta,
   reaction,
   onReact,
+  bookmarked,
+  onBookmark,
 }: {
   id: string;
   role: Role;
@@ -3014,6 +3102,8 @@ function Bubble({
   };
   reaction?: string;
   onReact?: (emoji: string) => void;
+  bookmarked?: boolean;
+  onBookmark?: () => void;
 }) {
   const isUser = role === "user";
 
@@ -3189,10 +3279,10 @@ function Bubble({
           </div>
         )}
 
-        {/* #10: Emoji reactions — only on assistant messages */}
-        {!isUser && onReact && (
+        {/* #10: Emoji reactions + bookmark — only on assistant messages */}
+        {!isUser && (onReact || onBookmark) && (
           <div className="mt-2 flex items-center gap-1">
-            {REACTION_EMOJIS.map((emoji) => (
+            {onReact && REACTION_EMOJIS.map((emoji) => (
               <button
                 key={emoji}
                 type="button"
@@ -3209,6 +3299,20 @@ function Bubble({
             ))}
             {reaction && (
               <span className="ml-1 text-[10px] text-zinc-500">you reacted</span>
+            )}
+            {onBookmark && (
+              <button
+                type="button"
+                onClick={onBookmark}
+                title={bookmarked ? "Remove bookmark" : "Bookmark this message"}
+                className={`ml-auto rounded-full p-1 transition hover:scale-110 ${
+                  bookmarked
+                    ? "text-amber-400 animate-star-pop"
+                    : "text-zinc-600 hover:text-amber-300"
+                }`}
+              >
+                <Star className="h-3.5 w-3.5" fill={bookmarked ? "currentColor" : "none"} />
+              </button>
             )}
           </div>
         )}

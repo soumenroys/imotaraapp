@@ -9,6 +9,9 @@ import LocalDataNotice from "@/components/imotara/LocalDataNotice";
 import FirstVisitBanner from "@/components/imotara/FirstVisitBanner";
 import ServiceWorkerRegistration from "@/components/imotara/ServiceWorkerRegistration";
 import OnboardingTour from "@/components/imotara/OnboardingTour";
+import OfflineIndicator from "@/components/imotara/OfflineIndicator";
+import PWAInstallPrompt from "@/components/imotara/PWAInstallPrompt";
+import AppearanceInit from "@/components/imotara/AppearanceInit";
 
 const inter = Inter({ subsets: ["latin"] });
 const siteUrl = (() => {
@@ -152,8 +155,11 @@ export default function RootLayout({
         {/* Global sync bar + local-storage notice overlays */}
         <SyncStatusBar />
         <LocalDataNotice />
+        <AppearanceInit />
         <FirstVisitBanner />
         <OnboardingTour />
+        <OfflineIndicator />
+        <PWAInstallPrompt />
         <ServiceWorkerRegistration />
 
         <JsonLd />

@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Download, Pencil, Check, X } from "lucide-react";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
+import SkeletonLoader from "@/components/imotara/SkeletonLoader";
 
 // ── Storage ──────────────────────────────────────────────────────────────────
 const STORAGE_KEY = "imotara.reflections.v1";
@@ -573,7 +574,12 @@ export default function GrowPage() {
     if (entries.length > 0) showToast("Reflections downloaded ✓");
   }
 
-  if (!mounted) return null;
+  if (!mounted) return (
+    <div className="mx-auto max-w-2xl space-y-4 px-4 py-10">
+      <SkeletonLoader rows={1} variant="card" />
+      <SkeletonLoader rows={3} variant="list" />
+    </div>
+  );
 
   const todayEntries = entries.filter(
     (e) => new Date(e.createdAt).toDateString() === new Date().toDateString(),

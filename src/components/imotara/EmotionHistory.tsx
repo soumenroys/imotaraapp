@@ -57,6 +57,7 @@ const EMOJI: Record<string, string> = {
   surprise: "😲",
   lonely: "🥺",
   isolation: "🥺",
+  gratitude: "🙏",
   mixed: "😶‍🌫️",
   neutral: "😐",
 };
@@ -78,6 +79,7 @@ const LABEL: Record<string, string> = {
   surprise: "Surprise",
   lonely: "Lonely",
   isolation: "Lonely",
+  gratitude: "Gratitude",
   mixed: "Mixed",
   neutral: "Neutral",
 };
@@ -237,6 +239,9 @@ export default function EmotionHistory() {
   );
   const [undoLabel, setUndoLabel] = useState<string | null>(null);
   const undoTimerRef = useRef<number | null>(null);
+
+  // ⬇️ Date-window filter: "all" | "7d" | "30d"
+  const [dateWindow, setDateWindow] = useState<"all" | "7d" | "30d">("all");
 
   // ⬇️ NEW: session-aware filter (from chat sessions)
   const searchParams = useSearchParams();
@@ -1096,11 +1101,31 @@ export default function EmotionHistory() {
   // whose sessionId contains that text (case-insensitive).
   const filteredItems = useMemo(() => {
     const q = sessionFilter.trim().toLowerCase();
-    if (!q) return visibleItems;
-    return visibleItems.filter((r) =>
-      (r.sessionId ?? "").toLowerCase().includes(q),
-    );
-  }, [visibleItems, sessionFilter]);
+    const now = Date.now();
+    const cutoff =
+      dateWindow === "7d"
+        ? now - 7 * 24 * 60 * 60 * 1000
+        : dateWindow === "30d"
+          ? now - 30 * 24 * 60 * 60 * 1000
+          : 0;
+
+    return visibleItems.filter((r) => {
+      if (cutoff > 0) {
+        const ts = r.createdAt ?? r.updatedAt ?? 0;
+        if (ts < cutoff) return false;
+      }
+      if (q) return (r.sessionId ?? "").toLowerCase().includes(q);
+      return true;
+    });
+  }, [visibleItems, sessionFilter, dateWindow]);
+
+  // When a date window is active, recompute summary over filtered items so
+  // the sparkline and stats reflect the selected window.
+  const windowedSummary = useMemo(() => {
+    if (dateWindow === "all") return summary;
+    const active = filteredItems.filter((r) => !(r as any).deleted);
+    return computeEmotionSummary(active);
+  }, [dateWindow, filteredItems, summary]);
 
   // ⬇️ NEW: collect any safetyNote strings from visible records
   const safetyNotes = useMemo(() => {
@@ -1712,7 +1737,7 @@ export default function EmotionHistory() {
 
       {/* Emotion Summary Card */}
       <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-3 shadow-sm backdrop-blur-md dark:bg-white/5">
-        <EmotionSummaryCard summary={toCardSummary(summary)} />
+        <EmotionSummaryCard summary={toCardSummary(windowedSummary)} />
       </div>
 
       {/* Gentle global safety note (if any record carries safetyNote) */}
@@ -1732,6 +1757,26 @@ export default function EmotionHistory() {
           <EmotionMiniTimeline records={timelineItems} />
         </div>
       )}
+
+      {/* Date window toggle */}
+      <div className="mb-3 flex items-center gap-2 text-xs">
+        <span className="text-zinc-500 dark:text-zinc-400">Show:</span>
+        {(["all", "30d", "7d"] as const).map((w) => (
+          <button
+            key={w}
+            type="button"
+            onClick={() => setDateWindow(w)}
+            className={[
+              "rounded-full border px-3 py-1 transition",
+              dateWindow === w
+                ? "border-indigo-400/60 bg-indigo-500/20 text-indigo-200"
+                : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200",
+            ].join(" ")}
+          >
+            {w === "all" ? "All time" : w === "30d" ? "Last 30 days" : "Last 7 days"}
+          </button>
+        ))}
+      </div>
 
       {/* Simple list of history items */}
       <ul className="space-y-3">
@@ -1969,27 +2014,47 @@ export default function EmotionHistory() {
 
         {/* Global empty-state (no history at all) */}
         {visibleItems.length === 0 && (
-          <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center text-zinc-700 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-white/5 dark:text-zinc-300">
-            <div>No history yet.</div>
-            <button
-              onClick={addDemo}
-              className="mt-3 inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-zinc-900 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
-              title="Insert one neutral sample entry"
+          <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-8 text-center shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-white/5">
+            <div className="text-2xl">🌱</div>
+            <div className="mt-3 text-sm font-medium text-zinc-200">Your emotion journal is empty</div>
+            <p className="mt-1 max-w-xs mx-auto text-xs text-zinc-500">
+              Start a chat — each message you send gets gently analysed and recorded here so you can see patterns over time.
+            </p>
+            <a
+              href="/chat"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-sky-400 px-4 py-2 text-xs font-medium text-black shadow transition hover:brightness-110"
             >
-              Add a sample entry
-            </button>
-            <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-              or{" "}
-              <a
-                href="/dev/seed"
-                className="underline underline-offset-2 hover:no-underline"
-                title="Open the developer seeding page"
+              Open Chat →
+            </a>
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <button
+                onClick={addDemo}
+                className="text-[11px] text-zinc-600 underline underline-offset-2 hover:text-zinc-300 transition"
+                title="Insert one neutral sample entry"
               >
-                seed demo data
-              </a>
+                Add a sample entry
+              </button>
             </div>
           </li>
         )}
+
+        {/* Date-window empty-state: history exists but none in this window */}
+        {visibleItems.length > 0 &&
+          dateWindow !== "all" &&
+          filteredItems.length === 0 &&
+          !sessionFilter.trim() && (
+            <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-white/5">
+              <div className="text-sm text-zinc-300">
+                No entries in the last {dateWindow === "7d" ? "7" : "30"} days.
+              </div>
+              <button
+                onClick={() => setDateWindow("all")}
+                className="mt-2 text-xs text-sky-400 underline underline-offset-2 hover:text-sky-200 transition"
+              >
+                Show all time
+              </button>
+            </li>
+          )}
 
         {/* Filtered empty-state: there is history, but none for this session filter */}
         {visibleItems.length > 0 &&

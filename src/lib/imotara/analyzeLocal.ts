@@ -44,6 +44,11 @@ const LEXICON: Record<Emotion, string[]> = {
     "stressed", "stress", "overwhelmed", "overwhelm", "burnt out", "burned out",
     "😟", "😬", "🫠", "😰", "😨", "😥",
   ],
+  gratitude: [
+    "grateful", "gratitude", "thankful", "thank you", "thanks", "blessed", "appreciate",
+    "appreciating", "appreciation", "so thankful", "means a lot",
+    "🙏", "💚", "🫶",
+  ],
   neutral: [
     "😐", "😑", "🫤",
   ],
@@ -52,6 +57,7 @@ const LEXICON: Record<Emotion, string[]> = {
 // Polarity weights for a quick -1..1 estimate
 const POLARITY_WEIGHT: Record<Emotion, number> = {
   joy: +1,
+  gratitude: +0.9,
   surprise: 0.1,
   neutral: 0,
   sadness: -1,

@@ -78,13 +78,25 @@ export default function EmotionFilterBar({
               type="date"
               className="rounded-xl border border-zinc-300 bg-white p-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
               value={from ?? ""}
-              onChange={(e) => onFromChange(e.target.value || undefined)}
+              max={to ?? ""}
+              aria-label="From date"
+              onChange={(e) => {
+                const val = e.target.value || undefined;
+                if (val && to && val > to) return; // prevent from > to
+                onFromChange(val);
+              }}
             />
             <input
               type="date"
               className="rounded-xl border border-zinc-300 bg-white p-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
               value={to ?? ""}
-              onChange={(e) => onToChange(e.target.value || undefined)}
+              min={from ?? ""}
+              aria-label="To date"
+              onChange={(e) => {
+                const val = e.target.value || undefined;
+                if (val && from && val < from) return; // prevent to < from
+                onToChange(val);
+              }}
             />
           </div>
         </div>

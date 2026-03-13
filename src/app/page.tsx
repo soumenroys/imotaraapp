@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { isWithinLaunchOffer, getLaunchOfferEndsAt } from "@/lib/imotara/license";
 
 function IconChat(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -83,6 +84,10 @@ function IconChevron(props: React.SVGProps<SVGSVGElement>) {
 export default function Home() {
   // First-visit pulse on the Basics tile (only once per browser)
   const [pulseBasics, setPulseBasics] = useState(false);
+  const [launchBanner, setLaunchBanner] = useState<{ show: boolean; endsAt: string | null }>({
+    show: false,
+    endsAt: null,
+  });
 
   useEffect(() => {
     try {
@@ -96,6 +101,18 @@ export default function Home() {
       }
     } catch {
       // ignore (private mode / storage blocked)
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isWithinLaunchOffer()) {
+      const endsAt = getLaunchOfferEndsAt();
+      setLaunchBanner({
+        show: true,
+        endsAt: endsAt
+          ? endsAt.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
+          : null,
+      });
     }
   }, []);
 
@@ -150,8 +167,31 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Launch offer banner — client-rendered only */}
+        {launchBanner.show && (
+          <div className="flex items-start gap-3 rounded-2xl border border-indigo-400/30 bg-indigo-500/10 px-5 py-4 backdrop-blur-sm">
+            <span className="mt-0.5 text-lg leading-none">🎁</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-indigo-200">
+                Launch offer — full access is free right now
+              </p>
+              <p className="mt-0.5 text-xs text-indigo-300/80">
+                All features unlocked for every user
+                {launchBanner.endsAt ? ` until ${launchBanner.endsAt}` : ""}.
+                No account needed.
+              </p>
+            </div>
+            <Link
+              href="/settings"
+              className="shrink-0 rounded-full border border-indigo-400/30 bg-indigo-500/20 px-3 py-1 text-[11px] font-medium text-indigo-200 transition hover:bg-indigo-500/30"
+            >
+              Details
+            </Link>
+          </div>
+        )}
+
         {/* Secondary feature strip */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="imotara-glass-soft p-4">
             <h2 className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
               <span>Chat</span>
@@ -196,6 +236,22 @@ export default function Home() {
               Analysis mode is shared between Chat and History, so your choice
               applies everywhere.
             </p>
+          </div>
+
+          <div className="imotara-glass-soft p-4">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+              Grow
+            </h2>
+            <p className="mt-2 text-sm text-zinc-300">
+              Daily reflection prompts that gently guide you to notice patterns,
+              celebrate small wins, and grow with intention.
+            </p>
+            <Link
+              href="/grow"
+              className="mt-3 inline-block text-[11px] font-medium text-violet-300 underline-offset-2 hover:underline"
+            >
+              Open Grow →
+            </Link>
           </div>
         </div>
 

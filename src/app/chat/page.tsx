@@ -19,7 +19,12 @@ import {
   Download,
   Eraser,
   RefreshCw,
+  Mic,
+  MicOff,
+  Search,
+  X as XIcon,
 } from "lucide-react";
+import Toast, { type ToastType } from "@/components/imotara/Toast";
 import MoodSummaryCard from "@/components/imotara/MoodSummaryCard";
 import type { AppMessage } from "@/lib/imotara/useAnalysis";
 import { syncHistory } from "@/lib/imotara/syncHistoryAdapter";
@@ -43,9 +48,11 @@ import { buildLocalReply } from "@/lib/ai/local/localReplyEngine";
 import {
   getImotaraProfile,
   isCompanionContextEnabled,
+  type ImotaraProfileV1,
 } from "@/lib/imotara/profile";
-import { deriveResponseToneFromToneContext } from "@/lib/imotara/promptProfile";
+import { deriveResponseToneFromToneContext, buildEmotionMemorySummary } from "@/lib/imotara/promptProfile";
 import { debugDetectEmotion } from "@/lib/emotion/keywordMaps";
+import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 
 type Role = "user" | "assistant" | "system";
 type DebugEmotionSource = "analysis" | "fallback" | "unknown";
@@ -407,6 +414,142 @@ function isAppMessage(m: Message): m is AppMessage {
   return m.role === "user" || m.role === "assistant";
 }
 
+// #20: Tiered crisis detection — English
+const CRISIS_TIER2_RE =
+  /\b(suicide|suicidal|end my life|end it all|kill myself|don't want to (be here|live|exist)|can't go on|no reason to live|want to die|hurt myself|self.?harm|cut myself|overdose)\b/i;
+const CRISIS_TIER1_RE =
+  /\b(hopeless|helpless|worthless|nothing matters|give up|can't take (it|this) anymore|breaking down|falling apart|no one cares|all alone|empty inside|numbing|numb(ing)?|disappear)\b/i;
+
+// #20: Indian language crisis signals — Unicode script (hi/mr Devanagari, bn, ta, te, kn, ml, gu, pa)
+const CRISIS_INDIC_TIER2_RE = new RegExp(
+  [
+    // Hindi / Marathi (Devanagari)
+    "मरना चाहता","मरना चाहती","मर जाना","जीना नहीं","आत्महत्या","खुद को नुकसान","जिंदगी खत्म",
+    "मरायचंय","जगायचं नाही","आत्महत्या करायची","मरून जातो","मरून जाते",
+    // Bengali
+    "মরতে চাই","বাঁচতে চাই না","আত্মহত্যা","মরে যেতে চাই","নিজেকে কষ্ট দিতে চাই",
+    // Tamil
+    "வாழ வேண்டாம்","தற்கொலை","இறந்துவிட","சாக வேண்டும்",
+    // Telugu
+    "చనిపోవాలి","ఆత్మహత్య","బతకాలని లేదు","నన్ను నేను హాని",
+    // Kannada
+    "ಸಾಯಬೇಕು","ಆತ್ಮಹತ್ಯೆ","ಬದುಕಬೇಕಾಗಿಲ್ಲ",
+    // Malayalam
+    "മരിക്കണം","ആത്മഹത്യ","ജീവിക്കണ്ട","ജീവിതം വേണ്ട",
+    // Gujarati
+    "મરવું છે","આત્મહત્યા","જીવવું નથી",
+    // Punjabi (Gurmukhi)
+    "ਮਰਨਾ ਚਾਹੁੰਦਾ","ਆਤਮਹੱਤਿਆ","ਜਿਉਣਾ ਨਹੀਂ",
+  ].join("|"),
+);
+
+// #20: Indian language crisis signals — romanised (very common in Indian chat)
+const CRISIS_ROMAN_INDIC_TIER2_RE =
+  /marna\s+chah|mar\s+jaana|mar\s+jaun|jeena\s+nahi|zindagi\s+khatam|khud\s+ko\s+hurt|aatmahatya|maraycha|jagaych\s+nahi|morte\s+chai|bachte\s+chai\s+na|atmahatya|chanipovali|saayabeku|marikknam|marikkanam|jeevanam\s+venda|saaga\s+beku/i;
+
+// #20: Indian language tier-1 (distress but not immediate crisis) — Unicode
+const CRISIS_INDIC_TIER1_RE = new RegExp(
+  [
+    // Hindi
+    "उम्मीद नहीं","बेकार हूं","निराश हूं","थक गया","थक गई","कोई परवाह नहीं","सब बेकार है",
+    // Marathi
+    "आशा नाही","निराश आहे","थकलोय","कोणाला काही देणं नाही",
+    // Bengali
+    "আশা নেই","হতাশ","একা","কেউ নেই",
+    // Tamil
+    "நம்பிக்கையில்லை","பயனில்லை","தனிமை","யாரும் இல்லை",
+    // Telugu
+    "ఆశ లేదు","నిరాశగా","ఒంటరిగా","ఎవరూ లేరు",
+    // Kannada
+    "ಆಶೆ ಇಲ್ಲ","ನಿರಾಶೆ","ಒಂಟಿ","ಯಾರೂ ಇಲ್ಲ",
+    // Malayalam
+    "പ്രതീക്ഷ ഇല്ല","നിരാശ","ഒറ്റയ്ക്ക്",
+    // Gujarati
+    "આશા નથી","નિરાશ","એકલા",
+    // Punjabi
+    "ਉਮੀਦ ਨਹੀਂ","ਨਿਰਾਸ਼","ਇਕੱਲਾ",
+  ].join("|"),
+);
+
+// #20: Romanised Indian tier-1
+const CRISIS_ROMAN_INDIC_TIER1_RE =
+  /umeed\s+nahi|bekaar\s+hoon|nirash\s+hoon|thak\s+gay[ao]|koi\s+parwah\s+nahi|asha\s+nahi|hotas\s+hoon|ekla\s+hoon|akela\s+hoon|akeli\s+hoon/i;
+
+// #4: Localized crisis banner texts (EN + 10 Indian languages)
+const CRISIS_BANNER_BY_LANG: Record<string, { tier2: string; tier1: string; link: string }> = {
+  en: { tier2: "It sounds like you may be going through something really heavy right now. You don't have to face this alone —", tier1: "It sounds like things feel really hard right now. I'm listening. If it ever feels like too much,", link: "free crisis support is available 24/7" },
+  hi: { tier2: "लगता है आप इस वक्त कुछ बहुत भारी झेल रहे हैं। आपको यह अकेले नहीं झेलना है —", tier1: "लगता है अभी चीज़ें बहुत कठिन लग रही हैं। मैं सुन रहा/रही हूँ। अगर यह बहुत ज़्यादा लगे,", link: "24/7 सहायता उपलब्ध है" },
+  mr: { tier2: "वाटतंय तुम्ही आत्ता खूप जड काहीतरी सहन करत आहात. हे एकट्याने झेलण्याची गरज नाही —", tier1: "वाटतंय आत्ता सगळं खूप कठीण वाटतंय. मी ऐकतोय. खूप जड झालं तर,", link: "२४/७ मदत उपलब्ध आहे" },
+  bn: { tier2: "মনে হচ্ছে তুমি এখন অনেক ভারী কিছুর মধ্যে দিয়ে যাচ্ছ। তোমাকে একা এটা বহন করতে হবে না —", tier1: "মনে হচ্ছে এখন সবকিছু অনেক কঠিন লাগছে। আমি শুনছি। যদি অনেক বেশি মনে হয়,", link: "২৪/৭ সহায়তা পাওয়া যাচ্ছে" },
+  ta: { tier2: "நீங்கள் இப்போது மிகவும் கடினமான ஒன்றை சந்திக்கிறீர்கள் என்று தெரிகிறது. தனியாக எதிர்கொள்ள வேண்டியதில்லை —", tier1: "இப்போது எல்லாம் மிகவும் கஷ்டமாக உணர்கிறீர்கள் என்று தெரிகிறது. நான் கேட்கிறேன். மிகவும் அதிகமாக இருந்தால்,", link: "24/7 நெருக்கடி ஆதரவு கிடைக்கிறது" },
+  te: { tier2: "మీరు ఇప్పుడు చాలా భారమైన ఏదో అనుభవిస్తున్నారు అనిపిస్తోంది. ఒంటరిగా భరించాల్సిన అవసరం లేదు —", tier1: "ఇప్పుడు అన్నీ చాలా కష్టంగా అనిపిస్తున్నాయి. నేను వింటున్నాను. ఎక్కువగా అనిపిస్తే,", link: "24/7 సహాయం అందుబాటులో ఉంది" },
+  kn: { tier2: "ನೀವು ಈಗ ತುಂಬಾ ಭಾರವಾದ ಏನನ್ನೋ ಅನುಭವಿಸುತ್ತಿದ್ದೀರಿ. ಒಂಟಿಯಾಗಿ ಎದುರಿಸಬೇಕಾಗಿಲ್ಲ —", tier1: "ಈಗ ಎಲ್ಲವೂ ತುಂಬಾ ಕಷ್ಟ ಎನಿಸುತ್ತಿದೆ. ನಾನು ಕೇಳುತ್ತಿದ್ದೇನೆ. ತುಂಬಾ ಜಾಸ್ತಿ ಅನಿಸಿದರೆ,", link: "24/7 ಬೆಂಬಲ ಲಭ್ಯವಿದೆ" },
+  ml: { tier2: "നിങ്ങൾ ഇപ്പോൾ വളരെ ഭാരമേറിയ ഒന്ന് അനുഭവിക്കുന്നുണ്ടെന്ന് തോന്നുന്നു. ഒറ്റയ്ക്ക് ഇതിനെ നേരിടേണ്ടതില്ല —", tier1: "ഇപ്പോൾ എല്ലാം വളരെ കഷ്ടമായി തോന്നുന്നുണ്ടെന്ന് തോന്നുന്നു. ഞാൻ കേൾക്കുന്നു. ഇത് കൂടുതലാകുന്നതായി തോന്നിയാൽ,", link: "24/7 പ്രതിസന്ധി സഹായം ലഭ്യമാണ്" },
+  gu: { tier2: "લાગે છે તમે અત્યારે ઘણું ભારે સહન કરી રહ્યા છો. આ એકલા ઝેલવું ન પડે —", tier1: "લાગે છે અત્યારે બધું ઘણું અઘરું લાગી રહ્યું છે. હું સાંભળું છું. ઘણું વધારે લાગે તો,", link: "24/7 સહાય ઉપલબ્ધ છે" },
+  pa: { tier2: "ਲੱਗਦਾ ਹੈ ਤੁਸੀਂ ਹੁਣ ਕੁਝ ਬਹੁਤ ਭਾਰਾ ਝੱਲ ਰਹੇ ਹੋ। ਇਹ ਇਕੱਲੇ ਝੱਲਣ ਦੀ ਲੋੜ ਨਹੀਂ —", tier1: "ਲੱਗਦਾ ਹੈ ਹੁਣ ਸਭ ਕੁਝ ਬਹੁਤ ਔਖਾ ਲੱਗ ਰਿਹਾ ਹੈ। ਮੈਂ ਸੁਣ ਰਿਹਾ/ਰਹੀ ਹਾਂ। ਜੇ ਬਹੁਤ ਜ਼ਿਆਦਾ ਲੱਗੇ,", link: "24/7 ਸਹਾਇਤਾ ਉਪਲਬਧ ਹੈ" },
+  or: { tier2: "ମନେ ହୁଏ ଆପଣ ଏବେ ବହୁ ଭାରୀ କିଛି ସହୁଛନ୍ତି। ଏହାକୁ ଏକୁଟିଆ ଝେଲିବାର ଦରକାର ନାହିଁ —", tier1: "ମନେ ହୁଏ ଏବେ ସବୁ ବହୁ କଷ୍ଟ ଲାଗୁଛି। ମୁଁ ଶୁଣୁଛି। ଯଦି ଅତ୍ୟଧିକ ଲାଗେ,", link: "24/7 ସଂକଟ ସହାୟତା ଉପଲବ୍ଧ" },
+};
+
+// #11: Composer sentiment seeds — quick-tap mood hint chips
+const SENTIMENT_SEEDS_BY_LANG: Record<string, [string, string, string]> = {
+  en: ["Feeling heavy", "Need to vent", "Just thinking out loud"],
+  hi: ["मन भारी है", "मन की भड़ास निकालनी है", "बस सोच रहा/रही हूँ"],
+  mr: ["मन जड आहे", "मन मोकळं करायचंय", "विचार करतोय/करतेय"],
+  bn: ["মন ভারী", "মনের কথা বলতে চাই", "শুধু ভাবছি"],
+  ta: ["மனம் கனமாக இருக்கிறது", "மனசு காலி செய்யணும்", "யோசிக்கிறேன்"],
+  te: ["మనసు భారంగా ఉంది", "మనసు తేలిక చేసుకోవాలి", "ఆలోచిస్తున్నాను"],
+  kn: ["ಮನಸ್ಸು ಭಾರ", "ಮನಸ್ಸು ಹಗುರ ಮಾಡಬೇಕು", "ಯೋಚಿಸುತ್ತಿದ್ದೇನೆ"],
+  ml: ["മനസ്സ് ഭാരം", "മനസ്സ് ഒഴിക്കണം", "ആലോചിക്കുന്നു"],
+  gu: ["મન ભારે છે", "મન ઠાળવવું છે", "વિચારી રહ્યો/રહી છું"],
+  pa: ["ਮਨ ਭਾਰਾ ਹੈ", "ਮਨ ਹੌਲਾ ਕਰਨਾ ਹੈ", "ਸੋਚ ਰਿਹਾ/ਰਹੀ ਹਾਂ"],
+  or: ["ମନ ଭାରୀ ଅଛି", "ମନ ହାଲୁକା କରିବାକୁ ଚାହୁଁଛି", "ଭାବୁଛି"],
+};
+
+// #6: Weekly mood recap text — localised
+function getWeeklyRecapText(topEmotion: string, count: number, lang: string): string {
+  const RECAP: Record<string, (e: string, c: number) => string> = {
+    en: (e, c) => `Last 7 days: "${e}" was your most frequent feeling (${c} times). Want to reflect on what's been driving it?`,
+    hi: (e, c) => `पिछले 7 दिन: "${e}" सबसे ज़्यादा महसूस हुआ (${c} बार)। इसके पीछे क्या है, सोचना चाहेंगे?`,
+    mr: (e, c) => `गेले 7 दिवस: "${e}" सर्वाधिक जाणवलं (${c} वेळा). यामागे काय आहे यावर विचार करायचा आहे का?`,
+    bn: (e, c) => `গত ৭ দিন: "${e}" সবচেয়ে বেশি অনুভব হয়েছে (${c} বার)। এর পেছনে কী আছে ভাবতে চাও?`,
+    ta: (e, c) => `கடந்த 7 நாட்கள்: "${e}" அதிகமாக உணர்ந்தீர்கள் (${c} முறை). இதற்கு பின்னால் என்ன என்று சிந்திக்க விரும்புகிறீர்களா?`,
+    te: (e, c) => `గత 7 రోజులు: "${e}" అత్యధికంగా అనిపించింది (${c} సార్లు). దీని వెనక ఏముందో ఆలోచించాలనుకుంటున్నారా?`,
+    kn: (e, c) => `ಕಳೆದ 7 ದಿನಗಳು: "${e}" ಅತ್ಯಧಿಕ ಅನಿಸಿತು (${c} ಬಾರಿ). ಇದರ ಹಿಂದೆ ಏನಿದೆ ಎಂದು ಯೋಚಿಸಬೇಕಾ?`,
+    ml: (e, c) => `കഴിഞ്ഞ 7 ദിവസം: "${e}" ഏറ്റവും കൂടുതൽ (${c} തവണ). ഇതിന് പിന്നിൽ എന്തുണ്ടെന്ന് ചിന്തിക്കാൻ ആഗ്രഹിക്കുന്നോ?`,
+    gu: (e, c) => `છેલ્લા 7 દિવસ: "${e}" સૌથી વધુ (${c} વખત). આ પાછળ શું છે, વિચારવું છે?`,
+    pa: (e, c) => `ਪਿਛਲੇ 7 ਦਿਨ: "${e}" ਸਭ ਤੋਂ ਵੱਧ (${c} ਵਾਰ). ਇਸ ਪਿੱਛੇ ਕੀ ਹੈ, ਸੋਚਣਾ ਚਾਹੋਗੇ?`,
+    or: (e, c) => `ଗତ 7 ଦିନ: "${e}" ସବୁଠୁ ଅଧିକ (${c} ଥର). ଏହା ପଛରେ କ'ଣ ଅଛି ଭାବିବାକୁ ଚାହୁଁଛନ୍ତି?`,
+  };
+  return (RECAP[lang] ?? RECAP.en)(topEmotion, count);
+}
+
+type CrisisTier = 0 | 1 | 2;
+
+function detectCrisisTier(messages: Message[]): CrisisTier {
+  const recentUser = messages
+    .filter((m) => m.role === "user")
+    .slice(-4)
+    .map((m) => m.content ?? "");
+
+  for (const text of recentUser) {
+    if (
+      CRISIS_TIER2_RE.test(text) ||
+      CRISIS_INDIC_TIER2_RE.test(text) ||
+      CRISIS_ROMAN_INDIC_TIER2_RE.test(text)
+    ) return 2;
+  }
+
+  const tier1Count = recentUser.filter(
+    (t) =>
+      CRISIS_TIER1_RE.test(t) ||
+      CRISIS_INDIC_TIER1_RE.test(t) ||
+      CRISIS_ROMAN_INDIC_TIER1_RE.test(t),
+  ).length;
+  if (tier1Count >= 2) return 2;
+  if (tier1Count >= 1) return 1;
+  return 0;
+}
+
 /**
  * Fetch remote history for sync.
  * Supports:
@@ -624,6 +767,35 @@ export default function ChatPage() {
   // 🔒 Idempotency guard: prevent duplicate analysis calls for the same last-user message
   const lastAnalysisKeyRef = useRef<string | null>(null);
 
+  // #3: Track which thread IDs have already received a re-entry message this session
+  const reentryShownRef = useRef<Set<string>>(new Set());
+
+  // #18: Message undo — pending reply timer + undo state
+  const [pendingUndo, setPendingUndo] = useState<{ messageId: string; threadId: string } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // #19: Voice input
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  // #10: Message reactions — local emoji stamps (messageId → emoji)
+  const [reactions, setReactions] = useState<Record<string, string>>({});
+  // #8: Grow nudge dismissed flag
+  const [growNudgeDismissed, setGrowNudgeDismissed] = useState(false);
+  // #6: Weekly recap text (computed once on mount)
+  const [weeklyRecap, setWeeklyRecap] = useState<string | null>(null);
+  const [weeklyRecapDismissed, setWeeklyRecapDismissed] = useState(false);
+
+  // Search
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Soft clear confirm (replaces window.confirm)
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // Toast
+  const [chatToast, setChatToast] = useState<{ message: string; type?: ToastType } | null>(null);
+
   const [syncing, setSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const [syncedCount, setSyncedCount] = useState<number | null>(null);
@@ -635,6 +807,26 @@ export default function ChatPage() {
   // ✅ NEW: header details toggle (collapses long header content by default)
   const [showHeaderDetails, setShowHeaderDetails] = useState(false);
 
+  // Reactive companion name — shown in chat header, updates when profile changes
+  const [companionDisplayName, setCompanionDisplayName] = useState<string | null>(null);
+  // SSR-safe preferred language — always "en" on server, real value after mount
+  const [preferredLang, setPreferredLang] = useState<string>("en");
+  useEffect(() => {
+    function syncName(p?: ImotaraProfileV1 | null) {
+      const c = p?.companion;
+      if (c?.enabled && c.name?.trim()) {
+        setCompanionDisplayName(c.name.trim());
+      } else {
+        setCompanionDisplayName(null);
+      }
+      setPreferredLang(p?.user?.preferredLang ?? "en");
+    }
+    syncName(getImotaraProfile());
+    const handler = (e: Event) => syncName((e as CustomEvent).detail as ImotaraProfileV1 | null);
+    window.addEventListener("imotara:profile-updated", handler);
+    return () => window.removeEventListener("imotara:profile-updated", handler);
+  }, []);
+
   const { mode } = useAnalysisConsent();
   const remoteAllowed = mode === "allow-remote";
   const consentLabel =
@@ -644,6 +836,43 @@ export default function ChatPage() {
   const [composerPlaceholder, setComposerPlaceholder] = useState(
     "Write what’s on your mind… (Enter to send, Shift+Enter for newline)",
   );
+
+  // #10: Load reactions from localStorage on mount
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      const raw = localStorage.getItem("imotara.reactions.v1");
+      if (raw) setReactions(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, [mounted]);
+
+  // #10: Persist reactions whenever they change
+  useEffect(() => {
+    if (!mounted) return;
+    try { localStorage.setItem("imotara.reactions.v1", JSON.stringify(reactions)); } catch { /* ignore */ }
+  }, [mounted, reactions]);
+
+  // #6: Compute weekly mood recap on mount
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      const raw = localStorage.getItem("imotara:history:v1");
+      if (!raw) return;
+      const all = JSON.parse(raw) as any[];
+      if (!Array.isArray(all)) return;
+      const now = Date.now();
+      const weekMs = 7 * 86_400_000;
+      const thisWeek = all.filter(
+        (r) => !r.deleted && r.createdAt >= now - weekMs && r.emotion && r.emotion !== "neutral",
+      );
+      if (thisWeek.length < 5) return;
+      const freq: Record<string, number> = {};
+      for (const r of thisWeek) freq[r.emotion] = (freq[r.emotion] ?? 0) + 1;
+      const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
+      const lang = getImotaraProfile()?.user?.preferredLang ?? "en";
+      setWeeklyRecap(getWeeklyRecapText(top[0], top[1], lang));
+    } catch { /* ignore */ }
+  }, [mounted]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -812,6 +1041,12 @@ export default function ChatPage() {
     return msgs.filter(isAppMessage);
   }, [activeThread?.messages]);
 
+  // #20: Tiered crisis detection — recompute whenever messages change
+  const crisisTier = useMemo(
+    () => detectCrisisTier(activeThread?.messages ?? []),
+    [activeThread?.messages],
+  );
+
   // analysis side-effect (AnalysisResult stays on analysis pipeline)
   useEffect(() => {
     if (!mounted) return;
@@ -867,6 +1102,137 @@ export default function ChatPage() {
     if (listRef.current)
       listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [mounted, activeThread?.messages?.length]);
+
+  // #3: Session continuity — soft re-entry message when returning after ≥1 hour
+  useEffect(() => {
+    if (!mounted) return;
+    if (!activeThread) return;
+    if (reentryShownRef.current.has(activeThread.id)) return;
+
+    const msgs = activeThread.messages;
+    if (msgs.length < 2) return; // too few messages to be a real returning session
+
+    const lastMsg = msgs[msgs.length - 1];
+    if (lastMsg?.role !== "assistant") return; // user left mid-reply — don't interrupt
+
+    const elapsedMs = Date.now() - (lastMsg.createdAt ?? 0);
+    const hourMs = 3_600_000;
+    if (elapsedMs < hourMs) return; // same-hour session — no re-entry needed
+
+    reentryShownRef.current.add(activeThread.id);
+
+    const profile = getImotaraProfile();
+    const firstName = profile?.user?.name?.trim().split(/\s+/)[0] ?? "";
+    const lang = (profile?.user?.preferredLang ?? "en") as string;
+
+    // #3: Language-aware re-entry messages
+    // Slot 0 = short gap (<6h), 1 = next-day, 2 = within week, 3 = longer
+    type ReentrySet = [string, string, string, string];
+    const REENTRY: Record<string, ReentrySet> = {
+      hi: [
+        "{name}वापस आ गए। मैं यहाँ हूँ — कोई जल्दी नहीं।",
+        "{name}अच्छा लगा वापस देखकर। जहाँ छोड़ा था वहाँ से शुरू करें, या कुछ नया।",
+        "थोड़ा वक्त हो गया था। वापसी पर स्वागत है — जब भी तैयार हों।",
+        "काफी वक्त बाद आए। वापसी पर स्वागत है। अपना समय लें — मैं सुन रहा/रही हूँ।",
+      ],
+      mr: [
+        "{name}परत आलात. मी इथेच आहे — घाई नाही.",
+        "{name}परत भेटून बरं वाटलं. जिथे सोडलं होतं तिथून सुरू करू, किंवा नवीन काही.",
+        "थोडा वेळ गेला होता. स्वागत आहे — तयार असाल तेव्हा बोला.",
+        "बराच वेळ झाला होता. परत आलात, बरं वाटलं. वेळ घ्या — मी ऐकतोय.",
+      ],
+      bn: [
+        "{name}ফিরে এলে। আমি এখানেই আছি — তাড়া নেই।",
+        "{name}আবার দেখে ভালো লাগলো। যেখানে ছিলে সেখান থেকে শুরু করো, বা নতুন কিছু।",
+        "একটু সময় হয়ে গিয়েছিল। স্বাগতম — যখন প্রস্তুত থাকবে বলো।",
+        "অনেক দিন পরে এলে। স্বাগতম। সময় নাও — আমি শুনছি।",
+      ],
+      ta: [
+        "{name}திரும்பி வந்தீர்கள். நான் இங்கே இருக்கிறேன் — அவசரமில்லை।",
+        "{name}மீண்டும் வந்தது மகிழ்ச்சி. நிறுத்தினதிலிருந்து தொடரலாம் அல்லது புதிதாக துவங்கலாம்.",
+        "சிறிது நேரம் ஆனது. வரவேற்கிறேன் — தயாரானதும் பேசுங்கள்.",
+        "நீண்ட நாளாகிவிட்டது. வரவேற்கிறேன். நேரம் எடுங்கள் — கேட்கிறேன்.",
+      ],
+      te: [
+        "{name}తిరిగి వచ్చారు. నేను ఇక్కడే ఉన్నాను — తొందర లేదు।",
+        "{name}మళ్ళీ కలిశారు, చాలా సంతోషం. ఆగిన చోటి నుండి మొదలుపెట్టవచ్చు లేదా కొత్తగా.",
+        "కొంచెం సమయం అయింది. స్వాగతం — మీరు సిద్ధంగా ఉన్నప్పుడు మాట్లాడండి.",
+        "చాలా రోజులయింది. స్వాగతం. సమయం తీసుకోండి — వింటున్నాను.",
+      ],
+      kn: [
+        "{name}ಮರಳಿ ಬಂದಿರಿ. ನಾನು ಇಲ್ಲಿದ್ದೇನೆ — ಅವಸರವಿಲ್ಲ.",
+        "{name}ಮತ್ತೆ ಭೇಟಿ ಸಂತೋಷ. ನಿಲ್ಲಿಸಿದ ಕಡೆಯಿಂದ ಮುಂದುವರಿಯೋಣ ಅಥವಾ ಹೊಸದಾಗಿ.",
+        "ಸ್ವಲ್ಪ ಸಮಯ ಆಯಿತು. ಸ್ವಾಗತ — ತಯಾರಾದಾಗ ಹೇಳಿ.",
+        "ತುಂಬಾ ದಿನಗಳಾಯಿತು. ಸ್ವಾಗತ. ಸಮಯ ತೆಗೆದುಕೊಳ್ಳಿ — ಕೇಳುತ್ತಿದ್ದೇನೆ.",
+      ],
+      ml: [
+        "{name}തിരിച്ചെത്തി. ഞാൻ ഇവിടെ ഉണ്ട് — ധൃതി വേണ്ട.",
+        "{name}വീണ്ടും കണ്ടതിൽ സന്തോഷം. നിർത്തിയ ഇടത്തു നിന്ന് തുടരാം അല്ലെങ്കിൽ പുതുതായി.",
+        "കുറച്ചു സമയം ആയി. സ്വാഗതം — തയ്യാറാകുമ്പോൾ പറയൂ.",
+        "വളരെ നാളായി. സ്വാഗതം. സമയം എടുക്കൂ — ഞാൻ കേൾക്കുന്നു.",
+      ],
+      gu: [
+        "{name}પાછા આવ્યા. હું અહીં છું — કોઈ ઉતાવળ નથી.",
+        "{name}ફરી મળ્યા, ખૂબ ખુશી. જ્યાં છોડ્યું ત્યાંથી શરૂ કરીએ અથવા નવું.",
+        "થોડો સમય થઈ ગયો. સ્વાગત — તૈયાર હો ત્યારે જણાવો.",
+        "ઘણો સમય થઈ ગયો. સ્વાગત. સમય લો — સાંભળું છું.",
+      ],
+      pa: [
+        "{name}ਵਾਪਸ ਆ ਗਏ। ਮੈਂ ਇੱਥੇ ਹਾਂ — ਕੋਈ ਕਾਹਲੀ ਨਹੀਂ।",
+        "{name}ਫਿਰ ਮਿਲ ਕੇ ਚੰਗਾ ਲੱਗਾ। ਜਿੱਥੇ ਛੱਡਿਆ ਸੀ ਉੱਥੋਂ ਸ਼ੁਰੂ ਕਰੀਏ ਜਾਂ ਕੁਝ ਨਵਾਂ।",
+        "ਥੋੜਾ ਸਮਾਂ ਹੋ ਗਿਆ। ਜੀ ਆਇਆਂ — ਜਦੋਂ ਤਿਆਰ ਹੋਵੋ ਦੱਸੋ।",
+        "ਕਾਫ਼ੀ ਸਮਾਂ ਹੋ ਗਿਆ। ਜੀ ਆਇਆਂ। ਸਮਾਂ ਲਓ — ਸੁਣ ਰਿਹਾ ਹਾਂ।",
+      ],
+      or: [
+        "{name}ଫେରିଆସିଲ। ମୁଁ ଏଠି ଅଛି — ଅସୁବିଧା ନାହିଁ।",
+        "{name}ପୁଣି ଦେଖି ଭଲ ଲାଗିଲା। ଯେଉଁଠି ଛାଡ଼ିଥିଲ ସେଠୁ ଆରମ୍ଭ କରିବା।",
+        "ଟିକେ ସମୟ ହୋଇଗଲା। ସ୍ୱାଗତ — ପ୍ରସ୍ତୁତ ହେଲେ କୁହ।",
+        "ବହୁ ସମୟ ହୋଇଗଲା। ସ୍ୱାଗତ। ସମୟ ନିଅ — ଶୁଣୁଛି।",
+      ],
+    };
+
+    const dayMs = 86_400_000;
+    const slotIndex =
+      elapsedMs < 6 * hourMs ? 0 :
+      elapsedMs < 2 * dayMs ? 1 :
+      elapsedMs < 7 * dayMs ? 2 : 3;
+
+    const nameToken = firstName ? `${firstName}, ` : "";
+    const set = REENTRY[lang] ?? null;
+    let reentryText: string;
+
+    if (set) {
+      reentryText = set[slotIndex].replace("{name}", nameToken);
+    } else {
+      // English fallback
+      const EN: ReentrySet = [
+        `${nameToken}you're back. I'm still here — no rush.`,
+        `${nameToken}good to have you back. We can pick up where we left off, or start something new.`,
+        "It's been a little while. Welcome back — I'm here whenever you're ready.",
+        "It's been a while. Welcome back. Take your time — I'm listening.",
+      ];
+      reentryText = EN[slotIndex];
+    }
+
+    // Capitalise first letter (for English fallback)
+    reentryText = reentryText.charAt(0).toUpperCase() + reentryText.slice(1);
+
+    const reentryMsg: Message = {
+      id: uid(),
+      role: "assistant",
+      content: reentryText,
+      createdAt: Date.now(),
+      sessionId: activeThread.id,
+    };
+
+    setThreads((prev) =>
+      prev.map((t) =>
+        t.id === activeThread.id
+          ? { ...t, messages: [...t.messages, reentryMsg] }
+          : t,
+      ),
+    );
+  }, [mounted, activeThread]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -1104,6 +1470,32 @@ export default function ChatPage() {
     }
     lastReplyKeyRef.current = replyKey;
 
+    // ── Adult content safety gate ─────────────────────────────────────────
+    const lastUserText = msgsForAnalysis[msgsForAnalysis.length - 1]?.content ?? "";
+    if (detectAdultContent(lastUserText)) {
+      const profile = getImotaraProfile();
+      const lang = profile?.user?.preferredLang ?? "en";
+      const userAge = profile?.user?.ageRange ?? undefined;
+      const safetyMsg: Message = {
+        id: uid(),
+        role: "assistant",
+        content: buildAdultSafetyRefusal(lang, userAge),
+        createdAt: Date.now(),
+        sessionId: threadId,
+        replySource: "fallback",
+      };
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.id === threadId
+            ? { ...t, messages: [...t.messages, safetyMsg] }
+            : t,
+        ),
+      );
+      setAnalyzing(false);
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     setAnalyzing(true);
     try {
       let debugEmotion: string | undefined;
@@ -1249,12 +1641,22 @@ export default function ChatPage() {
         const profile = getImotaraProfile();
         const companion = profile?.companion;
 
+        const userAgeForLocal = profile?.user?.ageRange ?? undefined;
+        const userGenderForLocal = profile?.user?.gender ?? undefined;
+        const userNameForLocal = profile?.user?.name?.trim() || undefined;
+        const responseStyleForLocal = profile?.user?.responseStyle ?? undefined; // #16
+
+        // #9: count user turns in this thread so each turn gets a different seed offset
+        const sessionTurn = msgsForAnalysis.filter((m) => m.role === "user").length;
+
         const localToneContext =
           profile && companion && isCompanionContextEnabled(profile)
             ? {
               companion: {
                 name: companion.name?.trim() || "Imotara",
                 relationship: companion.relationship ?? undefined,
+                gender: companion.gender ?? undefined,
+                ageRange: companion.ageRange ?? undefined,
                 tone: deriveResponseToneFromToneContext({
                   companion: {
                     enabled: !!companion.enabled,
@@ -1265,17 +1667,52 @@ export default function ChatPage() {
                   },
                 }),
               },
+              userName: userNameForLocal,
+              userAge: userAgeForLocal,
+              userGender: userGenderForLocal,
+              sessionTurn,
+              preferredResponseStyle: responseStyleForLocal,
             }
-            : undefined;
+            : (userAgeForLocal || userGenderForLocal || userNameForLocal || responseStyleForLocal)
+              ? { userName: userNameForLocal, userAge: userAgeForLocal, userGender: userGenderForLocal, sessionTurn, preferredResponseStyle: responseStyleForLocal }
+              : { sessionTurn };
 
+        // #1: Expand context window — pass last 8 user texts (excluding current) for language smoothing + follow-up memory
         const recentUserTexts = msgsForAnalysis
           .filter((m) => m.role === "user")
           .map((m) => m.content?.trim() ?? "")
           .filter(Boolean)
-          .slice(-3, -1);
+          .slice(-9, -1); // up to 8 prior user turns
+
+        // #1: Also pass recent assistant texts for follow-up memory
+        const recentAssistantTexts = msgsForAnalysis
+          .filter((m) => m.role === "assistant")
+          .map((m) => m.content?.trim() ?? "")
+          .filter(Boolean)
+          .slice(-4);
+
+        // #12: Language smoothing — derive the last detected language from recent user messages
+        const lastDetectedLanguage = recentUserTexts.length > 0
+          ? (() => {
+              const last = recentUserTexts[recentUserTexts.length - 1] ?? "";
+              if (/[\u0980-\u09ff]/.test(last)) return "bn";
+              if (/[\u0900-\u097f]/.test(last)) return "hi";
+              if (/[\u0B80-\u0BFF]/.test(last)) return "ta";
+              if (/[\u0C00-\u0C7F]/.test(last)) return "te";
+              if (/[\u0A80-\u0AFF]/.test(last)) return "gu";
+              if (/[\u0A00-\u0A7F]/.test(last)) return "pa";
+              if (/[\u0C80-\u0CFF]/.test(last)) return "kn";
+              if (/[\u0D00-\u0D7F]/.test(last)) return "ml";
+              if (/[\u0B00-\u0B7F]/.test(last)) return "or";
+              return undefined;
+            })()
+          : undefined;
 
         const local = buildLocalReply(userText, localToneContext, {
           recentUserTexts,
+          recentAssistantTexts,
+          lastDetectedLanguage,
+          emotionMemory: buildEmotionMemorySummary(30),
         });
 
         fallbackReply = local.message;
@@ -1441,9 +1878,73 @@ export default function ChatPage() {
     });
 
     void logUserMessageToHistory(userMsg);
-    void generateAssistantReply(targetId, msgsForAnalysis, userMsg.id);
+
+    // #18: 5-second undo window — delay generateAssistantReply
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setPendingUndo({ messageId: userMsg.id, threadId: targetId });
+    undoTimerRef.current = setTimeout(() => {
+      setPendingUndo(null);
+      undoTimerRef.current = null;
+      void generateAssistantReply(targetId!, msgsForAnalysis, userMsg.id);
+    }, 5000);
 
     setDraft("");
+  }
+
+  function toggleVoice() {
+    const SpeechRecognition =
+      typeof window !== "undefined"
+        ? (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
+        : null;
+    if (!SpeechRecognition) return;
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const rec = new SpeechRecognition();
+    rec.continuous = false;
+    rec.interimResults = false;
+    // #19: Set recognition language from user profile, fall back to browser default
+    const LANG_TO_BCP47: Record<string, string> = {
+      hi: "hi-IN", mr: "mr-IN", bn: "bn-IN", ta: "ta-IN",
+      te: "te-IN", kn: "kn-IN", ml: "ml-IN", gu: "gu-IN",
+      pa: "pa-IN", or: "or-IN", en: "en-IN",
+    };
+    const profileLang = getImotaraProfile()?.user?.preferredLang ?? "";
+    rec.lang = LANG_TO_BCP47[profileLang] ?? "";
+    recognitionRef.current = rec;
+
+    rec.onresult = (e: any) => {
+      const transcript: string = e.results[0]?.[0]?.transcript ?? "";
+      if (transcript.trim()) {
+        setDraft((prev) => (prev.trim() ? `${prev} ${transcript.trim()}` : transcript.trim()));
+      }
+    };
+    rec.onerror = () => setIsListening(false);
+    rec.onend = () => setIsListening(false);
+
+    rec.start();
+    setIsListening(true);
+  }
+
+  function handleUndo() {
+    if (!pendingUndo) return;
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+    const { messageId, threadId } = pendingUndo;
+    setPendingUndo(null);
+    setThreads((prev) =>
+      prev.map((t) =>
+        t.id === threadId
+          ? { ...t, messages: t.messages.filter((m) => m.id !== messageId) }
+          : t,
+      ),
+    );
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -1455,26 +1956,48 @@ export default function ChatPage() {
 
   function clearChat() {
     if (!activeThread) return;
-    if (!confirm("Clear all messages in this conversation?")) return;
+    setShowClearConfirm(true);
+  }
+
+  function confirmClear() {
+    if (!activeThread) return;
+    setShowClearConfirm(false);
     setThreads((prev) =>
       prev.map((t) => (t.id === activeThread.id ? { ...t, messages: [] } : t)),
     );
+    setChatToast({ message: "Conversation cleared", type: "info" });
   }
 
+  // #22 + #23: Full data export — chat + reflections + history + profile
   function exportJSON() {
-    const blob = new Blob([JSON.stringify({ threads }, null, 2)], {
+    const safeRead = (key: string) => {
+      try { return JSON.parse(window.localStorage.getItem(key) ?? "null"); } catch { return null; }
+    };
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      version: "1.0",
+      chat: { threads },
+      reflections: safeRead("imotara.reflections.v1") ?? [],
+      emotionHistory: safeRead("imotara:history:v1") ?? safeRead("imotara.history.v1") ?? [],
+      profile: safeRead("imotara.profile.v1") ?? null,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `imotara_chat_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `imotara_export_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    setChatToast({ message: "Export downloaded ✓" });
   }
 
   return (
     <>
+      {chatToast && (
+        <Toast message={chatToast.message} type={chatToast.type} onDismiss={() => setChatToast(null)} />
+      )}
       <div className="mx-auto w-full max-w-7xl px-3 pt-3 sm:px-4">
         <TopBar title="Chat" showSyncChip showConflictsButton />
       </div>
@@ -1582,6 +2105,12 @@ export default function ChatPage() {
                         </span>
                       </p>
                       <p className="text-[11px] text-zinc-400 sm:hidden">
+                        {companionDisplayName ? (
+                          <>
+                            <span className="text-zinc-300">{companionDisplayName}</span>
+                            <span className="text-zinc-500"> · </span>
+                          </>
+                        ) : null}
                         A calm space to talk about your feelings.
                         <span className="text-zinc-500"> · </span>
                         Local-first by default.
@@ -1593,6 +2122,9 @@ export default function ChatPage() {
                           className={`text-sm text-zinc-400 ${showHeaderDetails ? "mb-3" : "mb-1"
                             }`}
                         >
+                          {companionDisplayName ? (
+                            <><span className="font-medium text-zinc-300">{companionDisplayName}</span> · </>
+                          ) : null}
                           A calm space to talk about your feelings. Analysis and
                           replies respect your consent settings.
                         </p>
@@ -1711,23 +2243,30 @@ export default function ChatPage() {
                     </p>
 
                     {/* Show/Hide details toggle — fixed width */}
-                    <button
-                      onClick={() => setShowHeaderDetails((v) => !v)}
-                      className={[
-                        "inline-flex h-7 w-full max-w-[320px] items-center justify-center",
-                        "rounded-full border border-white/15 bg-white/5 px-3 text-xs text-white/90 backdrop-blur-sm",
-                        "transition duration-150 hover:bg-white/10",
-                      ].join(" ")}
-                      type="button"
-                      aria-expanded={showHeaderDetails}
-                      aria-label={
-                        showHeaderDetails
-                          ? "Hide header details"
-                          : "Show header details"
-                      }
-                    >
-                      {showHeaderDetails ? "Hide details" : "Show details"}
-                    </button>
+                    <div className="flex w-full max-w-[320px] items-center gap-1.5">
+                      <button
+                        onClick={() => setShowHeaderDetails((v) => !v)}
+                        className="inline-flex h-7 flex-1 items-center justify-center rounded-full border border-white/15 bg-white/5 px-3 text-xs text-white/90 backdrop-blur-sm transition duration-150 hover:bg-white/10"
+                        type="button"
+                        aria-expanded={showHeaderDetails}
+                        aria-label={showHeaderDetails ? "Hide header details" : "Show header details"}
+                      >
+                        {showHeaderDetails ? "Hide details" : "Show details"}
+                      </button>
+                      {/* Search toggle */}
+                      <button
+                        type="button"
+                        onClick={() => { setShowSearch((v) => !v); setSearchQuery(""); }}
+                        title="Search messages"
+                        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition duration-150 ${
+                          showSearch
+                            ? "border-indigo-400/50 bg-indigo-500/20 text-indigo-300"
+                            : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                        }`}
+                      >
+                        <Search className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
 
                     {/* Headline capsule — fixed width + truncate (prevents text spilling above) */}
                     {analysis?.summary?.headline ? (
@@ -1871,14 +2410,36 @@ export default function ChatPage() {
                       Privacy
                     </Link>
 
-                    <button
-                      onClick={clearChat}
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
-                      title="Clear current conversation"
-                      type="button"
-                    >
-                      <Eraser className="h-3 w-3 sm:h-4 sm:w-4" /> Clear
-                    </button>
+                    {showClearConfirm ? (
+                      <div className="w-full rounded-2xl border border-red-400/30 bg-red-950/50 px-3 py-2 text-xs text-red-200">
+                        <p className="mb-2 font-medium">Clear all messages?</p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={confirmClear}
+                            className="rounded-full bg-red-500/80 px-3 py-1 font-medium text-white transition hover:bg-red-500"
+                          >
+                            Clear
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowClearConfirm(false)}
+                            className="rounded-full border border-white/10 px-3 py-1 text-zinc-300 transition hover:bg-white/10"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={clearChat}
+                        className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+                        title="Clear current conversation"
+                        type="button"
+                      >
+                        <Eraser className="h-3 w-3 sm:h-4 sm:w-4" /> Clear
+                      </button>
+                    )}
 
                     <button
                       onClick={exportJSON}
@@ -1917,9 +2478,29 @@ export default function ChatPage() {
                 </div>
               </div>
             ) : !activeThread || activeThread.messages.length === 0 ? (
-              <EmptyState />
+              <EmptyState
+                onChipSelect={(text) => { setDraft(text); }}
+                lang={preferredLang}
+              />
             ) : (
               <div className="mx-auto max-w-3xl space-y-4">
+                {/* #21: Local mode indicator — shown when remote is off */}
+                {!remoteAllowed && (
+                  <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-zinc-400">
+                    <span>
+                      <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-zinc-500 align-middle" />
+                      On-device mode — replies use local templates (no AI).
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowHeaderDetails(true)}
+                      className="shrink-0 text-indigo-400/80 underline underline-offset-2 hover:text-indigo-300 transition"
+                    >
+                      Enable cloud replies
+                    </button>
+                  </div>
+                )}
+
                 <div className="imotara-glass-card p-4">
                   <MoodSummaryCard
                     messages={appMessages}
@@ -1970,7 +2551,35 @@ export default function ChatPage() {
                   </div>
                 ) : null}
 
-                {activeThread.messages.map((m) => (
+                {/* Search bar */}
+                {showSearch && (
+                  <div className="mb-2 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2">
+                    <Search className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+                    <input
+                      autoFocus
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search messages…"
+                      className="flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 outline-none"
+                    />
+                    {searchQuery && (
+                      <button type="button" onClick={() => setSearchQuery("")} className="text-zinc-500 hover:text-zinc-300 transition">
+                        <XIcon className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <button type="button" onClick={() => { setShowSearch(false); setSearchQuery(""); }} className="text-zinc-500 hover:text-zinc-300 transition text-[11px]">
+                      Close
+                    </button>
+                  </div>
+                )}
+
+                {activeThread.messages
+                  .filter((m) =>
+                    !searchQuery.trim() ||
+                    m.content.toLowerCase().includes(searchQuery.toLowerCase()),
+                  )
+                  .map((m) => (
                   <Bubble
                     key={m.id}
                     id={m.id}
@@ -1994,14 +2603,124 @@ export default function ChatPage() {
                     reflectionSeed={m.reflectionSeed}
                     followUp={m.followUp}
                     meta={m.meta}
+                    reaction={reactions[m.id]}
+                    onReact={(emoji) =>
+                      setReactions((prev) => {
+                        const next = { ...prev };
+                        if (next[m.id] === emoji) delete next[m.id]; // toggle off
+                        else next[m.id] = emoji;
+                        return next;
+                      })
+                    }
                   />
                 ))}
+
+                {/* #9: Typing indicator — shows while Imotara is composing a reply */}
+                {analyzing && !pendingUndo && (
+                  <div className="flex justify-start pl-1">
+                    <div className="rounded-2xl border border-indigo-400/30 bg-gradient-to-br from-slate-900/80 to-indigo-950/80 px-4 py-3 text-sm backdrop-blur-md">
+                      <span className="inline-flex items-center gap-1 text-zinc-400">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-400/70 [animation-delay:0ms]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400/70 [animation-delay:150ms]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-400/70 [animation-delay:300ms]" />
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
+          {/* #6: Weekly mood recap banner */}
+          {weeklyRecap && !weeklyRecapDismissed && (
+            <div className="mx-auto mb-1 flex max-w-3xl items-start justify-between gap-3 rounded-2xl border border-indigo-400/20 bg-indigo-500/10 px-4 py-2.5 text-xs text-indigo-200">
+              <span>{weeklyRecap}</span>
+              <div className="flex shrink-0 items-center gap-2">
+                <a href="/grow" className="font-semibold underline underline-offset-2 hover:text-indigo-100 transition">
+                  Reflect →
+                </a>
+                <button type="button" onClick={() => setWeeklyRecapDismissed(true)} className="opacity-50 hover:opacity-100 transition" aria-label="Dismiss">✕</button>
+              </div>
+            </div>
+          )}
+
+          {/* #8: Reflection bridge — nudge to Grow after 3+ user messages */}
+          {!growNudgeDismissed &&
+            (activeThread?.messages.filter((m) => m.role === "user").length ?? 0) >= 3 &&
+            !analyzing && (
+            <div className="mx-auto mb-1 flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-emerald-400/15 bg-emerald-500/8 px-4 py-2 text-xs text-emerald-300">
+              <span>You&apos;ve been opening up — would a short reflection help?</span>
+              <div className="flex shrink-0 items-center gap-2">
+                <a href="/grow" className="font-semibold underline underline-offset-2 hover:text-emerald-200 transition">
+                  Grow →
+                </a>
+                <button type="button" onClick={() => setGrowNudgeDismissed(true)} className="opacity-50 hover:opacity-100 transition" aria-label="Dismiss">✕</button>
+              </div>
+            </div>
+          )}
+
+          {/* #4: Crisis intervention banner — localized */}
+          {crisisTier >= 1 && (() => {
+            const txt = CRISIS_BANNER_BY_LANG[preferredLang] ?? CRISIS_BANNER_BY_LANG.en;
+            return (
+              <div className={`mx-auto mb-1 max-w-3xl rounded-2xl border px-4 py-3 text-sm ${
+                crisisTier === 2
+                  ? "border-rose-400/40 bg-rose-500/10 text-rose-200"
+                  : "border-amber-400/30 bg-amber-500/10 text-amber-200"
+              }`}>
+                <p>
+                  {crisisTier === 2 ? txt.tier2 : txt.tier1}{" "}
+                  <a
+                    href="https://findahelpline.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold underline underline-offset-2 hover:opacity-80"
+                  >
+                    {txt.link}
+                  </a>
+                  {crisisTier === 2 ? ". I\u2019m still here too." : " can help."}
+                </p>
+              </div>
+            );
+          })()}
+
+          {/* #18: Undo toast with countdown drain bar */}
+          {pendingUndo && (
+            <div className="mx-auto mb-1 max-w-3xl overflow-hidden rounded-2xl border border-amber-400/30 bg-amber-500/10 text-xs text-amber-200">
+              {/* Draining progress bar */}
+              <div className="h-0.5 w-full bg-amber-900/40">
+                <div className="h-0.5 bg-amber-400/70 animate-undo-drain" />
+              </div>
+              <div className="flex items-center justify-between gap-3 px-4 py-2">
+                <span>Sending in a moment…</span>
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  className="font-semibold underline underline-offset-2 hover:text-amber-100 transition"
+                >
+                  Undo
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* COMPOSER */}
-          <div className="border-t border-white/10 px-3 pb-2 pt-1 sm:px-4">
+          <div className="border-t border-white/10 px-3 pb-1 pt-1 sm:px-4">
+            {/* #11: Sentiment seed chips — quick-tap mood hints for active conversations */}
+            {activeThread && activeThread.messages.length > 0 && !draft.trim() && (
+              <div className="mx-auto mb-2 flex max-w-3xl flex-wrap gap-1.5">
+                {(SENTIMENT_SEEDS_BY_LANG[preferredLang] ?? SENTIMENT_SEEDS_BY_LANG.en).map((seed) => (
+                  <button
+                    key={seed}
+                    type="button"
+                    onClick={() => { setDraft(seed); setTimeout(() => composerRef.current?.focus(), 0); }}
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-zinc-400 transition hover:bg-white/10 hover:text-zinc-200"
+                  >
+                    {seed}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="mx-auto flex max-w-3xl items-end gap-2">
               <textarea
                 ref={composerRef}
@@ -2013,6 +2732,22 @@ export default function ChatPage() {
                 rows={1}
                 className="max-h-[200px] flex-1 resize-none rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-indigo-400/70 focus:ring-1 focus:ring-indigo-500/60"
               />
+              {/* #19: Voice input mic button */}
+              {mounted &&
+                ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) && (
+                <button
+                  type="button"
+                  onClick={toggleVoice}
+                  title={isListening ? "Stop listening" : "Speak your message"}
+                  className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
+                    isListening
+                      ? "border-rose-400/50 bg-rose-500/20 text-rose-300 animate-pulse"
+                      : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                  }`}
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </button>
+              )}
               <button
                 onClick={sendMessage}
                 disabled={analyzing || !draft.trim()}
@@ -2022,6 +2757,19 @@ export default function ChatPage() {
                 <Send className="h-4 w-4" /> Send
               </button>
             </div>
+            {/* Crisis note */}
+            <p className="mx-auto mt-1.5 max-w-3xl text-center text-[10px] text-zinc-600">
+              If you&apos;re in crisis or need immediate help, please reach out to a{" "}
+              <a
+                href="https://findahelpline.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-zinc-400"
+              >
+                crisis helpline
+              </a>
+              . Imotara is a reflection companion, not a substitute for professional support.
+            </p>
           </div>
         </main>
       </div>
@@ -2029,7 +2777,149 @@ export default function ChatPage() {
   );
 }
 
-function EmptyState() {
+const STARTER_CHIPS = [
+  "I'm feeling a bit overwhelmed today.",
+  "Something good happened and I want to share it.",
+  "I'm not sure how I feel right now.",
+  "I've been anxious lately and can't pinpoint why.",
+  "I had a tough conversation with someone I care about.",
+];
+
+// #17: Mood check-in options — per language
+type MoodOption = { emoji: string; label: string; starter: string };
+
+const MOOD_OPTIONS_BY_LANG: Record<string, MoodOption[]> = {
+  en: [
+    { emoji: "😊", label: "Good",       starter: "I'm feeling pretty good today." },
+    { emoji: "😔", label: "Sad",        starter: "I've been feeling sad and I'm not sure why." },
+    { emoji: "😰", label: "Stressed",   starter: "I've been feeling really stressed lately." },
+    { emoji: "😤", label: "Frustrated", starter: "I'm frustrated and I need to let it out." },
+    { emoji: "😟", label: "Anxious",    starter: "I've been feeling anxious and worried." },
+    { emoji: "🌧️", label: "Lonely",     starter: "I feel kind of lonely right now." },
+  ],
+  hi: [
+    { emoji: "😊", label: "अच्छा",      starter: "आज मैं काफी अच्छा/अच्छी महसूस कर रहा/रही हूँ।" },
+    { emoji: "😔", label: "उदास",       starter: "पता नहीं क्यों, लेकिन आज मन उदास है।" },
+    { emoji: "😰", label: "तनाव",       starter: "कुछ समय से बहुत तनाव में हूँ।" },
+    { emoji: "😤", label: "गुस्सा",     starter: "बहुत गुस्सा है, बाहर निकालना है।" },
+    { emoji: "😟", label: "चिंता",      starter: "काफी परेशान और चिंतित हूँ।" },
+    { emoji: "🌧️", label: "अकेलापन",  starter: "अभी काफी अकेलापन महसूस हो रहा है।" },
+  ],
+  mr: [
+    { emoji: "😊", label: "बरं",        starter: "आज मला खूप बरं वाटतंय।" },
+    { emoji: "😔", label: "उदास",       starter: "का कोणास ठाऊक, मन उदास आहे।" },
+    { emoji: "😰", label: "ताण",        starter: "बऱ्याच दिवसांपासून खूप ताण आहे।" },
+    { emoji: "😤", label: "राग",        starter: "खूप राग आलाय, बोलायचंय।" },
+    { emoji: "😟", label: "काळजी",     starter: "खूप काळजी वाटतेय।" },
+    { emoji: "🌧️", label: "एकटं",      starter: "आत्ता खूप एकटं वाटतंय।" },
+  ],
+  bn: [
+    { emoji: "😊", label: "ভালো",       starter: "আজ বেশ ভালো লাগছে।" },
+    { emoji: "😔", label: "মন খারাপ",  starter: "কেন জানি না, মন খারাপ।" },
+    { emoji: "😰", label: "চাপ",        starter: "অনেকদিন ধরে খুব চাপে আছি।" },
+    { emoji: "😤", label: "রাগ",        starter: "রাগ জমে আছে, বলতে চাই।" },
+    { emoji: "😟", label: "উদ্বেগ",    starter: "অনেক উদ্বিগ্ন আছি।" },
+    { emoji: "🌧️", label: "একা",        starter: "এখন খুব একা একা লাগছে।" },
+  ],
+  ta: [
+    { emoji: "😊", label: "நலம்",      starter: "இன்று நன்றாக உணர்கிறேன்।" },
+    { emoji: "😔", label: "சோர்வு",    starter: "ஏனோ மனம் சோர்வாக இருக்கிறது।" },
+    { emoji: "😰", label: "அழுத்தம்", starter: "சில நாட்களாக மிகவும் மன அழுத்தமாக இருக்கிறது।" },
+    { emoji: "😤", label: "கோபம்",     starter: "மிகவும் கோபமாக இருக்கிறது, சொல்ல வேண்டும்।" },
+    { emoji: "😟", label: "கவலை",     starter: "மிகவும் கவலையாகவும் பதட்டமாகவும் இருக்கிறேன்।" },
+    { emoji: "🌧️", label: "தனிமை",   starter: "இப்போது மிகவும் தனிமையாக உணர்கிறேன்।" },
+  ],
+  te: [
+    { emoji: "😊", label: "బాగుంది",  starter: "ఈరోజు చాలా బాగుంది అనిపిస్తోంది।" },
+    { emoji: "😔", label: "విచారం",   starter: "ఎందుకో మనసు నిరాశగా ఉంది।" },
+    { emoji: "😰", label: "ఒత్తిడి",  starter: "చాలా రోజులుగా చాలా ఒత్తిడిగా ఉంది।" },
+    { emoji: "😤", label: "కోపం",     starter: "చాలా కోపంగా ఉంది, చెప్పాలని ఉంది।" },
+    { emoji: "😟", label: "ఆందోళన",  starter: "చాలా ఆందోళనగా ఉంది।" },
+    { emoji: "🌧️", label: "ఒంటరి",   starter: "ఇప్పుడు చాలా ఒంటరిగా అనిపిస్తోంది।" },
+  ],
+  kn: [
+    { emoji: "😊", label: "ಚೆನ್ನಾಗಿದೆ", starter: "ಇಂದು ತುಂಬಾ ಚೆನ್ನಾಗಿ ಅನಿಸುತ್ತಿದೆ." },
+    { emoji: "😔", label: "ದುಃಖ",       starter: "ಯಾಕೋ ಮನಸ್ಸು ನಿರಾಶವಾಗಿದೆ." },
+    { emoji: "😰", label: "ಒತ್ತಡ",      starter: "ಕೆಲವು ದಿನಗಳಿಂದ ತುಂಬಾ ಒತ್ತಡ ಇದೆ." },
+    { emoji: "😤", label: "ಕೋಪ",        starter: "ತುಂಬಾ ಕೋಪ ಬಂದಿದೆ, ಹೇಳಬೇಕು." },
+    { emoji: "😟", label: "ಆತಂಕ",      starter: "ತುಂಬಾ ಆತಂಕ ಆಗುತ್ತಿದೆ." },
+    { emoji: "🌧️", label: "ಒಂಟಿ",       starter: "ಈಗ ತುಂಬಾ ಒಂಟಿ ಅನಿಸುತ್ತಿದೆ." },
+  ],
+  ml: [
+    { emoji: "😊", label: "നന്നായി",   starter: "ഇന്ന് വളരെ നന്നായി തോന്നുന്നു." },
+    { emoji: "😔", label: "സങ്കടം",    starter: "എന്തുകൊണ്ടോ മനസ്സ് വിഷമത്തിലാണ്." },
+    { emoji: "😰", label: "സമ്മർദ്ദം", starter: "കുറച്ച് ദിവസമായി വളരെ സമ്മർദ്ദം ഉണ്ട്." },
+    { emoji: "😤", label: "ദേഷ്യം",    starter: "വളരെ ദേഷ്യം ഉണ്ട്, പറയണം." },
+    { emoji: "😟", label: "ഉത്കണ്ഠ",  starter: "വളരെ ഉത്കണ്ഠ തോന്നുന്നു." },
+    { emoji: "🌧️", label: "ഒറ്റപ്പെടൽ", starter: "ഇപ്പോൾ വളരെ ഒറ്റയ്ക്ക് തോന്നുന്നു." },
+  ],
+  gu: [
+    { emoji: "😊", label: "સારું",     starter: "આજ ઘણું સારું લાગે છે." },
+    { emoji: "😔", label: "ઉદાસ",      starter: "કેમ ખબર નહીં, મન ઉદાસ છે." },
+    { emoji: "😰", label: "તણાવ",      starter: "ઘણા દિવસોથી ખૂબ તણાવ છે." },
+    { emoji: "😤", label: "ગુસ્સો",    starter: "ખૂબ ગુસ્સો આવ્યો છે, કહેવું છે." },
+    { emoji: "😟", label: "ચિંતા",     starter: "ઘણી ચિંતા થઈ રહી છે." },
+    { emoji: "🌧️", label: "એકલાપણું", starter: "અત્યારે ઘણું એકલું લાગે છે." },
+  ],
+  pa: [
+    { emoji: "😊", label: "ਚੰਗਾ",      starter: "ਅੱਜ ਬਹੁਤ ਚੰਗਾ ਲੱਗ ਰਿਹਾ ਹੈ।" },
+    { emoji: "😔", label: "ਉਦਾਸ",      starter: "ਪਤਾ ਨਹੀਂ ਕਿਉਂ, ਮਨ ਉਦਾਸ ਹੈ।" },
+    { emoji: "😰", label: "ਤਣਾਅ",      starter: "ਕੁਝ ਦਿਨਾਂ ਤੋਂ ਬਹੁਤ ਤਣਾਅ ਵਿੱਚ ਹਾਂ।" },
+    { emoji: "😤", label: "ਗੁੱਸਾ",     starter: "ਬਹੁਤ ਗੁੱਸਾ ਹੈ, ਬਾਹਰ ਕੱਢਣਾ ਹੈ।" },
+    { emoji: "😟", label: "ਚਿੰਤਾ",     starter: "ਬਹੁਤ ਚਿੰਤਾ ਹੋ ਰਹੀ ਹੈ।" },
+    { emoji: "🌧️", label: "ਇਕੱਲਾਪਣ", starter: "ਹੁਣ ਬਹੁਤ ਇਕੱਲਾਪਣ ਮਹਿਸੂਸ ਹੋ ਰਿਹਾ ਹੈ।" },
+  ],
+  or: [
+    { emoji: "😊", label: "ଭଲ",        starter: "ଆଜି ବେଶ ଭଲ ଲାଗୁଛି।" },
+    { emoji: "😔", label: "ଦୁଃଖ",      starter: "କାହିଁକି ଜାଣି ନାହିଁ, ମନ ଖରାପ ଅଛି।" },
+    { emoji: "😰", label: "ଚାପ",       starter: "କିଛି ଦିନ ଧରି ଖୁବ ଚାପ ଅନୁଭବ ହେଉଛି।" },
+    { emoji: "😤", label: "ରାଗ",       starter: "ଖୁବ ରାଗ ହେଉଛି, ବାହାର କରିବାକୁ ଚାହୁଁଛି।" },
+    { emoji: "😟", label: "ଚିନ୍ତା",   starter: "ଖୁବ ଚିନ୍ତା ଲାଗୁଛି।" },
+    { emoji: "🌧️", label: "ଏକୁଟିଆ",   starter: "ଏବେ ଖୁବ ଏକୁଟିଆ ଲାଗୁଛି।" },
+  ],
+};
+
+// How are you feeling — localised header
+const MOOD_HEADING: Record<string, string> = {
+  en: "How are you feeling?",
+  hi: "आप कैसा महसूस कर रहे हैं?",
+  mr: "तुम्हाला कसं वाटतंय?",
+  bn: "আপনি কেমন অনুভব করছেন?",
+  ta: "நீங்கள் எப்படி உணர்கிறீர்கள்?",
+  te: "మీరు ఎలా అనిపిస్తున్నారు?",
+  kn: "ನೀವು ಹೇಗೆ ಅನಿಸುತ್ತಿದ್ದೀರಿ?",
+  ml: "നിങ്ങൾക്ക് എങ്ങനെ തോന്നുന്നു?",
+  gu: "તમને કેવું લાગે છે?",
+  pa: "ਤੁਸੀਂ ਕਿਵੇਂ ਮਹਿਸੂਸ ਕਰ ਰਹੇ ਹੋ?",
+  or: "ଆପଣ କିପରି ଅନୁଭବ କରୁଛନ୍ତି?",
+};
+
+const OR_TYPE_BELOW: Record<string, string> = {
+  en: "or start typing below",
+  hi: "या नीचे लिखना शुरू करें",
+  mr: "किंवा खाली टाइप करा",
+  bn: "অথবা নিচে লিখুন",
+  ta: "அல்லது கீழே தட்டச்சு செய்யுங்கள்",
+  te: "లేదా క్రింద టైప్ చేయండి",
+  kn: "ಅಥವಾ ಕೆಳಗೆ ಟೈಪ್ ಮಾಡಿ",
+  ml: "അല്ലെങ്കിൽ താഴെ ടൈപ്പ് ചെയ്യൂ",
+  gu: "અથવા નીચે ટાઇપ કરો",
+  pa: "ਜਾਂ ਹੇਠਾਂ ਟਾਈਪ ਕਰੋ",
+  or: "ଅଥବା ନୀଚରେ ଟାଇପ୍ କରନ୍ତୁ",
+};
+
+function EmptyState({ onChipSelect, lang = "en" }: { onChipSelect: (text: string) => void; lang?: string }) {
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+
+  const moodOptions = MOOD_OPTIONS_BY_LANG[lang] ?? MOOD_OPTIONS_BY_LANG.en;
+  const moodHeading = MOOD_HEADING[lang] ?? MOOD_HEADING.en;
+  const orTypeLine = OR_TYPE_BELOW[lang] ?? OR_TYPE_BELOW.en;
+
+  function pickMood(starter: string, emoji: string) {
+    setSelectedMood(emoji);
+    onChipSelect(starter);
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mt-8 rounded-2xl border border-dashed border-white/20 bg-black/30 p-8 text-center text-zinc-200">
@@ -2038,10 +2928,55 @@ function EmptyState() {
           Messages are saved in your browser, and analysis/replies respect your
           consent settings.
         </p>
+
+        {/* #17: Mood check-in row */}
+        <div className="mt-5">
+          <p className="mb-2.5 text-[11px] font-medium uppercase tracking-widest text-zinc-500">
+            {moodHeading}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {moodOptions.map(({ emoji, label, starter }) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => pickMood(starter, emoji)}
+                title={label}
+                className={`flex flex-col items-center gap-0.5 rounded-2xl border px-3 py-2 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 ${
+                  selectedMood === emoji
+                    ? "border-indigo-400/60 bg-indigo-500/20 text-zinc-50"
+                    : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-zinc-100"
+                }`}
+              >
+                <span className="text-xl">{emoji}</span>
+                <span className="text-[10px]">{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-1 flex items-center gap-2">
+          <div className="h-px flex-1 bg-white/10" />
+          <span className="text-[10px] text-zinc-600">{orTypeLine}</span>
+          <div className="h-px flex-1 bg-white/10" />
+        </div>
+
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
+          {STARTER_CHIPS.map((chip) => (
+            <button
+              key={chip}
+              onClick={() => onChipSelect(chip)}
+              className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 transition hover:bg-white/10 hover:text-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
+
+const REACTION_EMOJIS = ["❤️", "💙", "✨", "🙏", "💛"];
 
 function Bubble({
   id,
@@ -2057,6 +2992,8 @@ function Bubble({
   reflectionSeed,
   followUp,
   meta,
+  reaction,
+  onReact,
 }: {
   id: string;
   role: Role;
@@ -2075,6 +3012,8 @@ function Bubble({
     analysisSource?: "local" | "cloud";
     softEnforcement?: any;
   };
+  reaction?: string;
+  onReact?: (emoji: string) => void;
 }) {
   const isUser = role === "user";
 
@@ -2123,7 +3062,7 @@ function Bubble({
   const bubbleClass = [
     "min-w-0 max-w-[85%] rounded-2xl px-4 py-3 text-sm sm:max-w-[75%] transition-all",
     isUser
-      ? "bg-gradient-to-br from-indigo-500/80 via-sky-500/80 to-emerald-400/80 text-white shadow-[0_18px_40px_rgba(15,23,42,0.85)]"
+      ? "animate-msg-appear bg-gradient-to-br from-indigo-500/80 via-sky-500/80 to-emerald-400/80 text-white shadow-[0_18px_40px_rgba(15,23,42,0.85)]"
       : assistantBase.join(" "),
     ...assistantHover,
     highlighted
@@ -2247,6 +3186,30 @@ function Bubble({
                 {debugEmotionSource ?? "unknown"}
               </span>
             </span>
+          </div>
+        )}
+
+        {/* #10: Emoji reactions — only on assistant messages */}
+        {!isUser && onReact && (
+          <div className="mt-2 flex items-center gap-1">
+            {REACTION_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => onReact(emoji)}
+                title={reaction === emoji ? "Remove reaction" : `React with ${emoji}`}
+                className={`rounded-full px-1.5 py-0.5 text-sm transition hover:scale-110 ${
+                  reaction === emoji
+                    ? "bg-white/15 ring-1 ring-white/30"
+                    : "opacity-40 hover:opacity-80"
+                }`}
+              >
+                {emoji}
+              </button>
+            ))}
+            {reaction && (
+              <span className="ml-1 text-[10px] text-zinc-500">you reacted</span>
+            )}
           </div>
         )}
       </div>

@@ -11,7 +11,7 @@ import { escapeRegexLiteral } from "./regexUtils";
 
 // Romanized Hindi (Latin script) hints
 export const ROMAN_HI_LANG_HINT_REGEX =
-  /\b(hai|haan|nahi|nahin|kya|kyun|kaise|kab|kahan|aaj|kal|bhai|yaar|mummy|papa|didi|jaldi|khana|bhook|ghar|party|Kaun|Achha|Thik|Main|Tum|Aap|Hum|Woh|Yeh|Sab|Kuch|Toh|Bhi|Hi|Na|Aur|Bas|Shayad|Jarur|Waisa|Aisa|Chal|Kar|Ho|Gaya|Raha|Chahiye|Sun|Bol|Bata|Milte|Abhi|Thoda|Zyada|Maza|Bahar|Maaf|Shukriya)\b/i;
+  /\b(hai|haan|nahi|nahin|kya|kyun|kaise|kab|kahan|aaj|kal|bhai|yaar|mummy|papa|didi|jaldi|khana|bhook|ghar|Kaun|Achha|Thik|Tum|Aap|Hum|Woh|Yeh|Sab|Kuch|Toh|Bhi|Na|Aur|Bas|Shayad|Jarur|Waisa|Aisa|Chal|Kar|Ho|Gaya|Raha|Chahiye|Bol|Bata|Milte|Abhi|Thoda|Zyada|Maza|Maaf|Shukriya)\b/i;
 
 // Romanized Bengali (Latin script) hints
 export const ROMAN_BN_LANG_HINT_REGEX =
@@ -95,6 +95,75 @@ export const BN_CONFUSED_REGEX =
 
 export const HI_STRESS_REGEX =
   /(परेशान|तनाव|चिंता|घबराहट|बेचैन|\bpareshaan\b|\bpareshan\b|\btanav\b|\bchinta\b|\bghabrahat\b|\bbechain\b|\btension\b)/i;
+
+// Kannada emotion hints
+export const KN_SAD_REGEX =
+  /(ಬೇಜಾರು|ಮನಸ್ಸು ಸರಿಯಿಲ್ಲ|ದುಃಖ|ಅಳು|ಒಂಟಿ|\bbejar(u)?\b|\bbesara\b|\bmanasu sariyilla\b|\bmanassu sariyilla\b|\bdukha\b|\bonti\b|\btumba bejar\b)/i;
+
+export const KN_STRESS_REGEX =
+  /(ಟೆನ್ಶನ್|ಚಿಂತೆ|ತಲೆ ತಿನ್ನುತ್ತಿದೆ|\btension (aa)?gide\b|\bchinte (aa)?gtide\b|\btala tinnuttide\b|\btumba tension\b|\btumba chinte\b)/i;
+
+export const KN_ANGER_REGEX =
+  /(ಕೋಪ|ರೇಜಿಗೆ|\bkopa (ba)?ruttide\b|\btumba kopa\b|\brejige (aa)?gide\b)/i;
+
+export const KN_FEAR_REGEX =
+  /(ಭಯ|ಹೆದರಿಕೆ|\bbhaya (aa)?guttide\b|\bhedarike (aa)?gide\b|\bhedarike\b|\bbhaya agide\b)/i;
+
+// Malayalam emotion hints
+export const ML_SAD_REGEX =
+  /(സങ്കടം|ദുഃഖം|ഒറ്റപ്പെടൽ|\bsankadam\b|\bdukham\b|\bvishamamundu\b|\bvishama thonum\b|\bvaliya sadness\b|\bmanassu shariyalla\b)/i;
+
+export const ML_STRESS_REGEX =
+  /(ടെൻഷൻ|ഉൽകണ്ഠ|\btension undu\b|\bvaliya tension\b|\bchintayundu\b|\bchinta undu\b)/i;
+
+export const ML_ANGER_REGEX =
+  /(ദേഷ്യം|\bdeshyam varunu\b|\bdeshyam\b|\bkoppam\b|\bvaliya koppam\b)/i;
+
+export const ML_FEAR_REGEX =
+  /(ഭയം|പേടി|\bbhayam undu\b|\bpedi thonum\b|\bbhayam thonum\b|\bpedi thonikkunnu\b)/i;
+
+// Punjabi emotion hints
+export const PA_SAD_REGEX =
+  /(ਉਦਾਸ|ਦੁੱਖ|ਮਨ ਠੀਕ ਨਹੀਂ|\budaas\b|\bdukhi haan\b|\bdil dukha\b|\bman theek nahi\b|\bman kharab aa\b|\bkhub udaas\b)/i;
+
+export const PA_STRESS_REGEX =
+  /(ਤਣਾਅ|ਚਿੰਤਾ|ਟੈਨਸ਼ਨ|\btanaav\b|\bchinta lagdi aa\b|\btension aa\b|\btension vich haan\b|\bkhub tension aa\b)/i;
+
+export const PA_ANGER_REGEX =
+  /(ਗੁੱਸਾ|ਖਿੱਝ|\bgussa aa re(ha|hi)\b|\bgussa aaya\b|\bkhijh aa (rahi|reha)\b|\bkhub gussa\b)/i;
+
+export const PA_FEAR_REGEX =
+  /(ਡਰ|ਘਬਰਾਹਟ|\bdar lagd(a|i) aa\b|\bghabra re(ha|hi) haan\b|\bdar lagg reha\b)/i;
+
+// Odia emotion hints
+export const OR_SAD_REGEX =
+  /(ମନ ଖରାପ|ଦୁଃଖ|ଏକୁଟିଆ|\bmana kharap\b|\bduhkha laguchhi\b|\bkharap laguchhi\b|\bman ta bhal nahi\b|\bkhub kharap laguchhi\b)/i;
+
+export const OR_STRESS_REGEX =
+  /(ଟେନ୍ସନ|ଚିନ୍ତା|\btension laguchhi\b|\bchinta heutahe\b|\bkhub tension laguchhi\b)/i;
+
+export const OR_ANGER_REGEX =
+  /(ରାଗ|\braga (aa)?suchhi\b|\bkhub raga\b|\braga laguchhi\b)/i;
+
+export const OR_FEAR_REGEX =
+  /(ଭୟ|ଡର|\bbhaya laguchhi\b|\bdara laguchhi\b|\bbhaya (aa)?suchhi\b)/i;
+
+// Marathi emotion hints
+export const MR_SAD_REGEX =
+  /(मन खराब|दुःख|एकटे|\bman kharab aahe\b|\bkhup kharab vatat\b|\bdukha hote\b|\bekta vatat aahe\b|\brodaycha yet aahe\b)/i;
+
+export const MR_STRESS_REGEX =
+  /(ताण|चिंता|टेन्शन|\bkhup tension aahe\b|\btaan jaanvat aahe\b|\bchinta vatat aahe\b|\btension vatat aahe\b)/i;
+
+export const MR_ANGER_REGEX =
+  /(राग|चिडचिड|\bkhup raga aala\b|\bchidchid hote\b|\braga vatat aahe\b)/i;
+
+export const MR_FEAR_REGEX =
+  /(भीती|काळजी|घाबरणे|\bbhiti vatat aahe\b|\bkalji vatat aahe\b|\bghabrat aahe\b)/i;
+
+// Gratitude detection — English + all 10 supported Indian languages
+export const GRATITUDE_REGEX =
+  /(grateful|gratitude|thankful|thankfulness|blessed|appreciate|appreciating|appreciation|so thank(ful|ed)|thank you so much|means a lot|\bshukar\b|shukria|shukriya|aabhar|dhanyavaad|dhanyabad|dhanyawad|dhanyavad|shukriyaa|\bkritagjna\b|nanri|nandri|vandanam|\bkritajnata\b|\bkadardani\b|\bdhanyavadagalu\b|\bnandri\b|\bvanakkam\b|\bkritajnateyanu\b|\bkritajna\b|\bdhanyosmi\b|\bdhanyawadi\b|abhaari|\bshukar\s+hai\b|shukar\s+hua|bahut\s+shukriya|bahut\s+dhanyavaad|আপনার\s+কাছে\s+কৃতজ্ঞ|কৃতজ্ঞ|ধন্যবাদ|আপনাকে\s+ধন্যবাদ|நன்றி|நன்றி\s+சொல்ல|நன்றியுள்ளவர்|ధన్యవాదాలు|కృతజ్ఞత|ధన్యవాదం|ಧನ್ಯವಾದಗಳು|ಕೃತಜ್ಞತೆ|ಧನ್ಯವಾದ|ধন্যবাদ|ਧੰਨਵਾਦ|ਸ਼ੁਕਰੀਆ|ਕ੍ਰਿਤਜ੍ਞਤਾ|ধন্যবাদ|ଧନ୍ୟବାଦ|କୃତଜ୍ଞ|ଆଭାରୀ|આભાર|ધન્યવાદ|કૃતજ્ઞ)/i;
 
 // Hindi confusion / mental overload
 export const HI_CONFUSED_REGEX =

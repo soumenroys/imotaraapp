@@ -5,17 +5,6 @@
 
 "use server";
 
-function stripQuestionsIfNeeded(text: string, noQuestions?: boolean): string {
-  if (!noQuestions || !text) return text;
-
-  const sentences = text.split(/(?<=[.!?])\s+/).map((s) => s.trim());
-  const filtered = sentences.filter(
-    (s) =>
-      !/[?]\s*$/.test(s) && !/^(what|which|how|why|when|where|who)\b/i.test(s),
-  );
-
-  return (filtered.length ? filtered : sentences.slice(0, 1)).join(" ").trim();
-}
 
 export type CallImotaraAIOptions = {
   /**
@@ -59,19 +48,14 @@ export type ImotaraAIResponse = {
 };
 
 /**
- * Minimal type for OpenAI's Responses API payload so we can
- * safely read the model name and textual output.
+ * Minimal type for OpenAI's Chat Completions API response.
  */
-type OpenAIResponsesResult = {
+type OpenAIChatResult = {
   model?: string;
-  // Convenience field in Responses API
-  output_text?: string[];
-  // More detailed structured output
-  output?: {
-    content?: {
-      type?: string;
-      text?: string;
-    }[];
+  choices?: {
+    message?: {
+      content?: string | null;
+    };
   }[];
 };
 
@@ -160,36 +144,22 @@ export async function callImotaraAI(
       : undefined;
 
   const baseUrl = getOpenAIBaseUrl();
-  // ✅ Use new Responses API endpoint (works with project keys)
-  const endpoint = `${baseUrl}/v1/responses`;
+  const endpoint = `${baseUrl}/v1/chat/completions`;
 
   try {
-    // ✅ Use structured input so the model cleanly separates "system" vs "user".
-    // This reduces repetitive template loops and improves continuity/intent-following.
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-
-        // 👇 REQUIRED for project-scoped keys
-        ...(process.env.OPENAI_PROJECT_ID
-          ? { "OpenAI-Project": process.env.OPENAI_PROJECT_ID }
-          : {}),
       },
       body: JSON.stringify({
         model,
-        input: [
-          {
-            role: "system",
-            content: [{ type: "text", text: systemPrompt }],
-          },
-          {
-            role: "user",
-            content: [{ type: "text", text: prompt }],
-          },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
         ],
-        max_output_tokens: maxTokens,
+        max_tokens: maxTokens,
         temperature,
       }),
       signal: controller.signal,
@@ -202,9 +172,10 @@ export async function callImotaraAI(
 
     if (!response.ok) {
       const errText = await safeReadText(response);
-
-      // ✅ Root-cause fix: never return the "soft, placeholder reply" sentence.
-      // Returning empty text allows callers to run their existing fallback logic.
+      console.error(
+        `[imotara][aiClient] OpenAI error HTTP ${response.status}:`,
+        errText.slice(0, 400),
+      );
       return {
         text: "",
         meta: {
@@ -215,30 +186,10 @@ export async function callImotaraAI(
       };
     }
 
-    const data = (await response.json()) as OpenAIResponsesResult;
-    console.log("IMOTARA OPENAI RESPONSE:", JSON.stringify(data).slice(0, 500));
+    const data = (await response.json()) as OpenAIChatResult;
 
-    // usedModel is safe here because we're in the successful parse path
     const usedModel = data?.model || model;
-
-    // Prefer the full convenience field output_text, then fall back
-    // to structured output by joining all text pieces, not just the first one.
-    let text: string | undefined;
-
-    if (Array.isArray(data.output_text) && data.output_text.length > 0) {
-      text = data.output_text
-        .map((part) => String(part ?? "").trim())
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-    } else if (Array.isArray(data.output) && data.output.length > 0) {
-      text = data.output
-        .flatMap((item) => (Array.isArray(item.content) ? item.content : []))
-        .map((piece) => (typeof piece?.text === "string" ? piece.text.trim() : ""))
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-    }
+    let text: string | undefined = data?.choices?.[0]?.message?.content?.trim();
 
     // Keep existing behavior for “success but empty output”: provide a gentle default.
     if (!text) {
@@ -267,13 +218,10 @@ export async function callImotaraAI(
       },
     };
   } catch (err: any) {
-    // Make sure timeout is cleared even on error
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
-
-    // ✅ Root-cause fix: do not emit UI-facing placeholder text on exceptions.
-    // Let the caller decide the best fallback response.
+    console.error("[imotara][aiClient] fetch exception:", err?.message || err);
     return {
       text: "",
       meta: {

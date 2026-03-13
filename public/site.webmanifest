@@ -1,13 +1,21 @@
 {
   "name": "Imotara",
   "short_name": "Imotara",
-  "description": "An immortal friend for your emotions.",
+  "description": "An emotion-aware, privacy-first companion that listens, reflects, and grows with you.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "orientation": "portrait",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "categories": ["health", "lifestyle", "productivity"],
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/android-chrome-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/android-chrome-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/android-chrome-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/android-chrome-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/apple-touch-icon.png",   "sizes": "180x180", "type": "image/png" },
+    { "src": "/favicon-32.png",         "sizes": "32x32",   "type": "image/png" },
+    { "src": "/favicon-16.png",         "sizes": "16x16",   "type": "image/png" }
   ]
 }

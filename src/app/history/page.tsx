@@ -1,17 +1,91 @@
 // src/app/history/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MessageSquare, Download } from "lucide-react";
+import { MessageSquare, Download, Clock } from "lucide-react";
 import EmotionHistory from "@/components/imotara/EmotionHistory";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { getHistory } from "@/lib/imotara/history";
 import TopBar from "@/components/imotara/TopBar";
+import Toast, { type ToastType } from "@/components/imotara/Toast";
+
+// #1: Weekly trend summary computed from localStorage emotion history
+const EMOTION_EMOJI: Record<string, string> = {
+  joy: "😊", happy: "😊", happiness: "😊",
+  sad: "😔", sadness: "😔", lonely: "🌧️",
+  angry: "😤", anger: "😤",
+  stressed: "😰", stress: "😰",
+  anxious: "😟", anxiety: "😟", fear: "😟",
+  neutral: "😐", surprise: "😮",
+};
+
+type WeeklySummary = {
+  topEmotion: string;
+  topCount: number;
+  total: number;
+  trend: "up" | "down" | "steady" | null;
+};
+
+function computeWeeklySummary(): WeeklySummary | null {
+  try {
+    const raw = window.localStorage.getItem("imotara:history:v1");
+    if (!raw) return null;
+    const all = JSON.parse(raw) as any[];
+    if (!Array.isArray(all)) return null;
+    const now = Date.now();
+    const weekMs = 7 * 86_400_000;
+    const thisWeek = all.filter(
+      (r) => !r.deleted && r.createdAt >= now - weekMs && r.emotion && r.emotion !== "neutral",
+    );
+    if (thisWeek.length < 3) return null;
+
+    const freq: Record<string, number> = {};
+    const intensities: number[] = [];
+    for (const r of thisWeek) {
+      freq[r.emotion] = (freq[r.emotion] ?? 0) + 1;
+      if (typeof r.intensity === "number") intensities.push(r.intensity);
+    }
+    const topEmotion = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
+
+    const avgThis =
+      intensities.length ? intensities.reduce((a, b) => a + b, 0) / intensities.length : 0.5;
+    const prevWeek = all.filter(
+      (r) =>
+        !r.deleted &&
+        r.createdAt >= now - 2 * weekMs &&
+        r.createdAt < now - weekMs &&
+        typeof r.intensity === "number",
+    );
+    let trend: WeeklySummary["trend"] = null;
+    if (prevWeek.length >= 2) {
+      const avgPrev = prevWeek.reduce((s: number, r: any) => s + r.intensity, 0) / prevWeek.length;
+      const diff = avgThis - avgPrev;
+      trend = diff > 0.08 ? "up" : diff < -0.08 ? "down" : "steady";
+    }
+    return { topEmotion, topCount: freq[topEmotion] ?? 1, total: thisWeek.length, trend };
+  } catch {
+    return null;
+  }
+}
 
 export default function HistoryPage() {
   const { mode } = useAnalysisConsent();
   const [exporting, setExporting] = useState(false);
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
+  const [hasHistory, setHasHistory] = useState(true);
+  const [toast, setToast] = useState<{ message: string; type?: ToastType } | null>(null);
+
+  useEffect(() => {
+    setWeeklySummary(computeWeeklySummary());
+    try {
+      const raw = window.localStorage.getItem("imotara:history:v1");
+      const all = raw ? JSON.parse(raw) : [];
+      setHasHistory(Array.isArray(all) && all.filter((r: any) => !r.deleted).length > 0);
+    } catch {
+      setHasHistory(true); // assume data exists on error
+    }
+  }, []);
 
   // Align wording with Chat + Settings
   const consentLabel =
@@ -38,8 +112,10 @@ export default function HistoryPage() {
       a.remove();
 
       URL.revokeObjectURL(url);
+      setToast({ message: "History downloaded ✓" });
     } catch (err) {
       console.error("Failed to export history:", err);
+      setToast({ message: "Export failed", type: "error" });
     } finally {
       setExporting(false);
     }
@@ -47,6 +123,9 @@ export default function HistoryPage() {
 
   return (
     <>
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
+      )}
       {/* Global app top bar with nav + sync chip + conflicts */}
       <TopBar title="Emotion History" showSyncChip showConflictsButton />
 
@@ -178,10 +257,77 @@ export default function HistoryPage() {
                 </p>
               </div>
 
+              {/* #1: Weekly trend summary */}
+              {weeklySummary && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 shadow-sm backdrop-blur-md">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                      This week
+                    </p>
+                    {weeklySummary.trend && (
+                      <span className={`text-[10px] font-medium ${
+                        weeklySummary.trend === "down" ? "text-emerald-400" :
+                        weeklySummary.trend === "up"   ? "text-amber-400"   : "text-zinc-400"
+                      }`}>
+                        {weeklySummary.trend === "down" ? "Intensity easing ↓" :
+                         weeklySummary.trend === "up"   ? "Intensity rising ↑" : "Steady week"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-2xl">
+                      {EMOTION_EMOJI[weeklySummary.topEmotion.toLowerCase()] ?? "💭"}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium capitalize text-zinc-100">
+                        Mostly {weeklySummary.topEmotion}
+                      </p>
+                      <p className="text-[11px] text-zinc-500">
+                        {weeklySummary.topCount} of {weeklySummary.total} logged moments this week
+                      </p>
+                    </div>
+                    <Link
+                      href="/grow"
+                      className="ml-auto text-[11px] text-indigo-400/80 underline underline-offset-2 hover:text-indigo-300 transition"
+                    >
+                      Reflect on this →
+                    </Link>
+                  </div>
+                </div>
+              )}
+
               {/* Main history card */}
-              <div className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                <EmotionHistory />
-              </div>
+              {!hasHistory ? (
+                <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-white/15 bg-white/5 px-6 py-12 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500/40 via-sky-500/40 to-emerald-400/40 text-2xl">
+                    <Clock className="h-6 w-6 text-zinc-400" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-zinc-200">Your emotion timeline is empty</p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Start chatting or reflecting and your emotional moments will appear here, grouped by day.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <Link
+                      href="/chat"
+                      className="rounded-full bg-gradient-to-r from-indigo-500 to-sky-400 px-4 py-1.5 text-xs font-medium text-black shadow transition hover:brightness-110"
+                    >
+                      Start chatting →
+                    </Link>
+                    <Link
+                      href="/grow"
+                      className="rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs text-zinc-300 transition hover:bg-white/10"
+                    >
+                      Reflect today →
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                  <EmotionHistory />
+                </div>
+              )}
 
               {/* bottom spacing for breathing room */}
               <div className="h-6" />

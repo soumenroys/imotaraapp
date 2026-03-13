@@ -275,3 +275,36 @@ body {
   animation: im-breath-glow 1.8s ease-in-out infinite;
   transition: transform 0.25s ease-out, box-shadow 0.25s ease-out;
 }
+
+/* -------------------------------------------------- */
+/* ⭐ Toast slide-up                                   */
+/* -------------------------------------------------- */
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translate(-50%, 0.75rem); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.animate-slide-up { animation: slide-up 0.22s ease-out both; }
+
+/* -------------------------------------------------- */
+/* ⭐ Undo countdown drain (5s)                         */
+/* -------------------------------------------------- */
+
+@keyframes undo-drain {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+.animate-undo-drain { animation: undo-drain 5s linear forwards; }
+
+/* -------------------------------------------------- */
+/* ⭐ User message appear                              */
+/* -------------------------------------------------- */
+
+@keyframes msg-appear {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-msg-appear { animation: msg-appear 0.28s ease-out both; }

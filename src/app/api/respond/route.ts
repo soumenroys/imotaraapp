@@ -27,6 +27,7 @@ import {
   ROMAN_MR_LANG_HINT_REGEX,
   ROMAN_OR_LANG_HINT_REGEX,
 } from "@/lib/emotion/keywordMaps";
+import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 
 type LanguageCode =
   | "en"
@@ -682,6 +683,25 @@ export async function POST(req: Request) {
   const message =
     typeof rawMessage === "string" ? rawMessage : String(rawMessage ?? "");
 
+  // ── Adult content safety gate (server-side) ───────────────────────────
+  if (detectAdultContent(message)) {
+    const bodyAny = body as any;
+    const lang =
+      bodyAny?.preferredLanguage ??
+      bodyAny?.language ??
+      bodyAny?.context?.preferredLanguage ??
+      "en";
+    const userAge =
+      bodyAny?.context?.user?.ageRange ??
+      bodyAny?.toneContext?.userAge ??
+      undefined;
+    return NextResponse.json(
+      { message: buildAdultSafetyRefusal(lang, userAge) },
+      { status: 200 },
+    );
+  }
+  // ─────────────────────────────────────────────────────────────────────
+
   // ✅ Conversation closure intent: user is pausing / ending the chat (walk / talk later / bye)
   const normalizedMsg = String(message ?? "")
     .toLowerCase()
@@ -938,6 +958,11 @@ export async function POST(req: Request) {
       pinnedRecall,
       pinnedRecallRelevant,
       ...(qa ? { debug: true, pinnedRecallDebugTop } : {}),
+
+      // #2: Long-term emotional memory summary from client localStorage (injected by runRespondWithConsent)
+      ...((baseCtx as any)?.emotionMemory
+        ? { emotionMemory: (baseCtx as any).emotionMemory }
+        : {}),
     },
     toneContext, // ✅ enables companion tone + personal references consistently
   });

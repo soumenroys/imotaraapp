@@ -63,7 +63,28 @@ import {
   GU_STRESS_REGEX,
   GU_ANGER_REGEX,
   GU_FEAR_REGEX,
+  KN_SAD_REGEX,
+  KN_STRESS_REGEX,
+  KN_ANGER_REGEX,
+  KN_FEAR_REGEX,
+  ML_SAD_REGEX,
+  ML_STRESS_REGEX,
+  ML_ANGER_REGEX,
+  ML_FEAR_REGEX,
+  PA_SAD_REGEX,
+  PA_STRESS_REGEX,
+  PA_ANGER_REGEX,
+  PA_FEAR_REGEX,
+  OR_SAD_REGEX,
+  OR_STRESS_REGEX,
+  OR_ANGER_REGEX,
+  OR_FEAR_REGEX,
+  MR_SAD_REGEX,
+  MR_STRESS_REGEX,
+  MR_ANGER_REGEX,
+  MR_FEAR_REGEX,
   CRISIS_HINT_REGEX,
+  GRATITUDE_REGEX,
   isConfusedText,
 } from "@/lib/emotion/keywordMaps";
 
@@ -392,6 +413,51 @@ export async function POST(req: Request) {
       if (HI_STRESS_REGEX.test(raw))
         return { emotion: asEmotion("anxiety"), intensity: 0.65 };
 
+      if (KN_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (KN_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (KN_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (KN_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      if (ML_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (ML_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (ML_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (ML_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      if (PA_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (PA_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (PA_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (PA_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      if (OR_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (OR_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (OR_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (OR_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      if (MR_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (MR_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (MR_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (MR_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
       // Existing keyword heuristic (English)
       if (/\b(stress|stressed|anxious|anxiety|worried|panic)\b/.test(t))
         return { emotion: asEmotion("anxiety"), intensity: 0.65 };
@@ -409,6 +475,9 @@ export async function POST(req: Request) {
       // EN + HI + BN are maintained in keywordMaps.ts for consistency.
       if (isConfusedText(raw))
         return { emotion: asEmotion("confused"), intensity: 0.55 };
+
+      if (GRATITUDE_REGEX.test(raw))
+        return { emotion: asEmotion("gratitude"), intensity: 0.7 };
 
       if (/\b(happy|glad|excited|joy|relieved)\b/.test(t))
         return { emotion: asEmotion("joy"), intensity: 0.55 };

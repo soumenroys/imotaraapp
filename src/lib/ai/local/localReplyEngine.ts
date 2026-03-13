@@ -9,6 +9,7 @@ import {
     TA_SAD_REGEX,
     TA_STRESS_REGEX,
 } from "@/lib/emotion/keywordMaps";
+import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 
 type LocalResponseTone =
     | "calm"
@@ -21,6 +22,7 @@ type LocalResponseTone =
 type LocalLanguage =
     | "en"
     | "hi"
+    | "mr"
     | "bn"
     | "ta"
     | "te"
@@ -30,18 +32,28 @@ type LocalLanguage =
     | "ml"
     | "or";
 
-type LocalReplyBankLanguage = "en" | "hi" | "bn" | "ta" | "te";
+type LocalReplyBankLanguage = "en" | "hi" | "mr" | "bn" | "ta" | "te" | "gu" | "pa" | "kn" | "ml" | "or";
 
 type ToneContext = {
     companion?: {
         name?: string;
         relationship?: string;
         tone?: LocalResponseTone;
+        gender?: string;   // "female" | "male" | "nonbinary" | "prefer_not" | "other"
+        ageRange?: string; // "under_13" | "13_17" | ... | "65_plus" | "prefer_not"
     };
+    userName?: string;  // user's display name for occasional personal address
+    userAge?: string;   // e.g. "under_13", "13_17", "65_plus"
+    userGender?: string; // "female" | "male" | "nonbinary" | "prefer_not" | "other"
+    sessionTurn?: number;            // #9: per-turn seed offset for variety
+    preferredResponseStyle?: string; // #16: "comfort"|"reflect"|"motivate"|"advise"
 };
 
 type LocalRecentContext = {
     recentUserTexts?: string[];
+    recentAssistantTexts?: string[]; // #7: for follow-up reference
+    lastDetectedLanguage?: string;   // #12: language smoothing hint
+    emotionMemory?: string;          // #2: compact emotion history summary for empathy calibration
 };
 
 export type LocalReplyResult = {
@@ -86,10 +98,7 @@ function dedupeAdjacentSentences(text: string): string {
 }
 
 function toReplyBankLanguage(language: LocalLanguage): LocalReplyBankLanguage {
-    if (language === "gu" || language === "pa") return "hi";
-    if (language === "kn" || language === "ml") return "ta";
-    if (language === "or") return "bn";
-    return language;
+    return language; // All 10 languages now have dedicated template banks
 }
 
 function countMatches(text: string, regex: RegExp): number {
@@ -125,6 +134,9 @@ function detectLanguage(text: string, recentContext?: LocalRecentContext): Local
     const t = raw.toLowerCase();
 
     if (/[\u0980-\u09ff]/.test(raw)) return "bn";
+    // #11: Marathi uses Devanagari — check for Marathi-unique romanized keywords first
+    const mrScore = countMatches(t, /\b(mala|majhya|aahe|naahi|karu|kasa|kiti|aaj|khup|baru|nahi ka|kay karu|kay zala|kaay zhala|ho ka|ahes ka|baru nahi|majha|mazha|tuzha|tyacha|ticha|aahet|nasto|naste|aamhi|apan|bara|thaklo|dukh zala|mann jad)\b/g);
+    if (mrScore >= 2) return "mr";
     if (/[\u0900-\u097f]/.test(raw)) return "hi";
     if (/[\u0B80-\u0BFF]/.test(raw)) return "ta";
     if (/[\u0C00-\u0C7F]/.test(raw)) return "te";
@@ -197,7 +209,79 @@ function detectLanguage(text: string, recentContext?: LocalRecentContext): Local
         }
     }
 
+    // #12: Use the explicit last-detected language hint as final fallback before defaulting to English.
+    // This prevents jarring language switches when the user sends a short/ambiguous message mid-session.
+    const hintLang = recentContext?.lastDetectedLanguage;
+    if (hintLang && hintLang !== "en") {
+        return hintLang as LocalLanguage;
+    }
+
     return "en";
+}
+
+// #5: Detect indirect / hedging / deflection expressions that mask emotional distress.
+// Returns the underlying signal when the surface text looks "fine" but isn't.
+function detectIndirectSignal(text: string): "sad" | "anxious" | "angry" | "tired" | null {
+    const t = (text || "").toLowerCase().trim();
+
+    // Deflection & minimization → likely sad/suppressed
+    if (/\b(i'?m fine|it'?s fine|i'?m okay|i'?m ok|whatever|doesn'?t matter|never mind|forget it|it is what it is|it'?s nothing|not a big deal|i don'?t know|don'?t even know|can'?t explain|hard to explain)\b/.test(t)) return "sad";
+
+    // Resignation / hopelessness → sad
+    if (/\b(i give up|can'?t anymore|can't do this|too much|i'?m done|so over it|sick of (this|everything)|nothing (matters|helps|works))\b/.test(t)) return "sad";
+
+    // Overwhelm / spinning thoughts → anxious
+    if (/\b(i don'?t know what to do|don'?t know where to start|all at once|can'?t keep up|spinning|head (is|feels) full|too many (things|thoughts))\b/.test(t)) return "anxious";
+
+    // Suppressed anger → angry
+    if (/\b(so annoying|why (does|do|is) (this|everything|everyone|he|she|they)|seriously\?|unbelievable|i can'?t believe|ridiculous)\b/.test(t)) return "angry";
+
+    // Physical exhaustion cues → tired
+    if (/\b(just tired|so tired|exhausted (of|by)|drained|running on empty|no energy|wiped)\b/.test(t)) return "tired";
+
+    // Marathi indirect expressions
+    if (/\b(thaklo|thakle|khup thaklo|kaay karau|nako vatato|aaik nahi|mann nahi)\b/.test(t)) return "tired";
+
+    return null;
+}
+
+// #6: Detect whether the user is venting vs. actively seeking advice.
+function detectIntent(text: string): "venting" | "advice-seeking" | "neutral" {
+    const t = (text || "").toLowerCase().trim();
+
+    // Explicit advice signals
+    if (/\?$/.test(t)) return "advice-seeking";
+    if (/\b(what should (i|we)|how (do|can|should) i|can you help|any advice|any tips|what do i do|what would you|suggest|recommend|what'?s the best|how to deal|tell me (what|how))\b/.test(t)) return "advice-seeking";
+
+    // Venting / emotional release signals (no question, no advice request)
+    if (/\b(just (want to|wanted to|needed to) (say|vent|share|talk)|not looking for advice|just (listen|listening)|feel like telling|had to tell someone|couldn'?t hold it|ugh|argh|so frustrated|so upset|so sad|i hate this|i hate (it|when)|can'?t (take|stand|handle) (this|it|anymore))\b/.test(t)) return "venting";
+
+    return "neutral";
+}
+
+// #10: Detect the broad topic context of the message for contextual replies.
+function detectTopic(text: string, recentTexts: string[] = []): "work" | "relationship" | "health" | "existential" | "general" {
+    const combined = ([text, ...recentTexts].join(" ") || "").toLowerCase();
+
+    if (/\b(work|job|boss|office|deadline|project|meeting|colleague|team|interview|career|study|exam|college|school|client|manager|promotion|salary|assignment)\b/.test(combined)) return "work";
+    if (/\b(friend|family|mom|dad|mother|father|partner|boyfriend|girlfriend|relationship|love|marriage|divorce|breakup|fight|argument|toxic|miss (you|him|her|them)|alone|lonely)\b/.test(combined)) return "relationship";
+    if (/\b(sick|pain|health|doctor|medicine|hospital|sleep|insomnia|eat|appetite|headache|migraine|tired|body|anxiety|depression|mental health|therapy|therapist|panic attack)\b/.test(combined)) return "health";
+    if (/\b(life|meaning|purpose|why (am i|do i|does it)|exist|worth it|future|hope|everything|nothing matters|pointless|empty|lost|who am i|identity|direction)\b/.test(combined)) return "existential";
+
+    return "general";
+}
+
+// #8: Detect when the user is correcting a previous misread.
+function detectCorrection(text: string): boolean {
+    const t = (text || "").toLowerCase();
+    return /\b(no[,.]?\s+(that|you|i|not|it)|you misunderstood|i didn'?t mean|not what i meant|that'?s not (it|what|right)|wrong|actually|i meant|what i (said|meant) was|let me rephrase|to clarify)\b/.test(t);
+}
+
+// #7: Extract a salient named topic from recent messages for follow-up reference.
+function extractKeyTopic(recentTexts: string[]): string | null {
+    const joined = (recentTexts || []).join(" ").toLowerCase();
+    const match = joined.match(/\b(mom|dad|mother|father|partner|boyfriend|girlfriend|friend|brother|sister|wife|husband|work|boss|job|exam|interview|school|college|health|sleep|breakup|divorce)\b/);
+    return match?.[0] ?? null;
 }
 
 function detectSignal(text: string, lang: LocalLanguage): "sad" | "anxious" | "angry" | "tired" | "okay" {
@@ -211,6 +295,15 @@ function detectSignal(text: string, lang: LocalLanguage): "sad" | "anxious" | "a
         /\b(tension|stress|stressed|overwhelm|overwhelmed|pressure)\b/i.test(raw)
     ) {
         return "anxious";
+    }
+
+    // #11: Marathi signals
+    if (lang === "mr") {
+        if (/(sad|down|depressed|hopeless|cry|dukh|udaas|radu|mann jad|baru nahi|nako vatata)/.test(t)) return "sad";
+        if (/(anxious|worried|panic|overwhelm|stress|tension|chinta|ghabra|bhiti|dara|pressure)/.test(t)) return "anxious";
+        if (/(angry|mad|furious|irritated|annoyed|rag|chidchid|kopavla|ras)/.test(t)) return "angry";
+        if (/(tired|exhausted|drained|thaklo|thakle|shakti nahi|kami pado)/.test(t)) return "tired";
+        return "okay";
     }
 
     if (lang === "hi") {
@@ -245,6 +338,46 @@ function detectSignal(text: string, lang: LocalLanguage): "sad" | "anxious" | "a
         return "okay";
     }
 
+    if (lang === "gu") {
+        if (/(sad|down|depressed|hopeless|cry|dukh|udaas|man kharap|rovu|dard|haar|dukhi)/.test(t)) return "sad";
+        if (/(anxious|worried|panic|overwhelm|stress|tension|dara|ghabra|chinta|anxiety)/.test(t)) return "anxious";
+        if (/(angry|mad|furious|irritated|annoyed|gusse|krodh|chidha)/.test(t)) return "angry";
+        if (/(tired|exhausted|drained|burnt|thakelo|thak|shakti nathi)/.test(t)) return "tired";
+        return "okay";
+    }
+
+    if (lang === "pa") {
+        if (/(sad|down|depressed|hopeless|cry|dukhi|udaas|man kharap|rona|bura lagg|toot)/.test(t)) return "sad";
+        if (/(anxious|worried|panic|overwhelm|stress|tension|chinta|ghabra|pareshaan|dara lagg)/.test(t)) return "anxious";
+        if (/(angry|mad|furious|irritated|annoyed|gussa|krodh|chidha)/.test(t)) return "angry";
+        if (/(tired|exhausted|drained|burnt|thakka|thakke|shakti nahi)/.test(t)) return "tired";
+        return "okay";
+    }
+
+    if (lang === "kn") {
+        if (/(sad|down|depressed|hopeless|cry|dukha|badha|novu|alavotti|kanniru)/.test(t)) return "sad";
+        if (/(anxious|worried|panic|overwhelm|stress|tension|bayabhiti|chinta|ghabra)/.test(t)) return "anxious";
+        if (/(angry|mad|furious|irritated|annoyed|kopa|frustrating)/.test(t)) return "angry";
+        if (/(tired|exhausted|drained|burnt|dakkavase|shakti illa|alasata)/.test(t)) return "tired";
+        return "okay";
+    }
+
+    if (lang === "ml") {
+        if (/(sad|down|depressed|hopeless|cry|dukham|vishamam|kashtam|kanneer)/.test(t)) return "sad";
+        if (/(anxious|worried|panic|overwhelm|stress|tension|bhayam|verupu|anxiety)/.test(t)) return "anxious";
+        if (/(angry|mad|furious|irritated|annoyed|kopam|frustrated)/.test(t)) return "angry";
+        if (/(tired|exhausted|drained|burnt|thurannu|shakti illa)/.test(t)) return "tired";
+        return "okay";
+    }
+
+    if (lang === "or") {
+        if (/(sad|down|depressed|hopeless|cry|dukha|manakhana|kanna|udaas|dukhit)/.test(t)) return "sad";
+        if (/(anxious|worried|panic|overwhelm|stress|tension|chinta|ghabara|bhaya)/.test(t)) return "anxious";
+        if (/(angry|mad|furious|irritated|annoyed|raga|kopita|frustrated)/.test(t)) return "angry";
+        if (/(tired|exhausted|drained|burnt|thaka|shakti nahi)/.test(t)) return "tired";
+        return "okay";
+    }
+
     if (/(sad|down|depressed|hopeless|cry)/.test(t)) return "sad";
     if (/(anxious|worried|panic|overwhelm|stress|pressure)/.test(t)) return "anxious";
     if (/(angry|mad|furious|irritated|annoyed)/.test(t)) return "angry";
@@ -252,57 +385,192 @@ function detectSignal(text: string, lang: LocalLanguage): "sad" | "anxious" | "a
     return "okay";
 }
 
+// ── Gender-aware post-processing ─────────────────────────────────────────────
+// These are applied AFTER template selection so the core banks stay simple.
+
+/**
+ * Adjust companion voice verb forms in Hindi for a female companion.
+ * Only modifies clearly gendered first-person verb endings; neutral phrases are left intact.
+ */
+function applyHindiCompanionGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        // "Main sun raha hoon" → "Main sun rahi hoon"
+        .replace(/\bsun raha hoon\b/gi, "sun rahi hoon")
+        // "Samajh gaya" → "Samajh gayi" (standalone or mid-sentence)
+        .replace(/\bSamajh gaya\b/g, "Samajh gayi")
+        .replace(/\bsamajh gaya\b/g, "samajh gayi")
+        // "Hmm, sun raha hoon" → "Hmm, sun rahi hoon"
+        .replace(/\bsun raha hoon\b/g, "sun rahi hoon");
+}
+
+/**
+ * Adjust second-person verb agreement in Hindi when the user is female.
+ * Covers the age-closer for teens and select validation lines.
+ */
+function applyHindiUserGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        // "sambhal loge" → "sambhal logi" (you will manage — teen age closer)
+        .replace(/\bsambhal loge\b/g, "sambhal logi")
+        // "utha rahe ho" → "utha rahi ho"
+        .replace(/\butha rahe ho\b/g, "utha rahi ho")
+        // "kar rahe ho" → "kar rahi ho"
+        .replace(/\bkar rahe ho\b/g, "kar rahi ho");
+}
+
+/**
+ * Adjust companion voice verb forms in Gujarati for a female companion.
+ * "Samajh gayo" (I understood, masc) → "Samajh gai" (fem).
+ */
+function applyGujaratiCompanionGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        .replace(/\bSamajh gayo\b/g, "Samajh gai")
+        .replace(/\bsamajh gayo\b/g, "samajh gai");
+}
+
+/**
+ * Adjust second-person verb agreement in Gujarati when the user is female.
+ * "uthi rahyo chhe" (was carrying, masc) → "uthi rahi chhe" (fem).
+ */
+function applyGujaratiUserGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        .replace(/\buthi rahyo chhe\b/g, "uthi rahi chhe")
+        .replace(/\bsahu uthi rahyo chhe\b/g, "sahu uthi rahi chhe");
+}
+
+/**
+ * Adjust companion voice verb forms in Punjabi for a female companion.
+ * Similar to Hindi: "sun raha haan" → "sun rahi haan", "Samajh gaya" → "Samajh gayi".
+ */
+function applyPunjabiCompanionGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        .replace(/\bsun raha haan\b/gi, "sun rahi haan")
+        .replace(/\bSamajh gaya\b/g, "Samajh gayi")
+        .replace(/\bsamajh gaya\b/g, "samajh gayi");
+}
+
+/**
+ * Adjust second-person verb agreement in Punjabi when the user is female.
+ * "chuk raha aa" (was carrying, masc) → "chuk rahi aa" (fem).
+ */
+function applyPunjabiUserGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        .replace(/\bchuk raha aa\b/g, "chuk rahi aa")
+        .replace(/\bsambhal lavega\b/g, "sambhal lavegi");
+}
+
 export function buildLocalReply(
     message: string,
     toneContext?: ToneContext,
     recentContext?: LocalRecentContext
 ): LocalReplyResult {
+    // ── Adult content safety gate ─────────────────────────────────────────
+    if (detectAdultContent(message)) {
+        const lang = toneContext?.userAge
+            ? (recentContext?.lastDetectedLanguage ?? "en")
+            : (recentContext?.lastDetectedLanguage ?? "en");
+        return {
+            message: buildAdultSafetyRefusal(lang, toneContext?.userAge),
+        };
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     const companionName = toneContext?.companion?.name ?? "Imotara";
-    const companionTone: LocalResponseTone = toneContext?.companion?.tone ?? "supportive";
     const language = detectLanguage(message, recentContext);
     const recentSignature = buildRecentSignature(recentContext);
+
+    // #9: Include sessionTurn in seed so repeated messages produce different replies
     const seed = hash32(
-        `${message}::${language}::${recentSignature}::${toneContext?.companion?.relationship ?? ""}::${toneContext?.companion?.tone ?? ""}`
+        `${message}::${language}::${recentSignature}::${toneContext?.companion?.relationship ?? ""}::${toneContext?.companion?.tone ?? ""}::${toneContext?.sessionTurn ?? 0}`
     );
-    const signal = detectSignal(message, language);
+
+    // #5: Catch indirect/hedging signals that bypass keyword detection
+    let signal = detectSignal(message, language);
+    if (signal === "okay") {
+        const indirect = detectIndirectSignal(message);
+        if (indirect) signal = indirect;
+    }
+
+    // #6: Detect intent — push toward supportive tone for pure venting
+    const userIntent = detectIntent(message);
+
+    // #8: Detect correction cues — use a repair opener
+    const isCorrection = detectCorrection(message);
+
+    // #10: Detect broad topic for contextual replies
+    const topic = detectTopic(message, recentContext?.recentUserTexts ?? []);
+
+    // #7: Extract key topic from recent messages for follow-up reference
+    const keyTopic = extractKeyTopic(recentContext?.recentUserTexts ?? []);
+    const isVagueReply = /^(yes|yeah|yep|no|nope|same|still|exactly|right|kind of|i guess|maybe|sure|ok|okay|mm|hmm|idk|dunno)\.?$/i.test(message.trim());
+
+    // Resolve tone: venting always gets supportive; advice-seeking prefers practical/coach
+    let companionTone: LocalResponseTone = toneContext?.companion?.tone ?? "supportive";
+    const prefStyle = toneContext?.preferredResponseStyle;
+    if (prefStyle === "motivate") companionTone = "coach";
+    else if (prefStyle === "advise") companionTone = "practical";
+    else if (prefStyle === "comfort") companionTone = "supportive";
+    else if (prefStyle === "reflect") companionTone = "calm";
+    // Intent override: pure venting → supportive regardless of companion setting
+    if (userIntent === "venting" && companionTone !== "supportive" && companionTone !== "calm") {
+        companionTone = "supportive";
+    }
+
+    // Suppress extras for advice-seeking so we don't drown action signals in presence language
+    const suppressExtras = userIntent === "advice-seeking";
+
+    // #2: Read emotionMemory to decide whether to deepen empathy
+    // If history summary mentions "high" intensity or repeated heavy emotions, boost toward supportive
+    const emotionMemory = recentContext?.emotionMemory ?? "";
+    const memoryShowsHighIntensity = /high|intensity.*high|overall intensity.*high/i.test(emotionMemory);
+    const memoryHeavyEmotions = /(sad|anxious|stress|fear|anger|lonely).*×[2-9]|×[2-9].*(sad|anxious|stress|fear|anger|lonely)/i.test(emotionMemory);
+    if ((memoryShowsHighIntensity || memoryHeavyEmotions) && companionTone === "calm") {
+        // Nudge calm → supportive when history shows sustained heavy emotions
+        companionTone = "supportive";
+    }
 
     const openersByToneEn: Record<LocalResponseTone, string[]> = {
         calm: [
-            `I’m here with you.`,
-            `Let’s slow this down together.`,
+            `I'm here with you.`,
+            `Let's slow this down together.`,
             `Okay. We can take this gently.`,
-            `I’m with you. Let’s take one piece at a time.`,
+            `I'm with you. Let's take one piece at a time.`,
         ],
         supportive: [
-            `I’m here with you.`,
+            `I'm here with you.`,
             `I hear you.`,
-            `Okay — I’m with you.`,
-            `I’m glad you said that.`,
-            `Got it. I’m listening.`,
+            `Okay — I'm with you.`,
+            `I'm glad you said that.`,
+            `Got it. I'm listening.`,
         ],
         practical: [
-            `Okay. Let’s look at this clearly.`,
-            `Got it. Let’s take this one piece at a time.`,
-            `Alright — let’s steady this and see what matters most.`,
-            `I’m with you. Let’s keep it simple.`,
+            `Okay. Let's look at this clearly.`,
+            `Got it. Let's take this one piece at a time.`,
+            `Alright — let's steady this and see what matters most.`,
+            `I'm with you. Let's keep it simple.`,
         ],
         coach: [
-            `Okay — I’m with you. Let’s steady this.`,
+            `Okay — I'm with you. Let's steady this.`,
             `Got it. We can work through this step by step.`,
-            `Alright — let’s slow this down and get our footing.`,
-            `I hear you. Let’s take it one piece at a time.`,
+            `Alright — let's slow this down and get our footing.`,
+            `I hear you. Let's take it one piece at a time.`,
         ],
         "gentle-humor": [
-            `Okay — I’m with you.`,
+            `Okay — I'm with you.`,
             `Mm. I hear you.`,
-            `Got it. I’m here.`,
-            `Alright — let’s make this feel a little lighter, one step at a time.`,
+            `Got it. I'm here.`,
+            `Alright — let's make this feel a little lighter, one step at a time.`,
         ],
         direct: [
-            `Alright. I’m with you.`,
-            `Okay. Let’s be clear about this.`,
-            `Got it. Let’s keep this steady.`,
-            `I hear you. Let’s get to the heart of it.`,
+            `Alright. I'm with you.`,
+            `Okay. Let's be clear about this.`,
+            `Got it. Let's keep this steady.`,
+            `I hear you. Let's get to the heart of it.`,
         ],
     };
 
@@ -467,32 +735,32 @@ export function buildLocalReply(
     };
 
     const validationsEn: Record<typeof signal, string[]> = {
-        sad: [`That sounds heavy.`, `That can really hurt.`, `I’m sorry you’re carrying that.`, `That’s a lot to sit with.`],
+        sad: [`That sounds heavy.`, `That can really hurt.`, `I'm sorry you're carrying that.`, `That's a lot to sit with.`],
         anxious: [
             `That sounds like your mind is running fast.`,
             `That kind of pressure can feel loud.`,
-            `It makes sense you’d feel tense with that.`,
+            `It makes sense you'd feel tense with that.`,
             `That overwhelm feeling is real.`,
         ],
         angry: [
             `That sounds frustrating.`,
             `I can see how that would irritate you.`,
-            `That would get under anyone’s skin.`,
-            `Yeah — that’s a rough feeling.`,
+            `That would get under anyone's skin.`,
+            `Yeah — that's a rough feeling.`,
         ],
-        tired: [`That sounds draining.`, `No wonder you feel worn out.`, `That kind of tired can build up.`, `That’s a lot of load for one day.`],
+        tired: [`That sounds draining.`, `No wonder you feel worn out.`, `That kind of tired can build up.`, `That's a lot of load for one day.`],
         okay: [
             `Tell me a little more.`,
-            `I’m with you — what’s going on?`,
-            `I’m listening. What’s sitting with you right now?`,
-            `Okay. What’s the main thing on your mind?`,
+            `I'm with you — what's going on?`,
+            `I'm listening. What's sitting with you right now?`,
+            `Okay. What's the main thing on your mind?`,
         ],
     };
 
     const carryValidationsEn = [
         `I can feel this is still sitting with you.`,
         `This sounds like it is still weighing on you.`,
-        `I’m still with the thread of what you’re carrying.`,
+        `I'm still with the thread of what you're carrying.`,
         `It seems this is still heavy in the background.`,
     ];
 
@@ -623,21 +891,21 @@ export function buildLocalReply(
     };
 
     const reflectLinesEn = [
-        `When you say “${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}”, what part feels strongest right now?`,
-        `What’s the part of this that feels most uncomfortable?`,
-        `If we zoom in: what’s the one detail that’s bothering you most?`,
+        `When you say "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", what part feels strongest right now?`,
+        `What's the part of this that feels most uncomfortable?`,
+        `If we zoom in: what's the one detail that's bothering you most?`,
         `What do you wish was different about this situation?`,
     ];
 
     const reflectLinesHi = [
-        `Jab tum kehte ho “${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}”, abhi sabse zyada kya mehsoos ho raha hai?`,
+        `Jab tum kehte ho "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", abhi sabse zyada kya mehsoos ho raha hai?`,
         `Isme sabse zyada uncomfortable kya lag raha hai?`,
         `Agar hum thoda zoom in karein, sabse zyada pareshaan kya kar raha hai?`,
         `Tum chahte ho is situation mein kya alag hota?`,
     ];
 
     const reflectLinesBn = [
-        `Jokhon bolo “${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}”, ekhon shobcheye jore ki lagchhe?`,
+        `Jokhon bolo "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", ekhon shobcheye jore ki lagchhe?`,
         `Eitar modhye shobcheye beshi uncomfortable ki lagchhe?`,
         `Jodi ektu zoom in kori, shobcheye beshi ki jhamela dicchhe?`,
         `Tumi chaite e situation ta kivabe alada hoto?`,
@@ -647,7 +915,7 @@ export function buildLocalReply(
         `Want comfort, clarity, or a next step?`,
         `Do you want to talk it out, or want something practical to do next?`,
         `Would it help to unpack it, or to pick one small action?`,
-        `Should we focus on what you’re feeling, or what you can do next?`,
+        `Should we focus on what you're feeling, or what you can do next?`,
     ];
 
     const nextStepLinesHi = [
@@ -679,13 +947,13 @@ export function buildLocalReply(
         ],
         practical: [
             ``,
-            `Let’s only look at what matters first.`,
+            `Let's only look at what matters first.`,
             `We can keep this workable.`,
             `One useful piece is enough for now.`,
         ],
         coach: [
             ``,
-            `Let’s find the most workable part first.`,
+            `Let's find the most workable part first.`,
             `We only need one steady move right now.`,
             `You do not need to untangle everything at once.`,
         ],
@@ -693,11 +961,11 @@ export function buildLocalReply(
             ``,
             `We can keep this a little lighter without ignoring it.`,
             `One small shift is enough for now.`,
-            `I’m still right here with you.`,
+            `I'm still right here with you.`,
         ],
         direct: [
             ``,
-            `Let’s keep this clear.`,
+            `Let's keep this clear.`,
             `We can deal with one real part at a time.`,
             `Only the next useful piece matters right now.`,
         ],
@@ -705,11 +973,11 @@ export function buildLocalReply(
 
     const carryExtrasEn: Record<LocalResponseTone, string[]> = {
         calm: [`We do not have to force this anywhere yet.`, `We can just stay with it for a moment.`],
-        supportive: [`You do not have to explain it perfectly right now.`, `I’m still here with you in it.`],
+        supportive: [`You do not have to explain it perfectly right now.`, `I'm still here with you in it.`],
         practical: [`We can keep this simple for now.`, `We only need the next clear piece, not the whole answer.`],
         coach: [`We can steady this before doing anything else.`, `One grounded step later is enough.`],
         "gentle-humor": [`We can keep this soft without making it heavy-er.`, `No need to wrestle the whole thing right now.`],
-        direct: [`Let’s not overcomplicate it right now.`, `We can stay with the real part first.`],
+        direct: [`Let's not overcomplicate it right now.`, `We can stay with the real part first.`],
     };
 
     const extrasByToneHi: Record<LocalResponseTone, string[]> = {
@@ -764,47 +1032,47 @@ export function buildLocalReply(
         calm: [
             ``,
             `এখন শুধু একটা অংশ ধরে থাকলেই হবে।`,
-            `সবকিছু একসাথে সামলানোর তাড়া নেই।`,
-            `এটাকে জোর না করে steady রাখা যায়।`,
+            `সবকিছু একসাথে সামলানোর তাড়া নেই।`,
+            `এটাকে জোর না করে steady রাখা যায়।`,
         ],
         supportive: [
             ``,
-            `তোমাকে সবটা একসাথে বয়ে নিতে হবে না।`,
-            `যেটা সবচেয়ে ভারী লাগছে, আগে সেটার সঙ্গেই থাকি।`,
+            `তোমাকে সবটা একসাথে বয়ে নিতে হবে না।`,
+            `যেটা সবচেয়ে ভারী লাগছে, আগে সেটার সঙ্গেই থাকি।`,
             `সবকিছু এখনও এলোমেলো লাগলে তাতেও সমস্যা নেই।`,
         ],
         practical: [
             ``,
-            `চলো আগে সবচেয়ে দরকারি অংশটাই দেখি।`,
+            `চলো আগে সবচেয়ে দরকারি অংশটাই দেখি।`,
             `এটাকে manageable রাখা যাবে।`,
             `এখন একটা কাজের জিনিস ধরলেই যথেষ্ট।`,
         ],
         coach: [
             ``,
-            `চলো আগে সবচেয়ে workable অংশটা খুঁজি।`,
+            `চলো আগে সবচেয়ে workable অংশটা খুঁজি।`,
             `এখন শুধু একটা steady move হলেই হবে।`,
             `সবটা একসাথে মেলাতে হবে না।`,
         ],
         "gentle-humor": [
             ``,
-            `এটাকে হালকা রাখা যায়, তবু সিরিয়াস থাকাও যাবে।`,
+            `এটাকে হালকা রাখা যায়, তবু সিরিয়াস থাকাও যাবে।`,
             `এখন একটা ছোট shift হলেই যথেষ্ট।`,
             `আমি এখানেই আছি তোমার সাথে।`,
         ],
         direct: [
             ``,
             `চলো এটাকে পরিষ্কার রাখি।`,
-            `একবারে একটা বাস্তব অংশ ধরা যায়।`,
+            `একবারে একটা বাস্তব অংশ ধরা যায়।`,
             `এখন শুধু পরের useful অংশটাই যথেষ্ট।`,
         ],
     };
 
     const carryExtrasBn: Record<LocalResponseTone, string[]> = {
-        calm: [`এটাকে এখনই কোথাও ঠেলে নিতে হবে না।`, `আমরা একটু সময় শুধু এটার সাথেই থাকতে পারি।`],
+        calm: [`এটাকে এখনই কোথাও ঠেলে নিতে হবে না।`, `আমরা একটু সময় শুধু এটার সাথেই থাকতে পারি।`],
         supportive: [`এখনই একদম ঠিক করে বোঝাতে হবে না।`, `আমি এখনও তোমার সাথেই আছি এতে।`],
         practical: [`এখন এটাকে simple রাখি।`, `পুরো উত্তর না, শুধু পরের পরিষ্কার অংশটাই যথেষ্ট।`],
         coach: [`কিছু করার আগে এটাকে steady করি।`, `পরে একটা grounded step হলেই চলবে।`],
-        "gentle-humor": [`এটাকে হালকা রাখা যায়, বেশি জট না বাড়িয়ে।`, `এখন পুরো কুস্তি লড়ার দরকার নেই।`],
+        "gentle-humor": [`এটাকে হালকা রাখা যায়, বেশি জট না বাড়িয়ে।`, `এখন পুরো কুস্তি লড়ার দরকার নেই।`],
         direct: [`এখন এটাকে overcomplicate না করি।`, `আগে বাস্তব অংশটাই ধরি।`],
     };
 
@@ -886,67 +1154,907 @@ export function buildLocalReply(
         ],
     };
 
+    // ─── Gujarati (gu) ─────────────────────────────────────────────────────────
+    const openersByToneGu: Record<LocalResponseTone, string[]> = {
+        calm: [
+            `Hu tara sathe chhu.`,
+            `Chalo ane aaramthi joi aiye.`,
+            `Saru chhe. Hum ek sathe laishu.`,
+            `Hu tara sathe chhu. Ek ek vastu joi aiye.`,
+        ],
+        supportive: [
+            `Hu tara sathe chhu.`,
+            `Hu sanju chhu.`,
+            `Saru — hu ahiya chhu.`,
+            `Saru thayun ke tune kahu.`,
+            `Samajh gayo.`,
+        ],
+        practical: [
+            `Saru chhe. Chalo saf nazar e joi aiye.`,
+            `Samajh gayo. Ek ek step e laiye.`,
+            `Chalo joi aiye shu shu important chhe.`,
+            `Hu sathe chhu. Sadu rakhi aiye.`,
+        ],
+        coach: [
+            `Saru — hu sathe chhu. Pehla ane steady kariye.`,
+            `Samajh gayo. Ase ek ek step e karshu.`,
+            `Chalo thoda dhima thai ane footing pakdi aiye.`,
+            `Hu sanju chhu. Ek ek bhag joi aiye.`,
+        ],
+        "gentle-humor": [
+            `Saru — hu ahiya chhu.`,
+            `Hmm, hu sanju chhu.`,
+            `Samajh gayo. Hu sathe chhu.`,
+            `Chalo, ane thoda halku banavi aiye — ek chhoto step karine.`,
+        ],
+        direct: [
+            `Saru. Hu sathe chhu.`,
+            `Chalo seedhu joi aiye.`,
+            `Samajh gayo. Stable rakhi aiye.`,
+            `Hu sanju chhu. Mudda par aaviye.`,
+        ],
+    };
+
+    const validationsGu: Record<typeof signal, string[]> = {
+        sad: [`Aa kaafi bhari laage chhe.`, `Aa sach ma dard aapo chhe.`, `Mane dukh chhe ke tu aanu sahu uthi rahyo chhe.`, `Aana sathe besi rahevun mushkel chhe.`],
+        anxious: [
+            `Laage chhe dimaag bahut tez chale chhe.`,
+            `Evo pressure kaafi loud laagi shaake chhe.`,
+            `Aa rite tense feel thavun samjhay chhe.`,
+            `Aa overwhelm ni feeling sachi chhe.`,
+        ],
+        angry: [
+            `Aa kaafi frustrating laage chhe.`,
+            `Samjhay chhe aa irritate kartu.`,
+            `Koine pann aa kharab laagtu.`,
+            `Ha — aa rough feeling chhe.`,
+        ],
+        tired: [`Aa kaafi draining laage chhe.`, `Etle tu itno thakelo feel kare chhe, aa samjhay chhe.`, `Aaval thakan jama thai shaake chhe.`, `Ek dinne mate aa kaafi load chhe.`],
+        okay: [
+            `Vadhare keh.`,
+            `Shu thayi rahyun chhe?`,
+            `Abhi tamne andar shu vadhu vaagtu chhe?`,
+            `Abhi dimag ma moti vaat shu chhe?`,
+        ],
+    };
+
+    const carryValidationsGu = [
+        `Laage chhe aa vaat abhi pann tamara maata basi reheli chhe.`,
+        `Aa abhi pann tujh par bhari lagti laage chhe.`,
+        `Tu jo utha rahyo chhe tenu thread abhi pann chale chhe.`,
+        `Laage chhe aa vaat aandharathi haji bhari rakheli chhe.`,
+    ];
+
+    const extrasByToneGu: Record<LocalResponseTone, string[]> = {
+        calm: [
+            ``,
+            `Haji sirf ek bhag pakadhine chal shakiye.`,
+            `Badhi vat ek sathe sambhalvani jaldi nathi.`,
+            `Ane bina force karya steady rakhay chhe.`,
+        ],
+        supportive: [
+            ``,
+            `Tumari bhari vaatne thodi vaar baaju rakhi shakay.`,
+            `Jo shu kaafi bhari laage chhe, pehla tenaa sathe rehiye.`,
+            `Je abhi pann uljhelu laage, toh pann saru chhe.`,
+        ],
+        practical: [
+            ``,
+            `Pehla jo shu zaroori chhe te joi aiye.`,
+            `Ane manageable rakhay chhe.`,
+            `Abhi ek kaam ni vaat jo puri chhe.`,
+        ],
+        coach: [
+            ``,
+            `Chalo pehla shu workable chhe te dhundhi aiye.`,
+            `Abhi faqt ek steady move kaafi chhe.`,
+            `Bhadhu ek sathe suljhavanu nathi.`,
+        ],
+        "gentle-humor": [
+            ``,
+            `Ane halku rakhi aiye ignore karyaa vina.`,
+            `Abhi ek chhoto shift kaafi chhe.`,
+            `Hu hun ahiya j chhu tara sathe.`,
+        ],
+        direct: [
+            ``,
+            `Chalo saafu rakhi aiye.`,
+            `Ek vaaste ek real bhag joi shakiye.`,
+            `Abhi faqt aglu useful bhag kaafi chhe.`,
+        ],
+    };
+
+    const carryExtrasGu: Record<LocalResponseTone, string[]> = {
+        calm: [`Abhi ise kahin dhakelne ni zarur nathi.`, `Hum bas thodi var eni sathe rahi shakiye.`],
+        supportive: [`Tune ine perfectly samjhavanu abhi zaruri nathi.`, `Hu hun abhi pann tara sathe chhu.`],
+        practical: [`Abhi ine simple rakhiye.`, `Pooru jawab nahi, bas aglu saafu bhag joie.`],
+        coach: [`Kuch karva thi pehla ine steady kariye.`, `Baad ma ek grounded step kaafi thashe.`],
+        "gentle-humor": [`Ine halka rakhi shakiye bina uljhavyaa.`, `Abhi bhadhi kushti ladva ni zarur nathi.`],
+        direct: [`Abhi ine overcomplicate nathi karva.`, `Pehla real bhag pakadiye.`],
+    };
+
+    const reflectLinesGu = [
+        `Jyaare tu kahe chhe "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", abhi shu shu strong feel thaye chhe?`,
+        `Aamath shu sabse zyada uncomfortable chhe?`,
+        `Jau toh zoom in kariye, shu shu tujhe vadhu pareshaani chhe?`,
+        `Tu shun chaahe chhe aa situation ma alag hotu?`,
+    ];
+
+    const nextStepLinesGu = [
+        `Abhi comfort joiye chhe, clarity, ke next step?`,
+        `Tu ane vaatoo karvaathi halku karvaanu chaahe chhe, ke practical kuch karvanu?`,
+        `Ane kholi jovaathi madad thashe, ke ek chhoto action?`,
+        `Hum tamari feeling par focus kariye, ke aaglu shu kari shakaye?`,
+    ];
+
+    // ─── Punjabi (pa) ─────────────────────────────────────────────────────────
+    const openersByTonePa: Record<LocalResponseTone, string[]> = {
+        calm: [
+            `Main tere naal haan.`,
+            `Chalo ise dheeray naal vekhiye.`,
+            `Theek aa. Ise araam naal laiye.`,
+            `Main tere naal haan. Ik ik hissa vekhiye.`,
+        ],
+        supportive: [
+            `Main tere naal haan.`,
+            `Main sun raha haan.`,
+            `Theek aa — main ithey haan.`,
+            `Changa kita ke dassia.`,
+            `Samajh gaya.`,
+        ],
+        practical: [
+            `Theek aa. Chalo ise saaf nazar naal vekhiye.`,
+            `Samajh gaya. Ise ik ik step wich laiye.`,
+            `Chalo sambhaalie te vekhiye ki sabton zaruri aa.`,
+            `Main saath haan. Ise simple rakhiye.`,
+        ],
+        coach: [
+            `Theek aa — main saath haan. Pehlan ise steady kariye.`,
+            `Samajh gaya. Ase ise step by step kaddhange.`,
+            `Chalo thoda dhimi ho ke footing pakdiye.`,
+            `Main sun raha haan. Ik ik hissa vekhiye.`,
+        ],
+        "gentle-humor": [
+            `Theek aa — main ithey haan.`,
+            `Hmm, main sun raha haan.`,
+            `Samajh gaya. Main saath haan.`,
+            `Chalo, ise thoda halka karie — ik chhoti step karke.`,
+        ],
+        direct: [
+            `Theek aa. Main saath haan.`,
+            `Chalo ise seedha vekhiye.`,
+            `Samajh gaya. Ise stable rakhiye.`,
+            `Main sun raha haan. Seedha mudde te aaiye.`,
+        ],
+    };
+
+    const validationsPa: Record<typeof signal, string[]> = {
+        sad: [`Eh kaafi bhaari lagda aa.`, `Eh sach mein chot pauncha sakda aa.`, `Mujhe afsos aa ke tu eh sab chuk raha aa.`, `Eh kaafi zyada aa saath lai ke chalan layi.`],
+        anxious: [
+            `Laggda aa dimaag bahut tez chal raha aa.`,
+            `Aiho pressure kaafi loud lagg sakda aa.`,
+            `Ais tarah tense feel karna samajh aunda aa.`,
+            `Eh overwhelm waali feeling sach hundi aa.`,
+        ],
+        angry: [
+            `Eh kaafi frustrating lagda aa.`,
+            `Samajh sakda haan eh irritate kare.`,
+            `Kisi nu vi eh bura laggda.`,
+            `Haan — eh rough feeling aa.`,
+        ],
+        tired: [`Eh kaafi draining lagda aa.`, `Ehi kaaran tu itna thakya feel kar raha aa, eh samajh aunda aa.`, `Eh tarah di thakan jamdi jaandi aa.`, `Ik din layi eh kaafi zyada load aa.`],
+        okay: [
+            `Thoda hor dass.`,
+            `Ki ho raha aa?`,
+            `Abhi tere andar sabton bhari ki gall aa?`,
+            `Abhi dimag wich sabton vaddi gall ki aa?`,
+        ],
+    };
+
+    const carryValidationsPa = [
+        `Laggda aa eh gall abhi vi tere andar baithi hui aa.`,
+        `Eh abhi vi tere utte bhaari tikki lagdi aa.`,
+        `Jo tu chuk raha aa uska thread abhi vi chal raha aa.`,
+        `Laggda aa eh gall pichhon abhi vi bhaari kar rahi aa.`,
+    ];
+
+    const extrasByTonePa: Record<LocalResponseTone, string[]> = {
+        calm: [
+            ``,
+            `Abhi sirf ik hissa pakad ke chal sakde haan.`,
+            `Sab kuch ik saath sambhalan di jaldi nahi.`,
+            `Ise bina force kite steady rakhaya ja sakda aa.`,
+        ],
+        supportive: [
+            ``,
+            `Tenu sab kuch ik saath chukna nahi.`,
+            `Jo sabton bhaari lagda aa, pehlan usi naal rehiye.`,
+            `Je sab kuch abhi vi uljhya lagda aa, tenu vi theek aa.`,
+        ],
+        practical: [
+            ``,
+            `Chalo pehlan jo sabton zaruri aa uh vekhiye.`,
+            `Ise manageable rakhya ja sakda aa.`,
+            `Abhi ik kaam di gall kaafi aa.`,
+        ],
+        coach: [
+            ``,
+            `Chalo pehlan sabton workable hissa dhundhiye.`,
+            `Abhi sirf ik steady move kaafi aa.`,
+            `Tenu sab kuch ik saath suljhana nahi.`,
+        ],
+        "gentle-humor": [
+            ``,
+            `Ise halka rakh sakde haan bina ignore kite.`,
+            `Abhi ik chhoti shift kaafi aa.`,
+            `Main ithey haan tere naal.`,
+        ],
+        direct: [
+            ``,
+            `Chalo ise saaf rakhiye.`,
+            `Hum ik real hissa ik vaar dekh sakde haan.`,
+            `Abhi sirf agla useful hissa kaafi aa.`,
+        ],
+    };
+
+    const carryExtrasPa: Record<LocalResponseTone, string[]> = {
+        calm: [`Abhi ise kahin dhakelne di lodd nahi.`, `Assi bas thodi der edi naal reh sakde haan.`],
+        supportive: [`Tenu ise perfectly samjhana abhi zaruri nahi.`, `Main abhi vi tere naal haan eis wich.`,],
+        practical: [`Abhi ise simple rakhiye.`, `Poora jawab nahi, bas agla saaf hissa vekhna aa.`],
+        coach: [`Kuch karan ton pehlan ise steady kar laiye.`, `Baad wich ik grounded step kaafi hoga.`],
+        "gentle-humor": [`Ise halka rakh sakde haan bina uljhaye.`, `Abhi poori kushti ladne di lodd nahi.`],
+        direct: [`Abhi ise overcomplicate nahi kariye.`, `Pehlan real hissa pakdiye.`],
+    };
+
+    const reflectLinesPa = [
+        `Jad tu kende aa "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", abhi sabton zyada ki feel ho raha aa?`,
+        `Eis wich sabton beshi uncomfortable ki lagda aa?`,
+        `Je thoda zoom in kariye, sabton beshi ki pareshaan kar raha aa?`,
+        `Tu chaahunda aa is situation wich ki different hunda?`,
+    ];
+
+    const nextStepLinesPa = [
+        `Abhi comfort chahida aa, clarity, ya next step?`,
+        `Tu ise gall karke halka karna chaahunda aa, ya koi practical agla karna hai?`,
+        `Kya ise khol ke vekhna madad kare, ya ik chhoti action chunna?`,
+        `Assi teri feeling te focus kariye, ya agle kee kar sakde haan us te?`,
+    ];
+
+    // ─── Kannada (kn) ─────────────────────────────────────────────────────────
+    const openersByToneKn: Record<LocalResponseTone, string[]> = {
+        calm: [
+            `Naanu ninna jote iddene.`,
+            `Idannu mellage nodona.`,
+            `Sari. Idannu aaramaagi teedukonona.`,
+            `Naanu ninna jote iddene. Ondondu bhagavagi nodona.`,
+        ],
+        supportive: [
+            `Naanu ninna jote iddene.`,
+            `Naanu kelutiddene.`,
+            `Sari — naanu illi iddene.`,
+            `Neevu heltiru, adhu olledhu.`,
+            `Artha aagide.`,
+        ],
+        practical: [
+            `Sari. Idannu sparshtavaagi nodona.`,
+            `Artha aagide. Idannu step by step teedukonona.`,
+            `Idannu steady maadi mukhyavaada vishaya nodona.`,
+            `Naanu ninna jote iddene. Idannu sarala maadona.`,
+        ],
+        coach: [
+            `Sari — naanu ninna jote iddene. Munche idannu steady maadona.`,
+            `Artha aagide. Idannu step by step nodona.`,
+            `Konjam mellage hogi footing hidukona.`,
+            `Naanu kelutiddene. Ondondu bhagavagi nodona.`,
+        ],
+        "gentle-humor": [
+            `Sari — naanu illi iddene.`,
+            `Hmm, naanu kelutiddene.`,
+            `Artha aagide. Naanu ninna jote iddene.`,
+            `Idannu konjam light aagi teedukonona — ondu chikka step allige.`,
+        ],
+        direct: [
+            `Sari. Naanu ninna jote iddene.`,
+            `Idannu nera nodona.`,
+            `Artha aagide. Idannu steady aagi irisi.`,
+            `Naanu kelutiddene. Suttamuttinu hogade point ge barona.`,
+        ],
+    };
+
+    const validationsKn: Record<typeof signal, string[]> = {
+        sad: [`Idu tumba bhaaravaagide eniste.`, `Idu ninage kashta kodabahudu.`, `Neevu idannu hotti kondu hogi iruvudu kashta anta artha aagide.`, `Idannu hotti iruvudu tumba hejje.`],
+        anxious: [
+            `Manas tumba vegaagi odutide eniste.`,
+            `Ee tarahad pressure tumba loud aagi anisabahudu.`,
+            `Heege iruvaga tense aagi feel aaguvudu sahajavendre.`,
+            `Ee overwhelm bhavane nijavaagide.`,
+        ],
+        angry: [
+            `Idu tumba frustrating aagi ide eniste.`,
+            `Idu kopava tararuva haagide anta artha aagide.`,
+            `Yarigaadaru idu kashta aagi anisabahudu.`,
+            `Haaunu — idu rough feeling.`,
+        ],
+        tired: [`Idu tumba draining aagi ide eniste.`, `Adakke neeve ivvali tired aagi ide, adu artha aagide.`, `Ee tarahad doni serkuttiruttade.`, `Ondu dinakke idu tumba load.`],
+        okay: [
+            `Konjam innu heli.`,
+            `Enu aaguttide konjam helutteeraa?`,
+            `Ippudu ninna olage tumba bhaaraagi iruvudu yenu?`,
+            `Ippudu ninna manassalliruva mukhya vishaya yenu?`,
+        ],
+    };
+
+    const carryValidationsKn = [
+        `Ee vishaya ippudu ninna olage iruttide anta anisuttide.`,
+        `Idu ippudu ninna meele bhaara aagi iruttide eniste.`,
+        `Neevu hotti hoguttiruvudu, aa thread ippudu iruttide.`,
+        `Ee vishaya hendadininda ippudu bhaara aagi iruttide eniste.`,
+    ];
+
+    const extrasByToneKn: Record<LocalResponseTone, string[]> = {
+        calm: [
+            ``,
+            `Ippudu ondu bhagavannu maatrana hididi irona.`,
+            `Ellavaannu ondu saarigu sambalisuvudakke avasaravilla.`,
+            `Idannu olage thosikolaade steady aagi irisi.`,
+        ],
+        supportive: [
+            ``,
+            `Neevu iddannu ellava ondu saarigu hotti hoguva avasaravilla.`,
+            `Tumba bharavaagide anta anisuvudannu munche nodona.`,
+            `Ippudu ella ella ulalaadittu hogi iddare, adu sari.`,
+        ],
+        practical: [
+            ``,
+            `Munche yenu mukhya adu nodona.`,
+            `Idannu manageable aagi irisi.`,
+            `Ippudu ondu useful bhaga saalade.`,
+        ],
+        coach: [
+            ``,
+            `Munche yenu kelsaadade ide adu kudukona.`,
+            `Ippudu ondu steady move maatrana saalade.`,
+            `Neevu ellava ondu saarigu helabeku anta illa.`,
+        ],
+        "gentle-humor": [
+            ``,
+            `Idannu ignore maadade konjam light aagi teedukonona.`,
+            `Ippudu ondu chikka shift saalade.`,
+            `Naanu illi ninna jote iddene.`,
+        ],
+        direct: [
+            ``,
+            `Idannu sparshta aagi irisi.`,
+            `Ondu ondu real bhagavannu nodabahudu.`,
+            `Ippudu munde useful bhaga maatrana beku.`,
+        ],
+    };
+
+    const carryExtrasKn: Record<LocalResponseTone, string[]> = {
+        calm: [`Ippudu idannu yaarigoo thosikolaada aasaravilla.`, `Naavuu koney koney idara jote irati irona.`],
+        supportive: [`Neevu idannu perfectly samjhisabeku anta illa ippudu.`, `Naanu abhi ninna jote iddene.`],
+        practical: [`Ippudu idannu simple aagi irisi.`, `Sampoorna uttara beda, munde sparshtavaada bhagavannu nodona.`],
+        coach: [`Enu maaduvudakku munche idannu steady maadona.`, `Naantara ondu grounded step saalade.`],
+        "gentle-humor": [`Idannu halka aagi irisi, tumba uljhi maadade.`, `Ippudu ellavannu oru saarigu helabeku anta illa.`],
+        direct: [`Ippudu idannu overcomplicate maadabedi.`, `Munche real bhagavannu hidukona.`],
+    };
+
+    const reflectLinesKn = [
+        `Neevu "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}" anta heldaaga, ippudu yarenu tattaagide?`,
+        `Idrallu yaarvannu tumba uncomfortable aagi anisuttide?`,
+        `Konjam zoom in maadidare, yarenu tumba kashtapattisutte?`,
+        `Ee sthithiyalli yarenu bere aagirali anta neevu baayalattu?`,
+    ];
+
+    const nextStepLinesKn = [
+        `Ippudu comfort beku, clarity, illa next step?`,
+        `Idannu maatanaadi hallaagabeku, illa practical enu maadabeku?`,
+        `Idannu belesi noduvudu sahaayadaaguttada, illa ondu chikka action aaykeisuvuda?`,
+        `Nimma feeling meele focus maadona, illa mundina yenu maadabahudu adara meele?`,
+    ];
+
+    // ─── Malayalam (ml) ─────────────────────────────────────────────────────────
+    const openersByToneMl: Record<LocalResponseTone, string[]> = {
+        calm: [
+            `Njaan ninnooppam undu.`,
+            `Idi mellage nokkaam.`,
+            `Sari. Idi mellage eettukol.`,
+            `Njaan ninnooppam undu. Ore ore bhagamayi nokkaam.`,
+        ],
+        supportive: [
+            `Njaan ninnooppam undu.`,
+            `Njaan kekkunnundu.`,
+            `Sari — njaan ippol unda.`,
+            `Nee paranjathu nallathayi.`,
+            `Manahsilaayi.`,
+        ],
+        practical: [
+            `Sari. Idi vyakthamayi nokkaam.`,
+            `Manahsilaayi. Idi step by step eettukol.`,
+            `Idi steady aakki muhyamaya vishayam nokkaam.`,
+            `Njaan koode undu. Idi saralamaakkaam.`,
+        ],
+        coach: [
+            `Sari — njaan ninnooppam undu. Munpe idi steady aakkaam.`,
+            `Manahsilaayi. Idi step by step nokkaam.`,
+            `Konjam mellage poyittu footing kittaam.`,
+            `Njaan kekkunnundu. Ore ore bhagamayi nokkaam.`,
+        ],
+        "gentle-humor": [
+            `Sari — njaan ippol unda.`,
+            `Hmm, njaan kekkunnundu.`,
+            `Manahsilaayi. Njaan ninnooppam undu.`,
+            `Idi konjam light aakki eettukol — oru chinna step aayi.`,
+        ],
+        direct: [
+            `Sari. Njaan ninnooppam undu.`,
+            `Idi nerey nokkaam.`,
+            `Manahsilaayi. Idi steady aakki vekkunna.`,
+            `Njaan kekkunnundu. Neri karyathilekku varaam.`,
+        ],
+    };
+
+    const validationsMl: Record<typeof signal, string[]> = {
+        sad: [`Idi valare bhaaram aayi thoannunnundu.`, `Idi ninnekku kashtam tharaam.`, `Nee idi vechi nadennanonnu ariyaam, athi kashtam.`, `Idi ithreyum sumai aayi thoannunnundu.`],
+        anxious: [
+            `Manassu valare vegathil odunnathupole thoannunnundu.`,
+            `Itha maadhiri pressure valare loud aakkanam.`,
+            `Ingane irikkumbol tense aaka saadharanacheyam.`,
+            `Itha overwhelm aaya feeling satyamaanu.`,
+        ],
+        angry: [
+            `Idi valare frustrating aayi thoannunnundu.`,
+            `Idi kopam undakkumenna ariyaam.`,
+            `Aarkku aanu idi kashtam aakkathe.`,
+            `Athe — idi rough feeling aanu.`,
+        ],
+        tired: [`Idi valare draining aayi thoannunnundu.`, `Athu kondu nee ivvali tired aayittunnu enna ariyaam.`, `Ith maathiri thazharcha koodi varaam.`, `Oru divasathekku idi valare erichal.`],
+        okay: [
+            `Konjam koodi para.`,
+            `Enthu nadakkunnu?`,
+            `Ippol ninnil koodu bhaaram aayi thoannunnnathu enthanu?`,
+            `Ippol ninte manassilulla muhyamaya vishayam enthanu?`,
+        ],
+    };
+
+    const carryValidationsMl = [
+        `Ith vishayam ippozhu ninnile thanneyundu enna thoannunnundu.`,
+        `Idi ippozhu ninnil bhaaram aayi nilkkunnathu poleya.`,
+        `Nee vechi nadakkunnath, aa thread ippol nilkkunnu.`,
+        `Ith vishayam appuzhathekkaalu ippol koodu bhaaram tharunnupole thoannunnundu.`,
+    ];
+
+    const extrasByToneMl: Record<LocalResponseTone, string[]> = {
+        calm: [
+            ``,
+            `Ippol ore bhagam maathram nookunna.`,
+            `Ella kaaryavum onnu kondu kazhikkanam enna avasaryamilla.`,
+            `Idine mellage steady aakki vekkunna.`,
+        ],
+        supportive: [
+            ``,
+            `Nee yellaatum onnu kondu vekkaathe.`,
+            `Athi bhaaram aayi thoannunnath, ath aadhyam nokkaam.`,
+            `Ippol yellaatum kuttippidikkunnathupole thoannal, athu sari.`,
+        ],
+        practical: [
+            ``,
+            `Aadhyam enthu muhyamanu ath nokkaam.`,
+            `Idine manageable aakki vekkunna.`,
+            `Ippol oru useful bhagam maathram mathiyaakum.`,
+        ],
+        coach: [
+            ``,
+            `Aadhyam enthu pradhaanam ath nokkaam.`,
+            `Ippol ore steady move maathram mathiyaakum.`,
+            `Yellaatum onnu kondu solve cheyyaanam enna avasaryamilla.`,
+        ],
+        "gentle-humor": [
+            ``,
+            `Idine ignore cheyyaathe konjam light aakki nookaam.`,
+            `Ippol oru chinna shift maathram mathiyaakum.`,
+            `Njaan ippol ninnodoppam unda.`,
+        ],
+        direct: [
+            ``,
+            `Idine vyakthamayi vekkunna.`,
+            `Ore ore real bhagam nokkaam.`,
+            `Ippol munnilulla useful bhagam maathram mathiyaakum.`,
+        ],
+    };
+
+    const carryExtrasMl: Record<LocalResponseTone, string[]> = {
+        calm: [`Ippol idine evidekkum thosikaanum avasaryamilla.`, `Njaan nee thodum koodeyuntaakum.`],
+        supportive: [`Nee idine ippol perfectly paryanum enna avasaryamilla.`, `Njaan ippol ninnodum koode undu.`],
+        practical: [`Ippol idine simple aakki vekkunna.`, `Sariyaaya uttharam venda, munnilulla vyakthamaaya bhagam maathram nokkaam.`],
+        coach: [`Enthenkilum cheyyunnadhin munpe idine steady aakkaam.`, `Pinnaale oru grounded step mathiyaakum.`],
+        "gentle-humor": [`Idine halka aakki vekkunna, koottappeduthathe.`, `Ippol ella kaaryavum oru saari cheyyanam enna ille.`],
+        direct: [`Ippol idine overcomplicate aakkathe.`, `Munpe real bhagam hidukkunna.`],
+    };
+
+    const reflectLinesMl = [
+        `Nee "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}" enna pariyumbol, ippol enthanu koodu tharunnath?`,
+        `Ithil enthu aanu valare uncomfortable ayi thoanunnath?`,
+        `Konjam zoom in cheyyumbol, enthu aaanu koodu kashtappeduttunathu?`,
+        `Ee sthithiyil entha aakkanam enna nee aagrahikkunnath?`,
+    ];
+
+    const nextStepLinesMl = [
+        `Ippol comfort venam, clarity, allengil next step?`,
+        `Nee ith parayathe hallaakkanam enna thoannunnundo, allengil practical enthengilum cheyyaan?`,
+        `Ith vivarichaal sahaayam aakumo, allengil oru chinna action?`,
+        `Ninnadé feeling-il focus cheyyaam, allengil adutha enthu cheyyaam ennathil?`,
+    ];
+
+    // ─── Odia (or) ─────────────────────────────────────────────────────────────
+    const openersByToneOr: Record<LocalResponseTone, string[]> = {
+        calm: [
+            `Mu tumara saathire achi.`,
+            `Aau dheere dheere eitaaku bhabhibu.`,
+            `Thik achi. Aau sthire lubu.`,
+            `Mu tumara saathire achi. Ek ek hissa dekhibu.`,
+        ],
+        supportive: [
+            `Mu tumara saathire achi.`,
+            `Mu shunuchi.`,
+            `Thik achi — mu eithire achi.`,
+            `Bhala hela je tume kaile.`,
+            `Bujhiparichhi.`,
+        ],
+        practical: [
+            `Thik achi. Aau spashta bhavare dekhibu.`,
+            `Bujhiparichhi. Eitaaku ek ek step re neibaa.`,
+            `Aau eitaaku steady kariba o kichi muhya jinisha dekhibu.`,
+            `Mu saathire achi. Eitaaku sahaja rakhiba.`,
+        ],
+        coach: [
+            `Thik achi — mu saathire achi. Agau eitaaku steady kariba.`,
+            `Bujhiparichhi. Aase eitaaku step by step nibu.`,
+            `Aau dheere hoi footing dhibu.`,
+            `Mu shunuchi. Ek ek hissa dekhibu.`,
+        ],
+        "gentle-humor": [
+            `Thik achi — mu eithire achi.`,
+            `Hmm, mu shunuchi.`,
+            `Bujhiparichhi. Mu saathire achi.`,
+            `Aau, eitaaku thoda halka kariba — ek chota step boli.`,
+        ],
+        direct: [
+            `Thik achi. Mu saathire achi.`,
+            `Aau seedha dekhibu.`,
+            `Bujhiparichhi. Eitaaku stable rakhiba.`,
+            `Mu shunuchi. Seedha mudra kuu aasibu.`,
+        ],
+    };
+
+    const validationsOr: Record<typeof signal, string[]> = {
+        sad: [`Aitaa onek bhaaree laaguchhi.`, `Aitaa sata mane kashta dii paaré.`, `Dukha laguchhi je tume aitaa bahi chaaluchha.`, `Aitaa niei basi rahiba onek.`],
+        anxious: [
+            `Laaguchhi mathaa bahuta teza chalichhi.`,
+            `Saéhi prakaarara pressure bahuta loud laagi paaré.`,
+            `Eiéhi samayare tense feel kara sahaja.`,
+            `Eitaa overwhelm er feeling satya.`,
+        ],
+        angry: [
+            `Aitaa onek frustrating laaguchhi.`,
+            `Bujhipaarichhi aitaa irritate kariba.`,
+            `Kebhali aitaa khaarap laagibaa.`,
+            `Haan — aitaa rough feeling.`,
+        ],
+        tired: [`Aitaa onek draining laaguchhi.`, `Taei tume ita thaka feel karuchha, aitaa bujhipaarichhi.`, `Eitaa prakaarara thakaa jama hue paaré.`, `Ek dina paain aitaa bahuta load.`],
+        okay: [
+            `Aaru thoda kahe.`,
+            `Ki heuuchhi?`,
+            `Ebe tumara bhitare sab cheye beshi ki bujhi laaguchhi?`,
+            `Ebe mathare sab cheye bada kotha ta ki?`,
+        ],
+    };
+
+    const carryValidationsOr = [
+        `Laaguchhi eitaa kotha ekhana bhi tumara bhitare besii achi.`,
+        `Eitaa ekhana bhi tumara upare bhari laaguchhi boli mane huchhi.`,
+        `Tume jo bahi chaluchha, sei thread ekhana chaluchhi.`,
+        `Laaguchhi eitaa kotha paachharu ekhana bhi bhari karuchhi.`,
+    ];
+
+    const extrasByToneOr: Record<LocalResponseTone, string[]> = {
+        calm: [
+            ``,
+            `Ebe kewal ek hissa dhari rahiparibaa.`,
+            `Sab kichhu ek saathare sambhaalibara jaldi nahi.`,
+            `Eitaaku bina force kara steady rakhibaaku heba.`,
+        ],
+        supportive: [
+            ``,
+            `Tume saba kichu ek saathare bahi jibaa nahii.`,
+            `Jo sab cheye bhari laaguchhi, taa saathire pehle rahiba.`,
+            `Je sab kichhu ekhana bhi uljhaa laage, taa bhi thik.`,
+        ],
+        practical: [
+            ``,
+            `Pehle jo sab cheye dorkari, taa dekhibaa.`,
+            `Eitaaku manageable rakhiba.`,
+            `Ebe ek kaama jinisha mattare sare.`,
+        ],
+        coach: [
+            ``,
+            `Pehle sab cheye workable ta khoji dekhibaa.`,
+            `Ebe kewal ek steady move sare.`,
+            `Tume saba ek saathare suljhibaa nahii.`,
+        ],
+        "gentle-humor": [
+            ``,
+            `Eitaaku ignore na kari thoda halka rakhiba.`,
+            `Ebe ek chota shift sare.`,
+            `Mu eithire achi tumara saathire.`,
+        ],
+        direct: [
+            ``,
+            `Aau eitaaku spashta rakhiba.`,
+            `Ek ek real hissa dekhihaaba.`,
+            `Ebe kewal agla useful hissa sare.`,
+        ],
+    };
+
+    const carryExtrasOr: Record<LocalResponseTone, string[]> = {
+        calm: [`Ebe eitaaku kahinkuu thelibaa darkaara nahi.`, `Aame ektu samayara saathire rahi paribaa.`],
+        supportive: [`Tume eitaaku ekhani perfectly bujhhaibaa darkaara nahi.`, `Mu ekhana bhi tumara saathire achi.`],
+        practical: [`Ebe eitaaku simple rakhiba.`, `Sampurna uttar nahi, parer spashta hissa maatra.`],
+        coach: [`Kichu kariba agau eitaaku steady kariba.`, `Paare ek grounded step sare.`],
+        "gentle-humor": [`Eitaaku halka rakhiba, jyaada uljhana na kariba.`, `Ebe sab kichu ek saathare ladibar dorkar nahi.`],
+        direct: [`Ebe eitaaku overcomplicate na kariba.`, `Agau real hissa dhabiba.`],
+    };
+
+    const reflectLinesOr = [
+        `Jebe tume kahe "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", ebe ki sab cheye jore feel laaguchhi?`,
+        `Ehitaa madhye ki sab cheye uncomfortable laaguchhi?`,
+        `Jadi thoda zoom in karaa jaae, ki sab cheye beshi bhaarabeka karichhi?`,
+        `Tume chahanthile ei obostha re ki alag thanda?`,
+    ];
+
+    const nextStepLinesOr = [
+        `Ebe comfort dorkaar, clarity, naa next step?`,
+        `Tume eitaa kathabartaa kari halka kariba chaahuchha, naa practical kichhu agaa karibaa?`,
+        `Eitaaku kholibaa sahayya hebe, naa ek chota action nibaa?`,
+        `Aame tuma feeling re focus karibaa, naa tume agaa ki karipaaribaa sei upare?`,
+    ];
+
+    // ─── Marathi (mr) ─────────────────────────────────────────────────────────
+    const openersByToneMr: Record<LocalResponseTone, string[]> = {
+        calm: [`Mi ithe aahe.`, `Chala he haluhalu gheuya.`, `Theek aahe. He aaramaat gheuya.`, `Mi tuzhyasobat aahe. Ek ek bhaag pahilya.`],
+        supportive: [`Mi ithe aahe.`, `Mi aikto aahe.`, `Theek aahe — mi itheche aahe.`, `Barabar kela sangitles.`, `Samajla.`],
+        practical: [`Theek aahe. He spashta nazar ne pahilya.`, `Samajla. He step by step gheuya.`, `Chala sambalto ani baghto kashacha mahattva aahe.`, `Mi sobat aahe. He saral thauvuya.`],
+        coach: [`Theek aahe — mi sobat aahe. Aadhi he steady karuya.`, `Samajla. He step by step kadhilya.`, `Thoda savakaash houn footing dharuya.`, `Mi aikto aahe. Ek ek bhaag pahilya.`],
+        "gentle-humor": [`Theek aahe — mi ithe aahe.`, `Hmm, mi aikto aahe.`, `Samajla. Mi sobat aahe.`, `Chala, he thoda halke karuya — ek chhota step karun.`],
+        direct: [`Theek aahe. Mi sobat aahe.`, `Chala he seedhya nazar ne pahilya.`, `Samajla. He steady thauvuya.`, `Mi aikto aahe. Seedhya muddevar yeuya.`],
+    };
+
+    const validationsMr: Record<typeof signal, string[]> = {
+        sad: [`He khupach jad vaatate.`, `He khare dukh deu shakate.`, `Mala vaait vaatate ki tu he sagle sahan kartoys.`, `Asa bharlelay asna khupach khatraak aahe.`],
+        anxious: [`Vaatatey dokyat khup vaeg aahe.`, `Itka pressure khup loud vaatato.`, `Asha pressaremadhe tense vatane saajik aahe.`, `He overwhelm chi feeling khare aahe.`],
+        angry: [`He khupach frustrating vaatate.`, `He irritate karaycha kaaran aahe he samajhate.`, `Konalaahi he bure vaatale aste.`, `Ho — hi rough feeling aahe.`],
+        tired: [`He khupach draining vaatate.`, `Tyamule tu itka thaklelya vaatatos, te samajhate.`, `Ashi thakan jama hote.`, `Ek divasasaathi he khupach load aahe.`],
+        okay: [`Adhik saang.`, `Kaay chaallu aahe?`, `Ata tujhyaat kaay jast bhaarite aahe?`, `Ata dokyat saglyyaat motha kaay aahe?`],
+    };
+
+    const carryValidationsMr = [
+        `Hi goshta ata pun tujhyat basi ahe ase vaatate.`,
+        `He ata pun tujhyavar jad aahe ase vaatate.`,
+        `Tu kaay sahan kartoys, tya thread ata pun chalu aahe.`,
+        `Hi goshta aadhi peksha ata jast jad vaatate ase distate.`,
+    ];
+
+    const extrasByToneMr: Record<LocalResponseTone, string[]> = {
+        calm: [``, `Ata faqt ek bhaag dharun chala shakato.`, `Sagle ek saath sambhalaychi ghai nahi.`, `He bina force karun steady thavata yete.`],
+        supportive: [``, `Tula sagle ek saath uthaava laagat nahi.`, `Jo saglyyaat jad vaatate, tya barober rahilya.`, `Sagle ata pun guntaycha thi theek aahe.`],
+        practical: [``, `Aadhi kaay saglyyaat mahattvaache aahe te pahilya.`, `He manageable thavta yete.`, `Ata ek kamaache goshta pahe jaane puresar aahe.`],
+        coach: [``, `Aadhi saglyyaat workable bhaag shodhlya.`, `Ata faqt ek steady move puresar aahe.`, `Tula sagle ek saath sudhavayche nahi.`],
+        "gentle-humor": [``, `He ignore na karta halke thavta yete.`, `Ata ek chhota shift puresar aahe.`, `Mi ithe tujhyasobat aahe.`],
+        direct: [``, `Chala he spasht thauvuya.`, `Ek velela ek real bhaag pahata yeto.`, `Ata faqt pudha useful bhaag puresar aahe.`],
+    };
+
+    const carryExtrasMr: Record<LocalResponseTone, string[]> = {
+        calm: [`Ata yaala kuthehi dhakalaaychi garj nahi.`, `Aapan thoda vel faqt yaच्याsobat rahu shakato.`],
+        supportive: [`Tula he perfectly samjaavayche ata garj nahi.`, `Mi ata pun tujhyasobat aahe.`],
+        practical: [`Ata he simple thauvuya.`, `Pura jaab nahi, faqt pudha spasht bhaag pahilya.`],
+        coach: [`Kaahi karayla aadhi he steady karuya.`, `Nantar ek grounded step puresar hail.`],
+        "gentle-humor": [`He halke thavta yete bina guntavit.`, `Ata puri kushti laadaaychi garj nahi.`],
+        direct: [`Ata he overcomplicate karaayche nahi.`, `Aadhi real bhaag dharuya.`],
+    };
+
+    const reflectLinesMr = [
+        `Jeva tu mhanto "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", ata kaay saglyyaat strong vaatate?`,
+        `Yaatlya kaay saglyyaat uncomfortable aahe?`,
+        `Zoom in kela tara, kaay saglyyaat jast tras detoy?`,
+        `Tu ya situation madhe kaay vegale hove ase vaatate?`,
+    ];
+
+    const nextStepLinesMr = [
+        `Ata comfort pahije, clarity, ki next step?`,
+        `Tu yaबद्दल bolun halke karaychay, ki practical kaahi karaychay?`,
+        `He ughaduun paahne madad hoil, ki ek chhota action?`,
+        `Aapan tuzhi feeling var focus karuya, ki pudha kaay karsheel te?`,
+    ];
+
     const bankLanguage = toReplyBankLanguage(language);
 
     const openers =
         bankLanguage === "hi"
             ? openersByToneHi[companionTone]
-            : bankLanguage === "bn"
-                ? openersByToneBn[companionTone]
-                : bankLanguage === "ta"
-                    ? openersByToneTa[companionTone]
-                    : bankLanguage === "te"
-                        ? openersByToneTe[companionTone]
-                        : openersByToneEn[companionTone];
+            : bankLanguage === "mr"
+                ? openersByToneMr[companionTone]
+                : bankLanguage === "bn"
+                    ? openersByToneBn[companionTone]
+                    : bankLanguage === "ta"
+                        ? openersByToneTa[companionTone]
+                        : bankLanguage === "te"
+                            ? openersByToneTe[companionTone]
+                            : bankLanguage === "gu"
+                                ? openersByToneGu[companionTone]
+                                : bankLanguage === "pa"
+                                    ? openersByTonePa[companionTone]
+                                    : bankLanguage === "kn"
+                                        ? openersByToneKn[companionTone]
+                                        : bankLanguage === "ml"
+                                            ? openersByToneMl[companionTone]
+                                            : bankLanguage === "or"
+                                                ? openersByToneOr[companionTone]
+                                                : openersByToneEn[companionTone];
 
     const validations =
         bankLanguage === "hi"
             ? validationsHi
-            : bankLanguage === "bn"
-                ? validationsBn
-                : bankLanguage === "ta"
-                    ? validationsTa
-                    : bankLanguage === "te"
-                        ? validationsTe
-                        : validationsEn;
+            : bankLanguage === "mr"
+                ? validationsMr
+                : bankLanguage === "bn"
+                    ? validationsBn
+                    : bankLanguage === "ta"
+                        ? validationsTa
+                        : bankLanguage === "te"
+                            ? validationsTe
+                            : bankLanguage === "gu"
+                                ? validationsGu
+                                : bankLanguage === "pa"
+                                    ? validationsPa
+                                    : bankLanguage === "kn"
+                                        ? validationsKn
+                                        : bankLanguage === "ml"
+                                            ? validationsMl
+                                            : bankLanguage === "or"
+                                                ? validationsOr
+                                                : validationsEn;
 
     const reflectLines =
         bankLanguage === "hi"
             ? reflectLinesHi
-            : bankLanguage === "bn"
-                ? reflectLinesBn
-                : reflectLinesEn;
+            : bankLanguage === "mr"
+                ? reflectLinesMr
+                : bankLanguage === "bn"
+                    ? reflectLinesBn
+                    : bankLanguage === "gu"
+                        ? reflectLinesGu
+                        : bankLanguage === "pa"
+                            ? reflectLinesPa
+                            : bankLanguage === "kn"
+                                ? reflectLinesKn
+                                : bankLanguage === "ml"
+                                    ? reflectLinesMl
+                                    : bankLanguage === "or"
+                                        ? reflectLinesOr
+                                        : reflectLinesEn;
 
     const nextStepLines =
         bankLanguage === "hi"
             ? nextStepLinesHi
-            : bankLanguage === "bn"
-                ? nextStepLinesBn
-                : nextStepLinesEn;
+            : bankLanguage === "mr"
+                ? nextStepLinesMr
+                : bankLanguage === "bn"
+                    ? nextStepLinesBn
+                    : bankLanguage === "gu"
+                        ? nextStepLinesGu
+                        : bankLanguage === "pa"
+                            ? nextStepLinesPa
+                            : bankLanguage === "kn"
+                                ? nextStepLinesKn
+                                : bankLanguage === "ml"
+                                    ? nextStepLinesMl
+                                    : bankLanguage === "or"
+                                        ? nextStepLinesOr
+                                        : nextStepLinesEn;
 
     const extrasByTone =
         bankLanguage === "hi"
             ? extrasByToneHi
-            : bankLanguage === "bn"
-                ? extrasByToneBn
-                : bankLanguage === "ta"
-                    ? extrasByToneTa
-                    : bankLanguage === "te"
-                        ? extrasByToneTe
-                        : extrasByToneEn;
+            : bankLanguage === "mr"
+                ? extrasByToneMr
+                : bankLanguage === "bn"
+                    ? extrasByToneBn
+                    : bankLanguage === "ta"
+                        ? extrasByToneTa
+                        : bankLanguage === "te"
+                            ? extrasByToneTe
+                            : bankLanguage === "gu"
+                                ? extrasByToneGu
+                                : bankLanguage === "pa"
+                                    ? extrasByTonePa
+                                    : bankLanguage === "kn"
+                                        ? extrasByToneKn
+                                        : bankLanguage === "ml"
+                                            ? extrasByToneMl
+                                            : bankLanguage === "or"
+                                                ? extrasByToneOr
+                                                : extrasByToneEn;
 
-    const intent = pick(["clarify", "reflect", "reframe"] as const, seed >>> 3);
+    const seedIntent = pick(["clarify", "reflect", "reframe"] as const, seed >>> 3);
 
     const prompt =
-        intent === "clarify"
+        seedIntent === "clarify"
             ? pick(nextStepLines, seed >>> 4)
-            : intent === "reflect"
+            : seedIntent === "reflect"
                 ? pick(reflectLines, seed >>> 4)
                 : language === "hi"
                     ? `Agar hum ise thoda narmi se reframe karein, kaunsi ek aur dayalu explanation sach ho sakti hai?`
                     : language === "bn"
                         ? `Jodi eta ektu narm bhabe reframe kori, tahole ar ekta dayalu byakkha ki hote pare?`
-                        : `If we reframe this gently: what’s one kinder explanation that could also be true?`;
+                        : language === "gu"
+                            ? `Je hum ane thoda narmi thi reframe kariye, to ek aur dayalu explanation shu ho shaake?`
+                            : language === "pa"
+                                ? `Je assi ise thodi narmi naal reframe kariye, ta ik hor dayaalu explanation ki ho sakdi aa?`
+                                : language === "mr"
+                                    ? `He haluhalu reframe kele tar, ek dayaalu explanation kaay ashu shakate jo satya ashu shakel?`
+                                    : language === "kn"
+                                        ? `Idannu mellage reframe maadidare, yaavudu ondu dayaavulla explaination satyavaagabahudhu?`
+                                        : language === "ml"
+                                            ? `Idi mellage reframe cheyyumbol, oru dayaavulla explanation satyam aakaam?`
+                                            : language === "or"
+                                            ? `Jadi eitaaku dheere reframe karaa jaae, taa ek dayaamaya explanation satya heba ki?`
+                                            : `If we reframe this gently: what's one kinder explanation that could also be true?`;
+
+    // #8: Correction repair — prepend an acknowledgement opener
+    const correctionPrefixes: Partial<Record<LocalReplyBankLanguage, string>> = {
+        en: "Let me try that differently —",
+        hi: "Chalo phir se samjhte hain —",
+        mr: "Chala punaah samjhto —",
+        bn: "Chalo abar bujhi —",
+        ta: "Maarichchu paarkalam —",
+        te: "Inkaa okasaari try cheddaam —",
+        gu: "Chalo pharthi samjhiye —",
+        pa: "Chalo phir samjhiye —",
+        kn: "Innomme try maadona —",
+        ml: "Innoru praavashyam nokkaaam —",
+        or: "Aaau eka bhara bujhibaa —",
+    };
+    const correctionPrefix = isCorrection ? (correctionPrefixes[bankLanguage] ?? correctionPrefixes.en) + " " : "";
+
+    // #7: Follow-up prefix when reply is vague and we have a key topic from earlier
+    const followUpPrefixes: Partial<Record<LocalReplyBankLanguage, (topic: string) => string>> = {
+        en: (t) => `Still thinking about the ${t} situation —`,
+        hi: (t) => `Abhi bhi ${t} ki baat chal rahi hai —`,
+        mr: (t) => `Abhi ${t} ch goshta suru aahe —`,
+        bn: (t) => `Ekhono ${t} er bishoy niye aacha —`,
+        ta: (t) => `Ingum ${t} patthi pesrom —`,
+        te: (t) => `Ippudu ${t} vishayame —`,
+        gu: (t) => `Abhi ${t} ni vaat chal rahi chhe —`,
+        pa: (t) => `Hali ${t} di gall chal rahi aa —`,
+        kn: (t) => `Ippudu ${t} vishayakke —`,
+        ml: (t) => `Ippol ${t} kayaryathil —`,
+        or: (t) => `Ekhanu ${t} bisayare —`,
+    };
+    const followUpPrefix = (isVagueReply && keyTopic)
+        ? ((followUpPrefixes[bankLanguage] ?? followUpPrefixes.en)!(keyTopic) + " ")
+        : "";
+
+    // #10: Topic-aware contextual hint appended after main message (English only for brevity)
+    const topicHints: Record<string, string> = {
+        work: "Work pressure like this can really pile up.",
+        relationship: "Relationships can carry so much weight.",
+        health: "Taking care of yourself matters most right now.",
+        existential: "These bigger questions deserve space.",
+        general: "",
+    };
+    const topicHint = (topic !== "general" && bankLanguage === "en" && signal !== "okay")
+        ? ` ${topicHints[topic]}`
+        : "";
 
     const opener = pick(openers, seed);
     const hasCarry = signal === "okay" && hasRecentEmotionalSignal(recentContext);
@@ -954,28 +2062,123 @@ export function buildLocalReply(
     const validation =
         hasCarry && bankLanguage === "hi"
             ? pick(carryValidationsHi, seed >>> 1)
-            : hasCarry && bankLanguage === "bn"
-                ? pick(carryValidationsBn, seed >>> 1)
-                : hasCarry
-                    ? pick(carryValidationsEn, seed >>> 1)
-                    : pick(validations[signal], seed >>> 1);
+            : hasCarry && bankLanguage === "mr"
+                ? pick(carryValidationsMr, seed >>> 1)
+                : hasCarry && bankLanguage === "bn"
+                    ? pick(carryValidationsBn, seed >>> 1)
+                    : hasCarry && bankLanguage === "gu"
+                        ? pick(carryValidationsGu, seed >>> 1)
+                        : hasCarry && bankLanguage === "pa"
+                            ? pick(carryValidationsPa, seed >>> 1)
+                            : hasCarry && bankLanguage === "kn"
+                                ? pick(carryValidationsKn, seed >>> 1)
+                                : hasCarry && bankLanguage === "ml"
+                                    ? pick(carryValidationsMl, seed >>> 1)
+                                    : hasCarry && bankLanguage === "or"
+                                        ? pick(carryValidationsOr, seed >>> 1)
+                                        : hasCarry
+                                            ? pick(carryValidationsEn, seed >>> 1)
+                                            : pick(validations[signal], seed >>> 1);
 
     const extra =
         hasCarry && bankLanguage === "hi"
             ? pick(carryExtrasHi[companionTone], seed >>> 5)
-            : hasCarry && bankLanguage === "bn"
-                ? pick(carryExtrasBn[companionTone], seed >>> 5)
-                : hasCarry
-                    ? pick(carryExtrasEn[companionTone], seed >>> 5)
-                    : pick(extrasByTone[companionTone], seed >>> 5);
+            : hasCarry && bankLanguage === "mr"
+                ? pick(carryExtrasMr[companionTone], seed >>> 5)
+                : hasCarry && bankLanguage === "bn"
+                    ? pick(carryExtrasBn[companionTone], seed >>> 5)
+                    : hasCarry && bankLanguage === "gu"
+                        ? pick(carryExtrasGu[companionTone], seed >>> 5)
+                        : hasCarry && bankLanguage === "pa"
+                            ? pick(carryExtrasPa[companionTone], seed >>> 5)
+                            : hasCarry && bankLanguage === "kn"
+                                ? pick(carryExtrasKn[companionTone], seed >>> 5)
+                                : hasCarry && bankLanguage === "ml"
+                                    ? pick(carryExtrasMl[companionTone], seed >>> 5)
+                                    : hasCarry && bankLanguage === "or"
+                                        ? pick(carryExtrasOr[companionTone], seed >>> 5)
+                                        : hasCarry
+                                            ? pick(carryExtrasEn[companionTone], seed >>> 5)
+                                            : pick(extrasByTone[companionTone], seed >>> 5);
 
-    const base = `${opener} ${validation}`.trim();
+    const base = `${correctionPrefix}${followUpPrefix}${opener} ${validation}`.trim();
+    const extraPart = suppressExtras ? "" : (extra ? " " + extra : "");
     const finalMsg = dedupeAdjacentSentences(
-        `${base}${extra ? " " + extra : ""}`.trim()
+        `${base}${extraPart}${topicHint}`.trim()
     );
 
+    // Age-aware closing: short, warm suffix for notably young or older users
+    const userAge = toneContext?.userAge;
+    const ageClosersByLang: Record<string, Partial<Record<LocalReplyBankLanguage, string>>> = {
+        under_13: {
+            en: "You're doing really well just by sharing this.",
+            hi: "Yeh share karna himmat ki baat hai.",
+            mr: "He share karane khupach dhads aache.",
+            bn: "Eta share kora onek sahosher kaaj.",
+            ta: "Idha sollaradhe nalla irukkudhu.",
+            te: "Idi cheppadam chala brave ga undi.",
+            kn: "Idu heltirodu tumba olle vishaya.",
+            ml: "Idi paranjathu valare nannaayi.",
+            gu: "Aa share karavanu ek himmat ni vaat chhe.",
+            pa: "Eh share karna bahut himmat di gall hai.",
+            or: "Eta share kara onek sahasa r kaaj.",
+        },
+        "13_17": {
+            en: "You've got this.",
+            hi: "Tum sambhal loge yaar.",
+            mr: "Tu handle karasheel.",
+            bn: "Tumi thik korte parbe.",
+            ta: "Unakkale mudiyum.",
+            te: "Nuvvu manage cheyagalagaavu.",
+            kn: "Neevu handle maadabahudu.",
+            ml: "Ninakku parreyum.",
+            gu: "Tu sambhali laishe.",
+            pa: "Tu sambhal lavega.",
+            or: "Tume sambhaliba pariba.",
+        },
+        "65_plus": {
+            en: "Take your time — there is no rush.",
+            hi: "Apni speed se chalo — koi jaldi nahi hai.",
+            mr: "Tuzha vel ghe — kaahlichi ghai nahi.",
+            bn: "Tomar time nao — kono taratari nei.",
+            ta: "Un neram eduthukko — avasaara illai.",
+            te: "Nee samayam teesukundu — avasaara ledu.",
+            kn: "Nimma samaya tagondi — avasara illa.",
+            ml: "Nee samayam edukku — tharamillaa.",
+            gu: "Tamaro samay lejo — koi uchhat nathi.",
+            pa: "Apna waqt lo — koi jaldi nahin.",
+            or: "Tumara samay niao — kono jaldi nei.",
+        },
+    };
+    const ageCloser = userAge ? (ageClosersByLang[userAge]?.[bankLanguage] ?? "") : "";
+    const messageWithAge = ageCloser
+        ? dedupeAdjacentSentences(`${finalMsg} ${ageCloser}`.trim())
+        : finalMsg;
+
+    // Apply gendered verb forms per language (companion voice + user address)
+    const companionGender = toneContext?.companion?.gender;
+    const userGender = toneContext?.userGender;
+    let finalMessage = messageWithAge.replaceAll("Imotara", companionName);
+    if (language === "hi") {
+        finalMessage = applyHindiCompanionGender(finalMessage, companionGender);
+        finalMessage = applyHindiUserGender(finalMessage, userGender);
+    } else if (language === "gu") {
+        finalMessage = applyGujaratiCompanionGender(finalMessage, companionGender);
+        finalMessage = applyGujaratiUserGender(finalMessage, userGender);
+    } else if (language === "pa") {
+        finalMessage = applyPunjabiCompanionGender(finalMessage, companionGender);
+        finalMessage = applyPunjabiUserGender(finalMessage, userGender);
+    }
+
+    // Occasionally address user by name (~1 in 3 replies, seed-driven for consistency)
+    // A comma-prefix works naturally in all 10 supported languages.
+    const userName = (toneContext?.userName ?? "").trim();
+    if (userName && seed % 3 === 0) {
+        finalMessage = `${userName}, ${finalMessage}`;
+    }
+
     return {
-        message: finalMsg.replaceAll("Imotara", companionName),
-        reflectionSeed: { intent, title: "", prompt },
+        message: finalMessage,
+        reflectionSeed: { intent: seedIntent, title: "", prompt },
     };
 }

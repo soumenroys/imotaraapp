@@ -1,7 +1,7 @@
 // src/hooks/useLicense.ts
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
     getCurrentLicenseStatus,
     type LicenseMode,
@@ -12,27 +12,67 @@ export type LicenseStatus = {
     status: LicenseStatusCode | "free";
     tier: LicenseTier;
     mode: LicenseMode;
+    /** true while the server fetch is in flight */
+    loading: boolean;
+    /** source of the current value */
+    source: "internal" | "supabase" | "error";
 };
 
 /**
- * React hook wrapper around the lightweight license helper.
+ * React hook that returns the current license status.
  *
- * 🔹 Current behavior:
- *   - Always returns a "valid", "pro" license.
- *   - Reads the current mode ("off" | "log" | "enforce") from env.
- *
- * So this hook CANNOT break any existing behavior and is safe to
- * import anywhere in client components.
+ * - Starts with the env-var snapshot (instant, no flash).
+ * - Then fetches /api/license/status to get the Supabase-backed tier
+ *   (relevant when the user is signed in and has a real license record).
+ * - Falls back gracefully on network error.
  */
 export default function useLicense(): LicenseStatus {
-    const base = useMemo(() => getCurrentLicenseStatus(), []);
+    const base = getCurrentLicenseStatus();
 
-    return useMemo(
-        () => ({
-            status: base.status as LicenseStatus["status"],
-            tier: base.tier as LicenseStatus["tier"],
-            mode: base.mode,
-        }),
-        [base.mode, base.status, base.tier]
-    );
+    const [status, setStatus] = useState<LicenseStatus>({
+        status: base.status as LicenseStatus["status"],
+        tier: base.tier as LicenseTier,
+        mode: base.mode,
+        loading: true,
+        source: "internal",
+    });
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function fetchLicense() {
+            try {
+                const res = await fetch("/api/license/status", {
+                    method: "GET",
+                    credentials: "same-origin",
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const json = await res.json();
+                if (cancelled) return;
+
+                const lic = json?.license;
+                if (lic) {
+                    setStatus({
+                        status: (lic.status ?? "valid") as LicenseStatus["status"],
+                        tier: (lic.tier ?? base.tier) as LicenseTier,
+                        mode: (lic.mode ?? base.mode) as LicenseMode,
+                        loading: false,
+                        source: (lic.source ?? "supabase") as LicenseStatus["source"],
+                    });
+                } else {
+                    setStatus((prev) => ({ ...prev, loading: false }));
+                }
+            } catch {
+                if (cancelled) return;
+                // Keep the env-var snapshot on error
+                setStatus((prev) => ({ ...prev, loading: false, source: "error" }));
+            }
+        }
+
+        void fetchLicense();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    return status;
 }

@@ -2868,7 +2868,7 @@ export default function ChatPage() {
               <button
                 onClick={sendMessage}
                 disabled={analyzing || !draft.trim()}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/15 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 px-4 text-sm font-medium text-white shadow-lg transition hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[0_0_28px_rgba(129,140,248,0.7)] duration-150 disabled:opacity-50"
+                className="im-cta-bg inline-flex h-11 items-center gap-2 rounded-2xl border border-white/15 px-4 text-sm font-medium text-white shadow-lg transition hover:brightness-110 hover:-translate-y-0.5 duration-150 disabled:opacity-50"
                 type="button"
               >
                 <Send className="h-4 w-4" /> Send
@@ -3241,7 +3241,7 @@ function Bubble({
   const bubbleClass = [
     "min-w-0 max-w-[85%] rounded-2xl px-4 py-3 text-sm sm:max-w-[75%] transition-all",
     isUser
-      ? "animate-msg-appear bg-gradient-to-br from-indigo-500/80 via-sky-500/80 to-emerald-400/80 text-white shadow-[0_18px_40px_rgba(15,23,42,0.85)]"
+      ? "animate-msg-appear im-user-bubble-bg text-white shadow-[0_18px_40px_rgba(15,23,42,0.85)]"
       : assistantBase.join(" "),
     ...assistantHover,
     highlighted

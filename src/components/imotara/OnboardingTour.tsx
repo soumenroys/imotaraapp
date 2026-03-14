@@ -118,7 +118,7 @@ export default function OnboardingTour() {
           <button
             type="button"
             onClick={next}
-            className="rounded-full bg-gradient-to-r from-indigo-500 to-sky-400 px-5 py-2 text-sm font-medium text-black shadow transition hover:brightness-110"
+            className="im-cta-bg rounded-full px-5 py-2 text-sm font-medium text-black shadow transition hover:brightness-110"
           >
             {slide < SLIDES.length - 1 ? "Next →" : "Done"}
           </button>

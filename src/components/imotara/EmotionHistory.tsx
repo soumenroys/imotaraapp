@@ -2028,7 +2028,7 @@ export default function EmotionHistory({ searchFilter = "" }: { searchFilter?: s
             </p>
             <a
               href="/chat"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-sky-400 px-4 py-2 text-xs font-medium text-black shadow transition hover:brightness-110"
+              className="im-cta-bg mt-4 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium text-black shadow transition hover:brightness-110"
             >
               Open Chat →
             </a>

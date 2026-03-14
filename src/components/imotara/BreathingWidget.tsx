@@ -163,7 +163,7 @@ export default function BreathingWidget({ onClose }: { onClose?: () => void }) {
           <button
             type="button"
             onClick={start}
-            className="rounded-full bg-gradient-to-r from-indigo-500 to-sky-400 px-6 py-2 text-sm font-medium text-black shadow transition hover:brightness-110"
+            className="im-cta-bg rounded-full px-6 py-2 text-sm font-medium text-black shadow transition hover:brightness-110"
           >
             Start
           </button>

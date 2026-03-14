@@ -159,7 +159,7 @@ function NavPill({ href, active, icon, children }: NavPillProps) {
   const base =
     "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs transition-colors transition-shadow transition-transform duration-150";
   const activeClasses =
-    "bg-gradient-to-r from-indigo-500 to-sky-400 text-black font-medium shadow-sm shadow-indigo-500/40 hover:shadow-md hover:shadow-indigo-500/60 hover:-translate-y-0.5";
+    "im-cta-bg text-black font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5";
   const inactiveClasses =
     "text-zinc-200/90 hover:text-zinc-50 hover:bg-white/10 hover:border-white/30 border border-transparent hover:-translate-y-0.5";
 

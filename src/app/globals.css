@@ -150,6 +150,27 @@ body {
 }
 
 /* -------------------------------------------------- */
+/* 🎨 Accent-reactive CTA helpers                     */
+/* -------------------------------------------------- */
+
+/* Primary action button — picks up the current accent colour */
+.im-cta-bg {
+  background-image: linear-gradient(to right, var(--im-accent), var(--im-accent-soft));
+}
+.im-cta-bg:hover {
+  box-shadow: 0 0 28px var(--im-accent-glow);
+}
+
+/* User chat bubble — same gradient at ~80 % opacity */
+.im-user-bubble-bg {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--im-accent) 80%, transparent),
+    color-mix(in srgb, var(--im-accent-soft) 70%, transparent)
+  );
+}
+
+/* -------------------------------------------------- */
 /* 🧊 Reusable “glass” helpers                        */
 /* -------------------------------------------------- */
 

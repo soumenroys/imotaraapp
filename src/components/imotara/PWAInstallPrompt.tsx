@@ -69,7 +69,7 @@ export default function PWAInstallPrompt() {
             <button
               type="button"
               onClick={install}
-              className="flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-500 to-sky-400 px-3 py-1 text-[11px] font-medium text-black shadow transition hover:brightness-110"
+              className="im-cta-bg flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium text-black shadow transition hover:brightness-110"
             >
               <Download className="h-3 w-3" />
               Install

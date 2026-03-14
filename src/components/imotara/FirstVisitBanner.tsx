@@ -74,7 +74,7 @@ export default function FirstVisitBanner() {
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
             <button
               onClick={() => choose("allow-remote")}
-              className="rounded-full bg-gradient-to-r from-indigo-500 to-sky-400 px-5 py-2 text-sm font-medium text-black shadow transition hover:brightness-110 hover:-translate-y-0.5"
+              className="im-cta-bg rounded-full px-5 py-2 text-sm font-medium text-black shadow transition hover:brightness-110 hover:-translate-y-0.5"
             >
               Enable AI replies
             </button>
@@ -111,7 +111,7 @@ export default function FirstVisitBanner() {
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
           <button
             onClick={goToSettings}
-            className="rounded-full bg-gradient-to-r from-indigo-500 to-sky-400 px-5 py-2 text-sm font-medium text-black shadow transition hover:brightness-110 hover:-translate-y-0.5"
+            className="im-cta-bg rounded-full px-5 py-2 text-sm font-medium text-black shadow transition hover:brightness-110 hover:-translate-y-0.5"
           >
             Set it up →
           </button>

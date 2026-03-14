@@ -39,6 +39,9 @@ yarn-error.log*
 .vercel
 .vercel_last_url
 
+# expo (leftover from running expo CLI in web project directory)
+.expo/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

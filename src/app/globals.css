@@ -52,9 +52,11 @@
 }
 
 /* ── Font size scale overrides ─────────────────────────────────────── */
-[data-fontsize="sm"] { --im-font-scale: 0.875; }
-[data-fontsize="md"] { --im-font-scale: 1; }
-[data-fontsize="lg"] { --im-font-scale: 1.125; }
+/* data-fontsize is on <html>, so these set the html font-size directly.
+   All rem-based Tailwind utilities (text-xs, text-sm, text-lg…) scale with it. */
+[data-fontsize="sm"] { --im-font-scale: 0.875; font-size: 14px; }
+[data-fontsize="md"] { --im-font-scale: 1;     font-size: 16px; }
+[data-fontsize="lg"] { --im-font-scale: 1.125; font-size: 18px; }
 
 /* ── Light mode overrides ──────────────────────────────────────────── */
 [data-theme="light"] {
@@ -103,9 +105,6 @@ html[data-theme="light"] .text-zinc-500 { color: #64748b !important; }
 html[data-theme="light"] .text-zinc-600 { color: #94a3b8 !important; }
 html[data-theme="light"] .border-white\/10 { border-color: rgba(0,0,0,0.10) !important; }
 html[data-theme="light"] .border-white\/20 { border-color: rgba(0,0,0,0.15) !important; }
-
-/* Apply scale to body text */
-body { font-size: calc(1rem * var(--im-font-scale)); }
 
 @theme inline {
   --color-background: var(--background);

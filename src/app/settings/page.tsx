@@ -1503,23 +1503,32 @@ export default function SettingsPage() {
                     <div className="mt-4">
                         <p className="mb-2 text-xs font-medium text-zinc-400">Accent colour</p>
                         <div className="flex flex-wrap gap-2">
-                            {ACCENT_OPTIONS.map((o) => (
-                                <button
-                                    key={o.value}
-                                    type="button"
-                                    onClick={() => setAccent(o.value)}
-                                    title={o.label}
-                                    className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${
-                                        accent === o.value
-                                            ? "border-white/40 bg-white/15 text-zinc-50"
-                                            : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"
-                                    }`}
-                                >
-                                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: o.color }} />
-                                    {o.label}
-                                    {accent === o.value && <span className="ml-0.5 text-[10px] opacity-60">✓</span>}
-                                </button>
-                            ))}
+                            {ACCENT_OPTIONS.map((o) => {
+                                const active = accent === o.value;
+                                return (
+                                    <button
+                                        key={o.value}
+                                        type="button"
+                                        onClick={() => setAccent(o.value)}
+                                        title={o.label}
+                                        className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition"
+                                        style={active ? {
+                                            borderColor: o.color,
+                                            backgroundColor: `${o.color}28`,
+                                            color: "#f4f4f5",
+                                            boxShadow: `0 0 14px ${o.color}55`,
+                                        } : {
+                                            borderColor: "rgba(255,255,255,0.10)",
+                                            backgroundColor: "rgba(255,255,255,0.05)",
+                                            color: "#a1a1aa",
+                                        }}
+                                    >
+                                        <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: o.color }} />
+                                        {o.label}
+                                        {active && <span className="ml-0.5 text-[10px] opacity-60">✓</span>}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -1532,11 +1541,12 @@ export default function SettingsPage() {
                                     key={o.value}
                                     type="button"
                                     onClick={() => setFontSize(o.value)}
-                                    className={`rounded-full px-4 py-1 text-xs transition ${
+                                    className={`rounded-full px-4 py-1 transition ${
                                         fontSize === o.value
                                             ? "bg-white/20 text-zinc-50"
                                             : "text-zinc-400 hover:text-zinc-200"
                                     }`}
+                                    style={{ fontSize: o.value === "sm" ? "11px" : o.value === "lg" ? "15px" : "13px" }}
                                 >
                                     {o.label}
                                 </button>

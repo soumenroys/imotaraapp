@@ -742,12 +742,13 @@ function DataDashboard({ getStorageSummary }: { getStorageSummary: () => { histo
     );
 }
 
-const ACCENT_OPTIONS: { value: Accent; label: string; color: string }[] = [
-    { value: "indigo",  label: "Indigo",  color: "#6366f1" },
-    { value: "teal",    label: "Teal",    color: "#14b8a6" },
-    { value: "rose",    label: "Rose",    color: "#f43f5e" },
-    { value: "amber",   label: "Amber",   color: "#f59e0b" },
-    { value: "emerald", label: "Emerald", color: "#10b981" },
+const ACCENT_OPTIONS: { value: Accent; label: string; color: string; gradient?: string }[] = [
+    { value: "twilight", label: "Twilight", color: "#6366f1", gradient: "linear-gradient(to right, #6366f1, #0ea5e9, #34d399)" },
+    { value: "indigo",   label: "Indigo",   color: "#6366f1" },
+    { value: "teal",     label: "Teal",     color: "#14b8a6" },
+    { value: "rose",     label: "Rose",     color: "#f43f5e" },
+    { value: "amber",    label: "Amber",    color: "#f59e0b" },
+    { value: "emerald",  label: "Emerald",  color: "#10b981" },
 ];
 
 const FONT_OPTIONS: { value: FontSize; label: string }[] = [
@@ -1521,12 +1522,15 @@ export default function SettingsPage() {
                         <div className="flex flex-wrap gap-2">
                             {ACCENT_OPTIONS.map((o) => {
                                 const active = accent === o.value;
+                                const swatchStyle = o.gradient
+                                    ? { backgroundImage: o.gradient }
+                                    : { backgroundColor: o.color };
                                 return (
                                     <button
                                         key={o.value}
                                         type="button"
                                         onClick={() => setAccent(o.value)}
-                                        title={o.label}
+                                        title={o.value === "twilight" ? "Twilight (default)" : o.label}
                                         className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition"
                                         style={active ? {
                                             borderColor: o.color,
@@ -1539,7 +1543,7 @@ export default function SettingsPage() {
                                             color: "#a1a1aa",
                                         }}
                                     >
-                                        <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: o.color }} />
+                                        <span className="h-3 w-3 rounded-full shrink-0" style={swatchStyle} />
                                         {o.label}
                                         {active && <span className="ml-0.5 text-[10px] opacity-60">✓</span>}
                                     </button>

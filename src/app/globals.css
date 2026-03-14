@@ -13,8 +13,9 @@
   --foreground: #e5e7eb;          /* zinc-200 */
 
   /* Accent system — overridable via data-accent attribute on <html> */
-  --im-accent: #6366f1;           /* indigo-500 (default) */
-  --im-accent-soft: #4f46e5;      /* indigo-600 */
+  --im-accent: #6366f1;           /* indigo-500 (twilight start) */
+  --im-accent-mid: #0ea5e9;       /* sky-500   (twilight mid)   */
+  --im-accent-soft: #34d399;      /* emerald-400 (twilight end) */
   --im-accent-secondary: #22c55e; /* emerald-500 */
   --im-accent-glow: rgba(99, 102, 241, 0.55);
 
@@ -30,23 +31,34 @@
 }
 
 /* ── Theme accent overrides ────────────────────────────────────────── */
+/* data-accent="indigo" = plain indigo (not twilight multi-stop) */
+[data-accent="indigo"] {
+  --im-accent: #6366f1;
+  --im-accent-mid: #4f46e5;
+  --im-accent-soft: #4f46e5;
+  --im-accent-glow: rgba(99, 102, 241, 0.55);
+}
 [data-accent="teal"] {
   --im-accent: #14b8a6;
+  --im-accent-mid: #0d9488;
   --im-accent-soft: #0d9488;
   --im-accent-glow: rgba(20, 184, 166, 0.55);
 }
 [data-accent="rose"] {
   --im-accent: #f43f5e;
+  --im-accent-mid: #e11d48;
   --im-accent-soft: #e11d48;
   --im-accent-glow: rgba(244, 63, 94, 0.55);
 }
 [data-accent="amber"] {
   --im-accent: #f59e0b;
+  --im-accent-mid: #d97706;
   --im-accent-soft: #d97706;
   --im-accent-glow: rgba(245, 158, 11, 0.55);
 }
 [data-accent="emerald"] {
   --im-accent: #10b981;
+  --im-accent-mid: #059669;
   --im-accent-soft: #059669;
   --im-accent-glow: rgba(16, 185, 129, 0.55);
 }
@@ -152,9 +164,10 @@ body {
 /* 🎨 Accent-reactive CTA helpers                     */
 /* -------------------------------------------------- */
 
-/* Primary action button — picks up the current accent colour */
+/* Primary action button — picks up the current accent colour.
+   Uses 3-stop twilight gradient by default; accent overrides collapse mid = soft. */
 .im-cta-bg {
-  background-image: linear-gradient(to right, var(--im-accent), var(--im-accent-soft));
+  background-image: linear-gradient(to right, var(--im-accent), var(--im-accent-mid), var(--im-accent-soft));
 }
 .im-cta-bg:hover {
   box-shadow: 0 0 28px var(--im-accent-glow);

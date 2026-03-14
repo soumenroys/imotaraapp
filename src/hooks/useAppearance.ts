@@ -8,17 +8,22 @@ const ACCENT_KEY   = "imotara.accent.v1";
 const FONTSIZE_KEY = "imotara.fontsize.v1";
 const THEME_KEY    = "imotara.theme.v1";
 
-export type Accent    = "indigo" | "teal" | "rose" | "amber" | "emerald";
+export type Accent    = "twilight" | "indigo" | "teal" | "rose" | "amber" | "emerald";
 export type FontSize  = "sm" | "md" | "lg";
 export type ColorMode = "dark" | "light";
 
-const ACCENT_DEFAULT: Accent    = "indigo";
+const ACCENT_DEFAULT: Accent    = "twilight";
 const FONTSIZE_DEFAULT: FontSize = "md";
 const THEME_DEFAULT: ColorMode  = "dark";
 
 function applyAccent(accent: Accent) {
   if (typeof document === "undefined") return;
-  document.documentElement.setAttribute("data-accent", accent);
+  if (accent === "twilight") {
+    // Remove override — falls back to :root twilight variables
+    document.documentElement.removeAttribute("data-accent");
+  } else {
+    document.documentElement.setAttribute("data-accent", accent);
+  }
 }
 
 function applyFontSize(size: FontSize) {
@@ -38,7 +43,7 @@ export function useAppearance() {
 
   useEffect(() => {
     try {
-      const a = (localStorage.getItem(ACCENT_KEY) as Accent) || ACCENT_DEFAULT;
+      const a = (localStorage.getItem(ACCENT_KEY) as Accent | null) || ACCENT_DEFAULT;
       const f = (localStorage.getItem(FONTSIZE_KEY) as FontSize) || FONTSIZE_DEFAULT;
       const t = (localStorage.getItem(THEME_KEY) as ColorMode) || THEME_DEFAULT;
       setAccentState(a);
@@ -53,7 +58,13 @@ export function useAppearance() {
   function setAccent(a: Accent) {
     setAccentState(a);
     applyAccent(a);
-    try { localStorage.setItem(ACCENT_KEY, a); } catch { /* ignore */ }
+    try {
+      if (a === "twilight") {
+        localStorage.removeItem(ACCENT_KEY);
+      } else {
+        localStorage.setItem(ACCENT_KEY, a);
+      }
+    } catch { /* ignore */ }
   }
 
   function setFontSize(f: FontSize) {

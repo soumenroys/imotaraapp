@@ -1044,7 +1044,7 @@ export default function SettingsPage() {
         setDonations(loadLocalDonations());
         // Also try fetching from server (works when user is signed in)
         refreshDonations();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, []);
 
     async function handleDonate(presetId: string, presetLabel: string) {
@@ -1407,7 +1407,7 @@ export default function SettingsPage() {
                                     Your Donations
                                 </h2>
                                 <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
-                                    Receipts are saved on this device immediately. Server records sync when you're signed in.
+                                    Receipts are saved on this device immediately. Server records sync when you&apos;re signed in.
                                 </p>
                             </div>
 

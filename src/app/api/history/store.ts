@@ -62,7 +62,7 @@ export async function getAllRecords(): Promise<EmotionRecord[]> {
         .order("created_at_ms", { ascending: true });
 
     if (error) {
-        // eslint-disable-next-line no-console
+         
         console.error("getAllRecords supabase error:", error);
         return [];
     }
@@ -97,7 +97,7 @@ export async function upsertRecords(records: EmotionRecord[]): Promise<void> {
     const { error } = await supabaseServer.from(TABLE).upsert(rows, { onConflict: "id" });
 
     if (error) {
-        // eslint-disable-next-line no-console
+         
         console.error("upsertRecords supabase error:", error);
     }
 }
@@ -113,7 +113,7 @@ export async function getRecordsSince(since: number): Promise<EmotionRecord[]> {
         .order("updated_at_ms", { ascending: true });
 
     if (error) {
-        // eslint-disable-next-line no-console
+         
         console.error("getRecordsSince supabase error:", error);
         return [];
     }
@@ -126,7 +126,7 @@ export async function clearAllRecords(): Promise<void> {
     const { error } = await supabaseServer.from(TABLE).delete().neq("id", "");
 
     if (error) {
-        // eslint-disable-next-line no-console
+         
         console.error("clearAllRecords supabase error:", error);
     }
 }

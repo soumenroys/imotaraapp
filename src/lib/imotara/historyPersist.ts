@@ -30,7 +30,7 @@ export function saveHistory(records: EmotionRecord[]): void {
     // Clean up the old/junk key so it doesn't confuse future debugging
     window.localStorage.removeItem(JUNK_HISTORY_KEY);
   } catch (err) {
-    // eslint-disable-next-line no-console
+     
     console.error("[historyPersist] saveHistory failed:", err);
   }
 }

@@ -383,7 +383,7 @@ export default function EmotionHistory({ searchFilter = "" }: { searchFilter?: s
           setItems([]);
           setSummary(computeEmotionSummary([]));
         }
-        // eslint-disable-next-line no-console
+         
         console.error("[EmotionHistory] getHistory failed:", err);
       }
     })();
@@ -606,7 +606,7 @@ export default function EmotionHistory({ searchFilter = "" }: { searchFilter?: s
 
         // optional debug
         if (previews.length) {
-          // eslint-disable-next-line no-console
+           
           console.debug("[Imotara] Conflict previews:", previews);
         }
       } else {
@@ -709,7 +709,7 @@ export default function EmotionHistory({ searchFilter = "" }: { searchFilter?: s
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // Auto-sync every 5 minutes when the tab is visible

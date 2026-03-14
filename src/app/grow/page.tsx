@@ -1,7 +1,7 @@
 // src/app/grow/page.tsx
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Download, Pencil, Check } from "lucide-react";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
 import SkeletonLoader from "@/components/imotara/SkeletonLoader";
@@ -41,6 +41,8 @@ function FutureLetterSection({ showToast }: { showToast: (msg: string, type?: an
   const [showForm, setShowForm] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  // Capture render-time timestamp before any early return (hooks must be unconditional)
+  const now = useMemo(() => Date.now(), []);
 
   useEffect(() => {
     setLetters(loadFutureLetters());
@@ -50,7 +52,6 @@ function FutureLetterSection({ showToast }: { showToast: (msg: string, type?: an
   if (!mounted) return null;
 
   // Mark any newly unlocked letters
-  const now = Date.now();
   const lettersWithStatus = letters.map((l) => ({
     ...l,
     unlocked: l.unlocked || l.unlockAt <= now,

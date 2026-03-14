@@ -1,14 +1,14 @@
 import Link from "next/link";
+import packageJson from "../../package.json";
 
 export default function SiteFooter() {
   const year = new Date().getFullYear();
 
   // Single source of truth (set in Vercel env as NEXT_PUBLIC_APP_VERSION)
   // Fallback to package.json version for local builds.
-  let raw =
+  const raw =
     (process.env.NEXT_PUBLIC_APP_VERSION || "").trim() ||
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    (require("../../package.json")?.version ?? "");
+    (packageJson?.version ?? "");
 
   // Normalize: ensure consistent "vX.X.X" format
   const version = raw

@@ -642,7 +642,7 @@ async function pushToRemoteHistory(entry: {
       body: JSON.stringify([entry]),
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
+     
     console.warn("[imotara] pushToRemoteHistory failed:", err);
   }
 }

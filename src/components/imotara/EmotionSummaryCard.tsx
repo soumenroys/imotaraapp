@@ -54,6 +54,15 @@ function Sparkline({
   const pad = 3;
   const n = series?.length ?? 0;
 
+  // useMemo must be called unconditionally (Rules of Hooks) — compute before early return
+  const [minV, maxV] = useMemo(() => {
+    if (!series?.length) return [0, 1];
+    const vals = series.map((v) => (Number.isFinite(v) ? v : 0));
+    const mn = Math.min(...vals);
+    const mx = Math.max(...vals);
+    return [mn, mx];
+  }, [series]);
+
   if (!n) {
     return (
       <svg width={w} height={h} role="img" aria-label="No data">
@@ -63,14 +72,6 @@ function Sparkline({
   }
 
   const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
-
-  // Choose y-scaler based on mode
-  const [minV, maxV] = useMemo(() => {
-    const vals = series.map((v) => (Number.isFinite(v) ? v : 0));
-    const mn = Math.min(...vals);
-    const mx = Math.max(...vals);
-    return [mn, mx];
-  }, [series]);
 
   const scale = (v: number) => {
     if (mode === "relative") {

@@ -164,7 +164,7 @@ export async function POST(request: Request) {
         const PROD = process.env.NODE_ENV === "production";
         const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
         if (SHOULD_LOG) {
-            // eslint-disable-next-line no-console
+             
             console.warn("POST /api/chat/messages error:", String(err));
         }
 

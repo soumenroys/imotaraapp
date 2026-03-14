@@ -99,7 +99,7 @@ export async function upsertMessages(rows: ChatMessage[]): Promise<void> {
     const { error } = await supabaseServer.from(TABLE).upsert(payload, { onConflict: "id" });
 
     if (error) {
-        // eslint-disable-next-line no-console
+         
         console.error("upsertMessages supabase error:", error);
     }
 }

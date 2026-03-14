@@ -19,7 +19,7 @@ export default function ReflectPage() {
         </h1>
         <p className="text-sm text-zinc-400 leading-relaxed">
           Guided reflection sessions — structured prompts to help you slow down,
-          process your day, and surface what's quietly weighing on you.
+          process your day, and surface what&apos;s quietly weighing on you.
         </p>
         <p className="text-xs text-zinc-500">
           Try the Grow page now for daily reflection prompts, or chat with

@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     const payload: SyncResponse = { serverChanges };
     return NextResponse.json(payload, { status: 200 });
   } catch (err) {
-    // eslint-disable-next-line no-console
+     
     console.error("POST /api/history/sync error:", err);
     return NextResponse.json({ serverChanges: [] } satisfies SyncResponse, { status: 400 });
   }

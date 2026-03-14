@@ -112,7 +112,7 @@ export default function OnThisDay() {
           </p>
           {entry.message && (
             <p className="mt-0.5 truncate text-[11px] text-zinc-400 italic">
-              "{entry.message}{entry.message.length >= 140 ? "…" : ""}"
+              &ldquo;{entry.message}{entry.message.length >= 140 ? "…" : ""}&rdquo;
             </p>
           )}
         </div>

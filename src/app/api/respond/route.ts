@@ -677,7 +677,7 @@ function inferBridgeTone(message: string, toneContext: unknown): ResponseTone {
 
   // 1) Companion/profile tone (if user selected it)
   const formatterTone = deriveFormatterTone(toneContext);
-  let base: ResponseTone =
+  const base: ResponseTone =
     formatterTone === "coach"
       ? "coach"
       : formatterTone === "mentor"

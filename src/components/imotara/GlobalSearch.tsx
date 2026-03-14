@@ -196,7 +196,7 @@ export default function GlobalSearch({ onClose }: { onClose: () => void }) {
         {query.trim().length >= 2 && (
           <div className="max-h-[60vh] overflow-y-auto py-1">
             {results.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-zinc-500">No results for "{query}"</p>
+              <p className="px-4 py-6 text-center text-sm text-zinc-500">No results for &ldquo;{query}&rdquo;</p>
             ) : (
               <ul>
                 {results.map((r, i) => (

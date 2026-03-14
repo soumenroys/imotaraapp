@@ -2,6 +2,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -9,11 +10,13 @@ import {
   History as HistoryIcon,
   Settings as SettingsIcon,
   TrendingUp,
+  Search,
 } from "lucide-react";
 
 import SyncStatusChip from "@/components/imotara/SyncStatusChip";
 import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
 import useSyncHistory from "@/hooks/useSyncHistory";
+import GlobalSearch from "@/components/imotara/GlobalSearch";
 
 type TopBarProps = {
   title?: string;
@@ -36,6 +39,7 @@ export default function TopBar({
   showConflictsButton = true,
 }: TopBarProps) {
   const pathname = usePathname();
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const isChat = pathname?.startsWith("/chat");
   const isHistory = pathname?.startsWith("/history");
@@ -43,6 +47,18 @@ export default function TopBar({
   const isGrow = pathname?.startsWith("/grow");
 
   const effectiveTitle = title ?? "Imotara";
+
+  // Cmd/Ctrl+K to open search
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((o) => !o);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const sync = useSyncHistory({
     intervalMs: 0,
@@ -94,8 +110,21 @@ export default function TopBar({
           </NavPill>
         </nav>
 
-        {/* RIGHT: sync + conflicts */}
+        {/* RIGHT: search + sync + conflicts */}
         <div className="flex items-center gap-2">
+          {/* Search button */}
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            title="Search (⌘K)"
+            aria-label="Open search"
+            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-400 transition hover:border-white/20 hover:bg-white/10 hover:text-zinc-200"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Search</span>
+            <kbd className="hidden rounded border border-white/10 px-1 py-0.5 text-[9px] text-zinc-600 sm:inline">⌘K</kbd>
+          </button>
+
           {showSyncChip && (
             <div className="hidden sm:block">
               <SyncStatusChip
@@ -118,6 +147,9 @@ export default function TopBar({
         </div>
       </div>
     </header>
+
+    {/* Global search modal */}
+    {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
 
     {/* Mobile bottom navigation — hidden on sm+ */}
     <nav

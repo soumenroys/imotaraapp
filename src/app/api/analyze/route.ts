@@ -56,9 +56,17 @@ import type { EmotionAnalysis } from "@/lib/ai/emotion/emotionTypes";
 import { normalizeEmotion } from "@/lib/ai/emotion/normalizeEmotion";
 import {
   BN_SAD_REGEX,
+  BN_STRESS_REGEX,
   BN_ANGER_REGEX,
   BN_FEAR_REGEX,
+  HI_SAD_REGEX,
   HI_STRESS_REGEX,
+  HI_ANGER_REGEX,
+  HI_FEAR_REGEX,
+  TA_SAD_REGEX,
+  TA_STRESS_REGEX,
+  TA_ANGER_REGEX,
+  TA_FEAR_REGEX,
   GU_SAD_REGEX,
   GU_STRESS_REGEX,
   GU_ANGER_REGEX,
@@ -391,27 +399,39 @@ export async function POST(req: Request) {
       // Centralized in src/lib/emotion/keywordMaps.ts to prevent drift across the codebase.
       if (BN_SAD_REGEX.test(raw))
         return { emotion: asEmotion("sadness"), intensity: 0.65 };
-
+      if (BN_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
       if (BN_ANGER_REGEX.test(raw))
         return { emotion: asEmotion("anger"), intensity: 0.65 };
-
       if (BN_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      if (HI_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (HI_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (HI_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (HI_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      if (TA_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (TA_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (TA_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (TA_FEAR_REGEX.test(raw))
         return { emotion: asEmotion("fear"), intensity: 0.65 };
 
       if (GU_SAD_REGEX.test(raw))
         return { emotion: asEmotion("sadness"), intensity: 0.65 };
-
       if (GU_STRESS_REGEX.test(raw))
         return { emotion: asEmotion("anxiety"), intensity: 0.65 };
-
       if (GU_ANGER_REGEX.test(raw))
         return { emotion: asEmotion("anger"), intensity: 0.65 };
-
       if (GU_FEAR_REGEX.test(raw))
         return { emotion: asEmotion("fear"), intensity: 0.65 };
-
-      if (HI_STRESS_REGEX.test(raw))
-        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
 
       if (KN_SAD_REGEX.test(raw))
         return { emotion: asEmotion("sadness"), intensity: 0.65 };

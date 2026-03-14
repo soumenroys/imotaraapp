@@ -72,6 +72,15 @@ export const TA_SAD_REGEX =
 export const TA_STRESS_REGEX =
   /(romba pressure irukku|pressure aa irukku|romba tension aa irukku|tension aa irukku|romba stress aa irukku|stress aa irukku|bayama irukku|romba bayama irukku|manasu romba odudhu|thalaila neraya oditu irukku|thalaila romba load irukku)/i;
 
+export const TA_ANGER_REGEX =
+  /(கோபம்|கோபமாக இருக்கு|ரொம்ப கோபம்|எரிச்சல்|எரிச்சல் ஆகுது|மனசு சேதம்|kopam|kopama irukku|romba kopam|erichal|erichal agudhu|manasu sedharam|sedharam irukku|kopam irukku|romba erichal|aattiram|aattiram irukku)/i;
+
+export const TA_FEAR_REGEX =
+  /(பயம்|பயமா இருக்கு|ரொம்ப பயமா இருக்கு|பயப்படுறேன்|bayam|bayama irukku|romba bayama irukku|bayappaduren|bayappadhi irukku|manasu payanam|fear aa irukku|romba fear|ghabara irukku|antha bayam irukku)/i;
+
+export const TA_CONFUSED_REGEX =
+  /(புரியல|புரியவில்லை|என்ன பண்றதுன்னு தெரியல|மனசு குழம்புது|puriyala|puriyavillai|enna panrathunn teriyala|manasu kuzhambudhu|teriyala|enakku puriyala|yenna seyrathu nu terdu|kuzhambi poche|manasu samanam illa|yaar solrathu nu teriyala)/i;
+
 // English “clearly English” hints (for strict English turns)
 export const EN_LANG_HINT_REGEX =
   /\b(what|when|where|how|the|please|thanks|thank|mom|dad|dinner|lunch|breakfast|tonight|today|tomorrow|coming|home|cook|cooked|cooking|special|birthday|And|To|It|Is|In|My|You|U|Me|I|Yeah|Yep|No|Nah|LOL|LMAO|OMG|Wow|Cool|Nice|Oh|Okay|OK|K|Wait|Actually|Literally|Now|Soon|Later|ASAP|BRB|AFK|On my way|OMW|Think|Know|Want|Doing|Going|Why|Thx|Pls|Sorry|Sry|Hey|Hi|Hello|Bye|Good|Gnite|Take care)\b/i;
@@ -95,6 +104,15 @@ export const BN_CONFUSED_REGEX =
 
 export const HI_STRESS_REGEX =
   /(परेशान|तनाव|चिंता|घबराहट|बेचैन|\bpareshaan\b|\bpareshan\b|\btanav\b|\bchinta\b|\bghabrahat\b|\bbechain\b|\btension\b)/i;
+
+export const HI_SAD_REGEX =
+  /(उदास|दुखी|रोना|रो रहा|रो रही|बहुत बुरा लग रहा|मन नहीं लग रहा|अकेला|अकेली|\budaas\b|\bdukhi\b|\brona\b|\bro\s+raha\s+hoon\b|\bro\s+rahi\s+hoon\b|\bbahut\s+bura\s+lag\s+raha\b|\bman\s+nahi\s+lag\s+raha\b|\bakela\b|\bakeli\b)/i;
+
+export const HI_ANGER_REGEX =
+  /(गुस्सा|गुस्से|चिड़चिड़|नाराज|क्रोध|बहुत गुस्सा आ रहा|बहुत गुस्सा है|\bgussa\b|\bgusse\s+(mein|me)\s+hoon\b|\bchidchid\b|\bnaraaz\b|\bkrodh\b|\bbahut\s+gussa\b|\bgussa\s+aa\s+raha\b)/i;
+
+export const HI_FEAR_REGEX =
+  /(डर|भय|घबराहट|डर लग रहा|बहुत डर लग रहा|डरा हुआ|डरी हुई|\bdar\b|\bdar\s+lag\s+raha\b|\bbhay\b|\bghabrahat\b|\bbahut\s+dar\s+lag\s+raha\b|\bdara\s+hua\b|\bdari\s+hui\b)/i;
 
 // Kannada emotion hints
 export const KN_SAD_REGEX =

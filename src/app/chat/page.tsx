@@ -3126,11 +3126,15 @@ function EmptyState({ onChipSelect, lang = "en" }: { onChipSelect: (text: string
 
 const REACTION_EMOJIS = ["❤️", "💙", "✨", "🙏", "💛"];
 
-// BCP-47 tags for languages supported in the user profile
+// BCP-47 tags for all languages supported in the user profile
 const LANG_TO_BCP47: Record<string, string> = {
+  // Indian languages
   en: "en-US", hi: "hi-IN", mr: "mr-IN", bn: "bn-IN",
   ta: "ta-IN", te: "te-IN", gu: "gu-IN", pa: "pa-IN",
-  kn: "kn-IN", ml: "ml-IN", or: "or-IN",
+  kn: "kn-IN", ml: "ml-IN", or: "or-IN", ur: "ur-PK",
+  // Foreign languages
+  ar: "ar-SA", zh: "zh-CN", es: "es-ES", fr: "fr-FR",
+  pt: "pt-BR", ru: "ru-RU", id: "id-ID",
 };
 
 // Detect the dominant script from Unicode ranges — covers all Indic + CJK

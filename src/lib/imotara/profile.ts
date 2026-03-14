@@ -13,7 +13,10 @@ export type AgeRange =
     | "prefer_not";
 
 export type SupportedLang =
-    | "en" | "hi" | "mr" | "bn" | "ta" | "te" | "gu" | "pa" | "kn" | "ml" | "or";
+    // Indian languages
+    | "en" | "hi" | "mr" | "bn" | "ta" | "te" | "gu" | "pa" | "kn" | "ml" | "or"
+    // Foreign languages
+    | "ur" | "zh" | "es" | "ar" | "fr" | "pt" | "ru" | "id";
 
 /** #16: How the user prefers Imotara to respond by default. */
 export type ResponseStyle = "comfort" | "reflect" | "motivate" | "advise";

@@ -3126,6 +3126,58 @@ function EmptyState({ onChipSelect, lang = "en" }: { onChipSelect: (text: string
 
 const REACTION_EMOJIS = ["❤️", "💙", "✨", "🙏", "💛"];
 
+// BCP-47 tags for languages supported in the user profile
+const LANG_TO_BCP47: Record<string, string> = {
+  en: "en-US", hi: "hi-IN", mr: "mr-IN", bn: "bn-IN",
+  ta: "ta-IN", te: "te-IN", gu: "gu-IN", pa: "pa-IN",
+  kn: "kn-IN", ml: "ml-IN", or: "or-IN",
+};
+
+// Detect the dominant script from Unicode ranges — covers all Indic + CJK
+function detectScriptLang(text: string): string | null {
+  if (/[\u0900-\u097F]/.test(text)) return "hi-IN";   // Devanagari (Hindi/Marathi)
+  if (/[\u0980-\u09FF]/.test(text)) return "bn-IN";   // Bengali
+  if (/[\u0B80-\u0BFF]/.test(text)) return "ta-IN";   // Tamil
+  if (/[\u0C00-\u0C7F]/.test(text)) return "te-IN";   // Telugu
+  if (/[\u0A80-\u0AFF]/.test(text)) return "gu-IN";   // Gujarati
+  if (/[\u0A00-\u0A7F]/.test(text)) return "pa-IN";   // Gurmukhi (Punjabi)
+  if (/[\u0C80-\u0CFF]/.test(text)) return "kn-IN";   // Kannada
+  if (/[\u0D00-\u0D7F]/.test(text)) return "ml-IN";   // Malayalam
+  if (/[\u0B00-\u0B7F]/.test(text)) return "or-IN";   // Odia
+  if (/[\u0600-\u06FF]/.test(text)) return "ar-SA";   // Arabic
+  if (/[\u4E00-\u9FFF]/.test(text)) return "zh-CN";   // Chinese
+  if (/[\u3040-\u30FF]/.test(text)) return "ja-JP";   // Japanese
+  if (/[\uAC00-\uD7AF]/.test(text)) return "ko-KR";   // Korean
+  return null;
+}
+
+function resolveTTSLang(text: string): string {
+  // 1. Unicode script detection (highest confidence for non-Latin text)
+  const fromScript = detectScriptLang(text);
+  if (fromScript) return fromScript;
+  // 2. Fall back to the user's saved preferredLang in their profile
+  try {
+    const raw = localStorage.getItem("imotara.profile.v1");
+    if (raw) {
+      const profile = JSON.parse(raw);
+      const saved: string = profile?.user?.preferredLang ?? "en";
+      if (saved && saved !== "auto" && LANG_TO_BCP47[saved]) return LANG_TO_BCP47[saved];
+    }
+  } catch { /* ignore */ }
+  return "en-US";
+}
+
+function pickVoice(synth: SpeechSynthesis, lang: string): SpeechSynthesisVoice | null {
+  const voices = synth.getVoices();
+  const langBase = lang.split("-")[0];
+  // Prefer an exact locale match, then a base-language match
+  return (
+    voices.find((v) => v.lang === lang) ??
+    voices.find((v) => v.lang.startsWith(langBase)) ??
+    null
+  );
+}
+
 function Bubble({
   id,
   role,
@@ -3187,9 +3239,13 @@ function Bubble({
       setSpeaking(false);
       return;
     }
+    const lang = resolveTTSLang(content);
     const utt = new SpeechSynthesisUtterance(content);
+    utt.lang = lang;
     utt.rate = 0.95;
     utt.pitch = 1.0;
+    const voice = pickVoice(window.speechSynthesis, lang);
+    if (voice) utt.voice = voice;
     utt.onend = () => setSpeaking(false);
     utt.onerror = () => setSpeaking(false);
     setSpeaking(true);

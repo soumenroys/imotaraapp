@@ -325,6 +325,104 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "ହାଁ…",
       ];
 
+    case "ar":
+      return [
+        "آه…",
+        "أوه!",
+        "حسناً…",
+        "حقاً؟",
+        "رائع!",
+        "أوكي…",
+        "أفهم…",
+        "آه… هذا ثقيل.",
+        "حسناً — أنا أسمعك.",
+        "أوف…",
+      ];
+
+    case "zh":
+      return [
+        "哎…",
+        "哦！",
+        "嗯…",
+        "真的吗？",
+        "哇！",
+        "好吧…",
+        "嗯……我明白了。",
+        "哎，这很沉重。",
+        "好——我在听。",
+        "唔…",
+      ];
+
+    case "es":
+      return [
+        "Vaya…",
+        "¡Oh!",
+        "Hmm…",
+        "¿En serio?",
+        "¡Qué bueno!",
+        "Oye…",
+        "Entendido…",
+        "Hmm… eso es mucho.",
+        "Oye — te escucho.",
+        "Uf…",
+      ];
+
+    case "fr":
+      return [
+        "Oh là…",
+        "Oh !",
+        "Hmm…",
+        "Vraiment ?",
+        "Super !",
+        "Ok…",
+        "Je vois…",
+        "Hmm… c'est lourd.",
+        "Ok — je t'écoute.",
+        "Ouf…",
+      ];
+
+    case "pt":
+      return [
+        "Uau…",
+        "Oh!",
+        "Hmm…",
+        "Sério?",
+        "Que bom!",
+        "Ok…",
+        "Entendi…",
+        "Hmm… isso é muito.",
+        "Ok — estou ouvindo.",
+        "Uf…",
+      ];
+
+    case "ru":
+      return [
+        "Ой…",
+        "О!",
+        "Хм…",
+        "Правда?",
+        "Здорово!",
+        "Окей…",
+        "Понятно…",
+        "Хм… это тяжело.",
+        "Окей — я слушаю.",
+        "Уф…",
+      ];
+
+    case "id":
+      return [
+        "Eh…",
+        "Oh!",
+        "Hmm…",
+        "Benarkah?",
+        "Keren!",
+        "Oke…",
+        "Mengerti…",
+        "Hmm… itu berat.",
+        "Oke — aku dengar.",
+        "Aduh…",
+      ];
+
     default: {
       if (tone === "coach") {
         return [
@@ -458,6 +556,41 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
       "ପ୍ରଥମେ ଥୋଡ଼ା ହଳକା ହେବାକୁ ଚାହୁଁଛ, ନା ଆମେ ପରବର୍ତ୍ତୀ ଛୋଟ step ଟା ସଙ୍ଗେ ସଙ୍ଗେ ଧରିବା?",
       "ଏବେ ତୁମକୁ ଠିକ ଲାଗୁଥିବା ପରବର୍ତ୍ତୀ ଛୋଟ ପଦକ୍ଷେପ କଣ ମନେ ହେଉଛି?",
     ],
+    ar: [
+      "هل تريد تجربة خطوة صغيرة الآن، أم تخبرني أي جزء يبدو الأصعب؟",
+      "هل تحتاج أولاً إلى الشعور بتخفيف، أم نحدد الخطوة التالية معاً؟",
+      "ما الخطوة الصغيرة التالية التي تبدو صحيحة لك الآن؟",
+    ],
+    zh: [
+      "你想现在试一个小步骤，还是告诉我哪个部分感觉最难？",
+      "先需要轻松一下，还是我们一起找出下一个小步骤？",
+      "对你来说，现在最合适的下一个小步骤是什么？",
+    ],
+    es: [
+      "¿Quieres intentar un pequeño paso ahora, o me dices qué parte se siente más difícil?",
+      "¿Primero necesitas un poco de alivio, o trazamos juntos el siguiente paso?",
+      "¿Qué pequeño paso siguiente sientes que es correcto para ti ahora mismo?",
+    ],
+    fr: [
+      "Tu veux essayer un petit pas maintenant, ou me dire quelle partie te semble la plus dure ?",
+      "Tu as besoin d'abord de te sentir soulagé, ou on cherche ensemble la prochaine étape ?",
+      "Quel serait le prochain petit pas qui te semble juste maintenant ?",
+    ],
+    pt: [
+      "Quer tentar um pequeno passo agora, ou me contar qual parte parece mais difícil?",
+      "Precisa primeiro de um pouco de alívio, ou traçamos juntos o próximo passo?",
+      "Qual o próximo pequeno passo que parece certo para você agora?",
+    ],
+    ru: [
+      "Хочешь попробовать маленький шаг прямо сейчас или расскажешь, какая часть кажется самой тяжёлой?",
+      "Тебе сначала нужно немного отдышаться, или вместе наметим следующий шаг?",
+      "Какой следующий маленький шаг кажется тебе правильным прямо сейчас?",
+    ],
+    id: [
+      "Mau coba satu langkah kecil sekarang, atau ceritakan bagian mana yang terasa paling sulit?",
+      "Butuh sedikit kelegaan dulu, atau kita tentukan langkah kecil berikutnya bersama?",
+      "Langkah kecil apa yang terasa tepat untukmu sekarang?",
+    ],
   } as const;
 
   const calmCompanion = {
@@ -515,6 +648,41 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
       "اگر چاہو تو ہم اسے تھوڑا آہستہ لے سکتے ہیں اور ابھی صرف سب سے اہم حصے کے ساتھ رہ سکتے ہیں۔",
       "ہم اسے نرمی سے لے سکتے ہیں — ابھی کون سا حصہ سنبھال کر رکھنا سب سے زیادہ ضروری لگ رہا ہے؟",
       "جو ایک حصہ سب سے زیادہ بھاری لگ رہا ہے، کیا پہلے صرف اس کا نام لینا مدد کرے گا؟",
+    ],
+    ar: [
+      "إذا أردت، يمكننا إبطاء الأمر والبقاء مع الجزء الأهم فقط.",
+      "يمكننا التعامل مع هذا بهدوء — ما الجزء الذي تشعر أنه الأهم الآن؟",
+      "هل سيساعد أن نسمي الجزء الأثقل أولاً؟",
+    ],
+    zh: [
+      "如果你愿意，我们可以放慢节奏，只关注最重要的部分。",
+      "我们可以慢慢来——现在哪个部分感觉最需要先处理？",
+      "先说出感觉最沉重的那一个部分，会有帮助吗？",
+    ],
+    es: [
+      "Si quieres, podemos ir despacio y quedarnos con la parte más importante.",
+      "Podemos tomarlo con calma — ¿qué parte sientes que es más importante mantener ahora mismo?",
+      "¿Ayudaría nombrar primero la parte que se siente más pesada?",
+    ],
+    fr: [
+      "Si tu veux, on peut ralentir et rester sur la partie la plus importante.",
+      "On peut y aller doucement — quelle partie te semble la plus importante à retenir maintenant ?",
+      "Ça aiderait de nommer d'abord la partie qui pèse le plus ?",
+    ],
+    pt: [
+      "Se quiser, podemos ir devagar e ficar com a parte mais importante.",
+      "Podemos ir com calma — qual parte parece mais importante manter agora?",
+      "Ajudaria nomear primeiro a parte que parece mais pesada?",
+    ],
+    ru: [
+      "Если хочешь, можем притормозить и сосредоточиться только на самом важном.",
+      "Можем идти мягко — что сейчас кажется самым важным?",
+      "Помогло бы назвать сначала ту часть, которая кажется самой тяжёлой?",
+    ],
+    id: [
+      "Kalau mau, kita bisa pelankan dan fokus pada bagian yang paling penting dulu.",
+      "Kita bisa lakukan ini perlahan — bagian mana yang terasa paling penting untuk ditahan sekarang?",
+      "Apakah membantu jika kita sebut dulu bagian yang terasa paling berat?",
     ],
   } as const;
 
@@ -575,6 +743,41 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
       "ہم تمہاری pace کے مطابق چلیں گے۔ چاہو تو ایک tiny next step ساتھ میں طے کریں؟",
       "کوئی دباؤ نہیں — بس ایک چھوٹی سمت۔ پہلے کس چیز کو تھوڑا آسان کریں؟",
     ],
+    ar: [
+      "أنا هنا معك. إذا أردت، يمكننا اختيار خطوة صغيرة واحدة معاً — بهدوء.",
+      "نسير بوتيرتك. هل تريد أن نحدد خطوة صغيرة تالية معاً؟",
+      "لا ضغط — مجرد اتجاه صغير. ما الذي تريد أن نجعله أسهل قليلاً أولاً؟",
+    ],
+    zh: [
+      "我就在这里。如果你愿意，我们可以一起慢慢选一个小小的下一步。",
+      "我们按你的节奏走。想一起定个小小的下一步吗？",
+      "没有压力——只是一个小方向。你想先让哪件事变得容易一点？",
+    ],
+    es: [
+      "Estoy aquí contigo. Si quieres, podemos elegir juntos un pequeño paso — con calma.",
+      "Vamos a tu ritmo. ¿Quieres que elijamos juntos un pequeño próximo paso?",
+      "Sin presión — solo una pequeña dirección. ¿Qué quieres que hagamos más fácil primero?",
+    ],
+    fr: [
+      "Je suis là avec toi. Si tu veux, on peut choisir ensemble un tout petit pas — doucement.",
+      "On va à ton rythme. Tu veux qu'on choisisse ensemble un tout petit prochain pas ?",
+      "Pas de pression — juste une petite direction. Qu'est-ce que tu voudrais rendre un peu plus facile d'abord ?",
+    ],
+    pt: [
+      "Estou aqui com você. Se quiser, podemos escolher juntos um pequeno passo — com calma.",
+      "Vamos no seu ritmo. Quer que escolhamos juntos um pequeno próximo passo?",
+      "Sem pressão — só uma pequena direção. O que você quer que tornemos um pouco mais fácil primeiro?",
+    ],
+    ru: [
+      "Я здесь с тобой. Если хочешь, можем вместе выбрать один маленький шаг — не торопясь.",
+      "Идём в твоём темпе. Хочешь вместе наметить один маленький следующий шаг?",
+      "Без давления — просто одно небольшое направление. Что сначала хочешь сделать немного легче?",
+    ],
+    id: [
+      "Aku di sini bersamamu. Kalau mau, kita bisa pilih satu langkah kecil bersama — pelan-pelan.",
+      "Kita jalan sesuai ritasmu. Mau kita tentukan satu langkah kecil berikutnya bersama?",
+      "Tidak ada tekanan — hanya satu arah kecil. Apa yang ingin kita permudah sedikit dulu?",
+    ],
   } as const;
 
   // ✅ Mentor: softer clarity + gentle framing (not “coach-y”)
@@ -634,6 +837,41 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
       "اگر پہلے یہ سمجھ لیں کہ یہاں سب سے زیادہ اہم کیا ہے، تو کیا کچھ آسان محسوس ہوگا؟",
       "اسے سادہ رکھتے ہیں — سب سے پہلے کون سا حصہ سمجھنا زیادہ ضروری لگ رہا ہے؟",
     ],
+    ar: [
+      "إذا أردت، يمكننا فهمه ببطء — جزءاً جزءاً.",
+      "هل سيساعد أن نفهم أولاً ما هو الأهم هنا، قبل اختيار خطوة تالية؟",
+      "لنبقيه بسيطاً — ما الجزء الأهم لفهمه أولاً؟",
+    ],
+    zh: [
+      "如果你愿意，我们可以慢慢理解——一部分一部分来。",
+      "先弄清楚这里最重要的是什么，会有帮助吗？",
+      "让我们保持简单——你觉得最需要先理解哪个部分？",
+    ],
+    es: [
+      "Si quieres, podemos entenderlo poco a poco — una parte a la vez.",
+      "¿Ayudaría entender primero qué es lo más importante aquí, antes de elegir un próximo paso?",
+      "Mantengámoslo simple — ¿qué parte sientes que es más importante entender primero?",
+    ],
+    fr: [
+      "Si tu veux, on peut comprendre ça doucement — une partie à la fois.",
+      "Ça aiderait de comprendre d'abord ce qui est le plus important ici, avant de choisir une prochaine étape ?",
+      "Gardons ça simple — quelle partie te semble la plus importante à comprendre en premier ?",
+    ],
+    pt: [
+      "Se quiser, podemos entender isso aos poucos — uma parte de cada vez.",
+      "Ajudaria entender primeiro o que é mais importante aqui, antes de escolher um próximo passo?",
+      "Vamos manter simples — qual parte você acha mais importante entender primeiro?",
+    ],
+    ru: [
+      "Если хочешь, можем разобраться в этом медленно — по одной части.",
+      "Помогло бы сначала понять, что здесь самое важное, прежде чем выбирать следующий шаг?",
+      "Оставим это простым — какую часть ты считаешь важнее всего понять сначала?",
+    ],
+    id: [
+      "Kalau mau, kita bisa pahami ini perlahan — satu bagian demi satu bagian.",
+      "Apakah akan membantu jika kita pahami dulu apa yang paling penting di sini, sebelum memilih langkah berikutnya?",
+      "Mari kita jaga tetap sederhana — bagian mana yang kamu rasa paling penting dipahami dulu?",
+    ],
   } as const;
 
   const partnerLike = {
@@ -691,6 +929,41 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
       "کیا ہم اسے آہستہ آہستہ، ایک چھوٹے قدم سے ساتھ شروع کریں؟",
       "ابھی سب سے زیادہ بھاری کیا لگ رہا ہے—تاکہ ہم وہیں سے نرمی سے شروع کریں؟",
       "یہاں سے کہاں سے آغاز کرنا سب سے نرم محسوس ہوگا؟",
+    ],
+    ar: [
+      "هل نبدأ معاً بهدوء، بخطوة صغيرة واحدة؟",
+      "ما الأثقل شعوراً الآن — حتى نبدأ من هناك بلطف؟",
+      "من أين ستكون البداية الأكثر لطفاً من هنا؟",
+    ],
+    zh: [
+      "我们一起慢慢来，从一个小步开始好吗？",
+      "现在什么感觉最重——我们从那里轻轻开始吧？",
+      "从哪里开始会感觉最温柔一些？",
+    ],
+    es: [
+      "¿Empezamos juntos poco a poco, con un pequeño paso?",
+      "¿Qué se siente más pesado ahora — para poder empezar desde ahí suavemente?",
+      "¿Por dónde empezar se sentiría más amable desde aquí?",
+    ],
+    fr: [
+      "On commence ensemble doucement, avec un tout petit pas ?",
+      "Qu'est-ce qui pèse le plus en ce moment — pour qu'on puisse commencer là doucement ?",
+      "Par où commencer te semblerait le plus doux depuis ici ?",
+    ],
+    pt: [
+      "Começamos juntos devagar, com um pequeno passo?",
+      "O que parece mais pesado agora — para que possamos começar por aí com suavidade?",
+      "Por onde começar se sentiria mais gentil daqui?",
+    ],
+    ru: [
+      "Начнём вместе тихонько, с маленького шага?",
+      "Что сейчас давит сильнее всего — чтобы начать именно оттуда, мягко?",
+      "С чего начать отсюда было бы добрее всего?",
+    ],
+    id: [
+      "Mulai bersama-sama perlahan, dengan satu langkah kecil?",
+      "Apa yang paling terasa berat sekarang — agar kita bisa mulai dari sana dengan lembut?",
+      "Dari mana memulai akan terasa paling lembut dari sini?",
     ],
   } as const;
 

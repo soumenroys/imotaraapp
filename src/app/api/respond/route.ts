@@ -169,6 +169,11 @@ function derivePreferredLanguage(
   const hasGurmukhi = /[\u0A00-\u0A7F]/.test(t);
   const hasKannada = /[\u0C80-\u0CFF]/.test(t);
   const hasMalayalam = /[\u0D00-\u0D7F]/.test(t);
+  const hasOdia = /[\u0B00-\u0B7F]/.test(t);
+  const hasArabicScript = /[\u0600-\u06FF]/.test(t);
+  const hasUrduSpecific = /[\u06BE\u06C1\u06CC\u06D2\u06BA]/.test(t);
+  const hasCyrillic = /[\u0400-\u04FF]/.test(t);
+  const hasCJK = /[\u4E00-\u9FFF]/.test(t);
 
   // ✅ English override (prevents continuity from breaking English messages)
   // If the message is clearly English (Latin letters + common English words),
@@ -200,6 +205,12 @@ function derivePreferredLanguage(
   const romanMrHits = countHits(ROMAN_MR_LANG_HINT_REGEX);
   const romanOrHits = countHits(ROMAN_OR_LANG_HINT_REGEX);
 
+  // ── Foreign Latin-script language hints ──────────────────────────────────────
+  const romanEsHits = countHits(/\b(?:muy|también|estoy|estamos|hola|gracias|soy|tengo|quiero|puedo|pero|cuando|porque|ahora|siempre|nunca|todo|nada|más|eso|esto|aquí|bien|mal)\b/i);
+  const romanFrHits = countHits(/\b(?:je|tu|nous|vous|ils|suis|sont|avec|pour|mais|donc|très|aussi|merci|bonjour|moi|toi|quoi|ici|avons|avez|était|étais|voilà|ça|déjà)\b/i);
+  const romanPtHits = countHits(/\b(?:você|não|sim|obrigado|obrigada|muito|olá|estou|tudo|também|porque|quando|aqui|agora|então|isso|tenho|preciso|saudade|oi)\b/i);
+  const romanIdHits = countHits(/\b(?:aku|kamu|saya|tidak|bisa|sudah|sangat|juga|dari|kalau|tapi|karena|jadi|belum|harus|memang|merasa|hati|senang|sedih|baik)\b/i);
+
   console.log("[LANG DEBUG]", {
     romanHiHits,
     romanBnHits,
@@ -211,6 +222,10 @@ function derivePreferredLanguage(
     romanPaHits,
     romanMrHits,
     romanOrHits,
+    romanEsHits,
+    romanFrHits,
+    romanPtHits,
+    romanIdHits,
   });
 
   const latinOnly = !hasBn && !hasHiLetters && totalLetters > 0;
@@ -351,6 +366,71 @@ function derivePreferredLanguage(
           "Language policy (strict): Reply ONLY in Odia (or). Use Odia script. Do not mix languages.",
       };
     }
+
+    // ── Foreign Latin-script language detection ──────────────────────────────
+    if (
+      romanEsHits >= 2 &&
+      romanEsHits > romanFrHits &&
+      romanEsHits > romanPtHits &&
+      romanEsHits > romanIdHits
+    ) {
+      return {
+        preferredLanguage: "es",
+        strictLanguage: "es",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Spanish (es). Do not mix languages.",
+      };
+    }
+    if (
+      romanFrHits >= 2 &&
+      romanFrHits > romanEsHits &&
+      romanFrHits > romanPtHits &&
+      romanFrHits > romanIdHits
+    ) {
+      return {
+        preferredLanguage: "fr",
+        strictLanguage: "fr",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in French (fr). Do not mix languages.",
+      };
+    }
+    if (
+      romanPtHits >= 2 &&
+      romanPtHits > romanFrHits &&
+      romanPtHits > romanIdHits
+    ) {
+      return {
+        preferredLanguage: "pt",
+        strictLanguage: "pt",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Portuguese (pt). Do not mix languages.",
+      };
+    }
+    if (romanIdHits >= 2) {
+      return {
+        preferredLanguage: "id",
+        strictLanguage: "id",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Indonesian (id). Do not mix languages.",
+      };
+    }
+    // Tie-break: any foreign Latin signal at threshold
+    if (romanEsHits >= 2) {
+      return {
+        preferredLanguage: "es",
+        strictLanguage: "es",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in Spanish (es). Do not mix languages.",
+      };
+    }
+    if (romanFrHits >= 2) {
+      return {
+        preferredLanguage: "fr",
+        strictLanguage: "fr",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in French (fr). Do not mix languages.",
+      };
+    }
   }
 
   // ✅ Clear English signal → strict English
@@ -378,10 +458,14 @@ function derivePreferredLanguage(
     romanMrHits > 0 ||
     romanOrHits > 0;
 
+  const hasForeignLatinSignal =
+    romanEsHits >= 2 || romanFrHits >= 2 || romanPtHits >= 2 || romanIdHits >= 2;
+
   const looksEnglish =
     latinHeavy &&
     englishWordHits >= 2 &&
-    !hasStrongRomanizedIndianSignal;
+    !hasStrongRomanizedIndianSignal &&
+    !hasForeignLatinSignal;
 
   if (looksEnglish) {
     return {
@@ -396,7 +480,7 @@ function derivePreferredLanguage(
   // If it's Latin-heavy and has no romanized Indian-language signal,
   // default to English anyway. This prevents continuity from dragging
   // clear English prompts into another language.
-  if (latinHeavy && !hasAnyRomanizedIndianSignal) {
+  if (latinHeavy && !hasAnyRomanizedIndianSignal && !hasForeignLatinSignal) {
     return {
       preferredLanguage: "en",
       strictLanguage: "en",
@@ -421,7 +505,15 @@ function derivePreferredLanguage(
                 ? "kn"
                 : hasMalayalam
                   ? "ml"
-                  : undefined;
+                  : hasOdia
+                    ? "or"
+                    : hasArabicScript
+                      ? (hasUrduSpecific || explicit === "ur" ? "ur" : "ar")
+                      : hasCyrillic
+                        ? "ru"
+                        : hasCJK
+                          ? "zh"
+                          : undefined;
 
   // ✅ Priority: explicit > script > guess
   // This permanently stops Bengali-script messages from being answered in Hindi
@@ -464,7 +556,7 @@ function derivePreferredLanguage(
   // prioritize English before conversation continuity.
   const strictLangBase =
     scriptDerived ??
-    (latinHeavy && romanHiHits < 2 && romanBnHits < 2
+    (latinHeavy && romanHiHits < 2 && romanBnHits < 2 && !hasForeignLatinSignal
       ? "en"
       : (!userAskedSwitch
         ? lastWasBn
@@ -483,7 +575,8 @@ function derivePreferredLanguage(
       romanHiHits < 2 &&
       romanBnHits < 2 &&
       romanTaHits < 2 &&
-      romanTeHits < 2
+      romanTeHits < 2 &&
+      !hasForeignLatinSignal
       ? "en"
       : strictLangBase;
 
@@ -539,8 +632,15 @@ function deriveFormatterTone(
     if (c && typeof c === "object") {
       const enabled = c?.enabled === true;
 
-      // ✅ Your rule: toggle OFF => calm + comforting (gentle therapist-ish)
-      if (!enabled) return "calm_companion";
+      // ✅ Companion OFF: use responseStyle if set, else calm_companion default
+      if (!enabled) {
+        const rs = String(obj?.user?.responseStyle ?? "").toLowerCase();
+        if (rs === "motivate") return "coach";
+        if (rs === "advise") return "mentor";
+        if (rs === "comfort") return "close_friend";
+        // "reflect" and unset both fall to calm_companion (gentle, reflective)
+        return "calm_companion";
+      }
 
       // toggle ON => map relationship vibe into the formatter’s tone buckets
       const rel = String(c?.relationship ?? "").toLowerCase();
@@ -564,6 +664,17 @@ function deriveFormatterTone(
 }
 
 function inferBridgeTone(message: string, toneContext: unknown): ResponseTone {
+  // 0) User's explicit responseStyle (highest priority when companion is OFF)
+  const obj = toneContext && typeof toneContext === "object" ? (toneContext as any) : null;
+  const companionEnabled = obj?.companion?.enabled === true;
+  if (!companionEnabled) {
+    const rs = String(obj?.user?.responseStyle ?? "").toLowerCase();
+    if (rs === "comfort") return "supportive";
+    if (rs === "reflect") return "calm";
+    if (rs === "motivate") return "coach";
+    if (rs === "advise") return "practical";
+  }
+
   // 1) Companion/profile tone (if user selected it)
   const formatterTone = deriveFormatterTone(toneContext);
   let base: ResponseTone =
@@ -888,6 +999,19 @@ export async function POST(req: Request) {
     "Friend-default: keep it simple, real, and warm. Prefer a gentle closing line over asking a question unless the user explicitly asked one.",
   ].join(" ");
 
+  // ✅ User's preferred response style directive
+  const responseStyleDirective = (() => {
+    const rs = String((toneContext as any)?.user?.responseStyle ?? "").toLowerCase();
+    const companionOn = (toneContext as any)?.companion?.enabled === true;
+    // Only inject when companion is OFF (companion relationship already shapes tone when ON)
+    if (companionOn || !rs) return "";
+    if (rs === "comfort") return "Response style (user preference): prioritise emotional comfort. Acknowledge feelings warmly before anything else. Do NOT push advice or action steps unless the user asks.";
+    if (rs === "reflect") return "Response style (user preference): help the user reflect. Ask one gentle introspective question at the end to invite self-discovery. Keep the tone curious and unhurried.";
+    if (rs === "motivate") return "Response style (user preference): be encouraging and energising. Highlight strength or progress, then offer one small actionable nudge. Keep it upbeat and grounded.";
+    if (rs === "advise") return "Response style (user preference): the user wants practical guidance. Give one clear, specific recommendation or next step. Be concise and direct.";
+    return "";
+  })();
+
   // ✅ Tone-aware closing line directive (coach != supportive)
   const bridgeTone = inferBridgeTone(message, toneContext);
   const bridgeDirective = buildBridgeDirectiveForTone(bridgeTone);
@@ -949,7 +1073,7 @@ export async function POST(req: Request) {
 
       // ✅ language fields (safe even if downstream ignores)
       preferredLanguage,
-      languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${anchorPhraseDirective}\n${bridgeDirective}\n${returnDirective ? `\n${returnDirective}` : ""}\n${closureDirective ? `\n${closureDirective}` : ""}`,
+      languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${anchorPhraseDirective}\n${responseStyleDirective ? `\n${responseStyleDirective}` : ""}\n${bridgeDirective}\n${returnDirective ? `\n${returnDirective}` : ""}\n${closureDirective ? `\n${closureDirective}` : ""}`,
 
       // ✅ new: request-scoped variation helpers (safe if ignored)
       requestId,
@@ -1151,7 +1275,7 @@ export async function POST(req: Request) {
           preferredLanguage,
 
           // keep existing directives + add retry directive
-          languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${retryDirective}\n${bridgeDirective}`,
+          languageDirective: `${languageDirective}\n${antiRepeatDirective}\n${retryDirective}\n${responseStyleDirective ? `\n${responseStyleDirective}` : ""}\n${bridgeDirective}`,
 
           // request-scoped variation changes so the model doesn't “stick” to prior phrasing
           requestId,

@@ -30,9 +30,17 @@ type LocalLanguage =
     | "pa"
     | "kn"
     | "ml"
-    | "or";
+    | "or"
+    | "ur"
+    | "zh"
+    | "es"
+    | "ar"
+    | "fr"
+    | "pt"
+    | "ru"
+    | "id";
 
-type LocalReplyBankLanguage = "en" | "hi" | "mr" | "bn" | "ta" | "te" | "gu" | "pa" | "kn" | "ml" | "or";
+type LocalReplyBankLanguage = "en" | "hi" | "mr" | "bn" | "ta" | "te" | "gu" | "pa" | "kn" | "ml" | "or" | "ur" | "zh" | "es" | "ar" | "fr" | "pt" | "ru" | "id";
 
 type ToneContext = {
     companion?: {
@@ -98,7 +106,7 @@ function dedupeAdjacentSentences(text: string): string {
 }
 
 function toReplyBankLanguage(language: LocalLanguage): LocalReplyBankLanguage {
-    return language; // All 10 languages now have dedicated template banks
+    return language; // All 19 languages now have dedicated template banks
 }
 
 function countMatches(text: string, regex: RegExp): number {

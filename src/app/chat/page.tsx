@@ -2705,10 +2705,10 @@ export default function ChatPage() {
           </div>
           </div>{/* end emotion-ambient wrapper */}
 
-          {/* End-of-session insight — shown when thread has ≥6 user messages + analysis ready */}
+          {/* End-of-session insight — shown when thread has ≥3 user messages + analysis ready */}
           {!analyzing &&
             analysis?.summary?.headline &&
-            (activeThread?.messages.filter((m) => m.role === "user").length ?? 0) >= 6 && (
+            (activeThread?.messages.filter((m) => m.role === "user").length ?? 0) >= 3 && (
             <div className="mx-auto mb-1 max-w-3xl animate-fade-in rounded-2xl border border-indigo-400/15 bg-gradient-to-r from-indigo-500/8 via-sky-500/6 to-emerald-500/6 px-4 py-3">
               <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-indigo-400/70">
                 Session insight

@@ -102,7 +102,7 @@ type AgeRange =
 
 type SupportedLang =
     | "en" | "hi" | "mr" | "bn" | "ta" | "te" | "gu" | "pa" | "kn" | "ml" | "or"
-    | "ur" | "zh" | "es" | "ar" | "fr" | "pt" | "ru" | "id" | "he" | "de";
+    | "ur" | "zh" | "es" | "ar" | "fr" | "pt" | "ru" | "id" | "he" | "de" | "ja";
 type ResponseStyle = "comfort" | "reflect" | "motivate" | "advise";
 
 type ImotaraProfileV1 = {
@@ -413,6 +413,7 @@ function ToneAndContextTile() {
                                     <option value="zh">Chinese — Mandarin (普通话)</option>
                                     <option value="de">German (Deutsch)</option>
                                     <option value="he">Hebrew (עברית)</option>
+                                    <option value="ja">Japanese (日本語)</option>
                                     <option value="es">Spanish (Español)</option>
                                     <option value="fr">French (Français)</option>
                                     <option value="pt">Portuguese (Português)</option>

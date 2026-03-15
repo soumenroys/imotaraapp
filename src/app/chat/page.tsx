@@ -499,6 +499,7 @@ const CRISIS_BANNER_BY_LANG: Record<string, { tier2: string; tier1: string; link
   he: { tier2: "נראה שאתה עובר משהו כבד מאוד כרגע...", tier1: "נראה שהדברים מרגישים קשים מאוד כרגע...", link: "תמיכה בחינם זמינה 24/7" },
   ar: { tier2: "يبدو أنك تمر بشيء صعب جداً الآن...", tier1: "يبدو أن الأمور تبدو صعبة جداً الآن...", link: "الدعم المجاني متاح على مدار الساعة" },
   de: { tier2: "Es klingt, als würdest du gerade etwas sehr Schweres durchmachen...", tier1: "Es klingt, als wäre gerade alles sehr schwer...", link: "kostenlose Krisenunterstützung ist rund um die Uhr verfügbar" },
+  ja: { tier2: "今、とても辛いことを経験されているようです...", tier1: "今、物事がとても辛く感じられているようです...", link: "24時間無料のサポートが利用できます" },
 };
 
 // #11: Composer sentiment seeds — quick-tap mood hint chips
@@ -517,6 +518,7 @@ const SENTIMENT_SEEDS_BY_LANG: Record<string, [string, string, string]> = {
   he: ["מרגיש כבד", "צריך להוציא את זה", "רק חושב בקול"],
   ar: ["أشعر بثقل", "أحتاج للتعبير", "أفكر بصوت عالٍ"],
   de: ["Fühle mich schwer", "Muss mal reden", "Denke laut nach"],
+  ja: ["気持ちが重い", "話を聞いてほしい", "ただ考えを整理したい"],
 };
 
 // #6: Weekly mood recap text — localised
@@ -3025,6 +3027,14 @@ const MOOD_OPTIONS_BY_LANG: Record<string, MoodOption[]> = {
     { emoji: "😵", label: "Verwirrt",  starter: "Ich bin verwirrt und weiß nicht, was ich tun soll." },
     { emoji: "😶", label: "Gefühllos", starter: "Ich fühle mich gefühllos, wie betäubt." },
   ],
+  ja: [
+    { emoji: "😊", label: "元気",   starter: "今日は気分がいいです。" },
+    { emoji: "😔", label: "悲しい", starter: "なぜか悲しい気持ちです。" },
+    { emoji: "😰", label: "不安",   starter: "不安で落ち着かない気持ちです。" },
+    { emoji: "😤", label: "怒り",   starter: "今、怒りを感じています。" },
+    { emoji: "😕", label: "混乱",   starter: "頭が混乱していて、どうしたらいいかわかりません。" },
+    { emoji: "😶", label: "無感覚", starter: "何も感じられない状態です。" },
+  ],
 };
 
 // How are you feeling — localised header
@@ -3043,6 +3053,7 @@ const MOOD_HEADING: Record<string, string> = {
   he: "איך אתה מרגיש?",
   ar: "كيف تشعر؟",
   de: "Wie fühlst du dich?",
+  ja: "今の気持ちは？",
 };
 
 const OR_TYPE_BELOW: Record<string, string> = {
@@ -3060,6 +3071,7 @@ const OR_TYPE_BELOW: Record<string, string> = {
   he: "או התחל להקליד למטה",
   ar: "أو ابدأ الكتابة أدناه",
   de: "oder unten eintippen",
+  ja: "または下に入力してください",
 };
 
 const GREETING_BY_LANG: Record<string, { morning: string; afternoon: string; evening: string; night: string }> = {
@@ -3077,6 +3089,7 @@ const GREETING_BY_LANG: Record<string, { morning: string; afternoon: string; eve
   he: { morning: "בוקר טוב 🌅", afternoon: "צהריים טובים ☀️", evening: "ערב טוב 🌙", night: "עוד ער? 🌟" },
   ar: { morning: "صباح الخير 🌅", afternoon: "مساء الخير ☀️", evening: "مساء النور 🌙", night: "لا تزال مستيقظاً؟ 🌟" },
   de: { morning: "Guten Morgen 🌅", afternoon: "Guten Tag ☀️", evening: "Guten Abend 🌙", night: "Noch wach? 🌟" },
+  ja: { morning: "おはようございます 🌅", afternoon: "こんにちは ☀️", evening: "こんばんは 🌙", night: "まだ起きていますか？ 🌟" },
 };
 
 function getGreeting(lang: string): string {
@@ -3175,7 +3188,7 @@ const LANG_TO_BCP47: Record<string, string> = {
   // Foreign languages
   ar: "ar-SA", zh: "zh-CN", es: "es-ES", fr: "fr-FR",
   pt: "pt-BR", ru: "ru-RU", id: "id-ID",
-  he: "he-IL", de: "de-DE",
+  he: "he-IL", de: "de-DE", ja: "ja-JP",
 };
 
 // Detect the dominant script from Unicode ranges — covers all Indic + CJK

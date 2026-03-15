@@ -103,6 +103,10 @@ import {
   DE_STRESS_REGEX,
   DE_ANGER_REGEX,
   DE_FEAR_REGEX,
+  JP_SAD_REGEX,
+  JP_STRESS_REGEX,
+  JP_ANGER_REGEX,
+  JP_FEAR_REGEX,
   CRISIS_HINT_REGEX,
   GRATITUDE_REGEX,
   isConfusedText,
@@ -515,6 +519,15 @@ export async function POST(req: Request) {
       if (DE_ANGER_REGEX.test(raw))
         return { emotion: asEmotion("anger"), intensity: 0.65 };
       if (DE_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      if (JP_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (JP_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (JP_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (JP_FEAR_REGEX.test(raw))
         return { emotion: asEmotion("fear"), intensity: 0.65 };
 
       // Existing keyword heuristic (English)

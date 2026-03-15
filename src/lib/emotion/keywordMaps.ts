@@ -197,6 +197,22 @@ export const MR_FEAR_REGEX =
 export const MR_CONFUSED_REGEX =
   /(समजत नाही|काय करावं|डोक्यात गोंधळ|काय करू|\bsamjat nahi\b|\bkay karave\b|\bkay karu\b|\bdokyat gondhal\b|\bconfused aahe\b|\bkahi samajh nahi\b|\bgondhal laglay\b)/i;
 
+// Japanese emotion hints
+export const JP_SAD_REGEX =
+  /(悲しい|悲しみ|泣く|泣いて|孤独|一人|寂しい|寂しみ|落ち込む|落ち込んでいる|絶望|絶望的|うつ|憂鬱)/;
+
+export const JP_STRESS_REGEX =
+  /(ストレス|疲れた|疲労|焦る|焦り|不安|心配|緊張|プレッシャー|余裕がない|追い詰められる|しんどい|つらい)/;
+
+export const JP_ANGER_REGEX =
+  /(怒る|怒り|イライラ|むかつく|腹が立つ|頭にくる|うんざり|我慢できない|嫌い|嫌になる|苛立ち)/;
+
+export const JP_FEAR_REGEX =
+  /(怖い|恐怖|恐ろしい|不安|こわい|びっくり|パニック|心配|どうしよう|危ない)/;
+
+export const JP_CONFUSED_REGEX =
+  /(混乱|わからない|理解できない|どうしたらいい|迷う|途方に暮れる|頭が混乱|何をすればいいかわからない|困惑)/;
+
 // Hebrew emotion hints
 export const HE_SAD_REGEX =
   /(עצוב|עצובה|בוכה|בכי|לבד|בודד|מדוכא|מדוכאת|עצבות|ייאוש)/i;
@@ -247,7 +263,7 @@ export const DE_CONFUSED_REGEX =
 
 // Gratitude detection — English + all 10 supported Indian languages + Hebrew + Arabic + German
 export const GRATITUDE_REGEX =
-  /(grateful|gratitude|thankful|thankfulness|blessed|appreciate|appreciating|appreciation|so thank(ful|ed)|thank you so much|means a lot|\bshukar\b|shukria|shukriya|aabhar|dhanyavaad|dhanyabad|dhanyawad|dhanyavad|shukriyaa|\bkritagjna\b|nanri|nandri|vandanam|\bkritajnata\b|\bkadardani\b|\bdhanyavadagalu\b|\bnandri\b|\bvanakkam\b|\bkritajnateyanu\b|\bkritajna\b|\bdhanyosmi\b|\bdhanyawadi\b|abhaari|\bshukar\s+hai\b|shukar\s+hua|bahut\s+shukriya|bahut\s+dhanyavaad|আপনার\s+কাছে\s+কৃতজ্ঞ|কৃতজ্ঞ|ধন্যবাদ|আপনাকে\s+ধন্যবাদ|நன்றி|நன்றி\s+சொல்ல|நன்றியுள்ளவர்|ధన్యవాదాలు|కృతజ్ఞత|ధన్యవాదం|ಧನ್ಯವಾದಗಳು|ಕೃತಜ್ಞತೆ|ಧನ್ಯವಾದ|ধন্যবাদ|ਧੰਨਵਾਦ|ਸ਼ੁਕਰੀਆ|ਕ੍ਰਿਤਜ੍ਞਤਾ|ধন্যবাদ|ଧନ୍ୟବାଦ|କୃତଜ୍ଞ|ଆଭାରୀ|આભાર|ધન્યવાદ|કૃતજ્ઞ|תודה|אסיר תודה|شكرا|ممتنن|\bdankbar\b|\bdanke\b|\bdankeschön\b)/i;
+  /(grateful|gratitude|thankful|thankfulness|blessed|appreciate|appreciating|appreciation|so thank(ful|ed)|thank you so much|means a lot|\bshukar\b|shukria|shukriya|aabhar|dhanyavaad|dhanyabad|dhanyawad|dhanyavad|shukriyaa|\bkritagjna\b|nanri|nandri|vandanam|\bkritajnata\b|\bkadardani\b|\bdhanyavadagalu\b|\bnandri\b|\bvanakkam\b|\bkritajnateyanu\b|\bkritajna\b|\bdhanyosmi\b|\bdhanyawadi\b|abhaari|\bshukar\s+hai\b|shukar\s+hua|bahut\s+shukriya|bahut\s+dhanyavaad|আপনার\s+কাছে\s+কৃতজ্ঞ|কৃতজ্ঞ|ধন্যবাদ|আপনাকে\s+ধন্যবাদ|நன்றி|நன்றி\s+சொல்ல|நன்றியுள்ளவர்|ధన్యవాదాలు|కృతజ్ఞత|ధన్యవాదం|ಧನ್ಯವಾದಗಳು|ಕೃತಜ್ಞತೆ|ಧನ್ಯವಾದ|ধন্যবাদ|ਧੰਨਵਾਦ|ਸ਼ੁਕਰੀਆ|ਕ੍ਰਿਤਜ੍ਞਤਾ|ধন্যবাদ|ଧନ୍ୟବାଦ|କୃତଜ୍ଞ|ଆଭାରୀ|આભાર|ધન્યવાદ|કૃતજ્ઞ|תודה|אסיר תודה|شكرا|ممتنن|\bdankbar\b|\bdanke\b|\bdankeschön\b|ありがとう|感謝|感謝します)/i;
 
 // Hindi confusion / mental overload
 export const HI_CONFUSED_REGEX =
@@ -255,7 +271,7 @@ export const HI_CONFUSED_REGEX =
 
 // Shared crisis / severe distress hints (kept conservative)
 export const CRISIS_HINT_REGEX =
-  /(i\s+want\s+to\s+die|want\s+to\s+die|kill\s+myself|end\s+my\s+life|ending\s+everything|end\s+everything|i\s+feel\s+like\s+ending\s+everything|don'?t\s+want\s+to\s+live|cannot\s+go\s+on|can'?t\s+go\s+on|can'?t\s+take\s+it\s+anymore|cannot\s+take\s+it\s+anymore|life\s+has\s+no\s+meaning|life\s+feels\s+meaningless|ami\s+marte\s+chai|marte\s+chai|ami\s+morte\s+chai|morte\s+chai|ami\s+ar\s+parchi\s+na|ar\s+parchi\s+na|amar\s+bachte\s+ichcha\s+korch?e\s+na|bachte\s+ichhe\s+korch?e\s+na|bachte\s+icche\s+korch?e\s+na|more\s+jete\s+ichhe\s+korch?e|morte\s+ichhe\s+korch?e|bachbo\s+na|banchte\s+chai\s+na|mar\s+jana\s+hai|jeene\s+ka\s+mann\s+nahi|jeene\s+ka\s+man\s+nahi|jeena\s+nahi\s+hai|life\s+ka\s+koi\s+matlab\s+nahi(\s+lag\s+raha)?|main\s+marna\s+chahta\s+hu|main\s+marna\s+chahti\s+hu|main\s+marna\s+chahta\s+hoon|main\s+marna\s+chahti\s+hoon|marna\s+chahta\s+hu|marna\s+chahti\s+hu|marna\s+chahta\s+hoon|marna\s+chahti\s+hoon|main\s+jeena\s+nahi\s+chahta|main\s+jeena\s+nahi\s+chahti|hu\s+marva\s+mangu\s+chu|jivvu\s+nathi|nanage\s+badukalu\s+ishtavilla|আমি\s+মরতে\s+চাই|আমার\s+মরতে\s+ইচ্ছে\s+করছে|বাঁচতে\s+ইচ্ছে\s+করছে\s+না|আমি\s+বাঁচতে\s+চাই\s+না|আমি\s+আর\s+পারছি\s+না|আমার\s+বাঁচতে\s+ইচ্ছা\s+করছে\s+না|মुझे\s+मर\s+जाना\s+है|मैं\s+मरना\s+चाहता\s+हूँ|मैं\s+मरना\s+चाहती\s+हूँ|जीने\s+का\s+मन\s+नहीं\s+है|जीना\s+नहीं\s+है|ज़िंदगी\s+का\s+कोई\s+मतलब\s+नहीं|મારે\s+મરી\s+જવું\s+છે|મને\s+જીવવું\s+નથી|હું\s+મરવા\s+માગું\s+છું|ನನಗೆ\s+ಸಾಯಬೇಕು\s+ಅನಿಸುತ್ತಿದೆ|ನನಗೆ\s+ಬದುಕಲು\s+ಇಷ್ಟವಿಲ್ಲ|ನಾನು\s+ಸಾಯಬೇಕು|אני\s+רוצה\s+למות|לא\s+רוצה\s+לחיות|התאבדות|أريد\s+أن\s+أموت|لا\s+أريد\s+أن\s+أعيش|انتحار|ich\s+will\s+sterben|ich\s+will\s+nicht\s+mehr\s+leben|Selbstmord)/i;
+  /(i\s+want\s+to\s+die|want\s+to\s+die|kill\s+myself|end\s+my\s+life|ending\s+everything|end\s+everything|i\s+feel\s+like\s+ending\s+everything|don'?t\s+want\s+to\s+live|cannot\s+go\s+on|can'?t\s+go\s+on|can'?t\s+take\s+it\s+anymore|cannot\s+take\s+it\s+anymore|life\s+has\s+no\s+meaning|life\s+feels\s+meaningless|ami\s+marte\s+chai|marte\s+chai|ami\s+morte\s+chai|morte\s+chai|ami\s+ar\s+parchi\s+na|ar\s+parchi\s+na|amar\s+bachte\s+ichcha\s+korch?e\s+na|bachte\s+ichhe\s+korch?e\s+na|bachte\s+icche\s+korch?e\s+na|more\s+jete\s+ichhe\s+korch?e|morte\s+ichhe\s+korch?e|bachbo\s+na|banchte\s+chai\s+na|mar\s+jana\s+hai|jeene\s+ka\s+mann\s+nahi|jeene\s+ka\s+man\s+nahi|jeena\s+nahi\s+hai|life\s+ka\s+koi\s+matlab\s+nahi(\s+lag\s+raha)?|main\s+marna\s+chahta\s+hu|main\s+marna\s+chahti\s+hu|main\s+marna\s+chahta\s+hoon|main\s+marna\s+chahti\s+hoon|marna\s+chahta\s+hu|marna\s+chahti\s+hu|marna\s+chahta\s+hoon|marna\s+chahti\s+hoon|main\s+jeena\s+nahi\s+chahta|main\s+jeena\s+nahi\s+chahti|hu\s+marva\s+mangu\s+chu|jivvu\s+nathi|nanage\s+badukalu\s+ishtavilla|আমি\s+মরতে\s+চাই|আমার\s+মরতে\s+ইচ্ছে\s+করছে|বাঁচতে\s+ইচ্ছে\s+করছে\s+না|আমি\s+বাঁচতে\s+চাই\s+না|আমি\s+আর\s+পারছি\s+না|আমার\s+বাঁচতে\s+ইচ্ছা\s+করছে\s+না|মुझे\s+मर\s+जाना\s+है|मैं\s+मरना\s+चाहता\s+हूँ|मैं\s+मरना\s+चाहती\s+हूँ|जीने\s+का\s+मन\s+नहीं\s+है|जीना\s+नहीं\s+है|ज़िंदगी\s+का\s+कोई\s+मतलब\s+नहीं|મારે\s+મરી\s+જવું\s+છે|મને\s+જીવવું\s+નથી|હું\s+મરવા\s+માગું\s+છું|ನನಗೆ\s+ಸಾಯಬೇಕು\s+ಅನಿಸುತ್ತಿದೆ|ನನಗೆ\s+ಬದುಕಲು\s+ಇಷ್ಟವಿಲ್ಲ|ನಾನು\s+ಸಾಯಬೇಕು|אני\s+רוצה\s+למות|לא\s+רוצה\s+לחיות|התאבדות|أريد\s+أن\s+أموت|لا\s+أريد\s+أن\s+أعيش|انتحار|ich\s+will\s+sterben|ich\s+will\s+nicht\s+mehr\s+leben|Selbstmord|死にたい|消えたい|自殺)/i;
 
 const CONFUSED_EN_TERMS = [
   "cannot focus",
@@ -337,6 +353,7 @@ export function isConfusedText(text: string): boolean {
   HE_CONFUSED_REGEX.lastIndex = 0;
   AR_CONFUSED_REGEX.lastIndex = 0;
   DE_CONFUSED_REGEX.lastIndex = 0;
+  JP_CONFUSED_REGEX.lastIndex = 0;
 
   return (
     CONFUSED_EN_REGEX.test(input) ||
@@ -351,6 +368,7 @@ export function isConfusedText(text: string): boolean {
     MR_CONFUSED_REGEX.test(input) ||
     HE_CONFUSED_REGEX.test(input) ||
     AR_CONFUSED_REGEX.test(input) ||
-    DE_CONFUSED_REGEX.test(input)
+    DE_CONFUSED_REGEX.test(input) ||
+    JP_CONFUSED_REGEX.test(input)
   );
 }

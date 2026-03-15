@@ -50,7 +50,8 @@ type LanguageCode =
   | "kn"
   | "ml"
   | "he" // Hebrew
-  | "de"; // German
+  | "de" // German
+  | "ja"; // Japanese
 
 const LANGUAGE_NAME: Record<LanguageCode, string> = {
   en: "English",
@@ -74,6 +75,7 @@ const LANGUAGE_NAME: Record<LanguageCode, string> = {
   ml: "Malayalam",
   he: "Hebrew",
   de: "German",
+  ja: "Japanese",
 };
 
 function getRequestIdFromBody(body: Record<string, unknown>): string {
@@ -126,6 +128,7 @@ function coerceLanguageCode(raw: unknown): LanguageCode | undefined {
     "ml",
     "he",
     "de",
+    "ja",
   ]);
   if (allowed.has(base as LanguageCode)) return base as LanguageCode;
 
@@ -181,6 +184,7 @@ function derivePreferredLanguage(
   const hasCyrillic = /[\u0400-\u04FF]/.test(t);
   const hasCJK = /[\u4E00-\u9FFF]/.test(t);
   const hasHebrew = /[\u0590-\u05FF]/.test(t);
+  const hasJapanese = /[\u3040-\u30FF]/.test(t);
 
   // ✅ English override (prevents continuity from breaking English messages)
   // If the message is clearly English (Latin letters + common English words),
@@ -533,7 +537,9 @@ function derivePreferredLanguage(
                           ? "ru"
                           : hasCJK
                             ? "zh"
-                            : undefined;
+                            : hasJapanese
+                              ? "ja"
+                              : undefined;
 
   // ✅ Priority: explicit > script > guess
   // This permanently stops Bengali-script messages from being answered in Hindi

@@ -424,9 +424,9 @@ function isAppMessage(m: Message): m is AppMessage {
 
 // #20: Tiered crisis detection — English
 const CRISIS_TIER2_RE =
-  /\b(suicide|suicidal|end my life|end it all|kill myself|don't want to (be here|live|exist)|can't go on|no reason to live|want to die|hurt myself|self.?harm|cut myself|overdose)\b/i;
+  /\b(suicide|suicidal|end my life|end it all|kill myself|don'?t want to (be here|live|exist)|can'?t go on|no reason to live|want to die|hurt myself|self.?harm|cut myself|overdose|better off dead|wish i was dead|thinking (about|of) suicide|plan(ning)? to (kill|end|harm) (myself|my life)|sexual assault|being raped?|domestic violence|i'?m not safe|not safe right now|in immediate danger|being abused)\b/i;
 const CRISIS_TIER1_RE =
-  /\b(hopeless|helpless|worthless|nothing matters|give up|can't take (it|this) anymore|breaking down|falling apart|no one cares|all alone|empty inside|numbing|numb(ing)?|disappear)\b/i;
+  /\b(hopeless|helpless|worthless|nothing matters|give up|can'?t take (it|this) anymore|breaking down|falling apart|no one cares|all alone|empty inside|numbing|numb(ing)?|disappear|feel like a burden|i'?m a burden|everyone (would be )?better off without me|don'?t deserve to (live|be here|exist)|trapped|feel(ing)? trapped|no way out|no escape|can'?t see a future|no future for me|thinking about (death|ending|disappearing)|thoughts of (death|ending it)|pointless|life is pointless)\b/i;
 
 // #20: Indian language crisis signals — Unicode script (hi/mr Devanagari, bn, ta, te, kn, ml, gu, pa)
 const CRISIS_INDIC_TIER2_RE = new RegExp(
@@ -476,6 +476,10 @@ const CRISIS_INDIC_TIER1_RE = new RegExp(
     "આશા નથી","નિરાશ","એકલા",
     // Punjabi
     "ਉਮੀਦ ਨਹੀਂ","ਨਿਰਾਸ਼","ਇਕੱਲਾ",
+    // Hindi additions
+    "मैं बोझ हूं","मैं बेकार हूं","कोई रास्ता नहीं",
+    // Bengali additions
+    "আমি বোঝা","কোনো পথ নেই",
   ].join("|"),
 );
 

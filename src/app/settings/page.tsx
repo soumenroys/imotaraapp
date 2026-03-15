@@ -335,8 +335,8 @@ function ToneAndContextTile() {
                             />
                         </label>
 
-                        <div className="grid gap-3 sm:grid-cols-2 items-start">
-                            <label className="grid gap-1">
+                        <div className="flex gap-3">
+                            <label className="flex flex-col gap-1 flex-1">
                                 <span className="text-xs text-zinc-300">Age range</span>
                                 <select
                                     value={userAge}
@@ -357,7 +357,7 @@ function ToneAndContextTile() {
                                 </select>
                             </label>
 
-                            <label className="grid gap-1">
+                            <label className="flex flex-col gap-1 flex-1">
                                 <span className="text-xs text-zinc-300">Gender</span>
                                 <select
                                     value={userGender}
@@ -376,7 +376,7 @@ function ToneAndContextTile() {
                             </label>
                         </div>
                         {userAge === "13_17" && (
-                            <p className="text-[10px] text-amber-400/80 -mt-1">
+                            <p className="text-[10px] text-amber-400/80">
                                 If you are under 13, please use Imotara with a parent or guardian.
                             </p>
                         )}

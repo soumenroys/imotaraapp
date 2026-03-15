@@ -396,29 +396,29 @@ function ToneAndContextTile() {
                                     <option value="en">English</option>
                                 </optgroup>
                                 <optgroup label="Indian Languages">
-                                    <option value="hi">Hindi (हिंदी)</option>
-                                    <option value="mr">Marathi (मराठी)</option>
                                     <option value="bn">Bengali (বাংলা)</option>
-                                    <option value="ta">Tamil (தமிழ்)</option>
-                                    <option value="te">Telugu (తెలుగు)</option>
                                     <option value="gu">Gujarati (ગુજરાતી)</option>
-                                    <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+                                    <option value="hi">Hindi (हिंदी)</option>
                                     <option value="kn">Kannada (ಕನ್ನಡ)</option>
                                     <option value="ml">Malayalam (മലയാളം)</option>
+                                    <option value="mr">Marathi (मराठी)</option>
                                     <option value="or">Odia (ଓଡ଼ିଆ)</option>
+                                    <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+                                    <option value="ta">Tamil (தமிழ்)</option>
+                                    <option value="te">Telugu (తెలుగు)</option>
                                     <option value="ur">Urdu (اردو)</option>
                                 </optgroup>
                                 <optgroup label="Other Languages">
                                     <option value="ar">Arabic (العربية)</option>
                                     <option value="zh">Chinese — Mandarin (普通话)</option>
+                                    <option value="fr">French (Français)</option>
                                     <option value="de">German (Deutsch)</option>
                                     <option value="he">Hebrew (עברית)</option>
+                                    <option value="id">Indonesian (Bahasa Indonesia)</option>
                                     <option value="ja">Japanese (日本語)</option>
-                                    <option value="es">Spanish (Español)</option>
-                                    <option value="fr">French (Français)</option>
                                     <option value="pt">Portuguese (Português)</option>
                                     <option value="ru">Russian (Русский)</option>
-                                    <option value="id">Indonesian (Bahasa Indonesia)</option>
+                                    <option value="es">Spanish (Español)</option>
                                 </optgroup>
                             </select>
                         </label>

@@ -496,6 +496,9 @@ const CRISIS_BANNER_BY_LANG: Record<string, { tier2: string; tier1: string; link
   gu: { tier2: "લાગે છે તમે અત્યારે ઘણું ભારે સહન કરી રહ્યા છો. આ એકલા ઝેલવું ન પડે —", tier1: "લાગે છે અત્યારે બધું ઘણું અઘરું લાગી રહ્યું છે. હું સાંભળું છું. ઘણું વધારે લાગે તો,", link: "24/7 સહાય ઉપલબ્ધ છે" },
   pa: { tier2: "ਲੱਗਦਾ ਹੈ ਤੁਸੀਂ ਹੁਣ ਕੁਝ ਬਹੁਤ ਭਾਰਾ ਝੱਲ ਰਹੇ ਹੋ। ਇਹ ਇਕੱਲੇ ਝੱਲਣ ਦੀ ਲੋੜ ਨਹੀਂ —", tier1: "ਲੱਗਦਾ ਹੈ ਹੁਣ ਸਭ ਕੁਝ ਬਹੁਤ ਔਖਾ ਲੱਗ ਰਿਹਾ ਹੈ। ਮੈਂ ਸੁਣ ਰਿਹਾ/ਰਹੀ ਹਾਂ। ਜੇ ਬਹੁਤ ਜ਼ਿਆਦਾ ਲੱਗੇ,", link: "24/7 ਸਹਾਇਤਾ ਉਪਲਬਧ ਹੈ" },
   or: { tier2: "ମନେ ହୁଏ ଆପଣ ଏବେ ବହୁ ଭାରୀ କିଛି ସହୁଛନ୍ତି। ଏହାକୁ ଏକୁଟିଆ ଝେଲିବାର ଦରକାର ନାହିଁ —", tier1: "ମନେ ହୁଏ ଏବେ ସବୁ ବହୁ କଷ୍ଟ ଲାଗୁଛି। ମୁଁ ଶୁଣୁଛି। ଯଦି ଅତ୍ୟଧିକ ଲାଗେ,", link: "24/7 ସଂକଟ ସହାୟତା ଉପଲବ୍ଧ" },
+  he: { tier2: "נראה שאתה עובר משהו כבד מאוד כרגע...", tier1: "נראה שהדברים מרגישים קשים מאוד כרגע...", link: "תמיכה בחינם זמינה 24/7" },
+  ar: { tier2: "يبدو أنك تمر بشيء صعب جداً الآن...", tier1: "يبدو أن الأمور تبدو صعبة جداً الآن...", link: "الدعم المجاني متاح على مدار الساعة" },
+  de: { tier2: "Es klingt, als würdest du gerade etwas sehr Schweres durchmachen...", tier1: "Es klingt, als wäre gerade alles sehr schwer...", link: "kostenlose Krisenunterstützung ist rund um die Uhr verfügbar" },
 };
 
 // #11: Composer sentiment seeds — quick-tap mood hint chips
@@ -511,6 +514,9 @@ const SENTIMENT_SEEDS_BY_LANG: Record<string, [string, string, string]> = {
   gu: ["મન ભારે છે", "મન ઠાળવવું છે", "વિચારી રહ્યો/રહી છું"],
   pa: ["ਮਨ ਭਾਰਾ ਹੈ", "ਮਨ ਹੌਲਾ ਕਰਨਾ ਹੈ", "ਸੋਚ ਰਿਹਾ/ਰਹੀ ਹਾਂ"],
   or: ["ମନ ଭାରୀ ଅଛି", "ମନ ହାଲୁକା କରିବାକୁ ଚାହୁଁଛି", "ଭାବୁଛି"],
+  he: ["מרגיש כבד", "צריך להוציא את זה", "רק חושב בקול"],
+  ar: ["أشعر بثقل", "أحتاج للتعبير", "أفكر بصوت عالٍ"],
+  de: ["Fühle mich schwer", "Muss mal reden", "Denke laut nach"],
 };
 
 // #6: Weekly mood recap text — localised
@@ -1972,6 +1978,7 @@ export default function ChatPage() {
       hi: "hi-IN", mr: "mr-IN", bn: "bn-IN", ta: "ta-IN",
       te: "te-IN", kn: "kn-IN", ml: "ml-IN", gu: "gu-IN",
       pa: "pa-IN", or: "or-IN", en: "en-IN",
+      ar: "ar-SA", he: "he-IL", de: "de-DE",
     };
     const profileLang = getImotaraProfile()?.user?.preferredLang ?? "";
     rec.lang = LANG_TO_BCP47[profileLang] ?? "";
@@ -2994,6 +3001,30 @@ const MOOD_OPTIONS_BY_LANG: Record<string, MoodOption[]> = {
     { emoji: "😟", label: "ଚିନ୍ତା",   starter: "ଖୁବ ଚିନ୍ତା ଲାଗୁଛି।" },
     { emoji: "🌧️", label: "ଏକୁଟିଆ",   starter: "ଏବେ ଖୁବ ଏକୁଟିଆ ଲାଗୁଛି।" },
   ],
+  he: [
+    { emoji: "😊", label: "טוב",       starter: "אני מרגיש/ה די טוב היום." },
+    { emoji: "😔", label: "עצוב",      starter: "לא יודע/ת למה, אבל אני מרגיש/ה עצוב/ה." },
+    { emoji: "😟", label: "חרד",       starter: "אני מרגיש/ה חרדה וחשש." },
+    { emoji: "😤", label: "כועס",      starter: "אני כועס/ת ורוצה לשחרר את זה." },
+    { emoji: "😵", label: "מבולבל",    starter: "אני מבולבל/ת ולא יודע/ת מה לעשות." },
+    { emoji: "😶", label: "קהה",       starter: "אני מרגיש/ה קהות, בלי רגשות." },
+  ],
+  ar: [
+    { emoji: "😊", label: "بخير",      starter: "أشعر بخير اليوم نسبياً." },
+    { emoji: "😔", label: "حزين",      starter: "لا أعرف لماذا، لكنني أشعر بالحزن." },
+    { emoji: "😟", label: "قلق",       starter: "أشعر بالقلق والتوتر." },
+    { emoji: "😤", label: "غاضب",      starter: "أنا غاضب/ة وأريد أن أعبر عن ذلك." },
+    { emoji: "😵", label: "مرتبك",     starter: "أنا مرتبك/ة ولا أعرف ماذا أفعل." },
+    { emoji: "😶", label: "خدر",       starter: "أشعر بالخدر، بدون مشاعر." },
+  ],
+  de: [
+    { emoji: "😊", label: "Gut",       starter: "Heute fühle ich mich eigentlich ganz gut." },
+    { emoji: "😔", label: "Traurig",   starter: "Ich weiß nicht warum, aber ich bin traurig." },
+    { emoji: "😟", label: "Ängstlich", starter: "Ich fühle mich ängstlich und besorgt." },
+    { emoji: "😤", label: "Wütend",    starter: "Ich bin wütend und muss das rauslassen." },
+    { emoji: "😵", label: "Verwirrt",  starter: "Ich bin verwirrt und weiß nicht, was ich tun soll." },
+    { emoji: "😶", label: "Gefühllos", starter: "Ich fühle mich gefühllos, wie betäubt." },
+  ],
 };
 
 // How are you feeling — localised header
@@ -3009,6 +3040,9 @@ const MOOD_HEADING: Record<string, string> = {
   gu: "તમને કેવું લાગે છે?",
   pa: "ਤੁਸੀਂ ਕਿਵੇਂ ਮਹਿਸੂਸ ਕਰ ਰਹੇ ਹੋ?",
   or: "ଆପଣ କିପରି ଅନୁଭବ କରୁଛନ୍ତି?",
+  he: "איך אתה מרגיש?",
+  ar: "كيف تشعر؟",
+  de: "Wie fühlst du dich?",
 };
 
 const OR_TYPE_BELOW: Record<string, string> = {
@@ -3023,6 +3057,9 @@ const OR_TYPE_BELOW: Record<string, string> = {
   gu: "અથવા નીચે ટાઇપ કરો",
   pa: "ਜਾਂ ਹੇਠਾਂ ਟਾਈਪ ਕਰੋ",
   or: "ଅଥବା ନୀଚରେ ଟାଇପ୍ କରନ୍ତୁ",
+  he: "או התחל להקליד למטה",
+  ar: "أو ابدأ الكتابة أدناه",
+  de: "oder unten eintippen",
 };
 
 const GREETING_BY_LANG: Record<string, { morning: string; afternoon: string; evening: string; night: string }> = {
@@ -3037,6 +3074,9 @@ const GREETING_BY_LANG: Record<string, { morning: string; afternoon: string; eve
   gu: { morning: "શુભ સવાર 🌅", afternoon: "શુભ બપોર ☀️", evening: "શુભ સાંજ 🌙", night: "હજી જાગો છો? 🌟" },
   pa: { morning: "ਸ਼ੁਭ ਸਵੇਰ 🌅", afternoon: "ਸ਼ੁਭ ਦੁਪਹਿਰ ☀️", evening: "ਸ਼ੁਭ ਸ਼ਾਮ 🌙", night: "ਅਜੇ ਵੀ ਜਾਗ ਰਹੇ ਹੋ? 🌟" },
   or: { morning: "ଶୁଭ ସକାଳ 🌅", afternoon: "ଶୁଭ ଅପରାହ୍ନ ☀️", evening: "ଶୁଭ ସନ୍ଧ୍ୟା 🌙", night: "ଏখনও ଜାଗ୍ରତ? 🌟" },
+  he: { morning: "בוקר טוב 🌅", afternoon: "צהריים טובים ☀️", evening: "ערב טוב 🌙", night: "עוד ער? 🌟" },
+  ar: { morning: "صباح الخير 🌅", afternoon: "مساء الخير ☀️", evening: "مساء النور 🌙", night: "لا تزال مستيقظاً؟ 🌟" },
+  de: { morning: "Guten Morgen 🌅", afternoon: "Guten Tag ☀️", evening: "Guten Abend 🌙", night: "Noch wach? 🌟" },
 };
 
 function getGreeting(lang: string): string {
@@ -3135,10 +3175,12 @@ const LANG_TO_BCP47: Record<string, string> = {
   // Foreign languages
   ar: "ar-SA", zh: "zh-CN", es: "es-ES", fr: "fr-FR",
   pt: "pt-BR", ru: "ru-RU", id: "id-ID",
+  he: "he-IL", de: "de-DE",
 };
 
 // Detect the dominant script from Unicode ranges — covers all Indic + CJK
 function detectScriptLang(text: string): string | null {
+  if (/[\u0590-\u05FF]/.test(text)) return "he-IL";   // Hebrew
   if (/[\u0900-\u097F]/.test(text)) return "hi-IN";   // Devanagari (Hindi/Marathi)
   if (/[\u0980-\u09FF]/.test(text)) return "bn-IN";   // Bengali
   if (/[\u0B80-\u0BFF]/.test(text)) return "ta-IN";   // Tamil

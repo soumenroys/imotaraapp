@@ -91,6 +91,18 @@ import {
   MR_STRESS_REGEX,
   MR_ANGER_REGEX,
   MR_FEAR_REGEX,
+  HE_SAD_REGEX,
+  HE_STRESS_REGEX,
+  HE_ANGER_REGEX,
+  HE_FEAR_REGEX,
+  AR_SAD_REGEX,
+  AR_STRESS_REGEX,
+  AR_ANGER_REGEX,
+  AR_FEAR_REGEX,
+  DE_SAD_REGEX,
+  DE_STRESS_REGEX,
+  DE_ANGER_REGEX,
+  DE_FEAR_REGEX,
   CRISIS_HINT_REGEX,
   GRATITUDE_REGEX,
   isConfusedText,
@@ -476,6 +488,33 @@ export async function POST(req: Request) {
       if (MR_ANGER_REGEX.test(raw))
         return { emotion: asEmotion("anger"), intensity: 0.65 };
       if (MR_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      if (HE_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (HE_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (HE_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (HE_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      if (AR_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (AR_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (AR_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (AR_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      if (DE_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (DE_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (DE_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (DE_FEAR_REGEX.test(raw))
         return { emotion: asEmotion("fear"), intensity: 0.65 };
 
       // Existing keyword heuristic (English)

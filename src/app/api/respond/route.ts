@@ -48,7 +48,9 @@ type LanguageCode =
   | "gu"
   | "pa"
   | "kn"
-  | "ml";
+  | "ml"
+  | "he" // Hebrew
+  | "de"; // German
 
 const LANGUAGE_NAME: Record<LanguageCode, string> = {
   en: "English",
@@ -58,7 +60,7 @@ const LANGUAGE_NAME: Record<LanguageCode, string> = {
   or: "Odia",
   zh: "Mandarin Chinese",
   es: "Spanish",
-  ar: "Standard Arabic",
+  ar: "Arabic",
   fr: "French",
   pt: "Portuguese",
   ru: "Russian",
@@ -70,6 +72,8 @@ const LANGUAGE_NAME: Record<LanguageCode, string> = {
   pa: "Punjabi",
   kn: "Kannada",
   ml: "Malayalam",
+  he: "Hebrew",
+  de: "German",
 };
 
 function getRequestIdFromBody(body: Record<string, unknown>): string {
@@ -120,6 +124,8 @@ function coerceLanguageCode(raw: unknown): LanguageCode | undefined {
     "pa",
     "kn",
     "ml",
+    "he",
+    "de",
   ]);
   if (allowed.has(base as LanguageCode)) return base as LanguageCode;
 
@@ -174,6 +180,7 @@ function derivePreferredLanguage(
   const hasUrduSpecific = /[\u06BE\u06C1\u06CC\u06D2\u06BA]/.test(t);
   const hasCyrillic = /[\u0400-\u04FF]/.test(t);
   const hasCJK = /[\u4E00-\u9FFF]/.test(t);
+  const hasHebrew = /[\u0590-\u05FF]/.test(t);
 
   // ✅ English override (prevents continuity from breaking English messages)
   // If the message is clearly English (Latin letters + common English words),
@@ -414,6 +421,14 @@ function derivePreferredLanguage(
           "Language policy (strict): Reply ONLY in Indonesian (id). Do not mix languages.",
       };
     }
+    if (romanDeHits >= 3) {
+      return {
+        preferredLanguage: "de",
+        strictLanguage: "de",
+        languageDirective:
+          "Language policy (strict): Reply ONLY in German (de). Do not mix languages.",
+      };
+    }
     // Tie-break: any foreign Latin signal at threshold
     if (romanEsHits >= 2) {
       return {
@@ -489,31 +504,36 @@ function derivePreferredLanguage(
     };
   }
 
-  const scriptDerived: LanguageCode | undefined = hasBengali
-    ? "bn"
-    : hasDevanagariLetters
-      ? "hi"
-      : hasTamil
-        ? "ta"
-        : hasTelugu
-          ? "te"
-          : hasGujarati
-            ? "gu"
-            : hasGurmukhi
-              ? "pa"
-              : hasKannada
-                ? "kn"
-                : hasMalayalam
-                  ? "ml"
-                  : hasOdia
-                    ? "or"
-                    : hasArabicScript
-                      ? (hasUrduSpecific || explicit === "ur" ? "ur" : "ar")
-                      : hasCyrillic
-                        ? "ru"
-                        : hasCJK
-                          ? "zh"
-                          : undefined;
+  // German keyword hints (Latin script, so must rely on lexical detection)
+  const romanDeHits = countHits(/\b(?:ich|du|wir|sie|ist|bin|haben|nicht|und|auch|aber|sehr|gut|schlecht|danke|bitte|ja|nein|warum|wie|was|wann|wo|ä|ö|ü|ß|schon|noch|immer|nie|oft|heute|morgen|gestern|vielleicht|natürlich|eigentlich|einfach|wirklich|gerade|schön|leider)\b/i);
+
+  const scriptDerived: LanguageCode | undefined = hasHebrew
+    ? "he"
+    : hasBengali
+      ? "bn"
+      : hasDevanagariLetters
+        ? "hi"
+        : hasTamil
+          ? "ta"
+          : hasTelugu
+            ? "te"
+            : hasGujarati
+              ? "gu"
+              : hasGurmukhi
+                ? "pa"
+                : hasKannada
+                  ? "kn"
+                  : hasMalayalam
+                    ? "ml"
+                    : hasOdia
+                      ? "or"
+                      : hasArabicScript
+                        ? (hasUrduSpecific || explicit === "ur" ? "ur" : "ar")
+                        : hasCyrillic
+                          ? "ru"
+                          : hasCJK
+                            ? "zh"
+                            : undefined;
 
   // ✅ Priority: explicit > script > guess
   // This permanently stops Bengali-script messages from being answered in Hindi

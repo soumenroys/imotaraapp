@@ -41,6 +41,30 @@ export const INDIA_CRISIS_RESOURCES: CountryCrisisResources = {
     ],
 };
 
+export const ISRAEL_CRISIS_RESOURCES: CountryCrisisResources = {
+    countryCode: "IL",
+    primary: [
+        {
+            id: "il-eran-1201",
+            label: "ERAN Emotional First Aid",
+            contact: "1201",
+            note: "24/7 free emotional support and crisis intervention.",
+        },
+    ],
+};
+
+export const GERMANY_CRISIS_RESOURCES: CountryCrisisResources = {
+    countryCode: "DE",
+    primary: [
+        {
+            id: "de-telefonseelsorge-0800-111-0-111",
+            label: "Telefonseelsorge",
+            contact: "0800 111 0 111",
+            note: "24/7 free crisis support (kostenlos, rund um die Uhr).",
+        },
+    ],
+};
+
 export function getCrisisResourcesForCountry(
     countryCode?: string | null,
 ): CountryCrisisResources | null {
@@ -48,6 +72,14 @@ export function getCrisisResourcesForCountry(
 
     if (code === "IN" || !code) {
         return INDIA_CRISIS_RESOURCES;
+    }
+
+    if (code === "IL") {
+        return ISRAEL_CRISIS_RESOURCES;
+    }
+
+    if (code === "DE") {
+        return GERMANY_CRISIS_RESOURCES;
     }
 
     return null;

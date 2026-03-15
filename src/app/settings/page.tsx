@@ -335,14 +335,14 @@ function ToneAndContextTile() {
                             />
                         </label>
 
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid gap-3 sm:grid-cols-2 items-start">
                             <label className="grid gap-1">
                                 <span className="text-xs text-zinc-300">Age range</span>
                                 <select
                                     value={userAge}
                                     onChange={(e) => setUserAge(e.target.value as AgeRange)}
                                     className={[
-                                        "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                        "h-10 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
                                         selectActiveClass(userAge !== "prefer_not"),
                                     ].join(" ")}
                                 >
@@ -355,11 +355,6 @@ function ToneAndContextTile() {
                                     <option value="55_64">55–64</option>
                                     <option value="65_plus">65+</option>
                                 </select>
-                                {userAge === "13_17" && (
-                                    <p className="text-[10px] text-amber-400/80 mt-0.5">
-                                        If you are under 13, please use Imotara with a parent or guardian.
-                                    </p>
-                                )}
                             </label>
 
                             <label className="grid gap-1">
@@ -368,7 +363,7 @@ function ToneAndContextTile() {
                                     value={userGender}
                                     onChange={(e) => setUserGender(e.target.value as Gender)}
                                     className={[
-                                        "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                        "h-10 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
                                         selectActiveClass(userGender !== "prefer_not"),
                                     ].join(" ")}
                                 >
@@ -380,6 +375,11 @@ function ToneAndContextTile() {
                                 </select>
                             </label>
                         </div>
+                        {userAge === "13_17" && (
+                            <p className="text-[10px] text-amber-400/80 -mt-1">
+                                If you are under 13, please use Imotara with a parent or guardian.
+                            </p>
+                        )}
 
                         <label className="grid gap-1">
                             <span className="text-xs text-zinc-300">Preferred language</span>

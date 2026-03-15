@@ -221,6 +221,8 @@ function derivePreferredLanguage(
   const romanFrHits = countHits(/\b(?:je|tu|nous|vous|ils|suis|sont|avec|pour|mais|donc|très|aussi|merci|bonjour|moi|toi|quoi|ici|avons|avez|était|étais|voilà|ça|déjà)\b/i);
   const romanPtHits = countHits(/\b(?:você|não|sim|obrigado|obrigada|muito|olá|estou|tudo|também|porque|quando|aqui|agora|então|isso|tenho|preciso|saudade|oi)\b/i);
   const romanIdHits = countHits(/\b(?:aku|kamu|saya|tidak|bisa|sudah|sangat|juga|dari|kalau|tapi|karena|jadi|belum|harus|memang|merasa|hati|senang|sedih|baik)\b/i);
+  // German keyword hints (Latin script, so must rely on lexical detection)
+  const romanDeHits = countHits(/\b(?:ich|du|wir|sie|ist|bin|haben|nicht|und|auch|aber|sehr|gut|schlecht|danke|bitte|ja|nein|warum|wie|was|wann|wo|ä|ö|ü|ß|schon|noch|immer|nie|oft|heute|morgen|gestern|vielleicht|natürlich|eigentlich|einfach|wirklich|gerade|schön|leider)\b/i);
 
   console.log("[LANG DEBUG]", {
     romanHiHits,
@@ -237,6 +239,7 @@ function derivePreferredLanguage(
     romanFrHits,
     romanPtHits,
     romanIdHits,
+    romanDeHits,
   });
 
   const latinOnly = !hasBn && !hasHiLetters && totalLetters > 0;
@@ -507,9 +510,6 @@ function derivePreferredLanguage(
         "Language policy (strict): Reply ONLY in English (en). Do not mix languages.",
     };
   }
-
-  // German keyword hints (Latin script, so must rely on lexical detection)
-  const romanDeHits = countHits(/\b(?:ich|du|wir|sie|ist|bin|haben|nicht|und|auch|aber|sehr|gut|schlecht|danke|bitte|ja|nein|warum|wie|was|wann|wo|ä|ö|ü|ß|schon|noch|immer|nie|oft|heute|morgen|gestern|vielleicht|natürlich|eigentlich|einfach|wirklich|gerade|schön|leider)\b/i);
 
   const scriptDerived: LanguageCode | undefined = hasHebrew
     ? "he"

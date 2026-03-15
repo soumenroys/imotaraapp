@@ -423,34 +423,6 @@ function ToneAndContextTile() {
                             </select>
                         </label>
 
-                        {/* #16: Response style preference */}
-                        <label className="grid gap-1">
-                            <span className="text-xs text-zinc-300">How should Imotara respond?</span>
-                            <select
-                                value={responseStyle}
-                                onChange={(e) => setResponseStyle(e.target.value as ResponseStyle | "auto")}
-                                className={[
-                                    "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
-                                    selectActiveClass(responseStyle !== "auto"),
-                                ].join(" ")}
-                            >
-                                <option value="auto">Let Imotara decide</option>
-                                <option value="comfort">Comfort me — be present &amp; warm</option>
-                                <option value="reflect">Help me reflect — ask gentle questions</option>
-                                <option value="motivate">Motivate me — be encouraging &amp; energetic</option>
-                                <option value="advise">Give advice — practical next steps</option>
-                            </select>
-                            {responseStyle !== "auto" && (
-                                <p className="mt-0.5 rounded-xl border border-white/8 bg-white/5 px-3 py-2 text-[11px] italic leading-snug text-zinc-400">
-                                    {responseStyle === "comfort"  && "\u201cThat sounds really hard. I\u2019m here with you \u2014 take all the time you need.\u201d"}
-                                    {responseStyle === "reflect"  && "\u201cWhat do you think that feeling is trying to tell you?\u201d"}
-                                    {responseStyle === "motivate" && "\u201cYou\u2019re doing better than you think. One small step is all it takes today.\u201d"}
-                                    {responseStyle === "advise"   && "\u201cHere\u2019s what might help: start with the smallest task, just to build momentum.\u201d"}
-                                </p>
-                            )}
-                            <p className="text-[10px] text-zinc-500">You can always override this in conversation.</p>
-                        </label>
-
                         <p className="text-[11px] text-zinc-500">Used only to make wording feel more natural. Not shared.</p>
                     </div>
                 </div>
@@ -608,6 +580,33 @@ function ToneAndContextTile() {
                                     <option value="parent_like">Parent-like (tone only)</option>
                                     <option value="partner_like">Partner-like (tone only)</option>
                                 </select>
+                            </label>
+
+                            <label className="grid gap-1">
+                                <span className="text-xs text-zinc-300">Companion respond</span>
+                                <select
+                                    value={responseStyle}
+                                    onChange={(e) => setResponseStyle(e.target.value as ResponseStyle | "auto")}
+                                    className={[
+                                        "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                        selectActiveClass(responseStyle !== "auto"),
+                                    ].join(" ")}
+                                >
+                                    <option value="auto">Let Imotara decide</option>
+                                    <option value="comfort">Comfort me — be present &amp; warm</option>
+                                    <option value="reflect">Help me reflect — ask gentle questions</option>
+                                    <option value="motivate">Motivate me — be encouraging &amp; energetic</option>
+                                    <option value="advise">Give advice — practical next steps</option>
+                                </select>
+                                {responseStyle !== "auto" && (
+                                    <p className="mt-0.5 rounded-xl border border-white/8 bg-white/5 px-3 py-2 text-[11px] italic leading-snug text-zinc-400">
+                                        {responseStyle === "comfort"  && "\u201cThat sounds really hard. I\u2019m here with you \u2014 take all the time you need.\u201d"}
+                                        {responseStyle === "reflect"  && "\u201cWhat do you think that feeling is trying to tell you?\u201d"}
+                                        {responseStyle === "motivate" && "\u201cYou\u2019re doing better than you think. One small step is all it takes today.\u201d"}
+                                        {responseStyle === "advise"   && "\u201cHere\u2019s what might help: start with the smallest task, just to build momentum.\u201d"}
+                                    </p>
+                                )}
+                                <p className="text-[10px] text-zinc-500">You can always override this in conversation.</p>
                             </label>
 
                             <p className="text-[11px] text-zinc-500">

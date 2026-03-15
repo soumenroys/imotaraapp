@@ -1458,14 +1458,13 @@ function draftResponse(
       ] as const,
     );
 
-    const indiaResources = getCrisisResourcesForCountry("IN");
-    const teleManas = indiaResources?.primary?.find(
-      (item) => item.id === "in-tele-manas-14416",
-    );
+    const countryCode = (ctx as any)?.countryCode ?? null;
+    const countryResources = getCrisisResourcesForCountry(countryCode);
+    const primaryLine = countryResources?.primary?.[0] ?? null;
 
-    const crisisSupportOffer = teleManas
-      ? `If you're in India and want immediate human support, you can call ${teleManas.label} at ${teleManas.contact}. ${teleManas.note ?? ""}`.trim()
-      : "If you're in India and want immediate human support, you can call Tele-MANAS at 14416 or 1800-891-4416. It's a free 24/7 mental health helpline.";
+    const crisisSupportOffer = primaryLine
+      ? `If you need immediate human support, you can reach ${primaryLine.label} at ${primaryLine.contact}. ${primaryLine.note ?? ""}`.trim()
+      : "If you need immediate human support, please reach out to a local crisis line or emergency services.";
 
     return {
       reflectionSeed: undefined,

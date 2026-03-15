@@ -1082,6 +1082,14 @@ export async function POST(req: Request) {
       })
       : originalRecentMessages;
 
+  // Detect user's country from Vercel's geo header (injected automatically at edge, no external API needed).
+  // Falls back to body/context if provided (useful for mobile clients or local dev).
+  const countryCode =
+    req.headers.get("x-vercel-ip-country") ||
+    (body as any)?.countryCode ||
+    (baseCtx as any)?.countryCode ||
+    null;
+
   const result = await runImotara({
     userMessage: message,
     sessionContext: {
@@ -1098,6 +1106,9 @@ export async function POST(req: Request) {
       // ✅ new: request-scoped variation helpers (safe if ignored)
       requestId,
       generationSalt,
+
+      // ✅ country code for crisis resource localisation
+      countryCode,
 
       pinnedRecall,
       pinnedRecallRelevant,

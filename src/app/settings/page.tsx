@@ -158,7 +158,7 @@ function ToneAndContextTile() {
     const [userName, setUserName] = useState("");
     const [userAge, setUserAge] = useState<AgeRange>("prefer_not");
     const [userGender, setUserGender] = useState<Gender>("prefer_not");
-    const [preferredLang, setPreferredLang] = useState<SupportedLang | "auto">("auto");
+    const [preferredLang, setPreferredLang] = useState<SupportedLang | "auto">("en");
     const [responseStyle, setResponseStyle] = useState<ResponseStyle | "auto">("auto"); // #16
 
     // Expected companion details (tone guidance)
@@ -185,7 +185,7 @@ function ToneAndContextTile() {
             setUserName(existing.user?.name ?? "");
             setUserAge((existing.user?.ageRange as AgeRange) ?? "prefer_not");
             setUserGender((existing.user?.gender as Gender) ?? "prefer_not");
-            setPreferredLang((existing.user?.preferredLang as SupportedLang) ?? "auto");
+            setPreferredLang((existing.user?.preferredLang as SupportedLang) ?? "en");
             setResponseStyle((existing.user?.responseStyle as ResponseStyle) ?? "auto");
 
             const enabled = !!existing.companion?.enabled;
@@ -254,7 +254,7 @@ function ToneAndContextTile() {
         setUserName("");
         setUserAge("prefer_not");
         setUserGender("prefer_not");
-        setPreferredLang("auto");
+        setPreferredLang("en");
         setResponseStyle("auto");
         setCompEnabled(false);
         setCompName("");
@@ -388,7 +388,7 @@ function ToneAndContextTile() {
                                 onChange={(e) => setPreferredLang(e.target.value as SupportedLang | "auto")}
                                 className={[
                                     "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
-                                    selectActiveClass(preferredLang !== "auto"),
+                                    selectActiveClass(preferredLang !== "en"),
                                 ].join(" ")}
                             >
                                 <option value="auto">Auto-detect</option>

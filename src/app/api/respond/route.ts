@@ -930,6 +930,32 @@ export async function POST(req: Request) {
     authUserId = null;
   }
 
+  // ── Mobile Bearer token fallback ──────────────────────────────────────────
+  // Web auth uses Next.js cookies (supabaseUserServer above).
+  // Mobile sends "Authorization: Bearer <access_token>" — cookies are not
+  // available in React Native.  When cookie auth returned no user, try the
+  // Bearer token so mobile users get pinnedRecall + full personalization.
+  if (!authUserId) {
+    const authHeader = req.headers.get("Authorization") ?? req.headers.get("authorization");
+    const bearerToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : null;
+
+    if (bearerToken) {
+      try {
+        const { data: tokenData } = await supabaseServer.auth.getUser(bearerToken);
+        if (tokenData?.user?.id) {
+          authUserId = tokenData.user.id;
+          // Use the admin client (service role) for RLS queries when auth came
+          // from a Bearer token, since we don't have a user-scoped cookie client.
+          supabase = supabaseServer;
+        }
+      } catch {
+        // Bearer token invalid or expired — proceed as anonymous
+      }
+    }
+  }
+
   const userId =
     authUserId ??
     (baseCtx as any)?.user?.id ??

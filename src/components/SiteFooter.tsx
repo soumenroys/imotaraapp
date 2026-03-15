@@ -15,6 +15,13 @@ export default function SiteFooter() {
     ? `v${raw.replace(/^v/i, "").trim()}`
     : "v—";
 
+  // Build number: set NEXT_PUBLIC_APP_BUILD in Vercel env, fallback to package.json buildNumber
+  const build =
+    (process.env.NEXT_PUBLIC_APP_BUILD || "").trim() ||
+    ((packageJson as any)?.buildNumber ?? "");
+
+  const versionLabel = build ? `${version} (${build})` : version;
+
   return (
     <footer className="mt-auto border-t border-white/10 bg-gradient-to-t from-black/75 via-slate-950/60 to-transparent backdrop-blur-xl">
       <div className="mx-auto w-full max-w-5xl px-4 py-7 text-xs text-zinc-500 sm:px-6 sm:py-8 sm:text-sm">
@@ -28,10 +35,10 @@ export default function SiteFooter() {
               © {year} Imotara. All rights reserved. Not a medical or crisis service.
             </p>
 
-            {/* Version indicator */}
+            {/* Version + Build indicator */}
             <p className="text-[11px] text-zinc-500 sm:text-xs">
               <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-300 backdrop-blur-sm">
-                {version}
+                {versionLabel}
               </span>
             </p>
           </div>

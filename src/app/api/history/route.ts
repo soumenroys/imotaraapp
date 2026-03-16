@@ -316,3 +316,28 @@ export async function POST(request: Request) {
     );
   }
 }
+
+/* ----------------------------------------------------------------------------
+ * DELETE /api/history
+ * Clears all history records. Called by clearHistory() on client.
+ * --------------------------------------------------------------------------*/
+export async function DELETE(request: Request) {
+  try {
+    if (isProd() && !isAdminRequest(request)) {
+      return NextResponse.json({ ok: false }, { status: 403 });
+    }
+
+    await clearAllRecords();
+
+    return NextResponse.json({ ok: true, clearedAt: Date.now() }, { status: 200 });
+  } catch (err) {
+    const PROD = process.env.NODE_ENV === "production";
+    const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
+
+    if (SHOULD_LOG) {
+      console.warn("DELETE /api/history error:", String(err));
+    }
+
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
+}

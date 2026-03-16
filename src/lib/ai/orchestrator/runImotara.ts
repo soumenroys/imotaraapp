@@ -1,5 +1,8 @@
 // src/lib/ai/orchestrator/runImotara.ts
 
+import { buildMicroStory } from "@/lib/ai/orchestrator/storyEngine";
+import { buildMythologyStory } from "@/lib/ai/orchestrator/mythologyEngine";
+import { buildOfflineQuote } from "@/lib/ai/orchestrator/quotesEngine";
 import type {
   ImotaraResponse,
   ResponseTone,
@@ -206,6 +209,12 @@ function pickRelationshipTone(ctx: SessionContext): string {
     : ctx?.persona?.relationshipTone;
 
   return typeof rel === "string" ? rel : "prefer_not";
+}
+
+// Returns companion gender only when companion persona is enabled.
+function pickCompanionGender(ctx: SessionContext): string {
+  if ((ctx as any)?.toneContext?.companion?.enabled !== true) return "prefer_not";
+  return String((ctx as any)?.toneContext?.companion?.gender ?? "prefer_not");
 }
 
 function recentlyAsked(ctx: SessionContext, needle: string): boolean {
@@ -876,24 +885,33 @@ function draftResponseForLanguage(
   const msg = oneLine(userMessage);
   const name = getUserName(ctx);
   const rel = pickRelationshipTone(ctx);
+  const compGender = pickCompanionGender(ctx);
+  const isFemale = compGender === "female";
 
-  const opener =
+  // Gender-aware verb helper for Hindi Devanagari
+  const hi = (male: string, female: string) => isFemale ? female : male;
+  // Gender-aware verb helper for Gujarati
+  const gu = (male: string, female: string) => isFemale ? female : male;
+  // Gender-aware verb helper for Marathi
+  const mr = (male: string, female: string) => isFemale ? female : male;
+
+  let opener =
     lang === "hi"
       ? rel === "friend"
         ? name
-          ? `समझ गया, ${name}.`
-          : "समझ गया."
+          ? `${hi("समझ गया", "समझ गई")}, ${name}.`
+          : hi("समझ गया.", "समझ गई.")
         : rel === "mentor"
           ? name
-            ? `मैं सुन रहा हूँ, ${name}.`
-            : "मैं सुन रहा हूँ."
+            ? `${hi("मैं सुन रहा हूँ", "मैं सुन रही हूँ")}, ${name}.`
+            : hi("मैं सुन रहा हूँ.", "मैं सुन रही हूँ.")
           : rel === "coach"
             ? name
               ? `ठीक है, ${name}.`
               : "ठीक है."
             : name
-              ? `मैं समझ रहा हूँ, ${name}.`
-              : "मैं समझ रहा हूँ."
+              ? `${hi("मैं समझ रहा हूँ", "मैं समझ रही हूँ")}, ${name}.`
+              : hi("मैं समझ रहा हूँ.", "मैं समझ रही हूँ.")
       : lang === "bn"
         ? rel === "friend"
           ? name
@@ -913,12 +931,12 @@ function draftResponseForLanguage(
         : lang === "gu"
           ? rel === "friend"
             ? name
-              ? `સમજી ગયો, ${name}.`
-              : "સમજી ગયો."
+              ? `${gu("સમજી ગયો", "સમજી ગઈ")}, ${name}.`
+              : gu("સમજી ગયો.", "સમજી ગઈ.")
             : rel === "mentor"
               ? name
-                ? `હું સાંભળી રહ્યો છું, ${name}.`
-                : "હું સાંભળી રહ્યો છું."
+                ? `${gu("હું સાંભળી રહ્યો છું", "હું સાંભળી રહી છું")}, ${name}.`
+                : gu("હું સાંભળી રહ્યો છું.", "હું સાંભળી રહી છું.")
               : rel === "coach"
                 ? name
                   ? `બરાબર, ${name}.`
@@ -948,15 +966,15 @@ function draftResponseForLanguage(
                 : "समजलं."
               : rel === "mentor"
                 ? name
-                  ? `मी ऐकतोय, ${name}.`
-                  : "मी ऐकतोय."
+                  ? `${mr("मी ऐकतोय", "मी ऐकतेय")}, ${name}.`
+                  : mr("मी ऐकतोय.", "मी ऐकतेय.")
                 : rel === "coach"
                   ? name
                     ? `ठीक आहे, ${name}.`
                     : "ठीक आहे."
                   : name
-                    ? `मी समजून घेतोय, ${name}.`
-                    : "मी समजून घेतोय.";
+                    ? `${mr("मी समजून घेतोय", "मी समजून घेतेय")}, ${name}.`
+                    : mr("मी समजून घेतोय.", "मी समजून घेतेय.");
 
   const prev = getContextUserTurn(ctx, msg, 3);
   const useAnchor =
@@ -968,12 +986,10 @@ function draftResponseForLanguage(
   const message =
     lang === "hi"
       ? `${openerWithContext} ${pickFrom(
-        `hiAck:${msg}:${rel}:${name ?? ""}`,
-        [
-          "ठीक है, मैं यहीं हूँ।",
-          "मैं सुन रहा हूँ।",
-          "हम इसे धीरे-धीरे ले सकते हैं।",
-        ] as const,
+        `hiAck:${msg}:${rel}:${name ?? ""}:${compGender}`,
+        isFemale
+          ? ["ठीक है, मैं यहीं हूँ।", "मैं सुन रही हूँ।", "हम इसे धीरे-धीरे ले सकते हैं।"] as const
+          : ["ठीक है, मैं यहीं हूँ।", "मैं सुन रहा हूँ।", "हम इसे धीरे-धीरे ले सकते हैं।"] as const,
       )}`
       : lang === "bn"
         ? (() => {
@@ -1010,12 +1026,10 @@ function draftResponseForLanguage(
         })()
         : lang === "gu"
           ? `${openerWithContext} ${pickFrom(
-            `guAck:${msg}:${rel}:${name ?? ""}`,
-            [
-              "બરાબર, હું અહીં છું.",
-              "હું સાંભળી રહ્યો છું.",
-              "આપણે આ ધીમે ધીમે લઈ શકીએ.",
-            ] as const,
+            `guAck:${msg}:${rel}:${name ?? ""}:${compGender}`,
+            isFemale
+              ? ["બરાબર, હું અહીં છું.", "હું સાંભળી રહી છું.", "આપણે આ ધીમે ધીમે લઈ શકીએ."] as const
+              : ["બરાબર, હું અહીં છું.", "હું સાંભળી રહ્યો છું.", "આપણે આ ધીમે ધીમે લઈ શકીએ."] as const,
           )}`
           : lang === "kn"
             ? `${openerWithContext} ${pickFrom(
@@ -1027,12 +1041,10 @@ function draftResponseForLanguage(
               ] as const,
             )}`
             : `${openerWithContext} ${pickFrom(
-              `mrAck:${msg}:${rel}:${name ?? ""}`,
-              [
-                "ठीक आहे, मी इथे आहे.",
-                "मी ऐकतोय.",
-                "आपण हे हळूहळू घेऊ शकतो.",
-              ] as const,
+              `mrAck:${msg}:${rel}:${name ?? ""}:${compGender}`,
+              isFemale
+                ? ["ठीक आहे, मी इथे आहे.", "मी ऐकतेय.", "आपण हे हळूहळू घेऊ शकतो."] as const
+                : ["ठीक आहे, मी इथे आहे.", "मी ऐकतोय.", "आपण हे हळूहळू घेऊ शकतो."] as const,
             )}`;
 
   const followUp =
@@ -2047,7 +2059,130 @@ export async function runImotara(input: {
       .trim();
   }
 
-  // Relationship-tone soft opener (no identity simulation; just style)
+  // ── Micro-story injection (~1 in 4 emotional turns, all languages) ───────────
+  // Combinatorial: framing × situation × insight → 64 unique combinations per signal/lang.
+  // Skipped for crisis replies, greetings, and direct questions.
+  {
+    const storySignal = (() => {
+      const s = userMessage.toLowerCase();
+      if (/\b(sad|down|cry|crying|lonely|alone|hurt|heartbroken|hopeless|empty|numb|meaningless|miss|grief|devastated)\b/.test(s)) return "sad";
+      if (/\b(anxious|anxiety|worry|worried|overwhelm|overwhelmed|panic|stress|stressed|pressure|dread|nervous|spinning)\b/.test(s)) return "anxious";
+      if (/\b(angry|mad|furious|irritated|annoyed|frustrated|resentment|rage|hate this|so frustrated)\b/.test(s)) return "angry";
+      if (/\b(tired|exhausted|drained|burnout|burnt out|no energy|worn out|depleted|running on empty)\b/.test(s)) return "tired";
+      // Indic keywords
+      if (/\b(udaas|dukhi|dukho|kosto|mon kharap|sogam|kashtam|baadha)\b/.test(s)) return "sad";
+      if (/\b(pareshan|ghabra|chinta|tension|bhoy|bayam|anxiety)\b/.test(s)) return "anxious";
+      if (/\b(gussa|rosh|rag|kopam|kopita|kovam|frustrat)\b/.test(s)) return "angry";
+      if (/\b(thak|klanto|thakelo|thakked|shokti nahi|shakti nahi|alasata)\b/.test(s)) return "tired";
+      return null;
+    })();
+
+    const isCrisisMsg = CRISIS_HINT_REGEX.test(userMessage);
+    const isGreeting = isGreetingOnly(userMessage);
+    const isQuestion = /[?？؟]$/.test(userMessage.trim());
+    const storySeed = userMessage.length + userMessage.charCodeAt(0);
+    const shouldInsertStory =
+      storySignal !== null &&
+      !isCrisisMsg &&
+      !isGreeting &&
+      !isQuestion &&
+      storySeed % 4 === 0 &&
+      response?.message;
+
+    if (shouldInsertStory && storySignal) {
+      const detectedLang = getPreferredLanguage(ctx, userMessage);
+      const story = buildMicroStory(storySignal, detectedLang, storySeed);
+      if (story) {
+        const baseMsg = String(response.message).trimEnd();
+        const endsWithPunct = /[.!?।]$/.test(baseMsg);
+        response.message = endsWithPunct ? `${baseMsg} ${story}` : `${baseMsg}. ${story}`;
+      }
+    }
+  }
+
+  // ── Mythology story injection (~1 in 6 emotional turns, English only) ────────
+  // Uses a different seed bit-window (>>>9) than micro-story (>>>7) to avoid same-turn collision.
+  // For multilingual users, the LLM chat-reply path handles mythology via system prompt.
+  {
+    const mythSignal = (() => {
+      const s = userMessage.toLowerCase();
+      if (/\b(sad|down|cry|crying|lonely|alone|hurt|heartbroken|hopeless|empty|grief|devastated|loss|lost someone)\b/.test(s)) return "sad";
+      if (/\b(anxious|anxiety|worry|worried|overwhelm|panic|stress|stressed|dread|nervous|scared|fear)\b/.test(s)) return "anxious";
+      if (/\b(angry|mad|furious|irritated|annoyed|frustrated|resentment|rage|unfair|injustice)\b/.test(s)) return "angry";
+      if (/\b(tired|exhausted|drained|burnout|burnt out|worn out|depleted|no energy|running on empty)\b/.test(s)) return "tired";
+      return null;
+    })();
+
+    const isCrisisMsg = CRISIS_HINT_REGEX.test(userMessage);
+    const isGreeting = isGreetingOnly(userMessage);
+    const isQuestion = /[?？؟]$/.test(userMessage.trim());
+    const mythSeed = userMessage.length + (userMessage.charCodeAt(1) || 0);
+    const detectedLangForMyth = getPreferredLanguage(ctx, userMessage);
+    const isEnglish = !detectedLangForMyth || detectedLangForMyth === "en";
+
+    const shouldInsertMyth =
+      mythSignal !== null &&
+      isEnglish &&
+      !isCrisisMsg &&
+      !isGreeting &&
+      !isQuestion &&
+      (mythSeed >>> 9) % 6 === 0 &&
+      response?.message;
+
+    if (shouldInsertMyth && mythSignal) {
+      const myth = buildMythologyStory(mythSignal, detectedLangForMyth ?? "en", mythSeed);
+      if (myth) {
+        const baseMsg = String(response.message).trimEnd();
+        const endsWithPunct = /[.!?।]$/.test(baseMsg);
+        response.message = endsWithPunct ? `${baseMsg} ${myth}` : `${baseMsg}. ${myth}`;
+      }
+    }
+  }
+
+  // ── Offline quote injection (~1 in 5 emotional turns, English only) ──────────
+  // Seed bit-window >>>11 avoids collision with story (>>>7) and myth (>>>9).
+  // Skips if a mythology story was already inserted on this turn (checked via seed windows).
+  // Online paths get LLM-generated multilingual quotes via the respond route.
+  {
+    const quoteSignal = (() => {
+      const s = userMessage.toLowerCase();
+      if (/\b(sad|down|cry|crying|lonely|alone|hurt|heartbroken|hopeless|empty|grief)\b/.test(s)) return "sad";
+      if (/\b(anxious|anxiety|worry|worried|overwhelm|panic|stress|stressed|dread|nervous|fear)\b/.test(s)) return "anxious";
+      if (/\b(angry|mad|furious|irritated|annoyed|frustrated|resentment|rage|unfair)\b/.test(s)) return "angry";
+      if (/\b(tired|exhausted|drained|burnout|burnt out|worn out|depleted|no energy)\b/.test(s)) return "tired";
+      return null;
+    })();
+
+    const isCrisisMsg = CRISIS_HINT_REGEX.test(userMessage);
+    const isGreeting = isGreetingOnly(userMessage);
+    const isQuestion = /[?？؟]$/.test(userMessage.trim());
+    const quoteSeed = userMessage.length + (userMessage.charCodeAt(2) || 0);
+    const detectedLangForQuote = getPreferredLanguage(ctx, userMessage);
+    const isEnglishForQuote = !detectedLangForQuote || detectedLangForQuote === "en";
+    // Only inject if myth didn't fire on this message (myth uses charCodeAt(1), quote uses charCodeAt(2))
+    const mythAlreadyFired = (userMessage.length + (userMessage.charCodeAt(1) || 0) >>> 9) % 6 === 0;
+
+    const shouldInsertQuote =
+      quoteSignal !== null &&
+      isEnglishForQuote &&
+      !isCrisisMsg &&
+      !isGreeting &&
+      !isQuestion &&
+      !mythAlreadyFired &&
+      (quoteSeed >>> 11) % 5 === 0 &&
+      response?.message;
+
+    if (shouldInsertQuote && quoteSignal) {
+      const quote = buildOfflineQuote(quoteSignal, quoteSeed);
+      if (quote) {
+        const baseMsg = String(response.message).trimEnd();
+        const endsWithPunct = /[.!?।]$/.test(baseMsg);
+        response.message = endsWithPunct ? `${baseMsg} ${quote}` : `${baseMsg}. ${quote}`;
+      }
+    }
+  }
+
+    // Relationship-tone soft opener (no identity simulation; just style)
   // ✅ Goal: keep the user's chosen style, but prevent incoherent mixes by adjusting ONLY the opener phrasing.
   let relationshipStyle =
     (ctx as any)?.toneContext?.companion?.relationship ?? null;
@@ -2058,36 +2193,84 @@ export async function runImotara(input: {
     relationshipStyle = fallback === "prefer_not" ? null : fallback;
   }
 
+  // Read age from user first (most relevant), then companion as fallback
   const effectiveAge =
-    (ctx as any)?.toneContext?.companion?.ageRange ??
+    (ctx as any)?.toneContext?.user?.ageTone ??
     (ctx as any)?.toneContext?.user?.ageRange ??
+    (ctx as any)?.toneContext?.companion?.ageTone ??
+    (ctx as any)?.toneContext?.companion?.ageRange ??
     null;
+
+  // companion gender (only meaningful when companion persona is on)
+  const effectiveCompanionGender =
+    (ctx as any)?.toneContext?.companion?.enabled === true
+      ? ((ctx as any)?.toneContext?.companion?.gender ?? "prefer_not")
+      : "prefer_not";
+
+  // user gender for second-person agreement
+  const effectiveUserGender =
+    String((ctx as any)?.toneContext?.user?.gender ?? "prefer_not").toLowerCase();
+
+  // ── emotionMemory: parse the history summary sent by client ─────────────────
+  // Format: "Dominant emotions over last N days: stressed (5×), sad (3×)…\nOverall intensity trend: high"
+  const emotionMemoryRaw = String((ctx as any)?.emotionMemory ?? "").trim();
+
+  const memoryHighIntensity = /overall intensity[^:]*:\s*(high|moderate-high)/i.test(emotionMemoryRaw);
+  const memoryHeavyLoad = /(?:stressed|sad|anxious|lonely|overwhelmed)[^×]*×\s*[3-9]/i.test(emotionMemoryRaw);
+
+  // Extract dominant emotion from memory summary for contextual opener calibration
+  const memoryDominantMatch = emotionMemoryRaw.match(/Dominant emotions[^:]*:\s*(\w+)/i);
+  const memoryDominantEmotion = memoryDominantMatch?.[1]?.toLowerCase() ?? null;
 
   let softOpener = "";
 
-  // ✅ Guard against incoherent mixes (e.g., "mentor" voice + under_13)
-  // We DO NOT silently flatten everything to "friend".
-  // Instead: keep the chosen relationship style, but use a kid-safe opener that matches it.
+  // ── Age-specific tone adjustments ──────────────────────────────────────────
   if (effectiveAge === "under_13") {
     if (!relationshipStyle) relationshipStyle = "friend";
-
     if (relationshipStyle === "mentor") {
       softOpener = "Okay — let’s take one small step at a time. ";
     } else if (relationshipStyle === "coach") {
       softOpener = "Alright — here’s one simple thing to try. ";
     } else if (relationshipStyle === "partner_like") {
       softOpener = "Hey — I’m here with you. Let’s do one small step. ";
-    } else if (relationshipStyle === "friend") {
+    } else {
       softOpener = "Hey — let’s make this simple. ";
     }
+  } else if (effectiveAge === "13_17") {
+    // Peer-supportive, no adult authority tone
+    if (relationshipStyle === "mentor" || relationshipStyle === "coach") {
+      // Soften directive tone for teens — they respond better to solidarity
+      softOpener = "Hey — I hear you. ";
+    }
+    // No softOpener for friend/sibling/prefer_not — response already flows naturally
+  } else if (effectiveAge === "65_plus") {
+    // Unhurried, respectful — don’t rush them
+    if (!relationshipStyle || relationshipStyle === "prefer_not" || relationshipStyle === "friend") {
+      softOpener = "Take your time — I’m right here with you. ";
+    } else if (relationshipStyle === "mentor") {
+      softOpener = "There’s no rush. Let’s look at this together. ";
+    }
   } else {
-    // Default mentor opener (non-under_13)
+    // Default mentor opener (non-special age)
     if (relationshipStyle === "mentor") {
       softOpener = "Let’s slow this down and find one clear next step. ";
     }
   }
 
   const isCrisisReply = CRISIS_HINT_REGEX.test(userMessage);
+
+  // ── emotionMemory: warm up opener when history shows sustained heavy load ───
+  // Only override when we don’t already have a more specific opener above.
+  if (!softOpener && (memoryHighIntensity || memoryHeavyLoad) && !isCrisisReply) {
+    const heavyOpeners = [
+      "I know it’s been a lot lately. I’m right here with you. ",
+      "You’ve been carrying a lot — I’m here. ",
+      "It sounds like things have been heavy for a while. I’m with you. ",
+    ];
+    // Simple deterministic index from message length + dominant emotion length
+    const seed = userMessage.length + (memoryDominantEmotion?.length ?? 0);
+    softOpener = heavyOpeners[seed % heavyOpeners.length] ?? "";
+  }
 
   // Personalized greeting (natural, non-creepy, no invented memory)
   // - Uses name only when allowed
@@ -2118,17 +2301,6 @@ export async function runImotara(input: {
     }
   }
 
-  // ✅ Baby Step 11.7.12 — echo tone settings for transparency/debug
-  const ageTone =
-    (ctx as any)?.toneContext?.companion?.ageRange ??
-    (ctx as any)?.toneContext?.user?.ageRange ??
-    null;
-
-  const genderTone =
-    (ctx as any)?.toneContext?.companion?.gender ??
-    (ctx as any)?.toneContext?.user?.gender ??
-    null;
-
   const companionName =
     (ctx as any)?.toneContext?.companion?.enabled === true
       ? ((ctx as any)?.toneContext?.companion?.name ?? null)
@@ -2140,15 +2312,31 @@ export async function runImotara(input: {
     (ctx as any)?.recent,
   );
 
+  // Pass companion gender + user gender to softEnforcement via userPrefs
+  // (supplements the persona.genderTone already set by mobile client)
+  const globalUserPrefs = {
+    companionTone: relationshipStyle ?? undefined,
+    ageTone: effectiveAge ?? undefined,
+    genderTone: effectiveCompanionGender !== "prefer_not" ? effectiveCompanionGender : (effectiveUserGender !== "prefer_not" ? effectiveUserGender : undefined),
+  };
+  if (response?.message) {
+    const reEnforced = applySoftEnforcement({ text: response.message, userPrefs: globalUserPrefs });
+    if (reEnforced.adjustedText !== response.message) {
+      response.message = reEnforced.adjustedText;
+    }
+  }
+
   (response as any).meta = {
     ...existingMeta,
     emotion: carriedEmotion,
     toneEcho: {
       ...(existingMeta.toneEcho ?? {}),
       relationshipTone: relationshipStyle,
-      ageTone,
-      genderTone,
+      ageTone: effectiveAge,
+      companionGender: effectiveCompanionGender !== "prefer_not" ? effectiveCompanionGender : null,
+      userGender: effectiveUserGender !== "prefer_not" ? effectiveUserGender : null,
       companionName,
+      emotionMemory: emotionMemoryRaw ? { highIntensity: memoryHighIntensity, heavyLoad: memoryHeavyLoad, dominant: memoryDominantEmotion } : null,
     },
   };
 

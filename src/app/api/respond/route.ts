@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { runImotara } from "@/lib/ai/orchestrator/runImotara";
 import type { EmotionAnalysis } from "@/lib/ai/emotion/emotionTypes";
 import { normalizeEmotion } from "@/lib/ai/emotion/normalizeEmotion";
+import { callImotaraAI } from "@/lib/imotara/aiClient";
 
 import { supabaseServer } from "@/lib/supabaseServer";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
@@ -1122,6 +1123,52 @@ export async function POST(req: Request) {
     (baseCtx as any)?.countryCode ||
     null;
 
+  // ── Parallel quote generation (~1 in 5 emotional turns, all languages) ──────
+  // Started BEFORE runImotara so both run concurrently. Quote is appended to
+  // the final reply if it arrives within the 4s abort window.
+  const quoteEmotionSignal = (() => {
+    const s = message.toLowerCase();
+    if (/\b(sad|down|cry|crying|lonely|alone|hurt|heartbroken|hopeless|empty|grief|loss)\b/.test(s)) return "sadness";
+    if (/\b(anxious|anxiety|worry|worried|overwhelm|panic|stress|stressed|dread|nervous|scared|fear)\b/.test(s)) return "anxiety";
+    if (/\b(angry|mad|furious|irritated|annoyed|frustrated|resentment|rage|unfair)\b/.test(s)) return "anger";
+    if (/\b(tired|exhausted|drained|burnout|burnt out|worn out|depleted|no energy)\b/.test(s)) return "exhaustion";
+    return null;
+  })();
+
+  const quoteSeed = message.length + (message.charCodeAt(2) || 0);
+  const isQuoteTurn = quoteEmotionSignal !== null && quoteSeed % 5 === 0;
+  const isCrisisForQuote = /\b(suicide|kill myself|end my life|self.harm|cut myself|not worth living)\b/i.test(message);
+  const isGreetingForQuote = message.trim().split(/\s+/).length <= 3;
+  const isQuestionForQuote = /[?？؟]$/.test(message.trim());
+
+  const quoteLangName: Record<string, string> = {
+    en: "English", hi: "Hindi", bn: "Bengali", mr: "Marathi", ta: "Tamil",
+    te: "Telugu", gu: "Gujarati", pa: "Punjabi", kn: "Kannada", ml: "Malayalam",
+    or: "Odia", ur: "Urdu", zh: "Chinese (Simplified)", es: "Spanish",
+    ar: "Arabic", fr: "French", pt: "Portuguese", ru: "Russian", id: "Indonesian",
+    he: "Hebrew", de: "German", ja: "Japanese",
+  };
+  const quoteLang = preferredLanguage ?? strictLanguage ?? "en";
+  const quoteLangLabel = quoteLangName[quoteLang] ?? "English";
+
+  const quotePromise: Promise<string | null> =
+    isQuoteTurn && !isCrisisForQuote && !isGreetingForQuote && !isQuestionForQuote
+      ? callImotaraAI("Generate quote now.", {
+          system: [
+            `The user is feeling ${quoteEmotionSignal}. Generate ONE brief, well-known quote from a philosopher, poet, scientist, spiritual leader, or thinker that authentically connects to this feeling.`,
+            `The user's language is ${quoteLangLabel}. If it is not English, provide the quote translated or originally in ${quoteLangLabel} if a translation exists, or keep it in English with the author's name.`,
+            `Format: Output ONLY the quote and attribution, nothing else:`,
+            `"[quote text]" — [Author Name]`,
+            `Rules: Use a real, well-known quote. Keep the full quote under 30 words. No explanation. One line only.`,
+            `Draw from diverse global sources: Marcus Aurelius, Rumi, Seneca, Buddha, Tagore, Gandhi, Vivekananda, Einstein, Maya Angelou, Thich Nhat Hanh, Camus, Nietzsche, Tolstoy, Gibran, Lao Tzu, Confucius, and others.`,
+          ].join("\n"),
+          maxTokens: 80,
+          temperature: 0.85,
+          abortMs: 4000,
+        }).then((r) => (r.meta.from === "openai" && r.text ? r.text.trim() : null))
+          .catch(() => null)
+      : Promise.resolve(null);
+
   const result = await runImotara({
     userMessage: message,
     sessionContext: {
@@ -1375,6 +1422,28 @@ export async function POST(req: Request) {
             regeneration: { attempt: 1, reason: "duplicate/template/generic" },
           };
         }
+      }
+    }
+  }
+
+  // ── Await parallel quote and append if arrived within timeout ───────────────
+  // quotePromise was started before runImotara; it may already be resolved.
+  // Append only when result is OK and we got a valid quote string.
+  {
+    const quoteText = await quotePromise;
+    if (quoteText && (result as any)?.ok === true) {
+      const base = String(
+        (result as any).replyText ?? (result as any).message ?? "",
+      ).trimEnd();
+      if (base) {
+        const endsWithPunct = /[.!?।।]$/.test(base);
+        const withQuote = endsWithPunct
+          ? `${base} ${quoteText}`
+          : `${base}. ${quoteText}`;
+        (result as any).replyText = withQuote;
+        (result as any).message = withQuote;
+        if (typeof (result as any).reply === "string")
+          (result as any).reply = withQuote;
       }
     }
   }

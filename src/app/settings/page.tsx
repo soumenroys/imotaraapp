@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
 import { useAppearance, type Accent, type FontSize, type ColorMode } from "@/hooks/useAppearance";
+import EmotionalFingerprint from "@/components/imotara/EmotionalFingerprint";
 
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 
@@ -141,6 +142,80 @@ function safeParseProfile(json: string | null): ImotaraProfileV1 | null {
         return null;
     }
 }
+
+// ── Voice preview helpers (mirrors chat/page.tsx gender-aware logic) ──────────
+
+const LANG_TO_BCP47_SETTINGS: Record<string, string> = {
+    en: "en-US", hi: "hi-IN", mr: "mr-IN", bn: "bn-IN",
+    ta: "ta-IN", te: "te-IN", gu: "gu-IN", pa: "pa-IN",
+    kn: "kn-IN", ml: "ml-IN", or: "or-IN", ur: "ur-PK",
+    ar: "ar-SA", zh: "zh-CN", es: "es-ES", fr: "fr-FR",
+    pt: "pt-BR", ru: "ru-RU", id: "id-ID", he: "he-IL",
+    de: "de-DE", ja: "ja-JP",
+};
+
+const FEMALE_PAT = /\b(female|woman|girl|samantha|victoria|karen|moira|tessa|fiona|zira|aria|jenny|emily|nancy|lisa|kate|susan|natasha|anna)\b/i;
+const MALE_PAT   = /\b(male|man|alex|tom|daniel|liam|david|james|mark|richard|aaron|evan|reed|bruce|fred)\b/i;
+
+function pickPreviewVoice(
+    synth: SpeechSynthesis,
+    lang: string,
+    gender: string,
+): SpeechSynthesisVoice | null {
+    const voices = synth.getVoices();
+    const langBase = lang.split("-")[0];
+    const exact = voices.filter((v) => v.lang === lang);
+    const broad = voices.filter((v) => v.lang.startsWith(langBase));
+    const candidates = exact.length > 0 ? exact : broad;
+    if (candidates.length === 0) return null;
+    if (!gender || gender === "prefer_not" || gender === "other") return candidates[0];
+
+    const scored = candidates.map((v) => {
+        const n = v.name.toLowerCase();
+        let score = 0;
+        if (gender === "female") {
+            if (FEMALE_PAT.test(n)) score = 2;
+            else if (MALE_PAT.test(n)) score = -1;
+            else score = 1;
+        } else if (gender === "male") {
+            if (MALE_PAT.test(n)) score = 2;
+            else if (FEMALE_PAT.test(n)) score = -1;
+            else score = 1;
+        } else {
+            score = 1;
+        }
+        return { v, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0].v;
+}
+
+const PREVIEW_SAMPLE = "Hi, I'm Imotara — I'm here with you.";
+
+function speakPreview(gender: string, lang: string) {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    const bcp47 = LANG_TO_BCP47_SETTINGS[lang] ?? "en-US";
+
+    const run = () => {
+        const utt = new SpeechSynthesisUtterance(PREVIEW_SAMPLE);
+        utt.lang = bcp47;
+        utt.rate = 0.95;
+        utt.pitch = 1.0;
+        const voice = pickPreviewVoice(synth, bcp47, gender);
+        if (voice) utt.voice = voice;
+        synth.speak(utt);
+    };
+
+    if (synth.getVoices().length === 0) {
+        synth.onvoiceschanged = () => { synth.onvoiceschanged = null; run(); };
+    } else {
+        run();
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 
 function TinyBadge({ children }: { children: React.ReactNode }) {
     return (
@@ -357,7 +432,7 @@ function ToneAndContextTile() {
                                 </select>
                             </label>
 
-                            <label className="flex flex-col gap-1 flex-1">
+                            <div className="flex flex-col gap-1 flex-1">
                                 <span className="text-xs text-zinc-300">Gender</span>
                                 <select
                                     value={userGender}
@@ -373,7 +448,14 @@ function ToneAndContextTile() {
                                     <option value="nonbinary">Non-binary</option>
                                     <option value="other">Other</option>
                                 </select>
-                            </label>
+                                <button
+                                    type="button"
+                                    onClick={() => speakPreview(userGender, preferredLang)}
+                                    className="mt-0.5 flex items-center gap-1 self-start text-[11px] text-zinc-400 transition hover:text-zinc-200"
+                                >
+                                    🔊 Preview voice
+                                </button>
+                            </div>
                         </div>
                         {userAge === "13_17" && (
                             <p className="text-[10px] text-amber-400/80">
@@ -520,7 +602,7 @@ function ToneAndContextTile() {
                                     </select>
                                 </label>
 
-                                <label className="grid gap-1">
+                                <div className="grid gap-1">
                                     <span className="text-xs text-zinc-300">Gender</span>
                                     <select
                                         value={compGender}
@@ -536,7 +618,14 @@ function ToneAndContextTile() {
                                         <option value="nonbinary">Non-binary</option>
                                         <option value="other">Other</option>
                                     </select>
-                                </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => speakPreview(compGender, preferredLang)}
+                                        className="mt-0.5 flex items-center gap-1 self-start text-[11px] text-zinc-400 transition hover:text-zinc-200"
+                                    >
+                                        🔊 Preview voice
+                                    </button>
+                                </div>
                             </div>
 
                             <label className="grid gap-1">
@@ -871,6 +960,33 @@ export default function SettingsPage() {
     const [donLoading, setDonLoading] = useState(false);
     const [donations, setDonations] = useState<any[]>([]);
 
+    // Companion memories (web)
+    type MemoryRow = { id: string; type: string; key: string; value: string; confidence: number; updated_at: string };
+    const [memories, setMemories] = useState<MemoryRow[]>([]);
+    const [memoriesLoading, setMemoriesLoading] = useState(false);
+    const [memoriesDeletingId, setMemoriesDeletingId] = useState<string | null>(null);
+
+    async function loadMemories() {
+        setMemoriesLoading(true);
+        try {
+            const res = await fetch("/api/memory");
+            if (res.ok) {
+                const json = await res.json();
+                setMemories(json.memories ?? []);
+            }
+        } catch { }
+        setMemoriesLoading(false);
+    }
+
+    async function deleteMemory(id: string) {
+        setMemoriesDeletingId(id);
+        try {
+            await fetch(`/api/memory?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+            setMemories((prev) => prev.filter((m) => m.id !== id));
+        } catch { }
+        setMemoriesDeletingId(null);
+    }
+
     const licenseMode = useMemo(() => {
         // This is a PUBLIC env var and is safe to display.
         return process.env.NEXT_PUBLIC_IMOTARA_LICENSE_MODE || "off";
@@ -1046,7 +1162,8 @@ export default function SettingsPage() {
         setDonations(loadLocalDonations());
         // Also try fetching from server (works when user is signed in)
         refreshDonations();
-         
+        // Load companion memories (server-side; no-ops if not authenticated)
+        loadMemories();
     }, []);
 
     async function handleDonate(presetId: string, presetLabel: string) {
@@ -1601,6 +1718,62 @@ export default function SettingsPage() {
 
                 {/* ── Data dashboard ──────────────────────────────────── */}
                 <DataDashboard getStorageSummary={getStorageSummary} />
+
+                {/* ── Emotional fingerprint ────────────────────────────── */}
+                <EmotionalFingerprint />
+
+                {/* ── Companion memory viewer ──────────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Companion memory</h2>
+                            <p className="mt-0.5 text-xs text-zinc-500">
+                                Things Imotara has learned about you — used to personalise responses.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={loadMemories}
+                            disabled={memoriesLoading}
+                            className="shrink-0 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:bg-white/10 disabled:opacity-50"
+                        >
+                            {memoriesLoading ? "Loading…" : "Refresh"}
+                        </button>
+                    </div>
+
+                    {memories.length === 0 && !memoriesLoading && (
+                        <p className="mt-3 text-xs text-zinc-500 italic">
+                            No memories yet — Imotara will pick up facts as you chat.
+                        </p>
+                    )}
+
+                    {memories.length > 0 && (
+                        <ul className="mt-3 space-y-2">
+                            {memories.map((m) => (
+                                <li
+                                    key={m.id}
+                                    className="flex items-start justify-between gap-3 rounded-xl border border-white/8 bg-white/5 px-3 py-2"
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-xs text-zinc-100">{m.value}</p>
+                                        <p className="mt-0.5 text-[10px] text-zinc-500">
+                                            {m.type} · {m.key} · {Math.round(m.confidence * 100)}% confidence
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => deleteMemory(m.id)}
+                                        disabled={memoriesDeletingId === m.id}
+                                        aria-label="Forget this memory"
+                                        className="shrink-0 rounded-md px-2 py-0.5 text-[10px] text-zinc-500 transition hover:bg-red-500/20 hover:text-red-400 disabled:opacity-40"
+                                    >
+                                        {memoriesDeletingId === m.id ? "…" : "Forget"}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </section>
 
                 {/* Data & privacy copy */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">

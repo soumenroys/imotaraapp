@@ -1,7 +1,7 @@
 // src/app/history/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MessageSquare, Download, Clock, Search, X as XIcon } from "lucide-react";
 import EmotionHistory from "@/components/imotara/EmotionHistory";
@@ -29,7 +29,23 @@ type WeeklySummary = {
   topCount: number;
   total: number;
   trend: "up" | "down" | "steady" | null;
+  suggestion: string;
+  peakDay: string | null;
+  prevTotal: number;
 };
+
+const SUGGESTIONS: Record<string, string> = {
+  sadness: "Sadness takes energy. Even a short walk or talking to someone you trust can help lighten it.",
+  fear: "Anxiety often shrinks when you name what's worrying you. Try writing one sentence about it.",
+  anger: "Anger is a signal. Ask yourself what need is going unmet — that's where the real answer lives.",
+  joy: "You had a joyful week! Notice what made those moments happen so you can invite more of them.",
+  gratitude: "Gratitude rewires the brain. Keep this going — even noticing one small thing each day helps.",
+  neutral: "A calm week. Use this steadiness to reflect on something you'd like to shift or deepen.",
+  surprise: "Surprises stir us. Some are gifts in disguise. What unexpected thing taught you something?",
+  disgust: "Strong negative reactions often point to values that matter deeply to you.",
+};
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function computeWeeklySummary(): WeeklySummary | null {
   try {
@@ -46,15 +62,21 @@ function computeWeeklySummary(): WeeklySummary | null {
 
     const freq: Record<string, number> = {};
     const intensities: number[] = [];
+    const dayCount: Record<number, number> = {};
     for (const r of thisWeek) {
       freq[r.emotion] = (freq[r.emotion] ?? 0) + 1;
       if (typeof r.intensity === "number") intensities.push(r.intensity);
+      const day = new Date(r.createdAt).getDay();
+      dayCount[day] = (dayCount[day] ?? 0) + 1;
     }
     const topEmotion = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
 
+    const peakDayNum = Object.entries(dayCount).sort((a, b) => Number(b[1]) - Number(a[1]))[0]?.[0];
+    const peakDay = peakDayNum != null ? (DAYS[Number(peakDayNum)] ?? null) : null;
+
     const avgThis =
       intensities.length ? intensities.reduce((a, b) => a + b, 0) / intensities.length : 0.5;
-    const prevWeek = all.filter(
+    const prevWeekRecords = all.filter(
       (r) =>
         !r.deleted &&
         r.createdAt >= now - 2 * weekMs &&
@@ -62,12 +84,14 @@ function computeWeeklySummary(): WeeklySummary | null {
         typeof r.intensity === "number",
     );
     let trend: WeeklySummary["trend"] = null;
-    if (prevWeek.length >= 2) {
-      const avgPrev = prevWeek.reduce((s: number, r: any) => s + r.intensity, 0) / prevWeek.length;
+    if (prevWeekRecords.length >= 2) {
+      const avgPrev = prevWeekRecords.reduce((s: number, r: any) => s + r.intensity, 0) / prevWeekRecords.length;
       const diff = avgThis - avgPrev;
       trend = diff > 0.08 ? "up" : diff < -0.08 ? "down" : "steady";
     }
-    return { topEmotion, topCount: freq[topEmotion] ?? 1, total: thisWeek.length, trend };
+
+    const suggestion = SUGGESTIONS[topEmotion] ?? SUGGESTIONS.neutral;
+    return { topEmotion, topCount: freq[topEmotion] ?? 1, total: thisWeek.length, trend, suggestion, peakDay, prevTotal: prevWeekRecords.length };
   } catch {
     return null;
   }
@@ -81,19 +105,42 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type?: ToastType } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchResultCount, setSearchResultCount] = useState(-1);
   const [showSearch, setShowSearch] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setWeeklySummary(computeWeeklySummary());
-    try {
-      const raw = window.localStorage.getItem("imotara:history:v1");
-      const all = raw ? JSON.parse(raw) : [];
-      setHasHistory(Array.isArray(all) && all.filter((r: any) => !r.deleted).length > 0);
-    } catch {
-      setHasHistory(true); // assume data exists on error
-    }
+    // Start with loading=true; show timeline (hasHistory=true) so EmotionHistory
+    // component can mount and trigger its own server seed if localStorage is empty.
+    // After a short delay, recheck localStorage so the empty-state card reflects
+    // the result of any auto-seed that happened inside EmotionHistory.
+    const checkStorage = () => {
+      try {
+        const raw = window.localStorage.getItem("imotara:history:v1");
+        const all = raw ? JSON.parse(raw) : [];
+        const count = Array.isArray(all) ? all.filter((r: any) => !r.deleted).length : 0;
+        setHasHistory(count > 0);
+      } catch {
+        setHasHistory(true); // assume data exists on error
+      }
+    };
+
+    // Always render EmotionHistory (hasHistory=true) so auto-seed can run;
+    // recheck after 2s to reflect any newly seeded data.
+    setHasHistory(true);
     setLoading(false);
+    const t = setTimeout(checkStorage, 2000);
+    return () => clearTimeout(t);
   }, []);
+
+  // Debounce search query before passing to EmotionHistory
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchQuery]);
 
   // Align wording with Chat + Settings
   const consentLabel =
@@ -280,42 +327,60 @@ export default function HistoryPage() {
                 </p>
               </div>
 
-              {/* #1: Weekly trend summary */}
+              {/* Weekly insight card */}
               {weeklySummary && (
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 shadow-sm backdrop-blur-md">
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 shadow-sm backdrop-blur-md space-y-3">
+                  {/* Header row */}
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
                       This week
                     </p>
-                    {weeklySummary.trend && (
-                      <span className={`text-[10px] font-medium ${
-                        weeklySummary.trend === "down" ? "text-emerald-400" :
-                        weeklySummary.trend === "up"   ? "text-amber-400"   : "text-zinc-400"
-                      }`}>
-                        {weeklySummary.trend === "down" ? "Intensity easing ↓" :
-                         weeklySummary.trend === "up"   ? "Intensity rising ↑" : "Steady week"}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {weeklySummary.peakDay && (
+                        <span className="text-[10px] text-zinc-500">
+                          Most active: <span className="text-zinc-300">{weeklySummary.peakDay}</span>
+                        </span>
+                      )}
+                      {weeklySummary.trend && (
+                        <span className={`text-[10px] font-medium ${
+                          weeklySummary.trend === "down" ? "text-emerald-400" :
+                          weeklySummary.trend === "up"   ? "text-amber-400"   : "text-zinc-400"
+                        }`}>
+                          {weeklySummary.trend === "down" ? "Intensity easing ↓" :
+                           weeklySummary.trend === "up"   ? "Intensity rising ↑" : "Steady week"}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="text-2xl">
+
+                  {/* Emotion row */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl" aria-hidden="true">
                       {EMOTION_EMOJI[weeklySummary.topEmotion.toLowerCase()] ?? "💭"}
                     </span>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium capitalize text-zinc-100">
                         Mostly {weeklySummary.topEmotion}
                       </p>
                       <p className="text-[11px] text-zinc-500">
-                        {weeklySummary.topCount} of {weeklySummary.total} logged moments this week
+                        {weeklySummary.topCount} of {weeklySummary.total} logged moments
+                        {weeklySummary.prevTotal > 0 && (
+                          <> · {weeklySummary.total > weeklySummary.prevTotal ? "more" : weeklySummary.total < weeklySummary.prevTotal ? "fewer" : "same"} than last week</>
+                        )}
                       </p>
                     </div>
                     <Link
                       href="/grow"
-                      className="ml-auto text-[11px] text-indigo-400/80 underline underline-offset-2 hover:text-indigo-300 transition"
+                      className="shrink-0 text-[11px] text-indigo-400/80 underline underline-offset-2 hover:text-indigo-300 transition"
                     >
-                      Reflect on this →
+                      Reflect →
                     </Link>
                   </div>
+
+                  {/* Personalized suggestion */}
+                  <p className="text-[11px] text-zinc-400 leading-relaxed border-t border-white/8 pt-3">
+                    💡 {weeklySummary.suggestion}
+                  </p>
                 </div>
               )}
 
@@ -331,11 +396,16 @@ export default function HistoryPage() {
                     placeholder="Search by emotion or message…"
                     className="flex-1 bg-transparent text-xs text-zinc-100 placeholder:text-zinc-600 outline-none"
                   />
+                  {searchQuery && searchResultCount >= 0 && (
+                    <span className="shrink-0 text-[10px] text-zinc-500">
+                      {searchResultCount === 0 ? "No results" : `${searchResultCount} result${searchResultCount !== 1 ? "s" : ""}`}
+                    </span>
+                  )}
                   {searchQuery && (
                     <button
                       type="button"
                       aria-label="Clear search"
-                      onClick={() => setSearchQuery("")}
+                      onClick={() => { setSearchQuery(""); setDebouncedSearch(""); setSearchResultCount(-1); }}
                       className="text-zinc-500 hover:text-zinc-300 transition"
                     >
                       <XIcon className="h-3.5 w-3.5" />
@@ -388,7 +458,7 @@ export default function HistoryPage() {
                 </div>
               ) : (
                 <div className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                  <EmotionHistory searchFilter={searchQuery} />
+                  <EmotionHistory searchFilter={debouncedSearch} onResultCount={setSearchResultCount} />
                 </div>
               )}
 

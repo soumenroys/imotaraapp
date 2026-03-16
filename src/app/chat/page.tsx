@@ -44,10 +44,12 @@ import { runAnalysisWithConsent } from "@/lib/imotara/runAnalysisWithConsent";
 import { runRespondWithConsent } from "@/lib/imotara/runRespondWithConsent";
 import { saveSample } from "@/lib/imotara/history";
 import type { Emotion } from "@/types/history";
+import { getUserScopeId as getSharedScopeId } from "@/lib/imotara/userScope";
 import TopBar from "@/components/imotara/TopBar";
 import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
 import ReplyOriginBadge from "@/components/imotara/ReplyOriginBadge";
 import { getChatToneCopy } from "@/lib/imotara/chatTone";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { adaptReflectionTone } from "@/lib/imotara/reflectionTone";
 import { getReflectionSeedCard } from "@/lib/imotara/reflectionSeedContract";
 import type { ReflectionSeed } from "@/lib/ai/response/responseBlueprint";
@@ -106,6 +108,7 @@ const CONSENT_KEY = "imotara.consent.v1";
 // If present, this becomes the remote user scope.
 // (We’ll add UI for this later; for now it’s just a storage hook.)
 const CHAT_LINK_KEY = "imotara.linkKey.v1";
+const LAST_SENT_KEY = "imotara.lastSentTs.v1";
 const CHAT_USER_HEADER = "x-imotara-user";
 
 function getAllowRemote(): boolean {
@@ -162,24 +165,8 @@ function safeParseJSON<T>(raw: string | null): T | null {
   }
 }
 
-function getOrCreateLocalUserId(): string {
-  if (typeof window === "undefined") return "server";
-  const existing = window.localStorage.getItem(LOCAL_USER_KEY);
-  if (existing && existing.trim()) return existing.trim();
-
-  const created =
-    Math.random().toString(36).slice(2) + "-" + Date.now().toString(36);
-  window.localStorage.setItem(LOCAL_USER_KEY, created);
-  return created;
-}
-
 function getUserScopeId(): string {
-  if (typeof window === "undefined") return "";
-  const prof = safeParseJSON<{ id?: string }>(
-    window.localStorage.getItem(PROFILE_KEY),
-  );
-  const pid = typeof prof?.id === "string" ? prof.id.trim() : "";
-  return pid || getOrCreateLocalUserId();
+  return getSharedScopeId();
 }
 
 function getLocalChatKey(): string {
@@ -631,6 +618,25 @@ type HistoryEmotionOptions = {
   intensity?: number;
 };
 
+/** Map short API emotionLabel → canonical Emotion union value. */
+function toCanonicalEmotion(label: string): Emotion {
+  const map: Record<string, Emotion> = {
+    sad: "sadness",
+    sadness: "sadness",
+    anxious: "fear",
+    anxiety: "fear",
+    fear: "fear",
+    angry: "anger",
+    anger: "anger",
+    joy: "joy",
+    happy: "joy",
+    disgust: "disgust",
+    surprise: "surprise",
+    gratitude: "gratitude",
+  };
+  return map[label.toLowerCase()] ?? "neutral";
+}
+
 /**
  * Push a minimal EmotionRecord to the backend /api/history store.
  * This is additive and does not replace any existing local logging.
@@ -724,15 +730,21 @@ async function logUserMessageToHistory(
   }
 }
 
-async function logAssistantMessageToHistory(msg: Message): Promise<void> {
+async function logAssistantMessageToHistory(
+  msg: Message,
+  emotionRaw = "neutral",
+  intensity = 0,
+): Promise<void> {
   try {
     const text = msg.content.trim();
     if (!text) return;
 
+    const emotion = toCanonicalEmotion(emotionRaw);
+
     const payload: any = {
       message: text,
-      emotion: "neutral",
-      intensity: 0,
+      emotion,
+      intensity,
       source: "local",
       createdAt: msg.createdAt,
       updatedAt: msg.createdAt,
@@ -749,8 +761,8 @@ async function logAssistantMessageToHistory(msg: Message): Promise<void> {
     await pushToRemoteHistory({
       id: msg.id,
       message: text,
-      emotion: "neutral",
-      intensity: 0,
+      emotion,
+      intensity,
       createdAt: msg.createdAt,
       updatedAt: msg.createdAt,
       source: "assistant",
@@ -767,6 +779,8 @@ export default function ChatPage() {
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  const isOnline = useOnlineStatus();
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -812,6 +826,9 @@ export default function ChatPage() {
   const [weeklyRecap, setWeeklyRecap] = useState<string | null>(null);
   const [weeklyRecapDismissed, setWeeklyRecapDismissed] = useState(false);
 
+  // Return check-in banner (shown after >24h since last message)
+  const [showReturnGreeting, setShowReturnGreeting] = useState(false);
+
   // Search
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -851,6 +868,23 @@ export default function ChatPage() {
     const handler = (e: Event) => syncName((e as CustomEvent).detail as ImotaraProfileV1 | null);
     window.addEventListener("imotara:profile-updated", handler);
     return () => window.removeEventListener("imotara:profile-updated", handler);
+  }, []);
+
+  // Return check-in: show banner if user hasn't chatted in >24h
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(LAST_SENT_KEY);
+      if (!raw) return; // first-time user — skip
+      const lastTs = Number(raw);
+      if (!Number.isFinite(lastTs) || lastTs <= 0) return;
+      const gapMs = Date.now() - lastTs;
+      if (gapMs > 24 * 60 * 60 * 1000) {
+        setShowReturnGreeting(true);
+      }
+    } catch {
+      // ignore
+    }
   }, []);
 
   const { mode } = useAnalysisConsent();
@@ -1597,6 +1631,8 @@ export default function ChatPage() {
 
       // ✅ MUST be declared before ANY conditional usage
       let analysisSource: "local" | "cloud" | null = null;
+      let respEmotionLabel = "neutral";
+      let respEmotionIntensity = 0;
 
       // Optional diagnostics (report-only)
       let compatibility: any | undefined;
@@ -1632,6 +1668,9 @@ export default function ChatPage() {
             analysisSource = ((resp as any)?.meta?.analysisSource ??
               (resp as any)?.response?.meta?.analysisSource ??
               null) as "local" | "cloud" | null;
+
+            respEmotionLabel = (resp as any)?.meta?.emotionLabel ?? debugEmotion ?? "neutral";
+            respEmotionIntensity = (resp as any)?.meta?.emotion?.intensity ?? 0;
 
             aiMetaFrom = "openai";
             console.log(
@@ -1691,7 +1730,7 @@ export default function ChatPage() {
           meta: { replySource: assistantMsg.replySource ?? "fallback" },
         });
 
-        void logAssistantMessageToHistory(assistantMsg);
+        void logAssistantMessageToHistory(assistantMsg, respEmotionLabel, respEmotionIntensity);
 
         // Auto-focus composer when assistant reply arrives
         setTimeout(() => composerRef.current?.focus(), 0);
@@ -1839,7 +1878,7 @@ export default function ChatPage() {
         meta: { replySource: assistantMsg.replySource ?? "fallback" },
       });
 
-      void logAssistantMessageToHistory(assistantMsg);
+      void logAssistantMessageToHistory(assistantMsg, debugEmotion ?? "neutral", 0);
 
       // Focus when fallback reply is shown
       setTimeout(() => composerRef.current?.focus(), 0);
@@ -1889,6 +1928,7 @@ export default function ChatPage() {
 
     const text = draft.trim();
     if (!text) return;
+    if (text.length > 2000) return; // enforced by UI counter; silently block
 
     let targetId = activeId;
     let createdNewThread = false;
@@ -1950,6 +1990,10 @@ export default function ChatPage() {
     });
 
     void logUserMessageToHistory(userMsg);
+
+    // Track last-sent time for return check-in detection
+    try { localStorage.setItem(LAST_SENT_KEY, String(Date.now())); } catch { /* ignore */ }
+    setShowReturnGreeting(false);
 
     // #18: 5-second undo window — delay generateAssistantReply
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
@@ -2074,6 +2118,15 @@ export default function ChatPage() {
       <div className="mx-auto w-full max-w-7xl px-3 pt-3 sm:px-4">
         <TopBar title="Chat" showSyncChip showConflictsButton />
       </div>
+
+      {!isOnline && (
+        <div className="mx-auto w-full max-w-7xl px-3 sm:px-4">
+          <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300">
+            <span className="shrink-0">⚠</span>
+            <span>No internet connection — messages will be queued and sent when you&apos;re back online.</span>
+          </div>
+        </div>
+      )}
 
       <div className="mx-auto flex h-[calc(100vh-0px)] w-full max-w-7xl px-3 py-4 text-zinc-100 sm:px-4">
         {/* Sidebar */}
@@ -2658,12 +2711,33 @@ export default function ChatPage() {
                   </div>
                 )}
 
+                {/* Return check-in banner — shown after >24h since last message */}
+                {showReturnGreeting && (
+                  <div className="animate-fade-in mb-3 flex items-start gap-3 rounded-2xl border border-indigo-400/20 bg-indigo-500/10 px-4 py-3 text-sm text-zinc-100 backdrop-blur-sm">
+                    <span className="mt-0.5 text-lg" aria-hidden="true">💙</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-indigo-200">Welcome back</p>
+                      <p className="mt-0.5 text-xs text-zinc-400">
+                        It&apos;s been a while. How are you feeling today? You can just type one word if you like.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowReturnGreeting(false)}
+                      aria-label="Dismiss check-in"
+                      className="shrink-0 text-zinc-500 hover:text-zinc-300 transition"
+                    >
+                      <XIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+
                 {activeThread.messages
                   .filter((m) =>
                     !searchQuery.trim() ||
                     m.content.toLowerCase().includes(searchQuery.toLowerCase()),
                   )
-                  .map((m) => (
+                  .map((m, mi, arr) => (
                   <Bubble
                     key={m.id}
                     id={m.id}
@@ -2698,6 +2772,22 @@ export default function ChatPage() {
                     }
                     bookmarked={bookmarks.has(m.id)}
                     onBookmark={() => toggleBookmark(m.id)}
+                    onRetry={
+                      m.role === "assistant" && m.replySource === "fallback"
+                        ? () => {
+                            const prev = arr[mi - 1];
+                            if (!prev || prev.role !== "user") return;
+                            setThreads((ts) =>
+                              ts.map((t) =>
+                                t.id === activeThread.id
+                                  ? { ...t, messages: t.messages.filter((x) => x.id !== m.id) }
+                                  : t,
+                              ),
+                            );
+                            setDraft(prev.content);
+                          }
+                        : undefined
+                    }
                   />
                 ))}
 
@@ -2835,6 +2925,11 @@ export default function ChatPage() {
                     {seed}
                   </button>
                 ))}
+              </div>
+            )}
+            {draft.length > 800 && (
+              <div className={`mx-auto mb-1 flex max-w-3xl justify-end text-[10px] font-semibold ${draft.length > 1800 ? "text-red-400" : "text-amber-400"}`}>
+                {draft.length} / 2000{draft.length > 1800 ? " — approaching limit" : ""}
               </div>
             )}
             <div className="mx-auto flex max-w-3xl items-end gap-2">
@@ -3230,15 +3325,73 @@ function resolveTTSLang(text: string): string {
   return "en-US";
 }
 
-function pickVoice(synth: SpeechSynthesis, lang: string): SpeechSynthesisVoice | null {
+// Known female/male name patterns used by browser TTS engines across platforms:
+// macOS: Samantha/Victoria/Karen/Moira (f), Alex/Tom/Daniel (m)
+// Windows: Zira/Aria/Jenny (f), David/Mark/James (m)
+// Chrome: "Google XX Language Female" / "Google XX Language Male"
+const FEMALE_PATTERNS =
+  /\b(female|woman|girl|samantha|victoria|karen|moira|tessa|fiona|zira|aria|jenny|emily|nancy|lisa|kate|susan|natasha|anna|helium)\b/i;
+const MALE_PATTERNS =
+  /\b(male|man|alex|tom|daniel|liam|david|james|mark|richard|rishi|aaron|evan|reed|bruce|fred|junior)\b/i;
+
+/** Score a voice for how well it matches the requested gender (higher = better). */
+function genderScore(voice: SpeechSynthesisVoice, gender: string): number {
+  const n = voice.name.toLowerCase();
+  if (gender === "female") {
+    if (FEMALE_PATTERNS.test(n)) return 2;
+    if (MALE_PATTERNS.test(n)) return -1; // penalize opposite
+    return 1; // neutral — acceptable
+  }
+  if (gender === "male") {
+    if (MALE_PATTERNS.test(n)) return 2;
+    if (FEMALE_PATTERNS.test(n)) return -1;
+    return 1;
+  }
+  return 1; // prefer_not / nonbinary / unknown — no preference
+}
+
+function pickVoice(
+  synth: SpeechSynthesis,
+  lang: string,
+  genderPref?: string,
+): SpeechSynthesisVoice | null {
   const voices = synth.getVoices();
   const langBase = lang.split("-")[0];
-  // Prefer an exact locale match, then a base-language match
-  return (
-    voices.find((v) => v.lang === lang) ??
-    voices.find((v) => v.lang.startsWith(langBase)) ??
-    null
-  );
+
+  // Collect all voices that match the language (exact locale, then base)
+  const exact = voices.filter((v) => v.lang === lang);
+  const broad = voices.filter((v) => v.lang.startsWith(langBase));
+  const candidates = exact.length > 0 ? exact : broad;
+
+  if (candidates.length === 0) return null;
+
+  // If no gender preference or only one candidate, return best language match
+  if (!genderPref || genderPref === "prefer_not" || genderPref === "other") {
+    return candidates[0];
+  }
+
+  // Score candidates by gender match, pick the best
+  const scored = candidates.map((v) => ({ v, score: genderScore(v, genderPref) }));
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].v;
+}
+
+/** Read the TTS gender preference from the user's saved profile. */
+function getTTSGenderPref(): string {
+  try {
+    const raw = localStorage.getItem("imotara.profile.v1");
+    if (!raw) return "prefer_not";
+    const profile = JSON.parse(raw);
+    // Companion gender controls Imotara's voice; fall back to user gender
+    const compEnabled = !!profile?.companion?.enabled;
+    const compGender: string = profile?.companion?.gender ?? "";
+    const userGender: string = profile?.user?.gender ?? "prefer_not";
+    return (compEnabled && compGender && compGender !== "prefer_not")
+      ? compGender
+      : userGender;
+  } catch {
+    return "prefer_not";
+  }
 }
 
 function Bubble({
@@ -3259,6 +3412,7 @@ function Bubble({
   onReact,
   bookmarked,
   onBookmark,
+  onRetry,
 }: {
   id: string;
   role: Role;
@@ -3281,6 +3435,7 @@ function Bubble({
   onReact?: (emoji: string) => void;
   bookmarked?: boolean;
   onBookmark?: () => void;
+  onRetry?: () => void;
 }) {
   const isUser = role === "user";
 
@@ -3295,24 +3450,42 @@ function Bubble({
 
   // ── TTS ───────────────────────────────────────────────────────────
   const [speaking, setSpeaking] = useState(false);
-  function toggleSpeak() {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    if (speaking) {
-      window.speechSynthesis.cancel();
-      setSpeaking(false);
-      return;
-    }
+
+  function doSpeak() {
+    const synth = window.speechSynthesis;
     const lang = resolveTTSLang(content);
+    const gender = getTTSGenderPref();
     const utt = new SpeechSynthesisUtterance(content);
     utt.lang = lang;
     utt.rate = 0.95;
     utt.pitch = 1.0;
-    const voice = pickVoice(window.speechSynthesis, lang);
+    const voice = pickVoice(synth, lang, gender);
     if (voice) utt.voice = voice;
     utt.onend = () => setSpeaking(false);
     utt.onerror = () => setSpeaking(false);
     setSpeaking(true);
-    window.speechSynthesis.speak(utt);
+    synth.speak(utt);
+  }
+
+  function toggleSpeak() {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const synth = window.speechSynthesis;
+
+    if (speaking) {
+      synth.cancel();
+      setSpeaking(false);
+      return;
+    }
+
+    // Browsers load voices asynchronously; if voices aren't ready yet, wait for them
+    if (synth.getVoices().length === 0) {
+      synth.onvoiceschanged = () => {
+        synth.onvoiceschanged = null;
+        doSpeak();
+      };
+    } else {
+      doSpeak();
+    }
   }
 
   const seed = !isUser
@@ -3546,6 +3719,18 @@ function Bubble({
                 }`}
               >
                 <Star className="h-3.5 w-3.5" fill={bookmarked ? "currentColor" : "none"} />
+              </button>
+            )}
+
+            {/* Retry — shown when cloud failed and local fallback was used */}
+            {onRetry && replySource === "fallback" && (
+              <button
+                type="button"
+                onClick={onRetry}
+                title="Retry with cloud"
+                className="ml-1 rounded-full border border-amber-400/30 bg-amber-500/8 px-2 py-0.5 text-[10px] font-semibold text-amber-300 transition hover:bg-amber-500/15"
+              >
+                ↺ Retry
               </button>
             )}
           </div>

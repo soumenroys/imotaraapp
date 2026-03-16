@@ -8,6 +8,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import type { EmotionRecord } from "@/types/history";
 import { getHistory } from "@/lib/imotara/history";
 import { saveHistory } from "@/lib/imotara/historyPersist";
+import { getUserScopeId } from "@/lib/imotara/userScope";
 import SyncStatusChip from "@/components/imotara/SyncStatusChip";
 import {
   pushAllLocalToApi,
@@ -36,8 +37,7 @@ import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
 
 import { AlertTriangle } from "lucide-react";
 
-// Public release: hide remote sync controls until fully stable
-const ENABLE_REMOTE_SYNC = false;
+const ENABLE_REMOTE_SYNC = true;
 
 // Friendly emoji/label maps for both classic + AI-expanded emotions
 const EMOJI: Record<string, string> = {
@@ -187,7 +187,7 @@ function getCardToneClasses(emotionKey: string, isAssistant: boolean) {
   };
 }
 
-export default function EmotionHistory({ searchFilter = "" }: { searchFilter?: string }) {
+export default function EmotionHistory({ searchFilter = "", onResultCount }: { searchFilter?: string; onResultCount?: (count: number) => void }) {
   const [items, setItems] = useState<EmotionRecord[]>([]);
   const [pushInfo, setPushInfo] = useState<string>("");
   const [apiInfo, setApiInfo] = useState<string>("");
@@ -365,7 +365,7 @@ export default function EmotionHistory({ searchFilter = "" }: { searchFilter?: s
     };
   }
 
-  // Initial load of local store (async)
+  // Initial load of local store (async); auto-seeds from server if localStorage is empty
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -378,12 +378,39 @@ export default function EmotionHistory({ searchFilter = "" }: { searchFilter?: s
             computeEmotionSummary(list.filter((r) => !(r as any).deleted)),
           );
         }
+
+        // Auto-seed: if localStorage has no records, pull from server silently
+        if (!cancelled && list.filter((r) => !(r as any).deleted).length === 0) {
+          try {
+            const scope = getUserScopeId();
+            const res = await fetch("/api/history", {
+              method: "GET",
+              ...(scope ? { headers: { "x-imotara-user": scope } } : {}),
+            });
+            if (res.ok) {
+              const json: any = await res.json().catch(() => ({}));
+              const incoming: EmotionRecord[] = Array.isArray(json)
+                ? json
+                : Array.isArray(json?.records)
+                  ? json.records
+                  : [];
+              if (!cancelled && incoming.length > 0) {
+                const seeded = incoming.filter((r) => !r.deleted);
+                await saveHistory(seeded);
+                setItems(seeded);
+                setSummary(computeEmotionSummary(seeded));
+              }
+            }
+          } catch {
+            // Auto-seed is best-effort; ignore failures
+          }
+        }
       } catch (err) {
         if (!cancelled) {
           setItems([]);
           setSummary(computeEmotionSummary([]));
         }
-         
+
         console.error("[EmotionHistory] getHistory failed:", err);
       }
     })();
@@ -522,7 +549,11 @@ export default function EmotionHistory({ searchFilter = "" }: { searchFilter?: s
       setState("syncing");
       setLastError(null);
 
-      const res = await fetch("/api/history", { method: "GET" });
+      const scope = getUserScopeId();
+      const res = await fetch("/api/history", {
+        method: "GET",
+        ...(scope ? { headers: { "x-imotara-user": scope } } : {}),
+      });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         throw new Error(
@@ -1124,6 +1155,11 @@ export default function EmotionHistory({ searchFilter = "" }: { searchFilter?: s
       return true;
     });
   }, [visibleItems, sessionFilter, dateWindow, searchFilter]);
+
+  // Report filtered count to parent when search is active
+  React.useEffect(() => {
+    if (onResultCount) onResultCount(searchFilter.trim() ? filteredItems.length : -1);
+  }, [filteredItems.length, searchFilter, onResultCount]);
 
   // When a date window is active, recompute summary over filtered items so
   // the sparkline and stats reflect the selected window.

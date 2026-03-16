@@ -254,6 +254,24 @@ function emotionEmoji(e: string): string {
   return EMOTION_EMOJI[k] ?? "💭";
 }
 
+// Human-readable label for canonical emotion names (e.g. "sadness" → "Sad")
+const EMOTION_LABEL: Record<string, string> = {
+  joy: "Joyful", happy: "Happy", happiness: "Happy",
+  sad: "Sad", sadness: "Sad",
+  angry: "Frustrated", anger: "Frustrated",
+  stressed: "Stressed", stress: "Stressed",
+  anxious: "Anxious", anxiety: "Anxious",
+  fear: "Worried",
+  lonely: "Lonely",
+  hopeful: "Hopeful",
+  confused: "Confused",
+  neutral: "Neutral",
+};
+
+function emotionLabel(e: string): string {
+  return EMOTION_LABEL[e.toLowerCase().trim()] ?? (e.charAt(0).toUpperCase() + e.slice(1).toLowerCase());
+}
+
 function loadEmotionArc(): EmotionArc {
   if (typeof window === "undefined") return { dominantEmotion: null, weekEmotions: [], trend: null };
   try {
@@ -315,7 +333,392 @@ function loadEmotionArc(): EmotionArc {
   }
 }
 
+// ── Emotion analytics (heatmap + radar) ───────────────────────────────────────
+
+type EmotionBucket = "joy" | "hopeful" | "sadness" | "stressed" | "anger" | "confused" | "neutral";
+
+const EMOTION_BUCKET_MAP: Record<string, EmotionBucket> = {
+  joy: "joy", happy: "joy", happiness: "joy",
+  hopeful: "hopeful", grateful: "hopeful", gratitude: "hopeful",
+  sad: "sadness", sadness: "sadness", lonely: "sadness",
+  stressed: "stressed", stress: "stressed",
+  anxious: "stressed", anxiety: "stressed", fear: "stressed",
+  angry: "anger", anger: "anger", frustrated: "anger",
+  confused: "confused",
+  neutral: "neutral",
+};
+
+const EMOTION_BUCKET_META: Record<EmotionBucket, { color: string; label: string; emoji: string }> = {
+  joy:      { color: "rgba(250,204,21,0.85)",  label: "Joy",      emoji: "😄" },
+  hopeful:  { color: "rgba(5,150,105,0.75)",   label: "Hopeful",  emoji: "💚" },
+  sadness:  { color: "rgba(37,99,235,0.75)",   label: "Sad",      emoji: "💙" },
+  stressed: { color: "rgba(202,138,4,0.75)",   label: "Stressed", emoji: "💛" },
+  anger:    { color: "rgba(220,38,38,0.75)",   label: "Angry",    emoji: "❤️" },
+  confused: { color: "rgba(124,58,237,0.75)",  label: "Confused", emoji: "🟣" },
+  neutral:  { color: "rgba(100,116,139,0.35)", label: "Neutral",  emoji: "⚪" },
+};
+
+type HeatmapCell = { dateKey: string; dominant: EmotionBucket; count: number };
+
+type AnalyticsData = {
+  heatmapWeeks: HeatmapCell[][];
+  radarFreq: Partial<Record<EmotionBucket, number>>;
+  radarMax: number;
+};
+
+function toBucketDateKey(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function toEmotionBucket(raw: string): EmotionBucket {
+  return EMOTION_BUCKET_MAP[raw.toLowerCase().trim()] ?? "neutral";
+}
+
+function loadAnalyticsData(): AnalyticsData {
+  const empty: AnalyticsData = { heatmapWeeks: [], radarFreq: {}, radarMax: 1 };
+  if (typeof window === "undefined") return empty;
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    if (!raw) return empty;
+    const all = JSON.parse(raw) as any[];
+    if (!Array.isArray(all)) return empty;
+
+    const relevant = all.filter((r) => !r.deleted && r.emotion);
+    const now = Date.now();
+    const dayMs = 86_400_000;
+
+    // ── Heatmap: 12 weeks (Mon-aligned, newest row last) ─────────────────────
+    const byDay: Record<string, EmotionBucket[]> = {};
+    for (const r of relevant) {
+      const key = toBucketDateKey(r.createdAt ?? 0);
+      if (!byDay[key]) byDay[key] = [];
+      byDay[key].push(toEmotionBucket(r.emotion));
+    }
+
+    const NUM_WEEKS = 12;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayDow = (today.getDay() + 6) % 7; // Mon=0
+    const totalDays = NUM_WEEKS * 7;
+
+    const cells: HeatmapCell[] = [];
+    for (let i = totalDays - 1 - todayDow; i >= -todayDow; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = toBucketDateKey(d.getTime());
+      const emotions = byDay[key] ?? [];
+      const freq: Partial<Record<EmotionBucket, number>> = {};
+      for (const e of emotions) freq[e] = (freq[e] ?? 0) + 1;
+      const dominant = (
+        Object.entries(freq).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0] ?? "neutral"
+      ) as EmotionBucket;
+      cells.push({ dateKey: key, dominant, count: emotions.length });
+    }
+    const heatmapWeeks: HeatmapCell[][] = [];
+    for (let w = 0; w < NUM_WEEKS; w++) heatmapWeeks.push(cells.slice(w * 7, w * 7 + 7));
+
+    // ── Radar: last 7 days ────────────────────────────────────────────────────
+    const last7 = relevant.filter((r) => (r.createdAt ?? 0) >= now - 7 * dayMs);
+    const radarFreq: Partial<Record<EmotionBucket, number>> = {};
+    for (const r of last7) {
+      const b = toEmotionBucket(r.emotion);
+      if (b !== "neutral") radarFreq[b] = (radarFreq[b] ?? 0) + 1;
+    }
+    const radarMax = Math.max(1, ...Object.values(radarFreq).map((v) => v ?? 0));
+
+    return { heatmapWeeks, radarFreq, radarMax };
+  } catch {
+    return empty;
+  }
+}
+
+// ── 12-week heatmap component ─────────────────────────────────────────────────
+function MoodHeatmap({ weeks }: { weeks: HeatmapCell[][] }) {
+  const hasData = weeks.some((w) => w.some((c) => c.count > 0));
+  if (!hasData) return null;
+
+  const maxCount = Math.max(1, ...weeks.flatMap((w) => w.map((c) => c.count)));
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 shadow-sm backdrop-blur-md">
+      <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+        12-Week Mood Map
+      </p>
+      <div className="overflow-x-auto">
+        {/* Day-of-week labels */}
+        <div className="mb-1 flex gap-[3px]">
+          {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+            <div key={i} className="w-[15px] shrink-0 text-center text-[8px] text-zinc-600">{d}</div>
+          ))}
+        </div>
+        {/* Grid rows */}
+        <div className="flex flex-col gap-[3px]">
+          {weeks.map((week, wi) => (
+            <div key={wi} className="flex gap-[3px]">
+              {week.map((cell, di) => {
+                const meta = EMOTION_BUCKET_META[cell.dominant];
+                const opacity = cell.count === 0
+                  ? 0
+                  : Math.min(0.95, 0.28 + (cell.count / maxCount) * 0.67);
+                const bg = cell.count === 0
+                  ? "rgba(100,116,139,0.10)"
+                  : meta.color.replace(/[\d.]+\)$/, `${opacity})`);
+                return (
+                  <div
+                    key={di}
+                    title={cell.count > 0 ? `${cell.dateKey}: ${meta.label} (${cell.count})` : cell.dateKey}
+                    className="h-[15px] w-[15px] shrink-0 rounded-[3px] transition-opacity"
+                    style={{ backgroundColor: bg }}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        {/* Legend */}
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
+          {(["sadness", "stressed", "anger", "confused", "hopeful", "joy"] as EmotionBucket[]).map((e) => (
+            <div key={e} className="flex items-center gap-1">
+              <div className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: EMOTION_BUCKET_META[e].color }} />
+              <span className="text-[8px] text-zinc-500">{EMOTION_BUCKET_META[e].label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Emotion radar chart (SVG) ─────────────────────────────────────────────────
+const RADAR_AXES_WEB: { key: EmotionBucket; label: string; angleDeg: number }[] = [
+  { key: "joy",      label: "Joy",      angleDeg: -90  },
+  { key: "hopeful",  label: "Hopeful",  angleDeg: -30  },
+  { key: "sadness",  label: "Sad",      angleDeg:  30  },
+  { key: "stressed", label: "Stressed", angleDeg:  90  },
+  { key: "anger",    label: "Angry",    angleDeg:  150 },
+  { key: "confused", label: "Confused", angleDeg: -150 },
+];
+
+function EmotionRadarChart({
+  radarFreq,
+  radarMax,
+}: {
+  radarFreq: Partial<Record<EmotionBucket, number>>;
+  radarMax: number;
+}) {
+  const hasData = Object.values(radarFreq).some((v) => (v ?? 0) > 0);
+  if (!hasData) return null;
+
+  const SIZE = 200;
+  const CX = SIZE / 2;
+  const CY = SIZE / 2;
+  const MAX_R = 70;
+
+  const rad = (deg: number) => (deg * Math.PI) / 180;
+  const toXY = (angleDeg: number, r: number) => ({
+    x: CX + r * Math.cos(rad(angleDeg)),
+    y: CY + r * Math.sin(rad(angleDeg)),
+  });
+
+  const dataPoints = RADAR_AXES_WEB.map(({ key, angleDeg }) => {
+    const count = radarFreq[key] ?? 0;
+    const v = Math.max(0.07, radarMax > 0 ? Math.min(1, count / radarMax) : 0.07);
+    return { ...toXY(angleDeg, MAX_R * v), key };
+  });
+
+  const spokeEnds = RADAR_AXES_WEB.map(({ angleDeg }) => toXY(angleDeg, MAX_R));
+  const polygonPoints = dataPoints.map((p) => `${p.x},${p.y}`).join(" ");
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 shadow-sm backdrop-blur-md">
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+        Emotion Radar
+      </p>
+      <p className="mb-3 text-[10px] text-zinc-600">How your emotions spread this week</p>
+      <div className="flex justify-center">
+        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+          {/* Concentric rings */}
+          {[0.33, 0.66, 1.0].map((r, i) => (
+            <circle key={i} cx={CX} cy={CY} r={MAX_R * r} fill="none" stroke="rgba(148,163,184,0.15)" strokeWidth={1} />
+          ))}
+          {/* Spokes */}
+          {spokeEnds.map((end, i) => (
+            <line key={i} x1={CX} y1={CY} x2={end.x} y2={end.y} stroke="rgba(148,163,184,0.18)" strokeWidth={1} />
+          ))}
+          {/* Data polygon */}
+          <polygon
+            points={polygonPoints}
+            fill="rgba(99,102,241,0.12)"
+            stroke="rgba(99,102,241,0.65)"
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+          />
+          {/* Data dots */}
+          {dataPoints.map((pt, i) => {
+            const meta = EMOTION_BUCKET_META[pt.key];
+            return (
+              <circle key={i} cx={pt.x} cy={pt.y} r={4} fill={meta.color} stroke="white" strokeWidth={1.5} />
+            );
+          })}
+          {/* Axis labels */}
+          {RADAR_AXES_WEB.map(({ key, label, angleDeg }, i) => {
+            const pos = toXY(angleDeg, MAX_R + 17);
+            const meta = EMOTION_BUCKET_META[key];
+            return (
+              <text
+                key={i}
+                x={pos.x}
+                y={pos.y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={9}
+                fill="rgba(161,161,170,0.9)"
+              >
+                {meta.emoji} {label}
+              </text>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+// ── Quick emotion check-in ────────────────────────────────────────────────────
+
+const FEEL_BUTTONS_WEB: {
+  emotion: EmotionBucket;
+  apiEmotion: string;
+  emoji: string;
+  label: string;
+}[] = [
+  { emotion: "joy",      apiEmotion: "joy",      emoji: "😄", label: "Joy" },
+  { emotion: "hopeful",  apiEmotion: "hopeful",  emoji: "💚", label: "Hopeful" },
+  { emotion: "hopeful",  apiEmotion: "grateful", emoji: "🙏", label: "Grateful" },
+  { emotion: "sadness",  apiEmotion: "sadness",  emoji: "💙", label: "Sad" },
+  { emotion: "stressed", apiEmotion: "stressed", emoji: "💛", label: "Stressed" },
+  { emotion: "anger",    apiEmotion: "anger",    emoji: "❤️", label: "Angry" },
+  { emotion: "confused", apiEmotion: "confused", emoji: "🟣", label: "Confused" },
+  { emotion: "neutral",  apiEmotion: "neutral",  emoji: "⚪", label: "Neutral" },
+];
+
+function saveCheckinToHistory(apiEmotion: string, label: string, note: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY) ?? "[]";
+    const all = JSON.parse(raw);
+    const items = Array.isArray(all) ? all : [];
+    items.push({
+      id: `feel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      text: note.trim() || `Feeling ${label.toLowerCase()} right now.`,
+      from: "user",
+      emotion: apiEmotion,
+      createdAt: Date.now(),
+      intensity: 0.6,
+    });
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(items));
+  } catch { /* ignore quota */ }
+}
+
+function WebFeelSection({ onCheckin }: { onCheckin: () => void }) {
+  const [selected, setSelected] = useState<{ emotion: EmotionBucket; apiEmotion: string; label: string } | null>(null);
+  const [note, setNote] = useState("");
+  const [justSaved, setJustSaved] = useState(false);
+
+  function handleSave() {
+    if (!selected) return;
+    saveCheckinToHistory(selected.apiEmotion, selected.label, note);
+    setSelected(null);
+    setNote("");
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2200);
+    onCheckin();
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 shadow-sm backdrop-blur-md">
+      <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+        How are you feeling right now?
+      </p>
+
+      {/* Emotion buttons */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {FEEL_BUTTONS_WEB.map((btn) => {
+          const isActive = selected?.label === btn.label;
+          const meta = EMOTION_BUCKET_META[btn.emotion];
+          return (
+            <button
+              key={btn.label}
+              type="button"
+              onClick={() => setSelected(isActive ? null : { emotion: btn.emotion, apiEmotion: btn.apiEmotion, label: btn.label })}
+              className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] transition"
+              style={{
+                borderColor: isActive ? meta.color : "rgba(255,255,255,0.12)",
+                backgroundColor: isActive ? meta.color.replace(/[\d.]+\)$/, "0.18)") : "rgba(255,255,255,0.04)",
+                color: isActive ? "#f1f5f9" : "#94a3b8",
+                fontWeight: isActive ? 600 : 400,
+              }}
+            >
+              <span>{btn.emoji}</span>
+              <span>{btn.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Note + save — only when an emotion is selected */}
+      {selected && (
+        <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2 animate-fade-in">
+          <p className="text-[11px] text-zinc-500">Add a note (optional)</p>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            placeholder={`What's making you feel ${selected.label.toLowerCase()}?`}
+            className="w-full resize-none rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-white/20"
+          />
+          <button
+            type="button"
+            onClick={handleSave}
+            className="w-full rounded-full py-2 text-sm font-semibold text-white transition hover:brightness-110"
+            style={{
+              backgroundColor: EMOTION_BUCKET_META[selected.emotion].color.replace(/[\d.]+\)$/, "0.80)"),
+            }}
+          >
+            Log check-in
+          </button>
+        </div>
+      )}
+
+      {justSaved && (
+        <p className="mt-2 text-center text-[11px] text-zinc-500">✓ Check-in logged</p>
+      )}
+    </div>
+  );
+}
+
 // ── Personalized prompts ───────────────────────────────────────────────────────
+
+// Map canonical API emotion names → prompt bank keys
+// Stored emotions: sadness, anger, joy, fear, neutral, stressed, anxious, lonely, hopeful, confused
+// Prompt bank keys: sad, angry, happy, fear, anxious, stressed, lonely, hopeful, confused
+const EMOTION_KEY_MAP: Record<string, string> = {
+  sadness: "sad",
+  anger: "angry",
+  joy: "happy",
+  happiness: "happy",
+  anxious: "anxious",
+  anxiety: "anxious",
+  stress: "stressed",
+  grateful: "hopeful",
+  gratitude: "hopeful",
+};
+
+function toPromptKey(emotion: string): string {
+  const e = emotion.toLowerCase().trim();
+  return EMOTION_KEY_MAP[e] ?? e;
+}
 
 const EMOTION_PROMPTS: Record<string, string[]> = {
   stressed: [
@@ -323,48 +726,70 @@ const EMOTION_PROMPTS: Record<string, string[]> = {
     "What would it feel like to let go of one thing on your plate today?",
     "What does rest actually look like for you right now?",
     "What boundary do you wish you'd held — or held better — this week?",
+    "Which of your current worries are within your control — and which aren't?",
   ],
   anxious: [
     "What is the one thing you're most worried about — and what's actually in your control?",
     "What would you tell a close friend who was feeling exactly how you feel right now?",
     "What's quietly weighing on you right now?",
     "What small thing could make tomorrow feel a little less uncertain?",
+    "What has helped you through anxious stretches before?",
   ],
   fear: [
     "What is the one thing you're most worried about — and what's actually in your control?",
     "What's quietly weighing on you right now?",
     "What would you tell a close friend who was feeling exactly how you feel right now?",
+    "What's one small thing that feels safe and grounding right now?",
+    "What would you need to feel even 10% safer right now?",
   ],
   sad: [
     "What would feel like a small act of kindness toward yourself today?",
     "Who in your life have you felt most connected to lately — and why?",
     "What are you grateful for that you haven't acknowledged in a while?",
     "Is there something you need to grieve or let go of?",
+    "What does your body feel like carrying right now — heavy, tight, open?",
   ],
   lonely: [
     "Who in your life have you felt most connected to lately — and why?",
     "What kind of connection are you craving right now?",
     "What would you say to yourself if you were your own closest friend?",
     "What's one small way you could reach out to someone this week?",
+    "What does 'feeling seen' look like for you — and when did you last experience it?",
   ],
   angry: [
     "What is underneath the frustration you're feeling?",
     "What boundary feels like it's been crossed — and what would you say if you could speak freely?",
     "What would need to change for this situation to feel fair?",
     "What's one thing you can do today to release some tension?",
+    "Where does this anger live in your body — and what does it need?",
   ],
   happy: [
     "What's one thing that went well today, even if it was small?",
     "What created this feeling of lightness — and how can you keep more of it?",
     "What are you grateful for that you haven't acknowledged in a while?",
     "Describe one moment today where you felt like yourself.",
+    "What would you want to bottle up from right now to open on a harder day?",
+  ],
+  hopeful: [
+    "What possibility are you most looking forward to right now?",
+    "What would need to happen for this hope to become real?",
+    "What's one small step you could take toward what you're hoping for?",
+    "What does it feel like in your body when you imagine things going well?",
+    "What would you want your future self to remember about how you feel right now?",
+  ],
+  confused: [
+    "What feels most unclear to you right now — and what would help you see it better?",
+    "Is there a decision you've been avoiding? What makes it hard?",
+    "What would you tell someone else who felt this lost or uncertain?",
+    "What's the one question you most wish you had an answer to?",
+    "What do you already know, even if the bigger picture isn't clear yet?",
   ],
 };
 
 /** Pick a prompt index personalised to current emotional arc. Returns null if no relevant arc. */
 function getPersonalisedPromptIndex(arc: EmotionArc): number | null {
-  const e = (arc.dominantEmotion ?? "").toLowerCase().trim();
-  const bank = EMOTION_PROMPTS[e];
+  const key = toPromptKey(arc.dominantEmotion ?? "");
+  const bank = EMOTION_PROMPTS[key];
   if (!bank?.length) return null;
   const dayOffset = new Date().getDay();
   return -(bank.length + 1 + dayOffset); // sentinel: negative = personalized bank
@@ -390,12 +815,7 @@ const PROMPTS = [
 ];
 
 function getDailyPromptIndex(): number {
-  const dayIndex = new Date().getDay(); // 0–6
-  const weekOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) /
-      (7 * 24 * 60 * 60 * 1000),
-  );
-  return (dayIndex + weekOfYear * 7) % PROMPTS.length;
+  return Math.floor(Date.now() / 86_400_000) % PROMPTS.length;
 }
 
 // ── Profile lang helper ───────────────────────────────────────────────────────
@@ -583,14 +1003,30 @@ const EMOTION_PROMPTS_BY_LANG: Record<string, Record<string, string[]>> = {
 // #15: Quality streak — only count days with a substantive response (> 30 chars)
 const MIN_QUALITY_CHARS = 30;
 
-function computeStreak(entries: ReflectionEntry[]): number {
-  if (!entries.length) return 0;
+function loadChatActiveDays(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    if (!raw) return new Set();
+    const all = JSON.parse(raw) as any[];
+    if (!Array.isArray(all)) return new Set();
+    return new Set(
+      all
+        .filter((r) => !r.deleted && r.from === "user" && r.createdAt)
+        .map((r) => new Date(r.createdAt as number).toDateString()),
+    );
+  } catch { return new Set(); }
+}
 
-  const days = new Set(
-    entries
+function computeStreak(entries: ReflectionEntry[]): number {
+  const chatDays = loadChatActiveDays();
+
+  const days = new Set([
+    ...entries
       .filter((e) => (e.response ?? "").trim().length >= MIN_QUALITY_CHARS)
       .map((e) => new Date(e.createdAt).toDateString()),
-  );
+    ...chatDays,
+  ]);
 
   // #7: Allow 1 grace day so a single missed day doesn't break the streak
   let streak = 0;
@@ -664,6 +1100,7 @@ export default function GrowPage() {
   const [entries, setEntries] = useState<ReflectionEntry[]>([]);
   const [promptIndex, setPromptIndex] = useState(getDailyPromptIndex);
   const [arc, setArc] = useState<EmotionArc>({ dominantEmotion: null, weekEmotions: [], trend: null });
+  const [analytics, setAnalytics] = useState<AnalyticsData>({ heatmapWeeks: [], radarFreq: {}, radarMax: 1 });
   const [usePersonalised, setUsePersonalised] = useState(false);
   const [lang, setLang] = useState("en");
   const [response, setResponse] = useState("");
@@ -689,6 +1126,7 @@ export default function GrowPage() {
     setThemes(computeThemes(loaded));
     const loadedArc = loadEmotionArc();
     setArc(loadedArc);
+    setAnalytics(loadAnalyticsData());
     const pidx = getPersonalisedPromptIndex(loadedArc);
     if (pidx !== null) setUsePersonalised(true);
     setLang(getProfileLang());
@@ -698,8 +1136,8 @@ export default function GrowPage() {
   // Active general prompt bank: localised if available, English fallback
   const generalBank = PROMPTS_BY_LANG[lang] ?? PROMPTS;
 
-  // Active emotion-specific bank: localised → English fallback
-  const emotionKey = (arc.dominantEmotion ?? "").toLowerCase().trim();
+  // Active emotion-specific bank: normalise canonical names (sadness→sad, anger→angry, joy→happy, etc.)
+  const emotionKey = toPromptKey(arc.dominantEmotion ?? "");
   const personalisedBank = usePersonalised
     ? (EMOTION_PROMPTS_BY_LANG[lang]?.[emotionKey] ?? EMOTION_PROMPTS[emotionKey] ?? null)
     : null;
@@ -707,6 +1145,11 @@ export default function GrowPage() {
   const prompt = personalisedBank
     ? personalisedBank[promptIndex % personalisedBank.length]
     : generalBank[promptIndex % generalBank.length];
+
+  function handleCheckin() {
+    setAnalytics(loadAnalyticsData());
+    setArc(loadEmotionArc());
+  }
 
   function handleTryAnother() {
     setUsePersonalised(false);
@@ -775,11 +1218,16 @@ export default function GrowPage() {
     </div>
   );
 
-  const todayEntries = entries.filter(
-    (e) => new Date(e.createdAt).toDateString() === new Date().toDateString(),
+  const todayStr = new Date().toDateString();
+  const todayEntries = useMemo(
+    () => entries.filter((e) => new Date(e.createdAt).toDateString() === todayStr),
+    [entries, todayStr],
   );
-  const alreadyAnsweredToday = todayEntries.some((e) => e.prompt === prompt);
-  const streak = computeStreak(entries);
+  const alreadyAnsweredToday = useMemo(
+    () => todayEntries.some((e) => e.prompt === prompt),
+    [todayEntries, prompt],
+  );
+  const streak = useMemo(() => computeStreak(entries), [entries]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-5 px-4 py-6 sm:px-6">
@@ -857,8 +1305,8 @@ export default function GrowPage() {
               </div>
             ))}
             {arc.dominantEmotion && (
-              <span className="ml-2 text-[11px] text-zinc-400 capitalize">
-                mostly {arc.dominantEmotion}
+              <span className="ml-2 text-[11px] text-zinc-400">
+                mostly {emotionLabel(arc.dominantEmotion)}
               </span>
             )}
           </div>
@@ -883,6 +1331,26 @@ export default function GrowPage() {
               </button>
             </p>
           )}
+        </div>
+      )}
+
+      {/* Quick emotion check-in */}
+      <WebFeelSection onCheckin={handleCheckin} />
+
+      {/* Emotion radar chart */}
+      <EmotionRadarChart radarFreq={analytics.radarFreq} radarMax={analytics.radarMax} />
+
+      {/* 12-week mood heatmap */}
+      <MoodHeatmap weeks={analytics.heatmapWeeks} />
+
+      {/* First-time nudge — shown when no emotion history yet */}
+      {!arc.weekEmotions.some(Boolean) && entries.length === 0 && (
+        <div className="rounded-2xl border border-indigo-400/15 bg-indigo-500/5 px-4 py-3 text-[11px] text-zinc-400">
+          <span className="mr-1">💬</span>
+          Chat with Imotara first — your reflection prompts will be personalised to how you&apos;ve been feeling.{" "}
+          <a href="/chat" className="text-indigo-400/80 underline underline-offset-2 hover:text-indigo-300 transition">
+            Start a chat →
+          </a>
         </div>
       )}
 

@@ -11,6 +11,7 @@ import {
 import { buildPlanMarkConflicts } from "@/lib/imotara/conflict";
 import { computePending, markPushed } from "@/lib/imotara/pushLedger";
 import { detectConflicts } from "@/lib/imotara/conflictDetect";
+import { getUserScopeId } from "@/lib/imotara/userScope";
 
 /* ------------------------------------------------------------------ */
 /*                        CONFLICT QUEUE (persistent)                  */
@@ -528,9 +529,13 @@ export async function pushPendingToApi(): Promise<PushResult> {
   const toSend = computePending(local);
   if (!toSend.length) return { attempted: 0, acceptedIds: [] };
 
+  const scope = getUserScopeId();
   const res = await fetch("/api/history", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(scope ? { "x-imotara-user": scope } : {}),
+    },
     body: JSON.stringify({ records: toSend }),
   });
 
@@ -580,9 +585,13 @@ export async function pushPendingToApi(): Promise<PushResult> {
 export async function pushAllLocalToApi(): Promise<PushResult> {
   const local = await getHistory();
 
+  const scope = getUserScopeId();
   const res = await fetch("/api/history", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(scope ? { "x-imotara-user": scope } : {}),
+    },
     body: JSON.stringify({ records: local }),
   });
 

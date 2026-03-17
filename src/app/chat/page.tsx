@@ -50,6 +50,7 @@ import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
 import ReplyOriginBadge from "@/components/imotara/ReplyOriginBadge";
 import { getChatToneCopy } from "@/lib/imotara/chatTone";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { isWithinLaunchOffer } from "@/lib/imotara/license";
 import { adaptReflectionTone } from "@/lib/imotara/reflectionTone";
 import { getReflectionSeedCard } from "@/lib/imotara/reflectionSeedContract";
 import type { ReflectionSeed } from "@/lib/ai/response/responseBlueprint";
@@ -348,8 +349,12 @@ function mergeRemoteChatIntoThreads(
   return merged;
 }
 
-// Public release: hide remote sync controls until fully stable
-const ENABLE_REMOTE_SYNC = false;
+// Public release: remote sync controls are enabled during the launch offer.
+// Launch offer is controlled via NEXT_PUBLIC_IMOTARA_LAUNCH_DATE / NEXT_PUBLIC_IMOTARA_FREE_DAYS.
+const ENABLE_REMOTE_SYNC =
+  process.env.NEXT_PUBLIC_IMOTARA_LAUNCH_DATE
+    ? isWithinLaunchOffer()
+    : true;
 
 // Build-time analysis implementation mode
 const ANALYSIS_IMPL: "local" | "api" =

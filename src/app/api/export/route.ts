@@ -29,6 +29,8 @@ export async function GET() {
 
         const historyUrl = `${baseUrl}/api/history?mode=array`;
 
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10_000);
         const res = await fetch(historyUrl, {
             method: "GET",
             headers: {
@@ -36,7 +38,9 @@ export async function GET() {
             },
             // We want a fresh snapshot, not a cached one.
             cache: "no-store",
+            signal: controller.signal,
         });
+        clearTimeout(timeout);
 
         if (res.ok) {
             // Whatever /api/history returns (likely an array of EmotionRecord)

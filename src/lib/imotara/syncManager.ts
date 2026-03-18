@@ -115,8 +115,12 @@ function saveLocalHistory(records: EmotionRecord[]) {
 function getQueue(): EmotionRecord[] {
   return lsRead<EmotionRecord[]>(QUEUE_KEY, []);
 }
-function clearQueue() {
-  lsWrite(QUEUE_KEY, []);
+/** Remove only the items that were snapshotted at sync-start, preserving any added during the request. */
+function drainQueueSnapshot(snapshot: EmotionRecord[]) {
+  if (snapshot.length === 0) return;
+  const pushedIds = new Set(snapshot.map((r) => r.id));
+  const remaining = getQueue().filter((r) => !pushedIds.has(r.id));
+  lsWrite(QUEUE_KEY, remaining);
 }
 
 function getLastSyncAt(): number | undefined {
@@ -200,8 +204,9 @@ export async function runBidirectionalSync(
   saveLocalHistory(merged);
   setLastSyncAt(Date.now());
 
-  // 4) clear queue only AFTER local state is safely persisted
-  clearQueue();
+  // 4) Remove only the snapshotted items AFTER local state is persisted.
+  //    Items added to the queue during the network call are preserved for next sync.
+  drainQueueSnapshot(queue);
 
   summary.lastSuccessAt = Date.now();
   summary.phase = conflicts.length ? "resolving" : "done";

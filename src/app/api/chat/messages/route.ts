@@ -1,6 +1,8 @@
 // src/app/api/chat/messages/route.ts
 import { NextResponse } from "next/server";
 import { getMessages, upsertMessages, type ChatMessageRole } from "./store";
+import { supabaseServer } from "@/lib/supabaseServer";
+import { supabaseUserServer } from "@/lib/supabase/userServer";
 
 const USER_SCOPE_HEADER = "x-imotara-user";
 
@@ -10,7 +12,25 @@ function sanitizeScope(raw: string | null): string {
     return s.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
 }
 
-function getScopeFromRequest(req: Request): string {
+async function getScopeFromRequest(req: Request): Promise<string> {
+    // 1) Bearer token (mobile) — validate against Supabase, use real user ID as scope
+    const authHeader = req.headers.get("authorization") ?? "";
+    const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+    if (bearerToken) {
+        const { data } = await supabaseServer.auth.getUser(bearerToken);
+        if (data?.user?.id) return sanitizeScope(data.user.id);
+    }
+
+    // 2) Cookie session (web, signed-in users) — use real user ID as scope
+    try {
+        const supabase = await supabaseUserServer();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) return sanitizeScope(user.id);
+    } catch {
+        // no cookie session
+    }
+
+    // 3) Anonymous fallback — client-supplied header (local-only users without an account)
     return sanitizeScope(req.headers.get(USER_SCOPE_HEADER));
 }
 
@@ -115,7 +135,7 @@ function coerceFromBody(body: any, user_scope: string) {
 
 // GET /api/chat/messages?threadId=...&limit=...&since=ISO
 export async function GET(request: Request) {
-    const scope = getScopeFromRequest(request);
+    const scope = await getScopeFromRequest(request);
 
     // 🔒 safety: never allow unscoped reads (prevents “global shared chat”)
     if (!scope) {
@@ -141,7 +161,7 @@ export async function GET(request: Request) {
 // body: { messages: [...] } OR [ ... ] OR single message
 export async function POST(request: Request) {
     try {
-        const scope = getScopeFromRequest(request);
+        const scope = await getScopeFromRequest(request);
 
         // 🔒 safety: never allow unscoped writes
         if (!scope) {

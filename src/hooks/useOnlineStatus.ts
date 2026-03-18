@@ -5,7 +5,12 @@
 
 import { useEffect, useState } from "react";
 
-const PROBE_URL = "https://connectivitycheck.gstatic.com/generate_204";
+// Primary probe endpoint: use our own server if available (more reliable than 3rd-party probes).
+// Fallback to Google connectivity check when needed.
+const PROBE_URL =
+  (typeof window !== "undefined" && window.location.origin
+    ? `${window.location.origin}/api/health`
+    : "") || "https://connectivitycheck.gstatic.com/generate_204";
 const PROBE_TIMEOUT_MS = 3000;
 const PROBE_INTERVAL_MS = 15_000;
 
@@ -13,9 +18,9 @@ async function probeOnline(): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
-    const res = await fetch(PROBE_URL, { method: "HEAD", signal: controller.signal, cache: "no-store" });
+    await fetch(PROBE_URL, { method: "HEAD", signal: controller.signal, cache: "no-store" });
     clearTimeout(timer);
-    return res.status < 500;
+    return true; // any HTTP response (even 5xx) means network is up; only thrown exceptions mean offline
   } catch {
     return false;
   }

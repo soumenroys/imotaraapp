@@ -28,6 +28,18 @@ async function fetchRazorpayPayment(paymentId: string) {
 
 export async function POST(req: Request) {
     try {
+        // Require a valid Supabase Bearer token from mobile app
+        const authHeader = req.headers.get("authorization") ?? "";
+        const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+        if (!bearerToken) {
+            return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+        }
+        const { data: tokenData } = await supabaseServer.auth.getUser(bearerToken);
+        if (!tokenData?.user) {
+            return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+        }
+        const userId = tokenData.user.id;
+
         const body = await req.json();
         const paymentId: string = String(body?.paymentId ?? "").trim();
         const chatLinkKey: string = String(body?.chatLinkKey ?? "").trim();
@@ -64,6 +76,7 @@ export async function POST(req: Request) {
             const supabase = supabaseServer;
             await supabase.from("payment_licenses").upsert({
                 payment_id: paymentId,
+                user_id: userId,
                 chat_link_key: chatLinkKey || null,
                 tier,
                 amount_paise: amountPaise,

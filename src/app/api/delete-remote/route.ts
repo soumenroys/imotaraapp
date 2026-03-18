@@ -27,13 +27,17 @@ async function performRemoteDelete() {
 
         const historyUrl = `${baseUrl}/api/history`;
 
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10_000);
         const res = await fetch(historyUrl, {
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json",
             },
             cache: "no-store",
+            signal: controller.signal,
         });
+        clearTimeout(timeout);
 
         if (res.ok) {
             // If /api/history implements DELETE, we preserve its response payload

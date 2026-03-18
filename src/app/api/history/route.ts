@@ -8,6 +8,8 @@ import {
   upsertRecords,
   clearAllRecords,
 } from "./store";
+import { supabaseServer } from "@/lib/supabaseServer";
+import { supabaseUserServer } from "@/lib/supabase/userServer";
 
 /* ----------------------------------------------------------------------------
  * Helpers
@@ -31,7 +33,25 @@ function unscopedId(scope: string, id: string): string {
   return id.startsWith(p) ? id.slice(p.length) : id;
 }
 
-function getScopeFromRequest(req: Request): string {
+async function getScopeFromRequest(req: Request): Promise<string> {
+  // 1) Bearer token (mobile) — validate against Supabase, use real user ID as scope
+  const authHeader = req.headers.get("authorization") ?? "";
+  const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+  if (bearerToken) {
+    const { data } = await supabaseServer.auth.getUser(bearerToken);
+    if (data?.user?.id) return sanitizeScope(data.user.id);
+  }
+
+  // 2) Cookie session (web, signed-in users) — use real user ID as scope
+  try {
+    const supabase = await supabaseUserServer();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id) return sanitizeScope(user.id);
+  } catch {
+    // no cookie session
+  }
+
+  // 3) Anonymous fallback — client-supplied header (local-only users without an account)
   return sanitizeScope(req.headers.get(USER_SCOPE_HEADER));
 }
 
@@ -236,7 +256,7 @@ export async function GET(request: Request) {
   }
 
   // Default envelope mode
-  const scope = getScopeFromRequest(request);
+  const scope = await getScopeFromRequest(request);
   let records = await getAllRecords();
   const serverTs = Date.now();
 
@@ -275,7 +295,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const records = coerceRecordsFromBody(body);
-    const scope = getScopeFromRequest(request);
+    const scope = await getScopeFromRequest(request);
 
     // Preserve LWW semantics record-by-record (safer than blind batch overwrite)
     for (const rec of records) {

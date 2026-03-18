@@ -781,6 +781,7 @@ function detectReplyIntent(message: string): "emotional" | "practical" {
 }
 
 export async function POST(req: Request) {
+  try {
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
   // QA request flag (accepts header or query param; "1" or "true")
@@ -1859,6 +1860,12 @@ export async function POST(req: Request) {
     },
     { status: 200 },
   );
+  } catch {
+    return NextResponse.json(
+      { ok: false, message: "Something went wrong. Please try again." },
+      { status: 500 },
+    );
+  }
 }
 
 export async function GET() {

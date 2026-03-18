@@ -257,14 +257,18 @@ export async function GET(request: Request) {
 
   // Default envelope mode
   const scope = await getScopeFromRequest(request);
+
+  // 🔒 safety: unscoped reads would return all users' records
+  if (!scope) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let records = await getAllRecords();
   const serverTs = Date.now();
 
-  if (scope) {
-    records = records
-      .filter((r: EmotionRecord) => typeof r.id === "string" && r.id.startsWith(`${scope}:`))
-      .map((r: EmotionRecord) => ({ ...r, id: unscopedId(scope, r.id) }));
-  }
+  records = records
+    .filter((r: EmotionRecord) => typeof r.id === "string" && r.id.startsWith(`${scope}:`))
+    .map((r: EmotionRecord) => ({ ...r, id: unscopedId(scope, r.id) }));
 
 
   // Preserve prior semantics: count excludes deleted
@@ -343,7 +347,7 @@ export async function POST(request: Request) {
  * --------------------------------------------------------------------------*/
 export async function DELETE(request: Request) {
   try {
-    if (isProd() && !isAdminRequest(request)) {
+    if (!isAdminRequest(request)) {
       return NextResponse.json({ ok: false }, { status: 403 });
     }
 

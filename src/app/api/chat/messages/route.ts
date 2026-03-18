@@ -139,7 +139,7 @@ export async function GET(request: Request) {
 
     // 🔒 safety: never allow unscoped reads (prevents “global shared chat”)
     if (!scope) {
-        return NextResponse.json({ messages: [], serverTs: Date.now() }, { status: 200 });
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);

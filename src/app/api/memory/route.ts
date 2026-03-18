@@ -10,7 +10,7 @@ export async function GET() {
     try {
         const supabase = await supabaseUserServer();
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return NextResponse.json({ memories: [] });
+        if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const memories = await fetchUserMemories(supabase, user.id, 50);
         return NextResponse.json({ memories });

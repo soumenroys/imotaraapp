@@ -16,7 +16,7 @@ export type SupportedLang =
     // Indian languages
     | "en" | "hi" | "mr" | "bn" | "ta" | "te" | "gu" | "pa" | "kn" | "ml" | "or"
     // Foreign languages
-    | "ur" | "zh" | "es" | "ar" | "fr" | "pt" | "ru" | "id";
+    | "ur" | "zh" | "es" | "ar" | "fr" | "pt" | "ru" | "id" | "he" | "de" | "ja";
 
 /** #16: How the user prefers Imotara to respond by default. */
 export type ResponseStyle = "comfort" | "reflect" | "motivate" | "advise";

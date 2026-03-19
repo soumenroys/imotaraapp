@@ -88,6 +88,9 @@ function normalizeLang(lang?: string): string {
   if (l.startsWith("ar")) return "ar";
   if (l.startsWith("id")) return "id";
   if (l.startsWith("zh")) return "zh";
+  if (l.startsWith("he")) return "he";
+  if (l.startsWith("de")) return "de";
+  if (l.startsWith("ja")) return "ja";
 
   return l;
 }
@@ -95,7 +98,7 @@ function normalizeLang(lang?: string): string {
 // -----------------------------
 // Soft mirroring (Option B)
 // If user mixes native script + clear English, keep native language
-// but allow a couple short English “tags”.
+// but allow a couple short English "tags".
 // -----------------------------
 const SOFT_MIX_EN_TAGS = [
   "Okay.",
@@ -110,7 +113,7 @@ function wantsSoftMix(userMsg: string, lang: string): boolean {
   const hasLatin = /[A-Za-z]/.test(msg);
   if (!hasLatin) return false;
 
-  // “Clear English” hint: prevents random Latin names from triggering soft-mix
+  // "Clear English" hint: prevents random Latin names from triggering soft-mix
   const hasEnglishHint = EN_LANG_HINT_REGEX.test(msg);
   if (!hasEnglishHint) return false;
 
@@ -423,6 +426,48 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "Aduh…",
       ];
 
+    case "he":
+      return [
+        "אוי…",
+        "אוה!",
+        "הממ…",
+        "ממש?",
+        "וואו!",
+        "אוקיי…",
+        "הממ… הבנתי.",
+        "אה, זה כבד.",
+        "בסדר — אני שומע/ת.",
+        "אוף…",
+      ];
+
+    case "de":
+      return [
+        "Ach…",
+        "Oh!",
+        "Hmm…",
+        "Wirklich?",
+        "Wow!",
+        "Ok…",
+        "Hmm… ich verstehe.",
+        "Ohje…",
+        "Ok — ich höre zu.",
+        "Uff…",
+      ];
+
+    case "ja":
+      return [
+        "あ…",
+        "ええ!",
+        "うーん…",
+        "本当に?",
+        "わあ!",
+        "そっか…",
+        "うーん…なるほど。",
+        "あ、それはつらいね。",
+        "うん — 聞いてるよ。",
+        "ふぅ…",
+      ];
+
     default: {
       if (tone === "coach") {
         return [
@@ -591,6 +636,21 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
       "Butuh sedikit kelegaan dulu, atau kita tentukan langkah kecil berikutnya bersama?",
       "Langkah kecil apa yang terasa tepat untukmu sekarang?",
     ],
+    he: [
+      "רוצה לנסות צעד קטן עכשיו, או לספר לי איזה חלק הכי קשה?",
+      "קודם צריך/ה קצת הקלה, או שנקבע את הצעד הבא ביחד?",
+      "מה מרגיש לך כצעד קטן נכון הבא כרגע?",
+    ],
+    de: [
+      "Willst du jetzt einen kleinen Schritt versuchen, oder sag mir, was sich am schwersten anfühlt?",
+      "Brauchst du erst etwas Erleichterung, oder planen wir den nächsten kleinen Schritt zusammen?",
+      "Was fühlt sich für dich gerade als richtiger nächster kleiner Schritt an?",
+    ],
+    ja: [
+      "小さな一歩、今試してみる？それとも、一番難しいところを教えて？",
+      "まず少し楽になりたい？それとも、一緒に次の小さなステップを考える？",
+      "今、自分に合う次の小さな一歩って何だと思う？",
+    ],
   } as const;
 
   const calmCompanion = {
@@ -684,9 +744,24 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
       "Kita bisa lakukan ini perlahan — bagian mana yang terasa paling penting untuk ditahan sekarang?",
       "Apakah membantu jika kita sebut dulu bagian yang terasa paling berat?",
     ],
+    he: [
+      "אם תרצה/י, נוכל להאט ולהישאר עם החלק הכי חשוב.",
+      "נוכל לגשת לזה בעדינות — מה מרגיש הכי חשוב לאחוז בו עכשיו?",
+      "האם יעזור לתת שם קודם לחלק הכי כבד?",
+    ],
+    de: [
+      "Wenn du möchtest, können wir es etwas langsamer angehen und beim Wichtigsten bleiben.",
+      "Wir können es sanft angehen — was fühlt sich gerade am wichtigsten an?",
+      "Würde es helfen, zuerst den schwersten Teil zu benennen?",
+    ],
+    ja: [
+      "もし良ければ、少しゆっくり進んで、一番大切な部分だけに寄り添おう。",
+      "優しく進んでいいよ — 今、一番大切に感じる部分はどこ？",
+      "一番重く感じる部分を、まず言葉にしてみると楽になるかな？",
+    ],
   } as const;
 
-  // ✅ Coach: still soft + permission-based, but more directional + “we” tone
+  // ✅ Coach: still soft + permission-based, but more directional + "we" tone
   const coach = {
     en: [
       "I’m right here with you. If you’d like, we can pick one small thing to move forward on—gently.",
@@ -778,9 +853,24 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
       "Kita jalan sesuai ritasmu. Mau kita tentukan satu langkah kecil berikutnya bersama?",
       "Tidak ada tekanan — hanya satu arah kecil. Apa yang ingin kita permudah sedikit dulu?",
     ],
+    he: [
+      "אני כאן איתך. אם תרצה/י, נוכל לבחור יחד צעד קטן — בעדינות.",
+      "נלך בקצב שלך. רוצה שנחליט יחד על צעד קטן אחד?",
+      "אין לחץ — רק כיוון קטן. מה הכי קודם כדאי להקל קצת?",
+    ],
+    de: [
+      "Ich bin bei dir. Wenn du möchtest, können wir gemeinsam einen kleinen Schritt wählen — sanft.",
+      "Wir gehen in deinem Tempo. Sollen wir zusammen einen kleinen nächsten Schritt festlegen?",
+      "Kein Druck — nur eine kleine Richtung. Was soll zuerst ein bisschen leichter werden?",
+    ],
+    ja: [
+      "ここにいるよ。よかったら、一緒にそっと小さな一歩を選ぼう。",
+      "あなたのペースで進もう。小さな次の一歩を一緒に決めてみる？",
+      "プレッシャーはないよ — ただ一つの小さな方向だけ。まず何を少し楽にしたい？",
+    ],
   } as const;
 
-  // ✅ Mentor: softer clarity + gentle framing (not “coach-y”)
+  // ✅ Mentor: softer clarity + gentle framing (not "coach-y")
   const mentor = {
     en: [
       "If you want, we can slow it down and make sense of it—one piece at a time.",
@@ -871,6 +961,21 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
       "Kalau mau, kita bisa pahami ini perlahan — satu bagian demi satu bagian.",
       "Apakah akan membantu jika kita pahami dulu apa yang paling penting di sini, sebelum memilih langkah berikutnya?",
       "Mari kita jaga tetap sederhana — bagian mana yang kamu rasa paling penting dipahami dulu?",
+    ],
+    he: [
+      "אם תרצה/י, נוכל להבין את זה לאט — חלק אחד בכל פעם.",
+      "האם יעזור קודם לציין מה הכי חשוב כאן, לפני שנבחר צעד הבא?",
+      "נשאיר את זה פשוט — איזה חלק הכי חשוב להבין ראשון?",
+    ],
+    de: [
+      "Wenn du möchtest, können wir das langsam verstehen — ein Teil nach dem anderen.",
+      "Würde es helfen, zuerst zu benennen, was hier am wichtigsten ist, bevor wir einen nächsten Schritt wählen?",
+      "Lass es uns einfach halten — welchen Teil ist es am wichtigsten, zuerst zu verstehen?",
+    ],
+    ja: [
+      "よかったら、ゆっくり理解していこう — 一部分ずつ。",
+      "次の一歩を選ぶ前に、ここで一番大切なことを確認すると助けになるかな？",
+      "シンプルにしよう — 最初に一番理解しておきたい部分はどこ？",
     ],
   } as const;
 
@@ -965,6 +1070,21 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
       "Apa yang paling terasa berat sekarang — agar kita bisa mulai dari sana dengan lembut?",
       "Dari mana memulai akan terasa paling lembut dari sini?",
     ],
+    he: [
+      "נתחיל יחד לאט, בצעד קטן?",
+      "מה מרגיש הכי כבד עכשיו — כדי שנתחיל משם בעדינות?",
+      "מאיפה הכי נוח להתחיל מכאן?",
+    ],
+    de: [
+      "Sollen wir gemeinsam langsam beginnen, mit einem kleinen Schritt?",
+      "Was fühlt sich gerade am schwersten an — damit wir dort sanft anfangen können?",
+      "Von wo aus würde es sich hier am sanftesten anfühlen zu beginnen?",
+    ],
+    ja: [
+      "一緒にそっと、小さな一歩から始めようか？",
+      "今、一番重く感じることは何 — そこから優しく始めよう。",
+      "ここからどこを出発点にすると、一番優しく感じるかな？",
+    ],
   } as const;
 
   const bank =
@@ -1053,6 +1173,21 @@ function bridgeStatementBank(
       "کوئی جلدی نہیں۔ ایک چھوٹا قدم، پھر اگلا۔",
       "ہم آہستہ آہستہ، ساتھ مل کر سنبھال لیں گے۔",
     ],
+    he: [
+      "אני כאן — נשמור על זה פשוט.",
+      "אין מהרה. צעד קטן אחד, אחר כך הבא.",
+      "נסתדר עם זה לאט, יחד.",
+    ],
+    de: [
+      "Ich bin da — lass es uns einfach halten.",
+      "Kein Druck. Ein kleiner Schritt, dann der nächste.",
+      "Wir werden das ruhig und gemeinsam angehen.",
+    ],
+    ja: [
+      "ここにいるよ — シンプルに進もう。",
+      "急がなくていい。小さな一歩、それから次の一歩。",
+      "ゆっくり、一緒に乗り越えよう。",
+    ],
   } as const;
 
   const calmCompanion = {
@@ -1115,6 +1250,21 @@ function bridgeStatementBank(
       "آہستہ آہستہ چلتے ہیں۔ میں آپ کے ساتھ ہوں۔",
       "اسے نرم اور سادہ رکھیں۔",
       "ایک ایک پُرسکون قدم کافی ہے۔",
+    ],
+    he: [
+      "ניגש לזה בעדינות, מבלי לאבד בהירות.",
+      "נשאיר את זה עדין ופשוט.",
+      "צעד שקט אחד מספיק לעכשיו.",
+    ],
+    de: [
+      "Wir gehen das sanft an, ohne die Klarheit zu verlieren.",
+      "Einfach und sanft — so bleiben wir.",
+      "Ein ruhiger Schritt ist genug für jetzt.",
+    ],
+    ja: [
+      "穏やかに、でも誠実に向き合おう。",
+      "優しく、シンプルに進もう。",
+      "今は静かな一歩で十分。",
     ],
   } as const;
 
@@ -1197,6 +1347,27 @@ function bridgeStatementBank(
       "تمہیں سب کچھ ایک ساتھ اٹھانے کی ضرورت نہیں ہے۔",
       "چاہو تو ہم یہاں تھوڑی دیر ٹھہر سکتے ہیں۔",
     ],
+    he: [
+      "אני נשאר/ת כאן איתך עם זה.",
+      "נוכל להתמודד עם זה לאט, יחד.",
+      "אין לחץ — נלך בעדינות.",
+      "אתה/את לא צריך/ה לשאת את הכל בבת אחת.",
+      "אם תרצה/י, נוכל פשוט לשבת רגע כאן.",
+    ],
+    de: [
+      "Ich bleibe hier mit dir dabei.",
+      "Wir können das Schritt für Schritt zusammen angehen.",
+      "Kein Druck — wir bewegen uns behutsam.",
+      "Du musst nicht alles auf einmal tragen.",
+      "Wenn du möchtest, können wir einfach kurz innehalten.",
+    ],
+    ja: [
+      "ここで一緒にいるよ。",
+      "一緒に少しずつ進んでいこう。",
+      "プレッシャーはない — そっと動こう。",
+      "全部を一気に抱えなくていい。",
+      "よかったら、ここでちょっと止まってもいいよ。",
+    ],
   } as const;
 
   const bank =
@@ -1269,6 +1440,21 @@ function practicalBridgeBank(
       "ایک لائن میں goal بتائیں—پھر ہم سب سے چھوٹا next action چن لیں گے۔",
       "Current output + expected output بھیجیں—میں next step بتا دوں گا۔",
     ],
+    he: [
+      "מה הצעד הקטן הבא — נתחיל עם שם הקובץ או לוג השגיאה המדויק?",
+      "אמור/י לי את המטרה בשורה אחת — ואז נבחר את הפעולה הקטנה הבאה.",
+      "שלח/י output נוכחי + output צפוי — ואז נקבע את הצעד הבא.",
+    ],
+    de: [
+      "Was ist der nächste kleine Schritt — fangen wir mit dem Dateinamen an oder dem genauen Fehlerlog?",
+      "Sag mir dein Ziel in einem Satz — dann wählen wir die kleinste nächste Aktion.",
+      "Schick mir aktuellen Output + erwarteten Output — dann legen wir den nächsten Schritt fest.",
+    ],
+    ja: [
+      "次の小さなステップは何 — ファイル名から始める？それとも正確なエラーログから？",
+      "目標を一言で教えて — 一番小さな次の行動を選ぼう。",
+      "現在のoutputと期待するoutputを送って — 次のステップを決めよう。",
+    ],
   } as const;
 
   const calmCompanion = {
@@ -1326,6 +1512,21 @@ function practicalBridgeBank(
       "آہستہ آہستہ کرتے ہیں — ابھی اگلا ایک چھوٹا concrete کام کیا ہے؟",
       "اگلے 10 منٹ کے لیے تمہارا سب سے چھوٹا acceptable outcome کیا ہوگا؟",
       "جہاں اٹکے ہو وہ بتاؤ — ہم وہیں سے آہستگی سے آگے بڑھیں گے۔",
+    ],
+    he: [
+      "נעשה את זה בעדינות: מה הדבר הקונקרטי האחד שאתה/את רוצה שייגמר?",
+      "מה התוצאה הקטנה ביותר שתרצה/י להשיג ב-10 דקות הבאות?",
+      "אמור/י לי היכן אתה/את תקוע/ה — נעשה יחד צעד שקט.",
+    ],
+    de: [
+      "Machen wir es sanft: Was ist das eine konkrete Ding, das du als nächstes erledigt haben willst?",
+      "Was ist dein kleinstes akzeptables Ergebnis für die nächsten 10 Minuten?",
+      "Sag mir, wo du feststeckst — wir machen dann einen ruhigen Schritt zusammen.",
+    ],
+    ja: [
+      "優しく進もう — 次に達成したい一つの具体的なことは何？",
+      "次の10分間で、あなたにとって十分な最小限の成果は何？",
+      "どこで詰まっているか教えて — 一緒に静かな一歩を踏み出そう。",
     ],
     or: [
       "ଧୀରେ ଧୀରେ କରିବା — ଏବେ ପରବର୍ତ୍ତୀ ଗୋଟେ ଛୋଟ concrete କାମ କଣ?",
@@ -1489,6 +1690,27 @@ function suggestionBridgeBank(lang: string): readonly string[] {
     ] as const;
   }
 
+  if (l === "he") {
+    return [
+      "אם תרצה/י, צעד קטן עכשיו: קצת מים, 3 נשימות איטיות, או 60 שניות מתיחה. מה יעזור עכשיו — הרפיה או בהירות?",
+      "נוכל להתחיל מאד בקטן: 5 דקות הליכה, לשטוף את הפנים, או פשוט לספור נשימות. מה הכי קל לך כרגע?",
+    ] as const;
+  }
+
+  if (l === "de") {
+    return [
+      "Wenn du möchtest, ein kleiner Schritt: etwas Wasser, 3 langsame Atemzüge oder 60 Sekunden Dehnen. Was hilft jetzt am meisten — Erleichterung oder Klarheit?",
+      "Wir können es sehr klein halten: 5 Minuten Spaziergang, Gesicht waschen oder einfach Atemzüge zählen. Womit fällt es dir am leichtesten anzufangen?",
+    ] as const;
+  }
+
+  if (l === "ja") {
+    return [
+      "もし良ければ、小さな一歩：少し水を飲む、ゆっくり3回深呼吸、60秒ストレッチ。今一番助けになるのは — 安らぎ？それとも明確さ？",
+      "とても小さく始めることもできるよ：5分散歩、顔を洗う、ただ息を数える。今あなたにとって一番やりやすいのはどれ？",
+    ] as const;
+  }
+
   // default EN
   return [
     "If you want a tiny step: sip water, take 3 slow breaths, or stretch for 60 seconds. What would help most right now—comfort or clarity?",
@@ -1601,6 +1823,21 @@ function greetingInsightBank(
       "ଆରେ 👋 ତୁମେ ଆସିଛ, ଭଲ ଲାଗିଲା।",
       "ହାଇ। ଆଜି ଦିନ କେମିତି କଟୁଛି?",
     ],
+    he: [
+      "היי 🙂 שמח/ה לראות אותך כאן.",
+      "היי 👋 טוב שבאת/באת.",
+      "היי. ספר/י לי, איך נראה היום.",
+    ],
+    de: [
+      "Hey 🙂 Schön, dich hier zu sehen.",
+      "Hallo 👋 Gut, dass du vorbeigekommen bist.",
+      "Hi. Erzähl mir, was das heute für ein Tag ist.",
+    ],
+    ja: [
+      "こんにちは 🙂 ここで会えてよかった。",
+      "やあ 👋 来てくれてよかった。",
+      "こんにちは。今日はどんな日？教えて。",
+    ],
   } as const;
 
   const coach = {
@@ -1700,6 +1937,21 @@ function greetingBridgeBank(
       "ଏବେ କେମିତି ଅଛ?",
       "ଆଜି ତୁମ ମନରେ କଣ ଚାଲୁଛି?",
       "ଏହି ମୁହୂର୍ତ୍ତରେ ତୁମକୁ ମୋ ପାଖରୁ କଣ ଦରକାର?",
+    ],
+    he: [
+      "איך אתה/את עכשיו?",
+      "מה עובר לך בראש היום?",
+      "מה תרצה/י ממני עכשיו?",
+    ],
+    de: [
+      "Wie geht es dir gerade?",
+      "Was beschäftigt dich heute?",
+      "Was möchtest du gerade von mir?",
+    ],
+    ja: [
+      "今、どんな感じ？",
+      "今日、何が頭にある？",
+      "今、私に何を求めてる？",
     ],
   } as const;
 
@@ -1803,7 +2055,13 @@ export function formatImotaraReply(input: FormatReplyInput): string {
                           ? "اچھا، تم واپس آ گئے ہو۔ ہم یہیں سے آہستہ آہستہ آگے بڑھتے ہیں۔"
                           : lang === "or"
                             ? "ଠିକ ଅଛି, ତୁମେ ଫେରି ଆସିଛ। ଏଠାରୁ ଧୀରେ ଧୀରେ ଆଗକୁ ବଢ଼ିବା।"
-                            : "Alright, you’re back. We can continue gently from here.";
+                            : lang === "he"
+                              ? "טוב שחזרת/חזרת. נוכל להמשיך מכאן בעדינות."
+                              : lang === "de"
+                                ? "Schön, dass du zurück bist. Wir können hier sanft weitermachen."
+                                : lang === "ja"
+                                  ? "戻ってきたね。ここからゆっくり続けよう。"
+                                  : "Alright, you’re back. We can continue gently from here.";
 
     return fallback;
   }
@@ -1831,7 +2089,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
 
   const greeting = isGreetingOnly(userMsg);
 
-  // --- Return mode: user came back; keep it “what now?” and stop extra probing ---
+  // --- Return mode: user came back; keep it "what now?" and stop extra probing ---
   if (isReturn) {
     bridges = [
       "What do you want to do right now?",
@@ -1839,7 +2097,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
       "What’s the first thing you want from me right now?",
     ] as const;
   } else {
-    // --- Greeting mode: make “hi” feel human ---
+    // --- Greeting mode: make "hi" feel human ---
 
     if (greeting) {
       bridges = greetingBridgeBank(lang, tone);
@@ -2125,7 +2383,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   }
 
   // ✅ De-dupe repeated sentences inside Phase 2
-  // (common when the model repeats “আমি বুঝতে পারছি…” 2–3 times)
+  // (common when the model repeats "আমি বুঝতে পারছি…" 2–3 times)
   {
     const normSent = (s: string): string =>
       String(s ?? "")
@@ -2133,7 +2391,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
         .replace(/\s+/g, " ")
         .trim()
         .toLowerCase()
-        .replace(/[\s\.!?؟？”“…]+$/g, "");
+        .replace(/[\s\.!?؟？""…]+$/g, "");
 
     const sents = splitIntoSentences(phase2Raw);
     if (sents.length >= 2) {
@@ -2293,7 +2551,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
 
     // Deterministic (stable for testing), but no 2-phase outputs.
     // 0-5: presence + 1 bridge statement
-    // 6-8: presence + 2 bridge statements (more “friend chatter”)
+    // 6-8: presence + 2 bridge statements (more "friend chatter")
     // 9: normal 3-phase (phase3 as-is)
     const roll = Math.abs(hash32(`soft:${lang}:${tone}:${seed}:${userMsg}`)) % 10;
 

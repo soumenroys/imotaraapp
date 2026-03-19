@@ -295,8 +295,8 @@ export async function POST(req: Request) {
     // Arc-aware response depth instruction
     const lengthInstruction =
       arc.depth === "deep"
-        ? "Use 3–4 sentences that feel warm and connected — not clinical or formulaic."
-        : "Reply in 2–3 short sentences.";
+        ? "Use 2–3 sentences that feel warm and connected — not clinical or formulaic. If you include a mythology reference or quote, keep the total reply to 2–3 sentences including that element."
+        : "Reply in 1–2 short sentences. If you include a mythology reference or quote, keep the total reply to 2 sentences including that element.";
 
     // For sustained emotional conversations, remind the model to honour the arc
     const arcDepthHint =
@@ -349,7 +349,7 @@ export async function POST(req: Request) {
         "HOW: Introduce it naturally — 'There's a story from the Mahabharata that comes to mind...' / 'Rumi wrote something that feels true here...' / 'A Zen story I keep thinking about...' / 'In Greek mythology...'",
         "KEEP IT BRIEF: 1–2 sentences — the essence of the story and why it connects to their situation.",
         "LANGUAGE: Always share in the user's language. If the original story is from another language, translate naturally.",
-        "FREQUENCY: Roughly 1 in 4 emotional turns — only when it feels genuinely fitting.",
+        "FREQUENCY: Roughly 1 in 10 emotional turns — only when it genuinely adds something; default is to skip it.",
         "NEVER USE when: the user is in crisis, asking a direct factual question, greeting, or the conversation is light and casual.",
         "TONE: Warm and human — like a friend who remembers a story. Never preachy or lecture-like.",
       ].join("\n"),
@@ -361,7 +361,7 @@ export async function POST(req: Request) {
         "HOW: Weave it naturally — 'A line I keep coming back to...' / 'Marcus Aurelius once wrote...' / 'There's a quote from Rumi that feels true here...' / 'Einstein put it beautifully:'",
         "FORMAT: Quote in quotation marks, followed by attribution — '\"[quote]\" — [Author]'.",
         "LANGUAGE: Translate or find an equivalent quote in the user's language if they write in Hindi, Arabic, French, etc. Attribute the author by name.",
-        "FREQUENCY: Roughly 1 in 5 emotional or reflective turns. Never on the same turn as a mythology story. Never forced.",
+        "FREQUENCY: Roughly 1 in 8 emotional or reflective turns. Never on the same turn as a mythology story. Never forced.",
         "NEVER USE when: the user is in crisis, light casual chat, greetings, or direct factual questions.",
         "TONE: Like a friend who genuinely remembers a line — not a quotation database. Keep it short and connected to what they said.",
       ].join(" "),

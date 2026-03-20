@@ -307,21 +307,35 @@ export async function POST(req: Request) {
     if (ug && ug !== "prefer_not" && ug !== "other") {
       if (ug === "female") {
         genderLines.push(
-          "USER GENDER: female — use feminine second-person verb agreement in gendered languages " +
-          "(Hindi: 'tum theek ho rahi ho', 'sambhal logi', 'kya hua tumhare saath'; " +
-          "Bengali: 'tumi ki thik acho'; Tamil: 'nee epdi irukkaai'; " +
-          "Arabic: 'kayfa anti'; Hebrew: 'ma shlomech'; German: 'wie geht es dir'; French: 'tu vas bien')."
+          "USER GENDER: female — use feminine second-person verb agreement and adjective agreement in gendered languages: " +
+          "Hindi: 'tum theek ho rahi ho', 'sambhal logi', 'kya hua tumhare saath'; " +
+          "Bengali: 'tumi ki thik acho'; Tamil/Telugu/Kannada/Malayalam/Odia: 2nd-person is gender-neutral, no change needed; " +
+          "Spanish: 'estás cansada', 'estás preocupada', 'qué tal estás'; " +
+          "Portuguese: 'estás cansada', 'você está bem', 'como você está'; " +
+          "French: 'tu vas bien' (verb unchanged, but adjectives agree: 'tu es courageuse'); " +
+          "German: predicate adjectives after 'sein' do not inflect for 2nd-person gender — 'du bist müde' regardless; " +
+          "Indonesian: gender-neutral ('kamu', 'Anda') — no change; " +
+          "Arabic: 'kayfa anti'; Hebrew: 'ma shlomech'."
         );
       } else if (ug === "male") {
         genderLines.push(
-          "USER GENDER: male — use masculine second-person verb agreement in gendered languages " +
-          "(Hindi: 'tum theek ho', 'sambhal loge'; Arabic: 'kayfa anta'; Hebrew: 'ma shlomcha')."
+          "USER GENDER: male — use masculine second-person verb and adjective agreement in gendered languages: " +
+          "Hindi: 'tum theek ho', 'sambhal loge'; " +
+          "Spanish: 'estás cansado', 'estás preocupado'; " +
+          "Portuguese: 'estás cansado', 'você está bem'; " +
+          "French: 'tu es courageux'; " +
+          "German: predicate adjectives after 'sein' do not inflect for 2nd-person gender — 'du bist müde' regardless; " +
+          "Indonesian: gender-neutral — no change; " +
+          "Arabic: 'kayfa anta'; Hebrew: 'ma shlomcha'."
         );
       } else if (ug === "nonbinary") {
         genderLines.push(
           "USER GENDER: non-binary — use gender-neutral or gender-inclusive forms. " +
           "In Hindi/Indic languages avoid strongly gendered endings where possible; default to neutral phrasing. " +
-          "In Arabic/Hebrew use the least gendered form available. In German/French prefer neutral constructions."
+          "In Spanish/Portuguese use gender-neutral forms where available (e.g. 'estás bien', avoid -o/-a adjective agreement). " +
+          "In French prefer neutral constructions. In German predicate adjectives after 'sein' are already uninflected for 2nd person. " +
+          "Indonesian is naturally gender-neutral. " +
+          "In Arabic/Hebrew use the least gendered form available."
         );
       }
     }
@@ -329,19 +343,34 @@ export async function POST(req: Request) {
       if (cg === "female") {
         genderLines.push(
           "COMPANION/IMOTARA VOICE GENDER: female — when Imotara speaks in first person in gendered languages, " +
-          "use feminine verb forms (Hindi: 'sun rahi hoon', 'samajh gayi', 'yahan hoon'; " +
+          "use feminine verb and adjective forms: " +
+          "Hindi: 'sun rahi hoon', 'samajh gayi', 'yahan hoon'; " +
           "Bengali: 'ami bujhte parchhchi'; Marathi: 'mi aikte aahe'; Gujarati: 'hun sambhalu chhun'; " +
-          "Punjabi: 'main sun rahi haan'; Tamil: 'naan ketkirein'; Arabic: 'ana huna laki'; Hebrew: 'ani kan bishvilech')."
+          "Punjabi: 'main sun rahi haan'; Tamil/Telugu/Kannada/Malayalam/Odia: 1st-person verbs are gender-neutral — no change needed; " +
+          "Spanish: 'estoy aquí contigo', 'estoy lista', 'estaba preocupada' (feminine -a adjective); " +
+          "Portuguese: 'estou aqui', 'estou pronta', 'estou contente' (feminine -a adjective); " +
+          "French: use passé composé with être in feminine form: 'je suis venue', 'je suis restée'; " +
+          "German: predicate adjectives after 'sein' do not inflect for 1st person — 'ich bin müde' regardless; " +
+          "Indonesian: gender-neutral — no change needed; " +
+          "Arabic: 'ana huna laki'; Hebrew: 'ani kan bishvilech'."
         );
       } else if (cg === "male") {
         genderLines.push(
-          "COMPANION/IMOTARA VOICE GENDER: male — use masculine first-person verb forms " +
-          "(Hindi: 'sun raha hoon', 'samajh gaya'; Bengali: 'ami bujhte parchhi'; Marathi: 'mi aikte aahe'; " +
-          "Arabic: 'ana huna lak'; Hebrew: 'ani kan bishvilcha')."
+          "COMPANION/IMOTARA VOICE GENDER: male — use masculine first-person verb and adjective forms: " +
+          "Hindi: 'sun raha hoon', 'samajh gaya'; Bengali: 'ami bujhte parchhi'; Marathi: 'mi aiket aahe'; " +
+          "Tamil/Telugu/Kannada/Malayalam/Odia: 1st-person verbs are gender-neutral — no change needed; " +
+          "Spanish: 'estoy aquí contigo', 'estoy listo', 'estaba preocupado' (masculine -o adjective); " +
+          "Portuguese: 'estou aqui', 'estou pronto', 'estou contente' (masculine -o adjective); " +
+          "French: 'je suis venu', 'je suis resté' (passé composé with être, masculine); " +
+          "German: predicate adjectives after 'sein' do not inflect for 1st person — 'ich bin müde' regardless; " +
+          "Indonesian: gender-neutral — no change needed; " +
+          "Arabic: 'ana huna lak'; Hebrew: 'ani kan bishvilcha'."
         );
       } else if (cg === "nonbinary") {
         genderLines.push(
-          "COMPANION/IMOTARA VOICE GENDER: non-binary — use gender-neutral first-person forms, avoid gendered verb endings."
+          "COMPANION/IMOTARA VOICE GENDER: non-binary — use gender-neutral first-person forms, avoid gendered verb or adjective endings. " +
+          "In Spanish/Portuguese avoid -o/-a adjective agreement; use neutral phrasing. " +
+          "In French avoid passé composé with être where agreement would reveal gender, or use the least marked form."
         );
       }
     }

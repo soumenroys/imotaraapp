@@ -606,40 +606,45 @@ export function buildLocalReply(
 
     const openersByToneEn: Record<LocalResponseTone, string[]> = {
         calm: [
-            `I'm here with you.`,
+            `That sounds like a lot to hold.`,
             `Let's slow this down together.`,
             `Okay. We can take this gently.`,
             `I'm with you. Let's take one piece at a time.`,
+            `That makes sense to feel that way.`,
+            `Take your time. I'm not going anywhere.`,
         ],
         supportive: [
-            `I'm here with you.`,
             `I hear you.`,
-            `Okay — I'm with you.`,
-            `I'm glad you said that.`,
-            `Got it. I'm listening.`,
+            `Thank you for telling me that.`,
+            `That took courage to say.`,
+            `I'm glad you reached out.`,
+            `I'm listening, fully.`,
+            `That sounds really difficult.`,
         ],
         practical: [
             `Okay. Let's look at this clearly.`,
             `Got it. Let's take this one piece at a time.`,
-            `Alright — let's steady this and see what matters most.`,
-            `I'm with you. Let's keep it simple.`,
+            `Alright — let's figure out what matters most right now.`,
+            `Let's think through this together.`,
+            `That's a real situation. Let's work through it.`,
         ],
         coach: [
-            `Okay — I'm with you. Let's steady this.`,
-            `Got it. We can work through this step by step.`,
-            `Alright — let's slow this down and get our footing.`,
-            `I hear you. Let's take it one piece at a time.`,
+            `Okay — let's work through this together.`,
+            `Got it. We can take this step by step.`,
+            `That's real. Let's get our footing and start from here.`,
+            `I hear you. Let's figure out where to begin.`,
+            `You've got more in you than you think right now.`,
         ],
         "gentle-humor": [
-            `Okay — I'm with you.`,
-            `Mm. I hear you.`,
-            `Got it. I'm here.`,
-            `Alright — let's make this feel a little lighter, one step at a time.`,
+            `Okay, I'm with you.`,
+            `Noted — and I mean that genuinely.`,
+            `That's a lot. You don't have to carry it alone.`,
+            `Fair enough. Let's make this a little more manageable.`,
         ],
         direct: [
-            `Alright. I'm with you.`,
-            `Okay. Let's be clear about this.`,
-            `Got it. Let's keep this steady.`,
+            `Got it. Let's be honest with each other.`,
+            `Okay. Let's look at this straight.`,
+            `Understood. Let's keep this clear and real.`,
             `I hear you. Let's get to the heart of it.`,
         ],
     };
@@ -805,33 +810,53 @@ export function buildLocalReply(
     };
 
     const validationsEn: Record<typeof signal, string[]> = {
-        sad: [`That sounds heavy.`, `That can really hurt.`, `I'm sorry you're carrying that.`, `That's a lot to sit with.`],
+        sad: [
+            `That sounds really painful.`,
+            `That kind of hurt doesn't just go away on its own.`,
+            `I'm sorry you're going through this.`,
+            `That's genuinely hard — not just a little hard.`,
+            `What you're feeling makes complete sense.`,
+            `You didn't deserve that.`,
+        ],
         anxious: [
-            `That sounds like your mind is running fast.`,
-            `That kind of pressure can feel loud.`,
-            `It makes sense you'd feel tense with that.`,
-            `That overwhelm feeling is real.`,
+            `That sounds like your mind is running at full speed.`,
+            `That kind of pressure is exhausting to live inside.`,
+            `It makes complete sense you'd feel on edge with that.`,
+            `That's a lot of uncertainty to hold at once.`,
+            `Anxiety about this is a very human response.`,
+            `Your nervous system is reacting to something real.`,
         ],
         angry: [
-            `That sounds frustrating.`,
-            `I can see how that would irritate you.`,
-            `That would get under anyone's skin.`,
-            `Yeah — that's a rough feeling.`,
+            `That anger makes a lot of sense.`,
+            `Something real happened here — that frustration is valid.`,
+            `I'd feel that way too.`,
+            `Yeah — that's genuinely unfair.`,
+            `That kind of thing gets under anyone's skin.`,
+            `It's okay to be angry about this.`,
         ],
-        tired: [`That sounds draining.`, `No wonder you feel worn out.`, `That kind of tired can build up.`, `That's a lot of load for one day.`],
+        tired: [
+            `That kind of exhaustion goes deeper than sleep can fix.`,
+            `You've been holding a lot for a long time.`,
+            `No wonder your energy is low — this is a lot.`,
+            `That kind of tired builds up quietly and then hits all at once.`,
+            `You're allowed to be worn out by this.`,
+            `That's a real kind of depletion, not just tiredness.`,
+        ],
         okay: [
             `Tell me a little more.`,
             `I'm with you — what's going on?`,
-            `I'm listening. What's sitting with you right now?`,
-            `Okay. What's the main thing on your mind?`,
+            `What's been on your mind?`,
+            `Okay. What's the main thing you're sitting with right now?`,
+            `I'm here — take whatever direction feels right.`,
         ],
     };
 
     const carryValidationsEn = [
-        `I can feel this is still sitting with you.`,
-        `This sounds like it is still weighing on you.`,
-        `I'm still with the thread of what you're carrying.`,
-        `It seems this is still heavy in the background.`,
+        `This is still with you — I can feel that.`,
+        `It sounds like this hasn't settled yet, and that makes sense.`,
+        `You're still in the middle of this, aren't you.`,
+        `This hasn't left you. Let's stay with it a little longer.`,
+        `Something about this keeps coming back up for you.`,
     ];
 
     const validationsHi: Record<typeof signal, string[]> = {
@@ -961,31 +986,42 @@ export function buildLocalReply(
     };
 
     const reflectLinesEn = [
-        `When you say "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", what part feels strongest right now?`,
-        `What's the part of this that feels most uncomfortable?`,
-        `If we zoom in: what's the one detail that's bothering you most?`,
-        `What do you wish was different about this situation?`,
+        keyTopic ? `You mentioned ${keyTopic} — what part of that feels the most pressing right now?` : `What part of this is sitting with you most right now?`,
+        `What's the piece of this that feels hardest to let go of?`,
+        `If you had to pick just one thing that's bothering you most — what would it be?`,
+        `What do you wish felt different about this situation?`,
+        `What's the part of this that's been hardest to say out loud?`,
     ];
 
     const reflectLinesHi = [
-        `Jab tum kehte ho "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", abhi sabse zyada kya mehsoos ho raha hai?`,
+        keyTopic ? `Tumne ${keyTopic} ki baat ki — abhi us mein sabse zyada kya daba raha hai?` : `Is mein abhi sabse zyada kya mehsoos ho raha hai?`,
         `Isme sabse zyada uncomfortable kya lag raha hai?`,
-        `Agar hum thoda zoom in karein, sabse zyada pareshaan kya kar raha hai?`,
+        `Agar ek hi cheez chunni ho jo sabse zyada pareshaan kar rahi ho — woh kya hogi?`,
         `Tum chahte ho is situation mein kya alag hota?`,
     ];
 
     const reflectLinesBn = [
-        `Jokhon bolo "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", ekhon shobcheye jore ki lagchhe?`,
+        keyTopic ? `Tumi ${keyTopic} er kotha bollecho — seta r modhye ekhon shobcheye ta ki lagchhe?` : `Ei bishoy ta r modhye ekhon shobcheye beshi ki mone hochhe?`,
         `Eitar modhye shobcheye beshi uncomfortable ki lagchhe?`,
-        `Jodi ektu zoom in kori, shobcheye beshi ki jhamela dicchhe?`,
-        `Tumi chaite e situation ta kivabe alada hoto?`,
+        `Jodi ekta jinish cholte hoy je shobcheye beshi bhasachhe — seta ki?`,
+        `Tumi chaite e obostha ta kivabe alada hoto?`,
     ];
 
     const nextStepLinesEn = [
-        `Want comfort, clarity, or a next step?`,
-        `Do you want to talk it out, or want something practical to do next?`,
-        `Would it help to unpack it, or to pick one small action?`,
-        `Should we focus on what you're feeling, or what you can do next?`,
+        `We can keep talking through this, or find one small thing to try — whichever feels right.`,
+        `Some people need to say it all out loud first. Others want a plan. Where are you at?`,
+        `We can keep unpacking this, or find one small move. What feels more useful right now?`,
+        `I'm with you on this — whether that's talking it through or finding something concrete to do next.`,
+    ];
+
+    // Listening-only extras — used when the user is venting.
+    // Statements only, no questions, no binary choices.
+    const listeningOnlyExtrasEn = [
+        `You don't have to figure this out right now.`,
+        `I'm not going anywhere. Say as much or as little as you need.`,
+        `You're allowed to feel all of this.`,
+        `There's no right way to process this — just keep going.`,
+        `You don't have to wrap this up neatly.`,
     ];
 
     const nextStepLinesHi = [
@@ -2169,7 +2205,9 @@ export function buildLocalReply(
                                         ? pick(carryExtrasOr[companionTone], seed >>> 5)
                                         : hasCarry
                                             ? pick(carryExtrasEn[companionTone], seed >>> 5)
-                                            : pick(extrasByTone[companionTone], seed >>> 5);
+                                            : userIntent === "venting" && bankLanguage === "en"
+                                                ? pick(listeningOnlyExtrasEn, seed >>> 5)
+                                                : pick(extrasByTone[companionTone], seed >>> 5);
 
     const base = `${correctionPrefix}${followUpPrefix}${opener} ${validation}`.trim();
     const extraPart = suppressExtras ? "" : (extra ? " " + extra : "");
@@ -2218,6 +2256,71 @@ export function buildLocalReply(
             gu: "Tamaro samay lejo — koi uchhat nathi.",
             pa: "Apna waqt lo — koi jaldi nahin.",
             or: "Tumara samay niao — kono jaldi nei.",
+        },
+        "18_24": {
+            en: "You're doing the right thing by talking about it.",
+            hi: "Is baare mein baat karna sahi kadam hai.",
+            mr: "Yaabaddal bolne he yogy aahe.",
+            bn: "Eta niye kotha bola thik kaaj kara hochhe.",
+            ta: "Idha pathi pesuradhu sari dhan.",
+            te: "Idi gurinchi maatladatam manchidi.",
+            kn: "Idu bagge mathaduvudu sariyaada kaelasa.",
+            ml: "Itu kurichu samsaarikkunnathu shariyanukkaranam.",
+            gu: "Aa baare vaat karavi yogya che.",
+            pa: "Is baare gall karna sahi kadam hai.",
+            or: "Ei bishayare kotha kahiba thik kaaj.",
+        },
+        "25_34": {
+            en: "You're not alone in this — a lot of people carry something like this.",
+            hi: "Tum akele nahi ho isme — bahut log aise hi kuch uthate hain.",
+            mr: "Tu ekta nahi — aneka lok ase kahi sahan kartat.",
+            bn: "Tumi ekla nao — onek lok ai rokom kichhu bahan kore.",
+            ta: "Nee thani illai — neraya pera indha maadiri oru tholai irukku.",
+            te: "Nuvvu okkadivu kaadu — chala mandhi ila emi o mootukuntaaru.",
+            kn: "Neenu ontiiya alla — tumba jana heegey ennuva edanno bahoosuttaare.",
+            ml: "Nee thaaniyan alla — nireyaal peral ithupole entho vehikkunnundu.",
+            gu: "Tu eklo nathi — ghano log aavun kainchuk vahe chhe.",
+            pa: "Tu akela nahi — bahut log aisa kuch chuk de hain.",
+            or: "Tume eka nahi — onek lok eidharan kichhi bahi chaluchhi.",
+        },
+        "35_44": {
+            en: "It's okay to not have everything figured out.",
+            hi: "Koi baat nahi agar sab kuch clear nahi hai abhi.",
+            mr: "Sab kahi clear nasale tari chalte.",
+            bn: "Sob ta clear na hole chalta — ekhon thik ache.",
+            ta: "Ellame theriyaama irundhaalum paravaillai.",
+            te: "Anni ardham kaakunda undi ante nee ledu.",
+            kn: "Ellavu artha aagabekilla — adhu sari.",
+            ml: "Ellaam manasilaakathe paravaailla.",
+            gu: "Sab kainchuk clear na hoy to chalse.",
+            pa: "Sab kuch clear na hove, thik hai.",
+            or: "Sab kichhi spashtа na hole, thik achhi.",
+        },
+        "45_54": {
+            en: "You're allowed to put yourself first right now.",
+            hi: "Abhi apne aap ko pehle rakhna bilkul theek hai.",
+            mr: "Sthaavar rahane yogya aahe — swatahkade lakshy dya.",
+            bn: "Ekhon nijeke agey rakhte para — eta thik.",
+            ta: "Ippovum unavvai munnu vaikka urimai irukkudhu.",
+            te: "Ippudu meeru meemi mundu pettukovalsi inthe sari.",
+            kn: "Ippudu nimage munnadhikarata koduvudu sari.",
+            ml: "Ippol ninnekku mukhyata kodukkaanulla avakasham undu.",
+            gu: "Abhi potane pahela rakhvo bilkul thik chhe.",
+            pa: "Hun apne aap nu pehle rakhna bilkul theek hai.",
+            or: "Ekhon nijekku age rakhiba thik.",
+        },
+        "55_64": {
+            en: "What you're feeling is completely valid — don't push it aside.",
+            hi: "Jo tum feel kar rahe ho, woh bilkul sahi hai — ise ignore mat karo.",
+            mr: "Tu jo feel karto te khup valid aahe — te baajula dhakku nako.",
+            bn: "Tumi je feel korcho seta puroto sathik — eta ekpashe sarie diyo na.",
+            ta: "Nee feel panradhu konjam um thevaiyaana — adha oda vidalaadhey.",
+            te: "Mee feel avutunnaaru adi bilkul valid — daanini tappinchukoboddu.",
+            kn: "Neevu feel aaguttiruvadudu sampoornavagi sariyaagide — adannu agalagisi bidabedi.",
+            ml: "Nee feel aakkunnathu bilkul valid aanu — adhu marakkaathe.",
+            gu: "Tu je feel kare chhe te bilkul valid chhe — tene ek baaju nakho.",
+            pa: "Jo tu feel kar raha hai, bilkul sahi hai — ise ek passe na dhak.",
+            or: "Tume je feel karuchha seta puro satya — eta ek paase thili diyo na.",
         },
     };
     const ageCloser = userAge ? (ageClosersByLang[userAge]?.[bankLanguage] ?? "") : "";

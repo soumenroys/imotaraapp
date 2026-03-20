@@ -472,6 +472,68 @@ function applyPunjabiUserGender(text: string, gender?: string): string {
         .replace(/\bsambhal lavega\b/g, "sambhal lavegi");
 }
 
+function applyBengaliCompanionGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        .replace(/\bshunchhi\b/g, "shunchhi")   // already neutral in Bengali
+        .replace(/\bbujhechhi\b/g, "bujhechi")
+        .replace(/\bthakbo\b/g, "thakbo");       // gender-neutral in Bengali
+}
+
+function applyMarathiCompanionGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        .replace(/\baiktoyo\b/gi, "aikteyo")
+        .replace(/\bgheto\b/gi, "ghete")
+        .replace(/\bsamjun gheto\b/gi, "samjun ghete");
+}
+
+function applyMarathiUserGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        .replace(/\bkarsheel\b/g, "karashil")
+        .replace(/\bsambhalishe\b/g, "sambhalishes");
+}
+
+// Tamil, Telugu, Kannada, Malayalam, Odia: 1st/2nd-person verbs are largely
+// gender-neutral in these templates. Functions are wired in for consistency
+// and can be extended if future templates introduce gendered forms.
+
+function applyTamilCompanionGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        .replace(/\bpurinjutten\b/gi, "purinjutten")   // neutral in standard Tamil
+        .replace(/\bkettirukken\b/gi, "kettirukken");   // neutral
+}
+
+function applyTeluguCompanionGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        .replace(/\bayyaadu\b/g, "ayyindi")
+        .replace(/\bcesaadu\b/g, "cesindi");
+}
+
+function applyKannadaCompanionGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        .replace(/\bbandhanu\b/gi, "bandhalu")
+        .replace(/\bidhanu\b/gi, "idhalu");
+}
+
+function applyMalayalamCompanionGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        .replace(/\bvannirunnu\b/gi, "vannirunnu")  // neutral in Malayalam
+        .replace(/\bsahaayichchu\b/gi, "sahaayichchu");
+}
+
+function applyOdiaCompanionGender(text: string, gender?: string): string {
+    if (gender !== "female") return text;
+    return text
+        .replace(/\bkaricha\b/gi, "karichi")
+        .replace(/\bashichi\b/gi, "ashichi");
+}
+
 export function buildLocalReply(
     message: string,
     toneContext?: ToneContext,
@@ -2176,6 +2238,21 @@ export function buildLocalReply(
     } else if (language === "pa") {
         finalMessage = applyPunjabiCompanionGender(finalMessage, companionGender);
         finalMessage = applyPunjabiUserGender(finalMessage, userGender);
+    } else if (language === "bn") {
+        finalMessage = applyBengaliCompanionGender(finalMessage, companionGender);
+    } else if (language === "mr") {
+        finalMessage = applyMarathiCompanionGender(finalMessage, companionGender);
+        finalMessage = applyMarathiUserGender(finalMessage, userGender);
+    } else if (language === "ta") {
+        finalMessage = applyTamilCompanionGender(finalMessage, companionGender);
+    } else if (language === "te") {
+        finalMessage = applyTeluguCompanionGender(finalMessage, companionGender);
+    } else if (language === "kn") {
+        finalMessage = applyKannadaCompanionGender(finalMessage, companionGender);
+    } else if (language === "ml") {
+        finalMessage = applyMalayalamCompanionGender(finalMessage, companionGender);
+    } else if (language === "or") {
+        finalMessage = applyOdiaCompanionGender(finalMessage, companionGender);
     }
 
     // Occasionally address user by name (~1 in 3 replies, seed-driven for consistency)

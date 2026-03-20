@@ -115,6 +115,11 @@ export async function respondRemote(input: {
         : undefined;
     const lang = profileLang || detectedLang;
 
+    // Gender: read from toneContext if provided
+    const ctxTone = ctx.toneContext as { user?: { gender?: string }; companion?: { gender?: string } } | undefined;
+    const userGender = ctxTone?.user?.gender;
+    const companionGender = ctxTone?.companion?.gender;
+
     try {
         const aiRes = await fetch("/api/chat-reply", {
             method: "POST",
@@ -126,6 +131,8 @@ export async function respondRemote(input: {
             ...(toneCtx?.user?.ageRange ? { userAge: toneCtx.user.ageRange } : {}),
             ...(toneCtx?.companion?.ageRange ? { companionAge: toneCtx.companion.ageRange } : {}),
             ...(typeof ctx.emotionMemory === "string" && ctx.emotionMemory ? { emotionMemory: ctx.emotionMemory } : {}),
+            ...(userGender && userGender !== "prefer_not" && userGender !== "other" ? { userGender } : {}),
+            ...(companionGender && companionGender !== "prefer_not" && companionGender !== "other" ? { companionGender } : {}),
         }),
         });
 

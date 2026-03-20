@@ -38,6 +38,10 @@ type ChatReplyRequest = {
   userAge?: string;      // e.g. "13_17", "25_34", "65_plus"
   companionAge?: string; // age range of the companion persona
 
+  // ✅ Gender context (verb conjugation and grammatical agreement in gendered languages)
+  userGender?: "female" | "male" | "nonbinary" | "prefer_not" | "other";
+  companionGender?: "female" | "male" | "nonbinary" | "prefer_not" | "other";
+
   messages?: {
     role: "user" | "assistant" | "system";
     content: string;
@@ -296,6 +300,53 @@ export async function POST(req: Request) {
       ? `The user's preferred name is: ${preferredName}.\nUse it naturally (not every line).\n`
       : "";
 
+    // Gender instruction: grammatical agreement, verb conjugation, and honorifics
+    const genderLines: string[] = [];
+    const ug = body?.userGender;
+    const cg = body?.companionGender;
+    if (ug && ug !== "prefer_not" && ug !== "other") {
+      if (ug === "female") {
+        genderLines.push(
+          "USER GENDER: female — use feminine second-person verb agreement in gendered languages " +
+          "(Hindi: 'tum theek ho rahi ho', 'sambhal logi', 'kya hua tumhare saath'; " +
+          "Bengali: 'tumi ki thik acho'; Tamil: 'nee epdi irukkaai'; " +
+          "Arabic: 'kayfa anti'; Hebrew: 'ma shlomech'; German: 'wie geht es dir'; French: 'tu vas bien')."
+        );
+      } else if (ug === "male") {
+        genderLines.push(
+          "USER GENDER: male — use masculine second-person verb agreement in gendered languages " +
+          "(Hindi: 'tum theek ho', 'sambhal loge'; Arabic: 'kayfa anta'; Hebrew: 'ma shlomcha')."
+        );
+      } else if (ug === "nonbinary") {
+        genderLines.push(
+          "USER GENDER: non-binary — use gender-neutral or gender-inclusive forms. " +
+          "In Hindi/Indic languages avoid strongly gendered endings where possible; default to neutral phrasing. " +
+          "In Arabic/Hebrew use the least gendered form available. In German/French prefer neutral constructions."
+        );
+      }
+    }
+    if (cg && cg !== "prefer_not" && cg !== "other") {
+      if (cg === "female") {
+        genderLines.push(
+          "COMPANION/IMOTARA VOICE GENDER: female — when Imotara speaks in first person in gendered languages, " +
+          "use feminine verb forms (Hindi: 'sun rahi hoon', 'samajh gayi', 'yahan hoon'; " +
+          "Bengali: 'ami bujhte parchhchi'; Marathi: 'mi aikte aahe'; Gujarati: 'hun sambhalu chhun'; " +
+          "Punjabi: 'main sun rahi haan'; Tamil: 'naan ketkirein'; Arabic: 'ana huna laki'; Hebrew: 'ani kan bishvilech')."
+        );
+      } else if (cg === "male") {
+        genderLines.push(
+          "COMPANION/IMOTARA VOICE GENDER: male — use masculine first-person verb forms " +
+          "(Hindi: 'sun raha hoon', 'samajh gaya'; Bengali: 'ami bujhte parchhi'; Marathi: 'mi aikte aahe'; " +
+          "Arabic: 'ana huna lak'; Hebrew: 'ani kan bishvilcha')."
+        );
+      } else if (cg === "nonbinary") {
+        genderLines.push(
+          "COMPANION/IMOTARA VOICE GENDER: non-binary — use gender-neutral first-person forms, avoid gendered verb endings."
+        );
+      }
+    }
+    const genderInstruction = genderLines.length > 0 ? genderLines.join("\n") : "";
+
     // Companion persona: translate tone → natural writing style for the AI
     const tonePersonaMap: Record<string, string> = {
       close_friend: "You are speaking as a close, trusted friend — warm, casual, talks like a real person. Match the user's energy and language style naturally.",
@@ -349,6 +400,7 @@ export async function POST(req: Request) {
     const prompt = [
       "You are Imotara — a calm, warm, emotionally-aware companion (not a therapist).",
       langInstruction,
+      genderInstruction,
       emotionMemoryHint,
       companionPersonaHint,
       userAgeHint,

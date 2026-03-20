@@ -1,6 +1,26 @@
 // src/lib/imotara/respondRemote.ts
 import type { ImotaraResponse } from "@/lib/ai/response/responseBlueprint";
 
+/** Lightweight script-based language detection for the web client.
+ *  Mirrors the mobile detectLangFromScript logic — returns a BCP-47-like code. */
+function detectLangFromMessage(text: string): string {
+    if (!text) return "en";
+    if (/[\u0980-\u09FF]/.test(text)) return "bn";
+    if (/[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(text)) return "hi";
+    if (/[\u0B80-\u0BFF]/.test(text)) return "ta";
+    if (/[\u0C00-\u0C7F]/.test(text)) return "te";
+    if (/[\u0A80-\u0AFF]/.test(text)) return "gu";
+    if (/[\u0C80-\u0CFF]/.test(text)) return "kn";
+    if (/[\u0D00-\u0D7F]/.test(text)) return "ml";
+    if (/[\u0A00-\u0A7F]/.test(text)) return "pa";
+    if (/[\u0B00-\u0B7F]/.test(text)) return "or";
+    if (/[\u0600-\u06FF]/.test(text)) return "ar";
+    if (/[\u0400-\u04FF]/.test(text)) return "ru";
+    if (/[\u4E00-\u9FFF]/.test(text)) return "zh";
+    if (/[\u3040-\u30FF]/.test(text)) return "ja";
+    return "en";
+}
+
 export async function respondRemote(input: {
     message: string;
     context?: unknown;
@@ -43,12 +63,20 @@ export async function respondRemote(input: {
     const tone = relationship ? (toneMap[relationship] ?? undefined) : undefined;
 
     // ── AI path: try /api/chat-reply (OpenAI) first ──────────────────────────
+    // Detect language from the current message for accurate lang-mirroring on server
+    const detectedLang = detectLangFromMessage(input.message);
+    const profileLang = typeof (ctx as Record<string, unknown>).preferredLang === "string"
+        ? (ctx as Record<string, unknown>).preferredLang as string
+        : undefined;
+    const lang = profileLang || detectedLang;
+
     try {
         const aiRes = await fetch("/api/chat-reply", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
             messages,
+            lang,
             ...(tone ? { tone } : {}),
             ...(toneCtx?.user?.ageRange ? { userAge: toneCtx.user.ageRange } : {}),
             ...(toneCtx?.companion?.ageRange ? { companionAge: toneCtx.companion.ageRange } : {}),

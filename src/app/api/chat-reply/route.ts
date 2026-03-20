@@ -262,6 +262,36 @@ export async function POST(req: Request) {
       ? `The user currently seems to be feeling: ${emotion}.\n`
       : "";
 
+    // Language instruction: tell GPT to mirror the user's current message language.
+    // This overrides conversation history so switching from Bengali to Hindi mid-chat works.
+    const langInstructionMap: Record<string, string> = {
+      hi: "The user is writing in Romanized Hindi (Hinglish). Respond in the same — Roman script Hindi, natural and conversational.",
+      bn: "The user is writing in Romanized Bengali. Respond in the same — Roman script Bengali, natural and conversational.",
+      mr: "The user is writing in Romanized Marathi. Respond in the same — Roman script Marathi.",
+      ta: "The user is writing in Romanized Tamil. Respond in the same — Roman script Tamil.",
+      te: "The user is writing in Romanized Telugu. Respond in the same — Roman script Telugu.",
+      gu: "The user is writing in Romanized Gujarati. Respond in the same — Roman script Gujarati.",
+      kn: "The user is writing in Romanized Kannada. Respond in the same — Roman script Kannada.",
+      ml: "The user is writing in Romanized Malayalam. Respond in the same — Roman script Malayalam.",
+      pa: "The user is writing in Romanized Punjabi. Respond in the same — Roman script Punjabi.",
+      or: "The user is writing in Romanized Odia. Respond in the same — Roman script Odia.",
+      ur: "The user is writing in Urdu (Nastaliq or Roman). Respond in kind.",
+      ar: "The user is writing in Arabic. Respond in Arabic.",
+      zh: "The user is writing in Chinese. Respond in Chinese.",
+      ja: "The user is writing in Japanese. Respond in Japanese.",
+      he: "The user is writing in Hebrew. Respond in Hebrew.",
+      de: "The user is writing in German. Respond in German.",
+      fr: "The user is writing in French. Respond in French.",
+      es: "The user is writing in Spanish. Respond in Spanish.",
+      pt: "The user is writing in Portuguese. Respond in Portuguese.",
+      ru: "The user is writing in Russian. Respond in Russian.",
+      id: "The user is writing in Indonesian. Respond in Indonesian.",
+    };
+    const resolvedLang = typeof body?.lang === "string" ? body.lang.slice(0, 5).split("-")[0] : "";
+    const langInstruction = resolvedLang && resolvedLang !== "en"
+      ? (langInstructionMap[resolvedLang] ?? `Respond in the same language as the user's current message (detected: ${resolvedLang}).`)
+      : "Match the user's language — if they write in English, respond in English.";
+
     const nameHint = preferredName
       ? `The user's preferred name is: ${preferredName}.\nUse it naturally (not every line).\n`
       : "";
@@ -318,6 +348,7 @@ export async function POST(req: Request) {
 
     const prompt = [
       "You are Imotara — a calm, warm, emotionally-aware companion (not a therapist).",
+      langInstruction,
       emotionMemoryHint,
       companionPersonaHint,
       userAgeHint,

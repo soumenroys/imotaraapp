@@ -85,7 +85,9 @@ const ADULT_CONTENT_PATTERNS_KN = [
 
 // ─── Urdu (Arabic script + Roman) ────────────────────────────────────────────
 const ADULT_CONTENT_PATTERNS_UR = [
-  /(?:[\u0633\u06A9\u0633\u06C1\u0646\u06CC|\u0628\u06C1\u0646\u0686\u0648\u062F|\u0631\u0646\u0688\u06CC|\u06CC\u0627\u0631\u06CC])/,
+  // Explicit Urdu/Nastaliq sequences — use alternation (|), NOT character class ([])
+  // Character classes match single chars; these are multi-char word sequences
+  /(?:\u0628\u06C1\u0646\u0686\u0648\u062F|\u0631\u0646\u0688\u06CC|\u0633\u06A9\u0633)/,
   /\b(?:chudai|lund|gaand|randi|maa ki|behen ki|madarchod|bhenchod|harami|chodan|chodna)\b/i,
 ];
 

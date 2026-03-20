@@ -2104,7 +2104,7 @@ export default function ChatPage() {
       profile: safeRead("imotara.profile.v1") ?? null,
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: "application/json",
+      type: "application/json; charset=utf-8",
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

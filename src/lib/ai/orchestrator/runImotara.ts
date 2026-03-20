@@ -525,7 +525,7 @@ function detectMetaComplaintIntent(input: string): boolean {
 
 // Natural, non-repetitive continuity anchors (NOT always quoting).
 function continuityAnchor(
-  lang: "en" | "hi" | "bn" | "gu" | "kn" | "mr",
+  lang: SupportedLanguage,
   prev: string,
   seed: string,
 ): string {
@@ -539,7 +539,7 @@ function continuityAnchor(
       `अच्छा — उसी संदर्भ में,`,
       `हां, उसी point पर,`,
     ] as const;
-    return `${variants[idx]}${shortPrev.length <= 42 ? ` “${shortPrev}”` : ""} `;
+    return `${variants[idx]}${shortPrev.length <= 42 ? ` "${shortPrev}"` : ""} `;
   }
 
   if (lang === "bn") {
@@ -559,7 +559,7 @@ function continuityAnchor(
       `સારું — એ જ સંદર્ભમાં,`,
       `હા — એ જ મુદ્દા પરથી,`,
     ] as const;
-    return `${variants[idx]}${shortPrev.length <= 42 ? ` “${shortPrev}”` : ""} `;
+    return `${variants[idx]}${shortPrev.length <= 42 ? ` "${shortPrev}"` : ""} `;
   }
 
   if (lang === "kn") {
@@ -569,7 +569,7 @@ function continuityAnchor(
       `ಸರಿ — ಅದೇ ಸಂದರ್ಭದಿಂದ,`,
       `ಹೌದು — ಅದೇ ವಿಷಯದಿಂದ,`,
     ] as const;
-    return `${variants[idx]}${shortPrev.length <= 42 ? ` “${shortPrev}”` : ""} `;
+    return `${variants[idx]}${shortPrev.length <= 42 ? ` "${shortPrev}"` : ""} `;
   }
 
   if (lang === "mr") {
@@ -579,7 +579,87 @@ function continuityAnchor(
       `बरं — त्याच संदर्भातून,`,
       `हो — त्याच मुद्द्यावरून,`,
     ] as const;
-    return `${variants[idx]}${shortPrev.length <= 42 ? ` “${shortPrev}”` : ""} `;
+    return `${variants[idx]}${shortPrev.length <= 42 ? ` "${shortPrev}"` : ""} `;
+  }
+
+  if (lang === "ta") {
+    const variants = [
+      `சரி — அந்த விஷயத்திலிருந்து,`,
+      `புரிந்தது — அந்த பகுதியிலிருந்து,`,
+      `நன்று — அதே சூழலில்,`,
+      `ஆம் — அந்த கேள்வியிலிருந்து,`,
+    ] as const;
+    return `${variants[idx]} `;
+  }
+
+  if (lang === "te") {
+    const variants = [
+      `సరే — ఆ విషయం నుండి,`,
+      `అర్థమైంది — ఆ భాగం నుండి,`,
+      `సరే — అదే సందర్భంలో,`,
+      `అవును — ఆ విషయంపై,`,
+    ] as const;
+    return `${variants[idx]} `;
+  }
+
+  if (lang === "ml") {
+    const variants = [
+      `ശരി — ആ കാര്യത്തിൽ നിന്ന്,`,
+      `മനസ്സിലായി — ആ ഭാഗത്ത് നിന്ന്,`,
+      `ശരി — ആ പശ്ചാത്തലത്തിൽ,`,
+      `അതെ — ആ വിഷയത്തിൽ,`,
+    ] as const;
+    return `${variants[idx]} `;
+  }
+
+  if (lang === "pa") {
+    const variants = [
+      `ਠੀਕ ਹੈ — ਉਸੇ ਗੱਲ ਤੋਂ,`,
+      `ਸਮਝ ਆਇਆ — ਉਸ ਭਾਗ ਤੋਂ,`,
+      `ਠੀਕ ਹੈ — ਉਸੇ ਸੰਦਰਭ ਵਿੱਚ,`,
+      `ਹਾਂ — ਉਸੇ ਵਿਸ਼ੇ ਤੋਂ,`,
+    ] as const;
+    return `${variants[idx]} `;
+  }
+
+  if (lang === "or") {
+    const variants = [
+      `ଠିକ ଅଛ — ସେ କଥା ଉପରୁ,`,
+      `ବୁଝିଲି — ସେ ଭାଗ ଉପରୁ,`,
+      `ଅଛ — ସେ ପ୍ରସଙ୍ଗ ଉପରୁ,`,
+      `ହଁ — ସେ ଜାଗାରୁ,`,
+    ] as const;
+    return `${variants[idx]} `;
+  }
+
+  if (lang === "ur") {
+    const variants = [
+      `ٹھیک ہے — اسی بات سے,`,
+      `سمجھ گیا — اس حصے سے,`,
+      `اچھا — اسی سیاق میں,`,
+      `ہاں — اسی موضوع پر,`,
+    ] as const;
+    return `${variants[idx]} `;
+  }
+
+  if (lang === "ar") {
+    const variants = [
+      `حسناً — بناءً على ذلك,`,
+      `فهمت — من هذه النقطة,`,
+      `نعم — في هذا السياق,`,
+      `حسناً — بشأن ذلك الجزء,`,
+    ] as const;
+    return `${variants[idx]}${shortPrev.length <= 42 ? ` "${shortPrev}"` : ""} `;
+  }
+
+  if (lang === "de") {
+    const variants = [
+      `Verstanden — dazu,`,
+      `Okay — an diesem Teil,`,
+      `Richtig — daran anknüpfend,`,
+      `Das macht Sinn — in diesem Zusammenhang,`,
+    ] as const;
+    return `${variants[idx]}${shortPrev.length <= 42 ? ` "${shortPrev}"` : ""} `;
   }
 
   const variants = [
@@ -589,7 +669,7 @@ function continuityAnchor(
     `Makes sense — on that note, `,
   ] as const;
 
-  return `${variants[idx]}${shortPrev.length <= 42 ? `“${shortPrev}” ` : ""}`;
+  return `${variants[idx]}${shortPrev.length <= 42 ? `"${shortPrev}" ` : ""}`;
 }
 
 function makeReflectionSeed(
@@ -638,7 +718,7 @@ function makeReflectionSeed(
     intent: "clarify",
     title: "", // ✅ remove robotic heading like "One detail"
     prompt:
-      "What’s the main thing you want from this chat—comfort, clarity, or a next step?",
+      "What would feel most useful right now — just talking it through, or finding a small next step?",
   };
 }
 
@@ -653,7 +733,16 @@ type SupportedLanguage =
   | "ml"
   | "pa"
   | "mr"
-  | "or";
+  | "or"
+  | "ur"
+  | "ar"
+  | "zh"
+  | "es"
+  | "fr"
+  | "pt"
+  | "ru"
+  | "id"
+  | "de";
 
 function getPreferredLanguage(
   ctx: SessionContext,
@@ -674,6 +763,15 @@ function getPreferredLanguage(
   if (raw === "pa" || raw.startsWith("pa-")) return "pa";
   if (raw === "mr" || raw.startsWith("mr-")) return "mr";
   if (raw === "or" || raw.startsWith("or-")) return "or";
+  if (raw === "ur" || raw.startsWith("ur-")) return "ur";
+  if (raw === "ar" || raw.startsWith("ar-")) return "ar";
+  if (raw === "zh" || raw.startsWith("zh-")) return "zh";
+  if (raw === "es" || raw.startsWith("es-")) return "es";
+  if (raw === "fr" || raw.startsWith("fr-")) return "fr";
+  if (raw === "pt" || raw.startsWith("pt-")) return "pt";
+  if (raw === "ru" || raw.startsWith("ru-")) return "ru";
+  if (raw === "id" || raw.startsWith("id-")) return "id";
+  if (raw === "de" || raw.startsWith("de-")) return "de";
 
   const msg = String(currentUserMessage ?? "").trim();
   if (msg) {
@@ -861,25 +959,873 @@ function getPreferredLanguage(
   return "en";
 }
 
+/**
+ * Returns true when a Roman-script Hindi or Bengali message carries strong
+ * emotional content (relationship conflict, grief, work pressure, self-blame,
+ * loneliness, health fear, crisis) that warrants a richer response than the
+ * short fixed ACK path provides.
+ */
+function hasStrongRomanIndicEmotionalSignal(msg: string, lang: string): boolean {
+  const lower = msg.toLowerCase();
+
+  if (lang === "hi") {
+    return /\b(jhagda|jhagre|ladai|larai|gussa|dard|takleef|pareshan|rona|ro raha|ro rahi|neend nahi|neend nhi|sone nahi|akela|akeli|toot gaya|toot gayi|toot gaye|haar gaya|haar gayi|kaam ka dabaao|boss|manager|breakup|rishta|relationship|cheat|dhoka|chod gaya|chod gayi|marne|mar jaana|khatam|khatam karna|khud ko|khud se|dar lag|dar raha|dar rahi|bura lag|bura laga|bahut bura|kuch nahi laga|kuch nahi|dil nahi|bhool gaya|bhool gayi|dil toota|dil toot|akela chhod|akela chod|yaad aata|yaad aati|koi nahi|kuch samajh|samajh nahi|zyada ho gaya|zyada ho gayi|zyada ho gaye|itna bura|itni takleef|bahut takleef|bahut dard|bahut dukh|dukhi|aansu|aankhein bhar|palken bhar|raat ko|sab khatam|khud ko nahi|mujhe nahi chahiye|kisi ko nahi|koi mujhe|koi nahi sunta|koi nahi samjha|problem hoon|problem hun|handle nahi|handle nahi kar|sab kuch handle|life handle|kuch handle|sab sambhal|sambhal nahi|sambhal nahi pa|khud ko galat|apni galti|meri galti|meri wajah|mera kasoor)\b/.test(lower);
+  }
+
+  if (lang === "bn") {
+    return /\b(jhogra|jhagra|maramari|raga|rag|kanna|kandi|kando|dukho|dukkho|kharap|kosto|ekla|eklo|chap|pressure|boss|office|kaaj|relationship|breakup|chole gelo|chale gelo|chole jacche|chole gelo|chhad|chhat|dure jacchi|dur hoye|dur hoye jacchi|tor katha|tomar katha|bhalobasha|bhalobashi na|bhalobasi na|keu nei|karo nei|keu bujhe na|keu bujhlo na|kichhui mone hoy na|bhalo lagche na|bhalo lagche na|bhalo nei|kharap lagche|kharap lage|kharap laglo|nijeke|nij ke|nijer upor|khub kosto|khub dukho|khub kharap|boro kosto|boro dukho|raat e|ghumate pari na|ghum hoy na|kante parchina|kadhte parchina|sesh kore|sesh kore debo|sesh kore dite|sesh kore nite|mara jabo|mare jabo|nishwas nite|kasto lagche|amar ki|amar kono|karo kache|keu shune na|keu jana na)\b/.test(lower);
+  }
+
+  if (lang === "mr") {
+    return /\b(jhagda|bhandna|bhandna|dukha|tras|ekta|kaam|dabaav|boss|office|pressure|rishta|breakup|relationship|girlfriend|boyfriend|chod gela|chod geli|ragna|ragavne|khup dukha|khup tras|jhop nahi|jhopet nahi|akela|akeli|koni nahi|koni samajhna|koni aikh|marne|marayla|sab sampla|khud la|swatahla|majhi chuk|mazi chuk|handle nahi|sambhalena|sambhalenasa)\b/.test(lower);
+  }
+
+  if (lang === "ta") {
+    return /\b(kavalai|kovam|thanimai|payam|dukkham|soru|valikuthu|azhugai|kasdam|prachani|velai|boss|office|pressure|thozhil|kaadhal|sandai|kavarchal|pirital|thanimaiyaaga|yarum illai|yarum puriyavillai|azhugiren|thookam illai|thookame illai|naan thappu|en thappu|en pizhai|handle panna mudiyala|handle pannave mudiyala|mudiyala|thanga mudiyala)\b/.test(lower);
+  }
+
+  if (lang === "te") {
+    return /\b(baadha|kashtam|bhayam|ontariga|kopam|alasata|dukkham|problem|boss|office|pani|pressure|sandadi|prema|relationship|breakup|girlfriend|boyfriend|vellipoyindi|vellipoyaadu|thanu vellipoyi|nidra raatledu|nidra raadu|nenu thappu|naa thappu|handle cheyyaledu|handle cheyyanu|sambaalaledu|sambaalanu|aasha ledu|concentration ledu)\b/.test(lower);
+  }
+
+  if (lang === "gu") {
+    return /\b(dukh|dar|eklo|ekla|gussa|thak|jhagdo|takan|chinta|boss|office|kaam|pressure|relationship|breakup|girlfriend|boyfriend|chhodi gayu|chhodi gayi|dur thay gayu|jhop nathi|nind nathi|hu j problem|hu thappu|handle nathi|sambhali nathi|koi nathi|koi samajhtu nathi|koi sunatu nathi)\b/.test(lower);
+  }
+
+  if (lang === "pa") {
+    return /\b(dukh|dar|ikalla|ikalli|gussa|thakaan|jhagda|fikar|takleef|boss|office|kaam|pressure|relationship|breakup|girlfriend|boyfriend|chhad gaya|chhad gayi|dur ho gaya|dur ho gayi|neend nahi|so nahi sakda|so nahi sakdi|main hi problem|meri galti|handle nahi|sambhaal nahi|koi nahi|koi samajh nahi)\b/.test(lower);
+  }
+
+  if (lang === "kn") {
+    return /\b(novu|bhaya|ontanagi|sust|kopa|jangu|chintane|baadhe|kelasa|boss|office|pressure|sambandha|todar|prema|breakup|girlfriend|boyfriend|hogibittare|hogibittalu|door hogibittare|nidde illa|nidde baratilla|naane thappu|nanna thappu|handle maadokettu|sambalisolla|yaaru illa|yaaru arthamadikollaaru)\b/.test(lower);
+  }
+
+  if (lang === "ml") {
+    return /\b(dukkham|bhayam|thanimayal|kopam|akalambol|vedana|problem|boss|office|joli|pressure|bandham|prema|breakup|girlfriend|boyfriend|poyi|pirinjupoyee|door ayi|thookam illa|thookam varunilla|njaan thettanu|ente thettanu|handle cheyyaan patunilla|sambhalikkan patunilla|aarumilla|aarumpuriyunilla)\b/.test(lower);
+  }
+
+  if (lang === "or") {
+    return /\b(dukha|bhaya|eka|raga|thaka|chinta|kasta|problem|boss|office|kaam|pressure|sambandha|jhagda|breakup|girlfriend|boyfriend|chhadiga|chhadile|dura heigala|ghuma nehuni|ghuma nahi|mun hi problem|mora bhul|handle napariba|sambhaliba napariba|keu nahi|keu bujhibu nahi)\b/.test(lower);
+  }
+
+  if (lang === "ur") {
+    return /\b(udaas|pareshan|akela|akeli|gussa|dard|khauf|takleef|jhagda|ladai|kaam|boss|pressure|office|rishta|breakup|relationship|girlfriend|boyfriend|chod gaya|chod gayi|dil toota|dil toot gaya|tanha|umeed nahi|neend nahi|so nahi sakta|so nahi sakti|main hi problem|meri galti|handle nahi|sambhal nahi|koi nahi|koi samajhta nahi)\b/.test(lower);
+  }
+
+  return false;
+}
+
+function hasStrongForeignEmotionalSignal(msg: string, lang: string): boolean {
+  const t = msg;
+  const lower = t.toLowerCase();
+
+  if (lang === "ar") {
+    return /[\u0600-\u06FF]/.test(t)
+      ? /(?:حزن|حزين|حزينة|وحيد|وحيدة|خائف|خايف|غاضب|غضب|ضغط|مشكلة|علاقة|عمل|رئيس|انفصال|مكتئب|تعب|بكاء|خوف|قلق|يأس|فراق|مدير)/.test(t)
+      : /\b(hazeen|hazin|za3lan|waheed|waheeda|daght|mushkila|3ilaqeh|shughl|boss|ra2ees|infisaal|ta3ban|khawf|qalaq|ya2s|firaq|mudir|wihda|baeed)\b/.test(lower);
+  }
+
+  if (lang === "zh") {
+    return /[\u4E00-\u9FFF]/.test(t)
+      ? /(?:难过|悲伤|孤独|孤单|害怕|恐惧|生气|愤怒|压力|问题|关系|工作|分手|失恋|焦虑|抑郁|绝望|委屈|崩溃|痛苦|失眠|哭|老板|上司)/.test(t)
+      : /\b(nanguo|beishang|gudu|gudan|haipa|shengqi|yaoli|wenti|guanxi|gongzuo|fenshou|jiaolv|juewang|shangxin|weiqu|bengkui|tongku|shimian|laaban)\b/.test(lower);
+  }
+
+  if (lang === "es") {
+    return /\b(triste|tristeza|solo|sola|soledad|miedo|enojado|enojada|presión|problema|relación|trabajo|jefe|ruptura|ansiedad|deprimido|deprimida|agotado|agotada|lloro|llorando|no puedo|no aguanto|abandonado|abandonada|perdido|perdida|roto|rota)\b/.test(lower);
+  }
+
+  if (lang === "fr") {
+    return /\b(triste|tristesse|seul|seule|solitude|peur|colère|pression|problème|relation|travail|patron|rupture|anxieux|anxieuse|déprimé|déprimée|épuisé|épuisée|je pleure|je n'arrive plus|abandonné|abandonnée|perdu|perdue|brisé|brisée)\b/.test(lower);
+  }
+
+  if (lang === "pt") {
+    return /\b(triste|tristeza|sozinho|sozinha|solidão|medo|com raiva|pressão|problema|relacionamento|trabalho|chefe|término|ansioso|ansiosa|deprimido|deprimida|cansado|cansada|chorando|não consigo|não aguento|abandonado|abandonada|perdido|perdida)\b/.test(lower);
+  }
+
+  if (lang === "ru") {
+    return /[\u0400-\u04FF]/.test(t)
+      ? /(?:грустно|грустный|грустная|грусть|одинок|одинока|страх|злость|давление|работа|отношения|расставание|тревога|депрессия|не могу|плачу|усталый|усталая|брошен|брошена|потерян|потеряна|начальник|босс)/.test(t)
+      : /\b(grustno|grustnyy|odinok|odinoka|strakh|zlost|davlenie|rabota|otnosheniya|rasstavanie|trevoga|depressiya|ne mogu|plachu|ustalyy|broshen|broshena|nachalnik)\b/.test(lower);
+  }
+
+  if (lang === "id") {
+    return /\b(sedih|sendirian|sendiri|takut|marah|tekanan|masalah|hubungan|kerja|atasan|bos|putus|cemas|depresi|capek|lelah|nangis|nggak bisa|tidak bisa|nggak kuat|tidak kuat|ditinggal|kesepian)\b/.test(lower);
+  }
+
+  if (lang === "de") {
+    return /\b(traurig|allein|einsamkeit|einsam|angst|wütend|wuetend|druck|problem|beziehung|arbeit|chef|trennung|burnout|deprimiert|erschöpft|erschoepft|weine|nicht mehr|verlassen|verloren|kaputt)\b/.test(lower);
+  }
+
+  return false;
+}
+
 function draftResponseForLanguage(
   userMessage: string,
   ctx: SessionContext,
 ): ImotaraResponse {
   const lang = getPreferredLanguage(ctx, userMessage);
 
-  // Keep explicit localized fallback for hi / bn / gu / kn / mr.
+  // Keep explicit localized fallback for all supported Indian languages.
   // For every other language, use the generic draft path for now.
-  if (
-    lang !== "hi" &&
-    lang !== "bn" &&
-    lang !== "gu" &&
-    lang !== "kn" &&
-    lang !== "mr"
-  ) {
+  const INDIAN_LANGS = new Set(["hi", "bn", "mr", "gu", "kn", "ta", "te", "ml", "pa", "or", "ur"]);
+  const FOREIGN_LANGS = new Set(["ar", "zh", "es", "fr", "pt", "ru", "id", "de"]);
+  if (!INDIAN_LANGS.has(lang) && !FOREIGN_LANGS.has(lang)) {
     // propagate detected language so downstream formatters can honor it
     (ctx as any).preferredLanguage = lang;
 
     return draftResponse(userMessage, ctx);
+  }
+
+  // For any Indian language with strong emotional content, build a richer inline
+  // response instead of falling back to the short 3-option ACK pool.
+  // NOTE: we do NOT delegate to draftResponse() here because that produces English
+  // text — this route returns template text directly to the client.
+  if (INDIAN_LANGS.has(lang) && hasStrongRomanIndicEmotionalSignal(userMessage, lang)) {
+    const lower2 = userMessage.toLowerCase();
+    const name2 = getUserName({ ...ctx } as SessionContext);
+    const rel2 = pickRelationshipTone({ ...ctx } as SessionContext);
+    const isFemale2 = pickCompanionGender({ ...ctx } as SessionContext) === "female";
+    const seed2 = `${lang}:emo:${userMessage}:${rel2}:${name2 ?? ""}`;
+
+    if (lang === "bn") {
+      // Topic detection for Bengali
+      const isWork = /\b(boss|office|kaaj|pressure|chap|manager|kaam)\b/.test(lower2);
+      const isRelationship = /\b(jhogra|jhagra|bhalobasha|bhalobashi na|bhalobasi na|breakup|dur hoye|dure jacchi|tor katha|tomar katha|girlfriend|boyfriend|relationship)\b/.test(lower2);
+      const isCrisis = /\b(sesh kore|sesh kore debo|mara jabo|mare jabo|nishwas nite)\b/.test(lower2);
+      const isLonely = /\b(ekla|eklo|keu nei|karo nei|keu bujhe na|keu shune na|keu jana na)\b/.test(lower2);
+
+      let bnMsg: string;
+      let bnFollow: string;
+
+      if (isCrisis) {
+        bnMsg = "এখন তুমি অনেক ভারী জায়গায় আছো। আমি সত্যিই পাশে আছি।";
+        bnFollow = "এই মুহূর্তে তোমার কি কাছে কেউ আছে — কেউ যাকে ডাকতে পারো?";
+      } else if (isWork) {
+        bnMsg = pickFrom(seed2 + ":work", [
+          "কাজের এই চাপটা সত্যিই অনেক ভারী — ঘুমের অভাব, বসের প্রেশার — সব একসাথে অনেক বেশি হয়ে যায়।",
+          "এই ধরনের চাপ শরীর আর মন দুটোকেই খায়। তুমি একটু অনেক বেশি বহন করছো এখন।",
+          "বসের চাপ আর ঘুম না হওয়া — এটা দীর্ঘদিন সহ্য করা সহজ না।",
+        ] as const);
+        bnFollow = pickFrom(seed2 + ":work:follow", [
+          "এই মুহূর্তে সবচেয়ে বেশি কষ্ট দিচ্ছে কোনটা — কাজের চাপ, নাকি ভেতরের ক্লান্তি?",
+          "কাজ ছাড়া — এই সময়ে একটুও নিজের জন্য কিছু করার সুযোগ হচ্ছে?",
+          "কখন থেকে এভাবে চলছে?",
+        ] as const);
+      } else if (isRelationship) {
+        bnMsg = pickFrom(seed2 + ":rel", [
+          "সম্পর্কে এই দূরত্বটা — এটা সত্যিই অনেক কষ্টের।",
+          "ঝগড়া আর দূরত্ব — দুটো একসাথে এলে মনটা অনেক ভারী হয়ে যায়।",
+          "এই অনুভূতিটা — যে কাছের মানুষ দূরে সরে যাচ্ছে — এটা খুব কঠিন।",
+        ] as const);
+        bnFollow = pickFrom(seed2 + ":rel:follow", [
+          "তোমার কি মনে হচ্ছে এই দূরত্বটা নতুন, নাকি আস্তে আস্তে বাড়ছিল?",
+          "সে কি জানে তুমি এতটা কষ্ট পাচ্ছো?",
+          "এই ব্যাপারটা কতদিন ধরে চলছে?",
+        ] as const);
+      } else if (isLonely) {
+        bnMsg = pickFrom(seed2 + ":lonely", [
+          "এই একাকীত্বটা — যখন মনে হয় কেউ বুঝছে না — এটা খুব কঠিন জায়গা।",
+          "কেউ না থাকলে বা না বুঝলে — সেই ফাঁকাটা অনেক ভারী লাগে।",
+          "এই অনুভূতিটা — যে কেউ শুনছে না — এটা সত্যিই কষ্টদায়ক।",
+        ] as const);
+        bnFollow = pickFrom(seed2 + ":lonely:follow", [
+          "কেউ কি আছে তোমার জীবনে যার সাথে এগুলো ভাগ করা যায়?",
+          "এই একাকীত্বটা কি সবসময় ছিল, নাকি কোনো একটা সময় থেকে বেড়েছে?",
+          "তুমি কি চাও আমি একটু বেশি শুনি?",
+        ] as const);
+      } else {
+        bnMsg = pickFrom(seed2 + ":general", [
+          "এই অনুভূতিটা — যখন সব একসাথে ভারী হয়ে যায় — বুঝতে পারছি।",
+          "এত কিছু একসাথে সামলানো সহজ না। তুমি অনেক বেশি বহন করছো।",
+          "এই কষ্টটা জায়গা পাওয়ার দরকার ছিল। ভালো করলে বললে।",
+        ] as const);
+        bnFollow = pickFrom(seed2 + ":general:follow", [
+          "এই মুহূর্তে সবচেয়ে কোন বিষয়টা তোমাকে বেশি কষ্ট দিচ্ছে?",
+          "আরেকটু বলবে — কখন থেকে এরকম লাগছে?",
+          "তুমি চাইলে আরেকটু বলো — আমি শুনছি।",
+        ] as const);
+      }
+
+      const bnNamePrefix = name2 ? `${name2}, ` : "";
+      return {
+        message: `${bnNamePrefix}${bnMsg}`,
+        followUp: bnFollow,
+        meta: {
+          styleContract: "1.0",
+          blueprint: "1.0",
+          blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }),
+        },
+      };
+    }
+
+    if (lang === "hi") {
+      // Topic detection for Hindi
+      const isWork = /\b(boss|manager|kaam|pressure|takleef|office|dabaao)\b/.test(lower2);
+      const isRelationship = /\b(jhagda|jhagre|ladai|larai|breakup|dhoka|rishta|girlfriend|boyfriend|relationship|chod gaya|chod gayi)\b/.test(lower2);
+      const isCrisis = /\b(marne|mar jaana|khatam karna|khud ko nahi|mujhe nahi chahiye|sab khatam)\b/.test(lower2);
+      const isLonely = /\b(akela|akeli|koi nahi|koi nahi sunta|koi nahi samjha)\b/.test(lower2);
+
+      let hiMsg: string;
+      let hiFollow: string;
+
+      const hi2 = (m: string, f: string) => isFemale2 ? f : m;
+
+      if (isCrisis) {
+        hiMsg = `अभी तुम बहुत भारी जगह पर हो। ${hi2("मैं यहाँ हूँ", "मैं यहाँ हूँ")} — सच में।`;
+        hiFollow = "इस वक़्त तुम्हारे पास कोई है — कोई जिसे बुला सको?";
+      } else if (isWork) {
+        hiMsg = pickFrom(seed2 + ":work", [
+          `काम का यह दबाव सच में बहुत भारी है — ${hi2("नींद नहीं, बॉस का प्रेशर", "नींद नहीं, बॉस का प्रेशर")} — यह सब एक साथ बहुत ज़्यादा है।`,
+          "इस तरह का दबाव शरीर और मन दोनों को थका देता है। तुम अभी बहुत ज़्यादा उठा रहे हो।",
+          "बॉस का प्रेशर और नींद न आना — यह लंबे वक़्त तक सहना आसान नहीं है।",
+        ] as const);
+        hiFollow = pickFrom(seed2 + ":work:follow", [
+          "अभी सबसे ज़्यादा क्या चुभ रहा है — काम का बोझ, या भीतर की थकान?",
+          "काम के अलावा — इस वक़्त खुद के लिए थोड़ा भी वक़्त निकल पा रहा है?",
+          "कब से ऐसा चल रहा है?",
+        ] as const);
+      } else if (isRelationship) {
+        hiMsg = pickFrom(seed2 + ":rel", [
+          "रिश्ते में यह दूरी — यह सच में बहुत तकलीफ़देह है।",
+          "झगड़ा और दूरी — दोनों एक साथ आएं तो मन बहुत भारी हो जाता है।",
+          "यह अहसास — कि जो करीबी है वो दूर जा रहा है — यह बहुत मुश्किल होता है।",
+        ] as const);
+        hiFollow = pickFrom(seed2 + ":rel:follow", [
+          "तुम्हें क्या लगता है — यह दूरी नई है, या धीरे-धीरे बढ़ रही थी?",
+          "क्या उसे पता है तुम इतना दर्द महसूस कर रहे हो?",
+          "यह कब से चल रहा है?",
+        ] as const);
+      } else if (isLonely) {
+        hiMsg = pickFrom(seed2 + ":lonely", [
+          "यह अकेलापन — जब लगे कि कोई समझ नहीं रहा — यह बहुत कठिन जगह है।",
+          "जब कोई न हो या न समझे — वह खालीपन बहुत भारी लगता है।",
+          "यह अहसास — कि कोई नहीं सुन रहा — यह सच में तकलीफ़देह है।",
+        ] as const);
+        hiFollow = pickFrom(seed2 + ":lonely:follow", [
+          "क्या कोई है तुम्हारी ज़िंदगी में जिससे यह सब शेयर कर सको?",
+          "यह अकेलापन हमेशा से था, या किसी एक वक़्त से बढ़ा है?",
+          "क्या तुम चाहते हो मैं थोड़ा और सुनूँ?",
+        ] as const);
+      } else {
+        hiMsg = pickFrom(seed2 + ":general", [
+          "यह अहसास — जब सब कुछ एक साथ भारी हो जाए — समझ में आता है।",
+          "इतना सब एक साथ सँभालना आसान नहीं। तुम बहुत ज़्यादा उठा रहे हो।",
+          "यह दर्द जगह पाने का हकदार था। अच्छा किया बताया।",
+        ] as const);
+        hiFollow = pickFrom(seed2 + ":general:follow", [
+          "इस वक़्त सबसे ज़्यादा कौन सी बात तकलीफ़ दे रही है?",
+          "थोड़ा और बताओ — कब से ऐसा लग रहा है?",
+          "चाहो तो और बताओ — मैं सुन रहा हूँ।",
+        ] as const);
+      }
+
+      const hiNamePrefix = name2 ? `${name2}, ` : "";
+      return {
+        message: `${hiNamePrefix}${hiMsg}`,
+        followUp: hiFollow,
+        meta: {
+          styleContract: "1.0",
+          blueprint: "1.0",
+          blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }),
+        },
+      };
+    }
+
+    // ── Marathi (mr) rich path ───────────────────────────────────────────
+    if (lang === "mr") {
+      const isWork = /\b(boss|office|kaam|pressure|dabaav|manager)\b/.test(lower2);
+      const isRelationship = /\b(jhagda|bhandna|breakup|rishta|relationship|girlfriend|boyfriend|chod gela|chod geli)\b/.test(lower2);
+      const isCrisis = /\b(marne|marayla|sab sampla|khud la|swatahla)\b/.test(lower2);
+      const isLonely = /\b(ekta|akela|akeli|koni nahi|koni samajhna)\b/.test(lower2);
+      const isFemale2mr = isFemale2;
+
+      let mrMsg: string;
+      let mrFollow: string;
+
+      if (isCrisis) {
+        mrMsg = "आत्ता तू खूप जड जागी आहेस. मी खरोखरच सोबत आहे.";
+        mrFollow = "या क्षणी तुझ्याजवळ कोणी आहे का — कोणाला बोलवू शकतोस?";
+      } else if (isWork) {
+        mrMsg = pickFrom(seed2 + ":work", [
+          "कामाचा हा ताण खरोखरच खूप जड असतो — झोप नाही, बॉसचा दबाव — सगळं एकत्र खूप जड होतं.",
+          "असा ताण मन आणि शरीर दोन्हींना थकवतो. तू आत्ता खूप जास्त ओझं " + (isFemale2mr ? "वाहतेयस" : "वाहतोयस") + ".",
+          "बॉसचा दबाव आणि झोप न होणं — हे दीर्घकाळ सहन करणं सोपं नाही.",
+        ] as const);
+        mrFollow = pickFrom(seed2 + ":work:follow", [
+          "आत्ता सगळ्यात जास्त कशाचा भार वाटतोय — कामाचा की आतली थकवा?",
+          "या वेळी स्वतःसाठी थोडा वेळ मिळतोय का?",
+          "हे कधीपासून असं चालू आहे?",
+        ] as const);
+      } else if (isRelationship) {
+        mrMsg = pickFrom(seed2 + ":rel", [
+          "नात्यातला हा दुरावा खरोखरच खूप जड असतो.",
+          "भांडण आणि दुरावा — दोन्ही एकत्र आले की मन खूप जड होतं.",
+          "जवळच्या माणसाने दूर सरणं — हा अनुभव खूप कठीण असतो.",
+        ] as const);
+        mrFollow = pickFrom(seed2 + ":rel:follow", [
+          "हा दुरावा नवीन आहे, की हळूहळू वाढत होता?",
+          "त्याला/तिला माहीत आहे का तू इतका/इतकी दुखावलेला/दुखावलेली आहेस?",
+          "हे किती दिवसांपासून चालू आहे?",
+        ] as const);
+      } else if (isLonely) {
+        mrMsg = pickFrom(seed2 + ":lonely", [
+          "ही एकटेपणाची भावना — जेव्हा वाटतं कोणी समजत नाही — ही खूप कठीण जागा आहे.",
+          "कोणी नसेल किंवा समजत नसेल — तो रिकामेपणा खूप जड वाटतो.",
+          "हे अनुभव — कोणी ऐकत नाही — हे खरोखर त्रासदायक असतं.",
+        ] as const);
+        mrFollow = pickFrom(seed2 + ":lonely:follow", [
+          "तुझ्या आयुष्यात कोणी आहे का ज्याच्याशी हे सांगता येईल?",
+          "हा एकटेपणा नेहमीच होता, की एखाद्या वेळेपासून वाढला?",
+          "मी आणखी ऐकावं असं वाटतं का?",
+        ] as const);
+      } else {
+        mrMsg = pickFrom(seed2 + ":general", [
+          "हे सगळं एकत्र जड होतं तेव्हाची ही भावना — समजते.",
+          "इतकं सगळं एकट्याने सांभाळणं सोपं नाही. तू खूप जास्त उचलतोयस/उचलतेयस.",
+          "हे दुखणं जागा मिळवण्यास पात्र होतं. सांगितलंस हे चांगलं केलंस.",
+        ] as const);
+        mrFollow = pickFrom(seed2 + ":general:follow", [
+          "आत्ता सगळ्यात कोणती गोष्ट सगळ्यात जास्त त्रास देतेय?",
+          "थोडं आणखी सांग — कधीपासून असं वाटतंय?",
+          "सांगायचं असेल तर सांग — मी ऐकतोय/ऐकतेय.",
+        ] as const);
+      }
+
+      return {
+        message: name2 ? `${name2}, ${mrMsg}` : mrMsg,
+        followUp: mrFollow,
+        meta: { styleContract: "1.0", blueprint: "1.0", blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }) },
+      };
+    }
+
+    // ── Gujarati (gu) rich path ──────────────────────────────────────────
+    if (lang === "gu") {
+      const isWork = /\b(boss|office|kaam|pressure|dabaav|manager)\b/.test(lower2);
+      const isRelationship = /\b(jhagdo|breakup|relationship|girlfriend|boyfriend|chhodi gayu|chhodi gayi)\b/.test(lower2);
+      const isCrisis = /\b(marne|khatam|sab sambhal nathi)\b/.test(lower2);
+      const isLonely = /\b(eklo|ekla|koi nathi|koi samajhtu nathi)\b/.test(lower2);
+
+      let guMsg: string;
+      let guFollow: string;
+
+      if (isCrisis) {
+        guMsg = "અત્યારે તું ઘણી ભારે જગ્યા પર છ. હું ખરેખર સાથે છ.";
+        guFollow = "આ ક્ષણે તારી પાસે કોઈ છે — કોઈ જેને બોલાવી શકે?";
+      } else if (isWork) {
+        guMsg = pickFrom(seed2 + ":work", [
+          "કામ નો આ ભાર ખૂબ ભારે છે — ઊઘ નહીં, boss નું દબાણ — બધું ભેળું ઘણું વધારે થઈ જાય.",
+          "આ પ્રકારનો ભાર શરીર અને મન બન્નેને થકવી નાખે. તું હમણાં ઘણું ઉઠાવી રહ્ય" + (isFemale2 ? "ી" : "ો") + " છ.",
+          "Boss નું દબાણ ને ઊઘ ન આવવી — આ લાંબો સમય સહેવું સહેલું નથી.",
+        ] as const);
+        guFollow = pickFrom(seed2 + ":work:follow", [
+          "હમણાં સૌથી વધુ શું ભારે છે — કામ નું દબાણ, કે ભીતરની થકાન?",
+          "આ સમયે તારા માટે થોડો સ્વ-સમય મળે છે?",
+          "ક્યારથી આ રીતે ચાલે છે?",
+        ] as const);
+      } else if (isRelationship) {
+        guMsg = pickFrom(seed2 + ":rel", [
+          "સંબંધ માં આ અંતર ખૂબ ભારે છે.",
+          "ઝઘડો ને અંતર — બન્ને ભેળા આવ્યા ત્યારે મન ઘણું ભારી થઈ જાય.",
+          "નજીક ના માણસ નું દૂર જવું — આ અનુભવ ઘણો કઠીણ છે.",
+        ] as const);
+        guFollow = pickFrom(seed2 + ":rel:follow", [
+          "આ અંતર નવું છે, કે ધીમે ધીમે વધ્યું?",
+          "તેને ખ્યાલ છે કે તું ઘણો/ઘણી દુ:ખી છ?",
+          "આ ક્યારથી ચાલે છે?",
+        ] as const);
+      } else if (isLonely) {
+        guMsg = pickFrom(seed2 + ":lonely", [
+          "આ એકલતા — જ્યારે લાગે કે કોઈ સમજતું નથી — ઘણી કઠીણ જગ્યા.",
+          "કોઈ ન હોય અથવા ન સમજે — આ ખાલીપો ઘણો ભારે લાગે.",
+          "આ અહેસાસ — કે કોઈ સાંભળતું નથી — ખૂબ ત્રાસ આપનારો છે.",
+        ] as const);
+        guFollow = pickFrom(seed2 + ":lonely:follow", [
+          "તારી જિંદગીમાં કોઈ છે જેની સાથે આ વાત વહેતી કરી શકાય?",
+          "આ એકલાપણ હમેશા હતું, કે ક્યારેકથી વધ્યું?",
+          "હું થોડું વધારે સાંભળવા માંગું છું.",
+        ] as const);
+      } else {
+        guMsg = pickFrom(seed2 + ":general", [
+          "બધું ભેળું ભારે થઈ જ્યારે — આ અહેસાસ સમજાય છે.",
+          "આ બધું એકલા સંભાળવું સહેલું નથી. તું હમણાં ઘણું ઉઠાવી રહ્યો/રહ્યી છ.",
+          "આ દર્દ ને જગ્યા આપવાની જરૂર હતી. જે આવ્યું, સાંભળ.",
+        ] as const);
+        guFollow = pickFrom(seed2 + ":general:follow", [
+          "હમણાં સૌથી વધુ શું ભારે લાગ્યું?",
+          "થોડું વધારે કહ — ક્યારથી આ રીતે છે?",
+          "કહેવું હોય તો કહ — હું સાંભળ્લ઼ ‌ > raho/rahii chhu.",
+        ] as const);
+      }
+
+      return {
+        message: name2 ? `${name2}, ${guMsg}` : guMsg,
+        followUp: guFollow,
+        meta: { styleContract: "1.0", blueprint: "1.0", blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }) },
+      };
+    }
+
+    // ── Kannada (kn) rich path ───────────────────────────────────────────
+    if (lang === "kn") {
+      const isWork = /\b(boss|office|kelasa|pressure|dabaav|manager)\b/.test(lower2);
+      const isRelationship = /\b(todar|sambandha|prema|breakup|relationship|girlfriend|boyfriend|hogibittare|hogibittalu)\b/.test(lower2);
+      const isCrisis = /\b(saaybekku|saaytini|khatam|sambalisolla)\b/.test(lower2);
+      const isLonely = /\b(ontanagi|yaaru illa|yaaru arthamadikollaaru)\b/.test(lower2);
+
+      let knMsg: string;
+      let knFollow: string;
+
+      if (isCrisis) {
+        knMsg = "ನೀನು ಈಗ ತುಂಬಾ ಕಷ್ಟದ ಜಾಗದಲ್ಲಿ ಇದ್ದೀಯ. ನಾನು ನಿಜವಾಗಿಯೂ ಪಕ್ಕದಲ್ಲಿದ್ದೇನೆ.";
+        knFollow = "ಈ ಕ್ಷಣ ನಿನ್ನ ಹತ್ತಿರ ಯಾರಾದರೂ ಇದ್ದಾರಾ — ಯಾರನ್ನಾದರೂ ಕರೆಯಬಲ್ಲೆಯಾ?";
+      } else if (isWork) {
+        knMsg = pickFrom(seed2 + ":work", [
+          "ಕೆಲಸದ ಈ ಒತ್ತಡ ನಿಜವಾಗಿಯೂ ತುಂಬಾ ಭಾರವಾಗಿದೆ — ನಿದ್ದೆ ಇಲ್ಲ, boss ಒತ್ತಡ — ಎಲ್ಲ ಒಟ್ಟಿಗೆ ಬಹಳ ಜಾಸ್ತಿಯಾಗುತ್ತದೆ.",
+          "ಈ ರೀತಿಯ ಒತ್ತಡ ಶರೀರ ಮತ್ತು ಮನಸ್ಸು ಎರಡನ್ನೂ ತಿನ್ನುತ್ತದೆ. ನೀನು ಈಗ ತುಂಬಾ ಹೆಚ್ಚು ಹೊರುತ್ತಿದ್ದೀಯ.",
+          "Boss ಒತ್ತಡ ಮತ್ತು ನಿದ್ದೆ ಬರದಿರುವುದು — ಇದನ್ನು ಬಹಳ ಕಾಲ ತಾಳುವುದು ಸುಲಭ ಅಲ್ಲ.",
+        ] as const);
+        knFollow = pickFrom(seed2 + ":work:follow", [
+          "ಈಗ ಅತ್ಯಂತ ಭಾರವಾಗಿ ಅನ್ನಿಸುತ್ತಿರುವುದು ಯಾವುದು — ಕೆಲಸದ ಒತ್ತಡವಾ, ಒಳಗಿನ ಆಯಾಸವಾ?",
+          "ಈ ಸಮಯದಲ್ಲಿ ಸ್ವಲ್ಪ ನಿನ್ನ ಸ್ವಂತ ಸಮಯ ಸಿಗುತ್ತಿದೆಯಾ?",
+          "ಇದು ಯಾವಾಗಿನಿಂದ ಹೀಗಿದೆ?",
+        ] as const);
+      } else if (isRelationship) {
+        knMsg = pickFrom(seed2 + ":rel", [
+          "ಸಂಬಂಧದಲ್ಲಿ ಈ ದೂರ ನಿಜವಾಗಿಯೂ ತುಂಬಾ ನೋವಿನದ್ದಾಗಿದೆ.",
+          "ಜಗಳ ಮತ್ತು ದೂರ — ಎರಡೂ ಒಟ್ಟಿಗೆ ಬಂದಾಗ ಮನಸ್ಸು ತುಂಬಾ ಭಾರವಾಗುತ್ತದೆ.",
+          "ಹತ್ತಿರದ ವ್ಯಕ್ತಿ ದೂರ ಹೋಗುವುದು — ಈ ಅನುಭವ ತುಂಬಾ ಕಷ್ಟದ್ದು.",
+        ] as const);
+        knFollow = pickFrom(seed2 + ":rel:follow", [
+          "ಈ ದೂರ ಹೊಸದಾ, ಇಲ್ಲಾ ನಿಧಾನ ನಿಧಾನ ಹೆಚ್ಚಾಗಿತ್ತಾ?",
+          "ಅವನಿಗೆ/ಅವಳಿಗೆ ಗೊತ್ತಾ ನೀನು ಇಷ್ಟೊಂದು ನೋವು ಅನುಭವಿಸುತ್ತಿದ್ದೀಯ ಅಂತ?",
+          "ಇದು ಎಷ್ಟು ದಿನದಿಂದ ನಡೆಯುತ್ತಿದೆ?",
+        ] as const);
+      } else if (isLonely) {
+        knMsg = pickFrom(seed2 + ":lonely", [
+          "ಈ ಒಂಟಿತನ — ಯಾರೂ ಅರ್ಥ ಮಾಡಿಕೊಳ್ಳುತ್ತಿಲ್ಲ ಅನ್ನಿಸಿದಾಗ — ತುಂಬಾ ಕಷ್ಟದ ಜಾಗ.",
+          "ಯಾರೂ ಇಲ್ಲದಾಗ ಅಥವಾ ಅರ್ಥ ಮಾಡಿಕೊಳ್ಳದಾಗ — ಆ ಶೂನ್ಯತೆ ಬಹಳ ಭಾರವಾಗಿ ಕಾಣುತ್ತದೆ.",
+          "ಈ ಅನ್ನಿಸಿಕೆ — ಯಾರೂ ಕೇಳ್ತಿಲ್ಲ ಅಂತ — ಇದು ನಿಜವಾಗಿಯೂ ಕಷ್ಟದ್ದು.",
+        ] as const);
+        knFollow = pickFrom(seed2 + ":lonely:follow", [
+          "ನಿನ್ನ ಜೀವನದಲ್ಲಿ ಯಾರಾದರೂ ಇದ್ದಾರಾ ಇವೆಲ್ಲ ಹಂಚಿಕೊಳ್ಳಲು?",
+          "ಈ ಒಂಟಿತನ ಯಾವಾಗಲೂ ಇತ್ತಾ, ಇಲ್ಲಾ ಒಂದು ಕಾಲದಿಂದ ಹೆಚ್ಚಾಗಿದ್ದಾ?",
+          "ನಾನು ಇನ್ನಷ್ಟು ಕೇಳ್ಲಿ ಅಂತ ಇಷ್ಟ ಆ?",
+        ] as const);
+      } else {
+        knMsg = pickFrom(seed2 + ":general", [
+          "ಎಲ್ಲ ಒಟ್ಟಿಗೆ ಭಾರವಾಗಿದ್ದಾಗ — ಆ ಅನ್ನಿಸಿಕೆ ಅರ್ಥ ಆಗುತ್ತದೆ.",
+          "ಇಷ್ಟನ್ನೆಲ್ಲ ಒಂಟಿಯಾಗಿ ಸಂಭಾಳಿಸುವುದು ಸುಲಭ ಅಲ್ಲ. ನೀನು ತುಂಬಾ ಹೆಚ್ಚು ಹೊರುತ್ತಿದ್ದೀಯ.",
+          "ಈ ನೋವಿಗೆ ಒಂದು ಜಾಗ ಬೇಕಾಗಿತ್ತು. ಹೇಳಿದ್ದು ಒಳ್ಳೇದಾಯ್ತು.",
+        ] as const);
+        knFollow = pickFrom(seed2 + ":general:follow", [
+          "ಈಗ ಯಾವ ವಿಷಯ ಅತ್ಯಂತ ನೋವು ಕೊಡುತ್ತಿದೆ?",
+          "ಇನ್ನಷ್ಟು ಹೇಳು — ಯಾವಾಗಿನಿಂದ ಹೀಗೆ ಅನ್ನಿಸುತ್ತಿದೆ?",
+          "ಹೇಳಬೇಕು ಅಂದ್ರೆ ಹೇಳು — ನಾನು ಕೇಳ್ತಿದ್ದೇನೆ.",
+        ] as const);
+      }
+
+      return {
+        message: name2 ? `${name2}, ${knMsg}` : knMsg,
+        followUp: knFollow,
+        meta: { styleContract: "1.0", blueprint: "1.0", blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }) },
+      };
+    }
+
+    // ── Tamil (ta) rich path ─────────────────────────────────────────────
+    if (lang === "ta") {
+      const isWork = /\b(boss|office|velai|thozhil|pressure|azhutham|manager)\b/.test(lower2);
+      const isRelationship = /\b(sandai|kavarchal|kaadhal|breakup|relationship|girlfriend|boyfriend|pirital|pirinjupoyee)\b/.test(lower2);
+      const isCrisis = /\b(saaganum|saavenu|khatam|thanga mudiyala)\b/.test(lower2);
+      const isLonely = /\b(thanimai|thanimaiyaaga|yarum illai|yarum puriyavillai)\b/.test(lower2);
+
+      let taMsg: string;
+      let taFollow: string;
+
+      if (isCrisis) {
+        taMsg = "நீ இப்போது மிகவும் கனமான இடத்தில் இருக்கிறாய். நான் உண்மையிலேயே இங்கே இருக்கிறேன்.";
+        taFollow = "இந்த நேரத்தில் உன்னிடம் யாராவது இருக்கிறார்களா — யாரையாவது அழைக்க முடியுமா?";
+      } else if (isWork) {
+        taMsg = pickFrom(seed2 + ":work", [
+          "வேலையின் இந்த அழுத்தம் மிகவும் கஷ்டமானது — தூக்கமின்மை, boss அழுத்தம் — எல்லாம் ஒரே நேரத்தில் மிகவும் அதிகமாகிவிடுகிறது.",
+          "இது போன்ற அழுத்தம் உடலையும் மனதையும் இரண்டையும் சாப்பிடுகிறது. நீ இப்போது மிக அதிகமாக சுமக்கிறாய்.",
+          "Boss அழுத்தம் மற்றும் தூக்கமின்மை — இதை நீண்ட காலம் தாங்குவது எளிதல்ல.",
+        ] as const);
+        taFollow = pickFrom(seed2 + ":work:follow", [
+          "இப்போது எது உன்னை அதிகமாக வலிக்கிறது — வேலை அழுத்தமா, உள்ளிருக்கும் களைப்பா?",
+          "இந்த நேரத்தில் உனக்காக கொஞ்சம் நேரம் கிடைக்கிறதா?",
+          "எப்போதிலிருந்து இப்படி இருக்கிறது?",
+        ] as const);
+      } else if (isRelationship) {
+        taMsg = pickFrom(seed2 + ":rel", [
+          "உறவில் இந்த தூரம் மிகவும் வலிக்கிறது.",
+          "சண்டை மற்றும் தூரம் — இரண்டும் ஒன்றாக வரும்போது மனம் மிகவும் கஷ்டமாகிவிடுகிறது.",
+          "நெருங்கிய மனிதர் விலகிப்போவது — இந்த அனுபவம் மிகவும் கடினமானது.",
+        ] as const);
+        taFollow = pickFrom(seed2 + ":rel:follow", [
+          "இந்த தூரம் புதியதா, இல்லை மெல்ல மெல்ல அதிகமாகியதா?",
+          "அவன்/அவள் உன் வலியைப் புரிந்துகொண்டிருக்கிறானா/ள்?",
+          "இது எவ்வளவு நாளாக நடக்கிறது?",
+        ] as const);
+      } else if (isLonely) {
+        taMsg = pickFrom(seed2 + ":lonely", [
+          "இந்த தனிமை — யாரும் புரிந்துகொள்ளவில்லை என்று தோன்றும்போது — மிகவும் கஷ்டமான இடம்.",
+          "யாரும் இல்லாதபோது அல்லது புரிந்துகொள்ளாதபோது — அந்த வெறுமை மிகவும் கனமாக உணர்கிறது.",
+          "இந்த உணர்வு — யாரும் கேட்கவில்லை என்று — இது உண்மையிலேயே வலிக்கிறது.",
+        ] as const);
+        taFollow = pickFrom(seed2 + ":lonely:follow", [
+          "உன் வாழ்க்கையில் யாராவது இருக்கிறார்களா இதை பகிர்ந்துகொள்ள?",
+          "இந்த தனிமை எப்போதும் இருந்ததா, இல்லை ஒரு காலகட்டத்திலிருந்து அதிகமாகியதா?",
+          "நான் இன்னும் கொஞ்சம் கேட்கட்டுமா?",
+        ] as const);
+      } else {
+        taMsg = pickFrom(seed2 + ":general", [
+          "எல்லாம் ஒன்றாக கனமாகிவிடும்போது — அந்த உணர்வு புரிகிறது.",
+          "இவ்வளவையும் தனியாக சமாளிப்பது எளிதல்ல. நீ மிக அதிகமாக சுமக்கிறாய்.",
+          "இந்த வலிக்கு ஒரு இடம் தேவைப்பட்டது. சொன்னது நல்லது.",
+        ] as const);
+        taFollow = pickFrom(seed2 + ":general:follow", [
+          "இப்போது எந்த விஷயம் அதிகமாக வலிக்கிறது?",
+          "இன்னும் கொஞ்சம் சொல் — எப்போதிலிருந்து இப்படி தோன்றுகிறது?",
+          "சொல்ல விரும்பினால் சொல் — நான் கேட்கிறேன்.",
+        ] as const);
+      }
+
+      return {
+        message: name2 ? `${name2}, ${taMsg}` : taMsg,
+        followUp: taFollow,
+        meta: { styleContract: "1.0", blueprint: "1.0", blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }) },
+      };
+    }
+
+    // ── Telugu (te) rich path ────────────────────────────────────────────
+    if (lang === "te") {
+      const isWork = /\b(boss|office|pani|pressure|dabaav|manager)\b/.test(lower2);
+      const isRelationship = /\b(sandadi|prema|relationship|breakup|girlfriend|boyfriend|vellipoyindi|thanu vellipoyi)\b/.test(lower2);
+      const isCrisis = /\b(chaavali|chaavatam|khatam|aasha ledu)\b/.test(lower2);
+      const isLonely = /\b(ontariga|yaaru ledu|yaaru artham cheyatledu)\b/.test(lower2);
+
+      let teMsg: string;
+      let teFollow: string;
+
+      if (isCrisis) {
+        teMsg = "నువ్వు ఇప్పుడు చాలా కష్టమైన స్థలంలో ఉన్నావు. నేను నిజంగా ఇక్కడే ఉన్నాను.";
+        teFollow = "ఈ క్షణంలో నీ దగ్గర ఎవరైనా ఉన్నారా — ఎవరినైనా పిలవగలవా?";
+      } else if (isWork) {
+        teMsg = pickFrom(seed2 + ":work", [
+          "పని ఒత్తిడి నిజంగా చాలా భారంగా ఉంటుంది — నిద్రలేమి, boss ఒత్తిడి — అన్నీ ఒకేసారి చాలా ఎక్కువగా అనిపిస్తుంది.",
+          "ఇలాంటి ఒత్తిడి శరీరాన్ని మరియు మనసు రెండింటినీ అలసిపోయేలా చేస్తుంది. నువ్వు ఇప్పుడు చాలా ఎక్కువ భరిస్తున్నావు.",
+          "Boss ఒత్తిడి మరియు నిద్రలేమి — ఇది చాలా కాలం సహించడం సులభం కాదు.",
+        ] as const);
+        teFollow = pickFrom(seed2 + ":work:follow", [
+          "ఇప్పుడు నిన్ను ఎక్కువగా బాధిస్తున్నది ఏమిటి — పని ఒత్తిడా, లేదా లోపల ఉన్న అలసటా?",
+          "ఈ సమయంలో నీ కోసం కొంచెం సమయం దొరుకుతుందా?",
+          "ఇది ఎప్పటి నుండి ఇలా ఉంది?",
+        ] as const);
+      } else if (isRelationship) {
+        teMsg = pickFrom(seed2 + ":rel", [
+          "సంబంధంలో ఈ దూరం నిజంగా చాలా బాధగా ఉంటుంది.",
+          "గొడవ మరియు దూరం — రెండూ ఒకేసారి వస్తే మనసు చాలా భారంగా అనిపిస్తుంది.",
+          "దగ్గరి వ్యక్తి దూరంగా వెళ్ళడం — ఈ అనుభవం చాలా కష్టమైనది.",
+        ] as const);
+        teFollow = pickFrom(seed2 + ":rel:follow", [
+          "ఈ దూరం కొత్తదా, లేదా నెమ్మదిగా పెరుగుతుందా?",
+          "అతనికి/ఆమెకు తెలుసా నువ్వు ఇంత బాధపడుతున్నావని?",
+          "ఇది ఎంత కాలం నుండి నడుస్తుంది?",
+        ] as const);
+      } else if (isLonely) {
+        teMsg = pickFrom(seed2 + ":lonely", [
+          "ఈ ఒంటరితనం — ఎవ్వరూ అర్థం చేసుకోవడం లేదు అని అనిపించినప్పుడు — చాలా కష్టమైన స్థలం.",
+          "ఎవ్వరూ లేనప్పుడు లేదా అర్థం చేసుకోనప్పుడు — ఆ శూన్యత చాలా భారంగా అనిపిస్తుంది.",
+          "ఈ భావన — ఎవ్వరూ వినడం లేదు అని — ఇది నిజంగా బాధాకరంగా ఉంటుంది.",
+        ] as const);
+        teFollow = pickFrom(seed2 + ":lonely:follow", [
+          "నీ జీవితంలో ఎవరైనా ఉన్నారా ఇవన్నీ పంచుకోవడానికి?",
+          "ఈ ఒంటరితనం ఎప్పుడూ ఉండేదా, లేదా ఒక సమయం నుండి పెరిగిందా?",
+          "నేను మరింత వినాలని ఉందా?",
+        ] as const);
+      } else {
+        teMsg = pickFrom(seed2 + ":general", [
+          "అన్నీ ఒకేసారి భారంగా అనిపించినప్పుడు — ఆ అనుభవం అర్థమవుతుంది.",
+          "ఇవన్నీ ఒంటరిగా సంభాళించడం సులభం కాదు. నువ్వు చాలా ఎక్కువ మోస్తున్నావు.",
+          "ఈ బాధకు ఒక స్థలం అవసరమైంది. చెప్పినందుకు మంచిది.",
+        ] as const);
+        teFollow = pickFrom(seed2 + ":general:follow", [
+          "ఇప్పుడు ఏ విషయం ఎక్కువగా బాధిస్తుంది?",
+          "ఇంకాస్త చెప్పు — ఇది ఎప్పటి నుండి ఇలా అనిపిస్తుంది?",
+          "చెప్పాలనుంటే చెప్పు — నేను వింటున్నాను.",
+        ] as const);
+      }
+
+      return {
+        message: name2 ? `${name2}, ${teMsg}` : teMsg,
+        followUp: teFollow,
+        meta: { styleContract: "1.0", blueprint: "1.0", blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }) },
+      };
+    }
+
+    // ── Malayalam (ml) rich path ─────────────────────────────────────────
+    if (lang === "ml") {
+      const isWork = /\b(boss|office|joli|pressure|manager|aazhutham)\b/.test(lower2);
+      const isRelationship = /\b(bandham|prema|relationship|breakup|girlfriend|boyfriend|pirinjupoyee|door ayi)\b/.test(lower2);
+      const isCrisis = /\b(marikkanam|marikkan|sambhalikkan patunilla|khatam)\b/.test(lower2);
+      const isLonely = /\b(thanimayal|aarumilla|aarumpuriyunilla)\b/.test(lower2);
+
+      let mlMsg: string;
+      let mlFollow: string;
+
+      if (isCrisis) {
+        mlMsg = "നീ ഇപ്പോൾ വളരെ ഭാരമേറിയ ഇടത്തിലാണ്. ഞാൻ ശരിക്കും ഇവിടെ ഉണ്ട്.";
+        mlFollow = "ഈ നേരത്ത് നിന്റെ അടുത്ത് ആരെങ്കിലും ഉണ്ടോ — ആരെയെങ്കിലും വിളിക്കാൻ പറ്റുമോ?";
+      } else if (isWork) {
+        mlMsg = pickFrom(seed2 + ":work", [
+          "ജോലിയുടെ ഈ സമ്മർദ്ദം ശരിക്കും വളരെ ഭാരമേറിയതാണ് — ഉറക്കമില്ലായ്മ, boss സമ്മർദ്ദം — എല്ലാം ഒന്നിച്ച് വളരെ കൂടുതലാകുന്നു.",
+          "ഇത്തരം സമ്മർദ്ദം ശരീരത്തെയും മനസ്സിനെയും രണ്ടിനെയും ക്ഷീണിപ്പിക്കുന്നു. നീ ഇപ്പോൾ വളരെ കൂടുതൽ വഹിക്കുന്നു.",
+          "Boss സമ്മർദ്ദവും ഉറക്കം വരാത്തതും — ഇത് ദീർഘ കാലം സഹിക്കുക എളുപ്പമല്ല.",
+        ] as const);
+        mlFollow = pickFrom(seed2 + ":work:follow", [
+          "ഇപ്പോൾ നിന്നെ കൂടുതൽ ബുദ്ധിമുട്ടിക്കുന്നത് ഏതാണ് — ജോലി സമ്മർദ്ദമോ, ഉള്ളിലെ ക്ഷീണമോ?",
+          "ഈ സമയത്ത് നിനക്കായി കൊഞ്ചം സമയം കിട്ടുന്നുണ്ടോ?",
+          "ഇത് എന്നു മുതൽ ഇങ്ങനെ ഉണ്ട്?",
+        ] as const);
+      } else if (isRelationship) {
+        mlMsg = pickFrom(seed2 + ":rel", [
+          "ബന്ധത്തിലെ ഈ അകലം ശരിക്കും വളരെ വേദനിക്കുന്നതാണ്.",
+          "വഴക്കും അകലവും — രണ്ടും ഒന്നിച്ച് വരുമ്പോൾ മനസ്സ് വളരെ ഭാരമേറുന്നു.",
+          "അടുത്ത വ്യക്തി അകന്നു പോകുന്നത് — ഈ അനുഭവം വളരെ കഷ്ടകരമാണ്.",
+        ] as const);
+        mlFollow = pickFrom(seed2 + ":rel:follow", [
+          "ഈ അകലം പുതിയതോ, അതോ പതുക്കെ കൂടിയതോ?",
+          "അവനു/അവൾക്ക് അറിയാമോ നീ ഇത്ര വേദനയിലാണെന്ന്?",
+          "ഇത് എത്ര കാലമായി നടക്കുന്നു?",
+        ] as const);
+      } else if (isLonely) {
+        mlMsg = pickFrom(seed2 + ":lonely", [
+          "ഈ ഒറ്റപ്പെടൽ — ആരും മനസ്സിലാക്കുന്നില്ല എന്ന് തോന്നുമ്പോൾ — വളരെ കഷ്ടമായ ഇടം.",
+          "ആരും ഇല്ലാതാകുമ്പോൾ അല്ലെങ്കിൽ മനസ്സിലാക്കാതിരുമ്പോൾ — ആ ശൂന്യത വളരെ ഭാരമേറിയതായി അനുഭവപ്പെടുന്നു.",
+          "ഈ തോന്നൽ — ആരും കേൾക്കുന്നില്ല എന്ന് — ഇത് ശരിക്കും വേദനാജനകമാണ്.",
+        ] as const);
+        mlFollow = pickFrom(seed2 + ":lonely:follow", [
+          "നിന്റെ ജീവിതത്തിൽ ഇവ പങ്കുവെക്കാൻ ആരെങ്കിലും ഉണ്ടോ?",
+          "ഈ ഒറ്റപ്പെടൽ എന്നും ഉണ്ടായിരുന്നോ, അതോ ഒരു കാലം മുതൽ കൂടിയതോ?",
+          "ഞാൻ ഇനിയും കൂടുതൽ കേൾക്കണോ?",
+        ] as const);
+      } else {
+        mlMsg = pickFrom(seed2 + ":general", [
+          "എല്ലാം ഒന്നിച്ച് ഭാരമേറുമ്പോൾ — ആ അനുഭവം മനസ്സിലാകുന്നു.",
+          "ഇവയെല്ലാം ഒറ്റയ്ക്ക് കൈകാര്യം ചെയ്യുക എളുപ്പമല്ല. നീ വളരെ കൂടുതൽ ചുമക്കുന്നു.",
+          "ഈ വേദനയ്ക്ക് ഒരു ഇടം ആവശ്യമായിരുന്നു. പറഞ്ഞത് നന്നായി.",
+        ] as const);
+        mlFollow = pickFrom(seed2 + ":general:follow", [
+          "ഇപ്പോൾ ഏത് കാര്യം കൂടുതൽ ബുദ്ധിമുട്ടിക്കുന്നു?",
+          "ഇനിയും കൊഞ്ചം പറ — ഇത് എന്നു മുതൽ ഇങ്ങനെ തോന്നുന്നു?",
+          "പറയണം എന്നുണ്ടെങ്കിൽ പറ — ഞാൻ കേൾക്കുന്നുണ്ട്.",
+        ] as const);
+      }
+
+      return {
+        message: name2 ? `${name2}, ${mlMsg}` : mlMsg,
+        followUp: mlFollow,
+        meta: { styleContract: "1.0", blueprint: "1.0", blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }) },
+      };
+    }
+
+    // ── Punjabi (pa) rich path ───────────────────────────────────────────
+    if (lang === "pa") {
+      const isWork = /\b(boss|office|kaam|pressure|manager|dabaav)\b/.test(lower2);
+      const isRelationship = /\b(jhagda|rishta|relationship|breakup|girlfriend|boyfriend|chhad gaya|chhad gayi)\b/.test(lower2);
+      const isCrisis = /\b(marna|maar laina|khatam|sambhaal nahi)\b/.test(lower2);
+      const isLonely = /\b(ikalla|ikalli|koi nahi|koi samajh nahi)\b/.test(lower2);
+
+      let paMsg: string;
+      let paFollow: string;
+
+      if (isCrisis) {
+        paMsg = "ਤੂੰ ਹੁਣ ਬਹੁਤ ਭਾਰੀ ਥਾਂ 'ਤੇ ਹੈ। ਮੈਂ ਸੱਚਮੁੱਚ ਨਾਲ ਹਾਂ।";
+        paFollow = "ਇਸ ਵੇਲੇ ਤੇਰੇ ਕੋਲ ਕੋਈ ਹੈ — ਕਿਸੇ ਨੂੰ ਬੁਲਾ ਸਕਦਾ/ਸਕਦੀ ਹੈਂ?";
+      } else if (isWork) {
+        paMsg = pickFrom(seed2 + ":work", [
+          "ਕੰਮ ਦਾ ਇਹ ਬੋਝ ਸੱਚਮੁੱਚ ਬਹੁਤ ਭਾਰਾ ਹੈ — ਨੀਂਦ ਨਹੀਂ, boss ਦਾ ਦਬਾਅ — ਸਭ ਇਕੱਠੇ ਬਹੁਤ ਜ਼ਿਆਦਾ ਹੋ ਜਾਂਦਾ ਹੈ।",
+          "ਇਸ ਤਰ੍ਹਾਂ ਦਾ ਦਬਾਅ ਸਰੀਰ ਅਤੇ ਮਨ ਦੋਵਾਂ ਨੂੰ ਖਾਂਦਾ ਹੈ। ਤੂੰ ਹੁਣ ਬਹੁਤ ਜ਼ਿਆਦਾ ਚੁੱਕ ਰਿਹਾ/ਰਹੀ ਹੈਂ।",
+          "Boss ਦਾ ਦਬਾਅ ਅਤੇ ਨੀਂਦ ਨਾ ਆਉਣੀ — ਇਹ ਲੰਮੇ ਸਮੇਂ ਤੱਕ ਸਹਿਣਾ ਆਸਾਨ ਨਹੀਂ।",
+        ] as const);
+        paFollow = pickFrom(seed2 + ":work:follow", [
+          "ਹੁਣ ਸਭ ਤੋਂ ਵੱਧ ਕੀ ਭਾਰਾ ਲੱਗ ਰਿਹਾ ਹੈ — ਕੰਮ ਦਾ ਦਬਾਅ, ਜਾਂ ਅੰਦਰੋਂ ਥਕਾਵਟ?",
+          "ਇਸ ਵੇਲੇ ਆਪਣੇ ਲਈ ਥੋੜਾ ਸਮਾਂ ਮਿਲਦਾ ਹੈ?",
+          "ਇਹ ਕਦੋਂ ਤੋਂ ਇਸ ਤਰ੍ਹਾਂ ਚੱਲ ਰਿਹਾ ਹੈ?",
+        ] as const);
+      } else if (isRelationship) {
+        paMsg = pickFrom(seed2 + ":rel", [
+          "ਰਿਸ਼ਤੇ ਵਿੱਚ ਇਹ ਦੂਰੀ ਸੱਚਮੁੱਚ ਬਹੁਤ ਭਾਰੀ ਹੈ।",
+          "ਝਗੜਾ ਅਤੇ ਦੂਰੀ — ਦੋਵੇਂ ਇਕੱਠੇ ਆਉਣ ਤੇ ਮਨ ਬਹੁਤ ਭਾਰਾ ਹੋ ਜਾਂਦਾ ਹੈ।",
+          "ਨੇੜੇ ਦੇ ਇਨਸਾਨ ਦਾ ਦੂਰ ਹੋਣਾ — ਇਹ ਤਜਰਬਾ ਬਹੁਤ ਔਖਾ ਹੁੰਦਾ ਹੈ।",
+        ] as const);
+        paFollow = pickFrom(seed2 + ":rel:follow", [
+          "ਇਹ ਦੂਰੀ ਨਵੀਂ ਹੈ, ਜਾਂ ਹੌਲੀ ਹੌਲੀ ਵੱਧ ਰਹੀ ਸੀ?",
+          "ਉਸਨੂੰ ਪਤਾ ਹੈ ਕਿ ਤੂੰ ਇੰਨਾ ਦੁਖੀ ਹੈਂ?",
+          "ਇਹ ਕਿੰਨੇ ਸਮੇਂ ਤੋਂ ਚੱਲ ਰਿਹਾ ਹੈ?",
+        ] as const);
+      } else if (isLonely) {
+        paMsg = pickFrom(seed2 + ":lonely", [
+          "ਇਹ ਇਕੱਲਾਪਣ — ਜਦੋਂ ਲੱਗੇ ਕੋਈ ਸਮਝਦਾ ਨਹੀਂ — ਇਹ ਬਹੁਤ ਔਖੀ ਥਾਂ ਹੈ।",
+          "ਕੋਈ ਨਾ ਹੋਵੇ ਜਾਂ ਸਮਝੇ ਨਾ — ਉਹ ਖਾਲੀਪਣ ਬਹੁਤ ਭਾਰਾ ਲੱਗਦਾ ਹੈ।",
+          "ਇਹ ਅਹਿਸਾਸ — ਕੋਈ ਸੁਣ ਨਹੀਂ ਰਿਹਾ — ਇਹ ਸੱਚਮੁੱਚ ਤਕਲੀਫ਼ਦੇਹ ਹੈ।",
+        ] as const);
+        paFollow = pickFrom(seed2 + ":lonely:follow", [
+          "ਕੀ ਤੇਰੀ ਜ਼ਿੰਦਗੀ ਵਿੱਚ ਕੋਈ ਹੈ ਜਿਸ ਨਾਲ ਇਹ ਸਾਂਝਾ ਕਰ ਸਕੇਂ?",
+          "ਇਹ ਇਕੱਲਾਪਣ ਹਮੇਸ਼ਾ ਸੀ, ਜਾਂ ਕਿਸੇ ਵੇਲੇ ਤੋਂ ਵੱਧਿਆ?",
+          "ਕੀ ਤੂੰ ਚਾਹੁੰਦਾ/ਚਾਹੁੰਦੀ ਹੈਂ ਕਿ ਮੈਂ ਹੋਰ ਸੁਣਾਂ?",
+        ] as const);
+      } else {
+        paMsg = pickFrom(seed2 + ":general", [
+          "ਇਹ ਅਹਿਸਾਸ — ਜਦੋਂ ਸਭ ਇਕੱਠੇ ਭਾਰਾ ਹੋ ਜਾਵੇ — ਸਮਝ ਆਉਂਦੀ ਹੈ।",
+          "ਇੰਨਾ ਕੁਝ ਇਕੱਲੇ ਸੰਭਾਲਣਾ ਆਸਾਨ ਨਹੀਂ। ਤੂੰ ਬਹੁਤ ਜ਼ਿਆਦਾ ਉਠਾ ਰਿਹਾ/ਰਹੀ ਹੈਂ।",
+          "ਇਸ ਦਰਦ ਨੂੰ ਜਗ੍ਹਾ ਮਿਲਣ ਦੀ ਲੋੜ ਸੀ। ਦੱਸਿਆ ਇਹ ਚੰਗਾ ਕੀਤਾ।",
+        ] as const);
+        paFollow = pickFrom(seed2 + ":general:follow", [
+          "ਹੁਣ ਕਿਹੜੀ ਗੱਲ ਸਭ ਤੋਂ ਵੱਧ ਤਕਲੀਫ਼ ਦੇ ਰਹੀ ਹੈ?",
+          "ਥੋੜਾ ਹੋਰ ਦੱਸ — ਕਦੋਂ ਤੋਂ ਇਸ ਤਰ੍ਹਾਂ ਲੱਗ ਰਿਹਾ ਹੈ?",
+          "ਜੇ ਦੱਸਣਾ ਚਾਹੁੰਦਾ/ਚਾਹੁੰਦੀ ਹੈਂ ਤਾਂ ਦੱਸ — ਮੈਂ ਸੁਣ ਰਿਹਾ/ਰਹੀ ਹਾਂ।",
+        ] as const);
+      }
+
+      return {
+        message: name2 ? `${name2}, ${paMsg}` : paMsg,
+        followUp: paFollow,
+        meta: { styleContract: "1.0", blueprint: "1.0", blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }) },
+      };
+    }
+
+    // ── Odia (or) rich path ──────────────────────────────────────────────
+    if (lang === "or") {
+      const isWork = /\b(boss|office|kaam|pressure|manager|dabaav)\b/.test(lower2);
+      const isRelationship = /\b(jhagda|sambandha|relationship|breakup|girlfriend|boyfriend|chhadiga|chhadile)\b/.test(lower2);
+      const isCrisis = /\b(marajaiba|mara jai|khatam|handle napariba)\b/.test(lower2);
+      const isLonely = /\b(eka|keu nahi|keu bujhibu nahi)\b/.test(lower2);
+
+      let orMsg: string;
+      let orFollow: string;
+
+      if (isCrisis) {
+        orMsg = "ତୁ ଏବେ ବହୁତ ଭାରୀ ଜାଗାରେ ଅଛ। ମୁଁ ସତ୍ୟ ସହିତ ଅଛି।";
+        orFollow = "ଏହି ମୁହୂର୍ତ୍ତରେ ତୁ ପାଖରେ କେହି ଅଛ କି — କାହାକୁ ଡାକି ପାରିବ?";
+      } else if (isWork) {
+        orMsg = pickFrom(seed2 + ":work", [
+          "କାମର ଏହି ଚାପ ସତ୍ୟ ବହୁତ ଭାରୀ — ଘୁଅ ନାହିଁ, boss ଚାପ — ସବୁ ଏକ ସଙ୍ଗେ ବହୁତ ଅଧିକ ହୋଇଯାଏ।",
+          "ଏହି ପ୍ରକାର ଚାପ ଶରୀର ଓ ମନ ଦୁଇଟି ଖାଏ। ତୁ ଏବେ ବହୁତ ଅଧିକ ବହନ କରୁଛ।",
+          "Boss ଚାପ ଓ ଘୁଅ ନ ଆସିବା — ଏହା ଦୀର୍ଘ ସମୟ ସହ୍ୟ କରିବା ସହଜ ନୁହେଁ।",
+        ] as const);
+        orFollow = pickFrom(seed2 + ":work:follow", [
+          "ଏବେ ସବୁଠୁ ଅଧିକ କ'ଣ ଭାରୀ ଲାଗୁଛ — କାମ ଚାପ, ନା ଭିତରର ଥକ୍କା?",
+          "ଏହି ସମୟରେ ନିଜ ପାଇଁ ଟିକେ ସମୟ ମିଳୁଛ?",
+          "ଏହା କ'ଣ ରୁ ଏହିପ୍ରକାର ଚଳୁଛ?",
+        ] as const);
+      } else if (isRelationship) {
+        orMsg = pickFrom(seed2 + ":rel", [
+          "ସମ୍ପର୍କରେ ଏହି ଦୂରତ୍ୱ ସତ୍ୟ ବହୁତ ଭାରୀ।",
+          "ଝଗଡ଼ା ଓ ଦୂରତ୍ୱ — ଦୁଇଟି ଏକ ସଙ୍ଗେ ଆସିଲେ ମନ ବହୁତ ଭାରୀ ହୁଏ।",
+          "ନଜଦୀକ ବ୍ୟକ୍ତିର ଦୂରକୁ ଯିବା — ଏହି ଅନୁଭୂତି ବହୁତ କଷ୍ଟର।",
+        ] as const);
+        orFollow = pickFrom(seed2 + ":rel:follow", [
+          "ଏହି ଦୂରତ୍ୱ ନୂଆ, ନା ଧୀରେ ଧୀରେ ବଢ଼ୁଥିଲା?",
+          "ତାଙ୍କୁ ଜଣା ଅଛ ଯେ ତୁ ଏତେ ଦୁଃଖୀ?",
+          "ଏହା କ'ଣ ଦିନ ଧରି ଚଳୁଛ?",
+        ] as const);
+      } else if (isLonely) {
+        orMsg = pickFrom(seed2 + ":lonely", [
+          "ଏହି ଏକୁଟିଆ ଭାବ — ଯେବେ ଲାଗେ କେହି ବୁଝୁ ନାହାନ୍ତି — ବହୁତ କଷ୍ଟ ଜାଗା।",
+          "କେହି ନ ଥିଲେ ବା ନ ବୁଝିଲେ — ସେ ଖାଲି ଭାବ ବହୁତ ଭାରୀ ଲାଗେ।",
+          "ଏହି ଅନୁଭୂତି — କେହି ଶୁଣୁ ନାହାନ୍ତି — ଏହା ସତ୍ୟ ତ୍ରାସଦାୟକ।",
+        ] as const);
+        orFollow = pickFrom(seed2 + ":lonely:follow", [
+          "ତୋ ଜୀବନରେ କେହି ଅଛ ଏ ସବୁ ଭାଗ କରିବାକୁ?",
+          "ଏହି ଏକୁଟିଆ ଭାବ ସବୁବେଳେ ଥିଲା, ନା ଏ ସମୟ ରୁ ବଢ଼ିଛ?",
+          "ମୁଁ ଆଉ ଶୁଣିବ?",
+        ] as const);
+      } else {
+        orMsg = pickFrom(seed2 + ":general", [
+          "ସବୁ ଏକ ସଙ୍ଗେ ଭାରୀ ହେଲେ — ସେ ଅନୁଭୂତି ବୁଝାଯାଏ।",
+          "ଏତେ ସବୁ ଏକୁଟିଆ ସମ୍ଭାଳିବା ସହଜ ନୁହେଁ। ତୁ ବହୁତ ଅଧିକ ଉଠାଉଛ।",
+          "ଏହି ଦୁଃଖ ଜାଗା ପାଇବା ଦରକାର ଥିଲା। ବୋଲ ଭଲ କଲ।",
+        ] as const);
+        orFollow = pickFrom(seed2 + ":general:follow", [
+          "ଏବେ କ'ଣ ସବୁଠୁ ଅଧିକ ତ୍ରାସ ଦେଉଛ?",
+          "ଆଉ ଟିକେ ବୋଲ — କ'ଣ ରୁ ଏହିପ୍ରକାର ଲାଗୁଛ?",
+          "ବୋଲିବ ଚାହିଁଲେ ବୋଲ — ମୁଁ ଶୁଣୁଛି।",
+        ] as const);
+      }
+
+      return {
+        message: name2 ? `${name2}, ${orMsg}` : orMsg,
+        followUp: orFollow,
+        meta: { styleContract: "1.0", blueprint: "1.0", blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }) },
+      };
+    }
+
+    // ── Urdu (ur) rich path ──────────────────────────────────────────────
+    if (lang === "ur") {
+      const isWork = /\b(boss|office|kaam|pressure|manager|dabaav)\b/.test(lower2);
+      const isRelationship = /\b(jhagda|rishta|relationship|breakup|girlfriend|boyfriend|chod gaya|chod gayi|dil toota)\b/.test(lower2);
+      const isCrisis = /\b(marne|mar jaana|khatam karna|mujhe nahi chahiye|sab khatam)\b/.test(lower2);
+      const isLonely = /\b(akela|akeli|tanha|koi nahi|koi samajhta nahi)\b/.test(lower2);
+
+      let urMsg: string;
+      let urFollow: string;
+
+      if (isCrisis) {
+        urMsg = "آپ ابھی بہت بھاری جگہ پر ہیں۔ میں سچ میں ساتھ ہوں۔";
+        urFollow = "اس وقت آپ کے پاس کوئی ہے — کسی کو بلا سکتے ہیں؟";
+      } else if (isWork) {
+        urMsg = pickFrom(seed2 + ":work", [
+          "کام کا یہ دباؤ سچ میں بہت بھاری ہے — نیند نہیں، boss کا دباؤ — سب مل کر بہت زیادہ ہو جاتا ہے۔",
+          "اس طرح کا دباؤ جسم اور دماغ دونوں کو کھاتا ہے۔ آپ ابھی بہت زیادہ اٹھا رہے ہیں۔",
+          "Boss کا دباؤ اور نیند نہ آنا — یہ طویل عرصے سہنا آسان نہیں۔",
+        ] as const);
+        urFollow = pickFrom(seed2 + ":work:follow", [
+          "ابھی سب سے زیادہ کیا بھاری لگ رہا ہے — کام کا دباؤ، یا اندر کی تھکاوٹ؟",
+          "اس وقت اپنے لیے تھوڑا وقت مل رہا ہے؟",
+          "یہ کب سے اس طرح چل رہا ہے؟",
+        ] as const);
+      } else if (isRelationship) {
+        urMsg = pickFrom(seed2 + ":rel", [
+          "رشتے میں یہ دوری سچ میں بہت بھاری ہے۔",
+          "جھگڑا اور دوری — دونوں مل کر آئیں تو دل بہت بھاری ہو جاتا ہے۔",
+          "قریبی انسان کا دور ہونا — یہ تجربہ بہت مشکل ہوتا ہے۔",
+        ] as const);
+        urFollow = pickFrom(seed2 + ":rel:follow", [
+          "یہ دوری نئی ہے، یا آہستہ آہستہ بڑھ رہی تھی؟",
+          "اسے پتہ ہے کہ آپ اتنے دکھی ہیں؟",
+          "یہ کتنے عرصے سے چل رہا ہے؟",
+        ] as const);
+      } else if (isLonely) {
+        urMsg = pickFrom(seed2 + ":lonely", [
+          "یہ تنہائی — جب لگے کہ کوئی سمجھتا نہیں — یہ بہت مشکل جگہ ہے۔",
+          "جب کوئی نہ ہو یا سمجھے نہ — وہ خالی پن بہت بھاری لگتا ہے۔",
+          "یہ احساس — کہ کوئی سن نہیں رہا — یہ سچ میں تکلیف دہ ہے۔",
+        ] as const);
+        urFollow = pickFrom(seed2 + ":lonely:follow", [
+          "کیا آپ کی زندگی میں کوئی ہے جس سے یہ سب بانٹ سکیں؟",
+          "یہ تنہائی ہمیشہ سے تھی، یا کسی وقت سے بڑھی؟",
+          "کیا آپ چاہتے ہیں میں تھوڑا اور سنوں؟",
+        ] as const);
+      } else {
+        urMsg = pickFrom(seed2 + ":general", [
+          "یہ احساس — جب سب کچھ ایک ساتھ بھاری ہو جائے — سمجھ میں آتا ہے۔",
+          "اتنا سب اکیلے سنبھالنا آسان نہیں۔ آپ بہت زیادہ اٹھا رہے ہیں۔",
+          "اس درد کو جگہ ملنی چاہیے تھی۔ بتایا یہ اچھا کیا۔",
+        ] as const);
+        urFollow = pickFrom(seed2 + ":general:follow", [
+          "ابھی کون سی بات سب سے زیادہ تکلیف دے رہی ہے؟",
+          "تھوڑا اور بتائیں — کب سے ایسا لگ رہا ہے؟",
+          "بتانا چاہیں تو بتائیں — میں سن رہا/رہی ہوں۔",
+        ] as const);
+      }
+
+      return {
+        message: name2 ? `${name2}, ${urMsg}` : urMsg,
+        followUp: urFollow,
+        meta: { styleContract: "1.0", blueprint: "1.0", blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }) },
+      };
+    }
   }
 
   const msg = oneLine(userMessage);
@@ -946,35 +1892,131 @@ function draftResponseForLanguage(
                   : "હું સમજું છું."
           : lang === "kn"
             ? rel === "friend"
-              ? name
-                ? `ಅರ್ಥ ಆಯಿತು, ${name}.`
-                : "ಅರ್ಥ ಆಯಿತು."
+              ? name ? `ಅರ್ಥ ಆಯಿತು, ${name}.` : "ಅರ್ಥ ಆಯಿತು."
               : rel === "mentor"
-                ? name
-                  ? `ನಾನು ಕೇಳುತ್ತಿದ್ದೇನೆ, ${name}.`
-                  : "ನಾನು ಕೇಳುತ್ತಿದ್ದೇನೆ."
+                ? name ? `ನಾನು ಕೇಳುತ್ತಿದ್ದೇನೆ, ${name}.` : "ನಾನು ಕೇಳುತ್ತಿದ್ದೇನೆ."
                 : rel === "coach"
-                  ? name
-                    ? `ಸರಿ, ${name}.`
-                    : "ಸರಿ."
-                  : name
-                    ? `ನಾನು ಅರ್ಥ ಮಾಡಿಕೊಳ್ಳುತ್ತಿದ್ದೇನೆ, ${name}.`
-                    : "ನಾನು ಅರ್ಥ ಮಾಡಿಕೊಳ್ಳುತ್ತಿದ್ದೇನೆ."
-            : rel === "friend"
-              ? name
-                ? `समजलं, ${name}.`
-                : "समजलं."
+                  ? name ? `ಸರಿ, ${name}.` : "ಸರಿ."
+                  : name ? `ನಾನು ಅರ್ಥ ಮಾಡಿಕೊಳ್ಳುತ್ತಿದ್ದೇನೆ, ${name}.` : "ನಾನು ಅರ್ಥ ಮಾಡಿಕೊಳ್ಳುತ್ತಿದ್ದೇನೆ."
+          : lang === "ta"
+            ? rel === "friend"
+              ? name ? `புரிந்தது, ${name}.` : "புரிந்தது."
               : rel === "mentor"
-                ? name
-                  ? `${mr("मी ऐकतोय", "मी ऐकतेय")}, ${name}.`
-                  : mr("मी ऐकतोय.", "मी ऐकतेय.")
+                ? name ? `நான் கேட்கிறேன், ${name}.` : "நான் கேட்கிறேன்."
                 : rel === "coach"
-                  ? name
-                    ? `ठीक आहे, ${name}.`
-                    : "ठीक आहे."
-                  : name
-                    ? `${mr("मी समजून घेतोय", "मी समजून घेतेय")}, ${name}.`
-                    : mr("मी समजून घेतोय.", "मी समजून घेतेय.");
+                  ? name ? `சரி, ${name}.` : "சரி."
+                  : name ? `நான் புரிந்துகொள்கிறேன், ${name}.` : "நான் புரிந்துகொள்கிறேன்."
+          : lang === "te"
+            ? rel === "friend"
+              ? name ? `అర్థమైంది, ${name}.` : "అర్థమైంది."
+              : rel === "mentor"
+                ? name ? `నేను వింటున్నాను, ${name}.` : "నేను వింటున్నాను."
+                : rel === "coach"
+                  ? name ? `సరే, ${name}.` : "సరే."
+                  : name ? `నేను అర్థం చేసుకుంటున్నాను, ${name}.` : "నేను అర్థం చేసుకుంటున్నాను."
+          : lang === "ml"
+            ? rel === "friend"
+              ? name ? `മനസ്സിലായി, ${name}.` : "മനസ്സിലായി."
+              : rel === "mentor"
+                ? name ? `ഞാൻ കേൾക്കുന്നുണ്ട്, ${name}.` : "ഞാൻ കേൾക്കുന്നുണ്ട്."
+                : rel === "coach"
+                  ? name ? `ശരി, ${name}.` : "ശരി."
+                  : name ? `ഞാൻ മനസ്സിലാക്കുന്നു, ${name}.` : "ഞാൻ മനസ്സിലാക്കുന്നു."
+          : lang === "pa"
+            ? rel === "friend"
+              ? name ? `ਸਮਝ ਆਇਆ, ${name}.` : "ਸਮਝ ਆਇਆ."
+              : rel === "mentor"
+                ? name ? `ਮੈਂ ਸੁਣ ਰਿਹਾ/ਰਹੀ ਹਾਂ, ${name}.` : "ਮੈਂ ਸੁਣ ਰਿਹਾ/ਰਹੀ ਹਾਂ."
+                : rel === "coach"
+                  ? name ? `ਠੀਕ ਹੈ, ${name}.` : "ਠੀਕ ਹੈ."
+                  : name ? `ਮੈਂ ਸਮਝ ਰਿਹਾ/ਰਹੀ ਹਾਂ, ${name}.` : "ਮੈਂ ਸਮਝ ਰਿਹਾ/ਰਹੀ ਹਾਂ."
+          : lang === "or"
+            ? rel === "friend"
+              ? name ? `ବୁଝିଲି, ${name}.` : "ବୁଝିଲି."
+              : rel === "mentor"
+                ? name ? `ମୁଁ ଶୁଣୁଛି, ${name}.` : "ମୁଁ ଶୁଣୁଛି."
+                : rel === "coach"
+                  ? name ? `ଠିକ ଅଛ, ${name}.` : "ଠିକ ଅଛ."
+                  : name ? `ମୁଁ ବୁଝୁଛି, ${name}.` : "ମୁଁ ବୁଝୁଛି."
+          : lang === "ur"
+            ? rel === "friend"
+              ? name ? `سمجھ گیا، ${name}.` : "سمجھ گیا."
+              : rel === "mentor"
+                ? name ? `میں سن رہا/رہی ہوں، ${name}.` : "میں سن رہا/رہی ہوں."
+                : rel === "coach"
+                  ? name ? `ٹھیک ہے، ${name}.` : "ٹھیک ہے."
+                  : name ? `میں سمجھ رہا/رہی ہوں، ${name}.` : "میں سمجھ رہا/رہی ہوں."
+          : lang === "ar"
+            ? rel === "friend"
+              ? name ? `فهمت، ${name}.` : "فهمت."
+              : rel === "mentor"
+                ? name ? `أنا أسمعك، ${name}.` : "أنا أسمعك."
+                : rel === "coach"
+                  ? name ? `حسناً، ${name}.` : "حسناً."
+                  : name ? `أنا أتفهمك، ${name}.` : "أنا أتفهمك."
+          : lang === "zh"
+            ? rel === "friend"
+              ? name ? `明白了，${name}。` : "明白了。"
+              : rel === "mentor"
+                ? name ? `我在听，${name}。` : "我在听。"
+                : rel === "coach"
+                  ? name ? `好，${name}。` : "好。"
+                  : name ? `我理解，${name}。` : "我理解。"
+          : lang === "es"
+            ? rel === "friend"
+              ? name ? `Entendido, ${name}.` : "Entendido."
+              : rel === "mentor"
+                ? name ? `Te escucho, ${name}.` : "Te escucho."
+                : rel === "coach"
+                  ? name ? `Está bien, ${name}.` : "Está bien."
+                  : name ? `Lo entiendo, ${name}.` : "Lo entiendo."
+          : lang === "fr"
+            ? rel === "friend"
+              ? name ? `Je comprends, ${name}.` : "Je comprends."
+              : rel === "mentor"
+                ? name ? `Je t'écoute, ${name}.` : "Je t'écoute."
+                : rel === "coach"
+                  ? name ? `D'accord, ${name}.` : "D'accord."
+                  : name ? `Je te comprends, ${name}.` : "Je te comprends."
+          : lang === "pt"
+            ? rel === "friend"
+              ? name ? `Entendido, ${name}.` : "Entendido."
+              : rel === "mentor"
+                ? name ? `Estou ouvindo, ${name}.` : "Estou ouvindo."
+                : rel === "coach"
+                  ? name ? `Ok, ${name}.` : "Ok."
+                  : name ? `Entendo, ${name}.` : "Entendo."
+          : lang === "ru"
+            ? rel === "friend"
+              ? name ? `Понял, ${name}.` : "Понял."
+              : rel === "mentor"
+                ? name ? `Я слушаю, ${name}.` : "Я слушаю."
+                : rel === "coach"
+                  ? name ? `Хорошо, ${name}.` : "Хорошо."
+                  : name ? `Я понимаю, ${name}.` : "Я понимаю."
+          : lang === "id"
+            ? rel === "friend"
+              ? name ? `Mengerti, ${name}.` : "Mengerti."
+              : rel === "mentor"
+                ? name ? `Aku mendengarmu, ${name}.` : "Aku mendengarmu."
+                : rel === "coach"
+                  ? name ? `Oke, ${name}.` : "Oke."
+                  : name ? `Aku paham, ${name}.` : "Aku paham."
+          : lang === "de"
+            ? rel === "friend"
+              ? name ? `Verstanden, ${name}.` : "Verstanden."
+              : rel === "mentor"
+                ? name ? `Ich höre zu, ${name}.` : "Ich höre zu."
+                : rel === "coach"
+                  ? name ? `Gut, ${name}.` : "Gut."
+                  : name ? `Ich verstehe, ${name}.` : "Ich verstehe."
+          : rel === "friend"
+              ? name ? `समजलं, ${name}.` : "समजलं."
+              : rel === "mentor"
+                ? name ? `${mr("मी ऐकतोय", "मी ऐकतेय")}, ${name}.` : mr("मी ऐकतोय.", "मी ऐकतेय.")
+                : rel === "coach"
+                  ? name ? `ठीक आहे, ${name}.` : "ठीक आहे."
+                  : name ? `${mr("मी समजून घेतोय", "मी समजून घेतेय")}, ${name}.` : mr("मी समजून घेतोय.", "मी समजून घेतेय.");
 
   const prev = getContextUserTurn(ctx, msg, 3);
   const useAnchor =
@@ -983,13 +2025,502 @@ function draftResponseForLanguage(
     ? `${opener} ${continuityAnchor(lang, prev!, msg)}`
     : opener;
 
+  // ── Foreign language rich response path ──────────────────────────────
+  if (FOREIGN_LANGS.has(lang) && hasStrongForeignEmotionalSignal(userMessage, lang)) {
+    const lower3 = userMessage.toLowerCase();
+    const name3 = getUserName({ ...ctx } as SessionContext);
+    const rel3 = pickRelationshipTone({ ...ctx } as SessionContext);
+    const seed3 = `${lang}:emo:${userMessage}:${rel3}:${name3 ?? ""}`;
+
+    const isWork3 = /\b(boss|work|job|office|deadline|manager|pressure|atasan|travail|patron|arbeit|chef|trabajo|jefe|работа|начальник|工作|老板|عمل|رئيس|kaam|kerja)\b/i.test(lower3);
+    const isRelationship3 = /\b(relationship|breakup|girlfriend|boyfriend|fight|argument|distant|alone|relación|ruptura|relation|rupture|beziehung|trennung|hubungan|putus|отношения|расставание|关系|分手|علاقة|انفصال)\b/i.test(lower3);
+    const isCrisis3 = /\b(suicide|kill myself|end it|can't go on|no point|самоубийство|не хочу жить|انتحار|自杀|suicidio|suicídio|mau mati|sterben|sich umbringen)\b/i.test(lower3);
+    const isLonely3 = /\b(alone|lonely|no one|nobody|nobody understands|isolated|seul|seule|allein|sendirian|одинок|孤独|وحيد)\b/i.test(lower3);
+
+    type ForeignLang = "ar" | "zh" | "es" | "fr" | "pt" | "ru" | "id" | "de";
+    const foreignMessages: Record<ForeignLang, { work: string[]; rel: string[]; lonely: string[]; crisis: string; workFollow: string[]; relFollow: string[]; lonelyFollow: string[]; crisisFollow: string }> = {
+      ar: {
+        work: [
+          "ضغط العمل هذا حقاً ثقيل — الديدلاينات والمدير — كل شيء معاً يصبح أكثر مما يمكن تحمله.",
+          "هذا النوع من الضغط يستنزف الجسم والعقل معاً. أنت تحمل الآن أكثر مما ينبغي.",
+          "ضغط المدير وقلة النوم — تحمّل هذا لفترة طويلة ليس سهلاً.",
+          "هذا التراكم في العمل — الجسم يعرف أن شيئاً ما غير مستدام قبل أن يدركه العقل.",
+          "حين يصبح كل يوم عمل ثقيلاً من البداية — هذا ليس كسلاً، هذا إرهاق حقيقي.",
+        ],
+        rel: [
+          "هذا البعد في العلاقة مؤلم حقاً.",
+          "الخلافات والمسافة معاً — حين يأتيان دفعة واحدة يصبح القلب ثقيلاً جداً.",
+          "هذا الشعور — بأن الشخص القريب منك يبتعد — صعب جداً.",
+          "حين تحاول الاقتراب لكن الفجوة تبدو أكبر — هذا من أشد المشاعر إيلاماً.",
+          "العلاقة التي كانت ملاذاً وأصبحت مصدر قلق — هذا يستنزف من الداخل.",
+        ],
+        lonely: [
+          "هذا الشعور بالوحدة — حين يبدو أن لا أحد يفهم — ثقيل جداً.",
+          "حين لا يكون هناك أحد أو لا يفهم أحد — ذلك الفراغ يزيد الأمر ثقلاً.",
+          "هذا الشعور — بأن لا أحد يسمع — مؤلم حقاً.",
+          "الوحدة وسط الناس أشد قسوة من الوحدة في الصمت — وهذا ما أسمعه.",
+          "أن تكون محاطاً بالجميع ولا يفهمك أحد — هذا الفراغ له ثقل خاص.",
+        ],
+        crisis: "أنت الآن في مكان ثقيل جداً. أنا هنا معك حقاً.",
+        workFollow: [
+          "ما الذي يثقل عليك أكثر الآن — ضغط العمل أم الإرهاق من الداخل؟",
+          "بعيداً عن العمل — هل تجد وقتاً لنفسك في هذه الفترة؟",
+          "منذ متى وهذا الوضع هكذا؟",
+        ],
+        relFollow: [
+          "هل يعرف/تعرف أنك تمر بهذا الألم؟",
+          "هل هذا البعد جديد أم كان يتراكم تدريجياً؟",
+          "منذ متى وهذا الأمر على هذه الحال؟",
+        ],
+        lonelyFollow: [
+          "منذ متى وأنت تحمل هذا بمفردك؟",
+          "هل هناك شخص قريب منك الآن يمكنك التحدث إليه؟",
+          "ما الذي بدأ أولاً — الوحدة أم شيء آخر؟",
+        ],
+        crisisFollow: "هل هناك أحد قريب منك الآن يمكنك الاتصال به؟",
+      },
+      zh: {
+        work: [
+          "工作的这种压力真的很重 — 老板的要求，睡不着 — 这些放在一起太沉了。",
+          "这种压力对身体和心理都是消耗。你现在承受的实在太多了。",
+          "老板的压力和睡眠不足 — 长期这样撑下去真的很难。",
+          "工作的这种积压 — 身体往往比大脑更早知道这不可持续。",
+          "当每天开始工作就感到沉重 — 这不是懒惰，这是真正的精疲力竭。",
+        ],
+        rel: [
+          "关系里的这种距离真的很痛。",
+          "争吵和距离同时来 — 一起承受时，心会变得很沉。",
+          "这种感觉 — 觉得亲近的人在慢慢疏远 — 真的很难受。",
+          "想靠近却感到距离越来越远 — 这是最难受的感觉之一。",
+          "原本是心灵港湾的关系变成了焦虑的来源 — 这会从内部把人消耗掉。",
+        ],
+        lonely: [
+          "这种孤独感 — 当感觉没有人理解的时候 — 真的很难受。",
+          "当身边没有人或者没有人理解时 — 那种空洞感让一切更沉重。",
+          "这种感觉 — 觉得没有人在听 — 真的很痛苦。",
+          "在人群中感到孤独比独处更难受 — 我听到你说的了。",
+          "被人包围着却没有人真正理解你 — 这种空洞有它特有的重量。",
+        ],
+        crisis: "你现在处在一个很沉重的地方。我真的在这里陪着你。",
+        workFollow: [
+          "现在最让你感到沉重的是什么 — 工作的压力还是内心的疲惫？",
+          "除了工作之外 — 你现在有没有一点属于自己的时间？",
+          "这种情况从什么时候开始的？",
+        ],
+        relFollow: [
+          "他/她知道你正在经历这些痛苦吗？",
+          "这种距离是新出现的，还是在慢慢积累？",
+          "这件事是从什么时候开始变成这样的？",
+        ],
+        lonelyFollow: [
+          "你一个人扛着这些有多久了？",
+          "你现在身边有没有可以倾诉的人？",
+          "是孤独感先来的，还是有其他原因？",
+        ],
+        crisisFollow: "你现在身边有没有可以联系的人？",
+      },
+      es: {
+        work: [
+          "Esa presión en el trabajo es realmente muy pesada — los plazos, el jefe — todo junto se vuelve demasiado.",
+          "Este tipo de presión agota el cuerpo y la mente. Estás cargando demasiado ahora mismo.",
+          "La presión del jefe y no poder dormir — aguantar eso durante tanto tiempo no es fácil.",
+          "Esa acumulación en el trabajo — el cuerpo suele saber antes que la mente que algo no es sostenible.",
+          "Cuando cada día de trabajo empieza con pesadez — no es pereza, es agotamiento real.",
+        ],
+        rel: [
+          "Esa distancia en la relación duele de verdad.",
+          "Las peleas y la distancia juntas — cuando llegan al mismo tiempo el corazón se vuelve muy pesado.",
+          "Esa sensación — de que alguien cercano se está alejando — es muy difícil.",
+          "Intentar acercarse y sentir que la distancia crece — eso es uno de los dolores más difíciles.",
+          "Que lo que fue un refugio se haya vuelto fuente de ansiedad — eso agota por dentro.",
+        ],
+        lonely: [
+          "Esa sensación de soledad — cuando parece que nadie entiende — es muy difícil.",
+          "Cuando no hay nadie o nadie entiende — ese vacío hace todo más pesado.",
+          "Esa sensación — de que nadie está escuchando — duele de verdad.",
+          "Sentirse solo/a entre la gente es más duro que estar solo/a en silencio — y eso es lo que escucho.",
+          "Estar rodeado/a de todos y que nadie te entienda de verdad — ese vacío tiene su propio peso.",
+        ],
+        crisis: "Estás en un lugar muy pesado ahora. Estoy aquí contigo de verdad.",
+        workFollow: [
+          "¿Qué es lo que más te pesa ahora — la presión del trabajo o el agotamiento por dentro?",
+          "Además del trabajo — ¿tienes algo de tiempo para ti en este momento?",
+          "¿Desde cuándo está así la situación?",
+        ],
+        relFollow: [
+          "¿Sabe que estás pasando por esto?",
+          "¿Esta distancia es nueva o se fue acumulando poco a poco?",
+          "¿Cuándo empezó a ponerse así?",
+        ],
+        lonelyFollow: [
+          "¿Cuánto tiempo llevas cargando esto solo/a?",
+          "¿Hay alguien cercano con quien puedas hablar ahora?",
+          "¿Llegó primero la soledad o hubo algo más?",
+        ],
+        crisisFollow: "¿Hay alguien cerca de ti ahora con quien puedas hablar?",
+      },
+      fr: {
+        work: [
+          "Cette pression au travail est vraiment très lourde — les délais, le patron — tout ça ensemble devient trop.",
+          "Ce genre de pression use le corps et l'esprit. Tu portes beaucoup trop en ce moment.",
+          "La pression du patron et ne pas pouvoir dormir — tenir comme ça longtemps c'est vraiment difficile.",
+          "Cette accumulation au travail — le corps sait souvent avant le mental que quelque chose n'est pas tenable.",
+          "Quand chaque journée de travail commence déjà lourdement — ce n'est pas de la paresse, c'est un vrai épuisement.",
+        ],
+        rel: [
+          "Cette distance dans la relation est vraiment douloureuse.",
+          "Les disputes et la distance en même temps — quand elles arrivent ensemble le cœur devient très lourd.",
+          "Ce sentiment — que quelqu'un de proche s'éloigne — c'est vraiment difficile.",
+          "Essayer de se rapprocher et sentir la distance grandir — c'est une des douleurs les plus difficiles.",
+          "Que ce qui était un refuge soit devenu source d'anxiété — ça épuise de l'intérieur.",
+        ],
+        lonely: [
+          "Ce sentiment de solitude — quand on a l'impression que personne ne comprend — c'est très difficile.",
+          "Quand il n'y a personne ou que personne ne comprend — ce vide rend tout plus lourd.",
+          "Ce sentiment — que personne n'écoute — ça fait vraiment mal.",
+          "Se sentir seul(e) entouré(e) de monde, c'est plus dur qu'être seul(e) dans le silence — c'est ce que j'entends.",
+          "Être entouré(e) de tout le monde et que personne ne comprenne vraiment — ce vide a son propre poids.",
+        ],
+        crisis: "Tu es dans un endroit très lourd là. Je suis vraiment là avec toi.",
+        workFollow: [
+          "Qu'est-ce qui pèse le plus là — la pression du travail ou l'épuisement intérieur ?",
+          "En dehors du travail — tu as un peu de temps pour toi en ce moment ?",
+          "Depuis quand est-ce que ça dure comme ça ?",
+        ],
+        relFollow: [
+          "Est-ce qu'il/elle sait ce que tu traverses ?",
+          "Cette distance est-elle nouvelle ou est-ce qu'elle s'est accumulée progressivement ?",
+          "Depuis quand est-ce que ça s'est dégradé comme ça ?",
+        ],
+        lonelyFollow: [
+          "Depuis combien de temps tu portes ça seul(e) ?",
+          "Est-ce qu'il y a quelqu'un près de toi à qui tu peux parler maintenant ?",
+          "Est-ce que la solitude est arrivée en premier ou est-ce qu'il y avait autre chose ?",
+        ],
+        crisisFollow: "Est-ce qu'il y a quelqu'un près de toi maintenant que tu peux appeler ?",
+      },
+      pt: {
+        work: [
+          "Essa pressão no trabalho é realmente muito pesada — os prazos, o chefe — tudo junto é demais.",
+          "Esse tipo de pressão cansa o corpo e a mente. Você está carregando demais agora.",
+          "A pressão do chefe e não conseguir dormir — aguentar isso por tanto tempo não é fácil.",
+          "Esse acúmulo no trabalho — o corpo costuma saber antes da mente que algo não é sustentável.",
+          "Quando cada dia começa já pesado — não é preguiça, é esgotamento de verdade.",
+        ],
+        rel: [
+          "Essa distância no relacionamento dói de verdade.",
+          "As brigas e a distância juntas — quando chegam ao mesmo tempo o coração fica muito pesado.",
+          "Esse sentimento — de que alguém próximo está se afastando — é muito difícil.",
+          "Tentar se aproximar e sentir a distância crescer — essa é uma das dores mais difíceis.",
+          "O que era um refúgio virar fonte de ansiedade — isso esgota por dentro.",
+        ],
+        lonely: [
+          "Essa sensação de solidão — quando parece que ninguém entende — é muito difícil.",
+          "Quando não há ninguém ou ninguém entende — esse vazio deixa tudo mais pesado.",
+          "Esse sentimento — de que ninguém está ouvindo — dói de verdade.",
+          "Sentir-se sozinho/a no meio das pessoas é mais difícil do que estar sozinho/a em silêncio — é isso que ouço.",
+          "Estar cercado/a de todo mundo e ninguém te entender de verdade — esse vazio tem um peso próprio.",
+        ],
+        crisis: "Você está num lugar muito pesado agora. Estou aqui de verdade.",
+        workFollow: [
+          "O que está pesando mais agora — a pressão do trabalho ou o cansaço por dentro?",
+          "Fora do trabalho — você tem um tempinho para você nesse momento?",
+          "Desde quando está assim?",
+        ],
+        relFollow: [
+          "Ele/ela sabe que você está passando por isso?",
+          "Essa distância é recente ou foi se acumulando aos poucos?",
+          "Quando começou a ficar assim?",
+        ],
+        lonelyFollow: [
+          "Há quanto tempo você está carregando isso sozinho/a?",
+          "Tem alguém perto de você com quem possa conversar agora?",
+          "A solidão veio primeiro ou teve outra coisa antes?",
+        ],
+        crisisFollow: "Tem alguém perto de você agora com quem possa falar?",
+      },
+      ru: {
+        work: [
+          "Это давление на работе действительно очень тяжело — дедлайны, начальник — всё вместе становится слишком много.",
+          "Такое давление изматывает тело и разум. Ты сейчас несёшь слишком много.",
+          "Давление начальника и отсутствие сна — долго так держаться действительно нелегко.",
+          "Это накопление на работе — тело часто понимает раньше разума, что так дальше нельзя.",
+          "Когда каждый рабочий день начинается с тяжести — это не лень, это настоящее истощение.",
+        ],
+        rel: [
+          "Эта дистанция в отношениях действительно болезненна.",
+          "Ссоры и дистанция вместе — когда они приходят одновременно, становится очень тяжело.",
+          "Это ощущение — что близкий человек отдаляется — действительно трудно переживать.",
+          "Пытаться сблизиться и чувствовать, как расстояние растёт — это одна из самых трудных болей.",
+          "Когда то, что было убежищем, стало источником тревоги — это изматывает изнутри.",
+        ],
+        lonely: [
+          "Это чувство одиночества — когда кажется, что никто не понимает — очень тяжело.",
+          "Когда никого нет рядом или никто не понимает — эта пустота делает всё ещё тяжелее.",
+          "Это ощущение — что тебя никто не слышит — действительно больно.",
+          "Чувствовать себя одиноким среди людей тяжелее, чем быть одному в тишине — и именно это я слышу.",
+          "Быть окружённым всеми и чтобы никто по-настоящему не понимал — эта пустота имеет свой особый вес.",
+        ],
+        crisis: "Ты сейчас в очень тяжёлом месте. Я здесь с тобой.",
+        workFollow: [
+          "Что сейчас давит сильнее всего — рабочее давление или внутренняя усталость?",
+          "Кроме работы — есть ли у тебя сейчас хоть немного времени для себя?",
+          "Как давно всё так продолжается?",
+        ],
+        relFollow: [
+          "Он/она знает, что ты через это проходишь?",
+          "Эта дистанция появилась недавно или накапливалась постепенно?",
+          "Когда всё стало вот так?",
+        ],
+        lonelyFollow: [
+          "Как давно ты несёшь это в одиночку?",
+          "Есть ли рядом с тобой кто-то, с кем ты можешь поговорить?",
+          "Что пришло первым — одиночество или что-то другое?",
+        ],
+        crisisFollow: "Есть ли рядом с тобой кто-то, кому ты можешь позвонить?",
+      },
+      id: {
+        work: [
+          "Tekanan kerja ini benar-benar sangat berat — deadline, atasan — semua sekaligus terlalu banyak.",
+          "Tekanan seperti ini menguras tubuh dan pikiran. Kamu sedang menanggung terlalu banyak.",
+          "Tekanan dari atasan dan tidak bisa tidur — menanggung ini lama-lama memang tidak mudah.",
+          "Penumpukan di pekerjaan ini — tubuh sering tahu lebih dulu dari pikiran bahwa ini tidak berkelanjutan.",
+          "Ketika setiap hari kerja sudah terasa berat sejak awal — itu bukan malas, itu kelelahan yang nyata.",
+        ],
+        rel: [
+          "Jarak dalam hubungan ini benar-benar menyakitkan.",
+          "Pertengkaran dan jarak bersamaan — ketika datang sekaligus hati menjadi sangat berat.",
+          "Perasaan itu — bahwa orang yang dekat perlahan menjauh — memang sangat sulit.",
+          "Mencoba mendekat tapi merasa jarak makin jauh — itu salah satu rasa sakit yang paling berat.",
+          "Ketika yang dulu jadi tempat berlindung menjadi sumber kecemasan — itu menguras dari dalam.",
+        ],
+        lonely: [
+          "Perasaan kesepian itu — ketika rasanya tidak ada yang mengerti — sangat sulit.",
+          "Ketika tidak ada siapapun atau tidak ada yang mengerti — kekosongan itu membuat segalanya lebih berat.",
+          "Perasaan itu — bahwa tidak ada yang mendengarkan — memang menyakitkan.",
+          "Merasa kesepian di tengah banyak orang lebih berat dari sendirian dalam keheningan — dan itu yang aku dengar.",
+          "Dikelilingi semua orang tapi tidak ada yang benar-benar mengerti — kekosongan itu punya beratnya sendiri.",
+        ],
+        crisis: "Kamu sekarang berada di tempat yang sangat berat. Aku benar-benar di sini bersamamu.",
+        workFollow: [
+          "Apa yang paling berat sekarang — tekanan kerja atau kelelahan dari dalam?",
+          "Selain pekerjaan — ada waktu sedikit untuk dirimu sendiri sekarang?",
+          "Sudah berapa lama seperti ini?",
+        ],
+        relFollow: [
+          "Apakah dia tahu kamu sedang melewati ini?",
+          "Jarak ini baru muncul atau sudah menumpuk perlahan?",
+          "Kapan mulai jadi seperti ini?",
+        ],
+        lonelyFollow: [
+          "Sudah berapa lama kamu menanggung ini sendirian?",
+          "Ada seseorang di dekatmu yang bisa diajak bicara sekarang?",
+          "Kesepian datang duluan atau ada hal lain sebelumnya?",
+        ],
+        crisisFollow: "Ada seseorang di dekatmu sekarang yang bisa kamu hubungi?",
+      },
+      de: {
+        work: [
+          "Dieser Arbeitsdruck ist wirklich sehr schwer — die Deadlines, der Chef — alles zusammen wird einfach zu viel.",
+          "So ein Druck erschöpft Körper und Geist. Du trägst gerade zu viel auf einmal.",
+          "Der Druck vom Chef und nicht schlafen können — das so lange durchzuhalten ist wirklich nicht leicht.",
+          "Diese Anhäufung bei der Arbeit — der Körper weiß oft früher als der Kopf, dass das nicht haltbar ist.",
+          "Wenn jeder Arbeitstag schon von Anfang an schwer beginnt — das ist keine Faulheit, das ist echte Erschöpfung.",
+        ],
+        rel: [
+          "Diese Distanz in der Beziehung tut wirklich weh.",
+          "Streit und Distanz zusammen — wenn beides gleichzeitig kommt, wird das Herz sehr schwer.",
+          "Dieses Gefühl — dass ein nahestehender Mensch sich entfernt — ist wirklich schwer.",
+          "Sich anzunähern zu versuchen und zu spüren, wie der Abstand wächst — das ist einer der schwersten Schmerzen.",
+          "Wenn das, was ein Rückzugsort war, zur Quelle von Angst wird — das zehrt von innen aus.",
+        ],
+        lonely: [
+          "Dieses Gefühl der Einsamkeit — wenn niemand zu verstehen scheint — ist sehr schwer.",
+          "Wenn niemand da ist oder niemand versteht — diese Leere macht alles noch schwerer.",
+          "Dieses Gefühl — dass niemand zuhört — tut wirklich weh.",
+          "Sich unter Menschen einsam zu fühlen ist schwerer als allein in der Stille zu sein — und genau das höre ich.",
+          "Von allen umgeben zu sein und trotzdem nicht wirklich verstanden zu werden — diese Leere hat ihr eigenes Gewicht.",
+        ],
+        crisis: "Du bist jetzt an einem sehr schweren Ort. Ich bin wirklich bei dir.",
+        workFollow: [
+          "Was drückt jetzt am meisten — der Arbeitsdruck oder die innere Erschöpfung?",
+          "Neben der Arbeit — hast du gerade noch etwas Zeit für dich selbst?",
+          "Wie lange dauert das schon so an?",
+        ],
+        relFollow: [
+          "Weiß er/sie, was du gerade durchmachst?",
+          "Ist diese Distanz neu oder hat sie sich langsam aufgebaut?",
+          "Wann hat es angefangen, so zu werden?",
+        ],
+        lonelyFollow: [
+          "Wie lange trägst du das schon alleine?",
+          "Gibt es jemanden in deiner Nähe, mit dem du gerade reden kannst?",
+          "Kam die Einsamkeit zuerst oder gab es noch etwas anderes?",
+        ],
+        crisisFollow: "Gibt es jemanden in deiner Nähe, den du jetzt anrufen kannst?",
+      },
+    };
+
+    const fLang = lang as ForeignLang;
+    const fData = foreignMessages[fLang];
+    if (!fData) {
+      (ctx as any).preferredLanguage = lang;
+      return draftResponse(userMessage, ctx);
+    }
+
+    let fMsg: string;
+    let fFollow: string;
+
+    if (isCrisis3) {
+      fMsg = fData.crisis;
+      fFollow = fData.crisisFollow;
+    } else if (isWork3) {
+      fMsg = pickFrom(seed3 + ":work", fData.work as unknown as readonly [string, ...string[]]);
+      fFollow = pickFrom(seed3 + ":work:follow", fData.workFollow as unknown as readonly [string, ...string[]]);
+    } else if (isRelationship3) {
+      fMsg = pickFrom(seed3 + ":rel", fData.rel as unknown as readonly [string, ...string[]]);
+      fFollow = pickFrom(seed3 + ":rel:follow", fData.relFollow as unknown as readonly [string, ...string[]]);
+    } else if (isLonely3) {
+      fMsg = pickFrom(seed3 + ":lonely", fData.lonely as unknown as readonly [string, ...string[]]);
+      fFollow = pickFrom(seed3 + ":lonely:follow", fData.lonelyFollow as unknown as readonly [string, ...string[]]);
+    } else {
+      fMsg = pickFrom(seed3 + ":gen", fData.work as unknown as readonly [string, ...string[]]);
+      fFollow = pickFrom(seed3 + ":gen:follow", fData.workFollow as unknown as readonly [string, ...string[]]);
+    }
+
+    return {
+      message: name3 ? `${name3}, ${fMsg}` : fMsg,
+      followUp: fFollow,
+      meta: {
+        styleContract: "1.0",
+        blueprint: "1.0",
+        blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }),
+      },
+    };
+  }
+
+  // ── Shared goodbye detection for non-hi/bn Indian langs ──────────────
+  // hi and bn have their own goodbye handling inline below.
+  if (lang !== "hi" && lang !== "bn" && INDIAN_LANGS.has(lang)) {
+    const t2 = msg.trim();
+    const t2NoPunct = t2.replace(/[।!?]+$/g, "").trim();
+    const isGoodbyeIndic =
+      // native script goodbye words
+      /(ਚਲਦਾ|ਅਲਵਿਦਾ|ਫਿਰ\s*ਮਿਲਾਂਗੇ|ਆਰਾਮ\s*ਕਰ(?:ੋ|ਦਾ|ਦੀ|ਦੇ)\b|ਕੱਲ੍ਹ\s*ਗੱਲ|ਠੀਕ\s*ਹੈ\s*ਫਿਰ)/i.test(t2NoPunct) ||  // pa
+      /(ਚਲਦਾ|ਠੀਕ\s*ਹੈ\s*ਫਿਰ)/i.test(t2NoPunct) ||
+      /(ठीक आहे|निघतो|निघते|जातो|जाते|निरोप|नंतर बोलू)/i.test(t2NoPunct) ||  // mr
+      /(சரி|போகிறேன்|விடை|பிறகு பேசுவோம்)/i.test(t2NoPunct) ||  // ta
+      /(సరే|వెళ్ళిపోతున్నాను|తర్వాత మాట్లాడదాం)/i.test(t2NoPunct) ||  // te
+      /(ശരി|പോകുന്നു|വിടവാങ്ങൽ|പിന്നെ)/i.test(t2NoPunct) ||  // ml
+      /(ٹھیک|الوداع|پھر ملیں گے|آرام)/i.test(t2NoPunct) ||  // ur
+      /(ଠିକ\s*ଅଛ|ଯାଉଛ|ବିଦାୟ|ଆଗରେ\s*ମିଳିବ)/i.test(t2NoPunct) ||  // or
+      // Roman goodbye detection
+      /\b(jato|jaato|jate|nirop|parat bheto|aram karto|aram karte|nantar bolu|nidra karto|nidra karte|bye karto)\b/i.test(t2NoPunct) ||
+      /\b(poren|pochchi|pottitu varen|rest pannuven|kal pesuven|poitten|poirean)\b/i.test(t2NoPunct) ||
+      /\b(velthunna|velthunnaanu|rest teedtaanu|tarvata matladatanu|vellipostha)\b/i.test(t2NoPunct) ||
+      /\b(jau chhu|jav chu|aram karu|pachi vaatsu|kaal vaatsu|sone jau|so jav chu)\b/i.test(t2NoPunct) ||
+      /\b(janda aan|ja raha aan|aram karda aan|aaraam karda haan|aaraam karda|kal gall karda|kal gall karde|so janda|rest karda|jandi aan)\b/i.test(t2NoPunct) ||
+      /\b(hogthini|hogteeni|nirgatheni|aaraamagonthini|naalaidu maataadona|sari hogthini)\b/i.test(t2NoPunct) ||
+      /\b(pokunnu|pokam|araameedunnu|naalekku kaanum|pokatte)\b/i.test(t2NoPunct) ||
+      /\b(jauchi|jaucha|biday|arama kariba|pare kotha heba|kal kotha heba)\b/i.test(t2NoPunct) ||
+      /\b(jata hoon|jati hoon|khuda hafiz|aaraam karta hoon|aaraam karti hoon|kal baat karte)\b/i.test(t2NoPunct);
+
+    if (isGoodbyeIndic) {
+      const goodbyeByLang: Partial<Record<SupportedLanguage, string>> = {
+        mr: "ठीक आहे — जेव्हा मन असेल तेव्हा परत ये.",
+        ta: "சரி — எப்போது வேண்டுமானாலும் திரும்பி வரலாம்.",
+        te: "సరే — ఎప్పుడైనా తిరిగి రావచ్చు.",
+        ml: "ശരി — എപ്പോൾ വേണമെങ്കിലും തിരിച്ചു വരൂ.",
+        pa: "ਠੀਕ ਹੈ — ਜਦੋਂ ਵੀ ਮਨ ਆਵੇ ਵਾਪਸ ਆਓ.",
+        or: "ଠିକ ଅଛ — ଯେବେ ଇଛ ଫେରି ଆ.",
+        ur: "ٹھیک ہے — جب چاہیں واپس آئیں.",
+        gu: "ઠીક છ — ક્યારે પણ ફરી આ.",
+        kn: "ಸರಿ — ಯಾವಾಗ ಬೇಕಾದರೂ ಮತ್ತೆ ಬಾ.",
+      };
+      const farewell = goodbyeByLang[lang] ?? "Take care — come back anytime.";
+      return {
+        message: name ? `${name}, ${farewell}` : farewell,
+        followUp: undefined,
+        meta: {
+          styleContract: "1.0",
+          blueprint: "1.0",
+          blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }),
+        },
+      };
+    }
+  }
+
+  // ── Goodbye detection for foreign languages ───────────────────────────
+  if (FOREIGN_LANGS.has(lang)) {
+    const t3 = msg.trim();
+    const t3Lower = t3.toLowerCase();
+    const isGoodbyeForeign =
+      // Arabic native
+      /(مع السلامة|وداعاً|إلى اللقاء|أراك لاحقاً|سأرتاح)/i.test(t3) ||
+      // Chinese native
+      /(再见|拜拜|保重|回头见|先去休息|明天见)/i.test(t3) ||
+      // Spanish
+      /\b(adiós|hasta luego|hasta mañana|chao|me voy|nos vemos|voy a descansar|mañana hablamos)\b/i.test(t3Lower) ||
+      // French
+      /\b(au revoir|à bientôt|à demain|bonne nuit|je m'en vais|on se parle|je vais me reposer|on se reparle)\b/i.test(t3Lower) ||
+      // Portuguese
+      /\b(tchau|adeus|até logo|até amanhã|boa noite|vou descansar|a gente se fala|amanhã a gente conversa)\b/i.test(t3Lower) ||
+      // Russian native
+      /(пока|до свидания|спокойной ночи|увидимся|до завтра|пойду отдохну)/i.test(t3) ||
+      // Russian romanized
+      /\b(poka|do svidaniya|spokoynoy nochi|uvidimsya|do zavtra|poidu otdokhnu)\b/i.test(t3Lower) ||
+      // Indonesian
+      /\b(dah|dadah|sampai jumpa|sampai besok|selamat malam|mau istirahat|besok ngobrol lagi|aku pergi dulu)\b/i.test(t3Lower) ||
+      // German
+      /\b(tschüss|auf wiedersehen|bis morgen|gute nacht|ich gehe jetzt|bis bald|ich muss jetzt gehen|morgen reden wir)\b/i.test(t3Lower);
+
+    if (isGoodbyeForeign) {
+      const goodbyeByForeignLang: Partial<Record<SupportedLanguage, string>> = {
+        ar: "بخير — عد إلينا متى شئت.",
+        zh: "好的 — 随时欢迎回来。",
+        es: "Está bien — vuelve cuando quieras.",
+        fr: "D'accord — reviens quand tu veux.",
+        pt: "Tá bem — volte quando quiser.",
+        ru: "Хорошо — возвращайся когда захочешь.",
+        id: "Oke — kembalilah kapan saja.",
+        de: "In Ordnung — komm wieder, wann du möchtest.",
+      };
+      const farewellForeign = goodbyeByForeignLang[lang] ?? "Take care — come back anytime.";
+      return {
+        message: name ? `${name}, ${farewellForeign}` : farewellForeign,
+        followUp: undefined,
+        meta: {
+          styleContract: "1.0",
+          blueprint: "1.0",
+          blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }),
+        },
+      };
+    }
+  }
+
   const message =
     lang === "hi"
       ? `${openerWithContext} ${pickFrom(
         `hiAck:${msg}:${rel}:${name ?? ""}:${compGender}`,
         isFemale
-          ? ["ठीक है, मैं यहीं हूँ।", "मैं सुन रही हूँ।", "हम इसे धीरे-धीरे ले सकते हैं।"] as const
-          : ["ठीक है, मैं यहीं हूँ।", "मैं सुन रहा हूँ।", "हम इसे धीरे-धीरे ले सकते हैं।"] as const,
+          ? [
+              "ठीक है, मैं यहीं हूँ।",
+              "मैं सुन रही हूँ।",
+              "हम इसे धीरे-धीरे ले सकते हैं।",
+              "कोई जल्दी नहीं — मैं यहाँ हूँ।",
+              "साथ हूँ, बताते रहो।",
+              "हाँ, सुन रही हूँ।",
+              "यहाँ रहूँगी — जब चाहो बात कर सकते हो।",
+            ] as const
+          : [
+              "ठीक है, मैं यहीं हूँ।",
+              "मैं सुन रहा हूँ।",
+              "हम इसे धीरे-धीरे ले सकते हैं।",
+              "कोई जल्दी नहीं — मैं यहाँ हूँ।",
+              "साथ हूँ, बताते रहो।",
+              "हाँ, सुन रहा हूँ।",
+              "यहाँ रहूँगा — जब चाहो बात कर सकते हो।",
+            ] as const,
       )}`
       : lang === "bn"
         ? (() => {
@@ -1001,9 +2532,9 @@ function draftResponseForLanguage(
             /^(কি|কী|কেন|কখন|কোথায়|কিভাবে|কারা|কাকে)\b/i.test(tNoPunct);
 
           const isGoodbye =
-            /(আমি\s*যাচ্ছি|চলি|চলে\s*যাচ্ছি|বাই|বিদায়|দেখা\s*হবে)/i.test(
-              tNoPunct,
-            );
+            /(আমি\s*যাচ্ছি|চলি|চলে\s*যাচ্ছি|বাই|বিদায়|দেখা\s*হবে)/i.test(tNoPunct) ||
+            // Roman Bengali goodbye
+            /\b(thako|rest korbo|pore kotha hobe|pore bolbo|jachi|jai|bye|bidai|dekha hobe|aschi|abar bolbo)\b/i.test(tNoPunct);
 
           const reaction = pickFrom(
             `bnAck:${msg}:${rel}:${name ?? ""}`,
@@ -1011,6 +2542,10 @@ function draftResponseForLanguage(
               "আচ্ছা, আমি আছি।",
               "হুম, শুনছি।",
               "ঠিক আছে, আমি আছি।",
+              "কোনো তাড়া নেই — আমি এখানেই আছি।",
+              "সাথে আছি, বলতে থাকো।",
+              "হ্যাঁ, শুনছি।",
+              "এখানে থাকব — যখন মন চাইবে কথা বলো।",
             ] as const,
           );
 
@@ -1028,8 +2563,8 @@ function draftResponseForLanguage(
           ? `${openerWithContext} ${pickFrom(
             `guAck:${msg}:${rel}:${name ?? ""}:${compGender}`,
             isFemale
-              ? ["બરાબર, હું અહીં છું.", "હું સાંભળી રહી છું.", "આપણે આ ધીમે ધીમે લઈ શકીએ."] as const
-              : ["બરાબર, હું અહીં છું.", "હું સાંભળી રહ્યો છું.", "આપણે આ ધીમે ધીમે લઈ શકીએ."] as const,
+              ? ["બરાબર, હું અહીં છું.", "હું સાંભળી રહી છું.", "આપણે આ ધીમે ધીમે લઈ શકીએ.", "કોઈ ઉતાવળ નથી — હું અહીં છ.", "સાથ છ, કહ્યા કર.", "હા, સાંભળ રહી છ.", "અહીં રહીશ — જ્યારે ઇચ્છો ત્યારે વાત કર."] as const
+              : ["બરાબર, હું અહીં છું.", "હું સાંભળી રહ્યો છું.", "આપણે આ ધીમે ધીમે લઈ શકીએ.", "કોઈ ઉતાવળ નથી — હું અહીં છ.", "સાથ છ, કહ્યા કર.", "હા, સાંભળ રહ્યો છ.", "અહીં રહીશ — જ્યારે ઇચ્છો ત્યારે વાત કર."] as const,
           )}`
           : lang === "kn"
             ? `${openerWithContext} ${pickFrom(
@@ -1038,14 +2573,130 @@ function draftResponseForLanguage(
                 "ಸರಿ, ನಾನು ಇಲ್ಲಿದ್ದೇನೆ.",
                 "ನಾನು ಕೇಳುತ್ತಿದ್ದೇನೆ.",
                 "ನಾವು ಇದನ್ನು ನಿಧಾನವಾಗಿ ತೆಗೆದುಕೊಳ್ಳಬಹುದು.",
+                "ಯಾವ ಅವಸರವೂ ಇಲ್ಲ — ನಾನು ಇಲ್ಲಿದ್ದೇನೆ.",
+                "ಜೊತೆಯಲ್ಲಿದ್ದೇನೆ, ಹೇಳುತ್ತಾ ಇರು.",
+                "ಹೌದು, ಕೇಳ್ತಿದ್ದೇನೆ.",
+                "ಇಲ್ಲಿಯೇ ಇರುತ್ತೇನೆ — ಯಾವಾಗ ಬೇಕಾದರೂ ಮಾತಾಡಬಹುದು.",
               ] as const,
             )}`
-            : `${openerWithContext} ${pickFrom(
-              `mrAck:${msg}:${rel}:${name ?? ""}:${compGender}`,
-              isFemale
-                ? ["ठीक आहे, मी इथे आहे.", "मी ऐकतेय.", "आपण हे हळूहळू घेऊ शकतो."] as const
-                : ["ठीक आहे, मी इथे आहे.", "मी ऐकतोय.", "आपण हे हळूहळू घेऊ शकतो."] as const,
-            )}`;
+            : lang === "ta"
+              ? `${openerWithContext} ${pickFrom(
+                `taAck:${msg}:${rel}:${name ?? ""}`,
+                [
+                  "சரி, நான் இங்கே இருக்கிறேன்.",
+                  "கேட்கிறேன்.",
+                  "நாம் இதை மெல்ல எடுத்துக்கொள்ளலாம்.",
+                  "அவசரமில்லை — நான் இங்கே இருக்கிறேன்.",
+                  "உடனிருக்கிறேன், தொடர்ந்து சொல்.",
+                  "ஆம், கேட்கிறேன்.",
+                  "இங்கே இருப்பேன் — எப்போது வேண்டுமானாலும் பேசலாம்.",
+                ] as const,
+              )}`
+              : lang === "te"
+                ? `${openerWithContext} ${pickFrom(
+                  `teAck:${msg}:${rel}:${name ?? ""}`,
+                  [
+                    "సరే, నేను ఇక్కడే ఉన్నాను.",
+                    "వింటున్నాను.",
+                    "మనం దీన్ని నెమ్మదిగా తీసుకోవచ్చు.",
+                    "తొందరేమీ లేదు — నేను ఇక్కడే ఉన్నాను.",
+                    "పక్కనే ఉన్నాను, చెప్పుతూ ఉండు.",
+                    "అవును, వింటున్నాను.",
+                    "ఇక్కడే ఉంటాను — ఎప్పుడైనా మాట్లాడవచ్చు.",
+                  ] as const,
+                )}`
+                : lang === "ml"
+                  ? `${openerWithContext} ${pickFrom(
+                    `mlAck:${msg}:${rel}:${name ?? ""}`,
+                    [
+                      "ശരി, ഞാൻ ഇവിടെ ഉണ്ട്.",
+                      "കേൾക്കുന്നുണ്ട്.",
+                      "നമുക്ക് ഇത് പതുക്കെ എടുക്കാം.",
+                      "ധൃതിയൊന്നുമില്ല — ഞാൻ ഇവിടെ ഉണ്ട്.",
+                      "ഒപ്പമുണ്ട്, തുടർന്ന് പറ.",
+                      "അതെ, കേൾക്കുന്നുണ്ട്.",
+                      "ഇവിടെ ഉണ്ടാകും — എപ്പോൾ വേണമെങ്കിലും സംസാരിക്കാം.",
+                    ] as const,
+                  )}`
+                  : lang === "pa"
+                    ? `${openerWithContext} ${pickFrom(
+                      `paAck:${msg}:${rel}:${name ?? ""}`,
+                      [
+                        "ਠੀਕ ਹੈ, ਮੈਂ ਇੱਥੇ ਹਾਂ।",
+                        "ਸੁਣ ਰਿਹਾ/ਰਹੀ ਹਾਂ।",
+                        "ਅਸੀਂ ਇਹ ਹੌਲੀ ਹੌਲੀ ਲੈ ਸਕਦੇ ਹਾਂ।",
+                        "ਕੋਈ ਕਾਹਲੀ ਨਹੀਂ — ਮੈਂ ਇੱਥੇ ਹਾਂ।",
+                        "ਨਾਲ ਹਾਂ, ਦੱਸਦੇ ਰਹੋ।",
+                        "ਹਾਂ, ਸੁਣ ਰਿਹਾ/ਰਹੀ ਹਾਂ।",
+                        "ਇੱਥੇ ਰਹਾਂਗਾ/ਰਹਾਂਗੀ — ਜਦੋਂ ਚਾਹੋ ਗੱਲ ਕਰ ਸਕਦੇ ਹੋ।",
+                      ] as const,
+                    )}`
+                    : lang === "or"
+                      ? `${openerWithContext} ${pickFrom(
+                        `orAck:${msg}:${rel}:${name ?? ""}`,
+                        [
+                          "ଠିକ ଅଛ, ମୁଁ ଇଠି ଅଛି।",
+                          "ଶୁଣୁଛି।",
+                          "ଆମେ ଏହାକୁ ଧୀରେ ଧୀରେ ନେଇ ପାରିବ।",
+                          "କୋଣ ଟିଏ ଗଡ଼ ନୁହଁ — ମୁଁ ଇଠି ଅଛି।",
+                          "ସାଥ ଅଛି, ବୋଲ।",
+                          "ହଁ, ଶୁଣୁଛି।",
+                          "ଇଠି ଥିବ — ଯେବେ ଇଛ ଆଲୋଚନା କରି ହେବ।",
+                        ] as const,
+                      )}`
+                      : lang === "ur"
+                        ? `${openerWithContext} ${pickFrom(
+                          `urAck:${msg}:${rel}:${name ?? ""}:${compGender}`,
+                          isFemale
+                            ? ["ٹھیک ہے، میں یہیں ہوں۔", "میں سن رہی ہوں۔", "ہم اسے آہستہ آہستہ لے سکتے ہیں۔", "کوئی جلدی نہیں — میں یہاں ہوں۔", "ساتھ ہوں، بتاتے رہیں۔", "ہاں، سن رہی ہوں۔", "یہاں رہوں گی — جب چاہیں بات کر سکتے ہیں۔"] as const
+                            : ["ٹھیک ہے، میں یہیں ہوں۔", "میں سن رہا ہوں۔", "ہم اسے آہستہ آہستہ لے سکتے ہیں۔", "کوئی جلدی نہیں — میں یہاں ہوں۔", "ساتھ ہوں، بتاتے رہیں۔", "ہاں، سن رہا ہوں۔", "یہاں رہوں گا — جب چاہیں بات کر سکتے ہیں۔"] as const,
+                        )}`
+                        : lang === "ar"
+                          ? `${openerWithContext} ${pickFrom(
+                            `arAck:${msg}:${rel}:${name ?? ""}`,
+                            ["حسناً، أنا هنا.", "أسمعك.", "يمكننا أخذ وقتنا.", "لا عجلة — أنا هنا.", "معك في هذا، تحدث.", "نعم، أسمعك.", "سأبقى هنا — تحدث متى شئت."] as const,
+                          )}`
+                          : lang === "zh"
+                            ? `${openerWithContext} ${pickFrom(
+                              `zhAck:${msg}:${rel}:${name ?? ""}`,
+                              ["好，我在这里。", "我听到了。", "我们可以慢慢来。", "不急 — 我在这里。", "陪着你，继续说吧。", "嗯，我在听。", "我会在这里 — 随时都可以说。"] as const,
+                            )}`
+                            : lang === "es"
+                              ? `${openerWithContext} ${pickFrom(
+                                `esAck:${msg}:${rel}:${name ?? ""}`,
+                                ["Está bien, aquí estoy.", "Te escucho.", "Podemos ir despacio.", "No hay prisa — aquí estoy.", "Contigo, sigue contándome.", "Sí, te escucho.", "Aquí estaré — habla cuando quieras."] as const,
+                              )}`
+                              : lang === "fr"
+                                ? `${openerWithContext} ${pickFrom(
+                                  `frAck:${msg}:${rel}:${name ?? ""}`,
+                                  ["D'accord, je suis là.", "Je t'écoute.", "On peut prendre le temps.", "Pas de presse — je suis là.", "Avec toi, continue.", "Oui, je t'écoute.", "Je serai là — parle quand tu veux."] as const,
+                                )}`
+                                : lang === "pt"
+                                  ? `${openerWithContext} ${pickFrom(
+                                    `ptAck:${msg}:${rel}:${name ?? ""}`,
+                                    ["Tá, estou aqui.", "Estou ouvindo.", "A gente pode ir devagar.", "Sem pressa — estou aqui.", "Com você, continua.", "Sim, estou ouvindo.", "Vou estar aqui — fala quando quiser."] as const,
+                                  )}`
+                                  : lang === "ru"
+                                    ? `${openerWithContext} ${pickFrom(
+                                      `ruAck:${msg}:${rel}:${name ?? ""}`,
+                                      ["Хорошо, я здесь.", "Слушаю.", "Мы можем идти медленно.", "Не спеши — я здесь.", "Я с тобой, продолжай.", "Да, слушаю.", "Буду здесь — говори когда хочешь."] as const,
+                                    )}`
+                                    : lang === "id"
+                                      ? `${openerWithContext} ${pickFrom(
+                                        `idAck:${msg}:${rel}:${name ?? ""}`,
+                                        ["Oke, aku di sini.", "Aku mendengarmu.", "Kita bisa pelan-pelan.", "Tidak ada buru-buru — aku di sini.", "Bersamamu, lanjutkan.", "Ya, aku mendengarmu.", "Akan ada di sini — cerita kapan saja."] as const,
+                                      )}`
+                                      : lang === "de"
+                                        ? `${openerWithContext} ${pickFrom(
+                                          `deAck:${msg}:${rel}:${name ?? ""}`,
+                                          ["Gut, ich bin hier.", "Ich höre zu.", "Wir können uns Zeit lassen.", "Keine Eile — ich bin hier.", "Ich bin bei dir, erzähl weiter.", "Ja, ich höre zu.", "Ich bin da — sprich, wann du möchtest."] as const,
+                                        )}`
+                                        : `${openerWithContext} ${pickFrom(
+                          `mrAck:${msg}:${rel}:${name ?? ""}:${compGender}`,
+                          isFemale
+                            ? ["ठीक आहे, मी इथे आहे.", "मी ऐकतेय.", "आपण हे हळूहळू घेऊ शकतो.", "घाई नाही — मी इथे आहे.", "सोबत आहे, सांगत राहा.", "हो, ऐकतेय.", "इथे राहीन — केव्हाही बोलू शकतोस."] as const
+                            : ["ठीक आहे, मी इथे आहे.", "मी ऐकतोय.", "आपण हे हळूहळू घेऊ शकतो.", "घाई नाही — मी इथे आहे.", "सोबत आहे, सांगत राहा.", "हो, ऐकतोय.", "इथे राहीन — केव्हाही बोलू शकतोस."] as const,
+                        )}`;
 
   const followUp =
     lang === "hi"
@@ -1084,7 +2735,101 @@ function draftResponseForLanguage(
                 "आपण इथून हळूहळू सुरुवात करू शकतो — आधी कोणत्या भागावर थांबायचं आहे?",
               ] as const,
             )
-            : "";
+            : lang === "ta"
+              ? pickFrom(
+                `taFollow:${msg}:${rel}:${name ?? ""}`,
+                [
+                  "இப்போது உனக்கு அதிகமாக என்ன தேவை — கொஞ்சம் ஆறுதலா, தெளிவா, இல்லை வெறும் துணையா?",
+                  "சொல்ல விரும்பினால், இப்போது எந்த பகுதி அதிகமாக கஷ்டமாக இருக்கிறது?",
+                  "நாம் இங்கிருந்து மெல்ல தொடங்கலாம் — முதலில் எந்த விஷயத்தில் இருக்க விரும்புகிறாய்?",
+                ] as const,
+              )
+              : lang === "te"
+                ? pickFrom(
+                  `teFollow:${msg}:${rel}:${name ?? ""}`,
+                  [
+                    "ఇప్పుడు నీకు ఎక్కువగా ఏమి కావాలి — కొంచెం ఓదార్పు, స్పష్టత, లేదా కేవలం తోడా?",
+                    "చెప్పాలని ఉంటే, ఇప్పుడు ఏ భాగం ఎక్కువగా భారంగా అనిపిస్తుందో చెప్పు.",
+                    "మనం ఇక్కడ నుండి నెమ్మదిగా మొదలుపెట్టవచ్చు — మొదట దేనిపై ఉండాలని ఉంది?",
+                  ] as const,
+                )
+                : lang === "ml"
+                  ? pickFrom(
+                    `mlFollow:${msg}:${rel}:${name ?? ""}`,
+                    [
+                      "ഇപ്പോൾ നിനക്ക് ഏറ്റവും കൂടുതൽ ആവശ്യം ഏതാണ് — കൊഞ്ചം ആശ്വാസമോ, വ്യക്തതയോ, അതോ വെറും കൂട്ടോ?",
+                      "പറയണം എന്നുണ്ടെങ്കിൽ, ഇപ്പോൾ ഏത് ഭാഗം കൂടുതൽ ഭാരമേറിയതായി തോന്നുന്നു?",
+                      "നമുക്ക് ഇവിടെ നിന്ന് പതുക്കെ തുടങ്ങാം — ആദ്യം ഏത് ഭാഗത്ത് ഉണ്ടാകണം?",
+                    ] as const,
+                  )
+                  : lang === "pa"
+                    ? pickFrom(
+                      `paFollow:${msg}:${rel}:${name ?? ""}`,
+                      [
+                        "ਹੁਣ ਤੈਨੂੰ ਸਭ ਤੋਂ ਵੱਧ ਕੀ ਚਾਹੀਦਾ ਹੈ — ਥੋੜ੍ਹਾ ਸਕੂਨ, ਸਪੱਸ਼ਟਤਾ, ਜਾਂ ਬੱਸ ਸਾਥ?",
+                        "ਜੇ ਕਹਿਣਾ ਚਾਹੁੰਦਾ/ਚਾਹੁੰਦੀ ਹੈਂ, ਹੁਣ ਸਭ ਤੋਂ ਭਾਰਾ ਕਿਹੜਾ ਹਿੱਸਾ ਲੱਗ ਰਿਹਾ ਹੈ?",
+                        "ਅਸੀਂ ਇੱਥੋਂ ਹੌਲੀ ਹੌਲੀ ਸ਼ੁਰੂ ਕਰ ਸਕਦੇ ਹਾਂ — ਪਹਿਲਾਂ ਕਿਸ ਭਾਗ ਉੱਤੇ ਰਹਿਣਾ ਚਾਹੋਗੇ?",
+                      ] as const,
+                    )
+                    : lang === "or"
+                      ? pickFrom(
+                        `orFollow:${msg}:${rel}:${name ?? ""}`,
+                        [
+                          "ଏବେ ତୋ ପାଇଁ ସବୁଠୁ ଅଧିକ କ'ଣ ଦରକାର — ଟିକେ ଆଶ୍ୱାସ, ସ୍ପଷ୍ଟତା, ନା ଶୁଧୁ ସାଥ?",
+                          "ଯଦି ବୋଲିବ ଚାହଁ, ଏବେ ସବୁଠୁ ଭାରୀ ଭାଗ କ'ଣ ଲାଗୁଛ?",
+                          "ଆମେ ଇଠୁ ଧୀରେ ଧୀରେ ଆରମ୍ଭ କରି ପାରିବ — ପ୍ରଥମ ଏ ଭାଗରେ ରୁହ ଚାହଁ?",
+                        ] as const,
+                      )
+                      : lang === "ur"
+                        ? pickFrom(
+                          `urFollow:${msg}:${rel}:${name ?? ""}`,
+                          [
+                            "ابھی سب سے زیادہ کیا چاہیے — تھوڑا سکون، تھوڑی وضاحت، یا بس ساتھ؟",
+                            "اگر کہنا چاہیں تو ابھی سب سے بھاری حصہ کون سا لگ رہا ہے؟",
+                            "ہم یہاں سے آہستہ آہستہ شروع کر سکتے ہیں — پہلے کس حصے پر رہنا چاہیں گے؟",
+                          ] as const,
+                        )
+                        : lang === "ar"
+                          ? pickFrom(
+                            `arFollow:${msg}:${rel}:${name ?? ""}`,
+                            ["ما الذي تحتاجه أكثر الآن — بعض الراحة، وضوح، أو مجرد صحبة؟", "لو أردت الكلام، ما أثقل جزء الآن؟", "يمكننا البدء من هنا بهدوء — أين تريد أن نبدأ؟"] as const,
+                          )
+                          : lang === "zh"
+                            ? pickFrom(
+                              `zhFollow:${msg}:${rel}:${name ?? ""}`,
+                              ["现在你最需要什么 — 一些安慰、清晰感，还是只是有人陪？", "如果你想说说，现在哪个部分最让你感到沉重？", "我们可以从这里慢慢开始 — 你想从哪里谈起？"] as const,
+                            )
+                            : lang === "es"
+                              ? pickFrom(
+                                `esFollow:${msg}:${rel}:${name ?? ""}`,
+                                ["¿Qué es lo que más necesitas ahora — un poco de calma, claridad, o simplemente compañía?", "Si quieres, ¿qué parte es la más pesada en este momento?", "Podemos empezar desde aquí despacio — ¿por dónde quieres ir primero?"] as const,
+                              )
+                              : lang === "fr"
+                                ? pickFrom(
+                                  `frFollow:${msg}:${rel}:${name ?? ""}`,
+                                  ["De quoi as-tu le plus besoin là — un peu de calme, de clarté ou juste de la compagnie ?", "Si tu veux en parler, quelle est la partie la plus lourde en ce moment ?", "On peut commencer tranquillement d'ici — par où tu veux commencer ?"] as const,
+                                )
+                                : lang === "pt"
+                                  ? pickFrom(
+                                    `ptFollow:${msg}:${rel}:${name ?? ""}`,
+                                    ["O que você mais precisa agora — um pouco de calma, clareza, ou só companhia?", "Se quiser falar, qual parte está pesando mais agora?", "A gente pode começar daqui devagar — por onde quer ir primeiro?"] as const,
+                                  )
+                                  : lang === "ru"
+                                    ? pickFrom(
+                                      `ruFollow:${msg}:${rel}:${name ?? ""}`,
+                                      ["Что тебе сейчас нужно больше всего — немного покоя, ясности или просто компании?", "Если хочешь рассказать, какая часть сейчас самая тяжёлая?", "Мы можем начать отсюда медленно — с чего ты хочешь начать?"] as const,
+                                    )
+                                    : lang === "id"
+                                      ? pickFrom(
+                                        `idFollow:${msg}:${rel}:${name ?? ""}`,
+                                        ["Apa yang paling kamu butuhkan sekarang — sedikit ketenangan, kejernihan, atau sekadar teman?", "Kalau mau cerita, bagian mana yang paling berat sekarang?", "Kita bisa mulai pelan-pelan dari sini — mau mulai dari mana?"] as const,
+                                      )
+                                      : lang === "de"
+                                        ? pickFrom(
+                                          `deFollow:${msg}:${rel}:${name ?? ""}`,
+                                          ["Was brauchst du jetzt am meisten — etwas Ruhe, Klarheit, oder einfach Gesellschaft?", "Wenn du magst, welcher Teil ist gerade am schwersten?", "Wir können hier langsam anfangen — womit möchtest du beginnen?"] as const,
+                                        )
+                                        : "";
 
   return {
     message,
@@ -1410,7 +3155,7 @@ function draftResponse(
     /\b(i|im|i'm|am|just|now|today|currently|at|home|resting|relaxing|chilling|working|studying|sleeping)\b/i.test(
       lower,
     ) &&
-    !/\b(accident|scary|fear|afraid|panic|hurt|injury|injured|sad|lonely|cry|crying|angry|stress|stressed|anxious|anxiety|worried|depressed|hopeless|overwhelmed|exhausted|exhaust|drained|heavy|mentally exhausted|emotionally heavy|burnout|burned out|burnt out|empty|numb|meaningless|die|dying|suicide|suicidal|kill myself|end my life|don't want to live|dont want to live|cannot go on|can't go on|cant go on)\b/i.test(
+    !/\b(accident|scary|fear|afraid|panic|hurt|injury|injured|sad|lonely|cry|crying|angry|stress|stressed|anxious|anxiety|worried|depressed|hopeless|overwhelmed|exhausted|exhaust|drained|heavy|mentally exhausted|emotionally heavy|burnout|burned out|burnt out|empty|numb|meaningless|die|dying|suicide|suicidal|kill myself|end my life|don't want to live|dont want to live|cannot go on|can't go on|cant go on|low|down|off|tired|distant|lost|stuck|upset|broken|struggling|struggling with|not okay|not good|not well|off today|bit off|kind of)\b/i.test(
       lower,
     ) &&
     !lower.includes("trembl") &&
@@ -1702,7 +3447,7 @@ function draftResponse(
     // ✅ Long-memory: avoid repeating the same fallback style too often (25 turns)
     const cooldownTurns = 25;
 
-    // We store “keys” as tiny phrases and check recent history for those keys.
+    // We store "keys" as tiny phrases and check recent history for those keys.
     const usedComfortStyle = recentlyUsedAny(
       ctx,
       [
@@ -1733,7 +3478,7 @@ function draftResponse(
       cooldownTurns,
     );
 
-    // 🟢 Soft “just listen” variants (can be statement-only)
+    // 🟢 Soft "just listen" variants (can be statement-only)
     const listenBank = [
       "You don’t have to make it tidy. Start anywhere — I’m listening.",
       "Take your time. I’m here with you.",
@@ -1771,7 +3516,7 @@ function draftResponse(
     const wantOptions = stylePick >= 9;
 
     // Presence-first: for low-signal emotional turns, often *don’t* ask a follow-up.
-    // This avoids the “therapist interview” feel and matches: reflect → pause.
+    // This avoids the "therapist interview" feel and matches: reflect → pause.
     const lowSignal = isLowSignalUserTurn(msg);
     const presenceBiasSeed = `presenceBias:${msg}:${rel}:${name ?? ""}`;
 
@@ -1799,7 +3544,7 @@ function draftResponse(
         optionsBank,
       );
     } else {
-      // Fallback if all were recently used: choose the least repetitive “listen” line
+      // Fallback if all were recently used: choose the least repetitive "listen" line
       followUp = pickFromSeed(
         `listen2:${msg}:${rel}:${name ?? ""}`,
         listenBank,
@@ -1955,7 +3700,7 @@ export async function runImotara(input: {
   }
 
   // ✅ Baby Step 11.9 — preserve pinnedRecall passed from API, but ONLY if explicitly marked relevant
-  // This prevents “random old jumps” while allowing safe memory usage when we have high confidence.
+  // This prevents "random old jumps" while allowing safe memory usage when we have high confidence.
   const pr = (ctx as any).pinnedRecall;
   const prRelevant = (ctx as any).pinnedRecallRelevant === true;
 
@@ -2094,8 +3839,17 @@ export async function runImotara(input: {
       const story = buildMicroStory(storySignal, detectedLang, storySeed);
       if (story) {
         const baseMsg = String(response.message).trimEnd();
-        const endsWithPunct = /[.!?।]$/.test(baseMsg);
-        response.message = endsWithPunct ? `${baseMsg} ${story}` : `${baseMsg}. ${story}`;
+        // Skip injection if response is in any Indian/Arabic native script
+        // but the story is in Roman transliteration — avoids mixed-script output.
+        const NATIVE_SCRIPT_RE = /[\u0900-\u097F\u0980-\u09FF\u0A00-\u0A7F\u0A80-\u0AFF\u0B00-\u0B7F\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F\u0600-\u06FF\u4E00-\u9FFF\u0400-\u04FF]|[。！？]$/;
+        const responseHasNativeScript = NATIVE_SCRIPT_RE.test(baseMsg);
+        const storyHasNativeScript = NATIVE_SCRIPT_RE.test(story);
+        if (responseHasNativeScript && !storyHasNativeScript) {
+          // skip — would produce mixed Devanagari + Roman text
+        } else {
+          const endsWithPunct = /[.!?।]$/.test(baseMsg);
+          response.message = endsWithPunct ? `${baseMsg} ${story}` : `${baseMsg}. ${story}`;
+        }
       }
     }
   }

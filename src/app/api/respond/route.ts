@@ -147,6 +147,7 @@ function derivePreferredLanguage(
   // 1) Explicit (if any client already sends it)
   const explicit =
     coerceLanguageCode((baseCtx as any)?.preferredLanguage) ||
+    coerceLanguageCode((baseCtx as any)?.preferredLang) ||
     coerceLanguageCode((baseCtx as any)?.language) ||
     coerceLanguageCode((baseCtx as any)?.languageCode) ||
     coerceLanguageCode((baseCtx as any)?.targetLanguage);
@@ -245,6 +246,22 @@ function derivePreferredLanguage(
 
   const latinOnly = !hasBn && !hasHiLetters && totalLetters > 0;
   const latinHeavy = latinOnly && latinLetters / totalLetters >= 0.8;
+
+  // ✅ If client explicitly sends an Indian language code and the message is Roman-script,
+  // trust the explicit lang immediately — prevents Roman-Punjabi/Marathi/etc. from being
+  // mis-detected as Hindi (many keywords overlap).
+  const EXPLICIT_INDIC_ROMAN = new Set(["hi","bn","mr","gu","kn","ta","te","ml","pa","or","ur"]);
+  if (explicit && latinOnly && EXPLICIT_INDIC_ROMAN.has(explicit)) {
+    const indicNames: Record<string, string> = {
+      hi:"Hindi", bn:"Bengali", mr:"Marathi", gu:"Gujarati", kn:"Kannada",
+      ta:"Tamil", te:"Telugu", ml:"Malayalam", pa:"Punjabi", or:"Odia", ur:"Urdu",
+    };
+    return {
+      preferredLanguage: explicit as LanguageCode,
+      strictLanguage: explicit as LanguageCode,
+      languageDirective: `Language policy (strict): Reply ONLY in ${indicNames[explicit]}. Use native script. Do not mix languages.`,
+    };
+  }
 
   // ✅ Romanized Indian-language detection → force that language's native script output
   if (latinOnly) {
@@ -490,7 +507,7 @@ function derivePreferredLanguage(
     !hasStrongRomanizedIndianSignal &&
     !hasForeignLatinSignal;
 
-  if (looksEnglish) {
+  if (!explicit && looksEnglish) {
     return {
       preferredLanguage: "en",
       strictLanguage: "en",
@@ -503,7 +520,8 @@ function derivePreferredLanguage(
   // If it's Latin-heavy and has no romanized Indian-language signal,
   // default to English anyway. This prevents continuity from dragging
   // clear English prompts into another language.
-  if (latinHeavy && !hasAnyRomanizedIndianSignal && !hasForeignLatinSignal) {
+  // Do NOT apply if an explicit language preference is set by the client.
+  if (!explicit && latinHeavy && !hasAnyRomanizedIndianSignal && !hasForeignLatinSignal) {
     return {
       preferredLanguage: "en",
       strictLanguage: "en",
@@ -583,7 +601,7 @@ function derivePreferredLanguage(
   // prioritize English before conversation continuity.
   const strictLangBase =
     scriptDerived ??
-    (latinHeavy && romanHiHits < 2 && romanBnHits < 2 && !hasForeignLatinSignal
+    ((!explicit) && latinHeavy && romanHiHits < 2 && romanBnHits < 2 && !hasForeignLatinSignal
       ? "en"
       : (!userAskedSwitch
         ? lastWasBn
@@ -598,7 +616,8 @@ function derivePreferredLanguage(
   // If the CURRENT message is clearly Latin-heavy and NOT romanized Hindi/Bengali,
   // never let continuity drag it into bn/hi.
   const strictLang =
-    latinHeavy &&
+    !explicit &&
+      latinHeavy &&
       romanHiHits < 2 &&
       romanBnHits < 2 &&
       romanTaHits < 2 &&
@@ -1612,7 +1631,7 @@ export async function POST(req: Request) {
 
   const modelProducedSentence =
     rawText &&
-    /[.!?।؟]$/.test(rawText.trim());
+    /[.!?।؟。！？]$/.test(rawText.trim());
 
   const formattedText =
     rawText && !modelProducedSentence

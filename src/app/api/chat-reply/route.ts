@@ -60,9 +60,16 @@ type ChatReplyRequest = {
 const MAX_TURNS = 8;
 const MAX_CHARS = 4000;
 
-// Keywords that signal emotional distress across a conversation
+// Keywords that signal emotional distress across all 21 languages Imotara supports.
+// Structure:
+//   \b(…)\b  — Latin-script terms: English + German + French + Spanish + Portuguese + Indonesian
+//              + romanised Indic transliterations (hi/bn/mr/ta/te/gu/pa/kn/ml/or/ur)
+//   |…        — Non-Latin scripts (naturally space-delimited; no \b needed):
+//              Devanagari (hi/mr) · Bengali (bn) · Gurmukhi (pa) · Gujarati (gu)
+//              Tamil (ta) · Telugu (te) · Kannada (kn) · Malayalam (ml) · Odia (or)
+//              Arabic script (ar/ur) · Chinese (zh) · Japanese (ja) · Hebrew (he) · Cyrillic (ru)
 const EMOTIONAL_SIGNAL_RE =
-  /\b(sad|anxious|anxiety|stress(?:ed|ful)?|overwhelm(?:ed|ing)?|depressed|depression|lonely|exhaust(?:ed|ing)?|drained|frustrated|angry|upset|hurt|scared|fearful?|worried|worry|hopeless|empty|numb|cry(?:ing)?|lost|stuck|panic(?:ked|king)?|brok(?:en|e)|heavy|grief|grieve|grieving|tired|burnt?\s*out)\b/i;
+  /\b(sad|anxious|anxiety|stress(?:ed|ful)?|overwhelm(?:ed|ing)?|depressed|depression|lonely|exhaust(?:ed|ing)?|drained|frustrated|angry|upset|hurt|scared|fearful?|worried|worry|hopeless|empty|numb|cry(?:ing)?|lost|stuck|panic(?:ked|king)?|brok(?:en|e)|heavy|grief|grieve|grieving|tired|burnt?\s*out|traurig|ängstlich|einsam|erschöpft|hoffnungslos|wütend|Angst|triste|ansioso|ansiosa|sola|miedo|enojado|enojada|agotado|agotada|llorar|dolor|desesperado|desesperada|estrés|preocupado|preocupada|anxieux|anxieuse|seule|peur|épuisé|épuisée|désespéré|désespérée|sedih|cemas|kesepian|takut|marah|lelah|menangis|putus\s+asa|udaas|pareshan|ghabrana|akela|thaka|gussa|dard|rona|khauf|takleef|dukhi|nirash|kosto|bhoy|klanto|raag|kanna|hotash|kashtam|thanimai|payam|kopam|sorvu|kavalai|baadha|bhayam|ontariga|alasata|ikalla|ekutia)\b|दुखी|उदास|परेशान|चिंता|थका|थकान|डर|अकेला|टूटा|निराश|गुस्सा|घबराहट|रोना|दर्द|खोया|दुःख|त्रास|एकटा|काळजी|रडणे|भीती|दुखावलेलो|ਦੁੱਖ|ਡਰ|ਇਕੱਲਾ|ਥਕਾਵਟ|ਗੁੱਸਾ|ਰੋਣਾ|ਚਿੰਤਾ|દુઃખ|ચિંતા|ભય|એકલો|ગુસ્સો|થાક|રડવું|નિરાશ|দুঃখী|কষ্ট|একা|ভয়|চিন্তা|ক্লান্ত|রাগ|কান্না|হতাশ|ব্যথা|கஷ்டம்|தனிமை|பயம்|கோபம்|சோர்வு|கவலை|బాధ|భయం|ఒంటరిగా|అలసట|కోపం|ఆందోళన|ನೋವು|ಭಯ|ಒಂಟಿ|ಸುಸ್ತು|ಕೋಪ|ಅಳು|ಚಿಂತೆ|ನಿರಾಶ|വേദന|ഭയം|ഒറ്റപ്പെടൽ|ക്ഷീണം|ദേഷ്യം|കരച്ചിൽ|ഉത്കണ്ഠ|നിരാശ|ଦୁଃଖ|ଭୟ|ଏକୁଟିଆ|ଥକା|ଚିନ୍ତା|حزين|قلق|خائف|وحيد|غاضب|مرهق|ألم|يأس|ضغط|متعب|难过|焦虑|孤独|害怕|愤怒|疲惫|哭泣|痛苦|绝望|压力|伤心|悲しい|不安|怖い|怒り|疲れた|泣く|痛み|絶望|ストレス|עצוב|חרדה|בודד|פחד|כועס|עייף|בוכה|כאב|ייאוש|לחץ|грустн|тревог|одинок|страх|злой|устал|плакать|боль|отчаян|стресс/iu;
 
 type EmotionalArcResult = {
   depth: "light" | "moderate" | "deep";
@@ -124,6 +131,22 @@ export async function POST(req: Request) {
     console.log("[imotara][chat-reply] POST hit");
     const body = (await req.json()) as ChatReplyRequest | null;
 
+    // ── Mythology repetition prevention ────────────────────────────────────────
+    // Scan assistant messages for mythology references already used this session.
+    // Build a deduplicated list and inject it into the system prompt so the LLM
+    // avoids repeating the same story or mythological figure.
+    const MYTH_REGEX = /\b(Mahabharata|Ramayana|Bhagavad\s*Gita|Purana|Jataka|Panchatantra|Upanishad|Rumi|Hafez|Sufi|1001\s*Nights|Zhuangzi|Laozi|Journey\s*to\s*the\s*West|Odyssey|Iliad|Baba\s*Yaga|Norse|Slavic|Zen\s*koan|Shinto|Talmudic|Hasidic|Arjuna|Krishna|Draupadi|Yudhishthira|Bhima|Pandava|Kaurava|Karna|Hanuman|Rama|Sita|Vishnu|Shiva|Ganesha|Lakshmi|Durga|Saraswati|Indra|Agni|Varuna|Narada|Garuda|Brahma|Dhruva|Prahlad|Savitri|Nachiketa|Milarepa|Bodhidharma|Confucius|Laozi|Zhuangzi|Sun\s*Wukong|Achilles|Odysseus|Hercules|Prometheus|Sisyphus|Orpheus|Penelope|Athena|Apollo|Hermes|Zeus|Persephone|Perseus|Theseus|Odin|Thor|Freya|Loki|Fenrir)\b/gi;
+    const allMessages = Array.isArray(body?.messages) ? body!.messages : [];
+    const assistantTexts = allMessages
+        .filter((m) => m?.role === "assistant" && typeof m.content === "string")
+        .map((m) => m.content as string);
+    const usedMyths = new Set<string>();
+    for (const text of assistantTexts) {
+        const matches = text.matchAll(MYTH_REGEX);
+        for (const m of matches) usedMyths.add(m[0]);
+    }
+    const uniqueMyths = [...usedMyths];
+
     // Allow single-text payloads without breaking existing behaviour
     let rawMessages = Array.isArray(body?.messages) ? body!.messages : [];
 
@@ -169,7 +192,8 @@ export async function POST(req: Request) {
 
     const isClosureIntent =
       normalizedMsg.length > 0 &&
-      (normalizedMsg.includes("talk later") ||
+      (// English
+        normalizedMsg.includes("talk later") ||
         normalizedMsg.includes("chat later") ||
         normalizedMsg.includes("see you") ||
         normalizedMsg.includes("bye") ||
@@ -180,7 +204,74 @@ export async function POST(req: Request) {
         normalizedMsg.includes("catch you") ||
         normalizedMsg.includes("going for a walk") ||
         normalizedMsg.includes("going out") ||
-        normalizedMsg.includes("will talk later"));
+        normalizedMsg.includes("will talk later") ||
+        // Hindi / Roman Indic
+        normalizedMsg.includes("kal milte") ||
+        normalizedMsg.includes("baad mein baat") ||
+        normalizedMsg.includes("shubh ratri") ||
+        normalizedMsg.includes("jaata hoon") ||
+        normalizedMsg.includes("jaati hoon") ||
+        normalizedMsg.includes("alvida") ||
+        normalizedMsg.includes("phir milenge") ||
+        normalizedMsg.includes("chalte hain") ||
+        // Bengali Roman
+        normalizedMsg.includes("pore kotha") ||
+        normalizedMsg.includes("shubho ratri") ||
+        normalizedMsg.includes("kal bolbo") ||
+        // Tamil Roman
+        normalizedMsg.includes("appuram pesalam") ||
+        normalizedMsg.includes("poga poren") ||
+        normalizedMsg.includes("innaikku poren") ||
+        // Spanish
+        normalizedMsg.includes("hasta luego") ||
+        normalizedMsg.includes("hasta pronto") ||
+        normalizedMsg.includes("buenas noches") ||
+        normalizedMsg.includes("me voy") ||
+        normalizedMsg.includes("nos vemos") ||
+        // French
+        normalizedMsg.includes("bonne nuit") ||
+        normalizedMsg.includes("a bientot") ||
+        normalizedMsg.includes("a plus") ||
+        normalizedMsg.includes("je m en vais") ||
+        normalizedMsg.includes("on se parle") ||
+        // Portuguese
+        normalizedMsg.includes("ate logo") ||
+        normalizedMsg.includes("ate mais") ||
+        normalizedMsg.includes("boa noite") ||
+        normalizedMsg.includes("vou indo") ||
+        // Indonesian
+        normalizedMsg.includes("sampai jumpa") ||
+        normalizedMsg.includes("selamat malam") ||
+        normalizedMsg.includes("nanti ya") ||
+        normalizedMsg.includes("dah dulu") ||
+        normalizedMsg.includes("pamit dulu") ||
+        // Arabic / Urdu script (raw message — normalizedMsg strips non-letter chars)
+        lastUserMsg.includes("إلى اللقاء") ||
+        lastUserMsg.includes("وداعاً") ||
+        lastUserMsg.includes("مع السلامة") ||
+        lastUserMsg.includes("تصبح على خير") ||
+        lastUserMsg.includes("خداحافظ") ||     // Urdu goodbye
+        lastUserMsg.includes("اللہ حافظ") ||   // Urdu Allah hafiz
+        // Chinese
+        lastUserMsg.includes("再见") ||
+        lastUserMsg.includes("晚安") ||
+        lastUserMsg.includes("先这样") ||
+        lastUserMsg.includes("待会见") ||
+        lastUserMsg.includes("回头见") ||
+        // Russian
+        normalizedMsg.includes("do svidaniya") ||
+        normalizedMsg.includes("poka") ||
+        lastUserMsg.includes("до свидания") ||
+        lastUserMsg.includes("пока") ||
+        lastUserMsg.includes("спокойной ночи") ||
+        lastUserMsg.includes("увидимся") ||
+        // Japanese
+        lastUserMsg.includes("またね") ||
+        lastUserMsg.includes("さようなら") ||
+        lastUserMsg.includes("おやすみ") ||
+        // Hebrew
+        lastUserMsg.includes("להתראות") ||
+        lastUserMsg.includes("לילה טוב"));
 
     console.log("[imotara][closure]", {
       lastUserMsg,
@@ -266,11 +357,32 @@ export async function POST(req: Request) {
       ? `The user currently seems to be feeling: ${emotion}.\n`
       : "";
 
+    // ── Casual / greeting detection ────────────────────────────────────────────
+    // If the latest user message is a simple greeting or casual opener (≤5 words,
+    // no emotional keywords), tell the AI to respond lightly — NOT to infer hidden
+    // emotion from a one-word "hi". A greeting is not a cry for help.
+    const lastUserWordCount = lastUserMsg.trim().split(/\s+/).filter(Boolean).length;
+    const isLightCasual =
+      lastUserWordCount <= 5 &&
+      arc.emotionalTurnCount === 0 &&
+      !EMOTIONAL_SIGNAL_RE.test(lastUserMsg);
+
+    const casualChatRule = isLightCasual
+      ? [
+          "CASUAL CHAT MODE: The user's message is a simple greeting or light opener — NOT an emotional signal.",
+          "Respond warmly and conversationally, like a friend saying hello back.",
+          "Do NOT read urgency, tension, or emotional significance into a one-word or short casual message.",
+          "Do NOT try to 'name the emotion' or 'reference the situation' — there is no situation yet.",
+          "Just respond naturally and invite them to share whatever is on their mind, without pressure.",
+          "Keep it to 1 sentence. No deep reflections. No mythology. No quotes.",
+        ].join("\n")
+      : "";
+
     // Language instruction: tell GPT to mirror the user's current message language.
     // This overrides conversation history so switching from Bengali to Hindi mid-chat works.
     const langInstructionMap: Record<string, string> = {
-      hi: "The user is writing in Hindi. Mirror their exact script — if they used Devanagari, respond in Devanagari; if they used Roman/Latin script (Hinglish), respond in Roman Hindi.",
-      bn: "The user is writing in Bengali. Mirror their exact script — if they used Bengali script, respond in Bengali script; if they used Roman/Latin script, respond in Roman Bengali.",
+      hi: "The user is writing in Hindi. Mirror their exact script — if they used Devanagari, respond in Devanagari; if they used Roman/Latin script (Hinglish), respond in Roman Hindi. FORMALITY: Match the user's register — if they write casually (using 'tum', 'yaar', informal words), respond with 'tum' form. Use 'aap' only if they write formally.",
+      bn: "The user is writing in Bengali. Mirror their exact script — if they used Bengali script, respond in Bengali script; if they used Roman/Latin script, respond in Roman Bengali. FORMALITY: Default to 'tumi' form for casual Romanized Bengali. Use 'apni/aapnar' only if the user writes formally. CRITICAL: Use only Bengali words — do NOT mix in Hindi words. For example use 'Haa' or 'Hyaan' (Bengali) not 'Hain' (Hindi); use 'Ami' not 'Main'.",
       mr: "The user is writing in Marathi. Mirror their exact script — if they used Devanagari, respond in Devanagari Marathi; if they used Roman script, respond in Roman Marathi.",
       ta: "The user is writing in Tamil. Mirror their exact script — native Tamil script or Roman Tamil as they used.",
       te: "The user is writing in Telugu. Mirror their exact script — native Telugu script or Roman Telugu as they used.",
@@ -438,10 +550,11 @@ export async function POST(req: Request) {
       emotionMemoryHint,
       companionPersonaHint,
       userAgeHint,
+      casualChatRule,
       lengthInstruction,
       "Do NOT sound generic. Never repeat the same opener style across turns — 'I'm with you / I'm here / I hear you' should not appear more than once per conversation. Instead open with something that reflects what the user specifically said: name the emotion, reference the situation, or mirror their energy.",
-      "EMPATHY VARIETY RULE: Avoid overusing weight and burden metaphors ('that sounds heavy', 'you're carrying a lot', 'that's a lot to sit with'). Vary your empathy language — use specific, human, direct observations instead: 'That kind of hurt doesn't just go away on its own', 'Your nervous system is reacting to something real', 'I'd feel that way too', 'That's genuinely unfair'.",
-      "IMPORTANT: Your reply MUST reference at least one concrete detail from the user's most recent message OR the recent user messages below.",
+      "EMPATHY VARIETY RULE: Avoid overusing weight and burden metaphors ('that sounds heavy', 'you're carrying a lot', 'that's a lot to sit with'). Vary your empathy language — use specific, human, direct observations instead: 'That kind of hurt doesn't just go away on its own', 'I'd feel that way too', 'That's genuinely unfair', 'That sounds like it came out of nowhere'.",
+      isLightCasual ? "" : "IMPORTANT: Your reply MUST reference at least one concrete detail from the user's most recent message OR the recent user messages below.",
       "If the user already gave context, do NOT ask vague questions like 'what's on your mind' or 'what's going on' — continue the same thread.",
       "QUESTION RULE: Do NOT end every reply with a question. A real friend sometimes just listens and reflects without asking anything. Only ask a question when it genuinely opens something new — not as a default closer. Maximum one question per reply, and skip it entirely if the user is sharing something tender.",
       "VENTING RULE: If the user is venting, releasing emotion, or explicitly says they just need to talk — respond with pure presence. No question at the end. Just be there: 'You don't have to figure this out right now.' / 'You're allowed to feel all of this.' / 'I'm not going anywhere.'",
@@ -472,8 +585,13 @@ export async function POST(req: Request) {
         "HOW: Introduce it naturally — 'There's a story from the Mahabharata that comes to mind...' / 'Rumi wrote something that feels true here...' / 'A Zen story I keep thinking about...' / 'In Greek mythology...'",
         "KEEP IT BRIEF: 1–2 sentences max — the essence of the story and why it connects to their situation.",
         "LANGUAGE: Always share in the user's language. If the original story is from another language, translate naturally.",
-        "NEVER USE when: fewer than 4 user turns, the user is in crisis, asking a factual question, greeting, joking, or sharing good news.",
+        "NEVER USE when: fewer than 4 user turns, the user is in crisis, asking a factual question, greeting, joking, sharing good news, or mentioning their cultural background/language/ethnicity — do NOT immediately reference cultural figures, poets, or literature just because a user says they are Bengali, Hindi-speaking, Tamil, etc.",
+        "TONE RESTRICTION: If tone is 'close_friend' — skip mythology entirely unless the arc.depth is deep (5+ turns of heavy emotion). A close friend does NOT reach for scripture; they stay peer-level and human.",
         "TONE: Warm and human — like a friend who remembers a story. Never preachy or lecture-like.",
+        "CRITICAL — QUOTE ACCURACY: NEVER attribute a quote, verse, or saying to any religious text, scripture, or religious figure (Krishna, Arjuna, Rumi, Buddha, Muhammad, Jesus, Torah, Quran, Gita, etc.) unless you are certain of the exact wording and canonical source. If you are not 100% certain a specific quote is real and verifiable, describe the STORY or CONCEPT from that tradition instead — do NOT invent or paraphrase as a direct quote. A fabricated quote attributed to a sacred figure is harmful and trust-breaking.",
+        ...(uniqueMyths.length > 0
+          ? [`MYTHOLOGY ALREADY USED IN THIS SESSION (do NOT repeat these): ${uniqueMyths.join(", ")}`]
+          : []),
       ].join("\n"),
       "",
       [
@@ -484,7 +602,8 @@ export async function POST(req: Request) {
         "FORMAT: Quote in quotation marks, followed by attribution — '\"[quote]\" — [Author]'.",
         "LANGUAGE: Translate or find an equivalent quote in the user's language if they write in Hindi, Arabic, French, etc. Attribute the author by name.",
         "FREQUENCY: Roughly 1 in 8 emotional or reflective turns. Never on the same turn as a mythology story. Never forced.",
-        "NEVER USE when: the user is in crisis, light casual chat, greetings, or direct factual questions.",
+        "NEVER USE when: the user is in crisis, light casual chat, greetings, direct factual questions, or when the user simply mentions their language/culture/ethnicity — a user saying 'I'm Bengali' or 'I speak Tamil' is NOT an invitation to quote Tagore or Thiruvalluvar.",
+        "ACCURACY: Only use quotes you are certain are real, correctly worded, and correctly attributed. If uncertain, paraphrase the idea in your own words instead — do NOT invent a quote and attach a famous name to it.",
         "TONE: Like a friend who genuinely remembers a line — not a quotation database. Keep it short and connected to what they said.",
       ].join(" "),
       "",

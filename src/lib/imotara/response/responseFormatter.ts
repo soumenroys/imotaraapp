@@ -119,6 +119,18 @@ function wantsSoftMix(userMsg: string, lang: string): boolean {
 
   if (lang === "bn") return /[\u0980-\u09FF]/.test(msg); // Bengali script present
   if (lang === "hi") return /[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(msg); // Devanagari present
+  if (lang === "pa") return /[\u0A00-\u0A7F]/.test(msg); // Gurmukhi script present
+  if (lang === "ta") return /[\u0B80-\u0BFF]/.test(msg); // Tamil script present
+  if (lang === "ml") return /[\u0D00-\u0D7F]/.test(msg); // Malayalam script present
+  if (lang === "kn") return /[\u0C80-\u0CFF]/.test(msg); // Kannada script present
+  if (lang === "or") return /[\u0B00-\u0B7F]/.test(msg); // Odia script present
+  if (lang === "te") return /[\u0C00-\u0C7F]/.test(msg); // Telugu script present
+  if (lang === "gu") return /[\u0A80-\u0AFF]/.test(msg); // Gujarati script present
+  if (lang === "mr") return /[\u0900-\u097F]/.test(msg); // Devanagari script present (Marathi)
+  if (lang === "ur") return /[\u0600-\u06FF]/.test(msg); // Arabic/Urdu script present
+  if (lang === "ar") return /[\u0600-\u06FF]/.test(msg); // Arabic script present
+  if (lang === "zh") return /[\u4E00-\u9FFF]/.test(msg); // CJK script present
+  if (lang === "ru") return /[\u0400-\u04FF]/.test(msg); // Cyrillic script present
 
   return false;
 }
@@ -175,14 +187,14 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "हम्म…",
         "सच?",
         "अच्छा…",
-        "वाह!",
+        "हाँ…",
         // Added variety (still short, human, not therapy-ish)
         "हूँ… समझ गया।",
         "ओके…",
         "ठीक है…",
         "हम्म… ये भारी लग रहा है।",
         "अरे यार…",
-        "चलो…",
+        "कहते रहो।",
       ];
 
     case "bn":
@@ -191,7 +203,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "ওহ!",
         "হুঁ…",
         "সত্যি?",
-        "বাহ!",
+        "হ্যাঁ…",
         "আচ্ছা…",
         // Added variety (short, friendly, less templated)
         "ওকে…",
@@ -208,7 +220,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "ஓஹ்!",
         "ஹ்ம்…",
         "உண்மையா?",
-        "வாவ்!",
+        "ஆமா…",
         "சரி…",
         "சரி… கேட்கிறேன்.",
         "ஹ்ம்… புரிகிறது.",
@@ -222,7 +234,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "ఓహ్!",
         "హ్మ్…",
         "నిజమా?",
-        "వావ్!",
+        "అవును…",
         "సరే…",
         "సరే… చెప్తూ ఉండు.",
         "హ్మ్… అర్థమైంది.",
@@ -236,7 +248,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "ओह!",
         "हम्म…",
         "खरंच?",
-        "वा!",
+        "हो…",
         "बरं…",
         "ठीक आहे…",
         "हम्म… समजलं.",
@@ -250,7 +262,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "ઓહ!",
         "હમ્મ…",
         "સાચે?",
-        "વાહ!",
+        "હા…",
         "બરાબર…",
         "ઓકે…",
         "હમ્મ… સમજાયું.",
@@ -264,7 +276,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "ಓಹ್!",
         "ಹ್ಮ್…",
         "ನಿಜವಾ?",
-        "ವಾವ್!",
+        "ಹೌದು…",
         "ಸರಿ…",
         "ಓಕೆ…",
         "ಹ್ಮ್… ಅರ್ಥ ಆಯ್ತು.",
@@ -278,7 +290,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "ഓ!",
         "ഹ്മ്…",
         "ശരിക്കോ?",
-        "വാവ്!",
+        "ഉം…",
         "ശരി…",
         "ഓക്കേ…",
         "ഹ്മ്… മനസ്സിലായി.",
@@ -292,7 +304,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "ਓਹ!",
         "ਹੰਮ…",
         "ਸੱਚ?",
-        "ਵਾਹ!",
+        "ਹਾਂ…",
         "ਠੀਕ ਹੈ…",
         "ਓਕੇ…",
         "ਹੰਮ… ਸਮਝ ਆਇਆ।",
@@ -306,7 +318,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "اوہ!",
         "ہمم…",
         "سچ؟",
-        "واہ!",
+        "ہاں…",
         "اچھا…",
         "ٹھیک ہے…",
         "اوکے…",
@@ -320,7 +332,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "ଓହ୍!",
         "ହୁଁ…",
         "ସତିକି?",
-        "ବାହ୍!",
+        "ହଁ…",
         "ଠିକ ଅଛି…",
         "ଓକେ…",
         "ହୁଁ… ବୁଝିଲି।",
@@ -334,7 +346,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "أوه!",
         "حسناً…",
         "حقاً؟",
-        "رائع!",
+        "نعم…",
         "أوكي…",
         "أفهم…",
         "آه… هذا ثقيل.",
@@ -348,7 +360,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "哦！",
         "嗯…",
         "真的吗？",
-        "哇！",
+        "嗯嗯…",
         "好吧…",
         "嗯……我明白了。",
         "哎，这很沉重。",
@@ -362,7 +374,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "¡Oh!",
         "Hmm…",
         "¿En serio?",
-        "¡Qué bueno!",
+        "Sí…",
         "Oye…",
         "Entendido…",
         "Hmm… eso es mucho.",
@@ -376,7 +388,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "Oh !",
         "Hmm…",
         "Vraiment ?",
-        "Super !",
+        "Oui…",
         "Ok…",
         "Je vois…",
         "Hmm… c'est lourd.",
@@ -390,7 +402,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "Oh!",
         "Hmm…",
         "Sério?",
-        "Que bom!",
+        "Sim…",
         "Ok…",
         "Entendi…",
         "Hmm… isso é muito.",
@@ -404,7 +416,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "О!",
         "Хм…",
         "Правда?",
-        "Здорово!",
+        "Да…",
         "Окей…",
         "Понятно…",
         "Хм… это тяжело.",
@@ -418,7 +430,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "Oh!",
         "Hmm…",
         "Benarkah?",
-        "Keren!",
+        "Iya…",
         "Oke…",
         "Mengerti…",
         "Hmm… itu berat.",
@@ -432,7 +444,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "אוה!",
         "הממ…",
         "ממש?",
-        "וואו!",
+        "כן…",
         "אוקיי…",
         "הממ… הבנתי.",
         "אה, זה כבד.",
@@ -446,7 +458,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "Oh!",
         "Hmm…",
         "Wirklich?",
-        "Wow!",
+        "Ja…",
         "Ok…",
         "Hmm… ich verstehe.",
         "Ohje…",
@@ -460,7 +472,7 @@ function reactionBank(lang: string, tone: ImotaraPersonaTone): string[] {
         "ええ!",
         "うーん…",
         "本当に?",
-        "わあ!",
+        "そう…",
         "そっか…",
         "うーん…なるほど。",
         "あ、それはつらいね。",
@@ -703,6 +715,11 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
       "ਜੇ ਚਾਹੁੰਦਾ/ਚਾਹੁੰਦੀ ਹੈਂ ਤਾਂ ਅਸੀਂ ਇਸਨੂੰ ਹੌਲੇ ਹੌਲੇ ਲੈ ਸਕਦੇ ਹਾਂ ਅਤੇ ਸਿਰਫ਼ ਸਭ ਤੋਂ ਜ਼ਰੂਰੀ ਹਿੱਸੇ ਨਾਲ ਰਹਿ ਸਕਦੇ ਹਾਂ।",
       "ਅਸੀਂ ਇਹਨੂੰ ਨਰਮੀ ਨਾਲ ਲੈ ਸਕਦੇ ਹਾਂ — ਇਸ ਵੇਲੇ ਕਿਹੜਾ ਹਿੱਸਾ ਫੜੀ ਰੱਖਣਾ ਸਭ ਤੋਂ ਜ਼ਰੂਰੀ ਲੱਗ ਰਿਹਾ ਹੈ?",
       "ਜੋ ਇੱਕ ਹਿੱਸਾ ਸਭ ਤੋਂ ਭਾਰੀ ਲੱਗ ਰਿਹਾ ਹੈ, ਕੀ ਪਹਿਲਾਂ ਉਸਦਾ ਨਾਮ ਲੈਣਾ ਮਦਦ ਕਰੇਗਾ?",
+    ],
+    or: [
+      "ଚাইলে ଆମ ଏହାକୁ ଟିକେ ଧୀରେ ନେଇ ପାରିବୁ ଏବଂ ଏବେ ସବୁଠୁ ଜ଼ରୁରୀ ଅଂଶ ସହ ରହି ପାରିବୁ।",
+      "ଆମ ଏହାକୁ ଆସ୍ତେ ନେଇ ପାରୁ — ଏବେ କୌଣସି ଅଂଶ ଧରି ରଖିବା ସବୁଠୁ ଜ଼ରୁରୀ ଲାଗୁଛି?",
+      "ସବୁଠୁ ଭାରୀ ଲାଗୁଥିବା ଏକ ଅଂଶର ନାଁ ଆଗ ଦେଲେ ଟିକେ ସହଜ ହେବ?",
     ],
     ur: [
       "اگر چاہو تو ہم اسے تھوڑا آہستہ لے سکتے ہیں اور ابھی صرف سب سے اہم حصے کے ساتھ رہ سکتے ہیں۔",
@@ -1030,6 +1047,11 @@ function bridgeBank(lang: string, tone: ImotaraPersonaTone): readonly string[] {
       "ਇਸ ਵੇਲੇ ਸਭ ਤੋਂ ਵੱਧ ਭਾਰਾ ਕੀ ਲੱਗ ਰਿਹਾ ਹੈ—ਤਾਂ ਜੋ ਓਥੋਂ ਨਰਮੀ ਨਾਲ ਸ਼ੁਰੂ ਕਰੀਏ?",
       "ਇੱਥੋਂ ਕਿੱਥੋਂ ਸ਼ੁਰੂ ਕਰੀਏ ਤਾਂ ਸਭ ਤੋਂ ਸੁਖਾਵਾਂ ਲੱਗੇ?",
     ],
+    or: [
+      "ଆମ ଏହାକୁ ଧୀରେ ଧୀରେ, ଗୋଟିଏ ଛୋଟ ପାହାଚ ସଙ୍ଗ ମିଳି ଆରମ୍ଭ କରିବୁ?",
+      "ଏବେ ସବୁଠୁ ଭାରୀ ଲାଗୁଥିବା ଏଣ — ସେଠୁ ଆସ୍ତେ ଆରମ୍ଭ ହୋଇ ପାରିବୁ?",
+      "ଏଠୁ କୁଆଡ଼ୁ ଆରମ୍ଭ ହେଲେ ସବୁଠୁ ନରମ ଲାଗିବ?",
+    ],
     ur: [
       "کیا ہم اسے آہستہ آہستہ، ایک چھوٹے قدم سے ساتھ شروع کریں؟",
       "ابھی سب سے زیادہ بھاری کیا لگ رہا ہے—تاکہ ہم وہیں سے نرمی سے شروع کریں؟",
@@ -1173,6 +1195,41 @@ function bridgeStatementBank(
       "کوئی جلدی نہیں۔ ایک چھوٹا قدم، پھر اگلا۔",
       "ہم آہستہ آہستہ، ساتھ مل کر سنبھال لیں گے۔",
     ],
+    ar: [
+      "أنا هنا — سنبقي هذا بسيطاً.",
+      "لا عجلة. خطوة صغيرة، ثم التالية.",
+      "سنتعامل مع هذا بهدوء، معاً.",
+    ],
+    zh: [
+      "我在这里 — 让我们保持简单。",
+      "不急。一小步，然后下一步。",
+      "我们慢慢来，一起面对。",
+    ],
+    es: [
+      "Aquí estoy — mantengamos esto simple.",
+      "Sin prisa. Un pequeño paso, luego el siguiente.",
+      "Lo manejaremos con calma, juntos.",
+    ],
+    fr: [
+      "Je suis là — gardons ça simple.",
+      "Pas de presse. Un petit pas, puis le suivant.",
+      "On va gérer ça calmement, ensemble.",
+    ],
+    pt: [
+      "Estou aqui — vamos manter isso simples.",
+      "Sem pressa. Um pequeno passo, depois o próximo.",
+      "Vamos lidar com isso com calma, juntos.",
+    ],
+    ru: [
+      "Я здесь — сохраним это простым.",
+      "Не спешим. Один маленький шаг, затем следующий.",
+      "Разберёмся спокойно, вместе.",
+    ],
+    id: [
+      "Aku di sini — kita jaga ini tetap sederhana.",
+      "Tidak ada buru-buru. Satu langkah kecil, lalu berikutnya.",
+      "Kita hadapi ini dengan tenang, bersama.",
+    ],
     he: [
       "אני כאן — נשמור על זה פשוט.",
       "אין מהרה. צעד קטן אחד, אחר כך הבא.",
@@ -1255,6 +1312,41 @@ function bridgeStatementBank(
       "ניגש לזה בעדינות, מבלי לאבד בהירות.",
       "נשאיר את זה עדין ופשוט.",
       "צעד שקט אחד מספיק לעכשיו.",
+    ],
+    ar: [
+      "نتعامل مع هذا بلطف دون فقدان الوضوح.",
+      "ببساطة ولطف — هكذا نبقى.",
+      "خطوة هادئة واحدة تكفي الآن.",
+    ],
+    zh: [
+      "我们温柔地面对这一切，不失清醒。",
+      "简单而温柔 — 就这样继续。",
+      "现在一个平静的小步就够了。",
+    ],
+    es: [
+      "Manejamos esto con suavidad sin perder claridad.",
+      "Simple y suave — así seguimos.",
+      "Un paso tranquilo es suficiente por ahora.",
+    ],
+    fr: [
+      "On gère ça en douceur sans perdre de clarté.",
+      "Simple et doux — c'est comme ça qu'on avance.",
+      "Un pas calme suffit pour l'instant.",
+    ],
+    pt: [
+      "Lidamos com isso com suavidade sem perder clareza.",
+      "Simples e suave — assim continuamos.",
+      "Um passo tranquilo é suficiente por agora.",
+    ],
+    ru: [
+      "Разберёмся с этим мягко, не теряя ясности.",
+      "Просто и мягко — вот как двигаемся.",
+      "Одного спокойного шага сейчас достаточно.",
+    ],
+    id: [
+      "Kita tangani ini dengan lembut tanpa kehilangan kejernihan.",
+      "Sederhana dan lembut — begitulah kita melanjutkan.",
+      "Satu langkah tenang sudah cukup untuk sekarang.",
     ],
     de: [
       "Wir gehen das sanft an, ohne die Klarheit zu verlieren.",
@@ -1346,6 +1438,55 @@ function bridgeStatementBank(
       "کوئی دباؤ نہیں۔ نرمی سے چلتے ہیں۔",
       "تمہیں سب کچھ ایک ساتھ اٹھانے کی ضرورت نہیں ہے۔",
       "چاہو تو ہم یہاں تھوڑی دیر ٹھہر سکتے ہیں۔",
+    ],
+    ar: [
+      "أنا هنا معك في هذا.",
+      "يمكننا التعامل مع هذا معاً، خطوة بخطوة.",
+      "لا ضغط — نمشي بهدوء.",
+      "لا تحتاج إلى حمل كل شيء مرة واحدة.",
+      "إذا أردت، يمكننا أن نتوقف لحظة هنا.",
+    ],
+    zh: [
+      "我就在这里，陪着你。",
+      "我们可以一点一点一起慢慢来。",
+      "没有压力 — 我们慢慢走。",
+      "你不需要一下子把所有事都扛起来。",
+      "如果想的话，我们可以在这里暂停一会儿。",
+    ],
+    es: [
+      "Estoy aquí contigo en esto.",
+      "Podemos manejar esto juntos, poco a poco.",
+      "Sin presión — vamos suavemente.",
+      "No tienes que cargar con todo de una vez.",
+      "Si quieres, podemos simplemente detenernos un momento aquí.",
+    ],
+    fr: [
+      "Je suis là avec toi dans tout ça.",
+      "On peut gérer ça ensemble, petit à petit.",
+      "Pas de pression — on avance doucement.",
+      "Tu n'as pas à tout porter d'un coup.",
+      "Si tu veux, on peut juste s'arrêter un instant ici.",
+    ],
+    pt: [
+      "Estou aqui com você nisso.",
+      "A gente pode lidar com isso juntos, aos poucos.",
+      "Sem pressão — vamos devagar.",
+      "Você não precisa carregar tudo de uma vez.",
+      "Se quiser, a gente pode só parar um momento aqui.",
+    ],
+    ru: [
+      "Я здесь с тобой в этом.",
+      "Мы можем справиться с этим вместе, шаг за шагом.",
+      "Никакого давления — идём мягко.",
+      "Тебе не нужно нести всё сразу.",
+      "Если хочешь, можем просто остановиться здесь на минуту.",
+    ],
+    id: [
+      "Aku di sini bersamamu.",
+      "Kita bisa hadapi ini bersama, sedikit demi sedikit.",
+      "Tidak ada tekanan — kita melangkah perlahan.",
+      "Kamu tidak harus menanggung semuanya sekaligus.",
+      "Kalau mau, kita bisa berhenti sejenak di sini.",
     ],
     he: [
       "אני נשאר/ת כאן איתך עם זה.",

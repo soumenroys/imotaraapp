@@ -315,6 +315,7 @@ export async function POST(req: Request) {
           "French: 'tu vas bien' (verb unchanged, but adjectives agree: 'tu es courageuse'); " +
           "German: predicate adjectives after 'sein' do not inflect for 2nd-person gender — 'du bist müde' regardless; " +
           "Indonesian: gender-neutral ('kamu', 'Anda') — no change; " +
+          "Russian: past-tense 2nd-person agrees with gender — 'ty byla zdes'' (f) vs 'ty byl zdes'' (m), 'ty spravіlas'' (f) vs 'ty spravilsya' (m); " +
           "Arabic: 'kayfa anti'; Hebrew: 'ma shlomech'."
         );
       } else if (ug === "male") {
@@ -324,6 +325,7 @@ export async function POST(req: Request) {
           "Spanish: 'estás cansado', 'estás preocupado'; " +
           "Portuguese: 'estás cansado', 'você está bem'; " +
           "French: 'tu es courageux'; " +
+          "Russian: past-tense 2nd-person masculine — 'ty byl zdes'' (m), 'ty spravilsya' (m); " +
           "German: predicate adjectives after 'sein' do not inflect for 2nd-person gender — 'du bist müde' regardless; " +
           "Indonesian: gender-neutral — no change; " +
           "Arabic: 'kayfa anta'; Hebrew: 'ma shlomcha'."
@@ -334,6 +336,7 @@ export async function POST(req: Request) {
           "In Hindi/Indic languages avoid strongly gendered endings where possible; default to neutral phrasing. " +
           "In Spanish/Portuguese use gender-neutral forms where available (e.g. 'estás bien', avoid -o/-a adjective agreement). " +
           "In French prefer neutral constructions. In German predicate adjectives after 'sein' are already uninflected for 2nd person. " +
+          "In Russian avoid past-tense forms that reveal gender where possible; rephrase to present/future tense. " +
           "Indonesian is naturally gender-neutral. " +
           "In Arabic/Hebrew use the least gendered form available."
         );
@@ -350,6 +353,7 @@ export async function POST(req: Request) {
           "Spanish: 'estoy aquí contigo', 'estoy lista', 'estaba preocupada' (feminine -a adjective); " +
           "Portuguese: 'estou aqui', 'estou pronta', 'estou contente' (feminine -a adjective); " +
           "French: use passé composé with être in feminine form: 'je suis venue', 'je suis restée'; " +
+          "Russian: past-tense 1st-person feminine — 'ya была zdes'' (f), 'ya ponyala' (f), 'ya slyshala' (f); " +
           "German: predicate adjectives after 'sein' do not inflect for 1st person — 'ich bin müde' regardless; " +
           "Indonesian: gender-neutral — no change needed; " +
           "Arabic: 'ana huna laki'; Hebrew: 'ani kan bishvilech'."
@@ -362,6 +366,7 @@ export async function POST(req: Request) {
           "Spanish: 'estoy aquí contigo', 'estoy listo', 'estaba preocupado' (masculine -o adjective); " +
           "Portuguese: 'estou aqui', 'estou pronto', 'estou contente' (masculine -o adjective); " +
           "French: 'je suis venu', 'je suis resté' (passé composé with être, masculine); " +
+          "Russian: past-tense 1st-person masculine — 'ya byl zdes'' (m), 'ya ponyal' (m), 'ya slyshal' (m); " +
           "German: predicate adjectives after 'sein' do not inflect for 1st person — 'ich bin müde' regardless; " +
           "Indonesian: gender-neutral — no change needed; " +
           "Arabic: 'ana huna lak'; Hebrew: 'ani kan bishvilcha'."

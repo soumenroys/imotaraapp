@@ -1024,6 +1024,34 @@ export function buildLocalReply(
         `You don't have to wrap this up neatly.`,
     ];
 
+    const listeningOnlyExtrasHi = [
+        `Abhi ise figure out karne ki zaroorat nahi.`,
+        `Main yahin hoon. Jitna chahte ho, utna bolo — zyada ya kam.`,
+        `Tum yeh sab feel kar sakte ho — koi baat nahi.`,
+        `Ise neatly wrap up karne ki koi zaroorat nahi.`,
+    ];
+
+    const listeningOnlyExtrasBn = [
+        `Ekhon eta figure out korte hobe na.`,
+        `Ami ekhane achi. Jotota ichha hoy bolo — beshi na kama.`,
+        `Tumi shob kichu feel korte paro — kono problem nei.`,
+        `Eta neat kore wrap up korte hobe na.`,
+    ];
+
+    const listeningOnlyExtrasTa = [
+        `Ippovum idha figure out panna vendam.`,
+        `Naan engum poga matten. Venum pothu bol — zyada illai kammiya.`,
+        `Nee feel panra yellam feel pannalam — paravaillai.`,
+        `Idha neatly wrap up panna vendam illai.`,
+    ];
+
+    const listeningOnlyExtrasTe = [
+        `Ippudu dhinni figure out cheyaalsina avasaram ledu.`,
+        `Nenu ikkade unnaanu. Yekkuva alleda kammu alleda cheppukundu.`,
+        `Nuvvu anni feel avvadam okay — tappu ledu.`,
+        `Idi neat ga wrap up cheyyaalsina avasaram ledu.`,
+    ];
+
     const nextStepLinesHi = [
         `Tumhe abhi comfort chahiye, clarity, ya next step?`,
         `Tum isse baat karke halka karna chahte ho, ya kuch practical next karna hai?`,
@@ -1380,17 +1408,24 @@ export function buildLocalReply(
     };
 
     const reflectLinesGu = [
-        `Jyaare tu kahe chhe "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", abhi shu shu strong feel thaye chhe?`,
+        keyTopic ? `Tumne ${keyTopic} ni vaat ki — aa maa shu sabse zyada tadke chhe?` : `Aa maa shu shu sabse zyada bhari laage chhe abhi?`,
         `Aamath shu sabse zyada uncomfortable chhe?`,
-        `Jau toh zoom in kariye, shu shu tujhe vadhu pareshaani chhe?`,
+        `Jau toh ek j vastu chunni hoy jo tujhe vadhu pareshaani kare — shu hase?`,
         `Tu shun chaahe chhe aa situation ma alag hotu?`,
     ];
 
     const nextStepLinesGu = [
-        `Abhi comfort joiye chhe, clarity, ke next step?`,
-        `Tu ane vaatoo karvaathi halku karvaanu chaahe chhe, ke practical kuch karvanu?`,
-        `Ane kholi jovaathi madad thashe, ke ek chhoto action?`,
-        `Hum tamari feeling par focus kariye, ke aaglu shu kari shakaye?`,
+        `Aage vaatoo karti rehiye, ke ek chhoti vastu try kariye — jo tane sahi laage te.`,
+        `Koi pehla badhu bol de chhe, koi plan joie chhe. Tu kyaa chhe abhi?`,
+        `Ane kholta rehiye, ke ek chhoto kadam. Shu vadhu useful laage abhi?`,
+        `Hu tara sathe chhu — bolti rehiye ke kainchuk concrete kariye.`,
+    ];
+
+    const listeningOnlyExtrasGu = [
+        `Aa figure out karvani abhi koi jaldhi nathi.`,
+        `Tu badhu j feel kari shake chhe — koi vaa nathi.`,
+        `Hu ithey chhu. Je joiye te bol — vadhu ke ochhun.`,
+        `Tene neatly wrap up karvani zaroor nathi.`,
     ];
 
     // ─── Punjabi (pa) ─────────────────────────────────────────────────────────
@@ -1513,17 +1548,24 @@ export function buildLocalReply(
     };
 
     const reflectLinesPa = [
-        `Jad tu kende aa "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", abhi sabton zyada ki feel ho raha aa?`,
+        keyTopic ? `Tune ${keyTopic} di gall kiti — us wich sab ton zyada ki dab raha aa?` : `Eis wich sab ton zyada ki mehsoos ho raha aa abhi?`,
         `Eis wich sabton beshi uncomfortable ki lagda aa?`,
-        `Je thoda zoom in kariye, sabton beshi ki pareshaan kar raha aa?`,
+        `Jou ik hi cheez chunnde jo sabton zyada pareshaan kare — oh ki hundi?`,
         `Tu chaahunda aa is situation wich ki different hunda?`,
     ];
 
     const nextStepLinesPa = [
-        `Abhi comfort chahida aa, clarity, ya next step?`,
-        `Tu ise gall karke halka karna chaahunda aa, ya koi practical agla karna hai?`,
-        `Kya ise khol ke vekhna madad kare, ya ik chhoti action chunna?`,
-        `Assi teri feeling te focus kariye, ya agle kee kar sakde haan us te?`,
+        `Aage gall kardi rehiye, ya ik chhoti cheez try kariye — jo tenu sahi laage.`,
+        `Koi pehlan sab bol denda aa, koi nu plan chahida. Tu kidhe aa abhi?`,
+        `Ise kholta rehiye, ya ik chhota kadam. Shu vadhu useful laage abhi?`,
+        `Main tere naal haan — bolda reh ya kuch concrete karie.`,
+    ];
+
+    const listeningOnlyExtrasPa = [
+        `Hune ise figure out karne di koi zaroorat nahi.`,
+        `Tu sab kuch feel kar sakda aa — koi galat nahi.`,
+        `Main ithey haan. Je marzi bol — zyada ya thoda.`,
+        `Ise neatly wrap up karne di koi gall nahi.`,
     ];
 
     // ─── Kannada (kn) ─────────────────────────────────────────────────────────
@@ -1646,17 +1688,24 @@ export function buildLocalReply(
     };
 
     const reflectLinesKn = [
-        `Neevu "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}" anta heldaaga, ippudu yarenu tattaagide?`,
+        keyTopic ? `Neevu ${keyTopic} bagge heldiru — adharalli ippudu yarenu koodu odaayittu?` : `Idrallu ippudu yarenu koodu bhaara aagi anisuttide?`,
         `Idrallu yaarvannu tumba uncomfortable aagi anisuttide?`,
-        `Konjam zoom in maadidare, yarenu tumba kashtapattisutte?`,
+        `Ondu maatrannu aayike maadidare yarenu koodu kashtapadisuttide — adhu yenu?`,
         `Ee sthithiyalli yarenu bere aagirali anta neevu baayalattu?`,
     ];
 
     const nextStepLinesKn = [
-        `Ippudu comfort beku, clarity, illa next step?`,
-        `Idannu maatanaadi hallaagabeku, illa practical enu maadabeku?`,
-        `Idannu belesi noduvudu sahaayadaaguttada, illa ondu chikka action aaykeisuvuda?`,
-        `Nimma feeling meele focus maadona, illa mundina yenu maadabahudu adara meele?`,
+        `Maatanaadutta iru, illa ondu chikka kaelasa try maadona — yaarenu sariyaagide adannu.`,
+        `Kelevarige modalige heli mugisabekaaguttade, kelevarige plan beku. Neevu elli iddira ippudu?`,
+        `Idu belesi noduvudu, illa ondu chikka kadam. Yaarenu koodu upayogavaaguttade ippudu?`,
+        `Naanu ninna jote iddene — helutta iru illava kainchuk concrete maadona.`,
+    ];
+
+    const listeningOnlyExtrasKn = [
+        `Idu ippudu figure out maadabekaagilla.`,
+        `Neevu ellavaanu feel aagabahudu — adhu sari.`,
+        `Naanu illi iddene. Yaarenu heli — koodu illa kammi.`,
+        `Idannu neat aagi wrap up maadabekaagilla.`,
     ];
 
     // ─── Malayalam (ml) ─────────────────────────────────────────────────────────
@@ -1779,17 +1828,24 @@ export function buildLocalReply(
     };
 
     const reflectLinesMl = [
-        `Nee "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}" enna pariyumbol, ippol enthanu koodu tharunnath?`,
+        keyTopic ? `Nee ${keyTopic} kurichu paranju — adil ippol enthanu koodu dukham tharunnath?` : `Ithil ippol enthanu koodu thoannunnath?`,
         `Ithil enthu aanu valare uncomfortable ayi thoanunnath?`,
-        `Konjam zoom in cheyyumbol, enthu aaanu koodu kashtappeduttunathu?`,
+        `Oru karyam mathram aaykedukkukaayaayirunnengil koodu kashtappeduttunathu enthu?`,
         `Ee sthithiyil entha aakkanam enna nee aagrahikkunnath?`,
     ];
 
     const nextStepLinesMl = [
-        `Ippol comfort venam, clarity, allengil next step?`,
-        `Nee ith parayathe hallaakkanam enna thoannunnundo, allengil practical enthengilum cheyyaan?`,
-        `Ith vivarichaal sahaayam aakumo, allengil oru chinna action?`,
-        `Ninnadé feeling-il focus cheyyaam, allengil adutha enthu cheyyaam ennathil?`,
+        `Parayathe iriyu, allengil oru chinna kaaryam try cheyyaam — ninakku sheriyennu thoannunnath.`,
+        `Chelarum munpe paranju thiirkkum, chelarum plan venam. Nee ippol evideyaanu?`,
+        `Ith vivarichaal sahaayam aakumo, allengil oru chinna kadam. Enthu koodu upakaaramaakum ippol?`,
+        `Njaan ninnooppam undu — parayukaanu allengil enthengilum concrete cheyyaam.`,
+    ];
+
+    const listeningOnlyExtrasMl = [
+        `Ippol idi figure out cheyyaanulla avasaram illa.`,
+        `Nee ellaam feel aakaam — adhu kashtamilla.`,
+        `Njaan ippol unda. Parayaan thoannunnath para — koodu illa kammi.`,
+        `Idi neat aakki wrap up cheyyaanulla avasaram illa.`,
     ];
 
     // ─── Odia (or) ─────────────────────────────────────────────────────────────
@@ -1912,17 +1968,24 @@ export function buildLocalReply(
     };
 
     const reflectLinesOr = [
-        `Jebe tume kahe "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", ebe ki sab cheye jore feel laaguchhi?`,
+        keyTopic ? `Tume ${keyTopic} bisayare kaile — sei re ebe ki sab cheye beshi dabauchhi?` : `Ei re ebe ki sab cheye beshi feel laaguchhi?`,
         `Ehitaa madhye ki sab cheye uncomfortable laaguchhi?`,
-        `Jadi thoda zoom in karaa jaae, ki sab cheye beshi bhaarabeka karichhi?`,
+        `Jadi ekta jinisha chunibaa je sab cheye beshi kashtadei — sei ta ki?`,
         `Tume chahanthile ei obostha re ki alag thanda?`,
     ];
 
     const nextStepLinesOr = [
-        `Ebe comfort dorkaar, clarity, naa next step?`,
-        `Tume eitaa kathabartaa kari halka kariba chaahuchha, naa practical kichhu agaa karibaa?`,
-        `Eitaaku kholibaa sahayya hebe, naa ek chota action nibaa?`,
-        `Aame tuma feeling re focus karibaa, naa tume agaa ki karipaaribaa sei upare?`,
+        `Aage kathaa karati thaa, naa ek chota jinisha try karaa — je thik laage sei ta.`,
+        `Keu aagau sab bol dei, keu plan dorkar pade. Tume ebe kauthi?`,
+        `Eitaaku kholite thaa, naa ek chota kadam. Ki beshi sahayya hebe ebe?`,
+        `Mu tumara saathire achi — kahibaa naa kainchik concrete karaa.`,
+    ];
+
+    const listeningOnlyExtrasOr = [
+        `Ebe eitaaku figure out karibaa dorkaar nei.`,
+        `Tume sab kichhi feel karipaaribaa — seta thik.`,
+        `Mu eithire achi. Je ichha hue bol — beshi naa kama.`,
+        `Eitaaku neat kari wrap up karibaa dorkaar nei.`,
     ];
 
     // ─── Marathi (mr) ─────────────────────────────────────────────────────────
@@ -1969,17 +2032,24 @@ export function buildLocalReply(
     };
 
     const reflectLinesMr = [
-        `Jeva tu mhanto "${(message || "").trim().slice(0, 120)}${(message || "").length > 120 ? "…" : ""}", ata kaay saglyyaat strong vaatate?`,
+        keyTopic ? `Tumhi ${keyTopic} baadal sangitlas — tyaat ata kaay saglyyaat jast daabtay?` : `Yaatla kaay saglyyaat jast jaanvatoay ata?`,
         `Yaatlya kaay saglyyaat uncomfortable aahe?`,
-        `Zoom in kela tara, kaay saglyyaat jast tras detoy?`,
+        `Ek goshta nivadaychee asteel jo saglyyaat jast tras detoy — ti kaay aseel?`,
         `Tu ya situation madhe kaay vegale hove ase vaatate?`,
     ];
 
     const nextStepLinesMr = [
-        `Ata comfort pahije, clarity, ki next step?`,
-        `Tu yaबद्दल bolun halke karaychay, ki practical kaahi karaychay?`,
-        `He ughaduun paahne madad hoil, ki ek chhota action?`,
-        `Aapan tuzhi feeling var focus karuya, ki pudha kaay karsheel te?`,
+        `Bolat raha, ki ek chhoti goshta try karuya — jo yogya vaatate te.`,
+        `Kahi lok aaghi sab bolun taktat, kahina plan pahije. Tu ata kuthe aahes?`,
+        `He ughadat rahile, ki ek chhota paav. Kaay jast upyogi vaatel ata?`,
+        `Mi sobat aahe — bolat raha ki kainchik concrete karuya.`,
+    ];
+
+    const listeningOnlyExtrasMr = [
+        `Ata he figure out karayla ghai nahi.`,
+        `Tu he sab feel karayla harakhat nahi — bilkul theek aahe.`,
+        `Mi itheche aahe. Kaay vaatel te sang — zyada ki kami.`,
+        `Yala neatly wrap up karayla nako.`,
     ];
 
     const bankLanguage = toReplyBankLanguage(language);
@@ -2205,8 +2275,20 @@ export function buildLocalReply(
                                         ? pick(carryExtrasOr[companionTone], seed >>> 5)
                                         : hasCarry
                                             ? pick(carryExtrasEn[companionTone], seed >>> 5)
-                                            : userIntent === "venting" && bankLanguage === "en"
-                                                ? pick(listeningOnlyExtrasEn, seed >>> 5)
+                                            : userIntent === "venting"
+                                                ? pick(
+                                                    bankLanguage === "hi" ? listeningOnlyExtrasHi
+                                                    : bankLanguage === "bn" ? listeningOnlyExtrasBn
+                                                    : bankLanguage === "ta" ? listeningOnlyExtrasTa
+                                                    : bankLanguage === "te" ? listeningOnlyExtrasTe
+                                                    : bankLanguage === "gu" ? listeningOnlyExtrasGu
+                                                    : bankLanguage === "pa" ? listeningOnlyExtrasPa
+                                                    : bankLanguage === "kn" ? listeningOnlyExtrasKn
+                                                    : bankLanguage === "ml" ? listeningOnlyExtrasMl
+                                                    : bankLanguage === "or" ? listeningOnlyExtrasOr
+                                                    : bankLanguage === "mr" ? listeningOnlyExtrasMr
+                                                    : listeningOnlyExtrasEn,
+                                                    seed >>> 5)
                                                 : pick(extrasByTone[companionTone], seed >>> 5);
 
     const base = `${correctionPrefix}${followUpPrefix}${opener} ${validation}`.trim();

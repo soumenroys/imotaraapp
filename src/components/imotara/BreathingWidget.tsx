@@ -46,7 +46,7 @@ const MUSIC_OPTIONS: { id: MusicTrack; label: string; emoji: string }[] = [
 // ── Lotus mandala SVG ─────────────────────────────────────────────────────────
 function LotusMandala() {
   return (
-    <div className="relative w-full overflow-hidden rounded-t-2xl" style={{ height: 160, background: "linear-gradient(160deg,#1a0a38 0%,#0f172a 100%)" }}>
+    <div className="relative w-full overflow-hidden rounded-t-2xl" style={{ height: 110, background: "linear-gradient(160deg,#1a0a38 0%,#0f172a 100%)" }}>
       {/* Starfield */}
       {[
         [8,12],[22,6],[40,18],[60,8],[80,22],[102,5],[120,15],[145,9],
@@ -65,8 +65,8 @@ function LotusMandala() {
       {/* SVG mandala centred */}
       <svg
         viewBox="-80 -80 160 160"
-        width={140} height={140}
-        style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-58%)" }}
+        width={100} height={100}
+        style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-55%)" }}
       >
         <style>{`
           @keyframes spin-slow  { from { transform: rotate(0deg);   } to { transform: rotate(360deg);  } }
@@ -243,15 +243,15 @@ export default function BreathingWidget({ onClose }: { onClose?: () => void }) {
         </button>
       )}
 
-      <div className="px-5 py-4 relative">
+      <div className="px-5 py-3 relative">
         {/* Title */}
-        <div className="mb-4">
+        <div className="mb-3">
           <p className="text-sm font-semibold text-zinc-100">Breathing Exercise</p>
           <p className="text-[11px] text-zinc-500">Ground yourself with a few slow breaths</p>
         </div>
 
         {/* Pattern selector */}
-        <div className="mb-4 flex flex-wrap gap-1.5">
+        <div className="mb-3 flex flex-wrap gap-1.5">
           {PATTERNS.map((p, i) => (
             <button
               key={i}
@@ -264,10 +264,10 @@ export default function BreathingWidget({ onClose }: { onClose?: () => void }) {
           ))}
         </div>
 
-        {/* Music selector */}
-        <div className="mb-4">
-          <p className="mb-2 text-[10px] font-semibold tracking-widest text-zinc-500">BACKGROUND SOUND</p>
-          <div className="flex gap-2">
+        {/* Music selector — compact pill row */}
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-[10px] font-semibold tracking-widest text-zinc-500 shrink-0">SOUND</span>
+          <div className="flex gap-1.5">
             {MUSIC_OPTIONS.map((opt) => (
               <button
                 key={opt.id}
@@ -276,13 +276,13 @@ export default function BreathingWidget({ onClose }: { onClose?: () => void }) {
                   setMusicTrack(opt.id);
                   if (running) startMusic(opt.id);
                 }}
-                className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl border py-2 text-[10px] font-semibold transition ${
+                className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition ${
                   musicTrack === opt.id
                     ? "border-violet-400/50 bg-violet-500/15 text-violet-300"
                     : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"
                 }`}
               >
-                <span className="text-base">{opt.emoji}</span>
+                <span>{opt.emoji}</span>
                 {opt.label}
               </button>
             ))}
@@ -290,7 +290,7 @@ export default function BreathingWidget({ onClose }: { onClose?: () => void }) {
         </div>
 
         {/* Circle */}
-        <div className="relative mx-auto mb-4 flex h-36 w-36 items-center justify-center">
+        <div className="relative mx-auto mb-3 flex h-28 w-28 items-center justify-center">
           {running && (
             <div
               className={`absolute inset-0 rounded-full bg-gradient-to-br ${PHASE_COLOR[phase]} animate-breath-ring opacity-30`}
@@ -298,7 +298,7 @@ export default function BreathingWidget({ onClose }: { onClose?: () => void }) {
             />
           )}
           <div
-            className={`h-28 w-28 rounded-full bg-gradient-to-br ${running ? PHASE_COLOR[phase] : "from-zinc-700 to-zinc-800"} shadow-[0_0_40px_rgba(99,102,241,0.3)] flex items-center justify-center transition-all duration-500 ${running ? "animate-breath-expand" : ""}`}
+            className={`h-24 w-24 rounded-full bg-gradient-to-br ${running ? PHASE_COLOR[phase] : "from-zinc-700 to-zinc-800"} shadow-[0_0_40px_rgba(99,102,241,0.3)] flex items-center justify-center transition-all duration-500 ${running ? "animate-breath-expand" : ""}`}
             style={{ "--breath-dur": `${dur}s` } as React.CSSProperties}
           >
             <div className="text-center">

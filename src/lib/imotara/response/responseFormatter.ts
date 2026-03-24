@@ -2311,7 +2311,43 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     !userAsksForSuggestion(userMsg);
 
   if (shouldPreferNaturalModelReply) {
-    return insight.trim();
+    // Still apply the three mandatory cleanups before returning:
+    // 1. Strip model-generated leading interjections (formatter owns Phase 1)
+    // 2. Collapse consecutive duplicate lines
+    // 3. Limit to max 1 question mark
+    let cleaned = removeLeadingInterjection(insight).trim();
+
+    // Dedup consecutive duplicate lines (same as the main path at line ~2597)
+    cleaned = cleaned
+      .split("\n")
+      .reduce<string[]>((acc, line) => {
+        const cur = line ?? "";
+        if (acc.length === 0) return [cur];
+        const prev = acc[acc.length - 1] ?? "";
+        const normL = (s: string) =>
+          s.trim().toLowerCase().replace(/[.!?؟？…।۔\s]+$/g, "");
+        if (normL(prev) === normL(cur) && normL(cur).length > 0) return acc;
+        return [...acc, cur];
+      }, [])
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    // Limit to 1 question mark
+    const _endPunct =
+      lang === "ur"
+        ? "۔"
+        : ["hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa"].includes(lang)
+          ? "।"
+          : ".";
+    const _qRe = /[?؟？]/g;
+    let _qSeen = 0;
+    cleaned = cleaned.replace(_qRe, (m) => {
+      _qSeen += 1;
+      return _qSeen <= 1 ? m : _endPunct;
+    });
+
+    return cleaned || insight.trim();
   }
 
   insight = removeLeadingInterjection(insight);

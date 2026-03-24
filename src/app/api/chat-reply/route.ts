@@ -57,8 +57,9 @@ type ChatReplyRequest = {
 };
 
 // keep context + prompt modest
-const MAX_TURNS = 8;
-const MAX_CHARS = 4000;
+// 12 turns keeps ~3x more early-turn context so sister-wedding/illness refs survive long conversations
+const MAX_TURNS = 12;
+const MAX_CHARS = 6000;
 
 // Keywords that signal emotional distress across all 21 languages Imotara supports.
 // Structure:
@@ -97,6 +98,19 @@ function detectEmotionalArc(
     return { depth: "moderate", emotionalTurnCount, userTurnCount };
   }
   return { depth: "light", emotionalTurnCount, userTurnCount };
+}
+
+/**
+ * Returns true when the user's message is written in romanized/transliterated
+ * script (Latin letters) for a non-Latin-native language (Indic, Cyrillic, RTL, CJK).
+ * Used to inject a hard SCRIPT MIRROR instruction into the system prompt.
+ */
+function isRomanizedInput(message: string, lang: string): boolean {
+  const nativeScriptLangs = ["bn", "hi", "mr", "ta", "te", "gu", "kn", "ml", "pa", "or", "ur", "ru", "ar", "he", "zh", "ja"];
+  if (!nativeScriptLangs.includes(lang)) return false;
+  const latinCount = (message.match(/[a-zA-Z]/g) ?? []).length;
+  const totalLetterCount = (message.match(/\p{L}/gu) ?? []).length;
+  return totalLetterCount > 3 && latinCount / totalLetterCount > 0.65;
 }
 
 function isBadPlaceholderText(s: string): boolean {
@@ -353,8 +367,26 @@ export async function POST(req: Request) {
       ? recentUserTurns.map((t) => `- ${t}`).join("\n")
       : "";
 
+    const emotionDescriptions: Record<string, string> = {
+      anxious:
+        "The user is experiencing anxiety — specifically the anticipatory dread quality: the feeling that something bad is about to happen, the mind on high alert even when nothing concrete has occurred, like a constant background alarm that won't turn off. In your reply, name this specific quality explicitly — use words like 'anticipatory dread', 'that sense that something bad is coming', 'your nervous system stuck on alert', or 'that background hum of dread'. Do not treat it as general sadness or generic worry.",
+      sad:
+        "The user is feeling sadness or grief. Be FULLY present with the heaviness — do NOT rush to comfort, hope, or silver linings. NEVER say 'they are in a better place', 'time heals', 'at least...', or any forward-looking reassurance. DO: name the specific loss or pain they mentioned. DO: sit in it with them. DO: acknowledge the hollow, aching quality of grief. The reply should feel like someone sitting beside them in the darkness, not pulling them toward light.",
+      stressed:
+        "The user is stressed — this often feels like too many pressures converging at once, a sense of being squeezed from multiple sides. Acknowledge the overload specifically.",
+      angry:
+        "The user is feeling angry — validate it without dismissing it. Anger often has a legitimate cause. Stay present and don't redirect too quickly.",
+      lonely:
+        "The user is feeling lonely — this often sits quietly and feels invisible. Acknowledge the specific texture of loneliness (the quiet, the disconnect, the ache for connection).",
+      hopeless:
+        "The user is feeling hopeless — be very gentle. Don't offer quick reassurance. Stay with them in the feeling first.",
+      confused:
+        "The user is feeling confused or lost — they may need clarity more than comfort. Acknowledge the disorientation specifically.",
+      joy:
+        "The user is feeling joy or excitement — match their energy warmly. Celebrate with them genuinely and specifically.",
+    };
     const emotionHint = emotion
-      ? `The user currently seems to be feeling: ${emotion}.\n`
+      ? (emotionDescriptions[emotion.toLowerCase()] ?? `The user currently seems to be feeling: ${emotion}.`) + "\n"
       : "";
 
     // ── Casual / greeting detection ────────────────────────────────────────────
@@ -382,26 +414,26 @@ export async function POST(req: Request) {
     // This overrides conversation history so switching from Bengali to Hindi mid-chat works.
     const langInstructionMap: Record<string, string> = {
       hi: "The user is writing in Hindi. Mirror their exact script — if they used Devanagari, respond in Devanagari; if they used Roman/Latin script (Hinglish), respond in Roman Hindi. FORMALITY: Match the user's register — if they write casually (using 'tum', 'yaar', informal words), respond with 'tum' form. Use 'aap' only if they write formally.",
-      bn: "The user is writing in Bengali. Mirror their exact script — if they used Bengali script, respond in Bengali script; if they used Roman/Latin script, respond in Roman Bengali. FORMALITY: Default to 'tumi' form for casual Romanized Bengali. Use 'apni/aapnar' only if the user writes formally. CRITICAL: Use only Bengali words — do NOT mix in Hindi words. For example use 'Haa' or 'Hyaan' (Bengali) not 'Hain' (Hindi); use 'Ami' not 'Main'.",
-      mr: "The user is writing in Marathi. Mirror their exact script — if they used Devanagari, respond in Devanagari Marathi; if they used Roman script, respond in Roman Marathi.",
-      ta: "The user is writing in Tamil. Mirror their exact script — native Tamil script or Roman Tamil as they used.",
-      te: "The user is writing in Telugu. Mirror their exact script — native Telugu script or Roman Telugu as they used.",
-      gu: "The user is writing in Gujarati. Mirror their exact script — native Gujarati script or Roman Gujarati as they used.",
-      kn: "The user is writing in Kannada. Mirror their exact script — native Kannada script or Roman Kannada as they used.",
-      ml: "The user is writing in Malayalam. Mirror their exact script — native Malayalam script or Roman Malayalam as they used.",
-      pa: "The user is writing in Punjabi. Mirror their exact script — Gurmukhi script or Roman Punjabi as they used.",
-      or: "The user is writing in Odia. Mirror their exact script — native Odia script or Roman Odia as they used.",
-      ur: "The user is writing in Urdu. Respond in Urdu (Nastaliq script preferred, or Roman Urdu if they wrote in Roman).",
-      ar: "The user is writing in Arabic. Respond in Arabic.",
-      zh: "The user is writing in Chinese. Respond in Chinese.",
-      ja: "The user is writing in Japanese. Respond in Japanese.",
-      he: "The user is writing in Hebrew. Respond in Hebrew.",
-      de: "The user is writing in German. Respond in German.",
-      fr: "The user is writing in French. Respond in French.",
-      es: "The user is writing in Spanish. Respond in Spanish.",
-      pt: "The user is writing in Portuguese. Respond in Portuguese.",
-      ru: "The user is writing in Russian. Respond in Russian.",
-      id: "The user is writing in Indonesian. Respond in Indonesian.",
+      bn: "The user is writing in Bengali. Mirror their exact script — if they used Bengali script, respond in Bengali script; if they used Roman/Latin script, respond in Roman Bengali. FORMALITY: Default to 'tumi' form for casual Romanized Bengali. Use 'apni/aapnar' only if the user writes formally. CRITICAL: Use only Bengali words — do NOT mix in Hindi words (use 'Haa'/'Hyaan' not 'Hain'; use 'Ami' not 'Main'). CALM COMPANION BENGALI PHRASES: When using calm/patient tone, use phrases like 'কোনো তাড়া নেই', 'সময় নাও', 'ধীরে ধীরে', 'যখন মন চায় বলো', 'এখনই কিছু করতে হবে না' to signal unhurriedness in Bengali.",
+      mr: "The user is writing in Marathi. Respond in Marathi (not Hindi, not English). Use Marathi words: खूप, नाही, आहे, वाटतं, आणि, पण — not Hindi equivalents. Mirror their script: Devanagari → Devanagari Marathi; Roman → Roman Marathi.",
+      ta: "The user is writing in Tamil. Mirror their exact script — native Tamil script or Roman Tamil as they used. CRITICAL: Do NOT insert English words or phrases mid-reply (e.g. do NOT say 'there's no hurry' — say 'அவசரமில்ல' or 'parachayam illai'). FORMALITY: Use informal 'நீ/உன்னோட' for close friends; use 'நீங்கள்/உங்களுக்கு' only when the user writes formally or is elderly.",
+      te: "The user is writing in Telugu. Mirror their exact script — native Telugu script or Roman Telugu as they used. CRITICAL: Do NOT insert English phrases mid-reply (e.g. do NOT say 'Take all the time you need' — say 'మీకు సమయం తీసుకోండి' or 'నువ్వు తీసుకో'). FORMALITY: Use informal 'నువ్వు/నీకు' for close friends; use 'మీరు/మీకు' for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      gu: "The user is writing in Gujarati. Mirror their exact script — native Gujarati script or Roman Gujarati as they used. FORMALITY: Default to informal address ('tu'/'taru') for close friends. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      kn: "The user is writing in Kannada (ಕನ್ನಡ script, U+0C80–U+0CFF). CRITICAL SCRIPT RULE: Reply ONLY in Kannada script — NOT Telugu script (తెలుగు, U+0C00–U+0C7F). Kannada and Telugu look similar but are distinct — verify you are using Kannada (ಅ ಆ ಇ ಈ), not Telugu (అ ఆ ఇ ఈ). Mirror their exact script — native Kannada or Roman Kannada as they used. CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use informal 'ನೀನು/ನಿನ್ನ' for close friends; use 'ನೀವು/ನಿಮಗೆ' for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      ml: "The user is writing in Malayalam. Mirror their exact script — native Malayalam script or Roman Malayalam as they used. CRITICAL: Do NOT insert English phrases mid-reply (e.g. do NOT say 'Take all the time you need' — say 'samayam edukku' or equivalent in Malayalam). FORMALITY: Use informal 'നീ/നിന്റെ' for close friends; use 'നിങ്ങൾ/നിങ്ങൾക്ക്' for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      pa: "The user is writing in Punjabi. Mirror their exact script — Gurmukhi script or Roman Punjabi as they used. CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use informal 'ਤੂ/ਤੇਰਾ/ਤੈਨੂੰ' for close friends and teens. For elderly users or formal situations, use 'ਤੁਸੀਂ/ਤੁਹਾਡਾ/ਤੁਹਾਨੂੰ' (never 'ਤੂ'). COACH TONE: When tone is coach, ask one practical question — do not only soothe.",
+      or: "The user is writing in Odia (ଓଡ଼ିଆ script, U+0B00–U+0B7F). Mirror their exact script — native Odia or Roman Odia as they used. CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use informal 'ତୁ/ତୁ ର' for close friends; use 'ଆପଣ/ଆପଣ ଙ୍କ' for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      ur: "The user is writing in Urdu. Mirror their exact script — native Urdu (Nastaliq/Arabic script, RTL) or Roman Urdu as they used. CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use informal 'تم/تمہارا' (tum) for close friends and teens; use 'آپ/آپ کا' (aap) for elderly users — NEVER mix them in the same reply. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      ar: "The user is writing in Arabic. Mirror their exact script — native Arabic (Nastaliq/RTL) or Arabizi (Latin) as they used. CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use informal address for close friends and teens; use formal 'حضرتك' (hadretak/hadretik) or very respectful address for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      zh: "The user is writing in Chinese. Mirror their exact script — simplified Chinese characters or Pinyin (romanized) as they used. CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use '你' (nǐ) for informal/close friend; use '您' (nín) for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      ja: "The user is writing in Japanese. Mirror their exact script — native Japanese (hiragana/katakana/kanji) or Romaji as they used. CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use plain/casual form (だ/する) for close friends and teens; use polite form (です/ます) for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      he: "The user is writing in Hebrew. Mirror their exact script — native Hebrew (RTL) or romanized Hebrew as they used. CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use informal address for close friends and teens; use warmer respectful tone for elderly users. GENDER: Match grammatical gender in verbs and adjectives when user's gender is known (e.g. 'עייף' m vs 'עייפה' f). COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      de: "The user is writing in German. Mirror their exact script — standard German. CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use informal 'du/dich/dir/dein' for close friends and teens; use formal 'Sie/Ihnen/Ihr' (capitalized) for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      fr: "The user is writing in French. Mirror their exact script — standard French. CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use informal 'tu/te/toi/ton/ta' for close friends and teens; use formal 'vous/votre/vos' for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      es: "The user is writing in Spanish. Mirror their exact script — standard Spanish. CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use informal 'tú/te/ti/tu' for close friends and teens; use formal 'usted/le/su' for elderly users. GENDER: Match adjective gender agreement when user's gender is known (e.g. 'cansado/cansada', 'solo/sola'). COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      pt: "The user is writing in Portuguese. Mirror their exact script — standard Portuguese (PT-BR or PT-PT as context suggests). CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use informal 'você/tu' for close friends and teens; use formal 'o senhor/a senhora' for elderly users. GENDER: Match adjective agreement when user's gender is known (e.g. 'cansado/cansada', 'sozinho/sozinha'). COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      ru: "The user is writing in Russian. Mirror their exact script — native Russian Cyrillic or romanized Translit as they used. CRITICAL: Do NOT insert English phrases mid-reply. FORMALITY: Use informal 'ты/тебя/тебе/твой' for close friends and teens; use formal 'вы/вас/вам/ваш' for elderly users. GENDER: Match verb/adjective gender agreement when user's gender is known (e.g. 'ты устал/устала', 'ты справился/справилась'). COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
+      id: "The user is writing in Indonesian. Mirror their exact register — Indonesian uses Latin script. CRITICAL: Do NOT insert English phrases mid-reply unless the user used them. FORMALITY: Use informal 'kamu' for close friends and teens; use formal 'Anda' or respectful 'Bapak/Ibu' for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
     };
     const resolvedLang = typeof body?.lang === "string" ? body.lang.slice(0, 5).split("-")[0] : "";
     const langInstruction = resolvedLang && resolvedLang !== "en"
@@ -419,8 +451,9 @@ export async function POST(req: Request) {
     if (ug && ug !== "prefer_not" && ug !== "other") {
       if (ug === "female") {
         genderLines.push(
-          "USER GENDER: female — use feminine second-person verb agreement and adjective agreement in gendered languages: " +
-          "Hindi: 'tum theek ho rahi ho', 'sambhal logi', 'kya hua tumhare saath'; " +
+          "USER GENDER: female — CRITICAL: use feminine verb/adjective agreement in gendered languages: " +
+          "Hindi (CRITICAL): use feminine progressive 'ho rahi ho', 'kar rahi ho', 'lag rahi ho', 'thaki ho', 'aayi ho', 'gayi ho', 'sambhal logi' — NEVER masculine 'ho rahe ho', 'kar rahe ho', 'thake ho'. User's own words confirm she is female; your reply MUST agree. " +
+          "Marathi (CRITICAL): use feminine 2nd-person verb forms — 'thaklis', 'kartes', 'jates', 'sambhaltes', 'alis', 'gelis', 'aahes' — NEVER masculine 'thakalas', 'kartos', 'jatos', 'alas', 'gelas'. User identified as female; your reply MUST use feminine conjugations. " +
           "Bengali: 'tumi ki thik acho'; Tamil/Telugu/Kannada/Malayalam/Odia: 2nd-person is gender-neutral, no change needed; " +
           "Spanish: 'estás cansada', 'estás preocupada', 'qué tal estás'; " +
           "Portuguese: 'estás cansada', 'você está bem', 'como você está'; " +
@@ -496,8 +529,8 @@ export async function POST(req: Request) {
     // Companion persona: translate tone → natural writing style for the AI
     const tonePersonaMap: Record<string, string> = {
       close_friend: "You are speaking as a close, trusted friend — warm, casual, talks like a real person. Match the user's energy and language style naturally.",
-      calm_companion: "You are speaking as a calm, gentle companion — patient, soft-spoken, never rushing. Keep phrasing unhurried and reassuring.",
-      coach: "You are speaking as an encouraging coach — practical, forward-looking, motivating without being pushy. Gently nudge toward clarity or action when appropriate.",
+      calm_companion: "You are speaking as a calm, gentle companion — patient, soft-spoken, never rushing. Use phrases that signal unhurriedness: 'no rush', 'take your time', 'whenever you're ready', 'there's no hurry here'. Keep every sentence slow and spacious in rhythm. IMPORTANT: If the user expresses uncertainty or lostness — phrases like 'I don't know where to start', 'I don't know what to do', 'I'm not sure', 'I feel lost' — end with ONE gentle open reflective question that softly invites them to explore their feelings, like 'What part of it feels most present for you right now?' or 'What does that heaviness feel like — is it more like fog, weight, or something else?' If the user is purely venting or expressing exhaustion with no uncertainty — offer steady, gentle presence only, always including a phrase like 'No rush at all.' or 'Take all the time you need.' Do not confuse the two.",
+      coach: "You are speaking as an encouraging coach — practical, forward-looking, action-oriented. Always end your reply with EITHER a concrete tiny next action ('Try breaking it into three bullet points tonight — just the headlines') OR a direct energising question that moves the user forward ('What's the one part that feels most uncertain right now?'). Do not leave the reply open-ended without a clear nudge toward the next step.",
       mentor: "You are speaking as a wise, thoughtful mentor — help the user find their own answers through gentle questions and perspective, not advice-giving.",
     };
     const companionPersonaHint = body?.tone
@@ -507,17 +540,109 @@ export async function POST(req: Request) {
     // Age context: adapt vocabulary and register to the user's life stage
     const userAgeHintMap: Record<string, string> = {
       under_13: "The user is a child (under 13). Use very simple, gentle, encouraging language. Avoid adult idioms.",
-      "13_17": "The user is a teenager (13–17). Use relatable, peer-like language — not patronising. They understand nuance.",
+      "13_17": "The user is a teenager (13–17). Use casual, peer-like language — not patronising, not preachy, not adult-formal. Sound like a friend their age, not a parent or teacher. Match their energy.",
       "18_24": "The user is a young adult (18–24). Casual, direct, and real. Validate that talking about it is the right move. Match their energy without being preachy.",
       "25_34": "The user is in their late 20s or 30s. Peer-like tone — they're in the middle of life's complexity. Acknowledge that many people carry something like this; they're not alone.",
       "35_44": "The user is in their mid-30s to mid-40s. Grounded, non-patronising tone. It's okay if they don't have everything figured out — affirm that, gently.",
       "45_54": "The user is in their mid-40s to mid-50s. Steady and grounded. Affirm their right to prioritise themselves. They may be used to holding things for others — notice that.",
       "55_64": "The user is in their late 50s to early 60s. Patient and respectful register. Affirm that what they feel is completely valid and worth attention — don't minimise or rush them.",
-      "65_plus": "The user is 65 or older. Use a warm, unhurried, respectful register — never condescending.",
+      "65_plus": "The user is 65 or older. Use a warm, unhurried, deeply respectful register — never condescending, never informal.",
     };
     const userAgeHint = body?.userAge
       ? (userAgeHintMap[body.userAge] ?? "")
       : "";
+
+    // Language-specific age overrides (address forms, register markers that vary by language)
+    const langAgeOverrides: Record<string, Record<string, string>> = {
+      bn: {
+        "13_17": "BENGALI TEEN REGISTER (CRITICAL OVERRIDE): This is a teenager. Use extremely casual Bengali peer language. Say 'তুই' or 'তুমি'. Use words like 'আরে', 'ভাই', 'যাহ', 'সত্যি বলছিস'. Do NOT use formal phrases, do NOT be preachy, do NOT give advice like an adult. Just be a warm, understanding peer friend who gets it. Keep it short and real.",
+        "65_plus": "BENGALI ELDER REGISTER (CRITICAL): Use the respectful 'আপনি / আপনার / আপনাকে' form throughout — NEVER 'তুমি / তোমার / তোমাকে'. Speak with deep warmth and patience. This is non-negotiable.",
+      },
+      hi: {
+        "13_17": "HINDI TEEN REGISTER: Use casual 'tum' or 'tu', informal words like 'yaar', 'bhai'. Peer-level — not preachy.",
+        "65_plus": "HINDI ELDER REGISTER (CRITICAL): Use the respectful 'aap / aapka / aapko' form throughout — NEVER 'tum / tumhara'. This is non-negotiable.",
+      },
+      mr: {
+        "13_17": "MARATHI TEEN REGISTER (CRITICAL OVERRIDE): This is a teenager. Use extremely casual Marathi peer language. Say 'तू', use words like 'अरे', 'यार', 'बरं', 'खरंच', 'अरे यार'. Do NOT use formal phrases like 'तुम्ही', do NOT be preachy, do NOT give adult counselling advice. Just be a warm, understanding peer friend. Keep it short and real.",
+        "65_plus": "MARATHI ELDER REGISTER (CRITICAL): Use the respectful 'तुम्ही / तुमचा / तुम्हाला' form — NEVER informal 'तू / तुझा'.",
+      },
+      ta: {
+        "13_17": "TAMIL TEEN REGISTER (CRITICAL): Use casual peer-level Tamil — informal 'நீ', 'உன்னால', slang like 'ஏன்டா', 'கஷ்டம்டா', 'serious-ஆ?'. Do NOT use 'நீங்கள்', do NOT be preachy or give adult advice. Short, warm, real. Like a classmate.",
+        "65_plus": "TAMIL ELDER REGISTER (CRITICAL): Use respectful 'நீங்கள்' (neengal) throughout — NEVER 'நீ'. Use 'உங்களுக்கு', 'உங்களோட'. Warm, patient, deeply respectful. This is non-negotiable.",
+      },
+      te: {
+        "13_17": "TELUGU TEEN REGISTER (CRITICAL): This is a teenager. Use casual peer-level Telugu — informal 'నువ్వు', words like 'yaar', 'enti', 'sachiga'. Do NOT use 'మీరు', do NOT be preachy. Short, warm, peer-level — like a classmate.",
+        "65_plus": "TELUGU ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use ONLY respectful plural address: 'మీరు' (meeru), 'మీకు' (meeku), 'మీతో' (meetho), 'మీది' (meedi) — NEVER use 'నువ్వు' (nuvvu), 'నిన్ను' (ninnu), 'నీవు' (neevu), or any singular second-person form. The respectful 'మీరు' is mandatory and non-negotiable. Warm, patient, deeply respectful throughout.",
+      },
+      gu: {
+        "13_17": "GUJARATI TEEN REGISTER (CRITICAL): This is a teenager. Use casual peer-level Gujarati — informal 'તું', words like 'yaar', 'are', 'sachi'. Do NOT use 'તમે', do NOT be preachy. Short, warm, peer-level.",
+        "65_plus": "GUJARATI ELDER REGISTER (CRITICAL): Use respectful 'આપ' (aap) or 'તમે' (tame) throughout — NEVER informal 'તું' (tu). Warm, patient, deeply respectful. This is non-negotiable.",
+      },
+      pa: {
+        "13_17": "PUNJABI TEEN REGISTER (CRITICAL OVERRIDE): This is a teenager. Use extremely casual Punjabi peer language. Say 'ਤੂ', use words like 'ਯਾਰ', 'ਕੀ ਗੱਲ ਹੈ', 'ਸੱਚੀ'. Do NOT use 'ਤੁਸੀਂ', do NOT be preachy. Short, warm, peer-level — like a classmate.",
+        "65_plus": "PUNJABI ELDER REGISTER (CRITICAL): Use respectful 'ਤੁਸੀਂ' (tussi) or 'ਆਪ' (aap) throughout — NEVER informal 'ਤੂ' (tu). Warm, patient, deeply respectful. This is non-negotiable.",
+      },
+      kn: {
+        "13_17": "KANNADA TEEN REGISTER (CRITICAL): This is a teenager. Use casual peer-level Kannada — informal 'ನೀನು' (neenu), words like 'yaar', 'maga', 'enu ide'. Do NOT use 'ನೀವು', do NOT be preachy. Short, warm, peer-level — like a classmate.",
+        "65_plus": "KANNADA ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use ONLY respectful address: 'ನೀವು' (neevu), 'ನಿಮಗೆ' (nimage), 'ನಿಮ್ಮ' (nimma) — NEVER 'ನೀನು' (neenu) or 'ನಿನಗೆ' (ninage). Warm, patient, deeply respectful throughout. This is non-negotiable.",
+      },
+      ml: {
+        "13_17": "MALAYALAM TEEN REGISTER (CRITICAL): This is a teenager. Use casual peer-level Malayalam — informal 'നീ' (nee), words like 'yaar', 'mole/mol', 'enthaa'. Do NOT use 'നിങ്ങൾ', do NOT be preachy. Short, warm, peer-level — like a classmate.",
+        "65_plus": "MALAYALAM ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use ONLY respectful address: 'നിങ്ങൾ' (ningal), 'നിങ്ങൾക്ക്' (ningalkku), 'നിങ്ങളുടെ' (ningalude) — NEVER informal 'നീ' (nee) or 'നിന്നെ' (ninne). Warm, patient, deeply respectful throughout. This is non-negotiable.",
+      },
+      or: {
+        "13_17": "ODIA TEEN REGISTER (CRITICAL): This is a teenager. Use casual peer-level Odia — informal 'ତୁ' (tu), words like 'yaar', 'bhai'. Do NOT use 'ଆପଣ', do NOT be preachy. Short, warm, peer-level — like a classmate.",
+        "65_plus": "ODIA ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use ONLY respectful address: 'ଆପଣ' (aapana), 'ଆପଣ ଙ୍କ' (aapanka) — NEVER informal 'ତୁ' (tu). Warm, patient, deeply respectful throughout. This is non-negotiable.",
+      },
+      ur: {
+        "13_17": "URDU TEEN REGISTER (CRITICAL): This is a teenager. Use casual peer-level Urdu — informal 'تم' (tum) or 'تو' (tu), words like 'yaar', 'bhai', 'sach mein'. Do NOT use 'آپ', do NOT be preachy. Short, warm, peer-level — like a classmate.",
+        "65_plus": "URDU ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use ONLY respectful address: 'آپ' (aap), 'آپ کا' (aap ka), 'آپ کو' (aap ko) — NEVER informal 'تم' (tum) or 'تو' (tu). Warm, patient, deeply respectful throughout. This is non-negotiable.",
+      },
+      ar: {
+        "13_17": "ARABIC TEEN REGISTER (CRITICAL): This is a teenager. Use casual peer-level Arabic — informal address, words like 'يا صاحبي', 'يا صديقي', 'يا عم'. Do NOT use formal address. Short, warm, peer-level — like a classmate.",
+        "65_plus": "ARABIC ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use ONLY respectful formal address: 'حضرتك' (hadretak/hadretik), or other respectful honorifics. Never address them casually. Warm, patient, deeply respectful. This is non-negotiable.",
+      },
+      zh: {
+        "13_17": "CHINESE TEEN REGISTER (CRITICAL): This is a teenager. Use casual peer-level Chinese — informal '你', words like '朋友', '哥们/姐妹', '真的吗'. Do NOT be preachy. Short, warm, peer-level — like a classmate.",
+        "65_plus": "CHINESE ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use respectful '您' (nín) throughout — NEVER informal '你'. Warm, patient, deeply respectful. This is non-negotiable.",
+      },
+      ja: {
+        "13_17": "JAPANESE TEEN REGISTER (CRITICAL): This is a teenager. Use casual plain form (だ/する/ない) — NOT polite です/ます form. Use casual words like 'ね', 'よ', 'じゃん'. Do NOT be preachy. Short, warm, peer-level.",
+        "65_plus": "JAPANESE ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use polite form (です/ます) throughout — NEVER casual plain form with elders. Warm, patient, deeply respectful. This is non-negotiable.",
+      },
+      he: {
+        "13_17": "HEBREW TEEN REGISTER (CRITICAL): This is a teenager. Use casual peer-level Hebrew — informal address, words like 'חבר/חברה', 'סבבה', 'בסדר גמור'. Do NOT be preachy. Short, warm, peer-level — like a classmate.",
+        "65_plus": "HEBREW ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use respectful, gentle address — warmer and more deferential tone. Patient and caring. This is non-negotiable.",
+      },
+      de: {
+        "13_17": "GERMAN TEEN REGISTER (CRITICAL): This is a teenager. Use casual 'du' with informal tone — words like 'Alter', 'krass', 'echt', 'voll'. Do NOT use formal 'Sie', do NOT be preachy. Short, warm, peer-level.",
+        "65_plus": "GERMAN ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use formal 'Sie/Ihnen/Ihr' (always capitalized) throughout — NEVER informal 'du'. Warm, patient, deeply respectful. This is non-negotiable.",
+      },
+      fr: {
+        "13_17": "FRENCH TEEN REGISTER (CRITICAL): This is a teenager. Use casual 'tu' with informal tone — words like 'mec', 'quoi', 't'inquiète'. Do NOT use formal 'vous', do NOT be preachy. Short, warm, peer-level — like a classmate.",
+        "65_plus": "FRENCH ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use formal 'vous/votre/vos' throughout — NEVER informal 'tu'. Warm, patient, deeply respectful. This is non-negotiable.",
+      },
+      es: {
+        "13_17": "SPANISH TEEN REGISTER (CRITICAL): This is a teenager. Use casual 'tú' with informal tone — words like 'tío/tía', 'bro', 'qué pasa', 'en serio'. Do NOT use formal 'usted', do NOT be preachy, do NOT advise them to talk to parents or teachers. Short, warm, peer-level — like a classmate. Just be present and empathetic.",
+        "65_plus": "SPANISH ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use formal register throughout: 'usted' (subject), 'le/lo/la' (object, NOT 'te'), 'su/sus' (possessive, NOT 'tu/tus') — NEVER use 'tú', 'te', 'ti', or 'tu' as informal 2nd-person forms. Warm, patient, deeply respectful. This is non-negotiable.",
+      },
+      pt: {
+        "13_17": "PORTUGUESE TEEN REGISTER (CRITICAL): This is a teenager. Use casual 'você/tu' with informal tone — words like 'cara', 'bicho', 'sério'. Do NOT be preachy. Short, warm, peer-level — like a classmate.",
+        "65_plus": "PORTUGUESE ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use respectful address: 'o senhor/a senhora' or very respectful 'você' — NEVER casual 'tu'. Warm, patient, deeply respectful. This is non-negotiable.",
+      },
+      ru: {
+        "13_17": "RUSSIAN TEEN REGISTER (CRITICAL): This is a teenager. Use casual 'ты' with informal tone — words like 'чел', 'блин', 'серьёзно'. Do NOT use formal 'вы', do NOT be preachy. Short, warm, peer-level — like a classmate.",
+        "65_plus": "RUSSIAN ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use formal 'вы/вас/вам/ваш' throughout — NEVER informal 'ты'. Warm, patient, deeply respectful. This is non-negotiable.",
+      },
+      id: {
+        "13_17": "INDONESIAN TEEN REGISTER (CRITICAL): This is a teenager. Use casual 'kamu' or Jakarta slang 'lo/gue' with informal tone — words like 'bro', 'sis', 'beneran'. Do NOT use formal 'Anda', do NOT be preachy. Short, warm, peer-level — like a classmate.",
+        "65_plus": "INDONESIAN ELDER REGISTER (CRITICAL OVERRIDE): This is an elderly person. Use formal 'Anda' or respectful 'Bapak/Ibu' — NEVER informal 'kamu' or slang 'lo'. Warm, patient, deeply respectful. This is non-negotiable.",
+      },
+    };
+    const langAgeOverride =
+      resolvedLang && body?.userAge
+        ? (langAgeOverrides[resolvedLang]?.[body.userAge] ?? "")
+        : "";
 
     // Arc-aware response depth instruction
     const lengthInstruction =
@@ -535,7 +660,7 @@ export async function POST(req: Request) {
             "First: validate what the user has been carrying. Then: stay present. Do not rush to advice.",
           ].join("\n")
         : arc.depth === "moderate"
-          ? "This conversation has emotional context. Build on what the user shared earlier — reference at least one specific detail from a previous turn."
+          ? "This conversation has emotional context. Build on what the user shared earlier — explicitly reference at least one specific detail from a previous turn (an event, name, emotion, or situation the user mentioned). Do not reply as if this is a fresh conversation."
           : "";
 
     const emotionMemoryHint =
@@ -543,10 +668,31 @@ export async function POST(req: Request) {
         ? body.emotionMemory.trim()
         : "";
 
+    // Context anchor: when this is a multi-turn conversation, remind the AI of what the user
+    // shared in their FIRST turn so it references that detail in later replies (e.g. bhai ka exam).
+    const firstUserTurn = recent.find((m) => m.role === "user")?.content ?? "";
+    const lastUserTurn = [...recent].reverse().find((m) => m.role === "user")?.content ?? "";
+    const hasContextHistory =
+      !isLightCasual &&
+      recent.length > 2 &&
+      firstUserTurn.trim().length > 0 &&
+      firstUserTurn.trim() !== lastUserTurn.trim();
+    const contextAnchor = hasContextHistory
+      ? `KEY CONTEXT FROM EARLIER IN THIS CONVERSATION (you MUST acknowledge or weave this into your reply — do NOT ignore it): "${firstUserTurn.slice(0, 200)}"`
+      : "";
+
+    // Script mirror: when user writes romanized Indic, force reply in romanized too
+    const scriptMirrorInstruction =
+      resolvedLang && resolvedLang !== "en" && isRomanizedInput(lastUserMsg, resolvedLang)
+        ? `SCRIPT MIRROR — ABSOLUTE OVERRIDE: The user wrote in ROMANIZED / TRANSLITERATED ${resolvedLang.toUpperCase()} (Latin letters, e.g. "ami valo achi"). You MUST reply entirely in romanized Latin script. Do NOT output any native script Unicode characters — no Bengali/Hindi/Tamil/Devanagari/Gurmukhi/etc. Unicode at all. Write every word of your reply using only Latin (English) letters. This is a hard constraint with no exceptions.`
+        : "";
+
     const prompt = [
+      scriptMirrorInstruction, // FIRST: script mirror takes highest precedence when active
       "You are Imotara — a calm, warm, emotionally-aware companion (not a therapist).",
       langInstruction,
       genderInstruction,
+      langAgeOverride,
       emotionMemoryHint,
       companionPersonaHint,
       userAgeHint,
@@ -554,10 +700,11 @@ export async function POST(req: Request) {
       lengthInstruction,
       "Do NOT sound generic. Never repeat the same opener style across turns — 'I'm with you / I'm here / I hear you' should not appear more than once per conversation. Instead open with something that reflects what the user specifically said: name the emotion, reference the situation, or mirror their energy.",
       "EMPATHY VARIETY RULE: Avoid overusing weight and burden metaphors ('that sounds heavy', 'you're carrying a lot', 'that's a lot to sit with'). Vary your empathy language — use specific, human, direct observations instead: 'That kind of hurt doesn't just go away on its own', 'I'd feel that way too', 'That's genuinely unfair', 'That sounds like it came out of nowhere'.",
-      isLightCasual ? "" : "IMPORTANT: Your reply MUST reference at least one concrete detail from the user's most recent message OR the recent user messages below.",
+      isLightCasual ? "" : "IMPORTANT: Your reply MUST reference at least one concrete detail from the conversation — this includes earlier turns, not just the most recent message. If the user shared something specific (a name, an event, a relationship, a feeling) in any prior turn, weave it into your reply to show you remember.",
       "If the user already gave context, do NOT ask vague questions like 'what's on your mind' or 'what's going on' — continue the same thread.",
       "QUESTION RULE: Do NOT end every reply with a question. A real friend sometimes just listens and reflects without asking anything. Only ask a question when it genuinely opens something new — not as a default closer. Maximum one question per reply, and skip it entirely if the user is sharing something tender.",
       "VENTING RULE: If the user is venting, releasing emotion, or explicitly says they just need to talk — respond with pure presence. No question at the end. Just be there: 'You don't have to figure this out right now.' / 'You're allowed to feel all of this.' / 'I'm not going anywhere.'",
+      "SYMPTOM MIRRORING: When the user describes specific physical sensations or behaviors — chest tightness, insomnia, not eating, fatigue, headache, trembling, shallow breath — NAME those specific details back. Do NOT respond with a generic 'anxiety is hard' or 'this happens to many people'. Say back the exact thing they described: 'सीने की वो बेचैनी...' / 'नींद न आना और खाना भी नहीं — ये सब एक साथ बहुत भारी होता है'.",
       "OPENER RULE: Never start with 'Got it', 'Absolutely', 'Of course', or similar filler acknowledgements. Respond directly to what the user said.",
       "No medical, diagnostic, or crisis instructions. If serious risk appears, encourage reaching out to trusted people/local services.",
       "",
@@ -618,6 +765,8 @@ export async function POST(req: Request) {
       "Full recent chat context (most recent at the end):",
       conversationText || "(No previous context; this is the first message.)",
       "",
+      scriptMirrorInstruction, // LAST: repeat at end for highest LLM recall
+      contextAnchor, // repeat context anchor near end for maximum recall
       "Now write Imotara's next reply — warm, specific to what the user said, and feels like a natural continuation.",
     ]
       .filter(Boolean)
@@ -631,9 +780,62 @@ export async function POST(req: Request) {
           ? 300
           : 260;
 
+    const isRomanInput = resolvedLang !== "en" && isRomanizedInput(lastUserMsg, resolvedLang);
+
+    // For romanized Indic input, the full prompt causes the model to default to native
+    // script or English. Use a focused prompt that shows explicit romanized examples.
+    const ROMANIZED_LANG_NAMES: Record<string, string> = {
+      bn: "Bengali", hi: "Hindi", mr: "Marathi", ta: "Tamil", te: "Telugu",
+      gu: "Gujarati", kn: "Kannada", ml: "Malayalam", pa: "Punjabi", or: "Odia", ur: "Urdu",
+      ru: "Russian", ar: "Arabic", he: "Hebrew", zh: "Chinese", ja: "Japanese",
+    };
+    const ROMANIZED_EXAMPLES: Record<string, string> = {
+      bn: "e.g. 'ami bujhchi, eta onek koshto' (NOT আমি বুঝছি; NOT 'I understand')",
+      hi: "e.g. 'main samajh sakta hoon, ye bahut mushkil hai' (NOT मैं समझता हूँ; NOT 'I understand')",
+      mr: "e.g. 'mi samajhto, he khup kathin ahe' (NOT मी समजतो; NOT 'I understand')",
+      ta: "e.g. 'naan purinjukkiren, romba kashtama irukku' (NOT நான் புரிகிறேன்; NOT 'I understand')",
+      te: "e.g. 'nenu artham chesukuntunna, chala kashtanga undi' (NOT నేను అర్థం చేసుకుంటున్నాను; NOT 'I understand')",
+      gu: "e.g. 'hun samajhu chhun, aa khub kathin chhe' (NOT હું સમજું છું; NOT 'I understand')",
+      kn: "e.g. 'naanu artha maadkobeeku, tumba kashtava aagide' (NOT ನಾನು ಅರ್ಥ ಮಾಡಿಕೊಳ್ಳಬೇಕು; NOT 'I understand')",
+      ml: "e.g. 'enikku manasilayi, ithh valiyanathaanu' (NOT എനിക്ക് മനസ്സിലായി; NOT 'I understand')",
+      pa: "e.g. 'main samajh sakda haan, ye bahut mushkil hai' (NOT ਮੈਂ ਸਮਝ ਸਕਦਾ ਹਾਂ; NOT 'I understand')",
+      or: "e.g. 'mun bujhuchi, eta onek kasta' (NOT ମୁଁ ବୁଝୁଛି; NOT 'I understand')",
+      ur: "e.g. 'main samajhta hoon, ye bahut mushkil hai' (NOT میں سمجھتا ہوں; NOT 'I understand')",
+      ru: "e.g. 'ya ponimayu, eto ochen tyazhelo' (NOT Я понимаю; NOT 'I understand')",
+      ar: "e.g. 'ana fahemtak, dah sa3b awi' (NOT أنا فاهمك; NOT 'I understand')",
+      he: "e.g. 'ani mevin otcha, zeh kashe meod' (NOT אני מבין אותך; NOT 'I understand')",
+      zh: "e.g. 'wo mingbai ni, zhe hen nan' (NOT 我明白你; NOT 'I understand')",
+      ja: "e.g. 'wakarimashita, sore wa tsurai ne' (NOT わかりました; NOT 'I understand')",
+    };
+    const romanizedLangName = ROMANIZED_LANG_NAMES[resolvedLang] ?? resolvedLang.toUpperCase();
+    const romanizedExample = ROMANIZED_EXAMPLES[resolvedLang] ?? "";
+    const romanizedPrompt = isRomanInput
+      ? [
+          `You are Imotara — a warm, caring emotional companion.`,
+          `The user is typing in ROMANIZED ${romanizedLangName} — they write ${romanizedLangName} words using English/Latin letters instead of native script (e.g. Cyrillic, Arabic, or Hebrew characters).`,
+          `You MUST reply in the same way — write ${romanizedLangName} words using English/Roman letters. ${romanizedExample}`,
+          `DO NOT reply in English. DO NOT use any ${romanizedLangName} native script Unicode characters (no Cyrillic, no Arabic, no Hebrew script, no Devanagari, no Bengali script, no native script). Write ${romanizedLangName} language spelled out with English alphabet letters ONLY.`,
+          `IMPORTANT: Even if you see native ${romanizedLangName} script in the conversation history, YOUR reply must ALWAYS use romanized Latin letters — never native script.`,
+          companionPersonaHint || "Be warm and empathetic.",
+          langAgeOverride,
+          emotionHint,
+          userAgeHint,
+          arcDepthHint,
+          contextAnchor,
+          isLightCasual ? "" : "Reference a specific detail from what the user said.",
+          resolvedLang === "bn"
+            ? "CONTEXT SYNTHESIS: When the user has shared multiple stressors across turns (e.g. job loss + new house + baby coming), weave them together naturally — show you hold the full picture, not just the last message."
+            : "",
+          "Do NOT reuse phrases or ideas from your previous replies. Each reply must feel fresh and specific to this moment in the conversation.",
+          isClosureIntent || isLightCasual ? "" : "If the user asks 'what would you say' or 'how should I say it', give them real, specific words they could actually use — tailored to their exact situation, not generic advice.",
+          conversationText ? `\nConversation so far:\n${conversationText}` : "",
+          "Keep it 1-2 sentences. Be human, warm, not generic.",
+        ].filter(Boolean).join("\n")
+      : null;
+
     const ai: ImotaraAIResponse = await callImotaraAI("Reply now.", {
-      system: prompt,
-      maxTokens,
+      system: romanizedPrompt ?? prompt,
+      maxTokens: romanizedPrompt ? Math.min(maxTokens, resolvedLang === "bn" ? 320 : 280) : maxTokens,
       temperature: 0.8,
       noQuestions: isClosureIntent,
     });
@@ -660,18 +862,48 @@ export async function POST(req: Request) {
     }
     // ✅ Permanent architecture gate:
     // Force EVERY successful reply through the Three-Part Humanized framework.
+    // EXCEPTION: romanized Indic input — bypass framework because bridge/reaction banks
+    // are in native script and would violate the script mirror rule.
     const lastUser =
       [...recent].reverse().find((m) => m.role === "user")?.content ?? "";
-    const formatted = formatImotaraReply({
-      raw: candidate,
-      lang: body?.lang,
-      tone: body?.tone,
-      seed: `${lastUser}|${emotion}|${preferredName}`,
-      intent: arc.depth !== "light" ? "emotional" : undefined,
-    });
 
-    // If formatting somehow yields empty, fall back to the original candidate.
-    const finalText = (formatted || candidate).trim();
+    // Language-specific safe romanized fallback — used when the AI returns native-script
+    // despite instructions and stripping leaves < 10 chars. Never fall back to native script.
+    const ROMANIZED_SAFE_REPLIES: Record<string, string> = {
+      bn: "ami bujhchi. ami tomar pashe achi.",
+      hi: "main samajh raha hoon. main tumhare saath hoon.",
+      mr: "mi samajhto. mi tuzya sobat ahe.",
+      ta: "naan purinjukkiren. naan ungaludan irukiren.",
+      te: "nenu ardam chesukuntunna. nenu meeru kosam unnanu.",
+      gu: "hun samajhu chhun. hun tamari saathe chhun.",
+      kn: "naanu arthamaadkobeeku. naanu nimma jote iddini.",
+      ml: "enikku manasilayi. njan ningalude koode undu.",
+      pa: "main samajh sakda haan. main tere naal haan.",
+      or: "mun bujhuchi. mun tumar sathe achi.",
+      ur: "main samajhta hoon. main tumhare saath hoon.",
+    };
+
+    let finalText: string;
+    if (isRomanInput) {
+      // Bypass Three-Part formatter (its bridge/reaction banks are native-script).
+      // Hard-strip ALL non-ASCII characters — romanized Indic should only contain ASCII.
+      // This catches Bengali chars, dandas (U+0964), diacritics, and any other script leaks.
+      const stripped = candidate
+        .replace(/[^\x00-\x7F]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      // Never fall back to original (which may contain native script). Use safe romanized phrase.
+      finalText = stripped.length >= 10 ? stripped : (ROMANIZED_SAFE_REPLIES[resolvedLang] ?? "ami achi tomar sathe.");
+    } else {
+      const formatted = formatImotaraReply({
+        raw: candidate,
+        lang: body?.lang,
+        tone: body?.tone,
+        seed: `${lastUser}|${emotion}|${preferredName}`,
+        intent: arc.depth !== "light" ? "emotional" : undefined,
+      });
+      finalText = (formatted || candidate).trim();
+    }
 
     // Normal successful path (same response shape)
     return NextResponse.json(

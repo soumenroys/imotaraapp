@@ -87,7 +87,7 @@ export async function callImotaraAI(
   options: CallImotaraAIOptions = {},
 ): Promise<ImotaraAIResponse> {
   const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.IMOTARA_AI_MODEL || "gpt-4.1";
+  const model = process.env.IMOTARA_AI_MODEL || "gpt-4.1-mini";
 
   // ✅ Enhancement: Avoid leaking any "engine not connected" UI text from the server helper.
   // Callers (e.g., /api/chat-reply) already have graceful fallback; returning empty text
@@ -252,7 +252,7 @@ export async function* streamImotaraAI(
   options: CallImotaraAIOptions = {},
 ): AsyncGenerator<string, void, unknown> {
   const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.IMOTARA_AI_MODEL || "gpt-4.1";
+  const model = process.env.IMOTARA_AI_MODEL || "gpt-4.1-mini";
   if (!apiKey) return;
 
   const systemPrompt = options.system ?? "You are Imotara — a warm, caring emotional companion. Be concise and human.";

@@ -1652,8 +1652,8 @@ export default function ChatPage() {
             {
               threadId,
 
-              // ✅ Baby Step 9.2 — parity with mobile
-              recentMessages: msgsForAnalysis.slice(-6).map((m) => ({
+              // Send last 12 turns (matches MAX_TURNS on server)
+              recentMessages: msgsForAnalysis.slice(-12).map((m) => ({
                 role: m.role === "user" ? "user" : "assistant",
                 content: m.content,
               })),

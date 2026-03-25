@@ -56,10 +56,11 @@ type ChatReplyRequest = {
   message?: string;
 };
 
-// keep context + prompt modest
-// 12 turns keeps ~3x more early-turn context so sister-wedding/illness refs survive long conversations
+// 12 server-side turns; client now sends 12 too (up from 6)
+// MAX_CHARS raised to 10000 — benefits non-Latin scripts (Tamil, Chinese, Arabic etc.)
+// where each character carries more semantic weight than English
 const MAX_TURNS = 12;
-const MAX_CHARS = 6000;
+const MAX_CHARS = 10000;
 
 // Keywords that signal emotional distress across all 21 languages Imotara supports.
 // Structure:

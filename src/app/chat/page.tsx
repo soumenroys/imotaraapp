@@ -851,6 +851,7 @@ export default function ChatPage() {
 
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [streamingReply, setStreamingReply] = useState<string>("");
 
   // ✅ NEW: header details toggle (collapses long header content by default)
   const [showHeaderDetails, setShowHeaderDetails] = useState(false);
@@ -1657,7 +1658,9 @@ export default function ChatPage() {
                 content: m.content,
               })),
             } as any,
+            (partial) => setStreamingReply(partial),
           );
+          setStreamingReply("");
 
           const text = (resp?.message ?? "").toString().trim();
           if (text) {
@@ -1684,6 +1687,7 @@ export default function ChatPage() {
             );
           }
         } catch (err) {
+          setStreamingReply("");
           console.warn("[imotara] /api/respond failed, falling back:", err);
         }
       }
@@ -2799,12 +2803,19 @@ export default function ChatPage() {
                 {/* #9: Typing indicator — shows while Imotara is composing a reply */}
                 {analyzing && !pendingUndo && (
                   <div className="flex justify-start pl-1">
-                    <div className="rounded-2xl border border-indigo-400/30 bg-gradient-to-br from-slate-900/80 to-indigo-950/80 px-4 py-3 text-sm backdrop-blur-md">
-                      <span className="inline-flex items-center gap-1 text-zinc-400">
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-400/70 [animation-delay:0ms]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400/70 [animation-delay:150ms]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-400/70 [animation-delay:300ms]" />
-                      </span>
+                    <div className="rounded-2xl border border-indigo-400/30 bg-gradient-to-br from-slate-900/80 to-indigo-950/80 px-4 py-3 text-sm backdrop-blur-md max-w-[80%]">
+                      {streamingReply ? (
+                        <span className="text-zinc-200 leading-relaxed whitespace-pre-wrap">
+                          {streamingReply}
+                          <span className="inline-block w-0.5 h-3.5 ml-0.5 bg-indigo-400 animate-pulse align-middle" />
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-zinc-400">
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-400/70 [animation-delay:0ms]" />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400/70 [animation-delay:150ms]" />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-400/70 [animation-delay:300ms]" />
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}

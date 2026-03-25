@@ -87,7 +87,7 @@ export async function callImotaraAI(
   options: CallImotaraAIOptions = {},
 ): Promise<ImotaraAIResponse> {
   const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.IMOTARA_AI_MODEL || "gpt-4.1-mini";
+  const model = process.env.IMOTARA_AI_MODEL || "gpt-4.1";
 
   // ✅ Enhancement: Avoid leaking any "engine not connected" UI text from the server helper.
   // Callers (e.g., /api/chat-reply) already have graceful fallback; returning empty text
@@ -238,5 +238,83 @@ async function safeReadText(response: Response): Promise<string> {
     return await response.text();
   } catch {
     return "";
+  }
+}
+
+/**
+ * Streaming version of callImotaraAI.
+ * Yields text tokens as they arrive from the model (stream: true).
+ * Used by /api/chat-reply?stream=1 for low-latency progressive rendering.
+ * The caller is responsible for building the final string from yielded chunks.
+ */
+export async function* streamImotaraAI(
+  prompt: string,
+  options: CallImotaraAIOptions = {},
+): AsyncGenerator<string, void, unknown> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  const model = process.env.IMOTARA_AI_MODEL || "gpt-4.1";
+  if (!apiKey) return;
+
+  const systemPrompt = options.system ?? "You are Imotara — a warm, caring emotional companion. Be concise and human.";
+  const temperature = typeof options.temperature === "number" ? options.temperature : 0.7;
+  const maxTokens = options.maxTokens ?? 350;
+  const abortMs = options.abortMs ?? 25_000;
+  const controller = new AbortController();
+  const timeoutId = abortMs > 0 ? setTimeout(() => controller.abort(), abortMs) : undefined;
+
+  const baseUrl = getOpenAIBaseUrl();
+  const endpoint = `${baseUrl}/v1/chat/completions`;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: maxTokens,
+        temperature,
+        stream: true,
+      }),
+      signal: controller.signal,
+    });
+
+    if (timeoutId) clearTimeout(timeoutId);
+    if (!response.ok || !response.body) return;
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data: ")) continue;
+        const data = trimmed.slice(6);
+        if (data === "[DONE]") return;
+        try {
+          const parsed = JSON.parse(data) as {
+            choices?: { delta?: { content?: string | null } }[];
+          };
+          const token = parsed.choices?.[0]?.delta?.content;
+          if (token) yield token;
+        } catch { /* skip malformed SSE chunks */ }
+      }
+    }
+  } catch {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }

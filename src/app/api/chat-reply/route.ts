@@ -14,7 +14,7 @@
 //   Same as ImotaraAIResponse from aiClient: { text, meta }
 
 import { NextResponse } from "next/server";
-import { callImotaraAI } from "@/lib/imotara/aiClient";
+import { callImotaraAI, streamImotaraAI } from "@/lib/imotara/aiClient";
 import type { ImotaraAIResponse } from "@/lib/imotara/aiClient";
 import { formatImotaraReply } from "@/lib/imotara/response/responseFormatter";
 
@@ -832,6 +832,45 @@ export async function POST(req: Request) {
           "Keep it 1-2 sentences. Be human, warm, not generic.",
         ].filter(Boolean).join("\n")
       : null;
+
+    // ── Streaming path: forward tokens directly to client via SSE ────────────
+    // Activated when client sends ?stream=1 (web only; mobile uses JSON path).
+    // Skips formatImotaraReply post-processing — the rich system prompt handles
+    // humanization directly. All script-safety rules are in the system prompt.
+    const requestUrl = new URL(req.url);
+    if (requestUrl.searchParams.get("stream") === "1") {
+      const streamSystem = romanizedPrompt ?? prompt;
+      const streamMaxTokens = romanizedPrompt
+        ? Math.min(maxTokens, resolvedLang === "bn" ? 320 : 280)
+        : maxTokens;
+      const encoder = new TextEncoder();
+
+      const readable = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const token of streamImotaraAI("Reply now.", {
+              system: streamSystem,
+              maxTokens: streamMaxTokens,
+              temperature: 0.8,
+            })) {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ t: token })}\n\n`),
+              );
+            }
+          } catch { /* stream ended or model error — client will use what arrived */ }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        },
+      });
+
+      return new Response(readable, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
 
     const ai: ImotaraAIResponse = await callImotaraAI("Reply now.", {
       system: romanizedPrompt ?? prompt,

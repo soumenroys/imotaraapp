@@ -7,7 +7,8 @@ import { buildEmotionMemorySummary } from "@/lib/imotara/promptProfile"; // #2
 export async function runRespondWithConsent(
     userMessage: string,
     remoteAllowed: boolean,
-    context?: unknown
+    context?: unknown,
+    onChunk?: (partial: string) => void,
 ): Promise<ImotaraResponse> {
     const message = (userMessage ?? "").trim();
 
@@ -51,5 +52,5 @@ export async function runRespondWithConsent(
         if (memorySummary) ctxObj.emotionMemory = memorySummary;
     }
 
-    return await respondRemote({ message, context: ctxObj });
+    return await respondRemote({ message, context: ctxObj, onChunk });
 }

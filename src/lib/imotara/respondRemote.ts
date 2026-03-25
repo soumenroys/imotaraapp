@@ -69,6 +69,7 @@ function detectLangFromMessage(text: string): string {
 export async function respondRemote(input: {
     message: string;
     context?: unknown;
+    onChunk?: (partial: string) => void;
 }): Promise<ImotaraResponse> {
     const qa =
         typeof window !== "undefined" &&
@@ -120,29 +121,58 @@ export async function respondRemote(input: {
     const userGender = ctxTone?.user?.gender;
     const companionGender = ctxTone?.companion?.gender;
 
+    const chatReplyBody = JSON.stringify({
+        messages,
+        lang,
+        ...(tone ? { tone } : {}),
+        ...(toneCtx?.user?.ageRange ? { userAge: toneCtx.user.ageRange } : {}),
+        ...(toneCtx?.companion?.ageRange ? { companionAge: toneCtx.companion.ageRange } : {}),
+        ...(typeof ctx.emotionMemory === "string" && ctx.emotionMemory ? { emotionMemory: ctx.emotionMemory } : {}),
+        ...(userGender && userGender !== "prefer_not" && userGender !== "other" ? { userGender } : {}),
+        ...(companionGender && companionGender !== "prefer_not" && companionGender !== "other" ? { companionGender } : {}),
+    });
+
     try {
-        const aiRes = await fetch("/api/chat-reply", {
+        // ── Streaming path (web) ────────────────────────────────────────────────
+        const aiRes = await fetch("/api/chat-reply?stream=1", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-            messages,
-            lang,
-            ...(tone ? { tone } : {}),
-            ...(toneCtx?.user?.ageRange ? { userAge: toneCtx.user.ageRange } : {}),
-            ...(toneCtx?.companion?.ageRange ? { companionAge: toneCtx.companion.ageRange } : {}),
-            ...(typeof ctx.emotionMemory === "string" && ctx.emotionMemory ? { emotionMemory: ctx.emotionMemory } : {}),
-            ...(userGender && userGender !== "prefer_not" && userGender !== "other" ? { userGender } : {}),
-            ...(companionGender && companionGender !== "prefer_not" && companionGender !== "other" ? { companionGender } : {}),
-        }),
+            body: chatReplyBody,
         });
 
-        if (aiRes.ok) {
-            const data = await aiRes.json();
-            const text = typeof data?.text === "string" ? data.text.trim() : "";
+        if (aiRes.ok && aiRes.body) {
+            const reader = aiRes.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            let fullText = "";
+            let done = false;
 
-            if (data?.meta?.from === "openai" && text) {
+            while (!done) {
+                const { done: streamDone, value } = await reader.read();
+                if (streamDone) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const parts = buffer.split("\n\n");
+                buffer = parts.pop() ?? "";
+
+                for (const part of parts) {
+                    const line = part.trim();
+                    if (!line.startsWith("data: ")) continue;
+                    const data = line.slice(6).trim();
+                    if (data === "[DONE]") { done = true; break; }
+                    try {
+                        const { t } = JSON.parse(data) as { t?: string };
+                        if (t) {
+                            fullText += t;
+                            input.onChunk?.(fullText);
+                        }
+                    } catch { /* skip malformed chunk */ }
+                }
+            }
+
+            if (fullText.trim()) {
                 return {
-                    message: text,
+                    message: fullText,
                     followUp: "",
                     meta: {
                         styleContract: "1.0",
@@ -153,7 +183,7 @@ export async function respondRemote(input: {
             }
         }
     } catch {
-        // AI path unavailable — fall through to template path below
+        // Streaming path unavailable — fall through to template path below
     }
 
     // ── Template fallback: /api/respond (runImotara, works offline) ───────────

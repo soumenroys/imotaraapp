@@ -1657,6 +1657,18 @@ export default function ChatPage() {
                 role: m.role === "user" ? "user" : "assistant",
                 content: m.content,
               })),
+
+              // Rolling context: compact breadcrumb of user messages older than the 12-turn window
+              // Works for all languages — no LLM summarization, zero latency overhead
+              ...(msgsForAnalysis.length > 12 ? {
+                olderContext: msgsForAnalysis
+                  .slice(0, -12)
+                  .filter((m) => m.role === "user")
+                  .slice(-6)
+                  .map((m) => String(m.content).slice(0, 150).trim())
+                  .filter(Boolean)
+                  .join(" | "),
+              } : {}),
             } as any,
             (partial) => setStreamingReply(partial),
           );

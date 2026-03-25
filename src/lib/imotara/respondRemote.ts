@@ -123,6 +123,9 @@ export async function respondRemote(input: {
 
     const companionName = toneCtx?.companion?.name?.trim() || undefined;
     const responseStyle = toneCtx?.user?.responseStyle || undefined;
+    const olderContext = typeof (ctx as Record<string, unknown>).olderContext === "string"
+        ? (ctx as Record<string, unknown>).olderContext as string
+        : undefined;
 
     const chatReplyBody = JSON.stringify({
         messages,
@@ -132,6 +135,7 @@ export async function respondRemote(input: {
         ...(toneCtx?.companion?.ageRange ? { companionAge: toneCtx.companion.ageRange } : {}),
         ...(companionName ? { companionName } : {}),
         ...(responseStyle ? { responseStyle } : {}),
+        ...(olderContext ? { olderContext } : {}),
         ...(typeof ctx.emotionMemory === "string" && ctx.emotionMemory ? { emotionMemory: ctx.emotionMemory } : {}),
         ...(userGender && userGender !== "prefer_not" && userGender !== "other" ? { userGender } : {}),
         ...(companionGender && companionGender !== "prefer_not" && companionGender !== "other" ? { companionGender } : {}),

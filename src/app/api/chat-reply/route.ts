@@ -55,6 +55,9 @@ type ChatReplyRequest = {
   companionName?: string;
   responseStyle?: "comfort" | "reflect" | "motivate" | "advise";
 
+  // ✅ Rolling context: compact breadcrumb of user messages older than the 12-turn window
+  olderContext?: string;
+
   // compat: some callers may send a single text field
   text?: string;
   message?: string;
@@ -713,6 +716,12 @@ export async function POST(req: Request) {
         ? body.emotionMemory.trim()
         : "";
 
+    // Rolling context: breadcrumb of user messages from before the 12-turn window
+    const olderContextHint =
+      typeof body?.olderContext === "string" && body.olderContext.trim()
+        ? `Earlier in this conversation the user mentioned (for your context — weave in naturally only if relevant, do not force-reference):\n${body.olderContext.trim()}`
+        : "";
+
     // Context anchor: when this is a multi-turn conversation, remind the AI of what the user
     // shared in their FIRST turn so it references that detail in later replies (e.g. bhai ka exam).
     const firstUserTurn = recent.find((m) => m.role === "user")?.content ?? "";
@@ -808,6 +817,7 @@ export async function POST(req: Request) {
         ? "Recent user messages (last 3):\n" + recentUserBlock
         : "",
       "",
+      olderContextHint,
       "Full recent chat context (most recent at the end):",
       conversationText || "(No previous context; this is the first message.)",
       "",

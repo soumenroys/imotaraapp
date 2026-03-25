@@ -542,6 +542,30 @@ export async function POST(req: Request) {
       ? tonePersonaMap[body.tone] ?? ""
       : "";
 
+    // Dynamic story config — mythology vs quotes balance driven by companion tone
+    type StoryConfig = {
+      mythMinTurns: number;
+      mythArcRequired: "moderate" | "deep";
+      quoteFrequency: string;
+      quoteArcRequired: "any" | "moderate";
+    };
+    const storyConfigByTone: Record<string, StoryConfig> = {
+      close_friend:  { mythMinTurns: 5, mythArcRequired: "deep",     quoteFrequency: "1 in 4", quoteArcRequired: "any"      },
+      coach:         { mythMinTurns: 5, mythArcRequired: "deep",     quoteFrequency: "1 in 5", quoteArcRequired: "moderate" },
+      mentor:        { mythMinTurns: 3, mythArcRequired: "moderate", quoteFrequency: "1 in 7", quoteArcRequired: "moderate" },
+      calm_companion:{ mythMinTurns: 3, mythArcRequired: "moderate", quoteFrequency: "1 in 6", quoteArcRequired: "moderate" },
+    };
+    const storyConfig: StoryConfig = (body?.tone && storyConfigByTone[body.tone])
+      ? storyConfigByTone[body.tone]
+      : { mythMinTurns: 3, mythArcRequired: "moderate", quoteFrequency: "1 in 6", quoteArcRequired: "moderate" };
+
+    const mythArcText = storyConfig.mythArcRequired === "deep"
+      ? "sustained sadness, grief, anxiety, exhaustion, loneliness, or deep confusion"
+      : "genuine emotion — sadness, worry, loneliness, exhaustion, frustration, or confusion (moderate depth or more)";
+    const quoteArcText = storyConfig.quoteArcRequired === "any"
+      ? "emotional or reflective"
+      : "moderate-to-deep emotional or reflective";
+
     // Age context: adapt vocabulary and register to the user's life stage
     const userAgeHintMap: Record<string, string> = {
       under_13: "The user is a child (under 13). Use very simple, gentle, encouraging language. Avoid adult idioms.",
@@ -732,10 +756,10 @@ export async function POST(req: Request) {
       "No medical, diagnostic, or crisis instructions. If serious risk appears, encourage reaching out to trusted people/local services.",
       "",
       [
-        "MYTHOLOGY STORYTELLING (rare, only for deep emotional moments):",
+        "MYTHOLOGY STORYTELLING (rare, only for the right emotional moments):",
         "DEFAULT: Do NOT include mythology. Skip it unless all three conditions are met:",
-        "  1. The user has shared a genuinely heavy emotion — sustained sadness, grief, anxiety, exhaustion, loneliness, or deep confusion.",
-        "  2. The conversation has had at least 4 user turns.",
+        `  1. The user has shared ${mythArcText}.`,
+        `  2. The conversation has had at least ${storyConfig.mythMinTurns} user turns.`,
         "  3. The current message itself carries emotional weight — not casual chat, not humour, not a positive update.",
         "If the user is saying something upbeat, joking, or just chatting, ALWAYS skip mythology entirely.",
         "",
@@ -755,8 +779,7 @@ export async function POST(req: Request) {
         "HOW: Introduce it naturally — 'There's a story from the Mahabharata that comes to mind...' / 'Rumi wrote something that feels true here...' / 'A Zen story I keep thinking about...' / 'In Greek mythology...'",
         "KEEP IT BRIEF: 1–2 sentences max — the essence of the story and why it connects to their situation.",
         "LANGUAGE: Always share in the user's language. If the original story is from another language, translate naturally.",
-        "NEVER USE when: fewer than 4 user turns, the user is in crisis, asking a factual question, greeting, joking, sharing good news, or mentioning their cultural background/language/ethnicity — do NOT immediately reference cultural figures, poets, or literature just because a user says they are Bengali, Hindi-speaking, Tamil, etc.",
-        "TONE RESTRICTION: If tone is 'close_friend' — skip mythology entirely unless the arc.depth is deep (5+ turns of heavy emotion). A close friend does NOT reach for scripture; they stay peer-level and human.",
+        `NEVER USE when: fewer than ${storyConfig.mythMinTurns} user turns, the user is in crisis, asking a factual question, greeting, joking, sharing good news, or mentioning their cultural background/language/ethnicity — do NOT immediately reference cultural figures, poets, or literature just because a user says they are Bengali, Hindi-speaking, Tamil, etc.`,
         "TONE: Warm and human — like a friend who remembers a story. Never preachy or lecture-like.",
         "CRITICAL — QUOTE ACCURACY: NEVER attribute a quote, verse, or saying to any religious text, scripture, or religious figure (Krishna, Arjuna, Rumi, Buddha, Muhammad, Jesus, Torah, Quran, Gita, etc.) unless you are certain of the exact wording and canonical source. If you are not 100% certain a specific quote is real and verifiable, describe the STORY or CONCEPT from that tradition instead — do NOT invent or paraphrase as a direct quote. A fabricated quote attributed to a sacred figure is harmful and trust-breaking.",
         ...(uniqueMyths.length > 0
@@ -771,7 +794,7 @@ export async function POST(req: Request) {
         "HOW: Weave it naturally — 'A line I keep coming back to...' / 'Marcus Aurelius once wrote...' / 'There's a quote from Rumi that feels true here...' / 'Einstein put it beautifully:'",
         "FORMAT: Quote in quotation marks, followed by attribution — '\"[quote]\" — [Author]'.",
         "LANGUAGE: Translate or find an equivalent quote in the user's language if they write in Hindi, Arabic, French, etc. Attribute the author by name.",
-        "FREQUENCY: Roughly 1 in 8 emotional or reflective turns. Never on the same turn as a mythology story. Never forced.",
+        `FREQUENCY: Roughly ${storyConfig.quoteFrequency} ${quoteArcText} turns. Never on the same turn as a mythology story. Never forced.`,
         "NEVER USE when: the user is in crisis, light casual chat, greetings, direct factual questions, or when the user simply mentions their language/culture/ethnicity — a user saying 'I'm Bengali' or 'I speak Tamil' is NOT an invitation to quote Tagore or Thiruvalluvar.",
         "ACCURACY: Only use quotes you are certain are real, correctly worded, and correctly attributed. If uncertain, paraphrase the idea in your own words instead — do NOT invent a quote and attach a famous name to it.",
         "TONE: Like a friend who genuinely remembers a line — not a quotation database. Keep it short and connected to what they said.",
@@ -798,7 +821,7 @@ export async function POST(req: Request) {
     const maxTokens = isClosureIntent
       ? 80
       : arc.depth === "deep"
-        ? 380
+        ? 480
         : arc.depth === "moderate"
           ? 300
           : 260;

@@ -51,6 +51,10 @@ type ChatReplyRequest = {
   // ✅ Long-term emotional memory summary (client-side localStorage → injected by runRespondWithConsent)
   emotionMemory?: string;
 
+  // ✅ Companion name + user response style (from localStorage profile)
+  companionName?: string;
+  responseStyle?: "comfort" | "reflect" | "motivate" | "advise";
+
   // compat: some callers may send a single text field
   text?: string;
   message?: string;
@@ -553,6 +557,22 @@ export async function POST(req: Request) {
       ? (userAgeHintMap[body.userAge] ?? "")
       : "";
 
+    // Companion name: let the AI know what name the user has given their companion
+    const companionNameHint = body?.companionName
+      ? `Your name in this conversation is "${body.companionName}". If the user addresses you by this name, respond naturally. You may refer to yourself as "${body.companionName}" very occasionally — keep it rare and only when it feels natural.`
+      : "";
+
+    // Response style: user's preferred interaction mode
+    const responseStyleMap: Record<string, string> = {
+      comfort:  "RESPONSE STYLE PREFERENCE: This user prefers comfort and emotional support. Prioritise warmth, validation, and presence. Avoid jumping to advice or problem-solving unless they explicitly ask.",
+      reflect:  "RESPONSE STYLE PREFERENCE: This user prefers reflective responses. Gently help them surface and explore their feelings. One thoughtful question is welcome when it genuinely opens something new.",
+      motivate: "RESPONSE STYLE PREFERENCE: This user prefers motivational responses. Be encouraging, forward-looking, and energy-giving. Help them find the next small step. Match their goal-oriented energy.",
+      advise:   "RESPONSE STYLE PREFERENCE: This user prefers practical, direct advice. Be concrete and solution-focused when appropriate. Skip excessive emotional processing — get to what they can actually do.",
+    };
+    const responseStyleHint = body?.responseStyle
+      ? (responseStyleMap[body.responseStyle] ?? "")
+      : "";
+
     // Language-specific age overrides (address forms, register markers that vary by language)
     const langAgeOverrides: Record<string, Record<string, string>> = {
       bn: {
@@ -696,7 +716,9 @@ export async function POST(req: Request) {
       langAgeOverride,
       emotionMemoryHint,
       companionPersonaHint,
+      companionNameHint,
       userAgeHint,
+      responseStyleHint,
       casualChatRule,
       lengthInstruction,
       "Do NOT sound generic. Never repeat the same opener style across turns — 'I'm with you / I'm here / I hear you' should not appear more than once per conversation. Instead open with something that reflects what the user specifically said: name the emotion, reference the situation, or mirror their energy.",

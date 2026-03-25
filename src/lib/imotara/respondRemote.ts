@@ -94,8 +94,8 @@ export async function respondRemote(input: {
 
     // Map companion relationship → tone for /api/chat-reply
     const toneCtx = ctx.toneContext as {
-        companion?: { relationship?: string; ageRange?: string };
-        user?: { ageRange?: string };
+        companion?: { relationship?: string; ageRange?: string; name?: string; gender?: string };
+        user?: { ageRange?: string; gender?: string; responseStyle?: string };
     } | undefined;
     const relationship = toneCtx?.companion?.relationship;
     const toneMap: Record<string, "close_friend" | "calm_companion" | "coach" | "mentor"> = {
@@ -121,12 +121,17 @@ export async function respondRemote(input: {
     const userGender = ctxTone?.user?.gender;
     const companionGender = ctxTone?.companion?.gender;
 
+    const companionName = toneCtx?.companion?.name?.trim() || undefined;
+    const responseStyle = toneCtx?.user?.responseStyle || undefined;
+
     const chatReplyBody = JSON.stringify({
         messages,
         lang,
         ...(tone ? { tone } : {}),
         ...(toneCtx?.user?.ageRange ? { userAge: toneCtx.user.ageRange } : {}),
         ...(toneCtx?.companion?.ageRange ? { companionAge: toneCtx.companion.ageRange } : {}),
+        ...(companionName ? { companionName } : {}),
+        ...(responseStyle ? { responseStyle } : {}),
         ...(typeof ctx.emotionMemory === "string" && ctx.emotionMemory ? { emotionMemory: ctx.emotionMemory } : {}),
         ...(userGender && userGender !== "prefer_not" && userGender !== "other" ? { userGender } : {}),
         ...(companionGender && companionGender !== "prefer_not" && companionGender !== "other" ? { companionGender } : {}),

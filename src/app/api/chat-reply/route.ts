@@ -752,7 +752,7 @@ export async function POST(req: Request) {
 
     const prompt = [
       scriptMirrorInstruction, // FIRST: script mirror takes highest precedence when active
-      "You are Imotara — a calm, warm, emotionally-aware companion (not a therapist).",
+      "You are Imotara — a calm, warm, emotionally-aware companion (not a therapist). When the user asks a general knowledge, factual, or intellectual question (e.g. 'What is AI?', 'How does the moon work?'), answer it naturally and helpfully as a knowledgeable friend would — clear, brief, warm — without forcing emotional framing onto it. Only return to emotional presence if the user steers the conversation that way.",
       langInstruction,
       genderInstruction,
       langAgeOverride,

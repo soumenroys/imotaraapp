@@ -66,6 +66,54 @@ function detectLangFromMessage(text: string): string {
     return detectLangFromRomanHints(text);
 }
 
+/** Detects explicit language-switch intent in a message.
+ *  Only fires when a clear switch verb is present alongside a language name —
+ *  bare language mentions ("I love Arabic poetry") will NOT match.
+ *  Returns the ISO code if found, otherwise null. */
+function detectExplicitLangRequest(text: string): string | null {
+    if (!text) return null;
+    const t = text.toLowerCase().trim();
+
+    // Intent verbs that signal the user wants to switch language
+    const intentVerb = /\b(speak|talk|reply|write|respond|use|switch|change|try|chat|communicate|answer|converse)\b/;
+    // Preposition patterns: "in X", "to X", "using X", "with X"
+    const prep = /\b(in|to|using|with|into)\b/;
+    // Combined: verb ... lang  OR  (in|to) ... lang
+    const hasIntent = intentVerb.test(t) || prep.test(t);
+
+    // Language name → ISO code. Each entry is [regex-pattern, iso-code].
+    // Patterns use word boundaries to avoid partial matches.
+    const langPatterns: [RegExp, string][] = [
+        [/\benglish\b/,    "en"],
+        [/\bhindi\b/,      "hi"],
+        [/\bbengali\b|\bbangla\b/, "bn"],
+        [/\bmarathi\b/,    "mr"],
+        [/\btamil\b/,      "ta"],
+        [/\btelugu\b/,     "te"],
+        [/\bgujarati\b/,   "gu"],
+        [/\bkannada\b/,    "kn"],
+        [/\bmalayalam\b/,  "ml"],
+        [/\bpunjabi\b/,    "pa"],
+        [/\bodia\b|\boriya\b/, "or"],
+        [/\barabic\b/,     "ar"],
+        [/\burdu\b/,       "ur"],
+        [/\brussian\b/,    "ru"],
+        [/\bchinese\b|\bmandarin\b/, "zh"],
+        [/\bjapanese\b/,   "ja"],
+        [/\bspanish\b/,    "es"],
+        [/\bfrench\b/,     "fr"],
+        [/\bgerman\b/,     "de"],
+        [/\bportuguese\b/, "pt"],
+    ];
+
+    if (!hasIntent) return null;
+
+    for (const [pattern, code] of langPatterns) {
+        if (pattern.test(t)) return code;
+    }
+    return null;
+}
+
 export async function respondRemote(input: {
     message: string;
     context?: unknown;
@@ -109,12 +157,14 @@ export async function respondRemote(input: {
     const tone = relationship ? (toneMap[relationship] ?? undefined) : undefined;
 
     // ── AI path: try /api/chat-reply (OpenAI) first ──────────────────────────
-    // Detect language: profile preference wins, then script detection, then Roman hints
+    // Lang priority: explicit switch request > script/Roman detection > profile preference > "en"
+    // Explicit wins so the user can override a locked profile language mid-conversation.
+    const explicitLang = detectExplicitLangRequest(input.message);
     const detectedLang = detectLangFromMessage(input.message);
     const profileLang = typeof (ctx as Record<string, unknown>).preferredLang === "string"
         ? (ctx as Record<string, unknown>).preferredLang as string
         : undefined;
-    const lang = profileLang || detectedLang;
+    const lang = explicitLang || (detectedLang !== "en" ? detectedLang : (profileLang || "en"));
 
     // Gender: read from toneContext if provided
     const ctxTone = ctx.toneContext as { user?: { gender?: string }; companion?: { gender?: string } } | undefined;

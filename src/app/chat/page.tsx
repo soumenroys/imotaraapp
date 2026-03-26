@@ -1573,6 +1573,30 @@ export default function ChatPage() {
     });
   }, [analysis, activeThread?.messages]);
 
+  // Cross-thread context: compact breadcrumb of what the user talked about in past threads.
+  // Zero latency — built from localStorage thread titles + last user messages, no LLM.
+  // Keeps the AI aware of long-term topics without sending full past conversations.
+  function buildCrossThreadContext(): string {
+    const pastThreads = threads
+      .filter((t) => t.id !== activeId && t.messages.length > 0)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 5);
+    if (pastThreads.length === 0) return "";
+    const lines = pastThreads.map((t) => {
+      const daysAgo = Math.round((Date.now() - t.createdAt) / (1000 * 60 * 60 * 24));
+      const when = daysAgo === 0 ? "today" : daysAgo === 1 ? "yesterday" : `${daysAgo}d ago`;
+      const lastUserMsgs = t.messages
+        .filter((m) => m.role === "user")
+        .slice(-2)
+        .map((m) => String(m.content).slice(0, 100).trim())
+        .filter(Boolean)
+        .join(" / ");
+      const title = (t.title || "").slice(0, 40);
+      return `• [${when}] ${title}${lastUserMsgs ? ` — ${lastUserMsgs}` : ""}`;
+    });
+    return lines.join("\n");
+  }
+
   // Assistant reply generator
   async function generateAssistantReply(
     threadId: string,
@@ -1672,6 +1696,9 @@ export default function ChatPage() {
                   .filter(Boolean)
                   .join(" | "),
               } : {}),
+
+              // Cross-thread memory: compact summary of past conversation threads
+              ...((() => { const c = buildCrossThreadContext(); return c ? { crossThreadContext: c } : {}; })()),
             } as any,
             (partial) => setStreamingReply(partial),
           );

@@ -58,6 +58,9 @@ type ChatReplyRequest = {
   // ✅ Rolling context: compact breadcrumb of user messages older than the 12-turn window
   olderContext?: string;
 
+  // ✅ Cross-thread memory: compact summary of past conversation threads (titles + last user messages)
+  crossThreadContext?: string;
+
   // compat: some callers may send a single text field
   text?: string;
   message?: string;
@@ -722,6 +725,12 @@ export async function POST(req: Request) {
         ? `Earlier in this conversation the user mentioned (for your context — weave in naturally only if relevant, do not force-reference):\n${body.olderContext.trim()}`
         : "";
 
+    // Cross-thread memory: what the user talked about in past conversation threads
+    const crossThreadContextHint =
+      typeof body?.crossThreadContext === "string" && body.crossThreadContext.trim()
+        ? `The user has had these past conversations with you (titles + recent messages — use only to show continuity, never force-reference):\n${body.crossThreadContext.trim()}`
+        : "";
+
     // Context anchor: when this is a multi-turn conversation, remind the AI of what the user
     // shared in their FIRST turn so it references that detail in later replies (e.g. bhai ka exam).
     const firstUserTurn = recent.find((m) => m.role === "user")?.content ?? "";
@@ -817,6 +826,7 @@ export async function POST(req: Request) {
         ? "Recent user messages (last 3):\n" + recentUserBlock
         : "",
       "",
+      crossThreadContextHint,
       olderContextHint,
       "Full recent chat context (most recent at the end):",
       conversationText || "(No previous context; this is the first message.)",

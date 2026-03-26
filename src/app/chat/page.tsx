@@ -29,6 +29,7 @@ import {
   Check as CheckIcon,
   Volume2,
   VolumeX,
+  Pencil,
 } from "lucide-react";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
 import BreathingWidget from "@/components/imotara/BreathingWidget";
@@ -852,6 +853,8 @@ export default function ChatPage() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [streamingReply, setStreamingReply] = useState<string>("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   // ✅ NEW: header details toggle (collapses long header content by default)
   const [showHeaderDetails, setShowHeaderDetails] = useState(false);
@@ -2185,11 +2188,11 @@ export default function ChatPage() {
                     key={t.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setActiveId(t.id)}
+                    onClick={() => { if (renamingId !== t.id) setActiveId(t.id); }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        setActiveId(t.id);
+                        if (renamingId !== t.id) setActiveId(t.id);
                       }
                     }}
                     className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isActive
@@ -2197,34 +2200,73 @@ export default function ChatPage() {
                       : "hover:bg-white/5 hover:-translate-y-0.5 hover:shadow-sm duration-150"
                       }`}
                   >
-                    <div className="min-w-0">
-                      {/* Conversation title */}
-                      <p
-                        className={`truncate text-sm font-medium ${isActive ? "text-zinc-50" : "text-zinc-100"
-                          }`}
-                        title={t.title}
-                      >
-                        {t.title || "Conversation"}
-                      </p>
+                    <div className="min-w-0 flex-1">
+                      {/* Conversation title — inline editable */}
+                      {renamingId === t.id ? (
+                        <input
+                          autoFocus
+                          className="w-full rounded-md bg-white/10 px-1.5 py-0.5 text-sm font-medium text-zinc-50 outline-none ring-1 ring-indigo-400/60 focus:ring-indigo-400"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              const trimmed = renameValue.trim();
+                              if (trimmed) renameActive(trimmed);
+                              setRenamingId(null);
+                            } else if (e.key === "Escape") {
+                              setRenamingId(null);
+                            }
+                          }}
+                          onBlur={() => {
+                            const trimmed = renameValue.trim();
+                            if (trimmed) renameActive(trimmed);
+                            setRenamingId(null);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          maxLength={60}
+                        />
+                      ) : (
+                        <p
+                          className={`truncate text-sm font-medium ${isActive ? "text-zinc-50" : "text-zinc-100"}`}
+                          title={t.title}
+                        >
+                          {t.title || "Conversation"}
+                        </p>
+                      )}
 
-                      {/* Meta row: date + (optional) small mode badge */}
+                      {/* Meta row: date */}
                       <div className="mt-0.5 flex items-center gap-2">
                         <p className="line-clamp-1 text-xs text-zinc-500">
                           <DateText ts={t.createdAt} />
                         </p>
                       </div>
                     </div>
-                    <button
-                      className="ml-2 hidden rounded-lg p-1 text-zinc-400 hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-sm transition duration-150 group-hover:block"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteThread(t.id);
-                      }}
-                      aria-label="Delete"
-                      title="Delete"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="ml-2 hidden shrink-0 items-center gap-0.5 group-hover:flex">
+                      <button
+                        className="rounded-lg p-1 text-zinc-400 hover:bg-white/10 transition duration-150"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRenamingId(t.id);
+                          setRenameValue(t.title || "");
+                        }}
+                        aria-label="Rename"
+                        title="Rename"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        className="rounded-lg p-1 text-zinc-400 hover:bg-white/10 transition duration-150"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteThread(t.id);
+                        }}
+                        aria-label="Delete"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 );
               })

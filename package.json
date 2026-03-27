@@ -82,7 +82,7 @@
     "donation:check": "node -e \"fetch('http://localhost:3000/api/payments/donation-intent',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({presetId:'inr_99',purpose:'imotara_donation',platform:'web'})}).then(r=>r.json()).then(j=>{console.log(j); if(!j.ok) process.exit(1);}).catch(e=>{console.error(e); process.exit(1);});\""
   },
   "engines": {
-    "node": ">=20"
+    "node": "20.x"
   },
   "dependencies": {
     "@auth/supabase-adapter": "^1.11.1",

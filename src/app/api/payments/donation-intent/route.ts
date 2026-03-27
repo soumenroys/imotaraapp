@@ -2,10 +2,15 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "";
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "";
-const DONATION_ENABLED =
-    (process.env.IMOTARA_DONATION_ENABLED || "").toLowerCase() === "true";
+// Read at runtime inside handler — do NOT hoist to module level
+// (Next.js webpack may inline module-level process.env at build time)
+function getRuntimeConfig() {
+    return {
+        RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || "",
+        RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || "",
+        DONATION_ENABLED: (process.env.IMOTARA_DONATION_ENABLED || "").toLowerCase() === "true",
+    };
+}
 
 type Body = {
     presetId: "inr_49" | "inr_99" | "inr_199" | "inr_499" | "inr_999";
@@ -13,13 +18,15 @@ type Body = {
     platform?: "mobile" | "web";
 };
 
-function assertEnv() {
-    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-        throw new Error("Missing Razorpay keys in environment.");
-    }
-}
-
 export async function POST(req: Request) {
+    const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, DONATION_ENABLED } = getRuntimeConfig();
+
+    function assertEnv() {
+        if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+            throw new Error("Missing Razorpay keys in environment.");
+        }
+    }
+
     try {
         if (!DONATION_ENABLED) {
             return NextResponse.json(

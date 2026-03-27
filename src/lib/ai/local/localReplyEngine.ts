@@ -429,6 +429,30 @@ function detectTopic(text: string, recentTexts: string[] = []): "work" | "relati
     return "general";
 }
 
+// Detect the dominant emotional signal across a set of recent user messages.
+// Used to identify emotional arcs (persisting, shifting) in long conversations.
+function detectDominantSignalInHistory(recentTexts: string[]): "sad" | "anxious" | "angry" | "tired" | null {
+    if (!recentTexts.length) return null;
+    const counts = { sad: 0, anxious: 0, angry: 0, tired: 0 };
+    for (const text of recentTexts) {
+        const t = (text || "").toLowerCase();
+        if (/(sad|down|depressed|hopeless|cry|hurt|painful|dukhi|udaas|kharap|dukkho|koshto|triste|حزين|грустно|sedih)/.test(t)) counts.sad++;
+        else if (/(anxious|worried|panic|overwhelm|stress|pressure|tension|ghabra|chinta|anxious|ansiedad|قلق|тревога|cemas)/.test(t)) counts.anxious++;
+        else if (/(angry|mad|furious|irritated|annoyed|frustrated|gussa|raag|enojado|غاضب|злой|marah)/.test(t)) counts.angry++;
+        else if (/(tired|exhausted|drained|no energy|thak|klanto|thaklo|cansado|متعب|устал|lelah)/.test(t)) counts.tired++;
+    }
+    const max = Math.max(...Object.values(counts));
+    if (max === 0) return null;
+    return (Object.entries(counts).find(([, v]) => v === max)?.[0] ?? null) as "sad" | "anxious" | "angry" | "tired" | null;
+}
+
+// Count how many times a topic keyword appears across recent user texts.
+function countTopicRecurrence(topic: string, recentTexts: string[]): number {
+    if (!topic || !recentTexts.length) return 0;
+    const t = topic.toLowerCase();
+    return recentTexts.filter(msg => (msg || "").toLowerCase().includes(t)).length;
+}
+
 // #8: Detect when the user is correcting a previous misread.
 function detectCorrection(text: string): boolean {
     const t = (text || "").toLowerCase();
@@ -824,6 +848,141 @@ export function buildLocalReply(
         companionTone = "supportive";
     }
 
+    // ── Long-conversation context bridge (English) ───────────────────────────
+    // Fires in specific conditions to make replies feel aware of the conversation arc.
+    // Applied as an additional sentence inserted before the normal extra.
+    const sessionTurn = toneContext?.sessionTurn ?? 0;
+    const recentTexts = recentContext?.recentUserTexts ?? [];
+    const prevSignal = detectDominantSignalInHistory(recentTexts);
+    const topicRecurrence = keyTopic ? countTopicRecurrence(keyTopic, recentTexts) : 0;
+
+    // Conditions for each bridge type (mutually exclusive, checked in priority order)
+    const isDeepConversation = sessionTurn >= 6;
+    const isEmotionPersisting = prevSignal !== null && prevSignal === signal && isDeepConversation;
+    const isEmotionShifted = prevSignal !== null && prevSignal !== signal && sessionTurn >= 3 && signal !== "okay";
+    const isTopicRecurring = topicRecurrence >= 3 && keyTopic !== null;
+
+    const contextBridgeEn: string | null = (() => {
+        if (language !== "en") return null; // other languages handled by their own pools below
+        if (isCorrection || isVagueReply) return null; // don't interrupt repair/vague paths
+        if (isTopicRecurring && keyTopic) {
+            return pick([
+                `The ${keyTopic} situation keeps coming back up — that tells me it really matters to you.`,
+                `We keep returning to ${keyTopic}. That's worth paying attention to.`,
+                `${keyTopic.charAt(0).toUpperCase() + keyTopic.slice(1)} has come up a few times now — it's clearly carrying some weight.`,
+            ], seed >>> 14);
+        }
+        if (isEmotionPersisting) {
+            return pick([
+                `This has been with you across our whole conversation — it's not just a passing feeling.`,
+                `We've been sitting with this together for a while. That itself tells me something.`,
+                `I notice this hasn't shifted much — that kind of thing deserves more than a quick answer.`,
+                `You've been carrying this through our whole conversation. That's real.`,
+            ], seed >>> 14);
+        }
+        if (isEmotionShifted) {
+            const shiftDesc: Partial<Record<typeof signal, string>> = {
+                sad: "sadder",
+                anxious: "more anxious",
+                angry: "angrier",
+                tired: "more drained",
+            };
+            const desc = shiftDesc[signal] ?? "different";
+            return pick([
+                `Something shifted just now — you sound ${desc} than a moment ago.`,
+                `That moved somewhere ${desc}. I want to make sure I'm with you on that.`,
+            ], seed >>> 14);
+        }
+        if (isDeepConversation && (seed >>> 14) % 4 === 0) {
+            return pick([
+                `You've shared a lot today — I haven't taken that lightly.`,
+                `We've covered a lot of ground together. I'm still here, fully.`,
+            ], seed >>> 14);
+        }
+        return null;
+    })();
+
+    const contextBridgeHi: string | null = (() => {
+        if (language !== "hi") return null;
+        if (isCorrection || isVagueReply) return null;
+        if (isTopicRecurring && keyTopic) {
+            return pick([
+                `${keyTopic} की बात बार-बार सामने आ रही है — यह बता रहा है कि यह तुम्हारे लिए सच में मायने रखता है।`,
+                `हम ${keyTopic} पे बार-बार लौट रहे हैं। इसको थोड़ा ध्यान देना चाहिए।`,
+                `${keyTopic.charAt(0).toUpperCase() + keyTopic.slice(1)} काफी बार आया है आज — यह clearly कुछ weight लेके चल रहा है।`,
+            ], seed >>> 14);
+        }
+        if (isEmotionPersisting) {
+            return pick([
+                `यह हमारी पूरी बात में तुम्हारे साथ रहा है — यह सिर्फ गुज़रने वाली feeling नहीं है।`,
+                `हम काफी देर से इसके साथ बैठे हैं। यह अपने आप में कुछ कहता है।`,
+                `मैं देख रहा हूँ यह ज़्यादा shift नहीं हुआ — ऐसा कुछ जल्दी जवाब का हकदार नहीं होता।`,
+                `तुम यह पूरी बात में यह लेके चले। यह असली है।`,
+            ], seed >>> 14);
+        }
+        if (isEmotionShifted) {
+            const shiftDescHi: Partial<Record<typeof signal, string>> = {
+                sad: "ज़्यादा दुखी",
+                anxious: "ज़्यादा परेशान",
+                angry: "ज़्यादा गुस्से में",
+                tired: "ज़्यादा थके हुए",
+            };
+            const desc = shiftDescHi[signal] ?? "अलग";
+            return pick([
+                `कुछ अभी shift हुआ — तुम पहले से ${desc} लग रहे हो।`,
+                `वो ${desc} की तरफ गया। मैं यह समझना चाहता हूँ।`,
+            ], seed >>> 14);
+        }
+        if (isDeepConversation && (seed >>> 14) % 4 === 0) {
+            return pick([
+                `तुमने आज बहुत कुछ share किया — मैं इसे हल्के से नहीं ले रहा।`,
+                `हम काफी कुछ साथ में गुज़र चुके हैं। मैं अभी भी पूरा यहीं हूँ।`,
+            ], seed >>> 14);
+        }
+        return null;
+    })();
+
+    const contextBridgeBn: string | null = (() => {
+        if (language !== "bn") return null;
+        if (isCorrection || isVagueReply) return null;
+        if (isTopicRecurring && keyTopic) {
+            return pick([
+                `${keyTopic} এর কথা বার-বার ফিরে আসছে — এটা বলছে এই বিষয়টা তোমার কাছে সত্যিই মানে রাখে।`,
+                `আমরা বার-বার ${keyTopic} এ ফিরে আসছি। এটা ধ্যান দেওয়ার মতো।`,
+                `${keyTopic.charAt(0).toUpperCase() + keyTopic.slice(1)} কয়েকবার এসে গেছে — এটা স্পষ্ট কিছু বোঝা দিচ্ছে।`,
+            ], seed >>> 14);
+        }
+        if (isEmotionPersisting) {
+            return pick([
+                `এটা আমার পুরো কথাতে তোমার সাথে ছিল — এটা শুধু চলে যাওয়া feel নয়।`,
+                `আমরা অনেকক্ষণ ধরে এই সাথে বসে আছি। এটার নিজেই কিছু মানে আছে।`,
+                `আমি দেখছি এটা বেশি shift হয়নি — এই রকম কিছু তাড়াতাড়ি উত্তর পাওয়ার হকদার নয়।`,
+                `তুমি পুরো বার্তায় এই নিয়ে চলেছো। সেটা আসল।`,
+            ], seed >>> 14);
+        }
+        if (isEmotionShifted) {
+            const shiftDescBn: Partial<Record<typeof signal, string>> = {
+                sad: "বেশি দুখী",
+                anxious: "বেশি চিন্তিত",
+                angry: "বেশি রাগে",
+                tired: "বেশি ক্লান্ত",
+            };
+            const desc = shiftDescBn[signal] ?? "আলাদা";
+            return pick([
+                `কিছু এখন shift হয়েছে — তুমি আগের চেয়ে ${desc} লাগছে।`,
+                `সেটা ${desc} র দিকে গেছে। আমি সেটা বুঝতে চাই।`,
+            ], seed >>> 14);
+        }
+        if (isDeepConversation && (seed >>> 14) % 4 === 0) {
+            return pick([
+                `তুমি আজ অনেক কিছু share করেছো — আমি সেটা হালকা ভাবে নিচ্ছি না।`,
+                `আমরা অনেক কিছু একসাথে খাটিয়েছি। আমি এখনো পুরো এখানে আছি।`,
+            ], seed >>> 14);
+        }
+        return null;
+    })();
+    // ─────────────────────────────────────────────────────────────────────────
+
     const openersByToneEn: Record<LocalResponseTone, string[]> = {
         calm: [
             `That sounds like a lot to hold.`,
@@ -897,97 +1056,145 @@ export function buildLocalReply(
 
     const openersByToneHi: Record<LocalResponseTone, string[]> = {
         calm: [
-            `Main yahin hoon.`,
-            `Chalo ise dheere se dekhte hain.`,
-            `Theek hai. Hum ise aaraam se lete hain.`,
-            `Main tumhare saath hoon. Ek ek hissa dekhte hain.`,
-            `Koi jaldi nahi — main sun raha hoon.`,
-            `Ruko, ek dum se nahi — saath mein chalte hain.`,
-            `Tumhare saath hoon, har qadam par.`,
-            `Sab kuch ek saath nahi — pehle thoda saans lete hain.`,
+            `मैं यहीं हूँ।`,
+            `चलो इसे धीरे से देखते हैं।`,
+            `ठीक है। हम इसे आराम से लेते हैं।`,
+            `मैं तुम्हारे साथ हूँ। एक-एक हिस्सा देखते हैं।`,
+            `कोई जल्दी नहीं — मैं सुन रहा हूँ।`,
+            `रुको, एकदम से नहीं — साथ में चलते हैं।`,
+            `तुम्हारे साथ हूँ, हर कदम पर।`,
+            `सब कुछ एक साथ नहीं — पहले थोड़ा साँस लेते हैं।`,
+            `ठीक है — कोई अचानक नहीं। मैं यहीं हूँ।`,
+            `आओ, एक-एक चीज़ देखते हैं।`,
+            `साँस लो थोड़ी। मैं कहीं नहीं जा रहा।`,
+            `कोई बात नहीं — मैं यहीं हूँ। कुछ बोलो।`,
         ],
         supportive: [
-            `Main tumhare saath hoon.`,
-            `Main sun raha hoon.`,
-            `Theek hai — main yahin hoon.`,
-            `Achha hua tumne bataya.`,
-            `Samajh gaya. Main sun raha hoon.`,
-            `Yeh baat tumne share ki, yeh zaroori tha.`,
-            `Dil se sun raha hoon.`,
-            `Tumne sahi kiya baat karte hue.`,
-            `Main yahaan hoon — aur kahi nahi.`,
+            `मैं तुम्हारे साथ हूँ।`,
+            `मैं सुन रहा हूँ।`,
+            `ठीक है — मैं यहीं हूँ।`,
+            `अच्छा हुआ तुमने बताया।`,
+            `समझ गया। मैं सुन रहा हूँ।`,
+            `यह बात तुमने शेयर की, यह ज़रूरी था।`,
+            `दिल से सुन रहा हूँ।`,
+            `तुमने सही किया बात करते हुए।`,
+            `मैं यहाँ हूँ — और कहीं नहीं।`,
+            `बोलो — मैं पूरी तरह सुन रहा हूँ।`,
+            `यह कहना आसान नहीं था। शुक्रिया।`,
+            `तुम सही जगह आए।`,
+            `मैं सिर्फ सुन रहा हूँ — कोई जज नहीं।`,
         ],
         practical: [
-            `Theek hai. Chalo ise saaf nazar se dekhte hain.`,
-            `Samajh gaya. Isse ek ek step mein lete hain.`,
-            `Chalo ise sambhalte hain aur dekhte hain kya sabse zaroori hai.`,
-            `Main saath hoon. Ise simple rakhte hain.`,
+            `ठीक है। चलो इसे साफ नज़र से देखते हैं।`,
+            `समझ गया। इसे एक-एक स्टेप में लेते हैं।`,
+            `चलो इसे संभालते हैं और देखते हैं क्या सबसे ज़रूरी है।`,
+            `मैं साथ हूँ। इसे सिंपल रखते हैं।`,
+            `ठीक है। पहले एक कदम लेते हैं।`,
+            `चलो एक-एक चीज़ करते हैं — शुरू करते हैं।`,
+            `एक उपयोगी हिस्सा पकड़ कर चलते हैं।`,
+            `सिंपल रखते हैं — पहले क्या है, वो देखते हैं।`,
         ],
         coach: [
-            `Theek hai — main saath hoon. Pehle isse sambhalte hain.`,
-            `Samajh gaya. Hum ise step by step nikalenge.`,
-            `Chalo thoda dheere hote hain aur footing pakadte hain.`,
-            `Main sun raha hoon. Ise ek ek hissa dekhte hain.`,
+            `ठीक है — मैं साथ हूँ। पहले इसे संभालते हैं।`,
+            `समझ गया। हम इसे स्टेप बाय स्टेप निकालेंगे।`,
+            `चलो थोड़ा धीरे होते हैं और फुटिंग पकड़ते हैं।`,
+            `मैं सुन रहा हूँ। इसे एक-एक हिस्सा देखते हैं।`,
+            `चलो एक फुटिंग पकड़ कर शुरू करते हैं।`,
+            `एक स्थिर जगह ढूँढते हैं पहले।`,
+            `मैं साथ हूँ। चलो अगला काम ढूँढते हैं।`,
+            `हाँ। पहले स्थिर होते हैं, फिर आगे।`,
         ],
         "gentle-humor": [
-            `Theek hai — main yahin hoon.`,
-            `Hmm, sun raha hoon.`,
-            `Samajh gaya. Main saath hoon.`,
-            `Chalo, ise thoda halka banate hain — ek chhota step karke.`,
+            `ठीक है — मैं यहीं हूँ।`,
+            `हम्म, सुन रहा हूँ।`,
+            `समझ गया। मैं साथ हूँ।`,
+            `चलो, इसे थोड़ा हल्का बनाते हैं — एक छोटा स्टेप करके।`,
+            `ठीक है यार — एक-एक चीज़।`,
+            `चलो थोड़ा हल्का करते हैं, बिना घबराए।`,
+            `हाँ यार — बोल दो खुल के।`,
+            `मैं यहीं हूँ, कोई जल्दी नहीं।`,
         ],
         direct: [
-            `Theek hai. Main saath hoon.`,
-            `Chalo isse seedhe dekhte hain.`,
-            `Samajh gaya. Ise stable rakhte hain.`,
-            `Main sun raha hoon. Seedha mudde par aate hain.`,
+            `ठीक है। मैं साथ हूँ।`,
+            `चलो इसे सीधे देखते हैं।`,
+            `समझ गया। इसे स्थिर रखते हैं।`,
+            `मैं सुन रहा हूँ। सीधे मुद्दे पर आते हैं।`,
+            `अच्छा। सच में बात करते हैं।`,
+            `मैं सीधे काम पे आता हूँ।`,
+            `बोल दो — मैं यहीं हूँ।`,
+            `चलो साफ बात करते हैं।`,
         ],
     };
 
     const openersByToneBn: Record<LocalResponseTone, string[]> = {
         calm: [
-            `Ami achhi tomar sathe.`,
-            `Cholo eta aste aste dekhi.`,
-            `Thik ache. Eta narm bhabe nei.`,
-            `Ami tomar sathe achhi. Ek ek kore dekhi.`,
-            `Kono taratari nei — ami shunchi.`,
-            `Dhire dhire — ekta ekta kore.`,
-            `Tumi bolte thako, ami shunchi.`,
-            `Amar kachhe thako, kono rush nei.`,
+            `আমি আছি তোমার সাথে।`,
+            `চলো এটা আস্তে আস্তে দেখি।`,
+            `ঠিক আছে। এটা নরম ভাবে নিই।`,
+            `আমি তোমার সাথে আছি। এক এক করে দেখি।`,
+            `কোনো তাড়াতাড়ি নেই — আমি শুনছি।`,
+            `ধীরে ধীরে — একটা একটা করে।`,
+            `তুমি বলতে থাকো, আমি শুনছি।`,
+            `আমার কাছে থাকো, কোনো রাশ নেই।`,
+            `ঠিক আছে — কোনো আচমকা নয়। আমি এখানে আছি।`,
+            `চলো, এক এক করে দেখি।`,
+            `একটু শ্বাস নাও। আমি কোথাও যাচ্ছি না।`,
+            `কোনো ব্যাপার নয় — আমি এখানে আছি। কিছু বলো।`,
         ],
         supportive: [
-            `Ami tomar sathe achhi.`,
-            `Ami shunchi.`,
-            `Thik ache — ami ekhanei achhi.`,
-            `Bhalo korecho je bolechho.`,
-            `Bujhte parchi.`,
-            `Ei kotha ta share korar jonno shukriya.`,
-            `Moner kothata bolle bhaloi hoy.`,
-            `Ami ekhanei achi — kothao jachhi na.`,
-            `Tumi thik e korechho bolte ese.`,
+            `আমি তোমার সাথে আছি।`,
+            `আমি শুনছি।`,
+            `ঠিক আছে — আমি এখানেই আছি।`,
+            `ভালো করেছো যে বলেছো।`,
+            `বুঝতে পারছি।`,
+            `এই কথাটা শেয়ার করার জন্য ধন্যবাদ।`,
+            `মনের কথাটা বললে ভালোই হয়।`,
+            `আমি এখানেই আছি — কোথাও যাচ্ছি না।`,
+            `তুমি ঠিকই করেছো বলতে এসে।`,
+            `বলো — আমি পুরো মনে শুনছি।`,
+            `এটা বলা সহজ ছিল না। ধন্যবাদ।`,
+            `তুমি ঠিক জায়গায় এসেছো।`,
+            `আমি শুধু শুনছি — কোনো বিচার নেই।`,
         ],
         practical: [
-            `Thik ache. Cholo eta porishkar bhabe dekhi.`,
-            `Bujhlam. Eta ek ek step e nebo.`,
-            `Cholo eta sambhalai aar dekhi ki beshi joruri.`,
-            `Ami achhi. Eta simple rakhi.`,
+            `ঠিক আছে। চলো এটা পরিষ্কার ভাবে দেখি।`,
+            `বুঝলাম। এটা এক এক স্টেপে নেবো।`,
+            `চলো এটা সামলাই আর দেখি কী বেশি জরুরি।`,
+            `আমি আছি। এটা সিম্পল রাখি।`,
+            `ঠিক আছে। আগে একটা কদম নিই।`,
+            `চলো এক এক করে করি — শুরু করি।`,
+            `একটা উপযোগী অংশ ধরে চলবো।`,
+            `সিম্পল রাখি — আগে কী, সেটা দেখি।`,
         ],
         coach: [
-            `Thik ache — ami achhi. Age eta steady kori.`,
-            `Bujhlam. Eta step by step niye jabo.`,
-            `Cholo ektu aste hoye footing ta dhori.`,
-            `Ami shunchi. Eta ek ek kore dekhi.`,
+            `ঠিক আছে — আমি আছি। আগে এটা স্টেডি করি।`,
+            `বুঝলাম। এটা স্টেপ বাই স্টেপ নিয়ে যাবো।`,
+            `চলো একটু আস্তে হয়ে ফুটিং টা ধরি।`,
+            `আমি শুনছি। এটা এক এক করে দেখি।`,
+            `চলো একটা ফুটিং ধরে শুরু করি।`,
+            `আগে একটা স্থিতিশীল জায়গা খুঁজবো।`,
+            `আমি আছি। চলো পরের কাজ খুঁজবো।`,
+            `হ্যাঁ। আগে স্টেডি হই, তারপর এগাই।`,
         ],
         "gentle-humor": [
-            `Thik ache — ami achhi.`,
-            `Hmm, ami shunchi.`,
-            `Bujhlam. Ami ekhanei achhi.`,
-            `Cholo eta ektu halka kore nei — ekta chhoto step diye.`,
+            `ঠিক আছে — আমি আছি।`,
+            `হুম, আমি শুনছি।`,
+            `বুঝলাম। আমি এখানেই আছি।`,
+            `চলো এটা একটু হালকা করে নিই — একটা ছোটো স্টেপ দিয়ে।`,
+            `ঠিক আছে — এক এক করে।`,
+            `চলো একটু হালকা করি, না ঘাবড়ে।`,
+            `হ্যাঁ — খুলে বলো।`,
+            `আমি এখানে আছি, কোনো তাড়াতাড়ি নেই।`,
         ],
         direct: [
-            `Thik ache. Ami achhi.`,
-            `Cholo eta sojha bhabe dekhi.`,
-            `Bujhlam. Eta steady rakhi.`,
-            `Ami shunchi. Sojha kothay asi.`,
+            `ঠিক আছে। আমি আছি।`,
+            `চলো এটা সোজা ভাবে দেখি।`,
+            `বুঝলাম। এটা স্টেডি রাখি।`,
+            `আমি শুনছি। সোজা কথায় আসি।`,
+            `আচ্ছা। সোজা কথা বলি।`,
+            `সোজা কাজে আসছি।`,
+            `বলো — আমি এখানে আছি।`,
+            `চলো পরিষ্কার কথা বলি।`,
         ],
     };
 
@@ -1148,100 +1355,144 @@ export function buildLocalReply(
 
     const validationsHi: Record<typeof signal, string[]> = {
         sad: [
-            `Yeh sach mein bahut dard deta hai.`,
-            `Yeh aisa dard nahi hota jo apne aap theek ho jaaye.`,
-            `Mujhe afsos hai ki tum isse guzar rahe ho.`,
-            `Yeh sach mein mushkil hai — sirf thodi nahi, bahut zyada.`,
-            `Jo tum feel kar rahe ho, woh bilkul samajh mein aata hai.`,
-            `Tum iske haqdar nahi the.`,
+            `यह सच में बहुत दर्द देता है।`,
+            `यह ऐसा दर्द नहीं होता जो अपने आप ठीक हो जाए।`,
+            `मुझे अफ़सोस है कि तुम इससे गुज़र रहे हो।`,
+            `यह सच में मुश्किल है — सिर्फ थोड़ी नहीं, बहुत ज़्यादा।`,
+            `जो तुम फ़ील कर रहे हो, वो बिल्कुल समझ में आता है।`,
+            `तुम इसके हकदार नहीं थे।`,
+            `तुम अकेले नहीं हो इस दर्द में।`,
+            `यह टूटा हुआ फ़ील करना बिल्कुल समझ में आता है।`,
+            `इस दर्द को अंदर रखना बहुत मुश्किल होता है।`,
+            `ऐसा कुछ होना सच में गलत था।`,
+            `यह अंदर तक जाता है — मैं समझता हूँ।`,
         ],
         anxious: [
-            `Lagta hai dimaag poori speed mein chal raha hai.`,
-            `Is tarah ka pressure andar se bahut thaka deta hai.`,
-            `Yeh sab hote hue edge par rehna bilkul samajh mein aata hai.`,
-            `Ek saath itni saari uncertainty sambhalna bahut bhaari hota hai.`,
-            `Is par anxious rehna ek bilkul insaani response hai.`,
-            `Tumhara nervous system kisi asli cheez par react kar raha hai.`,
+            `लगता है दिमाग पूरी स्पीड में चल रहा है।`,
+            `इस तरह का प्रेशर अंदर से बहुत थका देता है।`,
+            `यह सब होते हुए एज पर रहना बिल्कुल समझ में आता है।`,
+            `एक साथ इतनी सारी अनिश्चितता संभालना बहुत भारी होता है।`,
+            `इस पर एंग्ज़ियस रहना एक बिल्कुल इंसानी प्रतिक्रिया है।`,
+            `तुम्हारा नर्वस सिस्टम किसी असली चीज़ पर रिएक्ट कर रहा है।`,
+            `दिमाग जब ऐसे चक्कर में पड़ जाता है, तब चैन नहीं मिलता।`,
+            `यह जो अंदर से डर सा लगता है, वो बिल्कुल असली होता है।`,
+            `अनिश्चितता में रहना बहुत थका देता है — शरीर भी महसूस करता है।`,
+            `तुम ओवरथिंक नहीं कर रहे — तुम्हारा सिस्टम कुछ असली पे रिएक्ट कर रहा है।`,
+            `यह प्रेशर सिर्फ दिमाग में नहीं — शरीर में भी रहता है।`,
         ],
         angry: [
-            `Yeh gussa bilkul samajh mein aata hai.`,
-            `Kuch asal mein hua hai — yeh frustration bilkul sahi hai.`,
-            `Main bhi aisa hi feel karta.`,
-            `Haan — yeh sach mein ghalat hai.`,
-            `Iss tarah ki baat kisi ko bhi andar tak jalati hai.`,
-            `Is par gussa hona bilkul theek hai.`,
+            `यह गुस्सा बिल्कुल समझ में आता है।`,
+            `कुछ असल में हुआ है — यह फ्रस्ट्रेशन बिल्कुल सही है।`,
+            `मैं भी ऐसा ही फ़ील करता।`,
+            `हाँ — यह सच में गलत है।`,
+            `इस तरह की बात किसी को भी अंदर तक जलाती है।`,
+            `इस पर गुस्सा होना बिल्कुल ठीक है।`,
+            `यह गुस्सा किसी असली चीज़ की तरफ इशारा कर रहा है।`,
+            `तुम ओवररिएक्ट नहीं कर रहे — यह होना ही था।`,
+            `कभी-कभी गुस्सा सबसे सीधा सिग्नल होता है कि कुछ टूट गया।`,
+            `हाँ — यह लाइन क्रॉस हो गई। यह महसूस करना सही है।`,
         ],
         tired: [
-            `Yeh thakan sirf neend se theek nahi hoti.`,
-            `Tum bahut lamba waqt se bahut kuch sambhal rahe ho.`,
-            `Is sab mein energy kam hona toh banta hi hai.`,
-            `Yeh thakan dheere dheere jama hoti hai, phir ek saath hit karti hai.`,
-            `Tumhe isse thake rehne ka poora haq hai.`,
-            `Yeh sach mein khatam ho jaane ki feeling hai, sirf thakaan nahi.`,
+            `यह थकान सिर्फ नींद से ठीक नहीं होती।`,
+            `तुम बहुत लंबे वक्त से बहुत कुछ संभाल रहे हो।`,
+            `इस सब में एनर्जी कम होना तो बनता ही है।`,
+            `यह थकान धीरे-धीरे जमा होती है, फिर एक साथ हिट करती है।`,
+            `तुम्हें इससे थके रहने का पूरा हक है।`,
+            `यह सच में खत्म हो जाने की फ़ीलिंग है, सिर्फ थकान नहीं।`,
+            `ऐसी थकान तब होती है जब बहुत ज़्यादा देते हो बहुत देर तक।`,
+            `लगता है शरीर बोल रहा है कि मैं यह बहुत देर से उठा रहा हूँ।`,
+            `ऐसी थकान कमज़ोरी नहीं — यह तब होता है जब बहुत ज़्यादा संभाला हो।`,
+            `कभी-कभी रेस्ट भी काफी नहीं लगता — और वो बिल्कुल असली फ़ीलिंग है।`,
         ],
         okay: [
-            `Thoda aur batao.`,
-            `Main saath hoon — kya chal raha hai?`,
-            `Main sun raha hoon. Abhi tumhare andar sabse zyada kya baitha hai?`,
-            `Theek hai. Abhi dimaag mein sabse badi baat kya hai?`,
+            `थोड़ा और बताओ।`,
+            `मैं साथ हूँ — क्या चल रहा है?`,
+            `मैं सुन रहा हूँ। अभी तुम्हारे अंदर सबसे ज़्यादा क्या बैठा है?`,
+            `ठीक है। अभी दिमाग में सबसे बड़ी बात क्या है?`,
+            `क्या चल रहा है — कुछ बोलो ना।`,
+            `मैं यहीं हूँ — जो भी मन में आए बोलो।`,
+            `आज का सबसे भारी क्या है?`,
+            `क्या है जो अंदर घूम रहा है अभी?`,
         ],
     };
 
     const carryValidationsHi = [
-        `Yeh abhi bhi tumhare saath hai — yeh main mehsoos kar sakta hoon.`,
-        `Lagta hai yeh baat abhi bhi settle nahi hui hai, aur yeh samajh mein aata hai.`,
-        `Tum abhi bhi iske beech mein ho, nahi?`,
-        `Yeh tumhe chhoodne nahi de raha. Thodi der aur iske saath rehte hain.`,
-        `Kuch is baarein baar baar saamne aa jaata hai tumhare liye.`,
+        `यह अभी भी तुम्हारे साथ है — यह मैं महसूस कर सकता हूँ।`,
+        `लगता है यह बात अभी भी सेटल नहीं हुई है, और यह समझ में आता है।`,
+        `तुम अभी भी इसके बीच में हो, नहीं?`,
+        `यह तुम्हें छोड़ने नहीं दे रहा। थोड़ी देर और इसके साथ रहते हैं।`,
+        `कुछ इस बारे में बार-बार सामने आ जाता है तुम्हारे लिए।`,
     ];
 
     const validationsBn: Record<typeof signal, string[]> = {
         sad: [
-            `Eta shotti khub betha dicche.`,
-            `Ei rokhom koshto nijey nijey thik hoe jae na.`,
-            `Kharap lagche je tumi eta diye jachho.`,
-            `Eta shotti kashtakar — ektu noy, onek beshi.`,
-            `Tumi je feel korcho sheta khub sadharon.`,
-            `Tumi eta paawar jog chile na.`,
+            `এটা সত্যি খুব ব্যথা দিচ্ছে।`,
+            `এই রকম কষ্ট নিজে নিজে ঠিক হয়ে যায় না।`,
+            `খারাপ লাগছে যে তুমি এটা দিয়ে যাচ্ছো।`,
+            `এটা সত্যি কষ্টকর — একটু নয়, অনেক বেশি।`,
+            `তুমি যে ফিল করছো সেটা খুব স্বাভাবিক।`,
+            `তুমি এটা পাওয়ার যোগ্য ছিলে না।`,
+            `তুমি এই দুখে একলা নও।`,
+            `এই ভেঙে পড়া ফিল টা খুব স্বাভাবিক।`,
+            `এই কষ্ট ভেতরে রাখা খুব কষ্টকর।`,
+            `এই রকম কিছু হওয়া সত্যি অন্যায় ছিল।`,
+            `এটা ভেতর অবধি যায় — আমি বুঝতে পারছি।`,
         ],
         anxious: [
-            `Mone hocche mathata khub jaag chale.`,
-            `Ei tarah pressure andar theke khub klanto kore.`,
-            `Eta niye edge feel kora mote khub sadharon.`,
-            `Ek sathe eto uncertainty sambhalna khub kashtaker.`,
-            `Eta niey anxious thaka ekta manobik protikriya.`,
-            `Tomar nervous system kono asol bishoy theke react korche.`,
+            `মনে হচ্ছে মাথাটা পুরো স্পিডে চলছে।`,
+            `এই ধরনের প্রেশার ভেতর থেকে খুব ক্লান্ত করে।`,
+            `এটা নিয়ে এজ ফিল করা মোটেই খুব স্বাভাবিক।`,
+            `এক সাথে এতো অনিশ্চয়তা সামলানো খুব কষ্টকর।`,
+            `এটা নিয়ে উদ্বিগ্ন থাকা একটা মানবিক প্রতিক্রিয়া।`,
+            `তোমার নার্ভাস সিস্টেম কোনো আসল বিষয় থেকে রিয়েক্ট করছে।`,
+            `মাথা যখন এই চক্রে পড়ে যায়, তখন বিশ্রাম পাওয়া যায় না।`,
+            `এই যে ভেতর থেকে ভয় ভয় লাগে, সেটা পুরো আসল।`,
+            `অনিশ্চিতায় থাকা খুব ক্লান্ত করে — শরীরও অনুভব করে।`,
+            `তুমি অতিরিক্ত চিন্তা করছো না — তোমার সিস্টেম কোনো আসল বিষয়ে রিয়েক্ট করছে।`,
+            `এই প্রেশার শুধু মাথায় নয় — শরীরেও থাকে।`,
         ],
         angry: [
-            `Ei raag ta mote khub bujha jaay.`,
-            `Asol kichu ghotechhe — eta frustration ta mathik.`,
-            `Ami o oi rokhom feel kortam.`,
-            `Haan — eta shotti onjay.`,
-            `Ei rokhom byapaar konar na konar ga jhaliye diite pare.`,
-            `Eta niey ragee howa bilkul thik.`,
+            `এই রাগটা মোটেই খুব বোঝা যায়।`,
+            `আসল কিছু ঘটেছে — এই ফ্রাস্ট্রেশনটা সঠিক।`,
+            `আমিও ওই রকম ফিল করতাম।`,
+            `হ্যাঁ — এটা সত্যি অন্যায়।`,
+            `এই রকম ব্যাপার কারো না কারো গা জ্বালিয়ে দিতে পারে।`,
+            `এটা নিয়ে রেগে থাকা বিলকুল ঠিক।`,
+            `এই রাগটা কোনো আসল বিষয়ের দিকে ইশারা করছে।`,
+            `তুমি ওভাররিয়েক্ট করছো না — এটা হওয়ার কথা ছিলই।`,
+            `কখনো কখনো রাগটা সবার চেয়ে সোজা সিগনাল হয় যে কিছু ভেঙে গেছে।`,
+            `হ্যাঁ — এটা লাইন ক্রস করেছে। এই ফিল টা সঠিক।`,
         ],
         tired: [
-            `Ei klanti shudhu ghum theke thik hoy na.`,
-            `Tumi onek dhin dhore onek kichu sambhalacho.`,
-            `Eto shab niey energy kom hobe eita to bujhaa jaay.`,
-            `Ei rokhom thakaa aaste aaste joma hoy, tarpor ekdine laage.`,
-            `Tumi eta niey thaka thakte paro — seta thik.`,
-            `Eta asol rkhom nik hoe jaoa, shudhu thakaan noy.`,
+            `এই ক্লান্তি শুধু ঘুম থেকে ঠিক হয় না।`,
+            `তুমি অনেক দিন ধরে অনেক কিছু সামলাচ্ছো।`,
+            `এতো সব নিয়ে এনার্জি কম হবে এটা তো বোঝা যায়।`,
+            `এই রকম ক্লান্তি আস্তে আস্তে জমা হয়, তারপর একদিনে লাগে।`,
+            `তুমি এটা নিয়ে ক্লান্ত থাকতে পারো — সেটা ঠিক।`,
+            `এটা আসল রকম নিঃশেষ হয়ে যাওয়া, শুধু ক্লান্তি নয়।`,
+            `এই রকম ক্লান্তি তখন হয় যখন অনেক দিন ধরে অনেক বেশি দিয়ে থাকো।`,
+            `মনে হচ্ছে শরীর বলছে আমি অনেক দিন ধরে এটা বয়ে আসছি।`,
+            `এই রকম ক্লান্তি দুর্বলতা নয় — এটা তখন হয় যখন অনেক সামলেছো।`,
+            `কখনো কখনো বিশ্রামও যথেষ্ট লাগে না — আর সেটা পুরো আসল ফিল।`,
         ],
         okay: [
-            `Aro ektu bolo.`,
-            `Ki hochhe ektu bolbe?`,
-            `Ekhon tomar modhye shobcheye beshi ki bose ache?`,
-            `Ekhon mathay shobcheye boro kotha ta ki?`,
+            `আরো একটু বলো।`,
+            `কী হচ্ছে একটু বলবে?`,
+            `এখন তোমার মধ্যে সবচেয়ে বেশি কী বসে আছে?`,
+            `এখন মাথায় সবচেয়ে বড়ো কথাটা কী?`,
+            `কী হচ্ছে — একটু বলো না।`,
+            `আমি এখানে আছি — যেটা মন চায় বলো।`,
+            `আজকের সবচেয়ে ভারীটা কী?`,
+            `কী আছে যে এখন ভেতরে ঘুরছে?`,
         ],
     };
 
     const carryValidationsBn = [
-        `Eta ekhono tomar shathe ache — ami sheta anubhob korte parchi.`,
-        `Mone hocche eta ekhono settle hoyeni, ar sheta bujhaa jaay.`,
-        `Tumi ekhono eta r maazhkhane aacho, tai na?`,
-        `Eta tomar chorhte diche na. Aro ektu ei shathe thaki.`,
-        `Eta niey kichhu baar baar phire aase tomar kachhe.`,
+        `এটা এখনো তোমার সাথে আছে — আমি সেটা অনুভব করতে পারছি।`,
+        `মনে হচ্ছে এটা এখনো সেটল হয়নি, আর সেটা বোঝা যায়।`,
+        `তুমি এখনো এটার মাঝখানে আছো, তাই না?`,
+        `এটা তোমাকে ছাড়তে দিচ্ছে না। আরো একটু এর সাথে থাকি।`,
+        `এটা নিয়ে কিছু বার বার ফিরে আসে তোমার কাছে।`,
     ];
 
     const validationsTa: Record<typeof signal, string[]> = {
@@ -1366,17 +1617,49 @@ export function buildLocalReply(
     ];
 
     const reflectLinesHi = [
-        keyTopic ? `Tumne ${keyTopic} ki baat ki — abhi us mein sabse zyada kya daba raha hai?` : `Is mein abhi sabse zyada kya mehsoos ho raha hai?`,
-        `Isme sabse zyada uncomfortable kya lag raha hai?`,
-        `Agar ek hi cheez chunni ho jo sabse zyada pareshaan kar rahi ho — woh kya hogi?`,
-        `Tum chahte ho is situation mein kya alag hota?`,
+        keyTopic ? `तुमने ${keyTopic} की बात की — अभी उसमें सबसे ज़्यादा क्या दबा रहा है?` : `इसमें अभी सबसे ज़्यादा क्या महसूस हो रहा है?`,
+        `इसमें सबसे ज़्यादा uncomfortable क्या लग रहा है?`,
+        `अगर एक ही चीज़ चुननी हो जो सबसे ज़्यादा परेशान कर रही हो — वो क्या होगी?`,
+        `तुम चाहते हो इस situation में क्या अलग होता?`,
+        signal === "sad"
+            ? `अभी सबसे ज़्यादा क्या दर्द दे रहा है — situation खुद, या कुछ उसके नीचे?`
+            : signal === "anxious"
+                ? `एक चीज़ जो बिल्कुल control से बाहर लग रही है — वो क्या है?`
+                : signal === "angry"
+                    ? `क्या बदलेगा तो यह थोड़ा और सहने लायक लगेगा?`
+                    : signal === "tired"
+                        ? `आखिरी बार कब genuinely आराम महसूस हुआ था — एक पल के लिए भी?`
+                        : `कुछ जो अभी तक पूरी तरह कह नहीं पाए — वो क्या है?`,
+        `यह अंदर कब से build up हो रहा था?`,
+        `अगर सिर्फ एक चीज़ बदल सकती — वो क्या होती?`,
+        `क्या है जो अभी सबसे मुश्किल बोल पाना लग रहा है?`,
+        `तुम्हारा body अभी क्या कह रहा है — कहाँ feel हो रहा है यह सब?`,
+        keyTopic
+            ? `${keyTopic} वाला हिस्सा — वो सबसे ज़्यादा कितने देर से है?`
+            : `क्या यह धीरे-धीरे बढ़ा, या कुछ specific हुआ?`,
     ];
 
     const reflectLinesBn = [
-        keyTopic ? `Tumi ${keyTopic} er kotha bollecho — seta r modhye ekhon shobcheye ta ki lagchhe?` : `Ei bishoy ta r modhye ekhon shobcheye beshi ki mone hochhe?`,
-        `Eitar modhye shobcheye beshi uncomfortable ki lagchhe?`,
-        `Jodi ekta jinish cholte hoy je shobcheye beshi bhasachhe — seta ki?`,
-        `Tumi chaite e obostha ta kivabe alada hoto?`,
+        keyTopic ? `তুমি ${keyTopic} এর কথা বললেছ — সেটার মধ্যে এখন সবচেয়ে কী লাগছে?` : `এই বিষয়টার মধ্যে এখন সবচেয়ে বেশি কী মনে হচ্ছে?`,
+        `এইটার মধ্যে সবচেয়ে বেশি uncomfortable কী লাগছে?`,
+        `যদি একটা জিনিস চলতে হয় যেটা সবচেয়ে বেশি ভাসছে — সেটা কী?`,
+        `তুমি চাইতে এই অবস্থাটা কীভাবে আলাদা হতো?`,
+        signal === "sad"
+            ? `এখন সবচেয়ে বেশি কী ব্যথা দিচ্ছে — অবস্থানটা, নাকি তার নীচে কিছু?`
+            : signal === "anxious"
+                ? `একটা বিষয় যেটা পুরো control এর বাইরে লাগছে — সেটা কী?`
+                : signal === "angry"
+                    ? `কী বদলালে এটা একটু সহনীয় হতো?`
+                    : signal === "tired"
+                        ? `শেষ কখন genuinely বিশ্রাম পেয়েছিলে — একটু হলেও?`
+                        : `কী আছে যেটা এখনো পুরো বলা হয়নি?`,
+        `এই অবস্থানটা কতো দিন ধরে জমা হচ্ছিল?`,
+        `যদি শুধু একটা জিনিস বদলাতে পারতাম — সেটা কী হতো?`,
+        `কী আছে যেটা এখন সবচেয়ে কষ্টকর বলতে লাগছে?`,
+        `তোমার শরীর এখন কী বলছে — কোথায় অনুভব হচ্ছে সব?`,
+        keyTopic
+            ? `${keyTopic} টা — সেটা কি সবচেয়ে বেশি কতদিন ধরে আছে?`
+            : `এটা কি আস্তে আস্তে বেড়েছে, না কোনো নির্দিষ্ট কিছু ঘটেছে?`,
     ];
 
     const nextStepLinesEn = [
@@ -1401,17 +1684,21 @@ export function buildLocalReply(
     ];
 
     const listeningOnlyExtrasHi = [
-        `Abhi ise figure out karne ki zaroorat nahi.`,
-        `Main yahin hoon. Jitna chahte ho, utna bolo — zyada ya kam.`,
-        `Tum yeh sab feel kar sakte ho — koi baat nahi.`,
-        `Ise neatly wrap up karne ki koi zaroorat nahi.`,
+        `अभी इसे figure out करने की ज़रूरत नहीं।`,
+        `मैं यहीं हूँ। जितना चाहते हो, उतना बोलो — ज़्यादा या कम।`,
+        `तुम यह सब feel कर सकते हो — कोई बात नहीं।`,
+        `इसे neatly wrap up करने की कोई ज़रूरत नहीं।`,
+        `जो भी feel हो रहा है — सब सही है।`,
+        `जब तक चाहते हो — मैं यहीं हूँ।`,
     ];
 
     const listeningOnlyExtrasBn = [
-        `Ekhon eta figure out korte hobe na.`,
-        `Ami ekhane achi. Jotota ichha hoy bolo — beshi na kama.`,
-        `Tumi shob kichu feel korte paro — kono problem nei.`,
-        `Eta neat kore wrap up korte hobe na.`,
+        `এখন এটা figure out করতে হবে না।`,
+        `আমি এখানে আছি। যতোটা ইচ্ছা হয় বলো — বেশি না কম।`,
+        `তুমি সব কিছু feel করতে পারো — কোনো problem নেই।`,
+        `এটা neat করে wrap up করতে হবে না।`,
+        `যে কিছু feel করছো — সব ঠিক আছে।`,
+        `যতক্ষণ চাও — আমি এখানে আছি।`,
     ];
 
     const listeningOnlyExtrasTa = [
@@ -1429,17 +1716,25 @@ export function buildLocalReply(
     ];
 
     const nextStepLinesHi = [
-        `Tumhe abhi comfort chahiye, clarity, ya next step?`,
-        `Tum isse baat karke halka karna chahte ho, ya kuch practical next karna hai?`,
-        `Kya isse khol kar dekhna madad karega, ya ek chhota action chunna?`,
-        `Hum tumhari feeling par dhyan dein, ya agla kya kar sakte ho us par?`,
+        `तुम्हें अभी comfort चाहिए, clarity, या next step?`,
+        `तुम इससे बात करके हल्का करना चाहते हो, या कुछ practical next करना है?`,
+        `क्या इसे खोल कर देखना मदद करेगा, या एक छोटा action चुनना?`,
+        `हम तुम्हारी feeling पर ध्यान दें, या अगला क्या कर सकते हो उस पर?`,
+        `तुम अभी relief कैसा चाहते हो — ज़्यादा बात करना, या एक छोटा step?`,
+        `क्या तुम चाहते हो मैं बस सुनूँ, या options भी सोचें?`,
+        `हम इसे खोल सकते हैं, या एक छोटा काम ढूँढ सकते हैं। क्या better लगेगा?`,
+        `पूरी चीज़ solve नहीं करनी। आज कौनसी एक चीज़ थोड़ी हल्की करेगा?`,
     ];
 
     const nextStepLinesBn = [
-        `Ekhon tomar comfort dorkar, clarity, na ekta next step?`,
-        `Tumi eta bole halka korte chao, na porer practical kichhu korte chao?`,
-        `Eta ektu khule dekhle bhalo hobe, na ekta chhoto action neowa bhalo?`,
-        `Amra tomar feeling e focus korbo, na porer ki korte paro setay?`,
+        `এখন তোমার comfort দরকার, clarity, না একটা next step?`,
+        `তুমি এটা বলে হালকা করতে চাও, না পরের practical কিছু করতে চাও?`,
+        `এটা একটু খুলে দেখলে ভালো হবে, না একটা ছোট action নেওয়া ভালো?`,
+        `আমরা তোমার feeling এ focus করবো, না পরে কী করতে পারো সেটায়?`,
+        `তুমি এখন কী রকম relief চাও — আরো কথা বলা, না একটা ছোট step?`,
+        `তুমি কি চাও আমি শুধু শুনি, না options ও ভাবি?`,
+        `আমরা এটা খুলতে পারি, বা একটা ছোট কাজ খুঁজতে পারি। কোটা ভালো লাগবে?`,
+        `সব সমাধান করতে হবে না। আজ একটা জিনিস কী একটু হালকা করবে?`,
     ];
 
     const extrasByToneEn: Record<LocalResponseTone, string[]> = {
@@ -1493,49 +1788,49 @@ export function buildLocalReply(
     const extrasByToneHi: Record<LocalResponseTone, string[]> = {
         calm: [
             ``,
-            `Abhi sirf ek hissa pakad kar chal sakte hain.`,
-            `Puri baat ko ek saath sambhalne ki jaldi nahi hai.`,
-            `Ise bina force kiye steady rakha ja sakta hai.`,
+            `अभी सिर्फ एक हिस्सा पकड़ कर चल सकते हैं।`,
+            `पूरी बात को एक साथ सँभालने की जल्दी नहीं है।`,
+            `इसे बिना force किए steady रखा जा सकता है।`,
         ],
         supportive: [
             ``,
-            `Tumhe sab kuch ek saath uthana nahi hai.`,
-            `Jo sabse bhaari lag raha hai, pehle usi ke saath reh sakte hain.`,
-            `Agar sab kuch abhi bhi uljha lag raha hai, tab bhi theek hai.`,
+            `तुम्हें सब कुछ एक साथ उठाना नहीं है।`,
+            `जो सबसे भारी लग रहा है, पहले उसी के साथ रह सकते हैं।`,
+            `अगर सब कुछ अभी भी उलझा लग रहा है, तब भी ठीक है।`,
         ],
         practical: [
             ``,
-            `Chalo pehle wahi dekhte hain jo sabse zaroori hai.`,
-            `Ise manageable rakh sakte hain.`,
-            `Abhi ek kaam ki cheez dekhna kaafi hai.`,
+            `चलो पहले वही देखते हैं जो सबसे ज़रूरी है।`,
+            `इसे manageable रख सकते हैं।`,
+            `अभी एक काम की चीज़ देखना काफी है।`,
         ],
         coach: [
             ``,
-            `Chalo pehle sabse workable hissa dhoondte hain.`,
-            `Abhi sirf ek steady move kaafi hai.`,
-            `Tumhe sab kuch ek saath suljhana nahi hai.`,
+            `चलो पहले सबसे workable हिस्सा ढूँढते हैं।`,
+            `अभी सिर्फ एक steady move काफी है।`,
+            `तुम्हें सब कुछ एक साथ सुलझाना नहीं है।`,
         ],
         "gentle-humor": [
             ``,
-            `Ise halka rakh sakte hain bina ignore kiye.`,
-            `Abhi ek chhota shift kaafi hai.`,
-            `Main yahin hoon tumhare saath.`,
+            `इसे हल्का रख सकते हैं बिना ignore किए।`,
+            `अभी एक छोटा shift काफी है।`,
+            `मैं यहीं हूँ तुम्हारे साथ।`,
         ],
         direct: [
             ``,
-            `Chalo ise saaf rakhte hain.`,
-            `Hum ek real hissa ek baar mein dekh sakte hain.`,
-            `Abhi bas agla useful hissa kaafi hai.`,
+            `चलो इसे साफ रखते हैं।`,
+            `हम एक real हिस्सा एक बार में देख सकते हैं।`,
+            `अभी बस अगला useful हिस्सा काफी है।`,
         ],
     };
 
     const carryExtrasHi: Record<LocalResponseTone, string[]> = {
-        calm: [`Abhi ise kahin dhakelne ki zarurat nahi hai.`, `Hum bas thodi der iske saath reh sakte hain.`],
-        supportive: [`Tumhe ise perfectly samjhana abhi zaruri nahi hai.`, `Main abhi bhi tumhare saath hoon isme.`],
-        practical: [`Abhi ise simple rakhte hain.`, `Humein poora jawab nahi, bas agla saaf hissa dekhna hai.`],
-        coach: [`Kuch karne se pehle ise steady kar lete hain.`, `Baad mein ek grounded step kaafi hoga.`],
-        "gentle-humor": [`Ise halka rakh sakte hain bina uljhaaye.`, `Abhi poori kushti ladne ki zarurat nahi hai.`],
-        direct: [`Abhi ise overcomplicate nahi karte.`, `Pehle real hissa pakadte hain.`],
+        calm: [`अभी इसे कहीं धकेलने की ज़रूरत नहीं है।`, `हम बस थोड़ी देर इसके साथ रह सकते हैं।`],
+        supportive: [`तुम्हें इसे perfectly समझाना अभी ज़रूरी नहीं है।`, `मैं अभी भी तुम्हारे साथ हूँ इसमें।`],
+        practical: [`अभी इसे simple रखते हैं।`, `हमें पूरा जवाब नहीं, बस अगला साफ हिस्सा देखना है।`],
+        coach: [`कुछ करने से पहले इसे steady कर लेते हैं।`, `बाद में एक grounded step काफी होगा।`],
+        "gentle-humor": [`इसे हल्का रख सकते हैं बिना उलझाए।`, `अभी पूरी कुश्ती लड़ने की ज़रूरत नहीं है।`],
+        direct: [`अभी इसे overcomplicate नहीं करते।`, `पहले real हिस्सा पकड़ते हैं।`],
     };
 
     const extrasByToneBn: Record<LocalResponseTone, string[]> = {
@@ -3365,17 +3660,25 @@ export function buildLocalReply(
         ? ` ${(topicHintsByLang[bankLanguage] ?? topicHintsByLang.en)![topic] ?? ""}`
         : "";
 
-    // For English: avoid repeating a recently-seen opener; all other languages use plain pick.
+    // For English, Hindi, Bengali: avoid repeating a recently-seen opener; others use plain pick.
     const recentAssistant = recentContext?.recentAssistantTexts ?? [];
-    const opener = bankLanguage === "en"
+    const opener = (bankLanguage === "en" || bankLanguage === "hi" || bankLanguage === "bn")
         ? pickAvoidingRecent(openers as string[], seed, recentAssistant)
         : pick(openers, seed);
 
-    // Natural humanizing marker — applied ~25% of turns for English only.
+    // Natural humanizing marker — applied ~25% of turns for English, Hindi, and Bengali.
     // Uses a separate seed window (>>>13) so it varies independently of opener/validation.
     const naturalMarkersEn = ["", "", "", "", "Hmm. ", "Oh. ", "Yeah. ", "Ah. "];
-    const naturalMarker = (bankLanguage === "en" && !correctionPrefix && !followUpPrefix)
-        ? naturalMarkersEn[(seed >>> 13) % naturalMarkersEn.length]
+    const naturalMarkersHi = ["", "", "", "", "Hmm. ", "Achha. ", "Haan. ", "Oh. "];
+    const naturalMarkersBn = ["", "", "", "", "Hmm. ", "Achha. ", "Haa. ", "Oh. "];
+    const naturalMarker = (!correctionPrefix && !followUpPrefix)
+        ? bankLanguage === "en"
+            ? naturalMarkersEn[(seed >>> 13) % naturalMarkersEn.length]
+            : bankLanguage === "hi"
+                ? naturalMarkersHi[(seed >>> 13) % naturalMarkersHi.length]
+                : bankLanguage === "bn"
+                    ? naturalMarkersBn[(seed >>> 13) % naturalMarkersBn.length]
+                    : ""
         : "";
 
     const hasCarry = signal === "okay" && hasRecentEmotionalSignal(recentContext);
@@ -3481,9 +3784,11 @@ export function buildLocalReply(
                                                                                 : pick(extrasByTone[companionTone], seed >>> 5);
 
     const base = `${naturalMarker}${correctionPrefix}${followUpPrefix}${opener} ${validation}`.trim();
+    const activeBridge = contextBridgeEn ?? contextBridgeHi ?? contextBridgeBn ?? null;
+    const bridgePart = activeBridge ? " " + activeBridge : "";
     const extraPart = suppressExtras ? "" : (extra ? " " + extra : "");
     const finalMsg = dedupeAdjacentSentences(
-        `${base}${extraPart}${topicHint}`.trim()
+        `${base}${bridgePart}${extraPart}${topicHint}`.trim()
     );
 
     // Age-aware closing: short, warm suffix for notably young or older users

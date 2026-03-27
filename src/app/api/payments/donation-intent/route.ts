@@ -38,17 +38,18 @@ export async function POST(req: Request) {
         assertEnv();
 
         // ✅ Server-authoritative donation presets (paise)
-        const DONATION_PRESETS: Record<Body["presetId"], number> = {
-            inr_49: 4900,
-            inr_99: 9900,
-            inr_199: 19900,
-            inr_499: 49900,
-            inr_999: 99900,
+        // Accepts both web format ("inr_49") and mobile format ("d-49")
+        const DONATION_PRESETS: Record<string, number> = {
+            inr_49: 4900,  "d-49": 4900,
+            inr_99: 9900,  "d-99": 9900,
+            inr_199: 19900, "d-199": 19900,
+            inr_499: 49900, "d-499": 49900,
+            inr_999: 99900, "d-999": 99900,
         };
 
         const body = (await req.json().catch(() => ({} as any))) as Partial<Body>;
 
-        const presetId = body?.presetId as Body["presetId"] | undefined;
+        const presetId = body?.presetId as string | undefined;
         const amount = presetId ? DONATION_PRESETS[presetId] : undefined;
 
         if (!presetId || typeof amount !== "number") {

@@ -8,7 +8,7 @@ function getRuntimeConfig() {
     return {
         RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || "",
         RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || "",
-        DONATION_ENABLED: (process.env.IMOTARA_DONATION_ENABLED || "").toLowerCase() === "true",
+        DONATION_ENABLED: (process.env.IMOTARA_DONATION_ENABLED || "").trim().toLowerCase() === "true",
     };
 }
 

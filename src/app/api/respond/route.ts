@@ -248,15 +248,15 @@ function derivePreferredLanguage(
   const latinHeavy = latinOnly && latinLetters / totalLetters >= 0.8;
 
   // ✅ HARD English override (must come before all explicit-preference checks):
-  // If the message is clearly English (Latin-heavy + English word hits + no romanized Indian signals),
-  // always return English — even when explicit preference is set to "gu" or another Indian language.
-  // Root cause fix: device locale / navigator language must NEVER override the user's current message.
+  // If the message is Latin-heavy with ZERO romanized Indian signals and no foreign Latin signals,
+  // always return English regardless of explicit preference (device locale must not override message content).
+  // Note: does NOT require englishWordHits since Indian users write plain English without common chat words.
   if (
     latinHeavy &&
-    englishWordHits >= 2 &&
-    romanHiHits < 2 && romanBnHits < 2 && romanTaHits < 2 && romanTeHits < 2 &&
-    romanGuHits < 2 && romanKnHits < 2 && romanMlHits < 2 && romanPaHits < 2 &&
-    romanMrHits < 2 && romanOrHits < 2
+    romanHiHits === 0 && romanBnHits === 0 && romanTaHits === 0 && romanTeHits === 0 &&
+    romanGuHits === 0 && romanKnHits === 0 && romanMlHits === 0 && romanPaHits === 0 &&
+    romanMrHits === 0 && romanOrHits === 0 &&
+    !hasForeignLatinSignal
   ) {
     return {
       preferredLanguage: "en",

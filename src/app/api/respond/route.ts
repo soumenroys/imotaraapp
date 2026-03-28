@@ -247,6 +247,25 @@ function derivePreferredLanguage(
   const latinOnly = !hasBn && !hasHiLetters && totalLetters > 0;
   const latinHeavy = latinOnly && latinLetters / totalLetters >= 0.8;
 
+  // ✅ HARD English override (must come before all explicit-preference checks):
+  // If the message is clearly English (Latin-heavy + English word hits + no romanized Indian signals),
+  // always return English — even when explicit preference is set to "gu" or another Indian language.
+  // Root cause fix: device locale / navigator language must NEVER override the user's current message.
+  if (
+    latinHeavy &&
+    englishWordHits >= 2 &&
+    romanHiHits < 2 && romanBnHits < 2 && romanTaHits < 2 && romanTeHits < 2 &&
+    romanGuHits < 2 && romanKnHits < 2 && romanMlHits < 2 && romanPaHits < 2 &&
+    romanMrHits < 2 && romanOrHits < 2
+  ) {
+    return {
+      preferredLanguage: "en",
+      strictLanguage: "en",
+      languageDirective:
+        "Language policy (strict): Reply ONLY in English (en). Do not mix languages. Never infer language from the user's name or device locale.",
+    };
+  }
+
   // ✅ If client explicitly sends an Indian language code and the message is Roman-script,
   // trust the explicit lang immediately — prevents Roman-Punjabi/Marathi/etc. from being
   // mis-detected as Hindi (many keywords overlap).

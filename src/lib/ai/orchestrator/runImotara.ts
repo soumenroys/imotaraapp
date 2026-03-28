@@ -753,6 +753,9 @@ function getPreferredLanguage(
     .toLowerCase();
 
   // 1) Explicit preference wins (Accept both base + BCP-47 tags)
+  // ✅ English must be here so "en" from derivePreferredLanguage is honoured without
+  // falling through to message-script detection (which can false-positive on Gujarati).
+  if (raw === "en" || raw.startsWith("en-")) return "en";
   if (raw === "hi" || raw.startsWith("hi-")) return "hi";
   if (raw === "bn" || raw.startsWith("bn-")) return "bn";
   if (raw === "ta" || raw.startsWith("ta-")) return "ta";

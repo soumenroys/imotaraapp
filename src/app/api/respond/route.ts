@@ -256,7 +256,7 @@ function derivePreferredLanguage(
     romanHiHits === 0 && romanBnHits === 0 && romanTaHits === 0 && romanTeHits === 0 &&
     romanGuHits === 0 && romanKnHits === 0 && romanMlHits === 0 && romanPaHits === 0 &&
     romanMrHits === 0 && romanOrHits === 0 &&
-    !hasForeignLatinSignal
+    romanEsHits < 2 && romanFrHits < 2 && romanPtHits < 2 && romanIdHits < 2
   ) {
     return {
       preferredLanguage: "en",

@@ -248,14 +248,14 @@ function derivePreferredLanguage(
   const latinHeavy = latinOnly && latinLetters / totalLetters >= 0.8;
 
   // ✅ HARD English override (must come before all explicit-preference checks):
-  // If the message is Latin-heavy with ZERO romanized Indian signals and no foreign Latin signals,
-  // always return English regardless of explicit preference (device locale must not override message content).
-  // Note: does NOT require englishWordHits since Indian users write plain English without common chat words.
+  // If the message is Latin-heavy and has fewer than 2 romanized Indian/foreign signals, treat as English.
+  // Threshold of < 2 (not === 0) prevents a single coincidental English word matching an Indian-language
+  // regex from breaking this override. Explicit device locale / profile language must not override message content.
   if (
     latinHeavy &&
-    romanHiHits === 0 && romanBnHits === 0 && romanTaHits === 0 && romanTeHits === 0 &&
-    romanGuHits === 0 && romanKnHits === 0 && romanMlHits === 0 && romanPaHits === 0 &&
-    romanMrHits === 0 && romanOrHits === 0 &&
+    romanHiHits < 2 && romanBnHits < 2 && romanTaHits < 2 && romanTeHits < 2 &&
+    romanGuHits < 2 && romanKnHits < 2 && romanMlHits < 2 && romanPaHits < 2 &&
+    romanMrHits < 2 && romanOrHits < 2 &&
     romanEsHits < 2 && romanFrHits < 2 && romanPtHits < 2 && romanIdHits < 2
   ) {
     return {

@@ -842,6 +842,9 @@ export default function ChatPage() {
   // Soft clear confirm (replaces window.confirm)
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
+  // Confirm before deleting a thread
+  const [deleteThreadConfirmId, setDeleteThreadConfirmId] = useState<string | null>(null);
+
   // Toast
   const [chatToast, setChatToast] = useState<{ message: string; type?: ToastType } | null>(null);
 
@@ -1964,6 +1967,7 @@ export default function ChatPage() {
       const remaining = threads.filter((t) => t.id !== id);
       setActiveId(remaining[0]?.id ?? null);
     }
+    setDeleteThreadConfirmId(null);
   }
 
   function renameActive(title: string) {
@@ -2283,13 +2287,13 @@ export default function ChatPage() {
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
-                        className="rounded-lg p-1 text-zinc-400 hover:bg-white/10 transition duration-150"
+                        className="rounded-lg p-1 text-zinc-400 hover:text-red-400 hover:bg-white/10 transition duration-150"
                         onClick={(e) => {
                           e.stopPropagation();
-                          deleteThread(t.id);
+                          setDeleteThreadConfirmId(t.id);
                         }}
-                        aria-label="Delete"
-                        title="Delete"
+                        aria-label="Delete thread"
+                        title="Delete thread"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -2299,6 +2303,29 @@ export default function ChatPage() {
               })
             )}
           </div>
+
+          {/* Delete-thread confirmation inline panel */}
+          {deleteThreadConfirmId && (
+            <div className="mx-2 mb-2 rounded-xl border border-red-400/30 bg-red-950/60 px-3 py-2 text-xs text-red-200 backdrop-blur-md">
+              <p className="mb-2 font-medium">Delete this conversation?</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => deleteThread(deleteThreadConfirmId)}
+                  className="rounded-full bg-red-500/80 px-3 py-1 font-medium text-white transition hover:bg-red-500"
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteThreadConfirmId(null)}
+                  className="rounded-full border border-white/10 px-3 py-1 text-zinc-300 transition hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </aside>
 
         {/* Main */}
@@ -2788,6 +2815,7 @@ export default function ChatPage() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search messages…"
+                      aria-label="Search messages"
                       className="flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 outline-none"
                     />
                     {searchQuery && (
@@ -3036,6 +3064,7 @@ export default function ChatPage() {
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={onKeyDown}
                 placeholder={composerPlaceholder}
+                aria-label="Message Imotara"
                 suppressHydrationWarning
                 rows={1}
                 className="max-h-[200px] flex-1 resize-none rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-indigo-400/70 focus:ring-1 focus:ring-indigo-500/60"

@@ -51,9 +51,7 @@ export default function ProfilePage() {
           <p className="text-sm font-medium text-zinc-200">
             Unlocks after 7 days of journaling
           </p>
-          <p className="text-xs text-zinc-500">
-            Chat and reflect daily — your emotional fingerprint will emerge.
-          </p>
+          <ProfileStreakProgress compact />
           <Link
             href="/grow"
             className="mt-2 rounded-full bg-gradient-to-r from-indigo-500 to-sky-400 px-5 py-2 text-xs font-medium text-black shadow transition hover:brightness-110"
@@ -63,7 +61,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Streak progress toward fingerprint unlock */}
+      {/* Full streak card — shows "unlocked" celebration or detailed progress */}
       <ProfileStreakProgress />
 
       {/* Settings bridge */}

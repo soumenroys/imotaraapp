@@ -17,7 +17,7 @@ function computeUniqueDays(entries: { createdAt: number; response: string }[]): 
   return days.size;
 }
 
-export default function ProfileStreakProgress() {
+export default function ProfileStreakProgress({ compact = false }: { compact?: boolean }) {
   const [days, setDays] = useState<number | null>(null);
 
   useEffect(() => {
@@ -35,6 +35,24 @@ export default function ProfileStreakProgress() {
 
   const pct = Math.min(100, Math.round((days / GOAL_DAYS) * 100));
   const unlocked = days >= GOAL_DAYS;
+
+  if (compact) {
+    if (unlocked) return null;
+    return (
+      <div className="w-full max-w-[220px]">
+        <div className="mb-1 flex items-center justify-between text-[11px]">
+          <span className="text-zinc-400">Progress</span>
+          <span className="tabular-nums font-medium text-zinc-300">{days} / {GOAL_DAYS} days</span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800/80">
+          <div
+            className="h-1.5 rounded-full bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400"
+            style={{ width: `${pct}%`, transition: "width 0.7s ease-out" }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-400">

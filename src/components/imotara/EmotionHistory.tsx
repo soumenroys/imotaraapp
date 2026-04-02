@@ -243,6 +243,10 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
   // ⬇️ Date-window filter: "all" | "7d" | "30d"
   const [dateWindow, setDateWindow] = useState<"all" | "7d" | "30d">("all");
 
+  // ⬇️ Pagination: render in pages of PAGE_SIZE to avoid large DOM trees
+  const PAGE_SIZE = 30;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   // ⬇️ NEW: session-aware filter (from chat sessions)
   const searchParams = useSearchParams();
   const urlSessionId = (searchParams?.get("sessionId") ?? "").trim();
@@ -1161,6 +1165,11 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
     if (onResultCount) onResultCount(searchFilter.trim() ? filteredItems.length : -1);
   }, [filteredItems.length, searchFilter, onResultCount]);
 
+  // Reset pagination when filters change
+  React.useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [sessionFilter, dateWindow, searchFilter]);
+
   // When a date window is active, recompute summary over filtered items so
   // the sparkline and stats reflect the selected window.
   const windowedSummary = useMemo(() => {
@@ -1822,7 +1831,7 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
 
       {/* Simple list of history items */}
       <ul className="space-y-3">
-        {filteredItems.map((r, index) => {
+        {filteredItems.slice(0, visibleCount).map((r, index) => {
           const ts =
             typeof r.updatedAt === "number" ? r.updatedAt : r.createdAt;
           const when = ts ? new Date(ts).toLocaleString() : "—";
@@ -2129,6 +2138,18 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
             </li>
           )}
       </ul>
+
+      {/* Load more */}
+      {filteredItems.length > visibleCount && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+            className="rounded-full border border-white/15 bg-white/5 px-5 py-2 text-xs text-zinc-400 transition hover:bg-white/10 hover:text-zinc-200"
+          >
+            Show more ({filteredItems.length - visibleCount} remaining)
+          </button>
+        </div>
+      )}
 
       {/* ⬇️ Render the conflict review modal */}
       {showConflictModal && (

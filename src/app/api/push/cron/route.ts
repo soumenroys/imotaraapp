@@ -101,11 +101,12 @@ export async function POST(req: Request) {
 
   // Remove stale/expired subscriptions
   if (stale.length) {
-    await admin
+    const { error: deleteErr } = await admin
       .from("user_memory")
       .delete()
       .eq("type", "push")
       .in("user_id", stale);
+    if (deleteErr) console.error("[push/cron] delete stale subs failed:", deleteErr.message);
   }
 
   return NextResponse.json({ ok: true, sent, staleRemoved: stale.length });

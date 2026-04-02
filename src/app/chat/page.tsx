@@ -825,6 +825,13 @@ export default function ChatPage() {
     };
   }, []);
 
+  // Clear undo timer on unmount — prevents generateAssistantReply firing after navigation
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    };
+  }, []);
+
   // #10: Message reactions — local emoji stamps (messageId → emoji)
   const [reactions, setReactions] = useState<Record<string, string>>({});
 

@@ -265,7 +265,7 @@ async function fetchRemoteChatMessages(): Promise<RemoteChatRow[]> {
 }
 
 function toMs(ts: unknown): number {
-  if (!ts) return Date.now();
+  if (ts === null || ts === undefined) return Date.now();
   if (typeof ts === "number") return ts < 1e12 ? ts * 1000 : ts;
   const s = String(ts);
   const d = new Date(s);

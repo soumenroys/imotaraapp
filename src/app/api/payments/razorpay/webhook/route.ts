@@ -36,6 +36,7 @@ export async function POST(req: Request) {
         }
 
         if (!verifySignature(rawBody, signature)) {
+            console.error("[razorpay/webhook] signature mismatch — possible spoofing attempt");
             return NextResponse.json({ ok: false, error: "Invalid signature" }, { status: 400 });
         }
 

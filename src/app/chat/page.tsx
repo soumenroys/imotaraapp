@@ -817,6 +817,13 @@ export default function ChatPage() {
   // #19: Voice input
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  // Stop mic on unmount — prevents microphone staying active after navigation
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
+    };
+  }, []);
 
   // #10: Message reactions — local emoji stamps (messageId → emoji)
   const [reactions, setReactions] = useState<Record<string, string>>({});

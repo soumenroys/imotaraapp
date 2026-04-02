@@ -958,12 +958,12 @@ export default function SettingsPage() {
                 applicationServerKey: vapidKey,
             });
 
-            await fetch("/api/push/subscribe", {
+            const pushRes = await fetch("/api/push/subscribe", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(sub.toJSON()),
             });
-            setNotifSubscribed(true);
+            if (pushRes.ok) setNotifSubscribed(true);
         } catch (e) {
             console.error("[push] subscribe failed:", e);
         } finally {

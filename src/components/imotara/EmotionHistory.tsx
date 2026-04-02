@@ -1162,9 +1162,10 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
     if (onResultCount) onResultCount(searchFilter.trim() ? filteredItems.length : -1);
   }, [filteredItems.length, searchFilter, onResultCount]);
 
-  // Reset pagination when filters change
+  // Reset pagination and pending delete when filters change
   React.useEffect(() => {
     setVisibleCount(PAGE_SIZE);
+    setPendingDeleteId(null);
   }, [sessionFilter, dateWindow, searchFilter]);
 
   // When a date window is active, recompute summary over filtered items so

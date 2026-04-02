@@ -1,7 +1,7 @@
 // src/app/feel/page.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import TopBar from "@/components/imotara/TopBar";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
@@ -75,7 +75,6 @@ export default function FeelPage() {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type?: ToastType } | null>(null);
-  const noteRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setCheckins(loadCheckIns());
@@ -105,7 +104,6 @@ export default function FeelPage() {
     setNote("");
     setSaving(false);
     setToast({ message: "Check-in logged ✓" });
-    setTimeout(() => noteRef.current?.focus(), 50);
   }
 
   const selectedMood = MOODS.find((m) => m.emotion === selected);
@@ -178,7 +176,6 @@ export default function FeelPage() {
               </div>
             </div>
             <textarea
-              ref={noteRef}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}

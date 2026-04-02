@@ -10,6 +10,7 @@ import {
   History as HistoryIcon,
   Settings as SettingsIcon,
   TrendingUp,
+  Smile,
   Search,
 } from "lucide-react";
 
@@ -45,6 +46,7 @@ export default function TopBar({
   const isHistory = pathname?.startsWith("/history");
   const isSettings = pathname?.startsWith("/settings");
   const isGrow = pathname?.startsWith("/grow");
+  const isFeel = pathname?.startsWith("/feel");
 
   const effectiveTitle = title ?? "Imotara";
 
@@ -99,6 +101,14 @@ export default function TopBar({
             icon={<HistoryIcon className="h-3.5 w-3.5" />}
           >
             History
+          </NavPill>
+
+          <NavPill
+            href="/feel"
+            active={isFeel}
+            icon={<Smile className="h-3.5 w-3.5" />}
+          >
+            Feel
           </NavPill>
 
           <NavPill
@@ -157,7 +167,7 @@ export default function TopBar({
       className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-white/10 bg-black/85 pb-safe pt-1 backdrop-blur-xl sm:hidden"
     >
       <MobileTab href="/chat"     active={isChat}     icon={<MessageSquare className="h-5 w-5" />} label="Chat" />
-      <MobileTab href="/grow"     active={isGrow}     icon={<TrendingUp className="h-5 w-5" />}    label="Grow" />
+      <MobileTab href="/feel"     active={isFeel}     icon={<Smile className="h-5 w-5" />}         label="Feel" />
       <MobileTab href="/history"  active={isHistory}  icon={<HistoryIcon className="h-5 w-5" />}   label="History" />
       <MobileTab href="/settings" active={isSettings} icon={<SettingsIcon className="h-5 w-5" />}  label="Settings" />
     </nav>

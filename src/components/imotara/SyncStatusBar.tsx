@@ -38,8 +38,16 @@ const STATE_TO_LABEL: Record<SyncState, string> = {
   idle: "Idle",
 };
 
-function formatTime(ts?: number | null) {
+function formatRelative(ts?: number | null): string {
   if (!ts) return "";
+  const diffMs = Date.now() - ts;
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 1) return "just now";
+  if (mins === 1) return "1 min ago";
+  if (mins < 60) return `${mins} mins ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs === 1) return "1 hr ago";
+  if (hrs < 24) return `${hrs} hrs ago`;
   try {
     return new Date(ts).toLocaleTimeString();
   } catch {
@@ -57,6 +65,13 @@ export default function SyncStatusBar() {
     typeof (sync as any)?.remoteCount === "number"
       ? ((sync as any).remoteCount as number)
       : null;
+
+  // Live relative timestamp — re-renders every 30s so "2 mins ago" stays fresh
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   // ⭐ fade-in animation trigger on newly synced state
   const [pulse, setPulse] = useState(false);
@@ -121,7 +136,7 @@ export default function SyncStatusBar() {
       label = "Back online";
       sub = "Syncing queued…";
     } else if (effectiveState === "synced" && sync.lastSyncedAt) {
-      const t = formatTime(sync.lastSyncedAt);
+      const t = formatRelative(sync.lastSyncedAt);
       sub = t ? `Last synced ${t}` : "Last synced recently";
     } else if (effectiveState === "error" && sync.lastError) {
       sub = sync.lastError;

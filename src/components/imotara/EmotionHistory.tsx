@@ -2085,16 +2085,28 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
           dateWindow !== "all" &&
           filteredItems.length === 0 &&
           !sessionFilter.trim() && (
-            <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-white/5">
-              <div className="text-sm text-zinc-300">
-                No entries in the last {dateWindow === "7d" ? "7" : "30"} days.
+            <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-8 text-center shadow-sm backdrop-blur-md">
+              <p className="text-2xl mb-2">📭</p>
+              <p className="text-sm font-medium text-zinc-200">
+                No entries in the last {dateWindow === "7d" ? "7" : "30"} days
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                You haven&apos;t logged any emotions in this period yet.
+              </p>
+              <div className="mt-4 flex justify-center gap-3">
+                <button
+                  onClick={() => setDateWindow("all")}
+                  className="rounded-full border border-white/20 bg-white/5 px-4 py-1.5 text-xs text-sky-400 transition hover:bg-white/10"
+                >
+                  Show all time
+                </button>
+                <a
+                  href="/chat"
+                  className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-4 py-1.5 text-xs text-indigo-300 transition hover:bg-indigo-500/20"
+                >
+                  Start a conversation →
+                </a>
               </div>
-              <button
-                onClick={() => setDateWindow("all")}
-                className="mt-2 text-xs text-sky-400 underline underline-offset-2 hover:text-sky-200 transition"
-              >
-                Show all time
-              </button>
             </li>
           )}
 
@@ -2102,11 +2114,18 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
         {visibleItems.length > 0 &&
           sessionFilter.trim() &&
           filteredItems.length === 0 && (
-            <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center text-zinc-700 shadow-sm backdrop-blur-md dark:border-zinc-700 dark:bg-white/5 dark:text-zinc-300">
-              <div>No entries match this chat session filter.</div>
-              <div className="mt-1 text-xs opacity-80">
-                Try clearing the filter to see all records.
-              </div>
+            <li className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-8 text-center shadow-sm backdrop-blur-md">
+              <p className="text-2xl mb-2">🔍</p>
+              <p className="text-sm font-medium text-zinc-200">No entries match this filter</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                This chat session doesn&apos;t have any matching emotion entries yet.
+              </p>
+              <button
+                onClick={() => setSessionFilter?.("")}
+                className="mt-4 rounded-full border border-white/20 bg-white/5 px-4 py-1.5 text-xs text-sky-400 transition hover:bg-white/10"
+              >
+                Clear filter
+              </button>
             </li>
           )}
       </ul>

@@ -25,11 +25,18 @@ const ICON_CLASS: Record<ToastType, string> = {
   info:    "text-indigo-300",
 };
 
-export default function Toast({ message, type = "success", onDismiss, duration = 3000 }: Props) {
+const DEFAULT_DURATION: Record<ToastType, number> = {
+  success: 3000,
+  info: 4000,
+  error: 5000,
+};
+
+export default function Toast({ message, type = "success", onDismiss, duration }: Props) {
+  const ms = duration ?? DEFAULT_DURATION[type];
   useEffect(() => {
-    const t = setTimeout(onDismiss, duration);
+    const t = setTimeout(onDismiss, ms);
     return () => clearTimeout(t);
-  }, [onDismiss, duration]);
+  }, [onDismiss, ms]);
 
   const Icon = type === "success" ? CheckCircle : type === "error" ? AlertCircle : Info;
 

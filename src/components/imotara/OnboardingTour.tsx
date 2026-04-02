@@ -7,6 +7,7 @@ import Link from "next/link";
 
 const TOUR_KEY = "imotara.tour.v1";
 const CONSENT_KEY = "imotara.analysisConsent.v1";
+const ONBOARDED_KEY = "imotara.onboarded.v1";
 
 type Slide = { emoji: string; title: string; body: string; cta: string; href: string };
 
@@ -19,11 +20,11 @@ const SLIDES: Slide[] = [
     href: "/chat",
   },
   {
-    emoji: "🌱",
-    title: "Grow",
-    body: "Answer a daily reflection prompt tailored to your emotional patterns. Build a streak, spot themes, and grow over time.",
-    cta: "See today's prompt →",
-    href: "/grow",
+    emoji: "🌿",
+    title: "Feel & Grow",
+    body: "Log your mood with a quick check-in anytime, or answer a daily reflection prompt to build self-awareness over time.",
+    cta: "Check in now →",
+    href: "/feel",
   },
   {
     emoji: "📖",
@@ -31,6 +32,13 @@ const SLIDES: Slide[] = [
     body: "Your emotion timeline lives here — sorted by day, never shared unless you choose to sync. Export it anytime.",
     cta: "View history →",
     href: "/history",
+  },
+  {
+    emoji: "🔒",
+    title: "Your privacy",
+    body: "Everything stays on your device by default. Cloud AI replies use OpenAI but your profile is never sold or tracked. Change this anytime in Settings.",
+    cta: "View privacy policy →",
+    href: "/privacy",
   },
 ];
 
@@ -42,7 +50,10 @@ export default function OnboardingTour() {
     try {
       const consented = window.localStorage.getItem(CONSENT_KEY);
       const toured = window.localStorage.getItem(TOUR_KEY);
-      if (consented && !toured) setVisible(true);
+      // Wait until FirstVisitBanner is fully done (ONBOARDED_KEY set) before
+      // showing the tour — prevents both banners overlapping on first visit.
+      const onboarded = window.localStorage.getItem(ONBOARDED_KEY);
+      if (consented && onboarded && !toured) setVisible(true);
     } catch { /* ignore */ }
   }, []);
 
@@ -66,7 +77,7 @@ export default function OnboardingTour() {
   return (
     <div
       role="dialog"
-      aria-modal="false"
+      aria-modal="true"
       aria-label="Quick tour"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/90 px-4 py-5 backdrop-blur-xl shadow-[0_-8px_40px_rgba(0,0,0,0.5)]"
     >

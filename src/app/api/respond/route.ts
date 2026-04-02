@@ -226,23 +226,6 @@ function derivePreferredLanguage(
   // German keyword hints (Latin script, so must rely on lexical detection)
   const romanDeHits = countHits(/\b(?:ich|du|wir|sie|ist|bin|haben|nicht|und|auch|aber|sehr|gut|schlecht|danke|bitte|ja|nein|warum|wie|was|wann|wo|ä|ö|ü|ß|schon|noch|immer|nie|oft|heute|morgen|gestern|vielleicht|natürlich|eigentlich|einfach|wirklich|gerade|schön|leider)\b/i);
 
-  console.log("[LANG DEBUG]", {
-    romanHiHits,
-    romanBnHits,
-    romanTaHits,
-    romanTeHits,
-    romanGuHits,
-    romanKnHits,
-    romanMlHits,
-    romanPaHits,
-    romanMrHits,
-    romanOrHits,
-    romanEsHits,
-    romanFrHits,
-    romanPtHits,
-    romanIdHits,
-    romanDeHits,
-  });
 
   const latinOnly = !hasBn && !hasHiLetters && totalLetters > 0;
   const latinHeavy = latinOnly && latinLetters / totalLetters >= 0.8;
@@ -586,7 +569,6 @@ function derivePreferredLanguage(
   // just because navigatorLanguage is hi-IN.
   const preferredLanguage = explicit ?? scriptDerived ?? guess;
 
-  console.log("[EXPLICIT]", explicit);
 
   // ✅ Conversation continuity lock:
   // If last assistant was clearly Bengali, keep Bengali unless user explicitly asks to switch.
@@ -1248,7 +1230,6 @@ export async function POST(req: Request) {
     },
     toneContext, // ✅ enables companion tone + personal references consistently
   });
-  console.log("IMOTARA_RUN_RESULT:", result);
 
   const recentMessages = (baseCtx as any)?.recentMessages as
     | RecentMsg[]

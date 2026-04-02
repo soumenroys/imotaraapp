@@ -37,6 +37,37 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// ─── Push notifications ───────────────────────────────────────────────────────
+
+self.addEventListener("push", (event) => {
+  let data = { title: "Imotara", body: "How are you feeling today?", icon: "/android-chrome-192.png", url: "/chat" };
+  try { if (event.data) data = { ...data, ...JSON.parse(event.data.text()) }; } catch { /* use defaults */ }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: data.icon,
+      badge: "/android-chrome-192.png",
+      data: { url: data.url },
+      tag: "imotara-nudge",   // replace previous nudge, don't stack
+      renotify: false,
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url ?? "/chat";
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      const existing = list.find((c) => c.url.includes(url));
+      if (existing) return existing.focus();
+      return clients.openWindow(url);
+    })
+  );
+});
+
+// ─── Fetch caching ────────────────────────────────────────────────────────────
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);

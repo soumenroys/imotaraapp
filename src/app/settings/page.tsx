@@ -672,7 +672,7 @@ function ToneAndContextTile() {
                             </label>
 
                             <label className="grid gap-1">
-                                <span className="text-xs text-zinc-300">Companion respond</span>
+                                <span className="text-xs text-zinc-300">Response style</span>
                                 <select
                                     value={responseStyle}
                                     onChange={(e) => setResponseStyle(e.target.value as ResponseStyle | "auto")}
@@ -926,6 +926,65 @@ export default function SettingsPage() {
 
     // ✅ Hydration-safe: render certain sections only after mount
     const [mounted, setMounted] = useState(false);
+
+    // ─── Browser push notifications ──────────────────────────────────────────
+    const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
+    const [notifSubscribed, setNotifSubscribed] = useState(false);
+    const [notifLoading, setNotifLoading] = useState(false);
+
+    useEffect(() => {
+        if (typeof window === "undefined" || !("Notification" in window)) return;
+        setNotifPermission(Notification.permission);
+        // Check if already subscribed
+        navigator.serviceWorker?.ready.then((reg) =>
+            reg.pushManager.getSubscription().then((sub) => setNotifSubscribed(!!sub))
+        ).catch(() => {});
+    }, []);
+
+    async function enableNotifications() {
+        if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+        setNotifLoading(true);
+        try {
+            const permission = await Notification.requestPermission();
+            setNotifPermission(permission);
+            if (permission !== "granted") return;
+
+            const reg = await navigator.serviceWorker.ready;
+            const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+            if (!vapidKey) { console.warn("[push] NEXT_PUBLIC_VAPID_PUBLIC_KEY not set"); return; }
+
+            const sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: vapidKey,
+            });
+
+            await fetch("/api/push/subscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(sub.toJSON()),
+            });
+            setNotifSubscribed(true);
+        } catch (e) {
+            console.error("[push] subscribe failed:", e);
+        } finally {
+            setNotifLoading(false);
+        }
+    }
+
+    async function disableNotifications() {
+        setNotifLoading(true);
+        try {
+            const reg = await navigator.serviceWorker?.ready;
+            const sub = await reg?.pushManager.getSubscription();
+            if (sub) await sub.unsubscribe();
+            await fetch("/api/push/subscribe", { method: "DELETE" });
+            setNotifSubscribed(false);
+        } catch (e) {
+            console.error("[push] unsubscribe failed:", e);
+        } finally {
+            setNotifLoading(false);
+        }
+    }
 
     const consentLabel =
         mode === "allow-remote"
@@ -1394,6 +1453,44 @@ export default function SettingsPage() {
                         Tip: Use a short memorable phrase (no spaces) and set the same value on mobile later.
                     </p>
                 </section>
+
+                {/* Browser push notifications */}
+                {mounted && "Notification" in window && "PushManager" in window && (
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Browser notifications</h2>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">
+                        Get a gentle daily reminder to check in, even when the tab is closed.
+                    </p>
+                    <div className="mt-3 flex items-center gap-3">
+                        {notifPermission === "denied" ? (
+                            <p className="text-xs text-rose-400">
+                                Notifications blocked by your browser. Allow them in your browser&apos;s site settings, then reload.
+                            </p>
+                        ) : notifSubscribed ? (
+                            <button
+                                type="button"
+                                onClick={disableNotifications}
+                                disabled={notifLoading}
+                                className="rounded-xl border border-white/15 bg-white/8 px-4 py-2 text-xs text-zinc-300 transition hover:bg-white/15 disabled:opacity-50"
+                            >
+                                {notifLoading ? "Disabling…" : "Disable notifications"}
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={enableNotifications}
+                                disabled={notifLoading}
+                                className="im-cta-bg rounded-xl px-4 py-2 text-xs font-medium text-black shadow transition hover:brightness-110 disabled:opacity-50"
+                            >
+                                {notifLoading ? "Enabling…" : "Enable notifications"}
+                            </button>
+                        )}
+                        {notifSubscribed && (
+                            <span className="text-xs text-emerald-400">Active ✓</span>
+                        )}
+                    </div>
+                </section>
+                )}
 
                 {/* NEW: Tone & Context Preferences (client-only safe) */}
                 {mounted && <ToneAndContextTile />}

@@ -939,14 +939,44 @@ export default function ChatPage() {
     try { localStorage.setItem("imotara.bookmarks.v1", JSON.stringify([...bookmarks])); } catch { /* ignore */ }
   }, [mounted, bookmarks]);
 
+  function syncMessageMetaToRemote(messageId: string, patch: { bookmarked?: boolean; reaction?: string | null }) {
+    const msg = activeThread?.messages.find((m) => m.id === messageId);
+    if (!msg || !activeThread) return;
+    void pushChatMessageToRemote({
+      id: msg.id,
+      threadId: activeThread.id,
+      role: msg.role,
+      content: msg.content,
+      createdAtMs: msg.createdAt,
+      meta: {
+        ...(msg.meta ?? {}),
+        ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)),
+      },
+    });
+  }
+
   function toggleBookmark(id: string) {
     hapticTap();
+    const isAdding = !bookmarks.has(id);
     setBookmarks((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    setChatToast({ message: isAdding ? "Bookmarked ✓" : "Bookmark removed" });
+    syncMessageMetaToRemote(id, { bookmarked: isAdding });
+  }
+
+  function handleReact(messageId: string, emoji: string) {
+    let finalEmoji: string | null = null;
+    setReactions((prev) => {
+      const next = { ...prev };
+      if (next[messageId] === emoji) { delete next[messageId]; }
+      else { next[messageId] = emoji; finalEmoji = emoji; }
+      return next;
+    });
+    syncMessageMetaToRemote(messageId, { reaction: finalEmoji });
   }
 
   // #6: Compute weekly mood recap on mount
@@ -1148,8 +1178,10 @@ export default function ChatPage() {
         getLocalChatKey(),
         JSON.stringify({ threads, activeId }),
       );
-    } catch {
-      // ignore
+    } catch (e: any) {
+      if (e?.name === "QuotaExceededError" || e?.code === 22) {
+        setChatToast({ message: "Storage full — export your data to free up space.", type: "error" });
+      }
     }
   }, [mounted, threads, activeId]);
 
@@ -2086,7 +2118,7 @@ export default function ChatPage() {
       ar: "ar-SA", he: "he-IL", de: "de-DE",
     };
     const profileLang = getImotaraProfile()?.user?.preferredLang ?? "";
-    rec.lang = LANG_TO_BCP47[profileLang] ?? "";
+    rec.lang = LANG_TO_BCP47[profileLang] ?? "en-US";
     recognitionRef.current = rec;
 
     rec.onresult = (e: any) => {
@@ -2095,7 +2127,12 @@ export default function ChatPage() {
         setDraft((prev) => (prev.trim() ? `${prev} ${transcript.trim()}` : transcript.trim()));
       }
     };
-    rec.onerror = () => setIsListening(false);
+    rec.onerror = (e: any) => {
+      setIsListening(false);
+      if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
+        setChatToast({ message: "Microphone access denied — allow it in your browser settings.", type: "error" });
+      }
+    };
     rec.onend = () => setIsListening(false);
 
     rec.start();
@@ -2224,6 +2261,7 @@ export default function ChatPage() {
                     key={t.id}
                     role="button"
                     tabIndex={0}
+                    aria-label={t.title || "Conversation thread"}
                     onClick={() => { if (renamingId !== t.id) setActiveId(t.id); }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
@@ -2885,14 +2923,7 @@ export default function ChatPage() {
                     followUp={m.followUp}
                     meta={m.meta}
                     reaction={reactions[m.id]}
-                    onReact={(emoji) =>
-                      setReactions((prev) => {
-                        const next = { ...prev };
-                        if (next[m.id] === emoji) delete next[m.id]; // toggle off
-                        else next[m.id] = emoji;
-                        return next;
-                      })
-                    }
+                    onReact={(emoji) => handleReact(m.id, emoji)}
                     bookmarked={bookmarks.has(m.id)}
                     onBookmark={() => toggleBookmark(m.id)}
                     onRetry={

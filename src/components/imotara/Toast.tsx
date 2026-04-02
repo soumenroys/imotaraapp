@@ -44,7 +44,7 @@ export default function Toast({ message, type = "success", onDismiss, duration }
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2.5 rounded-2xl border px-4 py-2.5 text-sm shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-xl animate-slide-up whitespace-nowrap ${STYLES[type]}`}
+      className={`fixed bottom-28 sm:bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2.5 rounded-2xl border px-4 py-2.5 text-sm shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-xl animate-slide-up whitespace-nowrap ${STYLES[type]}`}
     >
       <Icon className={`h-4 w-4 shrink-0 ${ICON_CLASS[type]}`} aria-hidden="true" />
       <span>{message}</span>

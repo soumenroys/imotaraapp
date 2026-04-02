@@ -139,7 +139,7 @@ export default function FeelPage() {
               {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
             </p>
           </div>
-          {streak > 1 && (
+          {streak >= 1 && (
             <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-300">
               🔥 {streak} day{streak !== 1 ? "s" : ""}
             </div>

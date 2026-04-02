@@ -2201,15 +2201,20 @@ export default function ChatPage() {
 
           <div className="flex-1 space-y-1 overflow-auto pr-1">
             {!mounted ? (
-              <div
-                className="select-none rounded-xl border border-dashed border-white/20 bg-white/5 p-4 text-sm text-zinc-400"
-                suppressHydrationWarning
-              >
-                Loading…
+              <div className="space-y-1.5" suppressHydrationWarning aria-label="Loading conversations">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-9 animate-pulse rounded-xl bg-white/5" style={{ opacity: 1 - i * 0.18 }} />
+                ))}
               </div>
             ) : threads.length === 0 ? (
-              <div className="select-none rounded-xl border border-dashed border-white/20 bg-white/5 p-4 text-sm text-zinc-400">
-                No conversations yet. Create one.
+              <div className="rounded-xl border border-dashed border-white/20 bg-white/5 p-5 text-center">
+                <p className="mb-3 text-xs text-zinc-500">No conversations yet</p>
+                <button
+                  onClick={newThread}
+                  className="rounded-full bg-indigo-500/20 border border-indigo-500/40 px-4 py-1.5 text-xs text-indigo-300 transition hover:bg-indigo-500/30"
+                >
+                  Start chatting →
+                </button>
               </div>
             ) : (
               threads.map((t) => {

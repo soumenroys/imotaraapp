@@ -246,6 +246,7 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
   // ⬇️ Pagination: render in pages of PAGE_SIZE to avoid large DOM trees
   const PAGE_SIZE = 30;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   // ⬇️ NEW: session-aware filter (from chat sessions)
   const searchParams = useSearchParams();
@@ -764,11 +765,7 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
   }, []);
 
   async function handleDelete(id: string) {
-    const ok =
-      typeof window !== "undefined"
-        ? window.confirm("Delete this entry?")
-        : true;
-    if (!ok) return;
+    setPendingDeleteId(null);
 
     const prev = items;
     const next = Array.isArray(prev) ? prev.filter((r) => r.id !== id) : [];
@@ -2023,16 +2020,30 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
                       View in chat
                     </Link>
                   )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleDelete(r.id);
-                    }}
-                    className="rounded-lg border border-white/15 bg-white/10 px-2 py-0.5 text-[11px] text-zinc-900 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
-                    title="Soft-delete this entry"
-                  >
-                    Delete
-                  </button>
+                  {pendingDeleteId === r.id ? (
+                    <span className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); void handleDelete(r.id); }}
+                        className="rounded-lg border border-red-500/50 bg-red-500/20 px-2 py-0.5 text-[11px] text-red-300 shadow-sm hover:bg-red-500/30"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setPendingDeleteId(null); }}
+                        className="rounded-lg border border-white/15 bg-white/10 px-2 py-0.5 text-[11px] text-zinc-400 shadow-sm hover:bg-white/20"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setPendingDeleteId(r.id); }}
+                      className="rounded-lg border border-white/15 bg-white/10 px-2 py-0.5 text-[11px] text-zinc-900 shadow-sm backdrop-blur-sm hover:bg-white/20 dark:text-zinc-100"
+                      title="Soft-delete this entry"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
 

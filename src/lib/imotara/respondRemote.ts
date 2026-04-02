@@ -269,5 +269,9 @@ export async function respondRemote(input: {
         );
     }
 
-    return (await res.json()) as ImotaraResponse;
+    try {
+        return (await res.json()) as ImotaraResponse;
+    } catch {
+        throw new Error("[imotara] /api/respond returned non-JSON 200 response");
+    }
 }

@@ -931,6 +931,7 @@ export default function SettingsPage() {
     const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
     const [notifSubscribed, setNotifSubscribed] = useState(false);
     const [notifLoading, setNotifLoading] = useState(false);
+    const [notifToast, setNotifToast] = useState<string | null>(null);
 
     useEffect(() => {
         if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -967,8 +968,8 @@ export default function SettingsPage() {
                 setNotifSubscribed(true);
             } else {
                 console.error("[push] subscribe failed: server returned", pushRes.status);
-                setToast("Could not save notification subscription — please try again");
-                window.setTimeout(() => setToast(null), 3000);
+                setNotifToast("Could not save notification subscription — please try again");
+                window.setTimeout(() => setNotifToast(null), 3000);
             }
         } catch (e) {
             console.error("[push] subscribe failed:", e);
@@ -980,9 +981,11 @@ export default function SettingsPage() {
     async function disableNotifications() {
         setNotifLoading(true);
         try {
-            const reg = await navigator.serviceWorker?.ready;
-            const sub = await reg?.pushManager.getSubscription();
-            if (sub) await sub.unsubscribe();
+            if ("serviceWorker" in navigator) {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.getSubscription();
+                if (sub) await sub.unsubscribe();
+            }
             await fetch("/api/push/subscribe", { method: "DELETE" });
             setNotifSubscribed(false);
         } catch (e) {
@@ -1495,6 +1498,9 @@ export default function SettingsPage() {
                             <span className="text-xs text-emerald-400">Active ✓</span>
                         )}
                     </div>
+                    {notifToast && (
+                        <p className="mt-2 text-xs text-rose-400">{notifToast}</p>
+                    )}
                 </section>
                 )}
 

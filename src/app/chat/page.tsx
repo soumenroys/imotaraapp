@@ -3081,6 +3081,7 @@ export default function ChatPage() {
                   type="button"
                   onClick={toggleVoice}
                   title={isListening ? "Stop listening" : "Speak your message"}
+                  aria-label={isListening ? "Stop voice input" : "Start voice input"}
                   className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
                     isListening
                       ? "border-rose-400/50 bg-rose-500/20 text-rose-300 animate-pulse"
@@ -3095,6 +3096,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={() => setShowBreathing((v) => !v)}
                 title="Breathing exercise"
+                aria-label={showBreathing ? "Close breathing exercise" : "Open breathing exercise"}
                 className={`h-11 w-11 inline-flex items-center justify-center rounded-2xl border transition ${
                   showBreathing
                     ? "border-sky-400/50 bg-sky-500/20 text-sky-300"

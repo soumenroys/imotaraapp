@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       if (result.ok) {
         sent++;
         // Update last_notified_at
-        await admin.from("user_memory").upsert(
+        const { error: upsertErr } = await admin.from("user_memory").upsert(
           {
             user_id: row.user_id,
             type: "push",
@@ -92,6 +92,7 @@ export async function POST(req: Request) {
           },
           { onConflict: "user_id,type,key" },
         );
+        if (upsertErr) console.error("[push/cron] upsert last_notified_at failed:", upsertErr.message);
       } else if (result.gone) {
         stale.push(row.user_id);
       }

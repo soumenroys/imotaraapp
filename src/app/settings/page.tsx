@@ -963,7 +963,13 @@ export default function SettingsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(sub.toJSON()),
             });
-            if (pushRes.ok) setNotifSubscribed(true);
+            if (pushRes.ok) {
+                setNotifSubscribed(true);
+            } else {
+                console.error("[push] subscribe failed: server returned", pushRes.status);
+                setToast("Could not save notification subscription — please try again");
+                window.setTimeout(() => setToast(null), 3000);
+            }
         } catch (e) {
             console.error("[push] subscribe failed:", e);
         } finally {

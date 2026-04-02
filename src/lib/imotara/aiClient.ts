@@ -2,8 +2,14 @@
 //
 // Single place to talk to the AI engine for Imotara.
 // ⚠️ SERVER-ONLY: do not import this into client components.
+//
+// Disaster-recovery: if OpenAI is unavailable (HTTP error or network failure),
+// callImotaraAI automatically retries via Gemini and fires a red-alert email
+// to info@imotara.com (requires GEMINI_API_KEY + ALERT_GMAIL_USER + ALERT_GMAIL_APP_PASSWORD env vars).
 
 "use server";
+
+import nodemailer from "nodemailer";
 
 
 export type CallImotaraAIOptions = {
@@ -46,6 +52,11 @@ export type ImotaraAIResponse = {
     reason?: string;
   };
 };
+
+// ─── Alert cooldown (module-level, resets on cold-start) ─────────────────────
+// Prevents email flooding: at most one alert per 5 minutes per server instance.
+let _lastAlertAt = 0;
+const ALERT_COOLDOWN_MS = 5 * 60 * 1000;
 
 /**
  * Minimal type for OpenAI's Chat Completions API response.
@@ -178,14 +189,9 @@ export async function callImotaraAI(
         `[imotara][aiClient] OpenAI error HTTP ${response.status}:`,
         errText.slice(0, 400),
       );
-      return {
-        text: "",
-        meta: {
-          usedModel: model,
-          from: "error",
-          reason: `HTTP ${response.status}: ${errText.slice(0, 200)}`,
-        },
-      };
+      const openaiReason = `HTTP ${response.status}: ${errText.slice(0, 200)}`;
+      void sendOutageAlert(openaiReason);
+      return callGeminiAI(prompt, options);
     }
 
     const data = (await response.json()) as OpenAIChatResult;
@@ -223,15 +229,10 @@ export async function callImotaraAI(
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
-    console.error("[imotara][aiClient] fetch exception:", err?.message || err);
-    return {
-      text: "",
-      meta: {
-        usedModel: model,
-        from: "error",
-        reason: err?.message || "Unknown network or runtime error",
-      },
-    };
+    const reason = err?.message || "Unknown network or runtime error";
+    console.error("[imotara][aiClient] fetch exception:", reason);
+    void sendOutageAlert(reason);
+    return callGeminiAI(prompt, options);
   }
 }
 
@@ -240,6 +241,137 @@ async function safeReadText(response: Response): Promise<string> {
     return await response.text();
   } catch {
     return "";
+  }
+}
+
+// ─── Gemini fallback ──────────────────────────────────────────────────────────
+
+type GeminiResult = {
+  candidates?: { content?: { parts?: { text?: string }[] } }[];
+};
+
+/**
+ * Calls Google Gemini (gemini-2.0-flash) as a drop-in fallback for OpenAI.
+ * Requires GEMINI_API_KEY environment variable.
+ */
+async function callGeminiAI(
+  prompt: string,
+  options: CallImotaraAIOptions = {},
+): Promise<ImotaraAIResponse> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = "gemini-2.0-flash";
+
+  if (!apiKey) {
+    return {
+      text: "",
+      meta: { usedModel: model, from: "error", reason: "GEMINI_API_KEY not set" },
+    };
+  }
+
+  const systemPrompt = options.system ?? "You are Imotara — an emotion-aware, privacy-first companion. Be warm, concise, and human.";
+  const temperature = typeof options.temperature === "number" ? options.temperature : 0.7;
+  const maxTokens = options.maxTokens ?? 350;
+  const abortMs = options.abortMs ?? 25_000;
+
+  const controller = new AbortController();
+  const timeoutId = abortMs > 0 ? setTimeout(() => controller.abort(), abortMs) : undefined;
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: maxTokens, temperature },
+      }),
+      signal: controller.signal,
+    });
+
+    if (timeoutId) clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errText = await safeReadText(response);
+      console.error(`[imotara][gemini] HTTP ${response.status}:`, errText.slice(0, 400));
+      return {
+        text: "",
+        meta: { usedModel: model, from: "error", reason: `Gemini HTTP ${response.status}: ${errText.slice(0, 200)}` },
+      };
+    }
+
+    const data = (await response.json()) as GeminiResult;
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+
+    if (!text) {
+      text = "I'm here with you. I don't have a detailed answer right now, but I'm listening to what you're feeling.";
+    }
+
+    if (options.noQuestions && text) {
+      const parts = text.split(/(?<=[.!?])\s+/).map((s) => s.trim());
+      const kept = parts.filter(
+        (s) => !/[?]\s*$/.test(s) && !/^(what|which|how|why|when|where|who)\b/i.test(s),
+      );
+      text = (kept.length ? kept : parts.slice(0, 1)).join(" ").trim();
+    }
+
+    return { text, meta: { usedModel: model, from: "fallback" } };
+  } catch (err: any) {
+    if (timeoutId) clearTimeout(timeoutId);
+    console.error("[imotara][gemini] fetch exception:", err?.message || err);
+    return {
+      text: "",
+      meta: { usedModel: model, from: "error", reason: err?.message || "Gemini network error" },
+    };
+  }
+}
+
+// ─── Outage alert email ───────────────────────────────────────────────────────
+
+/**
+ * Fires a red-alert email to info@imotara.com via Gmail SMTP.
+ * Requires ALERT_GMAIL_USER and ALERT_GMAIL_APP_PASSWORD env vars.
+ * Enforces a 5-minute cooldown per server instance to prevent flooding.
+ */
+async function sendOutageAlert(reason: string): Promise<void> {
+  const now = Date.now();
+  if (now - _lastAlertAt < ALERT_COOLDOWN_MS) return;
+
+  const user = process.env.ALERT_GMAIL_USER;
+  const pass = process.env.ALERT_GMAIL_APP_PASSWORD;
+
+  if (!user || !pass) {
+    console.error("[imotara][alert] ALERT_GMAIL_USER or ALERT_GMAIL_APP_PASSWORD not set — skipping outage alert");
+    return;
+  }
+
+  _lastAlertAt = now;
+
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user, pass },
+    });
+
+    await transporter.sendMail({
+      from: `"Imotara Alerts" <${user}>`,
+      to: "info@imotara.com",
+      subject: "🔴 ALERT: OpenAI API unavailable — Gemini fallback active",
+      html: `
+        <h2 style="color:#cc0000;">🔴 OpenAI API Outage Detected</h2>
+        <p>Imotara has automatically switched to the <strong>Gemini fallback</strong> (gemini-2.0-flash).</p>
+        <p><strong>Reason:</strong> ${reason.replace(/</g, "&lt;")}</p>
+        <p><strong>Time (UTC):</strong> ${new Date().toISOString()}</p>
+        <p>Check <a href="https://status.openai.com">status.openai.com</a> for updates.</p>
+        <hr>
+        <p style="color:#888;font-size:12px;">
+          Alerts are throttled to one per 5 minutes per server instance.
+        </p>
+      `,
+    });
+  } catch (err) {
+    console.error("[imotara][alert] Failed to send outage alert:", err);
   }
 }
 

@@ -4,7 +4,7 @@
 // Protected by ADMIN_SECRET env var (Bearer token)
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.ADMIN_SECRET?.trim();
@@ -22,7 +22,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const supabase = supabaseServer();
+  const supabase = getSupabaseAdmin();
 
   const { error } = await supabase
     .from("blog_comments")
@@ -46,7 +46,7 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const supabase = supabaseServer();
+  const supabase = getSupabaseAdmin();
 
   const { error } = await supabase
     .from("blog_comments")

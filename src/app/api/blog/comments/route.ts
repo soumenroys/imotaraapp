@@ -1,13 +1,13 @@
 // src/app/api/blog/comments/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 // ── GET /api/blog/comments?slug=<slug>        → comments for one post
 // ── GET /api/blog/comments?slugs=a,b,c        → { counts: {slug: n} }
 // ── GET /api/blog/comments?recent=<n>         → last n approved comments across all posts
 
 export async function GET(req: NextRequest) {
-  const supabase = supabaseServer();
+  const supabase = getSupabaseAdmin();
   const sp = req.nextUrl.searchParams;
 
   // ── Batch counts ─────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "links not allowed" }, { status: 400 });
   }
 
-  const supabase = supabaseServer();
+  const supabase = getSupabaseAdmin();
   const { error } = await supabase.from("blog_comments").insert({
     slug,
     name,

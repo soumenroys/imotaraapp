@@ -27,9 +27,9 @@ async function probeOnline(): Promise<boolean> {
 }
 
 export function useOnlineStatus(): boolean {
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator !== "undefined" ? navigator.onLine : true,
-  );
+  // Always start true (matches server-render default) — sync to real value
+  // inside useEffect to avoid SSR/client hydration mismatch.
+  const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
     let mounted = true;

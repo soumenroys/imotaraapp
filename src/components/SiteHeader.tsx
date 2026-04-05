@@ -17,6 +17,7 @@ const PRIMARY_LINKS = [
 
 // Overflow nav — behind "···" menu
 const MORE_LINKS = [
+  { href: "/blog", label: "Blog" },
   { href: "/connect", label: "Connect" },
   { href: "/about", label: "About" },
   { href: "/privacy", label: "Privacy" },
@@ -37,9 +38,12 @@ const INACTIVE_LINK_CLASS =
 
 export default function SiteHeader() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => setMounted(true), []);
 
   // Cmd+K / Ctrl+K global shortcut
   useEffect(() => {
@@ -71,7 +75,7 @@ export default function SiteHeader() {
     setMoreOpen(false);
   }, [pathname]);
 
-  const isMoreActive = MORE_LINKS.some((l) => pathname.startsWith(l.href));
+  const isMoreActive = mounted && MORE_LINKS.some((l) => pathname.startsWith(l.href));
 
   return (
     <>

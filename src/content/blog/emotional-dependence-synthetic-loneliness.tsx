@@ -12,7 +12,7 @@ export const meta: BlogPost = {
   tags: ["Hindi", "emotional health", "loneliness", "AI dependence", "भावनाएं"],
   author: { name: "Soumen Roy", role: "Founder, Imotara" },
   readingTime: 7,
-  coverEmoji: "💙",
+  coverEmoji: "🪞",
   featured: true,
   language: "हिन्दी",
   languageCode: "hi",

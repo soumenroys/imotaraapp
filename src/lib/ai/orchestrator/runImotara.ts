@@ -1844,7 +1844,7 @@ function draftResponseForLanguage(
   // Gender-aware verb helper for Marathi
   const mr = (male: string, female: string) => isFemale ? female : male;
 
-  let opener =
+  const opener =
     lang === "hi"
       ? rel === "friend"
         ? name

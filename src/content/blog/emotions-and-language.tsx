@@ -1,4 +1,5 @@
 // src/content/blog/emotions-and-language.tsx
+/* eslint-disable react/no-unescaped-entities */
 import type { BlogPost } from "@/lib/blog";
 
 export const meta: BlogPost = {

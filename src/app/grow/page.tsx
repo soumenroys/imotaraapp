@@ -1211,13 +1211,6 @@ export default function GrowPage() {
     if (entries.length > 0) showToast("Reflections downloaded ✓");
   }
 
-  if (!mounted) return (
-    <div className="mx-auto max-w-2xl space-y-4 px-4 py-10">
-      <SkeletonLoader rows={1} variant="card" />
-      <SkeletonLoader rows={3} variant="list" />
-    </div>
-  );
-
   const todayStr = new Date().toDateString();
   const todayEntries = useMemo(
     () => entries.filter((e) => new Date(e.createdAt).toDateString() === todayStr),
@@ -1228,6 +1221,13 @@ export default function GrowPage() {
     [todayEntries, prompt],
   );
   const streak = useMemo(() => computeStreak(entries), [entries]);
+
+  if (!mounted) return (
+    <div className="mx-auto max-w-2xl space-y-4 px-4 py-10">
+      <SkeletonLoader rows={1} variant="card" />
+      <SkeletonLoader rows={3} variant="list" />
+    </div>
+  );
 
   return (
     <div className="mx-auto max-w-2xl space-y-5 px-4 py-6 sm:px-6">

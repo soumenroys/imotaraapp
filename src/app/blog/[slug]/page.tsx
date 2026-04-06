@@ -107,6 +107,59 @@ function ShareButtons({ title, slug }: { title: string; slug: string }) {
   );
 }
 
+// ─── Article JSON-LD ─────────────────────────────────────────────────────────
+
+function ArticleJsonLd({
+  meta,
+  showEnglish,
+}: {
+  meta: ReturnType<typeof getPostModuleBySlug> extends infer M
+    ? M extends { meta: infer P } ? P : never
+    : never;
+  showEnglish: boolean;
+}) {
+  const siteUrl =
+    (process.env.NEXT_PUBLIC_SITE_URL || "https://imotara.com").replace(/\/+$/, "");
+  const title = showEnglish && meta.titleEn ? meta.titleEn : meta.title;
+  const description = showEnglish && meta.descriptionEn ? meta.descriptionEn : meta.description;
+
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: title,
+    description,
+    datePublished: meta.date,
+    dateModified: meta.date,
+    inLanguage: showEnglish ? "en" : (meta.languageCode ?? "en"),
+    url: `${siteUrl}/blog/${meta.slug}`,
+    image: `${siteUrl}/og-image.png`,
+    author: {
+      "@type": "Person",
+      name: meta.author.name,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Imotara",
+      url: siteUrl,
+      logo: { "@type": "ImageObject", url: `${siteUrl}/og-image.png` },
+    },
+    keywords: meta.tags.join(", "),
+    articleSection: meta.category,
+    isPartOf: {
+      "@type": "Blog",
+      name: "Imotara Blog",
+      url: `${siteUrl}/blog`,
+    },
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function BlogPostPage({
@@ -131,6 +184,8 @@ export default async function BlogPostPage({
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+
+      <ArticleJsonLd meta={meta} showEnglish={!!showEnglish} />
 
       {/* Back link */}
       <Link

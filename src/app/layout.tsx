@@ -50,12 +50,27 @@ export const metadata: Metadata = {
     "A quiet, charitable exploration at the edge of feeling, memory and meaning. A companion that notices — without surveillance or ads.",
   keywords: [
     "Imotara",
-    "AI friend",
+    "AI emotional wellness app",
+    "AI companion app",
+    "mental health app",
+    "emotional support app",
+    "mood tracker",
+    "AI mental health",
     "emotional wellbeing",
     "digital companion",
     "ethical AI",
-    "mental health",
-    "empathy",
+    "multilingual mental health",
+    "AI friend",
+    "emotional diary",
+    "mood journal app",
+    "anxiety support app",
+    "mindfulness app",
+    "AI therapy companion",
+    "emotional intelligence app",
+    "free mental health app",
+    "mental wellness Android app",
+    "emotional health tracker",
+    "AI chat for mental health",
   ],
   authors: [{ name: "Soumen Roy", url: "https://soumenroy.com" }],
   category: "AI Companion",
@@ -111,28 +126,79 @@ export const metadata: Metadata = {
 
 function JsonLd() {
   const site = siteUrl;
-  const data = {
+
+  const organization = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Imotara",
+    url: site,
+    logo: { "@type": "ImageObject", url: `${site}/og-image.png` },
+    sameAs: [
+      "https://twitter.com/imotara4x",
+      "https://play.google.com/store/apps/details?id=com.imotara.imotara",
+    ],
+  };
+
+  const website = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     url: site,
     name: "Imotara",
-    description: "An immortal friend for your emotions.",
-    publisher: {
-      "@type": "Organization",
-      name: "Imotara",
-      url: site,
-      logo: {
-        "@type": "ImageObject",
-        url: `${site}/og-image.png`,
-      },
-    },
+    description:
+      "Imotara is a free AI emotional wellness companion. Talk about how you feel, track your mood, and get gentle AI support — in your language, at your pace.",
+    publisher: { "@type": "Organization", name: "Imotara", url: site },
     inLanguage: "en",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: { "@type": "EntryPoint", urlTemplate: `${site}/blog?q={search_term_string}` },
+      "query-input": "required name=search_term_string",
+    },
   };
+
+  const mobileApp = {
+    "@context": "https://schema.org",
+    "@type": "MobileApplication",
+    name: "Imotara — AI Emotional Wellness",
+    operatingSystem: "ANDROID",
+    applicationCategory: "HealthApplication",
+    applicationSubCategory: "Mental Health",
+    description:
+      "Imotara is your private AI emotional wellness companion. Talk about how you feel, track your mood, and get gentle AI support in 22 languages — with no ads, no surveillance.",
+    url: site,
+    downloadUrl:
+      "https://play.google.com/store/apps/details?id=com.imotara.imotara",
+    installUrl:
+      "https://play.google.com/store/apps/details?id=com.imotara.imotara",
+    screenshot: `${site}/og-image.png`,
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    },
+    author: { "@type": "Organization", name: "Imotara", url: site },
+    inLanguage: [
+      "en","es","hi","fr","bn","ar","pt","de","ja","ko","tr","it","zh",
+      "ta","te","ml","kn","mr","gu","pa","ur","or",
+    ],
+    keywords:
+      "AI companion, emotional wellness, mental health, mood tracker, multilingual AI, anxiety support, mindfulness",
+  };
+
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organization) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(website) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(mobileApp) }}
+      />
+    </>
   );
 }
 

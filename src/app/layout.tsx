@@ -159,16 +159,20 @@ function JsonLd() {
     "@context": "https://schema.org",
     "@type": "MobileApplication",
     name: "Imotara — AI Emotional Wellness",
-    operatingSystem: "ANDROID",
+    operatingSystem: ["ANDROID", "IOS"],
     applicationCategory: "HealthApplication",
     applicationSubCategory: "Mental Health",
     description:
       "Imotara is your private AI emotional wellness companion. Talk about how you feel, track your mood, and get gentle AI support in 22 languages — with no ads, no surveillance.",
     url: site,
-    downloadUrl:
+    downloadUrl: [
       "https://play.google.com/store/apps/details?id=com.imotara.imotara",
-    installUrl:
+      "https://apps.apple.com/app/imotara/id6756697569",
+    ],
+    installUrl: [
       "https://play.google.com/store/apps/details?id=com.imotara.imotara",
+      "https://apps.apple.com/app/imotara/id6756697569",
+    ],
     screenshot: `${site}/og-image.png`,
     offers: {
       "@type": "Offer",

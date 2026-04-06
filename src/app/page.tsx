@@ -470,6 +470,53 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Get the app */}
+        <div className="imotara-glass-soft px-5 py-6 sm:px-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+            Get the app
+          </p>
+          <p className="mt-1.5 text-sm text-zinc-300">
+            Take Imotara with you — voice input, offline support, and mood trends on mobile.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <a
+              href="https://play.google.com/store/apps/details?id=com.imotara.imotara"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Get Imotara on Google Play"
+              className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 transition hover:border-white/20 hover:bg-white/10"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-700/60 to-sky-700/60 text-emerald-200 shadow-sm transition group-hover:from-emerald-600/70 group-hover:to-sky-600/70">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                  <path d="M3.18 23.76a2 2 0 0 0 2.05-.22l11.59-6.7-2.83-2.83-10.81 9.75ZM.5 1.05A2 2 0 0 0 0 2.4v19.2a2 2 0 0 0 .5 1.35L.6 23l10.76-10.76v-.25L.6 1.13l-.1-.08ZM20.33 10.54l-2.77-1.6-3.15 3.14 3.15 3.15 2.79-1.61a2.01 2.01 0 0 0 0-3.08ZM3.18.24 13.99 6.94l-2.83 2.83L.6 1.05l.07-.07A2 2 0 0 1 3.18.24Z"/>
+                </svg>
+              </span>
+              <div className="leading-tight">
+                <p className="text-[9px] uppercase tracking-[0.15em] text-zinc-500">Get it on</p>
+                <p className="text-xs font-semibold text-zinc-200">Google Play</p>
+              </div>
+            </a>
+
+            <a
+              href="https://apps.apple.com/app/imotara/id6756697569"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Download Imotara on the App Store"
+              className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 transition hover:border-white/20 hover:bg-white/10"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-zinc-700 to-zinc-800 text-zinc-200 shadow-sm transition group-hover:from-zinc-600 group-hover:to-zinc-700">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11Z"/>
+                </svg>
+              </span>
+              <div className="leading-tight">
+                <p className="text-[9px] uppercase tracking-[0.15em] text-zinc-500">Download on the</p>
+                <p className="text-xs font-semibold text-zinc-200">App Store</p>
+              </div>
+            </a>
+          </div>
+        </div>
+
         {/* IMPORTANT: plain <style> (NOT style jsx) to avoid hydration mismatch */}
         <style>{`
           .imotara-sweep-line {

@@ -246,7 +246,18 @@ export default async function BlogPostPage({
                 </div>
                 <div>
                   <p className="text-xs font-medium text-zinc-200">
-                    {meta.author.name}
+                    {meta.author.name === "Soumen Roy" ? (
+                      <a
+                        href="https://soumenroy.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="transition hover:text-sky-300 hover:underline underline-offset-2"
+                      >
+                        {meta.author.name}
+                      </a>
+                    ) : (
+                      meta.author.name
+                    )}
                   </p>
                   {meta.author.role && (
                     <p className="text-[11px] text-zinc-500">{meta.author.role}</p>

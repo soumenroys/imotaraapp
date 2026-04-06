@@ -12,7 +12,7 @@ export const meta: BlogPost = {
   tags: ["Italian", "Italiano", "gaslighting", "AI bias", "emotional validation"],
   author: { name: "Soumen Roy", role: "Founder, Imotara" },
   readingTime: 6,
-  coverEmoji: "🪞",
+  coverEmoji: "🌀",
   featured: false,
   language: "Italiano",
   languageCode: "it",

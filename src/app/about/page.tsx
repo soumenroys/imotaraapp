@@ -1,9 +1,28 @@
 // src/app/about/page.tsx
+import type { Metadata } from "next";
 
-export const metadata = {
+const SITE_URL = "https://www.imotara.com";
+
+export const metadata: Metadata = {
   title: "About — Imotara",
   description:
-    "What Imotara is, why it exists, and the principles behind an emotion-aware, privacy-first companion.",
+    "What Imotara is, why it exists, and the principles behind an emotion-aware, privacy-first companion. No ads, no surveillance — just a quiet AI friend.",
+  alternates: { canonical: `${SITE_URL}/about` },
+  openGraph: {
+    type: "website",
+    url: `${SITE_URL}/about`,
+    siteName: "Imotara",
+    title: "About Imotara — A Quiet, Privacy-First AI Companion",
+    description:
+      "What Imotara is, why it exists, and the principles behind an emotion-aware, privacy-first companion. No ads, no surveillance.",
+    images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "Imotara" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "About Imotara — A Quiet, Privacy-First AI Companion",
+    description: "What Imotara is, why it exists, and the principles behind an emotion-aware, privacy-first companion.",
+    images: [`${SITE_URL}/og-image.png`],
+  },
 };
 
 export default function AboutPage() {

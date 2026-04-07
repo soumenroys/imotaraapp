@@ -517,6 +517,14 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Language switcher */}
+        <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+          <span>Also available in:</span>
+          <Link href="/hi" className="text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline" hrefLang="hi">हिंदी</Link>
+          <Link href="/bn" className="text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline" hrefLang="bn">বাংলা</Link>
+          <Link href="/ta" className="text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline" hrefLang="ta">தமிழ்</Link>
+        </div>
+
         {/* IMPORTANT: plain <style> (NOT style jsx) to avoid hydration mismatch */}
         <style>{`
           .imotara-sweep-line {

@@ -27,6 +27,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/privacy`, lastModified: now, changeFrequency: "yearly",  priority: 0.5 },
     { url: `${base}/terms`,   lastModified: now, changeFrequency: "yearly",  priority: 0.5 },
 
+    // ── Multilingual landing pages ───────────────────────────────────────────
+    { url: `${base}/hi`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${base}/bn`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${base}/ta`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+
     // ── Blog hub + all individual posts ─────────────────────────────────────
     { url: `${base}/blog`, lastModified: now, changeFrequency: "weekly", priority: 0.95 },
     ...blogPostEntries,

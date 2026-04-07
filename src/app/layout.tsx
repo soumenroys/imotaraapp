@@ -112,6 +112,13 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: siteUrl,
+    languages: {
+      en: siteUrl,
+      hi: `${siteUrl}/hi`,
+      bn: `${siteUrl}/bn`,
+      ta: `${siteUrl}/ta`,
+      "x-default": siteUrl,
+    },
     types: { "application/rss+xml": `${siteUrl}/rss.xml` },
   },
   // 🔓 Allow search engines to index and follow links (public release)

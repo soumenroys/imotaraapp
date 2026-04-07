@@ -3103,8 +3103,8 @@ export default function ChatPage() {
               </div>
             )}
             {draft.length > 800 && (
-              <div className={`mx-auto mb-1 flex max-w-3xl justify-end text-[10px] font-semibold ${draft.length > 1800 ? "text-red-400" : "text-amber-400"}`}>
-                {draft.length} / 2000{draft.length > 1800 ? " — approaching limit" : ""}
+              <div className={`mx-auto mb-1 flex max-w-3xl justify-end text-[10px] font-semibold ${draft.length >= 2000 ? "text-red-500" : draft.length > 1800 ? "text-red-400" : "text-amber-400"}`}>
+                {draft.length >= 2000 ? "2000 / 2000 — limit reached" : `${draft.length} / 2000${draft.length > 1800 ? " — approaching limit" : ""}`}
               </div>
             )}
             <div className="mx-auto flex max-w-3xl items-end gap-2">
@@ -3153,7 +3153,7 @@ export default function ChatPage() {
 
               <button
                 onClick={sendMessage}
-                disabled={analyzing || !draft.trim()}
+                disabled={analyzing || !draft.trim() || streamingReply.length > 0}
                 className="im-cta-bg inline-flex h-11 items-center gap-2 rounded-2xl border border-white/15 px-4 text-sm font-medium text-white shadow-lg transition hover:brightness-110 hover:-translate-y-0.5 duration-150 disabled:opacity-50"
                 type="button"
               >

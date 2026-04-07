@@ -94,10 +94,10 @@ export default function Home() {
       const key = "imotara_home_basics_seen_v1";
       const seen = window.localStorage.getItem(key);
       if (!seen) {
-        setPulseBasics(true);
         window.localStorage.setItem(key, "1");
-        const t = window.setTimeout(() => setPulseBasics(false), 4200);
-        return () => window.clearTimeout(t);
+        const t1 = window.setTimeout(() => setPulseBasics(true), 0);
+        const t2 = window.setTimeout(() => setPulseBasics(false), 4200);
+        return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
       }
     } catch {
       // ignore (private mode / storage blocked)
@@ -107,12 +107,14 @@ export default function Home() {
   useEffect(() => {
     if (isWithinLaunchOffer()) {
       const endsAt = getLaunchOfferEndsAt();
-      setLaunchBanner({
+      const banner = {
         show: true,
         endsAt: endsAt
           ? endsAt.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
           : null,
-      });
+      };
+      const t = window.setTimeout(() => setLaunchBanner(banner), 0);
+      return () => window.clearTimeout(t);
     }
   }, []);
 

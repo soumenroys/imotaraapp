@@ -7,7 +7,7 @@
     "dev": "next dev",
     "prebuild": "cross-env IMOTARA_PRUNE_DEV_ROUTES=1 node scripts/devRoutes.mjs prune",
     "build": "next build",
-    "postbuild": "cross-env IMOTARA_PRUNE_DEV_ROUTES=1 node scripts/devRoutes.mjs restore",
+    "postbuild": "cross-env IMOTARA_PRUNE_DEV_ROUTES=1 node scripts/devRoutes.mjs restore && node scripts/ping-sitemap.mjs",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",

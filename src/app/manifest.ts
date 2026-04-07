@@ -63,5 +63,28 @@ export default function manifest(): MetadataRoute.Manifest {
                 type: "image/png",
             },
         ],
+        shortcuts: [
+            {
+                name: "Chat with Imotara",
+                short_name: "Chat",
+                description: "Open a private chat with your emotional companion",
+                url: "/chat",
+                icons: [{ src: `${base}/android-chrome-192.png`, sizes: "192x192" }],
+            },
+            {
+                name: "Emotion History",
+                short_name: "History",
+                description: "View your emotional timeline and mood trends",
+                url: "/history",
+                icons: [{ src: `${base}/android-chrome-192.png`, sizes: "192x192" }],
+            },
+            {
+                name: "Grow",
+                short_name: "Grow",
+                description: "Daily reflection prompts to grow with intention",
+                url: "/grow",
+                icons: [{ src: `${base}/android-chrome-192.png`, sizes: "192x192" }],
+            },
+        ],
     };
 }

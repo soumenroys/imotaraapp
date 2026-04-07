@@ -112,6 +112,7 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: siteUrl,
+    types: { "application/rss+xml": `${siteUrl}/rss.xml` },
   },
   // 🔓 Allow search engines to index and follow links (public release)
   robots: {

@@ -10,7 +10,7 @@ export const metadata = {
 
 // Build label shown in privacy page footer
 const _version = (process.env.NEXT_PUBLIC_APP_VERSION || "1.0.7").replace(/^v/i, "");
-const _build = process.env.NEXT_PUBLIC_APP_BUILD || "68";
+const _build = process.env.NEXT_PUBLIC_APP_BUILD || "69";
 const BUILD_LABEL = `${_version} (${_build})`;
 
 export default function PrivacyPage() {

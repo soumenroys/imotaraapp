@@ -8,10 +8,10 @@ export const metadata = {
     "How Imotara collects, stores, and protects your data — with consent, clarity, and control.",
 };
 
-// Optional build label for quick debugging info
-const BUILD_LABEL =
-  process.env.NEXT_PUBLIC_IMOTARA_BUILD_LABEL ??
-  "1.0.7 (68)";
+// Build label shown in privacy page footer
+const _version = (process.env.NEXT_PUBLIC_APP_VERSION || "1.0.7").replace(/^v/i, "");
+const _build = process.env.NEXT_PUBLIC_APP_BUILD || "68";
+const BUILD_LABEL = `${_version} (${_build})`;
 
 export default function PrivacyPage() {
   return (

@@ -14,9 +14,7 @@ import {
   Search,
 } from "lucide-react";
 
-import SyncStatusChip from "@/components/imotara/SyncStatusChip";
 import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
-import useSyncHistory from "@/hooks/useSyncHistory";
 import GlobalSearch from "@/components/imotara/GlobalSearch";
 
 type TopBarProps = {
@@ -62,10 +60,6 @@ export default function TopBar({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const sync = useSyncHistory({
-    intervalMs: 0,
-    runOnMount: false,
-  });
 
   return (
     <>
@@ -134,18 +128,6 @@ export default function TopBar({
             <span className="hidden sm:inline">Search</span>
             <kbd className="hidden rounded border border-white/10 px-1 py-0.5 text-[9px] text-zinc-600 sm:inline">⌘K</kbd>
           </button>
-
-          {showSyncChip && (
-            <div className="hidden sm:block">
-              <SyncStatusChip
-                state={sync.state}
-                lastSyncedAt={sync.lastSyncedAt}
-                pendingCount={0}
-                conflictsCount={sync.conflicts.length}
-                onSync={sync.manualSync}
-              />
-            </div>
-          )}
 
           {showConflictsButton && (
             <div className="hidden sm:block h-7">

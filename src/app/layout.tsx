@@ -4,7 +4,6 @@ import { Inter } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import SyncStatusBar from "@/components/imotara/SyncStatusBar";
 import LocalDataNotice from "@/components/imotara/LocalDataNotice";
 import FirstVisitBanner from "@/components/imotara/FirstVisitBanner";
 import ServiceWorkerRegistration from "@/components/imotara/ServiceWorkerRegistration";
@@ -175,11 +174,11 @@ function JsonLd() {
     url: site,
     downloadUrl: [
       "https://play.google.com/store/apps/details?id=com.imotara.imotara",
-      "https://apps.apple.com/app/imotara/id6756697569",
+      "https://apps.apple.com/in/app/imotara/id6756697569",
     ],
     installUrl: [
       "https://play.google.com/store/apps/details?id=com.imotara.imotara",
-      "https://apps.apple.com/app/imotara/id6756697569",
+      "https://apps.apple.com/in/app/imotara/id6756697569",
     ],
     screenshot: `${site}/og-image.png`,
     offers: {
@@ -234,8 +233,7 @@ export default function RootLayout({
           <PageTransition>{children}</PageTransition>
         </main>
 
-        {/* Global sync bar + local-storage notice overlays */}
-        <SyncStatusBar />
+        {/* local-storage notice overlays */}
         <LocalDataNotice />
         <AppearanceInit />
         <FirstVisitBanner />

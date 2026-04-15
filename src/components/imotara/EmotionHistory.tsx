@@ -9,7 +9,6 @@ import type { EmotionRecord } from "@/types/history";
 import { getHistory } from "@/lib/imotara/history";
 import { saveHistory } from "@/lib/imotara/historyPersist";
 import { getUserScopeId } from "@/lib/imotara/userScope";
-import SyncStatusChip from "@/components/imotara/SyncStatusChip";
 import {
   pushAllLocalToApi,
   pushPendingToApi,
@@ -709,7 +708,7 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
       if (!autoRetryRef.current) return;
 
       autoRetryRef.current = false;
-      setPushInfo("Back online — syncing queued changes…");
+      setPushInfo("");
 
       (async () => {
         try {
@@ -1310,32 +1309,14 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
         </div>
       )}
 
-      {/* Header with status chip, consent indicator and manual controls */}
+      {/* Header with consent indicator and manual controls */}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 shadow-sm backdrop-blur-md dark:bg-white/10">
         <div className="flex flex-wrap items-center gap-2">
-          <SyncStatusChip
-            state={
-              state === "syncing"
-                ? "syncing"
-                : state === "error"
-                  ? "error"
-                  : "synced"
-            }
-            lastSyncedAt={lastSyncedAt}
-            pendingCount={pendingCount}
-            conflictsCount={conflicts}
-          />
           <span
             className="flex flex-wrap items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300"
             aria-live="polite"
           >
             <span>{subtitle}</span>
-            {state === "synced" &&
-              (Number(pendingCount) <= 0 || justSynced) && (
-                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                  ✅ All changes synced
-                </span>
-              )}
 
             {/* tiny orange conflict pill (fresh ones pulse for ~10s) */}
             {conflicts > 0 && (

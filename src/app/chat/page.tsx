@@ -2456,38 +2456,6 @@ export default function ChatPage() {
                   {/* ✅ PARITY: top capsules become a single row on desktop */}
                   <div className="w-full sm:ml-auto sm:max-w-[720px]">
                     <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
-                      {/* Status chip: Sync status */}
-                      <div
-                        className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-black/25 px-3 text-xs text-white/90 backdrop-blur-sm"
-                        title={
-                          syncError
-                            ? syncError
-                            : syncing
-                              ? "Sync in progress"
-                              : lastSyncAt
-                                ? `Last synced: ${syncedCount ?? 0} records`
-                                : "Not synced yet"
-                        }
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${syncing
-                            ? "bg-amber-400"
-                            : syncError
-                              ? "bg-red-500"
-                              : lastSyncAt
-                                ? "bg-emerald-400"
-                                : "bg-zinc-500"
-                            }`}
-                        />
-                        <span>
-                          {syncing
-                            ? "Syncing…"
-                            : lastSyncAt
-                              ? `Synced ${syncedCount ?? 0}`
-                              : "Not synced"}
-                        </span>
-                      </div>
-
                       {/* Action button: Sync now (hidden for public release until stable) */}
                       {ENABLE_REMOTE_SYNC ? (
                         <button

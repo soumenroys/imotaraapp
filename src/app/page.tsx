@@ -500,7 +500,7 @@ export default function Home() {
             </a>
 
             <a
-              href="https://apps.apple.com/app/imotara/id6756697569"
+              href="https://apps.apple.com/in/app/imotara/id6756697569"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Download Imotara on the App Store"

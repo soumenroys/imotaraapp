@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
@@ -89,9 +90,14 @@ export default function SiteHeader() {
             className="flex items-center gap-2 text-sm font-semibold tracking-tight text-zinc-900 transition hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-200"
             aria-label="Imotara home"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-[11px] font-bold text-white shadow-[0_10px_25px_rgba(15,23,42,0.8)]">
-              I
-            </span>
+            <Image
+              src="/android-chrome-192.png"
+              width={28}
+              height={28}
+              alt="Imotara"
+              className="rounded-xl shadow-[0_10px_25px_rgba(15,23,42,0.8)]"
+              priority
+            />
             <span className="hidden sm:inline">Imotara</span>
           </Link>
 

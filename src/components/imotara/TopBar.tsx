@@ -3,6 +3,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -26,8 +27,6 @@ type TopBarProps = {
 const HEADER_CLASS =
   "sticky top-0 z-30 border-b border-white/10 bg-[radial-gradient(circle_at_0%_0%,rgba(129,140,248,0.18),transparent_60%),radial-gradient(circle_at_100%_0%,rgba(45,212,191,0.18),transparent_60%)] bg-black/70 backdrop-blur-xl px-4 py-2 animate-fade-in";
 
-const LOGO_CLASS =
-  "flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-xs font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,0.55)]";
 
 const NAV_CLASS =
   "hidden sm:flex items-center gap-1 rounded-full bg-white/5 px-2 py-1 shadow-sm text-xs text-zinc-200";
@@ -67,7 +66,14 @@ export default function TopBar({
       <div className="mx-auto flex w-full max-w-7xl items-center gap-3">
         {/* LEFT: Logo + title */}
         <div className="flex flex-1 items-center gap-2">
-          <div className={LOGO_CLASS}>io</div>
+          <Image
+              src="/android-chrome-192.png"
+              width={32}
+              height={32}
+              alt="Imotara"
+              className="rounded-xl shadow-[0_8px_20px_rgba(0,0,0,0.55)]"
+              priority
+            />
 
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-zinc-50">

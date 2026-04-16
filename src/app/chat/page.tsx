@@ -30,6 +30,7 @@ import {
   Volume2,
   VolumeX,
   Pencil,
+  ChevronDown,
 } from "lucide-react";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
 import BreathingWidget from "@/components/imotara/BreathingWidget";
@@ -874,6 +875,7 @@ export default function ChatPage() {
   const [renameValue, setRenameValue] = useState("");
 
   // ✅ NEW: header details toggle (collapses long header content by default)
+  const [showHeader, setShowHeader] = useState(false);
   const [showHeaderDetails, setShowHeaderDetails] = useState(false);
 
   // Reactive companion name — shown in chat header, updates when profile changes
@@ -2234,7 +2236,7 @@ export default function ChatPage() {
         </div>
       )}
 
-      <div className="mx-auto flex h-[calc(100vh-0px)] w-full max-w-7xl px-3 py-4 text-zinc-100 sm:px-4">
+      <div className="mx-auto flex h-[calc(100vh-160px)] w-full max-w-7xl px-3 py-4 text-zinc-100 sm:px-4">
         {/* Sidebar */}
         <aside className="hidden w-72 flex-col gap-3 p-4 sm:flex imotara-glass-card">
           <div className="mb-1 flex items-center justify-between">
@@ -2387,347 +2389,246 @@ export default function ChatPage() {
 
         {/* Main */}
         <main className="flex flex-1 flex-col">
-          {/* HEADER */}
+          {/* HEADER — 3-level collapsible */}
           <header className="px-3 pt-2 sm:px-4 sm:pt-3">
-            <div className="imotara-glass-card px-3 py-2 sm:py-3">
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <div className="flex h-9 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-white shadow-[0_10px_30px_rgba(15,23,42,0.8)] sm:h-10 sm:w-12">
-                      <MessageSquare className="h-4 w-4" />
-                    </div>
+            <div className="imotara-glass-card px-3 py-2">
+
+              {/* ── LEVEL 0: always-visible slim bar ── */}
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-white shadow-[0_6px_20px_rgba(15,23,42,0.7)]">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                </div>
+                <p className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-100">
+                  <span suppressHydrationWarning>{mounted ? (activeThread?.title ?? "Conversation") : ""}</span>
+                </p>
+                {/* Local/Cloud toggle — always visible */}
+                <div className="w-28 shrink-0">
+                  <AnalysisConsentToggle showHelp={false} />
+                </div>
+                {/* New conversation */}
+                <button
+                  type="button"
+                  onClick={newThread}
+                  title="New conversation"
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 text-zinc-200 transition hover:brightness-110"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+                {/* Level 0 → 1 expand toggle */}
+                <button
+                  type="button"
+                  onClick={() => { setShowHeader((v) => !v); if (showHeader) setShowHeaderDetails(false); }}
+                  title={showHeader ? "Collapse header" : "Expand header"}
+                  aria-expanded={showHeader}
+                  className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border transition hover:bg-white/10 hover:text-zinc-200 ${
+                    showHeader ? "border-white/20 bg-white/10 text-zinc-200" : "border-white/10 bg-white/5 text-zinc-500"
+                  }`}
+                >
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${showHeader ? "rotate-180" : ""}`} />
+                </button>
+              </div>
+
+              {/* ── LEVEL 1: full tile (matches original layout) ── */}
+              {showHeader && (
+                <div className="mt-2 space-y-3 border-t border-white/10 pt-2">
+
+                  {/* Title + description + sync/mode chips */}
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-zinc-50 sm:text-base">
-                        <span suppressHydrationWarning>
-                          {mounted
-                            ? (activeThread?.title ?? "Conversation")
-                            : ""}
-                        </span>
+                      <p className="text-sm font-semibold text-zinc-50">
+                        <span suppressHydrationWarning>{mounted ? (activeThread?.title ?? "Conversation") : ""}</span>
                       </p>
-                      <p className="text-[11px] text-zinc-400 sm:hidden">
-                        {companionDisplayName ? (
-                          <>
-                            <span className="text-zinc-300">{companionDisplayName}</span>
-                            <span className="text-zinc-500"> · </span>
-                          </>
-                        ) : null}
-                        A calm space to talk about your feelings.
-                        <span className="text-zinc-500"> · </span>
-                        Local-first by default.
-                      </p>
-
-                      {/* Desktop: keep the "nice" header line always. Collapse only the extra details by default. */}
-                      <div className="hidden space-y-0.5 sm:block">
-                        <p
-                          className={`text-sm text-zinc-400 ${showHeaderDetails ? "mb-3" : "mb-1"
-                            }`}
-                        >
-                          {companionDisplayName ? (
-                            <><span className="font-medium text-zinc-300">{companionDisplayName}</span> · </>
-                          ) : null}
-                          A calm space to talk about your feelings. Analysis and
-                          replies respect your consent settings.
-                        </p>
-
-                        {showHeaderDetails && (
-                          <div className="mb-3 space-y-2 text-xs text-zinc-500">
-                            <p>
-                              You can{" "}
-                              <Link
-                                href="/privacy"
-                                className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300"
-                              >
-                                download or delete what’s stored on this device
-                              </Link>{" "}
-                              anytime.
-                            </p>
-
-                            <p>
-                              Note: Private/Incognito windows may not keep
-                              messages after you close them (browser privacy
-                              behavior).
-                            </p>
-                          </div>
+                      <p className="mt-0.5 text-xs text-zinc-400">
+                        {companionDisplayName && (
+                          <><span className="font-medium text-zinc-300">{companionDisplayName}</span> · </>
                         )}
-                      </div>
+                        A calm space to talk about your feelings. Analysis and replies respect your consent settings.
+                      </p>
                     </div>
-                  </div>
-
-                  {/* ✅ PARITY: top capsules become a single row on desktop */}
-                  <div className="w-full sm:ml-auto sm:max-w-[720px]">
-                    <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
-                      {/* Action button: Sync now (hidden for public release until stable) */}
+                    <div className="flex shrink-0 flex-wrap gap-2">
                       {ENABLE_REMOTE_SYNC ? (
                         <button
                           onClick={runSync}
                           disabled={syncing}
-                          className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-3 text-xs font-medium text-white backdrop-blur-sm transition hover:brightness-110 disabled:opacity-60"
+                          className="inline-flex h-7 items-center gap-1.5 rounded-full border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-3 text-xs font-medium text-white backdrop-blur-sm transition hover:brightness-110 disabled:opacity-60"
                           type="button"
                         >
-                          <RefreshCw
-                            className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`}
-                          />
+                          <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
                           Sync now
                         </button>
                       ) : (
-                        // keep layout stable (3-column grid) without exposing broken control
-                        <span
-                          className="inline-flex h-7 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-black/25 px-3 text-xs text-white/60 backdrop-blur-sm"
-                          title="Cloud sync will be available in a future update"
-                        >
+                        <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-white/15 bg-black/25 px-3 text-xs text-white/60" title="Cloud sync coming soon">
                           <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" />
                           Cloud (Soon)
                         </span>
                       )}
-
-                      {/* Status chip: Analysis mode */}
-                      <div
-                        className={`inline-flex h-7 w-full items-center justify-center gap-2 rounded-full px-3 text-xs backdrop-blur-sm ${mode === "allow-remote"
-                          ? "border border-emerald-300/50 bg-emerald-500/10 text-emerald-200"
-                          : "border border-white/15 bg-black/25 text-white/90"
-                          }`}
-                        title="Emotion analysis mode"
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote"
-                            ? "bg-emerald-400"
-                            : "bg-zinc-400"
-                            }`}
-                        />
-                        {mode === "allow-remote"
-                          ? "Remote allowed"
-                          : "Local only"}
+                      <div className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs ${
+                        mode === "allow-remote"
+                          ? "border-emerald-300/50 bg-emerald-500/10 text-emerald-200"
+                          : "border-white/15 bg-black/25 text-white/90"
+                      }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-400"}`} />
+                        {mode === "allow-remote" ? "Remote allowed" : "Local only"}
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* ✅ PARITY: compact left stack + consistent alignment on desktop */}
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex flex-col gap-2 sm:w-[340px] sm:flex-none sm:pt-1">
-                    {/* Label kept (mobile-style: small + subtle) */}
-                    <p className="text-xs font-medium text-zinc-400">
-                      Emotion analysis mode
-                    </p>
-
-                    {/* Show/Hide details toggle — fixed width */}
-                    <div className="flex w-full max-w-[320px] items-center gap-1.5">
-                      <button
-                        onClick={() => setShowHeaderDetails((v) => !v)}
-                        className="inline-flex h-7 flex-1 items-center justify-center rounded-full border border-white/15 bg-white/5 px-3 text-xs text-white/90 backdrop-blur-sm transition duration-150 hover:bg-white/10"
-                        type="button"
-                        aria-expanded={showHeaderDetails}
-                        aria-label={showHeaderDetails ? "Hide header details" : "Show header details"}
-                      >
-                        {showHeaderDetails ? "Hide details" : "Show details"}
-                      </button>
-                      {/* Search toggle */}
-                      <button
-                        type="button"
-                        onClick={() => { setShowSearch((v) => !v); setSearchQuery(""); }}
-                        title="Search messages"
-                        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition duration-150 ${
-                          showSearch
-                            ? "border-indigo-400/50 bg-indigo-500/20 text-indigo-300"
-                            : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
-                        }`}
-                      >
-                        <Search className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-
-                    {/* Headline capsule — fixed width + truncate (prevents text spilling above) */}
-                    {analysis?.summary?.headline ? (
-                      <span
-                        className="inline-flex h-7 w-full max-w-[320px] items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/5 px-3 text-xs text-zinc-100 backdrop-blur-sm"
-                        title={analysis.summary.headline}
-                      >
-                        <span className="w-full truncate text-center">
-                          {analysis.summary.headline}
-                        </span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex h-7 w-full max-w-[320px] items-center justify-center rounded-full border border-dashed border-white/20 bg-black/30 px-3 text-xs text-zinc-400 backdrop-blur-sm">
-                        No analysis yet
-                      </span>
-                    )}
-
-                    {/* Collapsible header details: Teen Insight, guidance, engine text */}
-                    {showHeaderDetails && teenInsight && (
-                      <div className="mt-1 hidden rounded-2xl border border-violet-500/35 bg-violet-500/10 px-3 py-3 text-xs text-violet-50 shadow-sm sm:block">
-                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-200/90">
-                          Teen Insight
-                        </div>
-                        <div className="whitespace-pre-line text-[12px] leading-relaxed text-violet-50/95">
-                          {teenInsight}
-                        </div>
+                  {/* Analysis controls + action buttons */}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    {/* Left: analysis mode controls */}
+                    <div className="flex flex-col gap-2 sm:w-[300px] sm:flex-none">
+                      <p className="text-xs font-medium text-zinc-400">Emotion analysis mode</p>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setShowHeaderDetails((v) => !v)}
+                          aria-expanded={showHeaderDetails}
+                          className="inline-flex h-7 flex-1 items-center justify-center rounded-full border border-white/15 bg-white/5 px-3 text-xs text-white/90 transition hover:bg-white/10"
+                        >
+                          {showHeaderDetails ? "Hide details" : "Show details"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowSearch((v) => !v); setSearchQuery(""); }}
+                          title="Search messages"
+                          className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition ${
+                            showSearch
+                              ? "border-indigo-400/50 bg-indigo-500/20 text-indigo-300"
+                              : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                          }`}
+                        >
+                          <Search className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                    )}
-
-                    {/* Local/Cloud toggle — same width as pills above */}
-                    <div className="w-full max-w-[320px]">
-                      <div className="h-9 w-full">
+                      {analysis?.summary?.headline ? (
+                        <span
+                          className="inline-flex h-7 w-full max-w-[300px] items-center overflow-hidden rounded-full border border-white/15 bg-white/5 px-3 text-xs text-zinc-100"
+                          title={analysis.summary.headline}
+                        >
+                          <span className="w-full truncate text-center">{analysis.summary.headline}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex h-7 w-full max-w-[300px] items-center justify-center rounded-full border border-dashed border-white/20 bg-black/30 px-3 text-xs text-zinc-400">
+                          No analysis yet
+                        </span>
+                      )}
+                      <div className="h-9 w-full max-w-[300px]">
                         <AnalysisConsentToggle showHelp={showHeaderDetails} />
                       </div>
                     </div>
 
-                    {showHeaderDetails && (
-                      <div className="mt-1 max-w-[520px] space-y-2 text-left">
-                        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-                          <p className="text-xs leading-5 text-zinc-300/90">
-                            Your choice is stored only on this device. Right
-                            now, Imotara analyzes emotions locally in your
-                            browser.
-                          </p>
-
-                          <p className="mt-2 text-xs leading-5 text-zinc-300/90">
-                            Your words stay on-device unless you explicitly
-                            allow remote.
-                          </p>
-
-                          {mounted &&
-                            typeof window !== "undefined" &&
-                            window.localStorage.getItem("imotaraQa") ===
-                            "1" && (
-                              <>
-                                <div className="mt-3 h-px w-full bg-white/10" />
-                                <p className="mt-3 text-[11px] leading-5 text-zinc-400">
-                                  Tip: You can switch between on-device and
-                                  remote analysis anytime using the toggle
-                                  above.
-                                </p>
-                              </>
-                            )}
-
-                          {/* Compatibility Gate (report-only): Debug UI surface */}
-                          {(() => {
-                            const compat =
-                              (analysis as any)?.response?.meta
-                                ?.compatibility ??
-                              (analysis as any)?.meta?.compatibility;
-
-                            if (!compat) return null;
-
-                            const summary =
-                              typeof compat?.summary === "string"
-                                ? compat.summary
-                                : compat?.ok === true
-                                  ? "OK"
-                                  : "NOT OK";
-
-                            return (
-                              <>
-                                <div className="mt-3 h-px w-full bg-white/10" />
-                                <div className="mt-3">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-300">
-                                      Compatibility Gate
-                                    </div>
-                                    <div className="text-[11px] text-zinc-200">
-                                      {summary}
-                                    </div>
-                                  </div>
-
-                                  <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-black/30 p-3 text-[11px] text-zinc-200">
-                                    {JSON.stringify(compat, null, 2)}
-                                  </pre>
-                                </div>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    )}
+                    {/* Right: action buttons grid */}
+                    <div className="grid grid-cols-3 gap-2 sm:w-[300px] sm:flex-none">
+                      {([
+                        <Link
+                          key="history"
+                          href={activeThread ? `/history?sessionId=${encodeURIComponent(activeThread.id)}${urlMessageId ? `&messageId=${encodeURIComponent(urlMessageId)}` : ""}` : "/history"}
+                          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:brightness-110"
+                        >History</Link>,
+                        <button
+                          key="reanalyze"
+                          type="button"
+                          onClick={triggerAnalyze}
+                          disabled={analyzing || !activeThread?.messages?.length}
+                          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:brightness-110 disabled:opacity-60"
+                        >
+                          {analyzing && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                          Re-analyze
+                        </button>,
+                        <Link
+                          key="privacy"
+                          href="/privacy"
+                          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:brightness-110"
+                        >Privacy</Link>,
+                        showClearConfirm ? (
+                          <div key="clear-confirm" className="col-span-3 flex items-center gap-2 rounded-2xl border border-red-400/30 bg-red-950/50 px-3 py-2 text-xs text-red-200">
+                            <span className="flex-1 font-medium">Clear all messages?</span>
+                            <button type="button" onClick={confirmClear} className="rounded-full bg-red-500/80 px-3 py-1 font-medium text-white transition hover:bg-red-500">Clear</button>
+                            <button type="button" onClick={() => setShowClearConfirm(false)} className="rounded-full border border-white/10 px-3 py-1 text-zinc-300 transition hover:bg-white/10">Cancel</button>
+                          </div>
+                        ) : (
+                          <button
+                            key="clear"
+                            type="button"
+                            onClick={clearChat}
+                            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:brightness-110"
+                          >
+                            <Eraser className="h-3.5 w-3.5" /> Clear
+                          </button>
+                        ),
+                        <button
+                          key="export"
+                          type="button"
+                          onClick={exportJSON}
+                          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:brightness-110"
+                        >
+                          <Download className="h-3.5 w-3.5" /> Export
+                        </button>,
+                        <button
+                          key="new"
+                          type="button"
+                          onClick={newThread}
+                          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/25 via-sky-500/20 to-emerald-400/20 text-sm font-medium text-white shadow-[0_12px_34px_rgba(15,23,42,0.65)] backdrop-blur-sm transition hover:brightness-110"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> New
+                        </button>,
+                      ] as React.ReactNode[])}
+                    </div>
                   </div>
 
-                  <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:w-full sm:max-w-[720px] sm:grid-cols-3 sm:justify-items-stretch">
-                    <Link
-                      href={
-                        activeThread
-                          ? `/history?sessionId=${encodeURIComponent(activeThread.id)}${urlMessageId
-                            ? `&messageId=${encodeURIComponent(urlMessageId)}`
-                            : ""
-                          }`
-                          : "/history"
-                      }
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
-                      title="Open Emotion History filtered to this chat session"
-                    >
-                      History
-                    </Link>
-
-                    <button
-                      onClick={triggerAnalyze}
-                      disabled={analyzing || !activeThread?.messages?.length}
-                      aria-busy={analyzing ? true : undefined}
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 disabled:opacity-60"
-                      title="Run emotion analysis now (respects your consent setting)"
-                      type="button"
-                    >
-                      {analyzing ? (
-                        <RefreshCw className="h-3 w-3 animate-spin sm:h-4 sm:w-4" />
-                      ) : null}
-                      Re-analyze
-                    </button>
-
-                    <Link
-                      href="/privacy"
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
-                      title="See how Imotara handles your data and privacy"
-                    >
-                      Privacy
-                    </Link>
-
-                    {showClearConfirm ? (
-                      <div className="w-full rounded-2xl border border-red-400/30 bg-red-950/50 px-3 py-2 text-xs text-red-200">
-                        <p className="mb-2 font-medium">Clear all messages?</p>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={confirmClear}
-                            className="rounded-full bg-red-500/80 px-3 py-1 font-medium text-white transition hover:bg-red-500"
-                          >
-                            Clear
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowClearConfirm(false)}
-                            className="rounded-full border border-white/10 px-3 py-1 text-zinc-300 transition hover:bg-white/10"
-                          >
-                            Cancel
-                          </button>
+                  {/* ── LEVEL 2: show-details content ── */}
+                  {showHeaderDetails && (
+                    <div className="space-y-2 border-t border-white/10 pt-2">
+                      {/* Teen insight */}
+                      {teenInsight && (
+                        <div className="rounded-2xl border border-violet-500/35 bg-violet-500/10 px-3 py-3 text-xs text-violet-50">
+                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-200/90">Teen Insight</div>
+                          <div className="whitespace-pre-line text-[12px] leading-relaxed text-violet-50/95">{teenInsight}</div>
                         </div>
+                      )}
+                      {/* Privacy / data notice */}
+                      <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                        <p className="text-xs leading-5 text-zinc-300/90">
+                          Your choice is stored only on this device. Right now, Imotara analyzes emotions locally in your browser.
+                        </p>
+                        <p className="mt-2 text-xs leading-5 text-zinc-300/90">
+                          Your words stay on-device unless you explicitly allow remote. You can{" "}
+                          <Link href="/privacy" className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300">download or delete what's stored on this device</Link>{" "}
+                          anytime.
+                        </p>
+                        <p className="mt-2 text-xs leading-5 text-zinc-400">
+                          Note: Private/Incognito windows may not keep messages after you close them.
+                        </p>
+                        {mounted && typeof window !== "undefined" && window.localStorage.getItem("imotaraQa") === "1" && (
+                          <p className="mt-2 text-[11px] leading-5 text-zinc-400">
+                            Tip: You can switch between on-device and remote analysis anytime using the toggle above.
+                          </p>
+                        )}
                       </div>
-                    ) : (
-                      <button
-                        onClick={clearChat}
-                        className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
-                        title="Clear current conversation"
-                        type="button"
-                      >
-                        <Eraser className="h-3 w-3 sm:h-4 sm:w-4" /> Clear
-                      </button>
-                    )}
-
-                    <button
-                      onClick={exportJSON}
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 px-5 text-sm font-medium text-white shadow-[0_10px_30px_rgba(15,23,42,0.55)] backdrop-blur-sm transition hover:border-indigo-300/45 hover:from-indigo-500/20 hover:via-sky-500/15 hover:to-emerald-400/15 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
-                      title="Download all conversations as JSON"
-                      type="button"
-                    >
-                      <Download className="h-3 w-3 sm:h-4 sm:w-4" /> Export
-                    </button>
-
-                    <button
-                      onClick={newThread}
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/25 via-sky-500/20 to-emerald-400/20 px-5 text-sm font-medium text-white shadow-[0_12px_34px_rgba(15,23,42,0.65)] backdrop-blur-sm transition hover:border-indigo-300/55 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/60"
-                      type="button"
-                    >
-                      <Plus className="h-3 w-3 sm:h-4 sm:w-4" /> New
-                    </button>
-                  </div>
+                      {/* Compatibility Gate (QA/debug) */}
+                      {(() => {
+                        const compat =
+                          (analysis as any)?.response?.meta?.compatibility ??
+                          (analysis as any)?.meta?.compatibility;
+                        if (!compat) return null;
+                        const summary = typeof compat?.summary === "string" ? compat.summary : compat?.ok === true ? "OK" : "NOT OK";
+                        return (
+                          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                            <div className="flex items-center justify-between gap-3 text-[11px]">
+                              <span className="font-semibold uppercase tracking-wide text-zinc-300">Compatibility Gate</span>
+                              <span className="text-zinc-200">{summary}</span>
+                            </div>
+                            <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-black/30 p-3 text-[11px] text-zinc-200">
+                              {JSON.stringify(compat, null, 2)}
+                            </pre>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
+
             </div>
           </header>
 

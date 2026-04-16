@@ -124,7 +124,7 @@ export default function FeelPage() {
 
   return (
     <>
-      {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
+      {toast && <Toast message={toast.message} type={toast.type} duration={5000} onDismiss={() => setToast(null)} />}
 
       <div className="mx-auto w-full max-w-7xl px-3 pt-3 sm:px-4">
         <TopBar title="Feel" />

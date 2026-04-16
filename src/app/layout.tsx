@@ -229,7 +229,7 @@ export default function RootLayout({
       >
         <SiteHeader />
 
-        <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10 pb-28">
+        <main id="main-content" className="mx-auto w-full max-w-5xl flex-1 px-6 py-10 pb-28">
           <PageTransition>{children}</PageTransition>
         </main>
 

@@ -227,7 +227,7 @@ function TinyBadge({ children }: { children: React.ReactNode }) {
 
 function ToneAndContextTile() {
     const [loaded, setLoaded] = useState(false);
-    const [toast, setToast] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ message: string; type: "auto" | "manual" | "error" | "reset" } | null>(null);
 
     // Personal info
     const [userName, setUserName] = useState("");
@@ -239,6 +239,12 @@ function ToneAndContextTile() {
     // Expected companion details (tone guidance)
     const [compEnabled, setCompEnabled] = useState(false);
     const [compName, setCompName] = useState("");
+
+    // ITEM 6: focus tracking for character counters
+    const [userNameFocused, setUserNameFocused] = useState(false);
+    const [compNameFocused, setCompNameFocused] = useState(false);
+    const USER_NAME_MAX = 50;
+    const COMP_NAME_MAX = 50;
     const [compAge, setCompAge] = useState<AgeRange>("prefer_not");
     const [compGender, setCompGender] = useState<Gender>("prefer_not");
     const [compRel, setCompRel] = useState<
@@ -311,11 +317,11 @@ function ToneAndContextTile() {
         try {
             window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
             window.dispatchEvent(new CustomEvent("imotara:profile-updated", { detail: profile }));
-            setToast("Saved ✓");
+            setToast({ message: "Saved ✓", type: "manual" });
             window.setTimeout(() => setToast(null), 1800);
         } catch (e) {
             console.error("[imotara] profile save failed:", e);
-            setToast("Save failed");
+            setToast({ message: "Save failed", type: "error" });
             window.setTimeout(() => setToast(null), 2200);
         }
     }
@@ -336,7 +342,7 @@ function ToneAndContextTile() {
         setCompAge("prefer_not");
         setCompGender("prefer_not");
         setCompRel("prefer_not");
-        setToast("Reset ✓");
+        setToast({ message: "Reset ✓", type: "reset" });
         window.setTimeout(() => setToast(null), 1800);
 
         // ✅ NEW: notify listeners immediately that profile is cleared
@@ -389,8 +395,15 @@ function ToneAndContextTile() {
             </div>
 
             {toast && (
-                <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-200">
-                    {toast}
+                <div className={[
+                    "mt-3 rounded-xl px-3 py-2 text-[11px]",
+                    toast.type === "manual"
+                        ? "border border-emerald-400/30 bg-emerald-500/15 text-emerald-300 font-medium"
+                        : toast.type === "error"
+                        ? "border border-rose-400/30 bg-rose-500/10 text-rose-300"
+                        : "border border-zinc-600/30 bg-zinc-700/20 text-zinc-400",
+                ].join(" ")}>
+                    {toast.message}
                 </div>
             )}
 
@@ -406,8 +419,14 @@ function ToneAndContextTile() {
                                 value={userName}
                                 onChange={(e) => setUserName(e.target.value)}
                                 placeholder="e.g., Soumen"
+                                maxLength={USER_NAME_MAX}
+                                onFocus={() => setUserNameFocused(true)}
+                                onBlur={() => setUserNameFocused(false)}
                                 className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-white/20"
                             />
+                            {(userNameFocused || userName.length > USER_NAME_MAX * 0.8) && (
+                                <p className="text-right text-xs text-zinc-500">{userName.length}/{USER_NAME_MAX}</p>
+                            )}
                         </label>
 
                         <div className="flex gap-3">
@@ -575,8 +594,14 @@ function ToneAndContextTile() {
                                     value={compName}
                                     onChange={(e) => setCompName(e.target.value)}
                                     placeholder="e.g., A calm friend voice"
+                                    maxLength={COMP_NAME_MAX}
+                                    onFocus={() => setCompNameFocused(true)}
+                                    onBlur={() => setCompNameFocused(false)}
                                     className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-white/20"
                                 />
+                                {(compNameFocused || compName.length > COMP_NAME_MAX * 0.8) && (
+                                    <p className="text-right text-xs text-zinc-500">{compName.length}/{COMP_NAME_MAX}</p>
+                                )}
                             </label>
 
                             <div className="grid gap-3 sm:grid-cols-2">

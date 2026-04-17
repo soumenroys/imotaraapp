@@ -32,6 +32,8 @@ const siteUrl = (() => {
 
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#000000" },
@@ -225,11 +227,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body
-        className={`${inter.className} flex min-h-screen flex-col pb-24 text-zinc-900 dark:text-zinc-100`}
+        className={`${inter.className} flex min-h-screen flex-col overflow-x-hidden pb-24 text-zinc-900 dark:text-zinc-100`}
       >
         <SiteHeader />
 
-        <main id="main-content" className="mx-auto w-full max-w-5xl flex-1 px-6 py-10 pb-28">
+        <main id="main-content" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 pb-28 sm:px-6 sm:py-10">
           <PageTransition>{children}</PageTransition>
         </main>
 

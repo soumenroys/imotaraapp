@@ -26,7 +26,7 @@ const MORE_LINKS = [
 ];
 
 const NAV_CLASS =
-  "flex-1 mx-3 flex items-center gap-1 text-xs sm:gap-2 sm:text-sm text-zinc-600 dark:text-zinc-300";
+  "hidden sm:flex flex-1 mx-3 items-center gap-1 text-xs sm:gap-2 sm:text-sm text-zinc-600 dark:text-zinc-300";
 
 const BASE_LINK_CLASS =
   "inline-flex whitespace-nowrap rounded-full px-2.5 py-1 transition-colors";
@@ -161,18 +161,55 @@ export default function SiteHeader() {
             </div>
           </nav>
 
-          {/* RIGHT: Search button */}
-          <button
-            type="button"
-            onClick={() => setSearchOpen(true)}
-            aria-label="Search (⌘K)"
-            title="Search (⌘K)"
-            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-zinc-500 transition hover:bg-white/10 hover:text-zinc-300 dark:border-zinc-700/60"
-          >
-            <span aria-hidden>🔍</span>
-            <span className="hidden sm:inline text-[10px] opacity-60">⌘K</span>
-          </button>
+          {/* RIGHT: Search + mobile menu */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search"
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-zinc-500 transition hover:bg-white/10 hover:text-zinc-300 dark:border-zinc-700/60"
+            >
+              <span aria-hidden>🔍</span>
+              <span className="hidden sm:inline text-[10px] opacity-60">⌘K</span>
+            </button>
+
+            {/* Mobile hamburger — only on xs screens */}
+            <button
+              type="button"
+              onClick={() => setMoreOpen((v) => !v)}
+              aria-label="Open navigation menu"
+              aria-expanded={moreOpen}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-500 transition hover:bg-white/10 hover:text-zinc-300 sm:hidden"
+            >
+              <span className="text-base leading-none">{moreOpen ? "✕" : "☰"}</span>
+            </button>
+          </div>
         </div>
+
+        {/* Mobile dropdown menu */}
+        {moreOpen && (
+          <div className="border-t border-white/10 bg-white/90 px-4 py-3 backdrop-blur-xl dark:bg-zinc-900/95 sm:hidden">
+            <nav className="flex flex-col gap-1">
+              {[...PRIMARY_LINKS, ...MORE_LINKS].map((l) => {
+                const active = l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
+                return (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setMoreOpen(false)}
+                    className={`rounded-xl px-3 py-2 text-sm transition-colors ${
+                      active
+                        ? "bg-zinc-900/10 font-semibold text-zinc-900 dark:bg-white/10 dark:text-zinc-50"
+                        : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/5"
+                    }`}
+                  >
+                    {l.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        )}
       </header>
     </>
   );

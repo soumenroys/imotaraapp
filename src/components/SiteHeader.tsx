@@ -47,7 +47,12 @@ export default function SiteHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => setMounted(true), []);
+  const [isMac, setIsMac] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setIsMac(/Macintosh|MacIntel|MacPPC|Mac68K/.test(navigator.userAgent));
+  }, []);
 
   // Cmd+K / Ctrl+K → search; Escape → close any open overlay
   useEffect(() => {
@@ -185,7 +190,11 @@ export default function SiteHeader() {
               className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-zinc-500 transition hover:bg-white/10 hover:text-zinc-300 dark:border-zinc-700/60"
             >
               <span aria-hidden>🔍</span>
-              <span className="hidden sm:inline text-[10px] opacity-60">⌘K</span>
+              {mounted && (
+                <span className="hidden sm:inline text-[10px] opacity-60">
+                  {isMac ? "⌘K" : "Ctrl K"}
+                </span>
+              )}
             </button>
 
             {/* Mobile hamburger — sm:hidden so only appears on small screens */}

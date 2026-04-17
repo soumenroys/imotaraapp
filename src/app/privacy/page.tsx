@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PrivacyActionsPanel from "@/components/imotara/PrivacyActionsPanel";
 import TopBar from "@/components/imotara/TopBar";
+import packageJson from "../../../package.json";
 
 export const metadata = {
   title: "Privacy Policy — Imotara",
@@ -8,10 +9,10 @@ export const metadata = {
     "How Imotara collects, stores, and protects your data — with consent, clarity, and control.",
 };
 
-// Build label shown in privacy page footer
-const _version = (process.env.NEXT_PUBLIC_APP_VERSION || "1.0.8").replace(/^v/i, "");
-const _build = process.env.NEXT_PUBLIC_APP_BUILD || "74";
-const BUILD_LABEL = `${_version} (${_build})`;
+// Build label shown in privacy page footer — always read from package.json
+const _version = (packageJson.version || "1.0.8").replace(/^v/i, "");
+const _build = ((packageJson as any).buildNumber || "").trim();
+const BUILD_LABEL = _build ? `${_version} (${_build})` : _version;
 
 export default function PrivacyPage() {
   return (

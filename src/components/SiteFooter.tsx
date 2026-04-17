@@ -70,13 +70,9 @@ const NAV_LINKS = [
 export default function SiteFooter() {
   const year = new Date().getFullYear();
 
-  const raw =
-    (process.env.NEXT_PUBLIC_APP_VERSION || "").trim() ||
-    (packageJson?.version ?? "");
+  const raw = (packageJson?.version ?? "").trim();
   const version = raw ? `v${raw.replace(/^v/i, "").trim()}` : "v—";
-  const build =
-    (process.env.NEXT_PUBLIC_APP_BUILD || "").trim() ||
-    ((packageJson as any)?.buildNumber ?? "");
+  const build = ((packageJson as any)?.buildNumber ?? "").trim();
   const versionLabel = build ? `${version} (${build})` : version;
 
   return (

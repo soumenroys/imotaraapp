@@ -1,0 +1,65 @@
+# Imotara
+
+> Imotara is a free, private AI emotional wellness companion available on web, Android, and iOS. It helps users talk about their feelings, track mood over time, and receive gentle AI-powered reflections — in 22 languages, with no ads, no social feed, and full privacy control.
+
+## What Imotara does
+
+Imotara is an AI companion app for emotional wellness. Users can:
+- Have private conversations about their feelings with an AI companion
+- Track mood and emotional patterns over time with a visual timeline
+- Receive gentle, contextual AI reflections without judgment
+- Use the app fully offline (local mode) or enable optional cloud sync
+- Practice mindfulness with built-in breathing exercises
+
+## Who it is for
+
+Imotara is designed for anyone who wants a private, non-judgmental space to process emotions — especially people who want AI support without giving up privacy, who find traditional journaling hard to maintain, or who want to understand their emotional patterns over time.
+
+## Key features
+
+- Private AI chat for emotional support and reflection
+- Mood history timeline and trend visualisation
+- 22 languages: English, Hindi, Bengali, Tamil, Telugu, Malayalam, Kannada, Marathi, Gujarati, Punjabi, Odia, Urdu, Spanish, French, German, Portuguese, Arabic, Japanese, Korean, Turkish, Italian, Chinese
+- Local-first by default — data stays on your device, no account needed
+- Optional cloud sync with explicit user consent
+- Voice input (mobile apps)
+- No ads, no social feed, no public profiles
+- Offline support (PWA on web, native offline on mobile)
+- Free to use
+
+## Availability
+
+- Web app: https://imotaraapp.vercel.app
+- Android: https://play.google.com/store/apps/details?id=com.imotara.imotara
+- iOS: https://apps.apple.com/in/app/imotara/id6756697569
+
+## Frequently asked questions
+
+Q: Is Imotara free?
+A: Yes. Imotara is completely free. There are no paywalls or required subscriptions.
+
+Q: Is my data private?
+A: Yes. All conversations are stored only on your device by default. Cloud sync is optional and requires explicit consent. No ads, no data selling.
+
+Q: What languages does Imotara support?
+A: 22 languages including English, Hindi, Bengali, Tamil, Telugu, Malayalam, Kannada, Marathi, Gujarati, Punjabi, Odia, Urdu, Spanish, French, German, Portuguese, Arabic, Japanese, Korean, Turkish, Italian, and Chinese.
+
+Q: Is there a mobile app?
+A: Yes. Available on Android (Google Play) and iOS (App Store), plus a web PWA.
+
+Q: Is Imotara a replacement for therapy?
+A: No. Imotara is a private wellness companion for self-reflection, not a medical or therapeutic service. It complements — not replaces — professional mental health care.
+
+Q: Can I use Imotara offline?
+A: Yes. The web app works offline as a PWA. Mobile apps support offline use with local storage.
+
+Q: What AI model does Imotara use?
+A: Imotara uses GPT-4.1 for cloud-based reflections. The app also works in fully local mode with no external AI for complete privacy.
+
+## Contact
+
+- Website: https://imotaraapp.vercel.app
+- Email: info@imotara.com
+- Twitter/X: https://twitter.com/imotara4x
+- Google Play: https://play.google.com/store/apps/details?id=com.imotara.imotara
+- App Store: https://apps.apple.com/in/app/imotara/id6756697569

@@ -183,6 +183,18 @@ function JsonLd() {
       "https://apps.apple.com/in/app/imotara/id6756697569",
     ],
     screenshot: `${site}/og-image.png`,
+    featureList: [
+      "Private AI chat for emotional support",
+      "Mood history timeline and trend analysis",
+      "22 languages supported",
+      "Local-first — data stays on your device by default",
+      "Optional cloud sync with explicit consent",
+      "Voice input",
+      "No ads, no social feed, no public profiles",
+      "Offline support",
+      "Breathing and mindfulness exercises",
+      "Conversation bookmarks and search",
+    ],
     offers: {
       "@type": "Offer",
       price: "0",
@@ -194,7 +206,105 @@ function JsonLd() {
       "ta","te","ml","kn","mr","gu","pa","ur","or",
     ],
     keywords:
-      "AI companion, emotional wellness, mental health, mood tracker, multilingual AI, anxiety support, mindfulness",
+      "AI companion, emotional wellness, mental health, mood tracker, multilingual AI, anxiety support, mindfulness, AI therapy alternative, talk about feelings, private mental health app",
+  };
+
+  const webApp = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Imotara — AI Emotional Wellness",
+    applicationCategory: "HealthApplication",
+    applicationSubCategory: "Mental Health",
+    operatingSystem: "Web",
+    description:
+      "Imotara is a free web app and AI companion for emotional wellness. Talk about your feelings, track your mood, and get gentle AI reflections — privately, in 22 languages, with no ads.",
+    url: site,
+    featureList: [
+      "Private AI chat for emotional support",
+      "Mood history timeline",
+      "22 languages supported",
+      "Works offline as a PWA",
+      "Local-first storage — no account needed",
+      "Optional cloud sync",
+      "No ads or social feed",
+    ],
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    },
+    author: { "@type": "Organization", name: "Imotara", url: site },
+  };
+
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "What is Imotara?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Imotara is a free, private AI emotional wellness companion available on web, Android, and iOS. It helps you talk about your feelings, track your mood over time, and receive gentle AI-powered reflections — in 22 languages, with no ads, no social feed, and full privacy control.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Is Imotara free to use?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. Imotara is completely free. There are no paywalls, no required subscriptions, and no hidden costs.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Is my data private on Imotara?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. By default, all your conversations are stored only on your device (local-first). Cloud sync is optional and only activates with your explicit consent. Imotara has no ads and does not sell your data.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "What languages does Imotara support?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Imotara supports 22 languages including English, Hindi, Bengali, Tamil, Telugu, Malayalam, Kannada, Marathi, Gujarati, Punjabi, Odia, Urdu, Spanish, French, German, Portuguese, Arabic, Japanese, Korean, Turkish, Italian, and Chinese.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Is there an Imotara mobile app?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. Imotara is available on Android via Google Play and on iOS via the App Store, in addition to the web app at imotaraapp.vercel.app.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Is Imotara a replacement for therapy?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "No. Imotara is a private wellness companion for self-reflection and emotional awareness, not a medical or therapeutic service. It is designed to complement — not replace — professional mental health care.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Can I use Imotara offline?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. The web app works offline as a PWA and mobile apps support offline use. Your conversations are stored locally on your device by default.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "What AI model does Imotara use?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Imotara uses GPT-4.1 for cloud-based AI reflections. You can also use the app in fully local mode without any AI model for complete privacy.",
+        },
+      },
+    ],
   };
 
   return (
@@ -210,6 +320,14 @@ function JsonLd() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(mobileApp) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webApp) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
     </>
   );

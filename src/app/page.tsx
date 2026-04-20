@@ -519,6 +519,50 @@ export default function Home() {
           </div>
         </div>
 
+        {/* FAQ — LLM-friendly Q&A for search and AI citation */}
+        <div className="imotara-glass-soft px-5 py-6 sm:px-8">
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+            Frequently Asked Questions
+          </h2>
+          <dl className="mt-4 space-y-4">
+            {[
+              {
+                q: "What is Imotara?",
+                a: "Imotara is a free, private AI emotional wellness companion. It helps you talk about your feelings, track your mood over time, and receive gentle AI-powered reflections — in 22 languages, with no ads and full privacy control.",
+              },
+              {
+                q: "Is Imotara free to use?",
+                a: "Yes. Imotara is completely free. There are no paywalls or required subscriptions.",
+              },
+              {
+                q: "Is my data private?",
+                a: "Yes. All conversations are stored only on your device by default. Cloud sync is optional and only activates with your explicit consent. Imotara has no ads and never sells your data.",
+              },
+              {
+                q: "What languages does Imotara support?",
+                a: "Imotara supports 22 languages including English, Hindi, Bengali, Tamil, Telugu, Malayalam, Kannada, Marathi, Gujarati, Punjabi, Odia, Urdu, Spanish, French, German, Portuguese, Arabic, Japanese, Korean, Turkish, Italian, and Chinese.",
+              },
+              {
+                q: "Is there a mobile app?",
+                a: "Yes. Imotara is available on Android via Google Play and on iOS via the App Store, in addition to this web app.",
+              },
+              {
+                q: "Is Imotara a replacement for therapy?",
+                a: "No. Imotara is a private wellness companion for self-reflection and emotional awareness — not a medical or therapeutic service. It is designed to complement, not replace, professional mental health care.",
+              },
+              {
+                q: "Can I use Imotara offline?",
+                a: "Yes. The web app works offline as a PWA and both mobile apps support offline use. Your conversations are stored locally on your device by default.",
+              },
+            ].map(({ q, a }) => (
+              <div key={q}>
+                <dt className="text-sm font-medium text-zinc-200">{q}</dt>
+                <dd className="mt-1 text-sm text-zinc-400">{a}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
         {/* Language switcher */}
         <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
           <span>Also available in:</span>

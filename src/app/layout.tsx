@@ -122,6 +122,9 @@ export const metadata: Metadata = {
     },
     types: { "application/rss+xml": `${siteUrl}/rss.xml` },
   },
+  verification: {
+    other: { "msvalidate.01": "4D1BBE1B8C26A4D773C28607EF863177" },
+  },
   // 🔓 Allow search engines to index and follow links (public release)
   robots: {
     index: true,

@@ -58,6 +58,9 @@ import * as DoomscrollingEchoChambers from "@/content/blog/doomscrolling-echo-ch
 import * as ErosionHumanAgency from "@/content/blog/erosion-human-agency-therapy";
 import * as AlgorithmicGaslighting from "@/content/blog/algorithmic-gaslighting";
 import * as GhostInTheMachineGrief from "@/content/blog/ghost-in-the-machine-grief";
+import * as HowToTalkAboutFeelings from "@/content/blog/how-to-talk-about-feelings";
+import * as AiVsTherapy from "@/content/blog/ai-vs-therapy-mental-health";
+import * as MoodTrackingBenefits from "@/content/blog/mood-tracking-benefits";
 
 const ALL_MODULES: BlogPostModule[] = [
   WhatIsImotara as BlogPostModule,
@@ -73,6 +76,9 @@ const ALL_MODULES: BlogPostModule[] = [
   ErosionHumanAgency as BlogPostModule,
   AlgorithmicGaslighting as BlogPostModule,
   GhostInTheMachineGrief as BlogPostModule,
+  HowToTalkAboutFeelings as BlogPostModule,
+  AiVsTherapy as BlogPostModule,
+  MoodTrackingBenefits as BlogPostModule,
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

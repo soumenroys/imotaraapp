@@ -10,6 +10,7 @@ import {
     TA_STRESS_REGEX,
 } from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
+import { buildNativeWisdom } from "@/lib/ai/local/nativeWisdomEngine";
 
 type LocalResponseTone =
     | "calm"
@@ -786,6 +787,110 @@ function applyOdiaCompanionGender(text: string, gender?: string): string {
         .replace(/\bashichi\b/gi, "ashichi");
 }
 
+// ── P4: Situational person extractor ─────────────────────────────────────────
+
+type PersonLabel = "boss" | "mom" | "dad" | "friend" | "partner" | "sibling" | "teacher";
+
+function extractSituationalPerson(message: string, language: string): PersonLabel | null {
+    const t = message.toLowerCase();
+
+    // English
+    if (/\bmy (boss|manager)\b/.test(t)) return "boss";
+    if (/\bmy (mom|mother|maa|amma|ma)\b/.test(t)) return "mom";
+    if (/\bmy (dad|father|papa|baba|abba)\b/.test(t)) return "dad";
+    if (/\bmy (friend|buddy|bestie)\b/.test(t)) return "friend";
+    if (/\bmy (boyfriend|girlfriend|partner|husband|wife)\b/.test(t)) return "partner";
+    if (/\bmy (brother|sister|sibling|bhai|behen|dada|didi)\b/.test(t)) return "sibling";
+    if (/\bmy (teacher|professor|guru|sir)\b/.test(t)) return "teacher";
+
+    // Hindi / Marathi romanized
+    if (/\b(mera boss|mere boss)\b/.test(t)) return "boss";
+    if (/\b(meri maa|meri ma|meri amma|meri ammi)\b/.test(t)) return "mom";
+    if (/\b(mere papa|mera papa|mere dad|mera baap)\b/.test(t)) return "dad";
+    if (/\b(mera dost|mera yaar|meri saheli)\b/.test(t)) return "friend";
+    if (/\b(meri girlfriend|mera boyfriend|mera partner)\b/.test(t)) return "partner";
+    if (/\b(mera bhai|meri behen|meri didi)\b/.test(t)) return "sibling";
+
+    // Bengali romanized
+    if (/\b(amar boss|amar manager)\b/.test(t)) return "boss";
+    if (/\b(amar ma|amar maa)\b/.test(t)) return "mom";
+    if (/\b(amar baba|amar papa)\b/.test(t)) return "dad";
+    if (/\b(amar bondhu|amar bhai)\b/.test(t)) return "friend";
+    if (/\b(amar boyfriend|amar girlfriend|amar partner)\b/.test(t)) return "partner";
+    if (/\b(amar dada|amar didi)\b/.test(t)) return "sibling";
+
+    // Hindi Devanagari
+    if (/मेरा बॉस|मेरे बॉस/.test(message)) return "boss";
+    if (/मेरी माँ|मेरी मम्मी/.test(message)) return "mom";
+    if (/मेरे पापा|मेरे डैड/.test(message)) return "dad";
+    if (/मेरा दोस्त|मेरा यार/.test(message)) return "friend";
+    if (/मेरी गर्लफ्रेंड|मेरा बॉयफ्रेंड/.test(message)) return "partner";
+    if (/मेरा भाई|मेरी बहन/.test(message)) return "sibling";
+
+    // Bengali script
+    if (/আমার বস/.test(message)) return "boss";
+    if (/আমার মা/.test(message)) return "mom";
+    if (/আমার বাবা/.test(message)) return "dad";
+    if (/আমার বন্ধু/.test(message)) return "friend";
+    if (/আমার পার্টনার/.test(message)) return "partner";
+    if (/আমার দাদা|আমার দিদি/.test(message)) return "sibling";
+
+    // Tamil script
+    if (/என் பாஸ்/.test(message)) return "boss";
+    if (/என் அம்மா/.test(message)) return "mom";
+    if (/என் அப்பா/.test(message)) return "dad";
+    if (/என் நண்பன்|என் தோழி/.test(message)) return "friend";
+    if (/என் காதலன்|என் காதலி/.test(message)) return "partner";
+    if (/என் அண்ணன்|என் அக்கா/.test(message)) return "sibling";
+
+    if (language === "ur") {
+        if (/میرا بوس/.test(message)) return "boss";
+        if (/میری ماں|میری امی/.test(message)) return "mom";
+        if (/میرے ابو/.test(message)) return "dad";
+        if (/میرا دوست/.test(message)) return "friend";
+    }
+
+    return null;
+}
+
+const PERSON_DISPLAY: Record<PersonLabel, Partial<Record<string, string>>> = {
+    boss:    { en: "boss", hi: "boss", bn: "boss", mr: "boss", ta: "boss", te: "boss", gu: "boss", pa: "boss", kn: "boss", ml: "boss", or: "boss", ur: "boss", zh: "上司", es: "jefe", ar: "مديرك", fr: "ton chef", pt: "chefe", ru: "начальника", id: "atasan", de: "Chef" },
+    mom:     { en: "mom", hi: "maa", bn: "ma", mr: "aai", ta: "amma", te: "amma", gu: "maa", pa: "maa", kn: "amma", ml: "amma", or: "maa", ur: "ammi", zh: "妈妈", es: "mamá", ar: "أمك", fr: "ta mère", pt: "mãe", ru: "маму", id: "ibu", de: "Mutter" },
+    dad:     { en: "dad", hi: "papa", bn: "baba", mr: "baba", ta: "appa", te: "nanna", gu: "papa", pa: "papa", kn: "appa", ml: "achan", or: "baba", ur: "abbu", zh: "爸爸", es: "papá", ar: "أبوك", fr: "ton père", pt: "pai", ru: "папу", id: "ayah", de: "Vater" },
+    friend:  { en: "friend", hi: "dost", bn: "bondhu", mr: "mitra", ta: "nanban", te: "sneham", gu: "dost", pa: "yaar", kn: "geleya", ml: "koottukar", or: "bhandhu", ur: "dost", zh: "朋友", es: "amigo", ar: "صديقك", fr: "ton ami", pt: "amigo", ru: "друга", id: "teman", de: "Freund" },
+    partner: { en: "partner", hi: "saathi", bn: "saathi", mr: "saathi", ta: "kaadhalar", te: "partner", gu: "saathi", pa: "saathi", kn: "partner", ml: "partner", or: "saathi", ur: "saathi", zh: "伴侣", es: "pareja", ar: "شريكك", fr: "ton partenaire", pt: "parceiro", ru: "партнёра", id: "pasangan", de: "Partner" },
+    sibling: { en: "sibling", hi: "bhai/behen", bn: "dada/didi", mr: "bhai/tai", ta: "anna/akka", te: "anna/akka", gu: "bhai/ben", pa: "veer/bhain", kn: "anna/akka", ml: "chettan/chechi", or: "bhai/didi", ur: "bhai/behen", zh: "兄弟/姐妹", es: "hermano", ar: "أخوك", fr: "ton frère/ta sœur", pt: "irmão", ru: "брата/сестру", id: "saudara", de: "Geschwister" },
+    teacher: { en: "teacher", hi: "teacher", bn: "shikkhok", mr: "sir/madam", ta: "teacher", te: "teacher", gu: "teacher", pa: "teacher", kn: "teacher", ml: "teacher", or: "teacher", ur: "ustaad", zh: "老师", es: "maestro", ar: "معلمك", fr: "ton professeur", pt: "professor", ru: "учителя", id: "guru", de: "Lehrer" },
+};
+
+function buildSituationalBridge(label: PersonLabel, language: string): string {
+    const p = PERSON_DISPLAY[label][language] ?? PERSON_DISPLAY[label]["en"] ?? label;
+    const templates: Partial<Record<string, (p: string) => string>> = {
+        en: (p) => `What's felt hardest about the situation with your ${p}?`,
+        hi: (p) => `${p} ke saath jo chal raha hai — usme sabse mushkil kya laga?`,
+        bn: (p) => `${p} er bishoy niye ki tomar shobcheye kothin lagchhe?`,
+        mr: (p) => `${p} baddal jo challay tyaat kaayi jaast kashTaat gele?`,
+        ta: (p) => `${p} patthi irukkira ee nilaimayil enna dhan kavinnamaa irundhadhu?`,
+        te: (p) => `${p} vishayamlo ee sthitilo emi kashtamga anipistundi?`,
+        gu: (p) => `${p} ni vaatmaa jo chaltu chhe temaa shu thamne vadhare bhaari lagyu?`,
+        pa: (p) => `${p} de haal baare jo ho raha hai — usich sabton mushkil kya laga?`,
+        kn: (p) => `${p} vishayada ee sthitiyalli yenu anisuttide nimige kashta?`,
+        ml: (p) => `${p} ee vishayathil ennaa anubhavappedunnathu kaavinam?`,
+        or: (p) => `${p} sambandhe je chal ri achhi temana ki tame sabse kashta anubhava karila?`,
+        ur: (p) => `${p} ke maamelay mein jo chal raha hai — usme kya sabse bhaari laga?`,
+        zh: (p) => `和${p}的情况中，什么让你觉得最难？`,
+        es: (p) => `¿Qué ha sido lo más difícil de la situación con tu ${p}?`,
+        ar: (p) => `ما الذي كان أصعب شيء في الموقف مع ${p}؟`,
+        fr: (p) => `Qu'est-ce qui a été le plus difficile dans la situation avec ${p} ?`,
+        pt: (p) => `O que foi mais difícil na situação com seu ${p}?`,
+        ru: (p) => `Что оказалось самым тяжёлым в ситуации с ${p}?`,
+        id: (p) => `Apa yang terasa paling berat dari situasi dengan ${p}mu?`,
+        de: (p) => `Was war das Schwierigste an der Situation mit deinem ${p}?`,
+    };
+    const tpl = templates[language] ?? templates["en"]!;
+    return tpl(p);
+}
+
 export function buildLocalReply(
     message: string,
     toneContext?: ToneContext,
@@ -810,6 +915,13 @@ export function buildLocalReply(
     const seed = hash32(
         `${message}::${language}::${recentSignature}::${toneContext?.companion?.relationship ?? ""}::${toneContext?.companion?.tone ?? ""}::${toneContext?.sessionTurn ?? 0}`
     );
+
+    // P8 — Session style anchor: bias Phase 3 intent toward a consistent personality
+    // for this user+companion pair. Deterministic across all sessions (no storage needed).
+    const _companionNameForAnchor = toneContext?.companion?.name ?? "Imotara";
+    const sessionAnchor = hash32(`${toneContext?.userName ?? ""}::${_companionNameForAnchor}::${toneContext?.companion?.relationship ?? ""}`);
+    const SESSION_INTENTS = ["reflect", "clarify", "reframe"] as const;
+    const preferredIntent = SESSION_INTENTS[sessionAnchor % 3] ?? "reflect";
 
     // #5: Catch indirect/hedging signals that bypass keyword detection
     let signal = detectSignal(message, language);
@@ -3433,15 +3545,25 @@ export function buildLocalReply(
                                                                                 ? extrasByToneUr
                                                                                 : extrasByToneEn;
 
-    const seedIntent = pick(["clarify", "reflect", "reframe"] as const, seed >>> 3);
+    // P4 — Situational person extraction for personalized Phase 3 bridge
+    const situationalPerson = (!isVagueReply && (toneContext?.sessionTurn ?? 0) >= 3 && signal !== "okay")
+        ? extractSituationalPerson(message, language)
+        : null;
+
+    // P8 — Bias toward preferred intent on even-seeded turns (50/50 keeps variety)
+    const seedIntent: "clarify" | "reflect" | "reframe" = (seed >>> 3) % 2 === 0
+        ? preferredIntent
+        : pick(["clarify", "reflect", "reframe"] as const, seed >>> 3);
 
     const prompt =
         seedIntent === "clarify"
             ? pick(nextStepLines, seed >>> 4)
             : seedIntent === "reflect"
                 ? pick(reflectLines, seed >>> 4)
-                : language === "hi"
-                    ? `Agar hum ise thoda narmi se reframe karein, kaunsi ek aur dayalu explanation sach ho sakti hai?`
+                : situationalPerson
+                    ? buildSituationalBridge(situationalPerson, language)
+                    : language === "hi"
+                        ? `Agar hum ise thoda narmi se reframe karein, kaunsi ek aur dayalu explanation sach ho sakti hai?`
                     : language === "ur"
                         ? `Agar hum ise halke se reframe karein, to ek aur meherbaan taaweel sach ho sakti hai?`
                         : language === "bn"
@@ -3794,9 +3916,19 @@ export function buildLocalReply(
     const base = `${naturalMarker}${correctionPrefix}${followUpPrefix}${opener} ${validation}`.trim();
     const activeBridge = contextBridgeEn ?? contextBridgeHi ?? contextBridgeBn ?? null;
     const bridgePart = activeBridge ? " " + activeBridge : "";
+
+    // P6 — Native-language wisdom (~1 in 4 emotional turns, all languages)
+    // skipEnglish=false for web (no quotesEngine in web engine).
+    // Bit-window >>>15 avoids collision with seed-driven openers/extras.
+    const isEmotionalSignal = signal !== "okay";
+    const nativeWisdomLine = (isEmotionalSignal && !isCorrection && !isVagueReply)
+        ? buildNativeWisdom(signal, language, seed, false)
+        : null;
+    const wisdomPart = nativeWisdomLine ? " " + nativeWisdomLine : "";
+
     const extraPart = suppressExtras ? "" : (extra ? " " + extra : "");
     const finalMsg = dedupeAdjacentSentences(
-        `${base}${bridgePart}${extraPart}${topicHint}`.trim()
+        `${base}${bridgePart}${wisdomPart}${extraPart}${topicHint}`.trim()
     );
 
     // Age-aware closing: short, warm suffix for notably young or older users

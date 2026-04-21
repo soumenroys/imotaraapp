@@ -62,6 +62,7 @@ type LocalRecentContext = {
     recentAssistantTexts?: string[]; // #7: for follow-up reference
     lastDetectedLanguage?: string;   // #12: language smoothing hint
     emotionMemory?: string;          // #2: compact emotion history summary for empathy calibration
+    preferredLang?: string;          // user's stored language preference — fallback when detection is ambiguous
 };
 
 export type LocalReplyResult = {
@@ -236,6 +237,13 @@ function detectLanguage(text: string, recentContext?: LocalRecentContext): Local
     const hintLang = recentContext?.lastDetectedLanguage;
     if (hintLang && hintLang !== "en") {
         return hintLang as LocalLanguage;
+    }
+
+    // Use the user's stored preferred language as a last resort before defaulting to English.
+    // Helps when the user sends a short/ambiguous romanized message at the start of a session.
+    const prefLang = recentContext?.preferredLang;
+    if (prefLang && prefLang !== "en") {
+        return prefLang as LocalLanguage;
     }
 
     return "en";

@@ -1933,6 +1933,13 @@ export default function SettingsPage() {
                         </Link>{" "}
                         pages.
                     </p>
+
+                    <p className="mt-4 text-[11px] text-zinc-500">
+                        New to Imotara?{" "}
+                        <Link href="/guide" className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300">
+                            How to use Imotara →
+                        </Link>
+                    </p>
                 </section>
                 {/* Version footer intentionally removed (global footer already shows version) */}
             </div>

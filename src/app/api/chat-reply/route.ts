@@ -351,7 +351,50 @@ export async function POST(req: Request) {
       // no-op: never block chat replies if memory fetch fails
     }
 
-    // LIC-1: fire-and-forget usage event — never awaited, never blocks a reply
+    // LIC-2: quota gate — free-tier users with expired trial are limited to 20 cloud replies/day.
+    // Fail-open: any DB error silently allows the request through (never punish users for infra issues).
+    if (authedUserId) {
+      try {
+        const quotaAdmin = getSupabaseAdmin();
+
+        // Read license tier + trial expiry (single indexed row lookup)
+        const { data: licRow } = await quotaAdmin
+          .from("licenses")
+          .select("tier, expires_at")
+          .eq("user_id", authedUserId)
+          .maybeSingle();
+
+        const isFree = !licRow || licRow.tier === "free";
+        const trialActive = licRow?.expires_at
+          ? new Date(licRow.expires_at) > new Date()
+          : false;
+
+        if (isFree && !trialActive) {
+          // Count cloud replies already sent today (UTC day)
+          const todayStart = new Date();
+          todayStart.setUTCHours(0, 0, 0, 0);
+
+          const { count } = await quotaAdmin
+            .from("usage_events")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", authedUserId)
+            .gte("created_at", todayStart.toISOString());
+
+          if ((count ?? 0) >= 20) {
+            const quotaRes = NextResponse.json(
+              { text: "", meta: { from: "quota_exceeded", reason: "daily_limit", used: count, limit: 20 } },
+              { status: 200 },
+            );
+            quotaRes.headers.set("Cache-Control", "no-store");
+            return quotaRes;
+          }
+        }
+      } catch {
+        // Fail-open: quota check errors must never block a reply
+      }
+    }
+
+    // LIC-1: fire-and-forget usage event — only inserted when quota not exceeded
     if (authedUserId) {
       void Promise.resolve(
         getSupabaseAdmin().from("usage_events").insert({

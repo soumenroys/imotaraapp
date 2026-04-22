@@ -12,6 +12,8 @@ export type LicenseStatus = {
     status: LicenseStatusCode | "free";
     tier: LicenseTier;
     mode: LicenseMode;
+    /** ISO string when the trial / subscription expires; null if not applicable */
+    expiresAt: string | null;
     /** true while the server fetch is in flight */
     loading: boolean;
     /** source of the current value */
@@ -33,6 +35,7 @@ export default function useLicense(): LicenseStatus {
         status: base.status as LicenseStatus["status"],
         tier: base.tier as LicenseTier,
         mode: base.mode,
+        expiresAt: base.expiresAt ?? null,
         loading: true,
         source: "internal",
     });
@@ -56,11 +59,12 @@ export default function useLicense(): LicenseStatus {
                         status: (lic.status ?? "valid") as LicenseStatus["status"],
                         tier: (lic.tier ?? base.tier) as LicenseTier,
                         mode: (lic.mode ?? base.mode) as LicenseMode,
+                        expiresAt: (lic.expiresAt ?? null) as string | null,
                         loading: false,
                         source: (lic.source ?? "supabase") as LicenseStatus["source"],
                     });
                 } else {
-                    setStatus((prev) => ({ ...prev, loading: false }));
+                    setStatus((prev) => ({ ...prev, loading: false, expiresAt: prev.expiresAt }));
                 }
             } catch {
                 if (cancelled) return;

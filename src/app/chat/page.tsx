@@ -53,6 +53,7 @@ import ReplyOriginBadge from "@/components/imotara/ReplyOriginBadge";
 import { getChatToneCopy } from "@/lib/imotara/chatTone";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { isWithinLaunchOffer } from "@/lib/imotara/license";
+import useLicense from "@/hooks/useLicense";
 import { adaptReflectionTone } from "@/lib/imotara/reflectionTone";
 import { getReflectionSeedCard } from "@/lib/imotara/reflectionSeedContract";
 import type { ReflectionSeed } from "@/lib/ai/response/responseBlueprint";
@@ -818,6 +819,10 @@ export default function ChatPage() {
   }
 
   const isOnline = useOnlineStatus();
+  const license = useLicense();
+
+  // Trial countdown banner — shown once per day when ≤14 days remain on trial
+  const [showTrialBanner, setShowTrialBanner] = useState(false);
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -944,6 +949,21 @@ export default function ChatPage() {
       // ignore
     }
   }, []);
+
+  // Trial countdown: show once per day when ≤14 days remain on free trial
+  useEffect(() => {
+    if (license.loading || license.status !== "trial" || !license.expiresAt) return;
+    const msLeft = new Date(license.expiresAt).getTime() - Date.now();
+    const daysLeft = Math.ceil(msLeft / 86_400_000);
+    if (daysLeft <= 0 || daysLeft > 14) return;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const dismissed = typeof window !== "undefined"
+        ? localStorage.getItem("imotara.trial.bannerDismissed.v1")
+        : null;
+      if (dismissed !== today) setShowTrialBanner(true);
+    } catch { /* ignore */ }
+  }, [license.loading, license.status, license.expiresAt]);
 
   const { mode } = useAnalysisConsent();
   const remoteAllowed = mode === "allow-remote";
@@ -2831,6 +2851,42 @@ export default function ChatPage() {
                     </button>
                   </div>
                 )}
+
+                {/* Trial countdown banner — once per day, ≤14 days before free trial ends */}
+                {showTrialBanner && license.expiresAt && (() => {
+                  const daysLeft = Math.ceil((new Date(license.expiresAt).getTime() - Date.now()) / 86_400_000);
+                  if (daysLeft <= 0) return null;
+                  return (
+                    <div className="animate-fade-in mb-3 flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-zinc-100 backdrop-blur-sm">
+                      <span className="mt-0.5 text-lg" aria-hidden="true">⏳</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-amber-200">
+                          {daysLeft === 1 ? "Last day of your free trial" : `${daysLeft} days left in your free trial`}
+                        </p>
+                        <p className="mt-0.5 text-xs text-zinc-400">
+                          After your trial, Imotara continues to work — with on-device replies.{" "}
+                          <a href="/settings" className="text-amber-300 underline underline-offset-2 hover:text-amber-200">
+                            Explore plans →
+                          </a>
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowTrialBanner(false);
+                          try {
+                            const today = new Date().toISOString().slice(0, 10);
+                            localStorage.setItem("imotara.trial.bannerDismissed.v1", today);
+                          } catch { /* ignore */ }
+                        }}
+                        aria-label="Dismiss trial notice"
+                        className="shrink-0 text-zinc-500 hover:text-zinc-300 transition"
+                      >
+                        <XIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {activeThread.messages
                   .filter((m) =>

@@ -316,13 +316,14 @@ export async function POST(req: Request) {
     // ✅ Optional memory: preferred name (spoof-proof)
     // - Identify user via Supabase Auth from cookies (anonymous auth supported)
     // - Use admin client only to read memory rows (bypasses RLS), BUT ONLY for the authenticated user id
+    let authedUserId = "";
     let preferredName = "";
     try {
       const allowMemory = body?.allowMemory !== false; // default true (backward compatible)
       if (allowMemory) {
         const supabaseUser = await getSupabaseUserServerClient();
         const { data } = await supabaseUser.auth.getUser();
-        let authedUserId = data?.user?.id ?? "";
+        authedUserId = data?.user?.id ?? "";
 
         // ✅ In production, if not authenticated, do not read memory
         if (!authedUserId && process.env.NODE_ENV === "production") {
@@ -348,6 +349,16 @@ export async function POST(req: Request) {
       }
     } catch {
       // no-op: never block chat replies if memory fetch fails
+    }
+
+    // LIC-1: fire-and-forget usage event — never awaited, never blocks a reply
+    if (authedUserId) {
+      void Promise.resolve(
+        getSupabaseAdmin().from("usage_events").insert({
+          user_id: authedUserId,
+          event_type: "chat_reply",
+        })
+      ).catch(() => {});
     }
 
     let conversationText = recent

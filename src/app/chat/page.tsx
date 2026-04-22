@@ -798,6 +798,25 @@ export default function ChatPage() {
     } catch { /* ignore */ }
   }, [mounted]);
 
+  // Feature discovery cards — state and helpers (effect wired after activeThread is declared)
+  type DiscoveryCardId = "trends" | "companion" | "offline";
+  const DISCOVERY_CARD_ORDER: DiscoveryCardId[] = ["trends", "companion", "offline"];
+  const DISCOVERY_CARDS_KEY = "imotara.onboarding.discovery.v1";
+  const [discoveryCard, setDiscoveryCard] = useState<DiscoveryCardId | null>(null);
+  const discoveryShownRef = useRef(false);
+
+  function dismissDiscoveryCard() {
+    if (!discoveryCard) return;
+    const id = discoveryCard;
+    setDiscoveryCard(null);
+    try {
+      const dismissed: DiscoveryCardId[] = JSON.parse(localStorage.getItem(DISCOVERY_CARDS_KEY) ?? "[]");
+      if (!dismissed.includes(id)) {
+        localStorage.setItem(DISCOVERY_CARDS_KEY, JSON.stringify([...dismissed, id]));
+      }
+    } catch { /* ignore */ }
+  }
+
   const isOnline = useOnlineStatus();
 
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -1175,6 +1194,21 @@ export default function ChatPage() {
     surprise: "rgba(240,171,252,0.09)",
   };
   const emotionGlowColor = latestEmotion ? (EMOTION_GLOW_COLOR[latestEmotion] ?? null) : null;
+
+  // Feature discovery card trigger — needs activeThread, so placed after its declaration
+  const userMessageCount = activeThread?.messages.filter((m) => m.role === "user").length ?? 0;
+  useEffect(() => {
+    if (!mounted || userMessageCount < 3 || discoveryShownRef.current || discoveryCard) return;
+    try {
+      const dismissed: DiscoveryCardId[] = JSON.parse(localStorage.getItem(DISCOVERY_CARDS_KEY) ?? "[]");
+      const next = DISCOVERY_CARD_ORDER.find((id) => !dismissed.includes(id)) ?? null;
+      if (next) {
+        setDiscoveryCard(next);
+        discoveryShownRef.current = true;
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, userMessageCount]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -2972,6 +3006,37 @@ export default function ChatPage() {
 
           {/* COMPOSER */}
           <div className="border-t border-white/10 px-3 pb-1 pt-1 sm:px-4">
+            {/* Feature discovery card — one per session, after 3+ user messages */}
+            {discoveryCard && (
+              <div className="mx-auto mb-2 max-w-3xl flex items-center gap-3 rounded-xl border border-indigo-500/20 bg-indigo-500/8 px-3.5 py-2 text-xs text-indigo-200/80">
+                <span className="shrink-0 text-base">
+                  {discoveryCard === "trends" ? "📊" : discoveryCard === "companion" ? "✨" : "📡"}
+                </span>
+                <span className="flex-1 leading-snug">
+                  {discoveryCard === "trends" && "Your mood over time — see your emotional patterns in"}
+                  {discoveryCard === "companion" && "Make Imotara yours — personalize your companion's name and tone in"}
+                  {discoveryCard === "offline" && "Always here, even offline — Imotara replies without internet using local mode."}
+                  {discoveryCard !== "offline" && (
+                    <a
+                      href={discoveryCard === "trends" ? "/history" : "/settings"}
+                      onClick={dismissDiscoveryCard}
+                      className="ml-1 font-semibold text-indigo-300 underline underline-offset-2 hover:text-indigo-200 transition"
+                    >
+                      {discoveryCard === "trends" ? "History & Trends →" : "Settings →"}
+                    </a>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={dismissDiscoveryCard}
+                  aria-label="Dismiss tip"
+                  className="shrink-0 text-zinc-500 hover:text-zinc-300 transition"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             {/* Breathing widget — shown above composer when toggled */}
             {showBreathing && (
               <div className="mx-auto mb-3 max-w-3xl">

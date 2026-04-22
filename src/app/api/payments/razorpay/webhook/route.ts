@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { logDonation } from "@/lib/donations/logDonation";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { grantLicense, isValidProductId } from "@/lib/imotara/grantLicense";
 
 const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || "";
 
@@ -43,25 +45,39 @@ export async function POST(req: Request) {
         // Safe to parse after signature verification
         const event = JSON.parse(rawBody) as any;
 
-        // ---- Donation receipt logging (Step 2) ----
         const eventType = event?.event;
 
         if (eventType === "payment.captured" || eventType === "order.paid") {
-            const payment =
+            const payment: any =
                 event?.payload?.payment?.entity ||
                 event?.payload?.order?.entity;
 
-            if (payment?.id && payment?.amount) {
-                await logDonation({
-                    paymentId: payment.id,
-                    orderId: payment.order_id,
-                    amount: payment.amount,
-                    currency: payment.currency || "INR",
-                    status: eventType === "payment.captured" ? "captured" : "paid",
-                    createdAt: (payment.created_at || event.created_at) * 1000,
-                    source: "razorpay",
-                    rawEvent: event,
-                });
+            const notes    = payment?.notes ?? {};
+            const purpose  = String(notes?.purpose ?? "");
+            const productId = String(notes?.productId ?? "").trim();
+            const userId    = String(notes?.userId ?? "").trim();
+
+            if (purpose === "imotara_license" && isValidProductId(productId) && userId) {
+                // ---- LIC-5: license payment — grant tier / top up tokens ----
+                try {
+                    await grantLicense(userId, productId, getSupabaseAdmin());
+                } catch (e) {
+                    console.error("[razorpay/webhook] grantLicense failed:", e);
+                }
+            } else {
+                // ---- Donation receipt logging (existing flow) ----
+                if (payment?.id && payment?.amount) {
+                    await logDonation({
+                        paymentId: payment.id,
+                        orderId: payment.order_id,
+                        amount: payment.amount,
+                        currency: payment.currency || "INR",
+                        status: eventType === "payment.captured" ? "captured" : "paid",
+                        createdAt: (payment.created_at || event.created_at) * 1000,
+                        source: "razorpay",
+                        rawEvent: event,
+                    });
+                }
             }
         }
 

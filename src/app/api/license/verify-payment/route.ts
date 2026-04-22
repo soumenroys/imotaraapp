@@ -1,96 +1,118 @@
 // src/app/api/license/verify-payment/route.ts
+// LIC-5: Called after a Razorpay payment succeeds (mobile direct call or web confirm).
+// Verifies the payment with Razorpay, then grants license via grantLicense().
+// Auth: Bearer token (mobile) or Supabase cookie (web).
 //
-// Called by the mobile app after a successful Razorpay payment.
-// Verifies the payment with Razorpay, then grants PREMIUM license
-// keyed by chatLinkKey (anonymous cross-device identifier).
-//
-// POST { paymentId: string, chatLinkKey?: string }
-// → { ok: true, tier: "PREMIUM" | "FREE" }
+// POST { paymentId: string, productId?: string }
+// → { ok: true, tier: string, tokenBalance: number, expiresAt: string | null }
 
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { supabaseUserServer } from "@/lib/supabase/userServer";
+import {
+    grantLicense,
+    isValidProductId,
+    PRODUCT_CATALOG,
+    type LicenseProductId,
+} from "@/lib/imotara/grantLicense";
 
-const RZP_KEY_ID = process.env.RAZORPAY_KEY_ID ?? "";
+const RZP_KEY_ID     = process.env.RAZORPAY_KEY_ID     ?? "";
 const RZP_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET ?? "";
 
-// Amount thresholds in paise (₹199 = 19900 paise → PREMIUM)
-const PREMIUM_THRESHOLD_PAISE = 19900;
-
-async function fetchRazorpayPayment(paymentId: string) {
+async function fetchRzpPayment(paymentId: string) {
     if (!RZP_KEY_ID || !RZP_KEY_SECRET) return null;
     const creds = Buffer.from(`${RZP_KEY_ID}:${RZP_KEY_SECRET}`).toString("base64");
     const res = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
         headers: { Authorization: `Basic ${creds}` },
     });
     if (!res.ok) return null;
-    return res.json() as Promise<{ id: string; amount: number; status: string; currency: string }>;
+    return res.json() as Promise<{
+        id: string; amount: number; status: string; currency: string;
+        notes?: Record<string, string>;
+    }>;
+}
+
+async function resolveUserId(req: Request): Promise<string | null> {
+    const auth = req.headers.get("authorization") ?? "";
+    if (auth.startsWith("Bearer ")) {
+        const token = auth.slice(7).trim();
+        const { data } = await getSupabaseAdmin().auth.getUser(token);
+        return data?.user?.id ?? null;
+    }
+    try {
+        const client = await supabaseUserServer();
+        const { data } = await client.auth.getUser();
+        return data?.user?.id ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/** Derive productId from Razorpay payment amount as a best-effort fallback. */
+function inferProductId(amountPaise: number, notes?: Record<string, string>): LicenseProductId | null {
+    // Prefer explicit notes field set at order creation
+    const fromNotes = String(notes?.productId ?? "").trim();
+    if (isValidProductId(fromNotes)) return fromNotes;
+
+    // Amount-based fallback (backward compat with older clients)
+    for (const [id, def] of Object.entries(PRODUCT_CATALOG)) {
+        if (def.paise === amountPaise) return id as LicenseProductId;
+    }
+    return null;
 }
 
 export async function POST(req: Request) {
     try {
-        // Require a valid Supabase Bearer token from mobile app
-        const authHeader = req.headers.get("authorization") ?? "";
-        const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
-        if (!bearerToken) {
+        const userId = await resolveUserId(req);
+        if (!userId) {
             return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
         }
-        const { data: tokenData } = await supabaseServer.auth.getUser(bearerToken);
-        if (!tokenData?.user) {
-            return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-        }
-        const userId = tokenData.user.id;
 
-        const body = await req.json();
-        const paymentId: string = String(body?.paymentId ?? "").trim();
-        const chatLinkKey: string = String(body?.chatLinkKey ?? "").trim();
+        const body      = await req.json().catch(() => ({}));
+        const paymentId = String(body?.paymentId ?? "").trim();
+        const bodyPid   = String(body?.productId ?? "").trim();
 
         if (!paymentId) {
             return NextResponse.json({ ok: false, error: "paymentId required" }, { status: 400 });
         }
 
-        // 1. Verify payment with Razorpay
-        const payment = await fetchRazorpayPayment(paymentId);
+        // Verify with Razorpay
+        const payment = await fetchRzpPayment(paymentId);
 
-        if (!payment) {
-            // If no Razorpay credentials configured (dev), grant based on trust
-            // In production this will always require real credentials.
-            const IS_DEV = process.env.NODE_ENV !== "production";
-            if (!IS_DEV) {
-                return NextResponse.json({ ok: false, error: "Payment verification failed" }, { status: 400 });
-            }
-            // Dev-only: pass through without verification
+        if (!payment && process.env.NODE_ENV === "production") {
+            return NextResponse.json({ ok: false, error: "Payment verification failed" }, { status: 400 });
         }
 
         if (payment && payment.status !== "captured") {
             return NextResponse.json({ ok: false, error: `Payment status: ${payment.status}` }, { status: 400 });
         }
 
-        // 2. Determine tier from amount
-        const amountPaise = payment?.amount ?? PREMIUM_THRESHOLD_PAISE;
-        const tier = amountPaise >= PREMIUM_THRESHOLD_PAISE ? "PREMIUM" : "FREE";
+        // Resolve productId (body → payment notes → amount-based fallback)
+        const productId: LicenseProductId | null =
+            isValidProductId(bodyPid)
+                ? (bodyPid as LicenseProductId)
+                : inferProductId(payment?.amount ?? 0, payment?.notes);
 
-        // 3. Persist to Supabase (keyed by chatLinkKey or paymentId)
-        // Table: payment_licenses (payment_id text PK, chat_link_key text, tier text, granted_at timestamptz)
-        // Falls back gracefully if table doesn't exist.
-        try {
-            const supabase = supabaseServer;
-            await supabase.from("payment_licenses").upsert({
-                payment_id: paymentId,
-                user_id: userId,
-                chat_link_key: chatLinkKey || null,
-                tier,
-                amount_paise: amountPaise,
-                currency: payment?.currency ?? "INR",
-                granted_at: new Date().toISOString(),
-            }, { onConflict: "payment_id" });
-        } catch {
-            // Non-fatal — mobile side will still get the tier in the response
+        if (!productId) {
+            return NextResponse.json({ ok: false, error: "Could not resolve product" }, { status: 400 });
         }
 
-        return NextResponse.json({ ok: true, tier, paymentId });
+        const result = await grantLicense(userId, productId, getSupabaseAdmin());
+
+        if (!result.ok) {
+            return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
+        }
+
+        const res = NextResponse.json({
+            ok: true,
+            tier:         result.tier,
+            tokenBalance: result.tokenBalance,
+            expiresAt:    result.expiresAt,
+        });
+        res.headers.set("Cache-Control", "no-store");
+        return res;
     } catch (err: any) {
-        const IS_PROD = process.env.NODE_ENV === "production";
-        if (!IS_PROD) console.warn("verify-payment error:", String(err));
+        if (process.env.NODE_ENV !== "production") console.warn("[verify-payment]", String(err));
         return NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
     }
 }

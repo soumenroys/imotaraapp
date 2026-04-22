@@ -787,6 +787,17 @@ export default function ChatPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // First-time onboarding hint — shown until user sends their first ever message
+  const [showFirstTimeTip, setShowFirstTimeTip] = useState(false);
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      if (!localStorage.getItem("imotara.onboarding.firstMsgSeen.v1")) {
+        setShowFirstTimeTip(true);
+      }
+    } catch { /* ignore */ }
+  }, [mounted]);
+
   const isOnline = useOnlineStatus();
 
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -1020,6 +1031,10 @@ export default function ChatPage() {
   useEffect(() => {
     if (!mounted) return;
     try {
+      if (showFirstTimeTip) {
+        setComposerPlaceholder("Try: 'I've been feeling anxious about work lately'");
+        return;
+      }
       const p = getChatToneCopy()?.placeholder;
       if (typeof p === "string" && p.trim().length > 0) {
         setComposerPlaceholder(p.trim());
@@ -1027,7 +1042,7 @@ export default function ChatPage() {
     } catch {
       // keep default
     }
-  }, [mounted]);
+  }, [mounted, showFirstTimeTip]);
 
   // Load threads (client only)
   useEffect(() => {
@@ -2099,6 +2114,12 @@ export default function ChatPage() {
     try { localStorage.setItem(LAST_SENT_KEY, String(Date.now())); } catch { /* ignore */ }
     setShowReturnGreeting(false);
 
+    // Dismiss first-time onboarding hint on first send
+    if (showFirstTimeTip) {
+      setShowFirstTimeTip(false);
+      try { localStorage.setItem("imotara.onboarding.firstMsgSeen.v1", "1"); } catch { /* ignore */ }
+    }
+
     // #18: 5-second undo window — delay generateAssistantReply
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     setPendingUndo({ messageId: userMsg.id, threadId: targetId });
@@ -2976,6 +2997,11 @@ export default function ChatPage() {
               <div className={`mx-auto mb-1 flex max-w-3xl justify-end text-[10px] font-semibold ${draft.length >= 2000 ? "text-red-500" : draft.length > 1800 ? "text-red-400" : "text-amber-400"}`}>
                 {draft.length >= 2000 ? "2000 / 2000 — limit reached" : `${draft.length} / 2000${draft.length > 1800 ? " — approaching limit" : ""}`}
               </div>
+            )}
+            {showFirstTimeTip && (
+              <p className="mx-auto mb-2 max-w-3xl text-center text-[11px] italic text-zinc-500">
+                Just talk — Imotara listens without judgment.
+              </p>
             )}
             <div className="mx-auto flex max-w-3xl items-end gap-2">
               <textarea

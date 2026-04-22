@@ -8,6 +8,7 @@
 
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
+import { seedLicenseIfAbsent } from "@/lib/imotara/seedLicense";
 
 // ─── Auth helper: Bearer token (mobile) then cookie (web) ───────────────────
 async function getAuthedUserId(req: Request): Promise<string | null> {
@@ -78,6 +79,9 @@ function rowsToToneContext(rows: ProfileRow[]): Record<string, any> {
 export async function POST(req: Request) {
   const userId = await getAuthedUserId(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // LIC-4: seed free license row on first sign-in (no-op if row already exists)
+  void seedLicenseIfAbsent(userId, getSupabaseAdmin()).catch(() => {});
 
   let body: Record<string, any>;
   try {

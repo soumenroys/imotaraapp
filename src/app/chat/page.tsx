@@ -1926,6 +1926,7 @@ export default function ChatPage() {
           recentAssistantTexts,
           lastDetectedLanguage,
           emotionMemory: buildEmotionMemorySummary(30),
+          preferredLang: profile?.user?.preferredLang ?? undefined,
         });
 
         fallbackReply = local.message;

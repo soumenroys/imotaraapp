@@ -104,6 +104,8 @@ function detectExplicitLangRequest(text: string): string | null {
         [/\bfrench\b/,     "fr"],
         [/\bgerman\b/,     "de"],
         [/\bportuguese\b/, "pt"],
+        [/\bindonesian\b/, "id"],
+        [/\bhebrew\b/,     "he"],
     ];
 
     if (!hasIntent) return null;

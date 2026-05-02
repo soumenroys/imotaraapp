@@ -3,8 +3,10 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Download, Pencil, Check } from "lucide-react";
+import Link from "next/link";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
 import SkeletonLoader from "@/components/imotara/SkeletonLoader";
+import useFeatureGate from "@/hooks/useFeatureGate";
 
 // ── Storage ──────────────────────────────────────────────────────────────────
 const STORAGE_KEY = "imotara.reflections.v1";
@@ -1096,6 +1098,7 @@ function exportReflections(entries: ReflectionEntry[]) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function GrowPage() {
+  const insightsGate = useFeatureGate("TRENDS_INSIGHTS");
   const [mounted, setMounted] = useState(false);
   const [entries, setEntries] = useState<ReflectionEntry[]>([]);
   const [promptIndex, setPromptIndex] = useState(getDailyPromptIndex);
@@ -1222,6 +1225,14 @@ export default function GrowPage() {
   );
   const streak = useMemo(() => computeStreak(entries), [entries]);
 
+  // EN-5: Social Proof Benchmarking
+  const [socialProof, setSocialProof] = useState<{ percentileBetter: number; userActiveDays: number } | null>(null);
+  useEffect(() => {
+    fetch("/api/social-proof").then((r) => r.json()).then((data) => {
+      if (data.available) setSocialProof({ percentileBetter: data.percentileBetter, userActiveDays: data.userActiveDays });
+    }).catch(() => {});
+  }, []);
+
   if (!mounted) return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-10">
       <SkeletonLoader rows={1} variant="card" />
@@ -1274,6 +1285,13 @@ export default function GrowPage() {
           )}
         </div>
       </div>
+
+      {/* EN-5: Social Proof Benchmarking */}
+      {socialProof && (
+        <div className="rounded-xl border border-sky-400/15 bg-sky-500/5 px-4 py-2.5 text-xs text-zinc-400 leading-relaxed">
+          You&apos;ve been reflecting <span className="text-sky-300 font-medium">{socialProof.userActiveDays} day{socialProof.userActiveDays !== 1 ? "s" : ""} this week</span> — more consistently than <span className="text-sky-300 font-medium">{socialProof.percentileBetter}%</span> of Imotara users.
+        </div>
+      )}
 
       {/* #4: Emotional arc card — shown when history data exists */}
       {arc.weekEmotions.some(Boolean) && (
@@ -1336,6 +1354,23 @@ export default function GrowPage() {
 
       {/* Quick emotion check-in */}
       <WebFeelSection onCheckin={handleCheckin} />
+
+      {/* Emotion analytics — gated on Pro (TRENDS_INSIGHTS) */}
+      {insightsGate.nudge && !insightsGate.loading && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-indigo-400/20 bg-indigo-500/8 px-3 py-2.5">
+          <p className="text-[11px] text-indigo-200/80">
+            Emotion insights (radar + heatmap) are a{" "}
+            <span className="font-semibold text-indigo-300">Pro</span> feature.{" "}
+            You&apos;re seeing a preview — upgrade to keep full access.
+          </p>
+          <Link
+            href="/upgrade"
+            className="shrink-0 rounded-full bg-indigo-500/20 px-2.5 py-1 text-[10px] font-semibold text-indigo-300 transition hover:bg-indigo-500/30"
+          >
+            Upgrade →
+          </Link>
+        </div>
+      )}
 
       {/* Emotion radar chart */}
       <EmotionRadarChart radarFreq={analytics.radarFreq} radarMax={analytics.radarMax} />

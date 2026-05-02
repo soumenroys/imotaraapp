@@ -742,7 +742,9 @@ type SupportedLanguage =
   | "pt"
   | "ru"
   | "id"
-  | "de";
+  | "de"
+  | "he"
+  | "ja";
 
 function getPreferredLanguage(
   ctx: SessionContext,
@@ -1072,7 +1074,7 @@ function draftResponseForLanguage(
   // Keep explicit localized fallback for all supported Indian languages.
   // For every other language, use the generic draft path for now.
   const INDIAN_LANGS = new Set(["hi", "bn", "mr", "gu", "kn", "ta", "te", "ml", "pa", "or", "ur"]);
-  const FOREIGN_LANGS = new Set(["ar", "zh", "es", "fr", "pt", "ru", "id", "de"]);
+  const FOREIGN_LANGS = new Set(["ar", "zh", "es", "fr", "pt", "ru", "id", "de", "he", "ja"]);
   if (!INDIAN_LANGS.has(lang) && !FOREIGN_LANGS.has(lang)) {
     // propagate detected language so downstream formatters can honor it
     (ctx as any).preferredLanguage = lang;
@@ -2035,12 +2037,12 @@ function draftResponseForLanguage(
     const rel3 = pickRelationshipTone({ ...ctx } as SessionContext);
     const seed3 = `${lang}:emo:${userMessage}:${rel3}:${name3 ?? ""}`;
 
-    const isWork3 = /\b(boss|work|job|office|deadline|manager|pressure|atasan|travail|patron|arbeit|chef|trabajo|jefe|работа|начальник|工作|老板|عمل|رئيس|kaam|kerja)\b/i.test(lower3);
-    const isRelationship3 = /\b(relationship|breakup|girlfriend|boyfriend|fight|argument|distant|alone|relación|ruptura|relation|rupture|beziehung|trennung|hubungan|putus|отношения|расставание|关系|分手|علاقة|انفصال)\b/i.test(lower3);
-    const isCrisis3 = /\b(suicide|kill myself|end it|can't go on|no point|самоубийство|не хочу жить|انتحار|自杀|suicidio|suicídio|mau mati|sterben|sich umbringen)\b/i.test(lower3);
-    const isLonely3 = /\b(alone|lonely|no one|nobody|nobody understands|isolated|seul|seule|allein|sendirian|одинок|孤独|وحيد)\b/i.test(lower3);
+    const isWork3 = /\b(boss|work|job|office|deadline|manager|pressure|atasan|travail|patron|arbeit|chef|trabajo|jefe|работа|начальник|工作|老板|عمل|رئيس|kaam|kerja)\b/i.test(lower3) || /(עבודה|בוס|לחץ|דדליין|仕事|上司|締め切り|プレッシャー)/.test(lower3);
+    const isRelationship3 = /\b(relationship|breakup|girlfriend|boyfriend|fight|argument|distant|alone|relación|ruptura|relation|rupture|beziehung|trennung|hubungan|putus|отношения|расставание|关系|分手|علاقة|انفصال)\b/i.test(lower3) || /(מערכת יחסים|פרידה|ריב|מריבה|関係|別れ|喧嘩|距離)/.test(lower3);
+    const isCrisis3 = /\b(suicide|kill myself|end it|can't go on|no point|самоубийство|не хочу жить|انتحار|自杀|suicidio|suicídio|mau mati|sterben|sich umbringen)\b/i.test(lower3) || /(אני רוצה למות|אין לי כוח|自殺|死にたい|もう無理)/.test(lower3);
+    const isLonely3 = /\b(alone|lonely|no one|nobody|nobody understands|isolated|seul|seule|allein|sendirian|одинок|孤独|وحيد)\b/i.test(lower3) || /(בדידות|לבד|אין מי|孤独|一人|誰もいない)/.test(lower3);
 
-    type ForeignLang = "ar" | "zh" | "es" | "fr" | "pt" | "ru" | "id" | "de";
+    type ForeignLang = "ar" | "zh" | "es" | "fr" | "pt" | "ru" | "id" | "de" | "he" | "ja";
     const foreignMessages: Record<ForeignLang, { work: string[]; rel: string[]; lonely: string[]; crisis: string; workFollow: string[]; relFollow: string[]; lonelyFollow: string[]; crisisFollow: string }> = {
       ar: {
         work: [
@@ -2362,6 +2364,86 @@ function draftResponseForLanguage(
         ],
         crisisFollow: "Gibt es jemanden in deiner Nähe, den du jetzt anrufen kannst?",
       },
+      he: {
+        work: [
+          "הלחץ בעבודה הזה כבד ממש — הדדליינים, הבוס — הכול ביחד הופך לגדול מדי.",
+          "הלחץ הזה מכלה את הגוף ואת הנפש. אתה נושא עכשיו יותר מדי.",
+          "הלחץ מהבוס וחוסר שינה — להחזיק ככה לאורך זמן זה לא פשוט.",
+          "הצבירה בעבודה — הגוף לרוב יודע לפני השכל שמשהו לא בר-קיימא.",
+          "כשכל יום עבודה מתחיל כבד מראש — זה לא עצלות, זה עייפות אמיתית.",
+        ],
+        rel: [
+          "המרחק הזה בזוגיות כואב ממש.",
+          "ריבות ומרחק ביחד — כשהם מגיעים בו-זמנית הלב נעשה כבד מאוד.",
+          "התחושה הזו — שמישהו קרוב מתרחק — קשה מאוד.",
+          "לנסות להתקרב ולהרגיש שהמרחק גדל — זה אחד הכאבים הקשים ביותר.",
+          "מה שהיה מקלט הפך למקור חרדה — זה מכלה מבפנים.",
+        ],
+        lonely: [
+          "תחושת הבדידות הזו — כשנדמה שאף אחד לא מבין — קשה מאוד.",
+          "כשאין אף אחד או אף אחד לא מבין — הריקנות הזו מכבידה הכול.",
+          "התחושה הזו — שאף אחד לא מקשיב — כואבת ממש.",
+          "להרגיש בודד בתוך אנשים קשה יותר מלהיות לבד בשקט — וזה מה שאני שומע.",
+          "להיות מוקף בכולם ואף אחד לא באמת מבין — לריקנות הזו יש משקל משלה.",
+        ],
+        crisis: "אתה עכשיו במקום כבד מאוד. אני ממש כאן איתך.",
+        workFollow: [
+          "מה מכביד עליך יותר עכשיו — לחץ העבודה או העייפות הפנימית?",
+          "מחוץ לעבודה — יש לך קצת זמן לעצמך עכשיו?",
+          "מאז מתי זה ככה?",
+        ],
+        relFollow: [
+          "הוא/היא יודע/ת שאתה עובר את זה?",
+          "המרחק הזה חדש או שהצטבר בהדרגה?",
+          "מתי זה התחיל להיות ככה?",
+        ],
+        lonelyFollow: [
+          "כמה זמן אתה נושא את זה לבד?",
+          "יש מישהו קרוב אליך שאתה יכול לדבר איתו עכשיו?",
+          "הבדידות הגיעה קודם או היה משהו אחר לפניה?",
+        ],
+        crisisFollow: "יש מישהו קרוב אליך עכשיו שאתה יכול להתקשר אליו?",
+      },
+      ja: {
+        work: [
+          "この仕事のプレッシャーは本当に重い — 締め切り、上司 — すべて重なると抱えきれなくなります。",
+          "こういうプレッシャーは体と心を消耗させます。今、あなたは抱えすぎています。",
+          "上司からの圧力と眠れない夜 — そんな状況を長く続けるのは本当に大変です。",
+          "仕事の積み重なり — 体はたいてい頭より先に、これが続かないと知っています。",
+          "毎日の仕事が最初から重く感じるなら — それは怠けではなく、本当の疲弊です。",
+        ],
+        rel: [
+          "関係の中のこの距離は本当につらいですね。",
+          "ケンカと距離が重なると — 同時に来ると心がとても重くなります。",
+          "この感覚 — 近しい人が離れていくような — 本当に難しいです。",
+          "近づこうとするのに距離が広がる感じがする — これは最もつらい痛みの一つです。",
+          "避難所だったものが不安の源になってしまった — これは内側から消耗させます。",
+        ],
+        lonely: [
+          "この孤独感 — 誰も理解してくれないと感じる時 — 本当に辛いです。",
+          "誰もいないか、誰も理解してくれない時 — その空虚さがすべてをより重くします。",
+          "この感覚 — 誰も聞いていないような — 本当に痛いです。",
+          "人の中にいて孤独を感じるのは、静寂の中で一人でいるより辛い — それが伝わります。",
+          "みんなに囲まれているのに誰も本当にわかってくれない — その空虚さには独特の重さがあります。",
+        ],
+        crisis: "今、あなたはとても重い場所にいます。本当にここにいます、一緒に。",
+        workFollow: [
+          "今一番重いのは何ですか — 仕事のプレッシャーですか、それとも内側の疲れですか?",
+          "仕事以外に — 今、自分のための時間は少しありますか?",
+          "いつからこんな状況が続いているのですか?",
+        ],
+        relFollow: [
+          "彼/彼女はあなたがこれを経験していることを知っていますか?",
+          "この距離は新しいものですか、それとも徐々に積み重なってきたものですか?",
+          "いつからこうなりましたか?",
+        ],
+        lonelyFollow: [
+          "どれくらいの間、これを一人で抱えていますか?",
+          "今、話せる近くの人はいますか?",
+          "孤独が先に来ましたか、それとも他に何かありましたか?",
+        ],
+        crisisFollow: "今、近くに電話できる人はいますか?",
+      },
     };
 
     const fLang = lang as ForeignLang;
@@ -2475,7 +2557,13 @@ function draftResponseForLanguage(
       // Indonesian
       /\b(dah|dadah|sampai jumpa|sampai besok|selamat malam|mau istirahat|besok ngobrol lagi|aku pergi dulu)\b/i.test(t3Lower) ||
       // German
-      /\b(tschüss|auf wiedersehen|bis morgen|gute nacht|ich gehe jetzt|bis bald|ich muss jetzt gehen|morgen reden wir)\b/i.test(t3Lower);
+      /\b(tschüss|auf wiedersehen|bis morgen|gute nacht|ich gehe jetzt|bis bald|ich muss jetzt gehen|morgen reden wir)\b/i.test(t3Lower) ||
+      // Hebrew native
+      /(להתראות|ביי|שלום|לילה טוב|אני הולך|אני הולכת|נדבר מחר|אראה אותך)/i.test(t3) ||
+      // Japanese native
+      /(さようなら|またね|じゃあね|おやすみ|また明日|行きます)/i.test(t3) ||
+      // Japanese romanized
+      /\b(sayonara|mata ne|ja ne|oyasumi|mata ashita)\b/i.test(t3Lower);
 
     if (isGoodbyeForeign) {
       const goodbyeByForeignLang: Partial<Record<SupportedLanguage, string>> = {
@@ -2487,6 +2575,8 @@ function draftResponseForLanguage(
         ru: "Хорошо — возвращайся когда захочешь.",
         id: "Oke — kembalilah kapan saja.",
         de: "In Ordnung — komm wieder, wann du möchtest.",
+        he: "בסדר — חזור מתי שתרצה.",
+        ja: "わかりました — いつでも戻ってきてください。",
       };
       const farewellForeign = goodbyeByForeignLang[lang] ?? "Take care — come back anytime.";
       return {

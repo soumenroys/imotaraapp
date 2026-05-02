@@ -7,17 +7,17 @@ import { useState, useRef, useEffect } from "react";
 import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
 import GlobalSearch from "@/components/imotara/GlobalSearch";
 
-// Primary nav — always visible on desktop
+// Primary nav — always visible on desktop (daily actions only)
 const PRIMARY_LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/chat", label: "Chat" },
-  { href: "/history", label: "History" },
-  { href: "/grow", label: "Grow" },
-  { href: "/settings", label: "Settings" },
+  { href: "/", label: "Home", accent: false },
+  { href: "/chat", label: "Chat", accent: true },
+  { href: "/history", label: "History", accent: false },
+  { href: "/grow", label: "Grow", accent: true },
 ];
 
 // Overflow nav — behind "···" on desktop / included in mobile drawer
 const MORE_LINKS = [
+  { href: "/settings", label: "Settings" },
   { href: "/blog", label: "Blog" },
   { href: "/connect", label: "Connect" },
   { href: "/about", label: "About" },
@@ -135,12 +135,15 @@ export default function SiteHeader() {
             {PRIMARY_LINKS.map((l) => {
               const active =
                 l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
+              const accentInactive = l.accent
+                ? "text-indigo-600 hover:bg-indigo-50/60 hover:text-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-200 font-medium"
+                : INACTIVE_LINK_CLASS;
               return (
                 <Link
                   key={l.href}
                   href={l.href}
                   aria-current={active ? "page" : undefined}
-                  className={`${BASE_LINK_CLASS} ${active ? ACTIVE_LINK_CLASS : INACTIVE_LINK_CLASS}`}
+                  className={`${BASE_LINK_CLASS} ${active ? ACTIVE_LINK_CLASS : accentInactive}`}
                 >
                   {l.label}
                 </Link>

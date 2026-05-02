@@ -59,6 +59,20 @@ import { getReflectionSeedCard } from "@/lib/imotara/reflectionSeedContract";
 import type { ReflectionSeed } from "@/lib/ai/response/responseBlueprint";
 import { buildLocalReply } from "@/lib/ai/local/localReplyEngine";
 import {
+  detectAndUpdateOpenLoops,
+  loadOpenLoops,
+  dismissLoop,
+  deferLoop,
+  getActiveLoop,
+  getLoopPrompt,
+  type OpenLoop,
+} from "@/lib/imotara/openLoops";
+import OpenLoopCard from "@/components/imotara/OpenLoopCard";
+import CompanionInsightCard from "@/components/imotara/CompanionInsightCard";
+import UnsentLetterModal, { buildUnsentLetterSystemPrompt, type UnsentLetterSetup } from "@/components/imotara/UnsentLetterModal";
+import { isLetterDue, loadStoredLetter, generateCompanionLetter, getConversationDepth } from "@/lib/imotara/companionLetter";
+import { isArcDue, loadStoredArc, generateEmotionalArc } from "@/lib/imotara/emotionalArc";
+import {
   getImotaraProfile,
   isCompanionContextEnabled,
   type ImotaraProfileV1,
@@ -790,6 +804,8 @@ export default function ChatPage() {
 
   // First-time onboarding hint — shown until user sends their first ever message
   const [showFirstTimeTip, setShowFirstTimeTip] = useState(false);
+  const [showUnsentHint, setShowUnsentHint] = useState(false);
+  const unsentHintShownRef = useRef(false);
   useEffect(() => {
     if (!mounted) return;
     try {
@@ -799,9 +815,34 @@ export default function ChatPage() {
     } catch { /* ignore */ }
   }, [mounted]);
 
+  // NF-5: Anonymous Collective Pulse state
+  const [collectivePulse, setCollectivePulse] = useState<{ heavyPercent: number } | null>(null);
+  const [pulseDismissed, setPulseDismissed] = useState(false);
+  useEffect(() => {
+    if (!mounted) return;
+    fetch("/api/pulse").then((r) => r.json()).then((data) => {
+      if (data.available && data.heavyPercent >= 15) setCollectivePulse({ heavyPercent: data.heavyPercent });
+    }).catch(() => {});
+  }, [mounted]);
+
+  // NF-1: Milestone celebration state — set when an open loop transitions to "closed"
+  const [milestoneLoop, setMilestoneLoop] = useState<{ themeName: string } | null>(null);
+
+  // P1/P3/P5/P4 state — effects wired after threads is declared below
+  const [activeOpenLoop, setActiveOpenLoop] = useState<OpenLoop | null>(null);
+  const openLoopCheckedRef = useRef(false);
+  const [companionInsight, setCompanionInsight] = useState<{
+    variant: "letter" | "arc";
+    title: string;
+    body: string;
+  } | null>(null);
+  const insightCheckedRef = useRef(false);
+  const [unsentLetterModalOpen, setUnsentLetterModalOpen] = useState(false);
+  const [unsentLetterSetup, setUnsentLetterSetup] = useState<UnsentLetterSetup | null>(null);
+
   // Feature discovery cards — state and helpers (effect wired after activeThread is declared)
-  type DiscoveryCardId = "trends" | "companion" | "offline";
-  const DISCOVERY_CARD_ORDER: DiscoveryCardId[] = ["trends", "companion", "offline"];
+  type DiscoveryCardId = "trends" | "companion" | "offline" | "unsent_letter";
+  const DISCOVERY_CARD_ORDER: DiscoveryCardId[] = ["trends", "companion", "offline", "unsent_letter"];
   const DISCOVERY_CARDS_KEY = "imotara.onboarding.discovery.v1";
   const [discoveryCard, setDiscoveryCard] = useState<DiscoveryCardId | null>(null);
   const discoveryShownRef = useRef(false);
@@ -824,9 +865,79 @@ export default function ChatPage() {
   // Trial countdown banner — shown once per day when ≤14 days remain on trial
   const [showTrialBanner, setShowTrialBanner] = useState(false);
 
+  // EN-3 — Daily micro check-in
+  const DAILY_CHECKIN_KEY = "imotara.dailycheckin.lastDate.v1";
+  const [showDailyCheckin, setShowDailyCheckin] = useState(false);
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      const stored = localStorage.getItem(DAILY_CHECKIN_KEY);
+      const today = new Date().toISOString().slice(0, 10);
+      if (stored !== today) setShowDailyCheckin(true);
+    } catch {}
+  }, [mounted]);
+
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  // UX-4 state — effect wired after activeThread is declared
+  const [sessionGreeting, setSessionGreeting] = useState<string | null>(null);
+  const greetingCheckedForRef = useRef<string | null>(null);
+
+  // P1 — Emotional Open Loops effect + NF-1 milestone celebration
+  useEffect(() => {
+    if (!mounted || openLoopCheckedRef.current || threads.length < 3) return;
+    const totalUserMessages = threads.reduce(
+      (sum, t) => sum + t.messages.filter((m) => m.role === "user").length,
+      0
+    );
+    if (totalUserMessages < 10) return;
+    openLoopCheckedRef.current = true;
+    // NF-1: capture state before update to detect newly-closed loops
+    const prevLoops = loadOpenLoops();
+    const loops = detectAndUpdateOpenLoops(threads);
+    // NF-1: find any loop that just transitioned to "closed"
+    const newlyClosed = loops.find(
+      (l) => l.status === "closed" &&
+        prevLoops.some((p) => p.id === l.id && p.status !== "closed")
+    );
+    if (newlyClosed) setMilestoneLoop({ themeName: newlyClosed.themeName });
+    setActiveOpenLoop(getActiveLoop(loops));
+  }, [mounted, threads.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // P3/P5 — Companion insight effect
+  useEffect(() => {
+    if (!mounted || insightCheckedRef.current || threads.length < 2) return;
+    insightCheckedRef.current = true;
+    (async () => {
+      if (isLetterDue()) {
+        const stored = loadStoredLetter();
+        if (stored) {
+          setCompanionInsight({ variant: "letter", title: `A letter from ${stored.companionName}`, body: stored.body });
+          return;
+        }
+        const profile = (await import("@/lib/imotara/profile")).getImotaraProfile();
+        const letter = await generateCompanionLetter(threads, profile).catch(() => null);
+        if (letter) {
+          setCompanionInsight({ variant: "letter", title: `A letter from ${letter.companionName}`, body: letter.body });
+          return;
+        }
+      }
+      if (isArcDue()) {
+        const stored = loadStoredArc();
+        if (stored) {
+          setCompanionInsight({ variant: "arc", title: `Your ${stored.periodLabel}`, body: stored.narrative });
+          return;
+        }
+        const profile = (await import("@/lib/imotara/profile")).getImotaraProfile();
+        const userName = profile?.user?.name ?? "you";
+        const arc = await generateEmotionalArc(threads, userName).catch(() => null);
+        if (arc) {
+          setCompanionInsight({ variant: "arc", title: `Your ${arc.periodLabel}`, body: arc.narrative });
+        }
+      }
+    })();
+  }, [mounted, threads.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -915,6 +1026,11 @@ export default function ChatPage() {
 
   // Reactive companion name — shown in chat header, updates when profile changes
   const [companionDisplayName, setCompanionDisplayName] = useState<string | null>(null);
+  // Avatar pins — user (top) and companion (bottom) of the chat body
+  const [userAvatarData, setUserAvatarData] = useState<{ src: string; name: string } | null>(null);
+  const [compAvatarData, setCompAvatarData] = useState<{ src: string; name: string } | null>(null);
+  const [avatarPlaying, setAvatarPlaying] = useState<"user" | "comp" | null>(null);
+  const avatarAudioRef = useRef<HTMLAudioElement | null>(null);
   // SSR-safe preferred language — always "en" on server, real value after mount
   const [preferredLang, setPreferredLang] = useState<string>("en");
   useEffect(() => {
@@ -926,12 +1042,78 @@ export default function ChatPage() {
         setCompanionDisplayName(null);
       }
       setPreferredLang(p?.user?.preferredLang ?? "en");
+
+      // User avatar pin
+      const uGender = p?.user?.gender;
+      const uAge = p?.user?.avatarAge;
+      if ((uGender === "male" || uGender === "female") && typeof uAge === "number") {
+        setUserAvatarData({ src: `/avatars/${uGender}/${uAge}.png`, name: p?.user?.name?.trim() ?? "" });
+      } else {
+        setUserAvatarData(null);
+      }
+
+      // Companion avatar pin
+      const cGender = c?.gender;
+      const cAge = c?.avatarAge;
+      if (c?.enabled && (cGender === "male" || cGender === "female") && typeof cAge === "number") {
+        setCompAvatarData({ src: `/avatars/${cGender}/${cAge}.png`, name: c?.name?.trim() ?? "" });
+      } else {
+        setCompAvatarData(null);
+      }
     }
     syncName(getImotaraProfile());
     const handler = (e: Event) => syncName((e as CustomEvent).detail as ImotaraProfileV1 | null);
     window.addEventListener("imotara:profile-updated", handler);
     return () => window.removeEventListener("imotara:profile-updated", handler);
   }, []);
+
+  function playAvatarPreview(role: "user" | "comp") {
+    const p = getImotaraProfile();
+    const lang = p?.user?.preferredLang ?? "en";
+    const rawGender = role === "user" ? (p?.user?.gender ?? "female") : (p?.companion?.gender ?? "female");
+    const genderFile: "male" | "female" = rawGender === "male" ? "male" : "female";
+
+    const stopAll = () => {
+      avatarAudioRef.current?.pause();
+      avatarAudioRef.current = null;
+      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    };
+
+    if (avatarPlaying === role) { stopAll(); setAvatarPlaying(null); return; }
+    stopAll();
+    setAvatarPlaying(role);
+
+    if (lang !== "en") {
+      const audio = new Audio(`/tts-preview/${lang}-${genderFile}.mp3`);
+      audio.playbackRate = 0.95;
+      avatarAudioRef.current = audio;
+      const done = () => { avatarAudioRef.current = null; setAvatarPlaying(null); };
+      audio.onended = done;
+      audio.onerror = done;
+      audio.play().catch(done);
+      return;
+    }
+
+    if (typeof window === "undefined" || !window.speechSynthesis) { setAvatarPlaying(null); return; }
+    const synth = window.speechSynthesis;
+    const voices = synth.getVoices();
+    const MALE_PAT = /\b(male|man|alex|tom|daniel|liam|david|james|mark|aaron|evan|reed|bruce|fred|gordon|lee|rishi|aarav|hemant|kabir)\b/i;
+    const FEMALE_PAT = /\b(female|woman|samantha|karen|victoria|veena|kanya|kate|susan|fiona|alice|moira|tessa|lekha|damayanti)\b/i;
+    const pool = voices.filter(v => v.lang === "en-US" || v.lang.startsWith("en-") || v.lang === "en");
+    const src = pool.length > 0 ? pool : voices;
+    const isMaleV = (v: SpeechSynthesisVoice) => MALE_PAT.test(v.name.toLowerCase());
+    const isFemV = (v: SpeechSynthesisVoice) => FEMALE_PAT.test(v.name.toLowerCase());
+    const voice = genderFile === "male"
+      ? (src.find(isMaleV) ?? src.find(v => !isFemV(v)) ?? src[0])
+      : (src.find(isFemV) ?? src.find(v => !isMaleV(v)) ?? src[0]);
+    const utter = new SpeechSynthesisUtterance("Hi, I'm Imotara. I'm here with you.");
+    if (voice) utter.voice = voice;
+    utter.lang = "en-US";
+    utter.rate = 0.95;
+    utter.onend = () => setAvatarPlaying(null);
+    utter.onerror = () => setAvatarPlaying(null);
+    synth.speak(utter);
+  }
 
   // Return check-in: show banner if user hasn't chatted in >24h
   useEffect(() => {
@@ -1215,6 +1397,61 @@ export default function ChatPage() {
   };
   const emotionGlowColor = latestEmotion ? (EMOTION_GLOW_COLOR[latestEmotion] ?? null) : null;
 
+  // UX-4 + EN-2 — emotion continuation greeting + topic-specific re-opener
+  useEffect(() => {
+    if (!activeId || !activeThread || greetingCheckedForRef.current === activeId) return;
+    greetingCheckedForRef.current = activeId;
+    setSessionGreeting(null);
+    const msgs = activeThread.messages;
+    if (msgs.length < 2) return;
+    const lastMsg = [...msgs].sort((a, b) => b.createdAt - a.createdAt)[0];
+    const gapHours = (Date.now() - (lastMsg?.createdAt ?? Date.now())) / 3_600_000;
+    if (gapHours < 2) return;
+
+    // EN-2: attempt topic-specific re-opener from last user messages
+    const EN2_TOPICS: Array<{ pattern: RegExp; reOpener: string }> = [
+      { pattern: /\b(work|job|boss|deadline|career|burnout|workload|promotion|fired|manager|office|salary)\b/i,
+        reOpener: "Last time you were navigating some work stress. How has that been since we spoke?" },
+      { pattern: /\b(lonely|loneliness|alone|isolated|no friends|disconnected|left out|no one cares)\b/i,
+        reOpener: "Last time you were feeling a bit lonely. How are you doing today?" },
+      { pattern: /\b(anxious|anxiety|worry|worried|nervous|panic|overwhelmed|overthinking|dread)\b/i,
+        reOpener: "Last time you were carrying some anxiety. How is that sitting with you now?" },
+      { pattern: /\b(grief|grieving|loss|lost someone|died|death|passed away|miss them|mourning)\b/i,
+        reOpener: "Last time you were sitting with some grief. How have you been holding up?" },
+      { pattern: /\b(relationship|partner|boyfriend|girlfriend|husband|wife|breakup|broke up|divorce|fight|conflict)\b/i,
+        reOpener: "Last time there was some relationship tension on your mind. How have things been?" },
+      { pattern: /\b(can'?t sleep|insomnia|sleepless|exhausted|no energy|fatigue|nightmares|awake all night)\b/i,
+        reOpener: "Last time you were struggling with sleep. Has that improved at all?" },
+      { pattern: /\b(worthless|not good enough|failure|shame|hate myself|self.hate|inadequate|imposter|don'?t deserve)\b/i,
+        reOpener: "Last time some questions of self-worth were coming up for you. How are you feeling today?" },
+      { pattern: /\b(family|parents?|toxic|controlling|expectations|family pressure|family conflict)\b/i,
+        reOpener: "Last time there was some family tension weighing on you. How has that been?" },
+    ];
+
+    const recentUserText = msgs
+      .filter((m) => m.role === "user")
+      .slice(-4)
+      .map((m) => m.content)
+      .join(" ");
+
+    const matched = EN2_TOPICS.find((t) => t.pattern.test(recentUserText));
+    if (matched) {
+      setSessionGreeting(matched.reOpener);
+      return;
+    }
+
+    // UX-4 fallback: generic heavy-emotion greeting
+    const heavyPattern = /low|tense|worried|upset|frustrated|stuck|sad|anxious|overwhelmed|hurt|difficult|hard time|heavy/i;
+    const lastBotMsgs = msgs.filter((m) => m.role === "assistant").slice(-3);
+    const isHeavy = lastBotMsgs.some((m) => heavyPattern.test(m.content));
+    if (isHeavy) {
+      const h = new Date().getHours();
+      const timeGreet = h < 12 ? "Good morning." : h < 17 ? "Good afternoon." : "Good evening.";
+      setSessionGreeting(`${timeGreet} Last time you were carrying something heavy. How are you feeling now?`);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, activeThread?.messages.length]);
+
   // Feature discovery card trigger — needs activeThread, so placed after its declaration
   const userMessageCount = activeThread?.messages.filter((m) => m.role === "user").length ?? 0;
   useEffect(() => {
@@ -1320,7 +1557,6 @@ export default function ChatPage() {
         if (!cancelled) {
           setAnalysis(res);
           if (res?.snapshot?.dominant && res.snapshot.dominant !== "neutral") hapticEmotion();
-          console.log("[imotara] analysis:", res?.summary?.headline, res);
         }
       } catch (err) {
         console.error("[imotara] analysis failed:", err);
@@ -1526,7 +1762,6 @@ export default function ChatPage() {
       )) as AnalysisResult | null;
 
       setAnalysis(res);
-      console.log("[imotara] manual analysis:", res?.summary?.headline, res);
     } catch (err) {
       console.error("[imotara] manual analysis failed:", err);
     } finally {
@@ -1792,9 +2027,14 @@ export default function ChatPage() {
 
       if (remoteAllowed && ANALYSIS_IMPL === "api") {
         try {
+          // P4 — Unsent Letter: prepend role-play context so AI responds in recipient's voice
+          const lastUserContent = msgsForAnalysis[msgsForAnalysis.length - 1]?.content ?? "";
+          const aiMessageContent = unsentLetterSetup
+            ? `${buildUnsentLetterSystemPrompt(unsentLetterSetup)}\n\nThe user's letter:\n${lastUserContent}`
+            : lastUserContent;
+
           const resp = await runRespondWithConsent(
-            // last user message
-            msgsForAnalysis[msgsForAnalysis.length - 1]?.content ?? "",
+            aiMessageContent,
             remoteAllowed,
             {
               threadId,
@@ -1843,10 +2083,6 @@ export default function ChatPage() {
             respEmotionIntensity = (resp as any)?.meta?.emotion?.intensity ?? 0;
 
             aiMetaFrom = "openai";
-            console.log(
-              "[imotara] using /api/respond reply:",
-              text.slice(0, 120),
-            );
           }
         } catch (err) {
           setStreamingReply("");
@@ -1883,6 +2119,12 @@ export default function ChatPage() {
               }
               : undefined,
         };
+
+        // UX-5: pacing delay on heavy emotions — typing indicator stays visible during wait
+        const HEAVY_EMOTIONS = new Set(["sad", "sadness", "grief", "anxious", "anxiety", "fear", "overwhelmed", "hopeless", "lonely", "anger", "frustrated", "hurt", "depressed", "depression", "lost", "empty"]);
+        if (debugEmotion && HEAVY_EMOTIONS.has(debugEmotion.toLowerCase())) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+        }
 
         setThreads((prev) =>
           prev.map((t) =>
@@ -2033,6 +2275,12 @@ export default function ChatPage() {
         replySource: "fallback",
       };
 
+      // UX-5: pacing delay on heavy emotions (fallback path)
+      const HEAVY_EMOTIONS_FB = new Set(["sad", "sadness", "grief", "anxious", "anxiety", "fear", "overwhelmed", "hopeless", "lonely", "anger", "frustrated", "hurt", "depressed", "depression", "lost", "empty"]);
+      if (debugEmotion && HEAVY_EMOTIONS_FB.has(debugEmotion.toLowerCase())) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+      }
+
       setThreads((prev) =>
         prev.map((t) =>
           t.id === threadId
@@ -2095,11 +2343,11 @@ export default function ChatPage() {
     );
   }
 
-  function sendMessage() {
+  function sendMessage(override?: string) {
     // ✅ Guard: don't allow sending a new user message while assistant reply is generating
     if (analyzing) return;
 
-    const text = draft.trim();
+    const text = (override ?? draft).trim();
     if (!text) return;
     if (text.length > 2000) return; // enforced by UI counter; silently block
 
@@ -2174,6 +2422,19 @@ export default function ChatPage() {
       try { localStorage.setItem("imotara.onboarding.firstMsgSeen.v1", "1"); } catch { /* ignore */ }
     }
 
+    // UX-3 — contextual unsent-letter hint
+    if (!unsentHintShownRef.current && !unsentLetterModalOpen) {
+      const relKeywords = /\b(can't say|never told|wish i could tell|unsent|dear |letter to|miss you|hurt me|forgive|goodbye|i love you|you left|you never|i need you to know|i wanted to say|never got to)\b/i;
+      if (relKeywords.test(text)) {
+        try {
+          if (!localStorage.getItem("imotara.unsent_letter.tried.v1")) {
+            unsentHintShownRef.current = true;
+            setShowUnsentHint(true);
+          }
+        } catch {}
+      }
+    }
+
     // #18: 5-second undo window — delay generateAssistantReply
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     setPendingUndo({ messageId: userMsg.id, threadId: targetId });
@@ -2184,6 +2445,13 @@ export default function ChatPage() {
     }, 5000);
 
     setDraft("");
+  }
+
+  // EN-3 — complete the daily check-in ritual
+  function handleDailyCheckin(label: string) {
+    try { localStorage.setItem(DAILY_CHECKIN_KEY, new Date().toISOString().slice(0, 10)); } catch {}
+    setShowDailyCheckin(false);
+    sendMessage(`Feeling ${label.toLowerCase()} today.`);
   }
 
   function toggleVoice() {
@@ -2320,13 +2588,37 @@ export default function ChatPage() {
               Conversations
             </h2>
             <button
-              onClick={newThread}
+              onClick={() => { setUnsentLetterSetup(null); newThread(); }}
               className="inline-flex items-center gap-1 rounded-xl border border-sky-400/25 bg-gradient-to-r from-indigo-500/20 via-sky-500/15 to-emerald-400/15 px-3 py-1.5 text-xs text-zinc-100 shadow-sm backdrop-blur-sm transition hover:brightness-110 hover:-translate-y-0.5 hover:shadow-md duration-150 sm:text-sm"
               aria-label="New conversation"
             >
               <Plus className="h-4 w-4" /> New
             </button>
           </div>
+
+          {/* User avatar card — top of sidebar */}
+          {mounted && userAvatarData && (
+            <div
+              role="button"
+              tabIndex={0}
+              title="Preview your voice"
+              onClick={() => playAvatarPreview("user")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); playAvatarPreview("user"); } }}
+              className={`flex items-center gap-2.5 rounded-2xl border px-3 py-2 cursor-pointer transition duration-150 select-none ${avatarPlaying === "user" ? "border-sky-400/60 bg-sky-500/10 shadow-md" : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"}`}
+            >
+              <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-xl">
+                <img src={userAvatarData.src} alt={userAvatarData.name || "You"} className="h-full w-full object-cover" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium text-zinc-200">{userAvatarData.name || "You"}</p>
+                <p className="text-[10px] text-zinc-500">You</p>
+              </div>
+              {avatarPlaying === "user"
+                ? <Volume2 className="h-3.5 w-3.5 flex-shrink-0 text-sky-400 animate-pulse" />
+                : <Volume2 className="h-3.5 w-3.5 flex-shrink-0 text-zinc-600 opacity-0 group-hover:opacity-100" />
+              }
+            </div>
+          )}
 
           <div className="flex-1 space-y-1 overflow-auto pr-1">
             {!mounted ? (
@@ -2337,12 +2629,13 @@ export default function ChatPage() {
               </div>
             ) : threads.length === 0 ? (
               <div className="rounded-xl border border-dashed border-white/20 bg-white/5 p-5 text-center">
-                <p className="mb-3 text-xs text-zinc-500">No conversations yet</p>
+                <p className="mb-1 text-xs text-indigo-300/80 italic">When you&apos;re ready to talk, I&apos;m here.</p>
+                <p className="mb-3 text-[10px] text-zinc-600">Your conversations stay private.</p>
                 <button
-                  onClick={newThread}
+                  onClick={() => { setUnsentLetterSetup(null); newThread(); }}
                   className="rounded-full bg-indigo-500/20 border border-indigo-500/40 px-4 py-1.5 text-xs text-indigo-300 transition hover:bg-indigo-500/30"
                 >
-                  Start chatting →
+                  Begin →
                 </button>
               </div>
             ) : (
@@ -2439,6 +2732,30 @@ export default function ChatPage() {
             )}
           </div>
 
+          {/* Companion avatar card — bottom of sidebar */}
+          {mounted && compAvatarData && (
+            <div
+              role="button"
+              tabIndex={0}
+              title="Preview companion voice"
+              onClick={() => playAvatarPreview("comp")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); playAvatarPreview("comp"); } }}
+              className={`flex items-center gap-2.5 rounded-2xl border px-3 py-2 cursor-pointer transition duration-150 select-none ${avatarPlaying === "comp" ? "border-indigo-400/60 bg-indigo-500/10 shadow-md" : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"}`}
+            >
+              <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-xl">
+                <img src={compAvatarData.src} alt={compAvatarData.name || "Companion"} className="h-full w-full object-cover" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium text-zinc-200">{compAvatarData.name || "Companion"}</p>
+                <p className="text-[10px] text-zinc-500">Companion</p>
+              </div>
+              {avatarPlaying === "comp"
+                ? <Volume2 className="h-3.5 w-3.5 flex-shrink-0 text-indigo-400 animate-pulse" />
+                : <Volume2 className="h-3.5 w-3.5 flex-shrink-0 text-zinc-600 opacity-0 group-hover:opacity-100" />
+              }
+            </div>
+          )}
+
           {/* Delete-thread confirmation inline panel */}
           {deleteThreadConfirmId && (
             <div className="mx-2 mb-2 rounded-xl border border-red-400/30 bg-red-950/60 px-3 py-2 text-xs text-red-200 backdrop-blur-md">
@@ -2484,7 +2801,7 @@ export default function ChatPage() {
                 {/* New conversation */}
                 <button
                   type="button"
-                  onClick={newThread}
+                  onClick={() => { setUnsentLetterSetup(null); newThread(); }}
                   title="New conversation"
                   className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-emerald-400/10 text-zinc-200 transition hover:brightness-110"
                 >
@@ -2643,7 +2960,7 @@ export default function ChatPage() {
                         <button
                           key="new"
                           type="button"
-                          onClick={newThread}
+                          onClick={() => { setUnsentLetterSetup(null); newThread(); }}
                           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/25 via-sky-500/20 to-emerald-400/20 text-sm font-medium text-white shadow-[0_12px_34px_rgba(15,23,42,0.65)] backdrop-blur-sm transition hover:brightness-110"
                         >
                           <Plus className="h-3.5 w-3.5" /> New
@@ -2724,6 +3041,35 @@ export default function ChatPage() {
             ref={listRef}
             className="relative z-10 h-full overflow-y-auto px-4 py-4 sm:px-6"
           >
+            {/* EN-3 — Daily micro check-in pulse (once per day) */}
+            {mounted && showDailyCheckin && (
+              <div className="mx-auto mb-4 max-w-3xl">
+                <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-sky-400/20 bg-sky-900/10 px-4 py-3">
+                  <span className="mr-1 shrink-0 text-xs font-medium text-sky-300/80">How are you feeling today?</span>
+                  {[
+                    { emoji: "😔", label: "Heavy" }, { emoji: "😟", label: "Anxious" }, { emoji: "😐", label: "Okay" },
+                    { emoji: "🙂", label: "Good" }, { emoji: "😊", label: "Grateful" }, { emoji: "⚡", label: "Energized" },
+                  ].map(({ emoji, label }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => handleDailyCheckin(label)}
+                      className="flex items-center gap-1 rounded-full border border-sky-400/20 bg-sky-900/20 px-2.5 py-1 text-xs text-sky-200 transition hover:bg-sky-500/20 hover:text-white"
+                    >
+                      <span>{emoji}</span><span>{label}</span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => { try { localStorage.setItem(DAILY_CHECKIN_KEY, new Date().toISOString().slice(0, 10)); } catch {} setShowDailyCheckin(false); }}
+                    className="ml-auto text-[10px] text-zinc-600 transition hover:text-zinc-400"
+                  >
+                    Later
+                  </button>
+                </div>
+              </div>
+            )}
+
             {!mounted ? (
               <div className="mx-auto max-w-3xl">
                 <div
@@ -2737,6 +3083,7 @@ export default function ChatPage() {
               <EmptyState
                 onChipSelect={(text) => { setDraft(text); }}
                 lang={preferredLang}
+                threads={threads}
               />
             ) : (
               <div className="mx-auto max-w-3xl space-y-4">
@@ -2852,6 +3199,22 @@ export default function ChatPage() {
                   </div>
                 )}
 
+                {/* P4 — Unsent Letter mode banner */}
+                {unsentLetterSetup && (
+                  <div className="mb-3 flex items-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/8 px-3 py-2 text-xs text-violet-300">
+                    <Pencil className="h-3.5 w-3.5 shrink-0" />
+                    <span className="flex-1">
+                      Writing to <span className="font-semibold">{unsentLetterSetup.recipientName}</span> — Imotara will respond in their voice.
+                    </span>
+                    <button
+                      onClick={() => setUnsentLetterSetup(null)}
+                      className="text-zinc-500 hover:text-zinc-300 transition"
+                    >
+                      <XIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Trial countdown banner — once per day, ≤14 days before free trial ends */}
                 {showTrialBanner && license.expiresAt && (() => {
                   const daysLeft = Math.ceil((new Date(license.expiresAt).getTime() - Date.now()) / 86_400_000);
@@ -2888,6 +3251,62 @@ export default function ChatPage() {
                   );
                 })()}
 
+                {/* NF-1 — Emotional Milestone Celebration */}
+                {milestoneLoop && (
+                  <div className="flex justify-start animate-fade-in">
+                    <div className="max-w-[82%] rounded-2xl border border-emerald-400/30 bg-gradient-to-br from-emerald-900/40 to-teal-900/30 px-4 py-3 text-sm backdrop-blur-md">
+                      <p className="text-emerald-300 font-medium mb-0.5">You closed a loop ✦</p>
+                      <p className="text-zinc-300 text-xs leading-relaxed">
+                        The theme of <span className="text-emerald-200 italic">{milestoneLoop.themeName}</span> that kept returning — it looks like you found some resolution. That&apos;s real growth.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Dismiss milestone"
+                      onClick={() => setMilestoneLoop(null)}
+                      className="ml-1 self-start text-zinc-600 hover:text-zinc-400 transition"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
+                {/* NF-5 — Anonymous Collective Pulse */}
+                {collectivePulse && !pulseDismissed && (
+                  <div className="flex justify-start animate-fade-in">
+                    <div className="max-w-[82%] rounded-2xl border border-indigo-400/20 bg-gradient-to-br from-slate-800/60 to-indigo-950/40 px-4 py-2.5 text-xs backdrop-blur-md">
+                      <p className="text-zinc-400 leading-relaxed">
+                        <span className="text-indigo-300 font-medium">{collectivePulse.heavyPercent}% of people</span> are carrying something heavy today. You&apos;re not alone.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Dismiss pulse"
+                      onClick={() => setPulseDismissed(true)}
+                      className="ml-1 self-start text-zinc-600 hover:text-zinc-400 transition"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
+                {/* UX-4 — emotion continuation greeting */}
+                {sessionGreeting && (
+                  <div className="flex justify-start animate-fade-in">
+                    <div className="max-w-[82%] rounded-2xl bg-gradient-to-br from-slate-700/60 to-slate-800/60 px-4 py-3 text-sm text-zinc-200 border border-white/10">
+                      {sessionGreeting}
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Dismiss greeting"
+                      onClick={() => setSessionGreeting(null)}
+                      className="ml-1 self-start text-zinc-600 hover:text-zinc-400 transition"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
                 {activeThread.messages
                   .filter((m) =>
                     !searchQuery.trim() ||
@@ -2917,6 +3336,7 @@ export default function ChatPage() {
                     reflectionSeed={m.reflectionSeed}
                     followUp={m.followUp}
                     meta={m.meta}
+                    avatarSrc={m.role === "assistant" ? (compAvatarData?.src ?? undefined) : undefined}
                     reaction={reactions[m.id]}
                     onReact={(emoji) => handleReact(m.id, emoji)}
                     bookmarked={bookmarks.has(m.id)}
@@ -3062,17 +3482,55 @@ export default function ChatPage() {
 
           {/* COMPOSER */}
           <div className="border-t border-white/10 px-3 pb-1 pt-1 sm:px-4">
+            {/* P3/P5 — Companion Insight Card */}
+            {companionInsight && (
+              <div className="mx-auto max-w-3xl">
+                <CompanionInsightCard
+                  variant={companionInsight.variant}
+                  title={companionInsight.title}
+                  body={companionInsight.body}
+                  onDismiss={() => setCompanionInsight(null)}
+                />
+              </div>
+            )}
+
+            {/* P1 — Open Loop Card */}
+            {activeOpenLoop && (
+              <div className="mx-auto max-w-3xl">
+                <OpenLoopCard
+                  loop={activeOpenLoop}
+                  onExplore={() => {
+                    const prompt = getLoopPrompt(activeOpenLoop.themeKey);
+                    dismissLoop(activeOpenLoop.id);
+                    setActiveOpenLoop(null);
+                    setUnsentLetterSetup(null);
+                    newThread();
+                    setDraft(prompt);
+                  }}
+                  onDefer={() => {
+                    deferLoop(activeOpenLoop.id);
+                    setActiveOpenLoop(null);
+                  }}
+                  onDismiss={() => {
+                    dismissLoop(activeOpenLoop.id);
+                    setActiveOpenLoop(null);
+                  }}
+                />
+              </div>
+            )}
+
             {/* Feature discovery card — one per session, after 3+ user messages */}
             {discoveryCard && (
               <div className="mx-auto mb-2 max-w-3xl flex items-center gap-3 rounded-xl border border-indigo-500/20 bg-indigo-500/8 px-3.5 py-2 text-xs text-indigo-200/80">
                 <span className="shrink-0 text-base">
-                  {discoveryCard === "trends" ? "📊" : discoveryCard === "companion" ? "✨" : "📡"}
+                  {discoveryCard === "trends" ? "📊" : discoveryCard === "companion" ? "✨" : discoveryCard === "unsent_letter" ? "✉️" : "📡"}
                 </span>
                 <span className="flex-1 leading-snug">
                   {discoveryCard === "trends" && "Your mood over time — see your emotional patterns in"}
                   {discoveryCard === "companion" && "Make Imotara yours — personalize your companion's name and tone in"}
                   {discoveryCard === "offline" && "Always here, even offline — Imotara replies without internet using local mode."}
-                  {discoveryCard !== "offline" && (
+                  {discoveryCard === "unsent_letter" && "Write to someone you can't reach — the Unsent Letter space is here for you."}
+                  {(discoveryCard === "trends" || discoveryCard === "companion") && (
                     <a
                       href={discoveryCard === "trends" ? "/history" : "/settings"}
                       onClick={dismissDiscoveryCard}
@@ -3080,6 +3538,15 @@ export default function ChatPage() {
                     >
                       {discoveryCard === "trends" ? "History & Trends →" : "Settings →"}
                     </a>
+                  )}
+                  {discoveryCard === "unsent_letter" && (
+                    <button
+                      type="button"
+                      onClick={() => { dismissDiscoveryCard(); setUnsentLetterModalOpen(true); }}
+                      className="ml-1 font-semibold text-indigo-300 underline underline-offset-2 hover:text-indigo-200 transition"
+                    >
+                      Try it →
+                    </button>
                   )}
                 </span>
                 <button
@@ -3119,10 +3586,32 @@ export default function ChatPage() {
                 {draft.length >= 2000 ? "2000 / 2000 — limit reached" : `${draft.length} / 2000${draft.length > 1800 ? " — approaching limit" : ""}`}
               </div>
             )}
-            {showFirstTimeTip && (
+            {showFirstTimeTip && !showUnsentHint && (
               <p className="mx-auto mb-2 max-w-3xl text-center text-[11px] italic text-zinc-500">
                 Just talk — Imotara listens without judgment.
               </p>
+            )}
+            {/* UX-3 — contextual unsent-letter hint */}
+            {showUnsentHint && (
+              <div className="mx-auto mb-2 max-w-3xl flex items-center gap-3 animate-fade-in rounded-xl border border-violet-500/25 bg-violet-500/8 px-3.5 py-2 text-xs text-violet-200/85">
+                <span className="shrink-0">✉️</span>
+                <span className="flex-1 leading-snug">
+                  Sounds like there's something you might want to say to someone.{" "}
+                  <button
+                    type="button"
+                    onClick={() => { setShowUnsentHint(false); setUnsentLetterModalOpen(true); try { localStorage.setItem("imotara.unsent_letter.tried.v1", "1"); } catch {} }}
+                    className="font-semibold text-violet-300 underline underline-offset-2 hover:text-violet-200 transition"
+                  >
+                    Try the Unsent Letter →
+                  </button>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowUnsentHint(false)}
+                  aria-label="Dismiss"
+                  className="shrink-0 text-zinc-500 hover:text-zinc-300 transition"
+                >✕</button>
+              </div>
             )}
             <div className="mx-auto flex max-w-3xl items-end gap-2">
               <textarea
@@ -3168,8 +3657,22 @@ export default function ChatPage() {
                 <Wind className="h-4 w-4" />
               </button>
 
+              {/* P4 — Unsent Letter button */}
               <button
-                onClick={sendMessage}
+                onClick={() => setUnsentLetterModalOpen(true)}
+                title="Write an unsent letter"
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
+                  unsentLetterSetup
+                    ? "border-violet-500/50 bg-violet-500/15 text-violet-300"
+                    : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                }`}
+                type="button"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+
+              <button
+                onClick={() => sendMessage()}
                 disabled={analyzing || !draft.trim() || streamingReply.length > 0}
                 className="im-cta-bg inline-flex h-11 items-center gap-2 rounded-2xl border border-white/15 px-4 text-sm font-medium text-white shadow-lg transition hover:brightness-110 hover:-translate-y-0.5 duration-150 disabled:opacity-50"
                 type="button"
@@ -3193,6 +3696,18 @@ export default function ChatPage() {
           </div>
         </main>
       </div>
+
+      {/* P4 — Unsent Letter modal */}
+      <UnsentLetterModal
+        visible={unsentLetterModalOpen}
+        onStart={(setup) => {
+          setUnsentLetterSetup(setup);
+          setUnsentLetterModalOpen(false);
+          newThread();
+          setDraft(`Dear ${setup.recipientName},\n\n`);
+        }}
+        onCancel={() => setUnsentLetterModalOpen(false)}
+      />
     </>
   );
 }
@@ -3395,11 +3910,36 @@ function getGreeting(lang: string): string {
   return g.night;
 }
 
-function EmptyState({ onChipSelect, lang = "en" }: { onChipSelect: (text: string) => void; lang?: string }) {
+const INTAKE_DONE_KEY = "imotara.intake.done.v1";
+
+const INTAKE_QUESTIONS = [
+  { q: "How are you feeling right now?", chips: ["Overwhelmed", "Anxious", "Low", "Okay", "Good", "Just exploring"] },
+  { q: "What brings you here today?", chips: ["Something happened", "Processing something hard", "Wanting support", "Just checking in", "Curiosity"] },
+  { q: "What would feel most helpful?", chips: ["Someone to listen", "Gentle guidance", "Space to reflect", "Just being heard"] },
+];
+
+const DEPTH_COMPANION_LINE: Record<0 | 1 | 2 | 3, string> = {
+  0: "I'm here with you. How are you feeling right now?",
+  1: "We've been talking for a while now — I'm glad you're here. How are you today?",
+  2: "It's been good walking alongside you lately. What's on your heart today?",
+  3: "You know I'm always here. How are you carrying things today?",
+};
+
+function EmptyState({ onChipSelect, lang = "en", threads = [] }: { onChipSelect: (text: string) => void; lang?: string; threads?: Array<{ messages: Array<{ role: string }> }> }) {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [greeting, setGreeting] = useState("");
+  const [intakeStep, setIntakeStep] = useState<0 | 1 | 2 | 3>(0);
+  const [intakeAnswers, setIntakeAnswers] = useState<[string, string, string]>(["", "", ""]);
+
+  const depthLine = DEPTH_COMPANION_LINE[getConversationDepth(threads).level];
 
   useEffect(() => { setGreeting(getGreeting(lang)); }, [lang]);
+
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(INTAKE_DONE_KEY)) setIntakeStep(1);
+    } catch {}
+  }, []);
 
   const moodOptions = MOOD_OPTIONS_BY_LANG[lang] ?? MOOD_OPTIONS_BY_LANG.en;
   const moodHeading = MOOD_HEADING[lang] ?? MOOD_HEADING.en;
@@ -3418,54 +3958,95 @@ function EmptyState({ onChipSelect, lang = "en" }: { onChipSelect: (text: string
             {greeting}
           </p>
         )}
-        <p className="text-base font-medium">Start a conversation</p>
-        <p className="mt-1 text-sm text-zinc-400">
-          Messages are saved in your browser, and analysis/replies respect your
-          consent settings.
-        </p>
+        <p className="mt-1 text-sm text-zinc-300 italic">{depthLine}</p>
 
-        {/* #17: Mood check-in row */}
-        <div className="mt-5">
-          <p className="mb-2.5 text-[11px] font-medium uppercase tracking-widest text-zinc-500">
-            {moodHeading}
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {moodOptions.map(({ emoji, label, starter }) => (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => pickMood(starter, emoji)}
-                title={label}
-                className={`flex flex-col items-center gap-0.5 rounded-2xl border px-3 py-2 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 ${
-                  selectedMood === emoji
-                    ? "border-indigo-400/60 bg-indigo-500/20 text-zinc-50"
-                    : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-zinc-100"
-                }`}
-              >
-                <span className="text-xl">{emoji}</span>
-                <span className="text-[10px]">{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-1 flex items-center gap-2">
-          <div className="h-px flex-1 bg-white/10" />
-          <span className="text-[10px] text-zinc-600">{orTypeLine}</span>
-          <div className="h-px flex-1 bg-white/10" />
-        </div>
-
-        <div className="mt-3 flex flex-wrap justify-center gap-2">
-          {STARTER_CHIPS.map((chip) => (
+        {/* UX-1 — first-chat intake arc */}
+        {intakeStep > 0 && intakeStep <= 3 ? (
+          <div className="mt-5 animate-fade-in">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              Step {intakeStep} of 3
+            </p>
+            <p className="mb-4 text-sm font-medium text-zinc-200">
+              {INTAKE_QUESTIONS[intakeStep - 1].q}
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {INTAKE_QUESTIONS[intakeStep - 1].chips.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => {
+                    const updated = [...intakeAnswers] as [string, string, string];
+                    updated[intakeStep - 1] = chip;
+                    setIntakeAnswers(updated);
+                    if (intakeStep < 3) {
+                      setIntakeStep((intakeStep + 1) as 1 | 2 | 3);
+                    } else {
+                      const combined = `I'm feeling ${updated[0].toLowerCase()}. I'm here because: ${updated[1].toLowerCase()}. What I need most: ${updated[2].toLowerCase()}.`;
+                      setIntakeStep(0);
+                      try { localStorage.setItem(INTAKE_DONE_KEY, "1"); } catch {}
+                      onChipSelect(combined);
+                    }
+                  }}
+                  className="rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3.5 py-1.5 text-xs text-indigo-200 transition hover:bg-indigo-500/20 hover:text-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
             <button
-              key={chip}
-              onClick={() => onChipSelect(chip)}
-              className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 transition hover:bg-white/10 hover:text-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60"
+              type="button"
+              onClick={() => { setIntakeStep(0); try { localStorage.setItem(INTAKE_DONE_KEY, "1"); } catch {}}}
+              className="mt-4 text-[11px] text-zinc-600 hover:text-zinc-400 transition"
             >
-              {chip}
+              Skip →
             </button>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <>
+            {/* #17: Mood check-in row */}
+            <div className="mt-5">
+              <p className="mb-2.5 text-[11px] font-medium uppercase tracking-widest text-zinc-500">
+                {moodHeading}
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {moodOptions.map(({ emoji, label, starter }) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => pickMood(starter, emoji)}
+                    title={label}
+                    className={`flex flex-col items-center gap-0.5 rounded-2xl border px-3 py-2 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 ${
+                      selectedMood === emoji
+                        ? "border-indigo-400/60 bg-indigo-500/20 text-zinc-50"
+                        : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-zinc-100"
+                    }`}
+                  >
+                    <span className="text-xl">{emoji}</span>
+                    <span className="text-[10px]">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-1 flex items-center gap-2">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-[10px] text-zinc-600">{orTypeLine}</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              {STARTER_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  onClick={() => onChipSelect(chip)}
+                  className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 transition hover:bg-white/10 hover:text-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -3608,6 +4189,7 @@ function Bubble({
   bookmarked,
   onBookmark,
   onRetry,
+  avatarSrc,
 }: {
   id: string;
   role: Role;
@@ -3631,6 +4213,7 @@ function Bubble({
   bookmarked?: boolean;
   onBookmark?: () => void;
   onRetry?: () => void;
+  avatarSrc?: string;
 }) {
   const isUser = role === "user";
 
@@ -3769,8 +4352,14 @@ function Bubble({
   return (
     <div
       ref={attachRef}
-      className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+      className={`flex items-start gap-2 ${isUser ? "justify-end" : "justify-start"}`}
     >
+      {/* UX-2 — companion avatar pinned to bot messages */}
+      {!isUser && (
+        avatarSrc
+          ? <img src={avatarSrc} alt="Companion" className="mt-1 h-6 w-6 shrink-0 rounded-full object-cover" />
+          : <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-500/25 text-[9px] font-bold text-indigo-300">I</div>
+      )}
       <div className={bubbleClass}>
         {!isUser && seed ? (
           <div className="mb-2 rounded-2xl border border-white/15 bg-black/30 px-3 py-2 backdrop-blur-sm">

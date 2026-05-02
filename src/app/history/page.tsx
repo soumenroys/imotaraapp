@@ -13,6 +13,13 @@ import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { getHistory } from "@/lib/imotara/history";
 import TopBar from "@/components/imotara/TopBar";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
+import useFeatureGate from "@/hooks/useFeatureGate";
+import {
+  loadStoredYearReview,
+  generateYearReview,
+  reviewYear,
+  type YearReview,
+} from "@/lib/imotara/yearInReview";
 
 // #1: Weekly trend summary computed from localStorage emotion history
 const EMOTION_EMOJI: Record<string, string> = {
@@ -99,6 +106,12 @@ function computeWeeklySummary(): WeeklySummary | null {
 
 export default function HistoryPage() {
   const { mode } = useAnalysisConsent();
+  const exportGate = useFeatureGate("EXPORT_DATA");
+  const historyDaysGate = useFeatureGate("HISTORY_DAYS_LIMIT");
+  // HISTORY_DAYS_LIMIT always returns enabled:true with params.days
+  const historyDays = (historyDaysGate.gateResult.enabled
+    ? ((historyDaysGate.gateResult.params?.days as number | undefined) ?? 7)
+    : 7);
   const [exporting, setExporting] = useState(false);
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
   const [hasHistory, setHasHistory] = useState(true);
@@ -109,6 +122,9 @@ export default function HistoryPage() {
   const [searchResultCount, setSearchResultCount] = useState(-1);
   const [showSearch, setShowSearch] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [yearReview, setYearReview] = useState<YearReview | null>(null);
+  const [yearReviewLoading, setYearReviewLoading] = useState(false);
+  const [yearReviewExpanded, setYearReviewExpanded] = useState(false);
 
   useEffect(() => {
     setWeeklySummary(computeWeeklySummary());
@@ -135,6 +151,17 @@ export default function HistoryPage() {
     return () => clearTimeout(t);
   }, []);
 
+  // Load or generate Year in Review
+  useEffect(() => {
+    const y = reviewYear();
+    const stored = loadStoredYearReview(y);
+    if (stored) { setYearReview(stored); return; }
+    setYearReviewLoading(true);
+    generateYearReview("you", y).then((review) => {
+      if (review) setYearReview(review);
+    }).finally(() => setYearReviewLoading(false));
+  }, []);
+
   // Debounce search query before passing to EmotionHistory
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -149,6 +176,14 @@ export default function HistoryPage() {
       : "On-device only (local analysis)";
 
   async function handleExport() {
+    if (!exportGate.allowed) {
+      setToast({ message: exportGate.reason ?? "Export is available on Pro. Upgrade at /upgrade.", type: "error" });
+      return;
+    }
+    // In log mode, show a soft nudge toast but still allow the export
+    if (exportGate.nudge) {
+      setToast({ message: "Export is a Pro feature. Upgrade at /upgrade for unlimited exports." });
+    }
     try {
       setExporting(true);
       const data = await getHistory();
@@ -268,18 +303,33 @@ export default function HistoryPage() {
                     <span>Search</span>
                   </button>
 
-                  {/* Export */}
-                  <button
-                    type="button"
-                    onClick={handleExport}
-                    disabled={exporting}
-                    aria-busy={exporting}
-                    aria-label="Export full emotion history as JSON"
-                    className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] text-zinc-200 shadow-sm transition hover:bg-white/10 hover:text-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Download className="h-3 w-3" aria-hidden="true" />
-                    <span>{exporting ? "Exporting…" : "Export JSON"}</span>
-                  </button>
+                  {/* Export — gated on Pro */}
+                  {exportGate.allowed || exportGate.nudge ? (
+                    <button
+                      type="button"
+                      onClick={handleExport}
+                      disabled={exporting}
+                      aria-busy={exporting}
+                      aria-label="Export full emotion history as JSON"
+                      className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] text-zinc-200 shadow-sm transition hover:bg-white/10 hover:text-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Download className="h-3 w-3" aria-hidden="true" />
+                      <span>{exporting ? "Exporting…" : "Export JSON"}</span>
+                      {exportGate.nudge && !exportGate.loading && (
+                        <span className="ml-0.5 rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-300">Pro</span>
+                      )}
+                    </button>
+                  ) : (
+                    <Link
+                      href="/upgrade"
+                      aria-label="Upgrade to Pro to export history"
+                      className="inline-flex items-center gap-1 rounded-full border border-indigo-400/25 bg-indigo-500/10 px-2.5 py-1 text-[11px] text-indigo-300 shadow-sm transition hover:bg-indigo-500/20"
+                    >
+                      <Download className="h-3 w-3" aria-hidden="true" />
+                      <span>Export JSON</span>
+                      <span className="ml-0.5 rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-300">Pro</span>
+                    </Link>
+                  )}
 
                   {/* Back to Chat */}
                   <Link
@@ -300,10 +350,28 @@ export default function HistoryPage() {
           {/* ---------------------------------------------------- */}
           <section className="flex-1 overflow-auto pt-6">
             <div className="mx-auto max-w-5xl space-y-4">
+              {/* History retention notice — shown only when tier has a day limit */}
+              {!historyDaysGate.loading && isFinite(historyDays) && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/20 bg-amber-500/8 px-3 py-2">
+                  <p className="text-[11px] text-amber-200/80">
+                    <Clock className="mr-1 inline h-3 w-3" aria-hidden="true" />
+                    Your plan shows the last{" "}
+                    <strong>{historyDays} days</strong> of history.{" "}
+                    {historyDays === 7 ? "Upgrade to Plus for 90 days or Pro for unlimited." : "Upgrade to Pro for unlimited history."}
+                  </p>
+                  <Link
+                    href="/upgrade"
+                    className="shrink-0 rounded-full bg-amber-500/20 px-2.5 py-1 text-[10px] font-semibold text-amber-300 transition hover:bg-amber-500/30"
+                  >
+                    Upgrade →
+                  </Link>
+                </div>
+              )}
+
               {/* Tip text + mini legend + guidance hint */}
               <div className="space-y-1 px-1">
                 <p className="text-[11px] text-zinc-500">
-                  Tip: Use “Export JSON” to download a backup of your emotion
+                  Tip: Use "Export JSON" to download a backup of your emotion
                   history. You can keep this file or import it into your own
                   tools later.
                 </p>
@@ -381,6 +449,71 @@ export default function HistoryPage() {
                   <p className="text-[11px] text-zinc-400 leading-relaxed border-t border-white/8 pt-3">
                     💡 {weeklySummary.suggestion}
                   </p>
+                </div>
+              )}
+
+              {/* Year in Review card */}
+              {(yearReview || yearReviewLoading) && (
+                <div className="rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-500/8 to-orange-500/6 px-4 py-4 shadow-sm backdrop-blur-md space-y-3">
+                  {/* Header row */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg" aria-hidden="true">✦</span>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-400/80">
+                          Year in Review
+                        </p>
+                        <p className="text-xs font-semibold text-zinc-100">
+                          Your {yearReview?.year ?? reviewYear()} emotional journey
+                        </p>
+                      </div>
+                    </div>
+                    {yearReview && (
+                      <button
+                        type="button"
+                        aria-label={yearReviewExpanded ? "Collapse year review" : "Read your year review"}
+                        onClick={() => setYearReviewExpanded((v) => !v)}
+                        className="shrink-0 rounded-full border border-amber-400/25 bg-amber-500/10 px-3 py-1 text-[11px] font-medium text-amber-300 transition hover:bg-amber-500/20"
+                      >
+                        {yearReviewExpanded ? "Collapse" : "Read →"}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Stats row */}
+                  {yearReview && (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-400 border-t border-amber-400/15 pt-3">
+                      <span>{yearReview.totalMessages} conversations</span>
+                      <span className="capitalize">Dominant tone: <span className="text-zinc-200">{yearReview.dominantEmotion}</span></span>
+                      <span>Most active: <span className="text-zinc-200">{yearReview.peakMonth}</span></span>
+                    </div>
+                  )}
+
+                  {/* Narrative */}
+                  {yearReviewLoading && !yearReview && (
+                    <p className="text-[12px] text-zinc-500 animate-pulse">Composing your year in review…</p>
+                  )}
+                  {yearReview && yearReviewExpanded && (
+                    <div className="space-y-3 border-t border-amber-400/15 pt-3">
+                      {yearReview.narrative.split("\n\n").filter(Boolean).map((para, i) => (
+                        <p key={i} className="text-[13px] leading-relaxed text-zinc-200">
+                          {para.trim()}
+                        </p>
+                      ))}
+                      <button
+                        type="button"
+                        aria-label="Copy year review to clipboard"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(yearReview.narrative).then(() => {
+                            setToast({ message: "Copied to clipboard ✓" });
+                          });
+                        }}
+                        className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-400/25 bg-amber-500/10 px-3 py-1 text-[11px] text-amber-300 transition hover:bg-amber-500/20"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

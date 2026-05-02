@@ -28,12 +28,14 @@ export type ImotaraProfileV1 = {
         gender?: Gender;
         preferredLang?: SupportedLang;
         responseStyle?: ResponseStyle; // #16
+        avatarAge?: number;
     };
     companion?: {
         enabled?: boolean;
         name?: string;
         ageRange?: AgeRange;
         gender?: Gender;
+        avatarAge?: number;
         relationship?:
         | "mentor"
         | "friend"

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import packageJson from "../../package.json";
 
 // ─── SVG icons ────────────────────────────────────────────────────────────────
@@ -100,9 +101,13 @@ export default function SiteFooter() {
               className="inline-flex items-center gap-2.5 group"
               aria-label="Imotara home"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-sm font-bold text-white shadow-[0_6px_20px_rgba(99,102,241,0.45)] transition group-hover:shadow-[0_8px_28px_rgba(99,102,241,0.55)]">
-                I
-              </span>
+              <Image
+                src="/android-chrome-192.png"
+                width={36}
+                height={36}
+                alt="Imotara"
+                className="rounded-2xl shadow-[0_6px_20px_rgba(99,102,241,0.45)] transition group-hover:shadow-[0_8px_28px_rgba(99,102,241,0.55)]"
+              />
               <span className="text-sm font-semibold tracking-tight text-zinc-200 transition group-hover:text-white">
                 Imotara
               </span>

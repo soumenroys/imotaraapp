@@ -153,7 +153,6 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    console.log("[imotara][chat-reply] POST hit");
     const body = (await req.json()) as ChatReplyRequest | null;
 
     // ── Mythology repetition prevention ────────────────────────────────────────
@@ -298,12 +297,6 @@ export async function POST(req: Request) {
         lastUserMsg.includes("להתראות") ||
         lastUserMsg.includes("לילה טוב"));
 
-    console.log("[imotara][closure]", {
-      lastUserMsg,
-      normalizedMsg,
-      isClosureIntent,
-    });
-
     const closureHint = isClosureIntent
       ? [
           "STATE: The user is pausing/ending the chat (going for a walk / will talk later).",
@@ -357,10 +350,10 @@ export async function POST(req: Request) {
       try {
         const quotaAdmin = getSupabaseAdmin();
 
-        // Read license tier + trial expiry (single indexed row lookup)
+        // Read license tier + trial expiry + token balance (single indexed row lookup)
         const { data: licRow } = await quotaAdmin
           .from("licenses")
-          .select("tier, expires_at")
+          .select("tier, expires_at, token_balance")
           .eq("user_id", authedUserId)
           .maybeSingle();
 
@@ -381,12 +374,24 @@ export async function POST(req: Request) {
             .gte("created_at", todayStart.toISOString());
 
           if ((count ?? 0) >= 20) {
-            const quotaRes = NextResponse.json(
-              { text: "", meta: { from: "quota_exceeded", reason: "daily_limit", used: count, limit: 20 } },
-              { status: 200 },
-            );
-            quotaRes.headers.set("Cache-Control", "no-store");
-            return quotaRes;
+            const tokenBalance = licRow?.token_balance ?? 0;
+
+            if (tokenBalance > 0) {
+              // Deduct 1 token; .gt guard prevents going below 0 under concurrent requests
+              await quotaAdmin
+                .from("licenses")
+                .update({ token_balance: tokenBalance - 1 })
+                .eq("user_id", authedUserId)
+                .gt("token_balance", 0);
+              // Fall through — reply is allowed, usage event recorded below
+            } else {
+              const quotaRes = NextResponse.json(
+                { text: "", meta: { from: "quota_exceeded", reason: "daily_limit", used: count, limit: 20 } },
+                { status: 200 },
+              );
+              quotaRes.headers.set("Cache-Control", "no-store");
+              return quotaRes;
+            }
           }
         }
       } catch {

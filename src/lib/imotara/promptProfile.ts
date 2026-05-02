@@ -90,11 +90,15 @@ export function buildToneContextPromptSnippet(): string {
     compAgeHint,
     enabled && compGender ? `  - Companion gender: ${compGender}` : "",
     compVoiceHint,
-    enabled && compName ? `  - Companion name: ${compName}` : "",
+    enabled && compName
+      ? `  - Companion name: ${compName} — the user has named you "${compName}". Respond naturally when addressed as "${compName}". You may occasionally refer to yourself as "${compName}" in your replies (e.g. "I'm here, ${compName} is listening"). Do not introduce yourself as "Imotara" when a companion name is set.`
+      : "",
     enabled
       ? "- Adjust warmth/directness/pacing accordingly, but stay privacy-first and avoid dependency cues."
       : "",
-    "- Never say you are a parent/partner/friend/real person. You are Imotara: a reflective, privacy-first companion.",
+    compName
+      ? `- You are known as "${compName}" in this conversation. Never contradict this name.`
+      : "- Never say you are a parent/partner/friend/real person. You are Imotara: a reflective, privacy-first companion.",
   ]
     .filter(Boolean)
     .join("\n");

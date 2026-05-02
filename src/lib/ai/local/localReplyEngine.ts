@@ -39,9 +39,12 @@ type LocalLanguage =
     | "fr"
     | "pt"
     | "ru"
-    | "id";
+    | "id"
+    | "de"
+    | "he"
+    | "ja";
 
-type LocalReplyBankLanguage = "en" | "hi" | "mr" | "bn" | "ta" | "te" | "gu" | "pa" | "kn" | "ml" | "or" | "ur" | "zh" | "es" | "ar" | "fr" | "pt" | "ru" | "id";
+type LocalReplyBankLanguage = "en" | "hi" | "mr" | "bn" | "ta" | "te" | "gu" | "pa" | "kn" | "ml" | "or" | "ur" | "zh" | "es" | "ar" | "fr" | "pt" | "ru" | "id" | "de" | "he" | "ja";
 
 type ToneContext = {
     companion?: {
@@ -117,7 +120,7 @@ function dedupeAdjacentSentences(text: string): string {
 }
 
 function toReplyBankLanguage(language: LocalLanguage): LocalReplyBankLanguage {
-    return language; // All 19 languages now have dedicated template banks
+    return language; // All 20 languages now have dedicated template banks
 }
 
 function countMatches(text: string, regex: RegExp): number {
@@ -2079,6 +2082,24 @@ export function buildLocalReply(
         ],
     };
 
+    const carryExtrasTa: Record<LocalResponseTone, string[]> = {
+        calm: [`Idhai ippovum ethuvum thakka venandam.`, `Oru nimisham inge irukalaam.`, `Aadudu illai  -  mella mella munnaadi pogalaam.`],
+        supportive: [`Idhai perfectly purinjukka venandam ippovum.`, `Naan inga irukken  -  un kooda.`, `Nee thooguvadhai  -  adhil nee thaanaa illai.`],
+        practical: [`Ippovum idhai simple aa vachhukolalaam.`, `Poora answer venandam  -  next clear part mattum.`, `Ippovum oru adippidi podhum.`],
+        coach: [`Innoru enna panna munaadi idhai steady pannalaam.`, `Aparam oru grounded step podhum.`, `Munnala inge nillungal  -  apuram munnaadi pogalaam.`],
+        "gentle-humor": [`Idhai halka aa veikkalaam, gumbal panna venandam.`, `Ippovum ellaa vishayathai kushti panna venandam.`, `Oru sinna vettri kuda vettri thaan.`],
+        direct: [`Ippovum idhai overcomplicate panna venandam.`, `Mun real part edukalaam.`, `Matter aaguradhula  -  adha munnala paakkalaam.`],
+    };
+
+    const carryExtrasTe: Record<LocalResponseTone, string[]> = {
+        calm: [`Idi ippudu ekkadiki thoyyadam avasaram ledu.`, `Oka nimisham ikkade vundadam.`, `Adupu ledu  -  mellaga munduki vellam.`],
+        supportive: [`Idi ippudu perfectly artham chesukodaniki avasaram ledu.`, `Nenu inka nee tho unnaanu.`, `Nuvvu meesukuntunnadi  -  dantlo nuvvu okkadev kaadu.`],
+        practical: [`Ippudu deeniki simple ga vunchukovalaam.`, `Poora jawabu kaadu  -  tarvata clear bhaagam mattum.`, `Ippudu oka adugu chaalu.`],
+        coach: [`Inkaemi cheyyalanukune mundu idi steady cheddam.`, `Tarvata oka grounded adugu chaaludu.`, `Mundu ikkade nillondi  -  tarvata munduku vellam.`],
+        "gentle-humor": [`Idi easy ga vunchukovalaam, pamu kudipettakunda.`, `Ippudu anni ee kushti avasaram ledu.`, `Oka chinna vijayam kuda vijayame.`],
+        direct: [`Ippudu deeniki overcomplicate cheyyadam ledu.`, `Mundu real bhaagam pattukovalaam.`, `Matter ayinadhantlo  -  adhi mundu chusukondaam.`],
+    };
+
     // ─── Gujarati (gu) ─────────────────────────────────────────────────────────
     const openersByToneGu: Record<LocalResponseTone, string[]> = {
         calm: [
@@ -3356,6 +3377,138 @@ export function buildLocalReply(
 
     const listeningOnlyExtrasUr = [`Abhi ise figure out karne ki zaroorat nahi.`, `Main kahin nahi ja raha. Jitna chahte ho utna bolo.`, `Tum yeh sab feel kar sakte ho.`, `Ise neatly wrap up karne ki koi zaroorat nahi.`];
 
+    // ── German (Deutsch) ─────────────────────────────────────────────────────
+    const openersByToneDe: Record<LocalResponseTone, string[]> = {
+        calm: ["Ich bin hier.", "Ich höre zu.", "Nimm dir Zeit.", "Alles gut, ich bin da.", "Kein Druck  -  ich bin einfach da.", "Wir gehen das zusammen an."],
+        supportive: ["Das klingt wirklich schwer.", "Das ist viel auf einmal.", "Ich verstehe, dass das sehr belastend ist.", "Das ist wirklich nicht leicht.", "Danke, dass du mir das sagst.", "Es gehört Mut dazu, das auszusprechen."],
+        practical: ["Lass uns das zusammen angehen.", "Was wäre der nächste kleine Schritt?", "Wir können das sortieren.", "Was brauchst du gerade am meisten?", "Gut, schauen wir uns das genauer an.", "Wir klären das zusammen."],
+        coach: ["Du schaffst das.", "Was hält dich gerade am meisten aufrecht?", "Stärker als du denkst.", "Was hat dir schon mal geholfen in solchen Momenten?", "Du bist weiter als du glaubst.", "Lass uns den nächsten soliden Schritt finden."],
+        "gentle-humor": ["Klingt anstrengend  -  gut, dass du redest.", "Das Leben ist manchmal echt nervig.", "Stell dir vor, du erzählst das einem Freund  -  was würdest du sagen?", "Manchmal ist ein schlechter Tag einfach ein schlechter Tag.", "Wir machen das zusammen  -  kein Ringkampf nötig."],
+        direct: ["Was ist passiert?", "Erzähl mir mehr.", "Was beschäftigt dich?", "Womit fangen wir an?", "Sag mir direkt  -  ich höre zu."],
+    };
+    const validationsDe: Record<"sad" | "anxious" | "angry" | "tired" | "okay", string[]> = {
+        sad: ["Das tut wirklich weh.", "Dieser Schmerz ist real.", "So etwas kann sich sehr einsam anfühlen.", "Das ist schwer zu tragen.", "Das verdient mehr als nur ein kurzes Okay.", "Du musst das nicht kleinreden."],
+        anxious: ["Diese Unruhe macht Sinn.", "Es ist okay, sich überfordert zu fühlen.", "Dieses Kribbeln im Bauch ist real.", "Manchmal ist alles auf einmal zu viel.", "Das klingt sehr anstrengend.", "Dein Körper spürt, dass hier etwas wirklich zählt."],
+        angry: ["Diese Wut hat ihren Grund.", "Es ist okay, wütend zu sein.", "Das klingt wirklich frustrierend.", "Das würde jeden aufbringen.", "Das ist verständlich  -  da ist wirklich etwas passiert.", "Solche Dinge tun weh, egal wie stark man ist."],
+        tired: ["Du bist wirklich erschöpft.", "Diese Müdigkeit ist echt.", "Du hast schon zu viel getragen.", "Manchmal ist der Körper einfach fertig.", "Das ist kein normales Müdesein  -  das ist echter Verschleiß.", "Das merkt man dem Körper an  -  das ist keine Schwäche."],
+        okay: ["Erzähl mir mehr.", "Ich bin da  -  was ist los?", "Was beschäftigt dich gerade am meisten?", "Was ist das Größte, was du gerade im Kopf hast?", "Wie geht es dir heute?", "Was auch immer es ist  -  ich höre zu."],
+    };
+    const carryValidationsDe = ["Das ist noch bei dir  -  ich spüre es.", "Es fühlt sich an, als ob das noch nicht ganz losgelassen hat  -  das ist okay.", "Du bist noch mittendrin, oder?", "Es lässt dich noch nicht los. Lass uns noch einen Moment dabei bleiben.", "Irgendetwas davon kommt immer wieder zurück."];
+    const carryExtrasDe: Record<LocalResponseTone, string[]> = {
+        calm: ["Wir müssen das noch nirgendwo hinschieben.", "Wir können einfach kurz hier bleiben.", "Man muss das nicht erzwingen."],
+        supportive: ["Du musst das jetzt nicht perfekt verstehen.", "Ich bin noch hier bei dir darin.", "Es ist okay, noch nicht alles zu verstehen."],
+        practical: ["Wir halten das jetzt einfach.", "Wir brauchen nicht die ganze Antwort, nur den nächsten klaren Teil.", "Der nächste klare Schritt reicht aus."],
+        coach: ["Wir stabilisieren das zuerst, bevor wir etwas anderes tun.", "Ein ruhiger Schritt danach reicht.", "Finde zuerst einen stabilen Schritt."],
+        "gentle-humor": ["Wir können das sanft halten, ohne es schwerer zu machen.", "Wir müssen jetzt nicht das Ganze durchkämpfen.", "Kein Ringkampf damit heute nötig."],
+        direct: ["Lass uns das jetzt nicht verkomplizieren.", "Wir bleiben erstmal beim Wesentlichen.", "Konzentriere dich nur auf das, was jetzt wirklich zählt."],
+    };
+    const extrasByToneDe: Record<LocalResponseTone, string[]> = {
+        calm: [``, `Wir können jetzt bei einem Teil bleiben.`, `Keine Eile, das alles auf einmal zu klären.`, `Wir können das ruhig halten, ohne es zu erzwingen.`, `Eins nach dem anderen  -  kein Druck.`, `Wir können hier kurz innehalten, bevor wir weitermachen.`],
+        supportive: [``, `Du musst nicht alles auf einmal tragen.`, `Wir können zuerst beim schwersten Teil bleiben.`, `Wenn sich das noch chaotisch anfühlt, ist das okay.`, `Es macht Sinn, dass sich das noch schwer anfühlt.`, `Kein Druck, das jetzt alles zu verstehen.`],
+        practical: [``, `Schauen wir zuerst, was am wichtigsten ist.`, `Wir können das handhabbar halten.`, `Ein nützlicher Teil reicht jetzt.`, `Wir können das etwas weiter aufteilen.`, `Nur der nächste klare Schritt  -  nicht mehr.`],
+        coach: [``, `Finden wir zuerst den handhabbaren Teil.`, `Wir brauchen jetzt nur einen stabilen Schritt.`, `Du musst nicht alles auf einmal entwirren.`, `Ein fundierter Schritt ist alles, was wir brauchen.`, `Wir können das einfacher machen, als es sich anfühlt.`],
+        "gentle-humor": [``, `Wir können es etwas leichter nehmen, ohne es zu ignorieren.`, `Eine kleine Veränderung reicht jetzt.`, `Ich bin noch hier bei dir.`, `Ein kleiner Sieg ist immer noch ein Sieg.`, `Kein Ringkampf heute nötig.`],
+        direct: [``, `Lass uns das klar halten.`, `Wir können einen echten Teil auf einmal angehen.`, `Nur der nächste nützliche Teil zählt jetzt.`, `Was zählt hier am meisten, genau jetzt?`, `Konzentrieren wir uns auf das, was wirklich wichtig ist.`],
+    };
+    const reflectLinesDe = [
+        "Was beschäftigt dich gerade am meisten?",
+        "Hilft es gerade mehr, einfach zu reden  -  oder wäre ein kleiner Schritt besser?",
+        "Wir können langsam weitermachen  -  womit fangen wir an?",
+        "Was hat sich in letzter Zeit verändert?",
+        "Wie fühlt es sich an, das alles gerade im Körper zu tragen?",
+        "Wenn es etwas leichter wäre  -  was würde sich zuerst verändern?",
+    ];
+    const nextStepLinesDe = ["Wir können weiter reden oder eine kleine Sache versuchen  -  was sich richtig anfühlt.", "Manche müssen erst alles raussagen. Andere wollen einen Plan. Wo bist du gerade?", "Wir können das weiter auspacken oder einen kleinen Schritt finden. Was fühlt sich jetzt nützlicher an?", "Ich bin hier  -  ob weiterreden oder etwas Konkretes angehen.", "Was wäre gerade hilfreicher  -  weiterreden, oder etwas Kleines in Bewegung setzen?", "Was wäre echter jetzt  -  einfach gehört werden, oder etwas dagegen tun?"];
+    const listeningOnlyExtrasDe = ["Du musst das jetzt nicht herausfinden.", "Ich gehe nirgendwo hin. Sag so viel du brauchst.", "Du darfst das alles fühlen.", "Du musst das nicht ordentlich einpacken.", "Es gibt keine Eile, all das zu verstehen.", "Sag so viel oder so wenig du willst  -  ich bin sowieso hier."];
+
+    // ── Hebrew (עברית) ───────────────────────────────────────────────────────
+    const openersByToneHe: Record<LocalResponseTone, string[]> = {
+        calm: ["אני כאן.", "אני מקשיב.", "קח את הזמן שלך.", "אין לחץ  -  אני פשוט כאן.", "נעבור על זה יחד.", "בסדר, אני איתך."],
+        supportive: ["זה נשמע קשה מאוד.", "זה הרבה בבת אחת.", "אני מבין שזה מכביד.", "זה באמת לא קל.", "תודה שסיפרת לי.", "צריך אומץ לדבר על זה."],
+        practical: ["בוא נתמודד עם זה יחד.", "מה יהיה הצעד הקטן הבא?", "אנחנו יכולים לסדר את זה.", "מה אתה הכי צריך עכשיו?", "בוא נסתכל על זה מקרוב.", "נפתור את זה יחד."],
+        coach: ["אתה מסוגל לזה.", "מה הכי מחזיק אותך עכשיו?", "חזק ממה שאתה חושב.", "מה עזר לך בעבר ברגעים כאלה?", "אתה רחוק יותר ממה שאתה חושב.", "בוא נמצא את הצעד הבא."],
+        "gentle-humor": ["נשמע מתיש  -  טוב שאתה מדבר.", "החיים לפעמים פשוט עצבנים.", "תדמיין שאתה מספר לחבר  -  מה היית אומר?", "לפעמים יום רע הוא פשוט יום רע.", "נעשה את זה יחד  -  בלי מאבק."],
+        direct: ["מה קרה?", "ספר לי יותר.", "מה עובר עליך?", "מאיפה מתחילים?", "תגיד לי ישר  -  אני מקשיב."],
+    };
+    const validationsHe: Record<"sad" | "anxious" | "angry" | "tired" | "okay", string[]> = {
+        sad: ["זה כואב באמת.", "הכאב הזה אמיתי.", "דברים כאלה יכולים להרגיש מאוד בודדים.", "זה כבד לשאת.", "זה ראוי ליותר מסתם 'בסדר'.", "אתה לא צריך להמעיט בזה."],
+        anxious: ["אי-הנוחות הזו הגיונית.", "בסדר להרגיש מוצף.", "התחושה הזאת אמיתית.", "לפעמים הכל מגיע בבת אחת.", "זה נשמע מאוד מתיש.", "הגוף שלך מרגיש שמשהו חשוב פה."],
+        angry: ["לכעס הזה יש סיבה.", "בסדר לכעוס.", "זה נשמע מתסכל מאוד.", "זה היה מעצבן כל אחד.", "מובן  -  משהו באמת קרה פה.", "דברים כאלה כואבים, לא משנה כמה אתה חזק."],
+        tired: ["אתה ממש עייף.", "העייפות הזו אמיתית.", "כבר נשאת יותר מדי.", "לפעמים הגוף פשוט אומר די.", "זו לא עייפות רגילה  -  זו בלאי אמיתי.", "הגוף מרגיש את זה  -  זו לא חולשה."],
+        okay: ["ספר לי יותר.", "אני כאן  -  מה קורה?", "מה הכי מכביד עליך עכשיו?", "מה הכי גדול בראש שלך עכשיו?", "איך היום שלך?", "מה שיש  -  אני מקשיב."],
+    };
+    const carryValidationsHe = ["זה עוד איתך  -  אני מרגיש את זה.", "נראה שזה עוד לא הסתדר, וזה בסדר.", "אתה עוד באמצע זה, נכון?", "זה עוד לא משחרר אותך. בוא נשאר עוד רגע עם זה.", "משהו בזה ממשיך לחזור אליך."];
+    const carryExtrasHe: Record<LocalResponseTone, string[]> = {
+        calm: ["אנחנו לא צריכים לדחוף את זה לשום מקום עכשיו.", "אנחנו יכולים פשוט לשהות כאן רגע.", "לא צריך לאלץ את זה."],
+        supportive: ["אתה לא צריך להבין את זה עכשיו בצורה מושלמת.", "אני עוד כאן איתך בתוך זה.", "בסדר שעדיין לא הכל מסתדר."],
+        practical: ["בוא פשוט נחזיק את זה.", "אנחנו לא צריכים את כל התשובה, רק את החלק הבא הברור.", "הצעד הבא הברור מספיק."],
+        coach: ["בוא נייצב את זה לפני שנעשה משהו אחר.", "צעד אחד רגוע אחרי זה יספיק.", "קודם תמצא צעד יציב."],
+        "gentle-humor": ["אנחנו יכולים לשמור על זה קל בלי להכביד יותר.", "לא צריך להילחם בזה עכשיו.", "אין צורך להתאמץ יותר מדי היום."],
+        direct: ["בוא לא נסבך את זה עכשיו.", "נישאר במה שיש.", "תתמקד רק במה שבאמת חשוב עכשיו."],
+    };
+    const extrasByToneHe: Record<LocalResponseTone, string[]> = {
+        calm: [``, `אנחנו יכולים לשהות עם חלק אחד עכשיו.`, `אין מהירות לסדר את הכל בבת אחת.`, `אנחנו יכולים לשמור על זה יציב בלי לאלץ.`, `אחד אחד  -  בלי לחץ.`, `אנחנו יכולים לעצור רגע לפני שממשיכים.`],
+        supportive: [``, `אתה לא צריך לשאת את הכל בבת אחת.`, `אנחנו יכולים לשהות עם מה שהכי כבד קודם.`, `בסדר אם זה עדיין נראה מבולגן.`, `הגיוני שזה עוד כבד.`, `אין לחץ להבין את הכל עכשיו.`],
+        practical: [``, `בוא נראה מה הכי חשוב קודם.`, `אנחנו יכולים לשמור על זה ניתן לניהול.`, `חלק אחד שימושי מספיק עכשיו.`, `אנחנו יכולים לפרק את זה עוד קצת.`, `רק הצעד הבא הברור  -  לא יותר.`],
+        coach: [``, `בוא נמצא את החלק הניתן לניהול קודם.`, `אנחנו צריכים רק צעד יציב אחד עכשיו.`, `אתה לא צריך לפתור הכל בבת אחת.`, `צעד מוצק אחד הוא כל מה שצריך.`, `אנחנו יכולים לעשות את זה פשוט יותר ממה שנדמה.`],
+        "gentle-humor": [``, `אנחנו יכולים לקחת את זה קצת יותר קל בלי להתעלם.`, `שינוי קטן מספיק עכשיו.`, `אני עוד כאן איתך.`, `ניצחון קטן הוא עדיין ניצחון.`, `לא צריך להתאמץ יותר מדי היום.`],
+        direct: [``, `בוא נשמור על זה ברור.`, `אנחנו יכולים להתמודד עם חלק אמיתי אחד בכל פעם.`, `רק החלק הבא השימושי חשוב עכשיו.`, `מה הכי חשוב כאן, בדיוק עכשיו?`, `נתמקד במה שבאמת חשוב.`],
+    };
+    const reflectLinesHe = [
+        "מה הכי מכביד עליך עכשיו?",
+        "יותר עוזר לדבר עכשיו  -  או שצעד קטן יהיה טוב יותר?",
+        "אנחנו יכולים להמשיך לאט  -  מאיפה מתחילים?",
+        "מה השתנה לאחרונה?",
+        "איך זה מרגיש בגוף לשאת את כל זה עכשיו?",
+        "אם היה קצת יותר קל  -  מה היה משתנה ראשון?",
+    ];
+    const nextStepLinesHe = ["אנחנו יכולים להמשיך לדבר, או לנסות דבר קטן אחד  -  מה שנראה נכון.", "יש כאלה שצריכים קודם להוציא הכל. אחרים רוצים תוכנית. איפה אתה עכשיו?", "אנחנו יכולים לפתוח את זה עוד, או למצוא צעד קטן. מה נראה יותר שימושי עכשיו?", "אני כאן  -  בין אם להמשיך לדבר ובין אם לעשות משהו קונקרטי.", "מה יהיה יותר מועיל  -  להמשיך לדבר, או לנסות דבר קטן?", "מה יותר אמיתי עכשיו  -  פשוט להישמע, או לעשות משהו בנוגע לזה?"];
+    const listeningOnlyExtrasHe = ["אתה לא צריך להבין את זה עכשיו.", "אני לא הולק לשום מקום. תגיד כמה שתצטרך.", "אתה מורשה להרגיש את כל זה.", "אתה לא צריך לעטוף את זה בצורה מסודרת.", "אין מהירות להבין את כל זה.", "תגיד כמה שתרצה  -  אני כאן בכל מקרה."];
+
+    // ── Japanese (日本語) ────────────────────────────────────────────────────
+    const openersByToneJa: Record<LocalResponseTone, string[]> = {
+        calm: ["ここにいます。", "聞いています。", "ゆっくりで大丈夫です。", "急がなくていい  -  ただここにいます。", "一緒に考えましょう。", "大丈夫、一緒にいます。"],
+        supportive: ["それは本当につらそうですね。", "一度にいろんなことが重なっていますね。", "それがとても負担になっているのは分かります。", "本当に簡単ではないですね。", "話してくれてありがとうございます。", "それを言葉にするには勇気が要りますね。"],
+        practical: ["一緒に取り組みましょう。", "次の小さな一歩は何でしょう？", "整理していきましょう。", "今一番必要なことは何ですか？", "もう少し詳しく見てみましょう。", "一緒に解決していきましょう。"],
+        coach: ["あなたならできます。", "今、自分を支えているものは何ですか？", "思っているより強いですよ。", "こういう時に過去に何が助けになりましたか？", "思っているより前に進んでいます。", "次の確かな一歩を見つけましょう。"],
+        "gentle-humor": ["疲れますよね  -  話してくれてよかった。", "人生、たまには本当にしんどいです。", "友達に話すとしたら何て言いますか？", "悪い日は悪い日でしかないこともあります。", "一緒にやっていきましょう  -  戦わなくていいです。"],
+        direct: ["何があったのですか？", "もっと聞かせてください。", "何が気になっていますか？", "どこから始めましょうか？", "直接教えてください  -  聞いています。"],
+    };
+    const validationsJa: Record<"sad" | "anxious" | "angry" | "tired" | "okay", string[]> = {
+        sad: ["本当に痛いですね。", "この痛みは本物です。", "こういうことはとても孤独に感じることがあります。", "それは重いものを背負っていますね。", "それはただ「大丈夫」では済まないことです。", "小さくしなくていいです。"],
+        anxious: ["この不安は当然です。", "圧倒される気持ちになるのは仕方ないです。", "その感覚は本物です。", "時に全てが一度に来すぎることがあります。", "それは本当に疲れますね。", "体が何か大切なことを感じています。"],
+        angry: ["その怒りには理由があります。", "怒ってもいいです。", "それは本当にフラストレーションがたまりますね。", "それは誰でも怒ります。", "分かります  -  本当に何かあったのですね。", "こういうことは、どんなに強くても傷つきます。"],
+        tired: ["本当に疲れていますね。", "この疲れは本物です。", "もう十分すぎるほど背負ってきました。", "時に体が単純に「もう無理」と言うことがあります。", "普通の疲れではありません  -  本当の消耗です。", "体がそれを感じている  -  これは弱さではありません。"],
+        okay: ["もっと聞かせてください。", "ここにいます  -  どうしましたか？", "今一番重いことは何ですか？", "今頭の中で一番大きいことは何ですか？", "今日はどうですか？", "何でも  -  聞いています。"],
+    };
+    const carryValidationsJa = ["それはまだあなたの中にあります  -  感じています。", "まだ落ち着いていない感じがします  -  それで大丈夫です。", "まだその中にいるのですね？", "まだ離してくれない。もう少しここにいましょう。", "何かがまた戻ってきていますね。"];
+    const carryExtrasJa: Record<LocalResponseTone, string[]> = {
+        calm: ["まだどこかに押しやらなくて大丈夫です。", "少しここにいましょう。", "無理やりにしなくていいです。"],
+        supportive: ["今完全に理解しなくても大丈夫です。", "まだここで一緒にいます。", "まだ全部分からなくても大丈夫です。"],
+        practical: ["今はそのままにしておきましょう。", "全部の答えは要りません  -  次の明確な部分だけ。", "次の明確な一歩で十分です。"],
+        coach: ["何かをする前に、まずこれを安定させましょう。", "その後の静かな一歩で十分です。", "まず安定した一歩を見つけましょう。"],
+        "gentle-humor": ["重くしないで軽く保てます。", "今全部戦わなくていいです。", "今日はそこまで頑張らなくていいです。"],
+        direct: ["今は複雑にしないでおきましょう。", "大事なことに集中しましょう。", "今本当に必要なことだけを見ましょう。"],
+    };
+    const extrasByToneJa: Record<LocalResponseTone, string[]> = {
+        calm: [``, `今は一つのことだけ持っていましょう。`, `全部一度に解決しなくていいです。`, `無理やりにしないで落ち着いていられます。`, `一つずつ  -  プレッシャーなし。`, `進む前にここで少し止まりましょう。`],
+        supportive: [``, `全部一度に背負わなくていいです。`, `一番重いことから一緒にいましょう。`, `まだごちゃごちゃしていても大丈夫です。`, `まだ重いのは当然です。`, `今全部理解しようとしなくていいです。`],
+        practical: [``, `まず一番大事なことを見ましょう。`, `扱えるように保てます。`, `今は一つの役に立つことで十分です。`, `もう少し分けてみましょう。`, `次の明確な一歩だけ  -  それ以上は要りません。`],
+        coach: [``, `まず扱える部分を見つけましょう。`, `今は安定した一歩だけあれば十分です。`, `全部一度に解きほぐさなくていいです。`, `しっかりした一歩が全てです。`, `思っているより簡単にできます。`],
+        "gentle-humor": [``, `無視せずに少し軽くできます。`, `今は小さな変化で十分です。`, `まだここで一緒にいます。`, `小さな勝利も勝利です。`, `今日は戦わなくていいです。`],
+        direct: [``, `明確にしましょう。`, `一度に一つの本当の部分を扱えます。`, `今必要な次の一歩だけが重要です。`, `今ここで一番大事なことは何ですか？`, `本当に大切なことに集中しましょう。`],
+    };
+    const reflectLinesJa = [
+        "今一番気になっていることは何ですか？",
+        "今は話す方がいいですか  -  それとも小さな一歩の方がいいですか？",
+        "ゆっくり進めましょう  -  どこから始めますか？",
+        "最近何が変わりましたか？",
+        "今これを全部体で背負っている感じはどうですか？",
+        "少し楽になったとしたら  -  最初に何が変わりますか？",
+    ];
+    const nextStepLinesJa = ["話し続けることもできますし、小さなことを試すこともできます  -  どちらでも。", "まず全部話したい人もいます。計画が欲しい人もいます。今どちらですか？", "もっと掘り下げることも、小さな一歩を見つけることもできます。今どちらがより役に立ちますか？", "ここにいます  -  話し続けることでも、具体的なことでも。", "何が今より役に立ちますか  -  話し続けること、それとも小さいことを試すこと？", "今何がより本当に感じますか  -  ただ聞いてもらうこと、それとも何かすること？"];
+    const listeningOnlyExtrasJa = ["今これを解決しなくていいです。", "どこにも行きません。必要なだけ話してください。", "全部感じていいです。", "きれいにまとめなくていいです。", "全部を理解しようと急がなくていいです。", "どれだけでも、少しでも話してください  -  いずれにせよここにいます。"];
+
     const bankLanguage = toReplyBankLanguage(language);
 
     const openers =
@@ -3395,7 +3548,13 @@ export function buildLocalReply(
                                                                             ? openersByToneId[companionTone]
                                                                             : bankLanguage === "ur"
                                                                                 ? openersByToneUr[companionTone]
-                                                                                : openersByToneEn[companionTone];
+                                                                                : bankLanguage === "de"
+                                                                                    ? openersByToneDe[companionTone]
+                                                                                    : bankLanguage === "he"
+                                                                                        ? openersByToneHe[companionTone]
+                                                                                        : bankLanguage === "ja"
+                                                                                            ? openersByToneJa[companionTone]
+                                                                                            : openersByToneEn[companionTone];
 
     const validations =
         bankLanguage === "hi"
@@ -3434,7 +3593,13 @@ export function buildLocalReply(
                                                                             ? validationsId
                                                                             : bankLanguage === "ur"
                                                                                 ? validationsUr
-                                                                                : validationsEn;
+                                                                                : bankLanguage === "de"
+                                                                                    ? validationsDe
+                                                                                    : bankLanguage === "he"
+                                                                                        ? validationsHe
+                                                                                        : bankLanguage === "ja"
+                                                                                            ? validationsJa
+                                                                                            : validationsEn;
 
     const reflectLines =
         bankLanguage === "hi"
@@ -3469,7 +3634,13 @@ export function buildLocalReply(
                                                                     ? reflectLinesId
                                                                     : bankLanguage === "ur"
                                                                         ? reflectLinesUr
-                                                                        : reflectLinesEn;
+                                                                        : bankLanguage === "de"
+                                                                            ? reflectLinesDe
+                                                                            : bankLanguage === "he"
+                                                                                ? reflectLinesHe
+                                                                                : bankLanguage === "ja"
+                                                                                    ? reflectLinesJa
+                                                                                    : reflectLinesEn;
 
     const nextStepLines =
         bankLanguage === "hi"
@@ -3504,7 +3675,13 @@ export function buildLocalReply(
                                                                     ? nextStepLinesId
                                                                     : bankLanguage === "ur"
                                                                         ? nextStepLinesUr
-                                                                        : nextStepLinesEn;
+                                                                        : bankLanguage === "de"
+                                                                            ? nextStepLinesDe
+                                                                            : bankLanguage === "he"
+                                                                                ? nextStepLinesHe
+                                                                                : bankLanguage === "ja"
+                                                                                    ? nextStepLinesJa
+                                                                                    : nextStepLinesEn;
 
     const extrasByTone =
         bankLanguage === "hi"
@@ -3543,7 +3720,13 @@ export function buildLocalReply(
                                                                             ? extrasByToneId
                                                                             : bankLanguage === "ur"
                                                                                 ? extrasByToneUr
-                                                                                : extrasByToneEn;
+                                                                                : bankLanguage === "de"
+                                                                                    ? extrasByToneDe
+                                                                                    : bankLanguage === "he"
+                                                                                        ? extrasByToneHe
+                                                                                        : bankLanguage === "ja"
+                                                                                            ? extrasByToneJa
+                                                                                            : extrasByToneEn;
 
     // P4 — Situational person extraction for personalized Phase 3 bridge
     const situationalPerson = (!isVagueReply && (toneContext?.sessionTurn ?? 0) >= 3 && signal !== "okay")
@@ -3850,9 +4033,15 @@ export function buildLocalReply(
                                                                             ? pick(carryValidationsId, seed >>> 1)
                                                                             : hasCarry && bankLanguage === "ur"
                                                                                 ? pick(carryValidationsUr, seed >>> 1)
-                                                                                : hasCarry
-                                                                                    ? pick(carryValidationsEn, seed >>> 1)
-                                                                                    : pick(validations[signal], seed >>> 1);
+                                                                                : hasCarry && bankLanguage === "de"
+                                                                                    ? pick(carryValidationsDe, seed >>> 1)
+                                                                                    : hasCarry && bankLanguage === "he"
+                                                                                        ? pick(carryValidationsHe, seed >>> 1)
+                                                                                        : hasCarry && bankLanguage === "ja"
+                                                                                            ? pick(carryValidationsJa, seed >>> 1)
+                                                                                            : hasCarry
+                                                                                                ? pick(carryValidationsEn, seed >>> 1)
+                                                                                                : pick(validations[signal], seed >>> 1);
 
     const extra =
         hasCarry && bankLanguage === "hi"
@@ -3861,7 +4050,11 @@ export function buildLocalReply(
                 ? pick(carryExtrasMr[companionTone], seed >>> 5)
                 : hasCarry && bankLanguage === "bn"
                     ? pick(carryExtrasBn[companionTone], seed >>> 5)
-                    : hasCarry && bankLanguage === "gu"
+                    : hasCarry && bankLanguage === "ta"
+                        ? pick(carryExtrasTa[companionTone], seed >>> 5)
+                        : hasCarry && bankLanguage === "te"
+                            ? pick(carryExtrasTe[companionTone], seed >>> 5)
+                            : hasCarry && bankLanguage === "gu"
                         ? pick(carryExtrasGu[companionTone], seed >>> 5)
                         : hasCarry && bankLanguage === "pa"
                             ? pick(carryExtrasPa[companionTone], seed >>> 5)
@@ -3887,9 +4080,15 @@ export function buildLocalReply(
                                                                     ? pick(carryExtrasId[companionTone], seed >>> 5)
                                                                     : hasCarry && bankLanguage === "ur"
                                                                         ? pick(carryExtrasUr[companionTone], seed >>> 5)
-                                                                        : hasCarry
-                                                                            ? pick(carryExtrasEn[companionTone], seed >>> 5)
-                                                                            : userIntent === "venting"
+                                                                        : hasCarry && bankLanguage === "de"
+                                                                            ? pick(carryExtrasDe[companionTone], seed >>> 5)
+                                                                            : hasCarry && bankLanguage === "he"
+                                                                                ? pick(carryExtrasHe[companionTone], seed >>> 5)
+                                                                                : hasCarry && bankLanguage === "ja"
+                                                                                    ? pick(carryExtrasJa[companionTone], seed >>> 5)
+                                                                                    : hasCarry
+                                                                                        ? pick(carryExtrasEn[companionTone], seed >>> 5)
+                                                                                        : userIntent === "venting"
                                                                                 ? pick(
                                                                                     bankLanguage === "hi" ? listeningOnlyExtrasHi
                                                                                     : bankLanguage === "bn" ? listeningOnlyExtrasBn
@@ -3909,6 +4108,9 @@ export function buildLocalReply(
                                                                                     : bankLanguage === "ru" ? listeningOnlyExtrasRu
                                                                                     : bankLanguage === "id" ? listeningOnlyExtrasId
                                                                                     : bankLanguage === "ur" ? listeningOnlyExtrasUr
+                                                                                    : bankLanguage === "de" ? listeningOnlyExtrasDe
+                                                                                    : bankLanguage === "he" ? listeningOnlyExtrasHe
+                                                                                    : bankLanguage === "ja" ? listeningOnlyExtrasJa
                                                                                     : listeningOnlyExtrasEn,
                                                                                     seed >>> 5)
                                                                                 : pick(extrasByTone[companionTone], seed >>> 5);

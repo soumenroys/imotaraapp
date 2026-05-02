@@ -113,12 +113,14 @@ type ImotaraProfileV1 = {
         gender?: Gender;
         preferredLang?: SupportedLang;
         responseStyle?: ResponseStyle; // #16
+        avatarAge?: number;
     };
     companion: {
         enabled?: boolean;
         name?: string;
         ageRange?: AgeRange;
         gender?: Gender;
+        avatarAge?: number;
         relationship?:
         | "mentor"
         | "friend"
@@ -154,68 +156,188 @@ const LANG_TO_BCP47_SETTINGS: Record<string, string> = {
     de: "de-DE", ja: "ja-JP",
 };
 
-const FEMALE_PAT = /\b(female|woman|girl|samantha|victoria|karen|moira|tessa|fiona|zira|aria|jenny|emily|nancy|lisa|kate|susan|natasha|anna)\b/i;
-const MALE_PAT   = /\b(male|man|alex|tom|daniel|liam|david|james|mark|richard|aaron|evan|reed|bruce|fred)\b/i;
+const FEMALE_PAT = /\b(female|woman|girl|samantha|victoria|karen|moira|tessa|fiona|zira|aria|jenny|emily|nancy|lisa|kate|susan|natasha|anna|ava|allison|noelle|zoe|olivia|heather|monica|serena|vicki|hazel|lekha|veena|damayanti|kanya)\b/i;
+const MALE_PAT   = /\b(male|man|alex|tom|daniel|liam|david|james|mark|richard|aaron|evan|reed|bruce|fred|gordon|lee|rishi|aarav|hemant|kabir)\b/i;
 
-function pickPreviewVoice(
-    synth: SpeechSynthesis,
-    lang: string,
-    gender: string,
-): SpeechSynthesisVoice | null {
-    const voices = synth.getVoices();
-    const langBase = lang.split("-")[0];
-    const exact = voices.filter((v) => v.lang === lang);
-    const broad = voices.filter((v) => v.lang.startsWith(langBase));
-    const candidates = exact.length > 0 ? exact : broad;
-    if (candidates.length === 0) return null;
-    if (!gender || gender === "prefer_not" || gender === "other") return candidates[0];
-
-    const scored = candidates.map((v) => {
-        const n = v.name.toLowerCase();
-        let score = 0;
-        if (gender === "female") {
-            if (FEMALE_PAT.test(n)) score = 2;
-            else if (MALE_PAT.test(n)) score = -1;
-            else score = 1;
-        } else if (gender === "male") {
-            if (MALE_PAT.test(n)) score = 2;
-            else if (FEMALE_PAT.test(n)) score = -1;
-            else score = 1;
-        } else {
-            score = 1;
-        }
-        return { v, score };
-    });
-    scored.sort((a, b) => b.score - a.score);
-    return scored[0].v;
+// Gender mapping to the two preview file variants (nonbinary/other/prefer_not → female file)
+function previewGenderFile(gender: string): "male" | "female" {
+    return gender === "male" ? "male" : "female";
 }
 
-const PREVIEW_SAMPLE = "Hi, I'm Imotara — I'm here with you.";
+// Localised preview sentences — one per supported language
+const PREVIEW_TEXT_BY_LANG: Record<string, string> = {
+    en: "Hi, I'm Imotara. I'm here with you.",
+    hi: "नमस्ते, मैं इमोतारा हूँ. मैं आपके साथ हूँ।",
+    mr: "नमस्कार, मी इमोतारा आहे. मी तुमच्यासोबत आहे।",
+    bn: "হ্যালো, আমি ইমোতারা. আমি তোমার সাথে আছি।",
+    ta: "வணக்கம், நான் இமோதாரா. நான் உங்களுடன் இருக்கிறேன்.",
+    te: "నమస్కారం, నేను ఇమోతారా. నేను మీతో ఉన్నాను.",
+    gu: "નમસ્તે, હું ઇમોતારા છું. હું તમારી સાથે છું.",
+    pa: "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ, ਮੈਂ ਇਮੋਤਾਰਾ ਹਾਂ. ਮੈਂ ਤੁਹਾਡੇ ਨਾਲ ਹਾਂ।",
+    kn: "ನಮಸ್ಕಾರ, ನಾನು ಇಮೋತಾರ. ನಾನು ನಿಮ್ಮೊಂದಿಗೆ ಇದ್ದೇನೆ.",
+    ml: "ഹലോ, ഞാൻ ഇമോതാര. ഞാൻ നിങ്ങളോടൊപ്പം ഉണ്ട്.",
+    or: "ନମସ୍କାର, ମୁଁ ଇମୋତାରା. ମୁଁ ଆପଣଙ୍କ ସହ ଅଛି।",
+    ur: "ہیلو، میں امتارا ہوں. میں آپ کے ساتھ ہوں۔",
+    zh: "你好，我是 Imotara。我在你身边。",
+    es: "Hola, soy Imotara. Estoy aqui contigo.",
+    ar: "مرحباً، أنا إيموتارا. أنا هنا معك.",
+    fr: "Bonjour, je suis Imotara. Je suis la pour vous.",
+    pt: "Ola, sou o Imotara. Estou aqui com voce.",
+    ru: "Привет, я Имотара. Я здесь рядом с тобой.",
+    id: "Halo, saya Imotara. Saya di sini bersamamu.",
+    he: "שלום, אני אימוטרה. אני כאן איתך.",
+    de: "Hallo, ich bin Imotara. Ich bin fuer dich da.",
+    ja: "こんにちは、私はイモタラです。ここにいますよ。",
+};
 
-function speakPreview(gender: string, lang: string) {
+function speakPreview(gender: string, lang: string, onResult?: (info: string, missing: boolean) => void) {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     const synth = window.speechSynthesis;
+
+    // Snapshot voices BEFORE cancel() — Chrome/macOS temporarily reduces the
+    // voice list right after cancel(), which would cause wrong voice selection.
+    const voiceSnapshot = synth.getVoices();
+
     synth.cancel();
     const bcp47 = LANG_TO_BCP47_SETTINGS[lang] ?? "en-US";
 
-    const run = () => {
-        const utt = new SpeechSynthesisUtterance(PREVIEW_SAMPLE);
-        utt.lang = bcp47;
-        utt.rate = 0.95;
+    const doSpeak = () => {
+        const liveVoices = synth.getVoices();
+        const voices = voiceSnapshot.length > 0 ? voiceSnapshot : liveVoices;
+        if (voices.length === 0) {
+            synth.onvoiceschanged = () => { synth.onvoiceschanged = null; doSpeak(); };
+            return;
+        }
+
+        const nm      = (v: SpeechSynthesisVoice) => v.name.toLowerCase();
+        const isMaleV = (v: SpeechSynthesisVoice) => MALE_PAT.test(nm(v));
+        const isFemV  = (v: SpeechSynthesisVoice) => FEMALE_PAT.test(nm(v));
+        const langBase = bcp47.split("-")[0];
+
+        // Non-English: always use pre-generated Azure MP3s — they have proper
+        // gender-specific voices. Native TTS for non-English typically only ships
+        // one voice (usually female, e.g. Lekha for Hindi) so gender selection
+        // would be ignored. Azure MP3s are pre-generated with correct male/female.
+        if (lang !== "en") {
+            const genderFile = previewGenderFile(gender);
+            const src = `/tts-preview/${lang}-${genderFile}.mp3`;
+            onResult?.(`Azure Neural (${lang}-${genderFile})`, false);
+            const audio = new Audio(src);
+            audio.playbackRate = 0.95;
+            audio.play().catch(err => console.warn("[speakPreview] audio play failed:", err));
+            return;
+        }
+
+        // English: use native Web Speech API (always available, good gender support).
+        const langPool = voices.filter(
+            v => v.lang === bcp47 || v.lang.startsWith(langBase + "-") || v.lang === langBase,
+        );
+        const pool = langPool.length > 0 ? langPool : voices;
+        let voice: SpeechSynthesisVoice;
+        if (gender === "male") {
+            voice = pool.find(isMaleV) ?? pool.find(v => !isFemV(v)) ?? pool[0];
+        } else if (gender === "female") {
+            voice = pool.find(isFemV) ?? pool.find(v => !isMaleV(v)) ?? pool[0];
+        } else {
+            voice = pool[0];
+        }
+        onResult?.(`${voice.name} (${voice.lang})`, false);
+
+        const utt = new SpeechSynthesisUtterance(PREVIEW_TEXT_BY_LANG["en"]);
+        utt.lang  = voice.lang;
+        utt.rate  = 0.95;
         utt.pitch = 1.0;
-        const voice = pickPreviewVoice(synth, bcp47, gender);
-        if (voice) utt.voice = voice;
+        utt.voice = voice;
         synth.speak(utt);
     };
 
-    if (synth.getVoices().length === 0) {
-        synth.onvoiceschanged = () => { synth.onvoiceschanged = null; run(); };
-    } else {
-        run();
-    }
+    setTimeout(doSpeak, 100);
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+
+const AVATAR_AGES = [6, 16, 26, 36, 46, 56, 66, 76, 86, 96];
+
+const AGE_RANGE_TO_AVATAR: Record<string, number> = {
+    prefer_not: 26,
+    under_13: 6,
+    "13_17": 16,
+    "18_24": 26,
+    "25_34": 26,
+    "35_44": 36,
+    "45_54": 46,
+    "55_64": 56,
+    "65_plus": 66,
+};
+
+const AVATAR_AGE_LABEL: Record<number, string> = {
+    6:  "Under 13",
+    16: "13–17",
+    26: "18–34",
+    36: "35–44",
+    46: "45–54",
+    56: "55–64",
+    66: "65–75",
+    76: "76–85",
+    86: "86–95",
+    96: "96+",
+};
+
+function AvatarSlider({
+    gender,
+    ageValue,
+    onChange,
+    name,
+}: {
+    gender: Gender;
+    ageValue: number;
+    onChange: (age: number) => void;
+    name?: string;
+}) {
+    const enabled = gender === "male" || gender === "female";
+    const idx = AVATAR_AGES.indexOf(ageValue);
+    const safeIdx = idx === -1 ? 2 : idx;
+
+    return (
+        <div className="grid gap-2">
+            <span className="text-xs text-zinc-300">Avatar appearance</span>
+            {enabled ? (
+                <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                        <div className="h-16 w-16 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                            <img
+                                key={`${gender}-${AVATAR_AGES[safeIdx]}`}
+                                src={`/avatars/${gender}/${AVATAR_AGES[safeIdx]}.png`}
+                                alt={`${gender} age ${AVATAR_AGES[safeIdx]}`}
+                                className="h-full w-full object-cover"
+                            />
+                        </div>
+                        {name && (
+                            <span className="max-w-[64px] truncate text-center text-[11px] font-medium text-zinc-300">
+                                {name}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex-1 grid gap-1">
+                        <input
+                            type="range"
+                            min={0}
+                            max={9}
+                            value={safeIdx}
+                            onChange={(e) => onChange(AVATAR_AGES[parseInt(e.target.value)])}
+                            className="w-full accent-emerald-400"
+                        />
+                        <span className="text-[11px] text-zinc-400 text-center">{AVATAR_AGE_LABEL[AVATAR_AGES[safeIdx]]}</span>
+                    </div>
+                </div>
+            ) : (
+                <p className="text-[11px] text-zinc-500">
+                    Set Gender to <strong className="text-zinc-300">Male</strong> or <strong className="text-zinc-300">Female</strong> above to choose an avatar.
+                </p>
+            )}
+        </div>
+    );
+}
 
 function TinyBadge({ children }: { children: React.ReactNode }) {
     return (
@@ -228,6 +350,8 @@ function TinyBadge({ children }: { children: React.ReactNode }) {
 function ToneAndContextTile() {
     const [loaded, setLoaded] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: "auto" | "manual" | "error" | "reset" } | null>(null);
+    const [userVoiceInfo, setUserVoiceInfo] = useState<{ text: string; missing: boolean } | null>(null);
+    const [compVoiceInfo, setCompVoiceInfo] = useState<{ text: string; missing: boolean } | null>(null);
 
     // Personal info
     const [userName, setUserName] = useState("");
@@ -258,6 +382,8 @@ function ToneAndContextTile() {
         | "partner_like"
         | "prefer_not"
     >("prefer_not");
+    const [userAvatarAge, setUserAvatarAge] = useState<number>(26);
+    const [compAvatarAge, setCompAvatarAge] = useState<number>(26);
 
     useEffect(() => {
         // Hydration-safe: only read localStorage after mount
@@ -275,6 +401,8 @@ function ToneAndContextTile() {
             setCompAge((existing.companion?.ageRange as AgeRange) ?? "prefer_not");
             setCompGender((existing.companion?.gender as Gender) ?? "prefer_not");
             setCompRel((existing.companion?.relationship as any) ?? "prefer_not");
+            setUserAvatarAge(existing.user?.avatarAge ?? 26);
+            setCompAvatarAge(existing.companion?.avatarAge ?? 26);
         }
         setLoaded(true);
     }, []);
@@ -287,16 +415,18 @@ function ToneAndContextTile() {
                 gender: userGender === "prefer_not" ? undefined : userGender,
                 preferredLang: preferredLang === "auto" ? undefined : preferredLang,
                 responseStyle: responseStyle === "auto" ? undefined : responseStyle,
+                avatarAge: (userGender === "male" || userGender === "female") ? userAvatarAge : undefined,
             },
             companion: {
                 enabled: compEnabled,
                 name: compEnabled ? (compName.trim() || undefined) : undefined,
                 ageRange: compEnabled ? (compAge === "prefer_not" ? undefined : compAge) : undefined,
                 gender: compEnabled ? (compGender === "prefer_not" ? undefined : compGender) : undefined,
+                avatarAge: compEnabled && (compGender === "male" || compGender === "female") ? compAvatarAge : undefined,
                 relationship: compEnabled ? (compRel === "prefer_not" ? undefined : compRel) : undefined,
             },
         };
-    }, [userName, userAge, userGender, preferredLang, compEnabled, compName, compAge, compGender, compRel]);
+    }, [userName, userAge, userGender, preferredLang, responseStyle, compEnabled, compName, compAge, compGender, compRel, userAvatarAge, compAvatarAge]);
 
     // ✅ NEW: visual "active" state (green) for selects once a real choice is set
     const selectActiveClass = (active: boolean) =>
@@ -342,6 +472,8 @@ function ToneAndContextTile() {
         setCompAge("prefer_not");
         setCompGender("prefer_not");
         setCompRel("prefer_not");
+        setUserAvatarAge(26);
+        setCompAvatarAge(26);
         setToast({ message: "Reset ✓", type: "reset" });
         window.setTimeout(() => setToast(null), 1800);
 
@@ -434,7 +566,11 @@ function ToneAndContextTile() {
                                 <span className="text-xs text-zinc-300">Age range</span>
                                 <select
                                     value={userAge}
-                                    onChange={(e) => setUserAge(e.target.value as AgeRange)}
+                                    onChange={(e) => {
+                                        const next = e.target.value as AgeRange;
+                                        setUserAge(next);
+                                        setUserAvatarAge(AGE_RANGE_TO_AVATAR[next] ?? 26);
+                                    }}
                                     className={[
                                         "h-10 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
                                         selectActiveClass(userAge !== "prefer_not"),
@@ -469,13 +605,26 @@ function ToneAndContextTile() {
                                 </select>
                                 <button
                                     type="button"
-                                    onClick={() => speakPreview(userGender, preferredLang)}
+                                    onClick={() => speakPreview(userGender, preferredLang, (text, missing) => setUserVoiceInfo({ text, missing }))}
                                     className="mt-0.5 flex items-center gap-1 self-start text-[11px] text-zinc-400 transition hover:text-zinc-200"
                                 >
                                     🔊 Preview voice
                                 </button>
+                                {userVoiceInfo && (
+                                    <span className="text-[10px] text-amber-400/80 font-mono leading-snug">
+                                        {userVoiceInfo.text}
+                                    </span>
+                                )}
                             </div>
                         </div>
+
+                        <AvatarSlider
+                            gender={userGender}
+                            ageValue={userAvatarAge}
+                            onChange={setUserAvatarAge}
+                            name={userName.trim() || undefined}
+                        />
+
                         {userAge === "13_17" && (
                             <p className="text-[10px] text-amber-400/80">
                                 If you are under 13, please use Imotara with a parent or guardian.
@@ -604,14 +753,18 @@ function ToneAndContextTile() {
                                 )}
                             </label>
 
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <label className="grid gap-1">
+                            <div className="flex gap-3">
+                                <label className="flex flex-col gap-1 flex-1">
                                     <span className="text-xs text-zinc-300">Age range</span>
                                     <select
                                         value={compAge}
-                                        onChange={(e) => setCompAge(e.target.value as AgeRange)}
+                                        onChange={(e) => {
+                                            const next = e.target.value as AgeRange;
+                                            setCompAge(next);
+                                            setCompAvatarAge(AGE_RANGE_TO_AVATAR[next] ?? 26);
+                                        }}
                                         className={[
-                                            "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                            "h-10 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
                                             selectActiveClass(compAge !== "prefer_not"),
                                         ].join(" ")}
                                     >
@@ -627,13 +780,13 @@ function ToneAndContextTile() {
                                     </select>
                                 </label>
 
-                                <div className="grid gap-1">
+                                <div className="flex flex-col gap-1 flex-1">
                                     <span className="text-xs text-zinc-300">Gender</span>
                                     <select
                                         value={compGender}
                                         onChange={(e) => setCompGender(e.target.value as Gender)}
                                         className={[
-                                            "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                            "h-10 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
                                             selectActiveClass(compGender !== "prefer_not"),
                                         ].join(" ")}
                                     >
@@ -645,13 +798,25 @@ function ToneAndContextTile() {
                                     </select>
                                     <button
                                         type="button"
-                                        onClick={() => speakPreview(compGender, preferredLang)}
+                                        onClick={() => speakPreview(compGender, preferredLang, (text, missing) => setCompVoiceInfo({ text, missing }))}
                                         className="mt-0.5 flex items-center gap-1 self-start text-[11px] text-zinc-400 transition hover:text-zinc-200"
                                     >
                                         🔊 Preview voice
                                     </button>
+                                    {compVoiceInfo && (
+                                        <span className="text-[10px] text-amber-400/80 font-mono leading-snug">
+                                            {compVoiceInfo.text}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
+
+                            <AvatarSlider
+                                gender={compGender}
+                                ageValue={compAvatarAge}
+                                onChange={setCompAvatarAge}
+                                name={compName.trim() || undefined}
+                            />
 
                             <label className="grid gap-1">
                                 <span className="text-xs text-zinc-300">Relationship vibe</span>
@@ -1364,11 +1529,12 @@ export default function SettingsPage() {
     }
 
     const tierLabel = useMemo(() => {
-        const t = (lic?.tier || "FREE").toUpperCase();
-        if (t === "PREMIUM") return "Premium";
-        if (t === "FAMILY") return "Family";
-        if (t === "EDU") return "Education";
-        if (t === "ENTERPRISE") return "Enterprise";
+        const t = (lic?.tier || "free").toLowerCase();
+        if (t === "pro"      || t === "premium")    return "Pro";
+        if (t === "plus")                           return "Plus";
+        if (t === "family")                         return "Family";
+        if (t === "edu"      || t === "education")  return "Education";
+        if (t === "enterprise")                     return "Enterprise";
         return "Free";
     }, [lic?.tier]);
 
@@ -1532,8 +1698,20 @@ export default function SettingsPage() {
                 {/* NEW: Tone & Context Preferences (client-only safe) */}
                 {mounted && <ToneAndContextTile />}
 
-                {/* NEW: Licensing status */}
+                {/* Licensing — user-facing plan card */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                        <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Your plan</h2>
+                        <button
+                            type="button"
+                            onClick={refreshLicenseStatus}
+                            disabled={licLoading}
+                            className="text-[11px] text-zinc-500 hover:text-zinc-300 transition disabled:opacity-40"
+                        >
+                            {licLoading ? "Refreshing…" : "Refresh"}
+                        </button>
+                    </div>
+
                     {/* Launch offer banner */}
                     {mounted && (() => {
                         const launchRaw = process.env.NEXT_PUBLIC_IMOTARA_LAUNCH_DATE;
@@ -1542,75 +1720,110 @@ export default function SettingsPage() {
                         const launchMs = Date.parse(launchRaw);
                         if (isNaN(launchMs)) return null;
                         const endsAt = new Date(launchMs + freeDays * 24 * 60 * 60 * 1000);
-                        const active = Date.now() < endsAt.getTime();
-                        if (!active) return null;
+                        if (Date.now() >= endsAt.getTime()) return null;
                         return (
-                            <div className="mb-4 flex items-start gap-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3">
+                            <div className="mt-3 flex items-start gap-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3">
                                 <span className="text-lg leading-none">🎁</span>
                                 <div>
                                     <p className="text-sm font-semibold text-emerald-200">
                                         Launch offer — everything free for everyone
                                     </p>
                                     <p className="mt-0.5 text-xs text-emerald-300/80">
-                                        All features are available at no cost until{" "}
+                                        All Pro features are available at no cost until{" "}
                                         <span className="font-medium">
                                             {endsAt.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
-                                        </span>
-                                        . No sign-up, no payment required.
+                                        </span>.
                                     </p>
                                 </div>
                             </div>
                         );
                     })()}
 
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                                Licensing
-                            </h2>
-                            <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
-                                Current plan status for this web session. Enforcement is
-                                controlled by license mode.
-                            </p>
+                    {/* Current plan card */}
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                        {/* Tier badge */}
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${
+                                    tierLabel === "Pro"    ? "bg-indigo-500/25 text-indigo-300 border border-indigo-400/30" :
+                                    tierLabel === "Plus"   ? "bg-sky-500/25 text-sky-300 border border-sky-400/30" :
+                                    tierLabel === "Family" ? "bg-emerald-500/25 text-emerald-300 border border-emerald-400/30" :
+                                    "bg-zinc-500/25 text-zinc-300 border border-zinc-400/20"
+                                }`}>
+                                    {tierLabel}
+                                </span>
+                                {lic?.license?.status === "trial" && (
+                                    <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-300 border border-amber-400/20">
+                                        Trial
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={refreshLicenseStatus}
-                            disabled={licLoading}
-                            className="rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-zinc-100 shadow-sm transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {licLoading ? "Refreshing…" : "Refresh"}
-                        </button>
+                        {/* Feature bullets for current tier */}
+                        <ul className="mt-3 space-y-1">
+                            {(tierLabel === "Pro" ? [
+                                "Unlimited AI replies",
+                                "Unlimited history",
+                                "Emotion insights (radar & heatmap)",
+                                "Data export (JSON)",
+                                "Cloud sync",
+                            ] : tierLabel === "Plus" ? [
+                                "Unlimited AI replies",
+                                "90-day cloud history",
+                                "Cloud sync",
+                                "Companion mode",
+                            ] : tierLabel === "Family" ? [
+                                "Unlimited history",
+                                "Cloud sync",
+                                "Multi-profile support",
+                                "Child-safe mode",
+                            ] : [
+                                "20 AI replies / day",
+                                "On-device replies (unlimited)",
+                                "7-day history",
+                            ]).map((f) => (
+                                <li key={f} className="flex items-center gap-2 text-xs text-zinc-300">
+                                    <span className="h-1 w-1 flex-shrink-0 rounded-full bg-emerald-400" />
+                                    {f}
+                                </li>
+                            ))}
+                        </ul>
                     </div>
 
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-400">
-                                Plan
+                    {/* CTA */}
+                    {tierLabel === "Free" && (
+                        <div className="mt-4">
+                            <p className="mb-2 text-xs text-zinc-400">
+                                Remove the daily AI limit, extend history to 90 days or unlimited, and unlock insights.
                             </p>
-                            <p className="mt-1 text-sm font-semibold text-zinc-50">
-                                {tierLabel}
-                            </p>
-                            <p className="mt-2 text-xs leading-6 text-zinc-400">
-                                {lic?.license?.status === "trial"
-                                    ? "Launch offer active — all features unlocked for everyone."
-                                    : lic?.message || "All features are free during the launch period."}
-                            </p>
+                            <Link
+                                href="/upgrade"
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-4 py-2 text-sm font-semibold text-indigo-200 transition hover:bg-indigo-500/25"
+                            >
+                                View plans &amp; upgrade →
+                            </Link>
                         </div>
-
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-400">
-                                License mode
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-zinc-50">
-                                {String(lic?.mode || licenseMode)}
-                            </p>
-                            <p className="mt-2 text-xs leading-6 text-zinc-400">
-                                off = disabled, log = observe only, enforce = block gated features.
-                            </p>
+                    )}
+                    {tierLabel === "Plus" && (
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                            <Link
+                                href="/upgrade"
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-4 py-2 text-sm font-semibold text-indigo-200 transition hover:bg-indigo-500/25"
+                            >
+                                Upgrade to Pro →
+                            </Link>
+                            <span className="text-[11px] text-zinc-500">Adds unlimited history + insights</span>
                         </div>
-                    </div>
+                    )}
+                    {(tierLabel === "Pro" || tierLabel === "Family") && (
+                        <p className="mt-3 text-xs text-zinc-500">
+                            Need to manage your subscription?{" "}
+                            <Link href="/upgrade" className="text-zinc-300 underline underline-offset-2 hover:text-zinc-100 transition">
+                                Visit the upgrade page
+                            </Link>
+                        </p>
+                    )}
 
                     {lic?.error && (
                         <p className="mt-3 text-[11px] text-rose-200/90">{lic.error}</p>

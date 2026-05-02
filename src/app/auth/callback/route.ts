@@ -4,7 +4,6 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 export async function GET(request: Request) {
-    console.log("🔥 AUTH CALLBACK HIT", request.url);
     const url = new URL(request.url);
     const code = url.searchParams.get("code");
 

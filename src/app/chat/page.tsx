@@ -4228,42 +4228,57 @@ function Bubble({
 
   // ── TTS ───────────────────────────────────────────────────────────
   const [speaking, setSpeaking] = useState(false);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  function doSpeak() {
-    const synth = window.speechSynthesis;
-    const lang = resolveTTSLang(content);
+  async function doSpeak() {
+    const bcp47  = resolveTTSLang(content);
+    const lang   = bcp47.split("-")[0]; // "hi-IN" → "hi" for the API
     const gender = getTTSGenderPref();
-    const utt = new SpeechSynthesisUtterance(content);
-    utt.lang = lang;
-    utt.rate = 0.95;
-    utt.pitch = 1.0;
-    const voice = pickVoice(synth, lang, gender);
-    if (voice) utt.voice = voice;
-    utt.onend = () => setSpeaking(false);
-    utt.onerror = () => setSpeaking(false);
     setSpeaking(true);
-    synth.speak(utt);
+    try {
+      const res = await fetch("/api/tts", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ text: content, lang, gender }),
+      });
+      if (!res.ok) throw new Error(`TTS ${res.status}`);
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.playbackRate = 0.95;
+      ttsAudioRef.current = audio;
+      const cleanup = () => { URL.revokeObjectURL(url); ttsAudioRef.current = null; setSpeaking(false); };
+      audio.onended = cleanup;
+      audio.onerror = cleanup;
+      await audio.play();
+    } catch {
+      // Azure unavailable — fall back to browser speech
+      setSpeaking(false);
+      if (typeof window === "undefined" || !window.speechSynthesis) return;
+      const synth = window.speechSynthesis;
+      const utt   = new SpeechSynthesisUtterance(content);
+      utt.lang    = bcp47;
+      utt.rate    = 0.95;
+      utt.pitch   = 1.0;
+      const voice = pickVoice(synth, bcp47, gender);
+      if (voice) utt.voice = voice;
+      setSpeaking(true);
+      utt.onend  = () => setSpeaking(false);
+      utt.onerror = () => setSpeaking(false);
+      synth.speak(utt);
+    }
   }
 
   function toggleSpeak() {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    const synth = window.speechSynthesis;
-
+    if (typeof window === "undefined") return;
     if (speaking) {
-      synth.cancel();
+      ttsAudioRef.current?.pause();
+      ttsAudioRef.current = null;
+      window.speechSynthesis?.cancel();
       setSpeaking(false);
       return;
     }
-
-    // Browsers load voices asynchronously; if voices aren't ready yet, wait for them
-    if (synth.getVoices().length === 0) {
-      synth.onvoiceschanged = () => {
-        synth.onvoiceschanged = null;
-        doSpeak();
-      };
-    } else {
-      doSpeak();
-    }
+    void doSpeak();
   }
 
   const seed = !isUser

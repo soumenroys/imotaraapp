@@ -162,7 +162,7 @@ export default function BreathingWidget({ onClose }: { onClose?: () => void }) {
   const startMusic = useCallback((track: MusicTrack) => {
     stopMusic();
     if (track === "none") return;
-    const audio = new Audio(`/sounds/${track}.wav`);
+    const audio = new Audio(`/sounds/${track}.mp3`);
     audio.loop   = true;
     audio.volume = 0.35;
     audio.play().catch(() => {});

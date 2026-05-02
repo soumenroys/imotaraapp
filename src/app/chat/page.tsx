@@ -4067,6 +4067,18 @@ const LANG_TO_BCP47: Record<string, string> = {
 };
 
 // Detect the dominant script from Unicode ranges — covers all Indic + CJK
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/gs, "$1")
+    .replace(/\*(.+?)\*/gs,     "$1")
+    .replace(/^#{1,6}\s+/gm,    "")
+    .replace(/^[-*+]\s+/gm,     "")
+    .replace(/`(.+?)`/gs,       "$1")
+    .replace(/\[(.+?)\]\(.+?\)/g, "$1")
+    .replace(/\n{3,}/g,         "\n\n")
+    .trim();
+}
+
 function detectScriptLang(text: string): string | null {
   if (/[\u0590-\u05FF]/.test(text)) return "he-IL";   // Hebrew
   if (/[\u0900-\u097F]/.test(text)) return "hi-IN";   // Devanagari (Hindi/Marathi)
@@ -4239,7 +4251,7 @@ function Bubble({
       const res = await fetch("/api/tts", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ text: content, lang, gender }),
+        body:    JSON.stringify({ text: stripMarkdown(content), lang, gender }),
       });
       if (!res.ok) throw new Error(`TTS ${res.status}`);
       const blob = await res.blob();

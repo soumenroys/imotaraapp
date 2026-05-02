@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // scripts/generate-tts-previews.mjs
 // One-time script — generates 42 static preview MP3 files using Azure Neural TTS.
-// Output: public/tts-preview/{lang}-{gender}.mp3  (21 non-English langs × 2 genders)
+// Output: public/tts-preview/{lang}-{gender}.mp3  (22 langs × 2 genders, including English)
 //
 // Usage:
 //   node scripts/generate-tts-previews.mjs
@@ -42,6 +42,7 @@ if (!AZURE_KEY) {
 // ── Voice map ────────────────────────────────────────────────────────────────
 
 const VOICES = {
+    en: { male: "en-IN-PrabhatNeural",   female: "en-IN-NeerjaNeural"      },
     hi: { male: "hi-IN-MadhurNeural",   female: "hi-IN-SwaraNeural"       },
     mr: { male: "mr-IN-ManoharNeural",  female: "mr-IN-AarohiNeural"      },
     bn: { male: "bn-IN-BashkarNeural",  female: "bn-IN-TanishaaNeural"    },
@@ -66,6 +67,7 @@ const VOICES = {
 };
 
 const LOCALE = {
+    en:"en-IN",
     hi:"hi-IN", mr:"mr-IN", bn:"bn-IN", ta:"ta-IN", te:"te-IN",
     gu:"gu-IN", pa:"pa-IN", kn:"kn-IN", ml:"ml-IN", or:"or-IN",
     ur:"ur-PK", zh:"zh-CN", es:"es-ES", ar:"ar-SA", fr:"fr-FR",
@@ -73,6 +75,7 @@ const LOCALE = {
 };
 
 const PREVIEW_TEXT = {
+    en: "Hello, I'm Imotara. I'm here with you.",
     hi: "नमस्ते, मैं इमोतारा हूँ. मैं आपके साथ हूँ।",
     mr: "नमस्कार, मी इमोतारा आहे. मी तुमच्यासोबत आहे।",
     bn: "হ্যালো, আমি ইমোতারা. আমি তোমার সাথে আছি।",

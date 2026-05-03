@@ -646,9 +646,11 @@ export async function POST(req: Request) {
       ? (userAgeHintMap[body.userAge] ?? "")
       : "";
 
-    // Companion name: let the AI know what name the user has given their companion
-    const companionNameHint = body?.companionName
-      ? `Your name in this conversation is "${body.companionName}". If the user addresses you by this name, respond naturally. You may refer to yourself as "${body.companionName}" very occasionally — keep it rare and only when it feels natural.`
+    // Companion name: the user may have given their companion a custom name.
+    // This overrides the default "Imotara" identity in the base prompt.
+    const effectiveCompanionName = body?.companionName?.trim() || "Imotara";
+    const companionNameHint = body?.companionName?.trim()
+      ? `COMPANION IDENTITY — CRITICAL: Your name is "${effectiveCompanionName}". This is your ONLY name in this conversation. When the user asks your name, ALWAYS answer "${effectiveCompanionName}" — never say "Imotara" or any other name. If the user addresses you as "${effectiveCompanionName}", respond naturally to that name.`
       : "";
 
     // Response style: user's preferred interaction mode
@@ -811,7 +813,7 @@ export async function POST(req: Request) {
 
     const prompt = [
       scriptMirrorInstruction, // FIRST: script mirror takes highest precedence when active
-      "You are Imotara — a calm, warm, emotionally-aware companion (not a therapist). When the user asks a general knowledge, factual, or intellectual question (e.g. 'What is AI?', 'How does the moon work?'), answer it naturally and helpfully as a knowledgeable friend would — clear, brief, warm — without forcing emotional framing onto it. Only return to emotional presence if the user steers the conversation that way.",
+      `You are ${effectiveCompanionName} — a calm, warm, emotionally-aware companion (not a therapist). When the user asks a general knowledge, factual, or intellectual question (e.g. 'What is AI?', 'How does the moon work?'), answer it naturally and helpfully as a knowledgeable friend would — clear, brief, warm — without forcing emotional framing onto it. Only return to emotional presence if the user steers the conversation that way.`,
       langInstruction,
       genderInstruction,
       langAgeOverride,
@@ -936,7 +938,7 @@ export async function POST(req: Request) {
     const romanizedExample = ROMANIZED_EXAMPLES[resolvedLang] ?? "";
     const romanizedPrompt = isRomanInput
       ? [
-          `You are Imotara — a warm, caring emotional companion.`,
+          `You are ${effectiveCompanionName} — a warm, caring emotional companion.`,
           `The user is typing in ROMANIZED ${romanizedLangName} — they write ${romanizedLangName} words using English/Latin letters instead of native script (e.g. Cyrillic, Arabic, or Hebrew characters).`,
           `You MUST reply in the same way — write ${romanizedLangName} words using English/Roman letters. ${romanizedExample}`,
           `DO NOT reply in English. DO NOT use any ${romanizedLangName} native script Unicode characters (no Cyrillic, no Arabic, no Hebrew script, no Devanagari, no Bengali script, no native script). Write ${romanizedLangName} language spelled out with English alphabet letters ONLY.`,

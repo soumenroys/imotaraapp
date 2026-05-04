@@ -1,5 +1,6 @@
 // src/app/careers/page.tsx
 import type { Metadata } from "next";
+import CareersApplyForm from "@/components/imotara/CareersApplyForm";
 
 const SITE_URL = "https://www.imotara.com";
 
@@ -138,7 +139,6 @@ export default function CareersPage() {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
             <RoleTag>Full-time</RoleTag>
             <RoleTag>Remote · Kolkata preferred</RoleTag>
-            <RoleTag>₹8,000 – ₹10,000 / month</RoleTag>
             <RoleTag>Content & Creative</RoleTag>
           </div>
         </section>
@@ -233,7 +233,7 @@ export default function CareersPage() {
             <ul className="list-disc space-y-2 pl-5">
               <li>You have a background, training, or deep personal familiarity with mental health, emotional wellness, or mindfulness.</li>
               <li>You've built or grown an audience — a blog, channel, newsletter, or social account — driven by authentic storytelling.</li>
-              <li>You know Canva, CapCut, Premiere, or any creative tool well enough to move fast without waiting for a designer.</li>
+              <li>You know Canva, CapCut, Premiere, DaVinci Resolve, or any creative tool well enough to move fast without waiting for a designer.</li>
               <li>You speak another language fluently — Imotara serves users across cultures, and that sensitivity matters here.</li>
               <li>You care about privacy and technology ethics. You'll be speaking for a product built around those values.</li>
             </ul>
@@ -270,37 +270,21 @@ export default function CareersPage() {
         </Section>
 
         {/* ── Apply ─────────────────────────────────────────────────── */}
-        <section className="imotara-glass-card rounded-2xl px-4 py-8 text-center shadow-xl backdrop-blur-md sm:px-6 sm:py-10">
-          <p className="text-2xl select-none" aria-hidden>🌸</p>
+        <section className="imotara-glass-card rounded-2xl px-4 py-8 shadow-xl backdrop-blur-md sm:px-6 sm:py-10">
+          <div className="text-center mb-6">
+            <p className="text-2xl select-none" aria-hidden>🌸</p>
+            <h2 className="mt-3 text-base font-semibold tracking-tight text-zinc-50 sm:text-lg">
+              Ready to write for a calmer world?
+            </h2>
+            <p className="mx-auto mt-3 max-w-md text-xs leading-6 text-zinc-400">
+              Upload your CV and a passport photo — we'll receive them directly.
+              No cover letter template needed. Just be honest about who you are.
+            </p>
+          </div>
 
-          <h2 className="mt-3 text-base font-semibold tracking-tight text-zinc-50 sm:text-lg">
-            Ready to write for a calmer world?
-          </h2>
-
-          <p className="mx-auto mt-3 max-w-md leading-6 text-zinc-400">
-            Send us your story — a short note about why this role feels right for you,
-            a recent photo, and your CV or portfolio.
-          </p>
-
-          <p className="mx-auto mt-2 max-w-md leading-6 text-zinc-500 text-xs">
-            No cover letter template needed. Just be honest about who you are and what
-            you care about. That's what we're hiring for.
-          </p>
-
-          <a
-            href="mailto:publisher@imotara.com?subject=Digital Content Creator — Application"
-            className="mt-6 inline-flex items-center gap-2.5 rounded-full bg-indigo-600 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 transition hover:bg-indigo-500 hover:shadow-indigo-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
-          >
-            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 flex-shrink-0" aria-hidden>
-              <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
-              <path d="m3 7 9 6 9-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-            Apply — publisher@imotara.com
-          </a>
-
-          <p className="mt-4 text-[11px] text-zinc-600">
-            Attach your photo and CV to the email. We read every application personally.
-          </p>
+          <div className="mx-auto max-w-md">
+            <CareersApplyForm />
+          </div>
         </section>
 
         {/* ── Closing note ─────────────────────────────────────────── */}

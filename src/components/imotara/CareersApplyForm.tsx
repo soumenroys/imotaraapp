@@ -4,6 +4,46 @@ import { useRef, useState } from "react";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
+function TextInput({
+  id,
+  label,
+  type = "text",
+  placeholder,
+  required,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  label: string;
+  type?: string;
+  placeholder?: string;
+  required?: boolean;
+  value: string;
+  onChange: (v: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-xs font-medium text-zinc-300">
+        {label}
+        {required && <span className="ml-1 text-rose-400">*</span>}
+      </label>
+      <input
+        id={id}
+        name={id}
+        type={type}
+        placeholder={placeholder}
+        required={required}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="w-full rounded-xl border border-white/10 bg-white/4 px-4 py-3 text-sm text-zinc-200 placeholder-zinc-600 outline-none transition hover:border-white/20 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+      />
+    </div>
+  );
+}
+
 function FileDropZone({
   id,
   label,
@@ -69,9 +109,7 @@ function FileDropZone({
         ) : (
           <div className="flex flex-col items-center gap-2 py-1 text-center">
             <span className="text-2xl opacity-50" aria-hidden>📎</span>
-            <p className="text-xs text-zinc-400">
-              Click to choose or drag &amp; drop
-            </p>
+            <p className="text-xs text-zinc-400">Click to choose or drag &amp; drop</p>
             <p className="text-[11px] text-zinc-600">{accept.replace(/\./g, "").toUpperCase()} · max 10 MB</p>
           </div>
         )}
@@ -92,26 +130,31 @@ function FileDropZone({
 }
 
 export default function CareersApplyForm() {
-  const [cv, setCv]       = useState<File | null>(null);
+  const [name,  setName]  = useState("");
+  const [email, setEmail] = useState("");
+  const [cv,    setCv]    = useState<File | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
-  const [status, setStatus] = useState<Status>("idle");
+  const [status,   setStatus]   = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
   const busy = status === "submitting";
+  const canSubmit = name.trim() && email.trim() && cv;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!cv) return;
+    if (!canSubmit) return;
 
     setStatus("submitting");
     setErrorMsg("");
 
     const body = new FormData();
-    body.append("cv", cv);
+    body.append("name",  name.trim());
+    body.append("email", email.trim());
+    body.append("cv",    cv);
     if (photo) body.append("photo", photo);
 
     try {
-      const res = await fetch("/api/careers/apply", { method: "POST", body });
+      const res  = await fetch("/api/careers/apply", { method: "POST", body });
       const json = await res.json();
       if (!res.ok) {
         setErrorMsg(json.error ?? "Something went wrong. Please try again.");
@@ -130,18 +173,39 @@ export default function CareersApplyForm() {
       <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/8 px-6 py-8 text-center backdrop-blur-md">
         <p className="text-3xl" aria-hidden>🌸</p>
         <h3 className="mt-3 text-base font-semibold text-zinc-50">
-          Application received — thank you!
+          Application received — thank you, {name.split(" ")[0]}!
         </h3>
         <p className="mx-auto mt-2 max-w-sm text-xs leading-6 text-zinc-400">
-          We've received your CV{photo ? " and photo" : ""} and will be in touch
-          if your profile is a good fit. We read every application personally.
+          We've sent a confirmation to <span className="text-zinc-300">{email}</span>.
+          We'll be in touch if your profile is a great fit. We read every application personally.
         </p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+      <TextInput
+        id="name"
+        label="Your Name"
+        placeholder="e.g. Priya Sharma"
+        required
+        value={name}
+        onChange={setName}
+        disabled={busy}
+      />
+
+      <TextInput
+        id="email"
+        label="Email Address"
+        type="email"
+        placeholder="you@example.com"
+        required
+        value={email}
+        onChange={setEmail}
+        disabled={busy}
+      />
+
       <FileDropZone
         id="cv"
         label="Your CV / Résumé"
@@ -169,7 +233,7 @@ export default function CareersApplyForm() {
 
       <button
         type="submit"
-        disabled={!cv || busy}
+        disabled={!canSubmit || busy}
         className="w-full rounded-full bg-indigo-600 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
       >
         {busy ? "Sending…" : "Send Application"}

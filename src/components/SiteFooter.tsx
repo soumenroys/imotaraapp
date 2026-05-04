@@ -62,6 +62,7 @@ const NAV_LINKS = [
   { href: "/about",   label: "About",   emoji: "🌿" },
   { href: "/grow",    label: "Grow",    emoji: "✨" },
   { href: "/connect", label: "Contact", emoji: "✉️" },
+  { href: "/careers", label: "Careers", emoji: "🌱" },
   { href: "/privacy", label: "Privacy", emoji: "🔒" },
   { href: "/terms",   label: "Terms",   emoji: "📋" },
 ];

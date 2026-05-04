@@ -1,6 +1,5 @@
 // src/app/careers/page.tsx
 import type { Metadata } from "next";
-import CareersApplyForm from "@/components/imotara/CareersApplyForm";
 
 const SITE_URL = "https://www.imotara.com";
 
@@ -270,21 +269,28 @@ export default function CareersPage() {
         </Section>
 
         {/* ── Apply ─────────────────────────────────────────────────── */}
-        <section className="imotara-glass-card rounded-2xl px-4 py-8 shadow-xl backdrop-blur-md sm:px-6 sm:py-10">
-          <div className="text-center mb-6">
-            <p className="text-2xl select-none" aria-hidden>🌸</p>
-            <h2 className="mt-3 text-base font-semibold tracking-tight text-zinc-50 sm:text-lg">
-              Ready to write for a calmer world?
-            </h2>
-            <p className="mx-auto mt-3 max-w-md text-xs leading-6 text-zinc-400">
-              Upload your CV and a passport photo — we'll receive them directly.
-              No cover letter template needed. Just be honest about who you are.
-            </p>
-          </div>
-
-          <div className="mx-auto max-w-md">
-            <CareersApplyForm />
-          </div>
+        <section className="imotara-glass-card rounded-2xl px-4 py-8 text-center shadow-xl backdrop-blur-md sm:px-6 sm:py-10">
+          <p className="text-2xl select-none" aria-hidden>🌸</p>
+          <h2 className="mt-3 text-base font-semibold tracking-tight text-zinc-50 sm:text-lg">
+            Ready to write for a calmer world?
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-xs leading-6 text-zinc-400">
+            Send us your CV and a recent photo. No cover letter template needed —
+            just be honest about who you are and what you care about.
+          </p>
+          <a
+            href="mailto:publisher@imotara.com?subject=Application%20for%20Content%20Creator%20of%20Imotara"
+            className="mt-6 inline-flex items-center gap-2.5 rounded-full bg-indigo-600 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 transition hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+          >
+            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 flex-shrink-0" aria-hidden>
+              <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
+              <path d="m3 7 9 6 9-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+            Apply Now
+          </a>
+          <p className="mt-4 text-[11px] text-zinc-600">
+            Opens your mail app with publisher@imotara.com pre-filled.
+          </p>
         </section>
 
         {/* ── Closing note ─────────────────────────────────────────── */}

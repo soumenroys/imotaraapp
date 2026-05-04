@@ -279,7 +279,9 @@ export default function CareersPage() {
             just be honest about who you are and what you care about.
           </p>
           <a
-            href="mailto:publisher@imotara.com?subject=Application%20for%20Content%20Creator%20of%20Imotara"
+            href="https://mail.google.com/mail/?view=cm&fs=1&to=publisher@imotara.com&su=Application+for+Content+Creator+of+Imotara"
+            target="_blank"
+            rel="noopener noreferrer"
             className="mt-6 inline-flex items-center gap-2.5 rounded-full bg-indigo-600 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 transition hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
           >
             <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 flex-shrink-0" aria-hidden>
@@ -289,7 +291,7 @@ export default function CareersPage() {
             Apply Now
           </a>
           <p className="mt-4 text-[11px] text-zinc-600">
-            Opens your mail app with publisher@imotara.com pre-filled.
+            Opens Gmail with publisher@imotara.com pre-filled — attach your CV and photo before sending.
           </p>
         </section>
 

@@ -1106,7 +1106,13 @@ export default function ChatPage() {
     const voice = genderFile === "male"
       ? (src.find(isMaleV) ?? src.find(v => !isFemV(v)) ?? src[0])
       : (src.find(isFemV) ?? src.find(v => !isMaleV(v)) ?? src[0]);
-    const utter = new SpeechSynthesisUtterance("Hi, I'm Imotara. I'm here with you.");
+    const effectiveName = role === "comp"
+      ? (p?.companion?.name?.trim() || "Imotara")
+      : (p?.user?.name?.trim() || "");
+    const greeting = effectiveName
+      ? `Hi, I'm ${effectiveName}. I'm here with you.`
+      : "Hi, I'm right here with you.";
+    const utter = new SpeechSynthesisUtterance(greeting);
     if (voice) utter.voice = voice;
     utter.lang = "en-US";
     utter.rate = 0.95;

@@ -190,7 +190,7 @@ const PREVIEW_TEXT_BY_LANG: Record<string, string> = {
     ja: "こんにちは、私はイモタラです。ここにいますよ。",
 };
 
-function speakPreview(gender: string, lang: string, onResult?: (info: string, missing: boolean) => void) {
+function speakPreview(gender: string, lang: string, name?: string, onResult?: (info: string, missing: boolean) => void) {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     const synth = window.speechSynthesis;
 
@@ -214,11 +214,16 @@ function speakPreview(gender: string, lang: string, onResult?: (info: string, mi
         const isFemV  = (v: SpeechSynthesisVoice) => FEMALE_PAT.test(nm(v));
         const langBase = bcp47.split("-")[0];
 
-        // Non-English: always use pre-generated Azure MP3s — they have proper
-        // gender-specific voices. Native TTS for non-English typically only ships
-        // one voice (usually female, e.g. Lekha for Hindi) so gender selection
-        // would be ignored. Azure MP3s are pre-generated with correct male/female.
-        if (lang !== "en") {
+        const effectiveName = name?.trim() || "Imotara";
+        const hasCustomName = effectiveName !== "Imotara";
+        const previewText   = hasCustomName
+            ? `Hi, I'm ${effectiveName}. I'm here with you.`
+            : PREVIEW_TEXT_BY_LANG["en"];
+
+        // Non-English without custom name: use pre-generated Azure MP3s for accurate
+        // gender-specific voice preview. When a custom name is set, fall through to
+        // native TTS so the correct name is spoken instead of "Imotara".
+        if (lang !== "en" && !hasCustomName) {
             const genderFile = previewGenderFile(gender);
             const src = `/tts-preview/${lang}-${genderFile}.mp3`;
             onResult?.(`Azure Neural (${lang}-${genderFile})`, false);
@@ -228,7 +233,7 @@ function speakPreview(gender: string, lang: string, onResult?: (info: string, mi
             return;
         }
 
-        // English: use native Web Speech API (always available, good gender support).
+        // English or custom name: use native Web Speech API.
         const langPool = voices.filter(
             v => v.lang === bcp47 || v.lang.startsWith(langBase + "-") || v.lang === langBase,
         );
@@ -243,7 +248,7 @@ function speakPreview(gender: string, lang: string, onResult?: (info: string, mi
         }
         onResult?.(`${voice.name} (${voice.lang})`, false);
 
-        const utt = new SpeechSynthesisUtterance(PREVIEW_TEXT_BY_LANG["en"]);
+        const utt = new SpeechSynthesisUtterance(previewText);
         utt.lang  = voice.lang;
         utt.rate  = 0.95;
         utt.pitch = 1.0;
@@ -605,7 +610,7 @@ function ToneAndContextTile() {
                                 </select>
                                 <button
                                     type="button"
-                                    onClick={() => speakPreview(userGender, preferredLang, (text, missing) => setUserVoiceInfo({ text, missing }))}
+                                    onClick={() => speakPreview(userGender, preferredLang, userName.trim(), (text, missing) => setUserVoiceInfo({ text, missing }))}
                                     className="mt-0.5 flex items-center gap-1 self-start text-[11px] text-zinc-400 transition hover:text-zinc-200"
                                 >
                                     🔊 Preview voice
@@ -798,7 +803,7 @@ function ToneAndContextTile() {
                                     </select>
                                     <button
                                         type="button"
-                                        onClick={() => speakPreview(compGender, preferredLang, (text, missing) => setCompVoiceInfo({ text, missing }))}
+                                        onClick={() => speakPreview(compGender, preferredLang, compName.trim(), (text, missing) => setCompVoiceInfo({ text, missing }))}
                                         className="mt-0.5 flex items-center gap-1 self-start text-[11px] text-zinc-400 transition hover:text-zinc-200"
                                     >
                                         🔊 Preview voice

@@ -216,24 +216,34 @@ function speakPreview(gender: string, lang: string, name?: string, onResult?: (i
 
         const effectiveName = name?.trim() || "Imotara";
         const hasCustomName = effectiveName !== "Imotara";
-        const previewText   = hasCustomName
-            ? `Hi, I'm ${effectiveName}. I'm here with you.`
-            : PREVIEW_TEXT_BY_LANG["en"];
 
-        // Non-English without custom name: use pre-generated Azure MP3s for accurate
-        // gender-specific voice preview. When a custom name is set, fall through to
-        // native TTS so the correct name is spoken instead of "Imotara".
-        if (lang !== "en" && !hasCustomName) {
+        // Non-English: always use pre-generated Azure MP3s for accurate language
+        // and gender-specific voice. Then play a short English name greeting after.
+        if (lang !== "en") {
             const genderFile = previewGenderFile(gender);
             const src = `/tts-preview/${lang}-${genderFile}.mp3`;
             onResult?.(`Azure Neural (${lang}-${genderFile})`, false);
             const audio = new Audio(src);
             audio.playbackRate = 0.95;
+            if (hasCustomName) {
+                // After the language MP3 finishes, speak the name in English
+                audio.onended = () => {
+                    const synth2 = window.speechSynthesis;
+                    const nameUtt = new SpeechSynthesisUtterance(`I'm ${effectiveName}.`);
+                    nameUtt.lang  = "en-US";
+                    nameUtt.rate  = 0.95;
+                    synth2.speak(nameUtt);
+                };
+            }
             audio.play().catch(err => console.warn("[speakPreview] audio play failed:", err));
             return;
         }
 
-        // English or custom name: use native Web Speech API.
+        // English: use native Web Speech API with gender selection.
+        const previewText = hasCustomName
+            ? `Hi, I'm ${effectiveName}. I'm here with you.`
+            : PREVIEW_TEXT_BY_LANG["en"];
+
         const langPool = voices.filter(
             v => v.lang === bcp47 || v.lang.startsWith(langBase + "-") || v.lang === langBase,
         );

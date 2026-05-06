@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
@@ -120,16 +119,15 @@ export default function SiteHeader() {
             className="flex items-center gap-2 text-sm font-semibold tracking-tight text-zinc-900 transition hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-200"
             aria-label="Imotara home"
           >
-            <span suppressHydrationWarning>
-              <Image
-                src="/android-chrome-192.png"
-                width={28}
-                height={28}
-                alt="Imotara"
-                className="rounded-xl shadow-[0_10px_25px_rgba(15,23,42,0.8)]"
-                priority
-              />
-            </span>
+            {/* dangerouslySetInnerHTML opts this node out of React hydration entirely,
+                so browser extensions that remove <img> tags don't cause warnings. */}
+            <span
+              suppressHydrationWarning
+              dangerouslySetInnerHTML={{ __html:
+                '<img src="/android-chrome-192.png" width="28" height="28" alt="Imotara"' +
+                ' class="rounded-xl shadow-[0_10px_25px_rgba(15,23,42,0.8)]" decoding="async" />'
+              }}
+            />
             <span className="hidden sm:inline">Imotara</span>
           </Link>
 

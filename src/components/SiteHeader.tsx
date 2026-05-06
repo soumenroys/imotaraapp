@@ -120,14 +120,16 @@ export default function SiteHeader() {
             className="flex items-center gap-2 text-sm font-semibold tracking-tight text-zinc-900 transition hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-200"
             aria-label="Imotara home"
           >
-            <Image
-              src="/android-chrome-192.png"
-              width={28}
-              height={28}
-              alt="Imotara"
-              className="rounded-xl shadow-[0_10px_25px_rgba(15,23,42,0.8)]"
-              priority
-            />
+            <span suppressHydrationWarning>
+              <Image
+                src="/android-chrome-192.png"
+                width={28}
+                height={28}
+                alt="Imotara"
+                className="rounded-xl shadow-[0_10px_25px_rgba(15,23,42,0.8)]"
+                priority
+              />
+            </span>
             <span className="hidden sm:inline">Imotara</span>
           </Link>
 

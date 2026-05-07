@@ -20,10 +20,12 @@ export type FeatureGateResult =
 
 // History days per tier — matches upgrade page copy
 const HISTORY_DAYS: Record<LicenseTier, number> = {
-    free:   7,
-    plus:   90,
-    pro:    Infinity,
-    family: Infinity,
+    free:       7,
+    plus:       90,
+    pro:        Infinity,
+    family:     Infinity,
+    edu:        Infinity,
+    enterprise: Infinity,
 };
 
 // Per-tier feature sets — only list what each tier unlocks
@@ -46,6 +48,19 @@ const TIER_FEATURES: Record<LicenseTier, Set<FeatureKey>> = {
         "MULTI_PROFILE",
         "CHILD_SAFE_MODE",
         // Export intentionally off for Family (privacy boundary — shared device)
+    ]),
+    edu: new Set<FeatureKey>([
+        "CLOUD_SYNC",
+        "HISTORY_UNLIMITED",
+        "TRENDS_INSIGHTS",
+        "ADMIN_DASHBOARD",
+    ]),
+    enterprise: new Set<FeatureKey>([
+        "CLOUD_SYNC",
+        "HISTORY_UNLIMITED",
+        "TRENDS_INSIGHTS",
+        "EXPORT_DATA",
+        "ADMIN_DASHBOARD",
     ]),
 };
 

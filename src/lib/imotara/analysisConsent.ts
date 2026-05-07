@@ -1,6 +1,6 @@
 // src/lib/imotara/analysisConsent.ts
 
-export type AnalysisConsentMode = "local-only" | "allow-remote";
+export type AnalysisConsentMode = "local-only" | "auto" | "allow-remote";
 
 const STORAGE_KEY = "imotara.analysisConsent.v1";
 const LEGACY_STORAGE_KEY = "imotara:analysisConsent";
@@ -10,14 +10,14 @@ function parseStoredMode(raw: string | null): AnalysisConsentMode | null {
 
     try {
         const parsed = JSON.parse(raw) as { mode?: AnalysisConsentMode } | null;
-        if (parsed && (parsed.mode === "local-only" || parsed.mode === "allow-remote")) {
+        if (parsed && (parsed.mode === "local-only" || parsed.mode === "auto" || parsed.mode === "allow-remote")) {
             return parsed.mode;
         }
     } catch {
         // plain string fallback handled below
     }
 
-    if (raw === "local-only" || raw === "allow-remote") {
+    if (raw === "local-only" || raw === "auto" || raw === "allow-remote") {
         return raw;
     }
 

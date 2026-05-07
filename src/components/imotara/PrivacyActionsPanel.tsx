@@ -1,7 +1,7 @@
 // src/components/imotara/PrivacyActionsPanel.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
     Download,
     Trash2,
@@ -9,27 +9,24 @@ import {
     CloudOff,
     Shield,
     Sparkles,
+    Wand2,
 } from "lucide-react";
 import {
     exportHistoryAsJsonFile,
     deleteAllRemoteHistory,
 } from "@/lib/imotara/privacyClientActions";
+import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 
 type ExportState = "idle" | "running" | "done" | "error";
 type CloudExportState = "idle" | "running" | "done" | "error";
 type DeleteState = "idle" | "running" | "done" | "error";
 type RemoteDeleteState = "idle" | "running" | "done" | "error";
 
-type ConsentMode = "local-only" | "allow-remote";
-
-const CONSENT_KEY = "imotara:allow-remote-analysis";
-
 function safeParseJson(raw: string | null) {
     if (raw == null) return null;
     try {
         return JSON.parse(raw);
     } catch {
-        // If it’s not valid JSON, just return the raw string so it’s not lost.
         return raw;
     }
 }
@@ -43,8 +40,7 @@ export default function PrivacyActionsPanel() {
         useState<RemoteDeleteState>("idle");
     const [message, setMessage] = useState<string | null>(null);
 
-    const [consentMode, setConsentMode] = useState<ConsentMode>("local-only");
-    const [consentLoaded, setConsentLoaded] = useState(false);
+    const { mode: consentMode, setMode, ready: consentLoaded } = useAnalysisConsent();
 
     const isBusy =
         exportState === "running" ||
@@ -53,47 +49,25 @@ export default function PrivacyActionsPanel() {
         remoteDeleteState === "running";
 
     /* ------------------------------------------------------------------------
-     * Consent load/save (Option B – two big cards)
+     * Consent handlers
      * ----------------------------------------------------------------------*/
 
-    // Load current consent from localStorage on mount
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        try {
-            const raw = window.localStorage.getItem(CONSENT_KEY);
-            if (raw === "true") {
-                setConsentMode("allow-remote");
-            } else {
-                setConsentMode("local-only");
-            }
-        } catch {
-            setConsentMode("local-only");
-        } finally {
-            setConsentLoaded(true);
-        }
-    }, []);
-
-    const persistConsent = (mode: ConsentMode) => {
-        if (typeof window === "undefined") return;
-        try {
-            const allow = mode === "allow-remote";
-            window.localStorage.setItem(CONSENT_KEY, allow ? "true" : "false");
-        } catch {
-            // non-fatal; UI still reflects user's choice
-        }
-    };
-
     const handleSelectLocalOnly = () => {
-        setConsentMode("local-only");
-        persistConsent("local-only");
+        setMode("local-only");
         setMessage(
             "Imotara will keep analysis on this device only. You can change this anytime."
         );
     };
 
+    const handleSelectAuto = () => {
+        setMode("auto");
+        setMessage(
+            "Imotara will choose the best approach for each message — local when possible, cloud when it helps."
+        );
+    };
+
     const handleSelectAllowRemote = () => {
-        setConsentMode("allow-remote");
-        persistConsent("allow-remote");
+        setMode("allow-remote");
         setMessage(
             "Imotara may use secure cloud analysis to give deeper emotional support. You’re still in control."
         );
@@ -322,11 +296,12 @@ export default function PrivacyActionsPanel() {
                 : "text-zinc-400";
 
     const isLocalOnly = consentMode === "local-only";
+    const isAuto = consentMode === "auto";
     const isAllowRemote = consentMode === "allow-remote";
 
     return (
         <div className="mt-4 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-4 shadow-inner">
-            {/* Consent choice section – Option B: two big cards */}
+            {/* Consent choice section – three cards */}
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
                 How Imotara processes your feelings
             </p>
@@ -334,12 +309,12 @@ export default function PrivacyActionsPanel() {
                 Choose how you want Imotara to think with you. You can switch anytime.
             </p>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 {/* Local-only card */}
                 <button
                     type="button"
                     onClick={handleSelectLocalOnly}
-                    disabled={isBusy}
+                    disabled={isBusy || !consentLoaded}
                     className={`group flex h-full flex-col items-start rounded-2xl border px-4 py-3 text-left transition ${isLocalOnly
                         ? "border-emerald-400/70 bg-emerald-500/10 shadow-md shadow-emerald-900/40"
                         : "border-zinc-700/80 bg-zinc-900/60 hover:border-emerald-400/60 hover:bg-zinc-900"
@@ -355,7 +330,7 @@ export default function PrivacyActionsPanel() {
                             <Shield className="h-3.5 w-3.5" />
                         </span>
                         <span className="text-sm font-semibold text-zinc-100">
-                            Keep everything on this device
+                            On-device only
                         </span>
                     </div>
                     <p className="mt-2 text-xs text-zinc-400">
@@ -367,11 +342,43 @@ export default function PrivacyActionsPanel() {
                     </p>
                 </button>
 
+                {/* Auto card */}
+                <button
+                    type="button"
+                    onClick={handleSelectAuto}
+                    disabled={isBusy || !consentLoaded}
+                    className={`group flex h-full flex-col items-start rounded-2xl border px-4 py-3 text-left transition ${isAuto
+                        ? "border-violet-400/80 bg-violet-500/10 shadow-md shadow-violet-900/40"
+                        : "border-zinc-700/80 bg-zinc-900/60 hover:border-violet-400/60 hover:bg-zinc-900"
+                        }`}
+                >
+                    <div className="flex items-center gap-2">
+                        <span
+                            className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-xs transition ${isAuto
+                                ? "border-violet-400/80 bg-violet-500/15 text-violet-200"
+                                : "border-zinc-600/80 bg-zinc-900 text-zinc-300 group-hover:border-violet-400/70"
+                                }`}
+                        >
+                            <Wand2 className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="text-sm font-semibold text-zinc-100">
+                            Auto (smart routing)
+                        </span>
+                    </div>
+                    <p className="mt-2 text-xs text-zinc-400">
+                        Imotara decides per message — local when possible, cloud when it
+                        helps give deeper support.
+                    </p>
+                    <p className="mt-2 text-[11px] font-medium text-violet-300/90">
+                        {isAuto ? "Selected" : "Tap to switch"}
+                    </p>
+                </button>
+
                 {/* Allow-remote card */}
                 <button
                     type="button"
                     onClick={handleSelectAllowRemote}
-                    disabled={isBusy}
+                    disabled={isBusy || !consentLoaded}
                     className={`group flex h-full flex-col items-start rounded-2xl border px-4 py-3 text-left transition ${isAllowRemote
                         ? "border-sky-400/80 bg-sky-500/10 shadow-md shadow-sky-900/40"
                         : "border-zinc-700/80 bg-zinc-900/60 hover:border-sky-400/70 hover:bg-zinc-900"
@@ -387,12 +394,12 @@ export default function PrivacyActionsPanel() {
                             <Sparkles className="h-3.5 w-3.5" />
                         </span>
                         <span className="text-sm font-semibold text-zinc-100">
-                            Allow deeper support with secure cloud analysis
+                            Cloud analysis
                         </span>
                     </div>
                     <p className="mt-2 text-xs text-zinc-400">
-                        Imotara may use secure AI in the cloud to give more nuanced,
-                        supportive responses. Your data is still handled with care.
+                        Imotara always uses secure AI in the cloud for more nuanced,
+                        supportive responses. Your data is handled with care.
                     </p>
                     <p className="mt-2 text-[11px] font-medium text-sky-300/90">
                         {isAllowRemote ? "Selected" : "Tap to switch"}

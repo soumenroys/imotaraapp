@@ -3,7 +3,7 @@
 // Shared types for Imotara licensing.
 // These are future-facing and do NOT enforce anything by themselves.
 
-export type LicenseTier = "free" | "plus" | "pro" | "family";
+export type LicenseTier = "free" | "plus" | "pro" | "family" | "edu" | "enterprise";
 
 export type LicenseStatusCode = "valid" | "invalid" | "expired" | "trial";
 

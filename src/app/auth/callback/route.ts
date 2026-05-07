@@ -10,9 +10,9 @@ export async function GET(request: Request) {
     // Where to send the user after successful login
     const redirectTo = url.searchParams.get("redirectTo") ?? "/chat";
 
-    // If no code, go back to login
+    // If no code, return to the intended destination with an error param
     if (!code) {
-        return NextResponse.redirect(new URL("/dev/login?error=missing_code", url));
+        return NextResponse.redirect(new URL(`${redirectTo}?auth_error=missing_code`, url));
     }
 
     const cookieStore = await cookies();
@@ -40,9 +40,7 @@ export async function GET(request: Request) {
     if (error) {
         return NextResponse.redirect(
             new URL(
-                `/dev/login?error=access_denied&error_code=${encodeURIComponent(
-                    error.name ?? "exchange_failed"
-                )}&error_description=${encodeURIComponent(error.message)}`,
+                `${redirectTo}?auth_error=${encodeURIComponent(error.name ?? "exchange_failed")}`,
                 url
             )
         );

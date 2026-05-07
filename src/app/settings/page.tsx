@@ -1203,16 +1203,16 @@ export default function SettingsPage() {
     const consentLabel =
         mode === "allow-remote"
             ? "Remote analysis allowed"
-            : mode === "local-only"
-                ? "On-device only (local analysis)"
-                : "Analysis mode: unknown";
+            : mode === "auto"
+                ? "Auto (smart routing)"
+                : "On-device only (local analysis)";
 
     const consentBadgeClass =
         mode === "allow-remote"
             ? "border-emerald-300/70 bg-emerald-500/10 text-emerald-200"
-            : mode === "local-only"
-                ? "border-zinc-400/70 bg-zinc-900/40 text-zinc-100"
-                : "border-zinc-600/70 bg-zinc-900/60 text-zinc-300";
+            : mode === "auto"
+                ? "border-violet-300/70 bg-violet-500/10 text-violet-200"
+                : "border-zinc-400/70 bg-zinc-900/40 text-zinc-100";
 
     const [busy, setBusy] = useState<"chat" | "history" | "all" | null>(null);
     const [status, setStatus] = useState<string | null>(null);
@@ -1588,7 +1588,7 @@ export default function SettingsPage() {
                             ].join(" ")}
                         >
                             <span
-                                className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-500"
+                                className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : mode === "auto" ? "bg-violet-400" : "bg-zinc-500"
                                     }`}
                             />
                             {consentLabel}

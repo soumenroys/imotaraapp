@@ -173,7 +173,9 @@ export default function HistoryPage() {
   const consentLabel =
     mode === "allow-remote"
       ? "Remote analysis allowed"
-      : "On-device only (local analysis)";
+      : mode === "auto"
+        ? "Auto (smart routing)"
+        : "On-device only (local analysis)";
 
   async function handleExport() {
     if (!exportGate.allowed) {
@@ -276,6 +278,8 @@ export default function HistoryPage() {
                     <span
                       className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote"
                         ? "bg-emerald-400"
+                        : mode === "auto"
+                        ? "bg-violet-400"
                         : "bg-zinc-500"
                         }`}
                       aria-hidden="true"

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect, useCallback, useTransition } from "react";
+import type { LicenseTier } from "@/types/license";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -17,7 +18,6 @@ interface Comment {
 }
 type CommentTab = "pending" | "approved" | "all";
 
-type LicenseTier   = "free" | "plus" | "pro" | "family" | "edu" | "enterprise";
 type LicenseStatus = "valid" | "invalid" | "expired" | "trial";
 
 interface UserLicense {

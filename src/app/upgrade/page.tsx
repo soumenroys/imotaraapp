@@ -5,7 +5,24 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, X as XIcon } from "lucide-react";
+import { createBrowserClient } from "@supabase/ssr";
 import useLicense from "@/hooks/useLicense";
+
+function getSupabase() {
+    return createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+}
+
+async function signInWithGoogle() {
+    const supabase = getSupabase();
+    const redirectTo = `${window.location.origin}/auth/callback?redirectTo=/upgrade`;
+    await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+    });
+}
 
 declare global {
     interface Window { Razorpay?: any; }
@@ -90,6 +107,20 @@ export default function UpgradePage() {
         loadRazorpay().then(setRzReady).catch(() => setRzReady(false));
     }, []);
 
+    // Show error if returning from a failed OAuth attempt (query param or hash fragment)
+    useEffect(() => {
+        const params   = new URLSearchParams(window.location.search);
+        const hash     = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const hasError = params.get("auth_error") || hash.get("error");
+        if (hasError) {
+            setStatus({ type: "error", msg: "Sign-in failed. Please try again." });
+            const clean = new URL(window.location.href);
+            clean.searchParams.delete("auth_error");
+            clean.hash = "";
+            window.history.replaceState({}, "", clean.toString());
+        }
+    }, []);
+
     async function checkout(productId: string, description: string) {
         if (busy) return;
         setBusy(productId);
@@ -110,10 +141,10 @@ export default function UpgradePage() {
 
             if (!res.ok || !json.ok) {
                 if (res.status === 401) {
-                    setStatus({ type: "error", msg: "You need to sign in first. Go to /chat and sign in, then come back here." });
-                } else {
-                    setStatus({ type: "error", msg: json?.error || "Could not create order. Please try again." });
+                    await signInWithGoogle();
+                    return;
                 }
+                setStatus({ type: "error", msg: json?.error || "Could not create order. Please try again." });
                 return;
             }
 

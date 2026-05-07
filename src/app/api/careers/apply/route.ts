@@ -133,9 +133,19 @@ export async function POST(req: NextRequest) {
   }
 
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
     auth: { user, pass },
   });
+
+  try {
+    await transporter.verify();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[careers/apply] SMTP verify failed:", msg);
+    return NextResponse.json({ error: `SMTP error: ${msg}` }, { status: 500 });
+  }
 
   try {
     // 1. Notify publisher with attachments
@@ -174,9 +184,10 @@ export async function POST(req: NextRequest) {
         "https://www.imotara.com",
       ].join("\n"),
     });
-  } catch (err) {
-    console.error("[careers/apply] Failed to send email:", err);
-    return NextResponse.json({ error: "Failed to send application. Please try again." }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[careers/apply] Failed to send email:", msg);
+    return NextResponse.json({ error: `Send failed: ${msg}` }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

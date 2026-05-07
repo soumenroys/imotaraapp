@@ -151,7 +151,7 @@ function getAllowRemote(): boolean {
       // Supports either { mode: "allow-remote" | ... } OR { allowRemote: boolean }
       if (typeof parsed?.allowRemote === "boolean") return parsed.allowRemote;
       if (typeof parsed?.mode === "string")
-        return parsed.mode === "allow-remote";
+        return parsed.mode !== "local-only";
     }
   } catch {
     // ignore
@@ -1154,9 +1154,11 @@ export default function ChatPage() {
   }, [license.loading, license.status, license.expiresAt]);
 
   const { mode } = useAnalysisConsent();
-  const remoteAllowed = mode === "allow-remote";
+  const remoteAllowed = mode !== "local-only";
   const consentLabel =
-    mode === "allow-remote" ? "Remote analysis allowed" : "On-device only";
+    mode === "allow-remote" ? "Remote analysis allowed"
+    : mode === "auto" ? "Auto (smart routing)"
+    : "On-device only";
   // ✅ SSR-stable placeholder to avoid hydration mismatch
   // Server render must NOT depend on localStorage / client-only settings.
   const [composerPlaceholder, setComposerPlaceholder] = useState(
@@ -2864,10 +2866,12 @@ export default function ChatPage() {
                       <div className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs ${
                         mode === "allow-remote"
                           ? "border-emerald-300/50 bg-emerald-500/10 text-emerald-200"
+                          : mode === "auto"
+                          ? "border-violet-300/50 bg-violet-500/10 text-violet-200"
                           : "border-white/15 bg-black/25 text-white/90"
                       }`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : "bg-zinc-400"}`} />
-                        {mode === "allow-remote" ? "Remote allowed" : "Local only"}
+                        <span className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : mode === "auto" ? "bg-violet-400" : "bg-zinc-400"}`} />
+                        {mode === "allow-remote" ? "Remote allowed" : mode === "auto" ? "Auto routing" : "Local only"}
                       </div>
                     </div>
                   </div>

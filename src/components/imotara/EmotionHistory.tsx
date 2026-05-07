@@ -292,16 +292,16 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
   const consentLabel =
     consentMode === "allow-remote"
       ? "Remote analysis allowed"
-      : consentMode === "local-only"
-        ? "On-device only"
-        : "Analysis mode: unknown";
+      : consentMode === "auto"
+        ? "Auto (smart routing)"
+        : "On-device only";
 
   const consentClass =
     consentMode === "allow-remote"
       ? "border-emerald-300 bg-emerald-50/80 text-emerald-700 dark:border-emerald-600/60 dark:bg-emerald-900/40 dark:text-emerald-300"
-      : consentMode === "local-only"
-        ? "border-zinc-300 bg-zinc-50/80 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300"
-        : "border-zinc-200 bg-zinc-50/80 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400";
+      : consentMode === "auto"
+        ? "border-violet-300 bg-violet-50/80 text-violet-700 dark:border-violet-600/60 dark:bg-violet-900/40 dark:text-violet-300"
+        : "border-zinc-300 bg-zinc-50/80 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300";
 
   const router = useRouter();
 

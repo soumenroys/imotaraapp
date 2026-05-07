@@ -57,6 +57,7 @@ type UseAnalysisConsentResult = {
     setMode: (mode: AnalysisConsentMode) => void;
     ready: boolean;
     isLocalOnly: boolean;
+    isAuto: boolean;
     isRemoteAllowed: boolean;
 };
 
@@ -106,6 +107,7 @@ export function useAnalysisConsent(): UseAnalysisConsentResult {
         setMode,
         ready,
         isLocalOnly: mode === "local-only",
-        isRemoteAllowed: mode === "allow-remote",
+        isAuto: mode === "auto",
+        isRemoteAllowed: mode !== "local-only",
     };
 }

@@ -2,71 +2,63 @@
 "use client";
 
 import React from "react";
+import { type AnalysisConsentMode } from "@/lib/imotara/analysisConsent";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 
-/**
- * Compact sliding toggle for emotion-analysis consent.
- *
- * - "local-only"   → analysis stays in the browser
- * - "allow-remote" → text may be sent to the backend/API
- *
- * The Chat page shows the longer labels (“Remote analysis allowed” etc.).
- */
+const MODES: { value: AnalysisConsentMode; label: string; title: string }[] = [
+    { value: "local-only", label: "Local", title: "On-device only — no data leaves your browser" },
+    { value: "auto", label: "Auto", title: "Imotara decides whether local or cloud is best for each message" },
+    { value: "allow-remote", label: "Cloud", title: "Cloud AI — richer responses, text sent to Imotara servers" },
+];
+
 export default function AnalysisConsentToggle({
     showHelp = true,
 }: {
     showHelp?: boolean;
 }) {
-    const {
-        mode,
-        setMode,
-        ready,
-        isLocalOnly,
-        isRemoteAllowed,
-    } = useAnalysisConsent();
-
-    const handleToggle = () => {
-        if (!ready) return;
-        setMode(isLocalOnly ? "allow-remote" : "local-only");
-    };
+    const { mode, setMode, ready } = useAnalysisConsent();
 
     return (
         <div className="flex flex-col gap-1">
-            <button
-                type="button"
-                onClick={handleToggle}
-                disabled={!ready}
-                aria-pressed={isRemoteAllowed}
-                aria-label="Toggle emotion analysis between local-only and remote"
+            <div
+                role="group"
+                aria-label="Emotion analysis mode"
                 className={[
-                    "relative inline-flex h-7 w-full items-center rounded-full border border-white/15",
-                    "bg-black/50 px-1 text-xs font-medium text-zinc-300",
-                    "shadow-sm backdrop-blur-sm transition",
-                    "hover:bg-white/5",
-                    "disabled:opacity-60",
+                    "relative inline-flex h-7 w-full rounded-full border border-white/15",
+                    "bg-black/50 p-0.5 text-xs font-medium text-zinc-300",
+                    "shadow-sm backdrop-blur-sm",
+                    !ready ? "opacity-60 pointer-events-none" : "",
                 ].join(" ")}
             >
-                {/* Sliding pill */}
+                {/* Sliding active pill */}
                 <span
+                    aria-hidden
                     className={[
-                        "absolute inset-y-0.5 left-0.5 w-1/2 rounded-full",
+                        "absolute inset-y-0.5 rounded-full",
                         "bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400",
-                        "shadow-md transition-transform duration-200",
-                        isRemoteAllowed ? "translate-x-full" : "translate-x-0",
+                        "shadow-md transition-all duration-200",
+                        "w-1/3",
+                        mode === "local-only" ? "left-0.5" : mode === "auto" ? "left-1/3" : "left-2/3",
                     ].join(" ")}
                 />
 
-                <span
-                    className={`relative flex-1 text-center ${isLocalOnly ? "text-white" : "text-zinc-300"}`}
-                >
-                    Local
-                </span>
-                <span
-                    className={`relative flex-1 text-center ${isRemoteAllowed ? "text-white" : "text-zinc-300"}`}
-                >
-                    Cloud
-                </span>
-            </button>
+                {MODES.map(({ value, label, title }) => (
+                    <button
+                        key={value}
+                        type="button"
+                        title={title}
+                        disabled={!ready}
+                        onClick={() => setMode(value)}
+                        aria-pressed={mode === value}
+                        className={[
+                            "relative flex-1 rounded-full text-center transition-colors duration-150 select-none",
+                            mode === value ? "text-white" : "text-zinc-400 hover:text-zinc-200",
+                        ].join(" ")}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
         </div>
     );
 }

@@ -5,7 +5,7 @@
 // - No enforcement yet; only returns a structured snapshot.
 
 export type LicenseMode = "off" | "log" | "enforce";
-export type LicenseTier = "free" | "plus" | "pro" | "family";
+export type LicenseTier = "free" | "plus" | "pro" | "family" | "edu" | "enterprise";
 export type LicenseStatusCode = "valid" | "invalid" | "expired" | "trial";
 
 export type LicenseStatus = {
@@ -101,5 +101,7 @@ function normalizeTier(t: string): LicenseTier {
     if (v === "plus") return "plus";
     if (v === "pro") return "pro";
     if (v === "family") return "family";
+    if (v === "edu") return "edu";
+    if (v === "enterprise") return "enterprise";
     return "free";
 }

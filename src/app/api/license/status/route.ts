@@ -64,7 +64,7 @@ export async function GET() {
                 mode: fallback.mode,
                 license: {
                     status: (licenseRow?.status as "valid" | "invalid" | "expired") ?? "valid",
-                    tier: (licenseRow?.tier as "free" | "pro") ?? fallback.tier,
+                    tier: (licenseRow?.tier as import("@/types/license").LicenseTier) ?? fallback.tier,
                     mode: fallback.mode,
                     source: licenseRow ? "supabase" : "internal",
                     expiresAt: licenseRow?.expires_at ?? null,

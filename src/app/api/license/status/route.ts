@@ -58,13 +58,22 @@ export async function GET() {
 
         if (!licErr && row) licenseRow = row;
 
+        // Enforce expiry: treat as free if expires_at is set and in the past
+        const isExpired =
+            licenseRow?.expires_at != null &&
+            new Date(licenseRow.expires_at).getTime() < Date.now();
+        const effectiveTier = isExpired
+            ? "free"
+            : ((licenseRow?.tier as import("@/types/license").LicenseTier) ?? fallback.tier);
+        const effectiveStatus = isExpired ? "expired" : ((licenseRow?.status as "valid" | "invalid" | "expired") ?? "valid");
+
         const res = NextResponse.json(
             {
                 ok: true,
                 mode: fallback.mode,
                 license: {
-                    status: (licenseRow?.status as "valid" | "invalid" | "expired") ?? "valid",
-                    tier: (licenseRow?.tier as import("@/types/license").LicenseTier) ?? fallback.tier,
+                    status: effectiveStatus,
+                    tier: effectiveTier,
                     mode: fallback.mode,
                     source: licenseRow ? "supabase" : "internal",
                     expiresAt: licenseRow?.expires_at ?? null,

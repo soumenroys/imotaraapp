@@ -349,7 +349,7 @@ export async function POST(req: Request) {
         latinLetters / totalLetters > 0.75 &&
         englishHits >= 2;
 
-      return looksEnglish ? "en" : "en";
+      return looksEnglish ? "en" : "hi";
     }
 
     function stableVariantIndex(seed: string, modulo: number): number {

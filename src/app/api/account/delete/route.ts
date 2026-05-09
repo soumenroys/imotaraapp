@@ -60,10 +60,10 @@ export async function DELETE(req: Request) {
     errors.push(`history: ${String(e)}`);
   }
 
-  // 2. Delete companion memory entries
+  // 2. Delete companion memory entries (user_memory table, all types)
   try {
     const { error } = await admin
-      .from("imotara_memory")
+      .from("user_memory")
       .delete()
       .eq("user_id", userId);
     if (error) errors.push(`memory: ${error.message}`);
@@ -71,18 +71,7 @@ export async function DELETE(req: Request) {
     errors.push(`memory: ${String(e)}`);
   }
 
-  // 3. Delete push subscriptions
-  try {
-    const { error } = await admin
-      .from("push_subscriptions")
-      .delete()
-      .eq("user_id", userId);
-    if (error) errors.push(`push: ${error.message}`);
-  } catch (e) {
-    errors.push(`push: ${String(e)}`);
-  }
-
-  // 4. Delete the auth user (must be last)
+  // 3. Delete the auth user (must be last)
   const { error: authError } = await admin.auth.admin.deleteUser(userId);
   if (authError) {
     return NextResponse.json(

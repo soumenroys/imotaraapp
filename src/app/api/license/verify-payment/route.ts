@@ -97,11 +97,50 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: false, error: "Could not resolve product" }, { status: 400 });
         }
 
-        const result = await grantLicense(userId, productId, getSupabaseAdmin());
+        const admin = getSupabaseAdmin();
+
+        // Idempotency — if this paymentId was already processed, return current license
+        const { data: existingPayment } = await admin
+            .from("payment_licenses")
+            .select("payment_id")
+            .eq("payment_id", paymentId)
+            .maybeSingle();
+
+        if (existingPayment) {
+            const { data: lic } = await admin
+                .from("licenses")
+                .select("tier, token_balance, expires_at")
+                .eq("user_id", userId)
+                .maybeSingle();
+            const res = NextResponse.json({
+                ok: true,
+                tier:         lic?.tier         ?? "free",
+                tokenBalance: lic?.token_balance ?? 0,
+                expiresAt:    lic?.expires_at    ?? null,
+            });
+            res.headers.set("Cache-Control", "no-store");
+            return res;
+        }
+
+        // Record payment first to prevent double-grant on concurrent retries
+        const product = PRODUCT_CATALOG[productId as LicenseProductId];
+        await admin.from("payment_licenses").upsert({
+            payment_id:   paymentId,
+            user_id:      userId,
+            product_id:   productId,
+            tier:         product.type === "subscription" ? product.tier : "free",
+            amount_paise: payment?.amount ?? product.paise,
+            currency:     payment?.currency ?? "INR",
+        }, { onConflict: "payment_id", ignoreDuplicates: true });
+
+        const result = await grantLicense(userId, productId, admin);
 
         if (!result.ok) {
             return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
         }
+
+        // Mark source as razorpay
+        await admin.from("licenses").update({ source: "razorpay" }).eq("user_id", userId);
 
         const res = NextResponse.json({
             ok: true,

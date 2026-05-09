@@ -7,8 +7,13 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const code = url.searchParams.get("code");
 
-    // Where to send the user after successful login
-    const redirectTo = url.searchParams.get("redirectTo") ?? "/chat";
+    // Where to send the user after successful login.
+    // Only allow same-origin relative paths to prevent open-redirect abuse.
+    const rawRedirect = url.searchParams.get("redirectTo") ?? "";
+    const redirectTo =
+        rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+            ? rawRedirect
+            : "/chat";
 
     // If no code, return to the intended destination with an error param
     if (!code) {

@@ -992,6 +992,58 @@ export async function POST(req: Request) {
   (baseCtx as any).user = (baseCtx as any).user ?? {};
   (baseCtx as any).user.id = String(userId);
 
+  // ── Quota gate (mirrors /api/chat-reply LIC-2) ────────────────────────────
+  // /api/respond is the fallback AI path — protect it identically.
+  // Fail-open: DB errors never block a reply.
+  if (authUserId) {
+    try {
+      const { getSupabaseAdmin } = await import("@/lib/supabaseServer");
+      const quotaAdmin = getSupabaseAdmin();
+
+      const { data: licRow } = await quotaAdmin
+        .from("licenses")
+        .select("tier, expires_at, token_balance")
+        .eq("user_id", authUserId)
+        .maybeSingle();
+
+      const isExpired =
+        licRow?.expires_at != null &&
+        new Date(licRow.expires_at).getTime() < Date.now();
+      const isFree = !licRow || licRow.tier === "free" || isExpired;
+
+      if (isFree) {
+        const todayStart = new Date();
+        todayStart.setUTCHours(0, 0, 0, 0);
+        const { count } = await quotaAdmin
+          .from("usage_events")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", authUserId)
+          .gte("created_at", todayStart.toISOString());
+
+        if ((count ?? 0) >= 20) {
+          const tokenBalance = licRow?.token_balance ?? 0;
+          if (tokenBalance > 0) {
+            await quotaAdmin
+              .from("licenses")
+              .update({ token_balance: tokenBalance - 1 })
+              .eq("user_id", authUserId)
+              .gt("token_balance", 0);
+          } else {
+            const r = NextResponse.json(
+              { message: "", meta: { from: "quota_exceeded", reason: "daily_limit", limit: 20 } },
+              { status: 200 },
+            );
+            r.headers.set("Cache-Control", "no-store");
+            return r;
+          }
+        }
+      }
+    } catch {
+      // Fail-open
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   let pinnedRecall: string[] = [];
   let pinnedRecallRelevant = false;
 

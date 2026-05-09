@@ -7,8 +7,8 @@
 // Steps performed:
 //  1. Authenticate the caller via Bearer token (mobile) or cookie session (web)
 //  2. Delete all synced history records for the user
-//  3. Delete all companion memory entries for the user
-//  4. Delete any push subscriptions for the user
+//  3. Delete all companion memory entries (incl. push subscriptions in user_memory)
+//  4. Delete license, payment_licenses, and usage_events rows
 //  5. Delete the Supabase auth user (permanent)
 //
 // The mobile app also clears local AsyncStorage before calling this endpoint.
@@ -60,7 +60,7 @@ export async function DELETE(req: Request) {
     errors.push(`history: ${String(e)}`);
   }
 
-  // 2. Delete companion memory entries (user_memory table, all types)
+  // 2. Delete companion memory entries (user_memory table, all types incl. push subs)
   try {
     const { error } = await admin
       .from("user_memory")
@@ -71,7 +71,29 @@ export async function DELETE(req: Request) {
     errors.push(`memory: ${String(e)}`);
   }
 
-  // 3. Delete the auth user (must be last)
+  // 3. Delete license and payment records (GDPR + App Store compliance)
+  try {
+    const { error } = await admin.from("licenses").delete().eq("user_id", userId);
+    if (error) errors.push(`licenses: ${error.message}`);
+  } catch (e) {
+    errors.push(`licenses: ${String(e)}`);
+  }
+
+  try {
+    const { error } = await admin.from("payment_licenses").delete().eq("user_id", userId);
+    if (error) errors.push(`payment_licenses: ${error.message}`);
+  } catch (e) {
+    errors.push(`payment_licenses: ${String(e)}`);
+  }
+
+  try {
+    const { error } = await admin.from("usage_events").delete().eq("user_id", userId);
+    if (error) errors.push(`usage_events: ${error.message}`);
+  } catch (e) {
+    errors.push(`usage_events: ${String(e)}`);
+  }
+
+  // 4. Delete the auth user (must be last)
   const { error: authError } = await admin.auth.admin.deleteUser(userId);
   if (authError) {
     return NextResponse.json(

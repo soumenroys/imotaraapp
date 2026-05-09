@@ -238,12 +238,9 @@ export async function GET(request: Request) {
   const mode = searchParams.get("mode") ?? "envelope";
   const since = Number(searchParams.get("since") ?? "0");
 
-  // Array mode (back-compat) — lock in production unless QA header present
+  // Array mode — admin-only in all environments (returns all users' records)
   if (mode === "array") {
-    const qaHeader = request.headers.get("x-imotara-qa");
-    const qa = qaHeader === "1" || qaHeader?.toLowerCase() === "true";
-
-    if (isProd() && !qa && !admin) {
+    if (!admin) {
       return new NextResponse("Not Found", { status: 404 });
     }
 

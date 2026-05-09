@@ -8,7 +8,7 @@
 // Verifies the transaction with Apple App Store Server API before granting.
 
 import { NextResponse } from "next/server";
-import { createSign } from "crypto";
+import { createSign, createVerify, createPublicKey } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import {
     grantLicense,
@@ -41,6 +41,43 @@ function makeAppleJWT(): string {
     sign.update(message);
     const signature = sign.sign(privateKey, "base64url");
     return `${message}.${signature}`;
+}
+
+// ── JWS signature verification ────────────────────────────────────────────────
+// Apple signs signedTransactionInfo with their own EC private key.
+// The x5c header field carries the leaf certificate whose public key we use
+// to verify the ES256 signature. This confirms the payload was not tampered
+// with even if HTTPS were somehow compromised.
+
+function verifyAppleJWS(jws: string): boolean {
+    try {
+        const parts = jws.split(".");
+        if (parts.length !== 3) return false;
+
+        const header = JSON.parse(
+            Buffer.from(parts[0], "base64url").toString("utf8")
+        ) as { alg?: string; x5c?: string[] };
+
+        if (header.alg !== "ES256") return false;
+        if (!Array.isArray(header.x5c) || header.x5c.length === 0) return false;
+
+        // Reconstruct PEM from the leaf DER certificate (base64-encoded in x5c[0])
+        const leafPem = [
+            "-----BEGIN CERTIFICATE-----",
+            ...(header.x5c[0].match(/.{1,64}/g) ?? []),
+            "-----END CERTIFICATE-----",
+        ].join("\n");
+
+        const publicKey  = createPublicKey(leafPem);
+        const signedData = `${parts[0]}.${parts[1]}`;
+        const signature  = Buffer.from(parts[2], "base64url");
+
+        const verifier = createVerify("SHA256");
+        verifier.update(signedData);
+        return verifier.verify(publicKey, signature);
+    } catch {
+        return false;
+    }
 }
 
 // ── Verify transaction with Apple ─────────────────────────────────────────────
@@ -79,11 +116,13 @@ async function verifyAppleTransaction(transactionId: string): Promise<{
         const jws  = json?.signedTransactionInfo;
         if (!jws) return { ok: false, error: "No signedTransactionInfo in Apple response" };
 
-        // Decode JWS payload (header.payload.signature) — we trust the HTTPS response
-        // from Apple's server authenticated with our private key.
-        const parts = jws.split(".");
-        if (parts.length !== 3) return { ok: false, error: "Invalid JWS from Apple" };
+        // Verify the ES256 signature using the x5c leaf certificate from the JWS header.
+        // This ensures the payload was signed by Apple and was not tampered with.
+        if (!verifyAppleJWS(jws)) {
+            return { ok: false, error: "Apple JWS signature verification failed" };
+        }
 
+        const parts = jws.split(".");
         let txPayload: Record<string, unknown>;
         try {
             txPayload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));

@@ -5,8 +5,10 @@
 // → { ok, tier, tokenBalance, expiresAt }
 //
 // Idempotent: re-running with the same transactionId returns current license state.
+// Verifies the transaction with Apple App Store Server API before granting.
 
 import { NextResponse } from "next/server";
+import { createSign } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import {
     grantLicense,
@@ -14,6 +16,88 @@ import {
     PRODUCT_CATALOG,
     type LicenseProductId,
 } from "@/lib/imotara/grantLicense";
+
+const APPLE_BUNDLE_ID = "com.imotara.imotara";
+
+// ── Apple App Store Server API JWT ────────────────────────────────────────────
+
+function makeAppleJWT(): string {
+    const issuerId  = process.env.APPLE_IAP_ISSUER_ID  ?? "";
+    const keyId     = process.env.APPLE_IAP_KEY_ID     ?? "";
+    const privateKey = process.env.APPLE_IAP_PRIVATE_KEY ?? "";
+
+    const now    = Math.floor(Date.now() / 1000);
+    const header  = Buffer.from(JSON.stringify({ alg: "ES256", kid: keyId })).toString("base64url");
+    const payload = Buffer.from(JSON.stringify({
+        iss: issuerId,
+        iat: now,
+        exp: now + 3600,
+        aud: "appstoreconnect-v1",
+        bid: APPLE_BUNDLE_ID,
+    })).toString("base64url");
+
+    const message   = `${header}.${payload}`;
+    const sign      = createSign("SHA256");
+    sign.update(message);
+    const signature = sign.sign(privateKey, "base64url");
+    return `${message}.${signature}`;
+}
+
+// ── Verify transaction with Apple ─────────────────────────────────────────────
+// Tries production first, then sandbox (covers TestFlight purchases).
+
+async function verifyAppleTransaction(transactionId: string): Promise<{
+    ok: boolean;
+    appleProductId?: string;
+    environment?: string;
+    error?: string;
+}> {
+    const token = makeAppleJWT();
+    const endpoints = [
+        { url: `https://api.storekit.apple.com/inApps/v1/transactions/${transactionId}`,         env: "production" },
+        { url: `https://api.storekit-sandbox.apple.com/inApps/v1/transactions/${transactionId}`, env: "sandbox" },
+    ];
+
+    for (const { url, env } of endpoints) {
+        let res: Response;
+        try {
+            res = await fetch(url, {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: AbortSignal.timeout(8_000),
+            });
+        } catch {
+            continue;
+        }
+
+        if (res.status === 404) continue;
+
+        if (!res.ok) {
+            return { ok: false, error: `Apple API ${env} returned ${res.status}` };
+        }
+
+        const json = await res.json() as { signedTransactionInfo?: string };
+        const jws  = json?.signedTransactionInfo;
+        if (!jws) return { ok: false, error: "No signedTransactionInfo in Apple response" };
+
+        // Decode JWS payload (header.payload.signature) — we trust the HTTPS response
+        // from Apple's server authenticated with our private key.
+        const parts = jws.split(".");
+        if (parts.length !== 3) return { ok: false, error: "Invalid JWS from Apple" };
+
+        let txPayload: Record<string, unknown>;
+        try {
+            txPayload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+        } catch {
+            return { ok: false, error: "Could not parse Apple transaction payload" };
+        }
+
+        return { ok: true, appleProductId: String(txPayload.productId ?? ""), environment: env };
+    }
+
+    return { ok: false, error: "Transaction not found in Apple production or sandbox" };
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
 
 async function resolveUserId(req: Request): Promise<string | null> {
     const auth = req.headers.get("authorization") ?? "";
@@ -23,13 +107,15 @@ async function resolveUserId(req: Request): Promise<string | null> {
     return data?.user?.id ?? null;
 }
 
+// ── Route ─────────────────────────────────────────────────────────────────────
+
 export async function POST(req: Request) {
     try {
         const userId = await resolveUserId(req);
         if (!userId) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
-        const body        = await req.json().catch(() => ({}));
-        const productId   = String(body?.productId   ?? "").trim();
+        const body          = await req.json().catch(() => ({}));
+        const productId     = String(body?.productId     ?? "").trim();
         const transactionId = String(body?.transactionId ?? "").trim();
 
         if (!isValidProductId(productId)) {
@@ -64,6 +150,29 @@ export async function POST(req: Request) {
             return res;
         }
 
+        // Verify with Apple App Store Server API
+        const hasAppleCredentials =
+            process.env.APPLE_IAP_ISSUER_ID &&
+            process.env.APPLE_IAP_KEY_ID &&
+            process.env.APPLE_IAP_PRIVATE_KEY;
+
+        if (hasAppleCredentials) {
+            const verification = await verifyAppleTransaction(transactionId);
+            if (!verification.ok) {
+                return NextResponse.json(
+                    { ok: false, error: `Apple verification failed: ${verification.error}` },
+                    { status: 400 },
+                );
+            }
+            // Confirm Apple's productId matches what the client claimed
+            if (verification.appleProductId && verification.appleProductId !== productId) {
+                return NextResponse.json(
+                    { ok: false, error: "productId mismatch with Apple transaction" },
+                    { status: 400 },
+                );
+            }
+        }
+
         // Record transaction first (prevents double-grant on retry)
         const product = PRODUCT_CATALOG[productId as LicenseProductId];
         await admin.from("payment_licenses").upsert({
@@ -71,7 +180,7 @@ export async function POST(req: Request) {
             user_id:      userId,
             product_id:   productId,
             tier:         product.type === "subscription" ? product.tier : "free",
-            amount_paise: product.type === "subscription" ? product.paise : (product as any).paise,
+            amount_paise: product.paise,
             currency:     "INR",
         }, { onConflict: "payment_id", ignoreDuplicates: true });
 
@@ -80,7 +189,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
         }
 
-        // Mark source as apple
         await admin.from("licenses").update({ source: "apple" }).eq("user_id", userId);
 
         const res = NextResponse.json({

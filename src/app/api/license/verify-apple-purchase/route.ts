@@ -166,10 +166,11 @@ export async function POST(req: Request) {
 
         const admin = getSupabaseAdmin();
 
-        // Idempotency — if this transactionId was already processed, return current license
+        // Idempotency — if this transactionId was already processed, return current license.
+        // Also select tier so we can detect a prior failed grantLicense and recover.
         const { data: existingPayment } = await admin
             .from("payment_licenses")
-            .select("payment_id")
+            .select("payment_id, tier")
             .eq("payment_id", transactionId)
             .maybeSingle();
 
@@ -179,9 +180,32 @@ export async function POST(req: Request) {
                 .select("tier, token_balance, expires_at")
                 .eq("user_id", userId)
                 .maybeSingle();
+
+            const currentTier = (lic?.tier ?? "free") as string;
+            const paymentTier = (existingPayment.tier ?? "free") as string;
+
+            // If the payment was for a subscription tier but the license row still shows
+            // "free", the previous grantLicense call must have failed after the payment
+            // record was written. Re-run the grant now so the user's purchase is honoured.
+            if (paymentTier !== "free" && currentTier === "free") {
+                const reGrant = await grantLicense(userId, productId as LicenseProductId, admin);
+                if (!reGrant.ok) {
+                    return NextResponse.json({ ok: false, error: reGrant.error }, { status: 500 });
+                }
+                await admin.from("licenses").update({ source: "apple" }).eq("user_id", userId);
+                const res = NextResponse.json({
+                    ok:           true,
+                    tier:         reGrant.tier,
+                    tokenBalance: reGrant.tokenBalance,
+                    expiresAt:    reGrant.expiresAt,
+                });
+                res.headers.set("Cache-Control", "no-store");
+                return res;
+            }
+
             const res = NextResponse.json({
                 ok: true,
-                tier:         lic?.tier         ?? "free",
+                tier:         currentTier,
                 tokenBalance: lic?.token_balance ?? 0,
                 expiresAt:    lic?.expires_at    ?? null,
             });
@@ -203,12 +227,21 @@ export async function POST(req: Request) {
                     { status: 400 },
                 );
             }
-            // Confirm Apple's productId matches what the client claimed
-            if (verification.appleProductId && verification.appleProductId !== productId) {
-                return NextResponse.json(
-                    { ok: false, error: "productId mismatch with Apple transaction" },
-                    { status: 400 },
-                );
+            // Confirm Apple's productId matches what the client claimed.
+            // App Store Connect stores the full bundle-prefixed SKU (e.g.
+            // "com.imotara.imotara.plus_monthly"), but the client sends the
+            // short catalog key ("plus_monthly"). Strip the bundle prefix
+            // before comparing so both forms match correctly.
+            if (verification.appleProductId) {
+                const normalizedAppleId = verification.appleProductId.startsWith(`${APPLE_BUNDLE_ID}.`)
+                    ? verification.appleProductId.slice(`${APPLE_BUNDLE_ID}.`.length)
+                    : verification.appleProductId;
+                if (normalizedAppleId !== productId) {
+                    return NextResponse.json(
+                        { ok: false, error: "productId mismatch with Apple transaction" },
+                        { status: 400 },
+                    );
+                }
             }
         }
 

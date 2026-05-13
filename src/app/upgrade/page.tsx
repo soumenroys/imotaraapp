@@ -125,6 +125,11 @@ export default function UpgradePage() {
         if (busy) return;
         setBusy(productId);
         setStatus(null);
+        // Tracks whether the Razorpay modal was opened. If true, setBusy is cleared by
+        // the modal callbacks (handler/ondismiss/payment.failed) rather than the finally
+        // block — because rzp.open() is non-blocking and the finally would fire immediately,
+        // re-enabling buttons while the modal is still open and allowing duplicate orders.
+        let modalOpened = false;
         try {
             if (!window.Razorpay) {
                 const ok = await loadRazorpay();
@@ -160,6 +165,7 @@ export default function UpgradePage() {
                 notes:       { purpose: "imotara_license", productId },
                 theme:       { color: "#6366f1" },
                 handler: async function (response: any) {
+                    setBusy(null);
                     const paymentId = response?.razorpay_payment_id as string | undefined;
                     if (!paymentId) { setStatus({ type: "error", msg: "Payment ID missing. Contact support." }); return; }
                     // Confirm grant on server
@@ -175,17 +181,21 @@ export default function UpgradePage() {
                         setStatus({ type: "success", msg: "Payment received. Your plan will activate within a minute." });
                     }
                 },
-                modal: { ondismiss: () => setStatus({ type: "error", msg: "Checkout closed. No payment was made." }) },
+                modal: { ondismiss: () => { setBusy(null); setStatus({ type: "error", msg: "Checkout closed. No payment was made." }); } },
             };
             const rzp = new (window as any).Razorpay(options);
             rzp.on("payment.failed", (resp: any) => {
+                setBusy(null);
                 setStatus({ type: "error", msg: resp?.error?.description || "Payment failed. Please try again." });
             });
             rzp.open();
+            modalOpened = true;
         } catch (e: any) {
             setStatus({ type: "error", msg: e?.message || "Something went wrong. Please try again." });
         } finally {
-            setBusy(null);
+            // Only clear busy here if the modal never opened (pre-modal error path).
+            // If the modal opened, the callbacks above handle it.
+            if (!modalOpened) setBusy(null);
         }
     }
 

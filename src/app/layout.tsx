@@ -23,7 +23,7 @@ const siteUrl = (() => {
 
   // ✅ Production-safe fallback (prevents localhost leaking into canonical/og/JSON-LD)
   if (process.env.NODE_ENV === "production") {
-    return "https://imotaraapp.vercel.app";
+    return "https://imotara.com";
   }
 
   // Local dev fallback only
@@ -280,7 +280,7 @@ function JsonLd() {
         name: "Is there an Imotara mobile app?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. Imotara is available on Android via Google Play and on iOS via the App Store, in addition to the web app at imotaraapp.vercel.app.",
+          text: "Yes. Imotara is available on Android via Google Play and on iOS via the App Store, in addition to the web app at https://imotara.com.",
         },
       },
       {

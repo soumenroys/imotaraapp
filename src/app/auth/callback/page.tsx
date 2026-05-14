@@ -43,6 +43,8 @@ function CallbackHandler() {
             } else {
                 router.replace(redirectTo);
             }
+        }).catch(() => {
+            router.replace(`${redirectTo}?auth_error=exchange_failed`);
         });
     }, [searchParams, router]);
 

@@ -123,6 +123,16 @@ export default function UpgradePage() {
 
     async function checkout(productId: string, description: string) {
         if (busy) return;
+
+        // Get session from the browser client directly — more reliable than cookies
+        // because the session lives in the client's in-memory storage after OAuth.
+        const supabase = getSupabase();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            await signInWithGoogle();
+            return;
+        }
+
         setBusy(productId);
         setStatus(null);
         // Tracks whether the Razorpay modal was opened. If true, setBusy is cleared by
@@ -139,7 +149,10 @@ export default function UpgradePage() {
             const res  = await fetch("/api/license/order-intent", {
                 method: "POST",
                 credentials: "same-origin",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session.access_token}`,
+                },
                 body: JSON.stringify({ productId }),
             });
             const json = await res.json();

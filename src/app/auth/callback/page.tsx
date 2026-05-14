@@ -1,52 +1,70 @@
 "use client";
 
 // src/app/auth/callback/page.tsx
-// Client-side OAuth callback — lets createBrowserClient handle the PKCE code
-// exchange using the code_verifier it stored itself. Avoids the server-side
-// cookie-on-redirect problem entirely.
+//
+// createBrowserClient has detectSessionInUrl:true by default, so it
+// auto-exchanges the PKCE ?code= during initialize(). Calling
+// exchangeCodeForSession() a second time always fails ("invalid grant").
+//
+// Fix: don't call it manually. Subscribe to onAuthStateChange, wait for
+// SIGNED_IN or INITIAL_SESSION (whichever arrives first), then do a
+// full-page navigation (window.location.href) to the destination.
+// A full reload means the destination page starts with a fresh
+// createBrowserClient that reads the session from cookies — reliable.
 
 import { Suspense, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 
 function CallbackHandler() {
     const searchParams = useSearchParams();
-    const router = useRouter();
     const ran = useRef(false);
 
     useEffect(() => {
         if (ran.current) return;
         ran.current = true;
 
-        const code = searchParams.get("code");
         const rawRedirect = searchParams.get("redirectTo") ?? "";
         const redirectTo =
             rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
                 ? rawRedirect
                 : "/chat";
 
-        if (!code) {
-            router.replace(`${redirectTo}?auth_error=missing_code`);
-            return;
-        }
-
+        // Creating the client triggers the auto-exchange of ?code= via detectSessionInUrl.
         const supabase = createBrowserClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         );
 
-        supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-            if (error) {
-                router.replace(
-                    `${redirectTo}?auth_error=${encodeURIComponent(error.name ?? "exchange_failed")}`
-                );
-            } else {
-                router.replace(redirectTo);
+        let done = false;
+
+        const navigate = (path: string) => {
+            if (done) return;
+            done = true;
+            // Full-page navigation so the destination starts with a clean JS
+            // environment and reads the session from cookies.
+            window.location.href = path;
+        };
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
+                subscription.unsubscribe();
+                clearTimeout(fallback);
+                navigate(redirectTo);
             }
-        }).catch(() => {
-            router.replace(`${redirectTo}?auth_error=exchange_failed`);
         });
-    }, [searchParams, router]);
+
+        // Safety net: if the exchange never fires within 10 s, bail with an error.
+        const fallback = setTimeout(() => {
+            subscription.unsubscribe();
+            navigate(`${redirectTo}?auth_error=timeout`);
+        }, 10_000);
+
+        return () => {
+            subscription.unsubscribe();
+            clearTimeout(fallback);
+        };
+    }, [searchParams]);
 
     return null;
 }

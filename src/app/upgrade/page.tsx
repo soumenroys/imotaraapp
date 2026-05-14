@@ -130,19 +130,29 @@ export default function UpgradePage() {
         } catch {}
     }, []);
 
-    // When a pending purchase is detected, subscribe to auth state and auto-trigger checkout
-    // once the session is available (fires immediately as INITIAL_SESSION if already signed in)
+    // When a pending purchase is detected, wait for both the session and Razorpay,
+    // then auto-trigger checkout. INITIAL_SESSION fires for every new subscriber so
+    // it arrives even if initialize() completed before this effect ran.
     useEffect(() => {
         if (!pendingPurchase || !rzReady) return;
+
         const supabase = getSupabase();
+        let triggered = false;
+
+        const trigger = (productId: string, description: string) => {
+            if (triggered) return;
+            triggered = true;
+            setPendingPurchase(null);
+            subscription.unsubscribe();
+            checkoutRef.current(productId, description);
+        };
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session) {
-                subscription.unsubscribe();
-                const { productId, description } = pendingPurchase;
-                setPendingPurchase(null);
-                checkoutRef.current(productId, description);
+                trigger(pendingPurchase.productId, pendingPurchase.description);
             }
         });
+
         return () => subscription.unsubscribe();
     }, [pendingPurchase, rzReady]);
 

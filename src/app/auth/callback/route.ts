@@ -22,6 +22,11 @@ export async function GET(request: Request) {
 
     const cookieStore = await cookies();
 
+    // Build the redirect response first so we can attach session cookies to it.
+    // cookieStore.set() cookies are NOT forwarded through NextResponse.redirect(),
+    // so we must call response.cookies.set() directly.
+    const response = NextResponse.redirect(new URL(redirectTo, url));
+
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -31,9 +36,8 @@ export async function GET(request: Request) {
                     return cookieStore.getAll();
                 },
                 setAll(cookiesToSet) {
-                    // IMPORTANT: must set cookies on the response
                     cookiesToSet.forEach(({ name, value, options }) => {
-                        cookieStore.set(name, value, options);
+                        response.cookies.set(name, value, options);
                     });
                 },
             },
@@ -51,6 +55,5 @@ export async function GET(request: Request) {
         );
     }
 
-    // Success → redirect into the app
-    return NextResponse.redirect(new URL(redirectTo, url));
+    return response;
 }

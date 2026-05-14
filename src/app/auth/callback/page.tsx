@@ -11,6 +11,10 @@
 // full-page navigation (window.location.href) to the destination.
 // A full reload means the destination page starts with a fresh
 // createBrowserClient that reads the session from cookies — reliable.
+//
+// Error fast-path: if Supabase redirects back with ?error= (e.g. "Unable to
+// exchange external code"), skip waiting and redirect immediately so the
+// user isn't stuck on the "Signing you in…" screen for 10 seconds.
 
 import { Suspense, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
@@ -30,6 +34,15 @@ function CallbackHandler() {
                 ? rawRedirect
                 : "/chat";
 
+        // Fast-fail: Supabase itself returned an error before our app could exchange.
+        // Typical cause: Google OAuth redirect URI not configured in Supabase dashboard.
+        const oauthError = searchParams.get("error");
+        if (oauthError) {
+            const desc = searchParams.get("error_description") || oauthError;
+            window.location.href = `${redirectTo}?auth_error=${encodeURIComponent(desc)}`;
+            return;
+        }
+
         // Creating the client triggers the auto-exchange of ?code= via detectSessionInUrl.
         const supabase = createBrowserClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,10 +60,15 @@ function CallbackHandler() {
         };
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
+            if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
                 subscription.unsubscribe();
                 clearTimeout(fallback);
-                navigate(redirectTo);
+                if (session) {
+                    navigate(redirectTo);
+                } else {
+                    // Exchange completed but no session was established.
+                    navigate(`${redirectTo}?auth_error=no_session`);
+                }
             }
         });
 

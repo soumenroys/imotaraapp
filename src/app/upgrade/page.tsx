@@ -2,26 +2,20 @@
 
 // src/app/upgrade/page.tsx — LIC-8: Pricing + Razorpay checkout for web
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, X as XIcon } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import useLicense from "@/hooks/useLicense";
+
+const PENDING_KEY = "imotara_pending_purchase";
+type PendingPurchase = { productId: string; description: string };
 
 function getSupabase() {
     return createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
-}
-
-async function signInWithGoogle() {
-    const supabase = getSupabase();
-    const redirectTo = `${window.location.origin}/auth/callback?redirectTo=/upgrade`;
-    await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo },
-    });
 }
 
 declare global {
@@ -102,6 +96,10 @@ export default function UpgradePage() {
     const [busy,   setBusy]   = useState<string | null>(null);
     const [status, setStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
     const [rzReady, setRzReady] = useState(false);
+    const [pendingPurchase, setPendingPurchase] = useState<PendingPurchase | null>(null);
+
+    // checkoutRef lets the auth-state listener always call the latest checkout closure
+    const checkoutRef = useRef<(productId: string, description: string) => void>(() => {});
 
     useEffect(() => {
         loadRazorpay().then(setRzReady).catch(() => setRzReady(false));
@@ -121,15 +119,45 @@ export default function UpgradePage() {
         }
     }, []);
 
+    // On mount, check if we're returning from a sign-in that was triggered by a pending purchase
+    useEffect(() => {
+        try {
+            const raw = sessionStorage.getItem(PENDING_KEY);
+            if (raw) {
+                setPendingPurchase(JSON.parse(raw));
+                sessionStorage.removeItem(PENDING_KEY);
+            }
+        } catch {}
+    }, []);
+
+    // When a pending purchase is detected, subscribe to auth state and auto-trigger checkout
+    // once the session is available (fires immediately as INITIAL_SESSION if already signed in)
+    useEffect(() => {
+        if (!pendingPurchase || !rzReady) return;
+        const supabase = getSupabase();
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session) {
+                subscription.unsubscribe();
+                const { productId, description } = pendingPurchase;
+                setPendingPurchase(null);
+                checkoutRef.current(productId, description);
+            }
+        });
+        return () => subscription.unsubscribe();
+    }, [pendingPurchase, rzReady]);
+
     async function checkout(productId: string, description: string) {
         if (busy) return;
 
-        // Get session from the browser client directly — more reliable than cookies
-        // because the session lives in the client's in-memory storage after OAuth.
         const supabase = getSupabase();
         const { data: { session } } = await supabase.auth.getSession();
+
         if (!session) {
-            await signInWithGoogle();
+            // Save what the user wanted to buy, then start OAuth.
+            // After sign-in, the auth listener above will auto-trigger checkout.
+            try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ productId, description })); } catch {}
+            const redirectTo = `${window.location.origin}/auth/callback?redirectTo=/upgrade`;
+            await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
             return;
         }
 
@@ -159,7 +187,9 @@ export default function UpgradePage() {
 
             if (!res.ok || !json.ok) {
                 if (res.status === 401) {
-                    await signInWithGoogle();
+                    try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ productId, description })); } catch {}
+                    const redirectTo = `${window.location.origin}/auth/callback?redirectTo=/upgrade`;
+                    await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
                     return;
                 }
                 setStatus({ type: "error", msg: json?.error || "Could not create order. Please try again." });
@@ -211,6 +241,9 @@ export default function UpgradePage() {
             if (!modalOpened) setBusy(null);
         }
     }
+
+    // Keep the ref current so the auth-state listener always calls the latest checkout
+    checkoutRef.current = checkout;
 
     const currentTier = license.loading ? null : license.tier;
 

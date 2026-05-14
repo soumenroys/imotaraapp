@@ -11,10 +11,10 @@ type TokenPackDef   = { type: "token_pack"; tokens: number; paise: number };
 type ProductDef     = SubscriptionDef | TokenPackDef;
 
 export const PRODUCT_CATALOG: Record<string, ProductDef> = {
-    plus_monthly:  { type: "subscription", tier: "plus", days: 31,   paise: 7_900   },
+    plus_monthly:  { type: "subscription", tier: "plus", days: 31,   paise: 9_900   },
     plus_annual:   { type: "subscription", tier: "plus", days: 366,  paise: 69_900  },
     pro_monthly:   { type: "subscription", tier: "pro",  days: 31,   paise: 14_900  },
-    pro_annual:    { type: "subscription", tier: "pro",  days: 366,  paise: 119_900 },
+    pro_annual:    { type: "subscription", tier: "pro",  days: 366,  paise: 129_900 },
     tokens_100:    { type: "token_pack",   tokens: 100,  paise: 4_900   },
     tokens_250:    { type: "token_pack",   tokens: 250,  paise: 9_900   },
     tokens_600:    { type: "token_pack",   tokens: 600,  paise: 19_900  },

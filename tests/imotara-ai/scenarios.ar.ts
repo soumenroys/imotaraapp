@@ -894,4 +894,151 @@ export const arScenarios: TestScenario[] = [
     },
   },
 
+
+  // ── Response style scenarios (comfort / reflect / motivate / advise) ────────
+  {
+    id: "ar-style-comfort-01",
+    category: "Response Style",
+    name: "Comfort style (ar): warmth over advice",
+    description: "responseStyle='comfort' set. Reply must follow the comfort style in Arabic.",
+    messages: [{ role: "user", content: `I am just completely overwhelmed right now and I do not know what to do.` }],
+    config: { lang: "ar", tone: "close_friend", responseStyle: "comfort" },
+    criteria: {
+      id: "ar-style-comfort-01",
+      description: "Reply focuses on warmth, presence, and validation.",
+      passCondition: "Reply focuses on warmth, presence, and validation. Does NOT pivot to advice or action steps. Uses language of togetherness and acknowledgment. Reply is in the target language.",
+      failExpectedOutcome: "Reply jumps to advice ('try this', 'have you considered') instead of staying in presence mode. Fix: responseStyle=comfort must prioritise warmth over solutions.",
+    },
+  },
+  {
+    id: "ar-style-reflect-01",
+    category: "Response Style",
+    name: "Reflect style (ar): invite reflection",
+    description: "responseStyle='reflect' set. Reply must follow the reflect style in Arabic.",
+    messages: [{ role: "user", content: `Something has been weighing on me and I cannot quite put my finger on what it is.` }],
+    config: { lang: "ar", tone: "calm_companion", responseStyle: "reflect" },
+    criteria: {
+      id: "ar-style-reflect-01",
+      description: "Reply ends with at least one gentle, open-ended reflective question.",
+      passCondition: "Reply ends with at least one gentle, open-ended reflective question. Does not immediately offer solutions. Invites the user to explore their own feelings. Reply is in the target language.",
+      failExpectedOutcome: "Reply gives comfort or advice without a reflective question. Fix: responseStyle=reflect must end with an open question that invites exploration.",
+    },
+  },
+  {
+    id: "ar-style-motivate-01",
+    category: "Response Style",
+    name: "Motivate style (ar): energise and nudge",
+    description: "responseStyle='motivate' set. Reply must follow the motivate style in Arabic.",
+    messages: [{ role: "user", content: `I feel like giving up. I keep trying but nothing is moving forward and I am exhausted.` }],
+    config: { lang: "ar", tone: "coach", responseStyle: "motivate" },
+    criteria: {
+      id: "ar-style-motivate-01",
+      description: "Reply is forward-looking and energising.",
+      passCondition: "Reply is forward-looking and energising. Briefly acknowledges the exhaustion, then nudges toward action — a small concrete step or direct encouragement. Ends with momentum, not just sympathy. Reply is in the target language.",
+      failExpectedOutcome: "Reply is purely soothing comfort with no forward momentum or action nudge. Fix: responseStyle=motivate should be energising, not just sympathetic.",
+    },
+  },
+  {
+    id: "ar-style-advise-01",
+    category: "Response Style",
+    name: "Advise style (ar): practical suggestion",
+    description: "responseStyle='advise' set. Reply must follow the advise style in Arabic.",
+    messages: [{ role: "user", content: `I keep procrastinating on important work and I do not know how to break the cycle. I need practical help.` }],
+    config: { lang: "ar", tone: "coach", responseStyle: "advise" },
+    criteria: {
+      id: "ar-style-advise-01",
+      description: "Reply is concrete and practical.",
+      passCondition: "Reply is concrete and practical. Offers at least one actionable suggestion. Does not spend the whole reply only validating feelings — gets to the practical part. Reply is in the target language.",
+      failExpectedOutcome: "Reply stays entirely in emotional validation mode without a concrete suggestion. Fix: responseStyle=advise must include actionable practical content.",
+    },
+  },
+
+  // ── Middle age-range scenarios ────────────────────────────────────────────
+  {
+    id: "ar-age-young-adult-01",
+    category: "Age Adaptation",
+    name: "Age 18-24: appropriate register for 18-24 user (ar)",
+    description: "userAge='18_24'. Reply must use the right register for a 18-24-year-old in Arabic.",
+    messages: [{ role: "user", content: `I am trying to figure out what I want to do with my life. Everything feels so uncertain and I do not know if I am making the right choices.` }],
+    config: { lang: "ar", tone: "close_friend", userAge: "18_24" },
+    criteria: {
+      id: "ar-age-young-adult-01",
+      description: "Peer-like tone — does not preach or sound parental.",
+      passCondition: "Peer-like tone — does not preach or sound parental. Acknowledges that uncertainty is normal at this life stage. Warm and relatable. Reply is in Arabic (or natural English mix).",
+      failExpectedOutcome: "Reply uses wrong register for age 18-24 (too parental, too dismissive, or tone mismatch). Fix: check userAge=18_24 instruction in route.ts.",
+    },
+  },
+  {
+    id: "ar-age-late-twenties-01",
+    category: "Age Adaptation",
+    name: "Age 25-34: appropriate register for 25-34 user (ar)",
+    description: "userAge='25_34'. Reply must use the right register for a 25-34-year-old in Arabic.",
+    messages: [{ role: "user", content: `I feel like I am falling behind where I should be. Friends are getting promoted, getting married, and I still feel lost.` }],
+    config: { lang: "ar", tone: "close_friend", userAge: "25_34" },
+    criteria: {
+      id: "ar-age-late-twenties-01",
+      description: "Peer-like, acknowledges complexity of this phase.",
+      passCondition: "Peer-like, acknowledges complexity of this phase. Does not dismiss the feeling or compare unfavourably. Not preachy. Reply is in Arabic (or natural English mix).",
+      failExpectedOutcome: "Reply uses wrong register for age 25-34 (too parental, too dismissive, or tone mismatch). Fix: check userAge=25_34 instruction in route.ts.",
+    },
+  },
+  {
+    id: "ar-age-mid-thirties-01",
+    category: "Age Adaptation",
+    name: "Age 35-44: appropriate register for 35-44 user (ar)",
+    description: "userAge='35_44'. Reply must use the right register for a 35-44-year-old in Arabic.",
+    messages: [{ role: "user", content: `I thought I would have everything figured out by now. Instead I keep questioning my career and whether I am on the right path.` }],
+    config: { lang: "ar", tone: "close_friend", userAge: "35_44" },
+    criteria: {
+      id: "ar-age-mid-thirties-01",
+      description: "Grounded, non-patronising.",
+      passCondition: "Grounded, non-patronising. Affirms that questioning at this stage is common and okay. Does not lecture or minimise. Reply is in Arabic (or natural English mix).",
+      failExpectedOutcome: "Reply uses wrong register for age 35-44 (too parental, too dismissive, or tone mismatch). Fix: check userAge=35_44 instruction in route.ts.",
+    },
+  },
+  {
+    id: "ar-age-mid-forties-01",
+    category: "Age Adaptation",
+    name: "Age 45-54: appropriate register for 45-54 user (ar)",
+    description: "userAge='45_54'. Reply must use the right register for a 45-54-year-old in Arabic.",
+    messages: [{ role: "user", content: `I keep revisiting the choices I have made — career, relationships, where I live. Part of me wonders if I should have done things differently.` }],
+    config: { lang: "ar", tone: "close_friend", userAge: "45_54" },
+    criteria: {
+      id: "ar-age-mid-forties-01",
+      description: "Gentle, deep acknowledgment.",
+      passCondition: "Gentle, deep acknowledgment. Does not rush to reassure or dismiss. Treats the user as a thoughtful adult navigating a real mid-life reflection. Reply is in Arabic (or natural English mix).",
+      failExpectedOutcome: "Reply uses wrong register for age 45-54 (too parental, too dismissive, or tone mismatch). Fix: check userAge=45_54 instruction in route.ts.",
+    },
+  },
+  {
+    id: "ar-age-mid-fifties-01",
+    category: "Age Adaptation",
+    name: "Age 55-64: appropriate register for 55-64 user (ar)",
+    description: "userAge='55_64'. Reply must use the right register for a 55-64-year-old in Arabic.",
+    messages: [{ role: "user", content: `Sometimes I wonder if my best years are behind me. I still have energy and things I want to do, but I feel like the world moves on without me.` }],
+    config: { lang: "ar", tone: "close_friend", userAge: "55_64" },
+    criteria: {
+      id: "ar-age-mid-fifties-01",
+      description: "Warm and respectful register.",
+      passCondition: "Warm and respectful register. Does not dismiss the fear. Gently offers presence or perspective without toxic positivity. Reply is in Arabic (or natural English mix).",
+      failExpectedOutcome: "Reply uses wrong register for age 55-64 (too parental, too dismissive, or tone mismatch). Fix: check userAge=55_64 instruction in route.ts.",
+    },
+  },
+
+  // ── Male gender scenario ──────────────────────────────────────────────────
+  {
+    id: "ar-gender-male-01",
+    category: "Gender",
+    name: "Male user: correct masculine grammatical forms (ar)",
+    description: "userGender='male'. Reply must use masculine (or neutral) grammatical forms — not feminine — when referring to the user.",
+    messages: [{ role: "user", content: `I have been feeling really burnt out lately. I do not know how to talk about it with anyone.` }],
+    config: { lang: "ar", tone: "close_friend", userGender: "male" },
+    criteria: {
+      id: "ar-gender-male-01",
+      description: "Reply uses masculine or neutral forms for the user. No feminine forms.",
+      passCondition: "No feminine verb conjugation for the male user (e.g. 'anta' not 'anti'). Or the reply naturally avoids the gendered construction. Reply is in Arabic.",
+      failExpectedOutcome: "Reply uses feminine verb/adjective forms for the male user. Fix: ensure userGender=male gender injection in system prompt is working and GPT honours it.",
+    },
+  },
+
 ];

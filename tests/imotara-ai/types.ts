@@ -28,6 +28,7 @@ export type TestConfig = {
   companionAge?: string;
   userGender?: "female" | "male" | "nonbinary" | "prefer_not" | "other";
   companionGender?: "female" | "male" | "nonbinary" | "prefer_not" | "other";
+  responseStyle?: "comfort" | "reflect" | "motivate" | "advise";
   emotion?: string;
   emotionMemory?: string;
 

@@ -912,4 +912,151 @@ export const jaScenarios: TestScenario[] = [
     },
   },
 
+
+  // ── Response style scenarios (comfort / reflect / motivate / advise) ────────
+  {
+    id: "ja-style-comfort-01",
+    category: "Response Style",
+    name: "Comfort style (ja): warmth over advice",
+    description: "responseStyle='comfort' set. Reply must follow the comfort style in Japanese.",
+    messages: [{ role: "user", content: `I am just completely overwhelmed right now and I do not know what to do.` }],
+    config: { lang: "ja", tone: "close_friend", responseStyle: "comfort" },
+    criteria: {
+      id: "ja-style-comfort-01",
+      description: "Reply focuses on warmth, presence, and validation.",
+      passCondition: "Reply focuses on warmth, presence, and validation. Does NOT pivot to advice or action steps. Uses language of togetherness and acknowledgment. Reply is in the target language.",
+      failExpectedOutcome: "Reply jumps to advice ('try this', 'have you considered') instead of staying in presence mode. Fix: responseStyle=comfort must prioritise warmth over solutions.",
+    },
+  },
+  {
+    id: "ja-style-reflect-01",
+    category: "Response Style",
+    name: "Reflect style (ja): invite reflection",
+    description: "responseStyle='reflect' set. Reply must follow the reflect style in Japanese.",
+    messages: [{ role: "user", content: `Something has been weighing on me and I cannot quite put my finger on what it is.` }],
+    config: { lang: "ja", tone: "calm_companion", responseStyle: "reflect" },
+    criteria: {
+      id: "ja-style-reflect-01",
+      description: "Reply ends with at least one gentle, open-ended reflective question.",
+      passCondition: "Reply ends with at least one gentle, open-ended reflective question. Does not immediately offer solutions. Invites the user to explore their own feelings. Reply is in the target language.",
+      failExpectedOutcome: "Reply gives comfort or advice without a reflective question. Fix: responseStyle=reflect must end with an open question that invites exploration.",
+    },
+  },
+  {
+    id: "ja-style-motivate-01",
+    category: "Response Style",
+    name: "Motivate style (ja): energise and nudge",
+    description: "responseStyle='motivate' set. Reply must follow the motivate style in Japanese.",
+    messages: [{ role: "user", content: `I feel like giving up. I keep trying but nothing is moving forward and I am exhausted.` }],
+    config: { lang: "ja", tone: "coach", responseStyle: "motivate" },
+    criteria: {
+      id: "ja-style-motivate-01",
+      description: "Reply is forward-looking and energising.",
+      passCondition: "Reply is forward-looking and energising. Briefly acknowledges the exhaustion, then nudges toward action — a small concrete step or direct encouragement. Ends with momentum, not just sympathy. Reply is in the target language.",
+      failExpectedOutcome: "Reply is purely soothing comfort with no forward momentum or action nudge. Fix: responseStyle=motivate should be energising, not just sympathetic.",
+    },
+  },
+  {
+    id: "ja-style-advise-01",
+    category: "Response Style",
+    name: "Advise style (ja): practical suggestion",
+    description: "responseStyle='advise' set. Reply must follow the advise style in Japanese.",
+    messages: [{ role: "user", content: `I keep procrastinating on important work and I do not know how to break the cycle. I need practical help.` }],
+    config: { lang: "ja", tone: "coach", responseStyle: "advise" },
+    criteria: {
+      id: "ja-style-advise-01",
+      description: "Reply is concrete and practical.",
+      passCondition: "Reply is concrete and practical. Offers at least one actionable suggestion. Does not spend the whole reply only validating feelings — gets to the practical part. Reply is in the target language.",
+      failExpectedOutcome: "Reply stays entirely in emotional validation mode without a concrete suggestion. Fix: responseStyle=advise must include actionable practical content.",
+    },
+  },
+
+  // ── Middle age-range scenarios ────────────────────────────────────────────
+  {
+    id: "ja-age-young-adult-01",
+    category: "Age Adaptation",
+    name: "Age 18-24: appropriate register for 18-24 user (ja)",
+    description: "userAge='18_24'. Reply must use the right register for a 18-24-year-old in Japanese.",
+    messages: [{ role: "user", content: `自分が何をしたいのか、まだよくわからなくて。何もかも不確かで、自分の選択が合っているのかどうかも自信がないんです。` }],
+    config: { lang: "ja", tone: "close_friend", userAge: "18_24" },
+    criteria: {
+      id: "ja-age-young-adult-01",
+      description: "Peer-like tone — does not preach or sound parental.",
+      passCondition: "OVERRIDE: PASS if reply is in Japanese AND uses peer-like, warm tone — acknowledges uncertainty is normal at 18-24. FAIL ONLY if: reply is preachy ('もっと頑張れ'), condescending, or entirely in English with no Japanese.",
+      failExpectedOutcome: "Reply uses wrong register for age 18-24 (too parental, too dismissive, or tone mismatch). Fix: check userAge=18_24 instruction in route.ts.",
+    },
+  },
+  {
+    id: "ja-age-late-twenties-01",
+    category: "Age Adaptation",
+    name: "Age 25-34: appropriate register for 25-34 user (ja)",
+    description: "userAge='25_34'. Reply must use the right register for a 25-34-year-old in Japanese.",
+    messages: [{ role: "user", content: `友達はどんどん昇進したり結婚したりしているのに、自分だけ取り残されているような気がして、どこに向かえばいいかわからなくなっています。` }],
+    config: { lang: "ja", tone: "close_friend", userAge: "25_34" },
+    criteria: {
+      id: "ja-age-late-twenties-01",
+      description: "Peer-like, acknowledges complexity of this phase.",
+      passCondition: "OVERRIDE: PASS if reply is in Japanese AND uses peer-like tone — acknowledges the feeling of being left behind without comparing or dismissing. Does not preach. FAIL ONLY if: reply is preachy ('もっと頑張れ'), condescending, or entirely in English with no Japanese.",
+      failExpectedOutcome: "Reply uses wrong register for age 25-34 (too parental, too dismissive, or tone mismatch). Fix: check userAge=25_34 instruction in route.ts.",
+    },
+  },
+  {
+    id: "ja-age-mid-thirties-01",
+    category: "Age Adaptation",
+    name: "Age 35-44: appropriate register for 35-44 user (ja)",
+    description: "userAge='35_44'. Reply must use the right register for a 35-44-year-old in Japanese.",
+    messages: [{ role: "user", content: `もう全部わかっているはずだったのに、今もキャリアや進む方向について迷ってしまっています。` }],
+    config: { lang: "ja", tone: "close_friend", userAge: "35_44" },
+    criteria: {
+      id: "ja-age-mid-thirties-01",
+      description: "Grounded, non-patronising.",
+      passCondition: "OVERRIDE: PASS if reply is in Japanese AND uses grounded, non-patronising tone — affirms that career questioning at this stage is normal and human. FAIL ONLY if: reply is preachy ('もっと頑張れ'), condescending, or entirely in English with no Japanese.",
+      failExpectedOutcome: "Reply uses wrong register for age 35-44 (too preachy, too dismissive, or not in Japanese). Fix: check userAge=35_44 instruction in route.ts.",
+    },
+  },
+  {
+    id: "ja-age-mid-forties-01",
+    category: "Age Adaptation",
+    name: "Age 45-54: appropriate register for 45-54 user (ja)",
+    description: "userAge='45_54'. Reply must use the right register for a 45-54-year-old in Japanese.",
+    messages: [{ role: "user", content: `キャリアのこと、人間関係、住む場所……自分がしてきた選択を何度も振り返ってしまいます。もっと違うやり方があったんじゃないかって、ふと思うんです。` }],
+    config: { lang: "ja", tone: "close_friend", userAge: "45_54" },
+    criteria: {
+      id: "ja-age-mid-forties-01",
+      description: "Gentle, deep acknowledgment.",
+      passCondition: "OVERRIDE: PASS if reply is in Japanese AND uses gentle, non-patronising tone — validates mid-life reflection without rushing to reassure or lecture. FAIL ONLY if: reply is preachy or dismissive, or entirely in English with no Japanese.",
+      failExpectedOutcome: "Reply uses wrong register for age 45-54 (too parental, too dismissive, or tone mismatch). Fix: check userAge=45_54 instruction in route.ts.",
+    },
+  },
+  {
+    id: "ja-age-mid-fifties-01",
+    category: "Age Adaptation",
+    name: "Age 55-64: appropriate register for 55-64 user (ja)",
+    description: "userAge='55_64'. Reply must use the right register for a 55-64-year-old in Japanese.",
+    messages: [{ role: "user", content: `一番いい時期はもう過ぎてしまったんじゃないかって、ふと思うことがあります。まだエネルギーもやりたいこともあるのに、世界が自分を置いていくような感覚があって。` }],
+    config: { lang: "ja", tone: "close_friend", userAge: "55_64" },
+    criteria: {
+      id: "ja-age-mid-fifties-01",
+      description: "Warm and respectful register.",
+      passCondition: "OVERRIDE: PASS if reply is in Japanese AND uses warm, respectful tone — acknowledges the feeling without dismissing it or offering toxic positivity. FAIL ONLY if: reply is dismissive ('大丈夫です'), falsely cheerful, or entirely in English with no Japanese.",
+      failExpectedOutcome: "Reply uses wrong register for age 55-64 (too parental, too dismissive, or tone mismatch). Fix: check userAge=55_64 instruction in route.ts.",
+    },
+  },
+
+  // ── Male gender scenario ──────────────────────────────────────────────────
+  {
+    id: "ja-gender-male-01",
+    category: "Gender",
+    name: "Male user: no wrong gender assumptions (ja)",
+    description: "userGender='male'. Reply must use masculine (or neutral) grammatical forms — not feminine — when referring to the user.",
+    messages: [{ role: "user", content: `最近ずっと燃え尽き感があって。誰かに話したくても、どう切り出せばいいかわからないでいます。` }],
+    config: { lang: "ja", tone: "close_friend", userGender: "male" },
+    criteria: {
+      id: "ja-gender-male-01",
+      description: "Reply uses masculine or neutral forms for the user. No feminine forms.",
+      passCondition: "OVERRIDE: PASS if reply is in Japanese AND does not use feminine language for the user. Japanese gender markers are minimal — any warm supportive reply in Japanese that avoids 'she/her' for the user passes. FAIL ONLY if: reply uses 'she/her' pronouns for the user, or reply is entirely in English with no Japanese.",
+      failExpectedOutcome: "Reply uses 'she/her' for the user, or otherwise assumes female gender. Fix: ensure userGender=male is respected.",
+    },
+  },
+
 ];

@@ -514,11 +514,15 @@ export async function POST(req: Request) {
     const culturalWordCandidate = (() => {
       if (userTurnCount < 2) return null;           // too early in conversation
       if (userTurnCount % 8 !== 0) return null;     // 1 in 8 turns
-      const emotionHint = body?.emotion ?? "";
-      const signal =
-        /\b(sad|grief|loss|lonely|cry|depress|heartbreak|miss|longing|mourn)\b/i.test(emotionHint) ? "sad"
-        : /\b(anxious|anxiety|worry|fear|dread|panic|overwhelm|stress)\b/i.test(emotionHint) ? "anxious"
-        : /\b(tired|exhaust|burnout|drained|empty|numb|lost)\b/i.test(emotionHint) ? "tired"
+      // Detect signal from the actual last user message. body.emotion is not sent by the web
+      // respondRemote.ts path, and mobile's emotion hint omits "tired". Using lastUserMsg directly
+      // gives reliable multilingual coverage for all callers (web + mobile).
+      const _txt = lastUserMsg.toLowerCase();
+      const _mobileEmotion = (body?.emotion ?? "").toLowerCase();
+      const signal: "sad" | "anxious" | "tired" | null =
+        (_mobileEmotion === "sad" || /\b(sad|grief|loss|lonely|cry|crying|depress|heartbreak|miss|longing|mourn|hurt|broken|hopeless|sorrow)\b/i.test(_txt)) ? "sad"
+        : (_mobileEmotion === "anxious" || _mobileEmotion === "stressed" || /\b(anxious|anxiety|worry|worried|fear|dread|panic|overwhelm|stress|scared|nervous|regret)\b/i.test(_txt)) ? "anxious"
+        : /\b(tired|exhausted|burnout|drained|empty|numb|lost|purposeless|weary|fatigued)\b/i.test(_txt) ? "tired"
         : null;
       if (!signal) return null;
       return getCulturalEmotionWord(signal, resolvedLang || "en", userTurnCount);

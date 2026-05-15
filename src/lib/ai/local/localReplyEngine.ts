@@ -11,6 +11,7 @@ import {
 } from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { buildNativeWisdom } from "@/lib/ai/local/nativeWisdomEngine";
+import { getCulturalEmotionWord } from "@/lib/ai/cultural/culturalEmotionVocab";
 
 type LocalResponseTone =
     | "calm"
@@ -4141,9 +4142,16 @@ export function buildLocalReply(
         : null;
     const wisdomPart = nativeWisdomLine ? " " + nativeWisdomLine : "";
 
+    // P2 — Cultural Emotion Vocabulary (~1 in 8 emotional turns, bit-window >>>13)
+    // Suppressed when nativeWisdomLine already fired (avoid stacking two culture layers).
+    const culturalVocabWord = (isEmotionalSignal && !isCorrection && !isVagueReply && !nativeWisdomLine && (seed >>> 13) % 8 === 0)
+        ? getCulturalEmotionWord(signal, language, seed)
+        : null;
+    const culturalVocabPart = culturalVocabWord ? " " + culturalVocabWord.intro : "";
+
     const extraPart = suppressExtras ? "" : (extra ? " " + extra : "");
     const finalMsg = dedupeAdjacentSentences(
-        `${base}${bridgePart}${wisdomPart}${extraPart}${topicHint}`.trim()
+        `${base}${bridgePart}${wisdomPart}${culturalVocabPart}${extraPart}${topicHint}`.trim()
     );
 
     // Age-aware closing: short, warm suffix for notably young or older users

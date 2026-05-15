@@ -80,6 +80,8 @@ import {
 import { deriveResponseToneFromToneContext, buildEmotionMemorySummary } from "@/lib/imotara/promptProfile";
 import { debugDetectEmotion } from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
+import { detectCountryCode } from "@/lib/safety/detectCountry";
+import { getCrisisResourcesForCountry } from "@/lib/safety/crisisResources";
 import { hapticTap, hapticEmotion } from "@/lib/imotara/haptic";
 
 type Role = "user" | "assistant" | "system";
@@ -1524,6 +1526,12 @@ export default function ChatPage() {
   const crisisTier = useMemo(
     () => detectCrisisTier(activeThread?.messages ?? []),
     [activeThread?.messages],
+  );
+
+  // #M-6: Geo-aware crisis resources — detected once from Intl/navigator locale
+  const crisisCountryResources = useMemo(
+    () => getCrisisResourcesForCountry(detectCountryCode()),
+    [],
   );
 
   // analysis side-effect (AnalysisResult stays on analysis pipeline)
@@ -3445,9 +3453,10 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* #4: Crisis intervention banner — localized */}
+          {/* #4: Crisis intervention banner — localized + geo-aware */}
           {crisisTier >= 1 && (() => {
             const txt = CRISIS_BANNER_BY_LANG[preferredLang] ?? CRISIS_BANNER_BY_LANG.en;
+            const primaryLine = crisisCountryResources?.primary?.[0] ?? null;
             return (
               <div className={`mx-auto mb-1 max-w-3xl rounded-2xl border px-4 py-3 text-sm ${
                 crisisTier === 2
@@ -3456,14 +3465,23 @@ export default function ChatPage() {
               }`}>
                 <p>
                   {crisisTier === 2 ? txt.tier2 : txt.tier1}{" "}
-                  <a
-                    href="https://findahelpline.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold underline underline-offset-2 hover:opacity-80"
-                  >
-                    {txt.link}
-                  </a>
+                  {primaryLine ? (
+                    <a
+                      href={`tel:${primaryLine.contact.replace(/[^\d+]/g, "")}`}
+                      className="font-semibold underline underline-offset-2 hover:opacity-80"
+                    >
+                      {primaryLine.label} ({primaryLine.contact})
+                    </a>
+                  ) : (
+                    <a
+                      href="https://findahelpline.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold underline underline-offset-2 hover:opacity-80"
+                    >
+                      {txt.link}
+                    </a>
+                  )}
                   {crisisTier === 2 ? ". I\u2019m still here too." : " can help."}
                 </p>
               </div>

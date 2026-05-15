@@ -514,9 +514,13 @@ export async function POST(req: Request) {
     const culturalWordCandidate = (() => {
       if (userTurnCount < 2) return null;           // too early in conversation
       if (userTurnCount % 8 !== 0) return null;     // 1 in 8 turns
+      // English-only: intro sentences are in English; non-English users would receive an English
+      // sentence injected into their native-language reply. Cloud GPT could adapt it, but without
+      // multilingual signal detection on the web path this would fire unreliably. Gate to English.
+      if (resolvedLang && resolvedLang !== "en") return null;
       // Detect signal from the actual last user message. body.emotion is not sent by the web
       // respondRemote.ts path, and mobile's emotion hint omits "tired". Using lastUserMsg directly
-      // gives reliable multilingual coverage for all callers (web + mobile).
+      // gives reliable coverage. Mobile also sends body.emotion as a fast-path boost.
       const _txt = lastUserMsg.toLowerCase();
       const _mobileEmotion = (body?.emotion ?? "").toLowerCase();
       const signal: "sad" | "anxious" | "tired" | null =

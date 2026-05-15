@@ -4143,8 +4143,9 @@ export function buildLocalReply(
     const wisdomPart = nativeWisdomLine ? " " + nativeWisdomLine : "";
 
     // P2 — Cultural Emotion Vocabulary (~1 in 8 emotional turns, bit-window >>>13)
+    // English-only: intro sentences are in English; non-English users get nativeWisdomEngine instead.
     // Suppressed when nativeWisdomLine already fired (avoid stacking two culture layers).
-    const culturalVocabWord = (isEmotionalSignal && !isCorrection && !isVagueReply && !nativeWisdomLine && (seed >>> 13) % 8 === 0)
+    const culturalVocabWord = (isEmotionalSignal && !isCorrection && !isVagueReply && !nativeWisdomLine && language === "en" && (seed >>> 13) % 8 === 0)
         ? getCulturalEmotionWord(signal, language, seed)
         : null;
     const culturalVocabPart = culturalVocabWord ? " " + culturalVocabWord.intro : "";

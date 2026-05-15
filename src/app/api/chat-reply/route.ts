@@ -17,6 +17,7 @@ import { NextResponse } from "next/server";
 import { callImotaraAI, streamImotaraAI } from "@/lib/imotara/aiClient";
 import type { ImotaraAIResponse } from "@/lib/imotara/aiClient";
 import { formatImotaraReply } from "@/lib/imotara/response/responseFormatter";
+import { getCulturalEmotionWord } from "@/lib/ai/cultural/culturalEmotionVocab";
 
 import {
   getSupabaseAdmin,
@@ -506,6 +507,23 @@ export async function POST(req: Request) {
       id: "The user is writing in Indonesian. Mirror their exact register — Indonesian uses Latin script. CRITICAL: Do NOT insert English phrases mid-reply unless the user used them. FORMALITY: Use informal 'kamu' for close friends and teens; use formal 'Anda' or respectful 'Bapak/Ibu' for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
     };
     const resolvedLang = typeof body?.lang === "string" ? body.lang.slice(0, 5).split("-")[0] : "";
+
+    // P2: Cultural Emotion Vocabulary — pre-select a candidate word (1 in 8 emotional turns).
+    // Seed from user turn count so it stays stable within a turn but varies across turns.
+    const userTurnCount = rawMessages.filter((m) => m?.role === "user").length;
+    const culturalWordCandidate = (() => {
+      if (userTurnCount < 2) return null;           // too early in conversation
+      if (userTurnCount % 8 !== 0) return null;     // 1 in 8 turns
+      const emotionHint = body?.emotion ?? "";
+      const signal =
+        /\b(sad|grief|loss|lonely|cry|depress|heartbreak|miss|longing|mourn)\b/i.test(emotionHint) ? "sad"
+        : /\b(anxious|anxiety|worry|fear|dread|panic|overwhelm|stress)\b/i.test(emotionHint) ? "anxious"
+        : /\b(tired|exhaust|burnout|drained|empty|numb|lost)\b/i.test(emotionHint) ? "tired"
+        : null;
+      if (!signal) return null;
+      return getCulturalEmotionWord(signal, resolvedLang || "en", userTurnCount);
+    })();
+
     const langInstruction = resolvedLang && resolvedLang !== "en"
       ? (langInstructionMap[resolvedLang] ?? `Respond in the same language as the user's current message (detected: ${resolvedLang}).`)
       : "Match the user's language — if they write in English, respond in English.";
@@ -879,6 +897,17 @@ export async function POST(req: Request) {
         "TONE: Like a friend who genuinely remembers a line — not a quotation database. Keep it short and connected to what they said.",
       ].join(" "),
       "",
+      ...(culturalWordCandidate ? [
+        [
+          "CULTURAL EMOTION VOCABULARY (optional, use with care):",
+          `There is a word that may resonate with what the user is feeling: "${culturalWordCandidate.word}"${culturalWordCandidate.romanized ? ` (${culturalWordCandidate.romanized})` : ""} — from ${culturalWordCandidate.sourceLanguage} — meaning: ${culturalWordCandidate.meaning}.`,
+          "You MAY weave this word in naturally if it genuinely fits the user's current emotion. Never force it.",
+          "HOW: Introduce it as a gentle observation — 'There's a word in [language] — [word] — that captures something of what you're describing...' Keep it to one sentence. Then continue your response as normal.",
+          "NEVER USE if: the user is in crisis, the emotion doesn't match, or it would feel like a vocabulary lesson. The word should feel like a quiet moment of recognition, not an educational insert.",
+          "LANGUAGE: Introduce the word in English (most users won't know it), then follow with a natural translation if you know the user's language well enough.",
+        ].join("\n"),
+        "",
+      ] : []),
       arcDepthHint,
       emotionHint,
       nameHint,

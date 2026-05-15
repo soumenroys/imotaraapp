@@ -109,7 +109,9 @@ function detectLangFromRomanHints(message: string): string {
     if (m) scores[lang] = (scores[lang] ?? 0) + m.length;
   }
   const best = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
-  return best && best[1] >= 1 ? best[0] : "en";
+  // Require at least 2 keyword matches to avoid false positives from single common words
+  // (e.g. English "to" matches Marathi list, "de" matches Hindi, etc.)
+  return best && best[1] >= 2 ? best[0] : "en";
 }
 
 /** Derive the lang field exactly as mobile aiClient.ts does */
@@ -195,12 +197,13 @@ async function callImotaraAPI(
     };
   }
 
+  const bodyStr = JSON.stringify(body);
   let res: Response;
   try {
     res = await fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: bodyStr,
       signal: AbortSignal.timeout(45_000), // longer for big conversation payloads
     });
   } catch (err: unknown) {

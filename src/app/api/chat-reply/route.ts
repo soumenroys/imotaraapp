@@ -122,7 +122,20 @@ function isRomanizedInput(message: string, lang: string): boolean {
   if (!nativeScriptLangs.includes(lang)) return false;
   const latinCount = (message.match(/[a-zA-Z]/g) ?? []).length;
   const totalLetterCount = (message.match(/\p{L}/gu) ?? []).length;
-  return totalLetterCount > 3 && latinCount / totalLetterCount > 0.65;
+  if (!(totalLetterCount > 3 && latinCount / totalLetterCount > 0.65)) return false;
+  // Don't fire SCRIPT MIRROR on plain English. Use purely structural English words
+  // (contractions, determiners, connectives) that NEVER appear in romanized Indic text.
+  // Exclude borrowed words like "feel", "office", "busy" that appear in Hinglish/Banglish.
+  const englishStructural = /\b(I'm|I've|I'll|I'd|don't|doesn't|didn't|can't|won't|isn't|aren't|wasn't|the|because|although|however|therefore|everything|something|nothing|anything)\b/g;
+  const englishHits = (message.match(englishStructural) ?? []).length;
+  // Indic grammar markers that NEVER appear in plain English sentences
+  const indicGrammar = /\b(hai|hain|hoon|hoga|hogi|tha|thi|raha|rahi|rahe|mein|toh|bhi|aur|nahi|nahin|ami|tumi|amar|tomar|ache|achhi|achhe|karo|bolo|kothay|kotha|jao|esho)\b/i;
+  const hasIndicGrammar = indicGrammar.test(message);
+  // Plain English: has 2+ structural English words AND no Indic grammar markers
+  if (englishHits >= 2 && !hasIndicGrammar) return false;
+  // Single strong structural word + no Indic grammar is also likely English
+  if (englishHits >= 1 && !hasIndicGrammar && /\b(I'm|don't|doesn't|didn't|can't|won't|isn't|aren't|wasn't)\b/i.test(message)) return false;
+  return true;
 }
 
 function isBadPlaceholderText(s: string): boolean {
@@ -485,7 +498,7 @@ export async function POST(req: Request) {
     // This overrides conversation history so switching from Bengali to Hindi mid-chat works.
     const langInstructionMap: Record<string, string> = {
       hi: "The user is writing in Hindi. Mirror their exact script — if they used Devanagari, respond in Devanagari; if they used Roman/Latin script (Hinglish), respond in Roman Hindi. FORMALITY: Match the user's register — if they write casually (using 'tum', 'yaar', informal words), respond with 'tum' form. Use 'aap' only if they write formally.",
-      bn: "The user is writing in Bengali. Mirror their exact script — if they used Bengali script, respond in Bengali script; if they used Roman/Latin script, respond in Roman Bengali. FORMALITY: Default to 'tumi' form for casual Romanized Bengali. Use 'apni/aapnar' only if the user writes formally. CRITICAL: Use only Bengali words — do NOT mix in Hindi words (use 'Haa'/'Hyaan' not 'Hain'; use 'Ami' not 'Main'). CALM COMPANION BENGALI PHRASES: When using calm/patient tone, use phrases like 'কোনো তাড়া নেই', 'সময় নাও', 'ধীরে ধীরে', 'যখন মন চায় বলো', 'এখনই কিছু করতে হবে না' to signal unhurriedness in Bengali.",
+      bn: "The user is writing in Bengali. Mirror their script: if they used Bengali script, reply in Bengali script; if they used romanized Bengali (e.g. 'ami valo achi', 'tumi kemon acho'), reply in romanized Bengali; if they switched to English mid-conversation, reply in English or romanized Bengali — whichever feels most natural while maintaining full emotional depth. FORMALITY: Default to 'tumi' form for casual Bengali. Use 'apni/aapnar' only if the user writes formally. CRITICAL: Use only Bengali words — do NOT mix in Hindi or Marathi words (use 'Haa'/'Hyaan' not 'Hain'; use 'Ami' not 'Main'; do NOT use Marathi words like 'tumhala', 'sagla', 'khara', 'aahe'). CALM COMPANION BENGALI PHRASES: When using calm/patient tone, use phrases like 'কোনো তাড়া নেই', 'সময় নাও', 'ধীরে ধীরে', 'যখন মন চায় বলো', 'এখনই কিছু করতে হবে না' to signal unhurriedness in Bengali.",
       mr: "The user is writing in Marathi. Respond in Marathi (not Hindi, not English). Use Marathi words: खूप, नाही, आहे, वाटतं, आणि, पण — not Hindi equivalents. Mirror their script: Devanagari → Devanagari Marathi; Roman → Roman Marathi.",
       ta: "The user is writing in Tamil. Mirror their exact script — native Tamil script or Roman Tamil as they used. CRITICAL: Do NOT insert English words or phrases mid-reply (e.g. do NOT say 'there's no hurry' — say 'அவசரமில்ல' or 'parachayam illai'). FORMALITY: Use informal 'நீ/உன்னோட' for close friends; use 'நீங்கள்/உங்களுக்கு' only when the user writes formally or is elderly.",
       te: "The user is writing in Telugu. Mirror their exact script — native Telugu script or Roman Telugu as they used. CRITICAL: Do NOT insert English phrases mid-reply (e.g. do NOT say 'Take all the time you need' — say 'మీకు సమయం తీసుకోండి' or 'నువ్వు తీసుకో'). FORMALITY: Use informal 'నువ్వు/నీకు' for close friends; use 'మీరు/మీకు' for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
@@ -697,7 +710,7 @@ export async function POST(req: Request) {
         "65_plus": "BENGALI ELDER REGISTER (CRITICAL): Use the respectful 'আপনি / আপনার / আপনাকে' form throughout — NEVER 'তুমি / তোমার / তোমাকে'. Speak with deep warmth and patience. This is non-negotiable.",
       },
       hi: {
-        "13_17": "HINDI TEEN REGISTER: Use casual 'tum' or 'tu', informal words like 'yaar', 'bhai'. Peer-level — not preachy.",
+        "13_17": "HINDI TEEN REGISTER (CRITICAL OVERRIDE): This is a teenager. Use extremely casual Hindi peer language. Say 'तुम' or 'तू', use words like 'यार', 'भाई', 'सच में', 'अरे'. Do NOT use formal phrases, do NOT be preachy, do NOT give advice like 'धैर्य रखना' or 'सब ठीक हो जाएगा'. Do NOT sound like a parent or teacher. Just be a warm, understanding peer friend who gets it. Keep it short and real.",
         "65_plus": "HINDI ELDER REGISTER (CRITICAL): Use the respectful 'aap / aapka / aapko' form throughout — NEVER 'tum / tumhara'. This is non-negotiable.",
       },
       mr: {

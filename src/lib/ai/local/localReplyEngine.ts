@@ -985,6 +985,19 @@ export function buildLocalReply(
     const isEmotionShifted = prevSignal !== null && prevSignal !== signal && sessionTurn >= 3 && signal !== "okay";
     const isTopicRecurring = topicRecurrence >= 3 && keyTopic !== null;
 
+    // LR-3: Conditional wit layer — gentle-humor is appropriate for sibling/buddy relationships
+    // when the mood is light, but must yield to warmth when the user is in genuine distress.
+    // Gate: suppress only when signal is heavy AND there is corroborating weight (history or depth).
+    // "tired" and "okay" are intentionally left unrestricted — a sibling being lightly playful
+    // about tiredness is natural and welcome.
+    if (companionTone === "gentle-humor") {
+        const isHeavySignal = signal === "sad" || signal === "anxious" || signal === "angry";
+        const isHeavyHistory = memoryShowsHighIntensity || memoryHeavyEmotions;
+        if (isHeavySignal && (isHeavyHistory || isDeepConversation)) {
+            companionTone = "supportive";
+        }
+    }
+
     const contextBridgeEn: string | null = (() => {
         if (language !== "en") return null; // other languages handled by their own pools below
         if (isCorrection || isVagueReply) return null; // don't interrupt repair/vague paths

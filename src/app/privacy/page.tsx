@@ -209,12 +209,14 @@ export default function PrivacyPage() {
             <p className="mt-3 text-sm leading-7 text-zinc-300">
               Imotara uses artificial intelligence models to generate reflective and supportive
               responses to the messages you choose to enter. Some processing may occur locally
-              on your device, while certain features may involve secure cloud-based AI services.
+              on your device. When cloud AI is enabled, your message text is sent to{" "}
+              <strong>OpenAI (openai.com)</strong> to generate a reply.
             </p>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              Your conversations are not sold and are not used for advertising systems. Where
-              external AI service providers are used, data is processed under contractual
-              safeguards and only for the purpose of generating responses within the app.
+              Your conversations are not sold and are not used for advertising systems.
+              Data sent to OpenAI is processed solely to generate your reply and is not
+              used to train OpenAI models. You can switch to device-only mode at any time
+              in Settings to prevent any data from leaving your device.
             </p>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
               AI-generated responses are automated and may not always be perfect. Imotara is
@@ -294,7 +296,7 @@ export default function PrivacyPage() {
                 <strong>Cloud database &amp; sync</strong>: Supabase (stores optional synced data with per-user access controls).
               </li>
               <li>
-                <strong>AI response generation</strong>: a contracted AI service provider may process text you submit to generate replies (only for providing the feature).
+                <strong>AI response generation</strong>: <strong>OpenAI (openai.com)</strong> may process the text of your message to generate a reply when cloud AI is enabled. Only your message text is sent — no account info, name, or device data is attached.
               </li>
               <li>
                 <strong>Hosting</strong>: our hosting providers deliver the web experience and APIs.

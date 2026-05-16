@@ -72,9 +72,12 @@ function verifyAppleJWS(jws: string): boolean {
         const signedData = `${parts[0]}.${parts[1]}`;
         const signature  = Buffer.from(parts[2], "base64url");
 
+        // JWS ES256 signatures use IEEE P1363 format (raw 64-byte R‖S),
+        // NOT the DER-encoded format that Node.js expects by default.
+        // Without dsaEncoding: 'ieee-p1363', verification always fails.
         const verifier = createVerify("SHA256");
         verifier.update(signedData);
-        return verifier.verify(publicKey, signature);
+        return verifier.verify({ key: publicKey, dsaEncoding: "ieee-p1363" }, signature);
     } catch {
         return false;
     }
@@ -96,17 +99,23 @@ async function verifyAppleTransaction(transactionId: string): Promise<{
     ];
 
     for (const { url, env } of endpoints) {
-        let res: Response;
-        try {
-            res = await fetch(url, {
-                headers: { Authorization: `Bearer ${token}` },
-                signal: AbortSignal.timeout(8_000),
-            });
-        } catch {
-            continue;
+        let res: Response | undefined;
+        // Retry up to 3 times with 1s delay — StoreKit can fire onPurchaseSuccess
+        // before Apple's servers have indexed the transaction (race condition).
+        for (let attempt = 0; attempt < 3; attempt++) {
+            if (attempt > 0) await new Promise((r) => setTimeout(r, 1000));
+            try {
+                res = await fetch(url, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    signal: AbortSignal.timeout(8_000),
+                });
+                if (res.status !== 404) break;
+            } catch {
+                res = undefined;
+            }
         }
 
-        if (res.status === 404) continue;
+        if (!res || res.status === 404) continue;
 
         if (!res.ok) {
             return { ok: false, error: `Apple API ${env} returned ${res.status}` };

@@ -24,7 +24,8 @@ const APPLE_BUNDLE_ID = "com.imotara.imotara";
 function makeAppleJWT(): string {
     const issuerId  = process.env.APPLE_IAP_ISSUER_ID  ?? "";
     const keyId     = process.env.APPLE_IAP_KEY_ID     ?? "";
-    const privateKey = process.env.APPLE_IAP_PRIVATE_KEY ?? "";
+    // Vercel sometimes stores PEM keys with literal \n instead of real newlines.
+    const privateKey = (process.env.APPLE_IAP_PRIVATE_KEY ?? "").replace(/\\n/g, "\n");
 
     const now    = Math.floor(Date.now() / 1000);
     const header  = Buffer.from(JSON.stringify({ alg: "ES256", kid: keyId })).toString("base64url");

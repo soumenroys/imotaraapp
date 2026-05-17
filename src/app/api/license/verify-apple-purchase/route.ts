@@ -40,7 +40,8 @@ function makeAppleJWT(): string {
     const message   = `${header}.${payload}`;
     const sign      = createSign("SHA256");
     sign.update(message);
-    const signature = sign.sign(privateKey, "base64url");
+    // JWT ES256 requires IEEE P1363 format (raw r‖s), not DER — same as JWS verification.
+    const signature = sign.sign({ key: privateKey, dsaEncoding: "ieee-p1363" }, "base64url");
     return `${message}.${signature}`;
 }
 

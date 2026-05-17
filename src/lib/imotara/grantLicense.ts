@@ -61,14 +61,16 @@ export async function grantLicense(
             const balance   = existing?.token_balance ?? 0;
 
             if (existing) {
-                await admin.from("licenses")
-                    .update({ tier: product.tier, status: "valid", expires_at: newExpiry, source: "razorpay" })
+                const { error } = await admin.from("licenses")
+                    .update({ tier: product.tier, status: "valid", expires_at: newExpiry, source: "apple", updated_at: new Date().toISOString() })
                     .eq("user_id", userId);
+                if (error) throw new Error(`licenses update failed: ${error.message}`);
             } else {
-                await admin.from("licenses").insert({
+                const { error } = await admin.from("licenses").insert({
                     user_id: userId, tier: product.tier, status: "valid",
-                    expires_at: newExpiry, token_balance: 0, source: "razorpay",
+                    expires_at: newExpiry, token_balance: 0, source: "apple",
                 });
+                if (error) throw new Error(`licenses insert failed: ${error.message}`);
             }
 
             return { ok: true, tier: product.tier, tokenBalance: balance, expiresAt: newExpiry };
@@ -79,14 +81,16 @@ export async function grantLicense(
             const expiresAt  = existing?.expires_at ?? null;
 
             if (existing) {
-                await admin.from("licenses")
-                    .update({ token_balance: balance })
+                const { error } = await admin.from("licenses")
+                    .update({ token_balance: balance, updated_at: new Date().toISOString() })
                     .eq("user_id", userId);
+                if (error) throw new Error(`licenses update failed: ${error.message}`);
             } else {
-                await admin.from("licenses").insert({
+                const { error } = await admin.from("licenses").insert({
                     user_id: userId, tier: "free", status: "valid",
-                    token_balance: balance, source: "razorpay",
+                    token_balance: balance, source: "apple",
                 });
+                if (error) throw new Error(`licenses insert failed: ${error.message}`);
             }
 
             return { ok: true, tier, tokenBalance: balance, expiresAt };

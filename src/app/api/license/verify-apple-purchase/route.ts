@@ -171,6 +171,8 @@ export async function POST(req: Request) {
         const productId     = String(body?.productId     ?? "").trim();
         const transactionId = String(body?.transactionId ?? "").trim();
 
+        console.log(`[verify-apple-purchase] userId=${userId} productId=${productId} transactionId=${transactionId}`);
+
         if (!isValidProductId(productId)) {
             return NextResponse.json({ ok: false, error: "Invalid productId" }, { status: 400 });
         }
@@ -206,7 +208,6 @@ export async function POST(req: Request) {
                 if (!reGrant.ok) {
                     return NextResponse.json({ ok: false, error: reGrant.error }, { status: 500 });
                 }
-                await admin.from("licenses").update({ source: "apple" }).eq("user_id", userId);
                 const res = NextResponse.json({
                     ok:           true,
                     tier:         reGrant.tier,
@@ -261,7 +262,7 @@ export async function POST(req: Request) {
 
         // Record transaction first (prevents double-grant on retry)
         const product = PRODUCT_CATALOG[productId as LicenseProductId];
-        await admin.from("payment_licenses").upsert({
+        const { error: upsertErr } = await admin.from("payment_licenses").upsert({
             payment_id:   transactionId,
             user_id:      userId,
             product_id:   productId,
@@ -269,13 +270,15 @@ export async function POST(req: Request) {
             amount_paise: product.paise,
             currency:     "INR",
         }, { onConflict: "payment_id", ignoreDuplicates: true });
+        if (upsertErr) {
+            console.error("[verify-apple-purchase] payment_licenses upsert failed:", upsertErr.message);
+            return NextResponse.json({ ok: false, error: "Could not record transaction" }, { status: 500 });
+        }
 
         const result = await grantLicense(userId, productId as LicenseProductId, admin);
         if (!result.ok) {
             return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
         }
-
-        await admin.from("licenses").update({ source: "apple" }).eq("user_id", userId);
 
         const res = NextResponse.json({
             ok:           true,

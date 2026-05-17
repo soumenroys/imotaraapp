@@ -119,6 +119,8 @@ async function verifyAppleTransaction(transactionId: string): Promise<{
         if (!res || res.status === 404) continue;
 
         if (!res.ok) {
+            const errText = await res.text().catch(() => "");
+            console.error(`[verify-apple-purchase] Apple API ${env} returned ${res.status}:`, errText);
             return { ok: false, error: `Apple API ${env} returned ${res.status}` };
         }
 
@@ -129,6 +131,7 @@ async function verifyAppleTransaction(transactionId: string): Promise<{
         // Verify the ES256 signature using the x5c leaf certificate from the JWS header.
         // This ensures the payload was signed by Apple and was not tampered with.
         if (!verifyAppleJWS(jws)) {
+            console.error("[verify-apple-purchase] JWS signature verification failed for transaction", transactionId);
             return { ok: false, error: "Apple JWS signature verification failed" };
         }
 
@@ -282,7 +285,7 @@ export async function POST(req: Request) {
         res.headers.set("Cache-Control", "no-store");
         return res;
     } catch (err: any) {
-        if (process.env.NODE_ENV !== "production") console.warn("[verify-apple-purchase]", String(err));
+        console.error("[verify-apple-purchase]", String(err));
         return NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
     }
 }

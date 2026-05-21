@@ -2433,6 +2433,50 @@ export default function SettingsPage() {
                     )}
                 </section>
 
+                {/* B-5: How It Works — prominent card (mirrors mobile HowItWorksModal) */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="text-base">ℹ️</span>
+                        <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">How to use Imotara</h2>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {([
+                            { icon: "💬", title: "Just talk", body: "Share what's on your mind — worries, stress, or how your day went. No right way to start. Imotara listens without judgement." },
+                            { icon: "🌐", title: "Works everywhere", body: "Online? AI crafts thoughtful replies. Offline? Local mode keeps conversations going — no interruptions." },
+                            { icon: "🎨", title: "Make it yours", body: "Choose your companion's name, tone, language, and response style. Adjust accent colour and text size in Appearance above." },
+                            { icon: "🔒", title: "Your data, your control", body: "Everything stays on this device unless you choose to sync. Nothing is sold. Export or delete your history anytime from Settings." },
+                        ] as { icon: string; title: string; body: string }[]).map((step) => (
+                            <div key={step.title} className="flex items-start gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                                <span className="mt-0.5 text-xl shrink-0">{step.icon}</span>
+                                <div>
+                                    <p className="text-xs font-semibold text-zinc-100">{step.title}</p>
+                                    <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">{step.body}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        <Link
+                            href="/guide"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-200 transition hover:bg-indigo-500/20"
+                        >
+                            Full guide →
+                        </Link>
+                        <Link
+                            href="/privacy"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs text-zinc-300 transition hover:bg-white/10"
+                        >
+                            Privacy policy
+                        </Link>
+                        <Link
+                            href="/terms"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs text-zinc-300 transition hover:bg-white/10"
+                        >
+                            Terms
+                        </Link>
+                    </div>
+                </section>
+
                 {/* Data & privacy copy */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                     <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Data &amp; privacy</h2>
@@ -2441,28 +2485,13 @@ export default function SettingsPage() {
                         stored only in this browser unless you explicitly allow remote
                         analysis or sync.
                     </p>
-                    <p className="mt-2 text-xs leading-6 text-zinc-400 sm:text-sm">
-                        In upcoming steps, this page will let you download richer exports
-                        and review how your information is used across devices.
-                    </p>
 
                     <p className="mt-3 text-[11px] text-zinc-500">
                         For full details, see our{" "}
-                        <Link href="/privacy" className="underline underline-offset-2 hover:text-zinc-300">
-                            Privacy
-                        </Link>{" "}
+                        <Link href="/privacy" className="underline underline-offset-2 hover:text-zinc-300">Privacy</Link>{" "}
                         and{" "}
-                        <Link href="/terms" className="underline underline-offset-2 hover:text-zinc-300">
-                            Terms
-                        </Link>{" "}
+                        <Link href="/terms" className="underline underline-offset-2 hover:text-zinc-300">Terms</Link>{" "}
                         pages.
-                    </p>
-
-                    <p className="mt-4 text-[11px] text-zinc-500">
-                        New to Imotara?{" "}
-                        <Link href="/guide" className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300">
-                            How to use Imotara →
-                        </Link>
                     </p>
                 </section>
                 {/* Version footer intentionally removed (global footer already shows version) */}

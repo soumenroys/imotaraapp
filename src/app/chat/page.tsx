@@ -991,6 +991,8 @@ export default function ChatPage() {
   const [showBreathing, setShowBreathing] = useState(false);
   // #8: Grow nudge dismissed flag
   const [growNudgeDismissed, setGrowNudgeDismissed] = useState(false);
+  // L-2: post-session tone reflection card dismissed
+  const [sessionToneCardDismissed, setSessionToneCardDismissed] = useState(false);
   // #6: Weekly recap text (computed once on mount)
   const [weeklyRecap, setWeeklyRecap] = useState<string | null>(null);
   const [weeklyRecapDismissed, setWeeklyRecapDismissed] = useState(false);
@@ -1910,7 +1912,12 @@ export default function ChatPage() {
     return { emotion: "neutral", source: "unknown" };
   }
 
+  const teenModeEnabled = useMemo(() => {
+    try { return window.localStorage.getItem("imotara.teen_mode.v1") === "true"; } catch { return false; }
+  }, []);
+
   const teenInsight = useMemo(() => {
+    if (!teenModeEnabled) return null;
     if (!analysis?.summary) return null;
     const summary: any = analysis.summary;
     const msgs = activeThread?.messages ?? [];
@@ -3402,28 +3409,53 @@ export default function ChatPage() {
           </div>
           </div>{/* end emotion-ambient wrapper */}
 
-          {/* End-of-session insight — shown when thread has ≥3 user messages + analysis ready */}
+          {/* L-2: Post-session tone reflection card — shown when ≥3 user messages + analysis ready */}
           {!analyzing &&
+            !sessionToneCardDismissed &&
             analysis?.summary?.headline &&
-            (activeThread?.messages.filter((m) => m.role === "user").length ?? 0) >= 3 && (
-            <div className="mx-auto mb-1 max-w-3xl animate-fade-in rounded-2xl border border-indigo-400/15 bg-gradient-to-r from-indigo-500/8 via-sky-500/6 to-emerald-500/6 px-4 py-3">
-              <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-indigo-400/70">
-                Session insight
-              </p>
-              <p className="text-xs text-zinc-300 leading-relaxed">{analysis.summary.headline}</p>
-              {analysis.summary.details && (
-                <p className="mt-0.5 text-[11px] text-zinc-500">{analysis.summary.details}</p>
-              )}
-              <div className="mt-2 flex items-center gap-3">
-                <a href="/grow" className="text-[11px] text-indigo-400/80 underline underline-offset-2 hover:text-indigo-300 transition">
-                  Reflect on this →
-                </a>
-                <a href="/history" className="text-[11px] text-zinc-500 hover:text-zinc-300 transition underline underline-offset-2">
-                  View history →
-                </a>
-              </div>
-            </div>
-          )}
+            (activeThread?.messages.filter((m) => m.role === "user").length ?? 0) >= 3 && (() => {
+              const EMOTION_EMOJI_MAP: Record<string, string> = {
+                joy: "😄", happiness: "😄", gratitude: "🙏", hopeful: "💚",
+                sadness: "💙", sad: "💙", grief: "💜", loss: "💜",
+                anxiety: "😰", anxious: "😰", stressed: "💛", stress: "💛",
+                anger: "❤️", angry: "❤️", fear: "😨", confused: "🟣",
+                lonely: "🫂", surprise: "✨", disgust: "😶", neutral: "💭",
+              };
+              const dominant = analysis.snapshot?.dominant ?? "neutral";
+              const emoji = EMOTION_EMOJI_MAP[dominant] ?? "💭";
+              const emotionLabel = dominant.charAt(0).toUpperCase() + dominant.slice(1);
+              const reflectionSeed = analysis.reflectionSeedCard?.prompts?.[0] ?? analysis.reflections?.[0]?.text ?? null;
+              return (
+                <div className="mx-auto mb-1 max-w-3xl animate-fade-in rounded-2xl border border-indigo-400/20 bg-gradient-to-br from-indigo-500/10 via-sky-500/7 to-emerald-500/7 px-4 py-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-400/70">
+                      Tone Reflection
+                    </p>
+                    <button type="button" onClick={() => setSessionToneCardDismissed(true)} className="text-zinc-600 hover:text-zinc-400 transition text-xs" aria-label="Dismiss">✕</button>
+                  </div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-base">{emoji}</span>
+                    <span className="text-[11px] font-medium text-indigo-300">{emotionLabel}</span>
+                  </div>
+                  <p className="text-xs text-zinc-300 leading-relaxed">{analysis.summary.headline}</p>
+                  {analysis.summary.details && (
+                    <p className="mt-0.5 text-[11px] text-zinc-500">{analysis.summary.details}</p>
+                  )}
+                  {reflectionSeed && (
+                    <p className="mt-2 text-[11px] text-indigo-300/80 italic border-l-2 border-indigo-400/30 pl-2">{reflectionSeed}</p>
+                  )}
+                  <div className="mt-2 flex items-center gap-3">
+                    <a href="/grow" className="text-[11px] text-indigo-400/80 underline underline-offset-2 hover:text-indigo-300 transition">
+                      Reflect on this →
+                    </a>
+                    <a href="/history" className="text-[11px] text-zinc-500 hover:text-zinc-300 transition underline underline-offset-2">
+                      View history →
+                    </a>
+                  </div>
+                </div>
+              );
+            })()
+          }
 
           {/* #6: Weekly mood recap banner */}
           {weeklyRecap && !weeklyRecapDismissed && (

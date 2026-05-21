@@ -399,10 +399,14 @@ function ToneAndContextTile() {
     >("prefer_not");
     const [userAvatarAge, setUserAvatarAge] = useState<number>(26);
     const [compAvatarAge, setCompAvatarAge] = useState<number>(26);
+    // GAP-12: Teen Mode toggle
+    const [teenMode, setTeenMode] = useState(false);
 
     useEffect(() => {
         // Hydration-safe: only read localStorage after mount
         const existing = safeParseProfile(window.localStorage.getItem(PROFILE_STORAGE_KEY));
+        const savedTeenMode = window.localStorage.getItem("imotara.teen_mode.v1");
+        if (savedTeenMode === "true") setTeenMode(true);
         if (existing) {
             setUserName(existing.user?.name ?? "");
             setUserAge((existing.user?.ageRange as AgeRange) ?? "prefer_not");
@@ -457,6 +461,12 @@ function ToneAndContextTile() {
             console.error("[imotara] profile autosave failed:", e);
         }
     }, [loaded, profile]);
+
+    // GAP-12: persist teen mode
+    useEffect(() => {
+        if (!loaded) return;
+        try { window.localStorage.setItem("imotara.teen_mode.v1", String(teenMode)); } catch { /* ignore */ }
+    }, [loaded, teenMode]);
 
     function save() {
         try {
@@ -909,6 +919,23 @@ function ToneAndContextTile() {
                         </div>
                     )}
                 </div>
+            </div>
+
+            {/* GAP-12: Teen Mode toggle */}
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-violet-500/20 bg-violet-500/6 px-4 py-3">
+                <div>
+                    <p className="text-sm font-medium text-violet-200">Teen Insights Mode</p>
+                    <p className="mt-0.5 text-[11px] text-zinc-500">Shows age-appropriate reflections with peer-supportive language and enhanced safety filters.</p>
+                </div>
+                <button
+                    type="button"
+                    role="switch"
+                    aria-checked={teenMode}
+                    onClick={() => setTeenMode((v) => !v)}
+                    className={`relative ml-4 h-6 w-11 flex-shrink-0 rounded-full transition-colors ${teenMode ? "bg-violet-500" : "bg-zinc-700"}`}
+                >
+                    <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${teenMode ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
             </div>
 
             <p className="mt-3 text-[11px] text-zinc-500">Stored only in this browser. Reset clears it.</p>

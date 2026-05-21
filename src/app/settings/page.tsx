@@ -1330,7 +1330,7 @@ export default function SettingsPage() {
                 reflectionDays,
                 generatedAt: new Date().toISOString().slice(0, 10),
             };
-            const encoded = btoa(JSON.stringify(snap));
+            const encoded = btoa(encodeURIComponent(JSON.stringify(snap)));
             const url = `${window.location.origin}/family/view?snap=${encoded}`;
             setFamilySnapUrl(url);
             setFamilySnapCopied(false);

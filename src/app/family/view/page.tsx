@@ -24,7 +24,9 @@ const EMOTION_EMOJI: Record<string, string> = {
 
 function decodeSnapshot(raw: string): FamilySnapshot | null {
   try {
-    const json = atob(raw);
+    // Try URI-encoded path first (new format), fall back to plain JSON (legacy)
+    const inner = atob(raw);
+    const json = inner.startsWith("%") ? decodeURIComponent(inner) : inner;
     const parsed = JSON.parse(json);
     if (parsed?.week && Array.isArray(parsed.week)) return parsed as FamilySnapshot;
   } catch {}

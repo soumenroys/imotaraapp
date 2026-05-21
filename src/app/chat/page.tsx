@@ -3019,7 +3019,7 @@ export default function ChatPage() {
                         </p>
                         <p className="mt-2 text-xs leading-5 text-zinc-300/90">
                           Your words stay on-device unless you explicitly allow remote. You can{" "}
-                          <Link href="/privacy" className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300">download or delete what's stored on this device</Link>{" "}
+                          <Link href="/privacy" className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300">download or delete what&apos;s stored on this device</Link>{" "}
                           anytime.
                         </p>
                         <p className="mt-2 text-xs leading-5 text-zinc-400">
@@ -3681,7 +3681,7 @@ export default function ChatPage() {
               <div className="mx-auto mb-2 max-w-3xl flex items-center gap-3 animate-fade-in rounded-xl border border-violet-500/25 bg-violet-500/8 px-3.5 py-2 text-xs text-violet-200/85">
                 <span className="shrink-0">✉️</span>
                 <span className="flex-1 leading-snug">
-                  Sounds like there's something you might want to say to someone.{" "}
+                  Sounds like there&apos;s something you might want to say to someone.{" "}
                   <button
                     type="button"
                     onClick={() => { setShowUnsentHint(false); setUnsentLetterModalOpen(true); try { localStorage.setItem("imotara.unsent_letter.tried.v1", "1"); } catch {} }}

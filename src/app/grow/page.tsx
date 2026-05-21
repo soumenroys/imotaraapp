@@ -1096,6 +1096,164 @@ function exportReflections(entries: ReflectionEntry[]) {
   URL.revokeObjectURL(url);
 }
 
+// ── EN-4: 30-Day Reflection Challenge ────────────────────────────────────────
+const CHALLENGE_KEY = "imotara.challenge30.v1";
+const CHALLENGE_PROMPTS: string[] = [
+  "Write about one thing that made you feel alive this week.",
+  "Describe a moment when you felt truly understood by someone.",
+  "What emotion do you avoid most — and why might that be?",
+  "Write about a person who shaped the way you see yourself.",
+  "What does 'home' feel like to you emotionally?",
+  "Describe a small joy you noticed today.",
+  "What are you holding onto that might be time to release?",
+  "Write about a time you surprised yourself.",
+  "What does your inner critic sound like — and what does it need?",
+  "Describe a feeling you haven't had words for until now.",
+  "What do you wish someone had told you during a hard time?",
+  "Write about a relationship that changed you.",
+  "What are you most grateful for that you rarely say out loud?",
+  "Describe a moment when silence felt comforting.",
+  "What does 'enough' feel like to you?",
+  "Write about a fear that has been quietly guiding your decisions.",
+  "When did you last feel proud of yourself — not for achieving, but for trying?",
+  "What part of your story do you still need to make peace with?",
+  "Describe a time when asking for help was hard — and what happened.",
+  "What does rest feel like versus escape for you?",
+  "Write about a boundary you set — or wish you had set.",
+  "What do you keep returning to in your thoughts — and what might it mean?",
+  "Describe a version of yourself you've outgrown.",
+  "What is one thing your body has been trying to tell you?",
+  "Write about a moment when you felt deeply connected to something larger than yourself.",
+  "What would you tell your younger self about the hard stretch you're in — or were in?",
+  "Describe the shape of your loneliness, if any.",
+  "What are you learning about yourself through difficulty?",
+  "Write about one thing you want to feel more of in your life.",
+  "What would it mean to be gentle with yourself today?",
+];
+
+type ChallengeState = { startDate: string; completedDays: number[] };
+
+function loadChallenge(): ChallengeState {
+  try {
+    const raw = window.localStorage.getItem(CHALLENGE_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p?.startDate && Array.isArray(p.completedDays)) return p;
+    }
+  } catch {}
+  return { startDate: new Date().toISOString().slice(0, 10), completedDays: [] };
+}
+
+function saveChallenge(state: ChallengeState) {
+  try { window.localStorage.setItem(CHALLENGE_KEY, JSON.stringify(state)); } catch {}
+}
+
+function getChallengeDay(startDate: string): number {
+  const start = new Date(startDate).setHours(0, 0, 0, 0);
+  const today = new Date().setHours(0, 0, 0, 0);
+  return Math.floor((today - start) / 86_400_000);
+}
+
+function ChallengeSection() {
+  const [challenge, setChallenge] = useState<ChallengeState | null>(null);
+
+  useEffect(() => { setChallenge(loadChallenge()); }, []);
+
+  function startChallenge() {
+    const next: ChallengeState = { startDate: new Date().toISOString().slice(0, 10), completedDays: [] };
+    saveChallenge(next);
+    setChallenge(next);
+  }
+
+  function markToday() {
+    if (!challenge) return;
+    const day = getChallengeDay(challenge.startDate);
+    if (challenge.completedDays.includes(day)) return;
+    const next = { ...challenge, completedDays: [...challenge.completedDays, day] };
+    saveChallenge(next);
+    setChallenge(next);
+  }
+
+  function resetChallenge() {
+    const next: ChallengeState = { startDate: new Date().toISOString().slice(0, 10), completedDays: [] };
+    saveChallenge(next);
+    setChallenge(next);
+  }
+
+  if (!challenge) return null;
+
+  const dayIndex = getChallengeDay(challenge.startDate);
+  const currentDay = Math.min(dayIndex, 29); // clamp to 30 days
+  const isComplete = dayIndex >= 30;
+  const todayDone = challenge.completedDays.includes(dayIndex);
+  const totalDone = challenge.completedDays.length;
+  const prompt = CHALLENGE_PROMPTS[currentDay] ?? CHALLENGE_PROMPTS[29];
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 shadow-sm backdrop-blur-md">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">30-Day Challenge</p>
+          <p className="text-sm font-medium text-zinc-200">
+            {isComplete ? "Challenge complete 🎉" : `Day ${currentDay + 1} of 30`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-500">{totalDone}/30</span>
+          <button
+            type="button"
+            onClick={resetChallenge}
+            className="text-[10px] text-zinc-600 hover:text-zinc-400 transition underline underline-offset-2"
+          >
+            Restart
+          </button>
+        </div>
+      </div>
+
+      {/* Progress dots grid */}
+      <div className="mb-3 flex flex-wrap gap-1">
+        {Array.from({ length: 30 }, (_, i) => {
+          const done = challenge.completedDays.includes(i);
+          const isToday = i === dayIndex && dayIndex < 30;
+          const isFuture = i > dayIndex;
+          return (
+            <div
+              key={i}
+              title={`Day ${i + 1}${done ? " ✓" : ""}`}
+              className={`h-[14px] w-[14px] rounded-full transition ${
+                done
+                  ? "bg-emerald-500"
+                  : isToday
+                  ? "bg-indigo-500 ring-2 ring-indigo-400/40"
+                  : isFuture
+                  ? "bg-white/8"
+                  : "bg-zinc-700"
+              }`}
+            />
+          );
+        })}
+      </div>
+
+      {!isComplete && (
+        <>
+          <p className="text-xs text-zinc-300 leading-relaxed italic mb-3">&ldquo;{prompt}&rdquo;</p>
+          {!todayDone ? (
+            <button
+              type="button"
+              onClick={markToday}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-medium text-emerald-300 transition hover:bg-emerald-500/20"
+            >
+              <Check className="h-3 w-3" /> Mark today done
+            </button>
+          ) : (
+            <p className="text-[11px] text-emerald-400">✓ Today&apos;s reflection marked complete</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function GrowPage() {
   const insightsGate = useFeatureGate("TRENDS_INSIGHTS");
@@ -1388,6 +1546,9 @@ export default function GrowPage() {
           </a>
         </div>
       )}
+
+      {/* EN-4: 30-Day Reflection Challenge */}
+      <ChallengeSection />
 
       {/* Today's prompt card */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm backdrop-blur-md">

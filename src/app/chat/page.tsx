@@ -31,6 +31,7 @@ import {
   VolumeX,
   Pencil,
   ChevronDown,
+  Heart,
 } from "lucide-react";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
 import BreathingWidget from "@/components/imotara/BreathingWidget";
@@ -841,6 +842,9 @@ export default function ChatPage() {
   const insightCheckedRef = useRef(false);
   const [unsentLetterModalOpen, setUnsentLetterModalOpen] = useState(false);
   const [unsentLetterSetup, setUnsentLetterSetup] = useState<UnsentLetterSetup | null>(null);
+
+  // NF-2: Grief & Loss dedicated space
+  const [griefMode, setGriefMode] = useState(false);
 
   // Feature discovery cards — state and helpers (effect wired after activeThread is declared)
   type DiscoveryCardId = "trends" | "companion" | "offline" | "unsent_letter";
@@ -2051,9 +2055,13 @@ export default function ChatPage() {
       if (remoteAllowed && ANALYSIS_IMPL === "api") {
         try {
           // P4 — Unsent Letter: prepend role-play context so AI responds in recipient's voice
+          // NF-2 — Grief & Loss: prepend grief-aware system context
           const lastUserContent = msgsForAnalysis[msgsForAnalysis.length - 1]?.content ?? "";
+          const griefSystemPrompt = `You are holding a dedicated Grief & Loss space. The user has chosen to open this space intentionally. Your role is to be fully present with their grief — not to fix, reframe, or rush toward healing. DO NOT say "they are in a better place", "time heals", "at least...", or any forward-looking reassurance unless the user explicitly asks for it. DO: sit in the weight of the loss with them. DO: name what was lost if they've shared it. DO: acknowledge the specific, irreplaceable nature of who or what they've lost. Speak slowly, softly, and with care. This is sacred ground.`;
           const aiMessageContent = unsentLetterSetup
             ? `${buildUnsentLetterSystemPrompt(unsentLetterSetup)}\n\nThe user's letter:\n${lastUserContent}`
+            : griefMode
+            ? `${griefSystemPrompt}\n\n${lastUserContent}`
             : lastUserContent;
 
           const resp = await runRespondWithConsent(
@@ -3240,6 +3248,23 @@ export default function ChatPage() {
                   </div>
                 )}
 
+                {/* NF-2 — Grief & Loss space banner */}
+                {griefMode && (
+                  <div className="mb-3 flex items-center gap-2 rounded-xl border border-rose-500/25 bg-rose-500/8 px-3 py-2 text-xs text-rose-300">
+                    <Heart className="h-3.5 w-3.5 shrink-0" />
+                    <span className="flex-1">
+                      Grief &amp; Loss space — Imotara will hold this with you, without rushing.
+                    </span>
+                    <button
+                      onClick={() => setGriefMode(false)}
+                      className="text-zinc-500 hover:text-zinc-300 transition"
+                      type="button"
+                    >
+                      <XIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Trial countdown banner — once per day, ≤14 days before free trial ends */}
                 {showTrialBanner && license.expiresAt && (() => {
                   const daysLeft = Math.ceil((new Date(license.expiresAt).getTime() - Date.now()) / 86_400_000);
@@ -3729,6 +3754,20 @@ export default function ChatPage() {
                 type="button"
               >
                 <Pencil className="h-4 w-4" />
+              </button>
+
+              {/* NF-2 — Grief & Loss space button */}
+              <button
+                onClick={() => setGriefMode((v) => !v)}
+                title={griefMode ? "Exit Grief & Loss space" : "Open Grief & Loss space"}
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
+                  griefMode
+                    ? "border-rose-500/50 bg-rose-500/15 text-rose-300"
+                    : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                }`}
+                type="button"
+              >
+                <Heart className="h-4 w-4" />
               </button>
 
               <button

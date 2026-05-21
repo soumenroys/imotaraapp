@@ -1287,6 +1287,65 @@ export default function SettingsPage() {
         setMemoriesDeletingId(null);
     }
 
+    // NF-3: Family snapshot share
+    const [familySnapUrl, setFamilySnapUrl] = useState<string | null>(null);
+    const [familySnapCopied, setFamilySnapCopied] = useState(false);
+
+    function generateFamilySnapshot() {
+        try {
+            const EMOTION_MAP: Record<string, string> = {
+                joy: "joy", happiness: "joy", happy: "joy", gratitude: "gratitude", hopeful: "hopeful",
+                sadness: "sadness", sad: "sadness", grief: "grief", loss: "grief",
+                anxiety: "anxiety", anxious: "anxiety", stressed: "stressed", stress: "stressed",
+                anger: "anger", angry: "anger", fear: "fear", confused: "confused",
+                lonely: "lonely", surprise: "surprise", neutral: "neutral",
+            };
+            const rawHistory: any[] = (() => {
+                try { return JSON.parse(localStorage.getItem("imotara:history:v1") ?? "[]"); } catch { return []; }
+            })();
+            // Build 7-day emotion array
+            const now = Date.now();
+            const week: string[] = Array.from({ length: 7 }, (_, i) => {
+                const dayStart = now - (6 - i) * 86_400_000;
+                const dayEnd = dayStart + 86_400_000;
+                const dayMsgs = rawHistory.filter((m: any) => m.timestamp >= dayStart && m.timestamp < dayEnd && m.from === "user");
+                const withEmotion = dayMsgs.find((m: any) => m.emotion || m.moodHint);
+                const raw = withEmotion?.emotion ?? withEmotion?.moodHint ?? "neutral";
+                return EMOTION_MAP[raw.toLowerCase()] ?? "neutral";
+            });
+            const freq: Record<string, number> = {};
+            for (const e of week) freq[e] = (freq[e] ?? 0) + 1;
+            const dominant = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "neutral";
+            const challengeRaw: any = (() => {
+                try { return JSON.parse(localStorage.getItem("imotara.challenge30.v1") ?? "{}"); } catch { return {}; }
+            })();
+            const reflectionDays = Array.isArray(challengeRaw.completedDays) ? challengeRaw.completedDays.filter((d: number) => d < 7).length : 0;
+            const profile: any = (() => {
+                try { return JSON.parse(localStorage.getItem("imotara.profile.v1") ?? "{}"); } catch { return {}; }
+            })();
+            const snap = {
+                displayName: profile?.user?.name || "",
+                week,
+                dominant,
+                reflectionDays,
+                generatedAt: new Date().toISOString().slice(0, 10),
+            };
+            const encoded = btoa(JSON.stringify(snap));
+            const url = `${window.location.origin}/family/view?snap=${encoded}`;
+            setFamilySnapUrl(url);
+            setFamilySnapCopied(false);
+        } catch { /* ignore */ }
+    }
+
+    async function copyFamilySnapUrl() {
+        if (!familySnapUrl) return;
+        try {
+            await navigator.clipboard.writeText(familySnapUrl);
+            setFamilySnapCopied(true);
+            setTimeout(() => setFamilySnapCopied(false), 2500);
+        } catch { /* ignore */ }
+    }
+
     const licenseMode = useMemo(() => {
         // This is a PUBLIC env var and is safe to display.
         return process.env.NEXT_PUBLIC_IMOTARA_LICENSE_MODE || "off";
@@ -2161,6 +2220,48 @@ export default function SettingsPage() {
                                 </li>
                             ))}
                         </ul>
+                    )}
+                </section>
+
+                {/* NF-3: Family Emotional Snapshot */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <div className="mb-3">
+                        <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Family Snapshot</h2>
+                        <p className="mt-1 text-xs text-zinc-400">
+                            Share a private link showing your week&apos;s emotional tone. No account needed — it&apos;s encoded in the link.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={generateFamilySnapshot}
+                        className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] font-medium text-emerald-300 transition hover:bg-emerald-500/20"
+                    >
+                        Generate snapshot link
+                    </button>
+                    {familySnapUrl && (
+                        <div className="mt-3 space-y-2 animate-fade-in">
+                            <p className="break-all rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-zinc-400 select-all">
+                                {familySnapUrl}
+                            </p>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={copyFamilySnapUrl}
+                                    className="text-[11px] text-indigo-400 underline underline-offset-2 hover:text-indigo-300 transition"
+                                >
+                                    {familySnapCopied ? "Copied ✓" : "Copy link"}
+                                </button>
+                                <a
+                                    href={familySnapUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[11px] text-zinc-500 hover:text-zinc-300 transition underline underline-offset-2"
+                                >
+                                    Preview →
+                                </a>
+                            </div>
+                            <p className="text-[10px] text-zinc-600">This link encodes your data locally — nothing is sent to a server.</p>
+                        </div>
                     )}
                 </section>
 

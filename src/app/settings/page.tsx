@@ -1429,6 +1429,122 @@ export default function SettingsPage() {
         }
     }
 
+    // ─── Export Data (JSON) ──────────────────────────────────────────────────
+    const [exportBusy, setExportBusy] = useState(false);
+
+    async function handleExportData() {
+        if (exportBusy) return;
+        setExportBusy(true);
+        try {
+            const rawHistory: unknown[] = (() => {
+                try { return JSON.parse(localStorage.getItem("imotara:history:v1") ?? "[]"); } catch { return []; }
+            })();
+            const payload = {
+                exportedAt: new Date().toISOString(),
+                appVersion: typeof window !== "undefined"
+                    ? (document.querySelector("meta[name='app-version']")?.getAttribute("content") ?? "web")
+                    : "web",
+                messages: rawHistory,
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `imotara-export-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            setStatus("Export failed. Please try again.");
+        } finally {
+            setExportBusy(false);
+        }
+    }
+
+    // ─── Remote History Sync ─────────────────────────────────────────────────
+    const [syncBusy, setSyncBusy] = useState(false);
+    const [syncMsg, setSyncMsg] = useState<string | null>(null);
+
+    async function handleSyncNow() {
+        if (syncBusy) return;
+        setSyncBusy(true);
+        setSyncMsg(null);
+        try {
+            const rawHistory: unknown[] = (() => {
+                try { return JSON.parse(localStorage.getItem("imotara:history:v1") ?? "[]"); } catch { return []; }
+            })();
+            const res = await fetch("/api/history/sync", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    clientSince: 0,
+                    clientChanges: rawHistory,
+                }),
+            });
+            if (res.status === 401) {
+                setSyncMsg("Sign in to sync your history across devices.");
+                return;
+            }
+            if (!res.ok) {
+                setSyncMsg("Sync failed — please try again.");
+                return;
+            }
+            const json = await res.json();
+            const serverChanges: unknown[] = Array.isArray(json?.serverChanges) ? json.serverChanges : [];
+            setSyncMsg(serverChanges.length > 0
+                ? `Sync complete — ${serverChanges.length} new record${serverChanges.length !== 1 ? "s" : ""} from the cloud.`
+                : "Sync complete — you are up to date.");
+        } catch {
+            setSyncMsg("Sync failed — check your connection.");
+        } finally {
+            setSyncBusy(false);
+        }
+    }
+
+    // ─── Delete Account ──────────────────────────────────────────────────────
+    const [deletingAccount, setDeletingAccount] = useState(false);
+    const [deleteAccountMsg, setDeleteAccountMsg] = useState<string | null>(null);
+
+    async function handleDeleteAccount() {
+        if (deletingAccount) return;
+        const step1 = typeof window !== "undefined"
+            ? window.confirm("Delete your account? This will permanently remove all your conversations, memories, and settings. This cannot be undone.")
+            : false;
+        if (!step1) return;
+        const step2 = typeof window !== "undefined"
+            ? window.confirm("This is irreversible. Are you absolutely sure?")
+            : false;
+        if (!step2) return;
+
+        setDeletingAccount(true);
+        setDeleteAccountMsg(null);
+        try {
+            // Clear local data first
+            try { localStorage.removeItem("imotara:history:v1"); } catch { /* ignore */ }
+            try { localStorage.removeItem(CHAT_STORAGE_KEY); } catch { /* ignore */ }
+
+            // Call server-side account delete (uses cookie session)
+            const res = await fetch("/api/account/delete", { method: "DELETE" });
+            if (res.ok || res.status === 404) {
+                setDeleteAccountMsg("Account deleted. All your data has been removed.");
+                // Sign out via Supabase browser client
+                try {
+                    const { createBrowserClient } = await import("@supabase/ssr");
+                    const sb = createBrowserClient(
+                        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                    );
+                    await sb.auth.signOut();
+                } catch { /* ignore — user is already effectively signed out */ }
+            } else {
+                setDeleteAccountMsg("Could not delete account — please contact support.");
+            }
+        } catch {
+            setDeleteAccountMsg("Something went wrong. Please try again.");
+        } finally {
+            setDeletingAccount(false);
+        }
+    }
+
     async function refreshLicenseStatus() {
         try {
             setLicLoading(true);
@@ -2076,6 +2192,58 @@ export default function SettingsPage() {
                     </div>
 
                     {status && <p className="mt-3 text-[11px] text-zinc-400">{status}</p>}
+                </section>
+
+                {/* ── Export Data (JSON) ──────────────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Export data</h2>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">
+                        Download all your local chat history as a JSON file. This only includes messages stored on this device.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleExportData}
+                        disabled={exportBusy}
+                        className="mt-3 rounded-xl border border-sky-400/30 bg-sky-500/10 px-4 py-2 text-xs font-medium text-sky-200 transition hover:bg-sky-500/20 disabled:opacity-50"
+                    >
+                        {exportBusy ? "Preparing…" : "Download JSON"}
+                    </button>
+                </section>
+
+                {/* ── Remote History Sync ─────────────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Remote history sync</h2>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">
+                        Push your local history to the Imotara cloud and pull any records from other devices. Requires being signed in.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleSyncNow}
+                        disabled={syncBusy}
+                        className="mt-3 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-200 transition hover:bg-indigo-500/20 disabled:opacity-50"
+                    >
+                        {syncBusy ? "Syncing…" : "Sync now"}
+                    </button>
+                    {syncMsg && <p className="mt-2 text-[11px] text-zinc-400">{syncMsg}</p>}
+                </section>
+
+                {/* ── Delete Account ───────────────────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl border border-rose-500/15 px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-rose-300 sm:text-base">Delete account</h2>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">
+                        Permanently delete your Imotara account and all associated data — conversations, memories, and settings. This cannot be undone.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleDeleteAccount}
+                        disabled={deletingAccount}
+                        className="mt-3 rounded-xl border border-rose-500/40 bg-rose-600/15 px-4 py-2 text-xs font-medium text-rose-300 transition hover:bg-rose-600/25 disabled:opacity-50"
+                    >
+                        {deletingAccount ? "Deleting…" : "Delete my account"}
+                    </button>
+                    {deleteAccountMsg && (
+                        <p className="mt-2 text-[11px] text-zinc-400">{deleteAccountMsg}</p>
+                    )}
                 </section>
 
                 {/* ── Appearance ─────────────────────────────────────── */}

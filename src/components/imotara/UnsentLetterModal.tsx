@@ -60,7 +60,7 @@ export default function UnsentLetterModal({ visible, onStart, onCancel }: Props)
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center"
       onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
     >
-      <div className="w-full max-w-lg rounded-t-2xl border border-white/10 bg-slate-950 p-6 sm:rounded-2xl">
+      <div className="w-full max-w-lg rounded-t-2xl border border-white/10 bg-[#130e17] p-6 sm:rounded-2xl">
         {/* Header */}
         <div className="mb-4 flex items-center gap-2">
           <Pencil className="h-4 w-4 text-violet-400" />

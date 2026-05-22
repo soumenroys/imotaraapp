@@ -4,8 +4,26 @@
 "use client";
 
 const LOOPS_KEY = "imotara.open_loops.v1";
-const MIN_THREADS = 3;
-const MIN_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+const OPENLOOP_MIN_THREADS_KEY = "imotara.openloop.minThreads.v1";
+const OPENLOOP_MIN_AGE_KEY = "imotara.openloop.minAgeDays.v1";
+const DEFAULT_MIN_THREADS = 3;
+const DEFAULT_MIN_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+function getOpenLoopThresholds(): { minThreads: number; minAgeMs: number } {
+  try {
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
+      return { minThreads: DEFAULT_MIN_THREADS, minAgeMs: DEFAULT_MIN_AGE_MS };
+    }
+    const t = parseInt(localStorage.getItem(OPENLOOP_MIN_THREADS_KEY) ?? "3", 10);
+    const d = parseInt(localStorage.getItem(OPENLOOP_MIN_AGE_KEY) ?? "14", 10);
+    return {
+      minThreads: isFinite(t) && t > 0 ? t : DEFAULT_MIN_THREADS,
+      minAgeMs: isFinite(d) && d > 0 ? d * 24 * 60 * 60 * 1000 : DEFAULT_MIN_AGE_MS,
+    };
+  } catch {
+    return { minThreads: DEFAULT_MIN_THREADS, minAgeMs: DEFAULT_MIN_AGE_MS };
+  }
+}
 
 export type OpenLoopStatus = "active" | "dismissed" | "deferred" | "closed";
 
@@ -108,6 +126,7 @@ export function detectAndUpdateOpenLoops(
   threads: Array<{ id: string; messages: Array<{ role: string; content: string; createdAt: number }> }>
 ): OpenLoop[] {
   const now = Date.now();
+  const { minThreads, minAgeMs } = getOpenLoopThresholds();
 
   const existing = loadOpenLoops();
   const existingByKey = new Map(existing.map((l) => [l.themeKey, l]));
@@ -135,9 +154,9 @@ export function detectAndUpdateOpenLoops(
 
     const prev = existingByKey.get(themeKey);
     const thresholdMet =
-      matchingThreadIds.length >= MIN_THREADS &&
+      matchingThreadIds.length >= minThreads &&
       firstSeenAt !== Infinity &&
-      now - firstSeenAt >= MIN_AGE_MS;
+      now - firstSeenAt >= minAgeMs;
 
     if (!thresholdMet) {
       if (prev) updated.push(prev);

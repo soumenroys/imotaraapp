@@ -8,7 +8,18 @@ import type { ImotaraProfileV1 } from "./profile";
 
 const LAST_LETTER_KEY = "imotara.companion_letter.last_at.v1";
 const LETTER_KEY = "imotara.companion_letter.v1";
-const INTERVAL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const LETTER_CADENCE_KEY = "imotara.letter.cadenceDays.v1";
+const DEFAULT_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
+
+function getIntervalMs(): number {
+  try {
+    if (!isClient()) return DEFAULT_INTERVAL_MS;
+    const days = parseInt(localStorage.getItem(LETTER_CADENCE_KEY) ?? "30", 10);
+    return isFinite(days) && days > 0 ? days * 24 * 60 * 60 * 1000 : DEFAULT_INTERVAL_MS;
+  } catch {
+    return DEFAULT_INTERVAL_MS;
+  }
+}
 
 export type CompanionLetter = {
   id: string;
@@ -43,7 +54,7 @@ export function isLetterDue(): boolean {
   if (!isClient()) return false;
   const raw = localStorage.getItem(LAST_LETTER_KEY);
   if (!raw) return true;
-  return Date.now() - Number(raw) >= INTERVAL_MS;
+  return Date.now() - Number(raw) >= getIntervalMs();
 }
 
 // EN-1 — Conversation depth level: shifts companion tone at 10 / 30 / 50 messages
@@ -65,7 +76,7 @@ export function getConversationDepth(
 
 function extractRecentThemes(
   threads: Array<{ messages: Array<{ role: string; content: string; createdAt: number }> }>,
-  cutoffMs = INTERVAL_MS
+  cutoffMs = DEFAULT_INTERVAL_MS
 ): string[] {
   const cutoff = Date.now() - cutoffMs;
   const keywords: Record<string, number> = {};
@@ -98,7 +109,7 @@ export async function generateCompanionLetter(
 ): Promise<CompanionLetter | null> {
   const companionName = profile?.companion?.name ?? "Imotara";
   const userName = profile?.user?.name ?? "you";
-  const themes = extractRecentThemes(threads);
+  const themes = extractRecentThemes(threads, getIntervalMs());
   const { toneHint } = getConversationDepth(threads);
 
   const themeContext =

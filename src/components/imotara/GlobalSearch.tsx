@@ -40,9 +40,18 @@ function excerpt(text: string, query: string, maxLen = 80): string {
   return (start > 0 ? "…" : "") + text.slice(start, end) + (end < text.length ? "…" : "");
 }
 
+function matchesQuery(text: string, q: string, mode: "fuzzy" | "exact"): boolean {
+  const lower = text.toLowerCase();
+  if (mode === "exact") return lower.includes(q);
+  return q.split(/\s+/).every((word) => lower.includes(word));
+}
+
 function searchStorage(query: string): SearchResult[] {
   if (typeof window === "undefined" || query.trim().length < 2) return [];
   const q = query.trim().toLowerCase();
+  const searchMode: "fuzzy" | "exact" = (() => {
+    try { return localStorage.getItem("imotara.search.mode.v1") === "exact" ? "exact" : "fuzzy"; } catch { return "fuzzy"; }
+  })();
   const results: SearchResult[] = [];
 
   // ── Chat threads ──────────────────────────────────────────────────
@@ -53,7 +62,7 @@ function searchStorage(query: string): SearchResult[] {
       for (const msg of thread.messages ?? []) {
         if (msg.role !== "user" && msg.role !== "assistant") continue;
         const content: string = msg.content ?? "";
-        if (!content.toLowerCase().includes(q)) continue;
+        if (!matchesQuery(content, q, searchMode)) continue;
         results.push({
           id: `chat-${thread.id}-${msg.id ?? Math.random()}`,
           kind: "chat",
@@ -74,7 +83,7 @@ function searchStorage(query: string): SearchResult[] {
     for (const e of entries) {
       const text: string = e.message ?? e.note ?? "";
       const emotion: string = e.emotion ?? "";
-      if (!text.toLowerCase().includes(q) && !emotion.toLowerCase().includes(q)) continue;
+      if (!matchesQuery(text, q, searchMode) && !matchesQuery(emotion, q, searchMode)) continue;
       const kind: ResultKind = e.entryKind === "checkin" ? "checkin" : "history";
       results.push({
         id: `hist-${e.id ?? Math.random()}`,
@@ -94,7 +103,7 @@ function searchStorage(query: string): SearchResult[] {
     const items: any[] = raw ? JSON.parse(raw) : [];
     for (const r of items) {
       const text: string = r.text ?? r.content ?? r.answer ?? "";
-      if (!text.toLowerCase().includes(q)) continue;
+      if (!matchesQuery(text, q, searchMode)) continue;
       results.push({
         id: `refl-${r.id ?? Math.random()}`,
         kind: "reflection",
@@ -112,7 +121,7 @@ function searchStorage(query: string): SearchResult[] {
     const letters: any[] = raw ? JSON.parse(raw) : [];
     for (const l of letters) {
       const text: string = l.text ?? "";
-      if (!text.toLowerCase().includes(q)) continue;
+      if (!matchesQuery(text, q, searchMode)) continue;
       results.push({
         id: `letter-${l.id ?? Math.random()}`,
         kind: "letter",

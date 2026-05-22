@@ -8,7 +8,7 @@ export default function LicenseDebugClient() {
     const license = useLicense();
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+        <div className="min-h-screen bg-gradient-to-b from-[#130e17] via-[#1a1020] to-[#130e17] text-slate-100">
             <TopBar title="License Debug" showSyncChip={false} showConflictsButton={false} />
 
             <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 pb-16 pt-20">

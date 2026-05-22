@@ -14,8 +14,8 @@ export default function manifest(): MetadataRoute.Manifest {
         scope: "/",
         display: "standalone",
         orientation: "portrait",
-        background_color: "#020617", // Aurora dark base
-        theme_color: "#020617",
+        background_color: "#130e17", // Aurora warm dark base
+        theme_color: "#130e17",
         categories: ["health", "lifestyle", "productivity"],
         icons: [
             // --- Primary PWA Icons ---

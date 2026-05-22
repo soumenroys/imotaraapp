@@ -6,7 +6,18 @@
 
 const LAST_ARC_KEY = "imotara.emotional_arc.last_at.v1";
 const ARC_KEY = "imotara.emotional_arc.v1";
-const INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
+const ARC_CADENCE_KEY = "imotara.arc.cadenceDays.v1";
+const DEFAULT_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
+
+function getIntervalMs(): number {
+  try {
+    if (!isClient()) return DEFAULT_INTERVAL_MS;
+    const days = parseInt(localStorage.getItem(ARC_CADENCE_KEY) ?? "30", 10);
+    return isFinite(days) && days > 0 ? days * 24 * 60 * 60 * 1000 : DEFAULT_INTERVAL_MS;
+  } catch {
+    return DEFAULT_INTERVAL_MS;
+  }
+}
 
 export type EmotionalArc = {
   id: string;
@@ -41,12 +52,12 @@ export function isArcDue(): boolean {
   if (!isClient()) return false;
   const raw = localStorage.getItem(LAST_ARC_KEY);
   if (!raw) return true;
-  return Date.now() - Number(raw) >= INTERVAL_MS;
+  return Date.now() - Number(raw) >= getIntervalMs();
 }
 
 function buildArcContext(
   threads: Array<{ messages: Array<{ role: string; content: string; createdAt: number }> }>,
-  cutoffMs = INTERVAL_MS
+  cutoffMs = DEFAULT_INTERVAL_MS
 ): { emotionProgression: string[]; milestones: string[]; threadCount: number } {
   const cutoff = Date.now() - cutoffMs;
   const positiveWords = ["better", "good", "happy", "grateful", "hopeful", "proud", "calm", "peace", "progress", "healed", "resolved"];
@@ -91,7 +102,7 @@ export async function generateEmotionalArc(
   threads: Array<{ messages: Array<{ role: string; content: string; createdAt: number }> }>,
   userName: string
 ): Promise<EmotionalArc | null> {
-  const { emotionProgression, milestones, threadCount } = buildArcContext(threads);
+  const { emotionProgression, milestones, threadCount } = buildArcContext(threads, getIntervalMs());
   const now = new Date();
   const periodLabel = now.toLocaleString("en", { month: "long", year: "numeric" });
 

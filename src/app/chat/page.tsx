@@ -107,6 +107,7 @@ type Message = {
     compatibility?: any;
     analysisSource?: "local" | "cloud";
   };
+  isQuotaNotice?: boolean;
 };
 
 type Thread = {
@@ -870,6 +871,8 @@ export default function ChatPage() {
 
   // Trial countdown banner — shown once per day when ≤14 days remain on trial
   const [showTrialBanner, setShowTrialBanner] = useState(false);
+  // Quota-hit card — shown once per session when cloud daily limit is reached
+  const [quotaCardShown, setQuotaCardShown] = useState(false);
 
   // EN-3 — Daily micro check-in
   const DAILY_CHECKIN_KEY = "imotara.dailycheckin.lastDate.v1";
@@ -993,8 +996,11 @@ export default function ChatPage() {
 
   // Breathing widget visibility
   const [showBreathing, setShowBreathing] = useState(false);
-  // #8: Grow nudge dismissed flag
-  const [growNudgeDismissed, setGrowNudgeDismissed] = useState(false);
+  // #8: Grow nudge dismissed flag (also reads permanent Settings key)
+  const [growNudgeDismissed, setGrowNudgeDismissed] = useState(() => {
+    if (typeof localStorage === "undefined") return false;
+    return localStorage.getItem("imotara.grow.nudge.perm.v1") === "1";
+  });
   // L-2: post-session tone reflection card dismissed
   const [sessionToneCardDismissed, setSessionToneCardDismissed] = useState(false);
   // #6: Weekly recap text (computed once on mount)
@@ -1123,7 +1129,12 @@ export default function ChatPage() {
     const utter = new SpeechSynthesisUtterance(greeting);
     if (voice) utter.voice = voice;
     utter.lang = "en-US";
-    utter.rate = 0.95;
+    try {
+      const savedRate = parseFloat(localStorage.getItem("imotara.tts.rate.v1") ?? "0.95");
+      const savedPitch = parseFloat(localStorage.getItem("imotara.tts.pitch.v1") ?? "1.0");
+      utter.rate = isFinite(savedRate) ? savedRate : 0.95;
+      utter.pitch = isFinite(savedPitch) ? savedPitch : 1.0;
+    } catch { utter.rate = 0.95; utter.pitch = 1.0; }
     utter.onend = () => setAvatarPlaying(null);
     utter.onerror = () => setAvatarPlaying(null);
     synth.speak(utter);
@@ -1138,7 +1149,9 @@ export default function ChatPage() {
       const lastTs = Number(raw);
       if (!Number.isFinite(lastTs) || lastTs <= 0) return;
       const gapMs = Date.now() - lastTs;
-      if (gapMs > 24 * 60 * 60 * 1000) {
+      const savedHours = parseInt(localStorage.getItem("imotara.return.greeting.hours.v1") ?? "24", 10);
+      const greetingMs = (isFinite(savedHours) && savedHours > 0 ? savedHours : 24) * 60 * 60 * 1000;
+      if (gapMs > greetingMs) {
         setShowReturnGreeting(true);
       }
     } catch {
@@ -1157,7 +1170,7 @@ export default function ChatPage() {
       const dismissed = typeof window !== "undefined"
         ? localStorage.getItem("imotara.trial.bannerDismissed.v1")
         : null;
-      if (dismissed !== today) setShowTrialBanner(true);
+      if (dismissed !== "never" && dismissed !== today) setShowTrialBanner(true);
     } catch { /* ignore */ }
   }, [license.loading, license.status, license.expiresAt]);
 
@@ -1498,7 +1511,8 @@ export default function ChatPage() {
     setTimeout(() => {
       const el = messageTargetRef.current;
       if (el && listRef.current) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        const reduced = typeof localStorage !== "undefined" && localStorage.getItem("imotara.reduced.motion.v1") === "1";
+        el.scrollIntoView({ behavior: reduced ? "instant" : "smooth", block: "center" });
       }
     }, 50);
   }, [mounted, urlMessageId, activeThread]);
@@ -1534,11 +1548,26 @@ export default function ChatPage() {
     [activeThread?.messages],
   );
 
-  // #M-6: Geo-aware crisis resources — detected once from Intl/navigator locale
-  const crisisCountryResources = useMemo(
-    () => getCrisisResourcesForCountry(detectCountryCode()),
-    [],
-  );
+  // #M-6: Geo-aware crisis resources — respects manual override from Settings (P-3)
+  const crisisCountryResources = useMemo(() => {
+    const override = typeof localStorage !== "undefined" ? localStorage.getItem("imotara.crisis.country.v1") : null;
+    const code = (override && override !== "auto") ? override : detectCountryCode();
+    return getCrisisResourcesForCountry(code);
+  }, []);
+
+  // Banner priority queue — max 1 Tier-2 banner visible at once
+  const activeTier2Banner = useMemo((): "returnGreeting" | "dailyCheckin" | "trialCountdown" | "sessionGreeting" | "milestoneLoop" | "weeklyRecap" | "collectivePulse" | "growNudge" | null => {
+    if (showReturnGreeting) return "returnGreeting";
+    if (showDailyCheckin) return "dailyCheckin";
+    if (showTrialBanner && license.expiresAt) return "trialCountdown";
+    if (sessionGreeting) return "sessionGreeting";
+    if (milestoneLoop) return "milestoneLoop";
+    if (weeklyRecap && !weeklyRecapDismissed) return "weeklyRecap";
+    if (collectivePulse && !pulseDismissed) return "collectivePulse";
+    const userMsgCount = activeThread?.messages.filter((m) => m.role === "user").length ?? 0;
+    if (!growNudgeDismissed && userMsgCount >= 3 && !analyzing) return "growNudge";
+    return null;
+  }, [showReturnGreeting, showDailyCheckin, showTrialBanner, license.expiresAt, sessionGreeting, milestoneLoop, weeklyRecap, weeklyRecapDismissed, collectivePulse, pulseDismissed, growNudgeDismissed, activeThread?.messages, analyzing]);
 
   // analysis side-effect (AnalysisResult stays on analysis pipeline)
   useEffect(() => {
@@ -1993,7 +2022,8 @@ export default function ChatPage() {
 
     // ── Adult content safety gate ─────────────────────────────────────────
     const lastUserText = msgsForAnalysis[msgsForAnalysis.length - 1]?.content ?? "";
-    if (detectAdultContent(lastUserText)) {
+    const contentGuardMode = typeof localStorage !== "undefined" ? (localStorage.getItem("imotara.content.guard.v1") ?? "standard") : "standard";
+    if (contentGuardMode !== "relaxed" && detectAdultContent(lastUserText)) {
       const profile = getImotaraProfile();
       const lang = profile?.user?.preferredLang ?? "en";
       const userAge = profile?.user?.ageRange ?? undefined;
@@ -2043,6 +2073,7 @@ export default function ChatPage() {
       let aiMetaFrom: string | null = null;
       let reflectionSeed: ReflectionSeed | undefined;
       let followUp: string | undefined;
+      let cloudQuotaHit = false;
 
       // ✅ MUST be declared before ANY conditional usage
       let analysisSource: "local" | "cloud" | null = null;
@@ -2114,6 +2145,8 @@ export default function ChatPage() {
             respEmotionIntensity = (resp as any)?.meta?.emotion?.intensity ?? 0;
 
             aiMetaFrom = "openai";
+          } else if ((resp as any)?.meta?.from === "quota_exceeded") {
+            cloudQuotaHit = true;
           }
         } catch (err) {
           setStreamingReply("");
@@ -2312,10 +2345,22 @@ export default function ChatPage() {
         await new Promise<void>((resolve) => setTimeout(resolve, 1500));
       }
 
+      const extraMessages: Message[] = [];
+      if (cloudQuotaHit && !quotaCardShown) {
+        setQuotaCardShown(true);
+        extraMessages.push({
+          id: uid(),
+          role: "assistant",
+          content: "",
+          createdAt: Date.now() - 1,
+          sessionId: threadId,
+          isQuotaNotice: true,
+        });
+      }
       setThreads((prev) =>
         prev.map((t) =>
           t.id === threadId
-            ? { ...t, messages: [...t.messages, assistantMsg] }
+            ? { ...t, messages: [...t.messages, ...extraMessages, assistantMsg] }
             : t,
         ),
       );
@@ -2819,16 +2864,28 @@ export default function ChatPage() {
 
               {/* ── LEVEL 0: always-visible slim bar ── */}
               <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-white shadow-[0_6px_20px_rgba(15,23,42,0.7)]">
-                  <MessageSquare className="h-3.5 w-3.5" />
-                </div>
+                {/* Status dot — shows current analysis mode at a glance */}
+                <div
+                  className={`h-2 w-2 shrink-0 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : mode === "auto" ? "bg-violet-400" : "bg-zinc-500"}`}
+                  title={mode === "allow-remote" ? "Remote allowed" : mode === "auto" ? "Auto routing" : "Local only"}
+                />
+                {/* Companion name */}
                 <p className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-100">
-                  <span suppressHydrationWarning>{mounted ? (activeThread?.title ?? "Conversation") : ""}</span>
+                  <span suppressHydrationWarning>{mounted ? (companionDisplayName || "Imotara") : ""}</span>
                 </p>
-                {/* Local/Cloud toggle — always visible */}
-                <div className="w-28 shrink-0">
-                  <AnalysisConsentToggle showHelp={false} />
-                </div>
+                {/* Search */}
+                <button
+                  type="button"
+                  onClick={() => { setShowSearch((v) => !v); setSearchQuery(""); }}
+                  title="Search messages"
+                  className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border transition ${
+                    showSearch
+                      ? "border-indigo-400/50 bg-indigo-500/20 text-indigo-300"
+                      : "border-white/10 bg-white/5 text-zinc-500 hover:bg-white/10 hover:text-zinc-200"
+                  }`}
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </button>
                 {/* New conversation */}
                 <button
                   type="button"
@@ -2838,7 +2895,7 @@ export default function ChatPage() {
                 >
                   <Plus className="h-3.5 w-3.5" />
                 </button>
-                {/* Level 0 → 1 expand toggle */}
+                {/* Expand toggle */}
                 <button
                   type="button"
                   onClick={() => { setShowHeader((v) => !v); if (showHeader) setShowHeaderDetails(false); }}
@@ -3031,8 +3088,10 @@ export default function ChatPage() {
                           </p>
                         )}
                       </div>
-                      {/* Compatibility Gate (QA/debug) */}
+                      {/* Compatibility Gate (QA/debug) — only shown with ?debug=1 URL param */}
                       {(() => {
+                        if (typeof window === "undefined") return null;
+                        if (!new URLSearchParams(window.location.search).has("debug")) return null;
                         const compat =
                           (analysis as any)?.response?.meta?.compatibility ??
                           (analysis as any)?.meta?.compatibility;
@@ -3075,13 +3134,13 @@ export default function ChatPage() {
             className="relative z-10 h-full overflow-y-auto px-4 py-4 sm:px-6"
           >
             {/* EN-3 — Daily micro check-in pulse (once per day) */}
-            {mounted && showDailyCheckin && (
+            {mounted && activeTier2Banner === "dailyCheckin" && (
               <div className="mx-auto mb-4 max-w-3xl">
                 <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-sky-400/20 bg-sky-900/10 px-4 py-3">
-                  <span className="mr-1 shrink-0 text-xs font-medium text-sky-300/80">How are you feeling today?</span>
+                  <span className="mr-1 shrink-0 text-xs font-medium text-sky-300/80">How are you right now?</span>
                   {[
-                    { emoji: "😔", label: "Heavy" }, { emoji: "😟", label: "Anxious" }, { emoji: "😐", label: "Okay" },
-                    { emoji: "🙂", label: "Good" }, { emoji: "😊", label: "Grateful" }, { emoji: "⚡", label: "Energized" },
+                    { emoji: "😔", label: "Heavy" }, { emoji: "😟", label: "Unsettled" }, { emoji: "😶", label: "Somewhere here" },
+                    { emoji: "🌱", label: "Okay" }, { emoji: "🙂", label: "Good" }, { emoji: "✨", label: "Bright" },
                   ].map(({ emoji, label }) => (
                     <button
                       key={label}
@@ -3212,7 +3271,7 @@ export default function ChatPage() {
                 )}
 
                 {/* Return check-in banner — shown after >24h since last message */}
-                {showReturnGreeting && (
+                {activeTier2Banner === "returnGreeting" && (
                   <div className="animate-fade-in mb-3 flex items-start gap-3 rounded-2xl border border-indigo-400/20 bg-indigo-500/10 px-4 py-3 text-sm text-zinc-100 backdrop-blur-sm">
                     <span className="mt-0.5 text-lg" aria-hidden="true">💙</span>
                     <div className="flex-1 min-w-0">
@@ -3266,7 +3325,7 @@ export default function ChatPage() {
                 )}
 
                 {/* Trial countdown banner — once per day, ≤14 days before free trial ends */}
-                {showTrialBanner && license.expiresAt && (() => {
+                {activeTier2Banner === "trialCountdown" && license.expiresAt && (() => {
                   const daysLeft = Math.ceil((new Date(license.expiresAt).getTime() - Date.now()) / 86_400_000);
                   if (daysLeft <= 0) return null;
                   return (
@@ -3278,7 +3337,7 @@ export default function ChatPage() {
                         </p>
                         <p className="mt-0.5 text-xs text-zinc-400">
                           After your trial, Imotara continues to work — with on-device replies.{" "}
-                          <a href="/settings" className="text-amber-300 underline underline-offset-2 hover:text-amber-200">
+                          <a href="/upgrade" className="text-amber-300 underline underline-offset-2 hover:text-amber-200">
                             Explore plans →
                           </a>
                         </p>
@@ -3302,7 +3361,7 @@ export default function ChatPage() {
                 })()}
 
                 {/* NF-1 — Emotional Milestone Celebration */}
-                {milestoneLoop && (
+                {activeTier2Banner === "milestoneLoop" && milestoneLoop && (
                   <div className="flex justify-start animate-fade-in">
                     <div className="max-w-[82%] rounded-2xl border border-emerald-400/30 bg-gradient-to-br from-emerald-900/40 to-teal-900/30 px-4 py-3 text-sm backdrop-blur-md">
                       <p className="text-emerald-300 font-medium mb-0.5">You closed a loop ✦</p>
@@ -3322,9 +3381,9 @@ export default function ChatPage() {
                 )}
 
                 {/* NF-5 — Anonymous Collective Pulse */}
-                {collectivePulse && !pulseDismissed && (
+                {activeTier2Banner === "collectivePulse" && collectivePulse && (
                   <div className="flex justify-start animate-fade-in">
-                    <div className="max-w-[82%] rounded-2xl border border-indigo-400/20 bg-gradient-to-br from-slate-800/60 to-indigo-950/40 px-4 py-2.5 text-xs backdrop-blur-md">
+                    <div className="im-inline-card max-w-[82%] rounded-2xl border border-indigo-400/20 bg-gradient-to-br from-slate-800/60 to-indigo-950/40 px-4 py-2.5 text-xs backdrop-blur-md">
                       <p className="text-zinc-400 leading-relaxed">
                         <span className="text-indigo-300 font-medium">{collectivePulse.heavyPercent}% of people</span> are carrying something heavy today. You&apos;re not alone.
                       </p>
@@ -3341,9 +3400,9 @@ export default function ChatPage() {
                 )}
 
                 {/* UX-4 — emotion continuation greeting */}
-                {sessionGreeting && (
+                {activeTier2Banner === "sessionGreeting" && sessionGreeting && (
                   <div className="flex justify-start animate-fade-in">
-                    <div className="max-w-[82%] rounded-2xl bg-gradient-to-br from-slate-700/60 to-slate-800/60 px-4 py-3 text-sm text-zinc-200 border border-white/10">
+                    <div className="im-inline-card max-w-[82%] rounded-2xl bg-gradient-to-br from-slate-700/60 to-slate-800/60 px-4 py-3 text-sm text-zinc-200 border border-white/10">
                       {sessionGreeting}
                     </div>
                     <button
@@ -3359,10 +3418,29 @@ export default function ChatPage() {
 
                 {activeThread.messages
                   .filter((m) =>
+                    m.isQuotaNotice ||
                     !searchQuery.trim() ||
                     m.content.toLowerCase().includes(searchQuery.toLowerCase()),
                   )
-                  .map((m, mi, arr) => (
+                  .map((m, mi, arr) => m.isQuotaNotice ? (
+                  <div key={m.id} className="flex justify-start animate-fade-in px-1">
+                    <div className="im-quota-card w-full max-w-[82%] rounded-2xl border border-violet-500/25 bg-[#1e1028] p-4 shadow-lg">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span aria-hidden="true">✨</span>
+                        <span className="text-[13px] font-medium text-zinc-200">I've used my 20 AI replies for today</span>
+                      </div>
+                      <p className="mb-3 text-[12px] leading-relaxed text-zinc-400">
+                        I'm still here. My responses now come from on-device mode — a little simpler, but present.
+                      </p>
+                      <a
+                        href="/upgrade"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-[12px] font-semibold text-white transition hover:opacity-90"
+                      >
+                        Upgrade for unlimited replies →
+                      </a>
+                    </div>
+                  </div>
+                  ) : (
                   <Bubble
                     key={m.id}
                     id={m.id}
@@ -3413,19 +3491,24 @@ export default function ChatPage() {
                 {/* #9: Typing indicator — shows while Imotara is composing a reply */}
                 {analyzing && !pendingUndo && (
                   <div className="flex justify-start pl-1">
-                    <div className="rounded-2xl border border-indigo-400/30 bg-gradient-to-br from-slate-900/80 to-indigo-950/80 px-4 py-3 text-sm backdrop-blur-md max-w-[80%]">
+                    <div className="im-inline-card rounded-2xl border border-indigo-400/30 bg-gradient-to-br from-slate-900/80 to-indigo-950/80 px-4 py-3 text-sm backdrop-blur-md max-w-[80%]">
                       {streamingReply ? (
                         <span className="text-zinc-200 leading-relaxed whitespace-pre-wrap">
                           {streamingReply}
                           <span className="inline-block w-0.5 h-3.5 ml-0.5 bg-indigo-400 animate-pulse align-middle" />
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-zinc-400">
-                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-400/70 [animation-delay:0ms]" />
-                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400/70 [animation-delay:150ms]" />
-                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-400/70 [animation-delay:300ms]" />
-                        </span>
-                      )}
+                      ) : (() => {
+                        const tSpeed = typeof localStorage !== "undefined" ? (localStorage.getItem("imotara.typing.speed.v1") ?? "normal") : "normal";
+                        const tDur = tSpeed === "slow" ? "1.6s" : tSpeed === "fast" ? "0.5s" : "1s";
+                        const tDelays = tSpeed === "slow" ? ["0ms", "240ms", "480ms"] : tSpeed === "fast" ? ["0ms", "80ms", "160ms"] : ["0ms", "150ms", "300ms"];
+                        return (
+                          <span className="inline-flex items-center gap-1 text-zinc-400">
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-400/70" style={{ animationDuration: tDur, animationDelay: tDelays[0] }} />
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400/70" style={{ animationDuration: tDur, animationDelay: tDelays[1] }} />
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-400/70" style={{ animationDuration: tDur, animationDelay: tDelays[2] }} />
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
@@ -3437,6 +3520,7 @@ export default function ChatPage() {
           {/* L-2: Post-session tone reflection card — shown when ≥3 user messages + analysis ready */}
           {!analyzing &&
             !sessionToneCardDismissed &&
+            (typeof localStorage === "undefined" || localStorage.getItem("imotara.tone.reflect.show.v1") !== "0") &&
             analysis?.summary?.headline &&
             (activeThread?.messages.filter((m) => m.role === "user").length ?? 0) >= 3 && (() => {
               const EMOTION_EMOJI_MAP: Record<string, string> = {
@@ -3483,7 +3567,7 @@ export default function ChatPage() {
           }
 
           {/* #6: Weekly mood recap banner */}
-          {weeklyRecap && !weeklyRecapDismissed && (
+          {activeTier2Banner === "weeklyRecap" && weeklyRecap && (
             <div className="mx-auto mb-1 flex max-w-3xl items-start justify-between gap-3 rounded-2xl border border-indigo-400/20 bg-indigo-500/10 px-4 py-2.5 text-xs text-indigo-200">
               <span>{weeklyRecap}</span>
               <div className="flex shrink-0 items-center gap-2">
@@ -3496,9 +3580,7 @@ export default function ChatPage() {
           )}
 
           {/* #8: Reflection bridge — nudge to Grow after 3+ user messages */}
-          {!growNudgeDismissed &&
-            (activeThread?.messages.filter((m) => m.role === "user").length ?? 0) >= 3 &&
-            !analyzing && (
+          {activeTier2Banner === "growNudge" && (
             <div className="mx-auto mb-1 flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-emerald-400/15 bg-emerald-500/8 px-4 py-2 text-xs text-emerald-300">
               <span>You&apos;ve been opening up — would a short reflection help?</span>
               <div className="flex shrink-0 items-center gap-2">
@@ -3511,7 +3593,11 @@ export default function ChatPage() {
           )}
 
           {/* #4: Crisis intervention banner — localized + geo-aware */}
-          {crisisTier >= 1 && (() => {
+          {(() => {
+            const crisisThresholdSetting = typeof localStorage !== "undefined" ? (localStorage.getItem("imotara.crisis.threshold.v1") ?? "standard") : "standard";
+            const crisisMinTier: number = crisisThresholdSetting === "sensitive" ? 1 : crisisThresholdSetting === "conservative" ? 2 : 1;
+            return crisisTier >= crisisMinTier;
+          })() && (() => {
             const txt = CRISIS_BANNER_BY_LANG[preferredLang] ?? CRISIS_BANNER_BY_LANG.en;
             const primaryLine = crisisCountryResources?.primary?.[0] ?? null;
             return (
@@ -4151,7 +4237,15 @@ function EmptyState({ onChipSelect, lang = "en", threads = [] }: { onChipSelect:
   );
 }
 
-const REACTION_EMOJIS = ["❤️", "💙", "✨", "🙏", "💛"];
+const ALL_REACTION_EMOJIS = ["❤️", "💙", "✨", "🙏", "💛", "🌟", "🌿"];
+function getReactionEmojis(): string[] {
+  try {
+    const v = typeof localStorage !== "undefined" ? localStorage.getItem("imotara.reactions.set.v1") : null;
+    if (v === "minimal") return ALL_REACTION_EMOJIS.slice(0, 3);
+    if (v === "extended") return ALL_REACTION_EMOJIS;
+  } catch { /* ignore */ }
+  return ALL_REACTION_EMOJIS.slice(0, 5);
+}
 
 // BCP-47 tags for all languages supported in the user profile
 const LANG_TO_BCP47: Record<string, string> = {
@@ -4516,7 +4610,10 @@ function Bubble({
           className={`mt-1 text-[11px] ${isUser ? "text-zinc-100/80" : "text-zinc-300"
             }`}
         >
-          <DateText ts={time} /> · {isUser ? "You" : "Imotara"}
+          {(typeof localStorage === "undefined" || localStorage.getItem("imotara.chat.showTimestamps.v1") === "1") && (
+            <><DateText ts={time} />{" · "}</>
+          )}
+          {isUser ? "You" : "Imotara"}
           {!isUser && meta?.compatibility ? (
             <span
               className={[
@@ -4573,7 +4670,7 @@ function Bubble({
         {/* #10: Emoji reactions + bookmark — only on assistant messages */}
         {!isUser && (onReact || onBookmark) && (
           <div className="mt-2 flex items-center gap-1">
-            {onReact && REACTION_EMOJIS.map((emoji) => (
+            {onReact && getReactionEmojis().map((emoji) => (
               <button
                 key={emoji}
                 type="button"

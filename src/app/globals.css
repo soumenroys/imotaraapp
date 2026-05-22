@@ -9,7 +9,7 @@
   color-scheme: dark;
 
   /* Base colors */
-  --background: #020617;          /* slate-950 */
+  --background: #130e17;          /* warm dark purple-black */
   --foreground: #e5e7eb;          /* zinc-200 */
 
   /* Accent system — overridable via data-accent attribute on <html> */
@@ -20,8 +20,8 @@
   --im-accent-glow: rgba(99, 102, 241, 0.55);
 
   /* Surfaces: tuned for readable contrast on dark aurora bg */
-  --im-surface: rgba(15, 23, 42, 0.78);      /* deep navy glass */
-  --im-surface-soft: rgba(15, 23, 42, 0.6);  /* softer inner glass */
+  --im-surface: rgba(24, 15, 30, 0.82);      /* warm dark glass */
+  --im-surface-soft: rgba(24, 15, 30, 0.62);  /* softer warm glass */
 
   /* Borders */
   --im-border-soft: rgba(148, 163, 184, 0.35); /* slate-400/35 */
@@ -78,6 +78,29 @@
   --im-surface: rgba(255, 255, 255, 0.80);
   --im-surface-soft: rgba(255, 255, 255, 0.60);
   --im-border-soft: rgba(100, 116, 139, 0.25);
+  /* Tailwind v4 CSS variable overrides — makes all zinc/color utilities adapt */
+  --color-zinc-50:  #0f172a;
+  --color-zinc-100: #1e293b;
+  --color-zinc-200: #1e293b;
+  --color-zinc-300: #334155;
+  --color-zinc-400: #475569;
+  --color-zinc-500: #64748b;
+  --color-zinc-600: #94a3b8;
+  --color-indigo-200: #4338ca;
+  --color-indigo-300: #4338ca;
+  --color-indigo-400: #4338ca;
+  --color-sky-200:    #0369a1;
+  --color-sky-300:    #0369a1;
+  --color-emerald-200: #047857;
+  --color-emerald-300: #047857;
+  --color-amber-200:  #b45309;
+  --color-amber-300:  #b45309;
+  --color-violet-200: #6d28d9;
+  --color-violet-300: #6d28d9;
+  --color-rose-200:   #be123c;
+  --color-rose-300:   #be123c;
+  --color-red-200:    #dc2626;
+  --color-red-300:    #dc2626;
 }
 
 [data-theme="light"] html,
@@ -105,6 +128,60 @@ html[data-theme="light"] .imotara-glass-soft {
   backdrop-filter: blur(12px);
 }
 
+html[data-theme="light"] .imotara-glass-card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 0.5px rgba(148, 163, 184, 0.25) !important;
+}
+
+/* Assistant message bubble — override dark gradient with white card */
+html[data-theme="light"] .im-assistant-breath-glow {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  background-image: none !important;
+  border-color: rgba(99, 102, 241, 0.35) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 0 0 0.5px rgba(99, 102, 241, 0.18) !important;
+  color: #1e293b !important;
+}
+
+/* System inline cards (typing indicator, banners) — override dark gradient */
+html[data-theme="light"] .im-inline-card {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  background-image: none !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  color: #334155 !important;
+}
+
+/* Quota upgrade card — override hardcoded dark bg */
+html[data-theme="light"] .im-quota-card {
+  background-color: rgba(238, 230, 255, 0.90) !important;
+  border-color: rgba(139, 92, 246, 0.35) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Mood summary card — override hardcoded dark bg */
+html[data-theme="light"] .im-mood-summary {
+  background-color: rgba(255, 255, 255, 0.90) !important;
+  border-color: rgba(148, 163, 184, 0.30) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+html[data-theme="light"] .im-mood-item {
+  background-color: rgba(255, 255, 255, 0.80) !important;
+  border-color: rgba(148, 163, 184, 0.25) !important;
+}
+
+/* Nav pill inactive text — opacity modifier variant needs own rule */
+html[data-theme="light"] .text-zinc-200\/90        { color: #334155 !important; }
+html[data-theme="light"] .hover\:text-zinc-50:hover { color: #0f172a !important; }
+html[data-theme="light"] .hover\:text-zinc-200:hover { color: #1e293b !important; }
+
+/* Segmented pill control — selected pill in light mode */
+html[data-theme="light"] .im-seg-selected {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.06) !important;
+  color: #0f172a !important;
+}
+
 /* Soften hard dark utility overrides in light mode */
 html[data-theme="light"] .bg-black\/50  { background-color: rgba(255,255,255,0.70) !important; }
 html[data-theme="light"] .bg-black\/20  { background-color: rgba(0,0,0,0.04) !important; }
@@ -117,6 +194,65 @@ html[data-theme="light"] .text-zinc-500 { color: #64748b !important; }
 html[data-theme="light"] .text-zinc-600 { color: #94a3b8 !important; }
 html[data-theme="light"] .border-white\/10 { border-color: rgba(0,0,0,0.10) !important; }
 html[data-theme="light"] .border-white\/20 { border-color: rgba(0,0,0,0.15) !important; }
+html[data-theme="light"] .text-zinc-50  { color: #0f172a !important; }
+html[data-theme="light"] .text-zinc-200 { color: #1e293b !important; }
+html[data-theme="light"] .bg-white\/4   { background-color: rgba(0,0,0,0.03) !important; }
+html[data-theme="light"] .bg-white\/10  { background-color: rgba(0,0,0,0.10) !important; }
+html[data-theme="light"] .bg-white\/15  { background-color: rgba(0,0,0,0.09) !important; }
+html[data-theme="light"] .bg-white\/20  { background-color: rgba(0,0,0,0.11) !important; }
+html[data-theme="light"] .bg-black\/25  { background-color: rgba(0,0,0,0.04) !important; }
+html[data-theme="light"] .bg-black\/30  { background-color: rgba(0,0,0,0.04) !important; }
+html[data-theme="light"] .bg-black\/40  { background-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .bg-black\/70  { background-color: rgba(248,250,252,0.88) !important; }
+html[data-theme="light"] .bg-black\/85  { background-color: rgba(248,250,252,0.94) !important; }
+html[data-theme="light"] .bg-zinc-700     { background-color: rgba(0,0,0,0.18) !important; }
+html[data-theme="light"] .bg-zinc-800     { background-color: rgba(0,0,0,0.12) !important; }
+html[data-theme="light"] .bg-zinc-900     { background-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .bg-zinc-700\/40 { background-color: rgba(0,0,0,0.07) !important; }
+html[data-theme="light"] .bg-zinc-700\/20 { background-color: rgba(0,0,0,0.04) !important; }
+html[data-theme="light"] .bg-zinc-800\/80 { background-color: rgba(0,0,0,0.10) !important; }
+html[data-theme="light"] .bg-zinc-900\/40 { background-color: rgba(0,0,0,0.04) !important; }
+html[data-theme="light"] .bg-zinc-900\/60 { background-color: rgba(0,0,0,0.05) !important; }
+html[data-theme="light"] .bg-zinc-900\/80 { background-color: rgba(0,0,0,0.06) !important; }
+html[data-theme="light"] .bg-zinc-900\/90 { background-color: rgba(0,0,0,0.06) !important; }
+
+/* SiteHeader outer nav active pill in light mode — light indigo tint with indigo text */
+html[data-theme="light"] .im-site-active {
+  background-color: rgba(99, 102, 241, 0.12) !important;
+  color: #4338ca !important;
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25) !important;
+}
+
+/* Range slider track in light mode — accent-sky-400 handles thumb + fill; fix the unfilled track */
+html[data-theme="light"] input[type="range"]::-webkit-slider-runnable-track {
+  background: rgba(100, 116, 139, 0.22);
+  border-radius: 4px;
+}
+html[data-theme="light"] input[type="range"]::-moz-range-track {
+  background: rgba(100, 116, 139, 0.22);
+  border-radius: 4px;
+}
+html[data-theme="light"] .border-white\/8  { border-color: rgba(0,0,0,0.08) !important; }
+html[data-theme="light"] .border-white\/15 { border-color: rgba(0,0,0,0.10) !important; }
+
+/* Colored text — these near-white shades are invisible on light backgrounds */
+html[data-theme="light"] .text-indigo-200,
+html[data-theme="light"] .text-indigo-300,
+html[data-theme="light"] .text-indigo-400  { color: #4338ca !important; }
+html[data-theme="light"] .text-sky-200,
+html[data-theme="light"] .text-sky-300     { color: #0369a1 !important; }
+html[data-theme="light"] .text-emerald-200,
+html[data-theme="light"] .text-emerald-300 { color: #047857 !important; }
+html[data-theme="light"] .text-amber-200,
+html[data-theme="light"] .text-amber-300   { color: #b45309 !important; }
+html[data-theme="light"] .text-violet-200,
+html[data-theme="light"] .text-violet-300  { color: #6d28d9 !important; }
+html[data-theme="light"] .text-rose-200,
+html[data-theme="light"] .text-rose-300    { color: #be123c !important; }
+html[data-theme="light"] .text-red-200,
+html[data-theme="light"] .text-red-300     { color: #dc2626 !important; }
+html[data-theme="light"] .text-teal-300    { color: #0f766e !important; }
+html[data-theme="light"] .text-orange-300  { color: #c2410c !important; }
 
 @theme inline {
   --color-background: var(--background);
@@ -149,7 +285,7 @@ body {
     radial-gradient(circle at 100% 0%, #0f172a 0%, transparent 45%),
     radial-gradient(circle at 0% 100%, #0f766e 0%, transparent 45%),
     radial-gradient(circle at 100% 100%, #4f46e5 0%, transparent 50%),
-    #020617;
+    #130e17;
 
   background-attachment: fixed;
 }

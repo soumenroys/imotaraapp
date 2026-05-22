@@ -1044,7 +1044,7 @@ function DataDashboard({ getStorageSummary }: { getStorageSummary: () => { histo
                                 key={d}
                                 type="button"
                                 onClick={() => setClearDays(d)}
-                                className={`rounded-full px-3 py-1 text-xs transition ${clearDays === d ? "bg-white/20 text-zinc-50" : "text-zinc-400 hover:text-zinc-200"}`}
+                                className={`rounded-full px-3 py-1 text-xs transition ${clearDays === d ? "im-seg-selected bg-white/20 text-zinc-50" : "text-zinc-400 hover:text-zinc-200"}`}
                             >
                                 {d}d
                             </button>
@@ -1500,6 +1500,311 @@ export default function SettingsPage() {
         }
     }
 
+    // ─── H-1: Haptic feedback toggle ─────────────────────────────────────────
+    const HAPTIC_PREF_KEY = "imotara.haptic.enabled.v1";
+    const [hapticEnabled, setHapticEnabled] = useState(true);
+    useEffect(() => {
+        try { setHapticEnabled(localStorage.getItem(HAPTIC_PREF_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleHapticToggle(val: boolean) {
+        setHapticEnabled(val);
+        try { localStorage.setItem(HAPTIC_PREF_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── C-2: Reduced motion toggle ──────────────────────────────────────────
+    const REDUCED_MOTION_KEY = "imotara.reduced.motion.v1";
+    const [reducedMotion, setReducedMotion] = useState(false);
+    useEffect(() => {
+        try { setReducedMotion(localStorage.getItem(REDUCED_MOTION_KEY) === "1"); } catch { /* ignore */ }
+    }, []);
+    function handleReducedMotionToggle(val: boolean) {
+        setReducedMotion(val);
+        try { localStorage.setItem(REDUCED_MOTION_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── C-3: Show timestamps toggle ─────────────────────────────────────────
+    const SHOW_TIMESTAMPS_KEY = "imotara.chat.showTimestamps.v1";
+    const [showTimestamps, setShowTimestamps] = useState(false);
+    useEffect(() => {
+        try { setShowTimestamps(localStorage.getItem(SHOW_TIMESTAMPS_KEY) === "1"); } catch { /* ignore */ }
+    }, []);
+    function handleShowTimestampsToggle(val: boolean) {
+        setShowTimestamps(val);
+        try { localStorage.setItem(SHOW_TIMESTAMPS_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── H-3: TTS rate + pitch ───────────────────────────────────────────────
+    const TTS_RATE_KEY = "imotara.tts.rate.v1";
+    const TTS_PITCH_KEY = "imotara.tts.pitch.v1";
+    const [ttsRate, setTtsRate] = useState(0.95);
+    const [ttsPitch, setTtsPitch] = useState(1.0);
+    useEffect(() => {
+        try {
+            const r = parseFloat(localStorage.getItem(TTS_RATE_KEY) ?? "0.95");
+            const p = parseFloat(localStorage.getItem(TTS_PITCH_KEY) ?? "1.0");
+            if (isFinite(r)) setTtsRate(r);
+            if (isFinite(p)) setTtsPitch(p);
+        } catch { /* ignore */ }
+    }, []);
+    function handleTtsRateChange(val: number) {
+        const v = Math.round(val * 20) / 20; // snap to 0.05 steps
+        setTtsRate(v);
+        try { localStorage.setItem(TTS_RATE_KEY, String(v)); } catch { /* ignore */ }
+    }
+    function handleTtsPitchChange(val: number) {
+        const v = Math.round(val * 20) / 20;
+        setTtsPitch(v);
+        try { localStorage.setItem(TTS_PITCH_KEY, String(v)); } catch { /* ignore */ }
+    }
+
+    // ─── G-4: Grow nudge permanent dismiss ───────────────────────────────────
+    const GROW_NUDGE_PERM_KEY = "imotara.grow.nudge.perm.v1";
+    const [growNudgePerm, setGrowNudgePerm] = useState(false);
+    useEffect(() => {
+        try { setGrowNudgePerm(localStorage.getItem(GROW_NUDGE_PERM_KEY) === "1"); } catch { /* ignore */ }
+    }, []);
+    function handleGrowNudgePermToggle(val: boolean) {
+        setGrowNudgePerm(val);
+        try { localStorage.setItem(GROW_NUDGE_PERM_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── A-4: Tone reflection visibility ─────────────────────────────────────
+    const TONE_REFLECT_KEY = "imotara.tone.reflect.show.v1";
+    const [showToneReflect, setShowToneReflect] = useState(true);
+    useEffect(() => {
+        try { setShowToneReflect(localStorage.getItem(TONE_REFLECT_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleToneReflectToggle(val: boolean) {
+        setShowToneReflect(val);
+        try { localStorage.setItem(TONE_REFLECT_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── P-3: Crisis country override ────────────────────────────────────────
+    const CRISIS_COUNTRY_KEY = "imotara.crisis.country.v1";
+    const CRISIS_COUNTRIES = [
+        { code: "auto", label: "Auto-detect" },
+        { code: "IN", label: "India" }, { code: "US", label: "United States" },
+        { code: "GB", label: "United Kingdom" }, { code: "AU", label: "Australia" },
+        { code: "CA", label: "Canada" }, { code: "JP", label: "Japan" },
+        { code: "KR", label: "South Korea" }, { code: "SG", label: "Singapore" },
+        { code: "MY", label: "Malaysia" }, { code: "PH", label: "Philippines" },
+        { code: "LK", label: "Sri Lanka" }, { code: "PK", label: "Pakistan" },
+        { code: "BD", label: "Bangladesh" }, { code: "NZ", label: "New Zealand" },
+        { code: "IE", label: "Ireland" }, { code: "DE", label: "Germany" },
+        { code: "FR", label: "France" }, { code: "NL", label: "Netherlands" },
+    ];
+    const [crisisCountry, setCrisisCountry] = useState("auto");
+    useEffect(() => {
+        try { setCrisisCountry(localStorage.getItem(CRISIS_COUNTRY_KEY) ?? "auto"); } catch { /* ignore */ }
+    }, []);
+    function handleCrisisCountryChange(code: string) {
+        setCrisisCountry(code);
+        try { localStorage.setItem(CRISIS_COUNTRY_KEY, code); } catch { /* ignore */ }
+    }
+
+    // ─── M-2: Auto-cleanup history ───────────────────────────────────────────
+    const AUTO_CLEANUP_KEY = "imotara.history.autoCleanupDays.v1";
+    const [autoCleanupDays, setAutoCleanupDays] = useState(0);
+    const AUTO_CLEANUP_OPTIONS = [0, 30, 60, 90] as const;
+    useEffect(() => {
+        try {
+            const v = parseInt(localStorage.getItem(AUTO_CLEANUP_KEY) ?? "0", 10);
+            setAutoCleanupDays(isFinite(v) ? v : 0);
+        } catch { /* ignore */ }
+    }, []);
+    function handleAutoCleanupChange(days: number) {
+        setAutoCleanupDays(days);
+        try { localStorage.setItem(AUTO_CLEANUP_KEY, String(days)); } catch { /* ignore */ }
+        if (days > 0) {
+            try {
+                const raw: unknown[] = JSON.parse(localStorage.getItem("imotara:history:v1") ?? "[]");
+                const cutoff = Date.now() - days * 86_400_000;
+                const kept = (raw as { timestamp?: number }[]).filter((r) => (r.timestamp ?? Date.now()) >= cutoff);
+                localStorage.setItem("imotara:history:v1", JSON.stringify(kept));
+            } catch { /* ignore */ }
+        }
+    }
+
+    // ─── O-1: Feature discovery reset ────────────────────────────────────────
+    const DISCOVERY_KEY = "imotara.onboarding.discovery.v1";
+    const [discoveryResetMsg, setDiscoveryResetMsg] = useState<string | null>(null);
+    function handleDiscoveryReset() {
+        try { localStorage.removeItem(DISCOVERY_KEY); } catch { /* ignore */ }
+        setDiscoveryResetMsg("Discovery cards reset — they will reappear next time you open Chat.");
+    }
+
+    // ─── O-3: First-message tip reset ────────────────────────────────────────
+    const FIRST_MSG_KEY = "imotara.onboarding.firstMsgSeen.v1";
+    const [firstMsgResetMsg, setFirstMsgResetMsg] = useState<string | null>(null);
+    function handleFirstMsgReset() {
+        try { localStorage.removeItem(FIRST_MSG_KEY); } catch { /* ignore */ }
+        setFirstMsgResetMsg("Welcome tip reset — it will appear again on your next Chat visit.");
+    }
+
+    // ─── U-1: Trial banner permanent dismiss ─────────────────────────────────
+    const TRIAL_BANNER_KEY = "imotara.trial.bannerDismissed.v1";
+    const [trialBannerPerm, setTrialBannerPerm] = useState(false);
+    useEffect(() => {
+        try { setTrialBannerPerm(localStorage.getItem(TRIAL_BANNER_KEY) === "never"); } catch { /* ignore */ }
+    }, []);
+    function handleTrialBannerPermToggle(val: boolean) {
+        setTrialBannerPerm(val);
+        try {
+            if (val) localStorage.setItem(TRIAL_BANNER_KEY, "never");
+            else localStorage.removeItem(TRIAL_BANNER_KEY);
+        } catch { /* ignore */ }
+    }
+
+    // C-4: Return-greeting threshold
+    const RETURN_GREETING_KEY = "imotara.return.greeting.hours.v1";
+    const [returnGreetingHours, setReturnGreetingHours] = useState(24);
+    const RETURN_GREETING_OPTIONS = [6, 12, 24, 48] as const;
+    useEffect(() => {
+        try {
+            const n = parseInt(localStorage.getItem(RETURN_GREETING_KEY) ?? "24", 10);
+            setReturnGreetingHours(isFinite(n) ? n : 24);
+        } catch { /* ignore */ }
+    }, []);
+    function handleReturnGreetingChange(hours: number) {
+        setReturnGreetingHours(hours);
+        try { localStorage.setItem(RETURN_GREETING_KEY, String(hours)); } catch { /* ignore */ }
+    }
+
+    // U-3: Search mode
+    const SEARCH_MODE_KEY = "imotara.search.mode.v1";
+    const [searchMode, setSearchMode] = useState<"fuzzy" | "exact">("fuzzy");
+    useEffect(() => {
+        try {
+            const v = localStorage.getItem(SEARCH_MODE_KEY);
+            if (v === "exact" || v === "fuzzy") setSearchMode(v);
+        } catch { /* ignore */ }
+    }, []);
+    function handleSearchModeChange(val: "fuzzy" | "exact") {
+        setSearchMode(val);
+        try { localStorage.setItem(SEARCH_MODE_KEY, val); } catch { /* ignore */ }
+    }
+
+    // U-2: Reaction emoji set (web)
+    const WEB_REACTIONS_SET_KEY = "imotara.reactions.set.v1";
+    const [webReactionsSet, setWebReactionsSet] = useState<"default" | "minimal" | "extended">("default");
+    useEffect(() => {
+        try {
+            const v = localStorage.getItem(WEB_REACTIONS_SET_KEY);
+            if (v === "minimal" || v === "default" || v === "extended") setWebReactionsSet(v as "default" | "minimal" | "extended");
+        } catch { /* ignore */ }
+    }, []);
+    function handleWebReactionsSetChange(val: "default" | "minimal" | "extended") {
+        setWebReactionsSet(val);
+        try { localStorage.setItem(WEB_REACTIONS_SET_KEY, val); } catch { /* ignore */ }
+    }
+
+    // G-1: Emotional arc cadence (web)
+    const WEB_ARC_CADENCE_KEY = "imotara.arc.cadenceDays.v1";
+    const [webArcCadenceDays, setWebArcCadenceDays] = useState(30);
+    const WEB_CADENCE_OPTIONS = [7, 14, 30, 60] as const;
+    useEffect(() => {
+        try {
+            const n = parseInt(localStorage.getItem(WEB_ARC_CADENCE_KEY) ?? "30", 10);
+            setWebArcCadenceDays(isFinite(n) ? n : 30);
+        } catch { /* ignore */ }
+    }, []);
+    function handleWebArcCadenceChange(days: number) {
+        setWebArcCadenceDays(days);
+        try { localStorage.setItem(WEB_ARC_CADENCE_KEY, String(days)); } catch { /* ignore */ }
+    }
+
+    // G-2: Companion letter cadence (web)
+    const WEB_LETTER_CADENCE_KEY = "imotara.letter.cadenceDays.v1";
+    const [webLetterCadenceDays, setWebLetterCadenceDays] = useState(30);
+    useEffect(() => {
+        try {
+            const n = parseInt(localStorage.getItem(WEB_LETTER_CADENCE_KEY) ?? "30", 10);
+            setWebLetterCadenceDays(isFinite(n) ? n : 30);
+        } catch { /* ignore */ }
+    }, []);
+    function handleWebLetterCadenceChange(days: number) {
+        setWebLetterCadenceDays(days);
+        try { localStorage.setItem(WEB_LETTER_CADENCE_KEY, String(days)); } catch { /* ignore */ }
+    }
+
+    // G-3: Open-loop thresholds (web)
+    const WEB_OPENLOOP_THREADS_KEY = "imotara.openloop.minThreads.v1";
+    const WEB_OPENLOOP_AGE_KEY = "imotara.openloop.minAgeDays.v1";
+    const [webOpenLoopThreads, setWebOpenLoopThreads] = useState(3);
+    const [webOpenLoopAgeDays, setWebOpenLoopAgeDays] = useState(14);
+    const WEB_THREAD_OPTIONS = [2, 3, 5] as const;
+    const WEB_AGE_OPTIONS = [7, 14, 21, 30] as const;
+    useEffect(() => {
+        try {
+            const t = parseInt(localStorage.getItem(WEB_OPENLOOP_THREADS_KEY) ?? "3", 10);
+            setWebOpenLoopThreads(isFinite(t) ? t : 3);
+            const a = parseInt(localStorage.getItem(WEB_OPENLOOP_AGE_KEY) ?? "14", 10);
+            setWebOpenLoopAgeDays(isFinite(a) ? a : 14);
+        } catch { /* ignore */ }
+    }, []);
+    function handleWebOpenLoopThreadsChange(n: number) {
+        setWebOpenLoopThreads(n);
+        try { localStorage.setItem(WEB_OPENLOOP_THREADS_KEY, String(n)); } catch { /* ignore */ }
+    }
+    function handleWebOpenLoopAgeChange(days: number) {
+        setWebOpenLoopAgeDays(days);
+        try { localStorage.setItem(WEB_OPENLOOP_AGE_KEY, String(days)); } catch { /* ignore */ }
+    }
+
+    // C-1: Typing indicator speed (web)
+    const WEB_TYPING_SPEED_KEY = "imotara.typing.speed.v1";
+    const [webTypingSpeed, setWebTypingSpeed] = useState<"slow" | "normal" | "fast">("normal");
+    useEffect(() => {
+        try {
+            const v = localStorage.getItem(WEB_TYPING_SPEED_KEY);
+            if (v === "slow" || v === "normal" || v === "fast") setWebTypingSpeed(v);
+        } catch { /* ignore */ }
+    }, []);
+    function handleWebTypingSpeedChange(val: "slow" | "normal" | "fast") {
+        setWebTypingSpeed(val);
+        try { localStorage.setItem(WEB_TYPING_SPEED_KEY, val); } catch { /* ignore */ }
+    }
+
+    // P-1: Adult content guard sensitivity (web)
+    const WEB_CONTENT_GUARD_KEY = "imotara.content.guard.v1";
+    const [webContentGuard, setWebContentGuard] = useState<"strict" | "standard" | "relaxed">("standard");
+    useEffect(() => {
+        try {
+            const v = localStorage.getItem(WEB_CONTENT_GUARD_KEY);
+            if (v === "strict" || v === "standard" || v === "relaxed") setWebContentGuard(v as "strict" | "standard" | "relaxed");
+        } catch { /* ignore */ }
+    }, []);
+    function handleWebContentGuardChange(val: "strict" | "standard" | "relaxed") {
+        setWebContentGuard(val);
+        try { localStorage.setItem(WEB_CONTENT_GUARD_KEY, val); } catch { /* ignore */ }
+    }
+
+    // P-2: Crisis detection threshold (web)
+    const WEB_CRISIS_THRESHOLD_KEY = "imotara.crisis.threshold.v1";
+    const [webCrisisThreshold, setWebCrisisThreshold] = useState<"sensitive" | "standard" | "conservative">("standard");
+    useEffect(() => {
+        try {
+            const v = localStorage.getItem(WEB_CRISIS_THRESHOLD_KEY);
+            if (v === "sensitive" || v === "standard" || v === "conservative") setWebCrisisThreshold(v as "sensitive" | "standard" | "conservative");
+        } catch { /* ignore */ }
+    }, []);
+    function handleWebCrisisThresholdChange(val: "sensitive" | "standard" | "conservative") {
+        setWebCrisisThreshold(val);
+        try { localStorage.setItem(WEB_CRISIS_THRESHOLD_KEY, val); } catch { /* ignore */ }
+    }
+
+    // ─── Advanced accordion ───────────────────────────────────────────────────
+    const [advancedOpen, setAdvancedOpen] = useState<boolean>(() => {
+        try { return sessionStorage.getItem("imotara.settings.advanced.v1") === "true"; } catch { return false; }
+    });
+    function toggleAdvanced() {
+        setAdvancedOpen((prev) => {
+            const next = !prev;
+            try { sessionStorage.setItem("imotara.settings.advanced.v1", String(next)); } catch { /* ignore */ }
+            return next;
+        });
+    }
+
     // ─── Delete Account ──────────────────────────────────────────────────────
     const [deletingAccount, setDeletingAccount] = useState(false);
     const [deleteAccountMsg, setDeleteAccountMsg] = useState<string | null>(null);
@@ -1772,150 +2077,22 @@ export default function SettingsPage() {
                     </p>
                 </header>
 
-                {/* Analysis mode overview */}
-                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                        Emotion analysis mode
-                    </h2>
-                    <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
-                        This mode is shared between Chat, History, and Settings and is stored only in
-                        this browser.
-                    </p>
+                {/* ── Group 1: Your companion ──────────────────────────── */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 shrink-0">Your companion</span>
+                    <div className="flex-1 h-px bg-white/10" />
+                </div>
 
-                    <div className="mt-3 inline-flex flex-wrap items-center gap-2">
-                        <span
-                            className={[
-                                "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] backdrop-blur-sm",
-                                consentBadgeClass,
-                            ].join(" ")}
-                        >
-                            <span
-                                className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : mode === "auto" ? "bg-violet-400" : "bg-zinc-500"
-                                    }`}
-                            />
-                            {consentLabel}
-                        </span>
-
-                        <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] text-zinc-300">
-                            Change this from the Chat page using the toggle.
-                        </span>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-2 text-xs sm:text-sm">
-                        <Link
-                            href="/chat"
-                            className="rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-zinc-100 shadow-sm transition hover:bg-white/20"
-                        >
-                            Go to Chat
-                        </Link>
-                        <Link
-                            href="/history"
-                            className="rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-zinc-100 shadow-sm transition hover:bg-white/20"
-                        >
-                            View Emotion History
-                        </Link>
-                    </div>
-                </section>
-
-                {/* Cross-device continuity (optional) */}
-                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                        Sync with another device (optional)
-                    </h2>
-                    <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
-                        If you enter the same Link Key on both Web and Mobile, your remote chat history
-                        will appear on both. Treat this key like a private password.
-                    </p>
-
-                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
-                        <input
-                            value={linkKey}
-                            onChange={(e) => {
-                                setLinkKey(e.target.value);
-                                setLinkKeyStatus(null);
-                            }}
-                            placeholder="Paste a Link Key (e.g., 8–20 characters)"
-                            className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-white/20"
-                        />
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                type="button"
-                                onClick={saveLinkKey}
-                                className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-zinc-100 shadow-sm transition hover:bg-white/20"
-                            >
-                                Save
-                            </button>
-                            <button
-                                type="button"
-                                onClick={copyLinkKey}
-                                className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-zinc-100 shadow-sm transition hover:bg-white/20"
-                            >
-                                Copy
-                            </button>
-                            <button
-                                type="button"
-                                onClick={clearLinkKey}
-                                className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-xs text-zinc-100 shadow-sm transition hover:bg-black/45"
-                            >
-                                Clear
-                            </button>
-                        </div>
-                    </div>
-
-                    {linkKeyStatus ? (
-                        <p className="mt-2 text-xs text-zinc-400">{linkKeyStatus}</p>
-                    ) : null}
-
-                    <p className="mt-3 text-[11px] text-zinc-500">
-                        Tip: Use a short memorable phrase (no spaces) and set the same value on mobile later.
-                    </p>
-                </section>
-
-                {/* Browser push notifications */}
-                {mounted && "Notification" in window && "PushManager" in window && (
-                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Browser notifications</h2>
-                    <p className="mt-1 text-xs leading-5 text-zinc-400">
-                        Get a gentle daily reminder to check in, even when the tab is closed.
-                    </p>
-                    <div className="mt-3 flex items-center gap-3">
-                        {notifPermission === "denied" ? (
-                            <p className="text-xs text-rose-400">
-                                Notifications blocked by your browser. Allow them in your browser&apos;s site settings, then reload.
-                            </p>
-                        ) : notifSubscribed ? (
-                            <button
-                                type="button"
-                                onClick={disableNotifications}
-                                disabled={notifLoading}
-                                className="rounded-xl border border-white/15 bg-white/8 px-4 py-2 text-xs text-zinc-300 transition hover:bg-white/15 disabled:opacity-50"
-                            >
-                                {notifLoading ? "Disabling…" : "Disable notifications"}
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={enableNotifications}
-                                disabled={notifLoading}
-                                className="im-cta-bg rounded-xl px-4 py-2 text-xs font-medium text-black shadow transition hover:brightness-110 disabled:opacity-50"
-                            >
-                                {notifLoading ? "Enabling…" : "Enable notifications"}
-                            </button>
-                        )}
-                        {notifSubscribed && (
-                            <span className="text-xs text-emerald-400">Active ✓</span>
-                        )}
-                    </div>
-                    {notifToast && (
-                        <p className="mt-2 text-xs text-rose-400">{notifToast}</p>
-                    )}
-                </section>
-                )}
-
-                {/* NEW: Tone & Context Preferences (client-only safe) */}
+                {/* Tone & Context Preferences */}
                 {mounted && <ToneAndContextTile />}
 
-                {/* Licensing — user-facing plan card */}
+                {/* ── Group 2: Plan & support ──────────────────────────── */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 shrink-0">Plan &amp; support</span>
+                    <div className="flex-1 h-px bg-white/10" />
+                </div>
+
+                {/* Licensing — your plan card */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                         <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Your plan</h2>
@@ -2047,7 +2224,7 @@ export default function SettingsPage() {
                     )}
                 </section>
 
-                {/* NEW: Donations (web) */}
+                {/* Donations (web) */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                     <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
                         Support Imotara (Donate)
@@ -2152,6 +2329,475 @@ export default function SettingsPage() {
                     </section>
                 )}
 
+                {/* ── Group 3: Experience ──────────────────────────────── */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 shrink-0">Experience</span>
+                    <div className="flex-1 h-px bg-white/10" />
+                </div>
+
+                {/* Browser push notifications */}
+                {mounted && "Notification" in window && "PushManager" in window && (
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Browser notifications</h2>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">
+                        Get a gentle daily reminder to check in, even when the tab is closed.
+                    </p>
+                    <div className="mt-3 flex items-center gap-3">
+                        {notifPermission === "denied" ? (
+                            <p className="text-xs text-rose-400">
+                                Notifications blocked by your browser. Allow them in your browser&apos;s site settings, then reload.
+                            </p>
+                        ) : notifSubscribed ? (
+                            <button
+                                type="button"
+                                onClick={disableNotifications}
+                                disabled={notifLoading}
+                                className="rounded-xl border border-white/15 bg-white/8 px-4 py-2 text-xs text-zinc-300 transition hover:bg-white/15 disabled:opacity-50"
+                            >
+                                {notifLoading ? "Disabling…" : "Disable notifications"}
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={enableNotifications}
+                                disabled={notifLoading}
+                                className="im-cta-bg rounded-xl px-4 py-2 text-xs font-medium text-black shadow transition hover:brightness-110 disabled:opacity-50"
+                            >
+                                {notifLoading ? "Enabling…" : "Enable notifications"}
+                            </button>
+                        )}
+                        {notifSubscribed && (
+                            <span className="text-xs text-emerald-400">Active ✓</span>
+                        )}
+                    </div>
+                    {notifToast && (
+                        <p className="mt-2 text-xs text-rose-400">{notifToast}</p>
+                    )}
+                </section>
+                )}
+
+                {/* ── Chat behaviour preferences ──────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Chat behaviour</h2>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">Control what appears in your chat window.</p>
+
+                    {/* G-4: Grow nudge permanent dismiss */}
+                    <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Hide &quot;Grow&quot; nudge</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Permanently hide the Grow feature suggestion in Chat</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={growNudgePerm}
+                            onClick={() => handleGrowNudgePermToggle(!growNudgePerm)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${growNudgePerm ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${growNudgePerm ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* A-4: Tone reflection visibility */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Show tone reflection card</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show the emotion summary card after sessions</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={showToneReflect}
+                            onClick={() => handleToneReflectToggle(!showToneReflect)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${showToneReflect ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${showToneReflect ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* U-1: Trial banner permanent dismiss */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Hide upgrade banner</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Permanently hide the upgrade notice in Chat (not just for today)</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={trialBannerPerm}
+                            onClick={() => handleTrialBannerPermToggle(!trialBannerPerm)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${trialBannerPerm ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${trialBannerPerm ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* C-4: Return greeting threshold */}
+                    <div className="mt-4">
+                        <p className="mb-1 text-xs font-medium text-zinc-400">Return greeting after</p>
+                        <p className="mb-2 text-[11px] text-zinc-500">Imotara greets you warmly when you haven&apos;t chatted for this long</p>
+                        <div className="flex flex-wrap gap-2">
+                            {RETURN_GREETING_OPTIONS.map((h) => (
+                                <button
+                                    key={h}
+                                    type="button"
+                                    onClick={() => handleReturnGreetingChange(h)}
+                                    className={`rounded-full border px-4 py-1.5 text-xs transition ${
+                                        returnGreetingHours === h
+                                            ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
+                                            : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"
+                                    }`}
+                                >
+                                    {h}h
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* U-3: Search mode */}
+                    <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Exact history search</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Match only exact phrases in history search (off = fuzzy match)</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={searchMode === "exact"}
+                            onClick={() => handleSearchModeChange(searchMode === "exact" ? "fuzzy" : "exact")}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${searchMode === "exact" ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${searchMode === "exact" ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* U-2: Reactions set */}
+                    <div className="mt-4">
+                        <p className="mb-2 text-xs font-medium text-zinc-400">Message reactions</p>
+                        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                            {(["minimal", "default", "extended"] as const).map((v) => (
+                                <button
+                                    key={v}
+                                    type="button"
+                                    onClick={() => handleWebReactionsSetChange(v)}
+                                    className={`flex-1 text-center rounded-full px-4 py-1 text-xs transition ${
+                                        webReactionsSet === v
+                                            ? "im-seg-selected bg-white/20 text-zinc-50"
+                                            : "text-zinc-400 hover:text-zinc-200"
+                                    }`}
+                                >
+                                    {v === "minimal" ? "Minimal" : v === "default" ? "Default" : "Extended"}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="mt-1 text-[11px] text-zinc-500">Controls the number of emoji reactions shown on messages.</p>
+                    </div>
+                </section>
+
+                {/* ── Appearance ─────────────────────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Appearance</h2>
+                    <p className="mt-1 text-xs leading-6 text-zinc-400">Accent colour and text size — saved on this device.</p>
+
+                    {/* Accent picker */}
+                    <div className="mt-4">
+                        <p className="mb-2 text-xs font-medium text-zinc-400">Accent colour</p>
+                        <div className="flex flex-wrap gap-2">
+                            {ACCENT_OPTIONS.map((o) => {
+                                const active = accent === o.value;
+                                const swatchStyle = o.gradient
+                                    ? { backgroundImage: o.gradient }
+                                    : { backgroundColor: o.color };
+                                return (
+                                    <button
+                                        key={o.value}
+                                        type="button"
+                                        onClick={() => setAccent(o.value)}
+                                        title={o.value === "twilight" ? "Twilight (default)" : o.label}
+                                        className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition"
+                                        style={active ? {
+                                            borderColor: o.color,
+                                            backgroundColor: `${o.color}28`,
+                                            color: "#f4f4f5",
+                                            boxShadow: `0 0 14px ${o.color}55`,
+                                        } : {
+                                            borderColor: "rgba(255,255,255,0.10)",
+                                            backgroundColor: "rgba(255,255,255,0.05)",
+                                            color: "#a1a1aa",
+                                        }}
+                                    >
+                                        <span className="h-3 w-3 rounded-full shrink-0" style={swatchStyle} />
+                                        {o.label}
+                                        {active && <span className="ml-0.5 text-[10px] opacity-60">✓</span>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Font size */}
+                    <div className="mt-4">
+                        <p className="mb-2 text-xs font-medium text-zinc-400">Text size</p>
+                        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                            {FONT_OPTIONS.map((o) => (
+                                <button
+                                    key={o.value}
+                                    type="button"
+                                    onClick={() => setFontSize(o.value)}
+                                    className={`flex-1 text-center rounded-full px-4 py-1 transition ${
+                                        fontSize === o.value
+                                            ? "im-seg-selected bg-white/20 text-zinc-50"
+                                            : "text-zinc-400 hover:text-zinc-200"
+                                    }`}
+                                    style={{ fontSize: o.value === "sm" ? "11px" : o.value === "lg" ? "15px" : "13px" }}
+                                >
+                                    {o.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Color mode */}
+                    <div className="mt-4">
+                        <p className="mb-2 text-xs font-medium text-zinc-400">Color mode</p>
+                        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                            {(["dark", "light"] as ColorMode[]).map((m) => (
+                                <button
+                                    key={m}
+                                    type="button"
+                                    onClick={() => setColorMode(m)}
+                                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-1 text-xs transition ${
+                                        colorMode === m
+                                            ? "im-seg-selected bg-white/20 text-zinc-50"
+                                            : "text-zinc-400 hover:text-zinc-200"
+                                    }`}
+                                >
+                                    <span aria-hidden>{m === "dark" ? "🌙" : "☀️"}</span>
+                                    {m === "dark" ? "Dark" : "Light"}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* H-1: Haptic feedback */}
+                    <div className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Haptic feedback</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Vibration on taps and emotion moments (mobile browsers)</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={hapticEnabled}
+                            onClick={() => handleHapticToggle(!hapticEnabled)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${hapticEnabled ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${hapticEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* C-2: Reduced motion */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Reduced motion</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Use instant scroll instead of smooth animation (helps with motion sensitivity)</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={reducedMotion}
+                            onClick={() => handleReducedMotionToggle(!reducedMotion)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${reducedMotion ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${reducedMotion ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* C-3: Show timestamps */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Show message timestamps</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Display time sent on each chat bubble</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={showTimestamps}
+                            onClick={() => handleShowTimestampsToggle(!showTimestamps)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${showTimestamps ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${showTimestamps ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* C-1: Typing indicator speed */}
+                    <div className="mt-4">
+                        <p className="mb-2 text-xs font-medium text-zinc-400">Typing indicator speed</p>
+                        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                            {(["slow", "normal", "fast"] as const).map((v) => (
+                                <button
+                                    key={v}
+                                    type="button"
+                                    onClick={() => handleWebTypingSpeedChange(v)}
+                                    className={`flex-1 text-center rounded-full px-4 py-1 text-xs transition ${
+                                        webTypingSpeed === v
+                                            ? "im-seg-selected bg-white/20 text-zinc-50"
+                                            : "text-zinc-400 hover:text-zinc-200"
+                                    }`}
+                                >
+                                    {v === "slow" ? "Slow" : v === "normal" ? "Normal" : "Fast"}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="mt-1 text-[11px] text-zinc-500">Speed of the animated dots while Imotara is composing a reply.</p>
+                    </div>
+
+                    {/* H-3: TTS rate + pitch */}
+                    <div className="mt-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3 space-y-3">
+                        <p className="text-xs font-medium text-zinc-200">Voice playback speed &amp; pitch</p>
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-[11px] text-zinc-400">
+                                <span>Speed: {ttsRate.toFixed(2)}×</span>
+                                <span className="text-zinc-600">0.50 — 1.50</span>
+                            </div>
+                            <input type="range" min="0.5" max="1.5" step="0.05" value={ttsRate}
+                                onChange={(e) => handleTtsRateChange(parseFloat(e.target.value))}
+                                className="w-full accent-sky-400 cursor-pointer" />
+                        </div>
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-[11px] text-zinc-400">
+                                <span>Pitch: {ttsPitch.toFixed(2)}</span>
+                                <span className="text-zinc-600">0.50 — 1.50</span>
+                            </div>
+                            <input type="range" min="0.5" max="1.5" step="0.05" value={ttsPitch}
+                                onChange={(e) => handleTtsPitchChange(parseFloat(e.target.value))}
+                                className="w-full accent-sky-400 cursor-pointer" />
+                        </div>
+                        <p className="text-[10px] text-zinc-600">Applies to voice preview on avatar taps in Chat.</p>
+                    </div>
+                </section>
+
+                {/* ── Group 4: Privacy & safety ────────────────────────── */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 shrink-0">Privacy &amp; safety</span>
+                    <div className="flex-1 h-px bg-white/10" />
+                </div>
+
+                {/* Analysis mode overview */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
+                        Emotion analysis mode
+                    </h2>
+                    <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
+                        This mode is shared between Chat, History, and Settings and is stored only in
+                        this browser.
+                    </p>
+
+                    <div className="mt-3 inline-flex flex-wrap items-center gap-2">
+                        <span
+                            className={[
+                                "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] backdrop-blur-sm",
+                                consentBadgeClass,
+                            ].join(" ")}
+                        >
+                            <span
+                                className={`h-1.5 w-1.5 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : mode === "auto" ? "bg-violet-400" : "bg-zinc-500"
+                                    }`}
+                            />
+                            {consentLabel}
+                        </span>
+
+                        <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] text-zinc-300">
+                            Change this from the Chat page using the toggle.
+                        </span>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2 text-xs sm:text-sm">
+                        <Link
+                            href="/chat"
+                            className="rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-zinc-100 shadow-sm transition hover:bg-white/20"
+                        >
+                            Go to Chat
+                        </Link>
+                        <Link
+                            href="/history"
+                            className="rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-zinc-100 shadow-sm transition hover:bg-white/20"
+                        >
+                            View Emotion History
+                        </Link>
+                    </div>
+                </section>
+
+                {/* ── Safety settings ──────────────────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Safety &amp; crisis resources</h2>
+
+                    {/* A-3: Auto-routing transparency */}
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">
+                        In <span className="text-zinc-200 font-medium">Auto</span> mode, Imotara tries local analysis first. Data is sent to the cloud only when local confidence is low.
+                        Use <span className="text-zinc-200 font-medium">Local only</span> to keep everything on-device.
+                    </p>
+
+                    {/* P-3: Crisis country override */}
+                    <div className="mt-4">
+                        <p className="mb-2 text-xs font-medium text-zinc-400">Crisis resources country</p>
+                        <p className="mb-2 text-[11px] text-zinc-500">By default, resources are auto-detected from your browser locale. Override if you need resources for a different country.</p>
+                        <select
+                            value={crisisCountry}
+                            onChange={(e) => handleCrisisCountryChange(e.target.value)}
+                            className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-white/20"
+                        >
+                            {CRISIS_COUNTRIES.map((c) => (
+                                <option key={c.code} value={c.code}>{c.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* P-1: Content guard sensitivity */}
+                    <div className="mt-4">
+                        <p className="mb-2 text-xs font-medium text-zinc-400">Content sensitivity</p>
+                        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                            {(["relaxed", "standard", "strict"] as const).map((v) => (
+                                <button
+                                    key={v}
+                                    type="button"
+                                    onClick={() => handleWebContentGuardChange(v)}
+                                    className={`flex-1 text-center rounded-full px-4 py-1 text-xs transition ${
+                                        webContentGuard === v
+                                            ? "im-seg-selected bg-white/20 text-zinc-50"
+                                            : "text-zinc-400 hover:text-zinc-200"
+                                    }`}
+                                >
+                                    {v === "relaxed" ? "Relaxed" : v === "standard" ? "Standard" : "Strict"}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="mt-1 text-[11px] text-zinc-500">Strict blocks adult content; Relaxed turns off the content filter.</p>
+                    </div>
+
+                    {/* P-2: Crisis detection threshold */}
+                    <div className="mt-4">
+                        <p className="mb-2 text-xs font-medium text-zinc-400">Crisis detection sensitivity</p>
+                        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                            {(["sensitive", "standard", "conservative"] as const).map((v) => (
+                                <button
+                                    key={v}
+                                    type="button"
+                                    onClick={() => handleWebCrisisThresholdChange(v)}
+                                    className={`flex-1 text-center rounded-full px-4 py-1 text-xs transition ${
+                                        webCrisisThreshold === v
+                                            ? "im-seg-selected bg-white/20 text-zinc-50"
+                                            : "text-zinc-400 hover:text-zinc-200"
+                                    }`}
+                                >
+                                    {v === "sensitive" ? "Sensitive" : v === "standard" ? "Standard" : "Conservative"}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="mt-1 text-[11px] text-zinc-500">Sensitive surfaces resources at earliest signs; Conservative only for clear distress.</p>
+                    </div>
+                </section>
+
                 {/* Local data controls */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                     <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
@@ -2227,108 +2873,238 @@ export default function SettingsPage() {
                     {syncMsg && <p className="mt-2 text-[11px] text-zinc-400">{syncMsg}</p>}
                 </section>
 
-                {/* ── Delete Account ───────────────────────────────────── */}
-                <section className="imotara-glass-soft rounded-2xl border border-rose-500/15 px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-rose-300 sm:text-base">Delete account</h2>
-                    <p className="mt-1 text-xs leading-5 text-zinc-400">
-                        Permanently delete your Imotara account and all associated data — conversations, memories, and settings. This cannot be undone.
+                {/* Cross-device continuity (optional) */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
+                        Sync with another device (optional)
+                    </h2>
+                    <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
+                        If you enter the same Link Key on both Web and Mobile, your remote chat history
+                        will appear on both. Treat this key like a private password.
                     </p>
-                    <button
-                        type="button"
-                        onClick={handleDeleteAccount}
-                        disabled={deletingAccount}
-                        className="mt-3 rounded-xl border border-rose-500/40 bg-rose-600/15 px-4 py-2 text-xs font-medium text-rose-300 transition hover:bg-rose-600/25 disabled:opacity-50"
-                    >
-                        {deletingAccount ? "Deleting…" : "Delete my account"}
-                    </button>
-                    {deleteAccountMsg && (
-                        <p className="mt-2 text-[11px] text-zinc-400">{deleteAccountMsg}</p>
-                    )}
+
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
+                        <input
+                            value={linkKey}
+                            onChange={(e) => {
+                                setLinkKey(e.target.value);
+                                setLinkKeyStatus(null);
+                            }}
+                            placeholder="Paste a Link Key (e.g., 8–20 characters)"
+                            className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-white/20"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={saveLinkKey}
+                                className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-zinc-100 shadow-sm transition hover:bg-white/20"
+                            >
+                                Save
+                            </button>
+                            <button
+                                type="button"
+                                onClick={copyLinkKey}
+                                className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-zinc-100 shadow-sm transition hover:bg-white/20"
+                            >
+                                Copy
+                            </button>
+                            <button
+                                type="button"
+                                onClick={clearLinkKey}
+                                className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-xs text-zinc-100 shadow-sm transition hover:bg-black/45"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+
+                    {linkKeyStatus ? (
+                        <p className="mt-2 text-xs text-zinc-400">{linkKeyStatus}</p>
+                    ) : null}
+
+                    <p className="mt-3 text-[11px] text-zinc-500">
+                        Tip: Use a short memorable phrase (no spaces) and set the same value on mobile later.
+                    </p>
                 </section>
 
-                {/* ── Appearance ─────────────────────────────────────── */}
+                {/* ── Group 5: Advanced ────────────────────────────────── */}
+                <button
+                    type="button"
+                    onClick={toggleAdvanced}
+                    className="flex w-full items-center gap-2"
+                    aria-expanded={advancedOpen}
+                >
+                    <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 shrink-0">Advanced</span>
+                    <div className="flex-1 h-px bg-white/10" />
+                    <svg
+                        className={`h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform duration-200 ${advancedOpen ? "rotate-180" : ""}`}
+                        viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    >
+                        <polyline points="2,4 6,8 10,4" />
+                    </svg>
+                </button>
+
+                {advancedOpen && (<>
+
+                {/* ── Companion insights ───────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Appearance</h2>
-                    <p className="mt-1 text-xs leading-6 text-zinc-400">Accent colour and text size — saved on this device.</p>
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Companion insights</h2>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">Control how often Imotara generates your emotional arc, companion letter, and open-loop prompts.</p>
 
-                    {/* Accent picker */}
+                    {/* G-1: Emotional arc cadence */}
                     <div className="mt-4">
-                        <p className="mb-2 text-xs font-medium text-zinc-400">Accent colour</p>
+                        <p className="mb-1 text-xs font-medium text-zinc-400">Emotional arc — every</p>
+                        <p className="mb-2 text-[11px] text-zinc-500">How many days between narrative summaries of your emotional journey</p>
                         <div className="flex flex-wrap gap-2">
-                            {ACCENT_OPTIONS.map((o) => {
-                                const active = accent === o.value;
-                                const swatchStyle = o.gradient
-                                    ? { backgroundImage: o.gradient }
-                                    : { backgroundColor: o.color };
-                                return (
+                            {[7, 14, 30, 60].map((d) => (
+                                <button
+                                    key={d}
+                                    type="button"
+                                    onClick={() => handleWebArcCadenceChange(d)}
+                                    className={`rounded-full border px-4 py-1.5 text-xs transition ${
+                                        webArcCadenceDays === d
+                                            ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
+                                            : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"
+                                    }`}
+                                >
+                                    {d} days
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* G-2: Companion letter cadence */}
+                    <div className="mt-4">
+                        <p className="mb-1 text-xs font-medium text-zinc-400">Companion letter — every</p>
+                        <p className="mb-2 text-[11px] text-zinc-500">How many days between personal letters from your companion</p>
+                        <div className="flex flex-wrap gap-2">
+                            {[7, 14, 30, 60].map((d) => (
+                                <button
+                                    key={d}
+                                    type="button"
+                                    onClick={() => handleWebLetterCadenceChange(d)}
+                                    className={`rounded-full border px-4 py-1.5 text-xs transition ${
+                                        webLetterCadenceDays === d
+                                            ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
+                                            : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"
+                                    }`}
+                                >
+                                    {d} days
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* G-3: Open-loop thresholds */}
+                    <div className="mt-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3 space-y-3">
+                        <p className="text-xs font-medium text-zinc-200">Open-loop detection</p>
+                        <div className="space-y-1">
+                            <p className="mb-1 text-[11px] text-zinc-400">Minimum threads before showing a prompt</p>
+                            <div className="flex flex-wrap gap-2">
+                                {[2, 3, 5, 8].map((n) => (
                                     <button
-                                        key={o.value}
+                                        key={n}
                                         type="button"
-                                        onClick={() => setAccent(o.value)}
-                                        title={o.value === "twilight" ? "Twilight (default)" : o.label}
-                                        className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition"
-                                        style={active ? {
-                                            borderColor: o.color,
-                                            backgroundColor: `${o.color}28`,
-                                            color: "#f4f4f5",
-                                            boxShadow: `0 0 14px ${o.color}55`,
-                                        } : {
-                                            borderColor: "rgba(255,255,255,0.10)",
-                                            backgroundColor: "rgba(255,255,255,0.05)",
-                                            color: "#a1a1aa",
-                                        }}
+                                        onClick={() => handleWebOpenLoopThreadsChange(n)}
+                                        className={`rounded-full border px-3 py-1 text-xs transition ${
+                                            webOpenLoopThreads === n
+                                                ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
+                                                : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"
+                                        }`}
                                     >
-                                        <span className="h-3 w-3 rounded-full shrink-0" style={swatchStyle} />
-                                        {o.label}
-                                        {active && <span className="ml-0.5 text-[10px] opacity-60">✓</span>}
+                                        {n}
                                     </button>
-                                );
-                            })}
+                                ))}
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="mb-1 text-[11px] text-zinc-400">Minimum days since last mention</p>
+                            <div className="flex flex-wrap gap-2">
+                                {[7, 14, 21, 30].map((d) => (
+                                    <button
+                                        key={d}
+                                        type="button"
+                                        onClick={() => handleWebOpenLoopAgeChange(d)}
+                                        className={`rounded-full border px-3 py-1 text-xs transition ${
+                                            webOpenLoopAgeDays === d
+                                                ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
+                                                : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"
+                                        }`}
+                                    >
+                                        {d}d
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
+                </section>
 
-                    {/* Font size */}
+                {/* ── History management ───────────────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">History management</h2>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">Auto-delete emotion history older than a chosen threshold to manage storage.</p>
+
+                    {/* M-2: Auto-cleanup */}
                     <div className="mt-4">
-                        <p className="mb-2 text-xs font-medium text-zinc-400">Text size</p>
-                        <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-0.5">
-                            {FONT_OPTIONS.map((o) => (
+                        <p className="mb-2 text-xs font-medium text-zinc-400">Auto-delete records older than</p>
+                        <div className="flex flex-wrap gap-2">
+                            {AUTO_CLEANUP_OPTIONS.map((d) => (
                                 <button
-                                    key={o.value}
+                                    key={d}
                                     type="button"
-                                    onClick={() => setFontSize(o.value)}
-                                    className={`rounded-full px-4 py-1 transition ${
-                                        fontSize === o.value
-                                            ? "bg-white/20 text-zinc-50"
-                                            : "text-zinc-400 hover:text-zinc-200"
+                                    onClick={() => handleAutoCleanupChange(d)}
+                                    className={`rounded-full border px-4 py-1.5 text-xs transition ${
+                                        autoCleanupDays === d
+                                            ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
+                                            : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"
                                     }`}
-                                    style={{ fontSize: o.value === "sm" ? "11px" : o.value === "lg" ? "15px" : "13px" }}
                                 >
-                                    {o.label}
+                                    {d === 0 ? "Never" : `${d} days`}
                                 </button>
                             ))}
                         </div>
+                        {autoCleanupDays > 0 && (
+                            <p className="mt-2 text-[11px] text-zinc-500">Records older than {autoCleanupDays} days will be removed when you open this page.</p>
+                        )}
                     </div>
+                </section>
 
-                    {/* Color mode */}
-                    <div className="mt-4">
-                        <p className="mb-2 text-xs font-medium text-zinc-400">Color mode</p>
-                        <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-0.5">
-                            {(["dark", "light"] as ColorMode[]).map((m) => (
-                                <button
-                                    key={m}
-                                    type="button"
-                                    onClick={() => setColorMode(m)}
-                                    className={`flex items-center gap-1.5 rounded-full px-4 py-1 text-xs transition ${
-                                        colorMode === m
-                                            ? "bg-white/20 text-zinc-50"
-                                            : "text-zinc-400 hover:text-zinc-200"
-                                    }`}
-                                >
-                                    <span aria-hidden>{m === "dark" ? "🌙" : "☀️"}</span>
-                                    {m === "dark" ? "Dark" : "Light"}
-                                </button>
-                            ))}
+                {/* ── Tips, tours & notices ────────────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Tips &amp; tours</h2>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">Reset in-app tips and feature discovery cards.</p>
+                    <div className="mt-4 space-y-3">
+                        {/* O-1: Discovery reset */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                            <div>
+                                <p className="text-xs font-medium text-zinc-200">Feature discovery cards</p>
+                                <p className="mt-0.5 text-[11px] text-zinc-500">Cards that introduce Trends, Offline mode, Companion, and more</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleDiscoveryReset}
+                                className="rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 transition hover:bg-white/10"
+                            >
+                                Reset
+                            </button>
                         </div>
+                        {discoveryResetMsg && <p className="text-[11px] text-sky-400">{discoveryResetMsg}</p>}
+
+                        {/* O-3: First-message tip reset */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                            <div>
+                                <p className="text-xs font-medium text-zinc-200">Welcome tip</p>
+                                <p className="mt-0.5 text-[11px] text-zinc-500">The starter prompt shown when you open Chat for the first time</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleFirstMsgReset}
+                                className="rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 transition hover:bg-white/10"
+                            >
+                                Reset
+                            </button>
+                        </div>
+                        {firstMsgResetMsg && <p className="text-[11px] text-sky-400">{firstMsgResetMsg}</p>}
                     </div>
                 </section>
 
@@ -2494,6 +3270,28 @@ export default function SettingsPage() {
                         pages.
                     </p>
                 </section>
+
+                </>)}
+
+                {/* ── Delete Account ───────────────────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl border border-rose-500/15 px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-rose-300 sm:text-base">Delete account</h2>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">
+                        Permanently delete your Imotara account and all associated data — conversations, memories, and settings. This cannot be undone.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleDeleteAccount}
+                        disabled={deletingAccount}
+                        className="mt-3 rounded-xl border border-rose-500/40 bg-rose-600/15 px-4 py-2 text-xs font-medium text-rose-300 transition hover:bg-rose-600/25 disabled:opacity-50"
+                    >
+                        {deletingAccount ? "Deleting…" : "Delete my account"}
+                    </button>
+                    {deleteAccountMsg && (
+                        <p className="mt-2 text-[11px] text-zinc-400">{deleteAccountMsg}</p>
+                    )}
+                </section>
+
                 {/* Version footer intentionally removed (global footer already shows version) */}
             </div>
         </main>

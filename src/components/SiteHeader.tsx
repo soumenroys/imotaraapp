@@ -32,7 +32,7 @@ const BASE_LINK_CLASS =
   "inline-flex whitespace-nowrap rounded-full px-2.5 py-1 transition-colors";
 
 const ACTIVE_LINK_CLASS =
-  "imotara-nav-active bg-zinc-900/90 text-zinc-50 shadow-sm ring-1 ring-white/25 dark:bg-zinc-100 dark:text-zinc-900";
+  "imotara-nav-active im-site-active bg-zinc-900/90 text-zinc-50 shadow-sm ring-1 ring-white/25 dark:bg-zinc-100 dark:text-zinc-900";
 
 const INACTIVE_LINK_CLASS =
   "text-zinc-700 hover:bg-white/60 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900/70 dark:hover:text-zinc-50";

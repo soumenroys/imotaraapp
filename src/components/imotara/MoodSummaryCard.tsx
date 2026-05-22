@@ -106,7 +106,7 @@ export default memo(function MoodSummaryCard({
       type="button"
       onClick={() => setExpanded((v) => !v)}
       aria-expanded={expanded}
-      className={`flex w-full items-center gap-2 rounded-2xl border border-white/12 bg-slate-950/70 px-3 py-2 text-left shadow-[0_8px_24px_rgba(15,23,42,0.7)] backdrop-blur-md transition hover:border-white/20 ${className}`}
+      className={`im-mood-summary flex w-full items-center gap-2 rounded-2xl border border-white/12 bg-[#130e17]/70 px-3 py-2 text-left shadow-[0_8px_24px_rgba(19,14,23,0.7)] backdrop-blur-md transition hover:border-white/20 ${className}`}
     >
       {/* Icon */}
       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500/80 via-sky-500/80 to-emerald-400/80 text-white">
@@ -162,7 +162,7 @@ export default memo(function MoodSummaryCard({
 
   // ── Expanded full card ────────────────────────────────────────────────────
   return (
-    <section className={`rounded-2xl border border-white/12 bg-slate-950/70 text-xs text-zinc-200 shadow-[0_18px_40px_rgba(15,23,42,0.85)] backdrop-blur-md ${className}`}>
+    <section className={`im-mood-summary rounded-2xl border border-white/12 bg-[#130e17]/70 text-xs text-zinc-200 shadow-[0_18px_40px_rgba(19,14,23,0.85)] backdrop-blur-md ${className}`}>
       {/* Collapsed row doubles as the header / collapse trigger */}
       <div className="px-1 pt-1">{collapsedRow}</div>
 
@@ -224,7 +224,7 @@ export default memo(function MoodSummaryCard({
                   return (
                     <li
                       key={emotion}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/80 px-2.5 py-1.5 text-[11px] transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-slate-900"
+                      className="im-mood-item flex items-center justify-between rounded-xl border border-white/10 bg-[#130e17]/80 px-2.5 py-1.5 text-[11px] transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-[#1a1020]"
                       title={`${label}: ${fmtPct(val)}`}
                     >
                       <span className="inline-flex items-center gap-1.5">

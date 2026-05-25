@@ -3347,8 +3347,7 @@ export default function ChatPage() {
                         onClick={() => {
                           setShowTrialBanner(false);
                           try {
-                            const today = new Date().toISOString().slice(0, 10);
-                            localStorage.setItem("imotara.trial.bannerDismissed.v1", today);
+                            localStorage.setItem("imotara.trial.bannerDismissed.v1", "never");
                           } catch { /* ignore */ }
                         }}
                         aria-label="Dismiss trial notice"

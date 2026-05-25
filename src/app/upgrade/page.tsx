@@ -269,8 +269,11 @@ export default function UpgradePage() {
                 <p className="mt-2 text-sm text-zinc-400">
                     Local replies are always free. Subscriptions remove the daily AI limit and extend your history.
                 </p>
-                {currentTier && currentTier !== "free" && (
-                    <p className="mt-3 inline-block rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-medium text-indigo-300 border border-indigo-400/20">
+                {currentTier && (
+                    <p className={`mt-3 inline-block rounded-full px-3 py-1 text-xs font-medium border ${currentTier === "free"
+                        ? "bg-zinc-500/20 text-zinc-300 border-zinc-400/20"
+                        : "bg-indigo-500/20 text-indigo-300 border-indigo-400/20"
+                    }`}>
                         Current plan: {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
                     </p>
                 )}

@@ -4450,7 +4450,10 @@ function Bubble({
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       const audio = new Audio(url);
-      audio.playbackRate = 0.95;
+      try {
+        const savedRate = parseFloat(localStorage.getItem("imotara.tts.rate.v1") ?? "0.95");
+        audio.playbackRate = isFinite(savedRate) ? savedRate : 0.95;
+      } catch { audio.playbackRate = 0.95; }
       ttsAudioRef.current = audio;
       const cleanup = () => { URL.revokeObjectURL(url); ttsAudioRef.current = null; setSpeaking(false); };
       audio.onended = cleanup;
@@ -4463,8 +4466,12 @@ function Bubble({
       const synth = window.speechSynthesis;
       const utt   = new SpeechSynthesisUtterance(content);
       utt.lang    = bcp47;
-      utt.rate    = 0.95;
-      utt.pitch   = 1.0;
+      try {
+        const savedRate  = parseFloat(localStorage.getItem("imotara.tts.rate.v1")  ?? "0.95");
+        const savedPitch = parseFloat(localStorage.getItem("imotara.tts.pitch.v1") ?? "1.0");
+        utt.rate  = isFinite(savedRate)  ? savedRate  : 0.95;
+        utt.pitch = isFinite(savedPitch) ? savedPitch : 1.0;
+      } catch { utt.rate = 0.95; utt.pitch = 1.0; }
       const voice = pickVoice(synth, bcp47, gender);
       if (voice) utt.voice = voice;
       setSpeaking(true);

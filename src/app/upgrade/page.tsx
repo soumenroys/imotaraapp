@@ -30,7 +30,7 @@ const SUBSCRIPTION_PLANS = [
         name: "Free",
         monthlyPaise: 0,
         annualPaise: 0,
-        features: ["20 AI replies/day", "On-device replies (unlimited)", "7-day cloud history"],
+        features: ["20 replies/day", "On-device replies (unlimited)", "7-day cloud history"],
         cta: "Current plan",
         accent: "zinc",
     },
@@ -41,7 +41,7 @@ const SUBSCRIPTION_PLANS = [
         annualId:  "plus_annual",
         monthlyPaise: 9_900,
         annualPaise:  69_900,
-        features: ["Unlimited AI replies", "90-day cloud history", "Companion mode", "Priority support"],
+        features: ["Unlimited replies", "90-day cloud history", "Companion mode", "Priority support"],
         cta: "Subscribe",
         accent: "sky",
     },
@@ -59,10 +59,10 @@ const SUBSCRIPTION_PLANS = [
 ] as const;
 
 const TOKEN_PACKS = [
-    { id: "tokens_100",  paise: 4_900,  tokens: 100,  label: "₹49",  desc: "100 AI messages" },
-    { id: "tokens_250",  paise: 9_900,  tokens: 250,  label: "₹99",  desc: "250 AI messages" },
-    { id: "tokens_600",  paise: 19_900, tokens: 600,  label: "₹199", desc: "600 AI messages" },
-    { id: "tokens_1800", paise: 49_900, tokens: 1800, label: "₹499", desc: "1800 AI messages" },
+    { id: "tokens_100",  paise: 4_900,  tokens: 100,  label: "₹49",  desc: "100 message credits" },
+    { id: "tokens_250",  paise: 9_900,  tokens: 250,  label: "₹99",  desc: "250 message credits" },
+    { id: "tokens_600",  paise: 19_900, tokens: 600,  label: "₹199", desc: "600 message credits" },
+    { id: "tokens_1800", paise: 49_900, tokens: 1800, label: "₹499", desc: "1800 message credits" },
 ] as const;
 
 // ── Razorpay script loader ────────────────────────────────────────────────────
@@ -92,6 +92,7 @@ function fmt(paise: number) {
 
 export default function UpgradePage() {
     const license = useLicense();
+    const [mounted, setMounted] = useState(false);
     const [annual, setAnnual] = useState(false);
     const [busy,   setBusy]   = useState<string | null>(null);
     const [status, setStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
@@ -100,6 +101,8 @@ export default function UpgradePage() {
 
     // checkoutRef lets the auth-state listener always call the latest checkout closure
     const checkoutRef = useRef<(productId: string, description: string) => void>(() => {});
+
+    useEffect(() => { setMounted(true); }, []);
 
     useEffect(() => {
         loadRazorpay().then(setRzReady).catch(() => setRzReady(false));
@@ -255,7 +258,7 @@ export default function UpgradePage() {
     // Keep the ref current so the auth-state listener always calls the latest checkout
     checkoutRef.current = checkout;
 
-    const currentTier = license.loading ? null : license.tier;
+    const currentTier = (mounted && !license.loading) ? license.tier : null;
 
     return (
         <main className="mx-auto w-full max-w-4xl px-4 py-14 text-zinc-50 sm:px-6">
@@ -267,7 +270,7 @@ export default function UpgradePage() {
                 </Link>
                 <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Unlock Imotara</h1>
                 <p className="mt-2 text-sm text-zinc-400">
-                    Local replies are always free. Subscriptions remove the daily AI limit and extend your history.
+                    Local replies are always free. Subscriptions remove the daily limit and extend your history.
                 </p>
                 {currentTier && (
                     <p className={`mt-3 inline-block rounded-full px-3 py-1 text-xs font-medium border ${currentTier === "free"

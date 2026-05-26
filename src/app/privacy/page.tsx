@@ -204,12 +204,12 @@ export default function PrivacyPage() {
 
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
             <h2 className="text-xl font-medium text-zinc-50">
-              AI Processing &amp; Automated Responses
+              Automated Responses &amp; Processing
             </h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
               Imotara uses artificial intelligence models to generate reflective and supportive
               responses to the messages you choose to enter. Some processing may occur locally
-              on your device. When cloud AI is enabled, your message text is sent to{" "}
+              on your device. When cloud mode is enabled, your message text is sent to{" "}
               <strong>OpenAI (openai.com)</strong> to generate a reply.
             </p>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
@@ -219,7 +219,7 @@ export default function PrivacyPage() {
               in Settings to prevent any data from leaving your device.
             </p>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              AI-generated responses are automated and may not always be perfect. Imotara is
+              Automated responses may not always be perfect. Imotara is
               designed as a supportive companion and does not provide medical, legal, or
               crisis advice.
             </p>
@@ -296,7 +296,7 @@ export default function PrivacyPage() {
                 <strong>Cloud database &amp; sync</strong>: Supabase (stores optional synced data with per-user access controls).
               </li>
               <li>
-                <strong>AI response generation</strong>: <strong>OpenAI (openai.com)</strong> may process the text of your message to generate a reply when cloud AI is enabled. Only your message text is sent — no account info, name, or device data is attached.
+                <strong>Response generation</strong>: <strong>OpenAI (openai.com)</strong> may process the text of your message to generate a reply when cloud mode is enabled. Only your message text is sent — no account info, name, or device data is attached.
               </li>
               <li>
                 <strong>Hosting</strong>: our hosting providers deliver the web experience and APIs.

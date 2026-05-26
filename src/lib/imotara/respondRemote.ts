@@ -153,6 +153,8 @@ export async function respondRemote(input: {
         coach: "coach",
         friend: "close_friend",
         partner_like: "close_friend",
+        sibling: "close_friend",
+        junior_buddy: "close_friend",
         elder: "calm_companion",
         parent_like: "calm_companion",
     };

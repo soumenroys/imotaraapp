@@ -8,7 +8,7 @@ import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 const MODES: { value: AnalysisConsentMode; label: string; title: string }[] = [
     { value: "local-only", label: "Local", title: "On-device only — no data leaves your browser" },
     { value: "auto", label: "Auto", title: "Imotara decides whether local or cloud is best for each message" },
-    { value: "allow-remote", label: "Cloud", title: "Cloud AI — richer responses, text sent to Imotara servers" },
+    { value: "allow-remote", label: "Cloud", title: "Cloud — richer responses, text sent to Imotara servers" },
 ];
 
 export default function AnalysisConsentToggle({

@@ -75,7 +75,7 @@ export default memo(function MoodSummaryCard({
   const { result, loading, error } = useAnalysis(messages, windowSize, mode);
   const [expanded, setExpanded] = useState(false);
 
-  const engineLabel = mode === "api" ? "Local + Cloud AI" : "Local-only";
+  const engineLabel = mode === "api" ? "Local + Cloud" : "Local-only";
 
   // Derive display values (safe to call even before result is ready)
   const domRaw = result?.snapshot?.dominant || "neutral";
@@ -249,7 +249,7 @@ export default memo(function MoodSummaryCard({
 
             <div className="mt-2 text-[10px] text-zinc-600">
               Detected from keywords and patterns in your recent messages.{" "}
-              {mode === "api" ? "Cloud AI analysis active." : "On-device analysis only — your words never leave your browser."}
+              {mode === "api" ? "Cloud analysis active." : "On-device analysis only — your words never leave your browser."}
             </div>
 
             <footer className="mt-1 text-[10px] text-zinc-500">

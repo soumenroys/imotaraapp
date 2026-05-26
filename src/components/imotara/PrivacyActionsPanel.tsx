@@ -398,7 +398,7 @@ export default function PrivacyActionsPanel() {
                         </span>
                     </div>
                     <p className="mt-2 text-xs text-zinc-400">
-                        Imotara always uses secure AI in the cloud for more nuanced,
+                        Imotara always uses secure cloud technology for more nuanced,
                         supportive responses. Your data is handled with care.
                     </p>
                     <p className="mt-2 text-[11px] font-medium text-sky-300/90">

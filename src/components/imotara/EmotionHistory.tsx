@@ -1937,7 +1937,7 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
                   {isAssistant && (
                     <span
                       className="inline-flex items-center rounded-full border border-violet-300/70 bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-50 shadow-sm backdrop-blur-sm"
-                      title="Imotara's reply (AI assistant), logged for context"
+                      title="Imotara's reply, logged for context"
                     >
                       Assistant reply
                     </span>
@@ -1984,7 +1984,7 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
                           }`
                     }
                   >
-                    {isAssistant && "AI • "}
+                    {isAssistant && "✦ "}
                     <span aria-hidden="true">{emotionEmoji}</span>
                     <span>{emotionLabel}</span>
                     <span>• {intensity}</span>

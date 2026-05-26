@@ -61,7 +61,7 @@ export default function FirstVisitBanner() {
             </p>
             <p className="mt-1 text-zinc-400">
               Imotara is local-first — no account needed, nothing leaves your
-              browser unless you choose to enable AI replies (which use OpenAI).
+              browser unless you choose to enable cloud replies (which use OpenAI).
               No ads, no tracking, no data sales.{" "}
               <Link
                 href="/privacy"
@@ -76,7 +76,7 @@ export default function FirstVisitBanner() {
               onClick={() => choose("allow-remote")}
               className="im-cta-bg rounded-full px-5 py-2 text-sm font-medium text-black shadow transition hover:brightness-110 hover:-translate-y-0.5"
             >
-              Enable AI replies
+              Enable cloud replies
             </button>
             <button
               onClick={() => choose("local-only")}

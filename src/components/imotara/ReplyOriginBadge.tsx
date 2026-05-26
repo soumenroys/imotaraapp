@@ -10,7 +10,7 @@ export default function ReplyOriginBadge({ origin }: ReplyOriginBadgeProps) {
 
     const label =
         origin === "openai"
-            ? "Cloud AI"
+            ? "Cloud"
             : origin === "local-fallback"
                 ? "Local (fallback)"
                 : "Local only";

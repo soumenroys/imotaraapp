@@ -1,7 +1,10 @@
 // src/app/api/push/cron/route.ts
 // Called daily at 09:00 UTC by Vercel Cron (see vercel.json).
-// Sends a gentle check-in nudge to all subscribed users who haven't
-// been notified in the last 22 hours.
+// Sends a gentle re-engagement nudge ONLY to users who have been inactive
+// (no chat_reply event) for at least INACTIVITY_THRESHOLD_MS.
+// Active users are skipped entirely to avoid spamming engaged users.
+// When the user's last message is available, the nudge body is personalised
+// to reference what they last talked about so it feels like Imotara remembers.
 //
 // Vercel automatically passes Authorization: Bearer <CRON_SECRET> on cron calls.
 // Set CRON_SECRET in Vercel env vars to protect this endpoint.
@@ -9,15 +12,29 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { sendPushNotification } from "@/lib/imotara/webpush";
+import { getNudgeLang, pick } from "@/lib/imotara/nudgeStrings";
 
-const NUDGE_INTERVAL_MS = 22 * 60 * 60 * 1000; // 22 hours
+// Only nudge users silent for 2+ days; re-notify at most once every 24 h
+const INACTIVITY_THRESHOLD_MS = 2 * 24 * 60 * 60 * 1000; // 48 hours
+const NUDGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;           // 24 hours between nudges
 
-const NUDGE_MESSAGES = [
-  { title: "How are you feeling today?", body: "Take a moment to check in with yourself." },
-  { title: "Your space is waiting 💙", body: "A quiet moment with Imotara can make a difference." },
-  { title: "Checking in…", body: "How has your day been so far? Imotara is here." },
-  { title: "A gentle reminder", body: "It's a good time to reflect on how you're feeling." },
-];
+/** Truncates text to a word boundary and appends "…" if cut. */
+function truncateToWord(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  const cut = text.slice(0, maxLen);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 10 ? cut.slice(0, lastSpace) : cut) + "…";
+}
+
+/** Builds a localised nudge payload in the user's preferred language. */
+function buildNudge(lastUserMessage?: string, lang?: string): { title: string; body: string } {
+  const L = getNudgeLang(lang);
+  if (!lastUserMessage) {
+    return { title: L.gt, body: pick(L.gb) };
+  }
+  const snippet = truncateToWord(lastUserMessage.replace(/[.!?,;:]+$/, "").trim(), 50);
+  return { title: L.pt, body: pick(L.pb(snippet)) };
+}
 
 export async function POST(req: Request) {
   // Verify Vercel Cron secret
@@ -35,7 +52,7 @@ export async function POST(req: Request) {
   // Fetch all push subscriptions
   const { data: rows, error } = await admin
     .from("user_memory")
-    .select("user_id, value, updated_at")
+    .select("user_id, value")
     .eq("type", "push")
     .eq("key", "subscription");
 
@@ -46,31 +63,86 @@ export async function POST(req: Request) {
 
   if (!rows?.length) return NextResponse.json({ ok: true, sent: 0 });
 
-  // Fetch last_notified_at for all these users
   const userIds = rows.map((r) => r.user_id);
-  const { data: notifiedRows } = await admin
-    .from("user_memory")
-    .select("user_id, value")
-    .eq("type", "push")
-    .eq("key", "last_notified_at")
-    .in("user_id", userIds);
+  const now = Date.now();
+  const inactivityCutoff = new Date(now - INACTIVITY_THRESHOLD_MS).toISOString();
+
+  // Fetch last_notified_at, recent activity, chat messages, and preferred language in parallel
+  const [notifiedRes, activityRes, chatRes, langRes] = await Promise.all([
+    admin
+      .from("user_memory")
+      .select("user_id, value")
+      .eq("type", "push")
+      .eq("key", "last_notified_at")
+      .in("user_id", userIds),
+
+    // Any chat_reply event after the cutoff means the user is still active — skip them
+    admin
+      .from("usage_events")
+      .select("user_id, created_at")
+      .eq("event_type", "chat_reply")
+      .in("user_id", userIds)
+      .gte("created_at", inactivityCutoff),
+
+    // Fetch recent user messages so we can personalise the nudge body.
+    // user_scope in imotara_chat_messages == user_id from auth.
+    admin
+      .from("imotara_chat_messages")
+      .select("user_scope, content, created_at")
+      .in("user_scope", userIds)
+      .eq("role", "user")
+      .order("created_at", { ascending: false })
+      .limit(userIds.length * 3),
+
+    // Preferred language stored by /api/profile/sync as type="identity", key="preferred_lang"
+    admin
+      .from("user_memory")
+      .select("user_id, value")
+      .eq("type", "identity")
+      .eq("key", "preferred_lang")
+      .in("user_id", userIds),
+  ]);
 
   const lastNotifiedMap = new Map(
-    (notifiedRows ?? []).map((r) => [r.user_id, new Date(r.value).getTime()]),
+    (notifiedRes.data ?? []).map((r) => [r.user_id, new Date(r.value).getTime()]),
   );
 
-  const now = Date.now();
-  const nudge = NUDGE_MESSAGES[Math.floor(Math.random() * NUDGE_MESSAGES.length)];
+  // Build set of users who chatted recently (i.e. active — skip them)
+  const activeUserIds = new Set(
+    (activityRes.data ?? []).map((r) => r.user_id),
+  );
+
+  // Most recent user message per user_scope (already DESC-ordered by created_at)
+  const lastMessageMap = new Map<string, string>();
+  for (const msg of (chatRes.data ?? [])) {
+    if (!lastMessageMap.has(msg.user_scope) && msg.content?.trim()) {
+      lastMessageMap.set(msg.user_scope, msg.content.trim());
+    }
+  }
+
+  // Preferred language per user (e.g. "hi", "bn", "ta")
+  const langMap = new Map(
+    (langRes.data ?? []).map((r) => [r.user_id, r.value as string]),
+  );
+
   let sent = 0;
   const stale: string[] = [];
 
   await Promise.all(
     rows.map(async (row) => {
+      // Skip active users — they don't need a re-engagement nudge
+      if (activeUserIds.has(row.user_id)) return;
+
+      // Skip if we already sent a nudge within the cooldown window
       const lastNotified = lastNotifiedMap.get(row.user_id) ?? 0;
-      if (now - lastNotified < NUDGE_INTERVAL_MS) return; // already notified recently
+      if (now - lastNotified < NUDGE_COOLDOWN_MS) return;
 
       let sub: any;
       try { sub = JSON.parse(row.value); } catch { return; }
+
+      const lastUserMessage = lastMessageMap.get(row.user_id);
+      const lang = langMap.get(row.user_id);
+      const nudge = buildNudge(lastUserMessage, lang);
 
       const result = await sendPushNotification(sub, {
         ...nudge,
@@ -80,7 +152,6 @@ export async function POST(req: Request) {
 
       if (result.ok) {
         sent++;
-        // Update last_notified_at
         const { error: upsertErr } = await admin.from("user_memory").upsert(
           {
             user_id: row.user_id,

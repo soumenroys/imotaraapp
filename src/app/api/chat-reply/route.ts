@@ -324,96 +324,96 @@ export async function POST(req: Request) {
         ].join("\n")
       : "";
 
-    // ✅ Optional memory: preferred name (spoof-proof)
-    // - Identify user via Supabase Auth from cookies (anonymous auth supported)
-    // - Use admin client only to read memory rows (bypasses RLS), BUT ONLY for the authenticated user id
+    // ✅ Step 1: resolve authenticated user ID from cookie session
     let authedUserId = "";
     let preferredName = "";
     try {
-      const allowMemory = body?.allowMemory !== false; // default true (backward compatible)
+      const allowMemory = body?.allowMemory !== false;
       if (allowMemory) {
         const supabaseUser = await getSupabaseUserServerClient();
         const { data } = await supabaseUser.auth.getUser();
         authedUserId = data?.user?.id ?? "";
-
-        // ✅ In production, if not authenticated, do not read memory
         if (!authedUserId && process.env.NODE_ENV === "production") {
           authedUserId = "";
         }
+      }
+    } catch {
+      // no-op: never block chat replies if auth lookup fails
+    }
 
-        if (authedUserId) {
-          const supabaseAdmin = getSupabaseAdmin();
+    // ✅ Step 2: memory fetch + quota gate run in parallel (both need authedUserId, neither depends on the other)
+    // Saves one sequential Supabase round-trip on every authenticated request (~150-300 ms).
+    if (authedUserId) {
+      type QuotaResult = "ok" | "quota_exceeded";
+      let quotaExceededMeta: { used: number | null; limit: number } | null = null;
+
+      const [memResult, quotaResult] = await Promise.allSettled([
+        // ── memory fetch ──────────────────────────────────────────────────────
+        (async (): Promise<string> => {
           const memories = await fetchUserMemories(
-            supabaseAdmin as any,
+            getSupabaseAdmin() as any,
             authedUserId,
             20,
           );
-
           const raw = Array.isArray(memories)
-            ? (memories.find((m: any) => m?.key === "preferred_name")?.value ??
-              "")
+            ? (memories.find((m: any) => m?.key === "preferred_name")?.value ?? "")
             : "";
+          return typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
+        })(),
 
-          preferredName =
-            typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
-        }
-      }
-    } catch {
-      // no-op: never block chat replies if memory fetch fails
-    }
-
-    // LIC-2: quota gate — free-tier users with expired trial are limited to 20 cloud replies/day.
-    // Fail-open: any DB error silently allows the request through (never punish users for infra issues).
-    if (authedUserId) {
-      try {
-        const quotaAdmin = getSupabaseAdmin();
-
-        // Read license tier + trial expiry + token balance (single indexed row lookup)
-        const { data: licRow } = await quotaAdmin
-          .from("licenses")
-          .select("tier, expires_at, token_balance")
-          .eq("user_id", authedUserId)
-          .maybeSingle();
-
-        const isFree = !licRow || licRow.tier === "free";
-        const trialActive = licRow?.expires_at
-          ? new Date(licRow.expires_at) > new Date()
-          : false;
-
-        if (isFree && !trialActive) {
-          // Count cloud replies already sent today (UTC day)
-          const todayStart = new Date();
-          todayStart.setUTCHours(0, 0, 0, 0);
-
-          const { count } = await quotaAdmin
-            .from("usage_events")
-            .select("id", { count: "exact", head: true })
+        // ── quota gate ───────────────────────────────────────────────────────
+        // LIC-2: free-tier users with expired trial are limited to 20 cloud replies/day.
+        // Fail-open: any DB error silently allows the request through.
+        (async (): Promise<QuotaResult> => {
+          const quotaAdmin = getSupabaseAdmin();
+          const { data: licRow } = await quotaAdmin
+            .from("licenses")
+            .select("tier, expires_at, token_balance")
             .eq("user_id", authedUserId)
-            .gte("created_at", todayStart.toISOString());
+            .maybeSingle();
 
-          if ((count ?? 0) >= 20) {
-            const tokenBalance = licRow?.token_balance ?? 0;
+          const isFree = !licRow || licRow.tier === "free";
+          const trialActive = licRow?.expires_at
+            ? new Date(licRow.expires_at) > new Date()
+            : false;
 
-            if (tokenBalance > 0) {
-              // Deduct 1 token; .gt guard prevents going below 0 under concurrent requests
-              await quotaAdmin
-                .from("licenses")
-                .update({ token_balance: tokenBalance - 1 })
-                .eq("user_id", authedUserId)
-                .gt("token_balance", 0);
-              // Fall through — reply is allowed, usage event recorded below
-            } else {
-              const quotaRes = NextResponse.json(
-                { text: "", meta: { from: "quota_exceeded", reason: "daily_limit", used: count, limit: 20 } },
-                { status: 200 },
-              );
-              quotaRes.headers.set("Cache-Control", "no-store");
-              return quotaRes;
+          if (isFree && !trialActive) {
+            const todayStart = new Date();
+            todayStart.setUTCHours(0, 0, 0, 0);
+            const { count } = await quotaAdmin
+              .from("usage_events")
+              .select("id", { count: "exact", head: true })
+              .eq("user_id", authedUserId)
+              .gte("created_at", todayStart.toISOString());
+
+            if ((count ?? 0) >= 20) {
+              const tokenBalance = licRow?.token_balance ?? 0;
+              if (tokenBalance > 0) {
+                await quotaAdmin
+                  .from("licenses")
+                  .update({ token_balance: tokenBalance - 1 })
+                  .eq("user_id", authedUserId)
+                  .gt("token_balance", 0);
+                // Fall through — token deducted, reply is allowed
+              } else {
+                quotaExceededMeta = { used: count, limit: 20 };
+                return "quota_exceeded";
+              }
             }
           }
-        }
-      } catch {
-        // Fail-open: quota check errors must never block a reply
+          return "ok";
+        })(),
+      ]);
+
+      if (memResult.status === "fulfilled") preferredName = memResult.value;
+
+      if (quotaResult.status === "fulfilled" && quotaResult.value === "quota_exceeded") {
+        const quotaRes = NextResponse.json(
+          { text: "", meta: { from: "quota_exceeded", reason: "daily_limit", used: quotaExceededMeta?.used ?? null, limit: quotaExceededMeta?.limit ?? 20 } },
+          { status: 200 },
+        );
+        quotaRes.headers.set("Cache-Control", "no-store");
+        return quotaRes;
       }
     }
 

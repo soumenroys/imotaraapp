@@ -21,6 +21,108 @@ import {
   type YearReview,
 } from "@/lib/imotara/yearInReview";
 
+const MINDSET_PREFS_KEY = "imotara:mindset.analysis.prefs.v1";
+type MindsetPrefs = { today: boolean; week7: boolean; days30: boolean; allTime: boolean };
+
+const EMOTION_ICON: Record<string, string> = {
+  joy: "😊", happy: "😊", happiness: "😊",
+  sad: "😔", sadness: "😔", lonely: "🌧️",
+  angry: "😤", anger: "😤", stressed: "😰", stress: "😰",
+  anxious: "😟", anxiety: "😟", fear: "😟",
+  neutral: "😐", surprise: "😮", hopeful: "🌱", hope: "🌱",
+  gratitude: "🙏", grateful: "🙏", confused: "🤔",
+};
+
+type MindsetResult = {
+  dominant: string;
+  breakdown: [string, number][];
+  total: number;
+  avgIntensity: number;
+  intensityLabel: string;
+} | null;
+
+function computeMindsetAnalysis(rawItems: any[], fromMs: number, toMs: number): MindsetResult {
+  // Web history stores EmotionRecord (no "from" field — all entries are user emotion records).
+  // createdAt is the canonical timestamp; timestamp is a legacy fallback.
+  const items = rawItems.filter((r: any) =>
+    !r.deleted &&
+    (r.createdAt ?? r.timestamp ?? 0) >= fromMs &&
+    (r.createdAt ?? r.timestamp ?? 0) <= toMs
+  );
+  if (items.length === 0) return null;
+  const freq: Record<string, number> = {};
+  const intensities: number[] = [];
+  for (const r of items) {
+    const e = (r.emotion?.trim().toLowerCase()) || "neutral";
+    freq[e] = (freq[e] ?? 0) + 1;
+    if (typeof r.intensity === "number" && r.intensity > 0) intensities.push(r.intensity);
+  }
+  const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]) as [string, number][];
+  const dominant = sorted[0]?.[0] ?? "neutral";
+  const avg = intensities.length ? intensities.reduce((a, b) => a + b, 0) / intensities.length : 0;
+  return {
+    dominant,
+    breakdown: sorted.slice(0, 4),
+    total: items.length,
+    avgIntensity: avg,
+    intensityLabel: avg >= 0.65 ? "Intense" : avg >= 0.35 ? "Moderate" : "Calm",
+  };
+}
+
+function getChatMessagesForPeriod(fromMs: number, toMs: number): string[] {
+  const results: string[] = [];
+
+  // Primary: thread-based chat storage { threads: [{ messages: [{ role, content, createdAt }] }] }
+  try {
+    const PROFILE_KEY = "imotara.profile.v1";
+    const LOCAL_USER_KEY = "imotara.localUserId.v1";
+    let uid = "";
+    try {
+      const prof = window.localStorage.getItem(PROFILE_KEY);
+      if (prof) uid = (JSON.parse(prof) as { id?: string })?.id?.trim() ?? "";
+    } catch { /* ignore */ }
+    if (!uid) uid = window.localStorage.getItem(LOCAL_USER_KEY) ?? "";
+    const key = uid ? `imotara.chat.v1.${uid}` : "imotara.chat.v1";
+    const raw = window.localStorage.getItem(key) ?? window.localStorage.getItem("imotara.chat.v1");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const threads: any[] = Array.isArray(parsed.threads) ? parsed.threads : [];
+      for (const thread of threads) {
+        const messages: any[] = Array.isArray(thread.messages) ? thread.messages : [];
+        for (const m of messages) {
+          if (
+            m.role === "user" &&
+            typeof m.content === "string" && m.content.trim() &&
+            (m.createdAt ?? 0) >= fromMs && (m.createdAt ?? 0) <= toMs
+          ) {
+            results.push(m.content.trim());
+          }
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
+  if (results.length > 0) return results;
+
+  // Fallback: use EmotionRecord.message from history (same source as the breakdown bars).
+  // Always available when the capsule has data, so the insight is never empty when the graph shows.
+  try {
+    const hist: any[] = JSON.parse(window.localStorage.getItem("imotara:history:v1") ?? "[]");
+    for (const r of hist) {
+      if (
+        !r.deleted &&
+        typeof r.message === "string" && r.message.trim() &&
+        (r.createdAt ?? r.timestamp ?? 0) >= fromMs &&
+        (r.createdAt ?? r.timestamp ?? 0) <= toMs
+      ) {
+        results.push(r.message.trim());
+      }
+    }
+  } catch { /* ignore */ }
+
+  return results;
+}
+
 // #1: Weekly trend summary computed from localStorage emotion history
 const EMOTION_EMOJI: Record<string, string> = {
   joy: "😊", happy: "😊", happiness: "😊",
@@ -125,6 +227,37 @@ export default function HistoryPage() {
   const [yearReview, setYearReview] = useState<YearReview | null>(null);
   const [yearReviewLoading, setYearReviewLoading] = useState(false);
   const [yearReviewExpanded, setYearReviewExpanded] = useState(false);
+  const [mindsetPrefs, setMindsetPrefs] = useState<MindsetPrefs>({ today: false, week7: false, days30: false, allTime: false });
+  const [mindsetAnalyses, setMindsetAnalyses] = useState<Record<string, MindsetResult>>({});
+  const [expandedCapsules, setExpandedCapsules] = useState<Record<string, boolean>>({});
+  const [capsuleInsights, setCapsuleInsights] = useState<Record<string, { analysis: string; advice: string } | "loading" | "error">>({});
+
+  const handleCapsuleToggle = (key: keyof MindsetPrefs) => {
+    const nowExpanded = !(expandedCapsules[key] ?? false);
+    setExpandedCapsules((v) => ({ ...v, [key]: nowExpanded }));
+    if (!nowExpanded) return;
+    // Already fetched
+    if (capsuleInsights[key] && capsuleInsights[key] !== "error") return;
+    // Determine time window
+    const now = Date.now();
+    const todayStart = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+    const fromMs = key === "today" ? todayStart : key === "week7" ? now - 7 * 86_400_000 : key === "days30" ? now - 30 * 86_400_000 : 0;
+    const periodLabel = key === "today" ? "today" : key === "week7" ? "the last 7 days" : key === "days30" ? "the last 30 days" : "all time";
+    const msgs = getChatMessagesForPeriod(fromMs, now);
+    if (msgs.length === 0) {
+      setCapsuleInsights((v) => ({ ...v, [key]: { analysis: "", advice: "" } }));
+      return;
+    }
+    setCapsuleInsights((v) => ({ ...v, [key]: "loading" }));
+    fetch("/api/mindset-analysis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: msgs, period: periodLabel }),
+    })
+      .then((r) => r.json())
+      .then((data) => setCapsuleInsights((v) => ({ ...v, [key]: { analysis: data.analysis ?? "", advice: data.advice ?? "" } })))
+      .catch(() => setCapsuleInsights((v) => ({ ...v, [key]: "error" })));
+  };
 
   useEffect(() => {
     setWeeklySummary(computeWeeklySummary());
@@ -149,6 +282,45 @@ export default function HistoryPage() {
     setLoading(false);
     const t = setTimeout(checkStorage, 2000);
     return () => clearTimeout(t);
+  }, []);
+
+  // Load mindset analysis prefs and compute analyses
+  // Uses a shared function so it can be called both on mount and when
+  // localStorage changes (e.g. user toggled prefs in Settings without remounting this page).
+  const reloadMindsetAnalyses = () => {
+    try {
+      const raw = localStorage.getItem(MINDSET_PREFS_KEY);
+      const prefs: MindsetPrefs = raw
+        ? { today: false, week7: false, days30: false, allTime: false, ...JSON.parse(raw) }
+        : { today: false, week7: false, days30: false, allTime: false };
+      setMindsetPrefs(prefs);
+      const hist: any[] = (() => { try { return JSON.parse(localStorage.getItem("imotara:history:v1") ?? "[]"); } catch { return []; } })();
+      const now = Date.now();
+      const todayStart = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+      const results: Record<string, MindsetResult> = {};
+      if (prefs.today)   results.today   = computeMindsetAnalysis(hist, todayStart, now);
+      if (prefs.week7)   results.week7   = computeMindsetAnalysis(hist, now - 7 * 86_400_000, now);
+      if (prefs.days30)  results.days30  = computeMindsetAnalysis(hist, now - 30 * 86_400_000, now);
+      if (prefs.allTime) results.allTime = computeMindsetAnalysis(hist, 0, now);
+      setMindsetAnalyses(results);
+    } catch { /* ignore */ }
+  };
+
+  useEffect(() => {
+    reloadMindsetAnalyses();
+    // Re-read prefs when Settings dispatches the custom event (same-tab SPA navigation)
+    const onPrefsChanged = () => reloadMindsetAnalyses();
+    window.addEventListener("imotara:mindsetPrefsChanged", onPrefsChanged);
+    // Also handle cross-tab storage changes
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === MINDSET_PREFS_KEY) reloadMindsetAnalyses();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("imotara:mindsetPrefsChanged", onPrefsChanged);
+      window.removeEventListener("storage", onStorage);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load or generate Year in Review
@@ -518,6 +690,111 @@ export default function HistoryPage() {
                       </button>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Mindset Analysis Capsules */}
+              {(mindsetPrefs.today || mindsetPrefs.week7 || mindsetPrefs.days30 || mindsetPrefs.allTime) && (
+                <div className="space-y-2">
+                  <p className="px-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Mindset Analysis</p>
+                  {([
+                    { key: "today",   label: "Today's Mindset",      icon: "🌅" },
+                    { key: "week7",   label: "Last 7 Days",          icon: "📅" },
+                    { key: "days30",  label: "Last 30 Days",         icon: "🗓️" },
+                    { key: "allTime", label: "All Time",             icon: "✦" },
+                  ] as { key: keyof MindsetPrefs; label: string; icon: string }[])
+                    .filter(({ key }) => mindsetPrefs[key])
+                    .map(({ key, label, icon }) => {
+                      const analysis = mindsetAnalyses[key];
+                      const isExpanded = expandedCapsules[key] ?? false;
+                      const dominantEmoji = analysis ? (EMOTION_ICON[analysis.dominant] ?? "💭") : null;
+                      return (
+                        <div key={key} className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-sm backdrop-blur-md">
+                          <button
+                            type="button"
+                            onClick={() => handleCapsuleToggle(key)}
+                            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                          >
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <span className="text-base" aria-hidden="true">{icon}</span>
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-zinc-200">{label}</p>
+                                {analysis ? (
+                                  <p className="truncate text-[11px] text-zinc-500">
+                                    {dominantEmoji} <span className="capitalize">{analysis.dominant}</span> · {analysis.total} moment{analysis.total !== 1 ? "s" : ""} · {analysis.intensityLabel}
+                                  </p>
+                                ) : (
+                                  <p className="text-[11px] text-zinc-600">No conversations in this period</p>
+                                )}
+                              </div>
+                            </div>
+                            <span className={`shrink-0 text-[11px] text-zinc-500 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>▾</span>
+                          </button>
+
+                          {isExpanded && analysis && (
+                            <div className="space-y-3 border-t border-white/8 px-4 pb-4 pt-3">
+                              {/* Dominant emotion */}
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl">{dominantEmoji}</span>
+                                <div>
+                                  <p className="text-sm font-medium capitalize text-zinc-100">Mostly {analysis.dominant}</p>
+                                  <p className="text-[11px] text-zinc-500">Dominant emotional state in this period</p>
+                                </div>
+                              </div>
+                              {/* Emotion breakdown bars */}
+                              <div className="space-y-1.5">
+                                {analysis.breakdown.map(([emotion, count]) => {
+                                  const pct = Math.round((count / analysis.total) * 100);
+                                  return (
+                                    <div key={emotion} className="flex items-center gap-2 text-[11px]">
+                                      <span className="w-16 shrink-0 capitalize text-zinc-400 truncate">{EMOTION_ICON[emotion] ?? "💭"} {emotion}</span>
+                                      <div className="flex-1 overflow-hidden rounded-full bg-white/8 h-1.5">
+                                        <div className="h-full rounded-full bg-violet-500/60" style={{ width: `${pct}%` }} />
+                                      </div>
+                                      <span className="w-6 shrink-0 text-right text-zinc-500">{count}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              {/* Footer stats */}
+                              <div className="flex items-center gap-2 border-t border-white/8 pt-2 text-[10px] text-zinc-600">
+                                <span>{analysis.total} moment{analysis.total !== 1 ? "s" : ""} analysed</span>
+                                <span>·</span>
+                                <span>Avg intensity: {analysis.intensityLabel}</span>
+                              </div>
+                              {/* Psychological insight */}
+                              {(() => {
+                                const insight = capsuleInsights[key];
+                                if (insight === "loading") return (
+                                  <div className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-3 border-t border-white/8">
+                                    <div className="h-3 w-3 animate-spin rounded-full border border-violet-400 border-t-transparent" />
+                                    <span className="text-[11px] text-zinc-500">Generating insight…</span>
+                                  </div>
+                                );
+                                if (insight === "error") return (
+                                  <p className="text-[11px] text-zinc-600 border-t border-white/8 pt-2">Could not generate insight right now.</p>
+                                );
+                                if (insight && (insight.analysis || insight.advice)) return (
+                                  <div className="space-y-2 border-t border-white/8 pt-3">
+                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-violet-400">Psychological Insight</p>
+                                    {insight.analysis && (
+                                      <p className="text-[12px] leading-relaxed text-zinc-300">{insight.analysis}</p>
+                                    )}
+                                    {insight.advice && (
+                                      <div className="rounded-xl bg-violet-500/10 px-3 py-2.5 border border-violet-500/20">
+                                        <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-violet-400">Guidance</p>
+                                        <p className="text-[12px] leading-relaxed text-zinc-300">{insight.advice}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                                return null;
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               )}
 

@@ -1557,6 +1557,26 @@ export default function SettingsPage() {
         try { localStorage.setItem(TTS_PITCH_KEY, String(v)); } catch { /* ignore */ }
     }
 
+    // ─── Mindset Analysis Toggles ────────────────────────────────────────────
+    const MINDSET_PREFS_KEY = "imotara:mindset.analysis.prefs.v1";
+    type MindsetPrefs = { today: boolean; week7: boolean; days30: boolean; allTime: boolean };
+    const [mindsetPrefs, setMindsetPrefs] = useState<MindsetPrefs>({ today: false, week7: false, days30: false, allTime: false });
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(MINDSET_PREFS_KEY);
+            if (raw) setMindsetPrefs((p) => ({ ...p, ...JSON.parse(raw) }));
+        } catch { /* ignore */ }
+    }, []);
+    function handleMindsetToggle(key: keyof MindsetPrefs) {
+        const next = { ...mindsetPrefs, [key]: !mindsetPrefs[key] };
+        setMindsetPrefs(next);
+        try {
+            localStorage.setItem(MINDSET_PREFS_KEY, JSON.stringify(next));
+            // Notify the History page (same-tab SPA — storage event only fires cross-tab)
+            window.dispatchEvent(new CustomEvent("imotara:mindsetPrefsChanged"));
+        } catch { /* ignore */ }
+    }
+
     // ─── G-4: Grow nudge permanent dismiss ───────────────────────────────────
     const GROW_NUDGE_PERM_KEY = "imotara.grow.nudge.perm.v1";
     const [growNudgePerm, setGrowNudgePerm] = useState(false);
@@ -1566,6 +1586,20 @@ export default function SettingsPage() {
     function handleGrowNudgePermToggle(val: boolean) {
         setGrowNudgePerm(val);
         try { localStorage.setItem(GROW_NUDGE_PERM_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── Hands-free mode ─────────────────────────────────────────────────────
+    const HANDSFREE_KEY = "imotara:handsfree.v1";
+    const [handsfree, setHandsfree] = useState(false);
+    useEffect(() => {
+        try { setHandsfree(localStorage.getItem(HANDSFREE_KEY) === "1"); } catch { /* ignore */ }
+    }, []);
+    function handleHandsfreeToggle(val: boolean) {
+        setHandsfree(val);
+        try {
+            localStorage.setItem(HANDSFREE_KEY, val ? "1" : "0");
+            window.dispatchEvent(new CustomEvent("imotara:handsfreeChanged"));
+        } catch { /* ignore */ }
     }
 
     // ─── A-4: Tone reflection visibility ─────────────────────────────────────
@@ -2157,13 +2191,13 @@ export default function SettingsPage() {
                         {/* Feature bullets for current tier */}
                         <ul className="mt-3 space-y-1">
                             {(tierLabel === "Pro" ? [
-                                "Unlimited AI replies",
+                                "Unlimited replies",
                                 "Unlimited history",
                                 "Emotion insights (radar & heatmap)",
                                 "Data export (JSON)",
                                 "Cloud sync",
                             ] : tierLabel === "Plus" ? [
-                                "Unlimited AI replies",
+                                "Unlimited replies",
                                 "90-day cloud history",
                                 "Cloud sync",
                                 "Companion mode",
@@ -2173,7 +2207,7 @@ export default function SettingsPage() {
                                 "Multi-profile support",
                                 "Child-safe mode",
                             ] : [
-                                "20 AI replies / day",
+                                "20 replies / day",
                                 "On-device replies (unlimited)",
                                 "7-day history",
                             ]).map((f) => (
@@ -2189,7 +2223,7 @@ export default function SettingsPage() {
                     {tierLabel === "Free" && (
                         <div className="mt-4">
                             <p className="mb-2 text-xs text-zinc-400">
-                                Remove the daily AI limit, extend history to 90 days or unlimited, and unlock insights.
+                                Remove the daily reply limit, extend history to 90 days or unlimited, and unlock insights.
                             </p>
                             <Link
                                 href="/upgrade"
@@ -2381,8 +2415,25 @@ export default function SettingsPage() {
                     <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Chat behaviour</h2>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">Control what appears in your chat window.</p>
 
+                    {/* Hands-free mode */}
+                    <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-violet-500/20 bg-violet-500/8 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Hands-free conversation</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Speak → Imotara types, replies, and reads aloud — no tapping needed</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={handsfree}
+                            onClick={() => handleHandsfreeToggle(!handsfree)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${handsfree ? "bg-violet-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${handsfree ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
                     {/* G-4: Grow nudge permanent dismiss */}
-                    <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
                         <div>
                             <p className="text-xs font-medium text-zinc-200">Hide &quot;Grow&quot; nudge</p>
                             <p className="mt-0.5 text-[11px] text-zinc-500">Permanently hide the Grow feature suggestion in Chat</p>
@@ -2492,6 +2543,36 @@ export default function SettingsPage() {
                         </div>
                         <p className="mt-1 text-[11px] text-zinc-500">Controls the number of emoji reactions shown on messages.</p>
                     </div>
+                </section>
+
+                {/* ── Mindset Analysis Toggles ─────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Mindset Analysis</h2>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">
+                        Choose which time windows appear as psychological summaries on your History page.
+                    </p>
+                    {([
+                        { key: "today",   label: "Today's mindset analysis",       desc: "A psychological snapshot of today's conversations." },
+                        { key: "week7",   label: "Last 7 days mindset analysis",   desc: "A 7-day emotional pattern overview." },
+                        { key: "days30",  label: "Last 30 days mindset analysis",  desc: "A 30-day mood trend summary." },
+                        { key: "allTime", label: "All time mindset analysis",      desc: "A complete overview since you started." },
+                    ] as { key: keyof MindsetPrefs; label: string; desc: string }[]).map(({ key, label, desc }) => (
+                        <div key={key} className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                            <div>
+                                <p className="text-xs font-medium text-zinc-200">{label}</p>
+                                <p className="mt-0.5 text-[11px] text-zinc-500">{desc}</p>
+                            </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={mindsetPrefs[key]}
+                                onClick={() => handleMindsetToggle(key)}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${mindsetPrefs[key] ? "bg-violet-500" : "bg-zinc-600"}`}
+                            >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${mindsetPrefs[key] ? "translate-x-4" : "translate-x-0"}`} />
+                            </button>
+                        </div>
+                    ))}
                 </section>
 
                 {/* ── Appearance ─────────────────────────────────────── */}
@@ -3218,7 +3299,7 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {([
                             { icon: "💬", title: "Just talk", body: "Share what's on your mind — worries, stress, or how your day went. No right way to start. Imotara listens without judgement." },
-                            { icon: "🌐", title: "Works everywhere", body: "Online? AI crafts thoughtful replies. Offline? Local mode keeps conversations going — no interruptions." },
+                            { icon: "🌐", title: "Works everywhere", body: "Online? Imotara crafts thoughtful replies. Offline? Local mode keeps conversations going — no interruptions." },
                             { icon: "🎨", title: "Make it yours", body: "Choose your companion's name, tone, language, and response style. Adjust accent colour and text size in Appearance above." },
                             { icon: "🔒", title: "Your data, your control", body: "Everything stays on this device unless you choose to sync. Nothing is sold. Export or delete your history anytime from Settings." },
                         ] as { icon: string; title: string; body: string }[]).map((step) => (

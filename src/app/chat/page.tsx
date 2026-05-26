@@ -972,6 +972,21 @@ export default function ChatPage() {
 
   // #19: Voice input
   const [isListening, setIsListening] = useState(false);
+
+  // Hands-free mode: voice auto-submits + replies auto-speak
+  const HANDSFREE_KEY = "imotara:handsfree.v1";
+  const [handsfree, setHandsfree] = useState(false);
+  const handsfreeRef = useRef(false);
+  useEffect(() => {
+    const load = () => {
+      const val = localStorage.getItem(HANDSFREE_KEY) === "1";
+      setHandsfree(val);
+      handsfreeRef.current = val;
+    };
+    load();
+    window.addEventListener("imotara:handsfreeChanged", load);
+    return () => window.removeEventListener("imotara:handsfreeChanged", load);
+  }, []);
   const recognitionRef = useRef<any>(null);
   // Stop mic on unmount — prevents microphone staying active after navigation
   useEffect(() => {
@@ -1376,7 +1391,7 @@ export default function ChatPage() {
           id: uid(),
           role: "assistant",
           content:
-            "Hi, I’m Imotara — a quiet companion. Try sending me a message.",
+            `Hi, I’m ${(getImotaraProfile()?.companion?.enabled && getImotaraProfile()?.companion?.name?.trim()) || "Imotara"} — a quiet companion. Try sending me a message.`,
           createdAt: now,
           sessionId: seedId,
         },
@@ -2207,6 +2222,8 @@ export default function ChatPage() {
           meta: { replySource: assistantMsg.replySource ?? "fallback" },
         });
 
+        if (handsfreeRef.current) void autoSpeakText(assistantMsg.content);
+
         void logAssistantMessageToHistory(assistantMsg, respEmotionLabel, respEmotionIntensity);
 
         // Auto-focus composer when assistant reply arrives
@@ -2373,6 +2390,8 @@ export default function ChatPage() {
         createdAtMs: assistantMsg.createdAt,
         meta: { replySource: assistantMsg.replySource ?? "fallback" },
       });
+
+      if (handsfreeRef.current) void autoSpeakText(assistantMsg.content);
 
       void logAssistantMessageToHistory(assistantMsg, debugEmotion ?? "neutral", 0);
 
@@ -2560,7 +2579,12 @@ export default function ChatPage() {
     rec.onresult = (e: any) => {
       const transcript: string = e.results[0]?.[0]?.transcript ?? "";
       if (transcript.trim()) {
-        setDraft((prev) => (prev.trim() ? `${prev} ${transcript.trim()}` : transcript.trim()));
+        if (handsfreeRef.current) {
+          // Hands-free: skip the draft and send immediately
+          sendMessage(transcript.trim());
+        } else {
+          setDraft((prev) => (prev.trim() ? `${prev} ${transcript.trim()}` : transcript.trim()));
+        }
       }
     };
     rec.onerror = (e: any) => {
@@ -3184,7 +3208,7 @@ export default function ChatPage() {
                   <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-zinc-400">
                     <span>
                       <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-zinc-500 align-middle" />
-                      On-device mode — replies use local templates (no AI).
+                      On-device mode — replies use local templates.
                     </span>
                     <button
                       type="button"
@@ -3426,7 +3450,7 @@ export default function ChatPage() {
                     <div className="im-quota-card w-full max-w-[82%] rounded-2xl border border-violet-500/25 bg-[#1e1028] p-4 shadow-lg">
                       <div className="mb-2 flex items-center gap-2">
                         <span aria-hidden="true">✨</span>
-                        <span className="text-[13px] font-medium text-zinc-200">I've used my 20 AI replies for today</span>
+                        <span className="text-[13px] font-medium text-zinc-200">I've used my 20 replies for today</span>
                       </div>
                       <p className="mb-3 text-[12px] leading-relaxed text-zinc-400">
                         I'm still here. My responses now come from on-device mode — a little simpler, but present.
@@ -3468,6 +3492,7 @@ export default function ChatPage() {
                     onReact={(emoji) => handleReact(m.id, emoji)}
                     bookmarked={bookmarks.has(m.id)}
                     onBookmark={() => toggleBookmark(m.id)}
+                    companionDisplayName={companionDisplayName ?? undefined}
                     onRetry={
                       m.role === "assistant" && m.replySource === "fallback"
                         ? () => {
@@ -3801,12 +3826,14 @@ export default function ChatPage() {
                 <button
                   type="button"
                   onClick={toggleVoice}
-                  title={isListening ? "Stop listening" : "Speak your message"}
+                  title={isListening ? "Stop listening" : handsfree ? "Speak — will send automatically" : "Speak your message"}
                   aria-label={isListening ? "Stop voice input" : "Start voice input"}
                   className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
                     isListening
                       ? "border-rose-400/50 bg-rose-500/20 text-rose-300 animate-pulse"
-                      : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                      : handsfree
+                        ? "border-violet-400/50 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30"
+                        : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
                   }`}
                 >
                   {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -4259,6 +4286,45 @@ const LANG_TO_BCP47: Record<string, string> = {
 };
 
 // Detect the dominant script from Unicode ranges — covers all Indic + CJK
+/** Called by hands-free mode after a reply arrives — speaks without any UI state. */
+async function autoSpeakText(text: string): Promise<void> {
+  const bcp47 = resolveTTSLang(text);
+  const lang = bcp47.split("-")[0];
+  const gender = getTTSGenderPref();
+  try {
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: stripMarkdown(text), lang, gender }),
+    });
+    if (!res.ok) throw new Error("tts");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    try {
+      const rate = parseFloat(localStorage.getItem("imotara.tts.rate.v1") ?? "0.95");
+      audio.playbackRate = isFinite(rate) ? rate : 0.95;
+    } catch { audio.playbackRate = 0.95; }
+    audio.onended = () => URL.revokeObjectURL(url);
+    audio.onerror = () => URL.revokeObjectURL(url);
+    await audio.play();
+  } catch {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const synth = window.speechSynthesis;
+    const utt = new SpeechSynthesisUtterance(stripMarkdown(text));
+    utt.lang = bcp47;
+    try {
+      const rate = parseFloat(localStorage.getItem("imotara.tts.rate.v1") ?? "0.95");
+      const pitch = parseFloat(localStorage.getItem("imotara.tts.pitch.v1") ?? "1.0");
+      utt.rate = isFinite(rate) ? rate : 0.95;
+      utt.pitch = isFinite(pitch) ? pitch : 1.0;
+    } catch { utt.rate = 0.95; utt.pitch = 1.0; }
+    const voice = pickVoice(synth, bcp47, gender);
+    if (voice) utt.voice = voice;
+    synth.speak(utt);
+  }
+}
+
 function stripMarkdown(text: string): string {
   return text
     .replace(/\*\*(.+?)\*\*/gs, "$1")
@@ -4394,6 +4460,7 @@ function Bubble({
   onBookmark,
   onRetry,
   avatarSrc,
+  companionDisplayName,
 }: {
   id: string;
   role: Role;
@@ -4418,6 +4485,7 @@ function Bubble({
   onBookmark?: () => void;
   onRetry?: () => void;
   avatarSrc?: string;
+  companionDisplayName?: string;
 }) {
   const isUser = role === "user";
 
@@ -4619,7 +4687,7 @@ function Bubble({
           {(typeof localStorage === "undefined" || localStorage.getItem("imotara.chat.showTimestamps.v1") === "1") && (
             <><DateText ts={time} />{" · "}</>
           )}
-          {isUser ? "You" : "Imotara"}
+          {isUser ? "You" : (companionDisplayName || "Imotara")}
           {!isUser && meta?.compatibility ? (
             <span
               className={[

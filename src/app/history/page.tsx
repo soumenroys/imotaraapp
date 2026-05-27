@@ -1,9 +1,9 @@
 // src/app/history/page.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { MessageSquare, Download, Clock, Search, X as XIcon } from "lucide-react";
+import { MessageSquare, Download, Clock, Search, X as XIcon, MoreVertical } from "lucide-react";
 import EmotionHistory from "@/components/imotara/EmotionHistory";
 import MoodHeatmap from "@/components/imotara/MoodHeatmap";
 import SkeletonLoader from "@/components/imotara/SkeletonLoader";
@@ -228,6 +228,66 @@ const EMOTION_EMOJI: Record<string, string> = {
   neutral: "😐", surprise: "😮",
 };
 
+// ── 7-day dot calendar ───────────────────────────────────────────────────────
+const DOT_STYLE: Record<string, { color: string; emoji: string; label: string }> = {
+  joy:       { color: "rgba(250,204,21,0.80)",  emoji: "😄", label: "Joy" },
+  gratitude: { color: "rgba(5,150,105,0.80)",   emoji: "💚", label: "Grateful" },
+  sadness:   { color: "rgba(37,99,235,0.75)",   emoji: "💙", label: "Sad" },
+  anger:     { color: "rgba(220,38,38,0.75)",   emoji: "❤️", label: "Angry" },
+  fear:      { color: "rgba(202,138,4,0.75)",   emoji: "💛", label: "Anxious" },
+  disgust:   { color: "rgba(124,58,237,0.75)",  emoji: "🟣", label: "Uneasy" },
+  surprise:  { color: "rgba(6,182,212,0.75)",   emoji: "🩵", label: "Surprised" },
+  neutral:   { color: "rgba(100,116,139,0.50)", emoji: "⚪️", label: "Neutral" },
+};
+
+function SevenDayDots() {
+  const days = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("imotara:history:v1");
+      if (!raw) return [];
+      const all = JSON.parse(raw) as any[];
+      if (!Array.isArray(all)) return [];
+      return Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const dateKey = d.toISOString().slice(0, 10);
+        const dayStart = new Date(dateKey).getTime();
+        const dayEnd = dayStart + 86_400_000;
+        const recs = all.filter((r: any) => !r.deleted && r.createdAt >= dayStart && r.createdAt < dayEnd && r.emotion);
+        const freq: Record<string, number> = {};
+        for (const r of recs as any[]) freq[r.emotion] = (freq[r.emotion] ?? 0) + 1;
+        const dominant = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+        return { dateKey, dominant, count: recs.length, label: d.toLocaleDateString("en", { weekday: "short" }), isToday: i === 6 };
+      });
+    } catch { return []; }
+  }, []);
+
+  if (days.length === 0) return null;
+  return (
+    <div className="mb-4 rounded-2xl border border-white/8 bg-white/3 px-4 py-4">
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-zinc-500">7-day mood</p>
+      <div className="flex justify-between gap-1">
+        {days.map((day) => {
+          const s = day.dominant ? DOT_STYLE[day.dominant] : null;
+          return (
+            <div key={day.dateKey} className="flex flex-1 flex-col items-center gap-1.5">
+              <div
+                className={`flex h-9 w-9 items-center justify-center rounded-full text-sm${day.isToday ? " ring-2 ring-sky-400/50" : ""}`}
+                style={{ backgroundColor: s ? s.color : "rgba(100,116,139,0.10)", border: s ? "none" : "1px solid rgba(100,116,139,0.20)" }}
+                title={s ? `${s.label} · ${day.count} entr${day.count === 1 ? "y" : "ies"}` : "No entries"}
+              >
+                {s ? <span>{s.emoji}</span> : <span className="text-zinc-600 text-base">·</span>}
+              </div>
+              <span className="text-[9px] text-zinc-500">{day.label}</span>
+              {day.count > 0 && <span className="text-[9px] text-zinc-600">{day.count}</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 type WeeklySummary = {
   topEmotion: string;
   topCount: number;
@@ -326,6 +386,16 @@ export default function HistoryPage() {
   const [mindsetAnalyses, setMindsetAnalyses] = useState<Record<string, MindsetResult>>({});
   const [expandedCapsules, setExpandedCapsules] = useState<Record<string, boolean>>({});
   const [capsuleInsights, setCapsuleInsights] = useState<Record<string, { analysis: string; advice: string } | "loading" | "error">>({});
+  const [openCapsuleMenu, setOpenCapsuleMenu] = useState<string | null>(null);
+  const [mindsetDismissedSession, setMindsetDismissedSession] = useState<Set<keyof MindsetPrefs>>(new Set());
+  const [otdShow, setOtdShow] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.history.otd.show.v1") !== "0";
+  });
+  const [moodChartEnabled, setMoodChartEnabled] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.mood.chart.show.v1") !== "0";
+  });
 
   const handleCapsuleToggle = (key: keyof MindsetPrefs) => {
     const nowExpanded = !(expandedCapsules[key] ?? false);
@@ -402,6 +472,13 @@ export default function HistoryPage() {
   };
 
   useEffect(() => {
+    if (!openCapsuleMenu) return;
+    const close = () => setOpenCapsuleMenu(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openCapsuleMenu]);
+
+  useEffect(() => {
     reloadMindsetAnalyses();
     // Re-read prefs when Settings dispatches the custom event (same-tab SPA navigation)
     const onPrefsChanged = () => reloadMindsetAnalyses();
@@ -409,6 +486,9 @@ export default function HistoryPage() {
     // Also handle cross-tab storage changes
     const onStorage = (e: StorageEvent) => {
       if (e.key === MINDSET_PREFS_KEY) reloadMindsetAnalyses();
+      if (e.key === "imotara.mood.chart.show.v1") {
+        setMoodChartEnabled(localStorage.getItem("imotara.mood.chart.show.v1") !== "0");
+      }
     };
     window.addEventListener("storage", onStorage);
     return () => {
@@ -798,17 +878,18 @@ export default function HistoryPage() {
                     { key: "days30",  label: "Last 30 Days",         icon: "🗓️" },
                     { key: "allTime", label: "All Time",             icon: "✦" },
                   ] as { key: keyof MindsetPrefs; label: string; icon: string }[])
-                    .filter(({ key }) => mindsetPrefs[key])
+                    .filter(({ key }) => mindsetPrefs[key] && !mindsetDismissedSession.has(key))
                     .map(({ key, label, icon }) => {
                       const analysis = mindsetAnalyses[key];
                       const isExpanded = expandedCapsules[key] ?? false;
                       const dominantEmoji = analysis ? (EMOTION_ICON[analysis.dominant] ?? "💭") : null;
                       return (
                         <div key={key} className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-sm backdrop-blur-md">
+                          <div className="flex items-center">
                           <button
                             type="button"
                             onClick={() => handleCapsuleToggle(key)}
-                            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                            className="flex flex-1 min-w-0 items-center justify-between gap-3 pl-4 py-3 text-left"
                           >
                             <div className="flex min-w-0 items-center gap-2.5">
                               <span className="text-base" aria-hidden="true">{icon}</span>
@@ -823,8 +904,21 @@ export default function HistoryPage() {
                                 )}
                               </div>
                             </div>
-                            <span className={`shrink-0 text-[11px] text-zinc-500 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>▾</span>
+                            <span className={`shrink-0 text-[11px] text-zinc-500 transition-transform duration-200 mr-1 ${isExpanded ? "rotate-180" : ""}`}>▾</span>
                           </button>
+                          <div className="relative pr-3">
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === key ? null : key); }} className="text-zinc-600 hover:text-zinc-400 transition p-0.5" aria-label="More options">
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </button>
+                            {openCapsuleMenu === key && (
+                              <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                                <button type="button" onClick={() => { const next = { ...mindsetPrefs, [key]: false }; setMindsetPrefs(next); try { localStorage.setItem(MINDSET_PREFS_KEY, JSON.stringify(next)); window.dispatchEvent(new CustomEvent("imotara:mindsetPrefsChanged")); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                                <button type="button" onClick={() => { setMindsetDismissedSession(prev => new Set([...prev, key])); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                                <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                              </div>
+                            )}
+                          </div>
+                          </div>
 
                           {isExpanded && analysis && (
                             <div className="space-y-3 border-t border-white/8 px-4 pb-4 pt-3">
@@ -924,7 +1018,31 @@ export default function HistoryPage() {
               )}
 
               {/* On This Day — memory flashback */}
-              {!loading && <OnThisDay />}
+              {!loading && otdShow && (
+                <div className="relative">
+                  <OnThisDay />
+                  <div className="absolute right-3 top-3 z-10">
+                    <button
+                      type="button"
+                      aria-label="On This Day options"
+                      onClick={() => setOpenCapsuleMenu(openCapsuleMenu === "otd" ? null : "otd")}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-black/30 text-zinc-400 transition hover:bg-white/10 hover:text-zinc-200"
+                    >
+                      <MoreVertical className="h-3.5 w-3.5" />
+                    </button>
+                    {openCapsuleMenu === "otd" && (
+                      <div className="absolute right-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl">
+                        <button type="button" onClick={() => { setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                        <button type="button" onClick={() => { try { localStorage.setItem("imotara.history.otd.show.v1", "0"); } catch {} setOtdShow(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
+                        <a href="/settings" className="block w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 7-day dot calendar */}
+              {!loading && <SevenDayDots />}
 
               {/* Mood Heatmap — 12-week calendar */}
               {loading ? (
@@ -933,8 +1051,8 @@ export default function HistoryPage() {
                 <MoodHeatmap />
               )}
 
-              {/* 30-day mood line chart */}
-              {!loading && <MoodLineChart30 />}
+              {/* 30-day mood line chart (gated by Settings toggle) */}
+              {!loading && moodChartEnabled && <MoodLineChart30 />}
 
               {/* Emotion radar chart */}
               {!loading && <EmotionRadarChart />}

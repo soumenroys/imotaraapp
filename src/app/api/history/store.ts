@@ -126,7 +126,20 @@ export async function clearAllRecords(): Promise<void> {
     const { error } = await supabaseServer.from(TABLE).delete().neq("id", "");
 
     if (error) {
-         
+
         console.error("clearAllRecords supabase error:", error);
+    }
+}
+
+/** Delete all records belonging to a specific user scope (id prefix = "{scope}:"). */
+export async function clearRecordsByScope(scope: string): Promise<void> {
+    if (!scope) return;
+    const { error } = await supabaseServer
+        .from(TABLE)
+        .delete()
+        .like("id", `${scope}:%`);
+
+    if (error) {
+        console.error("clearRecordsByScope supabase error:", error);
     }
 }

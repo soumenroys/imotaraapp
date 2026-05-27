@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Imotara — Licensing & Feature Matrix</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --brand:    #7C5CFC;
+    --brand-lt: #EDE9FF;
+    --green:    #16A34A;
+    --red:      #DC2626;
+    --gray-50:  #F9FAFB;
+    --gray-100: #F3F4F6;
+    --gray-200: #E5E7EB;
+    --gray-400: #9CA3AF;
+    --gray-600: #4B5563;
+    --gray-800: #1F2937;
+    --gray-900: #111827;
+    --free-col:   #F9FAFB;
+    --plus-col:   #EFF6FF;
+    --pro-col:    #F5F3FF;
+    --fam-col:    #FFF7ED;
+    --edu-col:    #F0FDF4;
+    --ent-col:    #FDF2F8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 8.5pt;
+    color: var(--gray-800);
+    background: #fff;
+    line-height: 1.45;
+  }
+
+  /* ── Cover page ─────────────────────────────────────────────── */
+  .cover {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #1a0533 0%, #2d1160 40%, #4c1d95 100%);
+    page-break-after: always;
+    text-align: center;
+    padding: 60px 40px;
+  }
+
+  .cover-logo {
+    font-size: 42pt;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -1px;
+    margin-bottom: 6px;
+  }
+  .cover-logo span { color: #A78BFA; }
+
+  .cover-tagline {
+    font-size: 11pt;
+    color: #C4B5FD;
+    margin-bottom: 48px;
+    letter-spacing: 0.5px;
+  }
+
+  .cover-title {
+    font-size: 22pt;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+
+  .cover-subtitle {
+    font-size: 10pt;
+    color: #A78BFA;
+    margin-bottom: 60px;
+  }
+
+  .cover-tiers {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 60px;
+  }
+  .cover-tier {
+    padding: 8px 20px;
+    border-radius: 999px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .ct-free  { background: rgba(255,255,255,0.12); color: #E5E7EB; border: 1px solid rgba(255,255,255,0.2); }
+  .ct-plus  { background: #1D4ED8; color: #BFDBFE; }
+  .ct-pro   { background: #6D28D9; color: #DDD6FE; }
+  .ct-fam   { background: #D97706; color: #FEF3C7; }
+  .ct-edu   { background: #16A34A; color: #D1FAE5; }
+  .ct-ent   { background: #9D174D; color: #FCE7F3; }
+
+  .cover-meta {
+    font-size: 7.5pt;
+    color: #7C3AED;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    padding-top: 24px;
+    width: 100%;
+    max-width: 500px;
+  }
+
+  /* ── Page layout ─────────────────────────────────────────────── */
+  .page {
+    padding: 22px 24px 18px;
+  }
+
+  /* ── Section header ──────────────────────────────────────────── */
+  .section-title {
+    font-size: 11pt;
+    font-weight: 700;
+    color: var(--brand);
+    margin: 22px 0 10px;
+    padding-bottom: 5px;
+    border-bottom: 2px solid var(--brand-lt);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title span.num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    background: var(--brand);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 8pt;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* ── Pricing table ───────────────────────────────────────────── */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .pricing-card {
+    border-radius: 8px;
+    padding: 12px 10px;
+    text-align: center;
+    border: 1.5px solid var(--gray-200);
+  }
+  .pricing-card.highlight { border-color: var(--brand); }
+
+  .pc-tier {
+    font-size: 8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .pc-price {
+    font-size: 15pt;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 2px;
+  }
+  .pc-annual {
+    font-size: 6.5pt;
+    color: var(--gray-400);
+    margin-bottom: 4px;
+  }
+  .pc-save {
+    display: inline-block;
+    background: #D1FAE5;
+    color: #065F46;
+    font-size: 6pt;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 999px;
+    margin-bottom: 5px;
+  }
+  .pc-target {
+    font-size: 6.5pt;
+    color: var(--gray-400);
+    line-height: 1.3;
+  }
+
+  .c-free { background: var(--free-col); }
+  .c-plus { background: var(--plus-col); }
+  .c-pro  { background: var(--pro-col); }
+  .c-fam  { background: var(--fam-col); }
+  .c-edu  { background: var(--edu-col); }
+  .c-ent  { background: var(--ent-col); }
+
+  .free-c  { color: #374151; }
+  .plus-c  { color: #1D4ED8; }
+  .pro-c   { color: #6D28D9; }
+  .fam-c   { color: #D97706; }
+  .edu-c   { color: #16A34A; }
+  .ent-c   { color: #9D174D; }
+
+  /* ── Token table ─────────────────────────────────────────────── */
+  .token-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .token-card {
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    text-align: center;
+  }
+  .token-card .tk-name { font-size: 7.5pt; font-weight: 700; color: var(--gray-800); margin-bottom: 3px; }
+  .token-card .tk-price { font-size: 13pt; font-weight: 800; color: var(--brand); }
+  .token-card .tk-tokens { font-size: 7pt; color: var(--gray-600); margin-top: 2px; }
+  .token-card .tk-rate { font-size: 6.5pt; color: var(--gray-400); margin-top: 2px; }
+
+  /* ── Feature matrix table ────────────────────────────────────── */
+  table.matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 7.5pt;
+    margin-bottom: 4px;
+    table-layout: fixed;
+  }
+
+  table.matrix col.c-feat  { width: 18%; }
+  table.matrix col.c-desc  { width: 24%; }
+  table.matrix col.c-tier  { width: 9.6%; }
+
+  table.matrix thead tr {
+    background: var(--brand);
+    color: #fff;
+  }
+  table.matrix thead th {
+    padding: 6px 5px;
+    text-align: center;
+    font-size: 7pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  table.matrix thead th.th-feat,
+  table.matrix thead th.th-desc {
+    text-align: left;
+    padding-left: 8px;
+  }
+
+  table.matrix thead th.h-free { background: #4B5563; }
+  table.matrix thead th.h-plus { background: #1D4ED8; }
+  table.matrix thead th.h-pro  { background: #6D28D9; }
+  table.matrix thead th.h-fam  { background: #D97706; }
+  table.matrix thead th.h-edu  { background: #16A34A; }
+  table.matrix thead th.h-ent  { background: #9D174D; }
+
+  table.matrix tbody tr:nth-child(even) { background: var(--gray-50); }
+  table.matrix tbody tr:nth-child(odd)  { background: #fff; }
+  table.matrix tbody tr:hover           { background: var(--brand-lt); }
+
+  table.matrix tbody td {
+    padding: 5px 5px;
+    border: 1px solid var(--gray-200);
+    vertical-align: top;
+    line-height: 1.35;
+  }
+
+  table.matrix tbody td.td-feat {
+    font-weight: 600;
+    color: var(--gray-900);
+    padding-left: 8px;
+    vertical-align: top;
+  }
+
+  table.matrix tbody td.td-desc {
+    color: var(--gray-600);
+    font-size: 7pt;
+    padding-left: 8px;
+    font-style: italic;
+  }
+
+  table.matrix tbody td.td-val {
+    text-align: center;
+    vertical-align: middle;
+    font-size: 7.5pt;
+    font-weight: 500;
+  }
+
+  .yes  { color: var(--green);  font-size: 11pt; line-height: 1; }
+  .no   { color: var(--red);    font-size: 11pt; line-height: 1; }
+  .val  { color: var(--brand);  font-weight: 600; font-size: 7pt; }
+  .agg  { color: #D97706;       font-size: 6.5pt; font-weight: 600; }
+  .quota{ color: #0891B2;       font-size: 6.5pt; font-weight: 600; }
+  .custom { color: #9D174D;     font-size: 6.5pt; font-weight: 700; }
+
+  /* ── Note box ────────────────────────────────────────────────── */
+  .note {
+    background: #FFFBEB;
+    border-left: 3px solid #F59E0B;
+    padding: 6px 10px;
+    font-size: 7pt;
+    color: #78350F;
+    border-radius: 0 4px 4px 0;
+    margin: 6px 0 12px;
+  }
+
+  /* ── Upgrade triggers ────────────────────────────────────────── */
+  .triggers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 10px 0;
+  }
+  .trigger-card {
+    border-radius: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--gray-200);
+  }
+  .trigger-card .tc-head {
+    font-size: 7.5pt;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .trigger-card .tc-body {
+    font-size: 7pt;
+    color: var(--gray-600);
+    line-height: 1.5;
+  }
+  .trigger-card .tc-body li { margin-left: 12px; margin-bottom: 1px; }
+
+  /* ── Differentiation table ───────────────────────────────────── */
+  table.diff {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 7.5pt;
+  }
+  table.diff thead tr { background: var(--gray-800); color: #fff; }
+  table.diff thead th { padding: 6px 8px; text-align: left; border: 1px solid #374151; font-size: 7pt; font-weight: 700; }
+  table.diff thead th.tc { text-align: center; }
+  table.diff tbody td { padding: 5px 8px; border: 1px solid var(--gray-200); vertical-align: middle; font-size: 7pt; }
+  table.diff tbody td.tc { text-align: center; }
+  table.diff tbody tr:nth-child(even) { background: var(--gray-50); }
+
+  /* ── Footer ──────────────────────────────────────────────────── */
+  .footer {
+    margin-top: 24px;
+    padding-top: 10px;
+    border-top: 1px solid var(--gray-200);
+    font-size: 6.5pt;
+    color: var(--gray-400);
+    text-align: center;
+  }
+
+  /* ── Print / page breaks ─────────────────────────────────────── */
+  @media print {
+    body { font-size: 8pt; }
+    .cover { min-height: 100vh; }
+    .page-break { page-break-before: always; }
+    table.matrix { page-break-inside: auto; }
+    table.matrix tr { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     COVER PAGE
+══════════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-logo">imotara<span>.</span></div>
+  <div class="cover-tagline">Your AI Emotional Companion</div>
+
+  <div class="cover-title">Licensing &amp; Feature Matrix</div>
+  <div class="cover-subtitle">Complete feature-to-license-tier mapping · All platforms · v1.1</div>
+
+  <div class="cover-tiers">
+    <span class="cover-tier ct-free">Free  ₹0</span>
+    <span class="cover-tier ct-plus">Plus  ₹99/mo</span>
+    <span class="cover-tier ct-pro">Pro  ₹149/mo</span>
+    <span class="cover-tier ct-fam">Family  Custom</span>
+    <span class="cover-tier ct-edu">EDU  Custom</span>
+    <span class="cover-tier ct-ent">Enterprise  Custom</span>
+  </div>
+
+  <div class="cover-meta">
+    Proposed Licensing Design · Not yet fully enforced in production<br/>
+    Soft launch: all users currently receive full feature access<br/>
+    Last updated: 27 May 2026
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     PAGE 1 — PRICING + TOKENS
+══════════════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <div class="section-title"><span class="num">P</span> Pricing Overview</div>
+
+  <div class="pricing-grid">
+    <div class="pricing-card c-free">
+      <div class="pc-tier free-c">Free</div>
+      <div class="pc-price free-c">₹0</div>
+      <div class="pc-annual">Forever free</div>
+      <div class="pc-save" style="background:#E5E7EB;color:#374151;">No cost</div>
+      <div class="pc-target">First-time users &amp; casual journalers</div>
+    </div>
+    <div class="pricing-card c-plus highlight">
+      <div class="pc-tier plus-c">Plus</div>
+      <div class="pc-price plus-c">₹99</div>
+      <div class="pc-annual">₹699/yr · saves ~41%</div>
+      <div class="pc-save">41% off annual</div>
+      <div class="pc-target">Daily users needing history &amp; export</div>
+    </div>
+    <div class="pricing-card c-pro highlight">
+      <div class="pc-tier pro-c">Pro</div>
+      <div class="pc-price pro-c">₹149</div>
+      <div class="pc-annual">₹1,299/yr · saves ~27%</div>
+      <div class="pc-save">27% off annual</div>
+      <div class="pc-target">Power users wanting deep insights</div>
+    </div>
+    <div class="pricing-card c-fam">
+      <div class="pc-tier fam-c">Family</div>
+      <div class="pc-price fam-c" style="font-size:11pt;margin-top:4px;">Custom</div>
+      <div class="pc-annual">Contact us</div>
+      <div class="pc-save" style="background:#FEF3C7;color:#92400E;">Up to 6 profiles</div>
+      <div class="pc-target">Shared household &amp; parental controls</div>
+    </div>
+    <div class="pricing-card c-edu">
+      <div class="pc-tier edu-c">EDU</div>
+      <div class="pc-price edu-c" style="font-size:11pt;margin-top:4px;">Custom</div>
+      <div class="pc-annual">Per-seat pricing</div>
+      <div class="pc-save" style="background:#D1FAE5;color:#065F46;">Institutional</div>
+      <div class="pc-target">Schools, colleges &amp; counselling orgs</div>
+    </div>
+    <div class="pricing-card c-ent">
+      <div class="pc-tier ent-c">Enterprise</div>
+      <div class="pc-price ent-c" style="font-size:11pt;margin-top:4px;">Custom</div>
+      <div class="pc-annual">Volume licensing</div>
+      <div class="pc-save" style="background:#FCE7F3;color:#9D174D;">API &amp; SLA</div>
+      <div class="pc-target">Corporates &amp; HR / mental-health platforms</div>
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:20px;"><span class="num">T</span> Token Packs — All Tiers · One-Time Purchase · Never Expire</div>
+
+  <div class="token-grid">
+    <div class="token-card">
+      <div class="tk-name">Starter</div>
+      <div class="tk-price">₹49</div>
+      <div class="tk-tokens">100 tokens</div>
+      <div class="tk-rate">₹0.49 per token</div>
+    </div>
+    <div class="token-card">
+      <div class="tk-name">Standard</div>
+      <div class="tk-price">₹99</div>
+      <div class="tk-tokens">250 tokens</div>
+      <div class="tk-rate">₹0.40 per token</div>
+    </div>
+    <div class="token-card">
+      <div class="tk-name">Value</div>
+      <div class="tk-price">₹199</div>
+      <div class="tk-tokens">600 tokens</div>
+      <div class="tk-rate">₹0.33 per token</div>
+    </div>
+    <div class="token-card">
+      <div class="tk-name">Pro Pack</div>
+      <div class="tk-price">₹499</div>
+      <div class="tk-tokens">1,800 tokens</div>
+      <div class="tk-rate">₹0.28 per token — best value</div>
+    </div>
+  </div>
+
+  <div class="note">
+    Token packs extend AI-reply capacity beyond the daily quota. Free tier: 10 replies/day included. Plus &amp; above: unlimited daily replies included. All tiers can purchase packs.
+  </div>
+
+  <!-- ── CATEGORY 1 ── -->
+  <div class="section-title"><span class="num">1</span> Core Experience</div>
+  <table class="matrix">
+    <colgroup>
+      <col class="c-feat"/><col class="c-desc"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-feat">Feature</th>
+        <th class="th-desc">Description</th>
+        <th class="h-free">Free</th>
+        <th class="h-plus">Plus</th>
+        <th class="h-pro">Pro</th>
+        <th class="h-fam">Family</th>
+        <th class="h-edu">EDU</th>
+        <th class="h-ent">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-feat">Daily reply limit</td>
+        <td class="td-desc">Max AI replies the user can send per calendar day before needing a token top-up</td>
+        <td class="td-val"><span class="val">10/day</span></td>
+        <td class="td-val"><span class="val">Unlimited</span></td>
+        <td class="td-val"><span class="val">Unlimited</span></td>
+        <td class="td-val"><span class="val">Unlimited</span></td>
+        <td class="td-val"><span class="val">Unlimited</span></td>
+        <td class="td-val"><span class="val">Unlimited</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Companion tone selection</td>
+        <td class="td-desc">Choose the personality of the AI companion — Warm, Direct, Playful, Coach, etc.</td>
+        <td class="td-val"><span class="val">1 tone</span></td>
+        <td class="td-val"><span class="val">All tones</span></td>
+        <td class="td-val"><span class="val">All tones</span></td>
+        <td class="td-val"><span class="val">All tones</span></td>
+        <td class="td-val"><span class="val">All tones</span></td>
+        <td class="td-val"><span class="val">All tones</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Response length control</td>
+        <td class="td-desc">Switch between short, medium, and long AI response modes to suit your reading preference</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Companion personas</td>
+        <td class="td-desc">Themed AI personalities beyond the default — e.g. Coach, Listener, Challenger, Mentor</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Conversation threading</td>
+        <td class="td-desc">Replies grouped into sessions or threads for cleaner, chronological navigation</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Message search</td>
+        <td class="td-desc">Full-text search across conversation history to find past exchanges quickly</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Offline mode</td>
+        <td class="td-desc">Browse previously loaded messages without an active network connection</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Token top-up purchases</td>
+        <td class="td-desc">Buy one-time token packs (₹49–₹499) to extend reply capacity; tokens never expire</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── CATEGORY 2 ── -->
+  <div class="section-title"><span class="num">2</span> Voice &amp; Audio</div>
+  <table class="matrix">
+    <colgroup>
+      <col class="c-feat"/><col class="c-desc"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-feat">Feature</th><th class="th-desc">Description</th>
+        <th class="h-free">Free</th><th class="h-plus">Plus</th><th class="h-pro">Pro</th>
+        <th class="h-fam">Family</th><th class="h-edu">EDU</th><th class="h-ent">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-feat">Text-to-speech (TTS)</td>
+        <td class="td-desc">AI replies read aloud by a synthetic voice; Free gets device TTS, paid gets Azure Neural</td>
+        <td class="td-val"><span class="val">Basic</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Voice input (speech-to-text)</td>
+        <td class="td-desc">Speak your message; it is transcribed before being sent to the AI</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">TTS voice selection</td>
+        <td class="td-desc">Choose from multiple Azure Neural TTS voices — male/female/neutral, regional accents</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">TTS rate &amp; pitch control</td>
+        <td class="td-desc">Adjust speaking speed and pitch of the TTS voice for a comfortable listening experience</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Azure Neural TTS (cloud)</td>
+        <td class="td-desc">High-quality, expressive cloud-rendered speech via Azure Cognitive Services</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Offline / native TTS fallback</td>
+        <td class="td-desc">Falls back to the device's built-in TTS engine when the network is unavailable</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Language-matched voices</td>
+        <td class="td-desc">TTS voice automatically matched to the user's selected app language for natural playback</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+</div><!-- /page -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     PAGE 2
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+
+  <!-- ── CATEGORY 3 ── -->
+  <div class="section-title"><span class="num">3</span> History &amp; Storage</div>
+  <table class="matrix">
+    <colgroup>
+      <col class="c-feat"/><col class="c-desc"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-feat">Feature</th><th class="th-desc">Description</th>
+        <th class="h-free">Free</th><th class="h-plus">Plus</th><th class="h-pro">Pro</th>
+        <th class="h-fam">Family</th><th class="h-edu">EDU</th><th class="h-ent">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-feat">History retention period</td>
+        <td class="td-desc">How far back in time conversation history remains accessible and searchable</td>
+        <td class="td-val"><span class="val">7 days</span></td>
+        <td class="td-val"><span class="val">90 days</span></td>
+        <td class="td-val"><span class="val">Unlimited</span></td>
+        <td class="td-val"><span class="val">Unlimited</span></td>
+        <td class="td-val"><span class="val">Unlimited</span></td>
+        <td class="td-val"><span class="val">Unlimited</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Unlimited history</td>
+        <td class="td-desc">All conversations stored permanently with no rolling cutoff date — access anything, anytime</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Local on-device storage</td>
+        <td class="td-desc">Conversations cached locally on the device for instant, offline access without a network call</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">History search across dates</td>
+        <td class="td-desc">Full-text search reaching further back than the current session — requires cloud history</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── CATEGORY 4 ── -->
+  <div class="section-title"><span class="num">4</span> Cloud &amp; Sync</div>
+  <table class="matrix">
+    <colgroup>
+      <col class="c-feat"/><col class="c-desc"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-feat">Feature</th><th class="th-desc">Description</th>
+        <th class="h-free">Free</th><th class="h-plus">Plus</th><th class="h-pro">Pro</th>
+        <th class="h-fam">Family</th><th class="h-edu">EDU</th><th class="h-ent">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-feat">Cloud sync</td>
+        <td class="td-desc">Conversations backed up to the cloud; Free tier is quota-limited (20 sync events/day server-side)</td>
+        <td class="td-val"><span class="quota">Quota</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Cross-device sync</td>
+        <td class="td-desc">Seamlessly switch between phone, tablet, and web app with full history available on each</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Real-time sync</td>
+        <td class="td-desc">Changes on one device appear on all other devices within seconds, no manual refresh needed</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Sync conflict resolution</td>
+        <td class="td-desc">Automatic merging when the same conversation is edited simultaneously on two devices</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── CATEGORY 5 ── -->
+  <div class="section-title"><span class="num">5</span> Analytics &amp; Insights</div>
+  <table class="matrix">
+    <colgroup>
+      <col class="c-feat"/><col class="c-desc"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-feat">Feature</th><th class="th-desc">Description</th>
+        <th class="h-free">Free</th><th class="h-plus">Plus</th><th class="h-pro">Pro</th>
+        <th class="h-fam">Family</th><th class="h-edu">EDU</th><th class="h-ent">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-feat">Emotion trend chart</td>
+        <td class="td-desc">Plots detected emotional states (joy, sadness, stress, calm) across days or weeks</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="agg">Agg.</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Mood graphs</td>
+        <td class="td-desc">Visual weekly/monthly graphs of mood patterns derived from conversation tone analysis</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="agg">Agg.</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Weekly emotional summary</td>
+        <td class="td-desc">Auto-generated narrative summary of the week's emotional themes, highs, and low points</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Monthly growth letter</td>
+        <td class="td-desc">Personalised AI-written letter each month reflecting the user's progress and growth themes</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Growth arc</td>
+        <td class="td-desc">Long-term narrative tracking how the user's emotional expression and resilience evolves over months</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Conversation insights</td>
+        <td class="td-desc">Per-conversation annotations: key topics identified, emotional tone score, notable moments</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Streak tracking</td>
+        <td class="td-desc">Counts consecutive days the user engaged with the app to encourage consistent emotional check-ins</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Session duration stats</td>
+        <td class="td-desc">Shows how long each conversation session lasted — useful for understanding engagement depth</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="agg">Agg.</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>EDU Agg.</strong> = Aggregated / anonymised data only — available to admins in the EDU dashboard; individual users do not see personal analytics.
+  </div>
+
+  <!-- ── CATEGORY 6 ── -->
+  <div class="section-title"><span class="num">6</span> Export &amp; Data</div>
+  <table class="matrix">
+    <colgroup>
+      <col class="c-feat"/><col class="c-desc"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-feat">Feature</th><th class="th-desc">Description</th>
+        <th class="h-free">Free</th><th class="h-plus">Plus</th><th class="h-pro">Pro</th>
+        <th class="h-fam">Family</th><th class="h-edu">EDU</th><th class="h-ent">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-feat">Conversation export</td>
+        <td class="td-desc">Download conversations to a file for personal archiving, journalling, or sharing with a therapist</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Export as PDF</td>
+        <td class="td-desc">Render conversation history as a nicely formatted PDF document suitable for printing or filing</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Export as CSV / JSON</td>
+        <td class="td-desc">Machine-readable formats for personal data portability or third-party tool integration</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">GDPR data request</td>
+        <td class="td-desc">Download all personal data held about the account in a machine-readable package (regulatory right)</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Account data deletion</td>
+        <td class="td-desc">Request permanent, irreversible deletion of all personal data from Imotara servers</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Bulk org export (admin)</td>
+        <td class="td-desc">Export anonymised, aggregated data for all org users via the admin panel — for institutional reporting</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="agg">Anon.</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    Family individual export is intentionally disabled — shared-device privacy boundary. EDU individual export is disabled; only anonymised aggregate export is available to admins.
+  </div>
+
+</div><!-- /page -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     PAGE 3
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+
+  <!-- ── CATEGORY 7 ── -->
+  <div class="section-title"><span class="num">7</span> Profiles &amp; Family Safety</div>
+  <table class="matrix">
+    <colgroup>
+      <col class="c-feat"/><col class="c-desc"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-feat">Feature</th><th class="th-desc">Description</th>
+        <th class="h-free">Free</th><th class="h-plus">Plus</th><th class="h-pro">Pro</th>
+        <th class="h-fam">Family</th><th class="h-edu">EDU</th><th class="h-ent">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-feat">Multiple profiles</td>
+        <td class="td-desc">Create distinct user profiles on one account or device — each with separate history and settings</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="val">Up to 6</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Profile switching</td>
+        <td class="td-desc">Quickly switch the active profile without logging out — minimal friction for shared-device households</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Child-safe mode</td>
+        <td class="td-desc">Filters AI responses to age-appropriate language and blocks discussion of sensitive or adult topics</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Parental controls</td>
+        <td class="td-desc">Parent can review child profile activity, set daily reply limits, and approve tone/persona changes</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Family usage dashboard</td>
+        <td class="td-desc">Aggregated engagement metrics across all household profiles — streaks, session time, feature use</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Profile-level privacy isolation</td>
+        <td class="td-desc">Each profile's conversation history is fully isolated — other profiles on the same device cannot view it</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── CATEGORY 8 ── -->
+  <div class="section-title"><span class="num">8</span> Notifications &amp; Habits</div>
+  <table class="matrix">
+    <colgroup>
+      <col class="c-feat"/><col class="c-desc"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-feat">Feature</th><th class="th-desc">Description</th>
+        <th class="h-free">Free</th><th class="h-plus">Plus</th><th class="h-pro">Pro</th>
+        <th class="h-fam">Family</th><th class="h-edu">EDU</th><th class="h-ent">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-feat">Daily check-in reminder</td>
+        <td class="td-desc">Push notification reminding the user to open the app at a chosen time each day</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Custom notification schedule</td>
+        <td class="td-desc">Set specific days and times for reminders — granular control beyond a single daily slot</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Streak break alerts</td>
+        <td class="td-desc">Alert sent when the user is at risk of breaking their current engagement streak</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Milestone celebrations</td>
+        <td class="td-desc">In-app celebration when the user hits streak milestones, first insight, or growth achievements</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Weekly insight digest notification</td>
+        <td class="td-desc">Weekly push summarising the user's emotional highlights — drives re-engagement with the insights tab</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── CATEGORY 9 ── -->
+  <div class="section-title"><span class="num">9</span> Customisation &amp; Accessibility</div>
+  <table class="matrix">
+    <colgroup>
+      <col class="c-feat"/><col class="c-desc"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-feat">Feature</th><th class="th-desc">Description</th>
+        <th class="h-free">Free</th><th class="h-plus">Plus</th><th class="h-pro">Pro</th>
+        <th class="h-fam">Family</th><th class="h-edu">EDU</th><th class="h-ent">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-feat">Light / Dark / System theme</td>
+        <td class="td-desc">Switch between light mode, dark mode, or follow the device system preference automatically</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Language selection</td>
+        <td class="td-desc">Change the app UI and AI response language from the full list of supported languages</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Font size control</td>
+        <td class="td-desc">Increase or decrease text size across the app for improved readability and accessibility</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Haptic feedback toggle</td>
+        <td class="td-desc">Enable or disable vibration on send/receive interactions — mobile only</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Custom app icon</td>
+        <td class="td-desc">Choose from alternate app icons on the home screen — a cosmetic personalisation option (mobile)</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Reply cadence / pacing</td>
+        <td class="td-desc">Set how quickly or slowly the AI types out replies (streaming speed) to suit reading pace</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Search mode selection</td>
+        <td class="td-desc">Toggle between semantic search (meaning-based) and keyword search modes in history</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Institution branding</td>
+        <td class="td-desc">Replace Imotara's logo and colour palette with the organisation's own brand assets across the app</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+</div><!-- /page -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     PAGE 4
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+
+  <!-- ── CATEGORY 10 ── -->
+  <div class="section-title"><span class="num">10</span> Privacy &amp; Security</div>
+  <table class="matrix">
+    <colgroup>
+      <col class="c-feat"/><col class="c-desc"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-feat">Feature</th><th class="th-desc">Description</th>
+        <th class="h-free">Free</th><th class="h-plus">Plus</th><th class="h-pro">Pro</th>
+        <th class="h-fam">Family</th><th class="h-edu">EDU</th><th class="h-ent">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-feat">Encrypted cloud storage</td>
+        <td class="td-desc">All cloud-synced data encrypted at rest (AES-256) and in transit (TLS 1.3) on all tiers</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Local-only / offline mode</td>
+        <td class="td-desc">Option to disable cloud sync entirely, keeping all conversation data on-device only — no server storage</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Encrypted local storage</td>
+        <td class="td-desc">Mobile local storage (AsyncStorage) encrypted with a device-level key — prevents extraction if device is lost</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Session token management</td>
+        <td class="td-desc">View and revoke active login sessions from account security settings — protect against unauthorised access</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Data residency control</td>
+        <td class="td-desc">Choose the geographic region (EU, US, APAC) where the organisation's data is stored and processed</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Audit logs</td>
+        <td class="td-desc">Immutable, tamper-evident logs of all admin actions, profile changes, and data access events</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">SSO / SAML integration</td>
+        <td class="td-desc">Sign in via the organisation's identity provider (Okta, Google Workspace, Azure AD) — single sign-on</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── CATEGORY 11 ── -->
+  <div class="section-title"><span class="num">11</span> Admin &amp; Institutional</div>
+  <table class="matrix">
+    <colgroup>
+      <col class="c-feat"/><col class="c-desc"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-feat">Feature</th><th class="th-desc">Description</th>
+        <th class="h-free">Free</th><th class="h-plus">Plus</th><th class="h-pro">Pro</th>
+        <th class="h-fam">Family</th><th class="h-edu">EDU</th><th class="h-ent">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-feat">Admin dashboard</td>
+        <td class="td-desc">Web panel for managing users, viewing org-wide usage stats, and configuring institution-level policies</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">User management</td>
+        <td class="td-desc">Add, remove, suspend, or reassign users within the organisation — full lifecycle control</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Bulk user provisioning</td>
+        <td class="td-desc">Import users via CSV or SCIM, set default tiers and permissions en masse for rapid onboarding</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Org-wide usage analytics</td>
+        <td class="td-desc">Aggregate engagement metrics: DAU, streak rates, session duration, feature adoption — for admins</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Student / employee progress view</td>
+        <td class="td-desc">Anonymised per-user progress indicators visible to counsellors or HR leads — not full conversation access</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Classroom / cohort mode</td>
+        <td class="td-desc">Group users into classes or teams; set shared companion tone policies for the cohort — EDU-specific</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">LMS integration</td>
+        <td class="td-desc">Embed Imotara within a Learning Management System (Moodle, Canvas) via LTI or iframe — EDU only</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">REST API access</td>
+        <td class="td-desc">Programmatic access to conversation summaries, emotion scores, and engagement analytics via REST API</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Custom integrations</td>
+        <td class="td-desc">Bespoke webhooks, HR system connectors (Workday, SAP), or custom AI model tuning — negotiated</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Team / department management</td>
+        <td class="td-desc">Organise users into teams with separate policies, quotas, and sub-admins — for large orgs</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── CATEGORY 12 ── -->
+  <div class="section-title"><span class="num">12</span> Support</div>
+  <table class="matrix">
+    <colgroup>
+      <col class="c-feat"/><col class="c-desc"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+      <col class="c-tier"/><col class="c-tier"/><col class="c-tier"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-feat">Feature</th><th class="th-desc">Description</th>
+        <th class="h-free">Free</th><th class="h-plus">Plus</th><th class="h-pro">Pro</th>
+        <th class="h-fam">Family</th><th class="h-edu">EDU</th><th class="h-ent">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-feat">Help centre &amp; docs</td>
+        <td class="td-desc">Public help centre articles, FAQ, and community forum — self-serve support for all users</td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Email support</td>
+        <td class="td-desc">Submit support tickets via email with a guaranteed response within the stated SLA window</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Priority support queue</td>
+        <td class="td-desc">Tickets routed to a faster queue; shorter first-response time compared to standard email support</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Dedicated account manager</td>
+        <td class="td-desc">Named Imotara contact for onboarding, renewals, feature requests, and executive escalations</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">SLA guarantee</td>
+        <td class="td-desc">Contractual uptime and first-response time commitments — required for institutional procurement</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+      <tr>
+        <td class="td-feat">Guided onboarding session</td>
+        <td class="td-desc">Live setup session with the Imotara team for org deployment — covers provisioning, policies, and training</td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="no">✕</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+        <td class="td-val"><span class="yes">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+</div><!-- /page -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     PAGE 5 — UPGRADE TRIGGERS + DIFF TABLE
+══════════════════════════════════════════════════════════════════ -->
+<div class="page page-break">
+
+  <div class="section-title"><span class="num">U</span> Upgrade Trigger Summary</div>
+
+  <div class="triggers">
+    <div class="trigger-card" style="background:var(--plus-col); border-color:#93C5FD;">
+      <div class="tc-head plus-c">Free → Plus (₹99/mo)</div>
+      <div class="tc-body">
+        <ul>
+          <li>Hitting the 10-reply/day cap regularly</li>
+          <li>Need history beyond 7 days</li>
+          <li>Want cross-device sync between phone and web</li>
+          <li>Need to export conversations as PDF/CSV</li>
+          <li>Want premium Azure Neural TTS voices</li>
+        </ul>
+      </div>
+    </div>
+    <div class="trigger-card" style="background:var(--pro-col); border-color:#C4B5FD;">
+      <div class="tc-head pro-c">Plus → Pro (₹149/mo)</div>
+      <div class="tc-body">
+        <ul>
+          <li>Want emotion trend charts and mood graphs</li>
+          <li>Need unlimited history (beyond 90 days)</li>
+          <li>Want weekly summaries and monthly growth letters</li>
+          <li>Interested in long-term growth arc tracking</li>
+          <li>Want weekly insight digest notifications</li>
+        </ul>
+      </div>
+    </div>
+    <div class="trigger-card" style="background:var(--fam-col); border-color:#FCD34D;">
+      <div class="tc-head fam-c">Pro → Family (Custom)</div>
+      <div class="tc-body">
+        <ul>
+          <li>Multiple household members sharing one account</li>
+          <li>Need child-safe profiles for minors</li>
+          <li>Parent wants oversight via parental controls</li>
+          <li>Need profile-level privacy isolation on shared device</li>
+          <li>Want family-wide usage dashboard</li>
+        </ul>
+      </div>
+    </div>
+    <div class="trigger-card" style="background:var(--edu-col); border-color:#6EE7B7;">
+      <div class="tc-head edu-c">Pro → EDU (Custom)</div>
+      <div class="tc-body">
+        <ul>
+          <li>Institution deploying for students or staff</li>
+          <li>Need admin panel with usage analytics</li>
+          <li>Require LMS integration (Moodle, Canvas)</li>
+          <li>Need bulk user provisioning and SSO</li>
+          <li>Data residency or compliance requirements</li>
+        </ul>
+      </div>
+    </div>
+    <div class="trigger-card" style="background:var(--ent-col); border-color:#F9A8D4; grid-column: 1 / -1;">
+      <div class="tc-head ent-c">Pro / EDU → Enterprise (Custom)</div>
+      <div class="tc-body">
+        <ul style="column-count:2; column-gap:20px;">
+          <li>Corporate / HR / mental-health platform deployment</li>
+          <li>Need REST API access for custom integrations</li>
+          <li>Require child-safe mode for enterprise wellness programs</li>
+          <li>Need team/department management with sub-admins</li>
+          <li>Bespoke HR system connectors (Workday, SAP)</li>
+          <li>Data residency, SOC 2 / ISO 27001 compliance</li>
+          <li>Contractual SLA and dedicated account manager</li>
+          <li>Custom AI model tuning for org-specific tone</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:20px;"><span class="num">D</span> Family vs EDU vs Enterprise — Key Differentiators</div>
+
+  <table class="diff">
+    <thead>
+      <tr>
+        <th>Capability</th>
+        <th>Description</th>
+        <th class="tc" style="background:var(--fam-col);color:#D97706;">Family</th>
+        <th class="tc" style="background:var(--edu-col);color:#16A34A;">EDU</th>
+        <th class="tc" style="background:var(--ent-col);color:#9D174D;">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Multiple profiles</td><td>Distinct user profiles with isolated history on one account</td><td class="tc"><span class="val">Up to 6</span></td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+      <tr><td>Child-safe mode</td><td>Age-appropriate AI responses; blocks sensitive topics</td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+      <tr><td>Parental controls</td><td>Parent reviews child activity, sets limits, approves tone changes</td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="no">✕</span></td></tr>
+      <tr><td>Family usage dashboard</td><td>Aggregated household engagement overview for the managing adult</td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="no">✕</span></td></tr>
+      <tr><td>Admin dashboard</td><td>Org-wide management panel — users, policies, analytics</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+      <tr><td>Classroom / cohort mode</td><td>Group users into classes with shared companion tone policies</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="no">✕</span></td></tr>
+      <tr><td>LMS integration</td><td>Embed via LTI / iframe in Moodle, Canvas, etc.</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="no">✕</span></td></tr>
+      <tr><td>REST API access</td><td>Programmatic access to summaries and analytics</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+      <tr><td>Custom integrations</td><td>Bespoke webhooks, HR connectors, model tuning</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+      <tr><td>Individual data export</td><td>User-level conversation export (PDF, CSV, JSON)</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+      <tr><td>Bulk org export (admin)</td><td>Anonymised aggregate export via admin panel</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="agg">Anon.</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+      <tr><td>Institution branding</td><td>Replace Imotara branding with org assets</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+      <tr><td>SSO / SAML</td><td>Identity provider integration — Okta, Google Workspace, Azure AD</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+      <tr><td>Data residency</td><td>Choose geographic region for data storage</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+      <tr><td>Audit logs</td><td>Immutable log of admin actions and data access events</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+      <tr><td>SLA guarantee</td><td>Contractual uptime and response-time commitments</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+      <tr><td>Dedicated account manager</td><td>Named contact for onboarding, renewals, escalations</td><td class="tc"><span class="no">✕</span></td><td class="tc"><span class="yes">✓</span></td><td class="tc"><span class="yes">✓</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Imotara — Proposed Licensing Matrix · v1.1 · 27 May 2026 ·
+    Soft launch active: <code>LICENSE_MODE=off</code> — all features open, server quota enforces Free 10-reply/day limit ·
+    Confidential &amp; Internal Use Only
+  </div>
+
+</div><!-- /page -->
+
+</body>
+</html>

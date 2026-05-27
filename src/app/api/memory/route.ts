@@ -1,6 +1,7 @@
 // src/app/api/memory/route.ts
-// GET  → list current user's memories
-// DELETE ?id=<id> → delete a single memory by id
+// GET    → list current user's memories
+// POST   → upsert a single memory fact (from auto-capture)
+// DELETE → delete a single memory by id
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
@@ -16,6 +17,47 @@ export async function GET() {
         return NextResponse.json({ memories });
     } catch {
         return NextResponse.json({ memories: [] });
+    }
+}
+
+export async function POST(req: NextRequest) {
+    try {
+        const supabase = await supabaseUserServer();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        let body: { text?: string };
+        try {
+            body = await req.json();
+        } catch {
+            return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+        }
+
+        const { text } = body;
+        if (!text || typeof text !== "string" || text.trim().length === 0)
+            return NextResponse.json({ error: "text required" }, { status: 400 });
+
+        const key = text.trim().slice(0, 80);
+        const now = new Date().toISOString();
+        const { error } = await supabase.from("user_memory").upsert(
+            {
+                user_id: user.id,
+                type: "identity",
+                key,
+                value: text.trim(),
+                confidence: 0.8,
+                last_confirmed_at: now,
+                updated_at: now,
+            },
+            { onConflict: "user_id,type,key" },
+        );
+        if (error) {
+            console.error("[memory] upsert error:", error.message);
+            return NextResponse.json({ error: "Database error" }, { status: 500 });
+        }
+        return NextResponse.json({ ok: true });
+    } catch {
+        return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 }
 

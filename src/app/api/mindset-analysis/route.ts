@@ -6,6 +6,7 @@
 
 import { NextResponse } from "next/server";
 import { callImotaraAI } from "@/lib/imotara/aiClient";
+import { supabaseUserServer } from "@/lib/supabase/userServer";
 
 const PSYCH_SYSTEM = `You are a warm, expert psychological analyst — like a compassionate therapist who also writes insightfully. You will receive a set of messages a person wrote in a personal journal-like chat with an emotional support companion. Your job is to:
 
@@ -24,6 +25,10 @@ Output format (IMPORTANT — return valid JSON only, no markdown, no extra text)
 
 export async function POST(req: Request) {
   try {
+    const supabase = await supabaseUserServer();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const body = await req.json();
     const messages: string[] = Array.isArray(body.messages) ? body.messages : [];
     const period: string = typeof body.period === "string" ? body.period : "this period";

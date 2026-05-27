@@ -32,6 +32,7 @@ import {
   Pencil,
   ChevronDown,
   Heart,
+  MoreVertical,
 } from "lucide-react";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
 import BreathingWidget from "@/components/imotara/BreathingWidget";
@@ -79,7 +80,21 @@ import {
   type ImotaraProfileV1,
 } from "@/lib/imotara/profile";
 import { deriveResponseToneFromToneContext, buildEmotionMemorySummary } from "@/lib/imotara/promptProfile";
-import { debugDetectEmotion } from "@/lib/emotion/keywordMaps";
+import {
+  debugDetectEmotion,
+  BN_SAD_REGEX, BN_STRESS_REGEX, BN_ANGER_REGEX,
+  HI_STRESS_REGEX,
+  TA_SAD_REGEX, TA_STRESS_REGEX,
+  GU_SAD_REGEX, GU_STRESS_REGEX,
+  KN_SAD_REGEX, KN_STRESS_REGEX,
+  ML_SAD_REGEX, ML_STRESS_REGEX,
+  PA_SAD_REGEX, PA_STRESS_REGEX,
+  OR_SAD_REGEX, OR_STRESS_REGEX,
+  MR_SAD_REGEX, MR_STRESS_REGEX,
+  GRATITUDE_REGEX,
+  CONFUSED_EN_REGEX,
+  isConfusedText,
+} from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { detectCountryCode } from "@/lib/safety/detectCountry";
 import { getCrisisResourcesForCountry } from "@/lib/safety/crisisResources";
@@ -538,6 +553,48 @@ const SENTIMENT_SEEDS_BY_LANG: Record<string, [string, string, string]> = {
   ja: ["気持ちが重い", "話を聞いてほしい", "ただ考えを整理したい"],
 };
 
+// Mood glimpse — local emotion hint from latest user message text
+function getLocalMoodHint(text: string): string | null {
+  const raw = String(text ?? "");
+  const lower = raw.toLowerCase();
+
+  const emojiHappy = ["😀","😃","😄","😁","😊","🙂","☺️","😍","🥰","😎","🥳","🎉","✨","😂","🤣","💚","💙","💛","❤️","🙌","👏"];
+  const emojiSad = ["😢","😭","😞","😔","😟","🙁","☹️","💔","🥺"];
+  const emojiAnxious = ["😰","😨","😱","😬","😮‍💨","🫠"];
+  const emojiAngry = ["😡","😠","🤬","👿"];
+  const emojiStuck = ["🤔","😕","😵‍💫","😶‍🌫️","🫤"];
+  const containsEmoji = (arr: string[]) => arr.some((e) => raw.includes(e));
+  const emojiSignals = {
+    sad: containsEmoji(emojiSad), anxious: containsEmoji(emojiAnxious),
+    angry: containsEmoji(emojiAngry), stuck: containsEmoji(emojiStuck), happy: containsEmoji(emojiHappy),
+  };
+
+  if (isConfusedText(raw) || CONFUSED_EN_REGEX.test(lower) ||
+      /\b(stuck|lost|confused|don't know|dont know|no idea|numb|not sure what to do)\b/.test(lower))
+    return "You sound a bit stuck or unsure. It's okay to take time to untangle things.";
+  if (BN_SAD_REGEX.test(raw) || TA_SAD_REGEX.test(raw) || GU_SAD_REGEX.test(raw) || KN_SAD_REGEX.test(raw) ||
+      ML_SAD_REGEX.test(raw) || PA_SAD_REGEX.test(raw) || OR_SAD_REGEX.test(raw) || MR_SAD_REGEX.test(raw) ||
+      /\b(sad|down|lonely|tired|upset|hurt|empty|depressed|blue|cry|crying|hopeless)\b/.test(lower))
+    return "You seem a bit low. It's okay to feel this way — Imotara is here with you.";
+  if (HI_STRESS_REGEX.test(raw) || BN_STRESS_REGEX.test(raw) || TA_STRESS_REGEX.test(raw) || GU_STRESS_REGEX.test(raw) ||
+      KN_STRESS_REGEX.test(raw) || ML_STRESS_REGEX.test(raw) || PA_STRESS_REGEX.test(raw) || MR_STRESS_REGEX.test(raw) ||
+      /\b(worry|worried|anxious|scared|panic|nervous|stressed|overwhelmed|afraid|fear)\b/.test(lower))
+    return "It sounds like something is making you feel tense or worried.";
+  if (BN_ANGER_REGEX.test(raw) || /\b(angry|mad|frustrated|annoyed|irritated|furious|rage|hate)\b/.test(lower))
+    return "It sounds like something has really upset or frustrated you.";
+  if (GRATITUDE_REGEX.test(raw) ||
+      /\b(hope|hopeful|excited|looking forward|grateful|thankful|relieved|better|good mood|feeling good|happy|joyful|cheerful)\b/.test(lower))
+    return "I can sense a little bit of light or hope in what you're saying.";
+
+  if (emojiSignals.sad) return "You seem a bit low. It's okay to feel this way — Imotara is here with you.";
+  if (emojiSignals.anxious) return "It sounds like something is making you feel tense or worried.";
+  if (emojiSignals.angry) return "It sounds like something has really upset or frustrated you.";
+  if (emojiSignals.stuck) return "You sound a bit stuck or unsure. It's okay to take time to untangle things.";
+  if (emojiSignals.happy) return "I can sense a little bit of light or hope in what you're saying.";
+
+  return null;
+}
+
 // #6: Weekly mood recap text — localised
 function getWeeklyRecapText(topEmotion: string, count: number, lang: string): string {
   const RECAP: Record<string, (e: string, c: number) => string> = {
@@ -557,6 +614,32 @@ function getWeeklyRecapText(topEmotion: string, count: number, lang: string): st
 }
 
 type CrisisTier = 0 | 1 | 2;
+
+// Companion memory — extract structured facts from a single user message
+const NAME_RE     = /\b(?:my name is|i(?:'m| am) called|call me) ([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b/i;
+const WORK_RE     = /\b(?:i(?:'m| am) (?:a|an)|i work as (?:a|an)) ([\w ]{3,30})\b/i;
+const LOCATION_RE = /\b(?:i(?:'m| am) from|i live in|i(?:'m| am) based in) ([A-Z][a-zA-Z ]{2,30})\b/i;
+const EVENT_RE    = /\b(?:i have|i've got|i have a) ([\w ]{2,25}) (?:(?:coming )?up|on (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|next week))\b/i;
+const REL_RE      = /\bmy (wife|husband|partner|boyfriend|girlfriend|mom|dad|mother|father|sister|brother|son|daughter|friend)\b(?:'s| is| are| has| have)? ?(\w[^.!?]{0,40})?/i;
+
+function detectMemories(text: string): string[] {
+  const facts: string[] = [];
+  const t = text.trim();
+  const nameMatch = t.match(NAME_RE);
+  if (nameMatch) facts.push(`User's name is ${nameMatch[1]}`);
+  const workMatch = t.match(WORK_RE);
+  if (workMatch) facts.push(`User is a/an ${workMatch[1]}`);
+  const locationMatch = t.match(LOCATION_RE);
+  if (locationMatch) facts.push(`User is from/lives in ${locationMatch[1].trim()}`);
+  const eventMatch = t.match(EVENT_RE);
+  if (eventMatch) facts.push(`User has an upcoming ${eventMatch[1].trim()}`);
+  const relMatch = t.match(REL_RE);
+  if (relMatch) {
+    const detail = relMatch[2]?.trim();
+    facts.push(detail ? `User's ${relMatch[1]} ${detail}` : `User has a ${relMatch[1]}`);
+  }
+  return facts;
+}
 
 function detectCrisisTier(messages: Message[]): CrisisTier {
   const recentUser = messages
@@ -987,6 +1070,18 @@ export default function ChatPage() {
     window.addEventListener("imotara:handsfreeChanged", load);
     return () => window.removeEventListener("imotara:handsfreeChanged", load);
   }, []);
+
+  // Re-read feature-flag settings when the Settings page writes them (same-tab)
+  useEffect(() => {
+    const handler = () => {
+      setSentimentChipsEnabled(localStorage.getItem("imotara.sentiment.chips.enabled.v1") !== "0");
+      setWeeklyRecapSettingEnabled(localStorage.getItem("imotara.weekly.recap.enabled.v1") !== "0");
+      setUndoSettingEnabled(localStorage.getItem("imotara.undo.enabled.v1") !== "0");
+    };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
+
   const recognitionRef = useRef<any>(null);
   // Stop mic on unmount — prevents microphone staying active after navigation
   useEffect(() => {
@@ -1023,11 +1118,69 @@ export default function ChatPage() {
   const [weeklyRecap, setWeeklyRecap] = useState<string | null>(null);
   const [weeklyRecapDismissed, setWeeklyRecapDismissed] = useState(false);
 
+  // Settings-controlled feature flags (read once on mount)
+  const [sentimentChipsEnabled, setSentimentChipsEnabled] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.sentiment.chips.enabled.v1") !== "0";
+  });
+  const [sentimentChipsDismissedSession, setSentimentChipsDismissedSession] = useState(false);
+  const MOOD_GLIMPSE_KEY = "imotara.mood.glimpse.show.v1";
+  const [moodGlimpseEnabled, setMoodGlimpseEnabled] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.mood.glimpse.show.v1") !== "0";
+  });
+  const [moodGlimpseDismissedSession, setMoodGlimpseDismissedSession] = useState(false);
+  const [weeklyRecapSettingEnabled, setWeeklyRecapSettingEnabled] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.weekly.recap.enabled.v1") !== "0";
+  });
+  const [undoSettingEnabled, setUndoSettingEnabled] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.undo.enabled.v1") === "1";
+  });
+
+  // Permanent capsule visibility flags — written "0" by "Dismiss forever", re-enabled from Settings
+  const [dailyCheckinShow, setDailyCheckinShow] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.daily.checkin.show.v1") !== "0";
+  });
+  const [collectivePulseShow, setCollectivePulseShow] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.collective.pulse.show.v1") !== "0";
+  });
+  const [milestoneShow, setMilestoneShow] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.milestone.show.v1") !== "0";
+  });
+  const [returnGreetingShow, setReturnGreetingShow] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.return.greeting.show.v1") !== "0";
+  });
+  const [toneReflectionShow, setToneReflectionShow] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    // Migrate from old key (imotara.tone.reflect.show.v1 → imotara.tone.reflection.show.v1)
+    const newVal = localStorage.getItem("imotara.tone.reflection.show.v1");
+    if (newVal !== null) return newVal !== "0";
+    const oldVal = localStorage.getItem("imotara.tone.reflect.show.v1");
+    if (oldVal !== null) {
+      try { localStorage.setItem("imotara.tone.reflection.show.v1", oldVal); localStorage.removeItem("imotara.tone.reflect.show.v1"); } catch {}
+      return oldVal !== "0";
+    }
+    return true;
+  });
+  const [unsentHintShow, setUnsentHintShow] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.unsent.hint.show.v1") !== "0";
+  });
+  // Capsule ⋮ menu — tracks which capsule's dropdown is open
+  const [openCapsuleMenu, setOpenCapsuleMenu] = useState<string | null>(null);
+
   // Return check-in banner (shown after >24h since last message)
   const [showReturnGreeting, setShowReturnGreeting] = useState(false);
 
   // Search
   const [showSearch, setShowSearch] = useState(false);
+  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Soft clear confirm (replaces window.confirm)
@@ -1183,10 +1336,11 @@ export default function ChatPage() {
     if (daysLeft <= 0 || daysLeft > 14) return;
     try {
       const today = new Date().toISOString().slice(0, 10);
-      const dismissed = typeof window !== "undefined"
-        ? localStorage.getItem("imotara.trial.bannerDismissed.v1")
-        : null;
-      if (dismissed !== "never" && dismissed !== today) setShowTrialBanner(true);
+      // imotara.trial.banner.show.v1 = "0" means permanently dismissed (matches mobile key)
+      const newKey = typeof window !== "undefined" ? localStorage.getItem("imotara.trial.banner.show.v1") : null;
+      const legacyKey = typeof window !== "undefined" ? localStorage.getItem("imotara.trial.bannerDismissed.v1") : null;
+      const dismissed = newKey === "0" || legacyKey === "never" || legacyKey === today;
+      if (!dismissed) setShowTrialBanner(true);
     } catch { /* ignore */ }
   }, [license.loading, license.status, license.expiresAt]);
 
@@ -1259,6 +1413,30 @@ export default function ChatPage() {
     });
     setChatToast({ message: isAdding ? "Bookmarked ✓" : "Bookmark removed" });
     syncMessageMetaToRemote(id, { bookmarked: isAdding });
+  }
+
+  function handleDeleteMessage(id: string) {
+    if (!activeThread) return;
+    const messages = activeThread.messages;
+    const idx = messages.findIndex((m) => m.id === id);
+    if (idx === -1) return;
+    const msg = messages[idx];
+    const isUserMsg = msg.role === "user";
+    const pairedReply = isUserMsg ? messages[idx + 1] : null;
+    const hasPair = pairedReply && pairedReply.role === "assistant";
+    const confirmText = isUserMsg && hasPair
+      ? "Delete this message and its paired reply?"
+      : "Delete this message?";
+    if (!window.confirm(confirmText)) return;
+    const idsToRemove = new Set([id]);
+    if (hasPair) idsToRemove.add(pairedReply.id);
+    setThreads((prev) =>
+      prev.map((t) =>
+        t.id === activeThread.id
+          ? { ...t, messages: t.messages.filter((m) => !idsToRemove.has(m.id)) }
+          : t,
+      ),
+    );
   }
 
   function handleReact(messageId: string, emoji: string) {
@@ -1432,6 +1610,19 @@ export default function ChatPage() {
     return null;
   }, [activeThread?.messages]);
 
+  const latestUserMessage = useMemo(() => {
+    if (!activeThread?.messages?.length) return null;
+    for (let i = activeThread.messages.length - 1; i >= 0; i--) {
+      if (activeThread.messages[i].role === "user") return activeThread.messages[i];
+    }
+    return null;
+  }, [activeThread?.messages]);
+
+  const latestMoodHint = useMemo(() => {
+    if (!latestUserMessage) return null;
+    return getLocalMoodHint(latestUserMessage.content);
+  }, [latestUserMessage]);
+
   const EMOTION_GLOW_COLOR: Record<string, string> = {
     joy: "rgba(251,191,36,0.10)", happy: "rgba(251,191,36,0.10)", happiness: "rgba(251,191,36,0.10)",
     sad: "rgba(56,189,248,0.09)", sadness: "rgba(56,189,248,0.09)", lonely: "rgba(56,189,248,0.09)",
@@ -1447,6 +1638,7 @@ export default function ChatPage() {
     if (!activeId || !activeThread || greetingCheckedForRef.current === activeId) return;
     greetingCheckedForRef.current = activeId;
     setSessionGreeting(null);
+    try { if (localStorage.getItem("imotara.session.greeting.show.v1") === "0") return; } catch { /* ignore */ }
     const msgs = activeThread.messages;
     if (msgs.length < 2) return;
     const lastMsg = [...msgs].sort((a, b) => b.createdAt - a.createdAt)[0];
@@ -1571,19 +1763,27 @@ export default function ChatPage() {
     return getCrisisResourcesForCountry(code);
   }, []);
 
+  // Close open capsule menu on click-away
+  useEffect(() => {
+    if (!openCapsuleMenu) return;
+    const close = () => setOpenCapsuleMenu(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openCapsuleMenu]);
+
   // Banner priority queue — max 1 Tier-2 banner visible at once
   const activeTier2Banner = useMemo((): "returnGreeting" | "dailyCheckin" | "trialCountdown" | "sessionGreeting" | "milestoneLoop" | "weeklyRecap" | "collectivePulse" | "growNudge" | null => {
-    if (showReturnGreeting) return "returnGreeting";
-    if (showDailyCheckin) return "dailyCheckin";
+    if (showReturnGreeting && returnGreetingShow) return "returnGreeting";
+    if (showDailyCheckin && dailyCheckinShow) return "dailyCheckin";
     if (showTrialBanner && license.expiresAt) return "trialCountdown";
     if (sessionGreeting) return "sessionGreeting";
-    if (milestoneLoop) return "milestoneLoop";
-    if (weeklyRecap && !weeklyRecapDismissed) return "weeklyRecap";
-    if (collectivePulse && !pulseDismissed) return "collectivePulse";
+    if (milestoneLoop && milestoneShow) return "milestoneLoop";
+    if (weeklyRecap && !weeklyRecapDismissed && weeklyRecapSettingEnabled) return "weeklyRecap";
+    if (collectivePulse && !pulseDismissed && collectivePulseShow) return "collectivePulse";
     const userMsgCount = activeThread?.messages.filter((m) => m.role === "user").length ?? 0;
     if (!growNudgeDismissed && userMsgCount >= 3 && !analyzing) return "growNudge";
     return null;
-  }, [showReturnGreeting, showDailyCheckin, showTrialBanner, license.expiresAt, sessionGreeting, milestoneLoop, weeklyRecap, weeklyRecapDismissed, collectivePulse, pulseDismissed, growNudgeDismissed, activeThread?.messages, analyzing]);
+  }, [showReturnGreeting, returnGreetingShow, showDailyCheckin, dailyCheckinShow, showTrialBanner, license.expiresAt, sessionGreeting, milestoneLoop, milestoneShow, weeklyRecap, weeklyRecapDismissed, weeklyRecapSettingEnabled, collectivePulse, pulseDismissed, collectivePulseShow, growNudgeDismissed, activeThread?.messages, analyzing]);
 
   // analysis side-effect (AnalysisResult stays on analysis pipeline)
   useEffect(() => {
@@ -2223,7 +2423,7 @@ export default function ChatPage() {
           meta: { replySource: assistantMsg.replySource ?? "fallback" },
         });
 
-        if (handsfreeRef.current) void autoSpeakText(assistantMsg.content);
+        if (handsfreeRef.current || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void autoSpeakText(assistantMsg.content);
 
         void logAssistantMessageToHistory(assistantMsg, respEmotionLabel, respEmotionIntensity);
 
@@ -2392,7 +2592,7 @@ export default function ChatPage() {
         meta: { replySource: assistantMsg.replySource ?? "fallback" },
       });
 
-      if (handsfreeRef.current) void autoSpeakText(assistantMsg.content);
+      if (handsfreeRef.current || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void autoSpeakText(assistantMsg.content);
 
       void logAssistantMessageToHistory(assistantMsg, debugEmotion ?? "neutral", 0);
 
@@ -2508,6 +2708,20 @@ export default function ChatPage() {
 
     void logUserMessageToHistory(userMsg);
 
+    // Companion memory auto-capture — fire-and-forget, never blocks send
+    try {
+      if (localStorage.getItem("imotara.memory.capture.enabled.v1") !== "0") {
+        const facts = detectMemories(text);
+        for (const fact of facts) {
+          fetch("/api/memory", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: fact, source: text.slice(0, 80) }),
+          }).catch(() => {});
+        }
+      }
+    } catch { /* ignore */ }
+
     // Track last-sent time for return check-in detection
     try { localStorage.setItem(LAST_SENT_KEY, String(Date.now())); } catch { /* ignore */ }
     setShowReturnGreeting(false);
@@ -2531,14 +2745,18 @@ export default function ChatPage() {
       }
     }
 
-    // #18: 5-second undo window — delay generateAssistantReply
+    // #18: 5-second undo window — delay generateAssistantReply (skipped if undo disabled in Settings)
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setPendingUndo({ messageId: userMsg.id, threadId: targetId });
-    undoTimerRef.current = setTimeout(() => {
-      setPendingUndo(null);
-      undoTimerRef.current = null;
+    if (undoSettingEnabled) {
+      setPendingUndo({ messageId: userMsg.id, threadId: targetId });
+      undoTimerRef.current = setTimeout(() => {
+        setPendingUndo(null);
+        undoTimerRef.current = null;
+        void generateAssistantReply(targetId!, msgsForAnalysis, userMsg.id);
+      }, 5000);
+    } else {
       void generateAssistantReply(targetId!, msgsForAnalysis, userMsg.id);
-    }, 5000);
+    }
 
     setDraft("");
   }
@@ -2932,6 +3150,19 @@ export default function ChatPage() {
                 >
                   <Search className="h-3.5 w-3.5" />
                 </button>
+                {/* Bookmarks filter */}
+                <button
+                  type="button"
+                  onClick={() => setShowBookmarksOnly((v) => !v)}
+                  title={showBookmarksOnly ? "Show all messages" : "Show bookmarks"}
+                  className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border transition ${
+                    showBookmarksOnly
+                      ? "border-amber-400/50 bg-amber-500/20 text-amber-300"
+                      : "border-white/10 bg-white/5 text-zinc-500 hover:bg-white/10 hover:text-zinc-200"
+                  }`}
+                >
+                  <Star className="h-3.5 w-3.5" fill={showBookmarksOnly ? "currentColor" : "none"} />
+                </button>
                 {/* New conversation */}
                 <button
                   type="button"
@@ -3027,6 +3258,18 @@ export default function ChatPage() {
                           }`}
                         >
                           <Search className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowBookmarksOnly((v) => !v)}
+                          title={showBookmarksOnly ? "Show all messages" : "Show bookmarks"}
+                          className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition ${
+                            showBookmarksOnly
+                              ? "border-amber-400/50 bg-amber-500/20 text-amber-300"
+                              : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                          }`}
+                        >
+                          <Star className="h-3.5 w-3.5" fill={showBookmarksOnly ? "currentColor" : "none"} />
                         </button>
                       </div>
                       {analysis?.summary?.headline ? (
@@ -3197,13 +3440,23 @@ export default function ChatPage() {
                       <span>{emoji}</span><span>{label}</span>
                     </button>
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => { try { localStorage.setItem(DAILY_CHECKIN_KEY, new Date().toISOString().slice(0, 10)); } catch {} setShowDailyCheckin(false); }}
-                    className="ml-auto text-[10px] text-zinc-600 transition hover:text-zinc-400"
-                  >
-                    Later
-                  </button>
+                  <div className="relative ml-auto">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "dailyCheckin" ? null : "dailyCheckin"); }}
+                      className="text-zinc-600 hover:text-zinc-400 transition p-0.5"
+                      aria-label="More options"
+                    >
+                      <MoreVertical className="h-3.5 w-3.5" />
+                    </button>
+                    {openCapsuleMenu === "dailyCheckin" && (
+                      <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" onClick={() => { setDailyCheckinShow(false); try { localStorage.setItem("imotara.daily.checkin.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                        <button type="button" onClick={() => { try { localStorage.setItem(DAILY_CHECKIN_KEY, new Date().toISOString().slice(0, 10)); } catch {} setShowDailyCheckin(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                        <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -3326,14 +3579,18 @@ export default function ChatPage() {
                         It&apos;s been a while. How are you feeling today? You can just type one word if you like.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowReturnGreeting(false)}
-                      aria-label="Dismiss check-in"
-                      className="shrink-0 text-zinc-500 hover:text-zinc-300 transition"
-                    >
-                      <XIcon className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="relative shrink-0">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "returnGreeting" ? null : "returnGreeting"); }} className="text-zinc-500 hover:text-zinc-300 transition p-0.5" aria-label="More options">
+                        <MoreVertical className="h-3.5 w-3.5" />
+                      </button>
+                      {openCapsuleMenu === "returnGreeting" && (
+                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" onClick={() => { setReturnGreetingShow(false); try { localStorage.setItem("imotara.return.greeting.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                          <button type="button" onClick={() => { setShowReturnGreeting(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -3388,19 +3645,18 @@ export default function ChatPage() {
                           </a>
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowTrialBanner(false);
-                          try {
-                            localStorage.setItem("imotara.trial.bannerDismissed.v1", "never");
-                          } catch { /* ignore */ }
-                        }}
-                        aria-label="Dismiss trial notice"
-                        className="shrink-0 text-zinc-500 hover:text-zinc-300 transition"
-                      >
-                        <XIcon className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="relative shrink-0">
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "trialCountdown" ? null : "trialCountdown"); }} className="text-zinc-500 hover:text-zinc-300 transition p-0.5" aria-label="More options">
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </button>
+                        {openCapsuleMenu === "trialCountdown" && (
+                          <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                            <button type="button" onClick={() => { setShowTrialBanner(false); try { localStorage.setItem("imotara.trial.banner.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                            <button type="button" onClick={() => { setShowTrialBanner(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                            <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}
@@ -3414,14 +3670,18 @@ export default function ChatPage() {
                         The theme of <span className="text-emerald-200 italic">{milestoneLoop.themeName}</span> that kept returning — it looks like you found some resolution. That&apos;s real growth.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      aria-label="Dismiss milestone"
-                      onClick={() => setMilestoneLoop(null)}
-                      className="ml-1 self-start text-zinc-600 hover:text-zinc-400 transition"
-                    >
-                      ×
-                    </button>
+                    <div className="relative ml-1 self-start">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "milestone" ? null : "milestone"); }} className="text-zinc-600 hover:text-zinc-400 transition p-0.5" aria-label="More options">
+                        <MoreVertical className="h-3.5 w-3.5" />
+                      </button>
+                      {openCapsuleMenu === "milestone" && (
+                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" onClick={() => { setMilestoneShow(false); try { localStorage.setItem("imotara.milestone.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                          <button type="button" onClick={() => { setMilestoneLoop(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -3433,35 +3693,51 @@ export default function ChatPage() {
                         <span className="text-indigo-300 font-medium">{collectivePulse.heavyPercent}% of people</span> are carrying something heavy today. You&apos;re not alone.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      aria-label="Dismiss pulse"
-                      onClick={() => setPulseDismissed(true)}
-                      className="ml-1 self-start text-zinc-600 hover:text-zinc-400 transition"
-                    >
-                      ×
-                    </button>
+                    <div className="relative ml-1 self-start">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "collectivePulse" ? null : "collectivePulse"); }} className="text-zinc-600 hover:text-zinc-400 transition p-0.5" aria-label="More options">
+                        <MoreVertical className="h-3.5 w-3.5" />
+                      </button>
+                      {openCapsuleMenu === "collectivePulse" && (
+                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" onClick={() => { setCollectivePulseShow(false); try { localStorage.setItem("imotara.collective.pulse.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                          <button type="button" onClick={() => { setPulseDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
                 {/* UX-4 — emotion continuation greeting */}
                 {activeTier2Banner === "sessionGreeting" && sessionGreeting && (
-                  <div className="flex justify-start animate-fade-in">
+                  <div className="flex justify-start animate-fade-in gap-1">
                     <div className="im-inline-card max-w-[82%] rounded-2xl bg-gradient-to-br from-slate-700/60 to-slate-800/60 px-4 py-3 text-sm text-zinc-200 border border-white/10">
                       {sessionGreeting}
                     </div>
-                    <button
-                      type="button"
-                      aria-label="Dismiss greeting"
-                      onClick={() => setSessionGreeting(null)}
-                      className="ml-1 self-start text-zinc-600 hover:text-zinc-400 transition"
-                    >
-                      ×
-                    </button>
+                    <div className="relative self-start">
+                      <button
+                        type="button"
+                        aria-label="Session greeting options"
+                        onClick={() => setOpenCapsuleMenu(openCapsuleMenu === "sessionGreeting" ? null : "sessionGreeting")}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-zinc-500 transition hover:bg-white/10 hover:text-zinc-300"
+                      >
+                        <MoreVertical className="h-3.5 w-3.5" />
+                      </button>
+                      {openCapsuleMenu === "sessionGreeting" && (
+                        <div className="absolute left-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl">
+                          <button type="button" onClick={() => { setSessionGreeting(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                          <button type="button" onClick={() => { try { localStorage.setItem("imotara.session.greeting.show.v1", "0"); } catch {} setSessionGreeting(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
+                          <a href="/settings" className="block w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
                 {activeThread.messages
+                  .filter((m) =>
+                    !m.isQuotaNotice && showBookmarksOnly ? bookmarks.has(m.id) : true
+                  )
                   .filter((m) =>
                     m.isQuotaNotice ||
                     !searchQuery.trim() ||
@@ -3531,6 +3807,7 @@ export default function ChatPage() {
                           }
                         : undefined
                     }
+                    onDelete={() => handleDeleteMessage(m.id)}
                   />
                 ))}
 
@@ -3566,7 +3843,7 @@ export default function ChatPage() {
           {/* L-2: Post-session tone reflection card — shown when ≥3 user messages + analysis ready */}
           {!analyzing &&
             !sessionToneCardDismissed &&
-            (typeof localStorage === "undefined" || localStorage.getItem("imotara.tone.reflect.show.v1") !== "0") &&
+            toneReflectionShow &&
             analysis?.summary?.headline &&
             (activeThread?.messages.filter((m) => m.role === "user").length ?? 0) >= 3 && (() => {
               const EMOTION_EMOJI_MAP: Record<string, string> = {
@@ -3586,7 +3863,18 @@ export default function ChatPage() {
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-400/70">
                       Tone Reflection
                     </p>
-                    <button type="button" onClick={() => setSessionToneCardDismissed(true)} className="text-zinc-600 hover:text-zinc-400 transition text-xs" aria-label="Dismiss">✕</button>
+                    <div className="relative">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "toneReflection" ? null : "toneReflection"); }} className="text-zinc-600 hover:text-zinc-400 transition p-0.5" aria-label="More options">
+                        <MoreVertical className="h-3.5 w-3.5" />
+                      </button>
+                      {openCapsuleMenu === "toneReflection" && (
+                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" onClick={() => { setToneReflectionShow(false); try { localStorage.setItem("imotara.tone.reflection.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                          <button type="button" onClick={() => { setSessionToneCardDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className="text-base">{emoji}</span>
@@ -3612,6 +3900,28 @@ export default function ChatPage() {
             })()
           }
 
+          {/* Mood glimpse — local emotion hint from latest user message */}
+          {moodGlimpseEnabled && !moodGlimpseDismissedSession && latestMoodHint && (
+            <div className="mx-auto mb-1 max-w-3xl rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 backdrop-blur-md">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Mood glimpse</p>
+                <div className="relative">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "moodGlimpse" ? null : "moodGlimpse"); }} className="text-zinc-600 hover:text-zinc-400 transition p-0.5" aria-label="More options">
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </button>
+                  {openCapsuleMenu === "moodGlimpse" && (
+                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => { setMoodGlimpseEnabled(false); try { localStorage.setItem(MOOD_GLIMPSE_KEY, "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                      <button type="button" onClick={() => { setMoodGlimpseDismissedSession(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-zinc-300 leading-relaxed">{latestMoodHint}</p>
+            </div>
+          )}
+
           {/* #6: Weekly mood recap banner */}
           {activeTier2Banner === "weeklyRecap" && weeklyRecap && (
             <div className="mx-auto mb-1 flex max-w-3xl items-start justify-between gap-3 rounded-2xl border border-indigo-400/20 bg-indigo-500/10 px-4 py-2.5 text-xs text-indigo-200">
@@ -3620,7 +3930,18 @@ export default function ChatPage() {
                 <a href="/grow" className="font-semibold underline underline-offset-2 hover:text-indigo-100 transition">
                   Reflect →
                 </a>
-                <button type="button" onClick={() => setWeeklyRecapDismissed(true)} className="opacity-50 hover:opacity-100 transition" aria-label="Dismiss">✕</button>
+                <div className="relative">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "weeklyRecap" ? null : "weeklyRecap"); }} className="opacity-50 hover:opacity-100 transition" aria-label="More options">
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </button>
+                  {openCapsuleMenu === "weeklyRecap" && (
+                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => { setWeeklyRecapSettingEnabled(false); try { localStorage.setItem("imotara.weekly.recap.enabled.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                      <button type="button" onClick={() => { setWeeklyRecapDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -3633,7 +3954,18 @@ export default function ChatPage() {
                 <a href="/grow" className="font-semibold underline underline-offset-2 hover:text-emerald-200 transition">
                   Grow →
                 </a>
-                <button type="button" onClick={() => setGrowNudgeDismissed(true)} className="opacity-50 hover:opacity-100 transition" aria-label="Dismiss">✕</button>
+                <div className="relative">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "growNudge" ? null : "growNudge"); }} className="opacity-50 hover:opacity-100 transition" aria-label="More options">
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </button>
+                  {openCapsuleMenu === "growNudge" && (
+                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => { setGrowNudgeDismissed(true); try { localStorage.setItem("imotara.grow.nudge.perm.v1", "1"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                      <button type="button" onClick={() => { setGrowNudgeDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -3700,13 +4032,27 @@ export default function ChatPage() {
               </div>
               <div className="flex items-center justify-between gap-3 px-4 py-2">
                 <span>Sending in a moment…</span>
-                <button
-                  type="button"
-                  onClick={handleUndo}
-                  className="font-semibold underline underline-offset-2 hover:text-amber-100 transition"
-                >
-                  Undo
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleUndo}
+                    className="font-semibold underline underline-offset-2 hover:text-amber-100 transition"
+                  >
+                    Undo
+                  </button>
+                  <div className="relative">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "messageUndo" ? null : "messageUndo"); }} className="opacity-50 hover:opacity-100 transition p-0.5" aria-label="More options">
+                      <MoreVertical className="h-3.5 w-3.5" />
+                    </button>
+                    {openCapsuleMenu === "messageUndo" && (
+                      <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" onClick={() => { setUndoSettingEnabled(false); try { localStorage.setItem("imotara.undo.enabled.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                        <button type="button" onClick={() => { setPendingUndo(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                        <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -3798,8 +4144,8 @@ export default function ChatPage() {
               </div>
             )}
             {/* #11: Sentiment seed chips — quick-tap mood hints for active conversations */}
-            {activeThread && activeThread.messages.length > 0 && !draft.trim() && (
-              <div className="mx-auto mb-2 flex max-w-3xl flex-wrap gap-1.5">
+            {sentimentChipsEnabled && !sentimentChipsDismissedSession && activeThread && activeThread.messages.length > 0 && !draft.trim() && (
+              <div className="mx-auto mb-2 flex max-w-3xl flex-wrap items-center gap-1.5">
                 {(SENTIMENT_SEEDS_BY_LANG[preferredLang] ?? SENTIMENT_SEEDS_BY_LANG.en).map((seed) => (
                   <button
                     key={seed}
@@ -3810,6 +4156,18 @@ export default function ChatPage() {
                     {seed}
                   </button>
                 ))}
+                <div className="relative ml-auto">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "sentimentChips" ? null : "sentimentChips"); }} className="text-zinc-600 hover:text-zinc-400 transition p-0.5" aria-label="More options">
+                    <MoreVertical className="h-3 w-3" />
+                  </button>
+                  {openCapsuleMenu === "sentimentChips" && (
+                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => { setSentimentChipsEnabled(false); try { localStorage.setItem("imotara.sentiment.chips.enabled.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                      <button type="button" onClick={() => { setSentimentChipsDismissedSession(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             {draft.length > 800 && (
@@ -3823,7 +4181,7 @@ export default function ChatPage() {
               </p>
             )}
             {/* UX-3 — contextual unsent-letter hint */}
-            {showUnsentHint && (
+            {showUnsentHint && unsentHintShow && (
               <div className="mx-auto mb-2 max-w-3xl flex items-center gap-3 animate-fade-in rounded-xl border border-violet-500/25 bg-violet-500/8 px-3.5 py-2 text-xs text-violet-200/85">
                 <span className="shrink-0">✉️</span>
                 <span className="flex-1 leading-snug">
@@ -3836,12 +4194,18 @@ export default function ChatPage() {
                     Try the Unsent Letter →
                   </button>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setShowUnsentHint(false)}
-                  aria-label="Dismiss"
-                  className="shrink-0 text-zinc-500 hover:text-zinc-300 transition"
-                >✕</button>
+                <div className="relative shrink-0">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "unsentHint" ? null : "unsentHint"); }} className="text-zinc-500 hover:text-zinc-300 transition p-0.5" aria-label="More options">
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </button>
+                  {openCapsuleMenu === "unsentHint" && (
+                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => { setUnsentHintShow(false); try { localStorage.setItem("imotara.unsent.hint.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                      <button type="button" onClick={() => { setShowUnsentHint(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             <div className="mx-auto flex max-w-3xl items-end gap-2">
@@ -4495,6 +4859,7 @@ function Bubble({
   bookmarked,
   onBookmark,
   onRetry,
+  onDelete,
   avatarSrc,
   companionDisplayName,
 }: {
@@ -4520,6 +4885,7 @@ function Bubble({
   bookmarked?: boolean;
   onBookmark?: () => void;
   onRetry?: () => void;
+  onDelete?: () => void;
   avatarSrc?: string;
   companionDisplayName?: string;
 }) {
@@ -4682,7 +5048,7 @@ function Bubble({
   return (
     <div
       ref={attachRef}
-      className={`flex items-start gap-2 ${isUser ? "justify-end" : "justify-start"}`}
+      className={`group flex items-start gap-2 ${isUser ? "justify-end" : "justify-start"}`}
     >
       {/* UX-2 — companion avatar pinned to bot messages */}
       {!isUser && (
@@ -4850,6 +5216,32 @@ function Bubble({
                 ↺ Retry
               </button>
             )}
+
+            {/* Delete — assistant message */}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                title="Delete message"
+                className="rounded-full p-1 text-zinc-700 transition hover:scale-110 hover:text-rose-400"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Delete — user message (hover button, separate row since no reaction row) */}
+        {isUser && onDelete && (
+          <div className="mt-1 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={onDelete}
+              title="Delete message"
+              className="rounded-full p-1 text-zinc-700 transition hover:scale-110 hover:text-rose-400"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
           </div>
         )}
       </div>

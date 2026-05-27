@@ -6,10 +6,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAzureConfig } from "@/lib/azure-tts/regionRouter";
 import { resolveVoice, AZURE_LOCALE } from "@/lib/azure-tts/voices";
+import { supabaseUserServer } from "@/lib/supabase/userServer";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
+    const supabase = await supabaseUserServer();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     let body: { text?: string; lang?: string; gender?: string };
     try {
         body = await req.json();

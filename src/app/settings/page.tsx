@@ -6,6 +6,7 @@ import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
 import { useAppearance, type Accent, type FontSize, type ColorMode } from "@/hooks/useAppearance";
 import EmotionalFingerprint from "@/components/imotara/EmotionalFingerprint";
+import useFeatureGate from "@/hooks/useFeatureGate";
 
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 
@@ -740,21 +741,11 @@ function ToneAndContextTile() {
                                 });
                             }}
                             aria-label="Toggle expected companion tone"
-                            className={[
-                                "relative h-8 w-14 rounded-full p-1 transition-colors duration-200",
-                                compEnabled
-                                    ? "bg-emerald-500/30 border border-emerald-400/50"
-                                    : "bg-zinc-700/40 border border-zinc-600/40",
-                            ].join(" ")}
+                            role="switch"
+                            aria-checked={compEnabled}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${compEnabled ? "bg-sky-500" : "bg-zinc-600"}`}
                         >
-                            <span
-                                className={[
-                                    "block h-6 w-6 rounded-full transition-transform duration-200",
-                                    compEnabled
-                                        ? "translate-x-6 bg-emerald-200"
-                                        : "translate-x-0 bg-zinc-300",
-                                ].join(" ")}
-                            />
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${compEnabled ? "translate-x-4" : "translate-x-0"}`} />
                         </button>
                     </div>
 
@@ -922,7 +913,7 @@ function ToneAndContextTile() {
             </div>
 
             {/* GAP-12: Teen Mode toggle */}
-            <div className="mt-4 flex items-center justify-between rounded-xl border border-violet-500/20 bg-violet-500/6 px-4 py-3">
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-violet-500/20 bg-sky-500/6 px-4 py-3">
                 <div>
                     <p className="text-sm font-medium text-violet-200">Teen Insights Mode</p>
                     <p className="mt-0.5 text-[11px] text-zinc-500">Shows age-appropriate reflections with peer-supportive language and enhanced safety filters.</p>
@@ -932,9 +923,9 @@ function ToneAndContextTile() {
                     role="switch"
                     aria-checked={teenMode}
                     onClick={() => setTeenMode((v) => !v)}
-                    className={`relative ml-4 h-6 w-11 flex-shrink-0 rounded-full transition-colors ${teenMode ? "bg-violet-500" : "bg-zinc-700"}`}
+                    className={`relative ml-4 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${teenMode ? "bg-sky-500" : "bg-zinc-600"}`}
                 >
-                    <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${teenMode ? "translate-x-5" : "translate-x-0"}`} />
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${teenMode ? "translate-x-4" : "translate-x-0"}`} />
                 </button>
             </div>
 
@@ -1038,13 +1029,13 @@ function DataDashboard({ getStorageSummary }: { getStorageSummary: () => { histo
                 <p className="text-xs font-medium text-zinc-300">Auto-clear old history</p>
                 <p className="mt-0.5 text-[11px] text-zinc-500">Remove emotion entries older than a chosen number of days. Chat and reflections are not affected.</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                    <div className="flex flex-wrap gap-2">
                         {([30, 60, 90] as const).map((d) => (
                             <button
                                 key={d}
                                 type="button"
                                 onClick={() => setClearDays(d)}
-                                className={`rounded-full px-3 py-1 text-xs transition ${clearDays === d ? "im-seg-selected bg-white/20 text-zinc-50" : "text-zinc-400 hover:text-zinc-200"}`}
+                                className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${clearDays === d ? "border-sky-400/60 bg-sky-500/12 text-sky-200" : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"}`}
                             >
                                 {d}d
                             </button>
@@ -1110,6 +1101,14 @@ export default function SettingsPage() {
     const { mode } = useAnalysisConsent();
     const { accent, setAccent, fontSize, setFontSize, colorMode, setColorMode } = useAppearance();
 
+    // ── Feature gates ─────────────────────────────────────────────────────────
+    const ttsAdvancedGate     = useFeatureGate("TTS_ADVANCED");
+    const searchModeGate      = useFeatureGate("SEARCH_MODE");
+    const replyCadenceGate    = useFeatureGate("REPLY_CADENCE");
+    const companionLetterGate = useFeatureGate("COMPANION_LETTER");
+    const growthArcGate       = useFeatureGate("GROWTH_ARC");
+    // ─────────────────────────────────────────────────────────────────────────
+
     // Cross-device chat link key (optional)
     const [linkKey, setLinkKey] = useState("");
     const [linkKeyStatus, setLinkKeyStatus] = useState<string | null>(null);
@@ -1172,6 +1171,15 @@ export default function SettingsPage() {
     function handleNotifInactivityChange(hours: number) {
         setNotifInactivityHours(hours);
         try { localStorage.setItem(NOTIF_INACTIVITY_KEY, String(hours)); } catch { /* ignore */ }
+    }
+    const NOTIF_REMINDER_TIME_KEY = "imotara.notif.reminderTime.v1";
+    const [notifReminderTime, setNotifReminderTime] = useState("09:00");
+    useEffect(() => {
+        try { const v = localStorage.getItem(NOTIF_REMINDER_TIME_KEY); if (v) setNotifReminderTime(v); } catch { /* ignore */ }
+    }, []);
+    function handleNotifReminderTimeChange(val: string) {
+        setNotifReminderTime(val);
+        try { localStorage.setItem(NOTIF_REMINDER_TIME_KEY, val); } catch { /* ignore */ }
     }
 
     useEffect(() => {
@@ -1247,7 +1255,7 @@ export default function SettingsPage() {
         mode === "allow-remote"
             ? "border-emerald-300/70 bg-emerald-500/10 text-emerald-200"
             : mode === "auto"
-                ? "border-violet-300/70 bg-violet-500/10 text-violet-200"
+                ? "border-violet-300/70 bg-sky-500/10 text-violet-200"
                 : "border-zinc-400/70 bg-zinc-900/40 text-zinc-100";
 
     const [busy, setBusy] = useState<"chat" | "history" | "all" | null>(null);
@@ -1603,6 +1611,116 @@ export default function SettingsPage() {
         try { localStorage.setItem(GROW_NUDGE_PERM_KEY, val ? "1" : "0"); } catch { /* ignore */ }
     }
 
+    // ─── Sentiment seed chips ─────────────────────────────────────────────────
+    const SENTIMENT_CHIPS_KEY = "imotara.sentiment.chips.enabled.v1";
+    const [sentimentChipsEnabled, setSentimentChipsEnabled] = useState(true);
+    useEffect(() => {
+        try { setSentimentChipsEnabled(localStorage.getItem(SENTIMENT_CHIPS_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleSentimentChipsToggle(val: boolean) {
+        setSentimentChipsEnabled(val);
+        try { localStorage.setItem(SENTIMENT_CHIPS_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── Weekly mood recap banner ─────────────────────────────────────────────
+    const WEEKLY_RECAP_KEY = "imotara.weekly.recap.enabled.v1";
+    const [weeklyRecapEnabled, setWeeklyRecapEnabled] = useState(true);
+    useEffect(() => {
+        try { setWeeklyRecapEnabled(localStorage.getItem(WEEKLY_RECAP_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleWeeklyRecapToggle(val: boolean) {
+        setWeeklyRecapEnabled(val);
+        try { localStorage.setItem(WEEKLY_RECAP_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── Daily check-in capsule ───────────────────────────────────────────────
+    const DAILY_CHECKIN_SHOW_KEY = "imotara.daily.checkin.show.v1";
+    const [dailyCheckinShow, setDailyCheckinShow] = useState(true);
+    useEffect(() => {
+        try { setDailyCheckinShow(localStorage.getItem(DAILY_CHECKIN_SHOW_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleDailyCheckinShowToggle(val: boolean) {
+        setDailyCheckinShow(val);
+        try { localStorage.setItem(DAILY_CHECKIN_SHOW_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── Collective pulse capsule ─────────────────────────────────────────────
+    const COLLECTIVE_PULSE_SHOW_KEY = "imotara.collective.pulse.show.v1";
+    const [collectivePulseShow, setCollectivePulseShow] = useState(true);
+    useEffect(() => {
+        try { setCollectivePulseShow(localStorage.getItem(COLLECTIVE_PULSE_SHOW_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleCollectivePulseShowToggle(val: boolean) {
+        setCollectivePulseShow(val);
+        try { localStorage.setItem(COLLECTIVE_PULSE_SHOW_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── Milestone capsule ────────────────────────────────────────────────────
+    const MILESTONE_SHOW_KEY = "imotara.milestone.show.v1";
+    const [milestoneShow, setMilestoneShow] = useState(true);
+    useEffect(() => {
+        try { setMilestoneShow(localStorage.getItem(MILESTONE_SHOW_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleMilestoneShowToggle(val: boolean) {
+        setMilestoneShow(val);
+        try { localStorage.setItem(MILESTONE_SHOW_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── Return greeting on/off ───────────────────────────────────────────────
+    const RETURN_GREETING_SHOW_KEY = "imotara.return.greeting.show.v1";
+    const [returnGreetingShow, setReturnGreetingShow] = useState(true);
+    useEffect(() => {
+        try { setReturnGreetingShow(localStorage.getItem(RETURN_GREETING_SHOW_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleReturnGreetingShowToggle(val: boolean) {
+        setReturnGreetingShow(val);
+        try { localStorage.setItem(RETURN_GREETING_SHOW_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── Unsent Letter hint ───────────────────────────────────────────────────
+    const UNSENT_HINT_SHOW_KEY = "imotara.unsent.hint.show.v1";
+    const [unsentHintShow, setUnsentHintShow] = useState(true);
+    useEffect(() => {
+        try { setUnsentHintShow(localStorage.getItem(UNSENT_HINT_SHOW_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleUnsentHintShowToggle(val: boolean) {
+        setUnsentHintShow(val);
+        try { localStorage.setItem(UNSENT_HINT_SHOW_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── Mood glimpse capsule ─────────────────────────────────────────────────
+    const MOOD_GLIMPSE_KEY = "imotara.mood.glimpse.show.v1";
+    const [moodGlimpseShow, setMoodGlimpseShow] = useState(true);
+    useEffect(() => {
+        try { setMoodGlimpseShow(localStorage.getItem(MOOD_GLIMPSE_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleMoodGlimpseShowToggle(val: boolean) {
+        setMoodGlimpseShow(val);
+        try { localStorage.setItem(MOOD_GLIMPSE_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── 30-day mood chart (web History page) ────────────────────────────────
+    const MOOD_CHART_KEY = "imotara.mood.chart.show.v1";
+    const [moodChartEnabled, setMoodChartEnabled] = useState(true);
+    useEffect(() => {
+        try { setMoodChartEnabled(localStorage.getItem(MOOD_CHART_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleMoodChartToggle(val: boolean) {
+        setMoodChartEnabled(val);
+        try { localStorage.setItem(MOOD_CHART_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── Message undo ─────────────────────────────────────────────────────────
+    const MESSAGE_UNDO_KEY = "imotara.undo.enabled.v1";
+    const [undoEnabled, setUndoEnabled] = useState(true);
+    useEffect(() => {
+        try { setUndoEnabled(localStorage.getItem(MESSAGE_UNDO_KEY) === "1"); } catch { /* ignore */ }
+    }, []);
+    function handleUndoEnabledToggle(val: boolean) {
+        setUndoEnabled(val);
+        try { localStorage.setItem(MESSAGE_UNDO_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
     // ─── Hands-free mode ─────────────────────────────────────────────────────
     const HANDSFREE_KEY = "imotara:handsfree.v1";
     const [handsfree, setHandsfree] = useState(false);
@@ -1618,10 +1736,20 @@ export default function SettingsPage() {
     }
 
     // ─── A-4: Tone reflection visibility ─────────────────────────────────────
-    const TONE_REFLECT_KEY = "imotara.tone.reflect.show.v1";
+    const TONE_REFLECT_KEY = "imotara.tone.reflection.show.v1";
     const [showToneReflect, setShowToneReflect] = useState(true);
     useEffect(() => {
-        try { setShowToneReflect(localStorage.getItem(TONE_REFLECT_KEY) !== "0"); } catch { /* ignore */ }
+        try {
+            // Migrate from old key (imotara.tone.reflect.show.v1 → imotara.tone.reflection.show.v1)
+            const newVal = localStorage.getItem(TONE_REFLECT_KEY);
+            if (newVal !== null) { setShowToneReflect(newVal !== "0"); return; }
+            const oldVal = localStorage.getItem("imotara.tone.reflect.show.v1");
+            if (oldVal !== null) {
+                localStorage.setItem(TONE_REFLECT_KEY, oldVal);
+                localStorage.removeItem("imotara.tone.reflect.show.v1");
+                setShowToneReflect(oldVal !== "0");
+            }
+        } catch { /* ignore */ }
     }, []);
     function handleToneReflectToggle(val: boolean) {
         setShowToneReflect(val);
@@ -1703,17 +1831,24 @@ export default function SettingsPage() {
     }
 
     // ─── U-1: Trial banner permanent dismiss ─────────────────────────────────
-    const TRIAL_BANNER_KEY = "imotara.trial.bannerDismissed.v1";
+    const TRIAL_BANNER_KEY = "imotara.trial.banner.show.v1";
     const [trialBannerPerm, setTrialBannerPerm] = useState(false);
     useEffect(() => {
-        try { setTrialBannerPerm(localStorage.getItem(TRIAL_BANNER_KEY) === "never"); } catch { /* ignore */ }
+        try {
+            // Migrate from old key (imotara.trial.bannerDismissed.v1 → imotara.trial.banner.show.v1)
+            const newVal = localStorage.getItem(TRIAL_BANNER_KEY);
+            if (newVal !== null) { setTrialBannerPerm(newVal === "0"); return; }
+            const oldVal = localStorage.getItem("imotara.trial.bannerDismissed.v1");
+            if (oldVal === "never") {
+                localStorage.setItem(TRIAL_BANNER_KEY, "0");
+                localStorage.removeItem("imotara.trial.bannerDismissed.v1");
+                setTrialBannerPerm(true);
+            }
+        } catch { /* ignore */ }
     }, []);
     function handleTrialBannerPermToggle(val: boolean) {
         setTrialBannerPerm(val);
-        try {
-            if (val) localStorage.setItem(TRIAL_BANNER_KEY, "never");
-            else localStorage.removeItem(TRIAL_BANNER_KEY);
-        } catch { /* ignore */ }
+        try { localStorage.setItem(TRIAL_BANNER_KEY, val ? "0" : "1"); } catch { /* ignore */ }
     }
 
     // C-4: Return-greeting threshold
@@ -1934,6 +2069,135 @@ export default function SettingsPage() {
     function handleApiTimeoutChange(secs: number) {
         setApiTimeoutSecs(secs);
         try { localStorage.setItem(API_TIMEOUT_KEY, String(secs)); } catch { /* ignore */ }
+    }
+
+    // ─── S-1: Breathing default pattern ─────────────────────────────────────
+    const BREATHING_PATTERN_KEY = "imotara.breathing.defaultPattern.v1";
+    const BREATHING_PATTERN_LABELS = ["Box (4-4-4-4)", "4-7-8 Calming", "Simple (4-0-6-0)"] as const;
+    const [breathingDefaultPattern, setBreathingDefaultPattern] = useState(0);
+    useEffect(() => {
+        try { const n = parseInt(localStorage.getItem(BREATHING_PATTERN_KEY) ?? "0", 10); if ([0,1,2].includes(n)) setBreathingDefaultPattern(n); } catch { /* ignore */ }
+    }, []);
+    function handleBreathingPatternChange(idx: number) {
+        setBreathingDefaultPattern(idx);
+        try { localStorage.setItem(BREATHING_PATTERN_KEY, String(idx)); } catch { /* ignore */ }
+    }
+
+    // ─── S-2: Session greeting show/hide ────────────────────────────────────
+    const SESSION_GREETING_SHOW_KEY = "imotara.session.greeting.show.v1";
+    const [sessionGreetingShow, setSessionGreetingShow] = useState(true);
+    useEffect(() => {
+        try { setSessionGreetingShow(localStorage.getItem(SESSION_GREETING_SHOW_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleSessionGreetingShowToggle(val: boolean) {
+        setSessionGreetingShow(val);
+        try { localStorage.setItem(SESSION_GREETING_SHOW_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── S-3: On This Day show/hide ─────────────────────────────────────────
+    const OTD_SHOW_KEY = "imotara.history.otd.show.v1";
+    const [otdShow, setOtdShow] = useState(true);
+    useEffect(() => {
+        try { setOtdShow(localStorage.getItem(OTD_SHOW_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleOtdShowToggle(val: boolean) {
+        setOtdShow(val);
+        try { localStorage.setItem(OTD_SHOW_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── S-4: 30-day challenge show/hide ────────────────────────────────────
+    const CHALLENGE_SHOW_KEY = "imotara.challenge.show.v1";
+    const [challengeShow, setChallengeShow] = useState(true);
+    useEffect(() => {
+        try { setChallengeShow(localStorage.getItem(CHALLENGE_SHOW_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleChallengeShowToggle(val: boolean) {
+        setChallengeShow(val);
+        try { localStorage.setItem(CHALLENGE_SHOW_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── S-5: Companion memory auto-capture ─────────────────────────────────
+    const MEMORY_CAPTURE_KEY = "imotara.memory.capture.enabled.v1";
+    const [memoryCaptureEnabled, setMemoryCaptureEnabled] = useState(true);
+    useEffect(() => {
+        try { setMemoryCaptureEnabled(localStorage.getItem(MEMORY_CAPTURE_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleMemoryCaptureToggle(val: boolean) {
+        setMemoryCaptureEnabled(val);
+        try { localStorage.setItem(MEMORY_CAPTURE_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── S-6: Chat thread auto-cleanup ──────────────────────────────────────
+    const CHAT_CLEANUP_KEY = "imotara.chat.cleanupDays.v1";
+    const CHAT_CLEANUP_OPTIONS = [0, 30, 60, 90] as const;
+    const [chatCleanupDays, setChatCleanupDays] = useState(0);
+    useEffect(() => {
+        try { const n = parseInt(localStorage.getItem(CHAT_CLEANUP_KEY) ?? "0", 10); if (isFinite(n)) setChatCleanupDays(n); } catch { /* ignore */ }
+    }, []);
+    function handleChatCleanupChange(days: number) {
+        setChatCleanupDays(days);
+        try { localStorage.setItem(CHAT_CLEANUP_KEY, String(days)); } catch { /* ignore */ }
+        if (days > 0) {
+            try {
+                const raw = localStorage.getItem("imotara.chat.v1");
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                const cutoff = Date.now() - days * 86_400_000;
+                if (Array.isArray(data?.threads)) {
+                    data.threads = data.threads.filter((t: { updatedAt?: number; createdAt?: number }) => (t.updatedAt ?? t.createdAt ?? Date.now()) >= cutoff);
+                    localStorage.setItem("imotara.chat.v1", JSON.stringify(data));
+                }
+            } catch { /* ignore */ }
+        }
+    }
+
+    // ─── S-7: TTS auto-read new assistant messages ───────────────────────────
+    const TTS_AUTO_READ_KEY = "imotara.tts.autoRead.v1";
+    const [ttsAutoRead, setTtsAutoRead] = useState(false);
+    useEffect(() => {
+        try { setTtsAutoRead(localStorage.getItem(TTS_AUTO_READ_KEY) === "1"); } catch { /* ignore */ }
+    }, []);
+    function handleTtsAutoReadToggle(val: boolean) {
+        setTtsAutoRead(val);
+        try { localStorage.setItem(TTS_AUTO_READ_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── S-8: Journal settings ───────────────────────────────────────────────
+    const JOURNAL_SHOW_KEY = "imotara.journal.show.v1";
+    const JOURNAL_MAX_KEY = "imotara.journal.maxEntries.v1";
+    const JOURNAL_AUTO_DELETE_KEY = "imotara.journal.autoDeleteDays.v1";
+    const JOURNAL_MAX_OPTIONS = [50, 100, 200, 0] as const;
+    const JOURNAL_DELETE_OPTIONS = [0, 30, 60, 90] as const;
+    const [journalShow, setJournalShow] = useState(true);
+    const [journalMaxEntries, setJournalMaxEntries] = useState(100);
+    const [journalAutoDeleteDays, setJournalAutoDeleteDays] = useState(0);
+    useEffect(() => {
+        try { setJournalShow(localStorage.getItem(JOURNAL_SHOW_KEY) !== "0"); } catch { /* ignore */ }
+        try { const n = parseInt(localStorage.getItem(JOURNAL_MAX_KEY) ?? "100", 10); if (isFinite(n)) setJournalMaxEntries(n); } catch { /* ignore */ }
+        try { const n = parseInt(localStorage.getItem(JOURNAL_AUTO_DELETE_KEY) ?? "0", 10); if (isFinite(n)) setJournalAutoDeleteDays(n); } catch { /* ignore */ }
+    }, []);
+    function handleJournalShowToggle(val: boolean) {
+        setJournalShow(val);
+        try { localStorage.setItem(JOURNAL_SHOW_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+    function handleJournalMaxChange(n: number) {
+        setJournalMaxEntries(n);
+        try { localStorage.setItem(JOURNAL_MAX_KEY, String(n)); } catch { /* ignore */ }
+    }
+    function handleJournalAutoDeleteChange(days: number) {
+        setJournalAutoDeleteDays(days);
+        try { localStorage.setItem(JOURNAL_AUTO_DELETE_KEY, String(days)); } catch { /* ignore */ }
+    }
+
+    // ─── S-9: Emotional fingerprint show/hide ────────────────────────────────
+    const FINGERPRINT_SHOW_KEY = "imotara.fingerprint.show.v1";
+    const [fingerprintShow, setFingerprintShow] = useState(true);
+    useEffect(() => {
+        try { setFingerprintShow(localStorage.getItem(FINGERPRINT_SHOW_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleFingerprintShowToggle(val: boolean) {
+        setFingerprintShow(val);
+        try { localStorage.setItem(FINGERPRINT_SHOW_KEY, val ? "1" : "0"); } catch { /* ignore */ }
     }
 
     // ─── Advanced accordion ───────────────────────────────────────────────────
@@ -2518,19 +2782,31 @@ export default function SettingsPage() {
                     )}
                     {/* Inactivity threshold */}
                     {notifSubscribed && (
-                    <div className="mt-4">
-                        <p className="text-xs font-medium text-zinc-300">Remind me if I haven&apos;t visited in</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                            {([24, 48, 72, 168] as const).map((h) => (
-                                <button
-                                    key={h}
-                                    type="button"
-                                    onClick={() => handleNotifInactivityChange(h)}
-                                    className={`rounded-full border px-3 py-1 text-[11px] transition ${notifInactivityHours === h ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}
-                                >
-                                    {h === 168 ? "7 days" : h === 24 ? "24 h" : `${h} h`}
-                                </button>
-                            ))}
+                    <div className="mt-4 space-y-4">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-300">Preferred reminder time</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Daily check-in reminder fires around this time</p>
+                            <input
+                                type="time"
+                                value={notifReminderTime}
+                                onChange={(e) => handleNotifReminderTimeChange(e.target.value)}
+                                className="mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-zinc-200 outline-none focus:border-sky-400/60 focus:ring-1 focus:ring-sky-500/40"
+                            />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-zinc-300">Remind me if I haven&apos;t visited in</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {([24, 48, 72, 168] as const).map((h) => (
+                                    <button
+                                        key={h}
+                                        type="button"
+                                        onClick={() => handleNotifInactivityChange(h)}
+                                        className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${notifInactivityHours === h ? "border-sky-400/60 bg-sky-500/12 text-sky-200" : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"}`}
+                                    >
+                                        {h === 168 ? "7 days" : h === 24 ? "24 h" : `${h} h`}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                     )}
@@ -2543,7 +2819,7 @@ export default function SettingsPage() {
                     <p className="mt-1 text-xs leading-5 text-zinc-400">Control what appears in your chat window.</p>
 
                     {/* Hands-free mode */}
-                    <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-violet-500/20 bg-violet-500/8 px-3 py-3">
+                    <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-violet-500/20 bg-sky-500/8 px-3 py-3">
                         <div>
                             <p className="text-xs font-medium text-zinc-200">Hands-free conversation</p>
                             <p className="mt-0.5 text-[11px] text-zinc-500">Speak → Imotara types, replies, and reads aloud — no tapping needed</p>
@@ -2553,7 +2829,7 @@ export default function SettingsPage() {
                             role="switch"
                             aria-checked={handsfree}
                             onClick={() => handleHandsfreeToggle(!handsfree)}
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${handsfree ? "bg-violet-500" : "bg-zinc-600"}`}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${handsfree ? "bg-sky-500" : "bg-zinc-600"}`}
                         >
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${handsfree ? "translate-x-4" : "translate-x-0"}`} />
                         </button>
@@ -2620,10 +2896,10 @@ export default function SettingsPage() {
                                     key={h}
                                     type="button"
                                     onClick={() => handleReturnGreetingChange(h)}
-                                    className={`rounded-full border px-4 py-1.5 text-xs transition ${
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${
                                         returnGreetingHours === h
-                                            ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
-                                            : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"
+                                            ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
+                                            : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                     }`}
                                 >
                                     {h}h
@@ -2632,10 +2908,16 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
-                    {/* U-3: Search mode */}
+                    {/* U-3: Search mode — gated: Plus+ (SEARCH_MODE) */}
+                    {searchModeGate.allowed ? (
                     <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
                         <div>
-                            <p className="text-xs font-medium text-zinc-200">Exact history search</p>
+                            <div className="flex items-center gap-2">
+                                <p className="text-xs font-medium text-zinc-200">Exact history search</p>
+                                {searchModeGate.nudge && (
+                                    <Link href="/upgrade" className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/25 transition">Plus+</Link>
+                                )}
+                            </div>
                             <p className="mt-0.5 text-[11px] text-zinc-500">Match only exact phrases in history search (off = fuzzy match)</p>
                         </div>
                         <button
@@ -2648,20 +2930,29 @@ export default function SettingsPage() {
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${searchMode === "exact" ? "translate-x-4" : "translate-x-0"}`} />
                         </button>
                     </div>
+                    ) : (
+                    <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-3 opacity-60">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-300">Exact history search</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">{searchModeGate.reason}</p>
+                        </div>
+                        <Link href="/upgrade" className="shrink-0 rounded-full bg-indigo-500/20 px-2.5 py-1 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/30 transition">Upgrade →</Link>
+                    </div>
+                    )}
 
                     {/* U-2: Reactions set */}
                     <div className="mt-4">
                         <p className="mb-2 text-xs font-medium text-zinc-400">Message reactions</p>
-                        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                        <div className="flex flex-wrap gap-2">
                             {(["minimal", "default", "extended"] as const).map((v) => (
                                 <button
                                     key={v}
                                     type="button"
                                     onClick={() => handleWebReactionsSetChange(v)}
-                                    className={`flex-1 text-center rounded-full px-4 py-1 text-xs transition ${
+                                    className={`flex-1 text-center rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${
                                         webReactionsSet === v
-                                            ? "im-seg-selected bg-white/20 text-zinc-50"
-                                            : "text-zinc-400 hover:text-zinc-200"
+                                            ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
+                                            : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                     }`}
                                 >
                                     {v === "minimal" ? "Minimal" : v === "default" ? "Default" : "Extended"}
@@ -2669,6 +2960,357 @@ export default function SettingsPage() {
                             ))}
                         </div>
                         <p className="mt-1 text-[11px] text-zinc-500">Controls the number of emoji reactions shown on messages.</p>
+                    </div>
+
+                    {/* Sentiment seed chips */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Sentiment seed chips</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show quick-tap mood hint chips above the message input</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={sentimentChipsEnabled}
+                            onClick={() => handleSentimentChipsToggle(!sentimentChipsEnabled)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${sentimentChipsEnabled ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${sentimentChipsEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* Weekly mood recap banner */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Weekly mood recap</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show the weekly mood summary banner in Chat</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={weeklyRecapEnabled}
+                            onClick={() => handleWeeklyRecapToggle(!weeklyRecapEnabled)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${weeklyRecapEnabled ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${weeklyRecapEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* Daily check-in capsule */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Daily check-in</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show the &quot;How are you right now?&quot; prompt once per day</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={dailyCheckinShow}
+                            onClick={() => handleDailyCheckinShowToggle(!dailyCheckinShow)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${dailyCheckinShow ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${dailyCheckinShow ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* Return greeting */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Return greeting</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show the &quot;Welcome back&quot; banner after an absence</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={returnGreetingShow}
+                            onClick={() => handleReturnGreetingShowToggle(!returnGreetingShow)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${returnGreetingShow ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${returnGreetingShow ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* Collective pulse capsule */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Collective pulse</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show anonymous community mood insight in Chat</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={collectivePulseShow}
+                            onClick={() => handleCollectivePulseShowToggle(!collectivePulseShow)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${collectivePulseShow ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${collectivePulseShow ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* Milestone celebration capsule */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Milestone celebration</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show the &quot;You closed a loop&quot; milestone card</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={milestoneShow}
+                            onClick={() => handleMilestoneShowToggle(!milestoneShow)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${milestoneShow ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${milestoneShow ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* Unsent Letter hint */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Unsent Letter hint</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show the contextual Unsent Letter suggestion in Chat</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={unsentHintShow}
+                            onClick={() => handleUnsentHintShowToggle(!unsentHintShow)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${unsentHintShow ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${unsentHintShow ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* Mood glimpse capsule */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Mood glimpse</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show latest detected mood at the top of Chat</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={moodGlimpseShow}
+                            onClick={() => handleMoodGlimpseShowToggle(!moodGlimpseShow)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${moodGlimpseShow ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${moodGlimpseShow ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* 30-day mood line chart */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">30-day mood chart</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show the 30-day mood line chart on the History page</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={moodChartEnabled}
+                            onClick={() => handleMoodChartToggle(!moodChartEnabled)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${moodChartEnabled ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${moodChartEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* Message undo */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Message undo (5s window)</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Allow undoing a sent message within 5 seconds of sending</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={undoEnabled}
+                            onClick={() => handleUndoEnabledToggle(!undoEnabled)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${undoEnabled ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${undoEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* S-2: Session greeting */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Session greeting</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show a time-of-day greeting banner when you open a chat</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={sessionGreetingShow}
+                            onClick={() => handleSessionGreetingShowToggle(!sessionGreetingShow)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${sessionGreetingShow ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${sessionGreetingShow ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* S-5: Companion memory auto-capture */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Companion memory auto-capture</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Automatically save important details from conversations to companion memory</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={memoryCaptureEnabled}
+                            onClick={() => handleMemoryCaptureToggle(!memoryCaptureEnabled)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${memoryCaptureEnabled ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${memoryCaptureEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* S-7: TTS auto-read */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Auto-read assistant replies</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Automatically read out new assistant messages using text-to-speech</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={ttsAutoRead}
+                            onClick={() => handleTtsAutoReadToggle(!ttsAutoRead)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${ttsAutoRead ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${ttsAutoRead ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+                </section>
+
+                {/* ── Grow & Wellbeing ─────────────────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Grow &amp; Wellbeing</h2>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">
+                        Control which wellbeing features and widgets appear across the app.
+                    </p>
+
+                    {/* S-1: Breathing default pattern */}
+                    <div className="mt-3">
+                        <p className="mb-1.5 text-xs font-medium text-zinc-300">Default breathing pattern</p>
+                        <div className="flex flex-wrap gap-2">
+                            {BREATHING_PATTERN_LABELS.map((label, idx) => (
+                                <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => handleBreathingPatternChange(idx)}
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${breathingDefaultPattern === idx ? "border-sky-400/60 bg-sky-500/12 text-sky-200" : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"}`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="mt-1.5 text-[11px] text-zinc-500">The pattern selected when you open the breathing exercise</p>
+                    </div>
+
+                    {/* S-4: 30-day challenge */}
+                    <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">30-day challenge widget</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show the 30-day emotional wellness challenge on the Grow page</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={challengeShow}
+                            onClick={() => handleChallengeShowToggle(!challengeShow)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${challengeShow ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${challengeShow ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* S-8: Reflection journal */}
+                    <div className="mt-3 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div className="flex items-center justify-between gap-4">
+                            <div>
+                                <p className="text-xs font-medium text-zinc-200">Reflection journal</p>
+                                <p className="mt-0.5 text-[11px] text-zinc-500">Show the reflection journal section on the Grow page</p>
+                            </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={journalShow}
+                                onClick={() => handleJournalShowToggle(!journalShow)}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${journalShow ? "bg-sky-500" : "bg-zinc-600"}`}
+                            >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${journalShow ? "translate-x-4" : "translate-x-0"}`} />
+                            </button>
+                        </div>
+                        {journalShow && (
+                            <div className="mt-3 space-y-2 border-t border-white/8 pt-3">
+                                <div>
+                                    <p className="mb-1.5 text-[11px] font-medium text-zinc-400">Max journal entries</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {JOURNAL_MAX_OPTIONS.map((n) => (
+                                            <button
+                                                key={n}
+                                                type="button"
+                                                onClick={() => handleJournalMaxChange(n)}
+                                                className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${journalMaxEntries === n ? "border-sky-400/60 bg-sky-500/12 text-sky-200" : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"}`}
+                                            >
+                                                {n === 0 ? "Unlimited" : String(n)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <p className="mb-1.5 text-[11px] font-medium text-zinc-400">Auto-delete entries after</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {JOURNAL_DELETE_OPTIONS.map((d) => (
+                                            <button
+                                                key={d}
+                                                type="button"
+                                                onClick={() => handleJournalAutoDeleteChange(d)}
+                                                className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${journalAutoDeleteDays === d ? "border-sky-400/60 bg-sky-500/12 text-sky-200" : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"}`}
+                                            >
+                                                {d === 0 ? "Never" : `${d} days`}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* S-3: On This Day */}
+                    <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">On This Day card</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show past entries from this date on the History page</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={otdShow}
+                            onClick={() => handleOtdShowToggle(!otdShow)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${otdShow ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${otdShow ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* S-9: Emotional fingerprint */}
+                    <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Emotional fingerprint</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Show your unique emotional pattern analysis on the History page</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={fingerprintShow}
+                            onClick={() => handleFingerprintShowToggle(!fingerprintShow)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${fingerprintShow ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${fingerprintShow ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
                     </div>
                 </section>
 
@@ -2694,7 +3336,7 @@ export default function SettingsPage() {
                                 role="switch"
                                 aria-checked={mindsetPrefs[key]}
                                 onClick={() => handleMindsetToggle(key)}
-                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${mindsetPrefs[key] ? "bg-violet-500" : "bg-zinc-600"}`}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${mindsetPrefs[key] ? "bg-sky-500" : "bg-zinc-600"}`}
                             >
                                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${mindsetPrefs[key] ? "translate-x-4" : "translate-x-0"}`} />
                             </button>
@@ -2746,16 +3388,16 @@ export default function SettingsPage() {
                     {/* Font size */}
                     <div className="mt-4">
                         <p className="mb-2 text-xs font-medium text-zinc-400">Text size</p>
-                        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                        <div className="flex flex-wrap gap-2">
                             {FONT_OPTIONS.map((o) => (
                                 <button
                                     key={o.value}
                                     type="button"
                                     onClick={() => setFontSize(o.value)}
-                                    className={`flex-1 text-center rounded-full px-4 py-1 transition ${
+                                    className={`flex-1 text-center rounded-xl border px-3.5 py-2 font-medium transition-colors ${
                                         fontSize === o.value
-                                            ? "im-seg-selected bg-white/20 text-zinc-50"
-                                            : "text-zinc-400 hover:text-zinc-200"
+                                            ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
+                                            : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                     }`}
                                     style={{ fontSize: o.value === "sm" ? "11px" : o.value === "lg" ? "15px" : "13px" }}
                                 >
@@ -2768,16 +3410,16 @@ export default function SettingsPage() {
                     {/* Color mode */}
                     <div className="mt-4">
                         <p className="mb-2 text-xs font-medium text-zinc-400">Color mode</p>
-                        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                        <div className="flex flex-wrap gap-2">
                             {(["dark", "light"] as ColorMode[]).map((m) => (
                                 <button
                                     key={m}
                                     type="button"
                                     onClick={() => setColorMode(m)}
-                                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-1 text-xs transition ${
+                                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${
                                         colorMode === m
-                                            ? "im-seg-selected bg-white/20 text-zinc-50"
-                                            : "text-zinc-400 hover:text-zinc-200"
+                                            ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
+                                            : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                     }`}
                                 >
                                     <span aria-hidden>{m === "dark" ? "🌙" : "☀️"}</span>
@@ -2797,7 +3439,7 @@ export default function SettingsPage() {
                                     key={level}
                                     type="button"
                                     onClick={() => handleHapticIntensityChange(level)}
-                                    className={`rounded-full border px-3 py-1 text-[11px] capitalize transition ${hapticIntensity === level ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-medium capitalize transition-colors ${hapticIntensity === level ? "border-sky-400/60 bg-sky-500/12 text-sky-200" : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"}`}
                                 >
                                     {level}
                                 </button>
@@ -2839,19 +3481,25 @@ export default function SettingsPage() {
                         </button>
                     </div>
 
-                    {/* C-1: Typing indicator speed */}
+                    {/* C-1: Typing indicator speed — gated: Plus+ (REPLY_CADENCE) */}
+                    {replyCadenceGate.allowed ? (
                     <div className="mt-4">
-                        <p className="mb-2 text-xs font-medium text-zinc-400">Typing indicator speed</p>
-                        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                        <div className="flex items-center gap-2 mb-2">
+                            <p className="text-xs font-medium text-zinc-400">Typing indicator speed</p>
+                            {replyCadenceGate.nudge && (
+                                <Link href="/upgrade" className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/25 transition">Plus+</Link>
+                            )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
                             {(["slow", "normal", "fast"] as const).map((v) => (
                                 <button
                                     key={v}
                                     type="button"
                                     onClick={() => handleWebTypingSpeedChange(v)}
-                                    className={`flex-1 text-center rounded-full px-4 py-1 text-xs transition ${
+                                    className={`flex-1 text-center rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${
                                         webTypingSpeed === v
-                                            ? "im-seg-selected bg-white/20 text-zinc-50"
-                                            : "text-zinc-400 hover:text-zinc-200"
+                                            ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
+                                            : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                     }`}
                                 >
                                     {v === "slow" ? "Slow" : v === "normal" ? "Normal" : "Fast"}
@@ -2860,10 +3508,25 @@ export default function SettingsPage() {
                         </div>
                         <p className="mt-1 text-[11px] text-zinc-500">Speed of the animated dots while Imotara is composing a reply.</p>
                     </div>
+                    ) : (
+                    <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-2.5 opacity-60">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-300">Typing indicator speed</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">{replyCadenceGate.reason}</p>
+                        </div>
+                        <Link href="/upgrade" className="shrink-0 rounded-full bg-indigo-500/20 px-2.5 py-1 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/30 transition">Upgrade →</Link>
+                    </div>
+                    )}
 
-                    {/* H-3: TTS rate + pitch */}
+                    {/* H-3: TTS rate + pitch — gated: Plus+ (TTS_ADVANCED) */}
+                    {ttsAdvancedGate.allowed ? (
                     <div className="mt-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3 space-y-3">
-                        <p className="text-xs font-medium text-zinc-200">Voice playback speed &amp; pitch</p>
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-medium text-zinc-200">Voice playback speed &amp; pitch</p>
+                            {ttsAdvancedGate.nudge && (
+                                <Link href="/upgrade" className="shrink-0 rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/25 transition">Plus+</Link>
+                            )}
+                        </div>
                         <div className="space-y-1">
                             <div className="flex justify-between text-[11px] text-zinc-400">
                                 <span>Speed: {ttsRate.toFixed(2)}×</span>
@@ -2884,6 +3547,15 @@ export default function SettingsPage() {
                         </div>
                         <p className="text-[10px] text-zinc-600">Applies to voice preview on avatar taps in Chat.</p>
                     </div>
+                    ) : (
+                    <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-3 opacity-60">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-300">Voice playback speed &amp; pitch</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">{ttsAdvancedGate.reason}</p>
+                        </div>
+                        <Link href="/upgrade" className="shrink-0 rounded-full bg-indigo-500/20 px-2.5 py-1 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/30 transition">Upgrade →</Link>
+                    </div>
+                    )}
 
                     {/* V-1: Voice max duration */}
                     <div className="mt-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
@@ -2892,7 +3564,7 @@ export default function SettingsPage() {
                         <div className="mt-2 flex flex-wrap gap-2">
                             {(VOICE_DURATION_OPTIONS as readonly number[]).map((s) => (
                                 <button key={s} type="button" onClick={() => handleVoiceDurationChange(s)}
-                                    className={`rounded-full border px-3 py-1 text-[11px] transition ${voiceMaxDuration === s ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}>
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${voiceMaxDuration === s ? "border-sky-400/60 bg-sky-500/12 text-sky-200" : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"}`}>
                                     {voiceDurationLabel(s)}
                                 </button>
                             ))}
@@ -2906,7 +3578,7 @@ export default function SettingsPage() {
                         <div className="mt-2 flex gap-2">
                             {(["high", "low"] as const).map((v) => (
                                 <button key={v} type="button" onClick={() => handleVoiceQualityChange(v)}
-                                    className={`rounded-full border px-3 py-1 text-[11px] capitalize transition ${voiceQuality === v ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}>
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-medium capitalize transition-colors ${voiceQuality === v ? "border-sky-400/60 bg-sky-500/12 text-sky-200" : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"}`}>
                                     {v}
                                 </button>
                             ))}
@@ -3019,16 +3691,16 @@ export default function SettingsPage() {
                     {/* P-1: Content guard sensitivity */}
                     <div className="mt-4">
                         <p className="mb-2 text-xs font-medium text-zinc-400">Content sensitivity</p>
-                        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                        <div className="flex flex-wrap gap-2">
                             {(["relaxed", "standard", "strict"] as const).map((v) => (
                                 <button
                                     key={v}
                                     type="button"
                                     onClick={() => handleWebContentGuardChange(v)}
-                                    className={`flex-1 text-center rounded-full px-4 py-1 text-xs transition ${
+                                    className={`flex-1 text-center rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${
                                         webContentGuard === v
-                                            ? "im-seg-selected bg-white/20 text-zinc-50"
-                                            : "text-zinc-400 hover:text-zinc-200"
+                                            ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
+                                            : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                     }`}
                                 >
                                     {v === "relaxed" ? "Relaxed" : v === "standard" ? "Standard" : "Strict"}
@@ -3041,16 +3713,16 @@ export default function SettingsPage() {
                     {/* P-2: Crisis detection threshold */}
                     <div className="mt-4">
                         <p className="mb-2 text-xs font-medium text-zinc-400">Crisis detection sensitivity</p>
-                        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5">
+                        <div className="flex flex-wrap gap-2">
                             {(["sensitive", "standard", "conservative"] as const).map((v) => (
                                 <button
                                     key={v}
                                     type="button"
                                     onClick={() => handleWebCrisisThresholdChange(v)}
-                                    className={`flex-1 text-center rounded-full px-4 py-1 text-xs transition ${
+                                    className={`flex-1 text-center rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${
                                         webCrisisThreshold === v
-                                            ? "im-seg-selected bg-white/20 text-zinc-50"
-                                            : "text-zinc-400 hover:text-zinc-200"
+                                            ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
+                                            : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                     }`}
                                 >
                                     {v === "sensitive" ? "Sensitive" : v === "standard" ? "Standard" : "Conservative"}
@@ -3070,6 +3742,26 @@ export default function SettingsPage() {
                         These actions affect only this browser on this device. They do not
                         touch any future cloud backups or accounts.
                     </p>
+
+                    {/* S-6: Chat thread auto-cleanup */}
+                    <div className="mt-3">
+                        <p className="mb-1.5 text-xs font-medium text-zinc-300">Auto-delete chat threads older than</p>
+                        <div className="flex flex-wrap gap-2">
+                            {CHAT_CLEANUP_OPTIONS.map((d) => (
+                                <button
+                                    key={d}
+                                    type="button"
+                                    onClick={() => handleChatCleanupChange(d)}
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${chatCleanupDays === d ? "border-sky-400/60 bg-sky-500/12 text-sky-200" : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"}`}
+                                >
+                                    {d === 0 ? "Never" : `${d} days`}
+                                </button>
+                            ))}
+                        </div>
+                        {chatCleanupDays > 0 && (
+                            <p className="mt-1.5 text-[11px] text-zinc-500">Threads older than {chatCleanupDays} days were removed. This setting applies immediately.</p>
+                        )}
+                    </div>
 
                     <div className="mt-4 flex flex-wrap gap-2 text-xs sm:text-sm">
                         <button
@@ -3214,9 +3906,15 @@ export default function SettingsPage() {
                     <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Companion insights</h2>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">Control how often Imotara generates your emotional arc, companion letter, and open-loop prompts.</p>
 
-                    {/* G-1: Emotional arc cadence */}
+                    {/* G-1: Emotional arc cadence — gated: Pro+ (GROWTH_ARC) */}
+                    {growthArcGate.allowed ? (
                     <div className="mt-4">
-                        <p className="mb-1 text-xs font-medium text-zinc-400">Emotional arc — every</p>
+                        <div className="flex items-center gap-2 mb-1">
+                            <p className="text-xs font-medium text-zinc-400">Emotional arc — every</p>
+                            {growthArcGate.nudge && (
+                                <Link href="/upgrade" className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/25 transition">Pro+</Link>
+                            )}
+                        </div>
                         <p className="mb-2 text-[11px] text-zinc-500">How many days between narrative summaries of your emotional journey</p>
                         <div className="flex flex-wrap gap-2">
                             {[7, 14, 30, 60].map((d) => (
@@ -3224,10 +3922,10 @@ export default function SettingsPage() {
                                     key={d}
                                     type="button"
                                     onClick={() => handleWebArcCadenceChange(d)}
-                                    className={`rounded-full border px-4 py-1.5 text-xs transition ${
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${
                                         webArcCadenceDays === d
-                                            ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
-                                            : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"
+                                            ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
+                                            : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                     }`}
                                 >
                                     {d} days
@@ -3235,10 +3933,25 @@ export default function SettingsPage() {
                             ))}
                         </div>
                     </div>
+                    ) : (
+                    <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-2.5 opacity-60">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-300">Emotional arc cadence</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">{growthArcGate.reason}</p>
+                        </div>
+                        <Link href="/upgrade" className="shrink-0 rounded-full bg-indigo-500/20 px-2.5 py-1 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/30 transition">Upgrade →</Link>
+                    </div>
+                    )}
 
-                    {/* G-2: Companion letter cadence */}
+                    {/* G-2: Companion letter cadence — gated: Pro+ (COMPANION_LETTER) */}
+                    {companionLetterGate.allowed ? (
                     <div className="mt-4">
-                        <p className="mb-1 text-xs font-medium text-zinc-400">Companion letter — every</p>
+                        <div className="flex items-center gap-2 mb-1">
+                            <p className="text-xs font-medium text-zinc-400">Companion letter — every</p>
+                            {companionLetterGate.nudge && (
+                                <Link href="/upgrade" className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/25 transition">Pro+</Link>
+                            )}
+                        </div>
                         <p className="mb-2 text-[11px] text-zinc-500">How many days between personal letters from your companion</p>
                         <div className="flex flex-wrap gap-2">
                             {[7, 14, 30, 60].map((d) => (
@@ -3246,10 +3959,10 @@ export default function SettingsPage() {
                                     key={d}
                                     type="button"
                                     onClick={() => handleWebLetterCadenceChange(d)}
-                                    className={`rounded-full border px-4 py-1.5 text-xs transition ${
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${
                                         webLetterCadenceDays === d
-                                            ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
-                                            : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"
+                                            ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
+                                            : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                     }`}
                                 >
                                     {d} days
@@ -3257,6 +3970,15 @@ export default function SettingsPage() {
                             ))}
                         </div>
                     </div>
+                    ) : (
+                    <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-2.5 opacity-60">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-300">Companion letter cadence</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">{companionLetterGate.reason}</p>
+                        </div>
+                        <Link href="/upgrade" className="shrink-0 rounded-full bg-indigo-500/20 px-2.5 py-1 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/30 transition">Upgrade →</Link>
+                    </div>
+                    )}
 
                     {/* G-3: Open-loop thresholds */}
                     <div className="mt-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3 space-y-3">
@@ -3269,10 +3991,10 @@ export default function SettingsPage() {
                                         key={n}
                                         type="button"
                                         onClick={() => handleWebOpenLoopThreadsChange(n)}
-                                        className={`rounded-full border px-3 py-1 text-xs transition ${
+                                        className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${
                                             webOpenLoopThreads === n
-                                                ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
-                                                : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"
+                                                ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
+                                                : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                         }`}
                                     >
                                         {n}
@@ -3288,10 +4010,10 @@ export default function SettingsPage() {
                                         key={d}
                                         type="button"
                                         onClick={() => handleWebOpenLoopAgeChange(d)}
-                                        className={`rounded-full border px-3 py-1 text-xs transition ${
+                                        className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${
                                             webOpenLoopAgeDays === d
-                                                ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
-                                                : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"
+                                                ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
+                                                : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                         }`}
                                     >
                                         {d}d
@@ -3316,10 +4038,10 @@ export default function SettingsPage() {
                                     key={d}
                                     type="button"
                                     onClick={() => handleAutoCleanupChange(d)}
-                                    className={`rounded-full border px-4 py-1.5 text-xs transition ${
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${
                                         autoCleanupDays === d
-                                            ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
-                                            : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"
+                                            ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
+                                            : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                     }`}
                                 >
                                     {d === 0 ? "Never" : `${d} days`}
@@ -3391,7 +4113,19 @@ export default function SettingsPage() {
                 <DataDashboard getStorageSummary={getStorageSummary} />
 
                 {/* ── Emotional fingerprint ────────────────────────────── */}
-                <EmotionalFingerprint />
+                {fingerprintShow && (
+                    <div className="relative">
+                        <EmotionalFingerprint />
+                        <button
+                            type="button"
+                            onClick={() => handleFingerprintShowToggle(false)}
+                            title="Hide emotional fingerprint"
+                            className="absolute right-3 top-3 rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-[10px] text-zinc-400 transition hover:bg-white/10 hover:text-zinc-200"
+                        >
+                            Hide
+                        </button>
+                    </div>
+                )}
 
                 {/* ── Companion memory viewer ──────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
@@ -3452,7 +4186,7 @@ export default function SettingsPage() {
                         <div className="mt-2 flex flex-wrap gap-2">
                             {(MEMORY_MAX_OPTIONS as readonly number[]).map((n) => (
                                 <button key={n} type="button" onClick={() => handleMemoryMaxItemsChange(n)}
-                                    className={`rounded-full border px-3 py-1 text-[11px] transition ${memoryMaxItems === n ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}>
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${memoryMaxItems === n ? "border-sky-400/60 bg-sky-500/12 text-sky-200" : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"}`}>
                                     {n} items
                                 </button>
                             ))}
@@ -3558,7 +4292,7 @@ export default function SettingsPage() {
                         <div className="mt-2 flex flex-wrap gap-2">
                             {(STATUS_POLL_OPTIONS as readonly number[]).map((s) => (
                                 <button key={s} type="button" onClick={() => handleStatusPollChange(s)}
-                                    className={`rounded-full border px-3 py-1 text-[11px] transition ${statusPollInterval === s ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}>
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${statusPollInterval === s ? "border-sky-400/60 bg-sky-500/12 text-sky-200" : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"}`}>
                                     {s}s
                                 </button>
                             ))}
@@ -3572,7 +4306,7 @@ export default function SettingsPage() {
                         <div className="mt-2 flex flex-wrap gap-2">
                             {(API_TIMEOUT_OPTIONS as readonly number[]).map((s) => (
                                 <button key={s} type="button" onClick={() => handleApiTimeoutChange(s)}
-                                    className={`rounded-full border px-3 py-1 text-[11px] transition ${apiTimeoutSecs === s ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}>
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${apiTimeoutSecs === s ? "border-sky-400/60 bg-sky-500/12 text-sky-200" : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"}`}>
                                     {s}s
                                 </button>
                             ))}

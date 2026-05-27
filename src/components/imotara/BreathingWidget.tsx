@@ -135,7 +135,9 @@ function LotusMandala() {
 }
 
 export default function BreathingWidget({ onClose }: { onClose?: () => void }) {
-  const [patternIdx, setPatternIdx] = useState(0);
+  const [patternIdx, setPatternIdx] = useState(() => {
+    try { const n = parseInt(localStorage.getItem("imotara.breathing.defaultPattern.v1") ?? "0", 10); return [0,1,2].includes(n) ? n : 0; } catch { return 0; }
+  });
   const [running, setRunning]       = useState(false);
   const [phase, setPhase]           = useState<Phase>("inhale");
   const [remaining, setRemaining]   = useState(0);

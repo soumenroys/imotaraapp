@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Download, Pencil, Check } from "lucide-react";
+import { Download, Pencil, Check, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
 import SkeletonLoader from "@/components/imotara/SkeletonLoader";
@@ -1096,6 +1096,345 @@ function exportReflections(entries: ReflectionEntry[]) {
   URL.revokeObjectURL(url);
 }
 
+// ── Daily Journal ─────────────────────────────────────────────────────────────
+const JOURNAL_KEY = "imotara.journal.v1";
+
+type JournalEntry = { id: string; prompt: string; body: string; createdAt: number };
+
+const JOURNAL_PROMPTS_DAILY = [
+  "What's been weighing on your mind today?",
+  "What are you grateful for right now?",
+  "Describe one emotion you felt strongly today.",
+  "What would you want your future self to remember about today?",
+  "What is one thing you'd do differently this week?",
+  "What brought you even a small moment of peace today?",
+  "What does rest mean to you right now?",
+  "What are you learning about yourself lately?",
+  "What boundary did you uphold — or wish you had — today?",
+  "What does 'enough' look like for you today?",
+  "Write about someone who showed up for you recently.",
+  "What emotion are you avoiding right now?",
+  "What small thing helped you through a hard moment lately?",
+  "If today had a color, what would it be and why?",
+  "What do you need more of in your life right now?",
+];
+
+const JOURNAL_EMOTION_PROMPTS: Record<string, string[]> = {
+  sadness: [
+    "What's weighing on your heart most right now?",
+    "Is there something you need to grieve or let go of today?",
+    "What would a small act of kindness toward yourself look like right now?",
+    "When did this feeling start — and what was happening around then?",
+    "What would you say to a close friend feeling exactly this way?",
+  ],
+  stressed: [
+    "What's taking the most energy from you today — and could anything be set down?",
+    "Which of your worries are truly within your control right now?",
+    "If you could pause one obligation today, which would it be?",
+    "What does 'just enough' look like for you instead of 'everything at once'?",
+    "What small thing helped you get through a stressful moment recently?",
+  ],
+  anger: [
+    "What's underneath the frustration you're carrying?",
+    "What boundary feels like it was crossed — and how do you want to respond?",
+    "Where does this anger live in your body, and what does it need?",
+    "What would you want the person or situation to understand about your experience?",
+    "What would it feel like to express this without it controlling you?",
+  ],
+  confused: [
+    "What feels most unclear right now — and what one thing might bring a little clarity?",
+    "What do you already know, even if the bigger picture isn't clear yet?",
+    "If you trusted your instincts right now, what would they be pointing toward?",
+    "What decision feels most tangled, and what would untangling it look like?",
+    "What do you need most: information, space, or someone to talk to?",
+  ],
+  hopeful: [
+    "What possibility are you most looking forward to right now?",
+    "What has changed recently that makes this hope feel real?",
+    "What would you want your future self to remember about how you feel today?",
+    "What are you quietly looking forward to that you haven't told anyone?",
+    "How does this hope feel different from your usual day?",
+  ],
+  joy: [
+    "What created this feeling of lightness — and how can you keep more of it?",
+    "Who or what contributed most to how good you've been feeling?",
+    "What would you want to bottle up from right now to open on a harder day?",
+    "What does thriving look like for you — are you closer to it than you realise?",
+    "How has this positive feeling changed how you see things around you?",
+  ],
+};
+
+const JOURNAL_STOP_WORDS = new Set([
+  "i","me","my","the","a","an","and","or","but","in","on","at","to","for",
+  "of","with","is","are","was","were","it","this","that","have","had","has",
+  "do","did","be","been","so","am","not","no","you","we","they","he","she",
+  "what","when","how","why","if","can","will","just","more","about","there",
+  "from","than","like","your","its","their","really","very","much","still",
+  "even","feel","feels","felt","feeling","time","day","days","week","know",
+  "think","want","need","get","got","make","made","could","would","should",
+  "im","ive","dont","cant","wont","thats","theres","heres","going",
+]);
+
+function computeJournalThemes(entries: JournalEntry[]): string[] {
+  if (entries.length < 3) return [];
+  const wordCount: Record<string, number> = {};
+  for (const entry of entries) {
+    const words = entry.body.toLowerCase().match(/\b[a-z]{4,}\b/g) ?? [];
+    for (const w of words) {
+      if (!JOURNAL_STOP_WORDS.has(w)) wordCount[w] = (wordCount[w] ?? 0) + 1;
+    }
+  }
+  return Object.entries(wordCount)
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([word]) => word);
+}
+
+function loadJournalEntries(): JournalEntry[] {
+  try {
+    const raw = window.localStorage.getItem(JOURNAL_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function saveJournalEntries(entries: JournalEntry[]) {
+  try { window.localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries)); } catch {}
+}
+
+function exportJournal(entries: JournalEntry[]) {
+  if (!entries.length) return;
+  const lines = entries
+    .map((e) =>
+      `${new Date(e.createdAt).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}\nPrompt: ${e.prompt}\n\n${e.body}`,
+    )
+    .join("\n\n────────────────────────\n\n");
+  const blob = new Blob([`Imotara Reflection Journal\n${"=".repeat(32)}\n\n${lines}`], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `imotara_journal_${new Date().toISOString().slice(0, 10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function JournalSection({ dominantEmotion }: { dominantEmotion?: string }) {
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [mounted, setMounted] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [body, setBody] = useState("");
+  const [expandedEntry, setExpandedEntry] = useState<JournalEntry | null>(null);
+
+  const dayIndex = Math.floor(Date.now() / 86400000);
+  const emotionKey = dominantEmotion ? toPromptKey(dominantEmotion) : "";
+  const emotionBank = emotionKey && JOURNAL_EMOTION_PROMPTS[emotionKey] ? JOURNAL_EMOTION_PROMPTS[emotionKey] : undefined;
+  const todayPrompt = emotionBank
+    ? emotionBank[dayIndex % emotionBank.length]
+    : JOURNAL_PROMPTS_DAILY[dayIndex % JOURNAL_PROMPTS_DAILY.length];
+  const todayKey = new Date().toISOString().slice(0, 10);
+
+  useEffect(() => {
+    setEntries(loadJournalEntries());
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  const hasEntryToday = entries.some((e) => new Date(e.createdAt).toISOString().slice(0, 10) === todayKey);
+  const recent = entries.slice(0, 5);
+  const themes = computeJournalThemes(entries);
+
+  function handleSave() {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    let next: JournalEntry[];
+    if (editingId) {
+      next = entries.map((e) => e.id === editingId ? { ...e, body: trimmed } : e);
+    } else {
+      next = [{ id: `j-${Date.now()}`, prompt: todayPrompt, body: trimmed, createdAt: Date.now() }, ...entries];
+    }
+    setEntries(next);
+    saveJournalEntries(next);
+    setBody("");
+    setEditingId(null);
+    setShowForm(false);
+  }
+
+  function handleEdit(entry: JournalEntry) {
+    setEditingId(entry.id);
+    setBody(entry.body);
+    setShowForm(true);
+  }
+
+  function handleDelete(id: string) {
+    if (!window.confirm("Delete this journal entry? This cannot be undone.")) return;
+    const next = entries.filter((e) => e.id !== id);
+    setEntries(next);
+    saveJournalEntries(next);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Daily Journal</p>
+          {emotionBank && (
+            <span className="rounded-full border border-indigo-400/30 bg-indigo-500/10 px-2 py-0.5 text-[9px] font-semibold text-indigo-300">
+              mood-matched
+            </span>
+          )}
+        </div>
+        {entries.length > 0 && (
+          <button
+            type="button"
+            onClick={() => exportJournal(entries)}
+            className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 transition"
+          >
+            <Download className="h-3 w-3" /> Export
+          </button>
+        )}
+      </div>
+
+      {/* Today's prompt card */}
+      {!showForm && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm backdrop-blur-md">
+          <p className="mb-1.5 text-[10px] text-zinc-500">Today&apos;s prompt</p>
+          <p className="mb-3 text-sm italic text-zinc-300 leading-relaxed">&ldquo;{todayPrompt}&rdquo;</p>
+          <button
+            type="button"
+            onClick={() => { setEditingId(null); setBody(""); setShowForm(true); }}
+            className="rounded-full bg-indigo-500/80 px-4 py-1.5 text-[12px] font-semibold text-white transition hover:bg-indigo-500"
+          >
+            {hasEntryToday ? "Write another" : "Write now"}
+          </button>
+        </div>
+      )}
+
+      {/* Write / edit form */}
+      {showForm && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm backdrop-blur-md space-y-3">
+          <p className="text-[12px] italic text-zinc-400">
+            {editingId ? "Edit entry" : `"${todayPrompt}"`}
+          </p>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); handleSave(); }
+              if (e.key === "Escape") { setShowForm(false); setEditingId(null); setBody(""); }
+            }}
+            autoFocus
+            rows={5}
+            placeholder="Write here…"
+            className="w-full resize-none rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-indigo-400/50 focus:ring-1 focus:ring-indigo-500/40"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!body.trim()}
+              className="flex-1 rounded-full bg-indigo-500/80 py-2 text-[12px] font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-40"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowForm(false); setEditingId(null); setBody(""); }}
+              className="flex-1 rounded-full border border-white/10 py-2 text-[12px] text-zinc-400 transition hover:bg-white/5"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Recent entries */}
+      {recent.map((entry) => {
+        const dateStr = new Date(entry.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+        const isLong = entry.body.length > 200;
+        return (
+          <div
+            key={entry.id}
+            onClick={isLong ? () => setExpandedEntry(entry) : undefined}
+            className={`rounded-2xl border border-white/10 bg-white/[0.03] p-3 shadow-sm ${isLong ? "cursor-pointer hover:bg-white/[0.06] transition" : ""}`}
+          >
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-[10px] text-zinc-500">{dateStr}</span>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleEdit(entry); }}
+                  className="text-[11px] text-indigo-400 hover:text-indigo-300 transition"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }}
+                  className="text-[11px] text-rose-400/70 hover:text-rose-400 transition"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+            <p className="mb-1 text-[10px] italic text-zinc-500 leading-snug line-clamp-1">{entry.prompt}</p>
+            <p className="text-[12px] text-zinc-300 leading-relaxed line-clamp-4">{entry.body}</p>
+            {isLong && <p className="mt-1 text-[10px] text-indigo-400">Read more →</p>}
+          </div>
+        );
+      })}
+
+      {/* Expanded entry overlay */}
+      {expandedEntry && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
+          onClick={() => setExpandedEntry(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="mb-1 text-[10px] text-zinc-500">
+              {new Date(expandedEntry.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
+            </p>
+            <p className="mb-3 text-[11px] italic text-zinc-400">{expandedEntry.prompt}</p>
+            <div className="max-h-72 overflow-y-auto">
+              <p className="text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">{expandedEntry.body}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setExpandedEntry(null)}
+              className="mt-4 self-end rounded-full border border-white/10 px-4 py-1.5 text-[12px] text-zinc-400 transition hover:bg-white/5"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Recurring themes */}
+      {themes.length > 0 && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            Themes in your journal
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {themes.map((theme) => (
+              <span key={theme} className="rounded-full border border-indigo-400/20 bg-indigo-500/10 px-2.5 py-1 text-[11px] capitalize text-indigo-300">
+                {theme}
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] text-zinc-600">Words that appear often across your journal entries.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── EN-4: 30-Day Reflection Challenge ────────────────────────────────────────
 const CHALLENGE_KEY = "imotara.challenge30.v1";
 const CHALLENGE_PROMPTS: string[] = [
@@ -1280,6 +1619,17 @@ export default function GrowPage() {
   function showToast(message: string, type: ToastType = "success") {
     setToast({ message, type });
   }
+
+  // S-4/S-8 — challenge and journal visibility (read settings keys)
+  const [challengeShow, setChallengeShow] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.challenge.show.v1") !== "0";
+  });
+  const [journalShow, setJournalShow] = useState(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("imotara.journal.show.v1") !== "0";
+  });
+  const [openGrowMenu, setOpenGrowMenu] = useState<string | null>(null);
 
   useEffect(() => {
     const loaded = loadEntries();
@@ -1548,7 +1898,28 @@ export default function GrowPage() {
       )}
 
       {/* EN-4: 30-Day Reflection Challenge */}
-      <ChallengeSection />
+      {challengeShow && (
+        <div className="relative">
+          <ChallengeSection />
+          <div className="absolute right-3 top-3 z-10">
+            <button
+              type="button"
+              aria-label="Challenge options"
+              onClick={() => setOpenGrowMenu(openGrowMenu === "challenge" ? null : "challenge")}
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-black/30 text-zinc-400 transition hover:bg-white/10 hover:text-zinc-200"
+            >
+              <MoreVertical className="h-3.5 w-3.5" />
+            </button>
+            {openGrowMenu === "challenge" && (
+              <div className="absolute right-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl">
+                <button type="button" onClick={() => setOpenGrowMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                <button type="button" onClick={() => { try { localStorage.setItem("imotara.challenge.show.v1", "0"); } catch {} setChallengeShow(false); setOpenGrowMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
+                <a href="/settings" className="block w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Today's prompt card */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm backdrop-blur-md">
@@ -1645,6 +2016,30 @@ export default function GrowPage() {
 
       {/* Letter to future self */}
       <FutureLetterSection showToast={showToast} />
+
+      {/* Daily Journal */}
+      {journalShow && (
+        <div className="relative">
+          <JournalSection dominantEmotion={arc.dominantEmotion ?? undefined} />
+          <div className="absolute right-3 top-3 z-10">
+            <button
+              type="button"
+              aria-label="Journal options"
+              onClick={() => setOpenGrowMenu(openGrowMenu === "journal" ? null : "journal")}
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-black/30 text-zinc-400 transition hover:bg-white/10 hover:text-zinc-200"
+            >
+              <MoreVertical className="h-3.5 w-3.5" />
+            </button>
+            {openGrowMenu === "journal" && (
+              <div className="absolute right-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl">
+                <button type="button" onClick={() => setOpenGrowMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                <button type="button" onClick={() => { try { localStorage.setItem("imotara.journal.show.v1", "0"); } catch {} setJournalShow(false); setOpenGrowMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
+                <a href="/settings" className="block w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Toast notifications */}
       {toast && (

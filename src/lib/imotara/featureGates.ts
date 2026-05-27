@@ -12,7 +12,14 @@ export type FeatureKey =
     | "EXPORT_DATA"
     | "MULTI_PROFILE"
     | "CHILD_SAFE_MODE"
-    | "ADMIN_DASHBOARD";
+    | "ADMIN_DASHBOARD"
+    // Plus+ features
+    | "TTS_ADVANCED"       // TTS voice selection, rate/pitch control, Azure Neural
+    | "SEARCH_MODE"        // Exact / semantic search mode toggle in history
+    | "REPLY_CADENCE"      // Arc & companion-letter cadence controls
+    // Pro+ features
+    | "COMPANION_LETTER"   // Monthly AI-written letter from the companion
+    | "GROWTH_ARC";        // Long-term emotional growth arc narrative
 
 export type FeatureGateResult =
     | { enabled: false; reason: string }
@@ -31,29 +38,53 @@ const HISTORY_DAYS: Record<LicenseTier, number> = {
 // Per-tier feature sets — only list what each tier unlocks
 const TIER_FEATURES: Record<LicenseTier, Set<FeatureKey>> = {
     free: new Set<FeatureKey>([
-        // Core functionality is ungated. Only truly premium things go here.
+        "CLOUD_SYNC",
+        // Server enforces 10 replies/day quota. History capped at 7 days.
     ]),
     plus: new Set<FeatureKey>([
         "CLOUD_SYNC",
+        "EXPORT_DATA",
+        "TTS_ADVANCED",  // Azure Neural TTS, voice selection, rate/pitch control
+        "SEARCH_MODE",   // Exact / semantic history search toggle
+        "REPLY_CADENCE", // Arc & companion-letter cadence pickers
+        // 90-day history; HISTORY_UNLIMITED intentionally absent.
+        // TRENDS_INSIGHTS / COMPANION_LETTER / GROWTH_ARC available on Pro and above.
     ]),
     pro: new Set<FeatureKey>([
         "CLOUD_SYNC",
         "HISTORY_UNLIMITED",
         "TRENDS_INSIGHTS",
         "EXPORT_DATA",
+        "TTS_ADVANCED",
+        "SEARCH_MODE",
+        "REPLY_CADENCE",
+        "COMPANION_LETTER", // Monthly AI-written letter
+        "GROWTH_ARC",       // Long-term emotional growth arc narrative
     ]),
     family: new Set<FeatureKey>([
         "CLOUD_SYNC",
         "HISTORY_UNLIMITED",
+        "TRENDS_INSIGHTS",
         "MULTI_PROFILE",
         "CHILD_SAFE_MODE",
+        "TTS_ADVANCED",
+        "SEARCH_MODE",
+        "REPLY_CADENCE",
+        "COMPANION_LETTER",
+        "GROWTH_ARC",
         // Export intentionally off for Family (privacy boundary — shared device)
     ]),
     edu: new Set<FeatureKey>([
         "CLOUD_SYNC",
         "HISTORY_UNLIMITED",
-        "TRENDS_INSIGHTS",
+        "TRENDS_INSIGHTS",  // Aggregated/anonymised for admins; individual analytics off
         "ADMIN_DASHBOARD",
+        "CHILD_SAFE_MODE",
+        "TTS_ADVANCED",
+        "SEARCH_MODE",
+        "REPLY_CADENCE",
+        // Individual export off; bulk anonymised export via admin panel only.
+        // COMPANION_LETTER / GROWTH_ARC off — individual narrative features not suited to EDU.
     ]),
     enterprise: new Set<FeatureKey>([
         "CLOUD_SYNC",
@@ -61,6 +92,13 @@ const TIER_FEATURES: Record<LicenseTier, Set<FeatureKey>> = {
         "TRENDS_INSIGHTS",
         "EXPORT_DATA",
         "ADMIN_DASHBOARD",
+        "CHILD_SAFE_MODE",
+        "MULTI_PROFILE",
+        "TTS_ADVANCED",
+        "SEARCH_MODE",
+        "REPLY_CADENCE",
+        "COMPANION_LETTER",
+        "GROWTH_ARC",
     ]),
 };
 
@@ -108,10 +146,15 @@ function reasonFor(feature: FeatureKey, _tier: LicenseTier): string {
         case "CLOUD_SYNC":        return "Cloud sync is available on Plus and above.";
         case "HISTORY_UNLIMITED": return "Unlimited history is available on Pro.";
         case "TRENDS_INSIGHTS":   return "Emotion insights are available on Pro.";
-        case "EXPORT_DATA":       return "Data export is available on Pro.";
+        case "EXPORT_DATA":       return "Data export is available on Plus and above.";
         case "MULTI_PROFILE":     return "Multiple profiles are available with the Family plan.";
-        case "CHILD_SAFE_MODE":   return "Child-safe mode is available with the Family plan.";
+        case "CHILD_SAFE_MODE":   return "Child-safe mode is available on Family, EDU, and Enterprise plans.";
         case "ADMIN_DASHBOARD":   return "Admin tools are available on institutional plans.";
+        case "TTS_ADVANCED":      return "Advanced TTS voice selection and rate/pitch control are available on Plus and above.";
+        case "SEARCH_MODE":       return "Exact/semantic search mode is available on Plus and above.";
+        case "REPLY_CADENCE":     return "Cadence controls for arc and companion letter are available on Plus and above.";
+        case "COMPANION_LETTER":  return "Monthly companion letters are available on Pro and above.";
+        case "GROWTH_ARC":        return "Emotional growth arc narrative is available on Pro and above.";
         default:                  return "This feature is not available on your current plan.";
     }
 }

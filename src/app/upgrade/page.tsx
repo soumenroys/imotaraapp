@@ -41,7 +41,7 @@ const SUBSCRIPTION_PLANS = [
         annualId:  "plus_annual",
         monthlyPaise: 9_900,
         annualPaise:  69_900,
-        features: ["Unlimited replies", "90-day cloud history", "Companion mode", "Priority support"],
+        features: ["Unlimited replies", "90-day cloud history", "Companion mode", "Data export", "Priority support"],
         cta: "Subscribe",
         accent: "sky",
     },
@@ -86,6 +86,33 @@ function loadRazorpay(): Promise<boolean> {
 
 function fmt(paise: number) {
     return `₹${Math.round(paise / 100)}`;
+}
+
+// ── CompareRow ─────────────────────────────────────────────────────────────────
+
+function Cell({ value }: { value: boolean | string }) {
+    if (value === true)  return <span className="text-emerald-400 text-base leading-none" aria-label="included">✓</span>;
+    if (value === false) return <span className="text-zinc-600 text-base leading-none" aria-label="not included">—</span>;
+    return <span className="text-zinc-300 text-xs font-medium">{value}</span>;
+}
+
+function CompareRow({ label, desc, free, plus, pro, ent }: {
+    label: string; desc: string;
+    free: boolean | string; plus: boolean | string;
+    pro: boolean | string;  ent: boolean | string;
+}) {
+    return (
+        <tr className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
+            <td className="py-3 px-4">
+                <p className="font-medium text-zinc-200 text-xs">{label}</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5 leading-snug">{desc}</p>
+            </td>
+            <td className="py-3 px-3 text-center"><Cell value={free} /></td>
+            <td className="py-3 px-3 text-center"><Cell value={plus} /></td>
+            <td className="py-3 px-3 text-center"><Cell value={pro} /></td>
+            <td className="py-3 px-3 text-center"><Cell value={ent} /></td>
+        </tr>
+    );
 }
 
 // ── Page ───────────────────────────────────────────────────────────────────────
@@ -378,6 +405,412 @@ export default function UpgradePage() {
                         </div>
                     );
                 })}
+            </div>
+
+            {/* Enterprise & Institutional */}
+            <div className="mt-8 rounded-2xl border border-violet-400/20 bg-violet-500/8 p-6">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                            <h2 className="text-base font-semibold text-zinc-100">Enterprise &amp; Institutional</h2>
+                            <span className="rounded-full bg-violet-500/20 border border-violet-400/20 px-2 py-0.5 text-[10px] font-semibold text-violet-300 uppercase tracking-wide">Custom pricing</span>
+                        </div>
+                        <p className="text-sm text-zinc-400 mb-4">
+                            Built for organisations, healthcare platforms, schools, and HR teams that need managed deployments, admin controls, and compliance features.
+                        </p>
+                        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm text-zinc-300">
+                            {[
+                                "Everything in Pro",
+                                "Admin dashboard & analytics",
+                                "Multi-profile management",
+                                "Child-safe mode",
+                                "SSO / SAML integration",
+                                "Data residency options",
+                                "Bulk seat management",
+                                "Dedicated onboarding & support",
+                                "Custom AI persona",
+                                "SLA & compliance docs",
+                            ].map((f) => (
+                                <li key={f} className="flex items-start gap-2">
+                                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-400" />
+                                    {f}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div className="sm:shrink-0 sm:self-start">
+                        <a
+                            href="mailto:info@imotara.com?subject=Enterprise%20inquiry"
+                            className="inline-flex items-center rounded-xl bg-violet-600 hover:bg-violet-500 transition px-5 py-2.5 text-sm font-semibold text-white"
+                        >
+                            Contact us →
+                        </a>
+                        <p className="mt-2 text-xs text-zinc-500 text-center">We typically reply within 24 h</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Feature comparison table */}
+            <div className="mt-14">
+                <h2 className="text-lg font-semibold mb-1 text-center">Compare plans</h2>
+                <p className="text-sm text-zinc-400 text-center mb-6">Every feature, side by side.</p>
+
+                <div className="overflow-x-auto rounded-2xl border border-white/10">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-white/10 bg-white/5">
+                                <th className="py-3 px-4 text-left font-medium text-zinc-400 w-[40%]">Feature</th>
+                                <th className="py-3 px-3 text-center font-medium text-zinc-400">Free</th>
+                                <th className="py-3 px-3 text-center font-medium text-sky-400">Plus</th>
+                                <th className="py-3 px-3 text-center font-medium text-indigo-400">Pro</th>
+                                <th className="py-3 px-3 text-center font-medium text-violet-400">Enterprise</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {/* ── Replies & Usage ── */}
+                            <tr className="bg-white/[0.03]">
+                                <td colSpan={5} className="py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Replies &amp; Usage
+                                </td>
+                            </tr>
+                            {[
+                                {
+                                    label: "Cloud replies / day",
+                                    desc: "AI replies backed by cloud memory and history",
+                                    free: "20/day", plus: "Unlimited", pro: "Unlimited", ent: "Unlimited",
+                                },
+                                {
+                                    label: "On-device replies",
+                                    desc: "Local AI replies — always free, no login needed",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Cloud sync",
+                                    desc: "History and settings synced across all your devices",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Cross-device sync",
+                                    desc: "Seamlessly switch between phone, tablet, and web with full history",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Companion mode / personas",
+                                    desc: "Themed AI personalities — Coach, Listener, Challenger, and more",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Response length control",
+                                    desc: "Switch between short, medium, and detailed AI response modes",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Companion tone selection",
+                                    desc: "Choose the mood of your AI companion — Warm, Direct, Playful, and more",
+                                    free: "1 tone", plus: "All tones", pro: "All tones", ent: "All tones",
+                                },
+                                {
+                                    label: "Token top-up packs",
+                                    desc: "Buy one-time credit packs to extend reply capacity beyond the daily limit",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                            ].map((row) => <CompareRow key={row.label} {...row} />)}
+
+                            {/* ── History & Data ── */}
+                            <tr className="bg-white/[0.03]">
+                                <td colSpan={5} className="py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    History &amp; Data
+                                </td>
+                            </tr>
+                            {[
+                                {
+                                    label: "Conversation history",
+                                    desc: "How far back your cloud history is kept",
+                                    free: "7 days", plus: "90 days", pro: "Unlimited", ent: "Unlimited",
+                                },
+                                {
+                                    label: "History search across dates",
+                                    desc: "Search messages older than the current session",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Data export (JSON / CSV)",
+                                    desc: "Download your full conversation archive in machine-readable formats",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Export as PDF",
+                                    desc: "Render your conversation history as a formatted PDF document",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "GDPR data request",
+                                    desc: "Download all personal data held about your account",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Data deletion request",
+                                    desc: "Request permanent deletion of all your data from Imotara servers",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                            ].map((row) => <CompareRow key={row.label} {...row} />)}
+
+                            {/* ── Voice & Search ── */}
+                            <tr className="bg-white/[0.03]">
+                                <td colSpan={5} className="py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Voice &amp; Search
+                                </td>
+                            </tr>
+                            {[
+                                {
+                                    label: "Text-to-speech (TTS)",
+                                    desc: "AI replies read aloud using a synthetic voice",
+                                    free: "Basic", plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Voice input (speech-to-text)",
+                                    desc: "Speak your message instead of typing — transcribed before sending",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Advanced TTS — voice & speed",
+                                    desc: "Choose from multiple neural voices; adjust speaking rate and pitch",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Azure Neural TTS",
+                                    desc: "High-quality cloud-rendered speech via Azure Cognitive Services",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Language-matched TTS voices",
+                                    desc: "TTS voices automatically matched to your selected app language",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Offline TTS fallback",
+                                    desc: "Uses your device's built-in TTS engine when offline",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Semantic history search",
+                                    desc: "Toggle between keyword and meaning-based history search",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                            ].map((row) => <CompareRow key={row.label} {...row} />)}
+
+                            {/* ── AI Companion ── */}
+                            <tr className="bg-white/[0.03]">
+                                <td colSpan={5} className="py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    AI Companion &amp; Insights
+                                </td>
+                            </tr>
+                            {[
+                                {
+                                    label: "Reply cadence",
+                                    desc: "Control how often your companion responds and sends letters",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Streak tracking",
+                                    desc: "Counts consecutive days you engaged with the app",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Session duration stats",
+                                    desc: "See how long each conversation session lasted",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Emotion trends & mood graphs",
+                                    desc: "Weekly and monthly charts of emotional states over time",
+                                    free: false, plus: false, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Conversation insights",
+                                    desc: "Per-conversation annotations — topics, emotional tone, key moments",
+                                    free: false, plus: false, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Weekly emotional summary",
+                                    desc: "Auto-generated narrative of the week's emotional themes",
+                                    free: false, plus: false, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Companion letter",
+                                    desc: "Monthly AI-written letter reflecting on your journey and growth",
+                                    free: false, plus: false, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Growth arc",
+                                    desc: "Long-term emotional growth narrative tracking how you evolve over months",
+                                    free: false, plus: false, pro: true, ent: true,
+                                },
+                            ].map((row) => <CompareRow key={row.label} {...row} />)}
+
+                            {/* ── Notifications & Habits ── */}
+                            <tr className="bg-white/[0.03]">
+                                <td colSpan={5} className="py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Notifications &amp; Habits
+                                </td>
+                            </tr>
+                            {[
+                                {
+                                    label: "Daily check-in reminder",
+                                    desc: "Push notification reminding you to open the app at a chosen time",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Streak notifications",
+                                    desc: "Alert when you are at risk of breaking a streak",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Milestone celebrations",
+                                    desc: "In-app celebration when you hit streaks, insights, or growth milestones",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Custom notification schedule",
+                                    desc: "Set specific days and times for reminders instead of a single daily slot",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Weekly insight digest",
+                                    desc: "Weekly push notification summarising your emotional highlights",
+                                    free: false, plus: false, pro: true, ent: true,
+                                },
+                            ].map((row) => <CompareRow key={row.label} {...row} />)}
+
+                            {/* ── Privacy & Security ── */}
+                            <tr className="bg-white/[0.03]">
+                                <td colSpan={5} className="py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Privacy &amp; Security
+                                </td>
+                            </tr>
+                            {[
+                                {
+                                    label: "Encrypted cloud storage",
+                                    desc: "All cloud data encrypted at rest (AES-256) and in transit (TLS 1.3)",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Local-only / offline mode",
+                                    desc: "Disable cloud sync entirely and keep all data on-device",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Session token management",
+                                    desc: "View and revoke active login sessions from account security settings",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Audit logs",
+                                    desc: "Immutable logs of admin actions, profile changes, and data access events",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                            ].map((row) => <CompareRow key={row.label} {...row} />)}
+
+                            {/* ── Organisation & Admin ── */}
+                            <tr className="bg-white/[0.03]">
+                                <td colSpan={5} className="py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Organisation &amp; Admin
+                                </td>
+                            </tr>
+                            {[
+                                {
+                                    label: "Multi-profile",
+                                    desc: "Manage multiple user profiles under one account",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                                {
+                                    label: "Child-safe mode",
+                                    desc: "Content filtering for younger or vulnerable users; blocks sensitive topics",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                                {
+                                    label: "Admin dashboard",
+                                    desc: "Org-wide usage analytics, seat management, and policy controls",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                                {
+                                    label: "User management",
+                                    desc: "Add, remove, suspend, or reassign users within your organisation",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                                {
+                                    label: "Bulk user provisioning",
+                                    desc: "Import users via CSV or SCIM; set default tier and permissions at scale",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                                {
+                                    label: "SSO / SAML",
+                                    desc: "Single sign-on via Okta, Google Workspace, Azure AD, or any SAML provider",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                                {
+                                    label: "Data residency",
+                                    desc: "Choose which geographic region stores your organisation's data",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                                {
+                                    label: "API access",
+                                    desc: "Programmatic access to conversation summaries and analytics via REST API",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                                {
+                                    label: "Custom integrations",
+                                    desc: "Bespoke webhooks, HR system connectors, or custom AI model tuning",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                                {
+                                    label: "Institution branding",
+                                    desc: "Replace Imotara's logo and colours with your organisation's brand assets",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                            ].map((row) => <CompareRow key={row.label} {...row} />)}
+
+                            {/* ── Support ── */}
+                            <tr className="bg-white/[0.03]">
+                                <td colSpan={5} className="py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Support
+                                </td>
+                            </tr>
+                            {[
+                                {
+                                    label: "Community docs & FAQ",
+                                    desc: "Access to public help centre, guides, and community forum",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Email support",
+                                    desc: "Submit support tickets via email with a response SLA",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Priority support queue",
+                                    desc: "Tickets routed to a faster queue with shorter response times",
+                                    free: false, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Dedicated account manager",
+                                    desc: "Named contact for onboarding, renewals, and escalations",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                                {
+                                    label: "SLA guarantee",
+                                    desc: "Contractual uptime and response-time commitments",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                                {
+                                    label: "Onboarding assistance",
+                                    desc: "Guided setup session with the Imotara team for your org deployment",
+                                    free: false, plus: false, pro: false, ent: true,
+                                },
+                            ].map((row) => <CompareRow key={row.label} {...row} />)}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Token packs */}

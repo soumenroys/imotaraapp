@@ -7,6 +7,7 @@ import {
   getRecordsSince,
   upsertRecords,
   clearAllRecords,
+  clearRecordsByScope,
 } from "./store";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
@@ -344,12 +345,17 @@ export async function POST(request: Request) {
  * --------------------------------------------------------------------------*/
 export async function DELETE(request: Request) {
   try {
-    if (!isAdminRequest(request)) {
-      return NextResponse.json({ ok: false }, { status: 403 });
+    if (isAdminRequest(request)) {
+      // Admin-only: wipe the entire table
+      await clearAllRecords();
+      return NextResponse.json({ ok: true, clearedAt: Date.now() }, { status: 200 });
     }
 
-    await clearAllRecords();
+    // User-scoped: delete only the requesting user's records
+    const scope = await getScopeFromRequest(request);
+    if (!scope) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
+    await clearRecordsByScope(scope);
     return NextResponse.json({ ok: true, clearedAt: Date.now() }, { status: 200 });
   } catch (err) {
     const PROD = process.env.NODE_ENV === "production";

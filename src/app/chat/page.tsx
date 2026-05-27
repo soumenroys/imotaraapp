@@ -993,6 +993,7 @@ export default function ChatPage() {
     return () => {
       recognitionRef.current?.abort();
       recognitionRef.current = null;
+      if (voiceAutoStopTimerRef.current) clearTimeout(voiceAutoStopTimerRef.current);
     };
   }, []);
 
@@ -2549,6 +2550,9 @@ export default function ChatPage() {
     sendMessage(`Feeling ${label.toLowerCase()} today.`);
   }
 
+  const voiceAutoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pendingVoiceTranscript, setPendingVoiceTranscript] = useState<string | null>(null);
+
   function toggleVoice() {
     const SpeechRecognition =
       typeof window !== "undefined"
@@ -2559,6 +2563,7 @@ export default function ChatPage() {
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
+      if (voiceAutoStopTimerRef.current) { clearTimeout(voiceAutoStopTimerRef.current); voiceAutoStopTimerRef.current = null; }
       return;
     }
 
@@ -2576,27 +2581,44 @@ export default function ChatPage() {
     rec.lang = LANG_TO_BCP47[profileLang] ?? "en-US";
     recognitionRef.current = rec;
 
+    // Read voice settings from localStorage at start time
+    const durSecs = parseInt(localStorage.getItem("imotara.voice.maxDuration.v1") ?? "60", 10);
+    const voiceConfirmEnabled = localStorage.getItem("imotara.voice.confirmTranscription.v1") === "1";
+
     rec.onresult = (e: any) => {
       const transcript: string = e.results[0]?.[0]?.transcript ?? "";
-      if (transcript.trim()) {
-        if (handsfreeRef.current) {
-          // Hands-free: skip the draft and send immediately
-          sendMessage(transcript.trim());
-        } else {
-          setDraft((prev) => (prev.trim() ? `${prev} ${transcript.trim()}` : transcript.trim()));
-        }
+      if (!transcript.trim()) return;
+      if (voiceConfirmEnabled) {
+        // Show confirmation banner before inserting into draft
+        setPendingVoiceTranscript(transcript.trim());
+      } else if (handsfreeRef.current) {
+        sendMessage(transcript.trim());
+      } else {
+        setDraft((prev) => (prev.trim() ? `${prev} ${transcript.trim()}` : transcript.trim()));
       }
     };
     rec.onerror = (e: any) => {
       setIsListening(false);
+      if (voiceAutoStopTimerRef.current) { clearTimeout(voiceAutoStopTimerRef.current); voiceAutoStopTimerRef.current = null; }
       if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
         setChatToast({ message: "Microphone access denied — allow it in your browser settings.", type: "error" });
       }
     };
-    rec.onend = () => setIsListening(false);
+    rec.onend = () => {
+      setIsListening(false);
+      if (voiceAutoStopTimerRef.current) { clearTimeout(voiceAutoStopTimerRef.current); voiceAutoStopTimerRef.current = null; }
+    };
 
     rec.start();
     setIsListening(true);
+
+    // Auto-stop after max duration (V-1 setting)
+    if (isFinite(durSecs) && durSecs > 0) {
+      voiceAutoStopTimerRef.current = setTimeout(() => {
+        rec.stop();
+        voiceAutoStopTimerRef.current = null;
+      }, durSecs * 1000);
+    }
   }
 
   function handleUndo() {
@@ -3656,6 +3678,20 @@ export default function ChatPage() {
           })()}
 
           {/* #18: Undo toast with countdown drain bar */}
+          {/* V-4: Voice confirmation banner */}
+          {pendingVoiceTranscript && (
+            <div className="mx-auto mb-1 max-w-3xl rounded-2xl border border-sky-400/30 bg-sky-500/10 text-xs text-sky-200 px-4 py-2.5">
+              <p className="mb-2 font-medium text-sky-300">Use this transcription?</p>
+              <p className="mb-2 italic text-sky-100 leading-5">&ldquo;{pendingVoiceTranscript}&rdquo;</p>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => { setDraft((prev) => prev.trim() ? `${prev} ${pendingVoiceTranscript}` : pendingVoiceTranscript!); setPendingVoiceTranscript(null); }}
+                  className="font-semibold underline underline-offset-2 hover:text-sky-100 transition">Use</button>
+                <button type="button" onClick={() => setPendingVoiceTranscript(null)}
+                  className="opacity-60 hover:opacity-100 transition">Discard</button>
+              </div>
+            </div>
+          )}
+
           {pendingUndo && (
             <div className="mx-auto mb-1 max-w-3xl overflow-hidden rounded-2xl border border-amber-400/30 bg-amber-500/10 text-xs text-amber-200">
               {/* Draining progress bar */}

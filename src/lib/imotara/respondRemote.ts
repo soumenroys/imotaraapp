@@ -199,12 +199,17 @@ export async function respondRemote(input: {
         ...(companionGender && companionGender !== "prefer_not" && companionGender !== "other" ? { companionGender } : {}),
     });
 
+    // Read API timeout preference (default 20s — matches mobile default)
+    const _timeoutRaw = typeof window !== "undefined" ? parseInt(window.localStorage.getItem("imotara.api.timeout.v1") ?? "20", 10) : 20;
+    const apiTimeoutMs = isFinite(_timeoutRaw) && _timeoutRaw > 0 ? _timeoutRaw * 1000 : 20_000;
+
     try {
         // ── Streaming path (web) ────────────────────────────────────────────────
         const aiRes = await fetch("/api/chat-reply?stream=1", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: chatReplyBody,
+            signal: AbortSignal.timeout(apiTimeoutMs),
         });
 
         if (aiRes.ok && aiRes.body) {
@@ -264,6 +269,7 @@ export async function respondRemote(input: {
             message: input.message,
             context: input.context,
         }),
+        signal: AbortSignal.timeout(apiTimeoutMs),
     });
 
     if (!res.ok) {

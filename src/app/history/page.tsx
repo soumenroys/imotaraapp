@@ -185,6 +185,13 @@ function MoodLineChart30() {
     <div className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
       <p className="mb-3 text-sm font-semibold text-zinc-200">30-day mood trend</p>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 80 }} aria-label="30-day mood trend chart">
+        <defs>
+          <linearGradient id="moodGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#34d399" />
+            <stop offset="50%" stopColor="#a5b4fc" />
+            <stop offset="100%" stopColor="#f87171" />
+          </linearGradient>
+        </defs>
         {/* Zero line */}
         <line x1={PAD} y1={zerY} x2={W - PAD} y2={zerY} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
         {/* Positive zone tint */}
@@ -195,14 +202,6 @@ function MoodLineChart30() {
         {segments.map((seg, si) => (
           <polyline key={si} points={seg.join(" ")} fill="none" stroke="url(#moodGrad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         ))}
-        {/* Gradient definition */}
-        <defs>
-          <linearGradient id="moodGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#34d399" />
-            <stop offset="50%" stopColor="#a5b4fc" />
-            <stop offset="100%" stopColor="#f87171" />
-          </linearGradient>
-        </defs>
         {/* Data dots */}
         {filled.map((pt, i) =>
           pt.y !== null ? (

@@ -1854,6 +1854,88 @@ export default function SettingsPage() {
         try { localStorage.setItem(WEB_CRISIS_THRESHOLD_KEY, val); } catch { /* ignore */ }
     }
 
+    // ─── V-1: Voice max duration picker ──────────────────────────────────────
+    const VOICE_MAX_DURATION_KEY = "imotara.voice.maxDuration.v1";
+    const VOICE_DURATION_OPTIONS = [30, 60, 120, 300] as const;
+    const [voiceMaxDuration, setVoiceMaxDuration] = useState(60);
+    useEffect(() => {
+        try { const n = parseInt(localStorage.getItem(VOICE_MAX_DURATION_KEY) ?? "60", 10); if (isFinite(n)) setVoiceMaxDuration(n); } catch { /* ignore */ }
+    }, []);
+    function handleVoiceDurationChange(secs: number) {
+        setVoiceMaxDuration(secs);
+        try { localStorage.setItem(VOICE_MAX_DURATION_KEY, String(secs)); } catch { /* ignore */ }
+    }
+    const voiceDurationLabel = (s: number) => s < 60 ? `${s}s` : `${s / 60} min`;
+
+    // ─── V-2: Recording quality picker ───────────────────────────────────────
+    const VOICE_QUALITY_KEY = "imotara.voice.quality.v1";
+    const [voiceQuality, setVoiceQuality] = useState<"high" | "low">("high");
+    useEffect(() => {
+        try { const v = localStorage.getItem(VOICE_QUALITY_KEY); if (v === "high" || v === "low") setVoiceQuality(v); } catch { /* ignore */ }
+    }, []);
+    function handleVoiceQualityChange(val: "high" | "low") {
+        setVoiceQuality(val);
+        try { localStorage.setItem(VOICE_QUALITY_KEY, val); } catch { /* ignore */ }
+    }
+
+    // ─── V-3: Cloud transcription toggle ─────────────────────────────────────
+    const VOICE_CLOUD_KEY = "imotara.voice.cloudTranscription.v1";
+    const [voiceCloudTranscription, setVoiceCloudTranscription] = useState(true);
+    useEffect(() => {
+        try { setVoiceCloudTranscription(localStorage.getItem(VOICE_CLOUD_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleVoiceCloudToggle(val: boolean) {
+        setVoiceCloudTranscription(val);
+        try { localStorage.setItem(VOICE_CLOUD_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── V-4: Voice confirmation mode ────────────────────────────────────────
+    const VOICE_CONFIRM_KEY = "imotara.voice.confirmTranscription.v1";
+    const [voiceConfirm, setVoiceConfirm] = useState(false);
+    useEffect(() => {
+        try { setVoiceConfirm(localStorage.getItem(VOICE_CONFIRM_KEY) === "1"); } catch { /* ignore */ }
+    }, []);
+    function handleVoiceConfirmToggle(val: boolean) {
+        setVoiceConfirm(val);
+        try { localStorage.setItem(VOICE_CONFIRM_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
+    // ─── M-1: Memory max items picker ────────────────────────────────────────
+    const MEMORY_MAX_ITEMS_KEY = "imotara.memory.maxItems.v1";
+    const MEMORY_MAX_OPTIONS = [6, 12, 20, 30] as const;
+    const [memoryMaxItems, setMemoryMaxItems] = useState(12);
+    useEffect(() => {
+        try { const n = parseInt(localStorage.getItem(MEMORY_MAX_ITEMS_KEY) ?? "12", 10); if (isFinite(n)) setMemoryMaxItems(n); } catch { /* ignore */ }
+    }, []);
+    function handleMemoryMaxItemsChange(n: number) {
+        setMemoryMaxItems(n);
+        try { localStorage.setItem(MEMORY_MAX_ITEMS_KEY, String(n)); } catch { /* ignore */ }
+    }
+
+    // ─── M-3: Status poll interval picker ────────────────────────────────────
+    const STATUS_POLL_KEY = "imotara.status.pollInterval.v1";
+    const STATUS_POLL_OPTIONS = [10, 15, 30, 60] as const;
+    const [statusPollInterval, setStatusPollInterval] = useState(15);
+    useEffect(() => {
+        try { const n = parseInt(localStorage.getItem(STATUS_POLL_KEY) ?? "15", 10); if (isFinite(n)) setStatusPollInterval(n); } catch { /* ignore */ }
+    }, []);
+    function handleStatusPollChange(secs: number) {
+        setStatusPollInterval(secs);
+        try { localStorage.setItem(STATUS_POLL_KEY, String(secs)); } catch { /* ignore */ }
+    }
+
+    // ─── G-M11: API timeout picker ───────────────────────────────────────────
+    const API_TIMEOUT_KEY = "imotara.api.timeout.v1";
+    const API_TIMEOUT_OPTIONS = [10, 20, 30, 60] as const;
+    const [apiTimeoutSecs, setApiTimeoutSecs] = useState(20);
+    useEffect(() => {
+        try { const n = parseInt(localStorage.getItem(API_TIMEOUT_KEY) ?? "20", 10); if (isFinite(n)) setApiTimeoutSecs(n); } catch { /* ignore */ }
+    }, []);
+    function handleApiTimeoutChange(secs: number) {
+        setApiTimeoutSecs(secs);
+        try { localStorage.setItem(API_TIMEOUT_KEY, String(secs)); } catch { /* ignore */ }
+    }
+
     // ─── Advanced accordion ───────────────────────────────────────────────────
     const [advancedOpen, setAdvancedOpen] = useState<boolean>(() => {
         try { return sessionStorage.getItem("imotara.settings.advanced.v1") === "true"; } catch { return false; }
@@ -2802,6 +2884,60 @@ export default function SettingsPage() {
                         </div>
                         <p className="text-[10px] text-zinc-600">Applies to voice preview on avatar taps in Chat.</p>
                     </div>
+
+                    {/* V-1: Voice max duration */}
+                    <div className="mt-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <p className="text-xs font-medium text-zinc-200">Max recording duration</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-500">How long the microphone records before auto-stopping</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {(VOICE_DURATION_OPTIONS as readonly number[]).map((s) => (
+                                <button key={s} type="button" onClick={() => handleVoiceDurationChange(s)}
+                                    className={`rounded-full border px-3 py-1 text-[11px] transition ${voiceMaxDuration === s ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}>
+                                    {voiceDurationLabel(s)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* V-2: Recording quality */}
+                    <div className="mt-2 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <p className="text-xs font-medium text-zinc-200">Recording quality</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-500">Higher quality uses more data and processing time</p>
+                        <div className="mt-2 flex gap-2">
+                            {(["high", "low"] as const).map((v) => (
+                                <button key={v} type="button" onClick={() => handleVoiceQualityChange(v)}
+                                    className={`rounded-full border px-3 py-1 text-[11px] capitalize transition ${voiceQuality === v ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}>
+                                    {v}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* V-3: Cloud transcription */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Cloud transcription</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Send audio to server for higher-accuracy speech recognition</p>
+                        </div>
+                        <button type="button" role="switch" aria-checked={voiceCloudTranscription}
+                            onClick={() => handleVoiceCloudToggle(!voiceCloudTranscription)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${voiceCloudTranscription ? "bg-sky-500" : "bg-zinc-600"}`}>
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${voiceCloudTranscription ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* V-4: Confirm transcript before send */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Confirm before sending</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Review and edit the transcript before it is sent as a message</p>
+                        </div>
+                        <button type="button" role="switch" aria-checked={voiceConfirm}
+                            onClick={() => handleVoiceConfirmToggle(!voiceConfirm)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${voiceConfirm ? "bg-sky-500" : "bg-zinc-600"}`}>
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${voiceConfirm ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
                 </section>
 
                 {/* ── Group 4: Privacy & safety ────────────────────────── */}
@@ -3308,6 +3444,20 @@ export default function SettingsPage() {
                             ))}
                         </ul>
                     )}
+
+                    {/* M-1: Memory cap */}
+                    <div className="mt-4">
+                        <p className="text-xs font-medium text-zinc-300">Memory cap</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-500">Maximum number of facts Imotara retains about you</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {(MEMORY_MAX_OPTIONS as readonly number[]).map((n) => (
+                                <button key={n} type="button" onClick={() => handleMemoryMaxItemsChange(n)}
+                                    className={`rounded-full border px-3 py-1 text-[11px] transition ${memoryMaxItems === n ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}>
+                                    {n} items
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </section>
 
                 {/* NF-3: Family Emotional Snapshot */}
@@ -3393,6 +3543,40 @@ export default function SettingsPage() {
                         >
                             Terms
                         </Link>
+                    </div>
+                </section>
+
+                {/* ── Network ──────────────────────────────────────────── */}
+                <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Network</h2>
+                    <p className="mt-1 text-xs text-zinc-400">Fine-tune how Imotara communicates with its backend.</p>
+
+                    {/* M-3: Status poll interval */}
+                    <div className="mt-4">
+                        <p className="text-xs font-medium text-zinc-300">Online status poll interval</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-500">How often to check connection status (seconds)</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {(STATUS_POLL_OPTIONS as readonly number[]).map((s) => (
+                                <button key={s} type="button" onClick={() => handleStatusPollChange(s)}
+                                    className={`rounded-full border px-3 py-1 text-[11px] transition ${statusPollInterval === s ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}>
+                                    {s}s
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* G-M11: API timeout */}
+                    <div className="mt-4">
+                        <p className="text-xs font-medium text-zinc-300">API request timeout</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-500">Maximum wait time before a request is considered failed</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {(API_TIMEOUT_OPTIONS as readonly number[]).map((s) => (
+                                <button key={s} type="button" onClick={() => handleApiTimeoutChange(s)}
+                                    className={`rounded-full border px-3 py-1 text-[11px] transition ${apiTimeoutSecs === s ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}>
+                                    {s}s
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </section>
 

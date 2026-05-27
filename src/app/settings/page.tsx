@@ -1509,15 +1509,21 @@ export default function SettingsPage() {
         }
     }
 
-    // ─── H-1: Haptic feedback toggle ─────────────────────────────────────────
-    const HAPTIC_PREF_KEY = "imotara.haptic.enabled.v1";
-    const [hapticEnabled, setHapticEnabled] = useState(true);
+    // ─── H-1: Haptic intensity picker (off / light / strong) ─────────────────
+    const HAPTIC_INTENSITY_KEY = "imotara.haptic.intensity.v1";
+    const HAPTIC_ENABLED_KEY_LEGACY = "imotara.haptic.enabled.v1";
+    const [hapticIntensity, setHapticIntensity] = useState<"off" | "light" | "strong">("light");
     useEffect(() => {
-        try { setHapticEnabled(localStorage.getItem(HAPTIC_PREF_KEY) !== "0"); } catch { /* ignore */ }
+        try {
+            const v = localStorage.getItem(HAPTIC_INTENSITY_KEY);
+            if (v === "off" || v === "light" || v === "strong") { setHapticIntensity(v); return; }
+            // Migrate legacy boolean key
+            if (localStorage.getItem(HAPTIC_ENABLED_KEY_LEGACY) === "0") setHapticIntensity("off");
+        } catch { /* ignore */ }
     }, []);
-    function handleHapticToggle(val: boolean) {
-        setHapticEnabled(val);
-        try { localStorage.setItem(HAPTIC_PREF_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    function handleHapticIntensityChange(val: "off" | "light" | "strong") {
+        setHapticIntensity(val);
+        try { localStorage.setItem(HAPTIC_INTENSITY_KEY, val); } catch { /* ignore */ }
     }
 
     // ─── C-2: Reduced motion toggle ──────────────────────────────────────────
@@ -1674,6 +1680,18 @@ export default function SettingsPage() {
     function handleDiscoveryReset() {
         try { localStorage.removeItem(DISCOVERY_KEY); } catch { /* ignore */ }
         setDiscoveryResetMsg("Discovery cards reset — they will reappear next time you open Chat.");
+    }
+
+    // ─── O-2: Restart onboarding ─────────────────────────────────────────────
+    const ONBOARDING_DONE_KEY = "imotara.onboarding.done.v1";
+    const [onboardingResetMsg, setOnboardingResetMsg] = useState<string | null>(null);
+    function handleRestartOnboarding() {
+        if (!window.confirm("Restart onboarding? Your data, history, and settings are not affected.")) return;
+        try {
+            localStorage.removeItem(ONBOARDING_DONE_KEY);
+            localStorage.removeItem(DISCOVERY_KEY);
+        } catch { /* ignore */ }
+        setOnboardingResetMsg("Onboarding will appear next time you open Imotara.");
     }
 
     // ─── O-3: First-message tip reset ────────────────────────────────────────
@@ -2687,21 +2705,22 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
-                    {/* H-1: Haptic feedback */}
-                    <div className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
-                        <div>
-                            <p className="text-xs font-medium text-zinc-200">Haptic feedback</p>
-                            <p className="mt-0.5 text-[11px] text-zinc-500">Vibration on taps and emotion moments (mobile browsers)</p>
+                    {/* H-1: Haptic intensity */}
+                    <div className="mt-5 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <p className="text-xs font-medium text-zinc-200">Haptic feedback</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-500">Vibration intensity on taps and emotion moments (mobile browsers)</p>
+                        <div className="mt-2 flex gap-2">
+                            {(["off", "light", "strong"] as const).map((level) => (
+                                <button
+                                    key={level}
+                                    type="button"
+                                    onClick={() => handleHapticIntensityChange(level)}
+                                    className={`rounded-full border px-3 py-1 text-[11px] capitalize transition ${hapticIntensity === level ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}
+                                >
+                                    {level}
+                                </button>
+                            ))}
                         </div>
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked={hapticEnabled}
-                            onClick={() => handleHapticToggle(!hapticEnabled)}
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${hapticEnabled ? "bg-sky-500" : "bg-zinc-600"}`}
-                        >
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${hapticEnabled ? "translate-x-4" : "translate-x-0"}`} />
-                        </button>
                     </div>
 
                     {/* C-2: Reduced motion */}
@@ -3213,6 +3232,22 @@ export default function SettingsPage() {
                             </button>
                         </div>
                         {firstMsgResetMsg && <p className="text-[11px] text-sky-400">{firstMsgResetMsg}</p>}
+
+                        {/* O-2: Restart onboarding */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                            <div>
+                                <p className="text-xs font-medium text-zinc-200">Restart onboarding</p>
+                                <p className="mt-0.5 text-[11px] text-zinc-500">Walk through the intro flow again. Your data, history, and settings are not affected.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleRestartOnboarding}
+                                className="rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 transition hover:bg-white/10"
+                            >
+                                Restart
+                            </button>
+                        </div>
+                        {onboardingResetMsg && <p className="text-[11px] text-sky-400">{onboardingResetMsg}</p>}
                     </div>
                 </section>
 

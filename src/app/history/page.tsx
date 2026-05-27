@@ -123,6 +123,102 @@ function getChatMessagesForPeriod(fromMs: number, toMs: number): string[] {
   return results;
 }
 
+// ── 30-day mood line chart (pure SVG, no external library) ───────────────────
+const EMOTION_SENTIMENT: Record<string, number> = {
+  joy: 1, happy: 1, happiness: 1, hopeful: 0.8, hope: 0.8, gratitude: 0.7, grateful: 0.7,
+  neutral: 0, surprise: 0.1,
+  confused: -0.2, stressed: -0.5, stress: -0.5, anxious: -0.6, anxiety: -0.6, fear: -0.6,
+  sad: -0.8, sadness: -0.8, lonely: -0.8, anger: -0.7, angry: -0.7, disgust: -0.6,
+};
+
+function MoodLineChart30() {
+  const [points, setPoints] = useState<{ day: string; val: number | null }[]>([]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("imotara:history:v1");
+      if (!raw) return;
+      const all: any[] = JSON.parse(raw);
+      const byDay: Record<string, number[]> = {};
+      const now = Date.now();
+      for (const r of all) {
+        if (r.deleted || !r.emotion) continue;
+        const ts = r.createdAt ?? r.timestamp ?? 0;
+        if (ts < now - 30 * 86_400_000) continue;
+        const d = new Date(ts);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const s = EMOTION_SENTIMENT[r.emotion.toLowerCase().trim()] ?? 0;
+        (byDay[key] = byDay[key] ?? []).push(s);
+      }
+      const result: { day: string; val: number | null }[] = [];
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now - i * 86_400_000);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const vals = byDay[key];
+        result.push({ day: key, val: vals ? vals.reduce((a, b) => a + b, 0) / vals.length : null });
+      }
+      setPoints(result);
+    } catch { /* ignore */ }
+  }, []);
+
+  const hasData = points.some((p) => p.val !== null);
+  if (!hasData) return null;
+
+  const W = 560; const H = 80; const PAD = 8;
+  const innerW = W - PAD * 2; const innerH = H - PAD * 2;
+  // val range: -1 to 1 → y range: PAD to PAD+innerH (inverted, top = positive)
+  const toY = (v: number) => PAD + innerH / 2 - (v * innerH) / 2;
+  const toX = (i: number) => PAD + (i / 29) * innerW;
+
+  const filled = points.map((p, i) => ({ x: toX(i), y: p.val !== null ? toY(p.val) : null }));
+  // Build polyline skipping nulls — connect contiguous segments
+  const segments: string[][] = [];
+  let cur: string[] = [];
+  for (const pt of filled) {
+    if (pt.y === null) { if (cur.length) { segments.push(cur); cur = []; } }
+    else { cur.push(`${pt.x.toFixed(1)},${pt.y.toFixed(1)}`); }
+  }
+  if (cur.length) segments.push(cur);
+
+  const zerY = toY(0).toFixed(1);
+
+  return (
+    <div className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+      <p className="mb-3 text-sm font-semibold text-zinc-200">30-day mood trend</p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 80 }} aria-label="30-day mood trend chart">
+        {/* Zero line */}
+        <line x1={PAD} y1={zerY} x2={W - PAD} y2={zerY} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+        {/* Positive zone tint */}
+        <rect x={PAD} y={PAD} width={innerW} height={innerH / 2} fill="rgba(52,211,153,0.04)" rx="2" />
+        {/* Negative zone tint */}
+        <rect x={PAD} y={PAD + innerH / 2} width={innerW} height={innerH / 2} fill="rgba(244,63,94,0.04)" rx="2" />
+        {/* Mood line segments */}
+        {segments.map((seg, si) => (
+          <polyline key={si} points={seg.join(" ")} fill="none" stroke="url(#moodGrad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        ))}
+        {/* Gradient definition */}
+        <defs>
+          <linearGradient id="moodGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#34d399" />
+            <stop offset="50%" stopColor="#a5b4fc" />
+            <stop offset="100%" stopColor="#f87171" />
+          </linearGradient>
+        </defs>
+        {/* Data dots */}
+        {filled.map((pt, i) =>
+          pt.y !== null ? (
+            <circle key={i} cx={pt.x.toFixed(1)} cy={pt.y.toFixed(1)} r="2.5" fill={pt.y < toY(0) ? "#f87171" : "#34d399"} opacity="0.7" />
+          ) : null
+        )}
+      </svg>
+      <div className="mt-1 flex justify-between text-[10px] text-zinc-600">
+        <span>30 days ago</span>
+        <span className="text-zinc-500 text-center">↑ positive · ↓ low</span>
+        <span>today</span>
+      </div>
+    </div>
+  );
+}
+
 // #1: Weekly trend summary computed from localStorage emotion history
 const EMOTION_EMOJI: Record<string, string> = {
   joy: "😊", happy: "😊", happiness: "😊",
@@ -837,6 +933,9 @@ export default function HistoryPage() {
               ) : (
                 <MoodHeatmap />
               )}
+
+              {/* 30-day mood line chart */}
+              {!loading && <MoodLineChart30 />}
 
               {/* Emotion radar chart */}
               {!loading && <EmotionRadarChart />}

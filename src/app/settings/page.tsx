@@ -1164,6 +1164,15 @@ export default function SettingsPage() {
     const [notifSubscribed, setNotifSubscribed] = useState(false);
     const [notifLoading, setNotifLoading] = useState(false);
     const [notifToast, setNotifToast] = useState<string | null>(null);
+    const NOTIF_INACTIVITY_KEY = "imotara.notif.inactivityHours.v1";
+    const [notifInactivityHours, setNotifInactivityHours] = useState(48);
+    useEffect(() => {
+        try { const v = parseInt(localStorage.getItem(NOTIF_INACTIVITY_KEY) ?? "48", 10); if ([24, 48, 72, 168].includes(v)) setNotifInactivityHours(v); } catch { /* ignore */ }
+    }, []);
+    function handleNotifInactivityChange(hours: number) {
+        setNotifInactivityHours(hours);
+        try { localStorage.setItem(NOTIF_INACTIVITY_KEY, String(hours)); } catch { /* ignore */ }
+    }
 
     useEffect(() => {
         if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -2406,6 +2415,24 @@ export default function SettingsPage() {
                     </div>
                     {notifToast && (
                         <p className="mt-2 text-xs text-rose-400">{notifToast}</p>
+                    )}
+                    {/* Inactivity threshold */}
+                    {notifSubscribed && (
+                    <div className="mt-4">
+                        <p className="text-xs font-medium text-zinc-300">Remind me if I haven&apos;t visited in</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {([24, 48, 72, 168] as const).map((h) => (
+                                <button
+                                    key={h}
+                                    type="button"
+                                    onClick={() => handleNotifInactivityChange(h)}
+                                    className={`rounded-full border px-3 py-1 text-[11px] transition ${notifInactivityHours === h ? "border-sky-400/60 bg-sky-500/15 text-sky-300" : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"}`}
+                                >
+                                    {h === 168 ? "7 days" : h === 24 ? "24 h" : `${h} h`}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     )}
                 </section>
                 )}

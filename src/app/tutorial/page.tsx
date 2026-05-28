@@ -22,6 +22,17 @@ const CATEGORIES = [
 
 // ─── Feature card data ────────────────────────────────────────────────────────
 
+// "limited" means the feature exists but with restrictions on that tier
+type TierValue = boolean | "limited";
+
+interface TierAvail {
+  free:  TierValue | string;   // string for display like "7 days" or "20/day"
+  plus:  TierValue | string;
+  pro:   TierValue | string;
+  ent:   TierValue | string;   // Enterprise covers Family/EDU institutional features
+  note?: string;               // extra clarification shown below badges
+}
+
 interface Feature {
   icon: string;
   title: string;
@@ -30,6 +41,7 @@ interface Feature {
   steps: string[];
   tip?: string;
   badge?: string;
+  tiers?: TierAvail;            // omit = available on all plans
 }
 
 const FEATURES: Record<string, Feature[]> = {
@@ -219,6 +231,7 @@ const FEATURES: Record<string, Feature[]> = {
         "No action needed — switching is automatic.",
       ],
       tip: "Local replies are fast, private, and work with no internet — but cloud replies are richer and more nuanced.",
+      tiers: { free: "20 cloud/day", plus: "Unlimited", pro: "Unlimited", ent: "Unlimited", note: "Local (on-device) replies are always unlimited on all plans." },
     },
     {
       icon: "🔍",
@@ -264,6 +277,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Edit if needed, then tap Send.",
       ],
       tip: "Works in all 22 languages. If you code-switch (mix languages), Whisper usually handles it correctly.",
+      tiers: { free: true, plus: true, pro: true, ent: true },
     },
     {
       icon: "⏱",
@@ -314,6 +328,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Tap again to pause; tap again to resume.",
         "To customize: Settings → Experience → Voice & audio.",
       ],
+      tiers: { free: "Basic (device)", plus: "Azure Neural", pro: "Azure Neural", ent: "Azure Neural", note: "Free uses device built-in voice. Plus+ unlocks Azure Neural with gender-matched voices." },
     },
     {
       icon: "▶️",
@@ -338,6 +353,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Find 'Pitch' slider — drag left for deeper, right for higher.",
         "Tap 'Preview voice' to hear a sample with your settings.",
       ],
+      tiers: { free: false, plus: true, pro: true, ent: true },
       badge: "Plus+ required for customization",
     },
     {
@@ -352,6 +368,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Tap 'Use this voice' to confirm.",
         "All future TTS playback uses the selected voice.",
       ],
+      tiers: { free: false, plus: true, pro: true, ent: true },
       badge: "Plus+ required",
     },
     {
@@ -458,6 +475,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Select Short, Medium, or Long.",
         "Tap Save.",
       ],
+      tiers: { free: false, plus: true, pro: true, ent: true },
     },
     {
       icon: "👁",
@@ -499,6 +517,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Tap any entry to open and read it.",
         "Scroll to the bottom of an open conversation to continue it.",
       ],
+      tiers: { free: "7 days", plus: "90 days", pro: "Unlimited", ent: "Unlimited" },
     },
     {
       icon: "🔍",
@@ -512,6 +531,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Matching messages appear with highlights.",
         "Toggle 'Semantic' (Plus+) to find meaning-based matches.",
       ],
+      tiers: { free: "Keyword only", plus: "Keyword + Semantic", pro: "Keyword + Semantic", ent: "Keyword + Semantic" },
       badge: "Semantic search on Plus+",
     },
     {
@@ -590,6 +610,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Look at which emotions have the largest segments.",
         "Hover (web) or tap (mobile) an axis to see the count for that emotion.",
       ],
+      tiers: { free: false, plus: false, pro: true, ent: true },
       badge: "Pro unlocks weekly comparison",
     },
     {
@@ -627,6 +648,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Read the narrative summary.",
         "Tap 'Reflect on this' to journal about the week.",
       ],
+      tiers: { free: false, plus: false, pro: true, ent: true },
       badge: "Pro+ for full weekly digest",
     },
     {
@@ -640,6 +662,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Hover/tap any point to see the date and emotion.",
         "Look for patterns — recurring dips or peaks.",
       ],
+      tiers: { free: false, plus: false, pro: true, ent: true },
       badge: "Pro feature",
     },
     {
@@ -667,6 +690,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Open Trends → scroll to 'Companion Letter'.",
         "Read your monthly letter.",
       ],
+      tiers: { free: false, plus: false, pro: true, ent: true },
       badge: "Pro feature",
     },
     {
@@ -681,6 +705,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Scroll to 'Growth Arc'.",
         "Read the narrative — it updates monthly.",
       ],
+      tiers: { free: false, plus: false, pro: true, ent: true },
       badge: "Pro feature",
     },
   ],
@@ -880,6 +905,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Select Monthly or Every 2 months.",
         "Find 'Growth arc cadence' — Monthly or Quarterly.",
       ],
+      tiers: { free: false, plus: true, pro: true, ent: true },
       badge: "Plus+ required",
     },
     {
@@ -892,6 +918,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Find 'Search mode'.",
         "Select Keyword or Semantic.",
       ],
+      tiers: { free: "Keyword only", plus: "Keyword + Semantic", pro: "Keyword + Semantic", ent: "Keyword + Semantic" },
       badge: "Semantic search on Plus+",
     },
     {
@@ -955,6 +982,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Tap 'Export'.",
         "The file downloads to your device.",
       ],
+      tiers: { free: false, plus: true, pro: true, ent: true, note: "Also unavailable on Family tier (shared-device privacy boundary)." },
       badge: "Plus+ required",
     },
     {
@@ -1146,6 +1174,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Your history is accessible for 7 days on Free.",
       ],
       tip: "The daily limit resets at midnight in your local timezone — not 24 hours from first use.",
+      tiers: { free: true, plus: false, pro: false, ent: false, note: "This section describes what the Free plan includes." },
     },
     {
       icon: "☁️",
@@ -1159,6 +1188,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Complete payment via Razorpay (web/Android) or Apple IAP (iOS).",
         "Features unlock immediately.",
       ],
+      tiers: { free: false, plus: true, pro: false, ent: false, note: "This section describes the Plus plan features." },
     },
     {
       icon: "⭐",
@@ -1171,6 +1201,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Complete payment.",
         "Pro features (charts, companion letter, growth arc) unlock immediately.",
       ],
+      tiers: { free: false, plus: false, pro: true, ent: false, note: "This section describes the Pro plan features." },
     },
     {
       icon: "🪙",
@@ -1197,6 +1228,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Or email info@imotara.com with subject 'Enterprise inquiry'.",
         "The team typically responds within 24 hours.",
       ],
+      tiers: { free: false, plus: false, pro: false, ent: true, note: "Enterprise is for organisations — contact sales for custom pricing." },
     },
     {
       icon: "🔄",
@@ -1273,6 +1305,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Tap the speaker icon on a reply.",
         "You'll hear the reply in a voice matched to that language.",
       ],
+      tiers: { free: "Basic (device voice)", plus: "Azure Neural voices", pro: "Azure Neural voices", ent: "Azure Neural voices", note: "Free uses device built-in voice. Plus+ unlocks language-matched Azure Neural voices." },
     },
     {
       icon: "📖",
@@ -1300,27 +1333,82 @@ const FEATURES: Record<string, Feature[]> = {
   ],
 };
 
+// ─── Tier availability badge strip ───────────────────────────────────────────
+
+const TIER_DEFS = [
+  { key: "free",  label: "Free",  color: "bg-zinc-500/20 text-zinc-300 border-zinc-500/30" },
+  { key: "plus",  label: "Plus",  color: "bg-sky-500/20  text-sky-300  border-sky-400/30" },
+  { key: "pro",   label: "Pro",   color: "bg-indigo-500/20 text-indigo-300 border-indigo-400/30" },
+  { key: "ent",   label: "Ent",   color: "bg-violet-500/20 text-violet-300 border-violet-400/30" },
+] as const;
+
+function TierBadges({ tiers }: { tiers?: TierAvail }) {
+  if (!tiers) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+        ✓ All plans
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 flex-wrap">
+      {TIER_DEFS.map(({ key, label, color }) => {
+        const val = tiers[key as "free" | "plus" | "pro" | "ent"];
+        const included  = val === true;
+        const limited   = val === "limited";
+        const excluded  = val === false;
+        const custom    = typeof val === "string" && val !== "limited";
+        return (
+          <span
+            key={key}
+            title={custom ? String(val) : undefined}
+            className={`inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-opacity ${
+              excluded ? "opacity-30 bg-zinc-800 border-zinc-700 text-zinc-500" :
+              limited  ? `${color} opacity-70` :
+              custom   ? `${color}` :
+                         `${color}`
+            }`}
+          >
+            {excluded ? "✗" : limited ? "~" : included ? "✓" : "★"} {label}
+            {custom && !excluded && (
+              <span className="opacity-70 ml-0.5 truncate max-w-[60px]" style={{ fontSize: "9px" }}>
+                {String(val).length > 8 ? String(val).slice(0,7)+"…" : String(val)}
+              </span>
+            )}
+          </span>
+        );
+      })}
+      {tiers.note && (
+        <span className="text-[10px] text-zinc-500 italic">{tiers.note}</span>
+      )}
+    </span>
+  );
+}
+
 // ─── Expandable feature card ──────────────────────────────────────────────────
 
 function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
   const [open, setOpen] = useState(false);
+  const hasRestriction = feature.tiers &&
+    (feature.tiers.free === false || typeof feature.tiers.free === "string" ||
+     feature.tiers.plus === false || feature.tiers.pro === false);
+
   return (
-    <div className="rounded-2xl border border-white/8 bg-white/[0.025] overflow-hidden">
+    <div className={`rounded-2xl border overflow-hidden ${hasRestriction ? "border-white/10" : "border-white/8"} bg-white/[0.025]`}>
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full text-left px-5 py-4 flex items-start gap-4 hover:bg-white/[0.03] transition-colors"
       >
         <span className="text-xl mt-0.5 shrink-0">{feature.icon}</span>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap mb-1.5">
             <h3 className="text-sm font-semibold text-zinc-100">{feature.title}</h3>
-            {feature.badge && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-400/25 text-indigo-300 font-medium">
-                {feature.badge}
-              </span>
-            )}
           </div>
-          <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">{feature.short}</p>
+          {/* Tier badges — always visible on the collapsed card */}
+          <div className="mb-1.5">
+            <TierBadges tiers={feature.tiers} />
+          </div>
+          <p className="text-xs text-zinc-400 leading-relaxed">{feature.short}</p>
         </div>
         <span className="text-zinc-600 text-sm mt-0.5 shrink-0">{open ? "▲" : "▼"}</span>
       </button>
@@ -1350,6 +1438,40 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
             <div className="flex gap-2.5 rounded-xl bg-amber-500/8 border border-amber-400/20 px-4 py-3">
               <span className="text-base shrink-0">💡</span>
               <p className="text-xs text-amber-200/80 leading-relaxed">{feature.tip}</p>
+            </div>
+          )}
+
+          {/* Tier detail table when there's a restriction */}
+          {feature.tiers && (
+            <div className="rounded-xl border border-white/8 bg-white/[0.02] overflow-hidden">
+              <div className="px-4 py-2 border-b border-white/5">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Plan availability</p>
+              </div>
+              <div className="grid grid-cols-4 divide-x divide-white/5">
+                {TIER_DEFS.map(({ key, label, color }) => {
+                  const val = feature.tiers![key as "free" | "plus" | "pro" | "ent"];
+                  const excluded = val === false;
+                  const custom   = typeof val === "string" && val !== "limited";
+                  return (
+                    <div key={key} className={`px-3 py-3 text-center ${excluded ? "opacity-40" : ""}`}>
+                      <span className={`text-[10px] font-semibold rounded-full border px-1.5 py-0.5 ${excluded ? "bg-zinc-800 border-zinc-700 text-zinc-500" : color}`}>
+                        {label}
+                      </span>
+                      <p className="text-[10px] mt-1.5 text-zinc-400 leading-tight">
+                        {excluded ? "Not included" :
+                         val === "limited" ? "Limited" :
+                         custom ? String(val) :
+                         "✓ Included"}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+              {feature.tiers.note && (
+                <div className="px-4 py-2 border-t border-white/5">
+                  <p className="text-[10px] text-zinc-500 italic">{feature.tiers.note}</p>
+                </div>
+              )}
             </div>
           )}
         </div>

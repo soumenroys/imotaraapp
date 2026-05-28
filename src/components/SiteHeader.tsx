@@ -12,12 +12,12 @@ const PRIMARY_LINKS = [
   { href: "/chat", label: "Chat", accent: true },
   { href: "/history", label: "History", accent: false },
   { href: "/grow", label: "Grow", accent: true },
+  { href: "/tutorial", label: "Tutorial", accent: false },
 ];
 
 // Overflow nav — behind "···" on desktop / included in mobile drawer
 const MORE_LINKS = [
   { href: "/settings", label: "Settings" },
-  { href: "/tutorial", label: "Tutorial" },
   { href: "/blog", label: "Blog" },
   { href: "/connect", label: "Connect" },
   { href: "/about", label: "About" },

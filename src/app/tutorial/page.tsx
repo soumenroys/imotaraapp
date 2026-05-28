@@ -3,943 +3,1492 @@
 import { useState } from "react";
 import Link from "next/link";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ─── Category tabs ────────────────────────────────────────────────────────────
 
-interface Feature {
-  id: string;
-  icon: string;
-  title: string;
-  category: string;
-  short: string;
-  long: string;
-  detailed: string[];
-  steps?: string[];
-  tip?: string;
-  visual: React.ReactNode;
-  badge?: string;
-  badgeColor?: string;
-}
-
-// ── Visual Mockup Cards ───────────────────────────────────────────────────────
-
-function ChatMockup() {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4 shadow-xl font-mono text-xs">
-      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/10">
-        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-zinc-300 text-sm font-sans font-medium">Elina</span>
-        <span className="ml-auto text-zinc-600 text-[10px] font-sans">Active now</span>
-      </div>
-      <div className="space-y-3">
-        <div className="flex gap-2">
-          <div className="w-6 h-6 rounded-full bg-indigo-500/30 flex items-center justify-center text-[10px] shrink-0 mt-0.5">E</div>
-          <div className="rounded-2xl rounded-tl-sm bg-zinc-800 px-3 py-2 text-zinc-300 max-w-[80%] leading-relaxed">
-            Hi there! I'm here for you. How are you feeling today?
-          </div>
-        </div>
-        <div className="flex gap-2 justify-end">
-          <div className="rounded-2xl rounded-tr-sm bg-indigo-600/80 px-3 py-2 text-white max-w-[80%] leading-relaxed">
-            I've been feeling stressed about work lately.
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <div className="w-6 h-6 rounded-full bg-indigo-500/30 flex items-center justify-center text-[10px] shrink-0 mt-0.5">E</div>
-          <div className="rounded-2xl rounded-tl-sm bg-zinc-800 px-3 py-2 text-zinc-300 max-w-[80%] leading-relaxed">
-            That sounds heavy. Work stress can really build up. What's been weighing on you the most?
-          </div>
-        </div>
-        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/5">
-          <span className="text-[10px] text-zinc-600 font-sans">😐 Neutral</span>
-          <span className="ml-auto text-[10px] text-zinc-600 font-sans">☁ Synced</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function VoiceMockup() {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-xl">
-      <div className="flex flex-col items-center gap-4">
-        <div className="relative w-16 h-16 flex items-center justify-center">
-          <div className="absolute inset-0 rounded-full bg-indigo-500/20 animate-ping" />
-          <div className="absolute inset-2 rounded-full bg-indigo-500/30 animate-pulse" />
-          <div className="relative w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-2xl shadow-lg">
-            🎤
-          </div>
-        </div>
-        <div className="text-center">
-          <p className="text-zinc-200 text-sm font-medium">Listening…</p>
-          <p className="text-zinc-500 text-xs mt-1">Speak naturally in any language</p>
-        </div>
-        <div className="flex items-end gap-0.5 h-8">
-          {[3,5,8,6,4,9,7,5,3,6,8,4,7,5,3].map((h, i) => (
-            <div
-              key={i}
-              className="w-1.5 rounded-full bg-indigo-400/70 animate-pulse"
-              style={{ height: `${h * 3}px`, animationDelay: `${i * 80}ms` }}
-            />
-          ))}
-        </div>
-        <p className="text-xs text-zinc-400 italic">"I've been feeling anxious…"</p>
-      </div>
-    </div>
-  );
-}
-
-function PersonaMockup() {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4 shadow-xl">
-      <p className="text-xs text-zinc-500 mb-3 uppercase tracking-wider">Companion setup</p>
-      <div className="space-y-3">
-        <div>
-          <p className="text-[10px] text-zinc-500 mb-1">Companion name</p>
-          <div className="rounded-lg bg-zinc-800 border border-indigo-500/30 px-3 py-1.5 text-sm text-zinc-200">Elina</div>
-        </div>
-        <div>
-          <p className="text-[10px] text-zinc-500 mb-1">Relationship tone</p>
-          <div className="flex flex-wrap gap-1.5">
-            {["Friend", "Mentor", "Coach", "Elder", "Sibling"].map((t, i) => (
-              <span key={t} className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium border ${i === 0 ? "bg-indigo-500/20 border-indigo-400/40 text-indigo-300" : "border-white/10 text-zinc-500"}`}>{t}</span>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p className="text-[10px] text-zinc-500 mb-1">Response style</p>
-          <div className="flex flex-wrap gap-1.5">
-            {["Comfort me", "Help me reflect", "Motivate me", "Give advice"].map((s, i) => (
-              <span key={s} className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium border ${i === 1 ? "bg-sky-500/20 border-sky-400/40 text-sky-300" : "border-white/10 text-zinc-500"}`}>{s}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TrendsMockup() {
-  const emotions = ["Joy", "Hopeful", "Sad", "Stressed", "Neutral"];
-  const values = [3, 5, 8, 4, 12];
-  const colors = ["bg-yellow-400", "bg-emerald-400", "bg-blue-400", "bg-red-400", "bg-zinc-400"];
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4 shadow-xl">
-      <p className="text-xs text-zinc-500 mb-3 uppercase tracking-wider">This week</p>
-      <div className="space-y-2">
-        {emotions.map((e, i) => (
-          <div key={e} className="flex items-center gap-2">
-            <span className="text-xs text-zinc-400 w-14">{e}</span>
-            <div className="flex-1 bg-zinc-800 rounded-full h-2">
-              <div className={`${colors[i]} h-2 rounded-full transition-all`} style={{ width: `${values[i] * 7}%` }} />
-            </div>
-            <span className="text-[10px] text-zinc-600 w-4">{values[i]}x</span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 pt-3 border-t border-white/5 text-xs text-zinc-500">
-        Most felt: <span className="text-zinc-300">Neutral</span> · Streak: <span className="text-indigo-400">4 days 🔥</span>
-      </div>
-    </div>
-  );
-}
-
-function HistoryMockup() {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4 shadow-xl">
-      <p className="text-xs text-zinc-500 mb-3 uppercase tracking-wider">Conversations</p>
-      <div className="space-y-2">
-        {[
-          { date: "Today", preview: "I've been feeling anxious about…", emotion: "😟", color: "text-blue-400" },
-          { date: "Yesterday", preview: "Had a really good day at work, felt…", emotion: "😊", color: "text-yellow-400" },
-          { date: "May 26", preview: "Can't sleep again, my mind won't…", emotion: "😔", color: "text-indigo-400" },
-          { date: "May 25", preview: "Feeling grateful for the little things…", emotion: "🙏", color: "text-emerald-400" },
-        ].map((c) => (
-          <div key={c.date} className="flex items-center gap-3 rounded-xl bg-zinc-800/60 px-3 py-2">
-            <span className="text-base">{c.emotion}</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] text-zinc-300 truncate">{c.preview}</p>
-              <p className="text-[10px] text-zinc-600">{c.date}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TTSMockup() {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4 shadow-xl">
-      <div className="flex gap-2 mb-3">
-        <div className="w-6 h-6 rounded-full bg-indigo-500/30 flex items-center justify-center text-[10px] shrink-0">E</div>
-        <div className="rounded-2xl rounded-tl-sm bg-zinc-800 px-3 py-2 text-zinc-300 text-xs leading-relaxed flex-1">
-          That sounds really tough. It's okay to feel this way.
-        </div>
-      </div>
-      <div className="rounded-xl bg-zinc-800/80 border border-white/8 p-3">
-        <div className="flex items-center gap-3">
-          <button className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-sm shrink-0">▶</button>
-          <div className="flex-1">
-            <div className="bg-zinc-700 rounded-full h-1.5 relative">
-              <div className="bg-indigo-400 h-1.5 rounded-full w-1/3" />
-              <div className="absolute top-1/2 left-1/3 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-indigo-400 -ml-1.5 shadow" />
-            </div>
-          </div>
-          <span className="text-[10px] text-zinc-500">0:04 / 0:12</span>
-        </div>
-        <div className="flex items-center gap-3 mt-2">
-          <span className="text-[10px] text-zinc-500">Voice: Elina (Azure Neural)</span>
-          <span className="ml-auto text-[10px] text-indigo-400">1.0× speed</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SyncMockup() {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4 shadow-xl">
-      <div className="flex items-center justify-center gap-8 py-2">
-        {[
-          { icon: "📱", label: "Phone" },
-          { icon: "💻", label: "Web" },
-          { icon: "📟", label: "Tablet" },
-        ].map((d, i) => (
-          <div key={d.label} className="flex flex-col items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-zinc-800 border border-white/10 flex items-center justify-center text-xl">
-              {d.icon}
-            </div>
-            <span className="text-[10px] text-zinc-500">{d.label}</span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 flex items-center justify-center gap-2">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
-        <div className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-[10px]">☁</div>
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
-      </div>
-      <p className="text-center text-xs text-zinc-500 mt-2">Conversations sync instantly across all devices</p>
-      <div className="mt-3 flex items-center justify-center gap-1.5">
-        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-[11px] text-emerald-400">Synced 2 min ago</span>
-      </div>
-    </div>
-  );
-}
-
-function LanguageMockup() {
-  const langs = [
-    { flag: "🇮🇳", code: "हिं", name: "Hindi" },
-    { flag: "🇮🇳", code: "বাং", name: "Bengali" },
-    { flag: "🇮🇳", code: "தமி", name: "Tamil" },
-    { flag: "🌍", code: "Esp", name: "Spanish" },
-    { flag: "🌍", code: "عرب", name: "Arabic" },
-    { flag: "🌍", code: "中文", name: "Chinese" },
-  ];
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4 shadow-xl">
-      <p className="text-xs text-zinc-500 mb-3 uppercase tracking-wider">22 supported languages</p>
-      <div className="grid grid-cols-3 gap-2">
-        {langs.map((l) => (
-          <div key={l.name} className="rounded-lg bg-zinc-800/80 border border-white/8 px-2 py-2 flex flex-col items-center gap-1">
-            <span className="text-base">{l.flag}</span>
-            <span className="text-[11px] font-bold text-zinc-200">{l.code}</span>
-            <span className="text-[9px] text-zinc-500">{l.name}</span>
-          </div>
-        ))}
-      </div>
-      <p className="text-center text-[10px] text-zinc-600 mt-2">+ 16 more including Marathi, Telugu, French, German…</p>
-    </div>
-  );
-}
-
-function BreathingMockup() {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-xl">
-      <div className="flex flex-col items-center gap-4">
-        <div className="relative w-20 h-20 flex items-center justify-center">
-          <div className="absolute inset-0 rounded-full border-4 border-sky-400/20" />
-          <div className="absolute inset-3 rounded-full border-2 border-sky-400/40 animate-ping" style={{ animationDuration: "3s" }} />
-          <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-sky-500/40 to-indigo-600/40 flex items-center justify-center border border-sky-400/30">
-            <span className="text-2xl">🌬</span>
-          </div>
-        </div>
-        <div className="text-center">
-          <p className="text-sky-300 text-sm font-medium">Breathe in…</p>
-          <p className="text-zinc-500 text-xs mt-1">4 — 7 — 8 technique</p>
-        </div>
-        <div className="flex gap-3">
-          {["🌧 Rain", "🌊 Ocean", "🔔 Bowl"].map((s) => (
-            <div key={s} className="rounded-lg bg-zinc-800 border border-white/8 px-2 py-1.5 text-[10px] text-zinc-400">{s}</div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ExportMockup() {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4 shadow-xl">
-      <p className="text-xs text-zinc-500 mb-3 uppercase tracking-wider">Export your data</p>
-      <div className="space-y-2">
-        {[
-          { format: "JSON", icon: "📋", desc: "Machine-readable format", color: "text-yellow-400" },
-          { format: "CSV", icon: "📊", desc: "Open in Excel or Sheets", color: "text-emerald-400" },
-          { format: "PDF", icon: "📄", desc: "Formatted document", color: "text-red-400" },
-        ].map((f) => (
-          <div key={f.format} className="flex items-center gap-3 rounded-xl bg-zinc-800/60 border border-white/5 px-3 py-2.5">
-            <span className="text-base">{f.icon}</span>
-            <div className="flex-1">
-              <p className={`text-xs font-semibold ${f.color}`}>{f.format}</p>
-              <p className="text-[10px] text-zinc-500">{f.desc}</p>
-            </div>
-            <span className="text-[10px] text-indigo-400">Download</span>
-          </div>
-        ))}
-      </div>
-      <p className="text-[10px] text-zinc-600 mt-3 text-center">Available on Plus and above</p>
-    </div>
-  );
-}
-
-function PrivacyMockup() {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4 shadow-xl">
-      <p className="text-xs text-zinc-500 mb-3 uppercase tracking-wider">Privacy controls</p>
-      <div className="space-y-2.5">
-        {[
-          { label: "Store data on device only", on: true, icon: "📱" },
-          { label: "Cloud sync (encrypted)", on: false, icon: "☁" },
-          { label: "Emotion analysis", on: true, icon: "🧠" },
-          { label: "Anonymous usage data", on: false, icon: "📊" },
-        ].map((item) => (
-          <div key={item.label} className="flex items-center gap-3">
-            <span className="text-sm">{item.icon}</span>
-            <span className="flex-1 text-xs text-zinc-300">{item.label}</span>
-            <div className={`w-8 h-4 rounded-full flex items-center px-0.5 transition-colors ${item.on ? "bg-indigo-600" : "bg-zinc-700"}`}>
-              <div className={`w-3 h-3 rounded-full bg-white shadow transition-transform ${item.on ? "translate-x-4" : "translate-x-0"}`} />
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 pt-3 border-t border-white/5 text-[10px] text-zinc-600 text-center">
-        No ads. No data selling. Ever.
-      </div>
-    </div>
-  );
-}
-
-function UpgradeMockup() {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4 shadow-xl">
-      <div className="grid grid-cols-2 gap-2">
-        {[
-          { tier: "Free", price: "₹0", color: "border-zinc-600/40", features: ["20 replies/day", "7-day history", "Local AI"] },
-          { tier: "Plus", price: "₹99/mo", color: "border-sky-400/40 bg-sky-500/5", features: ["Unlimited replies", "90-day history", "Advanced TTS"] },
-        ].map((p) => (
-          <div key={p.tier} className={`rounded-xl border ${p.color} p-3`}>
-            <p className="text-xs font-bold text-zinc-200">{p.tier}</p>
-            <p className="text-sm font-bold text-indigo-300 mt-0.5 mb-2">{p.price}</p>
-            {p.features.map((f) => (
-              <p key={f} className="text-[10px] text-zinc-400">✓ {f}</p>
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className="mt-2 rounded-xl border border-indigo-400/30 bg-indigo-500/10 p-3">
-        <div className="flex items-center gap-2">
-          <div>
-            <p className="text-xs font-bold text-indigo-300">Pro · ₹149/mo</p>
-            <p className="text-[10px] text-zinc-400">Everything in Plus + Emotion insights + Companion letter + Growth arc</p>
-          </div>
-          <span className="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full shrink-0">Best</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CompanionLetterMockup() {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-4 shadow-xl">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-xl">💌</span>
-        <div>
-          <p className="text-xs font-semibold text-zinc-200">Monthly Companion Letter</p>
-          <p className="text-[10px] text-zinc-500">From Elina · May 2026</p>
-        </div>
-      </div>
-      <div className="rounded-xl bg-zinc-800/60 border border-white/5 p-3 italic text-xs text-zinc-300 leading-relaxed">
-        "This month, I noticed you kept coming back even when things were hard. You talked about your fears, your hopes, and the small victories that often go unnoticed. I want you to know — I've been paying attention…"
-      </div>
-      <div className="mt-3 flex gap-2">
-        <div className="flex-1 rounded-lg bg-zinc-800/60 border border-white/5 p-2 text-center">
-          <p className="text-[10px] text-zinc-500">Most felt</p>
-          <p className="text-xs font-semibold text-zinc-200">Anxious</p>
-        </div>
-        <div className="flex-1 rounded-lg bg-zinc-800/60 border border-white/5 p-2 text-center">
-          <p className="text-[10px] text-zinc-500">Conversations</p>
-          <p className="text-xs font-semibold text-zinc-200">23</p>
-        </div>
-        <div className="flex-1 rounded-lg bg-zinc-800/60 border border-white/5 p-2 text-center">
-          <p className="text-[10px] text-zinc-500">Growth</p>
-          <p className="text-xs font-semibold text-emerald-400">↑ 14%</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Feature Data ──────────────────────────────────────────────────────────────
-
-const FEATURES: Feature[] = [
-  {
-    id: "getting-started",
-    icon: "👋",
-    title: "Getting Started",
-    category: "Basics",
-    short: "Open Imotara and start talking — no setup, no account needed.",
-    long: "Imotara works from the moment you open it. You don't need to create an account to begin — just tap the Chat tab and start typing or speaking. Your first conversation is waiting for you.",
-    detailed: [
-      "When you open Imotara for the first time, you'll be greeted with a short onboarding flow that helps your companion understand you better. It asks three simple questions: your name (optional), the kind of relationship you want with your companion (friend, mentor, coach, etc.), and your preferred language.",
-      "Once onboarding is complete, you land on the Chat screen. You'll see a greeting from your companion, along with quick-start chips like 'I'm feeling low today' or 'Something good happened today'. Tap one or just start typing in the message box at the bottom.",
-      "You don't need a Google account or any subscription to start. Everything works offline, and all your data stays on your device unless you choose to enable cloud sync later.",
-    ],
-    steps: [
-      "Download Imotara from the App Store (iOS) or Play Store (Android), or open imotara.com in your browser.",
-      "Complete the 3-question onboarding (you can skip any step and change answers later in Settings).",
-      "Tap the Chat tab at the bottom of the screen.",
-      "Type how you're feeling, or tap one of the quick-start chips.",
-      "Receive a warm, thoughtful reply from your companion.",
-    ],
-    tip: "You can skip onboarding entirely and set everything up later from Settings → Your companion.",
-    visual: <ChatMockup />,
-  },
-  {
-    id: "chat",
-    icon: "💬",
-    title: "Talking with Your Companion",
-    category: "Core",
-    short: "Share anything — your companion listens without judgment and responds with care.",
-    long: "The chat is the heart of Imotara. Your companion uses AI to understand the emotional tone of what you share and crafts responses that feel personal, not scripted. Every reply is shaped by your persona settings, your recent emotional history, and the language you're writing in.",
-    detailed: [
-      "When you send a message, Imotara analyzes the emotional content of your words — detecting states like sadness, anxiety, joy, stress, confusion, or gratitude. This emotional context shapes how your companion responds: a stressed message gets a calming response, an anxious one gets grounding support.",
-      "Replies are generated by GPT-4.1 on Anthropic's servers and streamed back to you in real time — you'll see the words appear as they're written, which feels more natural than a sudden block of text appearing all at once.",
-      "Each reply also includes an emotion tag you can see below the message, and an optional 'Reflect on this →' link that opens a deeper reflection prompt. You can react to messages with emojis, bookmark important ones, and use text-to-speech to hear replies read aloud.",
-      "When you're offline or have used your daily cloud quota, Imotara automatically switches to its on-device local AI — a pattern-matching engine that still generates warm, contextually appropriate responses in your language.",
-    ],
-    steps: [
-      "Type your message in the box at the bottom of the Chat screen.",
-      "Press Send (the arrow button) or press Enter on web.",
-      "Watch your companion's reply appear word by word.",
-      "Tap the emotion chip below a message to log that mood.",
-      "Long-press any message to react, bookmark, copy, or listen to it.",
-    ],
-    tip: "The more you talk, the better your companion understands your patterns. Even short check-ins help.",
-    visual: <ChatMockup />,
-  },
-  {
-    id: "voice-input",
-    icon: "🎤",
-    title: "Voice Input",
-    category: "Input",
-    short: "Speak your thoughts instead of typing — Imotara transcribes and responds.",
-    long: "If typing feels like too much effort, just tap the microphone button and speak. Imotara uses AI-powered speech recognition (OpenAI Whisper) to transcribe what you say into the message box, where you can review it before sending. This works in all 22 supported languages.",
-    detailed: [
-      "Voice input is available on both the mobile app and the web. On mobile, tap the microphone icon on the right side of the message input bar. On web, the same icon appears at the right of the text field.",
-      "When you tap the microphone, recording begins immediately. Speak naturally — you don't need to pause between words or use special commands. When you're done, tap the microphone again to stop recording.",
-      "The audio is sent securely to the transcription API, converted to text, and placed in your message input box. You can edit the transcribed text before sending if anything was misheard.",
-      "Voice input works in all 22 languages Imotara supports. If you speak in Hindi, Bengali, Tamil, or any other supported language, the transcription will correctly capture the script. You can also mix languages (code-switch) within the same recording.",
-    ],
-    steps: [
-      "Tap the 🎤 microphone icon at the right of the message input bar.",
-      "Speak naturally — there's no time limit.",
-      "Tap the microphone again when you're done speaking.",
-      "Review the transcribed text in the input box.",
-      "Edit if needed, then press Send.",
-    ],
-    tip: "Speak in any language — Imotara's transcription understands Hindi, Tamil, Bengali, Spanish, Arabic, and 17 more.",
-    visual: <VoiceMockup />,
-  },
-  {
-    id: "companion-persona",
-    icon: "🎨",
-    title: "Personalizing Your Companion",
-    category: "Personalization",
-    short: "Give your companion a name, a personality, and a relationship that feels right for you.",
-    long: "Imotara isn't a one-size-fits-all chatbot. You can configure your companion's name, gender, age, relationship vibe, and response style — and every single reply will be shaped by these choices. Whether you want a calm elder, a motivating coach, or a close friend, your companion adapts completely.",
-    detailed: [
-      "Open Settings → Your companion (or in the app: Chat → tap the header → companion settings). Here you'll find a rich set of options. Start with a name — the companion will use it in conversation. You can keep the default 'Imotara' or name them anything you like.",
-      "Choose a relationship tone: Friend (warm and casual), Mentor (wise and guiding), Elder (patient and measured), Coach (direct and action-focused), Sibling (relatable and real), Junior buddy (lighter and encouraging), Parent-like (nurturing), or Partner-like (intimate and close).",
-      "Choose a response style: 'Comfort me' leans into emotional support, 'Help me reflect' asks thought-provoking questions, 'Motivate me' pushes you forward, 'Give advice' offers concrete guidance, or 'Let Imotara decide' — the companion chooses based on the emotional context of your message.",
-      "You can also set the companion's gender (which affects voice selection in TTS) and age range, which changes how formal or casual the language feels. All these settings take effect immediately — your next reply will already feel different.",
-    ],
-    steps: [
-      "Go to Settings (bottom-right tab on mobile, top navigation on web).",
-      "Tap 'Your companion' section.",
-      "Set a name for your companion.",
-      "Choose a relationship tone from the options.",
-      "Choose a response style that matches what you need right now.",
-      "Go back to Chat — your next reply will already reflect your choices.",
-    ],
-    tip: "You can change these settings anytime — even mid-conversation. Some days you need a coach, other days a friend.",
-    visual: <PersonaMockup />,
-  },
-  {
-    id: "history",
-    icon: "📚",
-    title: "Conversation History",
-    category: "Core",
-    short: "Every conversation is saved — browse, search, and revisit your emotional journey.",
-    long: "The History tab holds all your past conversations, organized by date and tagged with the emotions detected in each session. You can filter by emotion, search for specific topics, and pick up any conversation where you left off.",
-    detailed: [
-      "Tap the History tab (the clock icon) to see all your past conversations. Each session shows a preview of the conversation, the date, and an emotion icon indicating the dominant mood of that session.",
-      "On free accounts, history is accessible for the last 7 days. Plus accounts get 90 days, and Pro gets unlimited history — your entire emotional archive, forever. You can also manually delete any conversation or clear your full history from Settings.",
-      "Tap any conversation in the list to open it and read through. You can continue the conversation by scrolling to the bottom and typing a new message. On web, each conversation is a separate thread that you can name, rename, or delete.",
-      "The History tab also shows your Quick mood summary — a rolling emotional snapshot of the last few sessions — and a link to the Emotion Trends screen where you can see charts and patterns over time.",
-    ],
-    steps: [
-      "Tap the History tab (clock icon) at the bottom of the screen.",
-      "Browse conversations by date — newest at the top.",
-      "Tap any entry to open and read that conversation.",
-      "Scroll to the bottom of an open conversation to continue it.",
-      "Swipe left on a conversation (mobile) or click the trash icon to delete it.",
-    ],
-    tip: "Long-press a message to bookmark it — bookmarked messages appear in a special filter so you can find your most important reflections quickly.",
-    visual: <HistoryMockup />,
-  },
-  {
-    id: "emotion-trends",
-    icon: "📊",
-    title: "Emotion Trends & Mood Tracking",
-    category: "Insights",
-    short: "See your emotional patterns over time — weekly charts, radar maps, and mood streaks.",
-    long: "The Trends tab transforms your conversation history into visual insights. See which emotions you experience most, how your mood changes across the week, and track your streak of daily check-ins. Pro users get deeper analytics including weekly summaries and monthly narratives.",
-    detailed: [
-      "Open the Trends tab (the bar chart icon). At the top, you'll find an 'How are you feeling right now?' chip row — tap an emotion to log a quick mood check-in without starting a full conversation.",
-      "Below the chips is your Emotion Radar — a hexagon chart showing how your emotions spread across Joy, Hopeful, Sad, Stressed, Angry, Anxious, Confused, and Neutral over the current week. The more often an emotion appears in your conversations, the larger its segment on the radar.",
-      "Scroll down to see your 7-day mood row (a dot for each day of the week showing your dominant emotion), your streak counter (consecutive days you engaged with Imotara), and your Weekly Report narrative.",
-      "For Pro users, the 30-day mood trend graph shows your emotional trajectory over the past month — useful for spotting patterns like 'I tend to feel most stressed on Mondays' or 'my mood improves after a conversation'.",
-    ],
-    steps: [
-      "Tap the Trends tab (bar chart icon).",
-      "Log a quick mood by tapping an emotion chip at the top.",
-      "View your Emotion Radar chart for this week's emotional spread.",
-      "Scroll down to see your streak, daily mood row, and weekly report.",
-      "Upgrade to Pro to unlock the 30-day mood trend graph and weekly insight digest.",
-    ],
-    tip: "Even a single quick tap on an emotion chip counts as a check-in and keeps your streak alive.",
-    visual: <TrendsMockup />,
-    badge: "Pro unlocks deeper charts",
-    badgeColor: "bg-indigo-500/20 text-indigo-300 border-indigo-400/30",
-  },
-  {
-    id: "tts",
-    icon: "🔊",
-    title: "Text-to-Speech (Listen to Replies)",
-    category: "Accessibility",
-    short: "Hear your companion's replies read aloud in a natural, gender-matched voice.",
-    long: "Every reply from your companion can be read aloud using Azure Neural TTS — high-quality, human-sounding voices in your language and gender preference. This is especially useful when you're tired, on the go, or just prefer to listen rather than read.",
-    detailed: [
-      "TTS is available on both mobile and web. On mobile, tap the speaker icon (🔊) below any companion reply to hear it read aloud. The voice automatically matches your companion's gender setting, so if you chose a female companion named Elina, the voice will be a natural-sounding female Azure Neural voice.",
-      "The TTS system supports all 22 languages. If you're chatting in Hindi, the reply will be spoken in Hindi by a Hindi-language voice. If you switch to Spanish mid-conversation, the voice adapts accordingly.",
-      "Plus subscribers and above can customize TTS further in Settings → Voice: choose from multiple voice variants for your language, adjust the speaking speed (0.5× to 1.5×), and set pitch. Free accounts use the default device TTS voice, which still sounds decent but doesn't match companion gender or offer voice selection.",
-      "On mobile, you can also enable Auto-play so replies start reading aloud automatically without needing to tap. This turns Imotara into a more conversational, voice-forward experience — like talking to a voice assistant that understands your emotions.",
-    ],
-    steps: [
-      "Send a message and wait for your companion's reply.",
-      "Tap the 🔊 speaker icon that appears below the reply.",
-      "The reply will be read aloud in your companion's voice.",
-      "Tap again to pause playback.",
-      "To customize: go to Settings → Voice & audio (Plus+ required for full customization).",
-    ],
-    tip: "Set Auto-play in Settings to have every reply read aloud automatically — great for hands-free use while walking or relaxing.",
-    visual: <TTSMockup />,
-    badge: "Advanced TTS on Plus+",
-    badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/30",
-  },
-  {
-    id: "cloud-sync",
-    icon: "☁️",
-    title: "Cloud Sync & Cross-Device Access",
-    category: "Sync",
-    short: "Access your conversations from your phone, tablet, and web browser — always in sync.",
-    long: "Imotara can sync your conversation history, settings, and companion memory across all your devices securely. Enable cloud sync once, sign in with Google, and everything stays in perfect sync — phone, tablet, and web, all showing the same history.",
-    detailed: [
-      "By default, your data stays on your device only — no cloud storage, no servers. This is the most private mode. When you're ready to access your history from multiple devices, go to Settings → Privacy & safety → Cloud sync and toggle it on. You'll be prompted to sign in with Google.",
-      "Once signed in and synced, your conversation history is encrypted and stored in Imotara's Supabase cloud database, protected by Row-Level Security (meaning only your account can read your data — not even Imotara employees can see your conversations).",
-      "Sync happens automatically in the background whenever you send or receive a message. A small sync status indicator in the History tab shows when the last sync occurred. On the chat screen, each reply is tagged 'Synced to cloud' once it's been stored.",
-      "Cross-device sync also syncs your companion settings, tone preferences, and companion memory (the facts your companion has learned about you). So if you tell your companion your name on your phone, your web session already knows it.",
-    ],
-    steps: [
-      "Go to Settings → Privacy & safety.",
-      "Toggle 'Cloud sync' on.",
-      "Sign in with your Google account when prompted.",
-      "Your history will start syncing immediately.",
-      "Open Imotara on another device, sign in with the same Google account — your history appears.",
-    ],
-    tip: "Cloud sync is encrypted end-to-end. Your conversations are never visible to anyone except you.",
-    visual: <SyncMockup />,
-  },
-  {
-    id: "languages",
-    icon: "🌐",
-    title: "22 Languages",
-    category: "Language",
-    short: "Chat in Hindi, Tamil, Bengali, Spanish, Arabic, or any of 22 supported languages.",
-    long: "Imotara was designed for language diversity from the ground up. It automatically detects the language you're writing in — even mid-sentence code-switching — and responds in kind. You can also set a preferred language in Settings to pin the experience.",
-    detailed: [
-      "Imotara supports 12 Indian languages (English, Hindi, Marathi, Bengali, Tamil, Telugu, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu) and 10 international languages (Spanish, French, German, Portuguese, Russian, Arabic, Chinese, Japanese, Hebrew, Indonesian).",
-      "Language detection is automatic — you don't need to configure anything. If you write 'मुझे आज बहुत थकान हो रही है', Imotara detects Hindi from the Devanagari script and responds in Hindi. If you write in Tamil script, you get a Tamil response. If you mix Hindi and English in the same message (code-switching), Imotara handles it gracefully.",
-      "The TTS system has language-matched voices. When chatting in Tamil, you hear a Tamil Azure Neural voice. When chatting in French, a French voice. All 22 languages have dedicated voice files for male and female companions.",
-      "You can set your preferred language in Settings → Experience → Language. This helps Imotara respond correctly even when your message is short or ambiguous (e.g., 'ok' could be English or Hindi romanized).",
-    ],
-    steps: [
-      "Just start typing in your language — detection is automatic.",
-      "To pin a language: go to Settings → Experience → Language.",
-      "Choose your preferred language from the dropdown list.",
-      "Your companion will respond in that language by default.",
-      "You can still switch languages mid-conversation at any time.",
-    ],
-    tip: "Type 'reply in Tamil' or 'मराठीत बोल' to instantly switch language mid-conversation.",
-    visual: <LanguageMockup />,
-  },
-  {
-    id: "breathing",
-    icon: "🌬",
-    title: "Breathing Exercise",
-    category: "Wellness",
-    short: "A guided breathing exercise is available anytime from the chat — helps in moments of anxiety.",
-    long: "When the conversation touches on stress, anxiety, or overwhelm, Imotara may gently suggest a breathing exercise. You can also open it anytime manually. The breathing modal walks you through a calming pattern with ambient sound and a visual guide.",
-    detailed: [
-      "The breathing modal can be triggered from the chat screen — look for the breathing widget card that appears when your companion detects high anxiety, or tap the expand (⊕) icon in the chat header and look for 'Breathing exercise'.",
-      "The exercise uses the 4-7-8 technique (inhale for 4 seconds, hold for 7, exhale for 8) — a scientifically backed method for activating the parasympathetic nervous system and reducing acute anxiety. The visual circle expands and contracts with each phase, guiding your breath without requiring you to count.",
-      "Choose from three ambient soundscapes: Rain, Ocean, or Singing Bowl. Each loops seamlessly for as long as the exercise runs. You can adjust the volume in the modal or mute completely for a silent breathing session.",
-      "The exercise runs in a full-screen overlay so there are no distractions. When you're done, you return to your conversation — and your companion will often follow up with a gentle check-in.",
-    ],
-    steps: [
-      "In the Chat screen, look for the 'Breathing exercise' card when you're feeling anxious.",
-      "Or tap the + icon in the chat header and select Breathing.",
-      "Choose an ambient sound: Rain, Ocean, or Singing Bowl.",
-      "Follow the expanding circle — breathe in, hold, breathe out.",
-      "Tap 'Done' when you're ready to return to the conversation.",
-    ],
-    tip: "You can use the breathing exercise even without opening a chat — it's completely standalone.",
-    visual: <BreathingMockup />,
-  },
-  {
-    id: "data-export",
-    icon: "📥",
-    title: "Export Your Data",
-    category: "Privacy",
-    short: "Download all your conversations and emotional history as JSON, CSV, or PDF.",
-    long: "Your emotional data belongs to you. Imotara makes it easy to export everything at any time — whether you want to back it up, share with a therapist, or analyze it yourself. Export is available in three formats for Plus and above.",
-    detailed: [
-      "Go to Settings → Data & privacy → Export data. Choose your format: JSON (full structured data, ideal for developers or archiving), CSV (spreadsheet-friendly, works in Excel or Google Sheets), or PDF (a formatted document suitable for reading or printing).",
-      "The export includes all your conversations with timestamps, emotion tags, intensity levels, and sync status. It does not include your payment information or authentication tokens — just your conversation content.",
-      "On mobile, the exported file is shared via the native share sheet, so you can save it to Files, send it via email, or open it in another app. On web, it downloads directly to your browser.",
-      "You can also request a GDPR data package from Settings → Request data — this includes all data Imotara holds about your account in a machine-readable format. Data deletion is also available: Settings → Delete all cloud data removes everything from Imotara's servers while keeping your local history intact.",
-    ],
-    steps: [
-      "Go to Settings → Data & privacy.",
-      "Tap 'Export data'.",
-      "Choose your format: JSON, CSV, or PDF.",
-      "Tap Export — the file is generated on Imotara's servers.",
-      "On mobile: choose where to save via the share sheet. On web: the file downloads automatically.",
-    ],
-    tip: "Export is non-destructive — your data stays in Imotara after you export it.",
-    visual: <ExportMockup />,
-    badge: "Requires Plus+",
-    badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/30",
-  },
-  {
-    id: "privacy",
-    icon: "🔒",
-    title: "Privacy & Your Data",
-    category: "Privacy",
-    short: "No ads, no data selling, no tracking — your conversations are yours alone.",
-    long: "Privacy is not a feature in Imotara — it's the foundation. By default, everything stays on your device. You control what gets synced, what gets analyzed, and what gets deleted. No third parties see your emotional data.",
-    detailed: [
-      "Imotara is local-first: all your messages are stored on your device by default. The AI processing (when cloud AI is enabled) sends your message content to Imotara's API, which uses it only to generate your reply — it is never stored, analyzed, or used for training.",
-      "Cloud sync is opt-in and clearly labeled. When enabled, your data is encrypted in transit (TLS 1.3) and stored in Supabase with Row-Level Security, meaning only your authenticated account can read it. Imotara employees cannot access your conversations.",
-      "Emotion analysis (detecting sadness, anxiety, etc. from your messages) is consent-gated — you choose to enable it in Settings. Analysis can run locally on your device (using keyword matching) or via the cloud API. Local analysis never leaves your device.",
-      "You can delete all your cloud data at any time from Settings. You can export your data in multiple formats. You can clear your local history. Imotara never sells data, uses advertising networks, or adds engagement algorithms.",
-    ],
-    steps: [
-      "Check your privacy settings: Settings → Privacy & safety.",
-      "Toggle 'Store locally only' if you want zero cloud storage.",
-      "Toggle 'Emotion analysis' on/off to control whether your messages are analyzed.",
-      "To delete your cloud data: Settings → Delete all cloud data.",
-      "To export before deleting: Settings → Export data → choose format.",
-    ],
-    tip: "You can revoke cloud sync at any time — your local history remains untouched.",
-    visual: <PrivacyMockup />,
-  },
-  {
-    id: "upgrade",
-    icon: "⭐",
-    title: "Plans & Upgrade",
-    category: "Subscription",
-    short: "Free is genuinely free — upgrade for unlimited history, insights, and advanced features.",
-    long: "Imotara is free to use for core emotional support. Subscriptions add cloud history, advanced AI features, and deeper insights — but the core experience of talking to your companion never requires payment. Upgrade only when you're ready.",
-    detailed: [
-      "The Free tier gives you 20 cloud AI replies per day, 7 days of cloud history, and full access to the local (on-device) AI — which has no daily limit. This is enough for daily emotional check-ins for most users. There's no forced paywall during a conversation.",
-      "Plus (₹99/mo or ₹699/yr) adds unlimited cloud replies, 90-day history, data export, advanced TTS (voice selection, speed/pitch control), semantic history search, and reply cadence controls.",
-      "Pro (₹149/mo or ₹1,299/yr) adds everything in Plus plus unlimited history, emotion trend charts, weekly emotional summaries, monthly companion letters, and the long-term growth arc narrative.",
-      "Enterprise plans are available for organisations, schools, and healthcare platforms — includes admin dashboard, multi-profile management, child-safe mode, SSO/SAML, data residency, and dedicated support. Contact info@imotara.com.",
-    ],
-    steps: [
-      "Tap 'View plans →' in Settings → Plan & support.",
-      "Compare Free, Plus, and Pro features on the plans screen.",
-      "Toggle Monthly / Annual to see the savings (Annual saves ~25%).",
-      "Tap Subscribe on the plan you want.",
-      "On iOS: complete Apple In-App Purchase. On Android/Web: complete via Razorpay (UPI, cards, netbanking).",
-    ],
-    tip: "Token packs are a one-time alternative — buy 100 to 1,800 credits that never expire, for use beyond your daily limit.",
-    visual: <UpgradeMockup />,
-  },
-  {
-    id: "companion-letter",
-    icon: "💌",
-    title: "Companion Letter & Growth Arc",
-    category: "Pro Features",
-    short: "Each month, your companion writes you a personal letter reflecting on your emotional journey.",
-    long: "Once a month, your companion reads through your conversations, identifies the emotional themes, milestones, and patterns, and writes you a personal letter — a warm, intimate summary of how you've been feeling and growing. The Growth Arc is a longer-term narrative that tracks how you evolve over months.",
-    detailed: [
-      "The Companion Letter is generated once per calendar month and delivered to the Trends tab (or as a notification if you have push notifications enabled). It's written in first person, from your companion's perspective, and references specific things you talked about that month — not generic platitudes.",
-      "The letter includes: the dominant emotional themes of the month, a specific memory or moment that stood out, an observation about how you've been growing or what you've been working through, and a gentle forward-looking note for the month ahead.",
-      "The Growth Arc is a cumulative narrative that updates over multiple months. It tracks the emotional arc of your journey across time — noting when patterns shift (e.g., 'You talked about loneliness a lot in March, but by May you mentioned new connections more often'). Think of it as your emotional autobiography, written by someone who's been paying close attention.",
-      "Both features are Pro tier and above. They require cloud sync to be enabled, since the AI needs to read your conversation history to generate the letter.",
-    ],
-    steps: [
-      "Upgrade to Pro (or above) from Settings → Plan & support.",
-      "Enable cloud sync from Settings → Privacy & safety.",
-      "Wait until the end of the calendar month (or check Trends for the letter).",
-      "Open Trends → Companion Letter to read your monthly letter.",
-      "Open Trends → Growth Arc to see your long-term emotional narrative.",
-    ],
-    tip: "The more you talk throughout the month, the richer and more personal your companion letter will be.",
-    visual: <CompanionLetterMockup />,
-    badge: "Pro feature",
-    badgeColor: "bg-indigo-500/20 text-indigo-300 border-indigo-400/30",
-  },
+const CATEGORIES = [
+  { id: "start",      icon: "🚀", label: "Getting Started" },
+  { id: "chat",       icon: "💬", label: "Chat" },
+  { id: "voice",      icon: "🎤", label: "Voice & Audio" },
+  { id: "companion",  icon: "🎨", label: "Your Companion" },
+  { id: "history",    icon: "📚", label: "History" },
+  { id: "trends",     icon: "📊", label: "Trends & Insights" },
+  { id: "grow",       icon: "🌱", label: "Grow & Wellbeing" },
+  { id: "experience", icon: "⚙️", label: "Settings: Experience" },
+  { id: "privacy",    icon: "🔒", label: "Settings: Privacy" },
+  { id: "advanced",   icon: "🔧", label: "Settings: Advanced" },
+  { id: "plans",      icon: "⭐", label: "Plans & Upgrade" },
+  { id: "languages",  icon: "🌐", label: "Languages" },
 ];
 
-// ── Table of Contents ─────────────────────────────────────────────────────────
+// ─── Feature card data ────────────────────────────────────────────────────────
 
-const CATEGORIES = Array.from(new Set(FEATURES.map((f) => f.category)));
-
-function TOC({ active, onSelect }: { active: string; onSelect: (id: string) => void }) {
-  return (
-    <nav className="hidden lg:block sticky top-20 self-start w-52 shrink-0">
-      <p className="text-[10px] uppercase tracking-widest text-zinc-500 mb-3 font-semibold">On this page</p>
-      <div className="space-y-0.5">
-        {FEATURES.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => onSelect(f.id)}
-            className={`block w-full text-left px-3 py-1.5 rounded-lg text-xs transition-colors ${
-              active === f.id
-                ? "bg-indigo-500/15 text-indigo-300 font-medium"
-                : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-            }`}
-          >
-            <span className="mr-1.5">{f.icon}</span>{f.title}
-          </button>
-        ))}
-      </div>
-    </nav>
-  );
+interface Feature {
+  icon: string;
+  title: string;
+  short: string;
+  long: string;
+  steps: string[];
+  tip?: string;
+  badge?: string;
 }
 
-// ── Expandable Feature Block ──────────────────────────────────────────────────
+const FEATURES: Record<string, Feature[]> = {
 
-function FeatureBlock({ feature }: { feature: Feature }) {
-  const [expanded, setExpanded] = useState(false);
+  // ─ Getting Started ─────────────────────────────────────────────────────────
+  start: [
+    {
+      icon: "📲",
+      title: "Download & Install",
+      short: "Imotara is available on iOS, Android, and as a web app at imotara.com.",
+      long: "You can use Imotara on any device without installing anything — just open imotara.com in any browser. For a native experience, download from the App Store (iPhone/iPad) or Google Play Store (Android). All three platforms share the same account and sync your data.",
+      steps: [
+        "iOS: Open the App Store, search 'Imotara', tap Get.",
+        "Android: Open Google Play, search 'Imotara', tap Install.",
+        "Web: Visit imotara.com in Chrome, Safari, Firefox, or Edge.",
+        "On web, tap 'Add to Home Screen' from your browser menu for a PWA experience.",
+      ],
+      tip: "The web app works offline too — your local conversations are always saved in the browser.",
+    },
+    {
+      icon: "👋",
+      title: "Onboarding (First Launch)",
+      short: "A 3-step onboarding helps your companion understand you before the first reply.",
+      long: "When you first open Imotara, a short onboarding modal asks three things: your name (optional), the relationship tone you want with your companion (friend, mentor, coach, etc.), and your preferred language. None of these are mandatory — you can skip and change them anytime in Settings.",
+      steps: [
+        "Open Imotara for the first time.",
+        "Step 1: Enter your name (optional — the companion will use it if provided).",
+        "Step 2: Choose a relationship tone — Friend, Mentor, Elder, Coach, Sibling, Junior buddy, Parent-like, Partner-like.",
+        "Step 3: Choose your preferred language from 22 options.",
+        "Tap 'Start' — you land on the Chat screen, ready to go.",
+      ],
+      tip: "To redo onboarding later: Settings → Advanced → Tips & tours → Restart onboarding.",
+    },
+    {
+      icon: "💬",
+      title: "Your First Conversation",
+      short: "Just type how you're feeling — there's no right way to start.",
+      long: "The Chat screen shows quick-start chips like 'I'm feeling low today', 'Something good happened', or 'I just need to vent'. Tap one or type anything in the message box. Your companion will respond within seconds with a warm, thoughtful reply shaped by your persona settings.",
+      steps: [
+        "Tap the Chat tab (speech bubble icon at the bottom).",
+        "Tap one of the feeling chips, or type in the message box.",
+        "Press the Send arrow or hit Enter.",
+        "Read your companion's reply — it appears word by word in real time.",
+        "Reply back naturally — there's no structure or rules.",
+      ],
+      tip: "Your companion improves over time. The more you talk, the better it understands your patterns.",
+    },
+    {
+      icon: "🔑",
+      title: "Creating an Account (Optional)",
+      short: "An account is optional — Imotara works fully without one, but an account enables cloud sync.",
+      long: "You don't need a Google account to use Imotara. All core features work locally without login. To enable cloud sync, access your history from multiple devices, or make a purchase, tap 'Sign in with Google' from Settings or the upgrade page. Apple Sign-in is available on iOS.",
+      steps: [
+        "Open Settings (gear icon, bottom right).",
+        "Scroll to 'Remote history sync' or tap 'Sign in' when prompted during cloud sync.",
+        "Tap 'Sign in with Google' (web + Android) or 'Sign in with Apple' (iOS).",
+        "Complete the OAuth flow in the browser/system sheet.",
+        "You're signed in — your history begins syncing to the cloud.",
+      ],
+      tip: "Signing out does not delete your local history — everything stays on your device.",
+    },
+  ],
 
+  // ─ Chat ────────────────────────────────────────────────────────────────────
+  chat: [
+    {
+      icon: "⌨️",
+      title: "Sending a Message",
+      short: "Type in the message box at the bottom and tap Send — or press Enter on web.",
+      long: "The chat input box sits at the bottom of the screen. Type anything — your feelings, a question, a one-word mood, or a long story. Press the arrow button (or Enter on desktop) to send. On mobile, the keyboard appears automatically when you tap the input box.",
+      steps: [
+        "Tap the message input box at the bottom of the Chat screen.",
+        "Type your message — no length limit.",
+        "Tap the ➤ send button or press Enter (web).",
+        "Your message appears on the right in a blue bubble.",
+        "Your companion's reply streams back in real time.",
+      ],
+    },
+    {
+      icon: "⚡",
+      title: "Quick-Start Feeling Chips",
+      short: "Tap an emotion chip to start a conversation instantly without typing.",
+      long: "Above the message box, coloured feeling chips let you start with one tap: 'Feeling heavy', 'Need to vent', 'Just thinking out loud', and more. These set an emotional context before the first message, helping your companion respond more accurately.",
+      steps: [
+        "Look above the message input box for the emotion chips.",
+        "Tap a chip that matches how you're feeling right now.",
+        "It populates the message box with a starter phrase.",
+        "You can edit the text or just send it as-is.",
+      ],
+      tip: "Chips change based on context — after a few messages, new chips may appear based on the conversation tone.",
+    },
+    {
+      icon: "😊",
+      title: "Emotion Tags on Messages",
+      short: "Each AI reply is tagged with a detected emotion — tap to confirm or correct it.",
+      long: "Below every AI reply, Imotara shows an emotion chip (e.g., '😟 Anxious', '😊 Hopeful') representing the emotional tone it detected in your message. Tapping it logs that emotion to your history, which feeds into your Trends charts. You can also tap a different chip to correct the detection.",
+      steps: [
+        "Send a message and receive a reply.",
+        "Look below the reply for the small emotion chip.",
+        "Tap it to log that emotion to your history.",
+        "Or tap 'Change' to select a more accurate emotion from the list.",
+        "Logged emotions appear in your Trends tab.",
+      ],
+    },
+    {
+      icon: "🔖",
+      title: "Bookmarking Messages",
+      short: "Long-press any message to bookmark it — find it instantly in History.",
+      long: "Any message — yours or your companion's — can be bookmarked for quick access later. Bookmarked messages are flagged in your History and can be filtered to show only bookmarks, making it easy to find important reflections, encouraging words, or key insights.",
+      steps: [
+        "Long-press (hold) any message bubble.",
+        "A context menu appears — tap 'Bookmark'.",
+        "A small bookmark icon appears on the message.",
+        "To find bookmarks: go to History → tap the filter icon → select Bookmarks.",
+      ],
+    },
+    {
+      icon: "😄",
+      title: "Reacting to Messages",
+      short: "Long-press a message and pick an emoji reaction to express how it made you feel.",
+      long: "You can react to any message with an emoji — heart, thumbs up, lightbulb, or others. Reactions are personal (only you see them) and help you mark messages that resonated, surprised, or comforted you.",
+      steps: [
+        "Long-press any message bubble.",
+        "Tap 'React' in the context menu.",
+        "Choose an emoji from the reaction picker.",
+        "The emoji appears below the message.",
+        "Long-press again and tap the reaction to remove it.",
+      ],
+    },
+    {
+      icon: "📋",
+      title: "Copying a Message",
+      short: "Long-press any message and tap Copy to copy the text to your clipboard.",
+      long: "You can copy any message — your own or your companion's — to share with someone else, save to notes, or use elsewhere. The text is copied without any formatting markers.",
+      steps: [
+        "Long-press the message you want to copy.",
+        "Tap 'Copy' in the context menu.",
+        "Paste it anywhere using the standard paste gesture.",
+      ],
+    },
+    {
+      icon: "🔁",
+      title: "Retry / Regenerate a Reply",
+      short: "Long-press a companion reply and tap Retry to get a different response.",
+      long: "If a reply doesn't feel right — too short, missed the point, or just not what you needed — you can regenerate it. The companion will craft a fresh response to the same message using a slightly different approach.",
+      steps: [
+        "Long-press your companion's reply.",
+        "Tap 'Retry' or 'Regenerate'.",
+        "A new reply is generated and replaces the old one.",
+      ],
+      tip: "Each retry may take a different angle — useful when you feel the first response didn't land.",
+    },
+    {
+      icon: "🌐",
+      title: "Tone Reflection Card",
+      short: "After a session, a reflection card summarises the emotional tone of your conversation.",
+      long: "At the end of a meaningful conversation, Imotara may show a Tone Reflection card — a compact summary showing your dominant emotion, the emotional arc of the session, and a seed prompt for further reflection. It appears as a special card in the chat thread.",
+      steps: [
+        "Have a multi-message conversation (usually 5+ messages).",
+        "A Tone Reflection card appears at a natural pause point.",
+        "Read the emotion summary and dominant label.",
+        "Tap 'Reflect on this →' to open a deeper journaling prompt.",
+        "Tap dismiss (×) to close it and continue chatting.",
+      ],
+    },
+    {
+      icon: "🏠",
+      title: "Starting a New Conversation",
+      short: "Tap 'New conversation' in the History tab to start a fresh thread.",
+      long: "Each conversation is a separate thread in your history. Starting a new one is like opening a blank page — your companion starts fresh without the context of previous threads, though it still remembers personal facts from your companion memory.",
+      steps: [
+        "Go to the History tab.",
+        "Tap '+ Start new conversation'.",
+        "You're taken to the Chat screen with a blank thread.",
+        "Your previous conversations remain accessible in History.",
+      ],
+    },
+    {
+      icon: "☁️",
+      title: "Cloud vs Local Badge",
+      short: "Each reply shows whether it came from cloud AI or the on-device local engine.",
+      long: "A small badge on each message shows 'Synced to cloud' (cloud AI, full quality) or 'Local' (on-device engine, works offline). When your daily cloud quota is reached or you're offline, Imotara automatically switches to local mode — you keep chatting without interruption.",
+      steps: [
+        "Look at the small label below each companion reply.",
+        "'Synced to cloud' = the reply was generated by the cloud AI.",
+        "'Local' = the reply was generated on your device.",
+        "No action needed — switching is automatic.",
+      ],
+      tip: "Local replies are fast, private, and work with no internet — but cloud replies are richer and more nuanced.",
+    },
+    {
+      icon: "🔍",
+      title: "In-Chat Search",
+      short: "Search your current conversation using the search icon in the chat header.",
+      long: "Tap the search (🔍) icon in the top-right of the Chat header to search within the current conversation. Type any keyword to jump to matching messages highlighted in the thread. This is for searching the current conversation; searching across all history is in the History tab.",
+      steps: [
+        "Tap the 🔍 icon in the top-right of the Chat screen.",
+        "Type a keyword (emotion, topic, person's name, etc.).",
+        "Matching messages are highlighted.",
+        "Tap the up/down arrows to jump between results.",
+        "Press × or Escape to close search.",
+      ],
+    },
+    {
+      icon: "🧠",
+      title: "Grief Mode & Unsent Letter",
+      short: "Dedicated conversation modes for grief and cathartic expression — accessible from the chat menu.",
+      long: "Tap the ··· (more) icon in the chat header to access special conversation modes: Grief & Loss mode adapts your companion to speak more slowly and carefully around themes of loss. Unsent Letter mode lets you write a letter to someone you can't speak to — for closure, not sending.",
+      steps: [
+        "Tap the ··· icon in the Chat header (top right).",
+        "Select 'Grief & Loss mode' or 'Unsent Letter'.",
+        "For Grief mode: a banner confirms the mode is active — continue chatting normally.",
+        "For Unsent Letter: a dedicated editor opens. Write your letter and tap Done.",
+        "Tap the mode banner to exit back to normal chat.",
+      ],
+      tip: "These modes are session-only — they reset when you close the app or start a new conversation.",
+    },
+  ],
+
+  // ─ Voice & Audio ───────────────────────────────────────────────────────────
+  voice: [
+    {
+      icon: "🎤",
+      title: "Voice Input (Speech to Text)",
+      short: "Tap the microphone to speak your message — Imotara transcribes it using AI.",
+      long: "Tap the 🎤 microphone icon beside the message input to start recording. Speak naturally in any language. When you stop, the audio is sent to OpenAI Whisper for transcription and the text appears in the input box, ready to send or edit.",
+      steps: [
+        "Tap the 🎤 icon to the right of the message input box.",
+        "Speak your message — there's no time limit (default max: 60 seconds).",
+        "Tap the mic again or wait for silence detection to stop recording.",
+        "The transcribed text appears in the message box.",
+        "Edit if needed, then tap Send.",
+      ],
+      tip: "Works in all 22 languages. If you code-switch (mix languages), Whisper usually handles it correctly.",
+    },
+    {
+      icon: "⏱",
+      title: "Voice Recording Duration Limit",
+      short: "Set how long a single voice recording can be — from 30 seconds to 5 minutes.",
+      long: "By default, voice recordings stop at 60 seconds. You can change this in Settings → Advanced → Voice settings. Shorter limits use less data; longer limits let you speak more freely without interruption.",
+      steps: [
+        "Go to Settings → Advanced (expand the Advanced section).",
+        "Find 'Voice max duration'.",
+        "Drag the slider or tap to set: 30s, 60s, 2 min, 3 min, or 5 min.",
+        "Changes take effect immediately on the next recording.",
+      ],
+    },
+    {
+      icon: "🌐",
+      title: "Cloud vs On-Device Transcription",
+      short: "Choose whether voice recording uses cloud AI (more accurate) or stays on-device (more private).",
+      long: "By default, voice recordings are sent to OpenAI Whisper via Imotara's API for high-quality transcription. If privacy is a priority, you can switch to on-device transcription (uses your device's built-in speech recognition, which is less accurate but never leaves your phone).",
+      steps: [
+        "Go to Settings → Advanced → Voice settings.",
+        "Find 'Cloud transcription'.",
+        "Toggle off to use on-device transcription only.",
+        "Toggle on (default) to use cloud Whisper transcription.",
+      ],
+      badge: "Cloud transcription requires internet",
+    },
+    {
+      icon: "✅",
+      title: "Voice Confirmation Before Sending",
+      short: "Enable a confirmation step so you can review and edit transcribed text before sending.",
+      long: "By default, after transcription the text goes into the input box and you must manually press Send. You can also enable 'Auto-send on transcription' which sends immediately. Or enable 'Confirm before send' which shows a review modal. Toggle these in Settings.",
+      steps: [
+        "Go to Settings → Advanced → Voice settings.",
+        "Find 'Confirm before send'.",
+        "Toggle on: after transcription, a modal shows the text for review before sending.",
+        "Toggle off (default): text goes into the input box; you send manually.",
+      ],
+    },
+    {
+      icon: "🔊",
+      title: "Text-to-Speech (Listen to Replies)",
+      short: "Tap the speaker icon below any reply to hear it read aloud in your companion's voice.",
+      long: "Every companion reply can be played as audio using Azure Neural TTS — high-quality, natural-sounding voices matched to your companion's gender and language. Plus subscribers can choose specific voices, adjust speed, and set pitch.",
+      steps: [
+        "Receive a reply from your companion.",
+        "Tap the 🔊 speaker icon below the message bubble.",
+        "The reply plays in your companion's voice.",
+        "Tap again to pause; tap again to resume.",
+        "To customize: Settings → Experience → Voice & audio.",
+      ],
+    },
+    {
+      icon: "▶️",
+      title: "Auto-Play TTS",
+      short: "Enable Auto-play so every companion reply starts reading aloud automatically.",
+      long: "When Auto-play is enabled, Imotara reads each reply aloud as soon as it finishes generating — no tapping required. This creates a more conversational, voice-forward experience. Ideal for hands-free use, accessibility, or when you prefer listening over reading.",
+      steps: [
+        "Go to Settings → Experience → Voice & audio.",
+        "Find 'Auto-play replies'.",
+        "Toggle on.",
+        "Return to Chat — your companion's next reply will play automatically.",
+      ],
+    },
+    {
+      icon: "🎚️",
+      title: "TTS Speed & Pitch Control",
+      short: "Adjust how fast and how high-pitched your companion's voice sounds.",
+      long: "Available on Plus and above. In Settings you can set the TTS speaking rate (0.5× slow to 1.5× fast) and pitch adjustment. Lower pitch creates a calmer, deeper voice; higher pitch is lighter and more energetic. These apply to all TTS playback.",
+      steps: [
+        "Go to Settings → Experience → Voice & audio.",
+        "Find 'Speaking rate' slider — drag left to slow down, right to speed up.",
+        "Find 'Pitch' slider — drag left for deeper, right for higher.",
+        "Tap 'Preview voice' to hear a sample with your settings.",
+      ],
+      badge: "Plus+ required for customization",
+    },
+    {
+      icon: "🎭",
+      title: "TTS Voice Selection",
+      short: "Choose from multiple Azure Neural voices matched to your language and companion gender.",
+      long: "Azure Neural TTS provides several voice options per language. Your companion's gender setting determines which voices are shown — female companion shows female voices, male shows male. You can preview each voice before selecting.",
+      steps: [
+        "Go to Settings → Experience → Voice & audio.",
+        "Find 'Voice selection'.",
+        "Tap a voice name to hear a preview.",
+        "Tap 'Use this voice' to confirm.",
+        "All future TTS playback uses the selected voice.",
+      ],
+      badge: "Plus+ required",
+    },
+    {
+      icon: "🌬",
+      title: "Breathing Exercise with Ambient Sound",
+      short: "A guided breathing exercise with Rain, Ocean, or Singing Bowl sound — accessible from chat.",
+      long: "The breathing exercise uses the 4-7-8 technique (inhale 4 sec, hold 7 sec, exhale 8 sec). It runs full-screen with a pulsing visual guide and optional ambient sound. Choose from Rain, Ocean waves, or a Singing Bowl. Great for anxiety or to reset mid-conversation.",
+      steps: [
+        "Tap the + or ··· icon in the Chat header.",
+        "Select 'Breathing exercise'.",
+        "Choose your ambient sound: Rain, Ocean, or Singing Bowl.",
+        "Follow the expanding circle — in, hold, out.",
+        "Tap 'Done' to return to your conversation.",
+      ],
+      tip: "You can also change the default breathing pattern in Settings → Experience → Grow & Wellbeing.",
+    },
+  ],
+
+  // ─ Your Companion ──────────────────────────────────────────────────────────
+  companion: [
+    {
+      icon: "📛",
+      title: "Companion Name",
+      short: "Give your AI companion a name — it uses it in conversation and in TTS audio.",
+      long: "By default your companion is named 'Imotara'. You can rename it anything — a real name, a nickname, or whatever feels right for you. The companion will use the name to refer to itself and in its voice profile for TTS.",
+      steps: [
+        "Go to Settings → Your companion → Tone & Context.",
+        "Find 'Companion name' field.",
+        "Clear the field and type a new name.",
+        "Scroll down and tap 'Save'.",
+        "The companion uses the new name from the next reply onward.",
+      ],
+    },
+    {
+      icon: "👤",
+      title: "Your Name & Profile",
+      short: "Tell your companion your name so it can address you personally in replies.",
+      long: "Set your name in the Tone & Context settings. The companion uses it naturally in replies (e.g., 'That sounds hard, [Your name]'). You can also set your gender, which subtly affects how the companion addresses you in certain languages.",
+      steps: [
+        "Go to Settings → Your companion → Tone & Context.",
+        "Enter your name in 'Your name' field.",
+        "Select your gender tone: Female, Male, Non-binary, Other, or Prefer not to say.",
+        "Tap Save.",
+      ],
+    },
+    {
+      icon: "🤝",
+      title: "Relationship Tone",
+      short: "Choose the kind of relationship your companion models — friend, mentor, coach, elder, and more.",
+      long: "The relationship tone shapes every reply. 'Friend' gives warm, casual, empathetic responses. 'Mentor' is wise and guiding. 'Elder' is patient and measured. 'Coach' is direct and action-focused. 'Sibling' is relatable. 'Junior buddy' is lighter. 'Parent-like' is nurturing. 'Partner-like' is intimate.",
+      steps: [
+        "Go to Settings → Your companion → Tone & Context.",
+        "Find 'Relationship tone'.",
+        "Tap the relationship that feels right for you right now.",
+        "Tap Save — your next reply will already feel different.",
+      ],
+      tip: "You can change this anytime — different days call for different kinds of support.",
+    },
+    {
+      icon: "💡",
+      title: "Response Style",
+      short: "Tell your companion what kind of response you need — comfort, reflection, motivation, or advice.",
+      long: "Five response styles shape how the companion replies: 'Comfort me' focuses on emotional validation. 'Help me reflect' asks thought-provoking questions. 'Motivate me' is encouraging and forward-looking. 'Give advice' offers practical guidance. 'Let Imotara decide' — the AI chooses based on emotional context.",
+      steps: [
+        "Go to Settings → Your companion → Tone & Context.",
+        "Find 'Response style'.",
+        "Select the style that matches what you need.",
+        "Tap Save.",
+      ],
+    },
+    {
+      icon: "🎂",
+      title: "Age Tone",
+      short: "Set your age range so your companion adjusts its language and communication style.",
+      long: "The companion communicates differently based on age group. 'Teen (13–17)' gets careful, age-sensitive messaging. 'Young adult (18–25)' is energetic and relatable. 'Adult (26–54)' is balanced. 'Senior (55+)' is patient and unhurried. Setting your companion's age range also affects TTS voice selection.",
+      steps: [
+        "Go to Settings → Your companion → Tone & Context.",
+        "Find 'Your age' — select your age bracket.",
+        "Find 'Companion age' — select how old you'd like your companion to feel.",
+        "Tap Save.",
+      ],
+    },
+    {
+      icon: "🚻",
+      title: "Companion Gender",
+      short: "Choose your companion's gender — affects TTS voice selection and language tone.",
+      long: "Setting your companion's gender (Female, Male, Non-binary, Neutral) determines which TTS voice is used when replies are read aloud, and subtly affects how the companion expresses itself in languages with gendered conjugation (Hindi, Bengali, Marathi, etc.).",
+      steps: [
+        "Go to Settings → Your companion → Tone & Context.",
+        "Find 'Companion gender'.",
+        "Select: Female, Male, Non-binary, or Prefer not to say.",
+        "Tap Save.",
+        "Tap 'Preview voice' to hear how the new gender sounds.",
+      ],
+    },
+    {
+      icon: "📐",
+      title: "Reply Length",
+      short: "Control whether replies are brief or detailed — short, medium, or long.",
+      long: "You can set a preferred reply length so your companion consistently matches your preference. 'Short' gives concise 2-3 sentence replies — ideal for quick check-ins. 'Medium' is balanced. 'Long' gives detailed, thorough responses — good for deep processing or journaling-style conversations.",
+      steps: [
+        "Go to Settings → Your companion → Tone & Context.",
+        "Find 'Reply length preference'.",
+        "Select Short, Medium, or Long.",
+        "Tap Save.",
+      ],
+    },
+    {
+      icon: "👁",
+      title: "Teen Insights Mode",
+      short: "A special mode that makes emotion analysis more careful and supportive for younger users.",
+      long: "Teen Insights Mode adapts how Imotara processes and responds to emotional content — more careful phrasing, lower thresholds for safety resources, and additional sensitivity around topics like self-worth, peer pressure, and academic stress. Enable it in Settings for any user under 18.",
+      steps: [
+        "Go to Settings → Your companion.",
+        "Find 'Teen Insights Mode'.",
+        "Toggle on.",
+        "A purple indicator confirms the mode is active.",
+      ],
+    },
+    {
+      icon: "🔊",
+      title: "Voice Preview",
+      short: "Hear a sample of your companion's TTS voice before committing to any setting change.",
+      long: "Every time you change the companion name, gender, or language, a 'Preview voice' button appears. Tap it to hear a short sample of how your companion will sound in TTS. This lets you fine-tune before saving.",
+      steps: [
+        "Go to Settings → Your companion → Tone & Context.",
+        "Make any change (name, gender, language).",
+        "Tap 'Preview voice' that appears below.",
+        "Listen to the sample — adjust if needed.",
+        "Tap Save when satisfied.",
+      ],
+    },
+  ],
+
+  // ─ History ─────────────────────────────────────────────────────────────────
+  history: [
+    {
+      icon: "📜",
+      title: "Viewing Conversation History",
+      short: "The History tab shows all past conversations, organised by date with emotion tags.",
+      long: "Open the History tab (clock icon) to see all your conversations. Each entry shows a preview, date, and the dominant emotion icon. Tap any entry to read the full conversation. Your retention period depends on your plan: Free (7 days), Plus (90 days), Pro (unlimited).",
+      steps: [
+        "Tap the History tab (🕐 icon) at the bottom of the screen.",
+        "Browse conversations — newest at the top.",
+        "Tap any entry to open and read it.",
+        "Scroll to the bottom of an open conversation to continue it.",
+      ],
+    },
+    {
+      icon: "🔍",
+      title: "Searching History",
+      short: "Search across all your conversations by keyword, emotion, or topic.",
+      long: "Tap the search icon in the History tab to search across your entire history. Type any word or phrase — matching messages are highlighted. Plus users can toggle between keyword search and semantic search (meaning-based — finds messages about a topic even if you used different words).",
+      steps: [
+        "Tap the History tab.",
+        "Tap the 🔍 search icon.",
+        "Type your search term.",
+        "Matching messages appear with highlights.",
+        "Toggle 'Semantic' (Plus+) to find meaning-based matches.",
+      ],
+      badge: "Semantic search on Plus+",
+    },
+    {
+      icon: "😊",
+      title: "Emotion History Tab",
+      short: "Switch to the Emotion History view to see your mood log organised by emotion type.",
+      long: "In the History tab, tap 'Emotion History' to see all logged emotions sorted by type. This view lets you quickly filter to all times you felt 'Anxious', 'Joyful', or any other emotion — useful for identifying patterns.",
+      steps: [
+        "Open the History tab.",
+        "Tap the 'Emotion History' pill at the top.",
+        "Browse emotions chronologically.",
+        "Tap an emotion type to filter.",
+      ],
+    },
+    {
+      icon: "🗑️",
+      title: "Deleting a Conversation",
+      short: "Swipe left (mobile) or click the trash icon to permanently delete a conversation.",
+      long: "You can delete any individual conversation from the History tab. Once deleted, it's removed from your local storage immediately. If cloud sync is enabled, the deletion is also propagated to the server on the next sync.",
+      steps: [
+        "Open the History tab.",
+        "Swipe left on a conversation (mobile) to reveal the Delete button.",
+        "On web: hover over the conversation and click the trash icon.",
+        "Confirm deletion in the prompt.",
+      ],
+      tip: "Deleted conversations cannot be recovered — they're gone from both local and cloud storage.",
+    },
+    {
+      icon: "🔀",
+      title: "Sync Status",
+      short: "A sync badge at the top of History shows when your history last synced with the cloud.",
+      long: "When cloud sync is enabled, the History tab shows a 'Sync checked recently' or 'Synced at HH:MM' line at the top. A spinning icon means sync is in progress. This reassures you that your data is safely backed up across devices.",
+      steps: [
+        "Enable cloud sync from Settings → Privacy & safety → Remote history sync.",
+        "Open the History tab.",
+        "Check the sync status line at the top.",
+        "Tap 'Sync now' if you want to trigger a manual sync.",
+      ],
+    },
+    {
+      icon: "🔗",
+      title: "Emotion Trends Link",
+      short: "Tap 'Emotion trends' at the bottom of the History tab to jump to your full charts.",
+      long: "At the bottom of the History tab, a card labeled 'Emotion trends — Radar chart · 30-day line · mood heatmap' links directly to the Trends screen. Tap it to see a full visual breakdown of your emotional patterns.",
+      steps: [
+        "Open the History tab.",
+        "Scroll to the bottom.",
+        "Tap the 'Emotion trends' card.",
+        "You're taken to the Trends tab.",
+      ],
+    },
+  ],
+
+  // ─ Trends & Insights ───────────────────────────────────────────────────────
+  trends: [
+    {
+      icon: "🫀",
+      title: "Mood Check-In Chips",
+      short: "Tap an emotion chip at the top of Trends to log a quick mood without starting a full conversation.",
+      long: "The Trends tab opens with a row of emotion chips: Joy, Hopeful, Grateful, Sad, Stressed, Angry, Confused, Neutral. Tap one to instantly log that mood to your history — it counts as a check-in and keeps your streak alive, even on days when you don't feel like chatting.",
+      steps: [
+        "Open the Trends tab (📊 bar chart icon).",
+        "Tap the emotion chip that matches how you feel right now.",
+        "The emotion is logged with the current timestamp.",
+        "Your streak counter updates.",
+      ],
+    },
+    {
+      icon: "🕸",
+      title: "Emotion Radar Chart",
+      short: "A 6-axis radar chart showing how your emotions spread across joy, sadness, stress, and more this week.",
+      long: "The Emotion Radar shows Joy, Hopeful, Confused, Angry, Stressed, Sad, and Neutral as axes of a hexagon. The larger a segment, the more times that emotion appeared in your conversations this week. An evenly distributed chart means a varied emotional week; a spike in one area signals a dominant mood.",
+      steps: [
+        "Open the Trends tab.",
+        "Scroll to the 'Emotion Radar' section.",
+        "Look at which emotions have the largest segments.",
+        "Hover (web) or tap (mobile) an axis to see the count for that emotion.",
+      ],
+      badge: "Pro unlocks weekly comparison",
+    },
+    {
+      icon: "📅",
+      title: "7-Day Mood Row",
+      short: "A row of emoji dots showing your dominant emotion for each of the last 7 days.",
+      long: "Below the radar, a row shows one emoji dot per day for the last 7 days. Each dot represents the dominant emotion logged that day. Gaps mean no check-in that day. This gives a quick visual scan of your week's emotional pattern.",
+      steps: [
+        "Open the Trends tab.",
+        "Find the '7-Day Mood' section.",
+        "Read each dot left to right (oldest to today).",
+        "Tap a dot to see the emotion label.",
+      ],
+    },
+    {
+      icon: "🔥",
+      title: "Streak Tracking",
+      short: "Your streak counts consecutive days you checked in — with Imotara or via a quick chip tap.",
+      long: "A streak day is any day you either send a message in Chat or tap a mood chip in Trends. The streak counter shows your current consecutive days and best streak. A missed day resets the streak. You'll get a notification warning if you're at risk of losing your streak.",
+      steps: [
+        "Open the Trends tab.",
+        "Your streak counter is shown near the top ('X days in a row').",
+        "Maintain it by checking in daily — either chat or tap a mood chip.",
+        "Streak notifications: Settings → Experience → Notifications → Streak reminder.",
+      ],
+    },
+    {
+      icon: "📋",
+      title: "Weekly Report",
+      short: "An auto-generated narrative summary of your emotional week appears every Monday.",
+      long: "The Weekly Report is a short paragraph generated by the AI summarising the emotional themes of your week — what you felt, patterns it noticed, and a gentle observation. It appears in the Trends tab and (if enabled) as a push notification.",
+      steps: [
+        "Open the Trends tab on or after Monday.",
+        "Find the 'Weekly Report' section.",
+        "Read the narrative summary.",
+        "Tap 'Reflect on this' to journal about the week.",
+      ],
+      badge: "Pro+ for full weekly digest",
+    },
+    {
+      icon: "📈",
+      title: "30-Day Mood Trend",
+      short: "A line chart of your daily emotional intensity over the past 30 days — see your emotional arc at a glance.",
+      long: "The 30-day trend graph plots your emotional intensity day-by-day over the past month. An upward trend means increasing positive emotions; downward means increasing difficult ones. Look for recurring patterns (e.g., mood dips every weekend) that might reveal triggers.",
+      steps: [
+        "Open the Trends tab.",
+        "Scroll to the '30-Day Mood Trend' chart.",
+        "Hover/tap any point to see the date and emotion.",
+        "Look for patterns — recurring dips or peaks.",
+      ],
+      badge: "Pro feature",
+    },
+    {
+      icon: "📆",
+      title: "30-Day Reflection Challenge",
+      short: "A month-long daily reflection challenge with a daily prompt — tap 'Mark today done' to track progress.",
+      long: "In the Grow tab (or Trends on mobile), the 30-Day Challenge gives you a daily journaling prompt. Complete 30 consecutive days to finish the challenge. A progress grid shows your dots — filled for completed days, empty for missed ones. Tap 'Restart' to begin again at any time.",
+      steps: [
+        "Open the Grow tab (web) or scroll in Trends (mobile).",
+        "Find the '30-Day Challenge' card.",
+        "Read today's prompt (e.g., 'Write about one thing that made you feel alive this week').",
+        "Reflect on the prompt — either in Chat or privately.",
+        "Tap 'Mark today done' to record your completion.",
+      ],
+    },
+    {
+      icon: "💌",
+      title: "Companion Letter (Pro)",
+      short: "Once a month, your companion writes you a personal letter reflecting on your emotional journey.",
+      long: "Available on Pro and above. At the end of each calendar month, Imotara generates a personal letter from your companion — written in first person, referencing specific things you talked about, and offering a gentle reflection on the month's emotional arc. Find it in Trends.",
+      steps: [
+        "Upgrade to Pro from Settings → Plan & support.",
+        "Enable cloud sync (required for letter generation).",
+        "Wait until the end of the calendar month.",
+        "Open Trends → scroll to 'Companion Letter'.",
+        "Read your monthly letter.",
+      ],
+      badge: "Pro feature",
+    },
+    {
+      icon: "🌱",
+      title: "Growth Arc Narrative (Pro)",
+      short: "A long-term emotional narrative that tracks how you evolve across multiple months.",
+      long: "The Growth Arc is Imotara's deepest insight feature — an ongoing narrative that reads your emotional history across months and tells the story of your emotional evolution. It notices when patterns shift (e.g., loneliness replaced by connection), when you've grown, and what emotional themes keep recurring.",
+      steps: [
+        "Upgrade to Pro.",
+        "Enable cloud sync.",
+        "After 1-2 months of conversations, open Trends.",
+        "Scroll to 'Growth Arc'.",
+        "Read the narrative — it updates monthly.",
+      ],
+      badge: "Pro feature",
+    },
+  ],
+
+  // ─ Grow & Wellbeing ────────────────────────────────────────────────────────
+  grow: [
+    {
+      icon: "🌿",
+      title: "The Grow Page",
+      short: "A dedicated space for reflection, journaling, emotional challenges, and growth modules.",
+      long: "The Grow page (web) or Trends tab (mobile) contains all long-form reflection and growth features. Here you'll find the 30-day challenge, future letters, collective pulse, reflection prompts, and mindset capsule. It's designed for users who want to go deeper than daily chat.",
+      steps: [
+        "Click 'Grow' in the top navigation (web) or scroll within Trends (mobile).",
+        "Browse the available modules.",
+        "Tap any card to open that feature.",
+      ],
+    },
+    {
+      icon: "📬",
+      title: "Future Letters",
+      short: "Write a letter to your future self — it locks until the date you choose, then unlocks for reading.",
+      long: "Future Letters are a journaling tool with a time-lock. Write a letter to yourself — hopes, fears, goals, a snapshot of where you are right now — then set a date (1 month, 6 months, a year from now). On that date, the letter unlocks and you can read what past-you wrote.",
+      steps: [
+        "Open Grow (web) or Trends → Future Letters (mobile).",
+        "Tap '+ Write a letter'.",
+        "Write your letter — address it to your future self.",
+        "Set a lock date (when you want to read it).",
+        "Tap 'Seal & lock'.",
+        "On the unlock date, open Future Letters and read.",
+      ],
+    },
+    {
+      icon: "📡",
+      title: "Collective Pulse",
+      short: "An anonymised real-time pulse of how thousands of Imotara users are feeling right now.",
+      long: "The Collective Pulse is an anonymised, aggregated signal showing the emotional state of Imotara users globally. No personal data is shared — it's purely numerical percentages (e.g., '34% feeling hopeful right now'). Use it as a reminder that you're not alone in whatever you're feeling.",
+      steps: [
+        "Open the Grow page (web) or Chat header → Collective Pulse (mobile).",
+        "Read the live percentages.",
+        "The data updates periodically throughout the day.",
+      ],
+    },
+    {
+      icon: "🧠",
+      title: "Mindset Capsule",
+      short: "An AI-generated weekly emotional capsule — your top themes, patterns, and a personalised insight.",
+      long: "The Mindset Capsule analyses your recent conversations and generates a weekly insight: what emotional topics you discussed most, any patterns or contradictions it noticed, and one personalised reflection to sit with. Find it in Grow → Mindset Analysis.",
+      steps: [
+        "Open Grow → Mindset Analysis (web) or Settings → Advanced → Mindset Analysis (web).",
+        "View your current capsule — it updates weekly.",
+        "Toggle which time periods to include: Today, Last 7 days, Last 30 days, All time.",
+        "Tap 'Generate' to refresh the capsule.",
+      ],
+    },
+    {
+      icon: "✉️",
+      title: "Unsent Letter (Shadow Voice)",
+      short: "Write a letter to someone you can't or won't speak to — for cathartic release, not sending.",
+      long: "The Unsent Letter mode lets you pour out everything you'd say to someone — a parent, ex, estranged friend, or even yourself — without sending it. The act of writing it down is cathartic. The letter is stored privately and can be deleted anytime.",
+      steps: [
+        "In Chat, tap ··· (more) → 'Unsent Letter'.",
+        "Type the recipient's name (optional).",
+        "Write everything you want to say.",
+        "Tap 'Done' — the letter is saved privately.",
+        "To find it again: History → filter by Unsent Letters.",
+      ],
+    },
+    {
+      icon: "🌍",
+      title: "Family Emotional Snapshot",
+      short: "Generate a shareable emotional snapshot of your week to share with family members.",
+      long: "The Family Snapshot creates a privacy-safe visual summary of your emotional week — showing trends and general mood without exposing conversation content. Share the link with a trusted family member so they understand how you've been feeling without needing to ask.",
+      steps: [
+        "Go to Settings → Advanced → Family Snapshot.",
+        "Tap 'Generate snapshot'.",
+        "A unique link is created.",
+        "Share the link with the family member of your choice.",
+        "They see an anonymised mood summary — no conversation text.",
+      ],
+    },
+    {
+      icon: "🧘",
+      title: "Breathing Patterns",
+      short: "Choose from several breathing techniques — 4-7-8, box breathing, and more.",
+      long: "The breathing exercise supports multiple techniques. 4-7-8 (inhale 4, hold 7, exhale 8) is good for anxiety. Box breathing (4-4-4-4) is for focus and calm. You can set a default pattern in Settings so it opens to your preferred technique every time.",
+      steps: [
+        "Go to Settings → Experience → Grow & Wellbeing.",
+        "Find 'Default breathing pattern'.",
+        "Choose: 4-7-8, Box breathing, or Equal breathing.",
+        "This becomes the default when you open the breathing exercise.",
+      ],
+    },
+  ],
+
+  // ─ Settings: Experience ────────────────────────────────────────────────────
+  experience: [
+    {
+      icon: "🔔",
+      title: "Browser Notifications",
+      short: "Enable push notifications to receive daily check-in reminders and weekly digests.",
+      long: "On web, Imotara can send you browser push notifications for daily reminders, streak warnings, and weekly emotional summaries. You must grant permission when prompted. If you accidentally blocked them, re-enable in your browser's site settings.",
+      steps: [
+        "Go to Settings → Experience.",
+        "Find 'Browser notifications'.",
+        "Tap 'Enable notifications'.",
+        "Allow in the browser permission prompt.",
+        "Set your preferred notification time for daily reminders.",
+      ],
+    },
+    {
+      icon: "💭",
+      title: "Typing Indicator Speed",
+      short: "Control how fast your companion appears to 'type' — affects the streaming animation speed.",
+      long: "The typing indicator shows your companion appearing to type before the reply arrives. You can set the speed: Fast (minimal delay), Normal (natural feel), Slow (more deliberate, calmer). This changes the pacing of the conversation feel, not the actual reply generation speed.",
+      steps: [
+        "Go to Settings → Experience → Chat behaviour.",
+        "Find 'Typing indicator speed'.",
+        "Select Fast, Normal, or Slow.",
+      ],
+    },
+    {
+      icon: "😄",
+      title: "Reaction Display",
+      short: "Toggle whether emoji reactions appear on messages in your chat thread.",
+      long: "If you've added emoji reactions to messages, this setting controls whether they're shown inline on the bubble or hidden. Turn off to keep the chat thread clean; turn on to see your emotional annotations at a glance.",
+      steps: [
+        "Go to Settings → Experience → Chat behaviour.",
+        "Find 'Show message reactions'.",
+        "Toggle on or off.",
+      ],
+    },
+    {
+      icon: "🫧",
+      title: "Bubble Style",
+      short: "Choose between rounded or compact message bubble styles.",
+      long: "Switch between two chat bubble styles: Rounded (the default, soft and friendly) or Compact (tighter layout with less padding, shows more text per screen). Compact is useful on smaller screens or for users who prefer a denser view.",
+      steps: [
+        "Go to Settings → Experience → Chat behaviour.",
+        "Find 'Bubble style'.",
+        "Select Rounded or Compact.",
+      ],
+    },
+    {
+      icon: "🎨",
+      title: "Accent Color",
+      short: "Change the app's accent colour — Twilight (default), Indigo, Teal, Rose, Amber, or Emerald.",
+      long: "Imotara's UI accent colour appears on buttons, active links, chips, and highlights. Choose the colour that feels most calming or personal to you. Twilight is a multi-colour gradient; the others are solid single-colour accents.",
+      steps: [
+        "Go to Settings → Experience → Appearance.",
+        "Find 'Accent colour'.",
+        "Tap a colour swatch to preview it.",
+        "The UI updates instantly.",
+      ],
+    },
+    {
+      icon: "🌗",
+      title: "Light / Dark / System Theme",
+      short: "Switch between dark mode, light mode, or follow your device's system setting.",
+      long: "Imotara defaults to dark mode. Switch to light mode for daytime use, or set it to 'System' to automatically match your device's dark/light setting. The theme applies immediately with no restart required.",
+      steps: [
+        "Go to Settings → Experience → Appearance.",
+        "Find 'Theme'.",
+        "Select Dark, Light, or System.",
+      ],
+    },
+    {
+      icon: "🔤",
+      title: "Font Size",
+      short: "Make text larger or smaller across the entire app — Small, Medium (default), or Large.",
+      long: "Font size affects all text in the app — chat messages, settings labels, history entries. Large font is useful for accessibility or small-screen readability. Small font shows more content per screen.",
+      steps: [
+        "Go to Settings → Experience → Appearance.",
+        "Find 'Font size'.",
+        "Select Small, Medium, or Large.",
+        "Changes apply instantly.",
+      ],
+    },
+    {
+      icon: "📊",
+      title: "Mindset Analysis Preferences",
+      short: "Choose which time windows feed into your Mindset Capsule analysis.",
+      long: "The Mindset Analysis can look at different time windows: Today, Last 7 days, Last 30 days, and All time. Toggle each on or off to control what data the AI summarises when generating your capsule. If you want a fresh weekly snapshot only, turn off 'All time'.",
+      steps: [
+        "Go to Settings → Experience → Mindset Analysis.",
+        "Toggle each time window: Today, 7 days, 30 days, All time.",
+        "The next time you generate a capsule, only toggled windows are used.",
+      ],
+    },
+    {
+      icon: "📖",
+      title: "Grow Cadence Controls",
+      short: "Set how often your companion sends letters and how the arc updates.",
+      long: "Available on Plus and above. Control the frequency of companion letters (Monthly, Every 2 months) and the arc narrative update cycle. More frequent updates mean shorter, more focused reflections; less frequent means broader, deeper summaries.",
+      steps: [
+        "Go to Settings → Experience → Chat behaviour.",
+        "Find 'Companion letter cadence'.",
+        "Select Monthly or Every 2 months.",
+        "Find 'Growth arc cadence' — Monthly or Quarterly.",
+      ],
+      badge: "Plus+ required",
+    },
+    {
+      icon: "🔎",
+      title: "Search Mode",
+      short: "Toggle between keyword search and semantic (meaning-based) search in History.",
+      long: "Keyword search finds exact word matches. Semantic search (Plus+) finds conceptually similar results — searching 'feeling alone' might surface entries about loneliness even if that word wasn't used. Toggle the mode in Settings or directly in the History search bar.",
+      steps: [
+        "Go to Settings → Experience → Chat behaviour.",
+        "Find 'Search mode'.",
+        "Select Keyword or Semantic.",
+      ],
+      badge: "Semantic search on Plus+",
+    },
+    {
+      icon: "📳",
+      title: "Haptic Feedback (Web)",
+      short: "Control haptic vibration intensity on supported devices — Off, Light, or Strong.",
+      long: "On devices that support haptic feedback through the browser (primarily mobile browsers), Imotara vibrates subtly on message send and certain interactions. Choose Light for a gentle tap, Strong for more noticeable feedback, or Off to disable entirely.",
+      steps: [
+        "Go to Settings → Experience → Chat behaviour.",
+        "Find 'Haptic feedback'.",
+        "Select Off, Light, or Strong.",
+      ],
+    },
+  ],
+
+  // ─ Settings: Privacy ───────────────────────────────────────────────────────
+  privacy: [
+    {
+      icon: "🔬",
+      title: "Analysis Consent",
+      short: "Grant or revoke permission for Imotara to analyse your messages for emotional content.",
+      long: "Emotion analysis — detecting whether you feel sad, anxious, joyful, etc. — runs only if you've given consent. Without consent, the companion still responds but doesn't log emotion tags or build your Trends history. You can grant or revoke this anytime.",
+      steps: [
+        "Go to Settings → Privacy & safety.",
+        "Find 'Emotion analysis'.",
+        "Toggle 'Allow analysis' on or off.",
+        "If turned off, you can still manually log emotions from the Trends chip row.",
+      ],
+    },
+    {
+      icon: "☁️",
+      title: "Cloud Analysis Mode",
+      short: "Choose whether analysis runs locally (on device) or via the cloud API.",
+      long: "Local analysis uses keyword matching on your device — fast, private, no data leaves your phone, but less nuanced. Cloud analysis sends your message to Imotara's API for more accurate emotion detection. Choose based on your privacy preference.",
+      steps: [
+        "Go to Settings → Privacy & safety.",
+        "Find 'Analysis mode'.",
+        "Select Auto (cloud when online, local when offline), Cloud only, or Local only.",
+      ],
+    },
+    {
+      icon: "🚨",
+      title: "Safety & Crisis Resources",
+      short: "View and configure the crisis resources your companion uses when distress is detected.",
+      long: "When Imotara detects signs of serious distress (suicidal ideation, self-harm), it shows a crisis card with local emergency numbers. In Settings, you can configure your country to ensure the correct helplines are shown. You can also manually view and test the crisis resources.",
+      steps: [
+        "Go to Settings → Privacy & safety → Safety & crisis resources.",
+        "Set your country from the dropdown.",
+        "Review the emergency numbers shown for your region.",
+        "Tap any number to test the tel: link.",
+      ],
+    },
+    {
+      icon: "📤",
+      title: "Export Data",
+      short: "Download all your conversations and emotion history as JSON, CSV, or PDF.",
+      long: "Export your full data anytime from Settings. JSON is machine-readable and complete. CSV works in spreadsheets. PDF is human-readable. The export includes all messages, timestamps, emotion tags, and intensity levels — but not payment information.",
+      steps: [
+        "Go to Settings → Privacy & safety → Export data.",
+        "Choose format: JSON, CSV, or PDF.",
+        "Tap 'Export'.",
+        "The file downloads to your device.",
+      ],
+      badge: "Plus+ required",
+    },
+    {
+      icon: "🔄",
+      title: "Remote History Sync",
+      short: "Manually trigger a sync of your history between device and cloud.",
+      long: "Sync happens automatically in the background, but you can also trigger it manually from Settings. The sync result shows how many new records were pulled from the server or pushed from your device.",
+      steps: [
+        "Sign in with Google first.",
+        "Go to Settings → Privacy & safety → Remote history sync.",
+        "Tap 'Sync now'.",
+        "A message confirms the sync result: 'Synced, X new records from cloud'.",
+      ],
+    },
+    {
+      icon: "🔗",
+      title: "Link Devices (Cross-Device Access)",
+      short: "Connect multiple devices to the same history using a Chat Link Key.",
+      long: "In addition to account-based sync, Imotara supports a Chat Link Key — a secret code that lets two devices share the same history bucket without requiring a Google account on both. Useful for accessing history from a shared computer.",
+      steps: [
+        "Go to Settings → Privacy & safety.",
+        "Find 'Chat Link Key'.",
+        "Copy the key from your primary device.",
+        "On the second device, paste the key into the same field.",
+        "Both devices now share the same history bucket.",
+      ],
+    },
+    {
+      icon: "🧹",
+      title: "Clear Local History",
+      short: "Delete all conversation history stored on this device — cloud history is unaffected.",
+      long: "If you want a fresh start on a specific device without affecting your cloud backup, use 'Clear local history'. This removes all messages from local storage on this device only. The next sync will pull cloud history back if sync is enabled.",
+      steps: [
+        "Go to Settings → Privacy & safety.",
+        "Find 'Clear local history'.",
+        "Tap the button and confirm.",
+        "All local messages are deleted.",
+        "Cloud history is unaffected.",
+      ],
+    },
+    {
+      icon: "💥",
+      title: "Delete All Cloud Data",
+      short: "Permanently remove all your data from Imotara's servers — cannot be undone.",
+      long: "This deletes everything associated with your account from Imotara's cloud: conversations, emotion history, memories, profile. Your local device data is not affected. This is permanent and cannot be undone — use with care.",
+      steps: [
+        "Go to Settings → Advanced → Data & privacy.",
+        "Find 'Delete all cloud data'.",
+        "Read the warning carefully.",
+        "Tap 'Delete' and confirm.",
+        "All server-side data for your account is permanently removed.",
+      ],
+    },
+    {
+      icon: "🗑️",
+      title: "Delete Account",
+      short: "Permanently delete your Imotara account and all associated data.",
+      long: "Account deletion removes everything: your Google-linked account, all cloud data, purchases, and profile. Local data on each device must be cleared separately. This action is irreversible — subscriptions are not automatically cancelled, so cancel from your App Store / Play Store settings first.",
+      steps: [
+        "Cancel any active subscriptions first (App Store / Play Store settings).",
+        "Go to Settings → Advanced → Delete account.",
+        "Read the warning.",
+        "Tap 'Delete account' and confirm.",
+        "You're signed out and your account is queued for deletion.",
+      ],
+    },
+  ],
+
+  // ─ Settings: Advanced ──────────────────────────────────────────────────────
+  advanced: [
+    {
+      icon: "🧩",
+      title: "Companion Insights (Fingerprint)",
+      short: "A visual 'emotional fingerprint' showing how your conversation patterns differ from day to day.",
+      long: "The Companion Insights panel shows an abstract visualisation of your emotional fingerprint — how your pattern of expressed emotions looks at a glance. Toggle 'Show fingerprint' to include or hide this visualisation in your Trends view.",
+      steps: [
+        "Go to Settings → Advanced → Companion insights.",
+        "Toggle 'Show fingerprint' on.",
+        "Open Trends — look for the fingerprint visualisation.",
+      ],
+    },
+    {
+      icon: "🧠",
+      title: "Companion Memory",
+      short: "Imotara silently remembers personal facts you mention — name, job, relationships, events.",
+      long: "As you chat, Imotara's companion memory engine detects personal facts: your name (if different from your profile name), your job, key relationships (partner, friends, family), and significant life events. These are stored privately and injected into future AI prompts to make replies feel more personal.",
+      steps: [
+        "Companion memory is automatic — just chat naturally.",
+        "To see what's stored: Settings → Advanced → Companion memory.",
+        "Review the list of remembered facts.",
+        "Tap the trash icon next to any fact to delete it.",
+        "Toggle 'Companion memory capture' off to stop new facts being remembered.",
+      ],
+    },
+    {
+      icon: "📏",
+      title: "Memory Item Limit",
+      short: "Set how many personal facts your companion can remember — from 5 to 20 items.",
+      long: "By default, Imotara stores up to 12 memory items. You can increase this to 20 for richer personalization, or reduce to 5 for a lighter footprint. When the limit is reached, the oldest items are replaced by newer ones.",
+      steps: [
+        "Go to Settings → Advanced → Companion memory.",
+        "Find 'Max memory items'.",
+        "Drag the slider or enter a number: 5 to 20.",
+      ],
+    },
+    {
+      icon: "📆",
+      title: "History Management (Auto-Delete)",
+      short: "Set automatic deletion of old conversations after a set number of days.",
+      long: "You can configure Imotara to automatically delete conversations older than a certain number of days — 30, 60, 90, or 180 days. This helps manage storage without manually cleaning up. Note: auto-delete applies to both local and cloud history.",
+      steps: [
+        "Go to Settings → Advanced → History management.",
+        "Find 'Auto-delete old conversations'.",
+        "Set the threshold: 30, 60, 90, or 180 days.",
+        "Toggle the setting on.",
+        "Conversations older than the threshold are deleted on the next cleanup.",
+      ],
+    },
+    {
+      icon: "📓",
+      title: "Journal Auto-Delete",
+      short: "Set automatic deletion of reflection journal entries after a set period.",
+      long: "If you use the Reflect/Journal feature, you can auto-delete entries after a set time. This is useful if you journal for cathartic release but don't want entries accumulating indefinitely.",
+      steps: [
+        "Go to Settings → Advanced → History management.",
+        "Find 'Journal auto-delete'.",
+        "Set the period: 7, 14, 30, or 90 days.",
+      ],
+    },
+    {
+      icon: "📡",
+      title: "Network Settings",
+      short: "Configure API timeout, retry behaviour, and offline detection thresholds.",
+      long: "Advanced users can tweak network settings: API timeout (how long Imotara waits before falling back to local AI — default 20 seconds), retry count, and the offline detection interval. Only change these if you're on a slow or unreliable connection.",
+      steps: [
+        "Go to Settings → Advanced → Network.",
+        "Find 'API timeout' — drag slider to set (10s–60s).",
+        "Find 'Offline detection interval'.",
+        "Tap 'Reset to defaults' to restore original values.",
+      ],
+    },
+    {
+      icon: "🎯",
+      title: "Tips & Tours Reset",
+      short: "Reset the discovery tips that appear the first time you visit each screen.",
+      long: "First-visit tips are small informational banners that appear when you first use a feature. If you dismissed them too quickly, you can reset them here to see them again. You can also reset the welcome tip that appears on your first Chat session.",
+      steps: [
+        "Go to Settings → Advanced → Tips & tours.",
+        "Tap 'Reset discovery cards' to see feature tips again.",
+        "Tap 'Reset welcome tip' to see the first-chat greeting again.",
+      ],
+    },
+    {
+      icon: "🔄",
+      title: "Restart Onboarding",
+      short: "Redo the 3-step onboarding flow — your data and settings are not affected.",
+      long: "If you want to reconfigure your companion from scratch (new name, different relationship tone, different language), restarting onboarding is the quickest way. It doesn't delete any history or settings — it just re-walks you through the setup steps.",
+      steps: [
+        "Go to Settings → Advanced → Tips & tours.",
+        "Tap 'Restart onboarding'.",
+        "Confirm in the prompt.",
+        "The onboarding modal opens on your next Chat visit.",
+      ],
+    },
+    {
+      icon: "📱",
+      title: "App Version & Build Info",
+      short: "See which version and build number of Imotara you're running.",
+      long: "The current version and build number appear at the bottom of the Settings page (Advanced section). This is useful when reporting bugs or checking if you're on the latest release.",
+      steps: [
+        "Go to Settings → Advanced.",
+        "Scroll to the bottom.",
+        "The version (e.g., v1.1.7) and build (e.g., build 95) are displayed.",
+      ],
+    },
+  ],
+
+  // ─ Plans & Upgrade ─────────────────────────────────────────────────────────
+  plans: [
+    {
+      icon: "🆓",
+      title: "Free Plan",
+      short: "Fully functional — 20 cloud AI replies per day, 7-day history, unlimited on-device replies.",
+      long: "The Free plan gives you the core Imotara experience: 20 cloud AI replies per day (reset at midnight), unlimited on-device (local) replies, 7-day cloud history, streak tracking, mood check-ins, daily reminders, basic TTS, and full privacy controls. You never need to pay to use Imotara.",
+      steps: [
+        "No action needed — you start on the Free plan automatically.",
+        "When you hit the daily limit, on-device local AI takes over.",
+        "Local replies are unlimited and work offline.",
+        "Your history is accessible for 7 days on Free.",
+      ],
+      tip: "The daily limit resets at midnight in your local timezone — not 24 hours from first use.",
+    },
+    {
+      icon: "☁️",
+      title: "Plus Plan (₹99/mo or ₹699/yr)",
+      short: "Unlimited cloud replies, 90-day history, advanced TTS, semantic search, data export, and more.",
+      long: "Plus removes the daily reply limit, extends history to 90 days, adds data export (JSON/CSV/PDF), advanced TTS (voice selection, speed/pitch), semantic history search, reply cadence controls, custom notification schedule, and session duration stats.",
+      steps: [
+        "Go to Settings → Plan & support → View plans & upgrade.",
+        "Select the Plus plan.",
+        "Toggle Monthly / Annual (Annual saves ~25%).",
+        "Complete payment via Razorpay (web/Android) or Apple IAP (iOS).",
+        "Features unlock immediately.",
+      ],
+    },
+    {
+      icon: "⭐",
+      title: "Pro Plan (₹149/mo or ₹1,299/yr)",
+      short: "Everything in Plus, plus unlimited history, emotion insights, companion letter, and growth arc.",
+      long: "Pro adds everything in Plus plus: unlimited conversation history, emotion trends charts (radar, 30-day trend), conversation insights, weekly emotional summaries, weekly insight digest notifications, monthly companion letter, and the long-term growth arc narrative.",
+      steps: [
+        "Go to Settings → Plan & support → View plans & upgrade.",
+        "Select the Pro plan.",
+        "Complete payment.",
+        "Pro features (charts, companion letter, growth arc) unlock immediately.",
+      ],
+    },
+    {
+      icon: "🪙",
+      title: "Token Packs (One-Time Purchase)",
+      short: "Buy extra AI reply credits that never expire — use them on top of your daily limit.",
+      long: "Token packs are one-time purchases that give you extra cloud AI replies beyond your daily limit. They never expire and carry over indefinitely. Useful for days when you need to talk more than your plan allows. Available to all tiers including Free.",
+      steps: [
+        "Go to Settings → Plan & support → View plans.",
+        "Scroll to 'Top up with message credits'.",
+        "Choose a pack: 100 (₹49), 250 (₹99), 600 (₹199), or 1800 (₹499) credits.",
+        "Complete payment.",
+        "Credits are added to your account immediately.",
+      ],
+    },
+    {
+      icon: "🏢",
+      title: "Enterprise Plan (Custom Pricing)",
+      short: "For organisations, schools, and healthcare platforms — admin dashboard, SSO, data residency, and more.",
+      long: "Enterprise includes everything in Pro plus: admin dashboard with org-wide analytics, multi-profile management, child-safe mode, SSO/SAML (Okta, Google Workspace, Azure AD), data residency control, audit logs, API access, custom integrations, institution branding, bulk provisioning, dedicated support, and SLA.",
+      steps: [
+        "Go to Settings → Plan & support → View plans.",
+        "Scroll to 'Enterprise & Institutional'.",
+        "Tap 'Contact us for Enterprise'.",
+        "Or email info@imotara.com with subject 'Enterprise inquiry'.",
+        "The team typically responds within 24 hours.",
+      ],
+    },
+    {
+      icon: "🔄",
+      title: "Restoring Purchases (iOS)",
+      short: "If your subscription disappeared after reinstalling, use Restore Purchases to relink it.",
+      long: "On iOS, subscriptions are tied to your Apple ID. If you reinstall the app or sign in on a new device, tap 'Restore previous purchases' in the upgrade sheet to relink your subscription. This syncs your Apple IAP history with your Imotara account.",
+      steps: [
+        "Open the upgrade sheet (Settings → Plan & support → View plans).",
+        "Scroll to the bottom.",
+        "Tap 'Restore previous purchases'.",
+        "Wait for the restore to complete.",
+        "Your subscription status updates.",
+      ],
+    },
+    {
+      icon: "💸",
+      title: "Supporting Imotara (Donations)",
+      short: "Optional one-time donations to support development — ₹49, ₹99, ₹199, ₹499, or ₹999.",
+      long: "If you love Imotara and want to support its development without a subscription, donations are available in Settings. They're entirely optional, never change your plan or features, and are processed securely via Razorpay. Donations appear in your 'Your Donations' history.",
+      steps: [
+        "Go to Settings → Plan & support → Support Imotara.",
+        "Choose a preset amount.",
+        "Complete payment via Razorpay (UPI, cards, netbanking).",
+        "A thank-you note appears in your Donations history.",
+      ],
+    },
+  ],
+
+  // ─ Languages ───────────────────────────────────────────────────────────────
+  languages: [
+    {
+      icon: "🌐",
+      title: "Supported Languages (22 Total)",
+      short: "Imotara supports 12 Indian and 10 international languages — detected automatically.",
+      long: "Indian languages: English, Hindi, Marathi, Bengali, Tamil, Telugu, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu. International: Spanish, French, German, Portuguese, Russian, Arabic, Chinese (Mandarin), Japanese, Hebrew, Indonesian. All are supported in chat, TTS, and local AI replies.",
+      steps: [
+        "Just start chatting in your language — detection is automatic.",
+        "Indian scripts (Devanagari, Bengali, Tamil, etc.) are detected instantly.",
+        "Latin-script languages (es, fr, de, etc.) are detected from keyword patterns.",
+        "To pin a language: Settings → Your companion → Tone & Context → Language.",
+      ],
+    },
+    {
+      icon: "🔤",
+      title: "Automatic Language Detection",
+      short: "Imotara detects your language from the script and keywords in each message — no manual switching.",
+      long: "Detection works in layers: first checks Unicode script range (Devanagari → Hindi/Marathi, Bengali script → Bengali, Tamil → Tamil, Arabic → Arabic/Urdu, CJK → Chinese, Hebrew → Hebrew, Cyrillic → Russian), then keyword patterns for romanised text, then falls back to your preferred language setting.",
+      steps: [
+        "Just type in your language.",
+        "If detection is wrong, type 'reply in Tamil' or your preferred language to override.",
+        "Or set a preferred language in Settings to always use it.",
+      ],
+      tip: "Type 'मराठीत बोल' (speak in Marathi) or 'reply in Bengali' mid-conversation to switch instantly.",
+    },
+    {
+      icon: "🔀",
+      title: "Code-Switching (Mixing Languages)",
+      short: "Mix Hindi and English, Tamil and English, or any languages in the same message — Imotara handles it.",
+      long: "Code-switching — where you mix two languages in the same sentence — is very common in multilingual communities. Imotara's AI understands code-switched text and responds in kind, typically matching the primary language of the message.",
+      steps: [
+        "Just write naturally — mixing languages is fine.",
+        "Example: 'aaj ka din bahut tiring tha, I couldn't focus at all'.",
+        "Imotara detects the primary language (Hindi here) and responds in Hindi-English mix.",
+      ],
+    },
+    {
+      icon: "🎤",
+      title: "Language-Matched TTS Voices",
+      short: "When you chat in Tamil, you hear a Tamil voice. Arabic chat → Arabic voice. Automatic.",
+      long: "TTS voices are matched to the language detected in your conversation. Each of the 22 languages has dedicated Azure Neural TTS voices available in male and female variants. The voice selection matches your companion's gender setting.",
+      steps: [
+        "Set your companion gender in Settings (female → female voice, male → male voice).",
+        "Chat in any language.",
+        "Tap the speaker icon on a reply.",
+        "You'll hear the reply in a voice matched to that language.",
+      ],
+    },
+    {
+      icon: "📖",
+      title: "Romanised Language Support",
+      short: "Type Hindi, Bengali, or other Indic languages in Latin script — Imotara still understands.",
+      long: "Many users type Indic languages using Latin characters (romanisation) — e.g., 'main bahut thaka hua hoon' instead of Devanagari. Imotara uses keyword frequency and two-hit threshold detection to identify romanised Indic languages and respond correctly.",
+      steps: [
+        "Type in romanised form: 'mujhe bahut anxious lag raha hai' (Hindi).",
+        "Imotara detects Hindi from keywords like 'mujhe', 'lag raha'.",
+        "Response comes in Hindi (Devanagari or romanised, matching your input).",
+      ],
+      tip: "Set your preferred language in Settings to help Imotara handle short or ambiguous romanised messages.",
+    },
+    {
+      icon: "💬",
+      title: "UI Language vs Chat Language",
+      short: "The app UI is in English — but your chat responses can be in any of 22 languages.",
+      long: "Currently, Imotara's UI (buttons, labels, settings text) is in English only. However, your companion's replies, TTS voices, and emotion detection all work in all 22 languages. A full UI localisation is planned for future versions.",
+      steps: [
+        "The app UI will always show in English.",
+        "Your companion's replies will be in your detected or preferred language.",
+        "To change the companion's reply language: Settings → Tone & Context → Preferred language.",
+      ],
+    },
+  ],
+};
+
+// ─── Expandable feature card ──────────────────────────────────────────────────
+
+function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
+  const [open, setOpen] = useState(false);
   return (
-    <section
-      id={feature.id}
-      className="scroll-mt-24 rounded-3xl border border-white/8 bg-white/[0.02] p-6 sm:p-8"
-    >
-      {/* Header */}
-      <div className="flex items-start gap-4 mb-6">
-        <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl shrink-0">
-          {feature.icon}
-        </div>
+    <div className="rounded-2xl border border-white/8 bg-white/[0.025] overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full text-left px-5 py-4 flex items-start gap-4 hover:bg-white/[0.03] transition-colors"
+      >
+        <span className="text-xl mt-0.5 shrink-0">{feature.icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">{feature.category}</span>
+            <h3 className="text-sm font-semibold text-zinc-100">{feature.title}</h3>
             {feature.badge && (
-              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${feature.badgeColor}`}>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-400/25 text-indigo-300 font-medium">
                 {feature.badge}
               </span>
             )}
           </div>
-          <h2 className="text-xl font-bold text-zinc-100 mt-0.5">{feature.title}</h2>
+          <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">{feature.short}</p>
         </div>
-      </div>
-
-      {/* Two-column: text + visual */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="space-y-4">
-          {/* Short */}
-          <div className="rounded-2xl bg-indigo-500/8 border border-indigo-500/15 px-4 py-3">
-            <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-1">In one sentence</p>
-            <p className="text-zinc-200 text-sm font-medium leading-relaxed">{feature.short}</p>
-          </div>
-
-          {/* Long */}
-          <div>
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Overview</p>
-            <p className="text-zinc-300 text-sm leading-7">{feature.long}</p>
-          </div>
-        </div>
-
-        {/* Visual */}
-        <div>{feature.visual}</div>
-      </div>
-
-      {/* Expand button */}
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-2 text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors mb-4"
-      >
-        <span>{expanded ? "▲ Hide" : "▼ See full details"}</span>
-        <span className="text-zinc-600">— step-by-step walkthrough + tips</span>
+        <span className="text-zinc-600 text-sm mt-0.5 shrink-0">{open ? "▲" : "▼"}</span>
       </button>
 
-      {/* Expanded: detailed + steps + tip */}
-      {expanded && (
-        <div className="space-y-6 border-t border-white/8 pt-6">
-          {/* Detailed explanations */}
+      {open && (
+        <div className="px-5 pb-5 border-t border-white/5 space-y-4 pt-4">
+          {/* Overview */}
+          <p className="text-sm text-zinc-300 leading-7">{feature.long}</p>
+
+          {/* Steps */}
           <div>
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Deep dive</p>
-            <div className="space-y-3">
-              {feature.detailed.map((para, i) => (
-                <p key={i} className="text-zinc-400 text-sm leading-7">{para}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2">Step by step</p>
+            <div className="space-y-2">
+              {feature.steps.map((step, i) => (
+                <div key={i} className="flex gap-3 items-start">
+                  <span className="w-5 h-5 rounded-full bg-indigo-500/20 border border-indigo-400/25 text-indigo-300 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    {i + 1}
+                  </span>
+                  <p className="text-sm text-zinc-400 leading-relaxed">{step}</p>
+                </div>
               ))}
             </div>
           </div>
 
-          {/* Steps */}
-          {feature.steps && (
-            <div>
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Step by step</p>
-              <div className="space-y-2">
-                {feature.steps.map((step, i) => (
-                  <div key={i} className="flex gap-3 items-start">
-                    <span className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
-                      {i + 1}
-                    </span>
-                    <p className="text-zinc-300 text-sm leading-6">{step}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Tip */}
           {feature.tip && (
-            <div className="rounded-2xl bg-amber-500/8 border border-amber-500/20 px-4 py-3 flex gap-3">
+            <div className="flex gap-2.5 rounded-xl bg-amber-500/8 border border-amber-400/20 px-4 py-3">
               <span className="text-base shrink-0">💡</span>
-              <p className="text-amber-200/80 text-sm leading-relaxed">{feature.tip}</p>
+              <p className="text-xs text-amber-200/80 leading-relaxed">{feature.tip}</p>
             </div>
           )}
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TutorialPage() {
-  const [activeId, setActiveId] = useState(FEATURES[0].id);
-
-  function scrollTo(id: string) {
-    setActiveId(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  const [activeTab, setActiveTab] = useState("start");
+  const currentCat = CATEGORIES.find((c) => c.id === activeTab)!;
+  const features = FEATURES[activeTab] ?? [];
+  const totalFeatures = Object.values(FEATURES).reduce((sum, arr) => sum + arr.length, 0);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16 sm:px-6">
+    <div className="mx-auto max-w-4xl px-4 py-10 sm:py-14 sm:px-6">
 
       {/* Hero */}
-      <div className="mb-14 text-center">
-        <Link href="/chat" className="mb-6 inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition">
+      <div className="mb-10 text-center">
+        <Link href="/chat" className="mb-5 inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition">
           ← Back to chat
         </Link>
         <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold text-indigo-300 uppercase tracking-wider mb-4">
-          Complete Tutorial
+          📘 Complete Tutorial
         </div>
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl lg:text-5xl">
-          How to use every feature<br className="hidden sm:block" /> in Imotara
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl">
+          Every Imotara feature,<br className="hidden sm:block" /> explained from scratch
         </h1>
-        <p className="mt-4 max-w-2xl mx-auto text-zinc-400 text-sm sm:text-base leading-7">
-          Whether you just downloaded the app or have been using it for months, this guide covers every feature in three levels — a quick summary, an overview, and a full deep dive with step-by-step instructions.
+        <p className="mt-3 max-w-2xl mx-auto text-sm text-zinc-400 leading-7">
+          {totalFeatures} features across {CATEGORIES.length} categories — each with a quick summary, a full explanation, and step-by-step instructions. Tap any feature to expand it.
         </p>
-
-        {/* Stats strip */}
-        <div className="mt-8 flex flex-wrap justify-center gap-6">
+        <div className="mt-6 flex flex-wrap justify-center gap-6 text-center">
           {[
-            { label: "Features covered", value: String(FEATURES.length) },
+            { label: "Features covered", value: String(totalFeatures) },
+            { label: "Settings explained", value: "30+" },
             { label: "Languages supported", value: "22" },
-            { label: "Platforms", value: "iOS · Android · Web" },
           ].map((s) => (
-            <div key={s.label} className="text-center">
-              <p className="text-lg font-bold text-zinc-100">{s.value}</p>
+            <div key={s.label}>
+              <p className="text-xl font-bold text-zinc-100">{s.value}</p>
               <p className="text-xs text-zinc-500">{s.label}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Quick navigation chips */}
-      <div className="mb-10 flex flex-wrap gap-2 justify-center">
-        {FEATURES.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => scrollTo(f.id)}
-            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-400 transition hover:bg-white/10 hover:text-zinc-200"
-          >
-            <span>{f.icon}</span>
-            <span>{f.title}</span>
-          </button>
+      {/* Category tabs — scrollable horizontally on mobile */}
+      <div className="mb-6 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveTab(cat.id)}
+              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-medium whitespace-nowrap transition-colors shrink-0 border ${
+                activeTab === cat.id
+                  ? "bg-indigo-500/20 border-indigo-400/30 text-indigo-200"
+                  : "bg-white/5 border-white/8 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+              }`}
+            >
+              <span>{cat.icon}</span>
+              <span>{cat.label}</span>
+              <span className="ml-1 text-[10px] opacity-60">
+                {FEATURES[cat.id]?.length ?? 0}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Category header */}
+      <div className="mb-5 flex items-center gap-3">
+        <span className="text-2xl">{currentCat.icon}</span>
+        <div>
+          <h2 className="text-lg font-bold text-zinc-100">{currentCat.label}</h2>
+          <p className="text-xs text-zinc-500">{features.length} features — tap any card to expand full details</p>
+        </div>
+      </div>
+
+      {/* Feature cards */}
+      <div className="space-y-3">
+        {features.map((f, i) => (
+          <FeatureCard key={f.title} feature={f} index={i} />
         ))}
       </div>
 
-      {/* Main layout: TOC + content */}
-      <div className="flex gap-10 items-start">
-        <TOC active={activeId} onSelect={scrollTo} />
+      {/* Bottom nav between sections */}
+      <div className="mt-8 flex justify-between gap-3">
+        {(() => {
+          const idx = CATEGORIES.findIndex((c) => c.id === activeTab);
+          const prev = CATEGORIES[idx - 1];
+          const next = CATEGORIES[idx + 1];
+          return (
+            <>
+              {prev ? (
+                <button
+                  onClick={() => setActiveTab(prev.id)}
+                  className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-zinc-400 hover:bg-white/10 hover:text-zinc-200 transition"
+                >
+                  ← {prev.icon} {prev.label}
+                </button>
+              ) : <span />}
+              {next ? (
+                <button
+                  onClick={() => setActiveTab(next.id)}
+                  className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-zinc-400 hover:bg-white/10 hover:text-zinc-200 transition"
+                >
+                  {next.icon} {next.label} →
+                </button>
+              ) : (
+                <Link
+                  href="/chat"
+                  className="flex items-center gap-1.5 rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-4 py-2 text-xs text-indigo-300 hover:bg-indigo-500/25 transition"
+                >
+                  Open chat →
+                </Link>
+              )}
+            </>
+          );
+        })()}
+      </div>
 
-        <div className="flex-1 min-w-0 space-y-6">
-          {FEATURES.map((feature) => (
-            <FeatureBlock key={feature.id} feature={feature} />
-          ))}
-
-          {/* Footer CTA */}
-          <div className="rounded-3xl border border-indigo-400/20 bg-indigo-500/8 p-8 text-center mt-8">
-            <p className="text-2xl mb-3">💙</p>
-            <h3 className="text-lg font-bold text-zinc-100 mb-2">Ready to start?</h3>
-            <p className="text-zinc-400 text-sm mb-5 max-w-md mx-auto">
-              Imotara is always here — no appointments, no waiting. Just open the chat and say whatever's on your mind.
-            </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <Link
-                href="/chat"
-                className="rounded-xl bg-indigo-600 hover:bg-indigo-500 transition px-5 py-2.5 text-sm font-semibold text-white"
-              >
-                Open chat →
-              </Link>
-              <Link
-                href="/upgrade"
-                className="rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition px-5 py-2.5 text-sm font-semibold text-zinc-300"
-              >
-                View plans
-              </Link>
-            </div>
-          </div>
+      {/* Footer CTA */}
+      <div className="mt-10 rounded-3xl border border-indigo-400/20 bg-indigo-500/8 p-8 text-center">
+        <p className="text-2xl mb-3">💙</p>
+        <h3 className="text-lg font-bold text-zinc-100 mb-2">Ready to begin?</h3>
+        <p className="text-zinc-400 text-sm mb-5 max-w-sm mx-auto">
+          Imotara is always here — no appointments, no waiting. Just open Chat and say whatever's on your mind.
+        </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Link href="/chat" className="rounded-xl bg-indigo-600 hover:bg-indigo-500 transition px-5 py-2.5 text-sm font-semibold text-white">
+            Open chat →
+          </Link>
+          <Link href="/upgrade" className="rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition px-5 py-2.5 text-sm font-semibold text-zinc-300">
+            View plans
+          </Link>
+          <Link href="/guide" className="rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 transition px-5 py-2.5 text-sm font-semibold text-zinc-300">
+            Quick start guide
+          </Link>
         </div>
       </div>
     </div>

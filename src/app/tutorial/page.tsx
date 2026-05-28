@@ -3,6 +3,573 @@
 import { useState } from "react";
 import Link from "next/link";
 
+// ─── Reusable phone frame ─────────────────────────────────────────────────────
+
+function Phone({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`relative mx-auto w-[200px] rounded-[28px] border-2 border-zinc-700 bg-zinc-900 shadow-2xl ${className}`} style={{ paddingTop: "28px", paddingBottom: "16px" }}>
+      {/* Notch */}
+      <div className="absolute top-[10px] left-1/2 -translate-x-1/2 w-16 h-3.5 rounded-full bg-zinc-800 border border-zinc-700" />
+      {/* Screen */}
+      <div className="overflow-hidden rounded-b-[20px] rounded-t-[4px] bg-zinc-950 mx-1 min-h-[300px]">
+        {children}
+      </div>
+      {/* Home bar */}
+      <div className="mt-2 mx-auto w-14 h-1 rounded-full bg-zinc-700" />
+    </div>
+  );
+}
+
+// ─── Category banner illustrations ────────────────────────────────────────────
+
+function BannerStart() {
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-900/40 to-violet-900/30 border border-indigo-500/20 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-2">Getting Started</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Download Imotara on iOS, Android, or open it in your browser. Your first conversation takes seconds — no account needed.</p>
+        <div className="mt-4 flex gap-2 flex-wrap">
+          {["📱 iOS", "🤖 Android", "🌐 Web"].map(p => (
+            <span key={p} className="rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-300">{p}</span>
+          ))}
+        </div>
+      </div>
+      <Phone>
+        <div className="p-3 space-y-2">
+          <div className="text-center py-3">
+            <div className="text-3xl mb-1">💙</div>
+            <p className="text-xs font-bold text-zinc-200">Welcome to Imotara</p>
+            <p className="text-[9px] text-zinc-500 mt-0.5">Your private AI companion</p>
+          </div>
+          <div className="space-y-1.5">
+            {["What's your name?", "Choose a relationship", "Select language"].map((s, i) => (
+              <div key={s} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${i === 0 ? "bg-indigo-500/20 border border-indigo-400/30" : "bg-zinc-800"}`}>
+                <span className={`w-4 h-4 rounded-full text-[9px] flex items-center justify-center font-bold ${i === 0 ? "bg-indigo-500 text-white" : "bg-zinc-700 text-zinc-500"}`}>{i+1}</span>
+                <span className="text-[9px] text-zinc-300">{s}</span>
+              </div>
+            ))}
+          </div>
+          <button className="w-full rounded-lg bg-indigo-600 py-1.5 text-[9px] font-bold text-white mt-2">Start →</button>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
+function BannerChat() {
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-sky-900/30 to-indigo-900/30 border border-sky-500/20 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-sky-400 uppercase tracking-widest mb-2">Chat</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Talk to your companion about anything. Replies stream back word by word. Each message is tagged with emotion and synced to the cloud.</p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {["💬 Stream replies", "😊 Emotion tags", "🔖 Bookmarks", "🔁 Retry any reply"].map(f => (
+            <span key={f} className="text-[11px] text-zinc-400 flex items-center gap-1">✓ {f}</span>
+          ))}
+        </div>
+      </div>
+      <Phone>
+        <div className="p-2 space-y-1.5">
+          <div className="flex items-center gap-1.5 py-1.5 border-b border-zinc-800 mb-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="text-[9px] font-semibold text-zinc-200">Elina</span>
+          </div>
+          {[
+            { from: "bot", text: "Hi! How are you feeling today? 💙" },
+            { from: "user", text: "Stressed about work honestly" },
+            { from: "bot", text: "That sounds heavy. What's been weighing on you most?" },
+          ].map((m, i) => (
+            <div key={i} className={`flex ${m.from === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`rounded-xl px-2 py-1 text-[9px] max-w-[75%] leading-relaxed ${m.from === "user" ? "bg-indigo-600 text-white" : "bg-zinc-800 text-zinc-200"}`}>
+                {m.text}
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center gap-1 pt-1">
+            <span className="text-[8px] text-zinc-600">😟 Stressed</span>
+            <span className="ml-auto text-[8px] text-zinc-700">☁ Synced</span>
+          </div>
+          <div className="flex gap-1 border-t border-zinc-800 pt-1.5">
+            <div className="flex-1 rounded-lg bg-zinc-800 px-2 py-1 text-[9px] text-zinc-600">Type something…</div>
+            <button className="w-6 h-6 rounded-lg bg-indigo-600 text-white text-[9px] flex items-center justify-center">➤</button>
+          </div>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
+function BannerVoice() {
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-rose-900/30 to-orange-900/20 border border-rose-500/20 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-rose-400 uppercase tracking-widest mb-2">Voice & Audio</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Speak instead of typing — AI transcribes your voice in any of 22 languages. Hear replies read aloud in your companion's voice.</p>
+        <div className="mt-4 flex items-end gap-0.5 h-10">
+          {[2,4,7,5,9,6,3,8,5,4,7,3,6,8,4,7,5,3,6,8].map((h,i) => (
+            <div key={i} className="w-1.5 rounded-full bg-rose-400/60 animate-pulse" style={{ height: `${h*4}px`, animationDelay: `${i*80}ms` }} />
+          ))}
+          <span className="text-[10px] text-zinc-500 ml-2">Listening…</span>
+        </div>
+      </div>
+      <Phone>
+        <div className="p-3 flex flex-col items-center gap-3 py-6">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full bg-rose-500/20 animate-ping" style={{ animationDuration: "2s" }} />
+            <div className="w-14 h-14 rounded-full bg-rose-600 flex items-center justify-center text-2xl shadow-lg">🎤</div>
+          </div>
+          <p className="text-[10px] font-semibold text-zinc-200">Recording…</p>
+          <div className="flex items-end gap-0.5 h-6">
+            {[3,5,7,4,8,6,4,7,5,3].map((h,i) => (
+              <div key={i} className="w-1 rounded-full bg-rose-400/70 animate-pulse" style={{ height: `${h*2}px`, animationDelay: `${i*100}ms` }} />
+            ))}
+          </div>
+          <div className="w-full space-y-1.5 mt-2">
+            <div className="flex items-center justify-between rounded-lg bg-zinc-800 px-2 py-1.5">
+              <span className="text-[9px] text-zinc-400">🔊 Auto-play replies</span>
+              <div className="w-6 h-3.5 rounded-full bg-indigo-600 flex items-center justify-end px-0.5"><div className="w-2.5 h-2.5 rounded-full bg-white" /></div>
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-zinc-800 px-2 py-1.5">
+              <span className="text-[9px] text-zinc-400">⚡ Cloud transcription</span>
+              <div className="w-6 h-3.5 rounded-full bg-indigo-600 flex items-center justify-end px-0.5"><div className="w-2.5 h-2.5 rounded-full bg-white" /></div>
+            </div>
+          </div>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
+function BannerCompanion() {
+  const tones = ["Friend", "Mentor", "Coach", "Elder", "Sibling"];
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-amber-900/30 to-yellow-900/20 border border-amber-500/20 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest mb-2">Your Companion</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Name your companion, set a relationship tone, and pick a response style. Every reply adapts to your choices — instantly.</p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {tones.map((t, i) => (
+            <span key={t} className={`rounded-full px-2.5 py-0.5 text-[11px] border ${i === 0 ? "bg-amber-500/20 border-amber-400/40 text-amber-300 font-semibold" : "border-white/10 text-zinc-500"}`}>{t}</span>
+          ))}
+        </div>
+      </div>
+      <Phone>
+        <div className="p-2 space-y-2">
+          <p className="text-[9px] text-zinc-500 uppercase tracking-wider pt-1">Your companion</p>
+          <div>
+            <p className="text-[8px] text-zinc-600 mb-0.5">Name</p>
+            <div className="rounded-md bg-zinc-800 border border-amber-500/30 px-2 py-1 text-[9px] text-zinc-200">Elina</div>
+          </div>
+          <div>
+            <p className="text-[8px] text-zinc-600 mb-1">Relationship tone</p>
+            <div className="grid grid-cols-2 gap-1">
+              {tones.slice(0,4).map((t,i) => (
+                <div key={t} className={`rounded-md px-1.5 py-1 text-center text-[8px] border ${i===0 ? "bg-amber-500/20 border-amber-400/30 text-amber-300 font-bold" : "bg-zinc-800 border-zinc-700 text-zinc-500"}`}>{t}</div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-[8px] text-zinc-600 mb-1">Response style</p>
+            {["Comfort me","Help me reflect","Motivate me"].map((s,i) => (
+              <div key={s} className={`rounded-md px-2 py-1 mb-0.5 text-[8px] border ${i===1 ? "bg-sky-500/15 border-sky-400/30 text-sky-300" : "bg-zinc-800 border-zinc-700 text-zinc-500"}`}>{s}</div>
+            ))}
+          </div>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
+function BannerHistory() {
+  const items = [
+    { emoji: "😟", date: "Today", preview: "Stressed about the presentation…" },
+    { emoji: "😊", date: "Yesterday", preview: "Had a really good day overall…" },
+    { emoji: "😔", date: "May 27", preview: "Couldn't sleep, kept overthinking…" },
+    { emoji: "🙏", date: "May 26", preview: "Feeling grateful for my friends…" },
+  ];
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-900/30 to-teal-900/20 border border-emerald-500/20 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-2">History</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Every conversation is saved and tagged with the emotion detected. Browse, search, and continue any past conversation.</p>
+        <div className="mt-3 flex gap-3">
+          {[{ label: "Free", val: "7 days" }, { label: "Plus", val: "90 days" }, { label: "Pro", val: "Unlimited" }].map(t => (
+            <div key={t.label} className="text-center">
+              <p className="text-xs font-bold text-zinc-200">{t.val}</p>
+              <p className="text-[10px] text-zinc-500">{t.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Phone>
+        <div className="p-2">
+          <p className="text-[9px] text-zinc-500 uppercase tracking-wider py-1">History</p>
+          <div className="flex gap-1 mb-2">
+            {["Conversations", "Emotion History"].map((t,i) => (
+              <span key={t} className={`rounded-full px-2 py-0.5 text-[8px] font-medium ${i===0 ? "bg-indigo-500/20 text-indigo-300" : "text-zinc-600"}`}>{t}</span>
+            ))}
+          </div>
+          <div className="space-y-1">
+            {items.map(c => (
+              <div key={c.date} className="flex items-center gap-1.5 rounded-lg bg-zinc-800 px-2 py-1.5">
+                <span className="text-sm">{c.emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[8px] text-zinc-300 truncate">{c.preview}</p>
+                  <p className="text-[7px] text-zinc-600">{c.date}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
+function BannerTrends() {
+  const emotions = [{ e: "Joy", v: 3, c: "bg-yellow-400" }, { e: "Hopeful", v: 5, c: "bg-emerald-400" }, { e: "Neutral", v: 9, c: "bg-zinc-400" }, { e: "Anxious", v: 6, c: "bg-blue-400" }, { e: "Stressed", v: 4, c: "bg-red-400" }];
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-purple-900/30 to-indigo-900/30 border border-purple-500/20 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-purple-400 uppercase tracking-widest mb-2">Trends & Insights</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Radar charts, 7-day mood rows, streak tracking, and monthly growth summaries — visual insight into your emotional patterns.</p>
+        <div className="mt-3 space-y-1.5">
+          {emotions.map(e => (
+            <div key={e.e} className="flex items-center gap-2">
+              <span className="text-[10px] text-zinc-400 w-14">{e.e}</span>
+              <div className="flex-1 bg-zinc-800 rounded-full h-1.5">
+                <div className={`${e.c} h-1.5 rounded-full`} style={{ width: `${e.v * 10}%` }} />
+              </div>
+              <span className="text-[10px] text-zinc-600">{e.v}x</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Phone>
+        <div className="p-2">
+          <p className="text-[9px] text-zinc-500 uppercase tracking-wider py-1">Trends</p>
+          {/* Mini radar using SVG */}
+          <svg viewBox="0 0 100 100" className="w-full" style={{ height: "100px" }}>
+            <polygon points="50,10 80,30 75,65 50,80 25,65 20,30" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+            <polygon points="50,30 65,40 62,57 50,65 38,57 35,40" fill="rgba(99,102,241,0.3)" stroke="rgba(99,102,241,0.6)" strokeWidth="1" />
+            {[{ x: 50, y: 10, l: "Joy" }, { x: 82, y: 28, l: "Hope" }, { x: 77, y: 67, l: "Neutral" }, { x: 50, y: 82, l: "Stress" }, { x: 23, y: 67, l: "Sad" }, { x: 18, y: 28, l: "Fear" }].map(p => (
+              <text key={p.l} x={p.x} y={p.y} textAnchor="middle" fontSize="7" fill="rgba(161,161,170,0.8)">{p.l}</text>
+            ))}
+            <circle cx="50" cy="50" r="2" fill="rgba(99,102,241,0.8)" />
+          </svg>
+          <div className="flex items-center justify-between mt-1 border-t border-zinc-800 pt-1.5">
+            <span className="text-[8px] text-zinc-500">🔥 4 day streak</span>
+            <span className="text-[8px] text-indigo-400">★ Pro insight →</span>
+          </div>
+          <div className="mt-1.5 space-y-1">
+            {emotions.slice(0,3).map(e => (
+              <div key={e.e} className="flex items-center gap-1.5">
+                <span className="text-[7px] text-zinc-400 w-10">{e.e}</span>
+                <div className="flex-1 bg-zinc-800 rounded-full h-1">
+                  <div className={`${e.c} h-1 rounded-full`} style={{ width: `${e.v * 10}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
+function BannerGrow() {
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-green-900/30 to-emerald-900/20 border border-green-500/20 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-green-400 uppercase tracking-widest mb-2">Grow & Wellbeing</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Future letters, guided breathing, 30-day challenges, mindset capsules, and the collective emotional pulse — tools for deeper growth.</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {["📬 Future Letters", "🌬 Breathing", "📅 30-Day Challenge", "🧠 Mindset Capsule"].map(f => (
+            <span key={f} className="text-[11px] text-zinc-400 flex items-center gap-1">✓ {f}</span>
+          ))}
+        </div>
+      </div>
+      <Phone>
+        <div className="p-2 space-y-2">
+          <p className="text-[9px] text-zinc-500 uppercase tracking-wider py-1">Grow</p>
+          <div className="rounded-xl bg-zinc-800 border border-green-500/20 p-2">
+            <p className="text-[8px] text-green-400 font-semibold">30-Day Challenge · Day 4/30</p>
+            <div className="flex gap-0.5 mt-1.5 flex-wrap">
+              {Array.from({ length: 30 }, (_, i) => (
+                <div key={i} className={`w-2 h-2 rounded-full ${i < 4 ? "bg-green-400" : "bg-zinc-700"}`} />
+              ))}
+            </div>
+            <p className="text-[8px] text-zinc-400 mt-1.5 italic">"What made you feel alive this week?"</p>
+            <button className="mt-1.5 w-full rounded-md bg-green-600/30 border border-green-500/30 py-1 text-[8px] text-green-300">Mark today done ✓</button>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl bg-sky-900/30 border border-sky-400/20 p-2">
+            <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
+              <div className="absolute inset-0 rounded-full border-2 border-sky-400/30 animate-ping" style={{ animationDuration: "2.5s" }} />
+              <span className="text-lg">🌬</span>
+            </div>
+            <div>
+              <p className="text-[8px] font-semibold text-sky-300">Breathing Exercise</p>
+              <p className="text-[7px] text-zinc-500">4-7-8 · Rain sound</p>
+            </div>
+          </div>
+          <div className="rounded-xl bg-zinc-800 border border-amber-500/20 p-2">
+            <p className="text-[8px] text-amber-400">💌 Future Letter — opens Dec 31</p>
+            <p className="text-[7px] text-zinc-500 mt-0.5">Written to yourself on May 29, 2026</p>
+          </div>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
+function BannerExperience() {
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-cyan-900/30 to-sky-900/20 border border-cyan-500/20 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-cyan-400 uppercase tracking-widest mb-2">Settings: Experience</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Customise everything — theme colour, font size, notification schedule, typing speed, haptic feedback, and more than a dozen more options.</p>
+      </div>
+      <Phone>
+        <div className="p-2 space-y-1.5">
+          <p className="text-[9px] text-zinc-500 uppercase tracking-wider py-1">Experience</p>
+          {[
+            { label: "Dark mode", on: true },
+            { label: "Auto-play TTS", on: false },
+            { label: "Typing indicator", on: true },
+            { label: "Streak notifications", on: true },
+          ].map(s => (
+            <div key={s.label} className="flex items-center justify-between bg-zinc-800 rounded-lg px-2 py-1.5">
+              <span className="text-[8px] text-zinc-300">{s.label}</span>
+              <div className={`w-6 h-3.5 rounded-full flex items-center px-0.5 ${s.on ? "bg-indigo-600 justify-end" : "bg-zinc-700 justify-start"}`}>
+                <div className="w-2.5 h-2.5 rounded-full bg-white" />
+              </div>
+            </div>
+          ))}
+          <div className="bg-zinc-800 rounded-lg px-2 py-1.5">
+            <p className="text-[7px] text-zinc-500 mb-1">Accent colour</p>
+            <div className="flex gap-1">
+              {["#6366f1","#0ea5e9","#14b8a6","#f43f5e","#f59e0b","#10b981"].map((c,i) => (
+                <div key={c} className={`w-4 h-4 rounded-full border-2 ${i===0?"border-white":"border-transparent"}`} style={{ background: c }} />
+              ))}
+            </div>
+          </div>
+          <div className="bg-zinc-800 rounded-lg px-2 py-1.5">
+            <p className="text-[7px] text-zinc-500 mb-1">Font size</p>
+            <div className="flex gap-1">
+              {["S","M","L"].map((s,i) => (
+                <div key={s} className={`flex-1 rounded text-center text-[8px] py-0.5 ${i===1?"bg-indigo-600 text-white":"bg-zinc-700 text-zinc-400"}`}>{s}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
+function BannerPrivacy() {
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-slate-900/60 to-zinc-900/40 border border-zinc-600/30 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Privacy & Safety</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Full control over your data — choose what's analysed, what's synced, what's exported, and what's deleted. No data is ever sold.</p>
+        <div className="mt-3 space-y-1">
+          {["🔒 Local-first by default", "☁ Cloud sync is opt-in", "📤 Export in 3 formats", "🗑 Delete anytime"].map(f => (
+            <p key={f} className="text-[11px] text-zinc-400">{f}</p>
+          ))}
+        </div>
+      </div>
+      <Phone>
+        <div className="p-2 space-y-1.5">
+          <p className="text-[9px] text-zinc-500 uppercase tracking-wider py-1">Privacy & safety</p>
+          {[
+            { label: "Store locally only", on: true, icon: "📱" },
+            { label: "Cloud sync", on: false, icon: "☁" },
+            { label: "Emotion analysis", on: true, icon: "🧠" },
+            { label: "Anonymous data", on: false, icon: "📊" },
+          ].map(s => (
+            <div key={s.label} className="flex items-center gap-1.5 bg-zinc-800 rounded-lg px-2 py-1.5">
+              <span className="text-xs">{s.icon}</span>
+              <span className="flex-1 text-[8px] text-zinc-300">{s.label}</span>
+              <div className={`w-6 h-3.5 rounded-full flex items-center px-0.5 ${s.on ? "bg-indigo-600 justify-end" : "bg-zinc-700 justify-start"}`}>
+                <div className="w-2.5 h-2.5 rounded-full bg-white" />
+              </div>
+            </div>
+          ))}
+          <div className="rounded-lg bg-zinc-800 px-2 py-1.5">
+            <p className="text-[8px] text-zinc-400">Crisis resources</p>
+            <p className="text-[7px] text-zinc-600 mt-0.5">🇮🇳 India · iCall: 9152987821</p>
+          </div>
+          <div className="flex gap-1">
+            <button className="flex-1 rounded-lg bg-indigo-600/20 border border-indigo-400/20 py-1 text-[8px] text-indigo-300">Export</button>
+            <button className="flex-1 rounded-lg bg-zinc-800 border border-zinc-700 py-1 text-[8px] text-zinc-400">Sync now</button>
+          </div>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
+function BannerAdvanced() {
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-zinc-900/60 to-neutral-900/40 border border-zinc-700/30 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Advanced Settings</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Companion memory, history management, network tuning, journal auto-delete, and more — for users who want granular control.</p>
+      </div>
+      <Phone>
+        <div className="p-2 space-y-1.5">
+          <p className="text-[9px] text-zinc-500 uppercase tracking-wider py-1">Advanced</p>
+          <div className="bg-zinc-800 rounded-lg px-2 py-1.5">
+            <p className="text-[8px] text-zinc-300 mb-1">🧠 Companion memory (8/12)</p>
+            <div className="space-y-0.5">
+              {["Name: Soumen", "Works in tech", "Partner: Elina"].map(m => (
+                <div key={m} className="flex items-center justify-between">
+                  <span className="text-[7px] text-zinc-400">{m}</span>
+                  <span className="text-[7px] text-rose-400">×</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bg-zinc-800 rounded-lg px-2 py-1.5">
+            <p className="text-[8px] text-zinc-300">📆 Auto-delete history</p>
+            <div className="flex gap-1 mt-1">
+              {["30d","60d","90d","180d"].map((d,i) => (
+                <div key={d} className={`flex-1 rounded text-center text-[7px] py-0.5 ${i===2?"bg-indigo-600 text-white":"bg-zinc-700 text-zinc-400"}`}>{d}</div>
+              ))}
+            </div>
+          </div>
+          <div className="bg-zinc-800 rounded-lg px-2 py-1.5">
+            <p className="text-[8px] text-zinc-300">🌐 API timeout</p>
+            <input type="range" className="w-full h-1 mt-1 accent-indigo-500" defaultValue={20} min={10} max={60} readOnly />
+            <p className="text-[7px] text-zinc-600 text-right">20s</p>
+          </div>
+          <p className="text-[7px] text-zinc-600 text-center">v1.1.7 · build 95</p>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
+function BannerPlans() {
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-violet-900/40 to-indigo-900/30 border border-violet-500/20 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-violet-400 uppercase tracking-widest mb-2">Plans & Upgrade</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Free is genuinely free. Plus and Pro add cloud features. Token packs extend your daily limit. Enterprise is available for organisations.</p>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          {[["Free","₹0","20 replies/day"],["Plus","₹99/mo","Unlimited"],["Pro","₹149/mo","+ Insights"],["Enterprise","Custom","SSO + Admin"]].map(([t,p,f]) => (
+            <div key={t} className="rounded-lg bg-white/5 border border-white/8 px-2 py-1.5">
+              <p className="font-semibold text-zinc-200 text-[10px]">{t}</p>
+              <p className="text-indigo-300 text-[10px] font-bold">{p}</p>
+              <p className="text-zinc-500 text-[9px]">{f}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Phone>
+        <div className="p-2 space-y-1.5">
+          <p className="text-[9px] text-zinc-500 uppercase tracking-wider py-1">Upgrade Imotara</p>
+          <div className="flex gap-1">
+            {[["Monthly","active"],["Annual",""]].map(([l,a]) => (
+              <div key={l} className={`flex-1 rounded-lg text-center py-1 text-[8px] font-medium ${a?"bg-indigo-600 text-white":"bg-zinc-800 text-zinc-400"}`}>{l}</div>
+            ))}
+          </div>
+          {[
+            { name: "Plus", price: "₹99/mo", color: "border-sky-400/30 bg-sky-500/5", badge: "" },
+            { name: "Pro", price: "₹149/mo", color: "border-indigo-400/40 bg-indigo-500/10", badge: "Best" },
+          ].map(p => (
+            <div key={p.name} className={`rounded-xl border p-2 ${p.color}`}>
+              <div className="flex justify-between items-center">
+                <p className="text-[9px] font-bold text-zinc-200">{p.name}</p>
+                {p.badge && <span className="text-[7px] bg-indigo-500 text-white px-1 rounded">{p.badge}</span>}
+              </div>
+              <p className="text-[9px] font-bold text-indigo-300">{p.price}</p>
+              <button className={`mt-1 w-full rounded-md py-0.5 text-[8px] font-semibold ${p.badge ? "bg-indigo-600 text-white" : "bg-zinc-700 text-zinc-300"}`}>Subscribe</button>
+            </div>
+          ))}
+          <div className="rounded-xl border border-violet-400/25 bg-violet-500/8 p-2">
+            <p className="text-[8px] text-violet-300 font-semibold">Enterprise — Custom</p>
+            <p className="text-[7px] text-zinc-500">SSO · Admin · Data residency</p>
+            <button className="mt-1 w-full rounded-md bg-violet-600/30 border border-violet-400/30 py-0.5 text-[8px] text-violet-300">Contact us</button>
+          </div>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
+function BannerLanguages() {
+  const langs = [
+    { flag: "🇮🇳", code: "हिं", name: "Hindi" }, { flag: "🇮🇳", code: "বাং", name: "Bengali" },
+    { flag: "🇮🇳", code: "தமி", name: "Tamil" }, { flag: "🇮🇳", code: "తెలు", name: "Telugu" },
+    { flag: "🌍", code: "Esp", name: "Spanish" }, { flag: "🌍", code: "عرب", name: "Arabic" },
+    { flag: "🌍", code: "中文", name: "Chinese" }, { flag: "🌍", code: "日本", name: "Japanese" },
+  ];
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-teal-900/30 to-cyan-900/20 border border-teal-500/20 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-teal-400 uppercase tracking-widest mb-2">22 Languages</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Chat in Hindi, Tamil, Bengali, Spanish, Arabic, or any of 22 languages. Imotara detects your language automatically — even mid-sentence code-switching.</p>
+        <div className="mt-3 grid grid-cols-4 gap-1.5">
+          {langs.map(l => (
+            <div key={l.name} className="rounded-lg bg-white/5 border border-white/8 px-1.5 py-1 text-center">
+              <p className="text-base">{l.flag}</p>
+              <p className="text-[8px] text-zinc-300 font-bold">{l.code}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Phone>
+        <div className="p-2 space-y-1.5">
+          <p className="text-[9px] text-zinc-500 uppercase tracking-wider py-1">Languages</p>
+          <div className="bg-zinc-800 rounded-lg p-2">
+            <p className="text-[8px] text-zinc-400 mb-1">Detected language</p>
+            <div className="flex items-center gap-2">
+              <span className="text-base">🇮🇳</span>
+              <div>
+                <p className="text-[9px] font-bold text-zinc-200">Hindi</p>
+                <p className="text-[7px] text-zinc-500">Auto-detected from Devanagari</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-zinc-800 rounded-lg p-2">
+            <p className="text-[7px] text-zinc-500 mb-1">User message</p>
+            <p className="text-[8px] text-zinc-200">"मुझे आज बहुत अच्छा लग रहा है"</p>
+            <p className="text-[7px] text-zinc-500 mt-1">→ Reply in Hindi with female voice</p>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            {langs.slice(0,6).map(l => (
+              <div key={l.name} className="rounded-lg bg-zinc-800 text-center p-1">
+                <p className="text-sm">{l.flag}</p>
+                <p className="text-[7px] text-zinc-400">{l.name}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-[7px] text-zinc-600">+ 16 more languages supported</p>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
+// ─── Banner map ───────────────────────────────────────────────────────────────
+
+const BANNERS: Record<string, React.ReactNode> = {
+  start:      <BannerStart />,
+  chat:       <BannerChat />,
+  voice:      <BannerVoice />,
+  companion:  <BannerCompanion />,
+  history:    <BannerHistory />,
+  trends:     <BannerTrends />,
+  grow:       <BannerGrow />,
+  experience: <BannerExperience />,
+  privacy:    <BannerPrivacy />,
+  advanced:   <BannerAdvanced />,
+  plans:      <BannerPlans />,
+  languages:  <BannerLanguages />,
+};
+
 // ─── Category tabs ────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
@@ -1542,8 +2109,15 @@ export default function TutorialPage() {
         </div>
       </div>
 
+      {/* Category banner illustration */}
+      {BANNERS[activeTab] && (
+        <div className="mb-6">
+          {BANNERS[activeTab]}
+        </div>
+      )}
+
       {/* Category header */}
-      <div className="mb-5 flex items-center gap-3">
+      <div className="mb-4 flex items-center gap-3">
         <span className="text-2xl">{currentCat.icon}</span>
         <div>
           <h2 className="text-lg font-bold text-zinc-100">{currentCat.label}</h2>

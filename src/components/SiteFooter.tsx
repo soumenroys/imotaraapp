@@ -56,15 +56,16 @@ function IconHeart() {
 // ─── Nav links ────────────────────────────────────────────────────────────────
 
 const NAV_LINKS = [
-  { href: "/chat",    label: "Chat",    emoji: "💬" },
-  { href: "/blog",    label: "Blog",    emoji: "📖" },
-  { href: "/history", label: "History", emoji: "🕰" },
-  { href: "/about",   label: "About",   emoji: "🌿" },
-  { href: "/grow",    label: "Grow",    emoji: "✨" },
-  { href: "/connect", label: "Contact", emoji: "✉️" },
-  { href: "/careers", label: "Careers", emoji: "🌱" },
-  { href: "/privacy", label: "Privacy", emoji: "🔒" },
-  { href: "/terms",   label: "Terms",   emoji: "📋" },
+  { href: "/chat",     label: "Chat",     emoji: "💬" },
+  { href: "/tutorial", label: "Tutorial", emoji: "📘" },
+  { href: "/blog",     label: "Blog",     emoji: "📖" },
+  { href: "/history",  label: "History",  emoji: "🕰" },
+  { href: "/about",    label: "About",    emoji: "🌿" },
+  { href: "/grow",     label: "Grow",     emoji: "✨" },
+  { href: "/connect",  label: "Contact",  emoji: "✉️" },
+  { href: "/careers",  label: "Careers",  emoji: "🌱" },
+  { href: "/privacy",  label: "Privacy",  emoji: "🔒" },
+  { href: "/terms",    label: "Terms",    emoji: "📋" },
 ];
 
 // ─── Footer ───────────────────────────────────────────────────────────────────

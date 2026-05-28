@@ -1,6 +1,6 @@
 # Imotara — Complete Project Overview
 
-> Last updated: 2026-05-03
+> Last updated: 2026-05-28
 > Author: Soumen Roy
 > Platforms: Web (Next.js / Vercel) · iOS · Android
 
@@ -220,8 +220,11 @@ Language support covers:
 | Tier | Price | Cloud Messages | History | Notes |
 |------|-------|----------------|---------|-------|
 | Free | ₹0 | 20/day (midnight reset) | 7 days | Local always free |
-| Plus | ₹79/mo or ₹699/yr | Unlimited | 90 days | iOS: ₹99/mo |
-| Pro | ₹149/mo or ₹1,199/yr | Unlimited | Unlimited | iOS: ₹1,299/yr |
+| Plus | ₹99/mo or ₹699/yr | Unlimited | 90 days | Advanced TTS, search, cadence controls |
+| Pro | ₹149/mo or ₹1,299/yr | Unlimited | Unlimited | Emotion insights, companion letter, growth arc |
+| Family | Custom | Unlimited | Unlimited | Up to 6 profiles, child-safe mode |
+| EDU | Custom | Unlimited | Unlimited | Admin dashboard, institutional deployment |
+| Enterprise | Custom | Unlimited | Unlimited | SSO, data residency, API access, custom integrations |
 | Token Pack | One-time | +100 to +1800 credits | — | Never expire |
 
 ### 8.2 Token Pack Pricing
@@ -335,9 +338,9 @@ All users who install before 2026-07-01 receive Plus free for 90 days.
 - English always uses Azure (for gender consistency) — this means English TTS is not offline-capable.
 
 ### 12.5 Mobile Bundle Size
-- v1.1.0 shipped at 107 MB install / 88.8 MB update — significantly above typical wellness app sizes.
-- v1.1.1 reduces this to ~65 MB via avatar PNG compression (48 MB → 13 MB) and WAV → MP3 conversion (3.9 MB → 392 KB).
-- Further reduction would require serving avatars from CDN instead of bundling, which adds an internet dependency for avatar display.
+- v1.1.0 shipped at 107 MB install / 88.8 MB update.
+- v1.1.1 reduced to ~65 MB via avatar PNG compression and WAV → MP3 conversion.
+- v1.1.7 reduced further: `src/assets/avatars` converted from PNG to JPEG (50.6 MB → 3.5 MB, 93% reduction); rain.mp3 recompressed 166 kbps → 64 kbps; Android resource shrinking enabled. Total asset reduction ~60 MB vs v1.1.0.
 
 ### 12.6 App Store Category
 - Primary category is locked as Entertainment post first-submission. Apple requires a support ticket to change to Health & Fitness. This is in progress.
@@ -426,6 +429,10 @@ A professional-facing view where a therapist can (with user consent) see anonymi
 | 1.0.10 | 78 | Apr 2026 | Bug fixes, UI polish |
 | 1.1.0 | 82 | May 2, 2026 | Voice input (Whisper STT), Azure Neural TTS for all platforms, companion gender voice fix, offline banner fix, Android payment sign-in fix, markdown stripping before TTS |
 | 1.1.1 | 83 | May 3, 2026 | Avatar PNG compression (48 MB → 13 MB), WAV → MP3 sounds, companion memory migrated to device Keychain, enhanced rain audio |
+| 1.1.2 | 84 | May 10, 2026 | API 35 guard, orientation default fix, version sync all platforms |
+| 1.1.3–1.1.5 | 85–93 | May 2026 | iOS IAP (8 products), Razorpay mobile payment flow, design overhaul (warm theme, chat header cleanup, settings restructure, banner queue), light-mode fixes, TTS rate/pitch pickers, 22-language scenarios |
+| 1.1.6 | 94 | May 2026 | Android Razorpay fetchWithTimeout + accessTokenRef pattern, upgrade page improvements |
+| 1.1.7 | 95 | May 28, 2026 | Feature gate matrix (5 new FeatureKeys: TTS_ADVANCED, SEARCH_MODE, REPLY_CADENCE, COMPANION_LETTER, GROWTH_ARC), Enterprise tier card + plan comparison table (47 features, 8 sections), LICENSING.md + full test suite (280 checks), avatar JPEG conversion (50.6 MB → 3.5 MB), Android resource shrinking |
 
 ---
 
@@ -469,9 +476,9 @@ imotara-mobile/                      ← Expo React Native app
       supabase/client.ts             ← Supabase + expo-secure-store auth
     components/imotara/
       BreathingModal.tsx             ← Guided breathing with ambient sound
-      UpgradeSheet.tsx               ← Payment + license upgrade UI
+      UpgradeSheet.tsx               ← Payment + license upgrade UI (Enterprise card + plan comparison)
   assets/
-    avatars/male/ female/            ← Age-based avatar images (PNG)
+    avatars/male/ female/            ← Age-based avatar images (JPEG, converted from PNG in v1.1.7)
     sounds/                          ← Breathing ambient sounds (MP3)
 ```
 

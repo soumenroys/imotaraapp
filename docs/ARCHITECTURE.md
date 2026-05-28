@@ -1,6 +1,6 @@
 # Imotara — System Architecture Document
 
-> Version: 1.0.6 (Build 64) · Last updated: April 2026
+> Version: 1.1.7 (Build 95) · Last updated: May 2026
 
 ---
 
@@ -1104,6 +1104,7 @@ classDiagram
     class LicenseTier {
         <<enumeration>>
         FREE
+        PLUS
         PREMIUM
         FAMILY
         EDU
@@ -1114,11 +1115,17 @@ classDiagram
         <<enumeration>>
         CLOUD_SYNC
         HISTORY_UNLIMITED
+        HISTORY_DAYS_LIMIT
         TRENDS_INSIGHTS
         EXPORT_DATA
         MULTI_PROFILE
         CHILD_SAFE_MODE
         ADMIN_DASHBOARD
+        TTS_ADVANCED
+        SEARCH_MODE
+        REPLY_CADENCE
+        COMPANION_LETTER
+        GROWTH_ARC
     }
 
     class AgeTone {
@@ -1300,7 +1307,7 @@ classDiagram
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `react-native-razorpay` | ^2.3.1 | Razorpay native checkout (INR) |
+| `react-native-razorpay` | ^3.0.0 | Razorpay native checkout (INR), TurboModule support |
 
 ### 11c. Shared External Services
 
@@ -1422,17 +1429,22 @@ Input text
 
 ### Tier Matrix
 
-| Feature | FREE | PREMIUM | FAMILY | EDU | ENTERPRISE |
-|---------|:----:|:-------:|:------:|:---:|:----------:|
-| AI chat (cloud) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Offline AI fallback | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Local history | 7 days | Unlimited | Unlimited | Unlimited | Unlimited |
-| Cloud sync | Limited | ✅ | ✅ | ✅ | ✅ |
-| Emotion trends/insights | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Data export (JSON/CSV) | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Multi-profile | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Child safe mode | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Admin dashboard | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Feature | FREE | PLUS | PRO/PREMIUM | FAMILY | EDU | ENTERPRISE |
+|---------|:----:|:----:|:-----------:|:------:|:---:|:----------:|
+| AI chat (cloud) | ✅ 20/day | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Offline AI fallback | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Cloud history | 7 days | 90 days | Unlimited | Unlimited | Unlimited | Unlimited |
+| Cloud sync | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Data export (JSON/CSV/PDF) | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ |
+| Advanced TTS (voice/speed/pitch) | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Semantic history search | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Reply cadence controls | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Emotion trends/insights | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Companion letter (monthly) | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| Growth arc narrative | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| Multi-profile | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Child safe mode | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Admin dashboard | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
 
 ### Launch Offer
 
@@ -1457,7 +1469,7 @@ featureGates.gate(FeatureName.CLOUD_SYNC, licenseTier)
 | 4 | **No end-to-end type safety** — API request/response types manually kept in sync | Silent type mismatches possible | tRPC or Zod-first contract generation |
 | 5 | **NextAuth still a dependency** — superseded by Supabase Auth but still in package.json | Unused bundle weight | Remove `next-auth` and `@auth/supabase-adapter` |
 | 6 | **Mobile has no conversation threads** — flat message history | UX limitation for power users | Port web thread architecture (deferred) |
-| 7 | **Web has no TTS or voice input** — text-only | Feature parity gap vs mobile | Web Speech API (TTS), MediaRecorder (voice) |
+| 7 | **Web voice input** — STT available via `/api/voice/transcribe`; Azure Neural TTS available via `/api/tts` | Feature parity largely achieved | ✅ Resolved in v1.1.0 |
 | 8 | **gpt-4.1-mini** — cost-optimized model | Shallower emotional nuance vs gpt-4.1 | Upgrade when traffic justifies cost (env var only) |
 | 9 | **No rate limiting** — API routes are open | Abuse risk at scale | Upstash Redis rate limiter or Vercel Edge Middleware |
 | 10 | **Android edge-to-edge** — predictive back gesture disabled as workaround | Non-native Android back behavior | Implement native back handler |

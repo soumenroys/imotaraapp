@@ -1,70 +1,82 @@
-# Imotara — RELEASE GO / NO-GO Checklist (Public v1)
+# Imotara — Release Go / No-Go Checklist
 
-Date:
-Build/Commit:
-Owner:
-
-## Non-negotiables (must be YES)
-
-### 1) Chat never blocks (web + mobile)
-- [ ] Web: can send message and receive reply
-- [ ] Mobile: can send message and receive reply
-- [ ] If AI fails: user sees graceful fallback (no crash, no blank screen)
-- [ ] Donation / licensing failures do NOT affect chat flow
-
-### 2) Licensing is passive (3 months free)
-- [ ] App works when licensing endpoints are down
-- [ ] Default behavior is FREE (no gating)
-- [ ] No paywall UI / no countdown / no restriction messaging
-
-### 3) Donations are ethical + safe
-- [ ] Donation buttons are ONLY in Settings / About (not in chat)
-- [ ] Copy is neutral (no guilt / no pressure)
-- [ ] Donation never changes chat behavior or tone
-- [ ] Web: donation-intent works (presetId only)
-- [ ] Mobile: donation-intent works (presetId only)
-- [ ] Webhook logs receipts (idempotent; no duplicates)
-- [ ] Web + Mobile: receipt confirmation can lag without confusing users
-
-### 4) Web ↔ Mobile parity (behavior)
-- [ ] Both platforms produce the same response structure (main reply + optional reflection seed)
-- [ ] Follow-ups are natural (no “follow-up question:” label)
+> Fill this out before every production release. All Non-negotiables must be YES before pushing.
 
 ---
 
-## GO / NO-GO Tests (run now)
+## Release Info
 
-### Web (imotaraapp)
-- [ ] `npm run dev` works locally
+| Field | Value |
+|-------|-------|
+| Version | |
+| Build / versionCode | |
+| Date | |
+| Owner | |
+
+---
+
+## Non-negotiables (must all be YES)
+
+### 1. Chat never blocks
+- [ ] Web: can send message and receive reply
+- [ ] Mobile: can send message and receive reply
+- [ ] If AI fails: user sees graceful fallback (no crash, no blank screen)
+- [ ] Licensing / payment failures do NOT affect chat flow
+
+### 2. Feature gates correct
+- [ ] `NEXT_PUBLIC_IMOTARA_LICENSE_MODE` is set to intended value (`off` / `log` / `enforce`)
+- [ ] Free tier: daily quota enforced server-side (20 cloud replies/day)
+- [ ] Plus/Pro/Enterprise: correct features unlocked per `featureGates.ts`
+- [ ] No unintended paywall during active conversations
+
+### 3. Payments are safe
+- [ ] Razorpay webhook URL points to production domain (not localhost)
+- [ ] `RAZORPAY_WEBHOOK_SECRET` matches Razorpay dashboard
+- [ ] iOS IAP: all products are "Ready to Submit" in App Store Connect
+- [ ] Android: service account key path is correct in `eas.json`
+
+### 4. Version numbers are in sync
+- [ ] Web: `package.json` version + `NEXT_PUBLIC_APP_VERSION` + `NEXT_PUBLIC_APP_BUILD` in Vercel env
+- [ ] Mobile `app.json`: `version`, iOS `buildNumber`, Android `versionCode` all match
+- [ ] Mobile `package.json`: `version` matches `app.json`
+
+### 5. TypeScript clean
+- [ ] `npx tsc --noEmit` passes on web (0 errors)
+- [ ] `npx tsc --noEmit` passes on mobile (0 errors)
+
+### 6. Test suite
+- [ ] `node tests/full-test-suite.mjs` → 0 failures, 0 warnings
+
+---
+
+## Platform-specific checks
+
+### Web
 - [ ] `npm run build` passes
-- [ ] `npm run donation:check` returns `{ ok: true, razorpay: ... }`
-- [ ] PROD: `/api/health` returns `ok: true` (no secrets leaked)
-- [ ] Settings → Donation: checkout opens
-- [ ] Close checkout: shows “Checkout closed. No payment was made.”
-- [ ] Payment failure: shows “Payment failed …” (no crash)
-- [ ] Payment success: shows “Checkout completed… Confirming receipt…”
-- [ ] Receipts list updates (immediate or after short delay)
+- [ ] `/api/health` returns `ok: true` on production
+- [ ] Vercel env vars updated: `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_APP_BUILD`
+- [ ] Settings → upgrade page loads correctly
+- [ ] Feature comparison table renders
+- [ ] Enterprise "Contact us" mailto link works
 
-### Mobile (imotara-mobile)
-- [ ] App launches and chat works
-- [ ] Settings → Donation: checkout opens
-- [ ] Success message says “Checkout completed … confirming receipt …”
-- [ ] No duplicate order from double taps
-- [ ] Chat unaffected if donation fails/cancelled
+### Android
+- [ ] EAS build profile: `production`, `app-bundle`
+- [ ] AAB uploaded to Play Console production track
+- [ ] ProGuard (`enableProguardInReleaseBuilds: true`) and resource shrinking enabled
+- [ ] versionCode incremented from previous release
+
+### iOS
+- [ ] EAS build profile: `production`, store distribution
+- [ ] IPA submitted to App Store Connect (build visible in TestFlight)
+- [ ] All IAP products attached to the version under review
+- [ ] buildNumber incremented from previous release
 
 ---
 
 ## Release Decision
 
-### GO criteria (must all be true)
-- [ ] All Non-negotiables are YES
-- [ ] No crashes in primary paths (chat + settings)
-- [ ] Donations are optional and non-blocking
-- [ ] Passive licensing confirmed
+- [ ] **GO** — all non-negotiables met, no blockers
+- [ ] **NO-GO** — blockers listed below
 
-Decision:
-- [ ] GO
-- [ ] NO-GO
-
-Notes / blockers:
+Blockers / notes:
 -

@@ -514,6 +514,16 @@ export default function UpgradePage() {
                                     desc: "Buy one-time credit packs to extend reply capacity beyond the daily limit",
                                     free: true, plus: true, pro: true, ent: true,
                                 },
+                                {
+                                    label: "User emoji reactions",
+                                    desc: "React to any message with 20 emoji across 4 groups — love, encouragement, empathy, nature",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Companion emoji reactions",
+                                    desc: "Companion auto-reacts to your messages with mood-matched emoji (~50% probability, 1–2 s delay); toggle in Settings",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
                             ].map((row) => <CompareRow key={row.label} {...row} />)}
 
                             {/* ── History & Data ── */}
@@ -639,6 +649,26 @@ export default function UpgradePage() {
                                 {
                                     label: "Companion letter",
                                     desc: "Monthly companion letter reflecting on your journey and growth",
+                                    free: false, plus: false, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Letter archive",
+                                    desc: "Browse and re-read all past companion letters (up to 24 saved — never overwritten)",
+                                    free: false, plus: false, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Letter read-aloud",
+                                    desc: "Listen to any companion letter read aloud in your companion's voice",
+                                    free: false, plus: false, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Letter emoji reactions",
+                                    desc: "React to any companion letter with a mood-relevant emoji — stored persistently",
+                                    free: false, plus: false, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Letter personal reply",
+                                    desc: "Write and save a personal reply to any companion letter — stored with the letter",
                                     free: false, plus: false, pro: true, ent: true,
                                 },
                                 {

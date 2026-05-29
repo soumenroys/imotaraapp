@@ -48,6 +48,8 @@ Legend: ✅ Included · ❌ Not included · `value` — specific limit or parame
 | **Offline mode** | Read previously loaded messages without a network connection | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Companion mode / personas** | Themed AI personalities beyond the default (e.g. Coach, Listener, Challenger) | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Token top-up purchases** | Buy one-time token packs to extend reply capacity | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **User emoji reactions** | React to any message with a set of 20 emoji across 4 groups (love, encouragement, empathy, nature) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Companion emoji reactions** | Companion auto-reacts to user messages with a mood-matched emoji (~50% probability, 1–2 s delay); toggle in settings | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -96,6 +98,10 @@ Legend: ✅ Included · ❌ Not included · `value` — specific limit or parame
 | **Mood graphs** | Visual weekly/monthly graphs of mood patterns derived from conversations | ❌ | ❌ | ✅ | ✅ | ✅ (agg.) | ✅ |
 | **Weekly emotional summary** | Auto-generated narrative summary of the week's emotional themes | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
 | **Monthly growth letter** | Personalised letter each month reflecting progress, patterns, and growth themes | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Companion letter archive** | All past companion letters saved and browsable (up to 24); never overwritten | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Letter read-aloud (TTS)** | Listen to any companion letter read aloud in the companion's voice | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Letter emoji reactions** | React to any companion letter with a mood-relevant emoji | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Letter personal reply** | Write and save a personal reply to any companion letter; stored with the letter | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
 | **Growth arc** | Long-term narrative arc tracking how the user's emotional expression evolves over months | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
 | **Conversation insights** | Per-conversation annotations: topics identified, emotional tone, key moments | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
 | **Streak tracking** | Counts consecutive days the user engaged with the app | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -155,6 +161,7 @@ Legend: ✅ Included · ❌ Not included · `value` — specific limit or parame
 | **Search mode selection** | Toggle between semantic/keyword search modes in history | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Cadence / reply pacing** | Set how quickly or slowly the AI types out replies (streaming speed) | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Institution branding** | Replace Imotara's logo/colours with the organisation's own brand assets | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Show sync status** | Toggle visibility of cloud sync badges on messages (default: hidden for privacy feel) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -261,4 +268,4 @@ Why a user or org should move to the next tier:
 
 ---
 
-*Last updated: 2026-05-27 — proposed matrix, pending engineering implementation of Phase 2 gates.*
+*Last updated: 2026-05-29 — v1.2. Added: user emoji reactions (20 emoji), companion auto-reactions, companion letter archive + TTS + reactions + reply, show sync status toggle.*

@@ -1450,6 +1450,84 @@ export default function ChatPage() {
     syncMessageMetaToRemote(messageId, { reaction: finalEmoji });
   }
 
+  // ── Companion auto-reactions (web) ────────────────────────────────────────
+  const COMPANION_REACTIONS_KEY = "imotara.companionReactions.v1";
+  const companionReactionsEnabled =
+    typeof localStorage !== "undefined"
+      ? localStorage.getItem(COMPANION_REACTIONS_KEY) !== "0"
+      : true;
+
+  const companionReactedBotIds = useRef<Set<string>>(new Set());
+
+  function pickCompanionReactionWeb(emotion?: string): string | null {
+    if (Math.random() > 0.50) return null;
+    const hint = (emotion ?? "neutral").toLowerCase();
+    const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+    if (hint.includes("joy") || hint.includes("happy") || hint.includes("excit"))
+      return pick(["❤️", "🥰", "🌟", "🔥", "✨", "🎉", "💫", "🌈", "💛"]);
+    if (hint.includes("hope") || hint.includes("optim"))
+      return pick(["🌱", "✨", "🌟", "💫", "🌸", "🕊️", "🌈", "💚"]);
+    if (hint.includes("gratit") || hint.includes("thankful"))
+      return pick(["🙏", "❤️", "💛", "🌻", "✨", "💜"]);
+    if (hint.includes("sad") || hint.includes("grief") || hint.includes("loss"))
+      return pick(["🫂", "💙", "💜", "🤍", "🕊️", "❤️", "🌷"]);
+    if (hint.includes("anxi") || hint.includes("worry") || hint.includes("fear"))
+      return pick(["🫂", "💙", "🤍", "💜", "🌿", "🕊️"]);
+    if (hint.includes("stress") || hint.includes("overwhelm"))
+      return pick(["🫂", "💙", "💪", "🌿", "🤍", "💜"]);
+    if (hint.includes("ang") || hint.includes("frustrat"))
+      return pick(["🫂", "💙", "🌿", "🤍", "💜"]);
+    if (hint.includes("lone") || hint.includes("isol"))
+      return pick(["❤️", "🫂", "💜", "🌻", "🦋", "💕"]);
+    if (hint.includes("tired") || hint.includes("exhaust") || hint.includes("burn"))
+      return pick(["❤️", "🫂", "🌙", "💫", "🌿", "💜"]);
+    if (hint.includes("proud") || hint.includes("achiev") || hint.includes("succe"))
+      return pick(["🔥", "🌟", "💪", "🎉", "✨", "⭐"]);
+    if (hint.includes("love") || hint.includes("care"))
+      return pick(["❤️", "💕", "🥰", "💜", "🌸"]);
+    if (hint.includes("calm") || hint.includes("peace"))
+      return pick(["🌿", "🕊️", "✨", "🌸", "💫"]);
+    return pick(["❤️", "🌟", "✨", "🫂", "💛", "🌸", "💫", "🌿", "💙", "🕊️"]);
+  }
+
+  // Watch for new assistant messages and react to the preceding user message.
+  // Uses activeThread indirectly via the dependency on its message count —
+  // activeThread is declared later but useEffect closures capture latest values.
+  const _companionMsgsRef = useRef<{ messages: Message[] } | null>(null);
+  useEffect(() => {
+    _companionMsgsRef.current = activeThread ?? null;
+  });
+  useEffect(() => {
+    if (!companionReactionsEnabled || !mounted) return;
+    const msgs = _companionMsgsRef.current?.messages ?? [];
+    const lastBot = [...msgs].reverse().find(
+      (m) => m.role === "assistant" && !m.content.startsWith("__streaming"),
+    );
+    if (!lastBot || companionReactedBotIds.current.has(lastBot.id)) return;
+    companionReactedBotIds.current.add(lastBot.id);
+
+    const botIndex = msgs.findIndex((m) => m.id === lastBot.id);
+    const userMsg = botIndex > 0
+      ? [...msgs].slice(0, botIndex).reverse().find((m) => m.role === "user")
+      : undefined;
+    if (!userMsg) return;
+
+    const emotion = (lastBot as any).emotion ?? (lastBot as any).moodHint ?? "neutral";
+    const reaction = pickCompanionReactionWeb(emotion);
+    if (!reaction) return;
+
+    const delay = 1200 + Math.random() * 1300;
+    const timer = setTimeout(() => {
+      setReactions((prev) => {
+        if (prev[userMsg.id]) return prev;
+        return { ...prev, [userMsg.id]: reaction };
+      });
+    }, delay);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companionReactionsEnabled, mounted]);
+
   // #6: Compute weekly mood recap on mount
   useEffect(() => {
     if (!mounted) return;
@@ -4663,7 +4741,16 @@ function EmptyState({ onChipSelect, lang = "en", threads = [] }: { onChipSelect:
   );
 }
 
-const ALL_REACTION_EMOJIS = ["❤️", "💙", "✨", "🙏", "💛", "🌟", "🌿"];
+const ALL_REACTION_EMOJIS = [
+  // Love & warmth
+  "❤️", "🥰", "💕", "💜", "💛",
+  // Encouragement
+  "🌟", "✨", "🔥", "💪", "🎉",
+  // Empathy & support
+  "🫂", "🤗", "🙏", "💙", "🤍",
+  // Nature & calm
+  "🌸", "🌿", "🌈", "🦋", "🕊️",
+];
 function getReactionEmojis(): string[] {
   try {
     const v = typeof localStorage !== "undefined" ? localStorage.getItem("imotara.reactions.set.v1") : null;

@@ -1894,6 +1894,16 @@ export default function SettingsPage() {
         try { localStorage.setItem(WEB_REACTIONS_SET_KEY, val); } catch { /* ignore */ }
     }
 
+    const COMPANION_REACTIONS_KEY = "imotara.companionReactions.v1";
+    const [companionReactionsEnabled, setCompanionReactionsEnabledState] = useState(true);
+    useEffect(() => {
+        try { setCompanionReactionsEnabledState(localStorage.getItem(COMPANION_REACTIONS_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleCompanionReactionsChange(val: boolean) {
+        setCompanionReactionsEnabledState(val);
+        try { localStorage.setItem(COMPANION_REACTIONS_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
     // G-1: Emotional arc cadence (web)
     const WEB_ARC_CADENCE_KEY = "imotara.arc.cadenceDays.v1";
     const [webArcCadenceDays, setWebArcCadenceDays] = useState(30);
@@ -2960,6 +2970,23 @@ export default function SettingsPage() {
                             ))}
                         </div>
                         <p className="mt-1 text-[11px] text-zinc-500">Controls the number of emoji reactions shown on messages.</p>
+                    </div>
+
+                    {/* Companion emoji reactions */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Companion reactions</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Your companion reacts to your messages with mood-relevant emoji ❤️ 🌟 🤗</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={companionReactionsEnabled}
+                            onClick={() => handleCompanionReactionsChange(!companionReactionsEnabled)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${companionReactionsEnabled ? "bg-sky-500" : "bg-zinc-600"}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${companionReactionsEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
                     </div>
 
                     {/* Sentiment seed chips */}

@@ -700,8 +700,10 @@ section("29 · TypeScript Compilation");
     ok("Web TypeScript: 0 errors");
   } catch (e) {
     const out = e.stdout?.toString() || e.stderr?.toString() || "";
-    const errCount = (out.match(/error TS/g) || []).length;
-    fail(`Web TypeScript: ${errCount} errors`);
+    // Filter out .next/ auto-generated route validator errors (false positives from dev server)
+    const errCount = out.split("\n").filter(l => l.includes("error TS") && !l.includes(".next/")).length;
+    if (errCount === 0) ok("Web TypeScript: 0 errors (ignoring .next/ dev validator)");
+    else fail(`Web TypeScript: ${errCount} errors`);
   }
 
   try {

@@ -728,15 +728,30 @@ const FEATURES: Record<string, Feature[]> = {
     {
       icon: "😄",
       title: "Reacting to Messages",
-      short: "Long-press a message and pick an emoji reaction to express how it made you feel.",
-      long: "You can react to any message with an emoji — heart, thumbs up, lightbulb, or others. Reactions are personal (only you see them) and help you mark messages that resonated, surprised, or comforted you.",
+      short: "Long-press a message and pick from 20 emoji reactions to express how it made you feel.",
+      long: "You can react to any message with an emoji from a set of 20 — organised into four groups: love & warmth (❤️ 🥰 💕 💜 💛), encouragement (🌟 ✨ 🔥 💪 🎉), empathy & support (🫂 🤗 🙏 💙 🤍), and nature & calm (🌸 🌿 🌈 🦋 🕊️). Reactions are personal — only you see them — and help mark messages that resonated with you.",
       steps: [
         "Long-press any message bubble.",
         "Tap 'React' in the context menu.",
-        "Choose an emoji from the reaction picker.",
+        "Choose from the 20 emoji in the picker (or the 10-emoji quick bar on mobile).",
         "The emoji appears below the message.",
-        "Long-press again and tap the reaction to remove it.",
+        "Long-press again and tap the same emoji to remove it.",
       ],
+      tip: "Your companion also reacts to your messages automatically — see 'Companion reactions' in Settings to control this.",
+    },
+    {
+      icon: "💝",
+      title: "Companion Reactions",
+      short: "Your companion sometimes reacts to your messages with a mood-relevant emoji — a quiet sign it noticed how you feel.",
+      long: "About half the time, 1–2 seconds after your companion replies, a small emoji reaction appears on your message — chosen to match the emotion it detected. Sad messages might get 🫂 or 💙. Joyful messages get ❤️ or 🌟. Proud moments get 🔥 or ⭐. The timing and ~50% probability make it feel spontaneous, not robotic. You can disable this in Settings if you prefer a cleaner look.",
+      steps: [
+        "Send a message and receive a reply.",
+        "Wait 1–2 seconds — a small emoji may appear on your message.",
+        "The emoji reflects the emotion your companion detected in what you said.",
+        "To disable: Settings → Experience → Chat behaviour → Companion reactions (toggle off).",
+        "Your own reactions always take priority — if you react first, the companion won't overwrite it.",
+      ],
+      tip: "The companion reacts to roughly half your messages — not every one — so it feels like a natural gesture rather than an automated response.",
     },
     {
       icon: "📋",
@@ -1403,6 +1418,18 @@ const FEATURES: Record<string, Feature[]> = {
         "Go to Settings → Experience → Chat behaviour.",
         "Find 'Show message reactions'.",
         "Toggle on or off.",
+      ],
+    },
+    {
+      icon: "💝",
+      title: "Companion Reactions (Setting)",
+      short: "Enable or disable your companion's automatic emoji reactions to your messages.",
+      long: "This toggle controls whether your companion auto-reacts to your messages with mood-relevant emoji. Enabled by default. Turn off if you prefer a completely clean chat with no companion-placed reactions. Your own manual reactions are always unaffected.",
+      steps: [
+        "Go to Settings → Experience → Chat behaviour (mobile) or Settings → Experience (web).",
+        "Find 'Companion reactions'.",
+        "Toggle off to disable companion auto-reactions.",
+        "Toggle on (default) to re-enable.",
       ],
     },
     {

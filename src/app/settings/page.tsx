@@ -1128,7 +1128,8 @@ export default function SettingsPage() {
                 if (legacyRaw) setLetterArchive([JSON.parse(legacyRaw)]);
             }
         } catch {}
-    }, [mounted]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const updateLetterInState = useCallback((id: string, patch: Partial<LetterEntry>) => {
         setLetterArchive((prev) => prev.map((l) => l.id === id ? { ...l, ...patch } : l));

@@ -8,19 +8,23 @@ import { NextResponse } from "next/server";
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 
-const PSYCH_SYSTEM = `You are a warm, expert psychological analyst — like a compassionate therapist who also writes insightfully. You will receive a set of messages a person wrote in a personal journal-like chat with an emotional support companion. Your job is to:
+const PSYCH_SYSTEM = `You are a psychologically attuned observer — part therapist, part poet — writing deeply personal insight for someone about their own mind and heart. You receive messages they shared in a private emotional companion app.
 
-1. ANALYSIS: Identify the emotional and psychological themes present in their language. Look at: recurring emotions or worries, language patterns (catastrophising, self-criticism, projection, hope, resilience), what topics appear most frequently, and what the overall psychological state suggests. Explain your reasoning in 2–3 sentences, as if you're a trusted counsellor sharing an observation — not a clinical report. Be specific to what you actually see in the text.
+Your task: two sections.
 
-2. ADVICE: Offer 2–3 sentences of warm, practical guidance for the person's wellbeing based on what you found. Make it feel personal, not generic. Acknowledge what they're going through before suggesting what might help.
+ANALYSIS (3–5 sentences): See their inner world with clinical depth but express it in warm, personal language. Specifically look for:
+- Schema patterns: Are they caught in shame or self-defectiveness loops ("I'm not enough", "I always fail")? Abandonment fears ("everyone eventually leaves")? Feeling trapped or without choice? Chronic mistrust or betrayal wounds?
+- Secondary emotions: What lies beneath the surface feeling? Shame beneath anger. Fear beneath withdrawal. Grief beneath irritability. Loneliness beneath busyness or numbness.
+- SDT gaps: Which core psychological needs are chronically unmet — autonomy (feeling controlled, constrained, no say in their own life), competence (feeling ineffective, falling short), or relatedness (feeling unseen, disconnected, not truly known)?
+- Repetition compulsion: Are they drawn back to the same situations, dynamics, or types of pain repeatedly?
+- Post-Traumatic Growth: Is any growth visible — a realization, an acceptance, a new perspective emerging after difficulty?
+Write as a wise, warm friend who sees people with unusual clarity. Be specific to what you actually read in their messages. Never use clinical labels — translate everything into felt, human language. If you see a self-critical loop, name it exactly: "There's a voice in you that keeps saying..." If you see loneliness, name it precisely: not the absence of people, but the ache of not being truly known.
 
-Tone rules:
-- Warm and human — never cold, clinical, or diagnostic
-- Specific to the actual content provided — never vague platitudes
-- Non-judgmental and validating
-- Use "you" and first-person language naturally
+ADVICE (2–3 sentences): Offer something genuinely useful — not platitudes, not generic wellness tips. First acknowledge exactly what they are carrying — name it, sit with it. If you see a schema loop, name it gently before offering any reframe. If there is growth visible, celebrate it as a beginning, not an end. If there is loneliness, do not minimize it with silver linings. Meet them where they are, then offer one honest, possible next thing.
 
-Output format (IMPORTANT — return valid JSON only, no markdown, no extra text):
+Tone: Intimate. Honest. Non-clinical. Like a letter from someone who truly sees them — not a report written about them.
+
+Output: Return ONLY valid JSON, no markdown, no extra text:
 {"analysis":"...","advice":"..."}`;
 
 export async function POST(req: Request) {
@@ -39,12 +43,20 @@ export async function POST(req: Request) {
 
     // Cap at 60 messages to stay within context limits
     const sample = messages.slice(-60);
-    const prompt = `Here are the messages this person shared with their emotional support companion during ${period}. Analyse them as described.\n\nMessages:\n${sample.map((m, i) => `${i + 1}. ${m}`).join("\n")}`;
+    const prompt = [
+      `Here are the messages this person shared with their emotional companion during ${period}.`,
+      `Read them with the eyes of someone who truly sees people — not just what is said, but what is felt underneath.`,
+      `Look for the recurring patterns, the unspoken aches, and any signs of growth or insight.`,
+      `The messages may be in any of 22 supported languages (Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu, Arabic, Chinese, Japanese, Spanish, French, German, Portuguese, Russian, Indonesian, Hebrew, English). Read them in their original language. Write your analysis and advice in the same language the messages are written in.`,
+      ``,
+      `Messages:`,
+      sample.map((m, i) => `${i + 1}. ${m}`).join("\n"),
+    ].join("\n");
 
     const result = await callImotaraAI(prompt, {
       system: PSYCH_SYSTEM,
-      maxTokens: 400,
-      temperature: 0.65,
+      maxTokens: 600,
+      temperature: 0.7,
     });
 
     if (!result.text) {

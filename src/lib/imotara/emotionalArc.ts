@@ -58,7 +58,16 @@ export function isArcDue(): boolean {
 function buildArcContext(
   threads: Array<{ messages: Array<{ role: string; content: string; createdAt: number }> }>,
   cutoffMs = DEFAULT_INTERVAL_MS
-): { emotionProgression: string[]; milestones: string[]; threadCount: number } {
+): {
+  emotionProgression: string[];
+  milestones: string[];
+  threadCount: number;
+  openingQuotes: string[];
+  closingQuotes: string[];
+  schemaSignals: string[];
+  growthSignals: string[];
+  rawSample: string[];
+} {
   const cutoff = Date.now() - cutoffMs;
   const positiveWords = ["better", "good", "happy", "grateful", "hopeful", "proud", "calm", "peace", "progress", "healed", "resolved"];
   const challengeWords = ["struggle", "hard", "difficult", "exhausted", "sad", "anxious", "overwhelmed", "lost", "confused", "hurt", "tired"];
@@ -67,6 +76,7 @@ function buildArcContext(
   let positiveShift = 0;
   let challengeStart = 0;
   let relevantThreads = 0;
+  const allUserMsgs: { content: string; createdAt: number }[] = [];
 
   for (const thread of threads) {
     const recentMsgs = thread.messages.filter(
@@ -74,16 +84,56 @@ function buildArcContext(
     );
     if (recentMsgs.length === 0) continue;
     relevantThreads++;
+    allUserMsgs.push(...recentMsgs);
 
     const allText = recentMsgs.map((m) => m.content.toLowerCase()).join(" ");
     if (positiveWords.some((w) => allText.includes(w))) positiveShift++;
     if (challengeWords.some((w) => allText.includes(w))) challengeStart++;
 
-    // Simple milestone detection
-    if (/\b(finally|breakthrough|realized|figured out|made a decision|let go|accepted|forgave?)\b/i.test(allText)) {
-      const snippet = recentMsgs[0].content.slice(0, 60).replace(/\n/g, " ");
+    if (/\b(finally|breakthrough|realized|figured out|made a decision|let go|accepted|forgave|i see now|it clicked)\b/i.test(allText)) {
+      const snippet = recentMsgs[0].content.slice(0, 80).replace(/\n/g, " ");
       milestones.push(snippet);
     }
+  }
+
+  allUserMsgs.sort((a, b) => a.createdAt - b.createdAt);
+
+  // Language-agnostic quote extraction — no English-only filter, works for all 22 supported languages
+  const toQuote = (m: { content: string }) =>
+    `"${m.content.slice(0, 100).replace(/\n/g, " ").trim()}${m.content.length > 100 ? "..." : ""}"`;
+
+  const openingQuotes = allUserMsgs.slice(0, 3)
+    .filter(m => m.content.length > 15)
+    .map(toQuote)
+    .slice(0, 2);
+
+  const closingQuotes = allUserMsgs.slice(-3)
+    .filter(m => m.content.length > 15)
+    .map(toQuote)
+    .slice(0, 2);
+
+  const allText = allUserMsgs.map(m => m.content).join(" ");
+
+  const schemaChecks: Array<[RegExp, string]> = [
+    [/\b(not enough|not good enough|worthless|broken|defective|i always fail)\b/i, "not feeling enough"],
+    [/\b(abandoned|everyone leaves|no one stays)\b/i, "abandonment fears"],
+    [/\b(trapped|stuck|no way out|suffocating)\b/i, "feeling trapped"],
+    [/\b(shame|ashamed|humiliated|invisible|no one cares)\b/i, "shame or invisibility"],
+  ];
+  const schemaSignals: string[] = [];
+  for (const [re, label] of schemaChecks) {
+    if (re.test(allText)) schemaSignals.push(label);
+  }
+
+  const growthChecks: Array<[RegExp, string]> = [
+    [/\b(realized|breakthrough|i see now|it clicked|finally understood)\b/i, "insight and realization"],
+    [/\b(accepted|let go|moved on|forgave|at peace)\b/i, "acceptance"],
+    [/\b(boundary|chose myself|stood up for|said no)\b/i, "healthy choices"],
+    [/\b(grateful|proud of myself|surprised myself|stronger|healed)\b/i, "self-recognition"],
+  ];
+  const growthSignals: string[] = [];
+  for (const [re, label] of growthChecks) {
+    if (re.test(allText)) growthSignals.push(label);
   }
 
   const progression: string[] = [];
@@ -91,10 +141,19 @@ function buildArcContext(
   if (positiveShift > challengeStart) progression.push("moved toward something lighter");
   if (milestones.length > 0) progression.push("had at least one meaningful shift");
 
+  // Raw sample for all 22 languages — lets the AI read non-English messages natively
+  const rawSample = allUserMsgs.slice(-8)
+    .map((m, i) => `[${i + 1}] ${m.content.slice(0, 200).replace(/\n/g, " ").trim()}`);
+
   return {
     emotionProgression: progression,
     milestones: milestones.slice(0, 3),
     threadCount: relevantThreads,
+    openingQuotes,
+    closingQuotes,
+    schemaSignals,
+    growthSignals,
+    rawSample,
   };
 }
 
@@ -102,29 +161,62 @@ export async function generateEmotionalArc(
   threads: Array<{ messages: Array<{ role: string; content: string; createdAt: number }> }>,
   userName: string
 ): Promise<EmotionalArc | null> {
-  const { emotionProgression, milestones, threadCount } = buildArcContext(threads, getIntervalMs());
+  const {
+    emotionProgression, milestones, threadCount,
+    openingQuotes, closingQuotes, schemaSignals, growthSignals, rawSample,
+  } = buildArcContext(threads, getIntervalMs());
   const now = new Date();
   const periodLabel = now.toLocaleString("en", { month: "long", year: "numeric" });
 
   if (threadCount < 2) return null;
 
-  const progressionText =
-    emotionProgression.length > 0
-      ? `The arc this month: ${emotionProgression.join(", ")}.`
-      : "There was meaningful movement across several conversations this month.";
+  const contextParts: string[] = [];
+  if (emotionProgression.length > 0) {
+    contextParts.push(`Arc this month: ${emotionProgression.join(", ")}.`);
+  }
+  if (openingQuotes.length > 0) {
+    contextParts.push(`How the month opened (their own words): ${openingQuotes.join(" / ")}`);
+  }
+  if (closingQuotes.length > 0) {
+    contextParts.push(`Where they are now (their own words): ${closingQuotes.join(" / ")}`);
+  }
+  if (milestones.length > 0) {
+    contextParts.push(`Turning points detected: "${milestones.join('"; "')}"`);
+  }
+  if (schemaSignals.length > 0) {
+    contextParts.push(`Recurring inner themes: ${schemaSignals.join(", ")}.`);
+  }
+  if (growthSignals.length > 0) {
+    contextParts.push(`Signs of growth or shift: ${growthSignals.join(", ")}.`);
+  }
 
-  const milestoneText =
-    milestones.length > 0
-      ? `Notable moments detected: "${milestones.join('"; "')}".`
-      : "";
+  // Always include raw sample so AI can read non-English messages in their original language
+  if (rawSample.length > 0) {
+    contextParts.push(`Raw messages (read in original language — Hindi, Bengali, Arabic, etc. all supported):\n${rawSample.join("\n")}`);
+  }
+
+  const contextText = contextParts.length > 0
+    ? contextParts.join("\n")
+    : "There was meaningful movement across several conversations this month.";
 
   const prompt = [
-    `Write a short personal narrative (not a list, not bullet points — a flowing story) about ${userName}'s emotional journey this month (${periodLabel}).`,
-    progressionText,
-    milestoneText,
-    `Use second person ("You started...", "By mid-month..."). Include: how the month opened emotionally, any turning points or shifts you detected, something the user should be proud of, and a closing line that looks forward.`,
-    `Tone: intimate, honest, hopeful. 3 paragraphs max. No headers. No emojis.`,
-  ].join(" ");
+    `Write a flowing personal narrative — a story, not a list — about ${userName}'s inner journey this month (${periodLabel}).`,
+    ``,
+    `CONTEXT (what you observed):`,
+    contextText,
+    ``,
+    `HOW TO WRITE THIS NARRATIVE:`,
+    `- Use second person: "You started...", "By mid-month...", "Something shifted when..."`,
+    `- If opening and closing quotes show contrast: trace that arc explicitly — what they carried at the start, and where they stand now`,
+    `- If you see recurring themes (not feeling enough, fear of abandonment, shame): name them in warm, plain language — as if saying out loud what they've only half-noticed themselves`,
+    `- If there is growth or insight: name it as the beginning of something, not its completion — "what happened to you is becoming part of who you're becoming"`,
+    `- End with one honest, specific thing they should carry forward — a genuine hope, not a motivational slogan`,
+    `- OPTIONAL: one line from a myth, poem, or ancient story if it fits the arc perfectly. Leave it out if it feels forced.`,
+    ``,
+    `FORMAT: 3 flowing paragraphs. No headers. No bullet points. No emojis. No therapy-speak.`,
+    `LANGUAGE: Write in whatever language the raw messages above are written in. Match their language exactly — Hindi for Hindi speakers, Bengali for Bengali, Tamil for Tamil, etc. Do not translate into English unless their messages were in English.`,
+    `Write with the intimacy of someone who has been watching quietly, and finally speaks.`,
+  ].join("\n");
 
   try {
     const res = await fetch("/api/respond", {

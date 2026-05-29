@@ -467,7 +467,7 @@ export default function Home() {
 
             <p className="mt-4 text-[11px] text-zinc-400">
               Tip: You can stay fully local. Turn on remote analysis only if you
-              want deeper AI reflections.
+              want deeper companion reflections.
             </p>
           </div>
         </div>
@@ -528,7 +528,7 @@ export default function Home() {
             {[
               {
                 q: "What is Imotara?",
-                a: "Imotara is a free, private AI emotional wellness companion. It helps you talk about your feelings, track your mood over time, and receive gentle AI-powered reflections — in 22 languages, with no ads and full privacy control.",
+                a: "Imotara is a free, private emotional wellness companion. It helps you talk about your feelings, track your mood over time, and receive gentle, thoughtful reflections — in 22 languages, with no ads and full privacy control.",
               },
               {
                 q: "Is Imotara free to use?",

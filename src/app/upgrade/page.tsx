@@ -428,7 +428,7 @@ export default function UpgradePage() {
                                 "Data residency options",
                                 "Bulk seat management",
                                 "Dedicated onboarding & support",
-                                "Custom AI persona",
+                                "Custom companion persona",
                                 "SLA & compliance docs",
                             ].map((f) => (
                                 <li key={f} className="flex items-start gap-2">
@@ -476,12 +476,12 @@ export default function UpgradePage() {
                             {[
                                 {
                                     label: "Cloud replies / day",
-                                    desc: "AI replies backed by cloud memory and history",
+                                    desc: "Cloud replies backed by memory and history",
                                     free: "20/day", plus: "Unlimited", pro: "Unlimited", ent: "Unlimited",
                                 },
                                 {
                                     label: "On-device replies",
-                                    desc: "Local AI replies — always free, no login needed",
+                                    desc: "On-device replies — always free, no login needed",
                                     free: true, plus: true, pro: true, ent: true,
                                 },
                                 {
@@ -496,17 +496,17 @@ export default function UpgradePage() {
                                 },
                                 {
                                     label: "Companion mode / personas",
-                                    desc: "Themed AI personalities — Coach, Listener, Challenger, and more",
+                                    desc: "Themed companion personalities — Coach, Listener, Challenger, and more",
                                     free: false, plus: true, pro: true, ent: true,
                                 },
                                 {
                                     label: "Response length control",
-                                    desc: "Switch between short, medium, and detailed AI response modes",
+                                    desc: "Switch between short, medium, and detailed response modes",
                                     free: false, plus: true, pro: true, ent: true,
                                 },
                                 {
                                     label: "Companion tone selection",
-                                    desc: "Choose the mood of your AI companion — Warm, Direct, Playful, and more",
+                                    desc: "Choose the mood of your companion — Warm, Direct, Playful, and more",
                                     free: "1 tone", plus: "All tones", pro: "All tones", ent: "All tones",
                                 },
                                 {
@@ -564,7 +564,7 @@ export default function UpgradePage() {
                             {[
                                 {
                                     label: "Text-to-speech (TTS)",
-                                    desc: "AI replies read aloud using a synthetic voice",
+                                    desc: "Companion replies read aloud using a natural voice",
                                     free: "Basic", plus: true, pro: true, ent: true,
                                 },
                                 {
@@ -602,7 +602,7 @@ export default function UpgradePage() {
                             {/* ── AI Companion ── */}
                             <tr className="bg-white/[0.03]">
                                 <td colSpan={5} className="py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-                                    AI Companion &amp; Insights
+                                    Companion &amp; Insights
                                 </td>
                             </tr>
                             {[
@@ -638,7 +638,7 @@ export default function UpgradePage() {
                                 },
                                 {
                                     label: "Companion letter",
-                                    desc: "Monthly AI-written letter reflecting on your journey and growth",
+                                    desc: "Monthly companion letter reflecting on your journey and growth",
                                     free: false, plus: false, pro: true, ent: true,
                                 },
                                 {
@@ -760,7 +760,7 @@ export default function UpgradePage() {
                                 },
                                 {
                                     label: "Custom integrations",
-                                    desc: "Bespoke webhooks, HR system connectors, or custom AI model tuning",
+                                    desc: "Bespoke webhooks, HR system connectors, or custom integrations",
                                     free: false, plus: false, pro: false, ent: true,
                                 },
                                 {

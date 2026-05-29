@@ -51,30 +51,30 @@ export const metadata: Metadata = {
     "A quiet, charitable exploration at the edge of feeling, memory and meaning. A companion that notices — without surveillance or ads.",
   keywords: [
     "Imotara",
-    "AI emotional wellness app",
-    "AI companion app",
+    "emotional wellness app",
+    "private companion app",
     "mental health app",
     "emotional support app",
     "mood tracker",
-    "AI mental health",
+    "mental wellness",
     "emotional wellbeing",
     "digital companion",
-    "ethical AI",
+    "private companion",
     "multilingual mental health",
-    "AI friend",
+    "private companion",
     "emotional diary",
     "mood journal app",
     "anxiety support app",
     "mindfulness app",
-    "AI therapy companion",
+    "therapy alternative companion",
     "emotional intelligence app",
     "free mental health app",
     "mental wellness Android app",
     "emotional health tracker",
-    "AI chat for mental health",
+    "private chat for mental health",
   ],
   authors: [{ name: "Soumen Roy", url: "https://soumenroy.com" }],
-  category: "AI Companion",
+  category: "Health & Fitness",
   applicationName: "Imotara",
   manifest: "/site.webmanifest",
   openGraph: {
@@ -157,7 +157,7 @@ function JsonLd() {
     url: site,
     name: "Imotara",
     description:
-      "Imotara is a free AI emotional wellness companion. Talk about how you feel, track your mood, and get gentle AI support — in your language, at your pace.",
+      "Imotara is a free private emotional wellness companion. Talk about how you feel, track your mood, and get gentle support — in your language, at your pace.",
     publisher: { "@type": "Organization", name: "Imotara", url: site },
     inLanguage: "en",
     potentialAction: {
@@ -170,12 +170,12 @@ function JsonLd() {
   const mobileApp = {
     "@context": "https://schema.org",
     "@type": "MobileApplication",
-    name: "Imotara — AI Emotional Wellness",
+    name: "Imotara — Emotional Wellness Companion",
     operatingSystem: ["ANDROID", "IOS"],
     applicationCategory: "HealthApplication",
     applicationSubCategory: "Mental Health",
     description:
-      "Imotara is your private AI emotional wellness companion. Talk about how you feel, track your mood, and get gentle AI support in 22 languages — with no ads, no surveillance.",
+      "Imotara is your private emotional wellness companion. Talk about how you feel, track your mood, and get gentle support in 22 languages — with no ads, no surveillance.",
     url: site,
     downloadUrl: [
       "https://play.google.com/store/apps/details?id=com.imotara.imotara",
@@ -187,7 +187,7 @@ function JsonLd() {
     ],
     screenshot: `${site}/og-image.png`,
     featureList: [
-      "Private AI chat for emotional support",
+      "Private companion chat for emotional support",
       "Mood history timeline and trend analysis",
       "22 languages supported",
       "Local-first — data stays on your device by default",
@@ -209,21 +209,21 @@ function JsonLd() {
       "ta","te","ml","kn","mr","gu","pa","ur","or",
     ],
     keywords:
-      "AI companion, emotional wellness, mental health, mood tracker, multilingual AI, anxiety support, mindfulness, AI therapy alternative, talk about feelings, private mental health app",
+      "emotional wellness companion, mental health, mood tracker, multilingual, anxiety support, mindfulness, therapy alternative, talk about feelings, private mental health app",
   };
 
   const webApp = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "Imotara — AI Emotional Wellness",
+    name: "Imotara — Emotional Wellness Companion",
     applicationCategory: "HealthApplication",
     applicationSubCategory: "Mental Health",
     operatingSystem: "Web",
     description:
-      "Imotara is a free web app and AI companion for emotional wellness. Talk about your feelings, track your mood, and get gentle AI reflections — privately, in 22 languages, with no ads.",
+      "Imotara is a free private companion for emotional wellness. Talk about your feelings, track your mood, and get gentle reflections — privately, in 22 languages, with no ads.",
     url: site,
     featureList: [
-      "Private AI chat for emotional support",
+      "Private companion chat for emotional support",
       "Mood history timeline",
       "22 languages supported",
       "Works offline as a PWA",
@@ -248,7 +248,7 @@ function JsonLd() {
         name: "What is Imotara?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Imotara is a free, private AI emotional wellness companion available on web, Android, and iOS. It helps you talk about your feelings, track your mood over time, and receive gentle AI-powered reflections — in 22 languages, with no ads, no social feed, and full privacy control.",
+          text: "Imotara is a free, private emotional wellness companion available on web, Android, and iOS. It helps you talk about your feelings, track your mood over time, and receive gentle, thoughtful reflections — in 22 languages, with no ads, no social feed, and full privacy control.",
         },
       },
       {
@@ -301,10 +301,10 @@ function JsonLd() {
       },
       {
         "@type": "Question",
-        name: "What AI model does Imotara use?",
+        name: "How does Imotara work?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Imotara uses GPT-4.1 for cloud-based AI reflections. You can also use the app in fully local mode without any AI model for complete privacy.",
+          text: "Imotara uses advanced language technology for cloud-based reflections. You can also use the app in fully local mode on your device for complete privacy.",
         },
       },
     ],

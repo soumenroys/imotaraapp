@@ -4,19 +4,19 @@ import Link from "next/link";
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: "AI Companion for Emotional Support — Imotara",
+  title: "Your Private Companion for Emotional Support — Imotara",
   description:
-    "Imotara is a free AI companion for emotional support. Talk about your feelings anytime, get gentle reflections, and track your mood — privately, in 22 languages, with no ads.",
+    "Imotara is a free private companion for emotional support. Talk about your feelings anytime, get gentle reflections, and track your mood — privately, in 22 languages, with no ads.",
   keywords: [
-    "AI companion for emotional support",
-    "AI emotional support app",
-    "AI friend for mental health",
-    "talk to AI about feelings",
-    "AI chat for emotional support",
-    "free AI companion app",
-    "private AI emotional wellness",
-    "AI support for anxiety",
-    "AI mental health companion",
+    "emotional support companion",
+    "emotional support app",
+    "private companion for mental health",
+    "talk about your feelings",
+    "private chat for emotional support",
+    "free private companion app",
+    "private emotional wellness",
+    "companion support for anxiety",
+    "private mental health companion",
     "emotional support chatbot",
   ],
   alternates: { canonical: `${SITE_URL}/ai-emotional-support` },
@@ -24,23 +24,23 @@ export const metadata: Metadata = {
     type: "website",
     url: `${SITE_URL}/ai-emotional-support`,
     siteName: "Imotara",
-    title: "AI Companion for Emotional Support — Imotara",
+    title: "Your Private Companion for Emotional Support — Imotara",
     description:
-      "Talk about your feelings with Imotara — a free, private AI companion that listens without judgment, tracks your mood, and supports your emotional wellness.",
-    images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "Imotara AI Emotional Support" }],
+      "Talk about your feelings with Imotara — a free, private companion that listens without judgment, tracks your mood, and supports your emotional wellness.",
+    images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "Imotara Emotional Support" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI Companion for Emotional Support — Imotara",
-    description: "A free, private AI companion that listens, reflects, and supports your emotional wellness.",
+    title: "Your Private Companion for Emotional Support — Imotara",
+    description: "A free, private companion that listens, reflects, and supports your emotional wellness.",
     images: [`${SITE_URL}/og-image.png`],
   },
 };
 
 const faqs = [
   {
-    q: "What is an AI companion for emotional support?",
-    a: "An AI emotional support companion is a private, always-available space where you can talk about how you feel — without judgment. Imotara listens, reflects your thoughts back gently, and helps you notice emotional patterns over time.",
+    q: "What is Imotara?",
+    a: "Imotara is a private, always-available space where you can talk about how you feel — without judgment. Imotara listens, reflects your thoughts back gently, and helps you notice emotional patterns over time.",
   },
   {
     q: "How is Imotara different from a chatbot?",
@@ -72,16 +72,16 @@ export default function AiEmotionalSupportPage() {
         {/* Hero */}
         <section className="imotara-glass-card rounded-2xl px-6 py-8 sm:px-8 sm:py-10">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-400">
-            Imotara · AI Emotional Support
+            Imotara · Emotional Support
           </p>
           <h1 id="page-title" className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl">
-            An AI Companion for{" "}
+            A Private Companion for{" "}
             <span className="bg-gradient-to-r from-indigo-300 via-sky-300 to-emerald-200 bg-clip-text text-transparent">
               Emotional Support
             </span>
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-300">
-            Imotara is a free, private AI companion that listens to how you feel — without judgment, without ads,
+            Imotara is a free, private companion that listens to how you feel — without judgment, without ads,
             and without sharing your data. Talk about anything on your mind and receive gentle, thoughtful reflections
             in your language, at your pace.
           </p>
@@ -143,7 +143,7 @@ export default function AiEmotionalSupportPage() {
               "People dealing with day-to-day stress, anxiety, or overwhelm",
               "Those who find it easier to write feelings than speak them aloud",
               "People who want to understand their emotional patterns over time",
-              "Anyone who wants an AI companion that feels personal, not generic",
+              "Anyone who wants a companion that feels personal, not generic",
               "Users in 22 languages who want emotional support in their native tongue",
             ].map((item) => (
               <li key={item} className="flex gap-2"><span className="text-indigo-400">→</span>{item}</li>

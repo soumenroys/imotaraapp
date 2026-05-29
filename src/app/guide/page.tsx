@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "How to Use Imotara — AI Emotional Wellness Companion",
+  title: "How to Use Imotara — Your Private Emotional Wellness Companion",
   description:
     "A step-by-step guide to getting started with Imotara: talk freely, personalize your companion, and keep your data private.",
   openGraph: {
@@ -33,7 +33,7 @@ const STEPS = [
     bg: "bg-sky-500/10",
     icon: "☁️",
     title: "Works everywhere",
-    body: "When online, Imotara uses AI to craft thoughtful replies. Even without internet, local mode keeps your conversations going — no interruptions, no blank screens.",
+    body: "When online, Imotara crafts thoughtful replies. Even without internet, local mode keeps your conversations going — no interruptions, no blank screens.",
   },
   {
     number: "03",

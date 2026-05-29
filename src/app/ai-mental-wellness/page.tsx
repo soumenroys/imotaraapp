@@ -4,18 +4,18 @@ import Link from "next/link";
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: "AI Mental Wellness App — Free & Private — Imotara",
+  title: "Emotional Wellness App — Free & Private — Imotara",
   description:
-    "Imotara is a free AI mental wellness app. Get gentle AI support for your emotional health, track your mood, and build self-awareness — in 22 languages, no ads, fully private.",
+    "Imotara is a free private emotional wellness app. Get gentle companion support, track your mood, and build self-awareness — in 22 languages, no ads, fully private.",
   keywords: [
-    "AI mental wellness app",
-    "free mental wellness app",
-    "AI app for mental health",
-    "mental wellness AI companion",
-    "AI self-care app",
     "emotional wellness app",
-    "mindfulness AI app",
-    "AI for emotional wellbeing",
+    "free mental wellness app",
+    "private app for mental health",
+    "mental wellness companion",
+    "private self-care app",
+    "emotional wellness app",
+    "mindfulness app",
+    "companion for emotional wellbeing",
     "mental health app no subscription",
     "private mental wellness app",
   ],
@@ -24,31 +24,31 @@ export const metadata: Metadata = {
     type: "website",
     url: `${SITE_URL}/ai-mental-wellness`,
     siteName: "Imotara",
-    title: "AI Mental Wellness App — Free & Private — Imotara",
+    title: "Emotional Wellness App — Free & Private — Imotara",
     description:
-      "Imotara is a free AI mental wellness companion. Talk about your feelings, track your mood, and build emotional self-awareness — privately, in 22 languages.",
-    images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "Imotara AI Mental Wellness" }],
+      "Imotara is a free private mental wellness companion. Talk about your feelings, track your mood, and build emotional self-awareness — privately, in 22 languages.",
+    images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "Imotara Mental Wellness" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI Mental Wellness App — Free & Private — Imotara",
-    description: "Free AI mental wellness companion. Private, no ads, 22 languages, no account needed.",
+    title: "Emotional Wellness App — Free & Private — Imotara",
+    description: "Free private mental wellness companion. No ads, 22 languages, no account needed.",
     images: [`${SITE_URL}/og-image.png`],
   },
 };
 
 const faqs = [
   {
-    q: "What is an AI mental wellness app?",
-    a: "An AI mental wellness app uses artificial intelligence to support your emotional health — helping you reflect on feelings, track mood patterns, and build self-awareness. Imotara is designed to be private, empathetic, and judgment-free.",
+    q: "What is Imotara?",
+    a: "Imotara is a private companion that supports your emotional health — helping you reflect on feelings, track mood patterns, and build self-awareness. Imotara is designed to be private, empathetic, and judgment-free.",
   },
   {
     q: "How does Imotara support mental wellness?",
-    a: "Imotara provides a private space to talk about how you feel, get AI-powered reflections, track your mood over time, and practice mindfulness with built-in breathing exercises. It helps you develop emotional awareness and healthy self-reflection habits.",
+    a: "Imotara provides a private space to talk about how you feel, get thoughtful reflections, track your mood over time, and practice mindfulness with built-in breathing exercises. It helps you develop emotional awareness and healthy self-reflection habits.",
   },
   {
     q: "Is Imotara free?",
-    a: "Yes. All core features — chat, mood history, timeline, AI reflections, and mindfulness tools — are completely free. No subscription, no paywall.",
+    a: "Yes. All core features — chat, mood history, timeline, companion reflections, and mindfulness tools — are completely free. No subscription, no paywall.",
   },
   {
     q: "Is Imotara safe and private?",
@@ -76,16 +76,16 @@ export default function AiMentalWellnessPage() {
         {/* Hero */}
         <section className="imotara-glass-card rounded-2xl px-6 py-8 sm:px-8 sm:py-10">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-400">
-            Imotara · AI Mental Wellness
+            Imotara · Mental Wellness
           </p>
           <h1 id="page-title" className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl">
-            A Free AI App for{" "}
+            A Free Private App for{" "}
             <span className="bg-gradient-to-r from-indigo-300 via-sky-300 to-emerald-200 bg-clip-text text-transparent">
               Mental Wellness
             </span>
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-300">
-            Imotara is a free, private AI companion for your emotional wellbeing. Talk about your feelings,
+            Imotara is a free, private companion for your emotional wellbeing. Talk about your feelings,
             track your mood, practice mindfulness, and build emotional self-awareness — in 22 languages,
             with no ads and no account required.
           </p>
@@ -130,7 +130,7 @@ export default function AiMentalWellnessPage() {
           <h2 className="mb-4 text-lg font-semibold text-zinc-100">Mental wellness features</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { title: "AI emotional chat", desc: "Talk about anything — stress, relationships, low mood, gratitude. Get thoughtful, personalised reflections.", color: "from-indigo-500/20 to-sky-500/10" },
+              { title: "Private emotional chat", desc: "Talk about anything — stress, relationships, low mood, gratitude. Get thoughtful, personalised reflections.", color: "from-indigo-500/20 to-sky-500/10" },
               { title: "Mood history & trends", desc: "A visual timeline of your emotional entries. See patterns you might miss in the moment.", color: "from-emerald-500/20 to-teal-500/10" },
               { title: "Mindfulness & breathing", desc: "Built-in breathing exercises to calm anxiety and ground yourself in the present moment.", color: "from-violet-500/20 to-indigo-500/10" },
               { title: "Daily reflection prompts", desc: "Gentle prompts to help you check in with yourself — even on days when words don't come easily.", color: "from-amber-500/20 to-orange-500/10" },
@@ -162,7 +162,7 @@ export default function AiMentalWellnessPage() {
                   ["Free", "✓ Fully free", "Often subscription"],
                   ["Private / local-first", "✓ On-device by default", "Cloud-first, ads"],
                   ["No account needed", "✓ No sign-up", "Usually required"],
-                  ["AI reflections", "✓ GPT-4.1 powered", "Scripted or none"],
+                  ["Companion reflections", "✓ Private & secure", "Scripted or none"],
                   ["Mood timeline", "✓ Built-in", "Often paywalled"],
                   ["22 languages", "✓ Supported", "Usually English only"],
                   ["Offline use", "✓ Full offline support", "Rarely"],

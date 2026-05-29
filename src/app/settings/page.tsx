@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
@@ -1107,6 +1107,58 @@ export default function SettingsPage() {
     const replyCadenceGate    = useFeatureGate("REPLY_CADENCE");
     const companionLetterGate = useFeatureGate("COMPANION_LETTER");
     const growthArcGate       = useFeatureGate("GROWTH_ARC");
+
+    // Letter archive — loaded on mount
+    type LetterEntry = { id: string; generatedAt: number; body: string; companionName: string; reaction?: string; reply?: string; replyAt?: number };
+    const [letterArchive, setLetterArchive] = useState<LetterEntry[]>([]);
+    const [expandedLetterId, setExpandedLetterId] = useState<string | null>(null);
+    const [letterReplyDraft, setLetterReplyDraft] = useState<Record<string, string>>({});
+    const [speakingLetterId, setSpeakingLetterId] = useState<string | null>(null);
+    const ttsRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem("imotara.companion_letters.archive.v1");
+            if (raw) {
+                const parsed: LetterEntry[] = JSON.parse(raw);
+                setLetterArchive([...parsed].reverse()); // newest first
+            } else {
+                // Migrate legacy single letter
+                const legacyRaw = localStorage.getItem("imotara.companion_letter.v1");
+                if (legacyRaw) setLetterArchive([JSON.parse(legacyRaw)]);
+            }
+        } catch {}
+    }, [mounted]);
+
+    const updateLetterInState = useCallback((id: string, patch: Partial<LetterEntry>) => {
+        setLetterArchive((prev) => prev.map((l) => l.id === id ? { ...l, ...patch } : l));
+        try {
+            const raw = localStorage.getItem("imotara.companion_letters.archive.v1");
+            const archive: LetterEntry[] = raw ? JSON.parse(raw) : [];
+            const updated = archive.map((l) => l.id === id ? { ...l, ...patch } : l);
+            localStorage.setItem("imotara.companion_letters.archive.v1", JSON.stringify(updated));
+        } catch {}
+    }, []);
+
+    function handleLetterTTS(letter: LetterEntry) {
+        if (speakingLetterId === letter.id) {
+            window.speechSynthesis.cancel();
+            setSpeakingLetterId(null);
+            return;
+        }
+        window.speechSynthesis.cancel();
+        const utt = new SpeechSynthesisUtterance(letter.body);
+        utt.lang = "en-US";
+        utt.rate = 0.95;
+        utt.onend = () => setSpeakingLetterId(null);
+        utt.onerror = () => setSpeakingLetterId(null);
+        ttsRef.current = utt;
+        window.speechSynthesis.speak(utt);
+        setSpeakingLetterId(letter.id);
+    }
+
+    const LETTER_EMOJIS = ["❤️", "🥰", "💕", "💜", "💛", "🌟", "✨", "🫂", "🙏", "🕊️"];
+
     // ─────────────────────────────────────────────────────────────────────────
 
     // Cross-device chat link key (optional)
@@ -4004,6 +4056,135 @@ export default function SettingsPage() {
                             <p className="mt-0.5 text-[11px] text-zinc-500">{companionLetterGate.reason}</p>
                         </div>
                         <Link href="/upgrade" className="shrink-0 rounded-full bg-indigo-500/20 px-2.5 py-1 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/30 transition">Upgrade →</Link>
+                    </div>
+                    )}
+
+                    {/* Letters from Imotara — archive with TTS, reactions, replies */}
+                    {letterArchive.length > 0 && (
+                    <div className="mt-6">
+                        <div className="flex items-center justify-between mb-3">
+                            <div>
+                                <p className="text-xs font-semibold text-zinc-300">💌 Letters from Imotara</p>
+                                <p className="text-[11px] text-zinc-500 mt-0.5">{letterArchive.length} letter{letterArchive.length !== 1 ? "s" : ""} saved — react, reply, or listen</p>
+                            </div>
+                        </div>
+                        <div className="space-y-3">
+                            {letterArchive.map((letter) => {
+                                const isOpen = expandedLetterId === letter.id;
+                                const isSpeaking = speakingLetterId === letter.id;
+                                const date = new Date(letter.generatedAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+                                return (
+                                    <div key={letter.id} className="rounded-2xl border border-violet-400/20 bg-violet-500/5 overflow-hidden">
+                                        {/* Header */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setExpandedLetterId(isOpen ? null : letter.id)}
+                                            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/5 transition"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-lg">💌</span>
+                                                <div>
+                                                    <p className="text-xs font-semibold text-zinc-200">From {letter.companionName}</p>
+                                                    <p className="text-[11px] text-zinc-500">{date}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {letter.reaction && <span className="text-sm">{letter.reaction}</span>}
+                                                {letter.reply && <span className="text-[10px] text-indigo-400">replied</span>}
+                                                <span className="text-zinc-600 text-xs">{isOpen ? "▲" : "▼"}</span>
+                                            </div>
+                                        </button>
+
+                                        {isOpen && (
+                                            <div className="border-t border-white/8">
+                                                {/* Letter body */}
+                                                <div className="px-4 py-3 max-h-64 overflow-y-auto">
+                                                    <p className="text-sm text-zinc-300 leading-7 whitespace-pre-wrap">{letter.body}</p>
+                                                </div>
+
+                                                {/* Actions */}
+                                                <div className="flex gap-2 px-4 py-3 border-t border-white/8">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleLetterTTS(letter)}
+                                                        className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition ${isSpeaking ? "border-indigo-400/40 bg-indigo-500/15 text-indigo-300" : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10"}`}
+                                                    >
+                                                        <span>{isSpeaking ? "⏹" : "🔊"}</span>
+                                                        {isSpeaking ? "Stop" : "Listen"}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setExpandedLetterId(`${letter.id}-react`)}
+                                                        className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-white/10 transition"
+                                                    >
+                                                        <span>{letter.reaction ?? "🤍"}</span> React
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setExpandedLetterId(`${letter.id}-reply`)}
+                                                        className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-white/10 transition"
+                                                    >
+                                                        ↩ {letter.reply ? "Edit reply" : "Write reply"}
+                                                    </button>
+                                                </div>
+
+                                                {/* Reaction picker */}
+                                                {expandedLetterId === `${letter.id}-react` && (
+                                                    <div className="px-4 pb-3 flex flex-wrap gap-2">
+                                                        {LETTER_EMOJIS.map((emoji) => (
+                                                            <button
+                                                                key={emoji}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const next = letter.reaction === emoji ? undefined : emoji;
+                                                                    updateLetterInState(letter.id, { reaction: next });
+                                                                    setExpandedLetterId(letter.id);
+                                                                }}
+                                                                className={`text-xl p-1.5 rounded-lg transition ${letter.reaction === emoji ? "bg-indigo-500/20 ring-1 ring-indigo-400/40" : "hover:bg-white/8"}`}
+                                                            >
+                                                                {emoji}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {/* Reply box */}
+                                                {expandedLetterId === `${letter.id}-reply` && (
+                                                    <div className="px-4 pb-4 space-y-2">
+                                                        <p className="text-[11px] text-zinc-500">Your reply to {letter.companionName}:</p>
+                                                        <textarea
+                                                            value={letterReplyDraft[letter.id] ?? letter.reply ?? ""}
+                                                            onChange={(e) => setLetterReplyDraft((prev) => ({ ...prev, [letter.id]: e.target.value }))}
+                                                            placeholder={`Write back to ${letter.companionName}…`}
+                                                            rows={4}
+                                                            className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:border-indigo-400/40"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const text = (letterReplyDraft[letter.id] ?? "").trim();
+                                                                if (!text) return;
+                                                                updateLetterInState(letter.id, { reply: text, replyAt: Date.now() });
+                                                                setExpandedLetterId(letter.id);
+                                                            }}
+                                                            disabled={!(letterReplyDraft[letter.id] ?? "").trim()}
+                                                            className="rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 px-4 py-2 text-xs font-semibold text-white transition"
+                                                        >
+                                                            Save reply
+                                                        </button>
+                                                        {letter.reply && (
+                                                            <p className="text-[10px] text-zinc-600">
+                                                                ✓ Replied {letter.replyAt ? new Date(letter.replyAt).toLocaleDateString() : ""}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                     )}
 

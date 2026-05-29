@@ -6,10 +6,11 @@
 
 import type { ImotaraProfileV1 } from "./profile";
 
-const LAST_LETTER_KEY = "imotara.companion_letter.last_at.v1";
-const LETTER_KEY = "imotara.companion_letter.v1";
+const LAST_LETTER_KEY   = "imotara.companion_letter.last_at.v1";
+const LETTER_ARCHIVE_KEY = "imotara.companion_letters.archive.v1"; // array of letters
 const LETTER_CADENCE_KEY = "imotara.letter.cadenceDays.v1";
 const DEFAULT_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_ARCHIVE_SIZE = 24; // keep up to 24 letters (~2 years at monthly)
 
 function getIntervalMs(): number {
   try {
@@ -26,27 +27,70 @@ export type CompanionLetter = {
   generatedAt: number;
   body: string;
   companionName: string;
+  // User interactions
+  reaction?: string;   // emoji the user placed on this letter
+  reply?: string;      // user's written reply to the letter
+  replyAt?: number;    // timestamp when the reply was written
 };
 
 function isClient() {
   return typeof window !== "undefined" && typeof localStorage !== "undefined";
 }
 
-export function loadStoredLetter(): CompanionLetter | null {
-  if (!isClient()) return null;
+export function loadLetterArchive(): CompanionLetter[] {
+  if (!isClient()) return [];
   try {
-    const raw = localStorage.getItem(LETTER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const raw = localStorage.getItem(LETTER_ARCHIVE_KEY);
+    if (!raw) {
+      // Migrate single legacy letter into archive
+      const legacyRaw = localStorage.getItem("imotara.companion_letter.v1");
+      if (legacyRaw) {
+        const legacy: CompanionLetter = JSON.parse(legacyRaw);
+        return [legacy];
+      }
+      return [];
+    }
+    return JSON.parse(raw) as CompanionLetter[];
   } catch {
-    return null;
+    return [];
   }
 }
 
-function saveLetter(letter: CompanionLetter): void {
+export function loadStoredLetter(): CompanionLetter | null {
+  const archive = loadLetterArchive();
+  return archive.length > 0 ? archive[archive.length - 1] : null;
+}
+
+function saveLetterToArchive(letter: CompanionLetter): void {
   if (!isClient()) return;
   try {
-    localStorage.setItem(LETTER_KEY, JSON.stringify(letter));
+    const archive = loadLetterArchive();
+    const updated = [...archive.filter((l) => l.id !== letter.id), letter]
+      .slice(-MAX_ARCHIVE_SIZE);
+    localStorage.setItem(LETTER_ARCHIVE_KEY, JSON.stringify(updated));
     localStorage.setItem(LAST_LETTER_KEY, String(letter.generatedAt));
+  } catch {}
+}
+
+export function updateLetterInteraction(
+  id: string,
+  patch: { reaction?: string | null; reply?: string; replyAt?: number },
+): void {
+  if (!isClient()) return;
+  try {
+    const archive = loadLetterArchive();
+    const updated = archive.map((l) => {
+      if (l.id !== id) return l;
+      const next = { ...l };
+      if (patch.reaction !== undefined) {
+        if (patch.reaction === null) delete next.reaction;
+        else next.reaction = patch.reaction;
+      }
+      if (patch.reply !== undefined) next.reply = patch.reply;
+      if (patch.replyAt !== undefined) next.replyAt = patch.replyAt;
+      return next;
+    });
+    localStorage.setItem(LETTER_ARCHIVE_KEY, JSON.stringify(updated));
   } catch {}
 }
 
@@ -147,7 +191,7 @@ export async function generateCompanionLetter(
       body: body.trim(),
       companionName,
     };
-    saveLetter(letter);
+    saveLetterToArchive(letter);
     return letter;
   } catch {
     return null;

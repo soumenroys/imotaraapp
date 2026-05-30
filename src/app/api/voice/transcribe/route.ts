@@ -43,11 +43,18 @@ export async function POST(req: NextRequest) {
 
     let whisperRes: Response;
     try {
-        whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${apiKey}` },
-            body: whisperForm,
-        });
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 55_000); // 55s — Vercel limit is 60s
+        try {
+            whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${apiKey}` },
+                body: whisperForm,
+                signal: ctrl.signal,
+            });
+        } finally {
+            clearTimeout(timer);
+        }
     } catch (err) {
         console.error("[voice/transcribe] Whisper fetch failed:", err);
         return NextResponse.json({ error: "STT service unavailable" }, { status: 502 });

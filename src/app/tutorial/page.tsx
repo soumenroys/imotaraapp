@@ -444,7 +444,7 @@ function BannerAdvanced() {
             <input type="range" className="w-full h-1 mt-1 accent-indigo-500" defaultValue={20} min={10} max={60} readOnly />
             <p className="text-[7px] text-zinc-600 text-right">20s</p>
           </div>
-          <p className="text-[7px] text-zinc-600 text-center">v1.1.8 · build 96</p>
+          <p className="text-[7px] text-zinc-600 text-center">v1.1.9 · build 97</p>
         </div>
       </Phone>
     </div>
@@ -1776,7 +1776,7 @@ const FEATURES: Record<string, Feature[]> = {
       steps: [
         "Go to Settings → Advanced.",
         "Scroll to the bottom.",
-        "The version (e.g., v1.1.8) and build (e.g., build 96) are displayed.",
+        "The version (e.g., v1.1.9) and build (e.g., build 97) are displayed.",
       ],
     },
   ],

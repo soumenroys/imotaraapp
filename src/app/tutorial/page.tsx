@@ -374,7 +374,7 @@ function BannerPrivacy() {
         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Privacy & Safety</p>
         <p className="text-zinc-200 text-sm leading-relaxed">Full control over your data — choose what's analysed, what's synced, what's exported, and what's deleted. No data is ever sold.</p>
         <div className="mt-3 space-y-1">
-          {["🔒 Local-first by default", "☁ Cloud sync is opt-in", "📤 Export in 3 formats", "🗑 Delete anytime"].map(f => (
+          {["🔒 Local-first by default", "☁ Account backup is opt-in", "📤 Export in 3 formats", "🗑 Delete anytime"].map(f => (
             <p key={f} className="text-[11px] text-zinc-400">{f}</p>
           ))}
         </div>
@@ -384,7 +384,7 @@ function BannerPrivacy() {
           <p className="text-[9px] text-zinc-500 uppercase tracking-wider py-1">Privacy & safety</p>
           {[
             { label: "Store locally only", on: true, icon: "📱" },
-            { label: "Cloud sync", on: false, icon: "☁" },
+            { label: "Account backup", on: false, icon: "☁" },
             { label: "Emotion analysis", on: true, icon: "🧠" },
             { label: "Anonymous data", on: false, icon: "📊" },
           ].map(s => (
@@ -402,7 +402,7 @@ function BannerPrivacy() {
           </div>
           <div className="flex gap-1">
             <button className="flex-1 rounded-lg bg-indigo-600/20 border border-indigo-400/20 py-1 text-[8px] text-indigo-300">Export</button>
-            <button className="flex-1 rounded-lg bg-zinc-800 border border-zinc-700 py-1 text-[8px] text-zinc-400">Sync now</button>
+            <button className="flex-1 rounded-lg bg-zinc-800 border border-zinc-700 py-1 text-[8px] text-zinc-400">Back up now</button>
           </div>
         </div>
       </Phone>
@@ -810,10 +810,10 @@ const FEATURES: Record<string, Feature[]> = {
         "Just chat normally — routing is automatic.",
         "If you go offline, on-device replies activate seamlessly.",
         "To see which engine was used: Settings → Experience → Chat behaviour → Show sync status (toggle on).",
-        "With the toggle on, each reply shows a small label: 'cloud' or 'on-device'.",
+        "With the toggle on, each reply shows a small icon: a phone (on-device) or cloud (online).",
       ],
-      tip: "On-device replies are always unlimited and private on all plans — cloud replies have richer context but use your daily quota.",
-      tiers: { free: "20 cloud/day", plus: "Unlimited", pro: "Unlimited", ent: "Unlimited", note: "On-device replies are always unlimited on all plans." },
+      tip: "On-device replies are always unlimited and private on all plans — online replies have richer context but use your daily quota.",
+      tiers: { free: "20 enhanced/day", plus: "Unlimited", pro: "Unlimited", ent: "Unlimited", note: "On-device replies are always unlimited on all plans." },
     },
     {
       icon: "🔍",
@@ -1148,11 +1148,11 @@ const FEATURES: Record<string, Feature[]> = {
       long: "By default, Imotara syncs your history quietly in the background without showing any indicators — keeping the experience clean and private-feeling. If you want to see when your history last synced, you can enable the 'Show sync status' toggle in Settings. Once on, a small bar appears at the top of History showing the last sync time, and each message shows a sync chip.",
       steps: [
         "Go to Settings → Experience → Chat behaviour.",
-        "Toggle on 'Show sync status'.",
-        "Open the History tab — a sync status bar now appears at the top.",
-        "To trigger a manual sync: Settings → Privacy & safety → Remote history sync → Sync now.",
+        "Toggle on 'Show reply source'.",
+        "Open the History tab — a backup status bar now appears at the top.",
+        "To trigger a manual backup: Settings → Privacy & safety → Remote history backup → Back up now.",
       ],
-      tip: "Keeping sync status hidden (the default) makes the app feel more like a private companion and less like a data tool.",
+      tip: "Keeping reply source hidden (the default) makes the app feel more personal and less like a technical tool.",
     },
     {
       icon: "🔗",
@@ -1534,11 +1534,11 @@ const FEATURES: Record<string, Feature[]> = {
       long: "By default, Imotara keeps all sync indicators invisible so the app feels like a private companion rather than a data tool. Enabling this shows a sync status bar at the top of History and small chips on each message indicating whether it's been backed up to the cloud. Turn it on only if you want to actively monitor sync activity.",
       steps: [
         "Go to Settings → Experience → Chat behaviour (mobile) or Settings → Experience (web).",
-        "Find 'Show sync status'.",
-        "Toggle on to see sync badges on messages and the sync bar in History.",
+        "Find 'Show reply source'.",
+        "Toggle on to see small icons on each message showing whether the reply came from online or on-device mode.",
         "Toggle off (default) for a clean, indicator-free experience.",
       ],
-      tip: "Keeping this off (the default) makes Imotara feel more like a private companion — your data still syncs safely in the background, just silently.",
+      tip: "Keeping this off (the default) makes Imotara feel more personal — replies just appear naturally without technical indicators.",
     },
   ],
 
@@ -1600,9 +1600,9 @@ const FEATURES: Record<string, Feature[]> = {
       long: "Sync happens automatically in the background, but you can also trigger it manually from Settings. The sync result shows how many new records were pulled from the server or pushed from your device.",
       steps: [
         "Sign in with Google first.",
-        "Go to Settings → Privacy & safety → Remote history sync.",
-        "Tap 'Sync now'.",
-        "A message confirms the sync result: 'Synced, X new records from cloud'.",
+        "Go to Settings → Privacy & safety → Remote history backup.",
+        "Tap 'Back up now'.",
+        "A message confirms the result: 'Backup complete' or 'Everything already saved'.",
       ],
     },
     {
@@ -1756,6 +1756,19 @@ const FEATURES: Record<string, Feature[]> = {
       ],
     },
     {
+      icon: "🔍",
+      title: "Settings Search",
+      short: "Describe what you're looking for and Imotara finds the right setting instantly.",
+      long: "The Settings page has hundreds of options across many sections. Instead of scrolling through all of them, just type what you need in the search bar at the top — in plain language, in any of the 22 supported languages. For simple queries (like 'dark mode' or 'companion name') the result appears instantly without any network connection. For more descriptive queries (like 'I want Imotara to read messages aloud' or 'मुझे भाषा बदलनी है'), the smart search finds the exact setting and automatically opens the right section for you.",
+      steps: [
+        "Go to Settings.",
+        "Type in the search bar at the top — describe what you want to change.",
+        "Tap a result — the correct section opens and scrolls into view automatically.",
+        "Works in all 22 languages: English, Hindi, Bengali, Tamil, Arabic, Chinese, Japanese, and more.",
+      ],
+      tip: "You can describe settings in everyday language — 'make text bigger', 'stop reading messages aloud', 'change companion name' all work.",
+    },
+    {
       icon: "📱",
       title: "App Version & Build Info",
       short: "See which version and build number of Imotara you're running.",
@@ -1773,8 +1786,8 @@ const FEATURES: Record<string, Feature[]> = {
     {
       icon: "🆓",
       title: "Free Plan",
-      short: "Fully functional — 20 cloud replies per day, 7-day history, unlimited on-device replies.",
-      long: "The Free plan gives you the core Imotara experience: 20 cloud replies per day (reset at midnight), unlimited on-device replies, 7-day cloud history, streak tracking, mood check-ins, daily reminders, basic TTS, and full privacy controls. You never need to pay to use Imotara.",
+      short: "Fully functional — 20 enhanced replies per day, 7-day history, unlimited on-device replies.",
+      long: "The Free plan gives you the core Imotara experience: 20 enhanced replies per day (reset at midnight), unlimited on-device replies, 7-day history backup, streak tracking, mood check-ins, daily reminders, basic TTS, and full privacy controls. You never need to pay to use Imotara.",
       steps: [
         "No action needed — you start on the Free plan automatically.",
         "When you hit the daily limit, on-device replies take over.",

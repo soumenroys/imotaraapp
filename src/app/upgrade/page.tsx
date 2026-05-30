@@ -485,7 +485,7 @@ export default function UpgradePage() {
                                     free: true, plus: true, pro: true, ent: true,
                                 },
                                 {
-                                    label: "Cloud sync",
+                                    label: "Account backup",
                                     desc: "History and settings synced across all your devices",
                                     free: true, plus: true, pro: true, ent: true,
                                 },

@@ -3290,10 +3290,10 @@ export default function ChatPage() {
                           type="button"
                         >
                           <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
-                          Sync now
+                          Back up now
                         </button>
                       ) : (
-                        <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-white/15 bg-black/25 px-3 text-xs text-white/60" title="Cloud sync coming soon">
+                        <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-white/15 bg-black/25 px-3 text-xs text-white/60" title="Cross-device access coming soon">
                           <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" />
                           Cloud (Soon)
                         </span>

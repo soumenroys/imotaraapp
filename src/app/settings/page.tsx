@@ -2631,15 +2631,15 @@ export default function SettingsPage() {
                                 "Unlimited history",
                                 "Emotion insights (radar & heatmap)",
                                 "Data export (JSON)",
-                                "Cloud sync",
+                                "Account backup",
                             ] : tierLabel === "Plus" ? [
                                 "Unlimited replies",
                                 "90-day cloud history",
-                                "Cloud sync",
+                                "Account backup",
                                 "Companion mode",
                             ] : tierLabel === "Family" ? [
                                 "Unlimited history",
-                                "Cloud sync",
+                                "Account backup",
                                 "Multi-profile support",
                                 "Child-safe mode",
                             ] : [
@@ -3903,7 +3903,7 @@ export default function SettingsPage() {
                         disabled={syncBusy}
                         className="mt-3 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-200 transition hover:bg-indigo-500/20 disabled:opacity-50"
                     >
-                        {syncBusy ? "Syncing…" : "Sync now"}
+                        {syncBusy ? "Saving…" : "Back up now"}
                     </button>
                     {syncMsg && <p className="mt-2 text-[11px] text-zinc-400">{syncMsg}</p>}
                 </section>

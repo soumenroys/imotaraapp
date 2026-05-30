@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Imotara — System Design Document v1.1.9</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background: #f8f9fa; color: #1a1a2e; line-height: 1.7; font-size: 13px; }
+
+  .cover {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 70%, #4338ca 100%);
+    color: #fff; padding: 70px 60px; min-height: 55vh;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .cover .tag { font-size: 11px; letter-spacing: 3px; color: #a5b4fc; text-transform: uppercase; margin-bottom: 16px; }
+  .cover h1 { font-size: 3em; font-weight: 800; color: #e0e7ff; margin-bottom: 12px; }
+  .cover .subtitle { font-size: 1.1em; color: #c7d2fe; max-width: 600px; line-height: 1.6; }
+  .cover .meta { margin-top: 32px; font-size: 12px; color: #818cf8; }
+  .cover .meta span { margin-right: 24px; }
+
+  .toc { background: #1e1b4b; color: #e0e7ff; padding: 40px 60px; }
+  .toc h2 { color: #a5b4fc; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px; }
+  .toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 40px; }
+  .toc-item { font-size: 12px; color: #c7d2fe; padding: 3px 0; }
+  .toc-num { color: #6366f1; margin-right: 8px; font-weight: 600; }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 50px 40px; }
+
+  h2.section { font-size: 1.6em; color: #312e81; border-bottom: 3px solid #6366f1; padding-bottom: 8px; margin: 50px 0 24px; }
+  h3.sub { font-size: 1.1em; color: #4338ca; margin: 30px 0 12px; }
+  h4.sub2 { font-size: 0.95em; color: #6366f1; margin: 20px 0 8px; font-weight: 700; }
+
+  p { margin: 10px 0; color: #374151; }
+  ul { padding-left: 20px; margin: 10px 0; }
+  li { margin: 5px 0; color: #374151; }
+
+  /* Diagram boxes */
+  .diagram {
+    background: #0f172a; color: #e2e8f0; border-radius: 10px;
+    padding: 24px; margin: 20px 0; font-family: 'Courier New', monospace;
+    font-size: 11px; line-height: 1.6; overflow-x: auto;
+    white-space: pre;
+  }
+  .diagram.light { background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; }
+
+  /* Class diagram */
+  .class-box {
+    display: inline-block; border: 2px solid #6366f1; border-radius: 6px;
+    margin: 8px; min-width: 200px; font-size: 11px; vertical-align: top;
+    background: #fff;
+  }
+  .class-header { background: #4338ca; color: #fff; padding: 6px 12px; font-weight: 700; font-size: 12px; }
+  .class-header.green { background: #065f46; }
+  .class-header.blue { background: #1e40af; }
+  .class-header.purple { background: #6b21a8; }
+  .class-header.orange { background: #92400e; }
+  .class-header.slate { background: #334155; }
+  .class-section { padding: 6px 12px; border-top: 1px solid #e0e7ff; }
+  .class-item { font-family: monospace; font-size: 10px; margin: 2px 0; color: #374151; }
+  .class-item .type { color: #6366f1; }
+  .class-item .method { color: #059669; }
+  .class-item .optional { color: #9ca3af; }
+
+  .classes-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+
+  /* Info cards */
+  .card { background: #fff; border: 1px solid #e0e7ff; border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .card.blue { border-left: 4px solid #6366f1; }
+  .card.green { border-left: 4px solid #059669; }
+  .card.orange { border-left: 4px solid #d97706; }
+  .card.red { border-left: 4px solid #dc2626; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; margin: 2px; }
+  .badge.purple { background: #ede9fe; color: #6d28d9; }
+  .badge.blue { background: #dbeafe; color: #1d4ed8; }
+  .badge.green { background: #dcfce7; color: #15803d; }
+  .badge.orange { background: #fef3c7; color: #92400e; }
+  .badge.slate { background: #f1f5f9; color: #475569; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12px; }
+  th { background: #312e81; color: #e0e7ff; padding: 8px 12px; text-align: left; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e0e7ff; }
+  tr:hover td { background: #f5f3ff; }
+
+  .flow-step {
+    display: flex; align-items: flex-start; margin: 10px 0; gap: 12px;
+  }
+  .flow-num {
+    background: #4338ca; color: #fff; border-radius: 50%; width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center; font-size: 11px;
+    font-weight: 700; flex-shrink: 0; margin-top: 1px;
+  }
+
+  .tech-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 16px 0; }
+  .tech-item { background: #fff; border: 1px solid #e0e7ff; border-radius: 8px; padding: 14px; }
+  .tech-item h5 { color: #4338ca; font-size: 12px; margin-bottom: 6px; }
+  .tech-item p { font-size: 11px; color: #6b7280; }
+
+  .separator { border: none; border-top: 1px solid #e0e7ff; margin: 40px 0; }
+
+  .footer { background: #0f172a; color: #475569; text-align: center; padding: 32px; font-size: 11px; }
+  .footer strong { color: #6366f1; }
+
+  @media print {
+    body { font-size: 11px; }
+    .cover { min-height: auto; padding: 40px; }
+    .diagram { font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="tag">System Design Document</div>
+  <h1>🌸 Imotara</h1>
+  <p class="subtitle">Private Emotional Wellness Companion — Full Architecture, Data Models, Component Design, API Reference, and Design Decisions</p>
+  <div class="meta">
+    <span>Version 1.1.9 · Build 97</span>
+    <span>Web · iOS · Android</span>
+    <span>May 2026</span>
+  </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h2>Contents</h2>
+  <div class="toc-grid">
+    <div class="toc-item"><span class="toc-num">1</span>System Overview & Philosophy</div>
+    <div class="toc-item"><span class="toc-num">9</span>Theme System & Color Palette</div>
+    <div class="toc-item"><span class="toc-num">2</span>Technology Stack</div>
+    <div class="toc-item"><span class="toc-num">10</span>Navigation Architecture</div>
+    <div class="toc-item"><span class="toc-num">3</span>High-Level Architecture Diagram</div>
+    <div class="toc-item"><span class="toc-num">11</span>AI / Psychological Engine</div>
+    <div class="toc-item"><span class="toc-num">4</span>Data Models & Class Diagrams</div>
+    <div class="toc-item"><span class="toc-num">12</span>Payment & Licensing Architecture</div>
+    <div class="toc-item"><span class="toc-num">5</span>State Management</div>
+    <div class="toc-item"><span class="toc-num">13</span>Feature Architecture — Chat</div>
+    <div class="toc-item"><span class="toc-num">6</span>API Reference</div>
+    <div class="toc-item"><span class="toc-num">14</span>Feature Architecture — Trends</div>
+    <div class="toc-item"><span class="toc-num">7</span>Database Schema</div>
+    <div class="toc-item"><span class="toc-num">15</span>Performance & Production Patterns</div>
+    <div class="toc-item"><span class="toc-num">8</span>Screen Component Hierarchy</div>
+    <div class="toc-item"><span class="toc-num">16</span>Key Design Decisions</div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ═══════════ 1. SYSTEM OVERVIEW ═══════════ -->
+<h2 class="section" id="s1">1. System Overview & Philosophy</h2>
+
+<p>Imotara is a private emotional wellness companion available on iOS, Android, and web. It combines a psychologically-informed conversational AI with mood tracking, growth analytics, and a deeply personal companion relationship — all built on a privacy-first, local-first architecture.</p>
+
+<h3 class="sub">1.1 Core Design Principles</h3>
+<div class="classes-row">
+  <div class="card blue" style="flex:1;min-width:200px">
+    <h4 class="sub2">🔒 Local-First</h4>
+    <p>All conversations and data stored on-device by default. Cloud backup is explicit opt-in only. No data leaves the device without user action.</p>
+  </div>
+  <div class="card green" style="flex:1;min-width:200px">
+    <h4 class="sub2">🧠 Psychological Depth</h4>
+    <p>71 research-backed psychological tools (CBT, polyvagal, narrative therapy, attachment theory) applied via a 7-tier priority framework.</p>
+  </div>
+  <div class="card orange" style="flex:1;min-width:200px">
+    <h4 class="sub2">🌍 Multilingual</h4>
+    <p>22 languages with native-script support. All features — AI responses, letters, mindset analysis, settings search — work in every language.</p>
+  </div>
+</div>
+
+<h3 class="sub">1.2 Platform Summary</h3>
+<table>
+  <tr><th>Platform</th><th>Framework</th><th>Deployment</th><th>Version</th></tr>
+  <tr><td>Web</td><td>Next.js 16 (App Router)</td><td>Vercel</td><td>1.1.9</td></tr>
+  <tr><td>iOS</td><td>React Native (Expo SDK 54)</td><td>App Store</td><td>1.1.9 / build 97</td></tr>
+  <tr><td>Android</td><td>React Native (Expo SDK 54)</td><td>Play Store</td><td>1.1.9 / versionCode 97</td></tr>
+  <tr><td>Backend API</td><td>Next.js Route Handlers</td><td>Vercel Edge + Node</td><td>—</td></tr>
+  <tr><td>Database</td><td>Supabase (PostgreSQL)</td><td>Supabase Cloud</td><td>—</td></tr>
+  <tr><td>AI Model</td><td>GPT-4.1 (OpenAI)</td><td>OpenAI API</td><td>gpt-4.1</td></tr>
+</table>
+
+<!-- ═══════════ 2. TECH STACK ═══════════ -->
+<h2 class="section" id="s2">2. Technology Stack</h2>
+
+<div class="tech-grid">
+  <div class="tech-item"><h5>React Native / Expo</h5><p>SDK 54, New Architecture enabled, Hermes JIT engine, EAS Build & Submit</p></div>
+  <div class="tech-item"><h5>Next.js 16</h5><p>App Router, Server Components, Route Handlers, Turbopack, static + dynamic rendering</p></div>
+  <div class="tech-item"><h5>Supabase</h5><p>PostgreSQL DB, Row-Level Security, Auth (Google + Apple OAuth), Realtime, Storage</p></div>
+  <div class="tech-item"><h5>OpenAI GPT-4.1</h5><p>Primary AI model for all chat replies, mindset analysis, companion letters, settings search</p></div>
+  <div class="tech-item"><h5>Azure Neural TTS</h5><p>Text-to-speech for 22 languages. 42 pre-generated preview MP3s cached on CDN.</p></div>
+  <div class="tech-item"><h5>Razorpay</h5><p>Android payments. Order intent → checkout → webhook → license grant flow.</p></div>
+  <div class="tech-item"><h5>Apple IAP (expo-iap)</h5><p>iOS subscriptions + token packs via StoreKit 2. Verified server-side with Apple JWS.</p></div>
+  <div class="tech-item"><h5>AsyncStorage</h5><p>Mobile local persistence for all settings, history, letters, emotional arc, pending insights.</p></div>
+  <div class="tech-item"><h5>Tailwind CSS</h5><p>Web styling with dark: class modifiers. Mobile uses inline StyleSheet + ThemeContext.</p></div>
+</div>
+
+<!-- ═══════════ 3. ARCHITECTURE DIAGRAM ═══════════ -->
+<h2 class="section" id="s3">3. High-Level Architecture</h2>
+
+<div class="diagram">
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              IMOTARA PLATFORM                                   │
+│                                                                                 │
+│  ┌──────────────────────┐    ┌──────────────────────┐    ┌──────────────────┐  │
+│  │   iOS / Android App   │    │      Web Browser      │    │   Admin Panel    │  │
+│  │  (React Native/Expo)  │    │     (Next.js SSR)     │    │  (/admin route)  │  │
+│  │                       │    │                       │    │                  │  │
+│  │  ChatScreen           │    │  /chat   /history     │    │  License mgmt    │  │
+│  │  HistoryScreen        │    │  /trends /settings    │    │  User lookup     │  │
+│  │  TrendsScreen         │    │  /upgrade /tutorial   │    │  Token top-up    │  │
+│  │  SettingsScreen       │    │                       │    │                  │  │
+│  └──────────┬───────────┘    └──────────┬────────────┘    └────────┬─────────┘  │
+│             │ HTTPS + Bearer             │ Cookie Auth              │ Secret Key  │
+│             └────────────────┬───────────┘──────────────────────────┘            │
+│                              ▼                                                   │
+│  ┌───────────────────────────────────────────────────────────────────────────┐  │
+│  │                    NEXT.JS API LAYER  (Vercel)                             │  │
+│  │                                                                           │  │
+│  │  /api/chat-reply        /api/respond         /api/analyze                 │  │
+│  │  /api/voice/transcribe  /api/tts             /api/mindset-analysis        │  │
+│  │  /api/history           /api/history/sync    /api/profile/sync            │  │
+│  │  /api/license/*         /api/payments/*      /api/settings-search         │  │
+│  │  /api/memory            /api/pulse           /api/social-proof            │  │
+│  └──────┬──────────────────────┬────────────────────────┬───────────────────┘  │
+│         │                      │                        │                       │
+│         ▼                      ▼                        ▼                       │
+│  ┌─────────────┐   ┌───────────────────┐   ┌───────────────────────────────┐   │
+│  │  Supabase   │   │   OpenAI GPT-4.1  │   │  External Services            │   │
+│  │  PostgreSQL │   │   (AI Responses)  │   │  Azure Neural TTS             │   │
+│  │  Auth       │   │   Whisper STT     │   │  Razorpay (Android payments)  │   │
+│  │  Realtime   │   │   Embeddings      │   │  Apple StoreKit 2 (iOS IAP)   │   │
+│  └─────────────┘   └───────────────────┘   └───────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+LOCAL STORAGE (Mobile — AsyncStorage):
+  Conversations · Threads · Settings · Letters · Journal · Arc · Pending Insights
+
+LOCAL STORAGE (Web — localStorage):
+  ToneContext · Letters · Arc · Feature flags · Session state
+</div>
+
+<!-- ═══════════ 4. DATA MODELS ═══════════ -->
+<h2 class="section" id="s4">4. Data Models & Class Diagrams</h2>
+
+<h3 class="sub">4.1 Core Message & Thread Model</h3>
+<div class="classes-row">
+  <div class="class-box">
+    <div class="class-header">HistoryItem</div>
+    <div class="class-section">
+      <div class="class-item">id: <span class="type">string</span></div>
+      <div class="class-item">text: <span class="type">string</span></div>
+      <div class="class-item">from: <span class="type">"user" | "bot"</span></div>
+      <div class="class-item">timestamp: <span class="type">number</span></div>
+      <div class="class-item optional">emotion?: <span class="type">string</span></div>
+      <div class="class-item optional">intensity?: <span class="type">number</span></div>
+      <div class="class-item optional">isSynced?: <span class="type">boolean</span></div>
+      <div class="class-item optional">threadId?: <span class="type">string</span></div>
+      <div class="class-item optional">moodHint?: <span class="type">string</span></div>
+      <div class="class-item optional">source?: <span class="type">"cloud"|"local"</span></div>
+    </div>
+  </div>
+  <div class="class-box">
+    <div class="class-header">ConversationThread</div>
+    <div class="class-section">
+      <div class="class-item">id: <span class="type">string</span></div>
+      <div class="class-item">title: <span class="type">string</span></div>
+      <div class="class-item">createdAt: <span class="type">number</span></div>
+    </div>
+    <div class="class-section">
+      <div class="class-item method">messages: HistoryItem[]</div>
+      <div class="class-item method">DEFAULT_THREAD_ID = "default"</div>
+    </div>
+  </div>
+  <div class="class-box">
+    <div class="class-header blue">CompanionLetter</div>
+    <div class="class-section">
+      <div class="class-item">id: <span class="type">string</span></div>
+      <div class="class-item">generatedAt: <span class="type">number</span></div>
+      <div class="class-item">body: <span class="type">string</span></div>
+      <div class="class-item">companionName: <span class="type">string</span></div>
+      <div class="class-item optional">reaction?: <span class="type">string</span></div>
+      <div class="class-item optional">reply?: <span class="type">string</span></div>
+      <div class="class-item optional">replyAt?: <span class="type">number</span></div>
+    </div>
+    <div class="class-section">
+      <div class="class-item">Archive: up to 24 letters</div>
+    </div>
+  </div>
+  <div class="class-box">
+    <div class="class-header purple">EmotionalArc</div>
+    <div class="class-section">
+      <div class="class-item">id: <span class="type">string</span></div>
+      <div class="class-item">generatedAt: <span class="type">number</span></div>
+      <div class="class-item">periodLabel: <span class="type">string</span></div>
+      <div class="class-item">narrative: <span class="type">string</span></div>
+    </div>
+    <div class="class-section">
+      <div class="class-item">Cadence: configurable (default 30d)</div>
+    </div>
+  </div>
+</div>
+
+<h3 class="sub">4.2 Settings / Profile Model</h3>
+<div class="classes-row">
+  <div class="class-box" style="min-width:260px">
+    <div class="class-header green">ToneContext (User Profile)</div>
+    <div class="class-section">
+      <div class="class-item method">user:</div>
+      <div class="class-item">  name: <span class="type">string</span></div>
+      <div class="class-item">  ageRange: <span class="type">string</span></div>
+      <div class="class-item">  gender: <span class="type">string</span></div>
+      <div class="class-item">  preferredLang: <span class="type">string</span></div>
+    </div>
+    <div class="class-section">
+      <div class="class-item method">companion:</div>
+      <div class="class-item">  enabled: <span class="type">boolean</span></div>
+      <div class="class-item">  name: <span class="type">string</span></div>
+      <div class="class-item">  relationship: <span class="type">string</span></div>
+      <div class="class-item">  gender: <span class="type">string</span></div>
+      <div class="class-item">  ageRange: <span class="type">string</span></div>
+    </div>
+  </div>
+  <div class="class-box" style="min-width:260px">
+    <div class="class-header orange">SettingsContextValue</div>
+    <div class="class-section">
+      <div class="class-item">emotionInsightsEnabled: <span class="type">bool</span></div>
+      <div class="class-item">companionReactionsEnabled: <span class="type">bool</span></div>
+      <div class="class-item">featureTipsEnabled: <span class="type">bool</span></div>
+      <div class="class-item">showSyncBadge: <span class="type">bool</span></div>
+      <div class="class-item">analysisMode: <span class="type">"local"|"cloud"</span></div>
+      <div class="class-item">toneContext: <span class="type">ToneContext</span></div>
+      <div class="class-item">teenMode: <span class="type">boolean</span></div>
+      <div class="class-item">autoSyncDelaySeconds: <span class="type">number</span></div>
+      <div class="class-item">lastSyncAt: <span class="type">number | null</span></div>
+    </div>
+  </div>
+  <div class="class-box" style="min-width:220px">
+    <div class="class-header slate">License (Supabase)</div>
+    <div class="class-section">
+      <div class="class-item">user_id: <span class="type">uuid</span></div>
+      <div class="class-item">tier: <span class="type">"free"|"plus"|"pro"|"ent"</span></div>
+      <div class="class-item">status: <span class="type">"valid"|"expired"</span></div>
+      <div class="class-item">token_balance: <span class="type">integer</span></div>
+      <div class="class-item optional">expires_at: <span class="type">timestamptz</span></div>
+      <div class="class-item">source: <span class="type">"apple"|"razorpay"|"webhook"</span></div>
+      <div class="class-item">updated_at: <span class="type">timestamptz</span></div>
+    </div>
+  </div>
+</div>
+
+<h3 class="sub">4.3 Pending Insights Bridge Model</h3>
+<div class="classes-row">
+  <div class="class-box" style="min-width:300px">
+    <div class="class-header">InsightPayload (AsyncStorage Bridge)</div>
+    <div class="class-section">
+      <div class="class-item optional">weeklyRecap?: <span class="type">string</span></div>
+      <div class="class-item optional">collectivePulse?: <span class="type">{ heavyPercent: number }</span></div>
+      <div class="class-item optional">milestone?: <span class="type">{ id: string; themeName: string }</span></div>
+      <div class="class-item optional">companionInsight?: <span class="type">{ variant, title, body }</span></div>
+    </div>
+    <div class="class-section">
+      <div class="class-item method">savePendingInsight(key, value)</div>
+      <div class="class-item method">clearPendingInsight(key)</div>
+      <div class="class-item method">getBadgeCount(): number</div>
+    </div>
+  </div>
+  <div class="class-box" style="min-width:260px">
+    <div class="class-header blue">FeatureTip</div>
+    <div class="class-section">
+      <div class="class-item">id: <span class="type">string</span></div>
+      <div class="class-item">emoji: <span class="type">string</span></div>
+      <div class="class-item">title: <span class="type">string</span></div>
+      <div class="class-item">tip: <span class="type">string</span></div>
+      <div class="class-item">category: <span class="type">"chat"|"voice"|"growth"|"companion"|"privacy"|"settings"</span></div>
+    </div>
+    <div class="class-section">
+      <div class="class-item">Total: 194 tips</div>
+      <div class="class-item">Rotation: 30 min active use</div>
+      <div class="class-item method">getCurrentTip(): Promise&lt;{tip,index}&gt;</div>
+      <div class="class-item method">flushActiveTime(): Promise&lt;{advanced}&gt;</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 5. STATE MANAGEMENT ═══════════ -->
+<h2 class="section" id="s5">5. State Management</h2>
+
+<div class="diagram light">
+APP ROOT (App.tsx / _app.tsx)
+│
+├── ThemeContext          isDark, colors (DARK|LIGHT palette), themeMode
+│   └── useTheme()       → { colors, isDark }
+│   └── useColors()      → ColorPalette
+│
+├── SettingsProvider     AsyncStorage-persisted app settings + ToneContext
+│   └── useSettings()    → SettingsContextValue (all toggles, toneContext, sync state)
+│
+├── AuthContext          Supabase Auth session, Google/Apple sign-in
+│   └── useAuth()        → { accessToken, signOut, signInWithGoogle, signInWithApple }
+│
+├── HistoryProvider      In-memory conversation store + sync engine
+│   └── useHistoryStore() → { history, addToHistory, runSync, hasUnsyncedChanges }
+│
+└── NavigationContainer  React Navigation bottom tabs
+    ├── ChatScreen
+    ├── HistoryScreen
+    ├── TrendsScreen
+    └── SettingsScreen
+</div>
+
+<h3 class="sub">5.1 Data Flow — Sending a Message</h3>
+<div class="flow-step"><div class="flow-num">1</div><p>User types or speaks → ChatScreen captures input</p></div>
+<div class="flow-step"><div class="flow-num">2</div><p>Message appended to history via <code>addToHistory()</code> → local AsyncStorage immediately</p></div>
+<div class="flow-step"><div class="flow-num">3</div><p>If <code>analysisMode === "cloud"</code>: POST to <code>/api/chat-reply</code> with Bearer token + conversation context</p></div>
+<div class="flow-step"><div class="flow-num">4</div><p>If <code>analysisMode === "local"</code>: <code>buildLocalReply()</code> runs entirely on-device (no network)</p></div>
+<div class="flow-step"><div class="flow-num">5</div><p>Bot response appended to history, rendered in FlatList</p></div>
+<div class="flow-step"><div class="flow-num">6</div><p>Background sync: <code>runSync()</code> pushes unsynced records to <code>/api/history/sync</code> if signed in</p></div>
+
+<!-- ═══════════ 6. API REFERENCE ═══════════ -->
+<h2 class="section" id="s6">6. API Reference</h2>
+
+<table>
+  <tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Purpose</th></tr>
+  <tr><td>/api/chat-reply</td><td>POST</td><td>Bearer / Cookie</td><td>Main AI response — applies 71 psychological tools, 22 languages</td></tr>
+  <tr><td>/api/respond</td><td>POST</td><td>Cookie</td><td>Web-specific AI response (used by companion letter, arc generation)</td></tr>
+  <tr><td>/api/analyze</td><td>POST</td><td>Cookie</td><td>Emotion analysis of messages — returns dominant emotion + intensity</td></tr>
+  <tr><td>/api/mindset-analysis</td><td>POST</td><td>Bearer / Cookie</td><td>Deep psychological analysis of conversation batch (schema, SDT, PTG)</td></tr>
+  <tr><td>/api/settings-search</td><td>POST</td><td>None</td><td>AI-powered settings finder — returns setting IDs for natural-language query</td></tr>
+  <tr><td>/api/voice/transcribe</td><td>POST</td><td>None</td><td>Whisper STT — audio → text, 55s timeout, 22 language support</td></tr>
+  <tr><td>/api/tts</td><td>POST</td><td>None</td><td>Azure Neural TTS — text → MP3 audio buffer, gender + language aware</td></tr>
+  <tr><td>/api/history</td><td>GET / DELETE</td><td>Bearer / Cookie</td><td>Fetch or delete remote conversation history</td></tr>
+  <tr><td>/api/history/sync</td><td>POST</td><td>Bearer / Cookie</td><td>Push unsynced messages to Supabase; merge remote records</td></tr>
+  <tr><td>/api/profile/sync</td><td>GET / POST</td><td>Bearer / Cookie</td><td>Read or write ToneContext (companion preferences, user profile)</td></tr>
+  <tr><td>/api/license/status</td><td>GET</td><td>Bearer / Cookie</td><td>Current license tier, token balance, expiry — both mobile and web</td></tr>
+  <tr><td>/api/license/order-intent</td><td>POST</td><td>Bearer</td><td>Create Razorpay order for Android purchase</td></tr>
+  <tr><td>/api/license/verify-payment</td><td>POST</td><td>Bearer</td><td>Verify Razorpay payment + grant license. Polls 5× for UPI mandate capture.</td></tr>
+  <tr><td>/api/license/verify-apple-purchase</td><td>POST</td><td>Bearer</td><td>Verify Apple IAP JWS transaction + grant license (ES256, dsaEncoding: ieee-p1363)</td></tr>
+  <tr><td>/api/payments/razorpay/webhook</td><td>POST</td><td>HMAC sig</td><td>Razorpay event handler — payment.captured → grantLicense()</td></tr>
+  <tr><td>/api/memory</td><td>GET / POST</td><td>Bearer / Cookie</td><td>Read/write user memory items (companion remembers user details)</td></tr>
+  <tr><td>/api/pulse</td><td>GET</td><td>None</td><td>Anonymous collective emotional pulse — % of users carrying something heavy</td></tr>
+</table>
+
+<!-- ═══════════ 7. DATABASE SCHEMA ═══════════ -->
+<h2 class="section" id="s7">7. Database Schema (Supabase PostgreSQL)</h2>
+
+<div class="diagram">
+TABLE: licenses
+  user_id          uuid PRIMARY KEY (FK → auth.users)
+  tier             text  CHECK IN ('free','plus','pro','enterprise')
+  status           text  CHECK IN ('valid','invalid','expired')
+  token_balance    integer DEFAULT 0
+  expires_at       timestamptz NULL
+  source           text  (apple | razorpay | webhook | admin)
+  updated_at       timestamptz DEFAULT now()
+
+TABLE: payment_licenses
+  payment_id       text PRIMARY KEY
+  user_id          uuid (FK → auth.users)
+  product_id       text
+  tier             text
+  amount_paise     integer
+  currency         text DEFAULT 'INR'
+  created_at       timestamptz DEFAULT now()
+
+TABLE: user_memory
+  id               uuid PRIMARY KEY
+  user_id          uuid (FK → auth.users)
+  type             text  (identity | preference | event)
+  key              text
+  value            text
+  confidence       float DEFAULT 0.8
+  updated_at       timestamptz DEFAULT now()
+  UNIQUE (user_id, type, key)
+
+TABLE: usage_events
+  id               uuid PRIMARY KEY
+  user_id          uuid (FK → auth.users)
+  event_type       text
+  payload          jsonb
+  created_at       timestamptz DEFAULT now()
+
+TABLE: admin_license_history
+  id               uuid PRIMARY KEY
+  user_id          uuid
+  action           text
+  changed_by       text
+  old_tier         text
+  new_tier         text
+  note             text
+  created_at       timestamptz DEFAULT now()
+
+TABLE: blog_comments
+  id               uuid PRIMARY KEY
+  post_slug        text
+  author_name      text
+  content          text
+  approved         boolean DEFAULT false
+  created_at       timestamptz DEFAULT now()
+
+RLS POLICIES: All tables have Row-Level Security enabled.
+  - users can only read/write their own rows (user_id = auth.uid())
+  - service_role key bypasses RLS for admin operations
+</div>
+
+<!-- ═══════════ 8. SCREEN HIERARCHY ═══════════ -->
+<h2 class="section" id="s8">8. Screen & Component Hierarchy</h2>
+
+<div class="diagram">
+RootNavigator (Bottom Tab Navigator)
+│
+├── ChatScreen (shell — useFocusEffect + double-RAF deferred mount)
+│   └── ChatScreenContent (heavy — 5593 lines, ~60 hooks)
+│       ├── ImotaraChatBubble          Message rendering with source icon
+│       ├── ImotaraTypingIndicator     Animated dots during AI generation
+│       ├── CompanionQuickPanel        Avatar + companion name header
+│       ├── OpenLoopCard               Unresolved theme callback
+│       ├── UnsentLetterModal          Write-to-someone-you-can't-reach
+│       ├── BreathingModal             4-7-8 / box breathing exercise
+│       ├── DiscoveryCard              Feature nudge (trends/companion/offline)
+│       ├── UpgradeSheet               Plan upgrade (IAP iOS / Razorpay Android)
+│       └── OnboardingModal            First-run companion setup
+│
+├── HistoryScreen (shell — useFocusEffect + double-RAF)
+│   └── HistoryScreenContent (heavy — 1875 lines, ~56 hooks)
+│       ├── Conversations tab          Thread list with swipe-delete
+│       ├── Emotion History tab        Mood timeline with AppChip badges
+│       └── AppChip                    Status pills (theme-aware all 5 variants)
+│
+├── TrendsScreen (shell — useFocusEffect + double-RAF)
+│   └── TrendsScreenContent (~43 hooks)
+│       ├── FeatureDiscoveryCard       194-tip hourly rotation (active-time)
+│       ├── PendingInsights section    weeklyRecap / pulse / milestone / companionInsight
+│       ├── FeelSection                Quick mood log (8 emotion buckets)
+│       ├── LettersFromImotara         Letter archive with TTS / reactions / replies
+│       ├── CompanionLetterCard        Individual letter with listen/react/reply
+│       ├── 30-day Challenge           Grid dot progress tracker
+│       ├── Emotional Fingerprint      Abstract emotion pattern visualisation
+│       └── Reflection Journal         Private entries (local only)
+│
+└── SettingsScreen (shell — useFocusEffect + double-RAF + isDark detection)
+    └── SettingsScreenContent (heavy — ~3200 lines, ~140 hooks)
+        ├── SettingsSearch             AI-powered settings finder (local + /api/settings-search)
+        ├── Accordion: Plan & support  Upgrade, donate, restore
+        ├── Accordion: Your plan       Tier display, token balance
+        ├── Accordion: Experience      Theme, TTS, voice, reactions, tips, sync
+        ├── Accordion: Your companion  Name, tone, gender, age, letter cadence
+        ├── Accordion: Privacy & safety Export, clear, delete account, backup
+        ├── Accordion: Mindset Analysis Period toggles (today/7d/30d/all)
+        └── Accordion: Advanced        Memory, debug, version info
+</div>
+
+<!-- ═══════════ 9. THEME SYSTEM ═══════════ -->
+<h2 class="section" id="s9">9. Theme System & Color Palette</h2>
+
+<h3 class="sub">9.1 Color Palette (DARK / LIGHT)</h3>
+<table>
+  <tr><th>Token</th><th>Dark Mode</th><th>Light Mode</th><th>Usage</th></tr>
+  <tr><td>background</td><td>rgba(19,14,23,1)</td><td>rgba(248,250,252,1)</td><td>Screen backgrounds</td></tr>
+  <tr><td>surface</td><td>rgba(24,15,30,0.9)</td><td>rgba(241,245,249,0.95)</td><td>Cards, modals</td></tr>
+  <tr><td>surfaceSoft</td><td>rgba(24,15,30,0.7)</td><td>rgba(226,232,240,0.85)</td><td>Chips, inputs, subtle bg</td></tr>
+  <tr><td>border</td><td>rgba(148,163,184,0.25)</td><td>rgba(100,116,139,0.20)</td><td>Borders, dividers</td></tr>
+  <tr><td>textPrimary</td><td>rgba(241,245,249,1)</td><td>rgba(15,23,42,1)</td><td>Main body text</td></tr>
+  <tr><td>textSecondary</td><td>rgba(148,163,184,0.9)</td><td>rgba(71,85,105,0.9)</td><td>Secondary/hint text</td></tr>
+  <tr><td>primary</td><td>rgba(56,189,248,1)</td><td>rgba(14,165,233,1)</td><td>Accent, buttons, links</td></tr>
+  <tr><td>primaryTint</td><td>rgba(56,189,248,0.15)</td><td>rgba(14,165,233,0.12)</td><td>Tinted backgrounds</td></tr>
+</table>
+
+<h3 class="sub">9.2 Theme Architecture</h3>
+<div class="card blue">
+  <p><strong>ThemeContext</strong> exposes <code>useTheme()</code> → <code>{ colors, isDark }</code> and <code>useColors()</code> → <code>ColorPalette</code>. The theme mode is persisted to AsyncStorage (mobile) / localStorage (web). All screens subscribe to ThemeContext via hooks.</p>
+  <p style="margin-top:8px"><strong>Blank screen prevention:</strong> Heavy screens (Settings 140 hooks, History 56, Trends 43) use a double-RAF pattern on <code>isDark</code> changes — they briefly unmount content (shows spinner), then remount after 350ms + 2 animation frames, preventing JS thread freezes during theme switches.</p>
+</div>
+
+<!-- ═══════════ 10. NAVIGATION ═══════════ -->
+<h2 class="section" id="s10">10. Navigation Architecture</h2>
+
+<div class="diagram">
+NavigationContainer (deep-link: imotara://)
+└── createBottomTabNavigator
+    ├── Chat      (headerShown: false)  → tabBarIcon: chatbubble-ellipses
+    ├── History   (title: "History")    → tabBarIcon: time
+    ├── Trends    (title: "Trends")     → tabBarIcon: bar-chart
+    │                                   → tabBarBadge: pendingInsights count
+    │                                   → badge auto-clears when tab focused
+    └── Settings  (title: "Settings")  → tabBarIcon: settings
+
+Deep Link Config:
+  imotara://chat     → Chat tab
+  imotara://history  → History tab
+  imotara://trends   → Trends tab
+  imotara://settings → Settings tab
+
+Tab bar styling:
+  backgroundColor: colors.surfaceSoft
+  borderTopColor:  colors.border
+  activeTintColor: colors.primary
+  animation: "fade"
+  tabBarHideOnKeyboard: true
+</div>
+
+<!-- ═══════════ 11. AI ENGINE ═══════════ -->
+<h2 class="section" id="s11">11. AI / Psychological Engine</h2>
+
+<h3 class="sub">11.1 MASTER FRAMEWORK — 7-Tier Priority Ladder</h3>
+<table>
+  <tr><th>Tier</th><th>Name</th><th>Triggers</th><th>Tools</th></tr>
+  <tr><td>1</td><td>CRISIS / SAFETY / SHAME</td><td>Flood, self-attack, hopelessness, rupture</td><td>S1 TIPP, S6 Grounding, PA6 Inner Critic, T5 Hope, X8 Repair, Z6 Harm Reduction</td></tr>
+  <tr><td>2</td><td>ESTABLISH UNDERSTANDING</td><td>First pain mention, vague emotion, caregiver</td><td>M1 Intensity, M3 Distress Thermometer, Z2 Affect Label, X12 Compassion Fatigue</td></tr>
+  <tr><td>3</td><td>DEEPEN UNDERSTANDING</td><td>Anger, conflict, ongoing anxiety, people-pleasing</td><td>T2 Secondary Emotion, T3 Parts Work, M2 Functional Impact, S3 Fawn, PA1 Attachment</td></tr>
+  <tr><td>4</td><td>SEE THE PATTERN</td><td>"Always/never", repeated pain, disproportionate feelings</td><td>T1 Cognitive Distortion, PA5 Repetition Compulsion, PA4 Transference, T8 Core Belief, Z5 Intergenerational</td></tr>
+  <tr><td>5</td><td>OFFER A NEW ANGLE</td><td>Fixed self-story, stuck, identity fused with problem</td><td>T9 Narrative Re-Authoring, T10 Miracle Question, Z3 PTG, PA3 Shadow, T3/X4 Parts/EFT</td></tr>
+  <tr><td>6</td><td>MOVE TOWARD CHANGE</td><td>Waiting for motivation, harmful emotion, chronic worry</td><td>T12 Behavioral Activation, Z1 Opposite Action, X3+X11 Metacognitive, X9 DEAR MAN, T4 Values</td></tr>
+  <tr><td>7</td><td>INTEGRATE & CELEBRATE</td><td>Positive/brave, small wins, conversation ending</td><td>S9 Celebration, X10 Savoring, M4 Progress Marker, M5 Session Effectiveness, Z3 PTG</td></tr>
+</table>
+
+<h3 class="sub">11.2 Tool Categories (71 total)</h3>
+<div class="classes-row">
+  <div style="flex:1"><span class="badge purple">T1-T12</span> Core Therapeutic (CBT, ACT, narrative, DBT, grief, behavioral activation)</div>
+  <div style="flex:1"><span class="badge blue">PA1-PA12</span> Psychoanalytic (attachment, inner child, shadow, transference, repetition compulsion)</div>
+  <div style="flex:1"><span class="badge green">M1-M5</span> Measurement (intensity probe, functional impact, distress thermometer, progress marker)</div>
+</div>
+<div class="classes-row">
+  <div style="flex:1"><span class="badge orange">S1-S9</span> Specialized (TIPP, mindfulness, fawn, self-compassion, polyvagal, grounding, celebration)</div>
+  <div style="flex:1"><span class="badge slate">X1-X12</span> Extended (motivational interviewing, EFT, metacognitive, schema, DEAR MAN, compassion fatigue)</div>
+  <div style="flex:1"><span class="badge purple">Z1-Z6</span> Final Six (opposite action, affect labeling, PTG, RSD, intergenerational, harm reduction)</div>
+</div>
+<div class="classes-row">
+  <div><span class="badge blue">W1-W6</span> Final Additions (Drama Triangle, SDT, mentalizing, radical acceptance, grief for unlived life, existential loneliness)</div>
+</div>
+
+<!-- ═══════════ 12. PAYMENTS ═══════════ -->
+<h2 class="section" id="s12">12. Payment & Licensing Architecture</h2>
+
+<h3 class="sub">12.1 Product Catalog</h3>
+<table>
+  <tr><th>Product ID</th><th>Type</th><th>Tier</th><th>Duration</th><th>Price (INR)</th></tr>
+  <tr><td>plus_monthly</td><td>Subscription</td><td>Plus</td><td>31 days</td><td>₹99</td></tr>
+  <tr><td>plus_annual</td><td>Subscription</td><td>Plus</td><td>366 days</td><td>₹699</td></tr>
+  <tr><td>pro_monthly</td><td>Subscription</td><td>Pro</td><td>31 days</td><td>₹149</td></tr>
+  <tr><td>pro_annual</td><td>Subscription</td><td>Pro</td><td>366 days</td><td>₹1,299</td></tr>
+  <tr><td>tokens_100</td><td>Token Pack</td><td>—</td><td>One-time</td><td>₹49</td></tr>
+  <tr><td>tokens_250</td><td>Token Pack</td><td>—</td><td>One-time</td><td>₹99</td></tr>
+  <tr><td>tokens_600</td><td>Token Pack</td><td>—</td><td>One-time</td><td>₹199</td></tr>
+  <tr><td>tokens_1800</td><td>Token Pack</td><td>—</td><td>One-time</td><td>₹499</td></tr>
+</table>
+
+<h3 class="sub">12.2 Android Payment Flow (Razorpay)</h3>
+<div class="diagram">
+Mobile → POST /api/license/order-intent  { productId }
+           ↓ Creates Razorpay Order (amount, notes: {productId, userId})
+Mobile ← { orderId, keyId, amount }
+           ↓ Opens RazorpayCheckout.open()
+           ↓ User pays (UPI, card, NetBanking, UPI mandate)
+Mobile gets razorpay_payment_id
+Mobile → POST /api/license/verify-payment  { paymentId, productId }
+           ↓ Polls Razorpay API up to 5× (2s each) for "authorized"→"captured"
+           ↓ Accepts "authorized" (UPI mandate pre-capture)
+           ↓ grantLicense(userId, productId, source:"razorpay")
+Mobile ← { ok: true, tier, tokenBalance }
+
+Webhook fallback:
+Razorpay → POST /api/payments/razorpay/webhook  (HMAC-verified)
+           ↓ event: payment.captured OR order.paid
+           ↓ Reads notes.productId, notes.userId from payment/order entity
+           ↓ grantLicense(userId, productId, source:"webhook")
+</div>
+
+<h3 class="sub">12.3 iOS Payment Flow (Apple IAP / StoreKit 2)</h3>
+<div class="diagram">
+useIAP({ onPurchaseSuccess }) — expo-iap StoreKit 2
+  ↓ User taps → requestPurchase({ type, request: { apple: { sku } } })
+  ↓ onPurchaseSuccess fires with purchase.transactionId
+Mobile → POST /api/license/verify-apple-purchase  { productId, transactionId }
+           ↓ Fetches JWS token from Apple API
+           ↓ Verifies ES256 signature (dsaEncoding: ieee-p1363)
+           ↓ Retries 3× on 404 (StoreKit race condition)
+           ↓ grantLicense(userId, productId, source:"apple")
+Mobile ← { ok: true, tier }
+  ↓ finishTransaction({ purchase, isConsumable })
+</div>
+
+<!-- ═══════════ 13. CHAT FEATURES ═══════════ -->
+<h2 class="section" id="s13">13. Feature Architecture — Chat Screen</h2>
+
+<h3 class="sub">13.1 Clean Chat Interface Design</h3>
+<p>The chat screen was redesigned to show only conversation-essential elements. Non-conversational insight cards moved to the Trends tab via an AsyncStorage bridge (<code>pendingInsights.ts</code>).</p>
+
+<table>
+  <tr><th>Element</th><th>Location</th><th>Trigger</th></tr>
+  <tr><td>Pending undo toast</td><td>Chat</td><td>5s after send</td></tr>
+  <tr><td>Crisis resources</td><td>Chat</td><td>Safety signals in message</td></tr>
+  <tr><td>Open loop revisit</td><td>Chat</td><td>Unresolved theme detected</td></tr>
+  <tr><td>Unsent letter hint</td><td>Chat</td><td>Relationship keywords detected</td></tr>
+  <tr><td>Daily check-in chips</td><td>Chat</td><td>Once per day</td></tr>
+  <tr><td>Sentiment chips</td><td>Chat</td><td>Input empty, togglable</td></tr>
+  <tr><td>Reflection seed cards</td><td>Chat (inline)</td><td>After AI reply</td></tr>
+  <tr><td>Tone reflection card</td><td>Chat (inline)</td><td>End of meaningful session</td></tr>
+  <tr><td>Weekly mood recap</td><td>→ Trends</td><td>Moved — via pendingInsights</td></tr>
+  <tr><td>Collective pulse</td><td>→ Trends</td><td>Moved — via pendingInsights</td></tr>
+  <tr><td>Milestone celebration</td><td>→ Trends</td><td>Moved — via pendingInsights</td></tr>
+  <tr><td>Companion insight</td><td>→ Trends</td><td>Moved — via pendingInsights</td></tr>
+  <tr><td>Grow nudge</td><td>Removed</td><td>Tab bar is always visible</td></tr>
+</table>
+
+<h3 class="sub">13.2 Voice Pipeline</h3>
+<div class="diagram">
+User taps mic → useVoiceInput hook
+  ↓ expo-av recording starts
+  ↓ FileSystem.uploadAsync() [Hermes-safe, production-reliable]
+  ↓ POST /api/voice/transcribe (multipart)
+  ↓ OpenAI Whisper API (55s timeout)
+  ↓ Transcript returned → shown in input bar
+  ↓ User can edit before sending
+
+TTS (Text-to-Speech):
+  mobileTTS.ts → checks native voice availability
+  If native: expo-speech.speak() [free, offline]
+  If Azure: POST /api/tts → Azure Neural TTS → MP3 → expo-av play
+  Hands-free: auto-speak + auto-listen after each reply
+</div>
+
+<!-- ═══════════ 14. TRENDS FEATURES ═══════════ -->
+<h2 class="section" id="s14">14. Feature Architecture — Trends Screen</h2>
+
+<h3 class="sub">14.1 Trends Screen Content Order</h3>
+<div class="diagram">
+TrendsScreen (scrollable)
+│
+├── FeatureDiscoveryCard          194 tips, 30-min active time rotation
+│   ├── Active time: AppState listener tracks foreground/background
+│   ├── flushActiveTime() on background → accumulated_ms persisted
+│   └── getCurrentTip() adds live session time before checking threshold
+│
+├── Pending Insights (from Chat)
+│   ├── CompanionInsightCard      Letter or emotional arc (if pending)
+│   ├── Milestone card            "You closed a loop ✦"
+│   ├── Weekly recap              7-day emotional theme summary
+│   └── Collective pulse          % of users carrying something heavy
+│
+├── FeelSection                   Quick emotion log (8 buckets)
+├── Streak card                   Consecutive days chatted
+├── Weekly mood chart             Emotion frequency bar chart
+├── LettersFromImotara            Letter archive (listen / react / reply)
+├── 30-day Challenge              Dot grid progress + daily prompt
+├── Emotional Fingerprint         Abstract emotion pattern visualisation
+├── Reflection Journal            Private local entries
+├── On This Day                   Same date in past months
+└── Emotional Arc                 Monthly narrative story
+</div>
+
+<h3 class="sub">14.2 Companion Letter Generation</h3>
+<div class="diagram">
+generateCompanionLetter(threads, profile)
+  ↓ buildDeepPsychProfile(threads)
+      ├── Schema signals: defectiveness, abandonment, entrapment, shame, self-blame
+      ├── Growth signals: realization, acceptance, boundary-setting, gratitude
+      ├── Relational signals: childhood, romance, loneliness, conflict, grief
+      ├── Language-agnostic quotes: first 4 messages > 20 chars (no English filter)
+      └── Raw sample: last 10 messages in original language (all 22 languages)
+  ↓ Prompt with: relationship depth hint, psychological observations, 7 writing rules
+      1. WITNESS: specific observation
+      2. CORE WOUNDS: warm plain language (not clinical)
+      3. GROWTH: as beginning, not completion
+      4. GENUINE ADMIRATION: specific evidence
+      5. AFFECT PRECISION: exact emotion language
+      6. CLOSE WITH LIGHT: honest possible hope
+      7. MYTH/POETRY: optional if fits naturally
+  ↓ POST /api/respond (isLetterMode: true)
+  ↓ Saved to archive (max 24 letters, ~2 years)
+</div>
+
+<!-- ═══════════ 15. PERFORMANCE PATTERNS ═══════════ -->
+<h2 class="section" id="s15">15. Performance & Production Patterns</h2>
+
+<h3 class="sub">15.1 Blank Screen Prevention (Heavy Screens)</h3>
+<div class="diagram">
+Problem: Settings (140 hooks), History (56), Trends (43) caused blank screens on:
+  - Tab switch (navigation animation incomplete)
+  - Theme switch (ThemeContext re-render cascade freezes JS thread)
+
+Solution — Double-RAF pattern:
+
+  useFocusEffect(useCallback(() => {
+      setScreenReady(false);        // ← unmount heavy content, show spinner
+      const timer = setTimeout(() => {
+          requestAnimationFrame(() => {    // ← RAF1: schedule spinner frame
+              requestAnimationFrame(() => { // ← RAF2: spinner committed to screen
+                  setScreenReady(true);    // ← NOW mount heavy content
+              });
+          });
+      }, 300);                             // ← wait for nav animation
+      return () => { clearTimeout(timer); setScreenReady(false); };
+  }, []));
+
+  useEffect(() => {                        // ← isDark change detection
+      if (prevIsDarkRef.current === isDark) return;
+      prevIsDarkRef.current = isDark;
+      setScreenReady(false);
+      themeTimerRef.current = setTimeout(() => {
+          requestAnimationFrame(() => requestAnimationFrame(() => setScreenReady(true)));
+      }, 350);
+  }, [isDark]);
+</div>
+
+<h3 class="sub">15.2 Network Reliability (Hermes Production)</h3>
+<table>
+  <tr><th>Pattern</th><th>Problem Solved</th><th>Implementation</th></tr>
+  <tr><td>fetchWithTimeout()</td><td>AbortSignal.timeout() not in Hermes; bare fetch hangs on mobile networks</td><td>AbortController + setTimeout wrapper — used on ALL fetch calls</td></tr>
+  <tr><td>FileSystem.uploadAsync</td><td>FormData.append({uri}) silently corrupts audio files in production Hermes</td><td>expo-file-system/legacy MULTIPART upload for voice transcription</td></tr>
+  <tr><td>Payment polling</td><td>UPI mandate payments are "authorized" not "captured" immediately</td><td>verify-payment polls Razorpay 5× / 2s; accepts "authorized" + webhook confirms</td></tr>
+  <tr><td>Active-time tracking</td><td>Wall-clock feature tips fired while app was closed</td><td>AppState listener accumulates ms only while foregrounded; persisted to AsyncStorage</td></tr>
+</table>
+
+<h3 class="sub">15.3 Settings Search — Hybrid Approach</h3>
+<div class="diagram">
+User types query
+  ↓
+Local fuzzy search (instant, offline)
+  ├── Scores each of 37 settings across: title, keywords, description, section
+  ├── Returns top 5 matches with score
+  └── If top score ≥ 8 AND query < 3 words → show results immediately
+
+If low confidence (score < 8) OR sentence query (≥ 3 words):
+  → POST /api/settings-search { query }
+  → System prompt: 37 settings catalog + "any of 22 languages"
+  → AI returns { ids: ["setting_id_1", "setting_id_2"] }
+  → Map IDs to catalog entries → display results
+
+On result tap:
+  → Open accordion section (sectionMap[sectionKey])
+  → setTimeout(350ms) for accordion animation
+  → RAF1 + RAF2 → scroll to stored Y position of section header
+</div>
+
+<!-- ═══════════ 16. DESIGN DECISIONS ═══════════ -->
+<h2 class="section" id="s16">16. Key Design Decisions</h2>
+
+<div class="card blue">
+  <h4 class="sub2">Local-First Storage</h4>
+  <p>All user conversations, settings, journal, and emotional data are stored on-device (AsyncStorage mobile / localStorage web) by default. Cloud backup is opt-in only via explicit sign-in. This builds user trust and works without internet.</p>
+</div>
+
+<div class="card green">
+  <h4 class="sub2">Pending Insights Bridge (Chat → Trends)</h4>
+  <p>Weekly recap, collective pulse, milestone, and companion insight cards were removed from the Chat screen to reduce clutter. They now live in Trends via an AsyncStorage bridge (<code>pendingInsights.ts</code>). Chat writes; Trends reads on focus. A badge dot on the Trends tab signals unseen content.</p>
+</div>
+
+<div class="card orange">
+  <h4 class="sub2">No "AI" Branding in UI</h4>
+  <p>All user-facing text avoids "AI" to prevent users feeling like they're talking to a chatbot. "Cloud sync" → "Account backup". "AI search" → "✨ (sparkle)". The companion responds as a personal relationship, not a product.</p>
+</div>
+
+<div class="card blue">
+  <h4 class="sub2">Theme-Aware Components</h4>
+  <p>All components use <code>useTheme().isDark</code> or <code>useColors()</code>. No hardcoded dark-mode values (rgba(255,255,255,0.04) etc.) in user-visible elements. AppChip, DiscoveryCard, UnsentLetterModal, BreathingModal, HistoryScreen sync chip — all converted to dynamic palette selection.</p>
+</div>
+
+<div class="card green">
+  <h4 class="sub2">UPI Mandate Payment Reliability</h4>
+  <p>UPI mandate payments land as "authorized" (not "captured") immediately after user payment. verify-payment now polls Razorpay 5× with 2s delay. If still authorized, license is granted (idempotent). Webhook fires "payment.captured" within seconds as confirmation. Mobile polls <code>/api/license/status</code> for 21s as additional fallback.</p>
+</div>
+
+<div class="card orange">
+  <h4 class="sub2">22-Language Support Architecture</h4>
+  <p>The AI system prompt handles all 22 languages natively. For features requiring language detection (companion letters, mindset analysis, emotional arc), regex pattern matching handles romanized scripts, while raw message samples are passed to the AI for non-Latin scripts (Bengali, Arabic, Chinese, Japanese, etc.) which the AI reads natively.</p>
+</div>
+
+<hr class="separator">
+
+<p style="text-align:center; color:#6366f1; font-size:12px; margin-top:32px;">
+  Imotara v1.1.9 · Build 97 · Web · iOS · Android · May 2026<br>
+  Private Emotional Wellness Companion — imotara.com
+</p>
+
+</div><!-- /container -->
+
+<div class="footer">
+  <strong>Imotara System Design Document</strong> — Internal Reference · v1.1.9<br>
+  Architecture, data models, and design decisions as of May 2026.<br>
+  Not for public distribution.
+</div>
+
+</body>
+</html>

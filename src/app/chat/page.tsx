@@ -3823,12 +3823,12 @@ export default function ChatPage() {
                   )
                   .map((m, mi, arr) => m.isQuotaNotice ? (
                   <div key={m.id} className="flex justify-start animate-fade-in px-1">
-                    <div className="im-quota-card w-full max-w-[82%] rounded-2xl border border-violet-500/25 bg-[#1e1028] p-4 shadow-lg">
+                    <div className="im-quota-card w-full max-w-[82%] rounded-2xl border border-violet-500/25 bg-zinc-100 dark:bg-[#1e1028] p-4 shadow-lg">
                       <div className="mb-2 flex items-center gap-2">
                         <span aria-hidden="true">✨</span>
-                        <span className="text-[13px] font-medium text-zinc-200">I've used my 20 replies for today</span>
+                        <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200">I've used my 20 replies for today</span>
                       </div>
-                      <p className="mb-3 text-[12px] leading-relaxed text-zinc-400">
+                      <p className="mb-3 text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                         I'm still here. My responses now come from on-device mode — a little simpler, but present.
                       </p>
                       <a

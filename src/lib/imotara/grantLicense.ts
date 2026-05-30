@@ -43,6 +43,7 @@ export async function grantLicense(
     userId: string,
     productId: LicenseProductId,
     admin: SupabaseClient,
+    source: "apple" | "razorpay" | "webhook" = "razorpay",
 ): Promise<GrantResult> {
     try {
         const product = PRODUCT_CATALOG[productId];
@@ -62,13 +63,13 @@ export async function grantLicense(
 
             if (existing) {
                 const { error } = await admin.from("licenses")
-                    .update({ tier: product.tier, status: "valid", expires_at: newExpiry, source: "apple", updated_at: new Date().toISOString() })
+                    .update({ tier: product.tier, status: "valid", expires_at: newExpiry, source, updated_at: new Date().toISOString() })
                     .eq("user_id", userId);
                 if (error) throw new Error(`licenses update failed: ${error.message}`);
             } else {
                 const { error } = await admin.from("licenses").insert({
                     user_id: userId, tier: product.tier, status: "valid",
-                    expires_at: newExpiry, token_balance: 0, source: "apple",
+                    expires_at: newExpiry, token_balance: 0, source,
                 });
                 if (error) throw new Error(`licenses insert failed: ${error.message}`);
             }
@@ -88,7 +89,7 @@ export async function grantLicense(
             } else {
                 const { error } = await admin.from("licenses").insert({
                     user_id: userId, tier: "free", status: "valid",
-                    token_balance: balance, source: "apple",
+                    token_balance: balance, source,
                 });
                 if (error) throw new Error(`licenses insert failed: ${error.message}`);
             }

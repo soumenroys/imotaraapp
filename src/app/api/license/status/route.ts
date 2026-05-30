@@ -3,10 +3,11 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getCurrentLicenseStatus } from "@/lib/imotara/license";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
-export async function GET() {
+export async function GET(req: Request) {
     const fallback = getCurrentLicenseStatus();
 
     // Next 16+: cookies() is async in some runtimes/types, so await it.
@@ -22,16 +23,32 @@ export async function GET() {
           );
 
     try {
-        const supabase = await supabaseUserServer();
+        // Accept Bearer token (mobile) OR cookie (web)
+        let userId: string | null = null;
+        let userEmail: string | null = null;
+        const bearerToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
 
-        const { data: authData, error: authErr } = await supabase.auth.getUser();
+        if (bearerToken) {
+            const { data } = await getSupabaseAdmin().auth.getUser(bearerToken);
+            userId = data?.user?.id ?? null;
+            userEmail = data?.user?.email ?? null;
+        }
+
+        if (!userId) {
+            const supabase = await supabaseUserServer();
+            const { data: authData, error: authErr } = await supabase.auth.getUser();
+            if (!authErr && authData?.user) {
+                userId = authData.user.id;
+                userEmail = authData.user.email ?? null;
+            }
+        }
 
         const debugPayload = IS_PROD
             ? undefined
             : { received_imotara_test: testCookie, cookie_names: cookieNames, has_supabase_cookie: hasSupabaseCookie };
 
         // If no user, return fallback (still ok:true)
-        if (authErr || !authData?.user) {
+        if (!userId) {
             const res = NextResponse.json(
                 { ok: true, mode: fallback.mode, license: { ...fallback, source: "internal", expiresAt: null }, user: null, ...(debugPayload ? { debug: debugPayload } : {}) },
                 { status: 200 }
@@ -39,8 +56,6 @@ export async function GET() {
             res.headers.set("Cache-Control", "no-store");
             return res;
         }
-
-        const userId = authData.user.id;
 
         // OPTIONAL: try to read license row if table exists.
         // If table doesn't exist yet, we silently fall back.
@@ -50,7 +65,8 @@ export async function GET() {
             expires_at?: string | null;
         } = null;
 
-        const { data: row, error: licErr } = await supabase
+        const adminClient = getSupabaseAdmin();
+        const { data: row, error: licErr } = await adminClient
             .from("licenses")
             .select("tier,status,expires_at")
             .eq("user_id", userId)
@@ -78,7 +94,7 @@ export async function GET() {
                     source: licenseRow ? "supabase" : "internal",
                     expiresAt: licenseRow?.expires_at ?? null,
                 },
-                user: { id: userId, email: authData.user.email ?? null },
+                user: { id: userId, email: userEmail ?? null },
                 ...(debugPayload ? { debug: debugPayload } : {}),
             },
             { status: 200 }

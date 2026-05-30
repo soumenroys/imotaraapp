@@ -48,32 +48,43 @@ export async function POST(req: Request) {
         const eventType = event?.event;
 
         if (eventType === "payment.captured" || eventType === "order.paid") {
-            const payment: any =
-                event?.payload?.payment?.entity ||
-                event?.payload?.order?.entity;
+            const paymentEntity: any = event?.payload?.payment?.entity;
+            const orderEntity: any   = event?.payload?.order?.entity;
 
-            const notes    = payment?.notes ?? {};
-            const purpose  = String(notes?.purpose ?? "");
+            // Notes live on the ORDER (set at creation) and are copied to the payment
+            // by Razorpay. Read from payment first; fall back to order entity.
+            // This handles both payment.captured and order.paid correctly.
+            const paymentNotes = paymentEntity?.notes ?? {};
+            const orderNotes   = orderEntity?.notes ?? {};
+            const notes = (paymentNotes?.productId || paymentNotes?.purpose)
+                ? paymentNotes
+                : orderNotes;
+
+            const purpose   = String(notes?.purpose  ?? "");
             const productId = String(notes?.productId ?? "").trim();
-            const userId    = String(notes?.userId ?? "").trim();
+            const userId    = String(notes?.userId    ?? "").trim();
+
+            console.log("[razorpay/webhook] event:", eventType, "purpose:", purpose, "productId:", productId, "userId:", userId ? "present" : "missing");
 
             if (purpose === "imotara_license" && isValidProductId(productId) && userId) {
                 // ---- LIC-5: license payment — grant tier / top up tokens ----
                 try {
-                    await grantLicense(userId, productId, getSupabaseAdmin());
+                    await grantLicense(userId, productId, getSupabaseAdmin(), "webhook");
+                    console.log("[razorpay/webhook] grantLicense OK:", productId, "user:", userId);
                 } catch (e) {
                     console.error("[razorpay/webhook] grantLicense failed:", e);
                 }
             } else {
                 // ---- Donation receipt logging (existing flow) ----
-                if (payment?.id && payment?.amount) {
+                const donationPayment = paymentEntity;
+                if (donationPayment?.id && donationPayment?.amount) {
                     await logDonation({
-                        paymentId: payment.id,
-                        orderId: payment.order_id,
-                        amount: payment.amount,
-                        currency: payment.currency || "INR",
+                        paymentId: donationPayment.id,
+                        orderId: donationPayment.order_id,
+                        amount: donationPayment.amount,
+                        currency: donationPayment.currency || "INR",
                         status: eventType === "payment.captured" ? "captured" : "paid",
-                        createdAt: (payment.created_at || event.created_at) * 1000,
+                        createdAt: (donationPayment.created_at || event.created_at) * 1000,
                         source: "razorpay",
                         rawEvent: event,
                     });

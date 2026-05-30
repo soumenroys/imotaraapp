@@ -19,17 +19,51 @@ import {
 const RZP_KEY_ID     = process.env.RAZORPAY_KEY_ID     ?? "";
 const RZP_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET ?? "";
 
-async function fetchRzpPayment(paymentId: string) {
+type RzpPayment = { id: string; amount: number; status: string; currency: string; notes?: Record<string, string> };
+
+async function fetchRzpPayment(paymentId: string): Promise<RzpPayment | null> {
     if (!RZP_KEY_ID || !RZP_KEY_SECRET) return null;
     const creds = Buffer.from(`${RZP_KEY_ID}:${RZP_KEY_SECRET}`).toString("base64");
-    const res = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
-        headers: { Authorization: `Basic ${creds}` },
-    });
-    if (!res.ok) return null;
-    return res.json() as Promise<{
-        id: string; amount: number; status: string; currency: string;
-        notes?: Record<string, string>;
-    }>;
+    try {
+        const res = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
+            headers: { Authorization: `Basic ${creds}` },
+        });
+        if (!res.ok) return null;
+        return res.json() as Promise<RzpPayment>;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Polls Razorpay until the payment is captured (or fails).
+ * UPI mandate payments are first "authorized", then auto-captured within seconds.
+ * We retry up to 5 times (10s total) before giving up and granting on "authorized".
+ */
+async function fetchRzpPaymentCaptured(paymentId: string): Promise<RzpPayment | null> {
+    const POLL_ATTEMPTS = 5;
+    const POLL_DELAY_MS = 2000;
+    let payment: RzpPayment | null = null;
+
+    for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
+        payment = await fetchRzpPayment(paymentId);
+        if (!payment) break;
+        if (payment.status === "captured") return payment;
+        // "authorized" = bank approved, Razorpay auto-captures shortly (UPI mandate, etc.)
+        if (payment.status === "authorized") {
+            if (attempt < POLL_ATTEMPTS - 1) {
+                await new Promise(r => setTimeout(r, POLL_DELAY_MS));
+                continue;
+            }
+            // Still authorized after all retries — grant license anyway.
+            // The webhook will fire payment.captured within seconds and is idempotent.
+            console.warn(`[verify-payment] payment ${paymentId} still "authorized" after ${POLL_ATTEMPTS} polls — granting license; webhook will confirm`);
+            return payment;
+        }
+        // Any other status (failed, refunded, etc.) — stop retrying
+        break;
+    }
+    return payment;
 }
 
 async function resolveUserId(req: Request): Promise<string | null> {
@@ -76,15 +110,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: false, error: "paymentId required" }, { status: 400 });
         }
 
-        // Verify with Razorpay
-        const payment = await fetchRzpPayment(paymentId);
+        // Verify with Razorpay — polls for capture (handles UPI mandate "authorized" delay)
+        const payment = await fetchRzpPaymentCaptured(paymentId);
 
         if (!payment && process.env.NODE_ENV === "production") {
             return NextResponse.json({ ok: false, error: "Payment verification failed" }, { status: 400 });
         }
 
-        if (payment && payment.status !== "captured") {
-            return NextResponse.json({ ok: false, error: `Payment status: ${payment.status}` }, { status: 400 });
+        // Accept "captured" (normal) or "authorized" (UPI mandate pre-capture).
+        // Reject everything else: failed, refunded, expired.
+        if (payment && payment.status !== "captured" && payment.status !== "authorized") {
+            return NextResponse.json({ ok: false, error: `Payment not completed (status: ${payment.status})` }, { status: 400 });
         }
 
         // Resolve productId (body → payment notes → amount-based fallback)
@@ -133,14 +169,11 @@ export async function POST(req: Request) {
             currency:     payment?.currency ?? "INR",
         }, { onConflict: "payment_id", ignoreDuplicates: true });
 
-        const result = await grantLicense(userId, productId, admin);
+        const result = await grantLicense(userId, productId, admin, "razorpay");
 
         if (!result.ok) {
             return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
         }
-
-        // Mark source as razorpay
-        await admin.from("licenses").update({ source: "razorpay" }).eq("user_id", userId);
 
         const res = NextResponse.json({
             ok: true,

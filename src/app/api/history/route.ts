@@ -2,6 +2,10 @@
 import { isAdminRequest, isProd } from "@/lib/prodGuard";
 import { NextResponse } from "next/server";
 import type { EmotionRecord } from "@/types/history";
+import { getLicenseMode } from "@/lib/imotara/license";
+import { resolveUserTier } from "@/lib/imotara/org";
+import { historyRetentionCutoff } from "@/lib/imotara/serverGate";
+import type { LicenseTier } from "@/types/license";
 import {
   getAllRecords,
   getRecordsSince,
@@ -268,6 +272,25 @@ export async function GET(request: Request) {
     .filter((r: EmotionRecord) => typeof r.id === "string" && r.id.startsWith(`${scope}:`))
     .map((r: EmotionRecord) => ({ ...r, id: unscopedId(scope, r.id) }));
 
+  // ── History retention gate (Phase 3) ─────────────────────────────────────
+  // Only enforces when LICENSE_MODE=enforce. Off/log mode: no cutoff applied.
+  if (getLicenseMode() === "enforce") {
+    try {
+      // scope is the user ID for authenticated users — use it to resolve tier
+      const tierResult = await resolveUserTier(scope);
+      const tier = (tierResult.ok ? tierResult.data.effectiveTier : "free") as LicenseTier;
+      const cutoff = historyRetentionCutoff(tier);
+      if (cutoff !== null) {
+        const cutoffMs = cutoff.getTime();
+        records = records.filter((r: EmotionRecord) => {
+          const ts = (r.updatedAt ?? r.createdAt ?? 0) as number;
+          return ts >= cutoffMs;
+        });
+      }
+    } catch {
+      // Fail open — don't block history on tier resolution error
+    }
+  }
 
   // Preserve prior semantics: count excludes deleted
   const serverCount = records.filter((r: EmotionRecord) => r.deleted !== true).length;

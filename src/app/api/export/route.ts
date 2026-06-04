@@ -9,9 +9,13 @@
 // Later, you can attach a UI button (e.g. "Download cloud copy")
 // that simply calls this endpoint and triggers a file download.
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireFeature } from "@/lib/imotara/serverGate";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Gate: export requires Plus+ tier (when enforce mode is active)
+  const gateResult = await requireFeature(req, "EXPORT_DATA");
+  if (!gateResult.ok) return gateResult.response;
     const timestamp = new Date().toISOString();
 
     let remoteHistory: unknown = null;

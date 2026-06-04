@@ -14,6 +14,8 @@
 //   Same as ImotaraAIResponse from aiClient: { text, meta }
 
 import { NextResponse } from "next/server";
+import { getLicenseMode } from "@/lib/imotara/license";
+import { resolveUserTier } from "@/lib/imotara/org";
 import { callImotaraAI, streamImotaraAI } from "@/lib/imotara/aiClient";
 import type { ImotaraAIResponse } from "@/lib/imotara/aiClient";
 import { formatImotaraReply } from "@/lib/imotara/response/responseFormatter";
@@ -426,6 +428,31 @@ export async function POST(req: Request) {
           event_type: "chat_reply",
         })
       ).catch(() => {});
+    }
+
+    // ── Phase 3: Tier-based reply constraints (enforce mode only) ────────────
+    // In off/log mode these constraints are never applied (soft launch preserved).
+    let tierResponseConstraint = ""; // injected into system prompt when active
+    if (getLicenseMode() === "enforce" && authedUserId) {
+      try {
+        const tierResult = await resolveUserTier(authedUserId);
+        const effectiveTier = tierResult.ok ? tierResult.data.effectiveTier : "free";
+
+        if (effectiveTier === "free") {
+          // Free: cap response length to ~3 sentences; suppress premium personas
+          tierResponseConstraint =
+            "RESPONSE LENGTH: Keep your reply concise — ideally 2–3 sentences. " +
+            "Do not use extended storytelling, mythology, or multi-paragraph reflections.\n";
+
+          // Override premium tone to default if free user requests one
+          const premiumTones = new Set(["coach", "mentor", "calm_companion"]);
+          if (body?.tone && premiumTones.has(body.tone)) {
+            body.tone = "close_friend"; // downgrade to default tone
+          }
+        }
+      } catch {
+        // Fail open — don't block reply on tier error
+      }
     }
 
     let conversationText = recent
@@ -3167,6 +3194,7 @@ export async function POST(req: Request) {
         "The companion tone setting is always the final authority on voice, warmth, directness, and pacing.",
       ].join("\n"),
       "",
+      tierResponseConstraint, // Phase 3: enforce-mode tier constraint (empty string in off/log mode)
       langInstruction,
       genderInstruction,
       langAgeOverride,

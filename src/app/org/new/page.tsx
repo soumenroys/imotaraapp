@@ -15,13 +15,18 @@ const TYPE_OPTIONS: { value: BillingType; label: string; desc: string; icon: str
   { value: "govt",       label: "Government",  desc: "Government or public sector programme",     icon: "🏛️" },
 ];
 
-type Step = "form" | "submitted";
+type Step = "form" | "submitted" | "stripe_paid";
 
 export default function OrgNewPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  const [step, setStep]       = useState<Step>("form");
+  // Detect Stripe payment success redirect (?stripe_paid=1)
+  const [stripePaid] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("stripe_paid") === "1"
+  );
+
+  const [step, setStep]       = useState<Step>(stripePaid ? "stripe_paid" : "form");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]     = useState("");
 
@@ -85,6 +90,30 @@ export default function OrgNewPage() {
         <Link href="/settings" className="mt-6 inline-flex items-center gap-2 rounded-full bg-indigo-500/80 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500">
           Sign in →
         </Link>
+      </div>
+    );
+  }
+
+  // Stripe payment success — org being activated
+  if (step === "stripe_paid") {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/15 ring-1 ring-indigo-500/30">
+          <span className="text-3xl">🎉</span>
+        </div>
+        <h1 className="mt-5 text-xl font-semibold text-zinc-100">Payment received!</h1>
+        <p className="mt-3 text-sm leading-6 text-zinc-400">
+          Thank you for your payment. Your organisation account is being set up and will be activated within <strong className="text-zinc-200">24–48 hours</strong>.
+        </p>
+        <div className="mt-5 rounded-2xl border border-indigo-400/20 bg-indigo-500/8 px-5 py-4 text-sm text-zinc-400 text-left space-y-2">
+          <p>✅ Payment confirmed via Stripe</p>
+          <p>⏳ Imotara team will activate your org account</p>
+          <p>📧 You&apos;ll receive an email at <strong className="text-zinc-200">{userEmail ?? "your email"}</strong> with next steps</p>
+          <p>🏢 After activation, access your dashboard at <strong className="text-zinc-200">/org/dashboard</strong></p>
+        </div>
+        <p className="mt-4 text-xs text-zinc-600">
+          Questions? Email <a href="mailto:info@imotara.com" className="underline hover:text-zinc-400">info@imotara.com</a>
+        </p>
       </div>
     );
   }

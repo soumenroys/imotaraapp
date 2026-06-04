@@ -69,9 +69,38 @@ export async function POST(req: Request) {
 
             if (purpose === "imotara_license" && isValidProductId(productId) && userId) {
                 // ---- LIC-5: license payment — grant tier / top up tokens ----
+                // Idempotency: verify-payment may have already processed this paymentId.
+                // Skip if already in payment_licenses to prevent double-grant on token packs.
+                const paymentRef = paymentEntity?.id ?? orderEntity?.id;
+                if (paymentRef) {
+                    const { data: already } = await getSupabaseAdmin()
+                        .from("payment_licenses")
+                        .select("payment_id")
+                        .eq("payment_id", paymentRef)
+                        .maybeSingle();
+                    if (already) {
+                        console.log("[razorpay/webhook] already processed:", paymentRef, "— skipping");
+                        return NextResponse.json({ ok: true, skipped: "already_processed" });
+                    }
+                }
+
                 try {
                     const result = await grantLicense(userId, productId, getSupabaseAdmin(), "razorpay");
                     console.log("[razorpay/webhook] grantLicense OK:", productId, "user:", userId);
+
+                    // Record in payment_licenses so verify-payment also sees it as already processed
+                    if (paymentRef) {
+                        const product2 = PRODUCT_CATALOG[productId];
+                        void getSupabaseAdmin().from("payment_licenses").upsert({
+                            payment_id:   paymentRef,
+                            user_id:      userId,
+                            product_id:   productId,
+                            tier:         result.ok ? result.tier ?? "free" : "free",
+                            amount_paise: paymentEntity?.amount ?? (product2 && "paise" in product2 ? (product2 as { paise: number }).paise : 0),
+                            currency:     paymentEntity?.currency ?? "INR",
+                            granted_at:   new Date().toISOString(),
+                        }, { onConflict: "payment_id", ignoreDuplicates: true });
+                    }
 
                     // Create invoice record (await + log errors — non-blocking to payment flow)
                     const product = PRODUCT_CATALOG[productId];

@@ -2410,9 +2410,9 @@ export default function SettingsPage() {
         if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
             if (params.get("stripe_success") === "1") {
-                // Clear the URL param immediately
                 window.history.replaceState({}, "", "/settings");
-                // Refresh license after a short delay to allow webhook processing
+                // For corporate purchases: org is pending admin approval — 24h wait.
+                // For individual subscriptions: license granted via webhook (allow 30s processing).
                 setTimeout(() => { refreshLicenseStatus(); }, 2000);
             }
         }

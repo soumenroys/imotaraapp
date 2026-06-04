@@ -57,17 +57,30 @@ export async function POST(req: NextRequest) {
           const authUser  = await admin.auth.admin.getUserById(userId);
           const userEmail = authUser.data?.user?.email ?? "unknown";
 
+          // Check if user already has a pending org from a previous payment
+          const { data: existingOrg } = await admin
+            .from("organizations")
+            .select("id, name")
+            .eq("owner_user_id", userId)
+            .single();
+
+          if (existingOrg) {
+            console.log("[stripe/webhook] org already exists for user:", userId, existingOrg.name);
+            break; // Idempotent — don't create duplicate org
+          }
+
           // Auto-create org in pending state (admin activates with seats)
+          // Include user email in name so admin can easily find and contact them
           const slug = `stripe-${userId.slice(0,8)}-${Date.now()}`;
           const { data: org } = await admin.from("organizations").insert({
-            name: `${orgType.charAt(0).toUpperCase() + orgType.slice(1)} Organisation (via Stripe)`,
+            name: `${orgType.charAt(0).toUpperCase() + orgType.slice(1)} Org — ${userEmail} (via Stripe)`,
             slug,
             billing_type: orgType,
             tier,
             status: "pending",
             seats_purchased: seats,
             owner_user_id: userId,
-            notes: `Stripe payment: ${pi.id} · ${seats} seats · Activate from /admin`,
+            notes: `Stripe payment: ${pi.id} · ${seats} seats · Activate from /admin → Organizations`,
           }).select("id, name").single();
 
           if (org) {

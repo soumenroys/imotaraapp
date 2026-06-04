@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
           quantity: 1,
         }],
         customer_email:  userEmail ?? undefined,
-        success_url:     `${SITE_URL}/settings?stripe_success=1&session_id={CHECKOUT_SESSION_ID}`,
+        success_url:     `${SITE_URL}/org/new?stripe_paid=1&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url:      `${SITE_URL}/pricing/corporate?stripe_cancelled=1`,
         metadata: {
           imotara_user_id: userId,

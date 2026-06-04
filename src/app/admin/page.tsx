@@ -292,15 +292,6 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
           </div>
           <h1 className="mt-3 text-base font-semibold text-zinc-100">Imotara Admin</h1>
           <p className="mt-0.5 text-xs text-zinc-500">Super-admin panel</p>
-          <a
-            href="/admin/guide"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-0.5 text-[10px] text-zinc-400 transition hover:border-indigo-400/30 hover:bg-indigo-500/10 hover:text-indigo-300"
-          >
-            📋 Licensing &amp; Admin Guide
-            <svg className="h-2.5 w-2.5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-          </a>
         </div>
 
         {/* Mode switcher */}
@@ -413,20 +404,40 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
           <code className="text-zinc-400">.env.local</code>
         </p>
 
-        <div className="border-t border-white/8 pt-4 flex justify-center gap-4 text-[10px]">
-          <a href="/admin/guide" target="_blank" rel="noopener noreferrer"
-             className="text-zinc-600 hover:text-zinc-400 transition flex items-center gap-1">
-            📋 Licensing Guide
-          </a>
-          <a href="/admin/guide#superadmin" target="_blank" rel="noopener noreferrer"
-             className="text-zinc-600 hover:text-zinc-400 transition">
-            👑 Super-Admin Guide
-          </a>
-          <a href="/admin/guide#orgadmin" target="_blank" rel="noopener noreferrer"
-             className="text-zinc-600 hover:text-zinc-400 transition">
-            🏢 Org Admin Guide
-          </a>
+        {/* ── Admin Guide Panel ─────────────────────────────────────────── */}
+        <div className="rounded-2xl border border-indigo-400/25 bg-gradient-to-br from-indigo-500/10 via-sky-500/5 to-transparent p-4">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-base">
+              📋
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-zinc-100">Admin &amp; Licensing Guide</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">Step-by-step tutorials for all admin tasks</p>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            {[
+              { href: "/admin/guide?s=policy",     icon: "🏷️", label: "Licensing Policy",  desc: "Tiers, pricing, priority chain" },
+              { href: "/admin/guide?s=superadmin",  icon: "👑", label: "Super-Admin Guide", desc: "Login, orgs, pools, admins" },
+              { href: "/admin/guide?s=orgadmin",    icon: "🏢", label: "Org Admin Guide",   desc: "Members, licenses, analytics" },
+              { href: "/admin/guide?s=faq",         icon: "❓", label: "FAQ",               desc: "Common questions answered" },
+            ].map(({ href, icon, label, desc }) => (
+              <a key={href} href={href} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-2.5 transition hover:border-indigo-400/30 hover:bg-indigo-500/10 group">
+                <span className="text-base shrink-0">{icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-zinc-200 group-hover:text-white transition">{label}</p>
+                  <p className="text-[10px] text-zinc-500">{desc}</p>
+                </div>
+                <svg className="h-3 w-3 text-zinc-600 group-hover:text-indigo-400 transition shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            ))}
+          </div>
         </div>
+
       </div>
     </div>
   );

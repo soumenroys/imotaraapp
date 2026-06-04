@@ -572,7 +572,11 @@ const SECTIONS: { id: Section; label: string; icon: string }[] = [
 ];
 
 export default function AdminGuidePage() {
-  const [active, setActive] = useState<Section>("policy");
+  const [active, setActive] = useState<Section>(() => {
+    if (typeof window === "undefined") return "policy";
+    const s = new URLSearchParams(window.location.search).get("s") ?? "";
+    return (["policy", "superadmin", "orgadmin", "faq"].includes(s) ? s : "policy") as Section;
+  });
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">

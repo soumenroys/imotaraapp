@@ -71,12 +71,22 @@ export async function createInvoice(
   return { id: invoice.id, invoiceNumber: invoice.invoice_number };
 }
 
-/** Format paise as human-readable currency string. */
-export function formatAmount(paise: number, currency = "INR"): string {
-  const amount = paise / 100;
-  if (currency === "INR") return `₹${amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
-  if (currency === "USD") return `$${amount.toFixed(2)}`;
-  return `${amount.toFixed(2)} ${currency}`;
+/**
+ * Format smallest-currency-unit amount as human-readable string.
+ * Works for all currencies: INR (paise), USD (cents), EUR (eurocents), GBP (pence), etc.
+ * Returns "—" when amount is 0 (e.g., Apple IAP where amount is unavailable server-side).
+ */
+export function formatAmount(smallestUnit: number, currency = "INR"): string {
+  if (smallestUnit === 0) return "—";
+  const amount = smallestUnit / 100;
+  try {
+    return new Intl.NumberFormat("en", {
+      style: "currency", currency,
+      minimumFractionDigits: 2, maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`;
+  }
 }
 
 /** Generate HTML invoice for a given invoice row. */

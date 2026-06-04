@@ -4664,10 +4664,16 @@ function PaymentHistoryPanel() {
         } finally { setLoading(false); }
     }
 
-    function formatAmt(paise: number, currency: string) {
-        if (currency === "INR") return `₹${(paise / 100).toLocaleString("en-IN")}`;
-        if (paise === 0) return "—";
-        return `${(paise / 100).toFixed(2)} ${currency}`;
+    function formatAmt(smallestUnit: number, currency: string) {
+        if (smallestUnit === 0) return "—";
+        try {
+            return new Intl.NumberFormat("en", {
+                style: "currency", currency,
+                minimumFractionDigits: 2, maximumFractionDigits: 2,
+            }).format(smallestUnit / 100);
+        } catch {
+            return `${(smallestUnit / 100).toFixed(2)} ${currency}`;
+        }
     }
 
     const GATEWAY: Record<string, string> = { razorpay:"Razorpay", apple:"Apple", google_play:"Google Play", stripe:"Stripe" };

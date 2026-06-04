@@ -74,8 +74,8 @@ export async function POST(req: NextRequest) {
     user_id:      userId,
     product_id:   productId,
     tier:         "pending", // updated below after grant
-    amount_paise: 0,
-    currency:     "INR",
+    amount_paise: 0,   // Google Play amount unavailable server-side (set per country in Play Console)
+    currency:     "USD", // Default; actual local currency determined by Play Console per region
     granted_at:   new Date().toISOString(),
   });
   if (insertErr && !insertErr.message.includes("duplicate")) {
@@ -99,8 +99,8 @@ export async function POST(req: NextRequest) {
     description:    getProductDescription(productId),
     paymentGateway: "google_play",
     gatewayRef:     verification.orderId ?? purchaseToken.slice(0, 40),
-    amountPaise:    0,
-    currency:       "INR",
+    amountPaise:    0,    // Google Play doesn't expose amount server-side
+    currency:       "USD", // Play Console handles local pricing per country
     periodStart:    new Date().toISOString(),
     periodEnd:      result.expiresAt ?? verification.expiresAt ?? undefined,
   }).catch((err: unknown) => console.error("[google-play/verify] invoice creation failed:", err));

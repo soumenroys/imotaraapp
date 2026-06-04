@@ -96,7 +96,9 @@ export async function POST(req: NextRequest) {
               description: `Imotara ${tier.charAt(0).toUpperCase()+tier.slice(1)} · ${seats} seats (${orgType})`,
               paymentGateway: "stripe",
               gatewayRef: pi.id,
-              amountPaise: Math.round(pi.amount_received * 83),
+              // Stripe amount is already in smallest currency unit (cents/pence/etc.)
+              // Do NOT convert to INR — store native currency for accurate invoice display
+              amountPaise: pi.amount_received ?? 0,
               currency: pi.currency?.toUpperCase() ?? "USD",
             });
           }
@@ -112,7 +114,8 @@ export async function POST(req: NextRequest) {
             description: getProductDescription(productId),
             paymentGateway: "stripe",
             gatewayRef: pi.id,
-            amountPaise: Math.round((pi.amount_received ?? 0) * 83), // USD→INR approximate
+            // Stripe amount is in smallest currency unit (cents/pence) — store as-is
+            amountPaise: pi.amount_received ?? 0,
             currency: pi.currency?.toUpperCase() ?? "USD",
           });
         }
@@ -141,7 +144,8 @@ export async function POST(req: NextRequest) {
             description: getProductDescription(productId),
             paymentGateway: "stripe",
             gatewayRef: inv.id,
-            amountPaise: Math.round((inv.amount_paid ?? 0) * 83),
+            // Stripe amount is in smallest currency unit — store as-is (don't convert to INR)
+            amountPaise: inv.amount_paid ?? 0,
             currency: (inv.currency ?? "USD").toUpperCase(),
             periodStart: inv.period_start ? new Date(inv.period_start * 1000).toISOString() : undefined,
             periodEnd:   inv.period_end   ? new Date(inv.period_end   * 1000).toISOString() : undefined,

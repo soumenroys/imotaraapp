@@ -88,6 +88,12 @@ function fmt(paise: number) {
     return `₹${Math.round(paise / 100)}`;
 }
 
+// Approximate USD equivalent for international reference (shown alongside INR)
+function fmtUsd(paise: number) {
+    const usd = Math.round(paise / 83 / 100);
+    return `~$${usd}`;
+}
+
 // ── CompareRow ─────────────────────────────────────────────────────────────────
 
 function Cell({ value }: { value: boolean | string }) {
@@ -369,6 +375,9 @@ export default function UpgradePage() {
                                         <span className="text-2xl font-bold">{fmt(paise)}</span>
                                         <span className="ml-1 text-xs text-zinc-400">
                                             {annual ? "/yr" : "/mo"}
+                                        </span>
+                                        <span className="ml-1 text-[10px] text-zinc-600">
+                                            {fmtUsd(paise)}
                                         </span>
                                     </>
                                 )}
@@ -920,7 +929,8 @@ export default function UpgradePage() {
 
             {/* Footer note */}
             <p className="mt-10 text-center text-xs text-zinc-600">
-                UPI, cards, and netbanking accepted. Processed securely by Razorpay. All prices in INR.
+                India: UPI, cards, and netbanking via Razorpay. All prices shown in INR (approximate USD shown for reference).{" "}
+                International users: use the <span className="text-zinc-400">💳 Pay with international card</span> button on each plan.
             </p>
         </main>
     );

@@ -1,7 +1,7 @@
 // src/app/api/org/dashboard/branding/route.ts
 // GET   /api/org/dashboard/branding — read current branding settings
 // PATCH /api/org/dashboard/branding — update logo_url, accent_color, brand_name
-// Enterprise tier only. Requires org admin role.
+// EDU and Enterprise tiers. Requires org admin role.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireOrgAdmin } from "@/app/api/org/_auth";

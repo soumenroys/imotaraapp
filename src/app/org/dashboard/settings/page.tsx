@@ -239,17 +239,17 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Custom Branding — Enterprise only */}
-      {(orgTier === "enterprise" || !brandLoading) && (
-        <div className={`rounded-2xl border px-5 py-5 space-y-4 ${orgTier !== "enterprise" ? "border-white/8 bg-white/4 opacity-60" : "border-white/8 bg-white/4"}`}>
+      {/* Custom Branding — EDU and Enterprise (per licensing matrix) */}
+      {(["enterprise","edu"].includes(orgTier) || !brandLoading) && (
+        <div className={`rounded-2xl border px-5 py-5 space-y-4 ${!["enterprise","edu"].includes(orgTier) ? "border-white/8 bg-white/4 opacity-60" : "border-white/8 bg-white/4"}`}>
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-zinc-300">Custom Branding</p>
-            {orgTier !== "enterprise" && (
-              <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-medium text-orange-300 ring-1 ring-orange-500/20">Enterprise only</span>
+            {!["enterprise","edu"].includes(orgTier) && (
+              <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-medium text-orange-300 ring-1 ring-orange-500/20">EDU / Enterprise only</span>
             )}
           </div>
-          {orgTier !== "enterprise" ? (
-            <p className="text-xs text-zinc-500">Upgrade to Enterprise to add your logo, accent colour, and brand name. Contact <a href="mailto:info@imotara.com" className="underline">info@imotara.com</a>.</p>
+          {!["enterprise","edu"].includes(orgTier) ? (
+            <p className="text-xs text-zinc-500">Custom branding is available on EDU and Enterprise plans. Contact <a href="mailto:info@imotara.com" className="underline">info@imotara.com</a>.</p>
           ) : (
             <form onSubmit={handleBrandSave} className="space-y-4">
               <div>

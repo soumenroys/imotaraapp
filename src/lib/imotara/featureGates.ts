@@ -39,7 +39,7 @@ const HISTORY_DAYS: Record<LicenseTier, number> = {
 const TIER_FEATURES: Record<LicenseTier, Set<FeatureKey>> = {
     free: new Set<FeatureKey>([
         "CLOUD_SYNC",
-        // Server enforces 10 replies/day quota. History capped at 7 days.
+        // Server enforces 20 replies/day quota. History capped at 7 days.
     ]),
     plus: new Set<FeatureKey>([
         "CLOUD_SYNC",

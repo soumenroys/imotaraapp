@@ -280,6 +280,21 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
         }
 
+        // Create invoice record (fire-and-forget)
+        import("@/lib/imotara/invoiceUtils").then(({ createInvoice, getProductDescription }) => {
+          void createInvoice(admin, {
+            userId,
+            productId,
+            tier:           result.tier,
+            description:    getProductDescription(productId),
+            paymentGateway: "apple",
+            gatewayRef:     transactionId as string,
+            amountPaise:    0, // Apple IAP amount not directly available; 0 = not shown
+            currency:       "USD",
+            periodEnd:      result.expiresAt ?? undefined,
+          });
+        }).catch(() => {});
+
         const res = NextResponse.json({
             ok:           true,
             tier:         result.tier,

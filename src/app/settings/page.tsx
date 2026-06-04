@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
@@ -2689,10 +2689,18 @@ export default function SettingsPage() {
                         </p>
                     )}
 
+                    {/* Cancel subscription — shown for paid tiers */}
+                    {tierLabel !== "Free" && tierLabel !== "Enterprise" && (
+                        <CancelSubscriptionPanel tierLabel={tierLabel} />
+                    )}
+
                     {lic?.error && (
                         <p className="mt-3 text-[11px] text-rose-200/90">{lic.error}</p>
                     )}
                 </section>
+
+                {/* Payment history */}
+                <PaymentHistoryPanel />
 
                 {/* Donations (web) */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
@@ -4565,5 +4573,105 @@ export default function SettingsPage() {
                 {/* Version footer intentionally removed (global footer already shows version) */}
             </div>
         </main>
+    );
+}
+
+// ── Cancel Subscription Panel ─────────────────────────────────────────────────
+function CancelSubscriptionPanel({ tierLabel }: { tierLabel: string }) {
+    const [show, setShow] = React.useState(false);
+    const [cancelling, setCancelling] = React.useState(false);
+    const [msg, setMsg] = React.useState("");
+
+    async function handleCancel() {
+        if (!confirm(`Cancel your ${tierLabel} subscription? You'll keep access until the end of your billing period.`)) return;
+        setCancelling(true);
+        try {
+            const r = await fetch("/api/subscription/cancel", { method: "POST", credentials: "same-origin" });
+            const j = await r.json();
+            if (r.ok) { setMsg(j.message ?? "Subscription cancelled."); setShow(false); }
+            else { setMsg(j.error ?? "Failed to cancel."); }
+        } finally { setCancelling(false); }
+    }
+
+    return (
+        <div className="mt-4 border-t border-white/8 pt-3">
+            {!show ? (
+                <button onClick={() => setShow(true)} className="text-xs text-zinc-600 hover:text-zinc-400 transition underline underline-offset-2">
+                    Cancel subscription
+                </button>
+            ) : (
+                <div className="space-y-2">
+                    <p className="text-xs text-zinc-400">You will keep access to {tierLabel} until the end of your current billing period. After that, your plan reverts to Free.</p>
+                    {msg && <p className="text-xs text-emerald-400">{msg}</p>}
+                    <div className="flex gap-2">
+                        <button onClick={handleCancel} disabled={cancelling}
+                            className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-50">
+                            {cancelling ? "Cancelling…" : "Confirm cancel"}
+                        </button>
+                        <button onClick={() => setShow(false)} className="text-xs text-zinc-500 hover:text-zinc-300 transition">Keep subscription</button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ── Payment History Panel ─────────────────────────────────────────────────────
+function PaymentHistoryPanel() {
+    interface Invoice { id: string; invoice_number: string; description: string; amount_paise: number; currency: string; payment_gateway: string; status: string; issued_at: string; tier: string | null }
+    const [invoices, setInvoices] = React.useState<Invoice[]>([]);
+    const [loading, setLoading] = React.useState(false);
+    const [show, setShow] = React.useState(false);
+
+    async function load() {
+        if (invoices.length > 0) return;
+        setLoading(true);
+        try {
+            const r = await fetch("/api/invoice", { credentials: "same-origin" });
+            if (r.ok) setInvoices((await r.json()).invoices ?? []);
+        } finally { setLoading(false); }
+    }
+
+    function formatAmt(paise: number, currency: string) {
+        if (currency === "INR") return `₹${(paise / 100).toLocaleString("en-IN")}`;
+        if (paise === 0) return "—";
+        return `${(paise / 100).toFixed(2)} ${currency}`;
+    }
+
+    const GATEWAY: Record<string, string> = { razorpay:"Razorpay", apple:"Apple", google_play:"Google Play", stripe:"Stripe" };
+
+    return (
+        <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+            <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Payment history</h2>
+                <button onClick={() => { setShow((v) => !v); if (!show) load(); }}
+                    className="text-xs text-zinc-500 hover:text-zinc-300 transition">
+                    {show ? "Hide" : "View"}
+                </button>
+            </div>
+            {show && (
+                loading ? <p className="mt-3 text-xs text-zinc-500">Loading…</p>
+                : invoices.length === 0 ? <p className="mt-3 text-xs text-zinc-500">No payment records found.</p>
+                : (
+                    <div className="mt-3 space-y-2">
+                        {invoices.map((inv) => (
+                            <div key={inv.id} className="flex items-center justify-between rounded-xl border border-white/8 bg-white/4 px-3 py-2">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-medium text-zinc-200 truncate">{inv.description}</p>
+                                    <p className="text-[10px] text-zinc-500">{new Date(inv.issued_at).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })} · {GATEWAY[inv.payment_gateway] ?? inv.payment_gateway}</p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 ml-2">
+                                    <span className="text-xs font-semibold text-zinc-200">{formatAmt(inv.amount_paise, inv.currency)}</span>
+                                    <a href={`/api/invoice/${inv.id}`} target="_blank" rel="noopener noreferrer"
+                                        className="rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-400 hover:text-zinc-200 transition">
+                                        Receipt
+                                    </a>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )
+            )}
+        </section>
     );
 }

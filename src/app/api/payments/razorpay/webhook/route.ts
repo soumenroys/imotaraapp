@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { logDonation } from "@/lib/donations/logDonation";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { grantLicense, isValidProductId } from "@/lib/imotara/grantLicense";
+import { grantLicense, isValidProductId, PRODUCT_CATALOG } from "@/lib/imotara/grantLicense";
+import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
 
 const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || "";
 
@@ -69,8 +70,24 @@ export async function POST(req: Request) {
             if (purpose === "imotara_license" && isValidProductId(productId) && userId) {
                 // ---- LIC-5: license payment — grant tier / top up tokens ----
                 try {
-                    await grantLicense(userId, productId, getSupabaseAdmin(), "webhook");
+                    const result = await grantLicense(userId, productId, getSupabaseAdmin(), "webhook");
                     console.log("[razorpay/webhook] grantLicense OK:", productId, "user:", userId);
+
+                    // Create invoice record
+                    const product = PRODUCT_CATALOG[productId];
+                    const amountPaise = paymentEntity?.amount ?? (product && "paise" in product ? (product as { paise: number }).paise : 0);
+                    void createInvoice(getSupabaseAdmin(), {
+                      userId,
+                      productId,
+                      tier:            result.ok ? result.tier : undefined,
+                      description:     getProductDescription(productId),
+                      paymentGateway:  "razorpay",
+                      gatewayRef:      paymentEntity?.id ?? orderEntity?.id ?? "unknown",
+                      amountPaise:     typeof amountPaise === "number" ? amountPaise : 0,
+                      currency:        paymentEntity?.currency ?? "INR",
+                      periodStart:     new Date().toISOString(),
+                      periodEnd:       result.ok ? result.expiresAt ?? undefined : undefined,
+                    });
                 } catch (e) {
                     console.error("[razorpay/webhook] grantLicense failed:", e);
                 }

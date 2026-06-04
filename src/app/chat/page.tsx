@@ -2985,12 +2985,12 @@ export default function ChatPage() {
       {chatToast && (
         <Toast message={chatToast.message} type={chatToast.type} onDismiss={() => setChatToast(null)} />
       )}
-      <div className="mx-auto w-full max-w-7xl px-3 pt-3 sm:px-4">
+      <div className="mx-auto w-full max-w-7xl pt-3">
         <TopBar title="Chat" showSyncChip showConflictsButton />
       </div>
 
       {!isOnline && (
-        <div className="mx-auto w-full max-w-7xl px-3 sm:px-4">
+        <div className="mx-auto w-full max-w-7xl">
           <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300">
             <span className="shrink-0">⚠</span>
             <span>No internet connection — messages will be queued and sent when you&apos;re back online.</span>
@@ -2998,7 +2998,7 @@ export default function ChatPage() {
         </div>
       )}
 
-      <div className="mx-auto flex h-[calc(100vh-160px)] w-full max-w-7xl px-3 py-4 text-zinc-100 sm:px-4">
+      <div className="mx-auto flex h-[calc(100dvh-13rem)] w-full max-w-7xl py-3 text-zinc-100 sm:h-[calc(100vh-200px)] sm:py-4">
         {/* Sidebar */}
         <aside className="hidden w-72 flex-col gap-3 p-4 sm:flex imotara-glass-card">
           <div className="mb-1 flex items-center justify-between">
@@ -4286,88 +4286,142 @@ export default function ChatPage() {
                 </div>
               </div>
             )}
-            <div className="mx-auto flex max-w-3xl items-end gap-2">
-              <textarea
-                ref={composerRef}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={onKeyDown}
-                placeholder={composerPlaceholder}
-                aria-label="Message Imotara"
-                suppressHydrationWarning
-                rows={1}
-                className="max-h-[200px] flex-1 resize-none rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-indigo-400/70 focus:ring-1 focus:ring-indigo-500/60"
-              />
-              {/* #19: Voice input mic button */}
-              {mounted &&
-                ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) && (
+            <div className="mx-auto max-w-3xl">
+              {/* Mobile-only secondary button row — shown above textarea on small screens */}
+              <div className="mb-2 flex items-center gap-2 sm:hidden">
+                {mounted && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) && (
+                  <button
+                    type="button"
+                    onClick={toggleVoice}
+                    title={isListening ? "Stop listening" : handsfree ? "Speak — will send automatically" : "Speak your message"}
+                    aria-label={isListening ? "Stop voice input" : "Start voice input"}
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition ${
+                      isListening
+                        ? "border-rose-400/50 bg-rose-500/20 text-rose-300 animate-pulse"
+                        : handsfree
+                          ? "border-violet-400/50 bg-violet-500/20 text-violet-300"
+                          : "border-white/15 bg-white/5 text-zinc-400"
+                    }`}
+                  >
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={toggleVoice}
-                  title={isListening ? "Stop listening" : handsfree ? "Speak — will send automatically" : "Speak your message"}
-                  aria-label={isListening ? "Stop voice input" : "Start voice input"}
-                  className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
-                    isListening
-                      ? "border-rose-400/50 bg-rose-500/20 text-rose-300 animate-pulse"
-                      : handsfree
-                        ? "border-violet-400/50 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30"
-                        : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                  onClick={() => setShowBreathing((v) => !v)}
+                  title="Breathing exercise"
+                  aria-label={showBreathing ? "Close breathing exercise" : "Open breathing exercise"}
+                  className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition ${
+                    showBreathing
+                      ? "border-sky-400/50 bg-sky-500/20 text-sky-300"
+                      : "border-white/15 bg-white/5 text-zinc-400"
                   }`}
                 >
-                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  <Wind className="h-4 w-4" />
                 </button>
-              )}
-              {/* Breathing widget toggle */}
-              <button
-                type="button"
-                onClick={() => setShowBreathing((v) => !v)}
-                title="Breathing exercise"
-                aria-label={showBreathing ? "Close breathing exercise" : "Open breathing exercise"}
-                className={`h-11 w-11 inline-flex items-center justify-center rounded-2xl border transition ${
-                  showBreathing
-                    ? "border-sky-400/50 bg-sky-500/20 text-sky-300"
-                    : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
-                }`}
-              >
-                <Wind className="h-4 w-4" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setUnsentLetterModalOpen(true)}
+                  title="Write an unsent letter"
+                  className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition ${
+                    unsentLetterSetup
+                      ? "border-violet-500/50 bg-violet-500/15 text-violet-300"
+                      : "border-white/15 bg-white/5 text-zinc-400"
+                  }`}
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGriefMode((v) => !v)}
+                  title={griefMode ? "Exit Grief & Loss space" : "Open Grief & Loss space"}
+                  className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition ${
+                    griefMode
+                      ? "border-rose-500/50 bg-rose-500/15 text-rose-300"
+                      : "border-white/15 bg-white/5 text-zinc-400"
+                  }`}
+                >
+                  <Heart className="h-4 w-4" />
+                </button>
+              </div>
 
-              {/* P4 — Unsent Letter button */}
-              <button
-                onClick={() => setUnsentLetterModalOpen(true)}
-                title="Write an unsent letter"
-                className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
-                  unsentLetterSetup
-                    ? "border-violet-500/50 bg-violet-500/15 text-violet-300"
-                    : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
-                }`}
-                type="button"
-              >
-                <Pencil className="h-4 w-4" />
-              </button>
-
-              {/* NF-2 — Grief & Loss space button */}
-              <button
-                onClick={() => setGriefMode((v) => !v)}
-                title={griefMode ? "Exit Grief & Loss space" : "Open Grief & Loss space"}
-                className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
-                  griefMode
-                    ? "border-rose-500/50 bg-rose-500/15 text-rose-300"
-                    : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
-                }`}
-                type="button"
-              >
-                <Heart className="h-4 w-4" />
-              </button>
-
-              <button
-                onClick={() => sendMessage()}
-                disabled={analyzing || !draft.trim() || streamingReply.length > 0}
-                className="im-cta-bg inline-flex h-11 items-center gap-2 rounded-2xl border border-white/15 px-4 text-sm font-medium text-white shadow-lg transition hover:brightness-110 hover:-translate-y-0.5 duration-150 disabled:opacity-50"
-                type="button"
-              >
-                <Send className="h-4 w-4" /> Send
-              </button>
+              {/* Main composer row — textarea + desktop secondary buttons + send */}
+              <div className="flex items-end gap-2">
+                <textarea
+                  ref={composerRef}
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={onKeyDown}
+                  placeholder={composerPlaceholder}
+                  aria-label="Message Imotara"
+                  suppressHydrationWarning
+                  rows={1}
+                  className="max-h-[200px] flex-1 resize-none rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-indigo-400/70 focus:ring-1 focus:ring-indigo-500/60"
+                />
+                {/* Desktop-only: secondary buttons inline in composer row */}
+                {mounted && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) && (
+                  <button
+                    type="button"
+                    onClick={toggleVoice}
+                    title={isListening ? "Stop listening" : handsfree ? "Speak — will send automatically" : "Speak your message"}
+                    aria-label={isListening ? "Stop voice input" : "Start voice input"}
+                    className={`hidden sm:inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
+                      isListening
+                        ? "border-rose-400/50 bg-rose-500/20 text-rose-300 animate-pulse"
+                        : handsfree
+                          ? "border-violet-400/50 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30"
+                          : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                    }`}
+                  >
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowBreathing((v) => !v)}
+                  title="Breathing exercise"
+                  aria-label={showBreathing ? "Close breathing exercise" : "Open breathing exercise"}
+                  className={`hidden sm:inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
+                    showBreathing
+                      ? "border-sky-400/50 bg-sky-500/20 text-sky-300"
+                      : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                  }`}
+                >
+                  <Wind className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUnsentLetterModalOpen(true)}
+                  title="Write an unsent letter"
+                  className={`hidden sm:inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
+                    unsentLetterSetup
+                      ? "border-violet-500/50 bg-violet-500/15 text-violet-300"
+                      : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                  }`}
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGriefMode((v) => !v)}
+                  title={griefMode ? "Exit Grief & Loss space" : "Open Grief & Loss space"}
+                  className={`hidden sm:inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${
+                    griefMode
+                      ? "border-rose-500/50 bg-rose-500/15 text-rose-300"
+                      : "border-white/15 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                  }`}
+                >
+                  <Heart className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => sendMessage()}
+                  disabled={analyzing || !draft.trim() || streamingReply.length > 0}
+                  className="im-cta-bg inline-flex h-11 items-center gap-2 rounded-2xl border border-white/15 px-4 text-sm font-medium text-white shadow-lg transition hover:brightness-110 hover:-translate-y-0.5 duration-150 disabled:opacity-50"
+                  type="button"
+                >
+                  <Send className="h-4 w-4" /> Send
+                </button>
+              </div>
             </div>
             {/* Crisis note */}
             <p className="mx-auto mt-1.5 max-w-3xl text-center text-[10px] text-zinc-600">

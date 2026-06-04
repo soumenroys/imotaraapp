@@ -290,6 +290,13 @@ body {
   background-attachment: fixed;
 }
 
+/* On touch devices, fixed background causes scroll jank — switch to local */
+@media (hover: none) and (pointer: coarse) {
+  body {
+    background-attachment: local;
+  }
+}
+
 /* Softer selection color */
 ::selection {
   background: rgba(129, 140, 248, 0.45);

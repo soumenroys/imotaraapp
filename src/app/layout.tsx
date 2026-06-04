@@ -352,7 +352,7 @@ export default function RootLayout({
       >
         <SiteHeader />
 
-        <main id="main-content" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 pb-28 sm:px-6 sm:py-10">
+        <main id="main-content" className="mx-auto w-full max-w-5xl flex-1 px-4 py-4 pb-8 sm:px-6 sm:py-10">
           <PageTransition>{children}</PageTransition>
         </main>
 

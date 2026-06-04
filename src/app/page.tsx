@@ -119,7 +119,7 @@ export default function Home() {
   }, []);
 
   return (
-    <section className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl items-center px-4 py-16 sm:py-24">
+    <section className="mx-auto flex min-h-[calc(100dvh-5rem)] max-w-5xl items-center px-4 py-10 sm:py-24">
       <div className="w-full space-y-10">
         {/* Hero glass card */}
         <div className="imotara-glass-card px-6 py-8 sm:px-8 sm:py-10">

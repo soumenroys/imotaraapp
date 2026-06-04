@@ -565,7 +565,7 @@ function ToneAndContextTile() {
                 </div>
             )}
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
                 {/* Personal info */}
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-400">Personal info</p>
@@ -588,7 +588,7 @@ function ToneAndContextTile() {
                         </label>
 
                         <div className="flex gap-3">
-                            <label className="flex flex-col gap-1 flex-1">
+                            <label className="flex min-w-0 flex-1 flex-col gap-1">
                                 <span className="text-xs text-zinc-300">Age range</span>
                                 <select
                                     value={userAge}
@@ -598,7 +598,7 @@ function ToneAndContextTile() {
                                         setUserAvatarAge(AGE_RANGE_TO_AVATAR[next] ?? 26);
                                     }}
                                     className={[
-                                        "h-10 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                        "h-10 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
                                         selectActiveClass(userAge !== "prefer_not"),
                                     ].join(" ")}
                                 >
@@ -613,13 +613,13 @@ function ToneAndContextTile() {
                                 </select>
                             </label>
 
-                            <div className="flex flex-col gap-1 flex-1">
+                            <div className="flex min-w-0 flex-1 flex-col gap-1">
                                 <span className="text-xs text-zinc-300">Gender</span>
                                 <select
                                     value={userGender}
                                     onChange={(e) => setUserGender(e.target.value as Gender)}
                                     className={[
-                                        "h-10 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                        "h-10 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
                                         selectActiveClass(userGender !== "prefer_not"),
                                     ].join(" ")}
                                 >
@@ -663,7 +663,7 @@ function ToneAndContextTile() {
                                 value={preferredLang}
                                 onChange={(e) => setPreferredLang(e.target.value as SupportedLang | "auto")}
                                 className={[
-                                    "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                    "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
                                     selectActiveClass(preferredLang !== "en"),
                                 ].join(" ")}
                             >
@@ -770,7 +770,7 @@ function ToneAndContextTile() {
                             </label>
 
                             <div className="flex gap-3">
-                                <label className="flex flex-col gap-1 flex-1">
+                                <label className="flex min-w-0 flex-1 flex-col gap-1">
                                     <span className="text-xs text-zinc-300">Age range</span>
                                     <select
                                         value={compAge}
@@ -780,7 +780,7 @@ function ToneAndContextTile() {
                                             setCompAvatarAge(AGE_RANGE_TO_AVATAR[next] ?? 26);
                                         }}
                                         className={[
-                                            "h-10 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                            "h-10 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
                                             selectActiveClass(compAge !== "prefer_not"),
                                         ].join(" ")}
                                     >
@@ -796,13 +796,13 @@ function ToneAndContextTile() {
                                     </select>
                                 </label>
 
-                                <div className="flex flex-col gap-1 flex-1">
+                                <div className="flex min-w-0 flex-1 flex-col gap-1">
                                     <span className="text-xs text-zinc-300">Gender</span>
                                     <select
                                         value={compGender}
                                         onChange={(e) => setCompGender(e.target.value as Gender)}
                                         className={[
-                                            "h-10 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                            "h-10 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
                                             selectActiveClass(compGender !== "prefer_not"),
                                         ].join(" ")}
                                     >
@@ -861,7 +861,7 @@ function ToneAndContextTile() {
                                         );
                                     }}
                                     className={[
-                                        "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                        "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
                                         selectActiveClass(compRel !== "prefer_not"),
                                     ].join(" ")}
                                 >
@@ -883,7 +883,7 @@ function ToneAndContextTile() {
                                     value={responseStyle}
                                     onChange={(e) => setResponseStyle(e.target.value as ResponseStyle | "auto")}
                                     className={[
-                                        "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
+                                        "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
                                         selectActiveClass(responseStyle !== "auto"),
                                     ].join(" ")}
                                 >

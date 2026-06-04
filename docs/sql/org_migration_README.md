@@ -65,6 +65,15 @@ drop table if exists org_members cascade;
 drop table if exists organizations cascade;
 ```
 
+## Phase 2 Migration (run after Phase 1)
+
+Run `org_phase2_features.sql` to add:
+- `cohorts` + `cohort_members` tables (classroom/team mode)
+- `referral_codes` + `referral_attributions` tables (NGO revenue sharing)
+- `emotion` column on `usage_events` (emotion trend analytics)
+
+---
+
 ## What's Next After Migration
 
 Once SQL migration is done, implement Phase 1B–1E:

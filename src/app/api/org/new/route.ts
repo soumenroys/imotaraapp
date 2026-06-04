@@ -119,6 +119,18 @@ export async function POST(req: NextRequest) {
     status:  "active",
   });
 
+  // 6b. Create licenses row for owner so resolve_user_tier() can find their org context.
+  // Uses 'free' tier until super-admin approves and activates the org — at which point
+  // the super-admin should set org tier and seats to activate the license properly.
+  await admin.from("licenses").upsert({
+    user_id:    userId,
+    tier:       "free",
+    status:     "valid",
+    org_id:     org.id,
+    source:     "org",
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id" });
+
   // 7. Send alert email to Imotara admin (non-blocking — don't fail request if email fails)
   void sendAdminAlert({
     orgName:      org.name,

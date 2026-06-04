@@ -87,12 +87,34 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // If tier changed, update all active org members' licenses
-  if (body.tier) {
-    await admin
-      .from("licenses")
-      .update({ tier: body.tier, updated_at: new Date().toISOString() })
-      .eq("org_id", orgId);
+  // If tier OR status changed to active, sync all active org members' licenses
+  const tierChanged   = !!body.tier;
+  const justActivated = body.status === "active";
+
+  if (tierChanged || justActivated) {
+    const newTier = data?.tier ?? body.tier;
+    // Get all active org members
+    const { data: members } = await admin
+      .from("org_members")
+      .select("user_id")
+      .eq("org_id", orgId)
+      .eq("status", "active");
+
+    // Upsert a licenses row for each member — ensures resolve_user_tier works
+    if (members && members.length > 0) {
+      await admin.from("licenses").upsert(
+        members.map((m) => ({
+          user_id:    m.user_id,
+          tier:       newTier,
+          status:     "valid",
+          expires_at: data?.expires_at ?? null,
+          org_id:     orgId,
+          source:     "org",
+          updated_at: new Date().toISOString(),
+        })),
+        { onConflict: "user_id" }
+      );
+    }
   }
 
   return NextResponse.json({ org: data }, { status: 200 });

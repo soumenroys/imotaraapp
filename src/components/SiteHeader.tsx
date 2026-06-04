@@ -24,6 +24,7 @@ const MORE_LINKS = [
   { href: "/careers", label: "Careers" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
+  { href: "/admin", label: "🔒 Admin" },
 ];
 
 const NAV_CLASS =

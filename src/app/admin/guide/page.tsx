@@ -2,7 +2,7 @@
 // src/app/admin/guide/page.tsx — Imotara Licensing & Admin Guide
 // Detailed step-by-step tutorial with realistic UI mockups for every action.
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 type Section = "policy" | "superadmin" | "orgadmin" | "faq";
@@ -1140,11 +1140,15 @@ const SECTIONS: { id: Section; label: string; icon: string; desc: string }[] = [
 ];
 
 export default function AdminGuidePage() {
-  const [active, setActive] = useState<Section>(() => {
-    if (typeof window === "undefined") return "policy";
+  const [active, setActive] = useState<Section>("policy");
+
+  // Read ?s= after mount — avoids SSR/client hydration mismatch
+  useEffect(() => {
     const s = new URLSearchParams(window.location.search).get("s") ?? "";
-    return (["policy", "superadmin", "orgadmin", "faq"].includes(s) ? s : "policy") as Section;
-  });
+    if (["policy", "superadmin", "orgadmin", "faq"].includes(s)) {
+      setActive(s as Section);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0d0d10] text-zinc-100">

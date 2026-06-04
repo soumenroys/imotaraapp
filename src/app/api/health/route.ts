@@ -11,9 +11,9 @@ export async function GET() {
         RAZORPAY_KEY_SECRET: present(process.env.RAZORPAY_KEY_SECRET),
         RAZORPAY_WEBHOOK_SECRET: present(process.env.RAZORPAY_WEBHOOK_SECRET),
 
-        // Supabase (donation receipts storage)
-        SUPABASE_URL: present(process.env.SUPABASE_URL),
-        SUPABASE_ANON_KEY: present(process.env.SUPABASE_ANON_KEY),
+        // Supabase — NEXT_PUBLIC_ prefix for client-side vars
+        SUPABASE_URL: present(process.env.NEXT_PUBLIC_SUPABASE_URL),
+        SUPABASE_ANON_KEY: present(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
         SUPABASE_SERVICE_ROLE_KEY: present(process.env.SUPABASE_SERVICE_ROLE_KEY),
 
         // App

@@ -70,7 +70,7 @@ export async function POST(req: Request) {
             if (purpose === "imotara_license" && isValidProductId(productId) && userId) {
                 // ---- LIC-5: license payment — grant tier / top up tokens ----
                 try {
-                    const result = await grantLicense(userId, productId, getSupabaseAdmin(), "webhook");
+                    const result = await grantLicense(userId, productId, getSupabaseAdmin(), "razorpay");
                     console.log("[razorpay/webhook] grantLicense OK:", productId, "user:", userId);
 
                     // Create invoice record (await + log errors — non-blocking to payment flow)

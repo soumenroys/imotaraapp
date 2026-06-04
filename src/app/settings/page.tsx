@@ -2721,8 +2721,8 @@ export default function SettingsPage() {
                         </p>
                     )}
 
-                    {/* Cancel subscription — shown for paid tiers */}
-                    {tierLabel !== "Free" && tierLabel !== "Enterprise" && (
+                    {/* Cancel subscription — shown for paid personal tiers only (not org plans) */}
+                    {tierLabel !== "Free" && tierLabel !== "Enterprise" && !lic?.org && (
                         <CancelSubscriptionPanel tierLabel={tierLabel} />
                     )}
 

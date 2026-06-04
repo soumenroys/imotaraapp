@@ -15,6 +15,7 @@ import {
     PRODUCT_CATALOG,
     type LicenseProductId,
 } from "@/lib/imotara/grantLicense";
+import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
 
 const RZP_KEY_ID     = process.env.RAZORPAY_KEY_ID     ?? "";
 const RZP_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET ?? "";
@@ -174,6 +175,21 @@ export async function POST(req: Request) {
         if (!result.ok) {
             return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
         }
+
+        // Create invoice (non-blocking)
+        createInvoice(admin, {
+            userId,
+            productId,
+            tier:           result.tier,
+            description:    getProductDescription(productId),
+            paymentGateway: "razorpay",
+            gatewayRef:     paymentId,
+            amountPaise:    payment?.amount ?? (PRODUCT_CATALOG[productId] && "paise" in PRODUCT_CATALOG[productId]
+                              ? (PRODUCT_CATALOG[productId] as { paise: number }).paise : 0),
+            currency:       payment?.currency ?? "INR",
+            periodStart:    new Date().toISOString(),
+            periodEnd:      result.expiresAt ?? undefined,
+        }).catch((err: unknown) => console.error("[verify-payment] invoice creation failed:", err));
 
         const res = NextResponse.json({
             ok: true,

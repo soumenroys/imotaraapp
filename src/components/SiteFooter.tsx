@@ -64,6 +64,8 @@ const NAV_LINKS = [
   { href: "/grow",     label: "Grow",     emoji: "✨" },
   { href: "/connect",  label: "Contact",  emoji: "✉️" },
   { href: "/careers",  label: "Careers",  emoji: "🌱" },
+  { href: "/upgrade",           label: "Plans",      emoji: "💎" },
+  { href: "/pricing/corporate", label: "For Teams",  emoji: "🏢" },
   { href: "/privacy",  label: "Privacy",  emoji: "🔒" },
   { href: "/terms",    label: "Terms",    emoji: "📋" },
 ];

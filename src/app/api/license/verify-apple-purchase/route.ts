@@ -205,7 +205,7 @@ export async function POST(req: Request) {
             // "free", the previous grantLicense call must have failed after the payment
             // record was written. Re-run the grant now so the user's purchase is honoured.
             if (paymentTier !== "free" && currentTier === "free") {
-                const reGrant = await grantLicense(userId, productId as LicenseProductId, admin);
+                const reGrant = await grantLicense(userId, productId as LicenseProductId, admin, "apple");
                 if (!reGrant.ok) {
                     return NextResponse.json({ ok: false, error: reGrant.error }, { status: 500 });
                 }
@@ -276,7 +276,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: false, error: "Could not record transaction" }, { status: 500 });
         }
 
-        const result = await grantLicense(userId, productId as LicenseProductId, admin);
+        const result = await grantLicense(userId, productId as LicenseProductId, admin, "apple");
         if (!result.ok) {
             return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
         }

@@ -162,10 +162,41 @@ function EyeIcon({ open }: { open: boolean }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
+  const [loginMode, setLoginMode] = useState<"email" | "secret">("email");
+
+  // Email + password mode
+  const [email, setEmail]         = useState("");
+  const [emailPwd, setEmailPwd]   = useState("");
+  const [showEmailPwd, setShowEmailPwd] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [emailPending, startEmailTransition] = useTransition();
+
+  // Secret key mode (legacy)
   const [value, setValue]       = useState("");
   const [showPwd, setShowPwd]   = useState(false);
   const [error, setError]       = useState("");
   const [isPending, startTransition] = useTransition();
+
+  function handleEmailSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    startEmailTransition(async () => {
+      const res = await fetch("/api/admin/auth/login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password: emailPwd }),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        // Use email as the "token" so existing code still works for display
+        sessionStorage.setItem(SESSION_KEY, `session:${j.admin?.name ?? email}`);
+        onAuth(`session:${j.admin?.name ?? email}`);
+      } else {
+        const j = await res.json().catch(() => ({}));
+        setEmailError(j.error ?? "Invalid email or password");
+      }
+    });
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -182,27 +213,50 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
     });
   }
 
+  const inputCls = "w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-4 pr-10 text-sm text-zinc-200 placeholder-zinc-600 outline-none transition focus:border-indigo-500/40";
+
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6 rounded-2xl border border-white/10 bg-white/5 px-6 py-8 backdrop-blur-xl">
         <div className="text-center">
-          {/* Imotara logo */}
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-black/30 shadow-lg ring-1 ring-white/10">
-            <Image
-              src="/android-chrome-192.png"
-              width={48}
-              height={48}
-              alt="Imotara"
-              className="rounded-xl"
-              priority
-            />
+            <Image src="/android-chrome-192.png" width={48} height={48} alt="Imotara" className="rounded-xl" priority />
           </div>
           <h1 className="mt-3 text-base font-semibold text-zinc-100">Imotara Admin</h1>
           <p className="mt-0.5 text-xs text-zinc-500">Super-admin panel</p>
         </div>
 
+        {/* Mode switcher */}
+        <div className="flex rounded-xl border border-white/8 bg-white/5 p-1">
+          <button type="button" onClick={() => setLoginMode("email")}
+            className={`flex-1 rounded-lg py-1.5 text-xs transition ${loginMode === "email" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
+            Email / Password
+          </button>
+          <button type="button" onClick={() => setLoginMode("secret")}
+            className={`flex-1 rounded-lg py-1.5 text-xs transition ${loginMode === "secret" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
+            Secret key
+          </button>
+        </div>
+
+        {/* Email + password login */}
+        {loginMode === "email" && (
+          <form onSubmit={handleEmailSubmit} className="space-y-3">
+            <input type="email" placeholder="admin@imotara.com" value={email} onChange={(e) => { setEmail(e.target.value); setEmailError(""); }} autoFocus required className={inputCls} />
+            <div className="relative">
+              <input type={showEmailPwd ? "text" : "password"} placeholder="Password" value={emailPwd} onChange={(e) => { setEmailPwd(e.target.value); setEmailError(""); }} required className={inputCls} />
+              <button type="button" onClick={() => setShowEmailPwd((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"><EyeIcon open={showEmailPwd} /></button>
+            </div>
+            {emailError && <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{emailError}</p>}
+            <button type="submit" disabled={emailPending} className="w-full rounded-xl bg-indigo-600/80 py-3 text-sm font-semibold text-white transition hover:bg-indigo-600 disabled:opacity-60">
+              {emailPending ? "Signing in…" : "Sign in"}
+            </button>
+            <p className="text-center text-[11px] text-zinc-600">First time? Run <code className="text-zinc-400">POST /api/admin/auth/seed</code> to create owner account.</p>
+          </form>
+        )}
+
+        {/* Legacy secret key login */}
+        {loginMode === "secret" && (
         <form onSubmit={handleSubmit} className="space-y-3">
-          {/* Password field with show/hide toggle */}
           <div className="relative">
             <input
               type={showPwd ? "text" : "password"}
@@ -211,7 +265,7 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
               onChange={(e) => { setValue(e.target.value); setError(""); }}
               autoFocus
               required
-              className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-4 pr-10 text-sm text-zinc-200 placeholder-zinc-600 outline-none transition focus:border-indigo-500/40"
+              className={inputCls}
             />
             <button
               type="button"
@@ -233,6 +287,7 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
             {isPending ? "Verifying…" : "Sign in"}
           </button>
         </form>
+        )}
 
         <p className="text-center text-[10px] text-zinc-600">
           Set <code className="text-zinc-400">ADMIN_SECRET</code> in{" "}
@@ -768,6 +823,71 @@ function HistoryTable({ rows }: { rows: HistoryEntry[] }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
+// OrgMembersPanel — embedded inside org edit panel
+// ─────────────────────────────────────────────────────────────────────────────
+
+function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
+  interface OM { userId: string; email: string; role: string; joinedAt: string }
+  const [members, setMembers]   = useState<OM[]>([]);
+  const [loaded, setLoaded]     = useState(false);
+  const [show, setShow]         = useState(false);
+  const [working, setWorking]   = useState<string | null>(null);
+  const authHeader              = { Authorization: `Bearer ${token}` };
+
+  async function load() {
+    if (loaded) return;
+    const r = await fetch(`/api/admin/organizations/${orgId}`, { headers: authHeader });
+    if (r.ok) { const j = await r.json(); setMembers(j.members ?? []); setLoaded(true); }
+  }
+
+  async function changeRole(userId: string, role: string) {
+    setWorking(userId);
+    await fetch(`/api/admin/organizations/${orgId}/members`, { method: "PATCH", headers: { ...authHeader, "Content-Type": "application/json" }, body: JSON.stringify({ userId, role }) });
+    setWorking(null);
+    setMembers((p) => p.map((m) => m.userId === userId ? { ...m, role } : m));
+  }
+
+  async function removeMember(userId: string) {
+    if (!confirm("Remove this member? Their license will be revoked.")) return;
+    setWorking(userId);
+    await fetch(`/api/admin/organizations/${orgId}/members?userId=${userId}`, { method: "DELETE", headers: authHeader });
+    setWorking(null);
+    setMembers((p) => p.filter((m) => m.userId !== userId));
+  }
+
+  return (
+    <div className="border-t border-white/8 pt-3">
+      <button onClick={async () => { setShow((v) => !v); if (!show && !loaded) await load(); }} className="text-xs text-indigo-400 hover:text-indigo-300 transition">
+        {show ? "▲ Hide members" : "▼ Manage members"}
+      </button>
+      {show && (
+        <div className="mt-3 space-y-1.5">
+          {members.length === 0 && loaded && <p className="text-xs text-zinc-500">No members yet.</p>}
+          {members.map((m) => (
+            <div key={m.userId} className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/3 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-zinc-200 truncate">{m.email}</p>
+              </div>
+              <select value={m.role} disabled={working === m.userId}
+                onChange={(e) => changeRole(m.userId, e.target.value)}
+                className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-xs text-zinc-300 outline-none">
+                <option value="owner">owner</option>
+                <option value="admin">admin</option>
+                <option value="member">member</option>
+              </select>
+              <button onClick={() => removeMember(m.userId)} disabled={working === m.userId}
+                className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-xs text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-40">
+                {working === m.userId ? "…" : "Remove"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // OrganizationsSection
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1041,11 +1161,132 @@ function OrganizationsSection({ token }: { token: string }) {
                         Cancel
                       </button>
                     </div>
+                    {/* Member management */}
+                    <OrgMembersPanel orgId={org.orgId} token={token} />
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SuperAdminsSection
+// ─────────────────────────────────────────────────────────────────────────────
+
+function SuperAdminsSection({ token }: { token: string }) {
+  interface SuperAdmin { id: string; email: string; name: string; role: string; active: boolean; last_login_at: string | null; created_at: string }
+  const [admins, setAdmins]     = useState<SuperAdmin[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState("");
+  const [saving, setSaving]     = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [newName, setNewName]   = useState("");
+  const [newPwd, setNewPwd]     = useState("");
+  const [newRole, setNewRole]   = useState("admin");
+  const [msg, setMsg]           = useState("");
+  const authHeader = { Authorization: `Bearer ${token}` };
+
+  const fetchAdmins = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await fetch("/api/admin/super-admins", { headers: authHeader });
+      if (!r.ok) { setError("Not authorized or no super-admin accounts yet."); return; }
+      setAdmins((await r.json()).admins ?? []);
+    } catch { setError("Network error."); }
+    finally { setLoading(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  useEffect(() => { void fetchAdmins(); }, [fetchAdmins]);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setMsg(""); setError("");
+    const r = await fetch("/api/admin/super-admins", {
+      method: "POST", headers: { ...authHeader, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: newEmail, name: newName, password: newPwd, role: newRole }),
+    });
+    const j = await r.json();
+    setSaving(false);
+    if (!r.ok) { setError(j.error ?? "Failed"); return; }
+    setMsg(`✓ ${j.admin.name} added as ${j.admin.role}`);
+    setNewEmail(""); setNewName(""); setNewPwd(""); setNewRole("admin");
+    void fetchAdmins();
+  }
+
+  async function handleResetPwd(id: string, name: string) {
+    const pwd = prompt(`New password for ${name} (min 12 chars):`);
+    if (!pwd || pwd.length < 12) { alert("Password must be ≥12 characters."); return; }
+    const r = await fetch(`/api/admin/super-admins/${id}`, {
+      method: "PATCH", headers: { ...authHeader, "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pwd }),
+    });
+    alert(r.ok ? "Password updated." : "Failed to update password.");
+  }
+
+  async function handleDeactivate(id: string) {
+    if (!confirm("Deactivate this admin? They will lose all access immediately.")) return;
+    const r = await fetch(`/api/admin/super-admins/${id}`, { method: "DELETE", headers: authHeader });
+    if (r.ok) void fetchAdmins(); else alert("Failed to deactivate.");
+  }
+
+  const inputCls = "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50";
+
+  return (
+    <div className="space-y-6">
+      <p className="text-xs text-zinc-500">Manage who has super-admin access to this panel. Only <strong className="text-zinc-300">owners</strong> can add or remove admins. Passwords require ≥12 characters.</p>
+
+      {/* Add new admin */}
+      <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
+        <p className="text-sm font-medium text-zinc-300">Add super-admin</p>
+        <form onSubmit={handleCreate} className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <input required value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Full name" className={`${inputCls} w-full`} />
+            <input required type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Email" className={`${inputCls} w-full`} />
+            <input required type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="Password (min 12 chars)" minLength={12} className={`${inputCls} w-full`} />
+            <select value={newRole} onChange={(e) => setNewRole(e.target.value)} className={`${inputCls} w-full`}>
+              <option value="admin">Admin</option>
+              <option value="owner">Owner (full access)</option>
+            </select>
+          </div>
+          {error && <p className="text-xs text-rose-400">{error}</p>}
+          {msg   && <p className="text-xs text-emerald-400">{msg}</p>}
+          <button type="submit" disabled={saving} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+            {saving ? "Adding…" : "Add admin"}
+          </button>
+        </form>
+      </div>
+
+      {/* Admin list */}
+      {loading ? (
+        <div className="space-y-2">{[1,2].map((i) => <div key={i} className="h-14 animate-pulse rounded-2xl bg-white/5" />)}</div>
+      ) : admins.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-white/10 px-5 py-8 text-center">
+          <p className="text-2xl">👑</p>
+          <p className="mt-2 text-sm text-zinc-500">No super-admins yet. First, run <code className="text-zinc-400">POST /api/admin/auth/seed</code> to create the owner account.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {admins.map((a) => (
+            <div key={a.id} className={`flex flex-wrap items-center gap-3 rounded-2xl border border-white/8 bg-white/4 px-4 py-3 ${!a.active ? "opacity-50" : ""}`}>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-zinc-100">{a.name}</p>
+                <p className="text-[11px] text-zinc-500">{a.email} · last login: {a.last_login_at ? timeAgo(a.last_login_at) : "never"}</p>
+              </div>
+              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium ${a.role === "owner" ? "bg-amber-500/15 text-amber-300" : "bg-indigo-500/15 text-indigo-300"}`}>{a.role}</span>
+              {!a.active && <span className="text-[11px] text-zinc-600">inactive</span>}
+              {a.active && (
+                <div className="flex gap-1.5">
+                  <button onClick={() => handleResetPwd(a.id, a.name)} className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-300 transition hover:bg-white/10">Reset pwd</button>
+                  <button onClick={() => handleDeactivate(a.id)} className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-xs text-rose-400 transition hover:bg-rose-500/20">Deactivate</button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -1179,7 +1420,7 @@ function LicensesSection({ token }: { token: string }) {
 // Main AdminPage
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Section = "comments" | "licenses" | "organizations";
+type Section = "comments" | "licenses" | "organizations" | "superadmins";
 
 export default function AdminPage() {
   const [token, setToken]     = useState<string | null>(null);
@@ -1240,7 +1481,7 @@ export default function AdminPage() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Imotara · Admin</p>
             <h1 className="text-xl font-semibold text-zinc-100">
-              {section === "comments" ? "Blog Comments" : section === "licenses" ? "License Management" : "Organizations"}
+              {section === "comments" ? "Blog Comments" : section === "licenses" ? "License Management" : section === "organizations" ? "Organizations" : "Super Admins"}
             </h1>
           </div>
         </div>
@@ -1259,9 +1500,20 @@ export default function AdminPage() {
               className={`rounded-lg px-3 py-1.5 text-xs transition ${section === "organizations" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
               🏢 Organizations
             </button>
+            <button onClick={() => setSection("superadmins")}
+              className={`rounded-lg px-3 py-1.5 text-xs transition ${section === "superadmins" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
+              👑 Super Admins
+            </button>
           </div>
           <button
-            onClick={() => { sessionStorage.removeItem(SESSION_KEY); setToken(null); }}
+            onClick={async () => {
+              // Clear session cookie (new system) and sessionStorage (legacy)
+              if (token?.startsWith("session:")) {
+                await fetch("/api/admin/auth/logout", { method: "DELETE", credentials: "same-origin" }).catch(() => {});
+              }
+              sessionStorage.removeItem(SESSION_KEY);
+              setToken(null);
+            }}
             className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-500 transition hover:text-zinc-300">
             Sign out
           </button>
@@ -1334,6 +1586,7 @@ export default function AdminPage() {
 
       {section === "licenses"      && <LicensesSection      token={token} />}
       {section === "organizations" && <OrganizationsSection token={token} />}
+      {section === "superadmins"   && <SuperAdminsSection   token={token} />}
     </main>
   );
 }

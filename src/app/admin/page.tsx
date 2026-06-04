@@ -292,6 +292,15 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
           </div>
           <h1 className="mt-3 text-base font-semibold text-zinc-100">Imotara Admin</h1>
           <p className="mt-0.5 text-xs text-zinc-500">Super-admin panel</p>
+          <a
+            href="/admin/guide"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-0.5 text-[10px] text-zinc-400 transition hover:border-indigo-400/30 hover:bg-indigo-500/10 hover:text-indigo-300"
+          >
+            📋 Licensing &amp; Admin Guide
+            <svg className="h-2.5 w-2.5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+          </a>
         </div>
 
         {/* Mode switcher */}
@@ -403,6 +412,21 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
           Set <code className="text-zinc-400">ADMIN_SECRET</code> in{" "}
           <code className="text-zinc-400">.env.local</code>
         </p>
+
+        <div className="border-t border-white/8 pt-4 flex justify-center gap-4 text-[10px]">
+          <a href="/admin/guide" target="_blank" rel="noopener noreferrer"
+             className="text-zinc-600 hover:text-zinc-400 transition flex items-center gap-1">
+            📋 Licensing Guide
+          </a>
+          <a href="/admin/guide#superadmin" target="_blank" rel="noopener noreferrer"
+             className="text-zinc-600 hover:text-zinc-400 transition">
+            👑 Super-Admin Guide
+          </a>
+          <a href="/admin/guide#orgadmin" target="_blank" rel="noopener noreferrer"
+             className="text-zinc-600 hover:text-zinc-400 transition">
+            🏢 Org Admin Guide
+          </a>
+        </div>
       </div>
     </div>
   );

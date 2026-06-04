@@ -75,17 +75,23 @@ type DonationIntentResponse = {
 
 type LicenseStatusResponse = {
     ok?: boolean;
-    tier?: string; // "FREE" | "PREMIUM" ...
-    mode?: string; // "off" | "log" | "enforce"
+    tier?: string;
+    mode?: string;
     message?: string;
     error?: string;
     license?: {
-        status?: string; // "valid" | "trial" | "expired"
+        status?: string;
         tier?: string;
         mode?: string;
-        source?: string;
+        source?: string;    // 'personal' | 'org' | 'org_override' | 'pool_assignment' | 'default'
         expiresAt?: string | null;
+        tokenBalance?: number;
     };
+    org?: {
+        orgId:   string;
+        orgName: string;
+        orgRole: string;
+    } | null;
 };
 
 // ===== NEW: Tone & Context Preferences (local-only) =====
@@ -2635,6 +2641,21 @@ export default function SettingsPage() {
                             </div>
                         </div>
 
+                        {/* License source context — shows org/pool/personal origin */}
+                        {lic?.license?.source && lic.license.source !== "default" && lic.license.source !== "personal" && (
+                            <div className="mt-2 rounded-xl border border-white/8 bg-white/4 px-3 py-2 text-[11px] text-zinc-400">
+                                {lic.license.source === "org" && lic.org && (
+                                    <>🏢 Managed by <span className="font-medium text-zinc-200">{lic.org.orgName}</span> · your role: {lic.org.orgRole}</>
+                                )}
+                                {lic.license.source === "org_override" && lic.org && (
+                                    <>🏢 License assigned by <span className="font-medium text-zinc-200">{lic.org.orgName}</span> (custom tier)</>
+                                )}
+                                {lic.license.source === "pool_assignment" && lic.org && (
+                                    <>🎫 License from <span className="font-medium text-zinc-200">{lic.org.orgName}</span>'s license pool</>
+                                )}
+                            </div>
+                        )}
+
                         {/* Feature bullets for current tier */}
                         <ul className="mt-3 space-y-1">
                             {(tierLabel === "Pro" ? [
@@ -4673,7 +4694,7 @@ function PaymentHistoryPanel() {
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0 ml-2">
                                     <span className="text-xs font-semibold text-zinc-200">{formatAmt(inv.amount_paise, inv.currency)}</span>
-                                    <a href={`/api/invoice/${inv.id}`} target="_blank" rel="noopener noreferrer"
+                                    <a href={`/api/invoice/${inv.id}?download=1`} target="_blank" rel="noopener noreferrer"
                                         className="rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-400 hover:text-zinc-200 transition">
                                         Receipt
                                     </a>

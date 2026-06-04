@@ -56,11 +56,11 @@ export default function CorporatePricingPage() {
     }
     setChecking(true); setError("");
     try {
-      const productId = `corporate_${orgType}_${seatTier.seats}_${seatTier.tier}`;
+      // Send orgType + seats — server uses price_data (no pre-configured price ID needed)
       const r = await fetch("/api/payments/stripe/checkout", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, orgType, seats: seatTier.seats, currency }),
+        body: JSON.stringify({ orgType, seats: seatTier.seats, currency }),
       });
       const j = await r.json();
       if (r.ok && j.url) { window.location.href = j.url; }

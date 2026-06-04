@@ -311,6 +311,37 @@ export default function SettingsPage() {
         <CertificateSection orgName={org.name} orgTier={org.tier} seatsUsed={org.seats_used} />
       )}
 
+      {/* Impact PDF report — EDU/NGO */}
+      {org && ["ngo","edu"].includes(org.billing_type) && (
+        <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-3">
+          <p className="text-sm font-medium text-zinc-300">📄 Impact Report (Grant-ready PDF)</p>
+          <p className="text-xs text-zinc-500">Download an aggregate, anonymised impact report for grant applications, CSR reporting, or donor updates.</p>
+          <div className="flex flex-wrap gap-2">
+            {[3,6,12].map((m) => (
+              <a key={m} href={`/api/org/certificate/impact-report?months=${m}`} target="_blank" rel="noopener noreferrer"
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-300 transition hover:bg-white/10">
+                Last {m} month{m !== 1 ? "s" : ""} →
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* NGO verification */}
+      {org && org.billing_type === "ngo" && (
+        <VerificationSection />
+      )}
+
+      {/* EDU: domain auto-join + academic year */}
+      {org && org.billing_type === "edu" && (
+        <DomainVerifySection />
+      )}
+
+      {/* Contract/SLA storage — EDU + Enterprise */}
+      {org && ["edu","enterprise"].includes(org.tier) && (
+        <ContractsSection />
+      )}
+
       {/* Danger zone */}
       <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 px-5 py-5">
         <p className="text-sm font-semibold text-rose-300">Danger zone</p>
@@ -540,6 +571,230 @@ function CertificateSection({ orgName, orgTier, seatsUsed }: { orgName: string; 
           className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-500/20">
           Download certificate →
         </a>
+      )}
+    </div>
+  );
+}
+
+// ── NGO Verification ──────────────────────────────────────────────────────────
+function VerificationSection() {
+  const [status, setStatus]   = useState<string>("loading");
+  const [docUrl, setDocUrl]   = useState("");
+  const [docType, setDocType] = useState("80G Certificate");
+  const [notes, setNotes]     = useState("");
+  const [saving, setSaving]   = useState(false);
+  const [msg, setMsg]         = useState("");
+
+  useEffect(() => {
+    fetch("/api/org/dashboard/verification", { credentials: "same-origin" })
+      .then((r) => r.json()).then((j) => { setStatus(j.verificationStatus ?? "unverified"); setDocUrl(j.verificationDocUrl ?? ""); })
+      .catch(() => setStatus("unverified"));
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setMsg("");
+    const r = await fetch("/api/org/dashboard/verification", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentUrl: docUrl, documentType: docType, notes }),
+    });
+    setSaving(false);
+    if (r.ok) { setStatus("pending_review"); setMsg("Submitted ✓ — Imotara team will review within 48 hours."); }
+    else { setMsg((await r.json().catch(() => ({}))).error ?? "Submission failed."); }
+  }
+
+  const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+    unverified:     { label: "Not submitted", color: "text-zinc-500 bg-zinc-500/10" },
+    pending_review: { label: "Under review",  color: "text-amber-300 bg-amber-500/15" },
+    verified:       { label: "Verified ✓",    color: "text-emerald-300 bg-emerald-500/15" },
+  };
+  const s = STATUS_LABELS[status] ?? STATUS_LABELS.unverified;
+
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-zinc-300">NGO Verification</p>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${s.color}`}>{s.label}</span>
+      </div>
+      <p className="text-xs text-zinc-500">Upload your NGO/NPO registration documents (80G certificate, FCRA registration, or trust deed) to get verified status and access subsidized pricing.</p>
+      {status !== "verified" && (
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Document type</label>
+            <select value={docType} onChange={(e) => setDocType(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none">
+              {["80G Certificate","FCRA Registration","Trust Deed","Society Registration","CSR Certificate","Other"].map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Document URL (paste a public Google Drive / Dropbox link)</label>
+            <input required value={docUrl} onChange={(e) => setDocUrl(e.target.value)} placeholder="https://drive.google.com/file/..."
+              className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Notes (optional)</label>
+            <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Registration number, validity dates..."
+              className="w-full resize-none rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none" />
+          </div>
+          {msg && <p className="text-xs text-emerald-400">{msg}</p>}
+          <button type="submit" disabled={saving} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+            {saving ? "Submitting…" : "Submit for verification"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+// ── EDU Domain Verification + Academic Calendar ───────────────────────────────
+function DomainVerifySection() {
+  const [domains, setDomains]       = useState<string[]>([]);
+  const [autoJoin, setAutoJoin]     = useState(false);
+  const [newDomain, setNewDomain]   = useState("");
+  const [yearStart, setYearStart]   = useState("08-01");
+  const [yearEnd, setYearEnd]       = useState("07-31");
+  const [saving, setSaving]         = useState(false);
+  const [msg, setMsg]               = useState("");
+
+  useEffect(() => {
+    fetch("/api/org/dashboard/domain-verify", { credentials: "same-origin" })
+      .then((r) => r.json()).then((j) => {
+        setDomains(j.allowedDomains ?? []);
+        setAutoJoin(j.autoJoinEnabled ?? false);
+        if (j.academicYearStart) setYearStart(j.academicYearStart);
+        if (j.academicYearEnd)   setYearEnd(j.academicYearEnd);
+      }).catch(() => {});
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setMsg("");
+    await fetch("/api/org/dashboard/domain-verify", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allowedDomains: domains, autoJoinEnabled: autoJoin, academicYearStart: yearStart, academicYearEnd: yearEnd }),
+    });
+    setSaving(false); setMsg("Saved ✓");
+  }
+
+  const inputCls = "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50";
+
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
+      <p className="text-sm font-medium text-zinc-300">EDU Domain Settings + Academic Calendar</p>
+      <p className="text-xs text-zinc-500">Configure allowed email domains for student auto-join, and set your academic year billing cycle.</p>
+      <form onSubmit={handleSave} className="space-y-4">
+        <div>
+          <label className="block text-xs text-zinc-400 mb-1">Allowed email domains (students auto-join on invite)</label>
+          <div className="flex gap-2 mb-2">
+            <input value={newDomain} onChange={(e) => setNewDomain(e.target.value)} placeholder="university.edu"
+              className={`${inputCls} flex-1`} />
+            <button type="button" onClick={() => { if (newDomain.trim()) { setDomains((p) => [...p, newDomain.trim().toLowerCase()]); setNewDomain(""); } }}
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-300">+ Add</button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {domains.map((d) => (
+              <span key={d} className="flex items-center gap-1 rounded-full bg-teal-500/15 px-2.5 py-0.5 text-[11px] text-teal-300">
+                {d}
+                <button type="button" onClick={() => setDomains((p) => p.filter((x) => x !== d))} className="hover:text-rose-400 transition">✕</button>
+              </span>
+            ))}
+          </div>
+        </div>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={autoJoin} onChange={(e) => setAutoJoin(e.target.checked)} className="rounded" />
+          <span className="text-xs text-zinc-300">Auto-approve users whose email domain matches (no explicit invite needed)</span>
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Academic year start (MM-DD)</label>
+            <input value={yearStart} onChange={(e) => setYearStart(e.target.value)} placeholder="08-01" className={`${inputCls} w-full`} />
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Academic year end (MM-DD)</label>
+            <input value={yearEnd} onChange={(e) => setYearEnd(e.target.value)} placeholder="07-31" className={`${inputCls} w-full`} />
+          </div>
+        </div>
+        <p className="text-[11px] text-zinc-600">Academic year dates are used for renewal reminders and billing cycle reference.</p>
+        {msg && <p className="text-xs text-emerald-400">{msg}</p>}
+        <button type="submit" disabled={saving} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+          {saving ? "Saving…" : "Save domain settings"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ── Contract / SLA Storage ────────────────────────────────────────────────────
+function ContractsSection() {
+  interface Contract { id: string; label: string; type: string; file_url: string; signed_at: string | null; valid_until: string | null; created_at: string }
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [label, setLabel]         = useState("");
+  const [type, setType]           = useState("MSA");
+  const [url, setUrl]             = useState("");
+  const [signedAt, setSignedAt]   = useState("");
+  const [validUntil, setValidUntil] = useState("");
+  const [saving, setSaving]       = useState(false);
+  const [msg, setMsg]             = useState("");
+
+  const load = useCallback(async () => {
+    const r = await fetch("/api/org/dashboard/contracts", { credentials: "same-origin" });
+    if (r.ok) setContracts((await r.json()).contracts ?? []);
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true);
+    const r = await fetch("/api/org/dashboard/contracts", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label, type, file_url: url, signed_at: signedAt || null, valid_until: validUntil || null }),
+    });
+    setSaving(false);
+    if (r.ok) { setMsg("Contract added ✓"); setLabel(""); setUrl(""); void load(); }
+  }
+
+  async function handleDelete(id: string) {
+    await fetch(`/api/org/dashboard/contracts?contractId=${id}`, { method: "DELETE", credentials: "same-origin" });
+    void load();
+  }
+
+  const inputCls = "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none";
+
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
+      <p className="text-sm font-medium text-zinc-300">📋 Contracts & SLAs</p>
+      <p className="text-xs text-zinc-500">Store links to signed agreements, SLAs, and compliance documents for this organisation.</p>
+      <form onSubmit={handleAdd} className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <input required value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Contract label" className={inputCls} />
+          <select value={type} onChange={(e) => setType(e.target.value)} className={inputCls}>
+            {["MSA","SLA","NDA","DPA","MoU","PO","Other"].map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <input required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Document URL" className={`${inputCls} col-span-2`} />
+          <input type="date" value={signedAt} onChange={(e) => setSignedAt(e.target.value)} placeholder="Signed date" className={inputCls} />
+          <input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} placeholder="Valid until" className={inputCls} />
+        </div>
+        {msg && <p className="text-xs text-emerald-400">{msg}</p>}
+        <button type="submit" disabled={saving} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+          {saving ? "Adding…" : "Add contract"}
+        </button>
+      </form>
+      {contracts.length > 0 && (
+        <div className="space-y-1.5">
+          {contracts.map((c) => (
+            <div key={c.id} className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/3 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-zinc-200">{c.label}</p>
+                <p className="text-[10px] text-zinc-500">{c.type}{c.valid_until ? ` · valid until ${new Date(c.valid_until).toLocaleDateString("en-GB")}` : ""}</p>
+              </div>
+              <a href={c.file_url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-indigo-400 hover:text-indigo-300">View</a>
+              <button onClick={() => handleDelete(c.id)} className="text-[11px] text-rose-400 hover:text-rose-300">Delete</button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

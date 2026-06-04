@@ -78,12 +78,27 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (invite.accepted_at)  return NextResponse.json({ error: "already accepted" }, { status: 409 });
   if (new Date(invite.expires_at) < new Date()) return NextResponse.json({ error: "expired" }, { status: 410 });
 
-  // Optional: enforce email match (invite was sent to specific email)
-  if (invite.email && userEmail && invite.email !== userEmail.toLowerCase()) {
-    return NextResponse.json(
-      { error: `This invite was sent to ${invite.email}. Please sign in with that email.` },
-      { status: 403 },
-    );
+  // Email match check — enforce if invite has a specific email
+  if (invite.email && userEmail) {
+    const inviteEmail = invite.email.toLowerCase();
+    const currentEmail = userEmail.toLowerCase();
+    if (inviteEmail !== currentEmail) {
+      // Check if org has auto_join_by_domain enabled and user's domain matches
+      const { data: orgData } = await admin.from("organizations").select("org_settings").eq("id", invite.org_id).single();
+      const settings = (orgData?.org_settings ?? {}) as Record<string, unknown>;
+      const allowedDomains = (settings.allowed_email_domains as string[] | null) ?? [];
+      const autoJoin = settings.auto_join_by_domain as boolean | null;
+      const userDomain = currentEmail.split("@")[1] ?? "";
+      const domainMatches = autoJoin && allowedDomains.some((d) => userDomain === d || userDomain.endsWith("." + d));
+
+      if (!domainMatches) {
+        return NextResponse.json(
+          { error: `This invite was sent to ${invite.email}. Please sign in with that email.` },
+          { status: 403 },
+        );
+      }
+      // Domain matches — user can join even without explicit invite to their email
+    }
   }
 
   // Check not already a member

@@ -43,7 +43,7 @@ export async function grantLicense(
     userId: string,
     productId: LicenseProductId,
     admin: SupabaseClient,
-    source: "apple" | "razorpay" | "webhook" = "razorpay",
+    source: "apple" | "razorpay" | "webhook" | "stripe" | "google_play" = "razorpay",
 ): Promise<GrantResult> {
     try {
         const product = PRODUCT_CATALOG[productId];

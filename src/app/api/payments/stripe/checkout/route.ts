@@ -53,6 +53,8 @@ export async function POST(req: NextRequest) {
     currency?: string;
     orgType?: string;
     seats?: number;
+    displayedAmountSmallestUnit?: number; // exact amount shown to user on pricing page
+    displayedCurrency?: string;           // currency of that amount
   };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "invalid JSON" }, { status: 400 }); }
@@ -64,19 +66,27 @@ export async function POST(req: NextRequest) {
 
   // ── CORPORATE PURCHASE ────────────────────────────────────────────────────────
   if (isCorporate) {
-    const discount       = ORG_DISCOUNTS[orgType!] ?? 0;
-    const perSeatCents   = Math.round(CORPORATE_BASE_USD_CENTS_PER_SEAT * (1 - discount));
-    const totalCents     = perSeatCents * seats!;
-    const orgTier        = tierForSeats(seats!, orgType!);
-    const orgLabel       = { commercial:"Company", ngo:"NGO / NPO", edu:"Educational", govt:"Government" }[orgType!] ?? orgType!;
+    const orgTier  = tierForSeats(seats!, orgType!);
+    const orgLabel = { commercial:"Company", ngo:"NGO / NPO", edu:"Educational", govt:"Government" }[orgType!] ?? orgType!;
+
+    // Use the EXACT amount the user saw on the pricing page — prevents any discrepancy
+    // between displayed price and charged amount.
+    // Stripe requires smallest currency unit (cents for USD, paise for INR).
+    // For INR, we must use Stripe's INR support or convert; Stripe Checkout supports INR.
+    const chargeAmountUnit = body.displayedAmountSmallestUnit ?? 0;
+    const chargeCurrency   = (body.displayedCurrency ?? "USD").toLowerCase();
+
+    if (chargeAmountUnit <= 0) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+    }
 
     try {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         line_items: [{
           price_data: {
-            currency:     "usd",
-            unit_amount:  totalCents,
+            currency:     chargeCurrency,
+            unit_amount:  chargeAmountUnit,
             product_data: {
               name:        `Imotara ${orgTier.charAt(0).toUpperCase() + orgTier.slice(1)} — ${seats} seats (${orgLabel})`,
               description: `Annual corporate licence · ${seats} users · ${orgLabel} organisation`,

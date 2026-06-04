@@ -58,11 +58,20 @@ export default function CorporatePricingPage() {
     }
     setChecking(true); setError("");
     try {
-      // Send orgType + seats — server uses price_data (no pre-configured price ID needed)
+      // Send orgType + seats + the EXACT displayed price so server charges what user sees
+      // currency='inr' → send INR amount; currency='usd' → send USD amount
+      // Server uses this amount directly in price_data (no independent calculation)
       const r = await fetch("/api/payments/stripe/checkout", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgType, seats: seatTier.seats, currency }),
+        body: JSON.stringify({
+          orgType,
+          seats: seatTier.seats,
+          currency,
+          // Send total displayed price (after discount) in USD cents or INR paise
+          displayedAmountSmallestUnit: Math.round(finalPrice * 100),
+          displayedCurrency: currency === "usd" ? "USD" : "INR",
+        }),
       });
       const j = await r.json();
       if (r.ok && j.url) { window.location.href = j.url; }

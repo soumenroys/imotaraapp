@@ -186,6 +186,59 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
   const [emailError, setEmailError] = useState("");
   const [emailPending, startEmailTransition] = useTransition();
 
+  // Forgot password mode
+  const [showForgot, setShowForgot]       = useState(false);
+  const [forgotEmail, setForgotEmail]     = useState("");
+  const [forgotMsg, setForgotMsg]         = useState("");
+  const [forgotPending, startForgotTrans] = useTransition();
+
+  // Password reset mode (when ?reset_token= is in URL)
+  const [resetToken]                       = useState(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("reset_token") : null);
+  const [resetAdminName, setResetAdminName] = useState("");
+  const [newPwd, setNewPwd]                = useState("");
+  const [newPwd2, setNewPwd2]              = useState("");
+  const [resetMsg, setResetMsg]            = useState("");
+  const [resetPending, startResetTrans]    = useTransition();
+
+  // Validate reset token on mount
+  useEffect(() => {
+    if (!resetToken) return;
+    fetch(`/api/admin/auth/reset-password?token=${resetToken}`)
+      .then((r) => r.json())
+      .then((j) => { if (j.valid) setResetAdminName(j.name ?? ""); else setResetMsg(j.error ?? "Invalid link."); })
+      .catch(() => setResetMsg("Could not validate reset link."));
+  }, [resetToken]);
+
+  function handleForgot(e: React.FormEvent) {
+    e.preventDefault();
+    startForgotTrans(async () => {
+      const r = await fetch("/api/admin/auth/forgot-password", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      const j = await r.json().catch(() => ({}));
+      setForgotMsg(j.message ?? "Request sent.");
+    });
+  }
+
+  function handleReset(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPwd !== newPwd2) { setResetMsg("Passwords do not match."); return; }
+    startResetTrans(async () => {
+      const r = await fetch("/api/admin/auth/reset-password", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: resetToken, password: newPwd }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) {
+        setResetMsg("Password updated! Redirecting to login…");
+        setTimeout(() => { window.location.href = "/admin"; }, 2000);
+      } else {
+        setResetMsg(j.error ?? "Reset failed.");
+      }
+    });
+  }
+
   // Secret key mode (legacy)
   const [value, setValue]       = useState("");
   const [showPwd, setShowPwd]   = useState(false);
@@ -253,8 +306,26 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
           </button>
         </div>
 
+        {/* Password reset flow — shown when ?reset_token= is in URL */}
+        {resetToken && (
+          <div className="space-y-3">
+            {resetAdminName && <p className="text-sm text-zinc-300">Hi <strong>{resetAdminName}</strong> — set a new password.</p>}
+            {resetMsg && <p className={`text-xs ${resetMsg.includes("updated") ? "text-emerald-400" : "text-rose-400"}`}>{resetMsg}</p>}
+            {resetAdminName && !resetMsg.includes("updated") && (
+              <form onSubmit={handleReset} className="space-y-3">
+                <input type="password" placeholder="New password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} required minLength={12} className={inputCls} />
+                <input type="password" placeholder="Confirm password" value={newPwd2} onChange={(e) => setNewPwd2(e.target.value)} required minLength={12} className={inputCls} />
+                <PasswordStrength password={newPwd} />
+                <button type="submit" disabled={resetPending} className="w-full rounded-xl bg-indigo-600/80 py-3 text-sm font-semibold text-white transition hover:bg-indigo-600 disabled:opacity-60">
+                  {resetPending ? "Updating…" : "Set new password"}
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
         {/* Email + password login */}
-        {loginMode === "email" && (
+        {!resetToken && loginMode === "email" && !showForgot && (
           <form onSubmit={handleEmailSubmit} className="space-y-3">
             <input type="email" placeholder="admin@imotara.com" value={email} onChange={(e) => { setEmail(e.target.value); setEmailError(""); }} autoFocus required className={inputCls} />
             <div className="relative">
@@ -265,8 +336,32 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
             <button type="submit" disabled={emailPending} className="w-full rounded-xl bg-indigo-600/80 py-3 text-sm font-semibold text-white transition hover:bg-indigo-600 disabled:opacity-60">
               {emailPending ? "Signing in…" : "Sign in"}
             </button>
+            <button type="button" onClick={() => { setShowForgot(true); setForgotEmail(email); }} className="w-full text-center text-[11px] text-zinc-500 hover:text-indigo-400 transition">
+              Forgot password?
+            </button>
             <p className="text-center text-[11px] text-zinc-600">First time? Run <code className="text-zinc-400">POST /api/admin/auth/seed</code> to create owner account.</p>
           </form>
+        )}
+
+        {/* Forgot password flow */}
+        {!resetToken && loginMode === "email" && showForgot && (
+          <div className="space-y-3">
+            <p className="text-sm text-zinc-300">Enter your admin email — we&apos;ll send a reset link (expires in 15 min).</p>
+            {forgotMsg ? (
+              <div className="space-y-3">
+                <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">{forgotMsg}</p>
+                <button onClick={() => { setShowForgot(false); setForgotMsg(""); }} className="w-full text-center text-xs text-zinc-500 hover:text-zinc-300 transition">← Back to sign in</button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgot} className="space-y-3">
+                <input type="email" placeholder="Your admin email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required autoFocus className={inputCls} />
+                <button type="submit" disabled={forgotPending} className="w-full rounded-xl bg-indigo-600/80 py-3 text-sm font-semibold text-white transition hover:bg-indigo-600 disabled:opacity-60">
+                  {forgotPending ? "Sending…" : "Send reset link"}
+                </button>
+                <button type="button" onClick={() => setShowForgot(false)} className="w-full text-center text-xs text-zinc-500 hover:text-zinc-300 transition">← Back to sign in</button>
+              </form>
+            )}
+          </div>
         )}
 
         {/* Legacy secret key login */}
@@ -834,24 +929,45 @@ function HistoryTable({ rows }: { rows: HistoryEntry[] }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
-  interface OM { userId: string; email: string; role: string; joinedAt: string }
+  interface OM { userId: string; email: string; role: string; joinedAt: string; override_tier?: string | null }
   const [members, setMembers]   = useState<OM[]>([]);
+  const [orgTier, setOrgTier]   = useState("enterprise");
   const [loaded, setLoaded]     = useState(false);
   const [show, setShow]         = useState(false);
   const [working, setWorking]   = useState<string | null>(null);
-  const authHeader              = { Authorization: `Bearer ${token}` };
 
   async function load() {
     if (loaded) return;
-    const r = await fetch(`/api/admin/organizations/${orgId}`, adminFetchOpts(token));
-    if (r.ok) { const j = await r.json(); setMembers(j.members ?? []); setLoaded(true); }
+    const [r1, r2] = await Promise.all([
+      fetch(`/api/admin/organizations/${orgId}`, adminFetchOpts(token)),
+      fetch(`/api/admin/organizations/${orgId}`, adminFetchOpts(token)),
+    ]);
+    if (r1.ok) {
+      const j = await r1.json();
+      setMembers(j.members ?? []);
+      setOrgTier(j.org?.tier ?? "enterprise");
+      setLoaded(true);
+    }
+    void r2; // r2 was redundant, just satisfy TS
+  }
+
+  async function patch(userId: string, body: object) {
+    setWorking(userId);
+    await fetch(`/api/admin/organizations/${orgId}/members`, adminFetchOpts(token, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, ...body }),
+    }));
+    setWorking(null);
   }
 
   async function changeRole(userId: string, role: string) {
-    setWorking(userId);
-    await fetch(`/api/admin/organizations/${orgId}/members`, { method: "PATCH", headers: { "Content-Type": "application/json", ...(token.startsWith("session:") ? {} : { Authorization: `Bearer ${token}` }) }, body: JSON.stringify({ userId, role }) });
-    setWorking(null);
+    await patch(userId, { role });
     setMembers((p) => p.map((m) => m.userId === userId ? { ...m, role } : m));
+  }
+
+  async function changeTier(userId: string, overrideTier: string | null) {
+    await patch(userId, { overrideTier });
+    setMembers((p) => p.map((m) => m.userId === userId ? { ...m, override_tier: overrideTier } : m));
   }
 
   async function removeMember(userId: string) {
@@ -862,30 +978,44 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
     setMembers((p) => p.filter((m) => m.userId !== userId));
   }
 
+  const TIERS = ["free","plus","pro","edu","enterprise"];
+
   return (
     <div className="border-t border-white/8 pt-3">
       <button onClick={async () => { setShow((v) => !v); if (!show && !loaded) await load(); }} className="text-xs text-indigo-400 hover:text-indigo-300 transition">
-        {show ? "▲ Hide members" : "▼ Manage members"}
+        {show ? "▲ Hide members" : "▼ Manage members + licenses"}
       </button>
       {show && (
         <div className="mt-3 space-y-1.5">
           {members.length === 0 && loaded && <p className="text-xs text-zinc-500">No members yet.</p>}
           {members.map((m) => (
-            <div key={m.userId} className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/3 px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-zinc-200 truncate">{m.email}</p>
+            <div key={m.userId} className="rounded-xl border border-white/8 bg-white/3 px-3 py-2 space-y-1">
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-zinc-200 truncate flex-1">{m.email}</p>
+                {/* Role */}
+                <select value={m.role} disabled={working === m.userId}
+                  onChange={(e) => changeRole(m.userId, e.target.value)}
+                  className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-[10px] text-zinc-300 outline-none">
+                  <option value="owner">owner</option>
+                  <option value="admin">admin</option>
+                  <option value="member">member</option>
+                </select>
+                <button onClick={() => removeMember(m.userId)} disabled={working === m.userId}
+                  className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-[10px] text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-40">
+                  {working === m.userId ? "…" : "Remove"}
+                </button>
               </div>
-              <select value={m.role} disabled={working === m.userId}
-                onChange={(e) => changeRole(m.userId, e.target.value)}
-                className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-xs text-zinc-300 outline-none">
-                <option value="owner">owner</option>
-                <option value="admin">admin</option>
-                <option value="member">member</option>
-              </select>
-              <button onClick={() => removeMember(m.userId)} disabled={working === m.userId}
-                className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-xs text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-40">
-                {working === m.userId ? "…" : "Remove"}
-              </button>
+              {/* Per-member license tier override */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-zinc-600">License tier:</span>
+                <select value={m.override_tier ?? "__org__"} disabled={working === m.userId}
+                  onChange={(e) => changeTier(m.userId, e.target.value === "__org__" ? null : e.target.value)}
+                  className="rounded-lg border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] text-zinc-300 outline-none">
+                  <option value="__org__">Org default ({orgTier})</option>
+                  {TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+                {m.override_tier && <span className="text-[9px] text-amber-400">override active</span>}
+              </div>
             </div>
           ))}
         </div>
@@ -1521,6 +1651,145 @@ function SuperAdminsSection({ token }: { token: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// StatsSection — aggregate licensing dashboard
+// ─────────────────────────────────────────────────────────────────────────────
+
+function StatsSection({ token }: { token: string }) {
+  interface Stats {
+    orgs:         { total:number; active:number; pending:number; suspended:number };
+    members:      { total:number; admins:number; users:number };
+    pools:        { totalPools:number; activePools:number; totalIssued:number; totalAssigned:number; totalAvailable:number; byTier:Record<string,{issued:number;assigned:number}> };
+    orgBreakdown: { orgId:string; name:string; billingType:string; tier:string; status:string; seatsPurchased:number; seatsUsed:number; memberCount:number; poolLicenses:{issued:number;assigned:number;available:number} }[];
+    superAdmins:  { total:number; owners:number; admins:number; inactive:number };
+    recentAudit:  { action:string; org_id:string; created_at:string; actor_role:string }[];
+  }
+  const [stats, setStats]     = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/dashboard", adminFetchOpts(token))
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(setStats)
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const TIER_COLOR: Record<string,string> = { free:"text-zinc-400", plus:"text-sky-300", pro:"text-indigo-300", edu:"text-teal-300", enterprise:"text-orange-300" };
+
+  if (loading) return <div className="space-y-3">{[1,2,3].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl bg-white/5" />)}</div>;
+  if (error)   return <p className="text-sm text-rose-400">{error}</p>;
+  if (!stats)  return null;
+
+  return (
+    <div className="space-y-6">
+
+      {/* Top stat cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: "Total orgs",       value: stats.orgs.total,           sub: `${stats.orgs.active} active`,       color: "text-indigo-300" },
+          { label: "Total members",    value: stats.members.total,         sub: `${stats.members.admins} admins`,    color: "text-sky-300"    },
+          { label: "Pool licenses",    value: stats.pools.totalIssued,     sub: `${stats.pools.totalAvailable} free`, color: "text-emerald-300"},
+          { label: "Assigned licenses",value: stats.pools.totalAssigned,   sub: `${stats.pools.activePools} pools`,  color: "text-amber-300"  },
+        ].map((s) => (
+          <div key={s.label} className="rounded-2xl border border-white/8 bg-white/4 px-4 py-3 text-center">
+            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+            <p className="text-[11px] text-zinc-400">{s.label}</p>
+            <p className="text-[10px] text-zinc-600">{s.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* License pool breakdown by tier */}
+      {Object.keys(stats.pools.byTier).length > 0 && (
+        <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-4 space-y-3">
+          <p className="text-sm font-medium text-zinc-300">Pool licenses by tier (all orgs)</p>
+          {Object.entries(stats.pools.byTier).map(([tier, data]) => {
+            const pct = data.issued > 0 ? Math.round(data.assigned / data.issued * 100) : 0;
+            return (
+              <div key={tier}>
+                <div className="mb-1 flex justify-between text-xs">
+                  <span className={`font-medium capitalize ${TIER_COLOR[tier] ?? "text-zinc-300"}`}>{tier}</span>
+                  <span className="text-zinc-500">{data.assigned} / {data.issued} assigned ({data.issued - data.assigned} free)</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+                  <div className={`h-full rounded-full ${pct >= 90 ? "bg-rose-500" : "bg-indigo-400"}`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Per-org breakdown table */}
+      <div className="overflow-hidden rounded-2xl border border-white/8">
+        <p className="border-b border-white/8 px-5 py-3 text-sm font-medium text-zinc-300">Per-organisation breakdown</p>
+        <table className="w-full text-xs">
+          <thead className="border-b border-white/8 bg-white/4 text-zinc-500">
+            <tr>
+              <th className="px-4 py-2.5 text-left font-medium">Organisation</th>
+              <th className="px-4 py-2.5 text-left font-medium">Type / Tier</th>
+              <th className="px-4 py-2.5 text-right font-medium">Seats</th>
+              <th className="px-4 py-2.5 text-right font-medium hidden sm:table-cell">Members</th>
+              <th className="px-4 py-2.5 text-right font-medium hidden md:table-cell">Pool issued</th>
+              <th className="px-4 py-2.5 text-right font-medium hidden md:table-cell">Pool free</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stats.orgBreakdown.map((org) => (
+              <tr key={org.orgId} className="border-b border-white/5 hover:bg-white/3">
+                <td className="px-4 py-2.5">
+                  <p className="text-zinc-200 font-medium truncate max-w-[140px]">{org.name}</p>
+                  <p className="text-[10px] text-zinc-600">{org.status}</p>
+                </td>
+                <td className="px-4 py-2.5">
+                  <span className="capitalize text-zinc-400">{org.billingType}</span>
+                  <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${TIER_COLOR[org.tier] ?? "text-zinc-400"} bg-white/8`}>{org.tier}</span>
+                </td>
+                <td className="px-4 py-2.5 text-right text-zinc-300">{org.seatsUsed}/{org.seatsPurchased}</td>
+                <td className="px-4 py-2.5 text-right text-zinc-400 hidden sm:table-cell">{org.memberCount}</td>
+                <td className="px-4 py-2.5 text-right text-zinc-400 hidden md:table-cell">{org.poolLicenses.issued}</td>
+                <td className={`px-4 py-2.5 text-right font-medium hidden md:table-cell ${org.poolLicenses.available === 0 && org.poolLicenses.issued > 0 ? "text-rose-400" : "text-emerald-400"}`}>
+                  {org.poolLicenses.available}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Super-admins + recent audit */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-4 space-y-2">
+          <p className="text-sm font-medium text-zinc-300">Super-admins</p>
+          {[
+            { label: "Total",    value: stats.superAdmins.total,    color: "text-zinc-200" },
+            { label: "Owners",  value: stats.superAdmins.owners,   color: "text-amber-300" },
+            { label: "Admins",  value: stats.superAdmins.admins,   color: "text-indigo-300" },
+            { label: "Inactive",value: stats.superAdmins.inactive, color: "text-zinc-500" },
+          ].map((r) => (
+            <div key={r.label} className="flex justify-between text-xs">
+              <span className="text-zinc-500">{r.label}</span>
+              <span className={`font-semibold ${r.color}`}>{r.value}</span>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-4 space-y-2">
+          <p className="text-sm font-medium text-zinc-300">Recent activity</p>
+          {stats.recentAudit.slice(0, 6).map((a, i) => (
+            <div key={i} className="flex items-center justify-between text-[11px]">
+              <span className="text-zinc-400">{a.action.replace(/_/g," ")}</span>
+              <span className="text-zinc-600">{timeAgo(a.created_at)}</span>
+            </div>
+          ))}
+          {stats.recentAudit.length === 0 && <p className="text-xs text-zinc-600">No recent activity.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // LicensesSection
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1647,7 +1916,7 @@ function LicensesSection({ token }: { token: string }) {
 // Main AdminPage
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Section = "comments" | "licenses" | "organizations" | "superadmins";
+type Section = "comments" | "licenses" | "organizations" | "superadmins" | "stats";
 
 export default function AdminPage() {
   const [token, setToken]     = useState<string | null>(null);
@@ -1708,7 +1977,7 @@ export default function AdminPage() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Imotara · Admin</p>
             <h1 className="text-xl font-semibold text-zinc-100">
-              {section === "comments" ? "Blog Comments" : section === "licenses" ? "License Management" : section === "organizations" ? "Organizations" : "Super Admins"}
+              {section === "comments" ? "Blog Comments" : section === "licenses" ? "License Management" : section === "organizations" ? "Organizations" : section === "superadmins" ? "Super Admins" : "Dashboard"}
             </h1>
           </div>
         </div>
@@ -1730,6 +1999,10 @@ export default function AdminPage() {
             <button onClick={() => setSection("superadmins")}
               className={`rounded-lg px-3 py-1.5 text-xs transition ${section === "superadmins" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
               👑 Super Admins
+            </button>
+            <button onClick={() => setSection("stats")}
+              className={`rounded-lg px-3 py-1.5 text-xs transition ${section === "stats" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
+              📊 Dashboard
             </button>
           </div>
           <button
@@ -1814,6 +2087,7 @@ export default function AdminPage() {
       {section === "licenses"      && <LicensesSection      token={token} />}
       {section === "organizations" && <OrganizationsSection token={token} />}
       {section === "superadmins"   && <SuperAdminsSection   token={token} />}
+      {section === "stats"         && <StatsSection         token={token} />}
     </main>
   );
 }

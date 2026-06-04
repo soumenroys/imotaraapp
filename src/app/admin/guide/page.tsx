@@ -180,8 +180,8 @@ function PolicySection() {
         headers={["Type","Discount","Assigned Tier","Best for"]}
         rows={[
           ["commercial (Company)","None (full price)","Enterprise","HR wellness, corporate mental health"],
-          ["ngo (NGO / NPO)","60% off via Stripe","Enterprise","Community welfare, rural mental health NGOs"],
-          ["edu (Educational)","50% off via Stripe","EDU","Schools, colleges, counselling institutes"],
+          ["ngo (NGO / NPO)","60% off","Enterprise","Community welfare, rural mental health NGOs"],
+          ["edu (Educational)","50% off","EDU","Schools, colleges, counselling institutes"],
           ["govt (Government)","None (full price)","Enterprise","Public sector programmes"],
         ]}
       />
@@ -192,7 +192,7 @@ function PolicySection() {
         {[
           { rank: "1", label: "Pool assignment", color: "amber", desc: "A specific license was assigned from a pool issued to their org (e.g. a Pro license from a 50-seat pool). Highest priority — overrides everything." },
           { rank: "2", label: "Org tier override", color: "orange", desc: "A super-admin or org admin manually set a different tier for this specific member (e.g. a member of an EDU org gets Enterprise)." },
-          { rank: "3", label: "Personal license", color: "sky", desc: "The user bought their own Razorpay/Stripe/Apple/Google subscription independently of any org." },
+          { rank: "3", label: "Personal license", color: "sky", desc: "The user bought their own Razorpay/Apple/Google Play subscription independently of any org." },
           { rank: "4", label: "Org default tier", color: "indigo", desc: "The org's tier applies to all members who don't have a higher-priority source (e.g. all members of an Enterprise org get Enterprise)." },
           { rank: "5", label: "Free (default)", color: "zinc", desc: "None of the above apply. User has no paid license." },
         ].map(({ rank, label, color, desc }) => (
@@ -213,7 +213,7 @@ function PolicySection() {
           ["Razorpay","India","INR","Individual users — UPI, cards, netbanking, wallets","Auto (INR paise)"],
           ["Apple IAP","Worldwide","Local (App Store)","iOS users via App Store In-App Purchase","Auto (₹ reference)"],
           ["Google Play","Worldwide","Local (Play Store)","Android users via Play Store billing","Auto (reference)"],
-          ["Stripe","Worldwide","USD / any","International individual users + all corporate seat purchases","Auto (native currency)"],
+          ["Razorpay (intl)","Worldwide","INR + intl cards","International users via Razorpay International Payments","Auto (INR)"],
         ]}
       />
       <Info>All invoices are auto-generated and downloadable from Settings → Payment history. Each invoice has a unique INV-XXXXXX number, the payment gateway, amount, and line item description.</Info>
@@ -505,7 +505,7 @@ function SuperAdminSection() {
       </Step>
       <Step n={3} title='Click "Create organisation"'>
         <p>The org appears in the list. All org members&apos; licenses in the <code className="bg-white/8 px-1.5 rounded text-zinc-300">licenses</code> table are upserted to the new tier automatically.</p>
-        <Tip>If the organisation came via Stripe corporate checkout (status=pending), find it by the buyer&apos;s email in the org name — e.g. <em>"NGO Org — buyer@company.com (via Stripe)"</em> — then change status to <strong>active</strong> and set the correct seats count.</Tip>
+        <Tip>Corporate customers email info@imotara.com via the /pricing/corporate page. After confirming their Razorpay payment, create their org manually here with status=<strong>active</strong> and the agreed seat count.</Tip>
       </Step>
 
       <H3>Editing an existing organisation</H3>
@@ -1079,8 +1079,8 @@ function OrgAdminSection() {
 function FaqSection() {
   const faqs = [
     {
-      q: "A corporate customer paid via Stripe but their org shows as 'pending' — what do I do?",
-      a: "Go to Admin panel → 🏢 Organizations tab. Find the org by the buyer's email in the name (e.g. 'NGO Org — buyer@company.com (via Stripe)'). Click the row to expand it → Edit org → change Status to 'active' and set the correct Seats purchased. Click Save. All existing members' licenses are upgraded automatically. The buyer receives dashboard access immediately.",
+      q: "A corporate customer sent an enquiry but their org is not set up yet — what do I do?",
+      a: "When a customer clicks 'Get started' on /pricing/corporate, a pre-filled email is sent to info@imotara.com. Reply with a Razorpay payment link for the quoted amount. Once payment is confirmed, go to Admin panel → 🏢 Organizations tab → click '+ New Org' → fill in their details and set Status to 'active'. The customer then receives access to /org/dashboard.",
     },
     {
       q: "How do I handle a request for more seats after the initial purchase?",
@@ -1107,8 +1107,8 @@ function FaqSection() {
       a: "Org dashboard → 👥 Members tab → find the member → click Remove. This removes them from the org, revokes their org license, and frees their seat. They revert to their personal license (or Free). Alternatively: Licenses tab → select member → click Withdraw license.",
     },
     {
-      q: "The NGO discount didn't apply to our Stripe payment — what do we do?",
-      a: "Discounts are applied automatically on the /pricing/corporate page when the NGO type is selected before checkout. If the wrong org type was selected, contact info@imotara.com with the Stripe payment reference — the team can issue a credit or refund the difference.",
+      q: "An NGO customer says they didn't get the 60% discount — what do we do?",
+      a: "The /pricing/corporate page shows the discounted price when NGO type is selected. The customer emails info@imotara.com with the pre-filled quote. If the wrong type was selected, simply reply with a Razorpay payment link at the correct discounted price — no payment has been taken yet at the enquiry stage.",
     },
   ];
 

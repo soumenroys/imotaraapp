@@ -94,20 +94,20 @@ export default function OrgNewPage() {
     );
   }
 
-  // Stripe payment success — org being activated
+  // Payment/enquiry sent — org being activated
   if (step === "stripe_paid") {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/15 ring-1 ring-indigo-500/30">
           <span className="text-3xl">🎉</span>
         </div>
-        <h1 className="mt-5 text-xl font-semibold text-zinc-100">Payment received!</h1>
+        <h1 className="mt-5 text-xl font-semibold text-zinc-100">Request received!</h1>
         <p className="mt-3 text-sm leading-6 text-zinc-400">
-          Thank you for your payment. Your organisation account is being set up and will be activated within <strong className="text-zinc-200">24–48 hours</strong>.
+          Thank you! Our team will get in touch within <strong className="text-zinc-200">24–48 hours</strong> with payment details and account activation steps.
         </p>
         <div className="mt-5 rounded-2xl border border-indigo-400/20 bg-indigo-500/8 px-5 py-4 text-sm text-zinc-400 text-left space-y-2">
-          <p>✅ Payment confirmed via Stripe</p>
-          <p>⏳ Imotara team will activate your org account</p>
+          <p>✅ Enquiry sent to info@imotara.com</p>
+          <p>⏳ Team will activate your org account after payment</p>
           <p>📧 You&apos;ll receive an email at <strong className="text-zinc-200">{userEmail ?? "your email"}</strong> with next steps</p>
           <p>🏢 After activation, access your dashboard at <strong className="text-zinc-200">/org/dashboard</strong></p>
         </div>

@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await getSupabaseAdmin()
     .from("super_admins")
-    .select("id, email, name, role, active, last_login_at, created_at")
+    .select("id, email, name, role, active, last_login_at, created_at, failed_attempts, locked_until")
     .order("created_at", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -47,7 +47,8 @@ export async function POST(req: NextRequest) {
       name:          body.name.trim(),
       password_hash: hashPassword(body.password),
       role:          body.role === "owner" ? "owner" : "admin",
-      created_by:    auth.admin.id,
+      // "legacy" is not a UUID — only set created_by for real session-based admins
+      created_by:    auth.admin.id === "legacy" ? null : auth.admin.id,
     })
     .select("id, email, name, role, active, created_at")
     .single();

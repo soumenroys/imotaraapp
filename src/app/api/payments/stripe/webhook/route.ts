@@ -17,8 +17,9 @@ export async function POST(req: NextRequest) {
   const secret    = process.env.STRIPE_WEBHOOK_SECRET?.trim();
 
   if (!secret) {
-    console.error("[stripe/webhook] STRIPE_WEBHOOK_SECRET not set");
-    return NextResponse.json({ error: "webhook secret not configured" }, { status: 500 });
+    console.error("[stripe/webhook] CRITICAL: STRIPE_WEBHOOK_SECRET env var is not set. Add it in Vercel → Settings → Environment Variables.");
+    // Return 200 to prevent Stripe from retrying — but log loudly
+    return NextResponse.json({ error: "webhook_misconfigured", received: false }, { status: 200 });
   }
 
   let event: Stripe.Event;

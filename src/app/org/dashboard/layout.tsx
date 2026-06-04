@@ -7,12 +7,16 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-type OrgInfo = { orgId: string; orgName: string; orgRole: string; billingType: string };
+type OrgInfo = {
+  orgId: string; orgName: string; orgRole: string; billingType: string;
+  brandName?: string | null; accentColor?: string | null; logoUrl?: string | null;
+};
 
 const NAV_ITEMS = [
   { href: "/org/dashboard/overview",  label: "Overview",  icon: "📊", adminOnly: false },
   { href: "/org/dashboard/members",   label: "Members",   icon: "👥", adminOnly: false },
   { href: "/org/dashboard/analytics", label: "Analytics", icon: "📈", adminOnly: true  },
+  { href: "/org/dashboard/audit",     label: "Audit log", icon: "📋", adminOnly: true  },
   { href: "/org/dashboard/settings",  label: "Settings",  icon: "⚙️",  adminOnly: true  },
 ];
 
@@ -23,26 +27,42 @@ export default function OrgDashboardLayout({ children }: { children: React.React
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/license/status", { credentials: "same-origin" })
-      .then((r) => r.json())
-      .then((json) => {
-        const o = json?.org;
-        if (!o?.orgId) {
-          // Not in an org — send to request form
-          router.replace("/org/new");
-          return;
-        }
-        setOrg({
-          orgId:       o.orgId,
-          orgName:     o.orgName,
-          orgRole:     o.orgRole,
-          billingType: "", // fetched separately if needed
-        });
+    async function load() {
+      try {
+        const r    = await fetch("/api/license/status", { credentials: "same-origin" });
+        const json = await r.json();
+        const o    = json?.org;
+
+        if (!o?.orgId) { router.replace("/org/new"); return; }
+
+        // Load branding (non-blocking)
+        let brandName: string | null = null;
+        let accentColor: string | null = null;
+        let logoUrl: string | null = null;
+        try {
+          const br = await fetch("/api/org/dashboard/branding", {
+            credentials: "same-origin",
+            headers: { "x-org-id": o.orgId },
+          });
+          if (br.ok) {
+            const bd = await br.json();
+            brandName   = bd.branding?.brand_name   ?? null;
+            accentColor = bd.branding?.accent_color ?? null;
+            logoUrl     = bd.branding?.logo_url     ?? null;
+            if (accentColor) {
+              document.documentElement.style.setProperty("--org-accent", accentColor);
+            }
+          }
+        } catch { /* ignore */ }
+
+        setOrg({ orgId: o.orgId, orgName: o.orgName, orgRole: o.orgRole,
+                 billingType: "", brandName, accentColor, logoUrl });
         setLoading(false);
-      })
-      .catch(() => {
+      } catch {
         router.replace("/org/new");
-      });
+      }
+    }
+    void load();
   }, [router]);
 
   const isAdmin = org?.orgRole === "owner" || org?.orgRole === "admin";
@@ -63,8 +83,12 @@ export default function OrgDashboardLayout({ children }: { children: React.React
       <aside className="hidden w-52 shrink-0 flex-col gap-1 pr-4 pt-2 sm:flex">
         {/* Org identity */}
         <div className="mb-4 rounded-2xl border border-white/8 bg-white/4 px-3 py-3">
+          {org.logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={org.logoUrl} alt={org.orgName} className="mb-2 h-8 w-auto max-w-full rounded object-contain" />
+          )}
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">Organisation</p>
-          <p className="mt-0.5 truncate text-sm font-semibold text-zinc-100">{org.orgName}</p>
+          <p className="mt-0.5 truncate text-sm font-semibold text-zinc-100">{org.brandName || org.orgName}</p>
           <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
             org.orgRole === "owner" ? "bg-orange-500/15 text-orange-300" :
             org.orgRole === "admin" ? "bg-indigo-500/15 text-indigo-300" :

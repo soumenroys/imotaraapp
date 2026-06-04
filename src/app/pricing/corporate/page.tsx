@@ -13,10 +13,12 @@ const ORG_TYPES = [
   { value: "govt",       label: "Government",  icon: "🏛️", desc: "Government or public sector" },
 ];
 
+// Tiers MUST match server-side tierForSeats() in /api/payments/stripe/checkout:
+//   < 100 seats → "plus", >= 100 seats → "enterprise", edu → "edu"
 const SEAT_TIERS = [
   { seats: 10,    price_usd: 49,   price_inr: 4_000,  tier: "plus",       label: "Starter"    },
   { seats: 50,    price_usd: 199,  price_inr: 16_500,  tier: "plus",       label: "Team"       },
-  { seats: 100,   price_usd: 349,  price_inr: 29_000,  tier: "pro",        label: "Department" },
+  { seats: 100,   price_usd: 349,  price_inr: 29_000,  tier: "enterprise", label: "Department" },
   { seats: 500,   price_usd: 999,  price_inr: 83_000,  tier: "enterprise", label: "Enterprise" },
   { seats: 0,     price_usd: 0,    price_inr: 0,        tier: "enterprise", label: "Custom"     },
 ];

@@ -268,8 +268,8 @@ export async function POST(req: Request) {
             user_id:      userId,
             product_id:   productId,
             tier:         product.type === "subscription" ? product.tier : "free",
-            amount_paise: product.paise,
-            currency:     "INR",
+            amount_paise: product.paise, // INR paise (App Store pricing set per country by App Store Connect)
+            currency:     "INR",         // Indian pricing basis; App Store handles local currency per region
         }, { onConflict: "payment_id", ignoreDuplicates: true });
         if (upsertErr) {
             console.error("[verify-apple-purchase] payment_licenses upsert failed:", upsertErr.message);

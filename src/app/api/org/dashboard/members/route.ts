@@ -112,31 +112,63 @@ export async function DELETE(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-// ── PATCH — change member role ────────────────────────────────────────────────
+// ── PATCH — change member role OR override license tier ───────────────────────
 export async function PATCH(req: NextRequest) {
   const auth = await requireOrgAdmin(req);
   if (!auth.ok) return auth.response;
 
-  let body: { userId: string; role: string };
+  let body: { userId: string; role?: string; overrideTier?: string | null };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "invalid JSON" }, { status: 400 }); }
 
-  if (!body.userId || !["admin","member"].includes(body.role)) {
-    return NextResponse.json({ error: "userId and role (admin|member) required" }, { status: 400 });
-  }
+  if (!body.userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
 
   const admin = getSupabaseAdmin();
 
   // Prevent changing owner's role
   const { data: target } = await admin
     .from("org_members").select("role").eq("org_id", auth.orgId).eq("user_id", body.userId).single();
-  if (target?.role === "owner") {
+  if (!target) return NextResponse.json({ error: "member not found" }, { status: 404 });
+  if (body.role && target.role === "owner") {
     return NextResponse.json({ error: "Cannot change the owner's role" }, { status: 403 });
+  }
+
+  const updatePayload: Record<string, unknown> = {};
+
+  // Role change
+  if (body.role !== undefined) {
+    if (!["admin","member"].includes(body.role)) {
+      return NextResponse.json({ error: "role must be admin or member" }, { status: 400 });
+    }
+    updatePayload.role = body.role;
+  }
+
+  // Per-member license tier override
+  if (body.overrideTier !== undefined) {
+    const VALID = ["free","plus","pro","family","edu","enterprise",null];
+    if (!VALID.includes(body.overrideTier)) {
+      return NextResponse.json({ error: "invalid overrideTier value" }, { status: 400 });
+    }
+    updatePayload.override_tier = body.overrideTier ?? null;
+
+    // Sync the licenses table for this user so resolve_user_tier picks it up
+    if (body.overrideTier) {
+      const { data: org } = await admin.from("organizations").select("expires_at").eq("id", auth.orgId).single();
+      await admin.from("licenses").upsert({
+        user_id:    body.userId,
+        tier:       body.overrideTier,
+        status:     "valid",
+        expires_at: org?.expires_at ?? null,
+        org_id:     auth.orgId,
+        source:     "org",
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+    }
   }
 
   const { error } = await admin
     .from("org_members")
-    .update({ role: body.role })
+    .update(updatePayload)
     .eq("org_id", auth.orgId)
     .eq("user_id", body.userId);
 

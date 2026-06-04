@@ -1298,7 +1298,7 @@ function OrganizationsSection({ token }: { token: string }) {
       {showCreate && (
         <form onSubmit={handleCreate} className="rounded-2xl border border-indigo-400/20 bg-indigo-500/5 p-5 space-y-4">
           <p className="text-sm font-semibold text-indigo-200">Create Organization</p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
             {[
               { key: "name",        label: "Name *",        placeholder: "Acme Corp" },
               { key: "slug",        label: "Slug *",        placeholder: "acme-corp" },
@@ -1400,7 +1400,7 @@ function OrganizationsSection({ token }: { token: string }) {
                 {/* Edit panel */}
                 {isOpen && (
                   <div className="border-t border-white/8 px-4 py-4 space-y-4">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                       {[
                         { key: "name",            label: "Name",    type: "text" },
                         { key: "seats_purchased", label: "Seats",   type: "number" },
@@ -1600,10 +1600,10 @@ function SuperAdminsSection({ token }: { token: string }) {
       <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
         <p className="text-sm font-medium text-zinc-300">Add super-admin</p>
         <form onSubmit={handleCreate} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input required value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Full name" className={`${inputCls} w-full`} />
             <input required type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Email" className={`${inputCls} w-full`} />
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <input required type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)}
                 placeholder="Password (12+ chars, uppercase, number, special)" className={`${inputCls} w-full`} />
               <PasswordStrength password={newPwd} />
@@ -1678,7 +1678,7 @@ function SuperAdminsSection({ token }: { token: string }) {
                   <div className="min-w-0 text-[11px] text-zinc-400 space-y-0.5">
                     <p className="font-medium text-zinc-200">{s.isCurrent ? "Current session" : "Session"}</p>
                     <p>IP: {s.ip_address ?? "unknown"}</p>
-                    <p className="truncate max-w-[240px]">{s.user_agent ? s.user_agent.slice(0, 60) + (s.user_agent.length > 60 ? "…" : "") : "unknown"}</p>
+                    <p className="truncate max-w-[180px] sm:max-w-[320px]">{s.user_agent ? s.user_agent.slice(0, 60) + (s.user_agent.length > 60 ? "…" : "") : "unknown"}</p>
                     <p>Created: {timeAgo(s.created_at)} · Expires: {new Date(s.expires_at).toLocaleTimeString()}</p>
                   </div>
                   <button onClick={() => handleRevokeSession(s.id, s.isCurrent)} disabled={revokingSession === s.id}
@@ -1767,7 +1767,7 @@ function StatsSection({ token }: { token: string }) {
       )}
 
       {/* Per-org breakdown table */}
-      <div className="overflow-hidden rounded-2xl border border-white/8">
+      <div className="overflow-x-auto rounded-2xl border border-white/8">
         <p className="border-b border-white/8 px-5 py-3 text-sm font-medium text-zinc-300">Per-organisation breakdown</p>
         <table className="w-full text-xs">
           <thead className="border-b border-white/8 bg-white/4 text-zinc-500">
@@ -2014,61 +2014,56 @@ export default function AdminPage() {
   ];
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
-      {/* Header */}
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto w-full max-w-4xl px-3 py-6 sm:px-6 sm:py-10">
+      {/* Header — stacks on mobile */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Image src="/android-chrome-192.png" width={32} height={32} alt="Imotara" className="rounded-xl" />
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Imotara · Admin</p>
-            <h1 className="text-xl font-semibold text-zinc-100">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">Imotara · Admin</p>
+            <h1 className="text-lg font-semibold text-zinc-100">
               {section === "comments" ? "Blog Comments" : section === "licenses" ? "License Management" : section === "organizations" ? "Organizations" : section === "superadmins" ? "Super Admins" : "Dashboard"}
             </h1>
           </div>
         </div>
+        <button
+          onClick={async () => {
+            if (token?.startsWith("session:")) {
+              await fetch("/api/admin/auth/logout", { method: "DELETE", credentials: "same-origin" }).catch(() => {});
+            }
+            sessionStorage.removeItem(SESSION_KEY);
+            setToken(null);
+          }}
+          className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-500 transition hover:text-zinc-300">
+          Sign out
+        </button>
+      </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1 rounded-xl border border-white/8 bg-white/5 p-1">
-            <button onClick={() => setSection("comments")}
-              className={`rounded-lg px-3 py-1.5 text-xs transition ${section === "comments" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
-              💬 Comments
+      {/* Tab bar — scrollable on mobile so all tabs fit */}
+      <div className="mb-6 overflow-x-auto">
+        <div className="flex min-w-max gap-1 rounded-xl border border-white/8 bg-white/5 p-1">
+          {([
+            ["comments",      "💬", "Comments"],
+            ["licenses",      "🔑", "Licenses"],
+            ["organizations", "🏢", "Orgs"],
+            ["superadmins",   "👑", "Admins"],
+            ["stats",         "📊", "Dashboard"],
+          ] as const).map(([key, icon, label]) => (
+            <button key={key} onClick={() => setSection(key)}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs whitespace-nowrap transition ${
+                section === key ? "bg-white/10 font-semibold text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+              }`}>
+              <span>{icon}</span>
+              <span className="hidden sm:inline">{label}</span>
             </button>
-            <button onClick={() => setSection("licenses")}
-              className={`rounded-lg px-3 py-1.5 text-xs transition ${section === "licenses" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
-              🔑 Licenses
-            </button>
-            <button onClick={() => setSection("organizations")}
-              className={`rounded-lg px-3 py-1.5 text-xs transition ${section === "organizations" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
-              🏢 Organizations
-            </button>
-            <button onClick={() => setSection("superadmins")}
-              className={`rounded-lg px-3 py-1.5 text-xs transition ${section === "superadmins" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
-              👑 Super Admins
-            </button>
-            <button onClick={() => setSection("stats")}
-              className={`rounded-lg px-3 py-1.5 text-xs transition ${section === "stats" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
-              📊 Dashboard
-            </button>
-          </div>
-          <button
-            onClick={async () => {
-              // Clear session cookie (new system) and sessionStorage (legacy)
-              if (token?.startsWith("session:")) {
-                await fetch("/api/admin/auth/logout", { method: "DELETE", credentials: "same-origin" }).catch(() => {});
-              }
-              sessionStorage.removeItem(SESSION_KEY);
-              setToken(null);
-            }}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-500 transition hover:text-zinc-300">
-            Sign out
-          </button>
+          ))}
         </div>
       </div>
 
       {/* Comments section */}
       {section === "comments" && (
         <>
-          <div className="mb-6 grid grid-cols-3 gap-3">
+          <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3">
             {[
               { label: "Pending",  value: counts.pending,  color: "text-amber-400"   },
               { label: "Approved", value: counts.approved, color: "text-emerald-400" },

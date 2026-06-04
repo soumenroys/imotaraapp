@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { getCurrentLicenseStatus } from "@/lib/imotara/license";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { resolveUserTier } from "@/lib/imotara/org";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -57,43 +58,44 @@ export async function GET(req: Request) {
             return res;
         }
 
-        // OPTIONAL: try to read license row if table exists.
-        // If table doesn't exist yet, we silently fall back.
-        let licenseRow: null | {
-            tier?: string | null;
-            status?: string | null;
-            expires_at?: string | null;
-        } = null;
+        // Resolve effective tier — handles org license, personal license, and expiry.
+        // Falls back to free if the DB call fails (fail-open).
+        const tierResult = await resolveUserTier(userId);
 
-        const adminClient = getSupabaseAdmin();
-        const { data: row, error: licErr } = await adminClient
-            .from("licenses")
-            .select("tier,status,expires_at")
-            .eq("user_id", userId)
-            .maybeSingle();
+        let effectiveTier:   string = fallback.tier;
+        let effectiveStatus: string = "valid";
+        let effectiveExpiry: string | null = null;
+        let effectiveTokens: number = 0;
+        let orgContext: { orgId: string; orgName: string; orgRole: string } | null = null;
 
-        if (!licErr && row) licenseRow = row;
+        if (tierResult.ok) {
+            const t = tierResult.data;
+            // Enforce expiry client-side as an extra safety check
+            const isExpired = t.expiresAt != null && new Date(t.expiresAt).getTime() < Date.now();
+            effectiveTier   = isExpired ? "free" : (t.effectiveTier as import("@/types/license").LicenseTier);
+            effectiveStatus = isExpired ? "expired" : t.status;
+            effectiveExpiry = isExpired ? null : (t.expiresAt ?? null);
+            effectiveTokens = t.tokenBalance;
 
-        // Enforce expiry: treat as free if expires_at is set and in the past
-        const isExpired =
-            licenseRow?.expires_at != null &&
-            new Date(licenseRow.expires_at).getTime() < Date.now();
-        const effectiveTier = isExpired
-            ? "free"
-            : ((licenseRow?.tier as import("@/types/license").LicenseTier) ?? fallback.tier);
-        const effectiveStatus = isExpired ? "expired" : ((licenseRow?.status as "valid" | "invalid" | "expired") ?? "valid");
+            if (t.orgId) {
+                orgContext = { orgId: t.orgId, orgName: t.orgName ?? "", orgRole: t.orgRole ?? "member" };
+            }
+        }
 
         const res = NextResponse.json(
             {
                 ok: true,
                 mode: fallback.mode,
                 license: {
-                    status: effectiveStatus,
-                    tier: effectiveTier,
-                    mode: fallback.mode,
-                    source: licenseRow ? "supabase" : "internal",
-                    expiresAt: licenseRow?.expires_at ?? null,
+                    status:       effectiveStatus,
+                    tier:         effectiveTier,
+                    mode:         fallback.mode,
+                    source:       tierResult.ok ? tierResult.data.tierSource : "internal",
+                    expiresAt:    effectiveExpiry,
+                    tokenBalance: effectiveTokens,
                 },
+                // org is null for personal/free users; populated for org members
+                org:  orgContext,
                 user: { id: userId, email: userEmail ?? null },
                 ...(debugPayload ? { debug: debugPayload } : {}),
             },

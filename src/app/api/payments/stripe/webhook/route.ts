@@ -130,6 +130,11 @@ export async function POST(req: NextRequest) {
 
         const result = await grantLicense(userId, productId as LicenseProductId, admin, "stripe");
         if (result.ok) {
+          // Store subscription ID in external_ref so cancel route can call Stripe API
+          void admin.from("licenses")
+            .update({ external_ref: subscription.id, updated_at: new Date().toISOString() })
+            .eq("user_id", userId);
+
           void createInvoice(admin, {
             userId, productId,
             tier: result.tier,

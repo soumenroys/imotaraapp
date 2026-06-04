@@ -111,6 +111,12 @@ export async function POST(req: NextRequest) {
     last_login_at:   new Date().toISOString(),
   }).eq("id", superAdmin.id);
 
+  // Clean up expired sessions for this admin (prevents accumulation)
+  void admin.from("admin_sessions")
+    .delete()
+    .eq("admin_id", superAdmin.id)
+    .lt("expires_at", new Date().toISOString());
+
   // Create session
   const { token, tokenHash } = generateSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();

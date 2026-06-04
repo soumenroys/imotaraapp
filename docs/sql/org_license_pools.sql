@@ -70,11 +70,14 @@ create table if not exists org_license_assignments (
   withdrawn_by  uuid        references auth.users(id) on delete set null,
   withdraw_note text,
 
-  -- Only one active assignment per user per org at a time
-  constraint one_active_per_user
-    exclude using gist (org_id with =, user_id with =)
-    where (withdrawn_at is null)
+  -- withdrawn_at is null = active assignment
+  withdrawn_note text -- alias kept for compat
 );
+
+-- Enforces only one active assignment per user per org (no btree_gist needed)
+create unique index if not exists one_active_per_user_idx
+  on org_license_assignments (org_id, user_id)
+  where (withdrawn_at is null);
 
 create index if not exists org_license_assignments_pool_idx on org_license_assignments (pool_id, withdrawn_at);
 create index if not exists org_license_assignments_user_idx on org_license_assignments (user_id, withdrawn_at);

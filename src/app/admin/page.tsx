@@ -285,10 +285,10 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="flex w-full max-w-3xl flex-col gap-5 lg:flex-row lg:items-start lg:gap-6">
+      <div className="flex w-full max-w-4xl flex-col gap-5 lg:flex-row lg:items-stretch lg:gap-6">
 
         {/* ── LEFT: Login card ─────────────────────────────────────────────── */}
-        <div className="w-full lg:w-96 shrink-0 space-y-6 rounded-2xl border border-white/10 bg-white/5 px-6 py-8 backdrop-blur-xl">
+        <div className="w-full lg:w-80 shrink-0 flex flex-col rounded-2xl border border-white/10 bg-white/5 px-6 py-8 backdrop-blur-xl gap-6">
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-black/30 shadow-lg ring-1 ring-white/10">
             <Image src="/android-chrome-192.png" width={48} height={48} alt="Imotara" className="rounded-xl" priority />
@@ -402,15 +402,15 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
         </form>
         )}
 
-        <p className="text-center text-[10px] text-zinc-600">
+        <p className="mt-auto text-center text-[10px] text-zinc-600">
           Set <code className="text-zinc-400">ADMIN_SECRET</code> in{" "}
           <code className="text-zinc-400">.env.local</code>
         </p>
         </div>
         {/* ── RIGHT: Guide panel ───────────────────────────────────────────── */}
-        <div className="flex-1 rounded-2xl border border-indigo-400/25 bg-gradient-to-br from-indigo-500/10 via-sky-500/5 to-transparent p-5 backdrop-blur-xl">
+        <div className="flex-1 flex flex-col rounded-2xl border border-indigo-400/25 bg-gradient-to-br from-indigo-500/10 via-sky-500/5 to-transparent p-5 backdrop-blur-xl">
           {/* Header */}
-          <div className="flex items-center gap-3 mb-4 pb-4 border-b border-indigo-400/15">
+          <div className="flex items-center gap-3 mb-4 pb-4 border-b border-indigo-400/15 shrink-0">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-xl">
               📋
             </div>
@@ -420,8 +420,8 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
             </div>
           </div>
 
-          {/* Guide links — 2×2 grid on wide, list on narrow */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {/* Guide links — 2×2 grid, each card stretches to fill equal height */}
+          <div className="grid flex-1 grid-cols-2 gap-3">
             {[
               { href: "/admin/guide?s=policy",    icon: "🏷️", label: "Licensing Policy",  desc: "Tiers, pricing, priority chain, payment gateways" },
               { href: "/admin/guide?s=superadmin", icon: "👑", label: "Super-Admin Guide", desc: "Login, create orgs, issue pools, manage admins" },
@@ -429,21 +429,21 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
               { href: "/admin/guide?s=faq",        icon: "❓", label: "FAQ",               desc: "Activate pending orgs, fix tier issues & more" },
             ].map(({ href, icon, label, desc }) => (
               <a key={href} href={href} target="_blank" rel="noopener noreferrer"
-                className="flex items-start gap-3 rounded-xl border border-white/8 bg-white/4 px-4 py-3.5 transition hover:border-indigo-400/40 hover:bg-indigo-500/10 group">
-                <span className="text-xl shrink-0 mt-0.5">{icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-zinc-200 group-hover:text-white transition">{label}</p>
-                  <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">{desc}</p>
+                className="flex flex-col gap-2 rounded-xl border border-white/8 bg-white/4 px-4 py-4 transition hover:border-indigo-400/40 hover:bg-indigo-500/10 group">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl">{icon}</span>
+                  <svg className="h-3.5 w-3.5 text-zinc-700 group-hover:text-indigo-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
                 </div>
-                <svg className="h-3.5 w-3.5 text-zinc-600 group-hover:text-indigo-400 transition shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
+                <p className="text-sm font-semibold text-zinc-200 group-hover:text-white transition">{label}</p>
+                <p className="text-[11px] text-zinc-500 leading-relaxed">{desc}</p>
               </a>
             ))}
           </div>
 
           {/* Footer hint */}
-          <p className="mt-4 text-center text-[10px] text-zinc-600">
+          <p className="mt-4 shrink-0 text-center text-[10px] text-zinc-600">
             All guides open in a new tab · No login required to read
           </p>
         </div>

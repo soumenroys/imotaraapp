@@ -4,16 +4,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-
-function authorized(req: NextRequest): boolean {
-  const secret = process.env.ADMIN_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization") ?? "";
-  return auth === `Bearer ${secret}`;
-}
+import { adminAuthorized } from "@/app/api/admin/_auth";
 
 export async function GET(req: NextRequest) {
-  if (!authorized(req)) {
+  if (!await adminAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

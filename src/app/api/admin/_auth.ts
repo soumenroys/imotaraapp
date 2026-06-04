@@ -10,14 +10,23 @@ import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { hashSessionToken, SESSION_COOKIE } from "@/lib/imotara/adminCrypto";
 
-// ── Legacy: single shared secret (kept for backward compatibility) ────────────
-export function adminAuthorized(req: NextRequest): boolean {
+// ── adminAuthorized: checks ADMIN_SECRET Bearer OR session cookie ─────────────
+// Now async so it can validate session cookies alongside the legacy secret key.
+// All admin routes call: if (!await adminAuthorized(req)) { return 401 }
+export async function adminAuthorized(req: NextRequest): Promise<boolean> {
+  // 1. Check ADMIN_SECRET bearer (legacy / emergency fallback)
   const secret = process.env.ADMIN_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization") ?? "";
-  const expected = `Bearer ${secret}`;
-  if (auth.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(auth), Buffer.from(expected));
+  if (secret) {
+    const auth     = req.headers.get("authorization") ?? "";
+    const expected = `Bearer ${secret}`;
+    if (auth.length === expected.length && timingSafeEqual(Buffer.from(auth), Buffer.from(expected))) {
+      return true;
+    }
+  }
+
+  // 2. Check session cookie (new multi-user system)
+  const result = await requireSuperAdmin(req);
+  return result.ok;
 }
 
 // ── New: session-based multi-user super-admin ─────────────────────────────────
@@ -77,11 +86,16 @@ export async function requireSuperAdmin(req: NextRequest): Promise<SuperAdminRes
   }
 
   // ── 2. Legacy ADMIN_SECRET fallback ───────────────────────────────────────
-  if (adminAuthorized(req)) {
-    return {
-      ok:    true,
-      admin: { id: "legacy", email: "admin@imotara.com", name: "Admin (legacy key)", role: "owner" },
-    };
+  const secret = process.env.ADMIN_SECRET?.trim();
+  if (secret) {
+    const auth     = req.headers.get("authorization") ?? "";
+    const expected = `Bearer ${secret}`;
+    if (auth.length === expected.length && timingSafeEqual(Buffer.from(auth), Buffer.from(expected))) {
+      return {
+        ok:    true,
+        admin: { id: "legacy", email: "admin@imotara.com", name: "Admin (legacy key)", role: "owner" as const },
+      };
+    }
   }
 
   return {

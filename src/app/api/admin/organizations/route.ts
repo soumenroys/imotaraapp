@@ -11,7 +11,7 @@ import type { OrgStatus } from "@/lib/imotara/org";
 
 // ── GET — list / search orgs ──────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  if (!adminAuthorized(req)) {
+  if (!await adminAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
 // ── POST — create org (Imotara admin manually creates org for a client) ───────
 export async function POST(req: NextRequest) {
-  if (!adminAuthorized(req)) {
+  if (!await adminAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

@@ -9,7 +9,7 @@ import { adminAuthorized } from "@/app/api/admin/_auth";
 type RouteContext = { params: Promise<{ userId: string }> };
 
 export async function GET(req: NextRequest, { params }: RouteContext) {
-  if (!adminAuthorized(req)) {
+  if (!await adminAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 }
 
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
-  if (!adminAuthorized(req)) {
+  if (!await adminAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

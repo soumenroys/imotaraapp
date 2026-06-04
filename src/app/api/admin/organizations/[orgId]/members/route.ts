@@ -10,7 +10,7 @@ import { revokeOrgLicense } from "@/lib/imotara/org";
 type Params = { params: Promise<{ orgId: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  if (!adminAuthorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!await adminAuthorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const { orgId } = await params;
   let body: { userId: string; role: string };
@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
-  if (!adminAuthorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!await adminAuthorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const { orgId } = await params;
   const userId = req.nextUrl.searchParams.get("userId");

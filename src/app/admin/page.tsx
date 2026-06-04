@@ -84,6 +84,21 @@ interface DetailResponse {
 
 const SESSION_KEY = "imotara_admin_token";
 
+/** Returns fetch options with correct auth.
+ *  Session-based login → use cookie (credentials:same-origin, no Bearer).
+ *  Legacy secret key → send as Authorization Bearer header. */
+function adminFetchOpts(token: string, extra?: RequestInit): RequestInit {
+  const isSession = token.startsWith("session:");
+  return {
+    credentials: "same-origin",
+    ...extra,
+    headers: {
+      ...(isSession ? {} : { Authorization: `Bearer ${token}` }),
+      ...(extra?.headers ?? {}),
+    },
+  };
+}
+
 function timeAgo(iso: string | null): string {
   if (!iso) return "—";
   const diff = Date.now() - new Date(iso).getTime();
@@ -318,10 +333,7 @@ function CommentCard({
 
   async function approve() {
     setApproving(true);
-    const res = await fetch(`/api/admin/comments/${comment.id}`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetch(`/api/admin/comments/${comment.id}`, adminFetchOpts(token, { method: "PATCH" }));
     if (res.ok) onApproved(comment.id);
     else setApproving(false);
   }
@@ -329,10 +341,7 @@ function CommentCard({
   async function remove() {
     if (!confirm(`Delete comment by "${comment.name}"?`)) return;
     setDeleting(true);
-    const res = await fetch(`/api/admin/comments/${comment.id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetch(`/api/admin/comments/${comment.id}`, adminFetchOpts(token, { method: "DELETE" }));
     if (res.ok) onDeleted(comment.id);
     else setDeleting(false);
   }
@@ -417,9 +426,7 @@ function UserLicenseRow({
   useEffect(() => {
     if (!expanded || detail) return;
     setDetailLoading(true);
-    fetch(`/api/admin/licenses/${user.user_id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch(`/api/admin/licenses/${user.user_id}`, adminFetchOpts(token))
       .then((r) => r.json())
       .then((d: DetailResponse) => setDetail(d))
       .catch(() => {})
@@ -443,11 +450,11 @@ function UserLicenseRow({
     } else {
       body.tokenBalance = Number(payload.tokenBalance);
     }
-    const res = await fetch(`/api/admin/licenses/${user.user_id}`, {
+    const res = await fetch(`/api/admin/licenses/${user.user_id}`, adminFetchOpts(token, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    });
+    }));
     setSaving(false);
     if (res.ok) {
       const data = await res.json();
@@ -836,13 +843,13 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
 
   async function load() {
     if (loaded) return;
-    const r = await fetch(`/api/admin/organizations/${orgId}`, { headers: authHeader });
+    const r = await fetch(`/api/admin/organizations/${orgId}`, adminFetchOpts(token));
     if (r.ok) { const j = await r.json(); setMembers(j.members ?? []); setLoaded(true); }
   }
 
   async function changeRole(userId: string, role: string) {
     setWorking(userId);
-    await fetch(`/api/admin/organizations/${orgId}/members`, { method: "PATCH", headers: { ...authHeader, "Content-Type": "application/json" }, body: JSON.stringify({ userId, role }) });
+    await fetch(`/api/admin/organizations/${orgId}/members`, { method: "PATCH", headers: { "Content-Type": "application/json", ...(token.startsWith("session:") ? {} : { Authorization: `Bearer ${token}` }) }, body: JSON.stringify({ userId, role }) });
     setWorking(null);
     setMembers((p) => p.map((m) => m.userId === userId ? { ...m, role } : m));
   }
@@ -850,7 +857,7 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
   async function removeMember(userId: string) {
     if (!confirm("Remove this member? Their license will be revoked.")) return;
     setWorking(userId);
-    await fetch(`/api/admin/organizations/${orgId}/members?userId=${userId}`, { method: "DELETE", headers: authHeader });
+    await fetch(`/api/admin/organizations/${orgId}/members?userId=${userId}`, adminFetchOpts(token, { method: "DELETE" }));
     setWorking(null);
     setMembers((p) => p.filter((m) => m.userId !== userId));
   }
@@ -943,7 +950,7 @@ function OrganizationsSection({ token }: { token: string }) {
       const params = new URLSearchParams({ limit: "30" });
       if (q) params.set("search", q);
       if (s) params.set("status", s);
-      const res = await fetch(`/api/admin/organizations?${params}`, { headers: authHeader });
+      const res = await fetch(`/api/admin/organizations?${params}`, adminFetchOpts(token));
       if (!res.ok) { setError("Failed to load organizations."); return; }
       setOrgs((await res.json()).orgs ?? []);
     } catch { setError("Network error."); }
@@ -957,7 +964,7 @@ function OrganizationsSection({ token }: { token: string }) {
     e.preventDefault(); setSaving(true);
     try {
       const res = await fetch("/api/admin/organizations", {
-        method: "POST", headers: { ...authHeader, "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json", ...(token.startsWith("session:") ? {} : { Authorization: `Bearer ${token}` }) },
         body: JSON.stringify({ ...createForm, seats_purchased: Number(createForm.seats_purchased), expires_at: createForm.expires_at || null }),
       });
       if (!res.ok) { setError((await res.json()).error ?? "Create failed."); return; }
@@ -975,7 +982,7 @@ function OrganizationsSection({ token }: { token: string }) {
         payload[k] = k === "seats_purchased" ? Number(v) : (v === "" ? null : v);
       });
       const res = await fetch(`/api/admin/organizations/${orgId}`, {
-        method: "PATCH", headers: { ...authHeader, "Content-Type": "application/json" },
+        method: "PATCH", headers: { "Content-Type": "application/json", ...(token.startsWith("session:") ? {} : { Authorization: `Bearer ${token}` }) },
         body: JSON.stringify(payload),
       });
       if (!res.ok) { setError((await res.json()).error ?? "Save failed."); return; }
@@ -1194,7 +1201,7 @@ function SuperAdminsSection({ token }: { token: string }) {
   const fetchAdmins = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch("/api/admin/super-admins", { headers: authHeader });
+      const r = await fetch("/api/admin/super-admins", adminFetchOpts(token));
       if (!r.ok) { setError("Not authorized or no super-admin accounts yet."); return; }
       setAdmins((await r.json()).admins ?? []);
     } catch { setError("Network error."); }
@@ -1207,7 +1214,7 @@ function SuperAdminsSection({ token }: { token: string }) {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setMsg(""); setError("");
     const r = await fetch("/api/admin/super-admins", {
-      method: "POST", headers: { ...authHeader, "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json", ...(token.startsWith("session:") ? {} : { Authorization: `Bearer ${token}` }) },
       body: JSON.stringify({ email: newEmail, name: newName, password: newPwd, role: newRole }),
     });
     const j = await r.json();
@@ -1222,7 +1229,7 @@ function SuperAdminsSection({ token }: { token: string }) {
     const pwd = prompt(`New password for ${name} (min 12 chars):`);
     if (!pwd || pwd.length < 12) { alert("Password must be ≥12 characters."); return; }
     const r = await fetch(`/api/admin/super-admins/${id}`, {
-      method: "PATCH", headers: { ...authHeader, "Content-Type": "application/json" },
+      method: "PATCH", headers: { "Content-Type": "application/json", ...(token.startsWith("session:") ? {} : { Authorization: `Bearer ${token}` }) },
       body: JSON.stringify({ password: pwd }),
     });
     alert(r.ok ? "Password updated." : "Failed to update password.");
@@ -1230,7 +1237,7 @@ function SuperAdminsSection({ token }: { token: string }) {
 
   async function handleDeactivate(id: string) {
     if (!confirm("Deactivate this admin? They will lose all access immediately.")) return;
-    const r = await fetch(`/api/admin/super-admins/${id}`, { method: "DELETE", headers: authHeader });
+    const r = await fetch(`/api/admin/super-admins/${id}`, adminFetchOpts(token, { method: "DELETE" }));
     if (r.ok) void fetchAdmins(); else alert("Failed to deactivate.");
   }
 

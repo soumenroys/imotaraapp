@@ -13,7 +13,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ orgId: string }> },
 ) {
-  if (!adminAuthorized(req)) {
+  if (!await adminAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -41,7 +41,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ orgId: string }> },
 ) {
-  if (!adminAuthorized(req)) {
+  if (!await adminAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

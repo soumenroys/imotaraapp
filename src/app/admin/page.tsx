@@ -767,6 +767,292 @@ function HistoryTable({ rows }: { rows: HistoryEntry[] }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// OrganizationsSection
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface OrgRow {
+  orgId: string; name: string; slug: string; billingType: string;
+  tier: string; status: string; seatsPurchased: number; seatsUsed: number;
+  ownerEmail: string | null; expiresAt: string | null; createdAt: string; memberCount: number;
+}
+
+const BILLING_COLORS: Record<string, string> = {
+  commercial: "text-indigo-300 bg-indigo-500/15",
+  ngo:        "text-emerald-300 bg-emerald-500/15",
+  edu:        "text-teal-300 bg-teal-500/15",
+  govt:       "text-amber-300 bg-amber-500/15",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  active:    "text-emerald-300 bg-emerald-500/15",
+  pending:   "text-amber-300 bg-amber-500/15",
+  suspended: "text-rose-300 bg-rose-500/15",
+  cancelled: "text-zinc-400 bg-zinc-500/10",
+};
+
+function OrgBadge({ label, colors }: { label: string; colors: string }) {
+  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-white/10 ${colors}`}>{label}</span>;
+}
+
+function OrganizationsSection({ token }: { token: string }) {
+  const [orgs, setOrgs]               = useState<OrgRow[]>([]);
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState("");
+  const [search, setSearch]           = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [expandedId, setExpandedId]   = useState<string | null>(null);
+  const [showCreate, setShowCreate]   = useState(false);
+  const [saving, setSaving]           = useState(false);
+
+  // Edit state for the expanded org
+  const [editFields, setEditFields] = useState<Record<string, string>>({});
+
+  // Create form state
+  const [createForm, setCreateForm] = useState({
+    name: "", slug: "", billing_type: "commercial", tier: "enterprise",
+    status: "pending", seats_purchased: "10", expires_at: "", notes: "", owner_email: "",
+  });
+
+  const authHeader = { Authorization: `Bearer ${token}` };
+
+  const fetchOrgs = useCallback(async (q: string, s: string) => {
+    setLoading(true); setError("");
+    try {
+      const params = new URLSearchParams({ limit: "30" });
+      if (q) params.set("search", q);
+      if (s) params.set("status", s);
+      const res = await fetch(`/api/admin/organizations?${params}`, { headers: authHeader });
+      if (!res.ok) { setError("Failed to load organizations."); return; }
+      setOrgs((await res.json()).orgs ?? []);
+    } catch { setError("Network error."); }
+    finally { setLoading(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  useEffect(() => { void fetchOrgs(search, statusFilter); }, [fetchOrgs, search, statusFilter]);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true);
+    try {
+      const res = await fetch("/api/admin/organizations", {
+        method: "POST", headers: { ...authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({ ...createForm, seats_purchased: Number(createForm.seats_purchased), expires_at: createForm.expires_at || null }),
+      });
+      if (!res.ok) { setError((await res.json()).error ?? "Create failed."); return; }
+      setShowCreate(false);
+      setCreateForm({ name: "", slug: "", billing_type: "commercial", tier: "enterprise", status: "pending", seats_purchased: "10", expires_at: "", notes: "", owner_email: "" });
+      void fetchOrgs(search, statusFilter);
+    } finally { setSaving(false); }
+  }
+
+  async function handleSave(orgId: string) {
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = {};
+      Object.entries(editFields).forEach(([k, v]) => {
+        payload[k] = k === "seats_purchased" ? Number(v) : (v === "" ? null : v);
+      });
+      const res = await fetch(`/api/admin/organizations/${orgId}`, {
+        method: "PATCH", headers: { ...authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) { setError((await res.json()).error ?? "Save failed."); return; }
+      void fetchOrgs(search, statusFilter);
+      setExpandedId(null); setEditFields({});
+    } finally { setSaving(false); }
+  }
+
+  const inputCls = "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50";
+  const labelCls = "block text-[11px] text-zinc-400 mb-1";
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <form onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); }} className="flex flex-1 gap-2">
+          <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search by name, slug, or owner email…"
+            className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-indigo-400/50" />
+          <button type="submit" className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-zinc-300 transition hover:bg-white/10">Search</button>
+        </form>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-300 outline-none">
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="active">Active</option>
+          <option value="suspended">Suspended</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <button onClick={() => setShowCreate((v) => !v)}
+          className="rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-4 py-2 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/25">
+          {showCreate ? "✕ Cancel" : "+ New Org"}
+        </button>
+      </div>
+
+      {/* Create form */}
+      {showCreate && (
+        <form onSubmit={handleCreate} className="rounded-2xl border border-indigo-400/20 bg-indigo-500/5 p-5 space-y-4">
+          <p className="text-sm font-semibold text-indigo-200">Create Organization</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {[
+              { key: "name",        label: "Name *",        placeholder: "Acme Corp" },
+              { key: "slug",        label: "Slug *",        placeholder: "acme-corp" },
+              { key: "owner_email", label: "Owner email",   placeholder: "admin@acme.com" },
+            ].map(({ key, label, placeholder }) => (
+              <label key={key}>
+                <span className={labelCls}>{label}</span>
+                <input required={key === "name" || key === "slug"} value={(createForm as Record<string,string>)[key]}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, [key]: e.target.value }))}
+                  placeholder={placeholder} className={inputCls} />
+              </label>
+            ))}
+            <label>
+              <span className={labelCls}>Type</span>
+              <select value={createForm.billing_type} onChange={(e) => setCreateForm((p) => ({ ...p, billing_type: e.target.value }))} className={inputCls}>
+                {["commercial","ngo","edu","govt"].map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </label>
+            <label>
+              <span className={labelCls}>Tier</span>
+              <select value={createForm.tier} onChange={(e) => setCreateForm((p) => ({ ...p, tier: e.target.value }))} className={inputCls}>
+                {["edu","enterprise"].map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </label>
+            <label>
+              <span className={labelCls}>Status</span>
+              <select value={createForm.status} onChange={(e) => setCreateForm((p) => ({ ...p, status: e.target.value }))} className={inputCls}>
+                {["pending","active"].map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </label>
+            <label>
+              <span className={labelCls}>Seats</span>
+              <input type="number" min={1} value={createForm.seats_purchased}
+                onChange={(e) => setCreateForm((p) => ({ ...p, seats_purchased: e.target.value }))} className={inputCls} />
+            </label>
+            <label>
+              <span className={labelCls}>Expires at</span>
+              <input type="date" value={createForm.expires_at}
+                onChange={(e) => setCreateForm((p) => ({ ...p, expires_at: e.target.value }))} className={inputCls} />
+            </label>
+          </div>
+          <label>
+            <span className={labelCls}>Internal notes</span>
+            <textarea rows={2} value={createForm.notes}
+              onChange={(e) => setCreateForm((p) => ({ ...p, notes: e.target.value }))}
+              className={`${inputCls} resize-none`} placeholder="Billing contact, discount reason, etc." />
+          </label>
+          <div className="flex gap-2">
+            <button type="submit" disabled={saving}
+              className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+              {saving ? "Creating…" : "Create"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {error && <p className="text-sm text-rose-400">{error}</p>}
+
+      {/* Org list */}
+      {loading ? (
+        <div className="space-y-3">{[1,2,3].map((i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-white/5" />)}</div>
+      ) : orgs.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-white/10 px-5 py-12 text-center">
+          <p className="text-2xl">🏢</p>
+          <p className="mt-2 text-sm text-zinc-500">No organizations yet. Create one above.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {orgs.map((org) => {
+            const isOpen = expandedId === org.orgId;
+            return (
+              <div key={org.orgId} className="rounded-2xl border border-white/8 bg-white/5 overflow-hidden">
+                {/* Summary row */}
+                <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-zinc-100">{org.name}</p>
+                    <p className="text-[11px] text-zinc-500">{org.slug} · {org.ownerEmail ?? "no owner"}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <OrgBadge label={org.billingType} colors={BILLING_COLORS[org.billingType] ?? "text-zinc-400 bg-zinc-500/10"} />
+                    <OrgBadge label={org.tier}        colors={tierBadge(org.tier)} />
+                    <OrgBadge label={org.status}      colors={STATUS_COLORS[org.status] ?? "text-zinc-400 bg-zinc-500/10"} />
+                    <span className="text-[11px] text-zinc-500">{org.seatsUsed}/{org.seatsPurchased} seats · {org.memberCount} members</span>
+                    {org.expiresAt && <span className="text-[11px] text-zinc-500">exp {fmtDate(org.expiresAt)}</span>}
+                  </div>
+                  <button onClick={() => {
+                    setExpandedId(isOpen ? null : org.orgId);
+                    setEditFields({
+                      name: org.name, billing_type: org.billingType, tier: org.tier,
+                      status: org.status, seats_purchased: String(org.seatsPurchased),
+                      expires_at: org.expiresAt ? org.expiresAt.split("T")[0] : "",
+                      notes: "",
+                    });
+                  }} className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-400 transition hover:text-zinc-200">
+                    {isOpen ? "Close" : "Edit"}
+                  </button>
+                </div>
+
+                {/* Edit panel */}
+                {isOpen && (
+                  <div className="border-t border-white/8 px-4 py-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {[
+                        { key: "name",            label: "Name",    type: "text" },
+                        { key: "seats_purchased", label: "Seats",   type: "number" },
+                        { key: "expires_at",      label: "Expires", type: "date" },
+                      ].map(({ key, label, type }) => (
+                        <label key={key}>
+                          <span className={labelCls}>{label}</span>
+                          <input type={type} value={editFields[key] ?? ""}
+                            onChange={(e) => setEditFields((p) => ({ ...p, [key]: e.target.value }))}
+                            className={inputCls} />
+                        </label>
+                      ))}
+                      {[
+                        { key: "billing_type", label: "Type",   opts: ["commercial","ngo","edu","govt"] },
+                        { key: "tier",         label: "Tier",   opts: ["edu","enterprise"] },
+                        { key: "status",       label: "Status", opts: ["pending","active","suspended","cancelled"] },
+                      ].map(({ key, label, opts }) => (
+                        <label key={key}>
+                          <span className={labelCls}>{label}</span>
+                          <select value={editFields[key] ?? ""}
+                            onChange={(e) => setEditFields((p) => ({ ...p, [key]: e.target.value }))}
+                            className={inputCls}>
+                            {opts.map((v) => <option key={v} value={v}>{v}</option>)}
+                          </select>
+                        </label>
+                      ))}
+                    </div>
+                    <label>
+                      <span className={labelCls}>Internal notes</span>
+                      <textarea rows={2} value={editFields.notes ?? ""}
+                        onChange={(e) => setEditFields((p) => ({ ...p, notes: e.target.value }))}
+                        className={`${inputCls} resize-none`} placeholder="Add a note…" />
+                    </label>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleSave(org.orgId)} disabled={saving}
+                        className="rounded-xl bg-indigo-500/80 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+                        {saving ? "Saving…" : "Save changes"}
+                      </button>
+                      <button onClick={() => { setExpandedId(null); setEditFields({}); }}
+                        className="rounded-xl border border-white/10 px-4 py-1.5 text-xs text-zinc-400 transition hover:text-zinc-200">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // LicensesSection
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -893,7 +1179,7 @@ function LicensesSection({ token }: { token: string }) {
 // Main AdminPage
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Section = "comments" | "licenses";
+type Section = "comments" | "licenses" | "organizations";
 
 export default function AdminPage() {
   const [token, setToken]     = useState<string | null>(null);
@@ -954,7 +1240,7 @@ export default function AdminPage() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Imotara · Admin</p>
             <h1 className="text-xl font-semibold text-zinc-100">
-              {section === "comments" ? "Blog Comments" : "License Management"}
+              {section === "comments" ? "Blog Comments" : section === "licenses" ? "License Management" : "Organizations"}
             </h1>
           </div>
         </div>
@@ -968,6 +1254,10 @@ export default function AdminPage() {
             <button onClick={() => setSection("licenses")}
               className={`rounded-lg px-3 py-1.5 text-xs transition ${section === "licenses" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
               🔑 Licenses
+            </button>
+            <button onClick={() => setSection("organizations")}
+              className={`rounded-lg px-3 py-1.5 text-xs transition ${section === "organizations" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
+              🏢 Organizations
             </button>
           </div>
           <button
@@ -1042,7 +1332,8 @@ export default function AdminPage() {
         </>
       )}
 
-      {section === "licenses" && <LicensesSection token={token} />}
+      {section === "licenses"      && <LicensesSection      token={token} />}
+      {section === "organizations" && <OrganizationsSection token={token} />}
     </main>
   );
 }

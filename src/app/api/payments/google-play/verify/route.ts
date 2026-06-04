@@ -67,25 +67,32 @@ export async function POST(req: NextRequest) {
   // Acknowledge (required within 3 days or Google refunds automatically)
   void acknowledgeGooglePlayPurchase(PACKAGE_NAME, productId, purchaseToken, isSubscription);
 
-  // Grant license
-  const result = await grantLicense(userId, productId as LicenseProductId, admin, "razorpay"); // use razorpay source for now
-  if (!result.ok) {
-    return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
-  }
-
-  // Record in payment_licenses for idempotency
-  void admin.from("payment_licenses").insert({
+  // Insert idempotency record BEFORE granting (prevents double-grant if request retried)
+  // Use token as payment_id; tier filled in after grant succeeds
+  const { error: insertErr } = await admin.from("payment_licenses").insert({
     payment_id:   purchaseToken,
     user_id:      userId,
     product_id:   productId,
-    tier:         result.tier,
+    tier:         "pending", // updated below after grant
     amount_paise: 0,
     currency:     "INR",
     granted_at:   new Date().toISOString(),
   });
+  if (insertErr && !insertErr.message.includes("duplicate")) {
+    console.error("[google-play/verify] payment_licenses insert failed:", insertErr.message);
+  }
+
+  // Grant license
+  const result = await grantLicense(userId, productId as LicenseProductId, admin, "google_play");
+  if (!result.ok) {
+    return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
+  }
+
+  // Update with real tier
+  void admin.from("payment_licenses").update({ tier: result.tier }).eq("payment_id", purchaseToken);
 
   // Create invoice
-  void createInvoice(admin, {
+  createInvoice(admin, {
     userId,
     productId,
     tier:           result.tier,
@@ -94,8 +101,9 @@ export async function POST(req: NextRequest) {
     gatewayRef:     verification.orderId ?? purchaseToken.slice(0, 40),
     amountPaise:    0,
     currency:       "INR",
+    periodStart:    new Date().toISOString(),
     periodEnd:      result.expiresAt ?? verification.expiresAt ?? undefined,
-  });
+  }).catch((err: unknown) => console.error("[google-play/verify] invoice creation failed:", err));
 
   return NextResponse.json({
     ok:           true,

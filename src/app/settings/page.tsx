@@ -2400,6 +2400,17 @@ export default function SettingsPage() {
         // Read-only licensing status on page load
         refreshLicenseStatus();
 
+        // Handle Stripe payment success redirect (?stripe_success=1)
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get("stripe_success") === "1") {
+                // Clear the URL param immediately
+                window.history.replaceState({}, "", "/settings");
+                // Refresh license after a short delay to allow webhook processing
+                setTimeout(() => { refreshLicenseStatus(); }, 2000);
+            }
+        }
+
 
         // Preload Razorpay script in the background for smoother UX
         setRzLoading(true);

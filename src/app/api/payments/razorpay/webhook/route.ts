@@ -73,10 +73,10 @@ export async function POST(req: Request) {
                     const result = await grantLicense(userId, productId, getSupabaseAdmin(), "webhook");
                     console.log("[razorpay/webhook] grantLicense OK:", productId, "user:", userId);
 
-                    // Create invoice record
+                    // Create invoice record (await + log errors — non-blocking to payment flow)
                     const product = PRODUCT_CATALOG[productId];
                     const amountPaise = paymentEntity?.amount ?? (product && "paise" in product ? (product as { paise: number }).paise : 0);
-                    void createInvoice(getSupabaseAdmin(), {
+                    createInvoice(getSupabaseAdmin(), {
                       userId,
                       productId,
                       tier:            result.ok ? result.tier : undefined,
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
                       currency:        paymentEntity?.currency ?? "INR",
                       periodStart:     new Date().toISOString(),
                       periodEnd:       result.ok ? result.expiresAt ?? undefined : undefined,
-                    });
+                    }).catch((err: unknown) => console.error("[razorpay/webhook] invoice creation failed:", err));
                 } catch (e) {
                     console.error("[razorpay/webhook] grantLicense failed:", e);
                 }

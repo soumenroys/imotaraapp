@@ -462,14 +462,20 @@ export default function UpgradePage() {
                             ))}
                         </ul>
                     </div>
-                    <div className="sm:shrink-0 sm:self-start">
+                    <div className="sm:shrink-0 sm:self-start flex flex-col gap-2">
+                        <a
+                            href="/pricing/corporate"
+                            className="inline-flex items-center justify-center rounded-xl bg-violet-600 hover:bg-violet-500 transition px-5 py-2.5 text-sm font-semibold text-white"
+                        >
+                            Buy seats online →
+                        </a>
                         <a
                             href="mailto:info@imotara.com?subject=Enterprise%20inquiry"
-                            className="inline-flex items-center rounded-xl bg-violet-600 hover:bg-violet-500 transition px-5 py-2.5 text-sm font-semibold text-white"
+                            className="inline-flex items-center justify-center rounded-xl border border-violet-400/30 bg-violet-500/10 hover:bg-violet-500/20 transition px-5 py-2 text-sm font-medium text-violet-300"
                         >
-                            Contact us →
+                            Contact us for custom quote
                         </a>
-                        <p className="mt-2 text-xs text-zinc-500 text-center">We typically reply within 24 h</p>
+                        <p className="text-xs text-zinc-500 text-center">We typically reply within 24 h</p>
                     </div>
                 </div>
             </div>

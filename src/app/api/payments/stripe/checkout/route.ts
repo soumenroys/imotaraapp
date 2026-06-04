@@ -31,11 +31,12 @@ export async function POST(req: NextRequest) {
   }
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
-  let body: { productId: string; currency?: string };
+  let body: { productId: string; currency?: string; orgType?: string; seats?: number; purchaseType?: string };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "invalid JSON" }, { status: 400 }); }
 
-  const { productId } = body;
+  const { productId, orgType, seats } = body;
+  const isCorporate = !!orgType && !!seats;
   if (!productId || !isValidProductId(productId)) {
     return NextResponse.json({ error: "invalid productId" }, { status: 400 });
   }
@@ -58,15 +59,33 @@ export async function POST(req: NextRequest) {
       success_url:     `${SITE_URL}/settings?stripe_success=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:      `${SITE_URL}/upgrade?stripe_cancelled=1`,
       metadata: {
-        imotara_user_id:   userId,
+        imotara_user_id:    userId,
         imotara_product_id: productId,
+        // Corporate purchase metadata — passed to webhook to trigger org creation
+        ...(isCorporate ? {
+          purchase_type:  "corporate",
+          org_type:       orgType ?? "",
+          seats:          String(seats ?? 0),
+        } : {}),
       },
       subscription_data: isSubscription ? {
-        metadata: { imotara_user_id: userId, imotara_product_id: productId },
+        metadata: {
+          imotara_user_id: userId, imotara_product_id: productId,
+          ...(isCorporate ? { purchase_type: "corporate", org_type: orgType ?? "", seats: String(seats ?? 0) } : {}),
+        },
       } : undefined,
       payment_intent_data: !isSubscription ? {
-        metadata: { imotara_user_id: userId, imotara_product_id: productId },
+        metadata: {
+          imotara_user_id: userId, imotara_product_id: productId,
+          ...(isCorporate ? { purchase_type: "corporate", org_type: orgType ?? "", seats: String(seats ?? 0) } : {}),
+        },
       } : undefined,
+      // For corporate: custom description
+      ...(isCorporate ? {
+        custom_text: {
+          submit: { message: `Activating ${seats} seats for ${orgType} organisation. You'll receive setup instructions by email within 24 hours.` },
+        },
+      } : {}),
       allow_promotion_codes: true, // enables NGO/EDU coupon codes
     });
 

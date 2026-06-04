@@ -8,6 +8,7 @@
 // Verifies the transaction with Apple App Store Server API before granting.
 
 import { NextResponse } from "next/server";
+import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
 import { createSign, createVerify, createPublicKey } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import {
@@ -280,20 +281,19 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
         }
 
-        // Create invoice record (fire-and-forget)
-        import("@/lib/imotara/invoiceUtils").then(({ createInvoice, getProductDescription }) => {
-          void createInvoice(admin, {
-            userId,
-            productId,
-            tier:           result.tier,
-            description:    getProductDescription(productId),
-            paymentGateway: "apple",
-            gatewayRef:     transactionId as string,
-            amountPaise:    0, // Apple IAP amount not directly available; 0 = not shown
-            currency:       "USD",
-            periodEnd:      result.expiresAt ?? undefined,
-          });
-        }).catch(() => {});
+        // Create invoice record (non-blocking — errors logged)
+        createInvoice(admin, {
+          userId,
+          productId,
+          tier:           result.tier,
+          description:    getProductDescription(productId),
+          paymentGateway: "apple",
+          gatewayRef:     transactionId as string,
+          amountPaise:    0, // Apple IAP amount not available server-side
+          currency:       "USD",
+          periodStart:    new Date().toISOString(),
+          periodEnd:      result.expiresAt ?? undefined,
+        }).catch((err: unknown) => console.error("[apple-iap] invoice creation failed:", err));
 
         const res = NextResponse.json({
             ok:           true,

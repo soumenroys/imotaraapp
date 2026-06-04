@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
+import { getStripe } from "@/lib/stripeClient";
 
 export async function POST(req: NextRequest) {
   // Resolve user
@@ -34,6 +35,15 @@ export async function POST(req: NextRequest) {
 
   if (!license || license.tier === "free") {
     return NextResponse.json({ error: "No active subscription to cancel." }, { status: 400 });
+  }
+
+  // For Stripe subscriptions — cancel at period end
+  if (license.source === "stripe" && license.external_ref) {
+    try {
+      await getStripe().subscriptions.update(license.external_ref, { cancel_at_period_end: true });
+    } catch (err) {
+      console.warn("[subscription/cancel] Stripe cancel failed:", err);
+    }
   }
 
   // For Razorpay subscriptions — try API cancel

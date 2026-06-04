@@ -458,7 +458,7 @@ function BannerPlans() {
         <p className="text-xs font-semibold text-violet-400 uppercase tracking-widest mb-2">Plans & Upgrade</p>
         <p className="text-zinc-200 text-sm leading-relaxed">Free is genuinely free. Plus and Pro add cloud features. Token packs extend your daily limit. Enterprise is available for organisations.</p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-          {[["Free","₹0","20 replies/day"],["Plus","₹99/mo","Unlimited"],["Pro","₹149/mo","+ Insights"],["Enterprise","Custom","SSO + Admin"]].map(([t,p,f]) => (
+          {[["Free","₹0","20 replies/day"],["Plus","₹99/mo","Unlimited"],["Pro","₹149/mo","+ Insights"],["Enterprise","Custom","Admin + Teams + SSO"]].map(([t,p,f]) => (
             <div key={t} className="rounded-lg bg-white/5 border border-white/8 px-2 py-1.5">
               <p className="font-semibold text-zinc-200 text-[10px]">{t}</p>
               <p className="text-indigo-300 text-[10px] font-bold">{p}</p>
@@ -1841,13 +1841,15 @@ const FEATURES: Record<string, Feature[]> = {
       icon: "🏢",
       title: "Enterprise, EDU & NGO Plans (Custom Pricing)",
       short: "For companies, NGOs, schools, and healthcare platforms — org admin dashboard, member management, analytics, API access, and more.",
-      long: "Enterprise and EDU plans give your organisation a dedicated dashboard at imotara.com/org/dashboard. Org admins can invite members via email or bulk CSV, track aggregate engagement analytics (EDU/NGO), manage API keys for integrations, and customise branding. Members automatically inherit the org license tier. Includes audit logs, custom branding, and REST API access (Enterprise). SSO/SAML and data residency are on the roadmap.",
+      long: "Enterprise and EDU plans give your organisation a dedicated dashboard at imotara.com/org/dashboard. Key capabilities: invite members via email or bulk CSV; group them into classrooms or teams with a shared companion tone (EDU: classrooms, Enterprise: departments); track aggregate engagement analytics with emotion trends (EDU/NGO); embed Imotara in Moodle or Canvas via iframe; configure SSO/SAML for single sign-on; set data residency preference; manage REST API keys (Enterprise); customise branding with your logo and accent colour. NGOs also get referral codes for revenue sharing and can earn a recognition certificate. Audit logs and member lifecycle management are included.",
       steps: [
         "Go to imotara.com/org/new to submit an organisation request.",
         "Fill in your org name, type (Company / NGO / Educational / Government), and contact details.",
         "Imotara reviews and activates your account within 24–48 hours.",
         "Once approved, access your org dashboard at imotara.com/org/dashboard.",
         "Invite your team via the Members tab — single email or bulk CSV upload.",
+        "Use the Teams tab to group members into classrooms or departments with a shared tone.",
+        "NGOs: generate referral codes and download your recognition certificate from Settings.",
       ],
       tiers: { free: false, plus: false, pro: false, ent: true, note: "Enterprise / EDU / NGO plans are for organisations. Apply at imotara.com/org/new or email info@imotara.com." },
     },

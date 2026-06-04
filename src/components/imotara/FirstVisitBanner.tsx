@@ -3,17 +3,22 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { saveConsentMode } from "@/lib/imotara/analysisConsent";
 
 const CONSENT_KEY = "imotara.analysisConsent.v1";
 const ONBOARDED_KEY = "imotara.onboarded.v1";
 
+// Paths where user-onboarding banners should never appear
+const SUPPRESS_PATHS = ["/admin"];
+
 export default function FirstVisitBanner() {
   const [step, setStep] = useState<"consent" | "setup" | "done">("done");
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
+    if (SUPPRESS_PATHS.some((p) => pathname.startsWith(p))) return;
     try {
       const consented = window.localStorage.getItem(CONSENT_KEY);
       const onboarded = window.localStorage.getItem(ONBOARDED_KEY);
@@ -22,7 +27,7 @@ export default function FirstVisitBanner() {
     } catch {
       // localStorage unavailable — don't show
     }
-  }, []);
+  }, [pathname]);
 
   if (step === "done") return null;
 

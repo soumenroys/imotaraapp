@@ -2,22 +2,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const STORAGE_KEY = "imotara.localNotice.v1";
+const SUPPRESS_PATHS = ["/admin"];
 
 export default function LocalDataNotice() {
     const [visible, setVisible] = useState(false);
+    const pathname = usePathname();
 
-    // Show banner only on client & only if user hasn't dismissed it
+    // Show banner only on client, only if not dismissed, never on admin paths
     useEffect(() => {
         if (typeof window === "undefined") return;
+        if (SUPPRESS_PATHS.some((p) => pathname.startsWith(p))) return;
         try {
             const val = window.localStorage.getItem(STORAGE_KEY);
             if (val !== "dismissed") setVisible(true);
         } catch {
             setVisible(true); // fail-open
         }
-    }, []);
+    }, [pathname]);
 
     function handleDismiss() {
         setVisible(false);

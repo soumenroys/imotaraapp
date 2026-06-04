@@ -11,22 +11,21 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { hashSessionToken, SESSION_COOKIE } from "@/lib/imotara/adminCrypto";
 
 // ── adminAuthorized: checks ADMIN_SECRET Bearer OR session cookie ─────────────
-// Now async so it can validate session cookies alongside the legacy secret key.
-// All admin routes call: if (!await adminAuthorized(req)) { return 401 }
+// Set ADMIN_SECRET_DISABLED=true in env vars to disable the legacy secret key.
 export async function adminAuthorized(req: NextRequest): Promise<boolean> {
-  // 1. Check ADMIN_SECRET bearer (legacy / emergency fallback)
-  const secret = process.env.ADMIN_SECRET?.trim();
-  if (secret) {
-    const auth     = req.headers.get("authorization") ?? "";
-    const expected = `Bearer ${secret}`;
-    if (auth.length === expected.length && timingSafeEqual(Buffer.from(auth), Buffer.from(expected))) {
-      return true;
-    }
-  }
+  // 1. Check session cookie first (preferred)
+  const cookieResult = await requireSuperAdmin(req);
+  if (cookieResult.ok) return true;
 
-  // 2. Check session cookie (new multi-user system)
-  const result = await requireSuperAdmin(req);
-  return result.ok;
+  // 2. Legacy ADMIN_SECRET Bearer — disabled when ADMIN_SECRET_DISABLED=true
+  if (process.env.ADMIN_SECRET_DISABLED === "true") return false;
+
+  const secret = process.env.ADMIN_SECRET?.trim();
+  if (!secret) return false;
+  const auth     = req.headers.get("authorization") ?? "";
+  const expected = `Bearer ${secret}`;
+  if (auth.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(auth), Buffer.from(expected));
 }
 
 // ── New: session-based multi-user super-admin ─────────────────────────────────

@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { hashPassword } from "@/lib/imotara/adminCrypto";
+import { hashPassword, checkPasswordComplexity } from "@/lib/imotara/adminCrypto";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -23,7 +23,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (body.name)     update.name = body.name.trim();
   if (body.role && ["owner","admin"].includes(body.role)) update.role = body.role;
   if (body.password) {
-    if (body.password.length < 12) return NextResponse.json({ error: "Password must be ≥12 characters" }, { status: 400 });
+    const pwCheck = checkPasswordComplexity(body.password);
+    if (!pwCheck.ok) return NextResponse.json({ error: pwCheck.reason }, { status: 400 });
     update.password_hash = hashPassword(body.password);
   }
 

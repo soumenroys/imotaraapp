@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { hashPassword } from "@/lib/imotara/adminCrypto";
+import { hashPassword, checkPasswordComplexity } from "@/lib/imotara/adminCrypto";
 
 export async function GET(req: NextRequest) {
   const auth = await requireSuperAdmin(req);
@@ -37,9 +37,8 @@ export async function POST(req: NextRequest) {
   if (!body.email?.trim() || !body.name?.trim() || !body.password) {
     return NextResponse.json({ error: "email, name, and password required" }, { status: 400 });
   }
-  if (body.password.length < 12) {
-    return NextResponse.json({ error: "Password must be at least 12 characters" }, { status: 400 });
-  }
+  const pwCheck = checkPasswordComplexity(body.password);
+  if (!pwCheck.ok) return NextResponse.json({ error: pwCheck.reason }, { status: 400 });
 
   const { data, error } = await getSupabaseAdmin()
     .from("super_admins")

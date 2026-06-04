@@ -1288,18 +1288,48 @@ function OrganizationsSection({ token }: { token: string }) {
 // SuperAdminsSection
 // ─────────────────────────────────────────────────────────────────────────────
 
+function PasswordStrength({ password }: { password: string }) {
+  const checks = [
+    { label: "12+ chars",   ok: password.length >= 12 },
+    { label: "Uppercase",   ok: /[A-Z]/.test(password) },
+    { label: "Number",      ok: /[0-9]/.test(password) },
+    { label: "Special (!@#…)", ok: /[!@#$%^&*()\-_=+]/.test(password) },
+  ];
+  if (!password) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1">
+      {checks.map((c) => (
+        <span key={c.label} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${c.ok ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-400"}`}>
+          {c.ok ? "✓" : "✗"} {c.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function SuperAdminsSection({ token }: { token: string }) {
-  interface SuperAdmin { id: string; email: string; name: string; role: string; active: boolean; last_login_at: string | null; created_at: string }
-  const [admins, setAdmins]     = useState<SuperAdmin[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState("");
-  const [saving, setSaving]     = useState(false);
-  const [newEmail, setNewEmail] = useState("");
-  const [newName, setNewName]   = useState("");
-  const [newPwd, setNewPwd]     = useState("");
-  const [newRole, setNewRole]   = useState("admin");
-  const [msg, setMsg]           = useState("");
-  const authHeader = { Authorization: `Bearer ${token}` };
+  interface SuperAdmin {
+    id: string; email: string; name: string; role: string; active: boolean;
+    last_login_at: string | null; created_at: string;
+    failed_attempts?: number; locked_until?: string | null;
+  }
+  interface Session { id: string; ip_address: string|null; user_agent: string|null; created_at: string; expires_at: string; isCurrent: boolean }
+
+  const [admins, setAdmins]       = useState<SuperAdmin[]>([]);
+  const [sessions, setSessions]   = useState<Session[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState("");
+  const [saving, setSaving]       = useState(false);
+  const [newEmail, setNewEmail]   = useState("");
+  const [newName, setNewName]     = useState("");
+  const [newPwd, setNewPwd]       = useState("");
+  const [newRole, setNewRole]     = useState("admin");
+  const [msg, setMsg]             = useState("");
+  const [showSessions, setShowSessions] = useState(false);
+  const [revokingSession, setRevokingSession] = useState<string|null>(null);
+
+  // Legacy key status
+  const legacyKeyActive = !token.startsWith("session:");
 
   const fetchAdmins = useCallback(async () => {
     setLoading(true);
@@ -1312,14 +1342,20 @@ function SuperAdminsSection({ token }: { token: string }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  const fetchSessions = useCallback(async () => {
+    const r = await fetch("/api/admin/auth/sessions", adminFetchOpts(token));
+    if (r.ok) setSessions((await r.json()).sessions ?? []);
+  }, [token]);
+
   useEffect(() => { void fetchAdmins(); }, [fetchAdmins]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setMsg(""); setError("");
-    const r = await fetch("/api/admin/super-admins", {
-      method: "POST", headers: { "Content-Type": "application/json", ...(token.startsWith("session:") ? {} : { Authorization: `Bearer ${token}` }) },
+    const r = await fetch("/api/admin/super-admins", adminFetchOpts(token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: newEmail, name: newName, password: newPwd, role: newRole }),
-    });
+    }));
     const j = await r.json();
     setSaving(false);
     if (!r.ok) { setError(j.error ?? "Failed"); return; }
@@ -1329,13 +1365,22 @@ function SuperAdminsSection({ token }: { token: string }) {
   }
 
   async function handleResetPwd(id: string, name: string) {
-    const pwd = prompt(`New password for ${name} (min 12 chars):`);
-    if (!pwd || pwd.length < 12) { alert("Password must be ≥12 characters."); return; }
-    const r = await fetch(`/api/admin/super-admins/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json", ...(token.startsWith("session:") ? {} : { Authorization: `Bearer ${token}` }) },
+    const pwd = prompt(`New password for ${name}\n\nRequirements: 12+ chars, uppercase, number, special char (!@#$%^&*)`);
+    if (!pwd) return;
+    const r = await fetch(`/api/admin/super-admins/${id}`, adminFetchOpts(token, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password: pwd }),
-    });
-    alert(r.ok ? "Password updated." : "Failed to update password.");
+    }));
+    const j = await r.json();
+    if (r.ok) { alert("Password updated successfully."); }
+    else { alert(`Failed: ${j.error ?? "Unknown error"}`); }
+  }
+
+  async function handleUnlock(id: string, name: string) {
+    if (!confirm(`Unlock ${name}'s account?`)) return;
+    const r = await fetch(`/api/admin/super-admins/${id}/unlock`, adminFetchOpts(token, { method: "POST" }));
+    if (r.ok) { setMsg(`✓ ${name}'s account unlocked`); void fetchAdmins(); }
   }
 
   async function handleDeactivate(id: string) {
@@ -1344,11 +1389,37 @@ function SuperAdminsSection({ token }: { token: string }) {
     if (r.ok) void fetchAdmins(); else alert("Failed to deactivate.");
   }
 
+  async function handleRevokeSession(sessionId: string, isCurrent: boolean) {
+    if (isCurrent && !confirm("Revoking your current session will sign you out. Continue?")) return;
+    setRevokingSession(sessionId);
+    await fetch(`/api/admin/auth/sessions?sessionId=${sessionId}`, adminFetchOpts(token, { method: "DELETE" }));
+    setRevokingSession(null);
+    if (isCurrent) { window.location.reload(); }
+    else { void fetchSessions(); }
+  }
+
+  async function handleRevokeAllOther() {
+    if (!confirm("Revoke all other sessions? Only your current session will remain.")) return;
+    await fetch("/api/admin/auth/sessions?all=true", adminFetchOpts(token, { method: "DELETE" }));
+    void fetchSessions();
+    setMsg("✓ All other sessions revoked");
+  }
+
   const inputCls = "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50";
 
   return (
     <div className="space-y-6">
-      <p className="text-xs text-zinc-500">Manage who has super-admin access to this panel. Only <strong className="text-zinc-300">owners</strong> can add or remove admins. Passwords require ≥12 characters.</p>
+
+      {/* Security status banner */}
+      <div className={`rounded-2xl border px-4 py-3 text-xs space-y-1 ${legacyKeyActive ? "border-amber-500/25 bg-amber-500/8" : "border-emerald-500/25 bg-emerald-500/8"}`}>
+        <p className="font-semibold text-zinc-300">Security status</p>
+        <p className={legacyKeyActive ? "text-amber-300" : "text-emerald-300"}>
+          {legacyKeyActive
+            ? "⚠ You are logged in via legacy secret key. Set ADMIN_SECRET_DISABLED=true in Vercel env vars to disable this fallback once all admins are on email/password."
+            : "✓ Logged in via secure email/password session. Legacy secret key is your emergency fallback."}
+        </p>
+        <p className="text-zinc-500">Password policy: 12+ chars · 1 uppercase · 1 number · 1 special character. Accounts lock for 15 minutes after 5 failed attempts.</p>
+      </div>
 
       {/* Add new admin */}
       <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
@@ -1357,10 +1428,14 @@ function SuperAdminsSection({ token }: { token: string }) {
           <div className="grid grid-cols-2 gap-3">
             <input required value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Full name" className={`${inputCls} w-full`} />
             <input required type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Email" className={`${inputCls} w-full`} />
-            <input required type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="Password (min 12 chars)" minLength={12} className={`${inputCls} w-full`} />
+            <div className="col-span-2">
+              <input required type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)}
+                placeholder="Password (12+ chars, uppercase, number, special)" className={`${inputCls} w-full`} />
+              <PasswordStrength password={newPwd} />
+            </div>
             <select value={newRole} onChange={(e) => setNewRole(e.target.value)} className={`${inputCls} w-full`}>
-              <option value="admin">Admin</option>
-              <option value="owner">Owner (full access)</option>
+              <option value="admin">Admin (full access)</option>
+              <option value="owner">Owner (full access + manage admins)</option>
             </select>
           </div>
           {error && <p className="text-xs text-rose-400">{error}</p>}
@@ -1377,28 +1452,70 @@ function SuperAdminsSection({ token }: { token: string }) {
       ) : admins.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/10 px-5 py-8 text-center">
           <p className="text-2xl">👑</p>
-          <p className="mt-2 text-sm text-zinc-500">No super-admins yet. First, run <code className="text-zinc-400">POST /api/admin/auth/seed</code> to create the owner account.</p>
+          <p className="mt-2 text-sm text-zinc-500">No super-admins yet.</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {admins.map((a) => (
-            <div key={a.id} className={`flex flex-wrap items-center gap-3 rounded-2xl border border-white/8 bg-white/4 px-4 py-3 ${!a.active ? "opacity-50" : ""}`}>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-zinc-100">{a.name}</p>
-                <p className="text-[11px] text-zinc-500">{a.email} · last login: {a.last_login_at ? timeAgo(a.last_login_at) : "never"}</p>
-              </div>
-              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium ${a.role === "owner" ? "bg-amber-500/15 text-amber-300" : "bg-indigo-500/15 text-indigo-300"}`}>{a.role}</span>
-              {!a.active && <span className="text-[11px] text-zinc-600">inactive</span>}
-              {a.active && (
-                <div className="flex gap-1.5">
-                  <button onClick={() => handleResetPwd(a.id, a.name)} className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-300 transition hover:bg-white/10">Reset pwd</button>
-                  <button onClick={() => handleDeactivate(a.id)} className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-xs text-rose-400 transition hover:bg-rose-500/20">Deactivate</button>
+          {admins.map((a) => {
+            const isLocked = a.locked_until && new Date(a.locked_until) > new Date();
+            return (
+              <div key={a.id} className={`rounded-2xl border border-white/8 bg-white/4 px-4 py-3 ${!a.active ? "opacity-50" : ""}`}>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-zinc-100">{a.name}</p>
+                    <p className="text-[11px] text-zinc-500">{a.email} · last login: {a.last_login_at ? timeAgo(a.last_login_at) : "never"}</p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium ${a.role === "owner" ? "bg-amber-500/15 text-amber-300" : "bg-indigo-500/15 text-indigo-300"}`}>{a.role}</span>
+                  {isLocked && <span className="rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[10px] font-medium text-rose-300">🔒 Locked</span>}
+                  {!a.active && <span className="text-[11px] text-zinc-600">inactive</span>}
+                  {a.active && (
+                    <div className="flex flex-wrap gap-1.5">
+                      <button onClick={() => handleResetPwd(a.id, a.name)} className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-300 transition hover:bg-white/10">Reset pwd</button>
+                      {isLocked && <button onClick={() => handleUnlock(a.id, a.name)} className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300 transition hover:bg-amber-500/20">Unlock</button>}
+                      <button onClick={() => handleDeactivate(a.id)} className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-xs text-rose-400 transition hover:bg-rose-500/20">Deactivate</button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+                {(a.failed_attempts ?? 0) > 0 && !isLocked && (
+                  <p className="mt-1 text-[10px] text-amber-400">{a.failed_attempts} failed login attempt{a.failed_attempts !== 1 ? "s" : ""} — locks after {5 - (a.failed_attempts ?? 0)} more</p>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
+
+      {/* Session management */}
+      <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-zinc-300">My active sessions</p>
+          <button onClick={async () => { setShowSessions((v) => !v); if (!showSessions) await fetchSessions(); }}
+            className="text-xs text-indigo-400 hover:text-indigo-300 transition">
+            {showSessions ? "Hide" : "View sessions"}
+          </button>
+        </div>
+        {showSessions && (
+          <>
+            <button onClick={handleRevokeAllOther} className="text-xs text-rose-400 hover:text-rose-300 transition">Revoke all other sessions</button>
+            <div className="space-y-1.5">
+              {sessions.map((s) => (
+                <div key={s.id} className={`flex items-start justify-between rounded-xl border px-3 py-2 ${s.isCurrent ? "border-indigo-400/30 bg-indigo-500/8" : "border-white/8 bg-white/3"}`}>
+                  <div className="min-w-0 text-[11px] text-zinc-400 space-y-0.5">
+                    <p className="font-medium text-zinc-200">{s.isCurrent ? "Current session" : "Session"}</p>
+                    <p>IP: {s.ip_address ?? "unknown"}</p>
+                    <p className="truncate max-w-[240px]">{s.user_agent ? s.user_agent.slice(0, 60) + (s.user_agent.length > 60 ? "…" : "") : "unknown"}</p>
+                    <p>Created: {timeAgo(s.created_at)} · Expires: {new Date(s.expires_at).toLocaleTimeString()}</p>
+                  </div>
+                  <button onClick={() => handleRevokeSession(s.id, s.isCurrent)} disabled={revokingSession === s.id}
+                    className={`ml-2 shrink-0 rounded-lg border px-2 py-1 text-[11px] transition disabled:opacity-40 ${s.isCurrent ? "border-amber-500/20 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20" : "border-rose-500/20 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"}`}>
+                    {revokingSession === s.id ? "…" : s.isCurrent ? "Sign out" : "Revoke"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

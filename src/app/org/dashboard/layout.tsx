@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/org/dashboard/overview",  label: "Overview",  icon: "📊", adminOnly: false },
   { href: "/org/dashboard/members",   label: "Members",   icon: "👥", adminOnly: false },
   { href: "/org/dashboard/licenses",  label: "Licenses",  icon: "🔑", adminOnly: true  },
+  { href: "/org/dashboard/pool",      label: "Pool",      icon: "🎫", adminOnly: true  },
   { href: "/org/dashboard/teams",     label: "Teams",     icon: "🏫", adminOnly: true  },
   { href: "/org/dashboard/analytics", label: "Analytics", icon: "📈", adminOnly: true  },
   { href: "/org/dashboard/audit",     label: "Audit log", icon: "📋", adminOnly: true  },

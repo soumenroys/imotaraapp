@@ -895,6 +895,107 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OrgPoolsPanel — super-admin issues license pools to an org
+// ─────────────────────────────────────────────────────────────────────────────
+
+function OrgPoolsPanel({ orgId, token }: { orgId: string; token: string }) {
+  interface Pool { id:string; tier:string; quantity_total:number; quantity_used:number; label:string|null; expires_at:string|null; active:boolean }
+  const [pools, setPools]   = useState<Pool[]>([]);
+  const [show, setShow]     = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [tier, setTier]     = useState("plus");
+  const [qty, setQty]       = useState("10");
+  const [label, setLabel]   = useState("");
+  const [exp, setExp]       = useState("");
+  const [notes, setNotes]   = useState("");
+  const [msg, setMsg]       = useState("");
+
+  async function load() {
+    if (loaded) return;
+    const r = await fetch(`/api/admin/organizations/${orgId}/pools`, adminFetchOpts(token));
+    if (r.ok) { setPools((await r.json()).pools ?? []); setLoaded(true); }
+  }
+
+  async function handleIssue(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setMsg("");
+    const r = await fetch(`/api/admin/organizations/${orgId}/pools`, adminFetchOpts(token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tier, quantity: Number(qty), label: label||undefined, expires_at: exp||undefined, notes: notes||undefined }),
+    }));
+    setSaving(false);
+    if (r.ok) {
+      const j = await r.json();
+      setPools((p) => [j.pool, ...p]);
+      setMsg(`✓ Issued ${qty} ${tier} licenses`);
+      setQty("10"); setLabel(""); setExp(""); setNotes("");
+    } else {
+      setMsg((await r.json().catch(()=>({}))).error ?? "Failed");
+    }
+  }
+
+  async function handleToggle(poolId: string, active: boolean) {
+    await fetch(`/api/admin/organizations/${orgId}/pools?poolId=${poolId}`, adminFetchOpts(token, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active }),
+    }));
+    setPools((p) => p.map((x) => x.id === poolId ? { ...x, active } : x));
+  }
+
+  const inCls = "rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-xs text-zinc-100 outline-none";
+
+  return (
+    <div className="border-t border-white/8 pt-3 mt-2">
+      <button onClick={async () => { setShow((v) => !v); if (!show && !loaded) await load(); }} className="text-xs text-amber-400 hover:text-amber-300 transition">
+        {show ? "▲ Hide license pools" : "▼ Manage license pools"}
+      </button>
+      {show && (
+        <div className="mt-3 space-y-3">
+          {/* Issue form */}
+          <form onSubmit={handleIssue} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
+            <p className="text-xs font-medium text-amber-300">Issue license pool to this org</p>
+            <div className="flex flex-wrap gap-2">
+              <select value={tier} onChange={(e) => setTier(e.target.value)} className={inCls}>
+                {["free","plus","pro","edu","enterprise"].map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <input type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} placeholder="Qty" className={`${inCls} w-20`} />
+              <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label (optional)" className={`${inCls} flex-1`} />
+              <input type="date" value={exp} onChange={(e) => setExp(e.target.value)} className={inCls} />
+            </div>
+            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Internal notes (optional)" className={`${inCls} w-full`} />
+            {msg && <p className={`text-[11px] ${msg.startsWith("✓") ? "text-emerald-400" : "text-rose-400"}`}>{msg}</p>}
+            <button type="submit" disabled={saving} className="rounded-lg bg-amber-500/80 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-amber-500 disabled:opacity-50">
+              {saving ? "Issuing…" : "Issue pool"}
+            </button>
+          </form>
+
+          {/* Pool list */}
+          {pools.length === 0 && loaded && <p className="text-xs text-zinc-500">No license pools yet.</p>}
+          {pools.map((p) => (
+            <div key={p.id} className={`flex items-center gap-3 rounded-xl border border-white/8 bg-white/3 px-3 py-2 ${!p.active ? "opacity-50" : ""}`}>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-zinc-200 capitalize">{p.tier} · {p.quantity_used}/{p.quantity_total} assigned</p>
+                <p className="text-[10px] text-zinc-500">{p.label ?? "No label"}{p.expires_at ? ` · exp ${fmtDate(p.expires_at)}` : ""}</p>
+              </div>
+              <div className="flex-shrink-0">
+                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/8">
+                  <div className="h-full bg-amber-400/70 rounded-full" style={{ width: `${Math.round(p.quantity_used/Math.max(p.quantity_total,1)*100)}%` }} />
+                </div>
+              </div>
+              <button onClick={() => handleToggle(p.id, !p.active)} className="text-[10px] text-zinc-500 hover:text-zinc-300 transition shrink-0">
+                {p.active ? "Deactivate" : "Activate"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // OrganizationsSection
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1170,6 +1271,8 @@ function OrganizationsSection({ token }: { token: string }) {
                     </div>
                     {/* Member management */}
                     <OrgMembersPanel orgId={org.orgId} token={token} />
+                    {/* License pool issuance */}
+                    <OrgPoolsPanel orgId={org.orgId} token={token} />
                   </div>
                 )}
               </div>

@@ -6,7 +6,14 @@ import { useEffect, useState } from "react";
 
 interface Summary { totalEvents: number; uniqueDays: number; avgWAU: number; avgSessionMins: number }
 interface DailyStat { statDate: string; activeUsers: number; totalEvents: number; avgSessionMins: number }
-interface AnalyticsData { orgName: string; days: number; summary: Summary; daily: DailyStat[] }
+interface EmotionTrend { emotion: string; count: number }
+interface AnalyticsData { orgName: string; days: number; summary: Summary; daily: DailyStat[]; emotionTrends: EmotionTrend[] }
+
+const EMOTION_COLORS: Record<string, string> = {
+  anxious: "bg-amber-400", sad: "bg-sky-400", stressed: "bg-rose-400",
+  angry: "bg-red-500", lonely: "bg-violet-400", hopeless: "bg-zinc-400",
+  joy: "bg-emerald-400", confused: "bg-indigo-400",
+};
 
 function StatCard({ label, value, unit }: { label: string; value: number | string; unit?: string }) {
   return (
@@ -88,6 +95,31 @@ export default function AnalyticsPage() {
               </div>
             )}
           </div>
+
+          {/* Emotion trends */}
+          {data.emotionTrends && data.emotionTrends.length > 0 && (
+            <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-4">
+              <p className="mb-3 text-sm font-medium text-zinc-300">Emotional themes (aggregate)</p>
+              <p className="mb-3 text-[11px] text-zinc-600">Anonymized — based on emotional context detected across all sessions. No individual data is shown.</p>
+              <div className="space-y-2">
+                {(() => {
+                  const total = data.emotionTrends.reduce((s, e) => s + e.count, 0);
+                  return data.emotionTrends.slice(0, 8).map((e) => {
+                    const pct = total > 0 ? Math.round((e.count / total) * 100) : 0;
+                    return (
+                      <div key={e.emotion} className="flex items-center gap-3">
+                        <span className="w-20 shrink-0 text-xs capitalize text-zinc-400">{e.emotion}</span>
+                        <div className="flex-1 h-2 rounded-full bg-white/8 overflow-hidden">
+                          <div className={`h-full rounded-full ${EMOTION_COLORS[e.emotion] ?? "bg-zinc-400"}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="w-8 text-right text-[11px] text-zinc-500">{pct}%</span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          )}
 
           {/* Active users table */}
           {data.daily.length > 0 && (

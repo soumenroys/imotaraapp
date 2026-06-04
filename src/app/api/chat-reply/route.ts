@@ -421,11 +421,13 @@ export async function POST(req: Request) {
     }
 
     // LIC-1: fire-and-forget usage event — only inserted when quota not exceeded
+    // Emotion label stored for NGO/EDU aggregate analytics (anonymized — no personal data)
     if (authedUserId) {
       void Promise.resolve(
         getSupabaseAdmin().from("usage_events").insert({
-          user_id: authedUserId,
+          user_id:    authedUserId,
           event_type: "chat_reply",
+          emotion:    emotion?.toLowerCase() ?? null,
         })
       ).catch(() => {});
     }

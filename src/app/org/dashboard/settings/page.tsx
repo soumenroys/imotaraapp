@@ -291,6 +291,26 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* SSO / SAML — EDU and Enterprise */}
+      {org && ["edu","enterprise"].includes(org.tier) && (
+        <SsoSection orgTier={org.tier} />
+      )}
+
+      {/* Data Residency + LMS Embed — EDU and Enterprise */}
+      {org && ["edu","enterprise"].includes(org.tier) && (
+        <EmbedSection orgTier={org.tier} />
+      )}
+
+      {/* NGO Referral Codes — NGO billing_type only */}
+      {org && org.billing_type === "ngo" && (
+        <ReferralSection />
+      )}
+
+      {/* NGO / EDU Recognition Certificate */}
+      {org && ["ngo","edu"].includes(org.billing_type) && (
+        <CertificateSection orgName={org.name} orgTier={org.tier} seatsUsed={org.seats_used} />
+      )}
+
       {/* Danger zone */}
       <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 px-5 py-5">
         <p className="text-sm font-semibold text-rose-300">Danger zone</p>
@@ -303,3 +323,225 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+// ── SSO / SAML ────────────────────────────────────────────────────────────────
+function SsoSection({ orgTier }: { orgTier: string }) {
+  const [saml, setSaml]     = useState<Record<string,string> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg]       = useState("");
+  const [fields, setFields] = useState({ entity_id: "", sso_url: "", certificate: "", email_domain: "" });
+
+  useEffect(() => {
+    fetch("/api/org/dashboard/sso", { credentials: "same-origin" })
+      .then((r) => r.json()).then((j) => {
+        setSaml(j.saml);
+        if (j.saml) setFields({ entity_id: j.saml.entity_id ?? "", sso_url: j.saml.sso_url ?? "", certificate: j.saml.certificate ?? "", email_domain: j.saml.email_domain ?? "" });
+      }).catch(() => {});
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setMsg("");
+    const r = await fetch("/api/org/dashboard/sso", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) });
+    const j = await r.json();
+    setSaving(false);
+    if (r.ok) { setSaml(j.saml); setMsg("Saved — contact info@imotara.com to activate SSO for your org."); }
+  }
+
+  const inputCls = "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50";
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-zinc-300">SSO / SAML</p>
+        {saml?.status === "active"
+          ? <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300">Active</span>
+          : saml?.entity_id
+            ? <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">Pending activation</span>
+            : null}
+      </div>
+      <p className="text-xs text-zinc-500">Connect your IdP (Okta, Google Workspace, Azure AD) so members sign in via SSO. Save your IdP metadata below, then contact us to activate.</p>
+      <form onSubmit={handleSave} className="space-y-3">
+        {[
+          { key: "entity_id",    label: "Entity ID / Issuer URL",     placeholder: "https://accounts.google.com/o/saml2?idpid=..." },
+          { key: "sso_url",      label: "SSO URL (IdP Sign-on URL)",  placeholder: "https://sso.okta.com/app/.../sso/saml" },
+          { key: "email_domain", label: "Email domain (auto-join)",   placeholder: "yourorg.com" },
+        ].map(({ key, label, placeholder }) => (
+          <label key={key}>
+            <span className="block text-xs text-zinc-400 mb-1">{label}</span>
+            <input value={(fields as Record<string,string>)[key]} onChange={(e) => setFields((p) => ({ ...p, [key]: e.target.value }))} placeholder={placeholder} className={inputCls} />
+          </label>
+        ))}
+        <label>
+          <span className="block text-xs text-zinc-400 mb-1">X.509 Certificate</span>
+          <textarea rows={3} value={fields.certificate} onChange={(e) => setFields((p) => ({ ...p, certificate: e.target.value }))} placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----" className={`${inputCls} resize-none font-mono text-[11px]`} />
+        </label>
+        {msg && <p className="text-xs text-emerald-400">{msg}</p>}
+        <button type="submit" disabled={saving} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+          {saving ? "Saving…" : "Save SSO config"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ── Data Residency + LMS Embed ────────────────────────────────────────────────
+function EmbedSection({ orgTier }: { orgTier: string }) {
+  const [embedUrl, setEmbedUrl]   = useState("");
+  const [snippet, setSnippet]     = useState("");
+  const [domains, setDomains]     = useState("");
+  const [residency, setResidency] = useState("");
+  const [saving, setSaving]       = useState(false);
+  const [msg, setMsg]             = useState("");
+  const [copied, setCopied]       = useState(false);
+
+  useEffect(() => {
+    fetch("/api/org/dashboard/embed", { credentials: "same-origin" })
+      .then((r) => r.json()).then((j) => {
+        setEmbedUrl(j.embedUrl ?? "");
+        setSnippet(j.iframeSnippet ?? "");
+        setDomains((j.allowedDomains ?? []).join(", "));
+      }).catch(() => {});
+    fetch("/api/org/dashboard/settings", { credentials: "same-origin" })
+      .then((r) => r.json()).then((j) => {
+        const s = j.org?.org_settings as Record<string,unknown> ?? {};
+        setResidency((s.data_residency as string) ?? "");
+      }).catch(() => {});
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setMsg("");
+    await fetch("/api/org/dashboard/embed", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allowedDomains: domains.split(",").map((d) => d.trim()).filter(Boolean), dataResidency: residency || null }) });
+    setSaving(false); setMsg("Saved ✓");
+  }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(snippet).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {});
+  }
+
+  const inputCls = "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50";
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-5">
+      {/* LMS Embed */}
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-zinc-300">LMS / iframe Embed</p>
+        <p className="text-xs text-zinc-500">Embed the Imotara companion in Moodle, Canvas, or any LMS that supports iframes. Add your LMS domain to the allowlist below.</p>
+        {embedUrl && (
+          <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+            <p className="text-[10px] text-zinc-500 mb-1">Embed snippet</p>
+            <code className="block text-[11px] text-zinc-300 font-mono break-all leading-relaxed">{snippet}</code>
+            <button onClick={handleCopy} className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 transition">{copied ? "✓ Copied!" : "Copy snippet"}</button>
+          </div>
+        )}
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-3">
+        <label>
+          <span className="block text-xs text-zinc-400 mb-1">Allowed domains (comma-separated)</span>
+          <input value={domains} onChange={(e) => setDomains(e.target.value)} placeholder="moodle.yourschool.edu, canvas.yourorg.com" className={inputCls} />
+        </label>
+
+        {/* Data Residency */}
+        <div className="border-t border-white/8 pt-3">
+          <p className="text-sm font-medium text-zinc-300 mb-1">Data Residency</p>
+          <p className="text-xs text-zinc-500 mb-2">Set your preferred geographic region for data storage. Enforcement requires contacting Imotara support to migrate your project.</p>
+          <select value={residency} onChange={(e) => setResidency(e.target.value)} className={inputCls}>
+            <option value="">Default (auto)</option>
+            <option value="us">United States</option>
+            <option value="eu">Europe (EU)</option>
+            <option value="apac">Asia Pacific</option>
+            <option value="in">India</option>
+          </select>
+          {residency && <p className="mt-1 text-[11px] text-amber-400">Preference saved. Email info@imotara.com to request data migration to this region.</p>}
+        </div>
+
+        {msg && <p className="text-xs text-emerald-400">{msg}</p>}
+        <button type="submit" disabled={saving} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ── NGO Referral Codes ────────────────────────────────────────────────────────
+function ReferralSection() {
+  const [codes, setCodes]     = useState<{id:string;code:string;description:string|null;uses_count:number;active:boolean;totalCommissionInr:string}[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving]   = useState(false);
+  const [desc, setDesc]       = useState("");
+  const [revoking, setRevoking] = useState<string|null>(null);
+
+  const load = useCallback(async () => {
+    const r = await fetch("/api/org/dashboard/referrals", { credentials: "same-origin" });
+    if (r.ok) setCodes((await r.json()).codes ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function handleGenerate(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true);
+    await fetch("/api/org/dashboard/referrals", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ description: desc, commission_rate: 10 }) });
+    setDesc(""); setSaving(false); void load();
+  }
+
+  async function handleRevoke(codeId: string) {
+    setRevoking(codeId);
+    await fetch(`/api/org/dashboard/referrals?codeId=${codeId}`, { method: "DELETE", credentials: "same-origin" });
+    setRevoking(null); void load();
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
+      <p className="text-sm font-medium text-zinc-300">Referral Codes (Revenue Sharing)</p>
+      <p className="text-xs text-zinc-500">Distribute referral codes to your beneficiaries. When someone upgrades to a paid plan using your code, Imotara shares 10% of first-year revenue with your organisation.</p>
+      <form onSubmit={handleGenerate} className="flex gap-2">
+        <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Code label (optional)" className="flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50" />
+        <button type="submit" disabled={saving} className="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50">{saving ? "…" : "Generate"}</button>
+      </form>
+      {loading ? <div className="h-10 animate-pulse rounded-xl bg-white/5" /> : codes.length === 0 ? (
+        <p className="text-xs text-zinc-500">No codes yet. Generate one above.</p>
+      ) : (
+        <div className="space-y-2">
+          {codes.map((c) => (
+            <div key={c.id} className={`flex items-center gap-3 rounded-xl border border-white/8 bg-white/3 px-3 py-2 ${!c.active ? "opacity-50" : ""}`}>
+              <div className="min-w-0 flex-1">
+                <code className="text-sm font-mono font-medium text-emerald-300">{c.code}</code>
+                <p className="text-[11px] text-zinc-500">{c.uses_count} uses · ₹{c.totalCommissionInr} earned{c.description ? ` · ${c.description}` : ""}</p>
+              </div>
+              {c.active && <button onClick={() => handleRevoke(c.id)} disabled={revoking === c.id} className="text-xs text-rose-400 hover:text-rose-300 transition shrink-0">{revoking === c.id ? "…" : "Deactivate"}</button>}
+              {!c.active && <span className="text-[11px] text-zinc-600 shrink-0">Inactive</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── NGO / EDU Recognition Certificate ────────────────────────────────────────
+function CertificateSection({ orgName, orgTier, seatsUsed }: { orgName: string; orgTier: string; seatsUsed: number }) {
+  const eligible = seatsUsed >= 10;
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-zinc-300">🏆 Emotional Wellness Champion Certificate</p>
+        {eligible
+          ? <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300">Eligible</span>
+          : <span className="rounded-full bg-zinc-500/15 px-2 py-0.5 text-[10px] text-zinc-500">Not yet eligible</span>}
+      </div>
+      <p className="text-xs text-zinc-500">
+        {eligible
+          ? `${orgName} qualifies for the Imotara Emotional Wellness Champion certificate. Download it for use in grant applications, CSR reports, or website recognition.`
+          : `Earn this certificate when you have 10+ active members and have been active for 30+ days. Currently: ${seatsUsed} member${seatsUsed !== 1 ? "s" : ""}.`}
+      </p>
+      {eligible && (
+        <a href="/api/org/certificate" target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-500/20">
+          Download certificate →
+        </a>
+      )}
+    </div>
+  );
+}
+

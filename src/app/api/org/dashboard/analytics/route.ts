@@ -40,10 +40,30 @@ export async function GET(req: NextRequest) {
     ? Math.round(stats.reduce((s, r) => s + r.avgSessionMins, 0) / stats.length * 10) / 10
     : 0;
 
+  // Emotion trend breakdown — aggregate count per emotion label across the period
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const { data: emotionRows } = await admin
+    .from("usage_events")
+    .select("emotion")
+    .not("emotion", "is", null)
+    .gte("created_at", cutoff)
+    .in("user_id",
+      (await admin.from("org_members").select("user_id").eq("org_id", auth.orgId).eq("status","active")).data?.map((m) => m.user_id) ?? []
+    );
+
+  const emotionCounts: Record<string, number> = {};
+  (emotionRows ?? []).forEach(({ emotion }) => {
+    if (emotion) emotionCounts[emotion] = (emotionCounts[emotion] ?? 0) + 1;
+  });
+  const emotionTrends = Object.entries(emotionCounts)
+    .sort(([, a], [, b]) => b - a)
+    .map(([emotion, count]) => ({ emotion, count }));
+
   return NextResponse.json({
     orgName:    org?.name,
     days,
     summary: { totalEvents, uniqueDays, avgWAU, avgSessionMins: avgSession },
     daily:   stats,
+    emotionTrends,
   });
 }

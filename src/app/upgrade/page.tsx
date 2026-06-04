@@ -398,41 +398,17 @@ export default function UpgradePage() {
                                         {isCurrent ? "Current plan" : "Always free"}
                                     </div>
                                 ) : (
-                                    <div className="space-y-2">
-                                      <button
-                                          type="button"
-                                          disabled={!!busy || !rzReady}
-                                          onClick={() => checkout(productId!, `Imotara ${plan.name} ${annual ? "Annual" : "Monthly"}`)}
-                                          className={`w-full rounded-xl py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${isPro
-                                              ? "bg-indigo-600 hover:bg-indigo-500 text-white"
-                                              : "bg-sky-600 hover:bg-sky-500 text-white"
-                                          }`}
-                                      >
-                                          {isBusy ? "Opening…" : `${plan.cta} (UPI/Cards — India)`}
-                                      </button>
-                                      {/* Stripe — international cards */}
-                                      <button
-                                          type="button"
-                                          disabled={!!busy}
-                                          onClick={async () => {
-                                            if (!productId) return;
-                                            setBusy(productId + "_stripe");
-                                            try {
-                                              const r = await fetch("/api/payments/stripe/checkout", {
-                                                method: "POST", credentials: "same-origin",
-                                                headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({ productId }),
-                                              });
-                                              const j = await r.json();
-                                              if (j.url) window.location.href = j.url;
-                                              else setStatus({ type: "error", msg: j.error ?? "Stripe checkout unavailable." });
-                                            } finally { setBusy(null); }
-                                          }}
-                                          className="w-full rounded-xl border border-white/15 bg-white/5 py-1.5 text-xs text-zinc-300 transition hover:bg-white/10 disabled:opacity-50"
-                                      >
-                                          💳 Pay with international card (Stripe)
-                                      </button>
-                                    </div>
+                                    <button
+                                        type="button"
+                                        disabled={!!busy || !rzReady}
+                                        onClick={() => checkout(productId!, `Imotara ${plan.name} ${annual ? "Annual" : "Monthly"}`)}
+                                        className={`w-full rounded-xl py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${isPro
+                                            ? "bg-indigo-600 hover:bg-indigo-500 text-white"
+                                            : "bg-sky-600 hover:bg-sky-500 text-white"
+                                        }`}
+                                    >
+                                        {isBusy ? "Opening…" : plan.cta}
+                                    </button>
                                 )}
                             </div>
                         </div>
@@ -929,8 +905,7 @@ export default function UpgradePage() {
 
             {/* Footer note */}
             <p className="mt-10 text-center text-xs text-zinc-600">
-                India: UPI, cards, and netbanking via Razorpay. All prices shown in INR (approximate USD shown for reference).{" "}
-                International users: use the <span className="text-zinc-400">💳 Pay with international card</span> button on each plan.
+                UPI, cards, netbanking, and international cards accepted. Processed securely by Razorpay. All prices in INR (approximate USD shown for reference).
             </p>
         </main>
     );

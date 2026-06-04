@@ -43,40 +43,26 @@ export default function CorporatePricingPage() {
   const [orgType, setOrgType]     = useState("commercial");
   const [selected, setSelected]   = useState(1); // index in SEAT_TIERS
   const [currency, setCurrency]   = useState<"inr"|"usd">("inr");
-  const [checking, setChecking]   = useState(false);
-  const [error, setError]         = useState("");
 
   const discount = getDiscount(orgType);
   const seatTier = SEAT_TIERS[selected];
   const basePrice = currency === "inr" ? seatTier.price_inr : seatTier.price_usd;
   const finalPrice = Math.round(basePrice * (1 - discount));
 
-  async function handleCheckout() {
-    if (seatTier.seats === 0) {
-      window.location.href = "/org/new";
-      return;
-    }
-    setChecking(true); setError("");
-    try {
-      // Send orgType + seats + the EXACT displayed price so server charges what user sees
-      // currency='inr' → send INR amount; currency='usd' → send USD amount
-      // Server uses this amount directly in price_data (no independent calculation)
-      const r = await fetch("/api/payments/stripe/checkout", {
-        method: "POST", credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orgType,
-          seats: seatTier.seats,
-          currency,
-          // Send total displayed price (after discount) in USD cents or INR paise
-          displayedAmountSmallestUnit: Math.round(finalPrice * 100),
-          displayedCurrency: currency === "usd" ? "USD" : "INR",
-        }),
-      });
-      const j = await r.json();
-      if (r.ok && j.url) { window.location.href = j.url; }
-      else { setError(j.error ?? "Failed to create checkout session. Please try again."); }
-    } finally { setChecking(false); }
+  function handleCheckout() {
+    // Build a pre-filled email to info@imotara.com with plan details
+    const orgLabel = ORG_TYPES.find(t => t.value === orgType)?.label ?? orgType;
+    const priceStr = currency === "inr" ? formatINR(finalPrice) : formatUSD(finalPrice);
+    const subject  = encodeURIComponent(`Imotara Org Plan — ${orgLabel} · ${seatTier.seats > 0 ? seatTier.seats + " seats" : "Custom"}`);
+    const body     = encodeURIComponent(
+      `Hi Imotara team,\n\nI'd like to set up an organisation plan:\n\n` +
+      `Organisation type: ${orgLabel}\n` +
+      `Seats: ${seatTier.seats > 0 ? seatTier.seats : "Custom (please advise)"}\n` +
+      `Plan tier: ${seatTier.tier}\n` +
+      `Quoted price: ${priceStr}/yr\n\n` +
+      `Please send payment details and next steps.\n\nThank you`
+    );
+    window.location.href = `mailto:info@imotara.com?subject=${subject}&body=${body}`;
   }
 
   return (
@@ -169,16 +155,15 @@ export default function CorporatePricingPage() {
 
       {/* CTA */}
       <div className="space-y-3">
-        {error && <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-300">{error}</p>}
-        <button onClick={handleCheckout} disabled={checking}
-          className="w-full rounded-2xl bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 py-4 text-sm font-bold text-white shadow-lg transition hover:brightness-110 disabled:opacity-60">
-          {checking ? "Preparing checkout…"
-            : seatTier.seats === 0 ? "Request a custom quote →"
-            : `Proceed to checkout — ${currency === "inr" ? formatINR(finalPrice) : formatUSD(finalPrice)}/yr`}
+        <button onClick={handleCheckout}
+          className="w-full rounded-2xl bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 py-4 text-sm font-bold text-white shadow-lg transition hover:brightness-110">
+          {seatTier.seats === 0
+            ? "Request a custom quote →"
+            : `Get started — ${currency === "inr" ? formatINR(finalPrice) : formatUSD(finalPrice)}/yr →`}
         </button>
         <p className="text-center text-xs text-zinc-600">
-          Secure payment via Stripe · Cancel anytime · Invoice provided ·{" "}
-          <Link href="/org/new" className="underline hover:text-zinc-400">Or apply for manual approval</Link>
+          Clicking opens a pre-filled email to our team · We&apos;ll send payment details within 24 hours ·{" "}
+          <Link href="/org/new" className="underline hover:text-zinc-400">Or apply via the form</Link>
         </p>
       </div>
 

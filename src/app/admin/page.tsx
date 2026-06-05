@@ -1973,6 +1973,9 @@ function ARow({ label, value, link }: { label: string; value: string; link?: boo
     </div>
   );
 }
+function hasMinLetters(s: string, min = 2): boolean {
+  return (s.match(/[a-zA-Z]/g) ?? []).length >= min;
+}
 function maskEnd(s: string): string {
   if (!s || s.length <= 4) return s;
   return "*".repeat(s.length - 4) + s.slice(-4);
@@ -2038,7 +2041,7 @@ function ConnectSection({ token }: { token: string }) {
 
   async function handleAction(id: string, action: "approve" | "reject" | "suspend" | "reinstate") {
     const reason = actionReason[id]?.trim() ?? "";
-    if (!reason) { setError("Please enter a reason or note before taking action."); return; }
+    if (!hasMinLetters(reason)) { setError("Please enter a reason with at least 2 letters before taking action."); return; }
     setActionLoading(id);
     try {
       const isAdminAction = action === "suspend" || action === "reinstate";
@@ -2068,7 +2071,7 @@ function ConnectSection({ token }: { token: string }) {
 
   async function handleDelete(id: string, name: string) {
     const reason = actionReason[id]?.trim() ?? "";
-    if (!reason) { setError("Please enter a reason before deleting."); return; }
+    if (!hasMinLetters(reason)) { setError("Please enter a reason with at least 2 letters before deleting."); return; }
     if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
     setActionLoading(id);
     try {
@@ -2237,8 +2240,9 @@ function ConnectSection({ token }: { token: string }) {
               {/* ── Documents ── */}
               <div>
                 <button onClick={() => loadDocs(c.id)}
-                  className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-400 transition hover:text-zinc-200">
-                  {docsLoading[c.id] ? "Loading…" : docsOpen[c.id] ? "▲ Hide Documents" : "📄 View Documents"}
+                  className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-400 transition hover:text-zinc-200">
+                  <span>{docsLoading[c.id] ? "Loading…" : "📄 View Documents"}</span>
+                  <span>{docsLoading[c.id] ? "" : docsOpen[c.id] ? "▲" : "▼"}</span>
                 </button>
                 {docsOpen[c.id] && docsData[c.id] && (
                   <div className="mt-2 space-y-1.5 rounded-lg border border-white/8 bg-white/3 p-3">
@@ -2278,14 +2282,14 @@ function ConnectSection({ token }: { token: string }) {
                   {c.status === "pending" && (<>
                     <button
                       onClick={() => handleAction(c.id, "approve")}
-                      disabled={actionLoading === c.id || !actionReason[c.id]?.trim()}
+                      disabled={actionLoading === c.id || !hasMinLetters(actionReason[c.id] ?? "")}
                       className="flex-1 rounded-lg bg-emerald-600/80 py-2 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-40"
                     >
                       {actionLoading === c.id ? "…" : "✓ Approve"}
                     </button>
                     <button
                       onClick={() => handleAction(c.id, "reject")}
-                      disabled={actionLoading === c.id || !actionReason[c.id]?.trim()}
+                      disabled={actionLoading === c.id || !hasMinLetters(actionReason[c.id] ?? "")}
                       className="flex-1 rounded-lg bg-rose-700/80 py-2 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:opacity-40"
                     >
                       {actionLoading === c.id ? "…" : "✗ Reject"}
@@ -2294,7 +2298,7 @@ function ConnectSection({ token }: { token: string }) {
                   {c.status === "approved" && (
                     <button
                       onClick={() => handleAction(c.id, "suspend")}
-                      disabled={actionLoading === c.id || !actionReason[c.id]?.trim()}
+                      disabled={actionLoading === c.id || !hasMinLetters(actionReason[c.id] ?? "")}
                       className="flex-1 rounded-lg border border-orange-500/30 bg-orange-500/10 py-2 text-xs font-medium text-orange-300 transition hover:bg-orange-500/20 disabled:opacity-40"
                     >
                       {actionLoading === c.id ? "…" : "Suspend"}
@@ -2303,7 +2307,7 @@ function ConnectSection({ token }: { token: string }) {
                   {c.status === "suspended" && (
                     <button
                       onClick={() => handleAction(c.id, "reinstate")}
-                      disabled={actionLoading === c.id || !actionReason[c.id]?.trim()}
+                      disabled={actionLoading === c.id || !hasMinLetters(actionReason[c.id] ?? "")}
                       className="flex-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 py-2 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-40"
                     >
                       {actionLoading === c.id ? "…" : "Reinstate"}
@@ -2311,7 +2315,7 @@ function ConnectSection({ token }: { token: string }) {
                   )}
                   <button
                     onClick={() => handleDelete(c.id, c.display_name)}
-                    disabled={actionLoading === c.id || !actionReason[c.id]?.trim()}
+                    disabled={actionLoading === c.id || !hasMinLetters(actionReason[c.id] ?? "")}
                     className="rounded-lg border border-rose-500/25 bg-rose-500/8 px-3 py-2 text-xs font-medium text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-40"
                   >
                     {actionLoading === c.id ? "…" : "🗑 Delete"}

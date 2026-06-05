@@ -12,15 +12,17 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = req.nextUrl;
-  const status = searchParams.get("status"); // optional filter
+  const status = searchParams.get("status");
 
   const supabase = getSupabaseAdmin();
   let query = supabase
     .from("connect_consultants")
     .select(
-      "id, user_id, display_name, gender, photo_url, status, " +
-      "rate_per_min, currency_code, is_online, rating_avg, " +
-      "sessions_completed, created_at, rejection_reason"
+      "id, user_id, display_name, gender, photo_url, status, bio, expertise_tags, " +
+      "languages, rate_per_min, currency_code, is_online, rating_avg, " +
+      "sessions_completed, availability_note, availability_windows, " +
+      "contact_email, contact_phone, website_url, social_links, " +
+      "payout_info, digital_signature, rejection_reason, approval_note, created_at"
     )
     .order("created_at", { ascending: false });
 

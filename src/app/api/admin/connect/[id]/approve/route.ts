@@ -21,7 +21,7 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "action must be approve or reject" }, { status: 400 });
   }
 
-  const { action, reason } = body;
+  const { action, reason, approval_note } = body;
 
   if (action === "reject" && !reason?.trim()) {
     return NextResponse.json({ ok: false, error: "reason required when rejecting" }, { status: 400 });
@@ -46,6 +46,7 @@ export async function PATCH(
     .update({
       status:           newStatus,
       rejection_reason: action === "reject" ? reason.trim() : null,
+      approval_note:    action === "approve" ? (approval_note?.trim() ?? null) : null,
     })
     .eq("id", id);
 
@@ -58,7 +59,7 @@ export async function PATCH(
     const { data: authUser } = await supabase.auth.admin.getUserById(consultant.user_id);
     const email = authUser?.user?.email;
     if (email) {
-      await sendConsultantNotification({ email, name: consultant.display_name, action, reason });
+      await sendConsultantNotification({ email, name: consultant.display_name, action, reason, approval_note });
     }
   } catch {
     // email failure is non-blocking
@@ -68,7 +69,7 @@ export async function PATCH(
 }
 
 async function sendConsultantNotification(data: {
-  email: string; name: string; action: "approve" | "reject"; reason?: string;
+  email: string; name: string; action: "approve" | "reject"; reason?: string; approval_note?: string;
 }) {
   const gmailUser = process.env.ALERT_GMAIL_USER?.trim();
   const gmailPass = process.env.ALERT_GMAIL_APP_PASSWORD?.trim();
@@ -84,6 +85,7 @@ async function sendConsultantNotification(data: {
         ``,
         `Congratulations! Your Imotara Connect application has been approved.`,
         `You can now log in, set your availability, and start receiving session requests.`,
+        ...(data.approval_note ? [``, `Note from the Imotara team: ${data.approval_note}`] : []),
         ``,
         `Log in at: https://imotara.com/connect`,
         ``,

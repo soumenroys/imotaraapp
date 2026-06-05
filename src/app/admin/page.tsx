@@ -1958,6 +1958,31 @@ function LicensesSection({ token }: { token: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Connect helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ARow({ label, value, link }: { label: string; value: string; link?: boolean }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="shrink-0 text-[11px] text-zinc-500">{label}</span>
+      {link
+        ? <a href={value} target="_blank" rel="noreferrer" className="truncate max-w-[220px] text-right text-[11px] text-violet-400 underline underline-offset-2 hover:text-violet-300">{value}</a>
+        : <span className="text-right text-[11px] text-zinc-300 break-all">{value || "—"}</span>
+      }
+    </div>
+  );
+}
+function maskEnd(s: string): string {
+  if (!s || s.length <= 4) return s;
+  return "*".repeat(s.length - 4) + s.slice(-4);
+}
+function maskEmail(s: string): string {
+  const [local, domain] = s.split("@");
+  if (!domain) return maskEnd(s);
+  return `${local.slice(0, 2)}***@${domain}`;
+}
+
 // ConnectSection
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1968,8 +1993,14 @@ interface ConnectConsultant {
   photo_url: string | null;
   rate_per_min: number; currency_code: string; is_online: boolean;
   rating_avg: number; sessions_completed: number; bio: string | null;
-  expertise_tags: string[] | null; created_at: string; email?: string | null;
-  rejection_reason?: string | null;
+  expertise_tags: string[] | null; languages: string[] | null;
+  availability_note: string | null; availability_windows: unknown[] | null;
+  contact_email: string | null; contact_phone: string | null;
+  website_url: string | null; social_links: string[] | null;
+  payout_info: Record<string, string> | null;
+  digital_signature: string | null;
+  rejection_reason?: string | null; approval_note?: string | null;
+  created_at: string; email?: string | null;
 }
 
 function ConnectSection({ token }: { token: string }) {
@@ -1978,6 +2009,8 @@ function ConnectSection({ token }: { token: string }) {
   const [loading, setLoading]       = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectReason, setRejectReason]   = useState<Record<string, string>>({});
+  const [approveNote, setApproveNote]     = useState<Record<string, string>>({});
+  const [detailsOpen, setDetailsOpen]     = useState<Record<string, boolean>>({});
   const [error, setError]           = useState("");
   const [docsOpen, setDocsOpen]     = useState<Record<string, boolean>>({});
   const [docsData, setDocsData]     = useState<Record<string, Record<string, { url: string; name: string } | null>>>({});
@@ -2010,7 +2043,11 @@ function ConnectSection({ token }: { token: string }) {
 
       const body = isAdminAction
         ? { id, action, reason: reason || null }
-        : { action: action === "approve" ? "approve" : "reject", reason: reason || null };
+        : {
+            action: action === "approve" ? "approve" : "reject",
+            reason: reason || null,
+            approval_note: action === "approve" ? (approveNote[id] || null) : null,
+          };
 
       const res = await fetch(url, {
         method: "PATCH",
@@ -2082,36 +2119,116 @@ function ConnectSection({ token }: { token: string }) {
       ) : (
         <div className="space-y-3">
           {consultants.map((c) => (
-            <div key={c.id} className="imotara-glass-card rounded-xl p-4">
-              <div className="mb-3 flex items-start justify-between gap-3">
-                {c.photo_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={c.photo_url} alt={c.display_name} className="h-10 w-10 shrink-0 rounded-full object-cover border border-white/10" />
-                )}
+            <div key={c.id} className="imotara-glass-card rounded-xl p-4 space-y-3">
+
+              {/* ── Header ── */}
+              <div className="flex items-start gap-3">
+                {c.photo_url
+                  ? <img src={c.photo_url} alt={c.display_name} className="h-11 w-11 shrink-0 rounded-full object-cover border border-white/10" /> // eslint-disable-line @next/next/no-img-element
+                  : <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-lg">👤</div>
+                }
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium text-zinc-100">{c.display_name}</p>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_COLORS[c.status] ?? "bg-zinc-700/40 text-zinc-400"}`}>
                       {c.status}
                     </span>
                     {c.is_online && <span className="text-[10px] text-emerald-400">● Online</span>}
                   </div>
-                  {c.email && <p className="mt-0.5 text-xs text-zinc-500">{c.email}</p>}
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    {c.rate_per_min} {c.currency_code}/min · {c.sessions_completed} sessions · ★ {c.rating_avg}
+                  {c.email && <p className="text-[11px] text-zinc-500">{c.email}</p>}
+                  <p className="text-[11px] text-zinc-500">
+                    {c.rate_per_min} {c.currency_code}/min
+                    {c.sessions_completed > 0 && ` · ${c.sessions_completed} sessions`}
+                    {c.rating_avg > 0 && ` · ★ ${c.rating_avg}`}
                   </p>
-                  {c.bio && <p className="mt-1 line-clamp-2 text-xs text-zinc-400">{c.bio}</p>}
-                  {c.expertise_tags && c.expertise_tags.length > 0 && (
-                    <p className="mt-1 text-[10px] text-zinc-600">{c.expertise_tags.join(", ")}</p>
-                  )}
                 </div>
-                <p className="shrink-0 text-[10px] text-zinc-600">
-                  {new Date(c.created_at).toLocaleDateString()}
-                </p>
+                <p className="shrink-0 text-[10px] text-zinc-600">{new Date(c.created_at).toLocaleDateString()}</p>
               </div>
 
-              {/* Document verification */}
-              <div className="mb-2">
+              {/* ── Full Application toggle ── */}
+              <button
+                onClick={() => setDetailsOpen(p => ({ ...p, [c.id]: !p[c.id] }))}
+                className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-400 transition hover:text-zinc-200"
+              >
+                <span>📋 Full Application Details</span>
+                <span>{detailsOpen[c.id] ? "▲" : "▼"}</span>
+              </button>
+
+              {detailsOpen[c.id] && (
+                <div className="rounded-xl border border-white/8 bg-white/3 p-4 space-y-4 text-xs">
+                  {/* Personal */}
+                  <div>
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Personal</p>
+                    <div className="space-y-1.5">
+                      <ARow label="Gender"        value={c.gender ?? "—"} />
+                      <ARow label="Contact Email"  value={c.contact_email ?? "—"} />
+                      <ARow label="Contact Phone"  value={c.contact_phone ?? "—"} />
+                      {c.website_url && <ARow label="Website" value={c.website_url} link />}
+                      {c.social_links && c.social_links.length > 0 && (
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="shrink-0 text-zinc-500">Social Links</span>
+                          <div className="text-right space-y-0.5">
+                            {c.social_links.map((l, i) => (
+                              <a key={i} href={l} target="_blank" rel="noreferrer" className="block truncate max-w-[220px] text-violet-400 underline underline-offset-2 hover:text-violet-300">{l}</a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <ARow label="Expertise" value={c.expertise_tags?.join(", ") ?? "—"} />
+                      <ARow label="Languages" value={c.languages?.join(", ") ?? "—"} />
+                    </div>
+                  </div>
+
+                  {/* Bio */}
+                  {c.bio && (
+                    <div>
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Bio</p>
+                      <p className="text-zinc-300 leading-relaxed">{c.bio}</p>
+                    </div>
+                  )}
+
+                  {/* Availability */}
+                  {c.availability_note && (
+                    <div>
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Availability</p>
+                      <p className="text-zinc-400 leading-relaxed whitespace-pre-wrap">{c.availability_note}</p>
+                    </div>
+                  )}
+
+                  {/* Payout */}
+                  {c.payout_info && (
+                    <div>
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Payout Method</p>
+                      <div className="space-y-1.5">
+                        <ARow label="Method" value={c.payout_info.method ?? "—"} />
+                        {c.payout_info.upi_id        && <ARow label="UPI ID"           value={maskEnd(c.payout_info.upi_id)} />}
+                        {c.payout_info.paypal_email   && <ARow label="PayPal Email"     value={maskEmail(c.payout_info.paypal_email)} />}
+                        {c.payout_info.account_holder && <ARow label="Account Holder"   value={c.payout_info.account_holder} />}
+                        {c.payout_info.bank_name      && <ARow label="Bank"             value={c.payout_info.bank_name} />}
+                        {c.payout_info.account_number && <ARow label="Account Number"   value={maskEnd(c.payout_info.account_number)} />}
+                        {c.payout_info.ifsc_code      && <ARow label="IFSC"             value={c.payout_info.ifsc_code} />}
+                        {c.payout_info.swift_code     && <ARow label="SWIFT"            value={c.payout_info.swift_code} />}
+                        {c.payout_info.iban           && <ARow label="IBAN"             value={maskEnd(c.payout_info.iban)} />}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Digital Signature */}
+                  {c.digital_signature && (
+                    <div>
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Digital Signature</p>
+                      <p className="italic text-violet-300" style={{ fontFamily: "'Georgia', serif" }}>{c.digital_signature}</p>
+                    </div>
+                  )}
+
+                  {/* Prior decision notes */}
+                  {c.rejection_reason && <ARow label="Rejection Reason" value={c.rejection_reason} />}
+                  {c.approval_note    && <ARow label="Approval Note"    value={c.approval_note} />}
+                </div>
+              )}
+
+              {/* ── Documents ── */}
+              <div>
                 <button onClick={() => loadDocs(c.id)}
                   className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-400 transition hover:text-zinc-200">
                   {docsLoading[c.id] ? "Loading…" : docsOpen[c.id] ? "▲ Hide Documents" : "📄 View Documents"}
@@ -2125,9 +2242,7 @@ function ConnectSection({ token }: { token: string }) {
                             <span className="text-[11px] capitalize text-zinc-500">{dtype.replace(/_/g," ")}</span>
                             {doc
                               ? <a href={doc.url} target="_blank" rel="noreferrer"
-                                  className="truncate max-w-[200px] text-[11px] text-violet-400 underline underline-offset-2 hover:text-violet-300">
-                                  {doc.name}
-                                </a>
+                                  className="truncate max-w-[200px] text-[11px] text-violet-400 underline underline-offset-2 hover:text-violet-300">{doc.name}</a>
                               : <span className="text-[11px] text-rose-400">Not uploaded</span>}
                           </div>
                         ))
@@ -2136,61 +2251,67 @@ function ConnectSection({ token }: { token: string }) {
                 )}
               </div>
 
-              {/* Actions */}
+              {/* ── Pending: Approve / Reject ── */}
               {c.status === "pending" && (
-                <div className="flex flex-col gap-2">
-                  <input
-                    placeholder="Rejection reason (required to reject)"
-                    value={rejectReason[c.id] ?? ""}
-                    onChange={(e) => setRejectReason((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 placeholder-zinc-600 outline-none focus:border-violet-500"
-                  />
-                  <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Approve */}
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
+                    <p className="text-[11px] font-semibold text-emerald-400">✓ Approve</p>
+                    <textarea
+                      rows={2}
+                      placeholder="Approval note / welcome message (optional — sent in email)"
+                      value={approveNote[c.id] ?? ""}
+                      onChange={(e) => setApproveNote((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                      className="w-full resize-none rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[11px] text-zinc-300 placeholder-zinc-600 outline-none focus:border-emerald-500"
+                    />
                     <button
                       onClick={() => handleAction(c.id, "approve")}
                       disabled={actionLoading === c.id}
-                      className="flex flex-1 items-center justify-center rounded-lg bg-emerald-600/80 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-600 disabled:opacity-50"
+                      className="w-full rounded-lg bg-emerald-600/80 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
                     >
-                      {actionLoading === c.id ? "…" : "Approve"}
+                      {actionLoading === c.id ? "…" : "Approve Application"}
                     </button>
+                  </div>
+
+                  {/* Reject */}
+                  <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 space-y-2">
+                    <p className="text-[11px] font-semibold text-rose-400">✗ Reject</p>
+                    <textarea
+                      rows={2}
+                      placeholder="Rejection reason (required — sent to applicant)"
+                      value={rejectReason[c.id] ?? ""}
+                      onChange={(e) => setRejectReason((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                      className="w-full resize-none rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[11px] text-zinc-300 placeholder-zinc-600 outline-none focus:border-rose-500"
+                    />
                     <button
                       onClick={() => handleAction(c.id, "reject")}
                       disabled={actionLoading === c.id || !rejectReason[c.id]?.trim()}
-                      className="flex flex-1 items-center justify-center rounded-lg bg-rose-600/80 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-rose-600 disabled:opacity-50"
+                      className="w-full rounded-lg bg-rose-600/80 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-600 disabled:opacity-50"
                     >
-                      {actionLoading === c.id ? "…" : "Reject"}
+                      {actionLoading === c.id ? "…" : "Reject Application"}
                     </button>
                   </div>
                 </div>
               )}
 
               {c.status === "approved" && (
-                <button
-                  onClick={() => handleAction(c.id, "suspend")}
-                  disabled={actionLoading === c.id}
-                  className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-medium text-orange-300 transition hover:bg-orange-500/20 disabled:opacity-50"
-                >
+                <button onClick={() => handleAction(c.id, "suspend")} disabled={actionLoading === c.id}
+                  className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-medium text-orange-300 transition hover:bg-orange-500/20 disabled:opacity-50">
                   Suspend
                 </button>
               )}
 
               {c.status === "suspended" && (
-                <button
-                  onClick={() => handleAction(c.id, "reinstate")}
-                  disabled={actionLoading === c.id}
-                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-50"
-                >
+                <button onClick={() => handleAction(c.id, "reinstate")} disabled={actionLoading === c.id}
+                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-50">
                   Reinstate
                 </button>
               )}
 
-              {/* Delete — always visible, destructive */}
-              <div className="mt-2 flex justify-end">
-                <button
-                  onClick={() => handleDelete(c.id, c.display_name)}
-                  disabled={actionLoading === c.id}
-                  className="rounded-lg border border-rose-500/25 bg-rose-500/8 px-3 py-1.5 text-xs font-medium text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-50"
-                >
+              {/* Delete */}
+              <div className="flex justify-end">
+                <button onClick={() => handleDelete(c.id, c.display_name)} disabled={actionLoading === c.id}
+                  className="rounded-lg border border-rose-500/25 bg-rose-500/8 px-3 py-1.5 text-xs font-medium text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-50">
                   {actionLoading === c.id ? "…" : "🗑 Delete Record"}
                 </button>
               </div>

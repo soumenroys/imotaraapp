@@ -1,5 +1,5 @@
 // GET /api/admin/connect/pending
-// Admin only. Lists pending consultant applications.
+// Admin only. Lists pending consultant applications with full submitted data.
 
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuthorized } from "@/app/api/admin/_auth";
@@ -14,8 +14,10 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase
     .from("connect_consultants")
     .select(
-      "id, user_id, display_name, gender, photo_url, bio, expertise_tags, " +
-      "languages, rate_per_min, currency_code, availability_note, created_at"
+      "id, user_id, display_name, gender, photo_url, status, bio, expertise_tags, " +
+      "languages, rate_per_min, currency_code, availability_note, availability_windows, " +
+      "contact_email, contact_phone, website_url, social_links, " +
+      "payout_info, digital_signature, created_at"
     )
     .eq("status", "pending")
     .order("created_at", { ascending: true });
@@ -26,21 +28,25 @@ export async function GET(req: NextRequest) {
 
   type ConsultantRow = {
     id: string; user_id: string; display_name: string; gender: string | null;
-    photo_url: string | null; bio: string | null; expertise_tags: string[] | null;
-    languages: string[] | null; rate_per_min: number; currency_code: string;
-    availability_note: string | null; created_at: string;
+    photo_url: string | null; status: string; bio: string | null;
+    expertise_tags: string[] | null; languages: string[] | null;
+    rate_per_min: number; currency_code: string;
+    availability_note: string | null; availability_windows: unknown[] | null;
+    contact_email: string | null; contact_phone: string | null;
+    website_url: string | null; social_links: string[] | null;
+    payout_info: Record<string, string> | null;
+    digital_signature: string | null; created_at: string;
   };
 
-  // Fetch emails from auth.users — best effort
   const rows = (data ?? []) as unknown as ConsultantRow[];
+
+  // Fetch emails from auth.users — best effort
   const emailMap: Record<string, string> = {};
   for (const row of rows) {
     try {
       const { data: authUser } = await supabase.auth.admin.getUserById(row.user_id);
       if (authUser?.user?.email) emailMap[row.user_id] = authUser.user.email;
-    } catch {
-      // skip
-    }
+    } catch { /* skip */ }
   }
 
   const consultants = rows.map((c) => ({

@@ -2,7 +2,7 @@
 // 4-step consultant registration form.
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle2, Loader2, ChevronRight, ChevronLeft,
@@ -68,6 +68,55 @@ const TIMEZONES = [
 ];
 const YEAR_OPTIONS = ["all", ...Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() + i))];
 
+const COUNTRY_CODES = [
+  { code: "+91",  name: "India",           flag: "🇮🇳", tz: "Asia/Kolkata" },
+  { code: "+1",   name: "USA",             flag: "🇺🇸", tz: "America/New_York" },
+  { code: "+1",   name: "Canada",          flag: "🇨🇦", tz: "America/Toronto" },
+  { code: "+44",  name: "UK",              flag: "🇬🇧", tz: "Europe/London" },
+  { code: "+971", name: "UAE",             flag: "🇦🇪", tz: "Asia/Dubai" },
+  { code: "+65",  name: "Singapore",       flag: "🇸🇬", tz: "Asia/Singapore" },
+  { code: "+61",  name: "Australia",       flag: "🇦🇺", tz: "Australia/Sydney" },
+  { code: "+49",  name: "Germany",         flag: "🇩🇪", tz: "Europe/Berlin" },
+  { code: "+33",  name: "France",          flag: "🇫🇷", tz: "Europe/Paris" },
+  { code: "+31",  name: "Netherlands",     flag: "🇳🇱", tz: "Europe/Amsterdam" },
+  { code: "+41",  name: "Switzerland",     flag: "🇨🇭", tz: "Europe/Zurich" },
+  { code: "+46",  name: "Sweden",          flag: "🇸🇪", tz: "Europe/Stockholm" },
+  { code: "+880", name: "Bangladesh",      flag: "🇧🇩", tz: "Asia/Dhaka" },
+  { code: "+92",  name: "Pakistan",        flag: "🇵🇰", tz: "Asia/Karachi" },
+  { code: "+94",  name: "Sri Lanka",       flag: "🇱🇰", tz: "Asia/Colombo" },
+  { code: "+977", name: "Nepal",           flag: "🇳🇵", tz: "Asia/Kathmandu" },
+  { code: "+966", name: "Saudi Arabia",    flag: "🇸🇦", tz: "Asia/Riyadh" },
+  { code: "+60",  name: "Malaysia",        flag: "🇲🇾", tz: "Asia/Kuala_Lumpur" },
+  { code: "+63",  name: "Philippines",     flag: "🇵🇭", tz: "Asia/Manila" },
+  { code: "+66",  name: "Thailand",        flag: "🇹🇭", tz: "Asia/Bangkok" },
+  { code: "+62",  name: "Indonesia",       flag: "🇮🇩", tz: "Asia/Jakarta" },
+  { code: "+81",  name: "Japan",           flag: "🇯🇵", tz: "Asia/Tokyo" },
+  { code: "+82",  name: "South Korea",     flag: "🇰🇷", tz: "Asia/Seoul" },
+  { code: "+86",  name: "China",           flag: "🇨🇳", tz: "Asia/Shanghai" },
+  { code: "+852", name: "Hong Kong",       flag: "🇭🇰", tz: "Asia/Hong_Kong" },
+  { code: "+55",  name: "Brazil",          flag: "🇧🇷", tz: "America/Sao_Paulo" },
+  { code: "+52",  name: "Mexico",          flag: "🇲🇽", tz: "America/Mexico_City" },
+  { code: "+27",  name: "South Africa",    flag: "🇿🇦", tz: "Africa/Johannesburg" },
+  { code: "+254", name: "Kenya",           flag: "🇰🇪", tz: "Africa/Nairobi" },
+  { code: "+234", name: "Nigeria",         flag: "🇳🇬", tz: "Africa/Lagos" },
+  { code: "+64",  name: "New Zealand",     flag: "🇳🇿", tz: "Pacific/Auckland" },
+  { code: "+7",   name: "Russia",          flag: "🇷🇺", tz: "Europe/Moscow" },
+  { code: "+20",  name: "Egypt",           flag: "🇪🇬", tz: "Africa/Cairo" },
+  { code: "+974", name: "Qatar",           flag: "🇶🇦", tz: "Asia/Qatar" },
+  { code: "+965", name: "Kuwait",          flag: "🇰🇼", tz: "Asia/Kuwait" },
+  { code: "+973", name: "Bahrain",         flag: "🇧🇭", tz: "Asia/Bahrain" },
+  { code: "+968", name: "Oman",            flag: "🇴🇲", tz: "Asia/Muscat" },
+];
+
+// Detect the user's country dial code from their browser timezone
+function detectDialCode(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const match = COUNTRY_CODES.find(c => c.tz === tz);
+    return match?.code ?? "+91";
+  } catch { return "+91"; }
+}
+
 const DOC_FIELDS = [
   { key: "selfie",        label: "Verification Selfie *", hint: "A clear photo of your face taken right now, holding your Photo ID open so both your face and the ID text are visible. Use your webcam, phone camera, or any recent photo." },
   { key: "photo_id",      label: "Photo ID Proof *",      hint: "Passport, Aadhaar, Driving Licence, National ID, Voter ID" },
@@ -97,6 +146,7 @@ export default function RegisterConsultantPage() {
   const [displayName, setDisplayName]   = useState("");
   const [gender, setGender]             = useState<"male"|"female"|"">("");
   const [contactEmail, setContactEmail] = useState("");
+  const [countryCode, setCountryCode]   = useState("+91");
   const [contactPhone, setContactPhone] = useState("");
   const [websiteUrl, setWebsiteUrl]     = useState("");
   const [socialLinks, setSocialLinks]   = useState<string[]>([""]);
@@ -137,6 +187,11 @@ export default function RegisterConsultantPage() {
   const [ifscCode, setIfscCode]   = useState("");
   const [swiftCode, setSwiftCode] = useState("");
   const [ibanNumber, setIbanNumber] = useState("");
+
+  // Auto-detect country dial code from browser timezone on mount
+  useEffect(() => {
+    setCountryCode(detectDialCode());
+  }, []);
 
   // Step 4 — Legal agreement
   const [agreeAdult, setAgreeAdult]         = useState(false);
@@ -281,7 +336,7 @@ export default function RegisterConsultantPage() {
           display_name:        displayName.trim(),
           gender,
           contact_email:       contactEmail.trim(),
-          contact_phone:       contactPhone.trim(),
+          contact_phone:       contactPhone.trim() ? `${countryCode}${contactPhone.trim()}` : "",
           website_url:         websiteUrl.trim() || null,
           social_links:        socialLinks.map(l => l.trim()).filter(Boolean),
           photo_url:           photoUrl.trim() || null,
@@ -386,9 +441,26 @@ export default function RegisterConsultantPage() {
             {/* Contact phone */}
             <div>
               <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">Contact Phone *</label>
-              <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)}
-                placeholder="+91 98765 43210 — for Imotara admin use only"
-                className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
+              <div className="flex gap-2">
+                <select
+                  value={countryCode}
+                  onChange={e => setCountryCode(e.target.value)}
+                  className="w-36 shrink-0 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-violet-500"
+                >
+                  {COUNTRY_CODES.map(c => (
+                    <option key={`${c.code}-${c.name}`} value={c.code} className="bg-zinc-900">
+                      {c.flag} {c.code}  {c.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="tel"
+                  value={contactPhone}
+                  onChange={e => setContactPhone(e.target.value)}
+                  placeholder="98765 43210 — for admin use only"
+                  className="flex-1 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500"
+                />
+              </div>
             </div>
 
             {/* Website */}

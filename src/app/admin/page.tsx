@@ -2272,12 +2272,33 @@ function ConnectSection({ token }: { token: string }) {
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
                   Admin Action
                 </p>
+
+                {/* Previous note — shown read-only when one exists */}
+                {(c.status === "approved" && c.approval_note) && (
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 space-y-0.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-500">Previous note (at approval)</p>
+                    <p className="text-xs text-zinc-400 leading-relaxed">{c.approval_note}</p>
+                  </div>
+                )}
+                {(c.status === "suspended" && c.rejection_reason) && (
+                  <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 px-3 py-2 space-y-0.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-orange-400">Previous note (at suspension)</p>
+                    <p className="text-xs text-zinc-400 leading-relaxed">{c.rejection_reason}</p>
+                  </div>
+                )}
+                {(c.status === "rejected" && c.rejection_reason) && (
+                  <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 px-3 py-2 space-y-0.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-rose-400">Previous note (at rejection)</p>
+                    <p className="text-xs text-zinc-400 leading-relaxed">{c.rejection_reason}</p>
+                  </div>
+                )}
+
                 <textarea
                   rows={2}
                   placeholder={
                     c.status === "pending"
                       ? "Reason / note — required for Approve, Reject, and Delete"
-                      : "Reason — required for Suspend, Reinstate, and Delete"
+                      : "Fresh reason — required for this action (shown separately from previous note)"
                   }
                   value={actionReason[c.id] ?? ""}
                   onChange={(e) => setActionReason((prev) => ({ ...prev, [c.id]: e.target.value }))}

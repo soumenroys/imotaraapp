@@ -1982,6 +1982,11 @@ function maskEmail(s: string): string {
   if (!domain) return maskEnd(s);
   return `${local.slice(0, 2)}***@${domain}`;
 }
+const LANG_NAMES: Record<string, string> = {
+  en:"English", hi:"Hindi", bn:"Bengali", mr:"Marathi", ta:"Tamil",
+  te:"Telugu", gu:"Gujarati", pa:"Punjabi", kn:"Kannada", ml:"Malayalam",
+  ur:"Urdu", ar:"Arabic", es:"Spanish", fr:"French", de:"German", pt:"Portuguese",
+};
 
 // ConnectSection
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2008,8 +2013,7 @@ function ConnectSection({ token }: { token: string }) {
   const [consultants, setConsultants] = useState<ConnectConsultant[]>([]);
   const [loading, setLoading]       = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [rejectReason, setRejectReason]   = useState<Record<string, string>>({});
-  const [approveNote, setApproveNote]     = useState<Record<string, string>>({});
+  const [actionReason, setActionReason]   = useState<Record<string, string>>({});
   const [detailsOpen, setDetailsOpen]     = useState<Record<string, boolean>>({});
   const [error, setError]           = useState("");
   const [docsOpen, setDocsOpen]     = useState<Record<string, boolean>>({});
@@ -2033,8 +2037,9 @@ function ConnectSection({ token }: { token: string }) {
   useEffect(() => { fetchConsultants(ctab); }, [ctab, fetchConsultants]);
 
   async function handleAction(id: string, action: "approve" | "reject" | "suspend" | "reinstate") {
+    const reason = actionReason[id]?.trim() ?? "";
+    if (!reason) { setError("Please enter a reason or note before taking action."); return; }
     setActionLoading(id);
-    const reason = rejectReason[id] ?? "";
     try {
       const isAdminAction = action === "suspend" || action === "reinstate";
       const url = isAdminAction
@@ -2042,11 +2047,11 @@ function ConnectSection({ token }: { token: string }) {
         : `/api/admin/connect/${id}/approve`;
 
       const body = isAdminAction
-        ? { id, action, reason: reason || null }
+        ? { id, action, reason }
         : {
             action: action === "approve" ? "approve" : "reject",
-            reason: reason || null,
-            approval_note: action === "approve" ? (approveNote[id] || null) : null,
+            reason,
+            approval_note: action === "approve" ? reason : null,
           };
 
       const res = await fetch(url, {
@@ -2062,7 +2067,9 @@ function ConnectSection({ token }: { token: string }) {
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Permanently delete consultant record for "${name}"?\n\nThis will remove their application and all uploaded documents. This cannot be undone.`)) return;
+    const reason = actionReason[id]?.trim() ?? "";
+    if (!reason) { setError("Please enter a reason before deleting."); return; }
+    if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
     setActionLoading(id);
     try {
       const res = await fetch(`/api/admin/connect/${id}`, {
@@ -2175,7 +2182,7 @@ function ConnectSection({ token }: { token: string }) {
                         </div>
                       )}
                       <ARow label="Expertise" value={c.expertise_tags?.join(", ") ?? "—"} />
-                      <ARow label="Languages" value={c.languages?.join(", ") ?? "—"} />
+                      <ARow label="Languages" value={c.languages?.map(code => LANG_NAMES[code] ?? code).join(", ") ?? "—"} />
                     </div>
                   </div>
 
@@ -2251,69 +2258,65 @@ function ConnectSection({ token }: { token: string }) {
                 )}
               </div>
 
-              {/* ── Pending: Approve / Reject ── */}
-              {c.status === "pending" && (
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Approve */}
-                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
-                    <p className="text-[11px] font-semibold text-emerald-400">✓ Approve</p>
-                    <textarea
-                      rows={2}
-                      placeholder="Approval note / welcome message (optional — sent in email)"
-                      value={approveNote[c.id] ?? ""}
-                      onChange={(e) => setApproveNote((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                      className="w-full resize-none rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[11px] text-zinc-300 placeholder-zinc-600 outline-none focus:border-emerald-500"
-                    />
+              {/* ── Actions: single reason field + buttons ── */}
+              <div className="space-y-2 rounded-xl border border-white/10 bg-white/3 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                  Admin Action
+                </p>
+                <textarea
+                  rows={2}
+                  placeholder={
+                    c.status === "pending"
+                      ? "Reason / note — required for Approve, Reject, and Delete"
+                      : "Reason — required for Suspend, Reinstate, and Delete"
+                  }
+                  value={actionReason[c.id] ?? ""}
+                  onChange={(e) => setActionReason((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                  className="w-full resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-violet-500"
+                />
+                <div className="flex gap-2">
+                  {c.status === "pending" && (<>
                     <button
                       onClick={() => handleAction(c.id, "approve")}
-                      disabled={actionLoading === c.id}
-                      className="w-full rounded-lg bg-emerald-600/80 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
+                      disabled={actionLoading === c.id || !actionReason[c.id]?.trim()}
+                      className="flex-1 rounded-lg bg-emerald-600/80 py-2 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-40"
                     >
-                      {actionLoading === c.id ? "…" : "Approve Application"}
+                      {actionLoading === c.id ? "…" : "✓ Approve"}
                     </button>
-                  </div>
-
-                  {/* Reject */}
-                  <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 space-y-2">
-                    <p className="text-[11px] font-semibold text-rose-400">✗ Reject</p>
-                    <textarea
-                      rows={2}
-                      placeholder="Rejection reason (required — sent to applicant)"
-                      value={rejectReason[c.id] ?? ""}
-                      onChange={(e) => setRejectReason((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                      className="w-full resize-none rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[11px] text-zinc-300 placeholder-zinc-600 outline-none focus:border-rose-500"
-                    />
                     <button
                       onClick={() => handleAction(c.id, "reject")}
-                      disabled={actionLoading === c.id || !rejectReason[c.id]?.trim()}
-                      className="w-full rounded-lg bg-rose-600/80 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-600 disabled:opacity-50"
+                      disabled={actionLoading === c.id || !actionReason[c.id]?.trim()}
+                      className="flex-1 rounded-lg bg-rose-700/80 py-2 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:opacity-40"
                     >
-                      {actionLoading === c.id ? "…" : "Reject Application"}
+                      {actionLoading === c.id ? "…" : "✗ Reject"}
                     </button>
-                  </div>
+                  </>)}
+                  {c.status === "approved" && (
+                    <button
+                      onClick={() => handleAction(c.id, "suspend")}
+                      disabled={actionLoading === c.id || !actionReason[c.id]?.trim()}
+                      className="flex-1 rounded-lg border border-orange-500/30 bg-orange-500/10 py-2 text-xs font-medium text-orange-300 transition hover:bg-orange-500/20 disabled:opacity-40"
+                    >
+                      {actionLoading === c.id ? "…" : "Suspend"}
+                    </button>
+                  )}
+                  {c.status === "suspended" && (
+                    <button
+                      onClick={() => handleAction(c.id, "reinstate")}
+                      disabled={actionLoading === c.id || !actionReason[c.id]?.trim()}
+                      className="flex-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 py-2 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-40"
+                    >
+                      {actionLoading === c.id ? "…" : "Reinstate"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(c.id, c.display_name)}
+                    disabled={actionLoading === c.id || !actionReason[c.id]?.trim()}
+                    className="rounded-lg border border-rose-500/25 bg-rose-500/8 px-3 py-2 text-xs font-medium text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-40"
+                  >
+                    {actionLoading === c.id ? "…" : "🗑 Delete"}
+                  </button>
                 </div>
-              )}
-
-              {c.status === "approved" && (
-                <button onClick={() => handleAction(c.id, "suspend")} disabled={actionLoading === c.id}
-                  className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-medium text-orange-300 transition hover:bg-orange-500/20 disabled:opacity-50">
-                  Suspend
-                </button>
-              )}
-
-              {c.status === "suspended" && (
-                <button onClick={() => handleAction(c.id, "reinstate")} disabled={actionLoading === c.id}
-                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-50">
-                  Reinstate
-                </button>
-              )}
-
-              {/* Delete */}
-              <div className="flex justify-end">
-                <button onClick={() => handleDelete(c.id, c.display_name)} disabled={actionLoading === c.id}
-                  className="rounded-lg border border-rose-500/25 bg-rose-500/8 px-3 py-1.5 text-xs font-medium text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-50">
-                  {actionLoading === c.id ? "…" : "🗑 Delete Record"}
-                </button>
               </div>
             </div>
           ))}

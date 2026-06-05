@@ -13,7 +13,7 @@ const TRANSITIONS: Record<Action, { from: string[]; to: string; consultantOnly?:
   accept:   { from: ["pending"],  to: "active",    consultantOnly: true },
   decline:  { from: ["pending"],  to: "declined",  consultantOnly: true },
   complete: { from: ["active"],   to: "completed" },
-  cancel:   { from: ["pending", "accepted"], to: "cancelled" },
+  cancel:   { from: ["pending"], to: "cancelled" },
 };
 
 export async function PATCH(

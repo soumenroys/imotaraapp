@@ -48,8 +48,17 @@ interface Session {
   connect_consultants: { display_name: string; photo_url: string | null; gender: string | null } | null;
 }
 
+interface WalletEntry {
+  consultant_id: string;
+  display_name: string;
+  photo_url: string | null;
+  gender: string | null;
+  balance_minutes: number;
+  currency_code: string;
+}
+
 interface WalletData {
-  balances: Record<string, { minutes: number; currency: string }>;
+  wallets: WalletEntry[];
   earned_amount: number;
   earned_currency: string;
   pending_payout: number;
@@ -183,6 +192,7 @@ function SessionsTab() {
   const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/connect/sessions", { credentials: "include" })
@@ -191,6 +201,22 @@ function SessionsTab() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  async function cancelSession(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setCancelling(id);
+    try {
+      const res = await fetch(`/api/connect/sessions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel" }),
+        credentials: "include",
+      });
+      const d = await res.json();
+      if (d.ok) setSessions((prev) => prev.map((s) => s.id === id ? { ...s, status: "cancelled" } : s));
+    } catch { /* silent */ }
+    finally { setCancelling(null); }
+  }
 
   if (loading) {
     return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-violet-400" size={24} /></div>;
@@ -209,39 +235,53 @@ function SessionsTab() {
       {sessions.map((s) => {
         const badge = STATUS_BADGES[s.status] ?? { label: s.status, cls: "bg-zinc-600/40 text-zinc-400" };
         const consultant = s.connect_consultants;
+        const canCancel = s.status === "pending";
         return (
-          <button
+          <div
             key={s.id}
-            onClick={() => router.push(`/connect/session/${s.id}`)}
-            className="imotara-glass-card flex w-full items-center gap-4 rounded-xl px-4 py-3.5 text-left transition hover:bg-white/8"
+            className="imotara-glass-card flex w-full items-center gap-4 rounded-xl px-4 py-3.5"
           >
-            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-violet-500/20 flex items-center justify-center text-lg">
-              {consultant?.photo_url
-                ? <img src={consultant.photo_url} className="h-full w-full object-cover" alt="" />
-                : (consultant?.gender === "female" ? "👩" : "👨")}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-zinc-100">
-                {consultant?.display_name ?? "Companion"}
-              </p>
-              <p className="text-xs text-zinc-500">
-                {new Date(s.created_at).toLocaleDateString()} · {s.type}
-                {s.minutes_used > 0 && ` · ${s.minutes_used.toFixed(0)} min`}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {s.rating && (
-                <div className="flex items-center gap-0.5 text-xs text-amber-400">
-                  <Star size={11} className="fill-current" />
-                  {s.rating}
-                </div>
-              )}
-              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium ${badge.cls}`}>
-                {badge.label}
-              </span>
-              <ChevronRight size={14} className="text-zinc-600" />
-            </div>
-          </button>
+            <button
+              onClick={() => router.push(`/connect/session/${s.id}`)}
+              className="flex flex-1 items-center gap-4 text-left min-w-0"
+            >
+              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-violet-500/20 flex items-center justify-center text-lg">
+                {consultant?.photo_url
+                  ? <img src={consultant.photo_url} className="h-full w-full object-cover" alt="" />
+                  : (consultant?.gender === "female" ? "👩" : "👨")}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-zinc-100">
+                  {consultant?.display_name ?? "Companion"}
+                </p>
+                <p className="text-xs text-zinc-500">
+                  {new Date(s.created_at).toLocaleDateString()} · {s.type}
+                  {s.minutes_used > 0 && ` · ${s.minutes_used.toFixed(0)} min`}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {s.rating && (
+                  <div className="flex items-center gap-0.5 text-xs text-amber-400">
+                    <Star size={11} className="fill-current" />
+                    {s.rating}
+                  </div>
+                )}
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium ${badge.cls}`}>
+                  {badge.label}
+                </span>
+                <ChevronRight size={14} className="text-zinc-600" />
+              </div>
+            </button>
+            {canCancel && (
+              <button
+                onClick={(e) => cancelSession(s.id, e)}
+                disabled={cancelling === s.id}
+                className="shrink-0 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-[10px] font-medium text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-50"
+              >
+                {cancelling === s.id ? <Loader2 size={10} className="animate-spin" /> : "Cancel"}
+              </button>
+            )}
+          </div>
         );
       })}
     </div>
@@ -266,7 +306,7 @@ function WalletTab() {
     return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-violet-400" size={24} /></div>;
   }
 
-  const balanceEntries = Object.entries(wallet?.balances ?? {}).filter(([, v]) => v.minutes > 0);
+  const entries = wallet?.wallets ?? [];
 
   return (
     <div className="space-y-4">
@@ -275,15 +315,23 @@ function WalletTab() {
           <Clock size={14} className="text-violet-400" />
           Session Balance
         </h3>
-        {balanceEntries.length === 0 ? (
+        {entries.length === 0 ? (
           <p className="text-sm text-zinc-500">No balance yet. Recharge from a companion&apos;s card to start a session.</p>
         ) : (
           <div className="space-y-2">
-            {balanceEntries.map(([id, bal]) => (
-              <div key={id} className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
-                <span className="text-sm text-zinc-300">Balance</span>
-                <span className="text-base font-semibold text-violet-300">
-                  {Math.max(0, Math.floor(bal.minutes))} min remaining
+            {entries.map((e) => (
+              <div key={e.consultant_id} className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3">
+                <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-violet-500/20 flex items-center justify-center text-base">
+                  {e.photo_url
+                    ? <img src={e.photo_url} className="h-full w-full object-cover" alt="" />
+                    : (e.gender === "female" ? "👩" : "👨")}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-zinc-100">{e.display_name}</p>
+                  <p className="text-xs text-zinc-500">{e.currency_code}</p>
+                </div>
+                <span className="shrink-0 text-base font-semibold text-violet-300">
+                  {e.balance_minutes} min
                 </span>
               </div>
             ))}
@@ -315,12 +363,18 @@ interface ConsultantSession {
 
 function DashboardTab() {
   const router = useRouter();
-  const [profile, setProfile] = useState<{ status: string; is_online: boolean; display_name: string } | null>(null);
-  const [earnings, setEarnings] = useState<{ earned_amount: number; earned_currency: string; sessions_completed: number } | null>(null);
+  const [profile, setProfile]   = useState<{ status: string; is_online: boolean; display_name: string } | null>(null);
+  const [earnings, setEarnings] = useState<{ earned_amount: number; earned_currency: string; pending_payout: number; sessions_completed: number } | null>(null);
   const [incomingSessions, setIncomingSessions] = useState<ConsultantSession[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]   = useState(true);
   const [toggling, setToggling] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showPayout, setShowPayout]       = useState(false);
+  const [payoutMethod, setPayoutMethod]   = useState<"upi" | "bank" | "paypal">("upi");
+  const [payoutDetails, setPayoutDetails] = useState("");
+  const [payoutAmount, setPayoutAmount]   = useState("");
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payoutMsg, setPayoutMsg]         = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(async () => {
     const [p, e, s] = await Promise.all([
@@ -387,6 +441,40 @@ function DashboardTab() {
       // silent
     } finally {
       setToggling(false);
+    }
+  }
+
+  async function requestPayout() {
+    const amount = parseFloat(payoutAmount);
+    if (!amount || amount <= 0 || !payoutDetails.trim()) return;
+    setPayoutLoading(true);
+    setPayoutMsg(null);
+    try {
+      const res = await fetch("/api/connect/consultant/payout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          currency_code:  earnings?.earned_currency ?? "INR",
+          payout_method:  payoutMethod,
+          payout_details: payoutMethod === "upi"   ? { upi_id: payoutDetails }
+                        : payoutMethod === "bank"   ? { account_number: payoutDetails }
+                        : { paypal_email: payoutDetails },
+        }),
+        credentials: "include",
+      });
+      const d = await res.json();
+      if (d.ok) {
+        setPayoutMsg({ ok: true, text: "Request submitted. Admin will process within 2 business days." });
+        setPayoutAmount(""); setPayoutDetails("");
+        setEarnings((e) => e ? { ...e, pending_payout: (e.pending_payout ?? 0) + amount } : e);
+      } else {
+        setPayoutMsg({ ok: false, text: d.error ?? "Request failed." });
+      }
+    } catch {
+      setPayoutMsg({ ok: false, text: "Network error." });
+    } finally {
+      setPayoutLoading(false);
     }
   }
 
@@ -514,17 +602,78 @@ function DashboardTab() {
         </div>
       )}
 
-      {/* Earnings */}
+      {/* Earnings + payout */}
       {earnings && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="imotara-glass-card rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-violet-300">{sym}{Number(earnings.earned_amount).toFixed(2)}</p>
-            <p className="mt-1 text-xs text-zinc-500">Total earned</p>
+        <div className="imotara-glass-card rounded-2xl p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-white/5 p-4 text-center">
+              <p className="text-2xl font-bold text-violet-300">{sym}{Number(earnings.earned_amount).toFixed(2)}</p>
+              <p className="mt-1 text-xs text-zinc-500">Total earned</p>
+            </div>
+            <div className="rounded-xl bg-white/5 p-4 text-center">
+              <p className="text-2xl font-bold text-zinc-100">{earnings.sessions_completed}</p>
+              <p className="mt-1 text-xs text-zinc-500">Sessions</p>
+            </div>
           </div>
-          <div className="imotara-glass-card rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-zinc-100">{earnings.sessions_completed}</p>
-            <p className="mt-1 text-xs text-zinc-500">Sessions</p>
-          </div>
+          {Number(earnings.pending_payout) > 0 && (
+            <p className="text-center text-xs text-amber-400">
+              {sym}{Number(earnings.pending_payout).toFixed(2)} payout pending processing
+            </p>
+          )}
+          {(() => {
+            const available = Number(earnings.earned_amount) - Number(earnings.pending_payout ?? 0);
+            return available > 0 ? (
+              <button
+                onClick={() => { setShowPayout((v) => !v); setPayoutMsg(null); }}
+                className="w-full rounded-xl border border-violet-500/30 bg-violet-500/10 py-2.5 text-sm font-semibold text-violet-300 transition hover:bg-violet-500/20"
+              >
+                {showPayout ? "Cancel" : `Request Payout · ${sym}${available.toFixed(2)} available`}
+              </button>
+            ) : null;
+          })()}
+          {showPayout && (
+            <div className="space-y-3 border-t border-white/10 pt-3">
+              <div className="flex gap-2">
+                {(["upi", "bank", "paypal"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setPayoutMethod(m)}
+                    className={`flex-1 rounded-lg border py-2 text-xs font-medium transition ${
+                      payoutMethod === m
+                        ? "border-violet-500 bg-violet-500/20 text-violet-300"
+                        : "border-white/10 text-zinc-400 hover:border-white/20"
+                    }`}
+                  >
+                    {m.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              <input
+                value={payoutDetails}
+                onChange={(e) => setPayoutDetails(e.target.value)}
+                placeholder={payoutMethod === "upi" ? "UPI ID (e.g. name@upi)" : payoutMethod === "bank" ? "Account number" : "PayPal email"}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500"
+              />
+              <input
+                type="number"
+                value={payoutAmount}
+                onChange={(e) => setPayoutAmount(e.target.value)}
+                placeholder={`Amount in ${earnings.earned_currency}`}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500"
+              />
+              {payoutMsg && (
+                <p className={`text-xs ${payoutMsg.ok ? "text-emerald-400" : "text-rose-400"}`}>{payoutMsg.text}</p>
+              )}
+              <button
+                onClick={requestPayout}
+                disabled={payoutLoading || !payoutDetails.trim() || !payoutAmount}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
+              >
+                {payoutLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+                Submit Request
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

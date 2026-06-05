@@ -55,6 +55,24 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabaseAdmin();
 
+  // Prevent duplicate open sessions with the same consultant
+  const { data: existing } = await supabase
+    .from("connect_sessions")
+    .select("id, status")
+    .eq("user_id", user.id)
+    .eq("consultant_id", consultant_id)
+    .in("status", ["pending", "active"])
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json({
+      ok: false,
+      error: "You already have an open session with this companion.",
+      existing_session_id: existing.id,
+      redirect: true,
+    }, { status: 409 });
+  }
+
   // Verify consultant is approved
   const { data: consultant } = await supabase
     .from("connect_consultants")

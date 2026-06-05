@@ -260,8 +260,9 @@ export default function SessionChatPage() {
   const isActive     = session.status === "active";
   const isCompleted  = session.status === "completed";
   const isPending    = session.status === "pending";
-  const isMine       = session.user_id === myUserId;
-  const isLowBalance = displaySeconds !== null && displaySeconds <= 120 && isActive;
+  const isMine           = session.user_id === myUserId;
+  const isConsultantView = !isMine && myUserId !== null;
+  const isLowBalance     = displaySeconds !== null && displaySeconds <= 120 && isActive;
 
   return (
     <div className="flex h-[calc(100dvh-64px)] flex-col">
@@ -397,12 +398,25 @@ export default function SessionChatPage() {
       {!isActive && !isCompleted && !isPending && (
         <div className="shrink-0 border-t border-white/8 bg-zinc-900/80 px-4 py-3 text-center text-sm text-zinc-500">
           Session {session.status}.
-          <button onClick={() => router.push("/connect")} className="ml-2 text-violet-400 hover:underline">
-            Back to Connect
+          <button
+            onClick={() => router.push(isConsultantView ? "/connect?tab=dashboard" : "/connect")}
+            className="ml-2 text-violet-400 hover:underline"
+          >
+            {isConsultantView ? "Back to Dashboard" : "Back to Connect"}
           </button>
         </div>
       )}
-      {isActive && isMine && (
+      {isCompleted && isConsultantView && (
+        <div className="shrink-0 border-t border-white/5 bg-zinc-900/60 px-4 pb-2 pt-1 text-center">
+          <button
+            onClick={() => router.push("/connect?tab=dashboard")}
+            className="text-xs text-violet-400 hover:text-violet-300 transition"
+          >
+            ← Return to Dashboard
+          </button>
+        </div>
+      )}
+      {isActive && (isMine || isConsultantView) && (
         <div className="shrink-0 border-t border-white/5 bg-zinc-900/60 px-4 pb-2 pt-1 text-center">
           <button
             onClick={() => updateStatus("complete")}

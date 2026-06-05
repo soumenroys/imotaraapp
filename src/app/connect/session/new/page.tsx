@@ -47,6 +47,10 @@ export default function NewSessionPage() {
         router.replace(`/connect?tab=wallet`);
         return;
       }
+      if (data.redirect && data.existing_session_id) {
+        router.replace(`/connect/session/${data.existing_session_id}`);
+        return;
+      }
       if (!data.ok) {
         setError(data.error ?? "Failed to create session");
         setLoading(false);

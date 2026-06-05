@@ -55,6 +55,31 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Enrich balances with consultant names/photos (for display)
+  const consultantIds = Object.keys(balanceByConsultant);
+  const nameMap: Record<string, { display_name: string; photo_url: string | null; gender: string | null }> = {};
+  if (consultantIds.length > 0) {
+    const { data: cRows } = await supabase
+      .from("connect_consultants")
+      .select("id, display_name, photo_url, gender")
+      .in("id", consultantIds);
+    for (const c of (cRows ?? [])) {
+      nameMap[c.id] = { display_name: c.display_name, photo_url: c.photo_url, gender: c.gender };
+    }
+  }
+
+  // Flat wallets array (convenience for mobile + web UI)
+  const wallets = Object.entries(balanceByConsultant)
+    .filter(([, v]) => v.minutes > 0)
+    .map(([id, v]) => ({
+      consultant_id:  id,
+      display_name:   nameMap[id]?.display_name ?? "Companion",
+      photo_url:      nameMap[id]?.photo_url    ?? null,
+      gender:         nameMap[id]?.gender       ?? null,
+      balance_minutes: Math.max(0, Math.floor(v.minutes)),
+      currency_code:  v.currency,
+    }));
+
   // Consultant earnings (if this user is a consultant)
   const { data: wallet } = await supabase
     .from("connect_wallet")
@@ -65,8 +90,9 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     balances: balanceByConsultant,
-    earned_amount:  wallet?.earned_amount  ?? 0,
+    wallets,
+    earned_amount:   wallet?.earned_amount   ?? 0,
     earned_currency: wallet?.earned_currency ?? "INR",
-    pending_payout: wallet?.pending_payout  ?? 0,
+    pending_payout:  wallet?.pending_payout  ?? 0,
   });
 }

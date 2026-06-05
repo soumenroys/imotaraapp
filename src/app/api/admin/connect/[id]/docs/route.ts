@@ -38,7 +38,14 @@ export async function GET(
   // Generate signed URLs for each document
   const signed: Record<string, { url: string; name: string } | null> = {};
   for (const [docType, docInfo] of Object.entries(docs)) {
-    if (!docInfo?.path) { signed[docType] = null; continue; }
+    if (!docInfo) { signed[docType] = null; continue; }
+    // same_as_profile: return the public URL directly
+    if ((docInfo as Record<string, unknown>).same_as_profile) {
+      const publicUrl = (docInfo as Record<string, unknown>).public_url as string | undefined;
+      signed[docType] = publicUrl ? { url: publicUrl, name: docInfo.name } : null;
+      continue;
+    }
+    if (!docInfo.path) { signed[docType] = null; continue; }
     const { data, error: signErr } = await supabase.storage
       .from(BUCKET)
       .createSignedUrl(docInfo.path, SIGNED_URL_TTL);

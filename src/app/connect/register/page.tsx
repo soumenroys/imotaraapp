@@ -79,7 +79,7 @@ const DOC_FIELDS = [
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type AvailWindow = { days: string[]; months: string[]; start: string; end: string; timezone: string; year: string; };
-type DocEntry    = { path: string; name: string } | null;
+type DocEntry    = { path: string; name: string; public_url?: string; same_as_profile?: boolean } | null;
 type DocMap      = Record<string, DocEntry>;
 type PayoutMethod = "upi" | "paypal" | "bank_in" | "bank_int";
 
@@ -123,6 +123,7 @@ export default function RegisterConsultantPage() {
   const [bError, setBError] = useState("");
 
   // Step 3 — Documents + payout
+  const [selfieSameAsProfile, setSelfieSameAsProfile] = useState(false);
   const [docs, setDocs]           = useState<DocMap>({});
   const [docUploading, setDocUploading] = useState<Record<string,boolean>>({});
   const [docError, setDocError]   = useState<Record<string,string>>({});
@@ -649,30 +650,75 @@ export default function RegisterConsultantPage() {
               </p>
             </div>
 
-            {/* 4 document upload fields */}
+            {/* Document upload fields */}
             {DOC_FIELDS.map(({ key, label, hint }) => (
               <div key={key}>
                 <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">{label}</label>
                 <p className="mb-2 text-[11px] text-zinc-600 leading-relaxed">{hint}</p>
-                <input
-                  ref={el => { docRefs.current[key] = el; }}
-                  type="file" accept="image/*,application/pdf" className="hidden"
-                  onChange={e => handleDocUpload(e, key)} />
-                {docs[key] ? (
+
+                {/* Selfie: offer "same as profile photo" shortcut */}
+                {key === "selfie" && (
+                  <label className={`mb-2 flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${selfieSameAsProfile ? "border-violet-500/40 bg-violet-500/8" : "border-white/10 bg-white/3 hover:bg-white/5"}`}>
+                    <input
+                      type="checkbox"
+                      checked={selfieSameAsProfile}
+                      className="accent-violet-500"
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        setSelfieSameAsProfile(checked);
+                        if (checked && photoUrl) {
+                          setDocs(p => ({ ...p, selfie: { path: "", name: "Same as profile photo", public_url: photoUrl, same_as_profile: true } }));
+                        } else {
+                          setDocs(p => { const n = {...p}; delete n["selfie"]; return n; });
+                        }
+                      }}
+                    />
+                    <div className="flex flex-1 items-center gap-2.5">
+                      <span className="text-xs text-zinc-300">Same as profile photo above</span>
+                      {photoUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={photoUrl} alt="Profile" className="h-7 w-7 rounded-full border border-white/15 object-cover" />
+                      )}
+                    </div>
+                    {!photoUrl && (
+                      <span className="text-[11px] text-zinc-600">Upload a profile photo in Step 1 to use this option</span>
+                    )}
+                  </label>
+                )}
+
+                {/* Hide file upload when selfie is set to "same as profile" */}
+                {!(key === "selfie" && selfieSameAsProfile) && (
+                  <>
+                    <input
+                      ref={el => { docRefs.current[key] = el; }}
+                      type="file" accept="image/*,application/pdf" className="hidden"
+                      onChange={e => handleDocUpload(e, key)} />
+                    {docs[key] && !docs[key]?.same_as_profile ? (
+                      <div className="flex items-center gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/8 px-3 py-2.5">
+                        <CheckCircle2 size={14} className="shrink-0 text-emerald-400" />
+                        <p className="min-w-0 flex-1 truncate text-xs text-emerald-300">{docs[key]?.name}</p>
+                        <button type="button" onClick={() => setDocs(p => { const n = {...p}; delete n[key]; return n; })}
+                          className="shrink-0 text-zinc-500 hover:text-rose-400 transition"><X size={13} /></button>
+                      </div>
+                    ) : !docs[key] ? (
+                      <button type="button" onClick={() => docRefs.current[key]?.click()} disabled={docUploading[key]}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 bg-white/3 py-3 text-sm text-zinc-400 transition hover:border-violet-500/50 hover:text-zinc-200 disabled:opacity-50">
+                        {docUploading[key]
+                          ? <><Loader2 size={14} className="animate-spin" /> Uploading…</>
+                          : <><FileText size={14} /> Upload {label.replace(" *","")}</>}
+                      </button>
+                    ) : null}
+                  </>
+                )}
+
+                {/* Show confirmation when selfie = same as profile */}
+                {key === "selfie" && selfieSameAsProfile && docs["selfie"] && (
                   <div className="flex items-center gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/8 px-3 py-2.5">
                     <CheckCircle2 size={14} className="shrink-0 text-emerald-400" />
-                    <p className="min-w-0 flex-1 truncate text-xs text-emerald-300">{docs[key]?.name}</p>
-                    <button type="button" onClick={() => setDocs(p => { const n = {...p}; delete n[key]; return n; })}
-                      className="shrink-0 text-zinc-500 hover:text-rose-400 transition"><X size={13} /></button>
+                    <p className="text-xs text-emerald-300">Using profile photo as verification selfie</p>
                   </div>
-                ) : (
-                  <button type="button" onClick={() => docRefs.current[key]?.click()} disabled={docUploading[key]}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 bg-white/3 py-3 text-sm text-zinc-400 transition hover:border-violet-500/50 hover:text-zinc-200 disabled:opacity-50">
-                    {docUploading[key]
-                      ? <><Loader2 size={14} className="animate-spin" /> Uploading…</>
-                      : <><FileText size={14} /> Upload {label.replace(" *","")}</>}
-                  </button>
                 )}
+
                 {docError[key] && <p className="mt-1 text-xs text-rose-400">{docError[key]}</p>}
               </div>
             ))}

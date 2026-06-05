@@ -325,24 +325,74 @@ function WalletTab() {
 
 // ── Dashboard Tab ─────────────────────────────────────────────────────────────
 
+interface ConsultantSession {
+  id: string;
+  user_id: string;
+  type: string;
+  status: string;
+  scheduled_note: string | null;
+  started_at: string | null;
+  minutes_used: number;
+  created_at: string;
+}
+
 function DashboardTab() {
+  const router = useRouter();
   const [profile, setProfile] = useState<{ status: string; is_online: boolean; display_name: string } | null>(null);
   const [earnings, setEarnings] = useState<{ earned_amount: number; earned_currency: string; sessions_completed: number } | null>(null);
+  const [incomingSessions, setIncomingSessions] = useState<ConsultantSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/connect/consultant/profile", { credentials: "include" }).then((r) => r.json()),
-      fetch("/api/connect/consultant/earnings", { credentials: "include" }).then((r) => r.json()),
-    ])
-      .then(([p, e]) => {
-        if (p.ok) setProfile(p.consultant);
-        if (e.ok) setEarnings(e);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    const [p, e, s] = await Promise.all([
+      fetch("/api/connect/consultant/profile", { credentials: "include" }).then((r) => r.json()).catch(() => ({})),
+      fetch("/api/connect/consultant/earnings", { credentials: "include" }).then((r) => r.json()).catch(() => ({})),
+      fetch("/api/connect/consultant/sessions", { credentials: "include" }).then((r) => r.json()).catch(() => ({})),
+    ]);
+    if (p.ok) setProfile(p.consultant);
+    if (e.ok) setEarnings(e);
+    if (s.ok) setIncomingSessions(s.sessions ?? []);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Poll every 15s while Dashboard is visible so new requests appear promptly
+  useEffect(() => {
+    const t = setInterval(() => {
+      fetch("/api/connect/consultant/sessions", { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => { if (d.ok) setIncomingSessions(d.sessions ?? []); })
+        .catch(() => {});
+    }, 15_000);
+    return () => clearInterval(t);
+  }, []);
+
+  async function handleAction(sessionId: string, action: "accept" | "decline") {
+    setActionLoading(sessionId);
+    try {
+      const res = await fetch(`/api/connect/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+        credentials: "include",
+      });
+      const d = await res.json();
+      if (d.ok) {
+        if (action === "accept") {
+          router.push(`/connect/session/${sessionId}`);
+        } else {
+          setIncomingSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        }
+      }
+    } catch {
+      // silent
+    } finally {
+      setActionLoading(null);
+    }
+  }
 
   async function toggleOnline() {
     if (!profile) return;
@@ -375,9 +425,12 @@ function DashboardTab() {
   }
 
   const sym = CURRENCY_SYMBOLS[earnings?.earned_currency ?? "INR"] ?? "₹";
+  const pending = incomingSessions.filter((s) => s.status === "pending");
+  const active  = incomingSessions.filter((s) => s.status === "active");
 
   return (
     <div className="space-y-4">
+      {/* Status + online toggle */}
       <div className="imotara-glass-card rounded-2xl p-5">
         <div className="flex items-center justify-between">
           <div>
@@ -409,6 +462,82 @@ function DashboardTab() {
         </div>
       </div>
 
+      {/* Active sessions — rejoin */}
+      {active.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">Active Sessions</p>
+          <div className="space-y-2">
+            {active.map((s) => (
+              <div key={s.id} className="imotara-glass-card flex items-center justify-between rounded-xl p-4">
+                <div>
+                  <p className="text-sm font-medium text-zinc-100">Session in progress</p>
+                  <p className="text-xs text-zinc-500">{s.type} · {s.minutes_used.toFixed(0)} min used</p>
+                </div>
+                <button
+                  onClick={() => router.push(`/connect/session/${s.id}`)}
+                  className="rounded-lg bg-emerald-600/80 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 transition"
+                >
+                  Rejoin Chat
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Pending requests */}
+      {pending.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-amber-400">
+            Incoming Requests ({pending.length})
+          </p>
+          <div className="space-y-2">
+            {pending.map((s) => (
+              <div key={s.id} className="imotara-glass-card rounded-xl p-4">
+                <div className="mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-400">
+                      {s.type === "instant" ? "Instant" : "Scheduled"}
+                    </span>
+                    <span className="text-xs text-zinc-500">
+                      {new Date(s.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  {s.scheduled_note && (
+                    <p className="mt-2 text-sm text-zinc-300 italic">"{s.scheduled_note}"</p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleAction(s.id, "accept")}
+                    disabled={actionLoading === s.id}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600/80 py-2 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
+                  >
+                    {actionLoading === s.id ? <Loader2 size={12} className="animate-spin" /> : null}
+                    Accept & Chat
+                  </button>
+                  <button
+                    onClick={() => handleAction(s.id, "decline")}
+                    disabled={actionLoading === s.id}
+                    className="flex flex-1 items-center justify-center rounded-lg border border-rose-500/30 bg-rose-500/10 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pending.length === 0 && active.length === 0 && profile.status === "approved" && (
+        <div className="imotara-glass-card rounded-xl p-5 text-center">
+          <p className="text-sm text-zinc-500">No incoming requests right now.</p>
+          <p className="mt-1 text-xs text-zinc-600">Make sure you're online to receive requests.</p>
+        </div>
+      )}
+
+      {/* Earnings */}
       {earnings && (
         <div className="grid grid-cols-2 gap-3">
           <div className="imotara-glass-card rounded-xl p-4 text-center">

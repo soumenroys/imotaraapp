@@ -17,6 +17,7 @@ const PRIMARY_LINKS = [
 
 // Overflow nav — behind "···" on desktop / included in mobile drawer
 const MORE_LINKS = [
+  { href: "/connect/register", label: "🤝 Join as Counsellor" },
   { href: "/settings", label: "Settings" },
   { href: "/tutorial", label: "Tutorial" },
   { href: "/blog", label: "Blog" },

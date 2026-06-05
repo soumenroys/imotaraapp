@@ -2024,6 +2024,21 @@ function ConnectSection({ token }: { token: string }) {
     finally { setActionLoading(null); }
   }
 
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Permanently delete consultant record for "${name}"?\n\nThis will remove their application and all uploaded documents. This cannot be undone.`)) return;
+    setActionLoading(id);
+    try {
+      const res = await fetch(`/api/admin/connect/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const d = await res.json();
+      if (d.ok) { setConsultants(prev => prev.filter(c => c.id !== id)); }
+      else { setError(d.error ?? "Delete failed"); }
+    } catch { setError("Network error."); }
+    finally { setActionLoading(null); }
+  }
+
   async function loadDocs(id: string) {
     if (docsData[id]) { setDocsOpen(p => ({ ...p, [id]: !p[id] })); return; }
     setDocsOpen(p => ({ ...p, [id]: true }));
@@ -2168,6 +2183,17 @@ function ConnectSection({ token }: { token: string }) {
                   Reinstate
                 </button>
               )}
+
+              {/* Delete — always visible, destructive */}
+              <div className="mt-2 flex justify-end">
+                <button
+                  onClick={() => handleDelete(c.id, c.display_name)}
+                  disabled={actionLoading === c.id}
+                  className="rounded-lg border border-rose-500/25 bg-rose-500/8 px-3 py-1.5 text-xs font-medium text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-50"
+                >
+                  {actionLoading === c.id ? "…" : "🗑 Delete Record"}
+                </button>
+              </div>
             </div>
           ))}
         </div>

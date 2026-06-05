@@ -20,7 +20,8 @@ export async function POST(req: NextRequest) {
   if (!body) return NextResponse.json({ ok: false, error: "Invalid body" }, { status: 400 });
 
   const {
-    display_name, gender, photo_url, bio, expertise_tags, languages,
+    display_name, gender, contact_email, contact_phone, website_url, social_links,
+    photo_url, bio, expertise_tags, languages,
     rate_per_min, currency_code, availability_note, availability_windows,
     verification_docs, payout_info, coc_agreed,
   } = body;
@@ -73,6 +74,10 @@ export async function POST(req: NextRequest) {
       user_id:              user.id,
       display_name:         display_name.trim(),
       gender,
+      contact_email:        contact_email?.trim() ?? null,
+      contact_phone:        contact_phone?.trim() ?? null,
+      website_url:          website_url?.trim() || null,
+      social_links:         Array.isArray(social_links) ? social_links : null,
       photo_url:            photo_url ?? null,
       bio:                  bio.trim(),
       expertise_tags,

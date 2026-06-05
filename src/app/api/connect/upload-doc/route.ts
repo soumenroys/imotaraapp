@@ -11,7 +11,7 @@ import { getConnectUser } from "@/lib/connect/auth";
 
 const BUCKET    = "connect-docs";
 const MAX_SIZE  = 10 * 1024 * 1024; // 10 MB
-const DOC_TYPES = ["photo_id", "address_proof", "age_proof", "eligibility"] as const;
+const DOC_TYPES = ["selfie", "photo_id", "address_proof", "age_proof", "eligibility"] as const;
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
 export async function POST(req: NextRequest) {

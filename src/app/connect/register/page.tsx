@@ -69,6 +69,7 @@ const TIMEZONES = [
 const YEAR_OPTIONS = ["all", ...Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() + i))];
 
 const DOC_FIELDS = [
+  { key: "selfie",        label: "Verification Selfie *", hint: "A clear photo of your face taken right now, holding your Photo ID open so both your face and the ID text are visible. Use your webcam, phone camera, or any recent photo." },
   { key: "photo_id",      label: "Photo ID Proof *",      hint: "Passport, Aadhaar, Driving Licence, National ID, Voter ID" },
   { key: "address_proof", label: "Address Proof *",       hint: "Utility bill / bank statement (≤3 months old), Passport, Aadhaar" },
   { key: "age_proof",     label: "Age Proof *",           hint: "Passport, Birth Certificate, Aadhaar, School Leaving Certificate" },
@@ -93,16 +94,20 @@ export default function RegisterConsultantPage() {
   const [submitted, setSubmitted] = useState(false);
 
   // Step 1 — Basic info
-  const [displayName, setDisplayName] = useState("");
-  const [gender, setGender]           = useState<"male"|"female"|"">("");
-  const [photoUrl, setPhotoUrl]       = useState("");
-  const [photoMode, setPhotoMode]     = useState<"upload"|"url">("upload");
-  const [uploading, setUploading]     = useState(false);
-  const [uploadError, setUploadError] = useState("");
+  const [displayName, setDisplayName]   = useState("");
+  const [gender, setGender]             = useState<"male"|"female"|"">("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [websiteUrl, setWebsiteUrl]     = useState("");
+  const [socialLinks, setSocialLinks]   = useState<string[]>([""]);
+  const [photoUrl, setPhotoUrl]         = useState("");
+  const [photoMode, setPhotoMode]       = useState<"upload"|"url">("upload");
+  const [uploading, setUploading]       = useState(false);
+  const [uploadError, setUploadError]   = useState("");
   const [previewError, setPreviewError] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const [expertiseTags, setExpertiseTags] = useState<string[]>([]);
-  const [languages, setLanguages]     = useState<string[]>([]);
+  const [languages, setLanguages]       = useState<string[]>([]);
 
   // Step 2 — Profile, rate, availability
   const [bio, setBio]               = useState("");
@@ -175,6 +180,17 @@ export default function RegisterConsultantPage() {
     }
   }
 
+  // ── Social link helpers ────────────────────────────────────────────────────
+  function updateSocialLink(i: number, val: string) {
+    setSocialLinks(prev => prev.map((l, idx) => idx === i ? val : l));
+  }
+  function addSocialLink() {
+    if (socialLinks.length < 5) setSocialLinks(prev => [...prev, ""]);
+  }
+  function removeSocialLink(i: number) {
+    setSocialLinks(prev => prev.filter((_, idx) => idx !== i));
+  }
+
   // ── Availability builder helpers ───────────────────────────────────────────
   function addWindow() {
     if (bDays.length === 0) { setBError("Select at least one day."); return; }
@@ -196,6 +212,9 @@ export default function RegisterConsultantPage() {
     if (s === 1) {
       if (!displayName.trim()) return "Display name is required.";
       if (!gender) return "Please select your gender.";
+      if (!contactEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail))
+        return "Enter a valid contact email address.";
+      if (!contactPhone.trim()) return "Enter a contact phone number.";
       if (expertiseTags.length === 0) return "Select at least one expertise area.";
       if (languages.length === 0) return "Select at least one language.";
     }
@@ -206,7 +225,7 @@ export default function RegisterConsultantPage() {
         return "Enter a valid rate per minute (greater than 0).";
     }
     if (s === 3) {
-      const required = ["photo_id","address_proof","age_proof","eligibility"] as const;
+      const required = ["selfie","photo_id","address_proof","age_proof","eligibility"] as const;
       for (const k of required) {
         if (!docs[k]) return `Please upload your ${DOC_FIELDS.find(d => d.key === k)?.label.replace(" *","") ?? k}.`;
       }
@@ -260,6 +279,10 @@ export default function RegisterConsultantPage() {
         body: JSON.stringify({
           display_name:        displayName.trim(),
           gender,
+          contact_email:       contactEmail.trim(),
+          contact_phone:       contactPhone.trim(),
+          website_url:         websiteUrl.trim() || null,
+          social_links:        socialLinks.map(l => l.trim()).filter(Boolean),
           photo_url:           photoUrl.trim() || null,
           bio:                 bio.trim(),
           expertise_tags:      expertiseTags,
@@ -351,10 +374,64 @@ export default function RegisterConsultantPage() {
               </div>
             </div>
 
+            {/* Contact email */}
+            <div>
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">Contact Email *</label>
+              <input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)}
+                placeholder="your@email.com — for Imotara admin use only, not shown to users"
+                className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
+            </div>
+
+            {/* Contact phone */}
+            <div>
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">Contact Phone *</label>
+              <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)}
+                placeholder="+91 98765 43210 — for Imotara admin use only"
+                className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
+            </div>
+
+            {/* Website */}
+            <div>
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">
+                Website <span className="text-zinc-600 normal-case">(optional)</span>
+              </label>
+              <input type="url" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)}
+                placeholder="https://yourwebsite.com"
+                className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
+            </div>
+
+            {/* Social media links */}
+            <div>
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">
+                Social Media <span className="text-zinc-600 normal-case">(optional — up to 5 links)</span>
+              </label>
+              <div className="space-y-2">
+                {socialLinks.map((link, i) => (
+                  <div key={i} className="flex gap-2">
+                    <input type="url" value={link} onChange={e => updateSocialLink(i, e.target.value)}
+                      placeholder="https://instagram.com/you  or  linkedin.com/in/you"
+                      className="flex-1 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
+                    {socialLinks.length > 1 && (
+                      <button type="button" onClick={() => removeSocialLink(i)}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 text-zinc-500 transition hover:border-rose-500/40 hover:text-rose-400">
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {socialLinks.length < 5 && (
+                  <button type="button" onClick={addSocialLink}
+                    className="flex items-center gap-1.5 text-xs text-zinc-500 transition hover:text-violet-400">
+                    <Plus size={11} /> Add another link
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Profile photo */}
             <div>
               <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">
-                Profile Photo <span className="text-zinc-600 normal-case">(optional)</span>
+                Profile Photo <span className="text-zinc-600 normal-case">(optional — shown to users)</span>
               </label>
               <div className="mb-2 flex gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
                 <button type="button" onClick={() => { setPhotoMode("upload"); setUploadError(""); }}

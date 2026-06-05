@@ -1,6 +1,7 @@
 // PATCH /api/connect/sessions/[id]
 // Auth required. Session participants update session status.
 // Body: { action: "accept" | "decline" | "complete" | "cancel" }
+// On "complete": credits consultant for minutes_used at 80% of rate.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
@@ -36,7 +37,7 @@ export async function PATCH(
 
   const { data: session } = await supabase
     .from("connect_sessions")
-    .select("id, user_id, consultant_id, status")
+    .select("id, user_id, consultant_id, status, minutes_used")
     .eq("id", id)
     .single();
 
@@ -47,7 +48,7 @@ export async function PATCH(
   // Determine if caller is the consultant
   const { data: consultant } = await supabase
     .from("connect_consultants")
-    .select("user_id")
+    .select("id, user_id, rate_per_min, sessions_completed")
     .eq("id", session.consultant_id)
     .single();
 
@@ -80,6 +81,34 @@ export async function PATCH(
 
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+
+  // Credit consultant earnings on manual completion (minutes_used > 0)
+  if (action === "complete" && consultant && Number(session.minutes_used) > 0) {
+    const sessionEarnings = Number(session.minutes_used) * Number(consultant.rate_per_min) * 0.80;
+
+    await supabase
+      .from("connect_wallet")
+      .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
+
+    const { data: wallet } = await supabase
+      .from("connect_wallet")
+      .select("earned_amount")
+      .eq("user_id", consultant.user_id)
+      .single();
+
+    await supabase
+      .from("connect_wallet")
+      .update({
+        earned_amount: (Number(wallet?.earned_amount ?? 0) + sessionEarnings),
+        updated_at:    new Date().toISOString(),
+      })
+      .eq("user_id", consultant.user_id);
+
+    await supabase
+      .from("connect_consultants")
+      .update({ sessions_completed: (consultant.sessions_completed ?? 0) + 1 })
+      .eq("id", consultant.id);
   }
 
   return NextResponse.json({ ok: true, status: transition.to });

@@ -1,284 +1,493 @@
-/* src/app/connect/page.tsx */
-import Link from "next/link";
+// src/app/connect/page.tsx
+// Imotara Connect — human consultancy marketplace
+// Tabs: Browse | My Sessions | Wallet | Dashboard (if consultant)
+"use client";
 
-export const metadata = {
-  title: "Connect — Imotara",
-  description:
-    "Ways to reach the Imotara team for feedback, partnerships, or support.",
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Users, MessageCircle, Wallet, LayoutDashboard,
+  Loader2, RefreshCw, Star, Clock, ChevronRight, AlertCircle,
+} from "lucide-react";
+import ConsultantCard from "@/components/connect/ConsultantCard";
+import { getImotaraProfile } from "@/lib/imotara/profile";
+
+type Tab = "browse" | "sessions" | "wallet" | "dashboard";
+
+const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface Consultant {
+  id: string;
+  display_name: string;
+  gender: "male" | "female" | null;
+  photo_url: string | null;
+  bio: string | null;
+  expertise_tags: string[];
+  languages: string[];
+  rate_per_min: number;
+  currency_code: string;
+  is_online: boolean;
+  rating_avg: number;
+  rating_count: number;
+  sessions_completed: number;
+}
+
+interface Session {
+  id: string;
+  consultant_id: string;
+  type: string;
+  status: string;
+  scheduled_note: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  minutes_used: number;
+  rating: number | null;
+  created_at: string;
+  connect_consultants: { display_name: string; photo_url: string | null; gender: string | null } | null;
+}
+
+interface WalletData {
+  balances: Record<string, { minutes: number; currency: string }>;
+  earned_amount: number;
+  earned_currency: string;
+  pending_payout: number;
+}
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  INR: "₹", USD: "$", EUR: "€", GBP: "£", AED: "د.إ", SGD: "S$", AUD: "A$",
 };
 
-export default function ConnectPage() {
+const STATUS_BADGES: Record<string, { label: string; cls: string }> = {
+  pending:   { label: "Pending",   cls: "bg-amber-500/20 text-amber-300"   },
+  accepted:  { label: "Accepted",  cls: "bg-blue-500/20 text-blue-300"     },
+  active:    { label: "Active",    cls: "bg-emerald-500/20 text-emerald-300" },
+  completed: { label: "Completed", cls: "bg-zinc-600/40 text-zinc-400"     },
+  declined:  { label: "Declined",  cls: "bg-rose-500/20 text-rose-300"     },
+  cancelled: { label: "Cancelled", cls: "bg-zinc-700/40 text-zinc-500"     },
+};
+
+// ── Age Gate ──────────────────────────────────────────────────────────────────
+
+function AgeGatePage() {
   return (
-    <main
-      className="mx-auto w-full max-w-5xl px-4 py-16 text-zinc-50 sm:px-6"
-      aria-labelledby="connect-title"
-    >
-      {/* Header */}
-      <header className="mb-10 max-w-3xl">
-        <div className="imotara-glass-card rounded-2xl px-6 py-6 shadow-xl backdrop-blur-md sm:px-8 sm:py-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">
-            Imotara · Connect
-          </p>
+    <main className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center px-6 py-20 text-center">
+      <div className="imotara-glass-card rounded-2xl p-8">
+        <div className="mb-4 text-4xl">🔒</div>
+        <h1 className="text-xl font-semibold text-zinc-50">Age Restriction</h1>
+        <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+          Imotara Connect is available to users aged 18 and above only.
+        </p>
+        <p className="mt-4 text-xs text-zinc-500">
+          Our AI companion is always available for free.
+        </p>
+        <a
+          href="/chat"
+          className="mt-6 inline-block rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500"
+        >
+          Return to Chat
+        </a>
+      </div>
+    </main>
+  );
+}
 
-          <h1
-            id="connect-title"
-            className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl"
-          >
-            Connect with the Imotara team
-          </h1>
+// ── Browse Tab ────────────────────────────────────────────────────────────────
 
-          <p className="mt-4 leading-7 text-zinc-300 sm:text-base">
-            We’d love to hear from you — whether you’re sharing feedback,
-            exploring partnerships, or need help. Choose a quick contact option
-            or drop us a message using the form. Submitting the form will open
-            your email app with the details pre-filled.
-          </p>
-        </div>
-      </header>
+function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
+  const router = useRouter();
+  const [consultants, setConsultants] = useState<Consultant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState({ gender: "", online: false });
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-2">
-        {/* Quick contact cards */}
-        <section className="space-y-4">
-          {/* Email */}
-          <div className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
-            <h2 className="text-lg font-medium text-zinc-50">Email</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-300">
-              The best way to reach us for support, feedback, or press.
-            </p>
-            <div className="mt-4">
-              <a
-                href="mailto:info@imotara.com"
-                className="inline-flex items-center rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm text-zinc-100 shadow-sm transition hover:bg-white/10"
-              >
-                info@imotara.com
-              </a>
-            </div>
-          </div>
+  const fetchConsultants = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (filter.gender) params.set("gender", filter.gender);
+    if (filter.online) params.set("online", "true");
+    try {
+      const res = await fetch(`/api/connect/consultants?${params}`);
+      const data = await res.json();
+      if (data.ok) setConsultants(data.consultants);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, [filter]);
 
-          {/* Social */}
-          <div className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
-            <h2 className="text-lg font-medium text-zinc-50">Social</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-300">
-              Follow updates, announcements, and behind-the-scenes notes.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {[
-                {
-                  label: "X",
-                  href: "https://x.com/imotara4me",
-                  icon: (
-                    <svg
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      className="h-4 w-4"
-                      fill="currentColor"
-                    >
-                      <path d="M18.9 2H22l-6.8 7.8L23 22h-6.8l-5.3-6.8L4.9 22H2l7.4-8.5L1 2h7l4.8 6.1L18.9 2Zm-1.2 18h1.7L7.3 3.9H5.5L17.7 20Z" />
-                    </svg>
-                  ),
-                },
-                {
-                  label: "LinkedIn",
-                  href: "https://linkedin.com/in/imotara-4me-5b77753b0",
-                  icon: (
-                    <svg
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      className="h-4 w-4"
-                      fill="currentColor"
-                    >
-                      <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.86-3.04-1.86 0-2.14 1.45-2.14 2.95v5.66H9.35V9h3.41v1.56h.05c.48-.9 1.65-1.86 3.39-1.86 3.63 0 4.3 2.39 4.3 5.49v6.26ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.11 20.45H3.57V9h3.54v11.45ZM22 2H2v20h20V2Z" />
-                    </svg>
-                  ),
-                },
-                // {
-                //   label: "Facebook",
-                //   href: "https://facebook.com/imotara",
-                //   icon: (
-                //     <svg
-                //       viewBox="0 0 24 24"
-                //       aria-hidden="true"
-                //       className="h-4 w-4"
-                //       fill="currentColor"
-                //     >
-                //       <path d="M22 12a10 10 0 1 0-11.63 9.87v-6.99H7.9V12h2.47V9.8c0-2.44 1.45-3.8 3.67-3.8 1.06 0 2.17.19 2.17.19v2.39h-1.22c-1.21 0-1.59.75-1.59 1.52V12h2.7l-.43 2.88h-2.27v6.99A10 10 0 0 0 22 12Z" />
-                //     </svg>
-                //   ),
-                // },
-              ].map((item) => (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-zinc-100 shadow-sm transition hover:bg-white/10"
-                  aria-label={`Open Imotara on ${item.label}`}
-                >
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-black/30">
-                    {item.icon}
-                  </span>
-                  <span>{item.label}</span>
-                </a>
-              ))}
-            </div>
-          </div>
+  useEffect(() => { fetchConsultants(); }, [fetchConsultants]);
 
-          {/* Partnerships */}
-          <div className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
-            <h2 className="text-lg font-medium text-zinc-50">Partnerships</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-300">
-              Research collaborations, well-being programs, or platform
-              integrations.
-            </p>
-            <div className="mt-4">
-              <a
-                href="mailto:info@imotara.com?subject=Partnership%20Inquiry"
-                className="inline-flex items-center rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm text-zinc-100 shadow-sm transition hover:bg-white/10"
-              >
-                info@imotara.com
-              </a>
-            </div>
-          </div>
-        </section>
+  function handleTalkNow(consultantId: string) {
+    router.push(`/connect/session/new?consultant_id=${consultantId}&type=instant`);
+  }
+  function handleRequestMeeting(consultantId: string) {
+    router.push(`/connect/session/new?consultant_id=${consultantId}&type=scheduled`);
+  }
 
-        {/* Contact form */}
-        <section className="imotara-glass-card rounded-2xl p-6 shadow-xl backdrop-blur-md sm:p-7">
-          <h2 className="text-lg font-medium text-zinc-50">Send a message</h2>
-
-          <p className="mt-3 text-sm text-zinc-300">
-            This form will open your default email app and pre-fill the message.
-            You can review everything before sending.
-          </p>
-
-          <form
-            action="mailto:support@imotara.com"
-            method="GET"
-            encType="text/plain"
-            className="mt-6 space-y-5"
-          >
-            <div className="grid gap-5 sm:grid-cols-2">
-              {/* Name */}
-              <div className="flex flex-col">
-                <label
-                  htmlFor="name"
-                  className="text-sm font-medium text-zinc-100"
-                >
-                  Name
-                </label>
-                <input
-                  id="name"
-                  name="name"
-                  required
-                  className="mt-2 rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/60"
-                  placeholder="Your name"
-                />
-              </div>
-
-              {/* Email */}
-              <div className="flex flex-col">
-                <label
-                  htmlFor="email"
-                  className="text-sm font-medium text-zinc-100"
-                >
-                  Email
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  className="mt-2 rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/60"
-                  placeholder="you@example.com"
-                />
-              </div>
-            </div>
-
-            {/* Topic */}
-            <div className="flex flex-col">
-              <label
-                htmlFor="topic"
-                className="text-sm font-medium text-zinc-100"
-              >
-                Topic
-              </label>
-              <select
-                id="topic"
-                name="topic"
-                defaultValue="General"
-                className="mt-2 w-full rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/60"
-              >
-                <option>General</option>
-                <option>Feedback</option>
-                <option>Support</option>
-                <option>Partnerships</option>
-                <option>Press</option>
-              </select>
-            </div>
-
-            {/* Message */}
-            <div className="flex flex-col">
-              <label
-                htmlFor="message"
-                className="text-sm font-medium text-zinc-100"
-              >
-                Message
-              </label>
-              <textarea
-                id="message"
-                name="message"
-                rows={5}
-                required
-                className="mt-2 rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/60"
-                placeholder="How can we help?"
-              />
-            </div>
-
-            {/* Consent */}
-            <div className="flex items-start gap-3">
-              <input
-                id="consent"
-                name="consent"
-                type="checkbox"
-                required
-                className="mt-1 h-4 w-4 rounded border-zinc-500 bg-black text-indigo-400 focus:ring-indigo-500"
-              />
-              <label
-                htmlFor="consent"
-                className="text-sm leading-6 text-zinc-300"
-              >
-                I agree that Imotara may use this information to contact me.
-                See our{" "}
-                <Link
-                  href="/privacy"
-                  className="underline decoration-emerald-300/70 underline-offset-4 hover:text-emerald-200"
-                >
-                  Privacy Policy
-                </Link>
-                .
-              </label>
-            </div>
-
-            {/* Submit */}
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                className="rounded-full bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-sky-900/50 transition hover:brightness-110"
-              >
-                Open in email app
-              </button>
-              <p className="text-xs text-zinc-400">
-                Your mail app will be opened with details pre-filled.
-              </p>
-            </div>
-          </form>
-        </section>
+  return (
+    <div>
+      <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <AlertCircle size={15} className="mt-0.5 shrink-0" />
+        <span>
+          Companions provide peer wellness support only — not licensed therapy. For emergencies, use the help button inside any active session.
+        </span>
       </div>
 
-      {/* Footer note */}
-      <p className="mt-10 max-w-3xl text-xs text-zinc-400">
-        For urgent safety concerns, please contact local emergency services.
-        Imotara is a reflective tool and not a substitute for professional care.
-      </p>
+      <div className="mb-5 flex flex-wrap gap-2">
+        <select
+          value={filter.gender}
+          onChange={(e) => setFilter((f) => ({ ...f, gender: e.target.value }))}
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-300 outline-none focus:border-violet-500"
+        >
+          <option value="">All companions</option>
+          <option value="female">Female</option>
+          <option value="male">Male</option>
+        </select>
+
+        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-300 select-none">
+          <input
+            type="checkbox"
+            checked={filter.online}
+            onChange={(e) => setFilter((f) => ({ ...f, online: e.target.checked }))}
+            className="accent-violet-500"
+          />
+          Online now
+        </label>
+
+        <button
+          onClick={fetchConsultants}
+          className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-400 transition hover:text-zinc-200"
+        >
+          <RefreshCw size={13} />
+          Refresh
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="animate-spin text-violet-400" size={24} />
+        </div>
+      ) : consultants.length === 0 ? (
+        <div className="imotara-glass-card rounded-2xl py-16 text-center">
+          <p className="text-zinc-400">No companions found. Try adjusting your filters.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {consultants.map((c) => (
+            <ConsultantCard
+              key={c.id}
+              consultant={c}
+              razorpayKeyId={razorpayKeyId}
+              onTalkNow={handleTalkNow}
+              onRequestMeeting={handleRequestMeeting}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-white/8 bg-white/3 p-6 text-center">
+        <p className="text-sm text-zinc-400">Want to become an Imotara Wellness Companion?</p>
+        <a
+          href="/connect/register"
+          className="rounded-xl bg-violet-600/80 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-600"
+        >
+          Apply to be a Companion
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ── My Sessions Tab ───────────────────────────────────────────────────────────
+
+function SessionsTab() {
+  const router = useRouter();
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/connect/sessions", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { if (d.ok) setSessions(d.sessions); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-violet-400" size={24} /></div>;
+  }
+  if (sessions.length === 0) {
+    return (
+      <div className="imotara-glass-card rounded-2xl py-16 text-center">
+        <MessageCircle size={32} className="mx-auto mb-3 text-zinc-600" />
+        <p className="text-zinc-400">No sessions yet. Browse companions to start.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {sessions.map((s) => {
+        const badge = STATUS_BADGES[s.status] ?? { label: s.status, cls: "bg-zinc-600/40 text-zinc-400" };
+        const consultant = s.connect_consultants;
+        return (
+          <button
+            key={s.id}
+            onClick={() => router.push(`/connect/session/${s.id}`)}
+            className="imotara-glass-card flex w-full items-center gap-4 rounded-xl px-4 py-3.5 text-left transition hover:bg-white/8"
+          >
+            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-violet-500/20 flex items-center justify-center text-lg">
+              {consultant?.photo_url
+                ? <img src={consultant.photo_url} className="h-full w-full object-cover" alt="" />
+                : (consultant?.gender === "female" ? "👩" : "👨")}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-zinc-100">
+                {consultant?.display_name ?? "Companion"}
+              </p>
+              <p className="text-xs text-zinc-500">
+                {new Date(s.created_at).toLocaleDateString()} · {s.type}
+                {s.minutes_used > 0 && ` · ${s.minutes_used.toFixed(0)} min`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {s.rating && (
+                <div className="flex items-center gap-0.5 text-xs text-amber-400">
+                  <Star size={11} className="fill-current" />
+                  {s.rating}
+                </div>
+              )}
+              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium ${badge.cls}`}>
+                {badge.label}
+              </span>
+              <ChevronRight size={14} className="text-zinc-600" />
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Wallet Tab ────────────────────────────────────────────────────────────────
+
+function WalletTab() {
+  const [wallet, setWallet] = useState<WalletData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/connect/wallet", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { if (d.ok) setWallet(d); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-violet-400" size={24} /></div>;
+  }
+
+  const balanceEntries = Object.entries(wallet?.balances ?? {}).filter(([, v]) => v.minutes > 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="imotara-glass-card rounded-2xl p-5">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-200">
+          <Clock size={14} className="text-violet-400" />
+          Session Balance
+        </h3>
+        {balanceEntries.length === 0 ? (
+          <p className="text-sm text-zinc-500">No balance yet. Recharge from a companion&apos;s card to start a session.</p>
+        ) : (
+          <div className="space-y-2">
+            {balanceEntries.map(([id, bal]) => (
+              <div key={id} className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
+                <span className="text-sm text-zinc-300">Balance</span>
+                <span className="text-base font-semibold text-violet-300">
+                  {Math.max(0, Math.floor(bal.minutes))} min remaining
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="imotara-glass-card rounded-2xl p-5">
+        <p className="text-sm text-zinc-400">
+          Recharge using the <strong className="text-zinc-200">+ Balance</strong> button on any companion card, or click <strong className="text-zinc-200">Talk Now</strong> when a companion is online.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Dashboard Tab ─────────────────────────────────────────────────────────────
+
+function DashboardTab() {
+  const [profile, setProfile] = useState<{ status: string; is_online: boolean; display_name: string } | null>(null);
+  const [earnings, setEarnings] = useState<{ earned_amount: number; earned_currency: string; sessions_completed: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/connect/consultant/profile", { credentials: "include" }).then((r) => r.json()),
+      fetch("/api/connect/consultant/earnings", { credentials: "include" }).then((r) => r.json()),
+    ])
+      .then(([p, e]) => {
+        if (p.ok) setProfile(p.consultant);
+        if (e.ok) setEarnings(e);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function toggleOnline() {
+    if (!profile) return;
+    setToggling(true);
+    try {
+      const res = await fetch("/api/connect/consultant/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_online: !profile.is_online }),
+        credentials: "include",
+      });
+      const d = await res.json();
+      if (d.ok) setProfile((p) => p ? { ...p, is_online: d.is_online } : p);
+    } catch {
+      // silent
+    } finally {
+      setToggling(false);
+    }
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-violet-400" size={24} /></div>;
+  }
+  if (!profile) {
+    return (
+      <div className="imotara-glass-card rounded-2xl py-12 text-center">
+        <p className="text-zinc-400">No consultant profile found.</p>
+      </div>
+    );
+  }
+
+  const sym = CURRENCY_SYMBOLS[earnings?.earned_currency ?? "INR"] ?? "₹";
+
+  return (
+    <div className="space-y-4">
+      <div className="imotara-glass-card rounded-2xl p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-zinc-500">Your Status</p>
+            <p className="mt-1 text-base font-semibold text-zinc-100">{profile.display_name}</p>
+            <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              profile.status === "approved"  ? "bg-emerald-500/20 text-emerald-400"
+              : profile.status === "pending" ? "bg-amber-500/20 text-amber-400"
+              : "bg-rose-500/20 text-rose-400"
+            }`}>
+              {profile.status.charAt(0).toUpperCase() + profile.status.slice(1)}
+            </span>
+          </div>
+
+          {profile.status === "approved" && (
+            <button
+              onClick={toggleOnline}
+              disabled={toggling}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                profile.is_online
+                  ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
+                  : "bg-zinc-700/40 text-zinc-400 hover:bg-zinc-700/60"
+              }`}
+            >
+              {toggling && <Loader2 size={13} className="animate-spin" />}
+              {profile.is_online ? "● Online" : "○ Go Online"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {earnings && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="imotara-glass-card rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-violet-300">{sym}{Number(earnings.earned_amount).toFixed(2)}</p>
+            <p className="mt-1 text-xs text-zinc-500">Total earned</p>
+          </div>
+          <div className="imotara-glass-card rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-zinc-100">{earnings.sessions_completed}</p>
+            <p className="mt-1 text-xs text-zinc-500">Sessions</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
+
+export default function ConnectPage() {
+  const [mounted, setMounted]             = useState(false);
+  const [isUnder18, setIsUnder18]         = useState(false);
+  const [activeTab, setActiveTab]         = useState<Tab>("browse");
+  const [isConsultant, setIsConsultant]   = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const profile = getImotaraProfile();
+    const age = profile?.user?.ageRange;
+    if (age === "under_13" || age === "13_17") { setIsUnder18(true); return; }
+
+    fetch("/api/connect/consultant/profile", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { if (d.ok) setIsConsultant(true); })
+      .catch(() => {});
+  }, []);
+
+  if (!mounted) return null;
+  if (isUnder18) return <AgeGatePage />;
+
+  const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode }> = [
+    { key: "browse",   label: "Browse",      icon: <Users size={15} />         },
+    { key: "sessions", label: "My Sessions", icon: <MessageCircle size={15} /> },
+    { key: "wallet",   label: "Wallet",      icon: <Wallet size={15} />        },
+    ...(isConsultant
+      ? [{ key: "dashboard" as Tab, label: "Dashboard", icon: <LayoutDashboard size={15} /> }]
+      : []),
+  ];
+
+  return (
+    <main className="mx-auto w-full max-w-5xl px-4 py-8 text-zinc-50 sm:px-6">
+      <header className="mb-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Imotara · Connect</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Talk to a Human Companion</h1>
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">
+          Verified wellness companions — real people — available to listen and support. Pay only for the time you use.
+        </p>
+      </header>
+
+      <div className="mb-6 flex gap-1 rounded-xl border border-white/8 bg-white/5 p-1">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setActiveTab(t.key)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm transition ${
+              activeTab === t.key
+                ? "bg-white/10 font-semibold text-zinc-100"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            {t.icon}
+            <span className="hidden sm:inline">{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "browse"    && <BrowseTab razorpayKeyId={RAZORPAY_KEY_ID} />}
+      {activeTab === "sessions"  && <SessionsTab />}
+      {activeTab === "wallet"    && <WalletTab />}
+      {activeTab === "dashboard" && <DashboardTab />}
     </main>
   );
 }

@@ -1958,10 +1958,183 @@ function LicensesSection({ token }: { token: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ConnectSection
+// ─────────────────────────────────────────────────────────────────────────────
+
+type ConnectTab = "pending" | "all" | "payouts";
+
+interface ConnectConsultant {
+  id: string; display_name: string; gender: string | null; status: string;
+  rate_per_min: number; currency_code: string; is_online: boolean;
+  rating_avg: number; sessions_completed: number; bio: string | null;
+  expertise_tags: string[] | null; created_at: string; email?: string | null;
+  rejection_reason?: string | null;
+}
+
+function ConnectSection({ token }: { token: string }) {
+  const [ctab, setCtab]             = useState<ConnectTab>("pending");
+  const [consultants, setConsultants] = useState<ConnectConsultant[]>([]);
+  const [loading, setLoading]       = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rejectReason, setRejectReason]   = useState<Record<string, string>>({});
+  const [error, setError]           = useState("");
+
+  const fetchConsultants = useCallback(async (tab: ConnectTab) => {
+    setLoading(true); setError("");
+    try {
+      const path = tab === "pending"
+        ? "/api/admin/connect/pending"
+        : `/api/admin/connect/consultants${tab === "payouts" ? "" : ""}`;
+      const res = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { setError("Failed to load."); return; }
+      const d = await res.json();
+      setConsultants(d.consultants ?? []);
+    } catch { setError("Network error."); }
+    finally { setLoading(false); }
+  }, [token]);
+
+  useEffect(() => { fetchConsultants(ctab); }, [ctab, fetchConsultants]);
+
+  async function handleAction(id: string, action: "approve" | "reject" | "suspend" | "reinstate") {
+    setActionLoading(id);
+    const reason = rejectReason[id] ?? "";
+    try {
+      const isAdminAction = action === "suspend" || action === "reinstate";
+      const url = isAdminAction
+        ? "/api/admin/connect/consultants"
+        : `/api/admin/connect/${id}/approve`;
+
+      const body = isAdminAction
+        ? { id, action, reason: reason || null }
+        : { action: action === "approve" ? "approve" : "reject", reason: reason || null };
+
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json();
+      if (d.ok) { fetchConsultants(ctab); }
+      else { setError(d.error ?? "Action failed"); }
+    } catch { setError("Network error."); }
+    finally { setActionLoading(null); }
+  }
+
+  const STATUS_COLORS: Record<string, string> = {
+    pending:   "bg-amber-500/20 text-amber-300",
+    approved:  "bg-emerald-500/20 text-emerald-400",
+    rejected:  "bg-rose-500/20 text-rose-300",
+    suspended: "bg-orange-500/20 text-orange-300",
+  };
+
+  return (
+    <div>
+      <div className="mb-5 flex gap-1 rounded-xl border border-white/8 bg-white/5 p-1">
+        {([["pending", "Pending Applications"], ["all", "All Consultants"]] as const).map(([key, label]) => (
+          <button key={key} onClick={() => setCtab(key)}
+            className={`flex flex-1 items-center justify-center rounded-lg px-3 py-2 text-xs transition ${
+              ctab === key ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+            }`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="mb-4 text-xs text-rose-400">{error}</p>}
+
+      {loading ? (
+        <div className="flex justify-center py-10"><span className="text-zinc-500 text-sm">Loading…</span></div>
+      ) : consultants.length === 0 ? (
+        <p className="py-10 text-center text-sm text-zinc-500">
+          {ctab === "pending" ? "No pending applications." : "No consultants found."}
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {consultants.map((c) => (
+            <div key={c.id} className="imotara-glass-card rounded-xl p-4">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-zinc-100">{c.display_name}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_COLORS[c.status] ?? "bg-zinc-700/40 text-zinc-400"}`}>
+                      {c.status}
+                    </span>
+                    {c.is_online && <span className="text-[10px] text-emerald-400">● Online</span>}
+                  </div>
+                  {c.email && <p className="mt-0.5 text-xs text-zinc-500">{c.email}</p>}
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    {c.rate_per_min} {c.currency_code}/min · {c.sessions_completed} sessions · ★ {c.rating_avg}
+                  </p>
+                  {c.bio && <p className="mt-1 line-clamp-2 text-xs text-zinc-400">{c.bio}</p>}
+                  {c.expertise_tags && c.expertise_tags.length > 0 && (
+                    <p className="mt-1 text-[10px] text-zinc-600">{c.expertise_tags.join(", ")}</p>
+                  )}
+                </div>
+                <p className="shrink-0 text-[10px] text-zinc-600">
+                  {new Date(c.created_at).toLocaleDateString()}
+                </p>
+              </div>
+
+              {/* Actions */}
+              {c.status === "pending" && (
+                <div className="flex flex-col gap-2">
+                  <input
+                    placeholder="Rejection reason (required to reject)"
+                    value={rejectReason[c.id] ?? ""}
+                    onChange={(e) => setRejectReason((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 placeholder-zinc-600 outline-none focus:border-violet-500"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAction(c.id, "approve")}
+                      disabled={actionLoading === c.id}
+                      className="flex flex-1 items-center justify-center rounded-lg bg-emerald-600/80 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-600 disabled:opacity-50"
+                    >
+                      {actionLoading === c.id ? "…" : "Approve"}
+                    </button>
+                    <button
+                      onClick={() => handleAction(c.id, "reject")}
+                      disabled={actionLoading === c.id || !rejectReason[c.id]?.trim()}
+                      className="flex flex-1 items-center justify-center rounded-lg bg-rose-600/80 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-rose-600 disabled:opacity-50"
+                    >
+                      {actionLoading === c.id ? "…" : "Reject"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {c.status === "approved" && (
+                <button
+                  onClick={() => handleAction(c.id, "suspend")}
+                  disabled={actionLoading === c.id}
+                  className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-medium text-orange-300 transition hover:bg-orange-500/20 disabled:opacity-50"
+                >
+                  Suspend
+                </button>
+              )}
+
+              {c.status === "suspended" && (
+                <button
+                  onClick={() => handleAction(c.id, "reinstate")}
+                  disabled={actionLoading === c.id}
+                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-50"
+                >
+                  Reinstate
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main AdminPage
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Section = "comments" | "licenses" | "organizations" | "superadmins" | "stats";
+type Section = "comments" | "licenses" | "organizations" | "superadmins" | "stats" | "connect";
 
 export default function AdminPage() {
   const [token, setToken]     = useState<string | null>(null);
@@ -2022,7 +2195,7 @@ export default function AdminPage() {
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">Imotara · Admin</p>
             <h1 className="text-lg font-semibold text-zinc-100">
-              {section === "comments" ? "Blog Comments" : section === "licenses" ? "License Management" : section === "organizations" ? "Organizations" : section === "superadmins" ? "Super Admins" : "Dashboard"}
+              {section === "comments" ? "Blog Comments" : section === "licenses" ? "License Management" : section === "organizations" ? "Organizations" : section === "superadmins" ? "Super Admins" : section === "connect" ? "Connect" : "Dashboard"}
             </h1>
           </div>
         </div>
@@ -2046,6 +2219,7 @@ export default function AdminPage() {
             ["comments",      "💬", "Comments"],
             ["licenses",      "🔑", "Licenses"],
             ["organizations", "🏢", "Orgs"],
+            ["connect",       "🤝", "Connect"],
             ["superadmins",   "👑", "Admins"],
             ["stats",         "📊", "Dashboard"],
           ] as const).map(([key, icon, label]) => (
@@ -2126,6 +2300,7 @@ export default function AdminPage() {
 
       {section === "licenses"      && <LicensesSection      token={token} />}
       {section === "organizations" && <OrganizationsSection token={token} />}
+      {section === "connect"       && <ConnectSection       token={token} />}
       {section === "superadmins"   && <SuperAdminsSection   token={token} />}
       {section === "stats"         && <StatsSection         token={token} />}
     </main>

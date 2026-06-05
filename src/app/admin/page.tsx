@@ -1965,6 +1965,7 @@ type ConnectTab = "pending" | "all" | "payouts";
 
 interface ConnectConsultant {
   id: string; display_name: string; gender: string | null; status: string;
+  photo_url: string | null;
   rate_per_min: number; currency_code: string; is_online: boolean;
   rating_avg: number; sessions_completed: number; bio: string | null;
   expertise_tags: string[] | null; created_at: string; email?: string | null;
@@ -1978,6 +1979,9 @@ function ConnectSection({ token }: { token: string }) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectReason, setRejectReason]   = useState<Record<string, string>>({});
   const [error, setError]           = useState("");
+  const [docsOpen, setDocsOpen]     = useState<Record<string, boolean>>({});
+  const [docsData, setDocsData]     = useState<Record<string, Record<string, { url: string; name: string } | null>>>({});
+  const [docsLoading, setDocsLoading] = useState<Record<string, boolean>>({});
 
   const fetchConsultants = useCallback(async (tab: ConnectTab) => {
     setLoading(true); setError("");
@@ -2020,6 +2024,18 @@ function ConnectSection({ token }: { token: string }) {
     finally { setActionLoading(null); }
   }
 
+  async function loadDocs(id: string) {
+    if (docsData[id]) { setDocsOpen(p => ({ ...p, [id]: !p[id] })); return; }
+    setDocsOpen(p => ({ ...p, [id]: true }));
+    setDocsLoading(p => ({ ...p, [id]: true }));
+    try {
+      const res = await fetch(`/api/admin/connect/${id}/docs`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await res.json();
+      if (d.ok) setDocsData(p => ({ ...p, [id]: d.docs ?? {} }));
+    } catch { /* silent */ }
+    finally { setDocsLoading(p => ({ ...p, [id]: false })); }
+  }
+
   const STATUS_COLORS: Record<string, string> = {
     pending:   "bg-amber-500/20 text-amber-300",
     approved:  "bg-emerald-500/20 text-emerald-400",
@@ -2053,7 +2069,11 @@ function ConnectSection({ token }: { token: string }) {
           {consultants.map((c) => (
             <div key={c.id} className="imotara-glass-card rounded-xl p-4">
               <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                {c.photo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={c.photo_url} alt={c.display_name} className="h-10 w-10 shrink-0 rounded-full object-cover border border-white/10" />
+                )}
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-zinc-100">{c.display_name}</p>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_COLORS[c.status] ?? "bg-zinc-700/40 text-zinc-400"}`}>
@@ -2073,6 +2093,32 @@ function ConnectSection({ token }: { token: string }) {
                 <p className="shrink-0 text-[10px] text-zinc-600">
                   {new Date(c.created_at).toLocaleDateString()}
                 </p>
+              </div>
+
+              {/* Document verification */}
+              <div className="mb-2">
+                <button onClick={() => loadDocs(c.id)}
+                  className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-400 transition hover:text-zinc-200">
+                  {docsLoading[c.id] ? "Loading…" : docsOpen[c.id] ? "▲ Hide Documents" : "📄 View Documents"}
+                </button>
+                {docsOpen[c.id] && docsData[c.id] && (
+                  <div className="mt-2 space-y-1.5 rounded-lg border border-white/8 bg-white/3 p-3">
+                    {Object.keys(docsData[c.id]).length === 0
+                      ? <p className="text-[11px] text-zinc-600">No documents uploaded.</p>
+                      : Object.entries(docsData[c.id]).map(([dtype, doc]) => (
+                          <div key={dtype} className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] capitalize text-zinc-500">{dtype.replace(/_/g," ")}</span>
+                            {doc
+                              ? <a href={doc.url} target="_blank" rel="noreferrer"
+                                  className="truncate max-w-[200px] text-[11px] text-violet-400 underline underline-offset-2 hover:text-violet-300">
+                                  {doc.name}
+                                </a>
+                              : <span className="text-[11px] text-rose-400">Not uploaded</span>}
+                          </div>
+                        ))
+                    }
+                  </div>
+                )}
               </div>
 
               {/* Actions */}

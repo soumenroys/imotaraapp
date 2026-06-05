@@ -21,7 +21,8 @@ export async function POST(req: NextRequest) {
 
   const {
     display_name, gender, photo_url, bio, expertise_tags, languages,
-    rate_per_min, currency_code, availability_note, coc_agreed,
+    rate_per_min, currency_code, availability_note, availability_windows,
+    verification_docs, payout_info, coc_agreed,
   } = body;
 
   if (!display_name?.trim()) {
@@ -69,18 +70,21 @@ export async function POST(req: NextRequest) {
   const { data: consultant, error } = await supabase
     .from("connect_consultants")
     .insert({
-      user_id:           user.id,
-      display_name:      display_name.trim(),
+      user_id:              user.id,
+      display_name:         display_name.trim(),
       gender,
-      photo_url:         photo_url ?? null,
-      bio:               bio.trim(),
+      photo_url:            photo_url ?? null,
+      bio:                  bio.trim(),
       expertise_tags,
       languages,
-      rate_per_min:      Number(rate_per_min),
+      rate_per_min:         Number(rate_per_min),
       currency_code,
-      availability_note: availability_note ?? null,
-      coc_agreed:        true,
-      status:            "pending",
+      availability_note:    availability_note ?? null,
+      availability_windows: availability_windows ?? null,
+      verification_docs:    verification_docs ?? null,
+      payout_info:          payout_info ?? null,
+      coc_agreed:           true,
+      status:               "pending",
     })
     .select("id, status")
     .single();

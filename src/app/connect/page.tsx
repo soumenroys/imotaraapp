@@ -70,29 +70,6 @@ const STATUS_BADGES: Record<string, { label: string; cls: string }> = {
 
 // ── Age Gate ──────────────────────────────────────────────────────────────────
 
-function AgeGatePage() {
-  return (
-    <main className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center px-6 py-20 text-center">
-      <div className="imotara-glass-card rounded-2xl p-8">
-        <div className="mb-4 text-4xl">🔒</div>
-        <h1 className="text-xl font-semibold text-zinc-50">Age Restriction</h1>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-          Imotara Connect is available to users aged 18 and above only.
-        </p>
-        <p className="mt-4 text-xs text-zinc-500">
-          Our AI companion is always available for free.
-        </p>
-        <a
-          href="/chat"
-          className="mt-6 inline-block rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500"
-        >
-          Return to Chat
-        </a>
-      </div>
-    </main>
-  );
-}
-
 // ── Browse Tab ────────────────────────────────────────────────────────────────
 
 function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
@@ -557,25 +534,26 @@ function DashboardTab() {
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export default function ConnectPage() {
-  const [mounted, setMounted]             = useState(false);
-  const [isUnder18, setIsUnder18]         = useState(false);
-  const [activeTab, setActiveTab]         = useState<Tab>("browse");
-  const [isConsultant, setIsConsultant]   = useState(false);
+  const router = useRouter();
+  const [mounted, setMounted]           = useState(false);
+  const [activeTab, setActiveTab]       = useState<Tab>("browse");
+  const [isConsultant, setIsConsultant] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const profile = getImotaraProfile();
     const age = profile?.user?.ageRange;
-    if (age === "under_13" || age === "13_17") { setIsUnder18(true); return; }
-
+    if (age === "under_13" || age === "13_17") {
+      router.replace("/connect/age-restricted");
+      return;
+    }
     fetch("/api/connect/consultant/profile", { credentials: "include" })
       .then((r) => r.json())
       .then((d) => { if (d.ok) setIsConsultant(true); })
       .catch(() => {});
-  }, []);
+  }, [router]);
 
   if (!mounted) return null;
-  if (isUnder18) return <AgeGatePage />;
 
   const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode }> = [
     { key: "browse",   label: "Browse",      icon: <Users size={15} />         },

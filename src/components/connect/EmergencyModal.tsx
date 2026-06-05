@@ -7,6 +7,7 @@ const CRISIS_LINES: Record<string, Array<{ name: string; number?: string; url?: 
   IN: [
     { name: "iCall",                number: "9152987821" },
     { name: "Vandrevala Foundation", number: "1860-2662-345" },
+    { name: "Snehi",                number: "044-24640050" },
   ],
   US: [{ name: "988 Suicide & Crisis Lifeline", number: "988" }],
   GB: [{ name: "Samaritans",           number: "116 123"    }],

@@ -52,15 +52,17 @@ export default function SessionChatPage() {
   const [sending, setSending]       = useState(false);
   const [loading, setLoading]       = useState(true);
   const [myUserId, setMyUserId]     = useState<string | null>(null);
-  const [remaining, setRemaining]   = useState<number | null>(null);
+  const [remaining, setRemaining]     = useState<number | null>(null);
+  const [displaySeconds, setDisplaySeconds] = useState<number | null>(null);
   const [showEmergency, setShowEmergency] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [rating, setRating]         = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [reviewDone, setReviewDone] = useState(false);
 
-  const bottomRef  = useRef<HTMLDivElement>(null);
-  const tickRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bottomRef     = useRef<HTMLDivElement>(null);
+  const tickRef       = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -130,6 +132,20 @@ export default function SessionChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // ── Per-second visual countdown synced to API tick ────────────────────────
+  useEffect(() => {
+    if (remaining === null) { setDisplaySeconds(null); return; }
+    const secs = Math.round(remaining * 60);
+    setDisplaySeconds(secs);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    countdownRef.current = setInterval(() => {
+      setDisplaySeconds((prev) => (prev === null || prev <= 0 ? 0 : prev - 1));
+    }, 1000);
+    return () => {
+      if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+    };
+  }, [remaining]);
 
   // ── 60-second billing tick ─────────────────────────────────────────────────
   function startTick() {
@@ -226,11 +242,18 @@ export default function SessionChatPage() {
     );
   }
 
-  const consultant  = session.connect_consultants;
-  const isActive    = session.status === "active";
-  const isCompleted = session.status === "completed";
-  const isPending   = session.status === "pending";
-  const isMine      = session.user_id === myUserId;
+  function formatTime(secs: number): string {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
+  const consultant   = session.connect_consultants;
+  const isActive     = session.status === "active";
+  const isCompleted  = session.status === "completed";
+  const isPending    = session.status === "pending";
+  const isMine       = session.user_id === myUserId;
+  const isLowBalance = displaySeconds !== null && displaySeconds <= 120 && isActive;
 
   return (
     <div className="flex h-[calc(100dvh-64px)] flex-col">
@@ -259,11 +282,11 @@ export default function SessionChatPage() {
         </div>
 
         {/* Timer */}
-        {isActive && remaining !== null && (
-          <div className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium ${
-            remaining <= 1 ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
+        {isActive && displaySeconds !== null && (
+          <div className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-mono font-medium tabular-nums ${
+            isLowBalance ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
           }`}>
-            {remaining.toFixed(0)} min left
+            {formatTime(displaySeconds)}
           </div>
         )}
 
@@ -281,6 +304,18 @@ export default function SessionChatPage() {
       {isPending && (
         <div className="shrink-0 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-300 text-center">
           Waiting for the companion to accept your session request…
+        </div>
+      )}
+      {isLowBalance && (
+        <div className="shrink-0 border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-center text-xs font-medium text-rose-300">
+          Less than 2 minutes remaining.{" "}
+          <button
+            onClick={() => router.push("/connect?tab=wallet")}
+            className="underline hover:text-rose-200"
+          >
+            Top up wallet
+          </button>
+          {" "}to continue.
         </div>
       )}
       {isCompleted && (

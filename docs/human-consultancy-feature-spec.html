@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Imotara Connect — Human Consultancy Feature Specification</title>
+<style>
+  :root {
+    --accent: #6366f1;
+    --accent2: #0ea5e9;
+    --accent3: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --bg: #0f0f14;
+    --surface: #17171f;
+    --surface2: #1e1e2a;
+    --border: rgba(255,255,255,0.08);
+    --text: #e4e4f0;
+    --muted: #8888a8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    padding: 0;
+  }
+
+  /* ── Cover ────────────────────────────────────── */
+  .cover {
+    background: linear-gradient(135deg, #0f0f14 0%, #1a1030 40%, #0a1628 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 40px;
+    page-break-after: always;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: "";
+    position: absolute;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+  }
+  .cover::after {
+    content: "";
+    position: absolute;
+    bottom: -100px; right: -100px;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(14,165,233,0.12) 0%, transparent 70%);
+  }
+  .cover-inner { position: relative; z-index: 1; max-width: 700px; }
+  .cover-badge {
+    display: inline-block;
+    background: rgba(99,102,241,0.15);
+    border: 1px solid rgba(99,102,241,0.3);
+    color: #a5b4fc;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 100px;
+    margin-bottom: 28px;
+  }
+  .cover h1 {
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #e0e0ff 0%, #a5b4fc 50%, #67e8f9 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+  .cover-subtitle {
+    font-size: 22px;
+    color: #7dd3fc;
+    font-weight: 300;
+    margin-bottom: 32px;
+  }
+  .cover-desc {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 520px;
+    margin: 0 auto 48px;
+    line-height: 1.8;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 40px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .cover-meta-item { text-align: center; }
+  .cover-meta-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .cover-meta-value { font-size: 15px; color: #c4c4e0; font-weight: 600; margin-top: 2px; }
+
+  /* ── Layout ───────────────────────────────────── */
+  .page { max-width: 900px; margin: 0 auto; padding: 60px 40px; }
+  @media print {
+    .cover { min-height: 100vh; }
+    .section { page-break-inside: avoid; }
+  }
+
+  /* ── Section ──────────────────────────────────── */
+  .section { margin-bottom: 56px; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-num {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(99,102,241,0.15);
+    border: 1px solid rgba(99,102,241,0.25);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #a5b4fc;
+    flex-shrink: 0;
+  }
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #e0e0ff;
+  }
+
+  h2 { font-size: 17px; font-weight: 700; color: #c4c4f0; margin: 28px 0 12px; }
+  h3 { font-size: 14px; font-weight: 600; color: #a5b4fc; margin: 20px 0 8px; letter-spacing: 0.02em; text-transform: uppercase; }
+  p { color: var(--muted); margin-bottom: 12px; }
+  strong { color: var(--text); font-weight: 600; }
+
+  /* ── Tables ───────────────────────────────────── */
+  .table-wrap { overflow-x: auto; margin: 16px 0; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: rgba(255,255,255,0.04); }
+  th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+  td { padding: 9px 14px; border-top: 1px solid var(--border); color: var(--text); vertical-align: top; }
+  tr:hover td { background: rgba(255,255,255,0.015); }
+
+  /* ── Cards ────────────────────────────────────── */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin: 16px 0; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: rgba(99,102,241,0.3); }
+  .card-icon { font-size: 28px; margin-bottom: 10px; }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .card-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* ── Badges ───────────────────────────────────── */
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 100px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .badge-blue { background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.25); }
+  .badge-green { background: rgba(16,185,129,0.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.25); }
+  .badge-amber { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.25); }
+  .badge-red { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
+  .badge-cyan { background: rgba(14,165,233,0.15); color: #7dd3fc; border: 1px solid rgba(14,165,233,0.25); }
+  .badge-missing { background: rgba(239,68,68,0.12); color: #fca5a5; }
+  .badge-present { background: rgba(16,185,129,0.12); color: #6ee7b7; }
+
+  /* ── Code blocks ──────────────────────────────── */
+  pre {
+    background: #0d0d12;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    overflow-x: auto;
+    font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    color: #c4c4e0;
+    margin: 16px 0;
+  }
+  code {
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    background: rgba(99,102,241,0.1);
+    color: #a5b4fc;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+
+  /* ── Highlight boxes ──────────────────────────── */
+  .highlight-box {
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin: 16px 0;
+    border-left: 3px solid;
+  }
+  .highlight-blue { background: rgba(99,102,241,0.07); border-color: #6366f1; }
+  .highlight-green { background: rgba(16,185,129,0.07); border-color: #10b981; }
+  .highlight-amber { background: rgba(245,158,11,0.07); border-color: #f59e0b; }
+  .highlight-red { background: rgba(239,68,68,0.07); border-color: #ef4444; }
+  .highlight-box p { margin: 0; color: var(--text); font-size: 13px; }
+  .highlight-box strong { color: #fff; }
+
+  /* ── Phase timeline ───────────────────────────── */
+  .phase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; margin: 16px 0; }
+  .phase-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .phase-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .phase-num {
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    color: white;
+    flex-shrink: 0;
+  }
+  .phase-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .phase-duration { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+  .phase-items { list-style: none; }
+  .phase-items li { font-size: 12px; color: var(--muted); padding: 3px 0 3px 14px; position: relative; }
+  .phase-items li::before { content: "→"; position: absolute; left: 0; color: #6366f1; font-size: 10px; }
+
+  /* ── Revenue highlight ────────────────────────── */
+  .revenue-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin: 16px 0; }
+  .revenue-card {
+    background: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(14,165,233,0.05) 100%);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 14px;
+    padding: 20px 16px;
+    text-align: center;
+  }
+  .revenue-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  .revenue-value { font-size: 28px; font-weight: 800; color: #a5b4fc; line-height: 1; margin-bottom: 4px; }
+  .revenue-sub { font-size: 11px; color: var(--muted); }
+
+  /* ── Admin gap ────────────────────────────────── */
+  .gap-summary {
+    background: rgba(239,68,68,0.07);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin: 20px 0;
+  }
+  .gap-summary p { margin: 0; font-size: 14px; color: var(--text); line-height: 1.7; }
+
+  /* ── TOC ──────────────────────────────────────── */
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px 32px; margin-bottom: 48px; }
+  .toc h2 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 16px; }
+  .toc ol { padding-left: 0; list-style: none; }
+  .toc li { padding: 5px 0; font-size: 13px; color: #a5b4fc; display: flex; align-items: baseline; gap: 8px; }
+  .toc li::before { content: attr(data-n); font-size: 10px; color: var(--muted); min-width: 18px; font-weight: 700; }
+  .toc-sub { color: var(--muted) !important; font-size: 12px !important; padding-left: 26px !important; }
+
+  /* ── Divider ──────────────────────────────────── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  /* ── Disclaimer note ──────────────────────────── */
+  .footer-note { text-align: center; color: var(--muted); font-size: 11px; padding: 32px 40px; border-top: 1px solid var(--border); margin-top: 60px; }
+</style>
+</head>
+<body>
+
+<!-- COVER PAGE -->
+<div class="cover">
+  <div class="cover-inner">
+    <div class="cover-badge">Imotara · Internal Specification</div>
+    <h1>Imotara Connect</h1>
+    <div class="cover-subtitle">Human Consultancy Feature — Full Specification</div>
+    <p class="cover-desc">
+      A comprehensive proposal to extend Imotara's AI wellness platform with real-human consultancy — enabling verified human companions, wellness guides, and support figures to connect with users through structured, safe, and monetised sessions across web and mobile.
+    </p>
+    <div class="cover-meta">
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">Version</div>
+        <div class="cover-meta-value">1.0</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">Date</div>
+        <div class="cover-meta-value">June 2026</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">Status</div>
+        <div class="cover-meta-value">Proposal</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">Prepared for</div>
+        <div class="cover-meta-value">Imotara Team</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="page">
+
+  <!-- TOC -->
+  <div class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li data-n="1">Executive Summary</li>
+      <li data-n="2">Consultant Categories (12 Roles)</li>
+      <li data-n="3">User Flows — Seeker &amp; Provider Journeys</li>
+      <li data-n="4">Feature List — All 10 Feature Groups</li>
+      <li data-n="5">Revenue Model &amp; Commission Structure</li>
+      <li data-n="6">Proposed Architecture &amp; Database Schema</li>
+      <li data-n="7">API Design</li>
+      <li data-n="8">Mobile App Additions</li>
+      <li data-n="9">Safety, Compliance &amp; Trust</li>
+      <li data-n="10">Multilingual Support</li>
+      <li data-n="11">Admin Panel — Gap Analysis &amp; Required Enhancements</li>
+      <li data-n="12">Implementation Phasing</li>
+      <li data-n="13">Technology Decisions</li>
+      <li data-n="14">Risks &amp; Mitigations</li>
+    </ol>
+  </div>
+
+  <!-- 1. EXECUTIVE SUMMARY -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <div class="section-title">Executive Summary</div>
+    </div>
+    <p>Imotara currently provides AI/LLM-based emotional guidance and companionship. This document proposes <strong>Imotara Connect</strong> — a real-human consultancy layer that allows verified human consultants to provide audio and video-based emotional, relational, and wellness support to users across all languages and time zones.</p>
+    <p>This feature positions Imotara beyond a chatbot into a <strong>full mental wellness ecosystem</strong>: AI-first for everyday reflection, and human-first for deeper support moments. Both layers share the same user account, history, and settings.</p>
+
+    <div class="revenue-grid">
+      <div class="revenue-card">
+        <div class="revenue-label">Consultant Roles</div>
+        <div class="revenue-value">12</div>
+        <div class="revenue-sub">Peer, family, wellness &amp; yoga</div>
+      </div>
+      <div class="revenue-card">
+        <div class="revenue-label">Platform Commission</div>
+        <div class="revenue-value">25%</div>
+        <div class="revenue-sub">Standard; 20% for top-rated</div>
+      </div>
+      <div class="revenue-card">
+        <div class="revenue-label">Yr-1 Revenue (opt.)</div>
+        <div class="revenue-value">₹2.87Cr</div>
+        <div class="revenue-sub">200 consultants, 60 sessions/mo</div>
+      </div>
+      <div class="revenue-card">
+        <div class="revenue-label">MVP Timeline</div>
+        <div class="revenue-value">~5 mo</div>
+        <div class="revenue-sub">Phases 1–3 (booking + calls)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. CATEGORIES -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <div class="section-title">Consultant Categories</div>
+    </div>
+    <p>All 12 categories are <strong>non-clinical</strong> — peer support and wellness companionship, not licensed therapy. Prominent disclaimers required on all booking flows.</p>
+
+    <div class="card-grid">
+      <div class="card"><div class="card-icon">👨</div><div class="card-title">Male Friend</div><div class="card-desc">Peer-style emotional support. Casual, conversational, relatable.</div></div>
+      <div class="card"><div class="card-icon">👩</div><div class="card-title">Female Friend</div><div class="card-desc">Peer-style emotional support for users seeking feminine empathy.</div></div>
+      <div class="card"><div class="card-icon">👨‍👧</div><div class="card-title">Dad</div><div class="card-desc">Parental-figure guidance. Encouragement, life advice, stability.</div></div>
+      <div class="card"><div class="card-icon">👩‍👧</div><div class="card-title">Mom</div><div class="card-desc">Nurturing, warm parental support. Deep empathy and care.</div></div>
+      <div class="card"><div class="card-icon">👧</div><div class="card-title">Sister</div><div class="card-desc">Sibling-style empathy and honest perspective.</div></div>
+      <div class="card"><div class="card-icon">👦</div><div class="card-title">Brother</div><div class="card-desc">Brotherly support — grounded, practical, encouraging.</div></div>
+      <div class="card"><div class="card-icon">🧘‍♂️</div><div class="card-title">Male Wellness Companion</div><div class="card-desc">Structured emotional guidance with a wellness framework.</div></div>
+      <div class="card"><div class="card-icon">🧘‍♀️</div><div class="card-title">Female Wellness Companion</div><div class="card-desc">Structured emotional guidance with empathetic female presence.</div></div>
+      <div class="card"><div class="card-icon">👴</div><div class="card-title">Grandfather</div><div class="card-desc">Elder-wisdom, life experience, calm perspective.</div></div>
+      <div class="card"><div class="card-icon">👵</div><div class="card-title">Grandmother</div><div class="card-desc">Nurturing, story-based elder guidance and warmth.</div></div>
+      <div class="card"><div class="card-icon">🧘</div><div class="card-title">Yoga Instructor</div><div class="card-desc">Mindfulness, breathwork, meditation-led sessions.</div></div>
+      <div class="card"><div class="card-icon">💪</div><div class="card-title">Physical Wellness Companion</div><div class="card-desc">Body-mind integration, fitness motivation, energy coaching.</div></div>
+    </div>
+  </div>
+
+  <!-- 3. USER FLOWS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <div class="section-title">User Flows</div>
+    </div>
+
+    <h2>3.1 User (Seeker) Journey</h2>
+    <pre>Browse Consultants
+  → Filter: category / language / rating / availability / gender
+  → View profile: photo, bio, expertise, languages, rates, reviews
+  → Choose session type: Audio or Audio+Video
+  → Check availability in own time zone
+      ├── Instant connect (consultant online now)
+      │     → Send request → Consultant accepts (60s window)
+      │     → Enter session immediately
+      └── Schedule appointment
+            → Pick slot → Pay → Confirmation email + push
+            → Reminder (24h, 1h, 10min before)
+            → Join at scheduled time
+  → Post-session: Rate + review + mood check-in
+                → Optional: Rebook, Tip, AI reflection note</pre>
+
+    <h2>3.2 Consultant (Provider) Journey</h2>
+    <pre>Register as Consultant
+  → Fill profile: name, photo, categories, languages, rates, ID doc
+  → Set mode: Audio-only OR Audio+Video
+  → Set availability: weekly schedule + time zone
+  → Submit → Imotara Verification Review (2–5 business days)
+  → Approved → Go Online
+      ├── Accept live requests or manage upcoming bookings
+      ├── Conduct session via Imotara Call interface
+      └── Post-session: Add private notes → Earnings credited (24h)
+  → Withdraw earnings: Bank / UPI / PayPal</pre>
+  </div>
+
+  <!-- 4. FEATURES -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <div class="section-title">Feature List</div>
+    </div>
+
+    <h2>4.1 Consultant Registration &amp; Verification</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td>Multi-step registration form</td><td>Name, display name, gender, photo, bio (multi-language), categories, languages, consultancy type, rate, time zone, weekly availability grid</td></tr>
+          <tr><td>Government ID verification</td><td>Upload Aadhaar / Passport / Driving Licence (encrypted Supabase Storage)</td></tr>
+          <tr><td>Self-declaration &amp; Code of Conduct</td><td>Agreement to non-clinical role, prohibited behaviours, Imotara CoC</td></tr>
+          <tr><td>Training/certification badge</td><td>Optional upload of wellness, yoga, or counselling certificates</td></tr>
+          <tr><td>Video intro (optional)</td><td>60-second intro video on consultant profile</td></tr>
+          <tr><td>Background check consent</td><td>Consent for optional third-party background check</td></tr>
+          <tr><td>Annual re-verification</td><td>Reminder sent 30 days before annual expiry</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>4.2 Consultant Profile (Public)</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Profile photo + verification badge</td><td>Green checkmark once ID verified by Imotara reviewer</td></tr>
+          <tr><td>Category badges</td><td>One or more of the 12 roles</td></tr>
+          <tr><td>Languages spoken</td><td>Multi-language tags; "Speaks your language" badge for matching</td></tr>
+          <tr><td>Session type indicator</td><td>Audio-only / Audio+Video</td></tr>
+          <tr><td>Bio</td><td>Up to 500 words; AI-translated to user's app language</td></tr>
+          <tr><td>Rating + review count</td><td>Aggregate star rating from all completed sessions</td></tr>
+          <tr><td>Sessions completed</td><td>Credibility signal (shown once above 10)</td></tr>
+          <tr><td>Response rate %</td><td>For instant request acceptance history</td></tr>
+          <tr><td>Next available slot</td><td>Shown in user's local time zone</td></tr>
+          <tr><td>Rate per session</td><td>Shown in user's local currency with conversion</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>4.3 Discovery &amp; Matching</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Filter / Feature</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td>Category filter</td><td>Browse all 12 categories</td></tr>
+          <tr><td>Language filter</td><td>Match consultants who speak user's language</td></tr>
+          <tr><td>Gender preference</td><td>Show only male / female / any</td></tr>
+          <tr><td>Rating filter</td><td>Minimum star threshold (e.g. 4.0+)</td></tr>
+          <tr><td>Availability filter</td><td>Online now / Today / This week</td></tr>
+          <tr><td>Session type filter</td><td>Audio-only / Audio+Video</td></tr>
+          <tr><td>Sort options</td><td>Highest rated, most sessions, lowest price, soonest available</td></tr>
+          <tr><td>AI Recommendations</td><td>Curated suggestions based on user's mood history and prior sessions</td></tr>
+          <tr><td>Featured consultants</td><td>Admin-promoted spotlight (paid listing slot)</td></tr>
+          <tr><td>Search</td><td>Free-text by name or keyword</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>4.4 Scheduling &amp; Booking</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td>Time zone auto-detection</td><td>Device time zone used; manual override available</td></tr>
+          <tr><td>Visual slot calendar</td><td>Week view showing consultant's open slots in user's time zone</td></tr>
+          <tr><td>Session duration options</td><td>30 min / 60 min (consultant configures)</td></tr>
+          <tr><td>Pre-session questionnaire</td><td>Optional 3 questions for consultant context</td></tr>
+          <tr><td>Booking confirmation</td><td>Email + push notification immediately on booking</td></tr>
+          <tr><td>Reminder notifications</td><td>24h, 1h, 10 min before session</td></tr>
+          <tr><td>Cancel / reschedule</td><td>Up to 24h before; cancellation policy enforced</td></tr>
+          <tr><td>Calendar export</td><td>Add to Google / Apple / Outlook via .ics</td></tr>
+          <tr><td>Waitlist</td><td>Join waitlist if preferred slot is taken</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>4.5 Live / Instant Session</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td>Online indicator</td><td>Green dot on consultant card</td></tr>
+          <tr><td>Instant connect request</td><td>User sends request → consultant has 60 seconds to accept or decline</td></tr>
+          <tr><td>Auto-decline on timeout</td><td>Notifies user; suggests alternatives or booking</td></tr>
+          <tr><td>Session lobby</td><td>Waiting room screen with estimated wait time</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>4.6 Call / Session Interface</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td>Audio call</td><td>WebRTC-based end-to-end encrypted audio</td></tr>
+          <tr><td>Video call (opt-in)</td><td>WebRTC video; consultant can disable camera</td></tr>
+          <tr><td>Session timer</td><td>Visible countdown to end of booked time</td></tr>
+          <tr><td>Session extension</td><td>+15 / +30 min with additional payment captured in-session</td></tr>
+          <tr><td>Text chat sidebar</td><td>Optional text fallback during call</td></tr>
+          <tr><td>Screen share</td><td>Yoga / Physical wellness consultants can share visual content</td></tr>
+          <tr><td>Virtual background</td><td>Blur or custom for consultant privacy</td></tr>
+          <tr><td>Emergency signal</td><td>Single-tap → shows regional crisis hotlines (iCall, 988, Samaritans)</td></tr>
+          <tr><td>Network quality indicator</td><td>Visible to both parties throughout session</td></tr>
+          <tr><td>Mobile-first layout</td><td>Optimised for iOS and Android; full Chrome/Safari/Firefox web support</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>4.7 Post-Session</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td>Mood check-in</td><td>1–5 emoji scale immediately after session</td></tr>
+          <tr><td>Rating &amp; review</td><td>Star rating + optional text; moderated before publish</td></tr>
+          <tr><td>Tip consultant</td><td>Optional additional tip amount</td></tr>
+          <tr><td>Rebook prompt</td><td>"Book your next session with [Name]?" CTA</td></tr>
+          <tr><td>Private reflection</td><td>User journal entry linked to this session in Imotara journal</td></tr>
+          <tr><td>Consultant private note</td><td>Visible only to consultant and admin; never to user</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>4.8 Consultant Dashboard</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td>Earnings summary</td><td>Today / this week / month / all-time with platform fee breakdown</td></tr>
+          <tr><td>Upcoming sessions calendar</td><td>Week view of confirmed bookings</td></tr>
+          <tr><td>Session history</td><td>List of past sessions with ratings received</td></tr>
+          <tr><td>Availability management</td><td>Edit weekly schedule, block dates, add exceptions</td></tr>
+          <tr><td>Profile editor</td><td>Update bio, photo, categories, rate at any time</td></tr>
+          <tr><td>Withdrawal</td><td>Request payout to bank / UPI / PayPal once earnings available</td></tr>
+          <tr><td>Status toggle</td><td>Online / Busy / Offline instant switch</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 5. REVENUE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <div class="section-title">Revenue Model</div>
+    </div>
+
+    <h2>5.1 Commission Structure</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Revenue Source</th><th>Imotara Cut</th><th>Consultant Receives</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Standard session</td><td><strong>25%</strong></td><td>75%</td><td>Base for all verified consultants</td></tr>
+          <tr><td>Premium session (4.7+ stars, 100+ sessions)</td><td><strong>20%</strong></td><td>80%</td><td>Loyalty reward for top performers</td></tr>
+          <tr><td>Featured listing</td><td>₹500/mo or $6/mo flat</td><td>—</td><td>Paid by consultant for top-of-feed placement</td></tr>
+          <tr><td>Session extension fee</td><td><strong>30%</strong></td><td>70%</td><td>Impulse purchase; higher Imotara margin</td></tr>
+          <tr><td>Tip</td><td><strong>10%</strong></td><td>90%</td><td>Near-pass-through to reward consultant</td></tr>
+          <tr><td>Subscription credit bundles</td><td><strong>40%</strong></td><td>60% when redeemed</td><td>Pre-purchased credits sold to users</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="highlight-box highlight-blue">
+      <p><strong>Rationale:</strong> 25% is the market-standard for service marketplaces (Fiverr, Uber range 20–30%). The 20% fast-track tier for high performers creates a quality incentive. Featured listings provide a separate B2B revenue line from consultants, not users.</p>
+    </div>
+
+    <h2>5.2 Session Pricing Range (Suggested)</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Duration</th><th>India (INR)</th><th>International (USD)</th></tr></thead>
+        <tbody>
+          <tr><td>30 minutes</td><td>₹299 – ₹999</td><td>$4 – $12</td></tr>
+          <tr><td>60 minutes</td><td>₹499 – ₹1,999</td><td>$6 – $24</td></tr>
+          <tr><td>Extension (15 min add-on)</td><td>₹149 – ₹499</td><td>$2 – $6</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>5.3 Integration with Imotara Subscription Tiers</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Imotara Tier</th><th>Connect Benefit</th></tr></thead>
+        <tbody>
+          <tr><td>Free</td><td>Pay per session — no discount</td></tr>
+          <tr><td>Plus</td><td>5% discount on all sessions</td></tr>
+          <tr><td>Pro</td><td>2 free 30-min sessions per month included</td></tr>
+          <tr><td>Family</td><td>1 free session/month per family member (max 4)</td></tr>
+          <tr><td>Enterprise / EDU</td><td>Bulk session credits available via org admin dashboard</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>5.4 Year-1 Revenue Projections</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Metric</th><th>Conservative</th><th>Optimistic</th></tr></thead>
+        <tbody>
+          <tr><td>Active consultants</td><td>50</td><td>200</td></tr>
+          <tr><td>Avg sessions / consultant / month</td><td>30</td><td>60</td></tr>
+          <tr><td>Avg session revenue</td><td>₹599</td><td>₹799</td></tr>
+          <tr><td>Monthly GMV</td><td>₹8.99L</td><td>₹95.9L</td></tr>
+          <tr><td>Imotara monthly revenue (25%)</td><td>₹2.25L</td><td>₹23.9L</td></tr>
+          <tr><td><strong>Annual Imotara revenue</strong></td><td><strong>₹26.9L</strong></td><td><strong>₹2.87 Cr</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 6. ARCHITECTURE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <div class="section-title">Proposed Architecture</div>
+    </div>
+
+    <h2>6.1 System Overview</h2>
+    <pre>┌─────────────────────────────────────────────────────────────────┐
+│                      Imotara Connect                            │
+├───────────────┬────────────────┬────────────────┬──────────────┤
+│  User App     │ Consultant App │  Admin Panel   │  Reviewer    │
+│  (web+mobile) │  (web+mobile)  │  /admin        │  /admin      │
+└───────┬───────┴────────┬───────┴───────┬────────┴──────┬───────┘
+        │                │               │               │
+        ▼                ▼               ▼               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                      Next.js API Layer                           │
+│  /api/connect/consultants    /api/connect/sessions               │
+│  /api/connect/bookings       /api/connect/payments               │
+│  /api/connect/availability   /api/connect/reviews                │
+│  /api/connect/calls          /api/connect/earnings               │
+│  /api/admin/connect/*  (new admin sections)                      │
+└──────────────┬───────────────────┬───────────────────┬──────────┘
+               │                   │                   │
+     ┌─────────▼─────────┐ ┌───────▼──────────┐ ┌─────▼───────────────┐
+     │   Supabase DB      │ │  Call Server     │ │  Payment Gateway     │
+     │   (PostgreSQL)     │ │  Daily.co        │ │  Razorpay (India)    │
+     │                    │ │  ─ or ─          │ │  Stripe (Global)     │
+     │  consultants       │ │  LiveKit         │ │  PayPal (Global)     │
+     │  bookings          │ └──────────────────┘ └─────────────────────┘
+     │  sessions          │
+     │  session_reviews   │
+     │  earnings          │
+     │  payouts           │
+     │  verification_docs │
+     └────────────────────┘</pre>
+
+    <h2>6.2 Key Database Tables</h2>
+
+    <h3>consultants</h3>
+    <pre>id                  uuid PRIMARY KEY
+user_id             uuid REFERENCES auth.users
+display_name        text NOT NULL
+bio                 jsonb              -- {en: "...", hi: "...", bn: "..."}
+photo_url           text
+gender              text               -- male | female | non-binary
+categories          text[]             -- ["mom","yoga_instructor",...]
+languages           text[]             -- ISO codes ["en","hi","bn"]
+session_type        text               -- audio | audio_video
+rate_30min_paise    int
+rate_60min_paise    int
+timezone            text               -- "Asia/Kolkata"
+status              text DEFAULT 'pending'  -- pending|approved|suspended|rejected
+is_online           boolean DEFAULT false
+rating_avg          numeric(3,2)
+sessions_completed  int DEFAULT 0
+featured            boolean DEFAULT false
+created_at          timestamptz DEFAULT now()</pre>
+
+    <h3>bookings</h3>
+    <pre>id                  uuid PRIMARY KEY
+user_id             uuid REFERENCES auth.users
+consultant_id       uuid REFERENCES consultants
+scheduled_at        timestamptz NOT NULL        -- UTC
+duration_minutes    int DEFAULT 30
+session_type        text
+status              text DEFAULT 'pending'      -- pending|confirmed|active|completed|cancelled|no_show
+payment_id          text                        -- Razorpay/Stripe ID
+amount_paise        int
+platform_fee_paise  int
+consultant_paise    int
+escrow_released     boolean DEFAULT false
+cancellation_reason text
+created_at          timestamptz DEFAULT now()</pre>
+
+    <h3>sessions</h3>
+    <pre>id                  uuid PRIMARY KEY
+booking_id          uuid REFERENCES bookings
+room_id             text                -- Daily.co / LiveKit room ID
+started_at          timestamptz
+ended_at            timestamptz
+duration_actual_sec int
+consultant_notes    text                -- private, never shown to user
+status              text DEFAULT 'waiting'</pre>
+
+    <h3>session_reviews</h3>
+    <pre>id              uuid PRIMARY KEY
+session_id      uuid REFERENCES sessions
+user_id         uuid REFERENCES auth.users
+consultant_id   uuid REFERENCES consultants
+rating          int CHECK (rating BETWEEN 1 AND 5)
+review_text     text
+is_approved     boolean DEFAULT false   -- moderated before publish
+mood_after      int CHECK (mood_after BETWEEN 1 AND 5)
+tip_paise       int DEFAULT 0
+created_at      timestamptz DEFAULT now()</pre>
+
+    <h2>6.3 Call Infrastructure Comparison</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Provider</th><th>Pros</th><th>Cons</th><th>Cost</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Daily.co</strong> ★ Recommended</td><td>Managed WebRTC, simple REST API, HIPAA-eligible</td><td>Per-minute pricing</td><td>~$0.004/participant/min</td></tr>
+          <tr><td>LiveKit</td><td>Open-source, self-hostable, full control, cheaper at scale</td><td>More ops overhead</td><td>Server cost only</td></tr>
+          <tr><td>Agora</td><td>Popular in India, low latency</td><td>Proprietary, vendor lock-in</td><td>~$0.0099/min</td></tr>
+          <tr><td>Jitsi</td><td>Free, open-source</td><td>Reliability concerns at scale</td><td>Free self-host</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="highlight-box highlight-green">
+      <p><strong>Recommendation:</strong> Start with <strong>Daily.co</strong> for zero-ops quick launch. Migrate to self-hosted <strong>LiveKit</strong> at scale (estimated crossover at ~20,000 minutes/month) for significant cost savings.</p>
+    </div>
+  </div>
+
+  <!-- 7. API -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">7</div>
+      <div class="section-title">API Design</div>
+    </div>
+
+    <h2>User-facing Endpoints</h2>
+    <pre>GET  /api/connect/consultants               -- browse with filters
+GET  /api/connect/consultants/:id           -- public profile
+GET  /api/connect/consultants/:id/slots     -- available time slots
+POST /api/connect/bookings                  -- create booking + payment
+GET  /api/connect/bookings                  -- user's booking history
+PATCH /api/connect/bookings/:id/cancel      -- cancel booking
+POST /api/connect/calls/create-room         -- generate session room token
+POST /api/connect/reviews                   -- submit post-session review</pre>
+
+    <h2>Consultant-facing Endpoints (requires consultant auth)</h2>
+    <pre>POST  /api/connect/consultant/register       -- submit registration
+PATCH /api/connect/consultant/profile        -- update profile
+GET   /api/connect/consultant/bookings       -- upcoming bookings
+PATCH /api/connect/consultant/bookings/:id   -- accept/decline instant request
+GET   /api/connect/consultant/availability   -- get weekly schedule
+PUT   /api/connect/consultant/availability   -- update schedule
+GET   /api/connect/consultant/earnings       -- earnings summary + breakdown
+POST  /api/connect/consultant/payout         -- request withdrawal
+PATCH /api/connect/consultant/status         -- toggle online/offline</pre>
+
+    <h2>Admin Endpoints (extends existing /api/admin/ auth)</h2>
+    <pre>GET   /api/admin/connect/pending-verifications  -- reviewer queue
+PATCH /api/admin/connect/verify/:id             -- approve/reject/info-request
+GET   /api/admin/connect/analytics              -- GMV, sessions, revenue
+GET   /api/admin/connect/consultants            -- all consultants list
+PATCH /api/admin/connect/consultants/:id        -- suspend/feature/edit
+GET   /api/admin/connect/sessions               -- session audit log
+GET   /api/admin/connect/payouts                -- pending payout list
+POST  /api/admin/connect/payouts/:id/process    -- mark payout done</pre>
+  </div>
+
+  <!-- 8. MOBILE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">8</div>
+      <div class="section-title">Mobile App Additions</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Screen</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>ConnectTab</code></td><td>New bottom-nav "Connect" tab — entry point to all consultancy features</td></tr>
+          <tr><td><code>BrowseConsultants</code></td><td>Category grid → filtered list → profile card</td></tr>
+          <tr><td><code>ConsultantProfile</code></td><td>Full profile, reviews, availability calendar, book/connect buttons</td></tr>
+          <tr><td><code>BookingFlow</code></td><td>Slot picker → pre-session questions → payment → confirmation</td></tr>
+          <tr><td><code>LiveSessionScreen</code></td><td>Full-screen call UI: audio/video controls, timer, chat sidebar, emergency button</td></tr>
+          <tr><td><code>SessionHistory</code></td><td>Past Connect sessions integrated into Imotara main history view</td></tr>
+          <tr><td><code>ConsultantDashboard</code></td><td>For users who are also registered consultants — earnings, bookings, status</td></tr>
+          <tr><td><code>ConsultantOnboarding</code></td><td>Multi-step registration flow with ID document upload</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 9. SAFETY -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">9</div>
+      <div class="section-title">Safety, Compliance &amp; Trust</div>
+    </div>
+
+    <h2>9.1 Non-Clinical Disclaimer</h2>
+    <div class="highlight-box highlight-amber">
+      <p>Shown prominently on every consultant profile and booking confirmation: <em>"Imotara Connect provides peer support and wellness companionship. Consultants are not licensed therapists or medical professionals. If you are in crisis, please contact a mental health helpline."</em></p>
+    </div>
+
+    <h2>9.2 Emergency Protocol</h2>
+    <p>Single-tap "I need urgent help" button during any session. Immediately surfaces country-detected crisis lines:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Country</th><th>Organisation</th><th>Number</th></tr></thead>
+        <tbody>
+          <tr><td>India</td><td>iCall / Vandrevala / Snehi</td><td>9152987821 / 1860-2662-345 / 044-24640050</td></tr>
+          <tr><td>USA</td><td>988 Suicide &amp; Crisis Lifeline</td><td>988</td></tr>
+          <tr><td>UK</td><td>Samaritans</td><td>116 123</td></tr>
+          <tr><td>International</td><td>Findahelpline.com</td><td>Directory link</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>9.3 Code of Conduct</h2>
+    <p>Consultants agree at registration to strict prohibitions: no romantic or sexual overtures, no clinical or medical advice, no financial solicitation. Violations follow a <strong>three-strike policy</strong>: warning → 30-day suspension → permanent ban.</p>
+
+    <h2>9.4 Trust &amp; Safety Metrics (Auto-monitored by Admin)</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Signal</th><th>Threshold</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>Low rating</td><td>Below 3.5 stars on 10+ sessions</td><td>Auto-flag for admin review</td></tr>
+          <tr><td>Session abandonment</td><td>Consultant abandonment rate &gt; 20%</td><td>Flag for investigation</td></tr>
+          <tr><td>User reports</td><td>3+ reports within 30 days</td><td>Temporary suspension pending review</td></tr>
+          <tr><td>Emergency signal</td><td>Any trigger</td><td>Session logged; admin notified same day</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>9.5 Privacy &amp; Data Protection</h2>
+    <p>GDPR and DPDPA (India Digital Personal Data Protection Act) compliant. Session content not stored by default. ID documents stored in encrypted private Supabase bucket (AES-256), accessible only to verified admin reviewers via short-lived signed URLs. Retention: 7 years post-deletion for legal compliance.</p>
+  </div>
+
+  <!-- 10. MULTILINGUAL -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">10</div>
+      <div class="section-title">Multilingual Support</div>
+    </div>
+    <p>All user-facing text is served through Imotara's existing i18n infrastructure. New additions required:</p>
+    <ul style="list-style:none;padding:0;">
+      <li style="padding:6px 0 6px 16px;position:relative;color:var(--muted);font-size:13px;"><span style="position:absolute;left:0;color:#6366f1;">→</span> Consultant bio: AI-assisted translation at registration time, stored as <code>jsonb {lang: "text"}</code></li>
+      <li style="padding:6px 0 6px 16px;position:relative;color:var(--muted);font-size:13px;"><span style="position:absolute;left:0;color:#6366f1;">→</span> Booking confirmation emails in user's configured app language</li>
+      <li style="padding:6px 0 6px 16px;position:relative;color:var(--muted);font-size:13px;"><span style="position:absolute;left:0;color:#6366f1;">→</span> All 12 category names and descriptions translated across all supported languages</li>
+      <li style="padding:6px 0 6px 16px;position:relative;color:var(--muted);font-size:13px;"><span style="position:absolute;left:0;color:#6366f1;">→</span> "Speaks your language" badge when consultant's language matches user's app language</li>
+      <li style="padding:6px 0 6px 16px;position:relative;color:var(--muted);font-size:13px;"><span style="position:absolute;left:0;color:#6366f1;">→</span> Crisis hotline numbers localised by detected country</li>
+    </ul>
+  </div>
+
+  <!-- 11. ADMIN GAP -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">11</div>
+      <div class="section-title">Admin Panel — Gap Analysis &amp; Required Enhancements</div>
+    </div>
+
+    <h2>11.1 What the Current Admin Panel Covers</h2>
+    <p>The existing <code>/admin</code> panel handles: super-admin login (email/password + legacy secret key), user license management (tier, status, expiry, token balance), organization management (create, edit, member management, license pools), blog comment moderation, and admin action audit trail.</p>
+
+    <div class="gap-summary">
+      <p><strong>Verdict: The current admin panel covers 0% of Imotara Connect requirements.</strong> It must be extended with 5 new tabs and the existing Moderation tab extended. The existing auth system, UI patterns (dark glass cards, table layout, action badges), and API conventions (Bearer token, PATCH with audit trail) are <strong>fully reusable</strong> — this is additive development, not a rebuild.</p>
+    </div>
+
+    <h2>11.2 New Admin Tabs Required</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tab</th><th>Key Capabilities</th><th>Current</th><th>Needed</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>A. Verifications</strong></td>
+            <td>Pending application queue, view ID docs (signed URL), approve/reject/info-request, assign reviewer, verification audit trail</td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-green">New tab</span></td>
+          </tr>
+          <tr>
+            <td><strong>B. Consultants</strong></td>
+            <td>List all consultants, edit profile fields, suspend/reinstate, feature/unfeature, view ratings/reviews, view earnings, manual payout override, safety flag</td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-green">New tab</span></td>
+          </tr>
+          <tr>
+            <td><strong>C. Sessions</strong></td>
+            <td>All sessions list (filterable), session metadata, emergency signal log, dispute handling, manual refund issuance</td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-green">New tab</span></td>
+          </tr>
+          <tr>
+            <td><strong>D. Connect Analytics</strong></td>
+            <td>GMV dashboard, Imotara revenue (platform fees), sessions chart, top consultants, category breakdown, cancellation rates</td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-green">New tab</span></td>
+          </tr>
+          <tr>
+            <td><strong>E. Payouts</strong></td>
+            <td>Pending payout requests, mark as processed, payout history, tax withholding records, CSV export</td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td><span class="badge badge-green">New tab</span></td>
+          </tr>
+          <tr>
+            <td><strong>Moderation (existing)</strong></td>
+            <td>Extend blog comment moderation to also cover session review approval and user reports against consultants; three-strike tracking</td>
+            <td><span class="badge badge-amber">Partial</span></td>
+            <td><span class="badge badge-cyan">Extend</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 12. PHASING -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">12</div>
+      <div class="section-title">Implementation Phasing</div>
+    </div>
+
+    <div class="phase-grid">
+      <div class="phase-card">
+        <div class="phase-header">
+          <div class="phase-num" style="background:#6366f1;">1</div>
+          <div class="phase-title">Foundation</div>
+        </div>
+        <div class="phase-duration">6–8 weeks</div>
+        <ul class="phase-items">
+          <li>DB schema (all tables)</li>
+          <li>Consultant registration + ID upload</li>
+          <li>Admin Verification Queue</li>
+          <li>Consultant public profile page</li>
+          <li>Browse &amp; filter consultants</li>
+        </ul>
+      </div>
+      <div class="phase-card">
+        <div class="phase-header">
+          <div class="phase-num" style="background:#0ea5e9;">2</div>
+          <div class="phase-title">Booking &amp; Payments</div>
+        </div>
+        <div class="phase-duration">4–6 weeks</div>
+        <ul class="phase-items">
+          <li>Slot availability engine (tz conversion)</li>
+          <li>Booking flow + Razorpay capture</li>
+          <li>Escrow logic (24h release)</li>
+          <li>Confirmation emails + push</li>
+          <li>Cancellation &amp; refund handling</li>
+        </ul>
+      </div>
+      <div class="phase-card">
+        <div class="phase-header">
+          <div class="phase-num" style="background:#10b981;">3</div>
+          <div class="phase-title">Live Sessions</div>
+        </div>
+        <div class="phase-duration">4–6 weeks</div>
+        <ul class="phase-items">
+          <li>Daily.co / LiveKit integration</li>
+          <li>Call interface (web + mobile)</li>
+          <li>Session timer + extension flow</li>
+          <li>Emergency signal button</li>
+          <li>Post-session review + mood check-in</li>
+        </ul>
+      </div>
+      <div class="phase-card">
+        <div class="phase-header">
+          <div class="phase-num" style="background:#f59e0b;">4</div>
+          <div class="phase-title">Consultant Dashboard</div>
+        </div>
+        <div class="phase-duration">3–4 weeks</div>
+        <ul class="phase-items">
+          <li>Earnings &amp; payout management</li>
+          <li>Availability management UI</li>
+          <li>Profile editor</li>
+          <li>Notification preferences</li>
+          <li>Status toggle (online/busy/offline)</li>
+        </ul>
+      </div>
+      <div class="phase-card">
+        <div class="phase-header">
+          <div class="phase-num" style="background:#8b5cf6;">5</div>
+          <div class="phase-title">Admin Enhancements</div>
+        </div>
+        <div class="phase-duration">3–4 weeks</div>
+        <ul class="phase-items">
+          <li>All 5 new admin tabs</li>
+          <li>Moderation extensions</li>
+          <li>Dispute handling tools</li>
+          <li>Analytics dashboard</li>
+          <li>Payout management</li>
+        </ul>
+      </div>
+      <div class="phase-card">
+        <div class="phase-header">
+          <div class="phase-num" style="background:#ef4444;">6</div>
+          <div class="phase-title">Growth &amp; Optimisation</div>
+        </div>
+        <div class="phase-duration">Ongoing</div>
+        <ul class="phase-items">
+          <li>AI-powered recommendations</li>
+          <li>Subscription bundle integration</li>
+          <li>Featured listing system</li>
+          <li>Multi-language bio AI translation</li>
+          <li>Review fraud detection</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="highlight-box highlight-green" style="margin-top:24px;">
+      <p><strong>Total estimated time to MVP (Phases 1–3, live booking + calls):</strong> approximately 4–5 months with a focused 2-person engineering team.</p>
+    </div>
+  </div>
+
+  <!-- 13. TECH -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">13</div>
+      <div class="section-title">Technology Decisions</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Concern</th><th>Decision</th><th>Rationale</th></tr></thead>
+        <tbody>
+          <tr><td>Call infrastructure</td><td>Daily.co (launch) → LiveKit (scale)</td><td>Daily.co = zero ops to ship fast; LiveKit = cost savings at scale</td></tr>
+          <tr><td>Payments</td><td>Razorpay (India) + Stripe (global)</td><td>Existing Razorpay integration already in codebase</td></tr>
+          <tr><td>ID document storage</td><td>Supabase Storage (private bucket)</td><td>Already in stack; AES-256 at rest; signed URL access</td></tr>
+          <tr><td>Real-time presence (online indicator)</td><td>Supabase Realtime</td><td>Already in stack; PostgreSQL LISTEN/NOTIFY</td></tr>
+          <tr><td>Notifications</td><td>Existing SMTP + Expo Push</td><td>Both already operational; no new dependencies</td></tr>
+          <tr><td>Analytics</td><td>Supabase + custom SQL aggregation</td><td>No new tools needed</td></tr>
+          <tr><td>Scheduling / time zone</td><td>PostgreSQL time zone functions</td><td>Native, no external dependency</td></tr>
+          <tr><td>Bio translation</td><td>Existing i18n + AI-assisted at submission</td><td>Reuse existing translation infrastructure</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 14. RISKS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">14</div>
+      <div class="section-title">Risks &amp; Mitigations</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          <tr><td>Consultant quality issues</td><td><span class="badge badge-red">High</span></td><td>Rigorous verification + ratings system + three-strike policy</td></tr>
+          <tr><td>Boundary violations (romantic/sexual overtures)</td><td><span class="badge badge-red">High</span></td><td>Strict CoC at signup, in-session report button, session flagging on reports</td></tr>
+          <tr><td>Child safety</td><td><span class="badge badge-red">High</span></td><td>Age gate in account settings, parental consent toggle for users under 18</td></tr>
+          <tr><td>Clinical boundary (regulatory)</td><td><span class="badge badge-red">High</span></td><td>Non-clinical disclaimer everywhere; no mental health condition targeting in marketing</td></tr>
+          <tr><td>Consultant no-shows</td><td><span class="badge badge-amber">Medium</span></td><td>Auto-refund policy; strike for no-shows; response rate publicly visible</td></tr>
+          <tr><td>WebRTC call quality</td><td><span class="badge badge-amber">Medium</span></td><td>Network quality indicator; LiveKit fallback; escalation path to PSTN if needed</td></tr>
+          <tr><td>Consultant ID document breach</td><td><span class="badge badge-amber">Medium</span></td><td>Encrypted private bucket; short-lived signed URLs; minimal access (reviewer only)</td></tr>
+          <tr><td>Payment fraud</td><td><span class="badge badge-amber">Medium</span></td><td>Razorpay fraud detection built-in; manual admin review flagged above ₹10,000</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Document prepared for internal Imotara planning · Version 1.0 · June 2026<br>
+    Not for external distribution · Confidential
+  </div>
+</div>
+
+</body>
+</html>

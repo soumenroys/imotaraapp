@@ -1,0 +1,134 @@
+// POST /api/connect/wallet/recharge/create
+// Auth required. Creates a Razorpay order for recharging the Connect wallet.
+// Body: { consultant_id, minutes, currency_code? }
+// Returns: { razorpay_order_id, amount_paise, amount, currency, minutes, breakdown }
+
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { getConnectUser } from "@/lib/connect/auth";
+
+const RAZORPAY_KEY_ID     = process.env.RAZORPAY_KEY_ID     ?? "";
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET ?? "";
+
+// Hardcoded fallback exchange rates to INR (updated daily via cron)
+const FALLBACK_RATES: Record<string, number> = {
+  INR: 1, USD: 83.5, EUR: 90.2, GBP: 105.8, AED: 22.7, SGD: 61.9, AUD: 54.3,
+};
+
+async function getExchangeRates(supabase: ReturnType<typeof getSupabaseAdmin>): Promise<Record<string, number>> {
+  try {
+    const { data } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "exchange_rates")
+      .single();
+    if (data?.value) return data.value as Record<string, number>;
+  } catch {
+    // fall through to defaults
+  }
+  return FALLBACK_RATES;
+}
+
+export async function POST(req: NextRequest) {
+  const user = await getConnectUser(req);
+  if (!user) {
+    return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
+  }
+
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ ok: false, error: "Invalid body" }, { status: 400 });
+
+  const { consultant_id, minutes } = body;
+
+  if (!consultant_id) {
+    return NextResponse.json({ ok: false, error: "consultant_id required" }, { status: 400 });
+  }
+  if (!Number.isFinite(Number(minutes)) || Number(minutes) < 1) {
+    return NextResponse.json({ ok: false, error: "minutes must be a positive number" }, { status: 400 });
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  const { data: consultant } = await supabase
+    .from("connect_consultants")
+    .select("id, rate_per_min, currency_code, display_name")
+    .eq("id", consultant_id)
+    .eq("status", "approved")
+    .single();
+
+  if (!consultant) {
+    return NextResponse.json({ ok: false, error: "Consultant not found" }, { status: 404 });
+  }
+
+  const rates = await getExchangeRates(supabase);
+  const ratePerMin   = Number(consultant.rate_per_min);
+  const currency     = consultant.currency_code;
+
+  // Total amount user pays (consultant currency)
+  const totalAmount  = ratePerMin * Number(minutes);
+  // 20% platform fee, 80% consultant credit
+  const platformFee       = totalAmount * 0.20;
+  const consultantCredit  = totalAmount * 0.80;
+
+  // Convert to INR for Razorpay (which only accepts INR for domestic)
+  const rateToINR    = rates[currency] ?? 1;
+  const amountINR    = totalAmount * rateToINR;
+  const amountPaise  = Math.round(amountINR * 100); // Razorpay uses paise
+
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    return NextResponse.json({ ok: false, error: "Payment gateway not configured" }, { status: 503 });
+  }
+
+  const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString("base64");
+  const receipt = `connect_${user.id.slice(0, 8)}_${Date.now()}`;
+
+  const orderRes = await fetch("https://api.razorpay.com/v1/orders", {
+    method: "POST",
+    headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amount:   amountPaise,
+      currency: "INR",
+      receipt,
+      notes:    { consultant_id, user_id: user.id, minutes: String(minutes) },
+    }),
+  });
+
+  if (!orderRes.ok) {
+    const txt = await orderRes.text();
+    return NextResponse.json({ ok: false, error: `Payment gateway error: ${txt}` }, { status: 502 });
+  }
+
+  const order = await orderRes.json();
+
+  // Persist pending recharge
+  await supabase.from("connect_recharges").insert({
+    user_id:             user.id,
+    consultant_id,
+    razorpay_order_id:   order.id,
+    amount:              totalAmount,
+    currency_code:       currency,
+    minutes_credited:    Number(minutes),
+    platform_fee:        platformFee,
+    consultant_credit:   consultantCredit,
+    status:              "pending",
+  });
+
+  return NextResponse.json({
+    ok: true,
+    razorpay_order_id:   order.id,
+    razorpay_key_id:     RAZORPAY_KEY_ID,
+    amount_paise:        amountPaise,
+    amount:              totalAmount,
+    currency:            currency,
+    minutes:             Number(minutes),
+    breakdown: {
+      consultant_name:  consultant.display_name,
+      rate_per_min:     ratePerMin,
+      currency,
+      minutes:          Number(minutes),
+      consultant_fee:   totalAmount,
+      platform_fee:     platformFee,
+      total:            totalAmount,
+    },
+  });
+}

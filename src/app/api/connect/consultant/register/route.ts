@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     display_name, gender, contact_email, contact_phone, website_url, social_links,
     photo_url, bio, expertise_tags, languages,
     rate_per_min, currency_code, availability_note, availability_windows,
-    verification_docs, payout_info, coc_agreed,
+    verification_docs, payout_info, coc_agreed, digital_signature,
   } = body;
 
   if (!display_name?.trim()) {
@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
       verification_docs:    verification_docs ?? null,
       payout_info:          payout_info ?? null,
       coc_agreed:           true,
+      digital_signature:    digital_signature?.trim() ?? null,
       status:               "pending",
     })
     .select("id, status")

@@ -1,5 +1,5 @@
 // src/app/connect/register/page.tsx
-// 4-step consultant registration form.
+// 5-step consultant registration form.
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -132,11 +132,22 @@ type DocEntry    = { path: string; name: string; public_url?: string; same_as_pr
 type DocMap      = Record<string, DocEntry>;
 type PayoutMethod = "upi" | "paypal" | "bank_in" | "bank_int";
 
+// ─── ReviewRow helper ────────────────────────────────────────────────────────
+
+function ReviewRow({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="shrink-0 text-[11px] text-zinc-500">{label}</span>
+      <span className={`text-right text-xs break-all ${ok === false ? "text-rose-400" : "text-zinc-300"}`}>{value || "—"}</span>
+    </div>
+  );
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function RegisterConsultantPage() {
   const router = useRouter();
-  const TOTAL_STEPS = 4;
+  const TOTAL_STEPS = 5;
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
@@ -199,6 +210,10 @@ export default function RegisterConsultantPage() {
   const [agreeDisclaimer, setAgreeDisclaimer] = useState(false);
   const [agreePeer, setAgreePeer]           = useState(false);
   const [agreeTax, setAgreeTax]             = useState(false);
+
+  // Step 5 — Review & Sign
+  const [agreeInfoTrue, setAgreeInfoTrue]   = useState(false);
+  const [digitalSignature, setDigitalSignature] = useState("");
 
   // ── Photo helpers ──────────────────────────────────────────────────────────
   function convertDriveUrl(raw: string): string {
@@ -303,6 +318,10 @@ export default function RegisterConsultantPage() {
       if (!agreePeer)      return "You must acknowledge the peer-support nature of this platform.";
       if (!agreeTax)       return "You must accept responsibility for tax obligations.";
     }
+    if (s === 5) {
+      if (!agreeInfoTrue)  return "You must confirm that all submitted information is true.";
+      if (!digitalSignature.trim()) return "Please type your full name as a digital signature.";
+    }
     return "";
   }
 
@@ -313,7 +332,7 @@ export default function RegisterConsultantPage() {
   }
 
   async function submit() {
-    const err = validateStep(4);
+    const err = validateStep(5);
     if (err) { setError(err); return; }
     setLoading(true); setError("");
 
@@ -350,6 +369,7 @@ export default function RegisterConsultantPage() {
           verification_docs:   docs,
           payout_info:         payoutInfo,
           coc_agreed:          true,
+          digital_signature:   digitalSignature.trim(),
         }),
         credentials: "include",
       });
@@ -961,6 +981,129 @@ export default function RegisterConsultantPage() {
                   <span className="text-xs text-zinc-300 leading-relaxed">{item.text}</span>
                 </label>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════
+            STEP 5 — Review & Sign
+        ══════════════════════════════════════════════════════════════ */}
+        {step === 5 && (
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-base font-semibold text-zinc-100">Review & Sign</h2>
+              <p className="mt-1 text-xs text-zinc-500">Please verify all details before submitting. Once signed, your application is binding.</p>
+            </div>
+
+            {/* ── Personal Info ── */}
+            <div className="rounded-xl border border-white/10 bg-white/3 p-4 space-y-3">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Personal Information</p>
+              <div className="flex items-center gap-3">
+                {photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoUrl} alt="Profile" className="h-12 w-12 rounded-full object-cover border border-white/15" />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-lg">👤</div>
+                )}
+                <div>
+                  <p className="font-medium text-zinc-100">{displayName}</p>
+                  <p className="text-xs text-zinc-500 capitalize">{gender}</p>
+                </div>
+              </div>
+              <ReviewRow label="Contact Email" value={contactEmail} />
+              <ReviewRow label="Contact Phone" value={`${countryCode} ${contactPhone}`} />
+              {websiteUrl && <ReviewRow label="Website" value={websiteUrl} />}
+              {socialLinks.filter(Boolean).length > 0 && (
+                <ReviewRow label="Social Links" value={socialLinks.filter(Boolean).join(", ")} />
+              )}
+              <ReviewRow label="Expertise" value={expertiseTags.join(", ") || "—"} />
+              <ReviewRow label="Languages" value={languages.map(c => LANGUAGE_OPTIONS.find(l => l.code === c)?.label ?? c).join(", ") || "—"} />
+            </div>
+
+            {/* ── Profile & Rate ── */}
+            <div className="rounded-xl border border-white/10 bg-white/3 p-4 space-y-3">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Profile & Rate</p>
+              <p className="text-xs text-zinc-300 leading-relaxed">{bio}</p>
+              <ReviewRow label="Rate" value={`${CURRENCIES.find(c => c.code === currency)?.label.split(" ")[0]}${Number(ratePerMin).toFixed(2)} / min (${currency})`} />
+              {availWindows.length > 0 && (
+                <div>
+                  <p className="mb-1 text-[11px] text-zinc-500">Availability</p>
+                  <div className="space-y-1">
+                    {availWindows.map((w, i) => (
+                      <p key={i} className="text-xs text-zinc-400">{windowLabel(w)}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Documents & Payout ── */}
+            <div className="rounded-xl border border-white/10 bg-white/3 p-4 space-y-3">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Documents & Payout</p>
+              {DOC_FIELDS.map(f => {
+                const doc = docs[f.key];
+                return (
+                  <ReviewRow key={f.key}
+                    label={f.label.replace(" *","")}
+                    value={doc ? (doc.same_as_profile ? "Same as profile photo" : doc.name) : "—"}
+                    ok={!!doc}
+                  />
+                );
+              })}
+              <ReviewRow label="Payout Method" value={
+                payoutMethod === "upi"      ? `UPI — ${upiId}` :
+                payoutMethod === "paypal"   ? `PayPal — ${paypalEmail}` :
+                payoutMethod === "bank_in"  ? `Bank (India) — ${bankName}` :
+                                             `International Wire — ${bankName}`
+              } />
+            </div>
+
+            {/* ── Legal ── */}
+            <div className="rounded-xl border border-white/10 bg-white/3 p-4 space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Legal Agreements</p>
+              {[
+                { ok: agreeAdult,      label: "18+ age confirmation" },
+                { ok: agreeCoc,        label: "Code of Conduct agreed" },
+                { ok: agreeDisclaimer, label: "Platform Disclaimer accepted" },
+                { ok: agreePeer,       label: "Peer-support nature acknowledged" },
+                { ok: agreeTax,        label: "Tax responsibility accepted" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className={item.ok ? "text-emerald-400" : "text-rose-400"}>{item.ok ? "✓" : "✗"}</span>
+                  <span className="text-xs text-zinc-400">{item.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Attestation & Digital Signature ── */}
+            <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-5 space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-violet-300">Declaration & Digital Signature</p>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3.5 transition hover:bg-white/8">
+                <input type="checkbox" checked={agreeInfoTrue} onChange={e => setAgreeInfoTrue(e.target.checked)}
+                  className="mt-0.5 shrink-0 accent-violet-500" />
+                <span className="text-xs text-zinc-200 leading-relaxed">
+                  I solemnly declare that all information I have submitted in this application — including my personal details, credentials, documents, and availability — is <strong>true, accurate, and complete</strong> to the best of my knowledge and belief. I am submitting this application consciously, voluntarily, and with full awareness of its legal implications. I understand that any false or misleading information may result in immediate termination of my account and may expose me to legal liability.
+                </span>
+              </label>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-400">
+                  Digital Signature — Type your full legal name *
+                </label>
+                <input
+                  value={digitalSignature}
+                  onChange={e => setDigitalSignature(e.target.value)}
+                  placeholder="Your full name exactly as on your ID"
+                  className="w-full rounded-xl border border-violet-500/30 bg-violet-500/5 px-4 py-3 text-base italic text-violet-200 placeholder-zinc-600 outline-none focus:border-violet-400"
+                  style={{ fontFamily: "'Georgia', serif" }}
+                />
+                {digitalSignature.trim() && (
+                  <p className="mt-1.5 text-[11px] text-zinc-500">
+                    Signed as: <span className="italic text-violet-300">{digitalSignature.trim()}</span> · {new Date().toLocaleDateString("en-GB", { day:"numeric", month:"long", year:"numeric" })}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         )}

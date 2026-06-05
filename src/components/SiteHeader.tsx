@@ -16,16 +16,26 @@ const PRIMARY_LINKS = [
 ];
 
 // Overflow nav — behind "···" on desktop / included in mobile drawer
-const MORE_LINKS = [
-  { href: "/connect/register", label: "🤝 Join as Counsellor" },
-  { href: "/settings", label: "Settings" },
-  { href: "/tutorial", label: "Tutorial" },
-  { href: "/blog", label: "Blog" },
-  { href: "/about", label: "About" },
-  { href: "/careers", label: "Careers" },
-  { href: "/privacy", label: "Privacy" },
-  { href: "/terms", label: "Terms" },
-  { href: "/admin", label: "🔒 Admin" },
+type MoreItem =
+  | { kind?: "link";  href: string; label: string; children?: never }
+  | { kind:  "group"; href?: never; label: string; children: { href: string; label: string }[] };
+
+const MORE_LINKS: MoreItem[] = [
+  {
+    kind: "group",
+    label: "🌿 Join Imotara Movement",
+    children: [
+      { href: "/connect/register", label: "🤝 As Wellness Companion" },
+    ],
+  },
+  { href: "/settings",  label: "Settings"  },
+  { href: "/tutorial",  label: "Tutorial"  },
+  { href: "/blog",      label: "Blog"      },
+  { href: "/about",     label: "About"     },
+  { href: "/careers",   label: "Careers"   },
+  { href: "/privacy",   label: "Privacy"   },
+  { href: "/terms",     label: "Terms"     },
+  { href: "/admin",     label: "🔒 Admin"  },
 ];
 
 const NAV_CLASS =
@@ -93,7 +103,11 @@ export default function SiteHeader() {
     setMobileOpen(false);
   }, [pathname]);
 
-  const isMoreActive = mounted && MORE_LINKS.some((l) => pathname.startsWith(l.href));
+  const isMoreActive = mounted && MORE_LINKS.some((item) =>
+    item.kind === "group"
+      ? item.children.some((c) => pathname.startsWith(c.href))
+      : pathname.startsWith(item.href)
+  );
 
   return (
     <>
@@ -166,20 +180,38 @@ export default function SiteHeader() {
               </button>
 
               {moreOpen && (
-                <div className="absolute right-0 top-full mt-1.5 min-w-[120px] rounded-2xl border border-white/15 bg-white/80 py-1.5 shadow-lg backdrop-blur-xl dark:border-zinc-700/60 dark:bg-zinc-900/90">
-                  {MORE_LINKS.map((l) => {
-                    const active = pathname.startsWith(l.href);
+                <div className="absolute right-0 top-full mt-1.5 min-w-[160px] rounded-2xl border border-white/15 bg-white/80 py-1.5 shadow-lg backdrop-blur-xl dark:border-zinc-700/60 dark:bg-zinc-900/90">
+                  {MORE_LINKS.map((item, idx) => {
+                    if (item.kind === "group") {
+                      return (
+                        <div key={idx}>
+                          <p className="px-4 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                            {item.label}
+                          </p>
+                          {item.children.map((child) => {
+                            const active = pathname.startsWith(child.href);
+                            return (
+                              <Link key={child.href} href={child.href}
+                                className={`block pl-7 pr-4 py-1.5 text-xs transition-colors ${
+                                  active ? "font-semibold text-zinc-900 dark:text-zinc-50"
+                                         : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                                }`}>
+                                {child.label}
+                              </Link>
+                            );
+                          })}
+                          <div className="my-1 mx-3 border-t border-white/10 dark:border-zinc-700/40" />
+                        </div>
+                      );
+                    }
+                    const active = pathname.startsWith(item.href);
                     return (
-                      <Link
-                        key={l.href}
-                        href={l.href}
+                      <Link key={item.href} href={item.href}
                         className={`block px-4 py-2 text-xs transition-colors ${
-                          active
-                            ? "font-semibold text-zinc-900 dark:text-zinc-50"
-                            : "text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
-                        }`}
-                      >
-                        {l.label}
+                          active ? "font-semibold text-zinc-900 dark:text-zinc-50"
+                                 : "text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
+                        }`}>
+                        {item.label}
                       </Link>
                     );
                   })}
@@ -220,22 +252,52 @@ export default function SiteHeader() {
         {/* Mobile drawer — controlled by mobileOpen, independent of desktop state */}
         {mobileOpen && (
           <div className="border-t border-white/10 bg-white/90 px-4 py-3 backdrop-blur-xl dark:bg-zinc-900/95 sm:hidden">
-            <nav className="flex flex-col gap-1" aria-label="Mobile navigation">
-              {[...PRIMARY_LINKS, ...MORE_LINKS].map((l) => {
-                const active =
-                  l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
+            <nav className="flex flex-col gap-0.5" aria-label="Mobile navigation">
+              {/* Primary links */}
+              {PRIMARY_LINKS.map((l) => {
+                const active = l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
                 return (
-                  <Link
-                    key={l.href}
-                    href={l.href}
-                    onClick={() => setMobileOpen(false)}
+                  <Link key={l.href} href={l.href} onClick={() => setMobileOpen(false)}
                     className={`rounded-xl px-3 py-2 text-sm transition-colors ${
-                      active
-                        ? "bg-zinc-900/10 font-semibold text-zinc-900 dark:bg-white/10 dark:text-zinc-50"
-                        : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/5"
-                    }`}
-                  >
+                      active ? "bg-zinc-900/10 font-semibold text-zinc-900 dark:bg-white/10 dark:text-zinc-50"
+                             : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/5"
+                    }`}>
                     {l.label}
+                  </Link>
+                );
+              })}
+              <div className="my-1 border-t border-white/10 dark:border-zinc-700/40" />
+              {/* Overflow links + groups */}
+              {MORE_LINKS.map((item, idx) => {
+                if (item.kind === "group") {
+                  return (
+                    <div key={idx}>
+                      <p className="px-3 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                        {item.label}
+                      </p>
+                      {item.children.map((child) => {
+                        const active = pathname.startsWith(child.href);
+                        return (
+                          <Link key={child.href} href={child.href} onClick={() => setMobileOpen(false)}
+                            className={`rounded-xl py-2 pl-7 pr-3 text-sm transition-colors ${
+                              active ? "bg-zinc-900/10 font-semibold text-zinc-900 dark:bg-white/10 dark:text-zinc-50"
+                                     : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/5"
+                            }`}>
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+                const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                return (
+                  <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                    className={`rounded-xl px-3 py-2 text-sm transition-colors ${
+                      active ? "bg-zinc-900/10 font-semibold text-zinc-900 dark:bg-white/10 dark:text-zinc-50"
+                             : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/5"
+                    }`}>
+                    {item.label}
                   </Link>
                 );
               })}

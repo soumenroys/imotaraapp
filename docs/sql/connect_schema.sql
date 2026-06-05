@@ -242,8 +242,14 @@ END;
 $$;
 
 
--- ── app_settings row for exchange rates (if table exists) ────────────────────
--- Upsert a placeholder; the /api/cron/exchange-rates route will fill in real values.
+-- ── app_settings table + exchange rates seed ─────────────────────────────────
+CREATE TABLE IF NOT EXISTS app_settings (
+  key        text PRIMARY KEY,
+  value      jsonb NOT NULL DEFAULT '{}',
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Seed placeholder; /api/cron/exchange-rates updates this daily.
 INSERT INTO app_settings (key, value)
 VALUES ('exchange_rates', '{
   "USD": 83.5,

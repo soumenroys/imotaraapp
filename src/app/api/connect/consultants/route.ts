@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
     .from("connect_consultants")
     .select(
       "id, display_name, gender, photo_url, bio, expertise_tags, languages, " +
-      "rate_per_min, currency_code, rate_per_min_inr, availability_note, " +
-      "is_online, rating_avg, rating_count, sessions_completed"
+      "rate_per_min, currency_code, rate_per_min_inr, availability_note, availability_windows, " +
+      "is_online, is_busy, rating_avg, rating_count, sessions_completed"
     )
     .eq("status", "approved")
     .order("is_online", { ascending: false })

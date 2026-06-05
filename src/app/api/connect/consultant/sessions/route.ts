@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase
     .from("connect_sessions")
     .select(
-      "id, user_id, type, status, scheduled_note, started_at, ended_at, " +
+      "id, user_id, type, status, scheduled_note, scheduled_at, started_at, ended_at, " +
       "minutes_used, rating, review_text, created_at"
     )
     .eq("consultant_id", consultant.id)
@@ -64,5 +64,34 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, sessions: data ?? [], consultant_id: consultant.id });
+  type SessionRow = {
+    id: string; user_id: string; type: string; status: string;
+    scheduled_note: string | null; scheduled_at: string | null;
+    started_at: string | null; ended_at: string | null;
+    minutes_used: number; rating: number | null;
+    review_text: string | null; created_at: string;
+  };
+
+  // Enrich pending/active sessions with minimal user profile for preview card
+  const sessions = (data ?? []) as unknown as SessionRow[];
+  const previewUserIds = sessions
+    .filter((s) => s.status === "pending" || s.status === "active")
+    .map((s) => s.user_id);
+
+  const userPreviewMap: Record<string, { email: string }> = {};
+  if (previewUserIds.length > 0) {
+    for (const uid of previewUserIds) {
+      try {
+        const { data: u } = await supabase.auth.admin.getUserById(uid);
+        if (u?.user?.email) userPreviewMap[uid] = { email: u.user.email };
+      } catch { /* non-critical */ }
+    }
+  }
+
+  const enriched = sessions.map((s) => ({
+    ...s,
+    user_preview: userPreviewMap[s.user_id] ?? null,
+  }));
+
+  return NextResponse.json({ ok: true, sessions: enriched, consultant_id: consultant.id });
 }

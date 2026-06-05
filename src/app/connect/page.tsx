@@ -9,7 +9,8 @@ import { createBrowserClient } from "@supabase/ssr";
 import {
   Users, MessageCircle, Wallet, LayoutDashboard,
   Loader2, RefreshCw, Star, Clock, ChevronRight, AlertCircle,
-  Bell, History, TrendingUp, Plus, Minus,
+  Bell, History, TrendingUp, Plus, Minus, Heart, Calendar,
+  FileText, Ban, ChevronDown, ChevronUp, Shield,
 } from "lucide-react";
 import ConsultantCard from "@/components/connect/ConsultantCard";
 import { getImotaraProfile } from "@/lib/imotara/profile";
@@ -25,6 +26,12 @@ const supabaseBrowser = createBrowserClient(
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface AvailabilityWindow {
+  day: string;
+  start: string;
+  end: string;
+}
+
 interface Consultant {
   id: string;
   display_name: string;
@@ -35,7 +42,10 @@ interface Consultant {
   languages: string[];
   rate_per_min: number;
   currency_code: string;
+  availability_note: string | null;
+  availability_windows: AvailabilityWindow[] | null;
   is_online: boolean;
+  is_busy: boolean;
   rating_avg: number;
   rating_count: number;
   sessions_completed: number;
@@ -47,12 +57,18 @@ interface Session {
   type: string;
   status: string;
   scheduled_note: string | null;
+  scheduled_at: string | null;
   started_at: string | null;
   ended_at: string | null;
   minutes_used: number;
+  amount_charged: number | null;
+  currency_code: string | null;
+  rate_per_min: number | null;
   rating: number | null;
+  review_text: string | null;
+  review_submitted_at: string | null;
   created_at: string;
-  connect_consultants: { display_name: string; photo_url: string | null; gender: string | null } | null;
+  connect_consultants: { display_name: string; photo_url: string | null; gender: string | null; rate_per_min?: number } | null;
 }
 
 interface WalletEntry {
@@ -82,23 +98,41 @@ interface Transaction {
   created_at: string;
 }
 
+interface ConsultantSession {
+  id: string;
+  user_id: string;
+  type: string;
+  status: string;
+  scheduled_note: string | null;
+  scheduled_at: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  minutes_used: number;
+  rating: number | null;
+  review_text: string | null;
+  created_at: string;
+  user_preview: { email: string } | null;
+}
+
 const CURRENCY_SYMBOLS: Record<string, string> = {
   INR: "₹", USD: "$", EUR: "€", GBP: "£", AED: "د.إ", SGD: "S$", AUD: "A$",
 };
 
 const STATUS_BADGES: Record<string, { label: string; cls: string }> = {
-  pending:   { label: "Pending",   cls: "bg-amber-500/20 text-amber-300"   },
-  accepted:  { label: "Accepted",  cls: "bg-blue-500/20 text-blue-300"     },
+  pending:   { label: "Pending",   cls: "bg-amber-500/20 text-amber-300"     },
+  accepted:  { label: "Accepted",  cls: "bg-blue-500/20 text-blue-300"       },
   active:    { label: "Active",    cls: "bg-emerald-500/20 text-emerald-300" },
-  completed: { label: "Completed", cls: "bg-zinc-600/40 text-zinc-400"     },
-  declined:  { label: "Declined",  cls: "bg-rose-500/20 text-rose-300"     },
-  cancelled: { label: "Cancelled", cls: "bg-zinc-700/40 text-zinc-500"     },
+  completed: { label: "Completed", cls: "bg-zinc-600/40 text-zinc-400"       },
+  declined:  { label: "Declined",  cls: "bg-rose-500/20 text-rose-300"       },
+  cancelled: { label: "Cancelled", cls: "bg-zinc-700/40 text-zinc-500"       },
 };
 
 const EXPERTISE_TAGS = [
   "Anxiety", "Depression", "Stress", "Relationships", "Grief", "Trauma",
   "Career", "Self-esteem", "Parenting", "Life transitions", "Mindfulness", "Sleep",
 ];
+
+const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 // ── Browse Tab ────────────────────────────────────────────────────────────────
 
@@ -108,6 +142,8 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState({ gender: "", online: false, tag: "" });
   const [sort, setSort] = useState<"rating" | "price_asc" | "price_desc" | "sessions">("rating");
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [favLoading, setFavLoading] = useState<string | null>(null);
 
   const fetchConsultants = useCallback(async () => {
     setLoading(true);
@@ -115,9 +151,14 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
     if (filter.gender) params.set("gender", filter.gender);
     if (filter.online) params.set("online", "true");
     try {
-      const res = await fetch(`/api/connect/consultants?${params}`);
-      const data = await res.json();
-      if (data.ok) setConsultants(data.consultants);
+      const [cRes, fRes] = await Promise.all([
+        fetch(`/api/connect/consultants?${params}`),
+        fetch("/api/connect/favorites", { credentials: "include" }),
+      ]);
+      const cData = await cRes.json();
+      const fData = await fRes.json();
+      if (cData.ok) setConsultants(cData.consultants);
+      if (fData.ok) setFavorites(new Set(fData.favorites ?? []));
     } catch {
       // silent
     } finally {
@@ -126,6 +167,26 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   }, [filter.gender, filter.online]);
 
   useEffect(() => { fetchConsultants(); }, [fetchConsultants]);
+
+  async function toggleFavorite(consultantId: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    const isFav = favorites.has(consultantId);
+    setFavLoading(consultantId);
+    try {
+      await fetch("/api/connect/favorites", {
+        method: isFav ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consultant_id: consultantId }),
+        credentials: "include",
+      });
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        if (isFav) next.delete(consultantId); else next.add(consultantId);
+        return next;
+      });
+    } catch { /* silent */ }
+    finally { setFavLoading(null); }
+  }
 
   function handleTalkNow(consultantId: string) {
     router.push(`/connect/session/new?consultant_id=${consultantId}&type=instant`);
@@ -137,10 +198,10 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const displayed = consultants
     .filter((c) => !filter.tag || c.expertise_tags.includes(filter.tag))
     .sort((a, b) => {
-      if (sort === "rating")      return (b.rating_avg || 0) - (a.rating_avg || 0);
-      if (sort === "price_asc")   return a.rate_per_min - b.rate_per_min;
-      if (sort === "price_desc")  return b.rate_per_min - a.rate_per_min;
-      if (sort === "sessions")    return b.sessions_completed - a.sessions_completed;
+      if (sort === "rating")     return (b.rating_avg || 0) - (a.rating_avg || 0);
+      if (sort === "price_asc")  return a.rate_per_min - b.rate_per_min;
+      if (sort === "price_desc") return b.rate_per_min - a.rate_per_min;
+      if (sort === "sessions")   return b.sessions_completed - a.sessions_completed;
       return 0;
     });
 
@@ -215,13 +276,32 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {displayed.map((c) => (
-            <ConsultantCard
-              key={c.id}
-              consultant={c}
-              razorpayKeyId={razorpayKeyId}
-              onTalkNow={handleTalkNow}
-              onRequestMeeting={handleRequestMeeting}
-            />
+            <div key={c.id} className="relative">
+              {/* In-session badge */}
+              {c.is_busy && (
+                <div className="absolute right-10 top-3 z-10 rounded-full bg-orange-500/20 px-2 py-0.5 text-[10px] font-semibold text-orange-400">
+                  In Session
+                </div>
+              )}
+              {/* Favorite button */}
+              <button
+                onClick={(e) => toggleFavorite(c.id, e)}
+                disabled={favLoading === c.id}
+                className="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-zinc-400 transition hover:text-rose-400"
+                title={favorites.has(c.id) ? "Remove from favorites" : "Save to favorites"}
+              >
+                {favLoading === c.id
+                  ? <Loader2 size={12} className="animate-spin" />
+                  : <Heart size={13} className={favorites.has(c.id) ? "fill-rose-400 text-rose-400" : ""} />
+                }
+              </button>
+              <ConsultantCard
+                consultant={c}
+                razorpayKeyId={razorpayKeyId}
+                onTalkNow={handleTalkNow}
+                onRequestMeeting={handleRequestMeeting}
+              />
+            </div>
           ))}
         </div>
       )}
@@ -246,6 +326,7 @@ function SessionsTab() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [summaryId, setSummaryId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/connect/sessions", { credentials: "include" })
@@ -271,6 +352,37 @@ function SessionsTab() {
     finally { setCancelling(null); }
   }
 
+  function buildSummary(s: Session) {
+    const companion = s.connect_consultants?.display_name ?? "Companion";
+    const date = new Date(s.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+    const duration = s.minutes_used > 0 ? `${Math.round(s.minutes_used)} min` : "< 1 min";
+    const sym = CURRENCY_SYMBOLS[s.currency_code ?? "INR"] ?? "₹";
+    const cost = s.amount_charged != null ? `${sym}${Number(s.amount_charged).toFixed(2)}` : "—";
+    const rating = s.rating ? `${s.rating}/5 ★` : "Not rated";
+    return [
+      `Imotara Connect — Session Summary`,
+      `Date: ${date}`,
+      `Companion: ${companion}`,
+      `Type: ${s.type === "instant" ? "Instant" : "Scheduled"}`,
+      `Duration: ${duration}`,
+      `Cost: ${cost}`,
+      `Your rating: ${rating}`,
+      s.review_text ? `Your note: "${s.review_text}"` : "",
+      ``,
+      `Imotara — Mindful wellness with human connection`,
+    ].filter(Boolean).join("\n");
+  }
+
+  async function copySummary(s: Session, e: React.MouseEvent) {
+    e.stopPropagation();
+    const text = buildSummary(s);
+    try {
+      await navigator.clipboard.writeText(text);
+      setSummaryId(s.id);
+      setTimeout(() => setSummaryId(null), 2000);
+    } catch { /* silent */ }
+  }
+
   if (loading) {
     return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-violet-400" size={24} /></div>;
   }
@@ -289,6 +401,8 @@ function SessionsTab() {
         const badge = STATUS_BADGES[s.status] ?? { label: s.status, cls: "bg-zinc-600/40 text-zinc-400" };
         const consultant = s.connect_consultants;
         const canCancel = s.status === "pending";
+        const isCompleted = s.status === "completed";
+        const sym = CURRENCY_SYMBOLS[s.currency_code ?? "INR"] ?? "₹";
         return (
           <div
             key={s.id}
@@ -309,8 +423,15 @@ function SessionsTab() {
                 </p>
                 <p className="text-xs text-zinc-500">
                   {new Date(s.created_at).toLocaleDateString()} · {s.type}
-                  {s.minutes_used > 0 && ` · ${s.minutes_used.toFixed(0)} min`}
+                  {s.minutes_used > 0 && ` · ${Math.round(s.minutes_used)} min`}
+                  {s.amount_charged != null && s.amount_charged > 0 && ` · ${sym}${Number(s.amount_charged).toFixed(2)}`}
                 </p>
+                {s.scheduled_at && s.status === "pending" && (
+                  <p className="mt-0.5 flex items-center gap-1 text-[11px] text-violet-400">
+                    <Calendar size={10} />
+                    {new Date(s.scheduled_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {s.rating && (
@@ -325,15 +446,26 @@ function SessionsTab() {
                 <ChevronRight size={14} className="text-zinc-600" />
               </div>
             </button>
-            {canCancel && (
-              <button
-                onClick={(e) => cancelSession(s.id, e)}
-                disabled={cancelling === s.id}
-                className="shrink-0 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-[10px] font-medium text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-50"
-              >
-                {cancelling === s.id ? <Loader2 size={10} className="animate-spin" /> : "Cancel"}
-              </button>
-            )}
+            <div className="flex shrink-0 flex-col gap-1.5">
+              {canCancel && (
+                <button
+                  onClick={(e) => cancelSession(s.id, e)}
+                  disabled={cancelling === s.id}
+                  className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-[10px] font-medium text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-50"
+                >
+                  {cancelling === s.id ? <Loader2 size={10} className="animate-spin" /> : "Cancel"}
+                </button>
+              )}
+              {isCompleted && (
+                <button
+                  onClick={(e) => copySummary(s, e)}
+                  className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-2.5 py-1.5 text-[10px] font-medium text-violet-400 transition hover:bg-violet-500/20"
+                  title="Copy session summary"
+                >
+                  {summaryId === s.id ? "Copied!" : <FileText size={11} />}
+                </button>
+              )}
+            </div>
           </div>
         );
       })}
@@ -470,33 +602,86 @@ function WalletTab() {
   );
 }
 
-// ── Dashboard Tab ─────────────────────────────────────────────────────────────
+// ── Availability Window Editor ────────────────────────────────────────────────
 
-interface ConsultantSession {
-  id: string;
-  user_id: string;
-  type: string;
-  status: string;
-  scheduled_note: string | null;
-  started_at: string | null;
-  ended_at: string | null;
-  minutes_used: number;
-  rating: number | null;
-  review_text: string | null;
-  created_at: string;
+function AvailabilityEditor({
+  windows,
+  onChange,
+}: {
+  windows: AvailabilityWindow[];
+  onChange: (w: AvailabilityWindow[]) => void;
+}) {
+  function addWindow() {
+    onChange([...windows, { day: "Monday", start: "09:00", end: "17:00" }]);
+  }
+  function removeWindow(i: number) {
+    onChange(windows.filter((_, idx) => idx !== i));
+  }
+  function updateWindow(i: number, field: keyof AvailabilityWindow, value: string) {
+    onChange(windows.map((w, idx) => idx === i ? { ...w, [field]: value } : w));
+  }
+
+  return (
+    <div className="space-y-2">
+      {windows.map((w, i) => (
+        <div key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/3 p-3">
+          <select
+            value={w.day}
+            onChange={(e) => updateWindow(i, "day", e.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-zinc-300 outline-none focus:border-violet-500"
+          >
+            {DAYS_OF_WEEK.map((d) => <option key={d}>{d}</option>)}
+          </select>
+          <input
+            type="time"
+            value={w.start}
+            onChange={(e) => updateWindow(i, "start", e.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-zinc-300 outline-none focus:border-violet-500"
+          />
+          <span className="text-xs text-zinc-500">to</span>
+          <input
+            type="time"
+            value={w.end}
+            onChange={(e) => updateWindow(i, "end", e.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-zinc-300 outline-none focus:border-violet-500"
+          />
+          <button
+            onClick={() => removeWindow(i)}
+            className="ml-auto rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1.5 text-[10px] text-rose-400 hover:bg-rose-500/20"
+          >
+            Remove
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={addWindow}
+        className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-200 transition"
+      >
+        <Plus size={11} /> Add window
+      </button>
+    </div>
+  );
 }
+
+// ── Dashboard Tab ─────────────────────────────────────────────────────────────
 
 function DashboardTab() {
   const router = useRouter();
-  const [profile, setProfile]   = useState<{ id: string; status: string; is_online: boolean; display_name: string } | null>(null);
-  const [earnings, setEarnings] = useState<{ earned_amount: number; earned_currency: string; pending_payout: number; sessions_completed: number } | null>(null);
+  const [profile, setProfile] = useState<{
+    id: string; status: string; is_online: boolean; display_name: string;
+    availability_windows: AvailabilityWindow[] | null;
+  } | null>(null);
+  const [earnings, setEarnings] = useState<{
+    earned_amount: number; earned_currency: string;
+    pending_payout: number; sessions_completed: number;
+  } | null>(null);
   const [incomingSessions, setIncomingSessions] = useState<ConsultantSession[]>([]);
-  const [history, setHistory]   = useState<ConsultantSession[]>([]);
+  const [history, setHistory]     = useState<ConsultantSession[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [loading, setLoading]   = useState(true);
-  const [toggling, setToggling] = useState(false);
+  const [loading, setLoading]     = useState(true);
+  const [toggling, setToggling]   = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showPayout, setShowPayout]       = useState(false);
   const [payoutMethod, setPayoutMethod]   = useState<"upi" | "bank" | "paypal">("upi");
@@ -507,13 +692,30 @@ function DashboardTab() {
   const [newRequestAlert, setNewRequestAlert] = useState(false);
   const prevPendingCount = useRef(0);
 
+  // Availability windows editor state
+  const [editingAvail, setEditingAvail] = useState(false);
+  const [availWindows, setAvailWindows] = useState<AvailabilityWindow[]>([]);
+  const [availSaving, setAvailSaving]   = useState(false);
+
+  // Session notes (per session in history)
+  const [openNoteSessionId, setOpenNoteSessionId] = useState<string | null>(null);
+  const [noteContent, setNoteContent]   = useState("");
+  const [noteSaving, setNoteSaving]     = useState(false);
+  const [noteMsg, setNoteMsg]           = useState("");
+
+  // Block user
+  const [blockingUserId, setBlockingUserId] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     const [p, e, s] = await Promise.all([
       fetch("/api/connect/consultant/profile", { credentials: "include" }).then((r) => r.json()).catch(() => ({})),
       fetch("/api/connect/consultant/earnings", { credentials: "include" }).then((r) => r.json()).catch(() => ({})),
       fetch("/api/connect/consultant/sessions", { credentials: "include" }).then((r) => r.json()).catch(() => ({})),
     ]);
-    if (p.ok) setProfile(p.consultant);
+    if (p.ok) {
+      setProfile(p.consultant);
+      setAvailWindows(p.consultant?.availability_windows ?? []);
+    }
     if (e.ok) setEarnings(e);
     if (s.ok) {
       setIncomingSessions(s.sessions ?? []);
@@ -524,7 +726,7 @@ function DashboardTab() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Poll every 15s while Dashboard is visible
+  // Poll every 15s
   useEffect(() => {
     const t = setInterval(() => {
       fetch("/api/connect/consultant/sessions", { credentials: "include" })
@@ -543,7 +745,7 @@ function DashboardTab() {
     return () => clearInterval(t);
   }, []);
 
-  // Supabase Realtime: instant alert for new pending sessions
+  // Supabase Realtime: instant alert
   useEffect(() => {
     if (!profile?.id) return;
     const consultantId = profile.id;
@@ -565,7 +767,6 @@ function DashboardTab() {
         }
       })
       .subscribe();
-
     return () => { supabaseBrowser.removeChannel(channel); };
   }, [profile?.id]);
 
@@ -598,11 +799,8 @@ function DashboardTab() {
           setIncomingSessions((prev) => prev.filter((s) => s.id !== sessionId));
         }
       }
-    } catch {
-      // silent
-    } finally {
-      setActionLoading(null);
-    }
+    } catch { /* silent */ }
+    finally { setActionLoading(null); }
   }
 
   async function toggleOnline() {
@@ -617,11 +815,8 @@ function DashboardTab() {
       });
       const d = await res.json();
       if (d.ok) setProfile((p) => p ? { ...p, is_online: d.is_online } : p);
-    } catch {
-      // silent
-    } finally {
-      setToggling(false);
-    }
+    } catch { /* silent */ }
+    finally { setToggling(false); }
   }
 
   async function requestPayout() {
@@ -637,8 +832,8 @@ function DashboardTab() {
           amount,
           currency_code:  earnings?.earned_currency ?? "INR",
           payout_method:  payoutMethod,
-          payout_details: payoutMethod === "upi"   ? { upi_id: payoutDetails }
-                        : payoutMethod === "bank"   ? { account_number: payoutDetails }
+          payout_details: payoutMethod === "upi"  ? { upi_id: payoutDetails }
+                        : payoutMethod === "bank"  ? { account_number: payoutDetails }
                         : { paypal_email: payoutDetails },
         }),
         credentials: "include",
@@ -658,6 +853,64 @@ function DashboardTab() {
     }
   }
 
+  async function saveAvailability() {
+    setAvailSaving(true);
+    try {
+      await fetch("/api/connect/consultant/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ availability_windows: availWindows }),
+        credentials: "include",
+      });
+      setProfile((p) => p ? { ...p, availability_windows: availWindows } : p);
+      setEditingAvail(false);
+    } catch { /* silent */ }
+    finally { setAvailSaving(false); }
+  }
+
+  async function openNote(sessionId: string) {
+    if (openNoteSessionId === sessionId) { setOpenNoteSessionId(null); return; }
+    setOpenNoteSessionId(sessionId);
+    setNoteContent("");
+    setNoteMsg("");
+    try {
+      const res = await fetch(`/api/connect/sessions/${sessionId}/notes`, { credentials: "include" });
+      const d = await res.json();
+      if (d.ok) setNoteContent(d.content ?? "");
+    } catch { /* silent */ }
+  }
+
+  async function saveNote(sessionId: string) {
+    setNoteSaving(true);
+    try {
+      await fetch(`/api/connect/sessions/${sessionId}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: noteContent }),
+        credentials: "include",
+      });
+      setNoteMsg("Saved");
+      setTimeout(() => setNoteMsg(""), 2000);
+    } catch { /* silent */ }
+    finally { setNoteSaving(false); }
+  }
+
+  async function blockUser(userId: string) {
+    if (!confirm("Block this user? They will no longer be able to request sessions with you.")) return;
+    setBlockingUserId(userId);
+    try {
+      await fetch("/api/connect/blocks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blocked_user_id: userId, reason: "Reported by companion" }),
+        credentials: "include",
+      });
+      // Remove from history UI
+      setHistory((prev) => prev.filter((s) => s.user_id !== userId));
+    } catch { /* silent */ }
+    finally { setBlockingUserId(null); }
+  }
+
   if (loading) {
     return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-violet-400" size={24} /></div>;
   }
@@ -673,17 +926,27 @@ function DashboardTab() {
   const pending = incomingSessions.filter((s) => s.status === "pending");
   const active  = incomingSessions.filter((s) => s.status === "active");
 
-  // Pending sessions older than 5 min are auto-expired server-side; show countdown
   function secondsUntilExpiry(createdAt: string) {
     const created = new Date(createdAt).getTime();
     const elapsed = (Date.now() - created) / 1000;
     return Math.max(0, Math.round(300 - elapsed));
   }
 
+  function userInitial(session: ConsultantSession) {
+    const email = session.user_preview?.email;
+    if (!email) return "?";
+    return email.charAt(0).toUpperCase();
+  }
+  function userDisplayName(session: ConsultantSession) {
+    const email = session.user_preview?.email;
+    if (!email) return "Anonymous user";
+    return email.split("@")[0];
+  }
+
   return (
     <div className="space-y-4">
 
-      {/* New request flash alert */}
+      {/* New request alert */}
       {newRequestAlert && (
         <div
           onClick={() => setNewRequestAlert(false)}
@@ -709,7 +972,6 @@ function DashboardTab() {
               {profile.status.charAt(0).toUpperCase() + profile.status.slice(1)}
             </span>
           </div>
-
           {profile.status === "approved" && (
             <button
               onClick={toggleOnline}
@@ -727,7 +989,43 @@ function DashboardTab() {
         </div>
       </div>
 
-      {/* Active sessions — rejoin */}
+      {/* Availability Windows */}
+      <div className="imotara-glass-card rounded-2xl overflow-hidden">
+        <button
+          onClick={() => { setEditingAvail((v) => !v); setAvailWindows(profile.availability_windows ?? []); }}
+          className="flex w-full items-center justify-between p-5 text-left hover:bg-white/3 transition"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
+            <Calendar size={14} className="text-violet-400" />
+            Availability Windows
+          </span>
+          {editingAvail ? <ChevronUp size={14} className="text-zinc-500" /> : <ChevronDown size={14} className="text-zinc-500" />}
+        </button>
+        {editingAvail && (
+          <div className="border-t border-white/8 p-5 space-y-3">
+            <p className="text-xs text-zinc-500">Set the days and times you&apos;re usually available. Shown on your profile.</p>
+            <AvailabilityEditor windows={availWindows} onChange={setAvailWindows} />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setEditingAvail(false)}
+                className="rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveAvailability}
+                disabled={availSaving}
+                className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
+              >
+                {availSaving && <Loader2 size={11} className="animate-spin" />}
+                Save
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Active sessions */}
       {active.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">Active Sessions</p>
@@ -736,7 +1034,7 @@ function DashboardTab() {
               <div key={s.id} className="imotara-glass-card flex items-center justify-between rounded-xl p-4">
                 <div>
                   <p className="text-sm font-medium text-zinc-100">Session in progress</p>
-                  <p className="text-xs text-zinc-500">{s.type} · {s.minutes_used.toFixed(0)} min used</p>
+                  <p className="text-xs text-zinc-500">{s.type} · {Math.round(s.minutes_used)} min used</p>
                 </div>
                 <button
                   onClick={() => router.push(`/connect/session/${s.id}`)}
@@ -750,7 +1048,7 @@ function DashboardTab() {
         </div>
       )}
 
-      {/* Pending requests */}
+      {/* Pending requests with user preview */}
       {pending.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-amber-400">
@@ -761,24 +1059,34 @@ function DashboardTab() {
               const secs = secondsUntilExpiry(s.created_at);
               return (
                 <div key={s.id} className="imotara-glass-card rounded-xl p-4">
-                  <div className="mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-400">
-                        {s.type === "instant" ? "Instant" : "Scheduled"}
-                      </span>
-                      <span className="text-xs text-zinc-500">
-                        {new Date(s.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                      {secs <= 60 && (
-                        <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-medium text-rose-400">
-                          Expires in {secs}s
-                        </span>
-                      )}
+                  {/* User preview card */}
+                  <div className="mb-3 flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-sm font-semibold text-violet-300">
+                      {userInitial(s)}
                     </div>
-                    {s.scheduled_note && (
-                      <p className="mt-2 text-sm text-zinc-300 italic">"{s.scheduled_note}"</p>
-                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-zinc-100">{userDisplayName(s)}</span>
+                        <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-400">
+                          {s.type === "instant" ? "Instant" : "Scheduled"}
+                        </span>
+                        {secs <= 60 && (
+                          <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-medium text-rose-400">
+                            Expires in {secs}s
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-zinc-500">
+                        {new Date(s.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {s.scheduled_at && ` · Scheduled: ${new Date(s.scheduled_at).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}`}
+                      </p>
+                    </div>
                   </div>
+                  {s.scheduled_note && (
+                    <p className="mb-3 rounded-lg bg-white/5 px-3 py-2 text-xs text-zinc-300 italic">
+                      &ldquo;{s.scheduled_note}&rdquo;
+                    </p>
+                  )}
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleAction(s.id, "accept")}
@@ -786,7 +1094,7 @@ function DashboardTab() {
                       className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600/80 py-2 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
                     >
                       {actionLoading === s.id ? <Loader2 size={12} className="animate-spin" /> : null}
-                      Accept & Chat
+                      Accept &amp; Chat
                     </button>
                     <button
                       onClick={() => handleAction(s.id, "decline")}
@@ -859,7 +1167,7 @@ function DashboardTab() {
               <input
                 value={payoutDetails}
                 onChange={(e) => setPayoutDetails(e.target.value)}
-                placeholder={payoutMethod === "upi" ? "UPI ID (e.g. name@upi)" : payoutMethod === "bank" ? "Account number" : "PayPal email"}
+                placeholder={payoutMethod === "upi" ? "UPI ID" : payoutMethod === "bank" ? "Account number" : "PayPal email"}
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500"
               />
               <input
@@ -885,7 +1193,7 @@ function DashboardTab() {
         </div>
       )}
 
-      {/* Session History + Reviews */}
+      {/* Session History + Reviews + Notes + Block */}
       <div className="imotara-glass-card rounded-2xl overflow-hidden">
         <button
           onClick={loadHistory}
@@ -905,34 +1213,89 @@ function DashboardTab() {
             ) : history.length === 0 ? (
               <p className="pt-4 text-center text-sm text-zinc-500">No completed sessions yet.</p>
             ) : (
-              <div className="mt-4 space-y-2">
+              <div className="mt-4 space-y-3">
                 {history.map((s) => (
-                  <div key={s.id} className="rounded-xl bg-white/3 px-4 py-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-zinc-300">
-                        {new Date(s.created_at).toLocaleDateString()} · {s.type} · {s.minutes_used.toFixed(0)} min
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {s.rating && (
-                          <span className="flex items-center gap-0.5 text-xs text-amber-400">
-                            <Star size={11} className="fill-current" />
-                            {s.rating}
-                          </span>
+                  <div key={s.id} className="rounded-xl border border-white/8 bg-white/3">
+                    <div className="flex items-start gap-3 px-4 py-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-700/50 text-xs font-bold text-zinc-400">
+                        {userInitial(s)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-medium text-zinc-300">{userDisplayName(s)}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            STATUS_BADGES[s.status]?.cls ?? "bg-zinc-600/40 text-zinc-400"
+                          }`}>{s.status}</span>
+                          {s.rating && (
+                            <span className="flex items-center gap-0.5 text-xs text-amber-400">
+                              <Star size={10} className="fill-current" />{s.rating}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-zinc-500">
+                          {new Date(s.created_at).toLocaleDateString()} · {s.type} · {Math.round(s.minutes_used)} min
+                        </p>
+                        {s.review_text && (
+                          <p className="mt-1 text-[11px] italic text-zinc-400">&ldquo;{s.review_text}&rdquo;</p>
                         )}
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          STATUS_BADGES[s.status]?.cls ?? "bg-zinc-600/40 text-zinc-400"
-                        }`}>{s.status}</span>
+                      </div>
+                      <div className="flex shrink-0 flex-col gap-1">
+                        <button
+                          onClick={() => openNote(s.id)}
+                          className="flex items-center gap-1 rounded-lg border border-violet-500/20 bg-violet-500/10 px-2 py-1 text-[10px] text-violet-400 hover:bg-violet-500/20 transition"
+                          title="Private notes"
+                        >
+                          <FileText size={10} /> Notes
+                        </button>
+                        <button
+                          onClick={() => blockUser(s.user_id)}
+                          disabled={blockingUserId === s.user_id}
+                          className="flex items-center gap-1 rounded-lg border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-[10px] text-rose-400 hover:bg-rose-500/20 transition disabled:opacity-50"
+                          title="Block this user"
+                        >
+                          {blockingUserId === s.user_id
+                            ? <Loader2 size={10} className="animate-spin" />
+                            : <><Ban size={10} /> Block</>
+                          }
+                        </button>
                       </div>
                     </div>
-                    {s.review_text && (
-                      <p className="mt-1.5 text-xs text-zinc-400 italic">"{s.review_text}"</p>
+                    {/* Inline notes editor */}
+                    {openNoteSessionId === s.id && (
+                      <div className="border-t border-white/8 px-4 pb-3 pt-3 space-y-2">
+                        <p className="text-[10px] text-zinc-500 flex items-center gap-1">
+                          <Shield size={9} className="text-violet-500" /> Private — only visible to you
+                        </p>
+                        <textarea
+                          value={noteContent}
+                          onChange={(e) => setNoteContent(e.target.value)}
+                          maxLength={2000}
+                          rows={3}
+                          placeholder="Add a private note about this session..."
+                          className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500"
+                        />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-zinc-600">{noteContent.length}/2000</span>
+                          <div className="flex items-center gap-2">
+                            {noteMsg && <span className="text-[10px] text-emerald-400">{noteMsg}</span>}
+                            <button
+                              onClick={() => saveNote(s.id)}
+                              disabled={noteSaving}
+                              className="flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-500 disabled:opacity-50 transition"
+                            >
+                              {noteSaving ? <Loader2 size={10} className="animate-spin" /> : null}
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ))}
                 <p className="flex items-center gap-1.5 pt-1 text-center text-[10px] text-zinc-600">
                   <TrendingUp size={11} />
-                  {history.filter((s) => s.rating).length} reviewed sessions ·{" "}
-                  avg {history.filter((s) => s.rating).length > 0
+                  {history.filter((s) => s.rating).length} reviewed · avg{" "}
+                  {history.filter((s) => s.rating).length > 0
                     ? (history.filter((s) => s.rating).reduce((a, s) => a + (s.rating ?? 0), 0) /
                        history.filter((s) => s.rating).length).toFixed(1)
                     : "—"} ★
@@ -954,10 +1317,7 @@ export default function ConnectPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted]           = useState(false);
-  const [activeTab, setActiveTab]       = useState<Tab>(() => {
-    // Will be corrected from URL on mount; default avoids hydration mismatch
-    return "browse";
-  });
+  const [activeTab, setActiveTab]       = useState<Tab>("browse");
   const [isConsultant, setIsConsultant] = useState(false);
 
   useEffect(() => {
@@ -968,7 +1328,6 @@ export default function ConnectPage() {
       router.replace("/connect/age-restricted");
       return;
     }
-    // Respect ?tab= URL param so external links like /connect?tab=wallet work
     const tabParam = searchParams.get("tab") as Tab | null;
     if (tabParam && VALID_TABS.includes(tabParam)) setActiveTab(tabParam);
 

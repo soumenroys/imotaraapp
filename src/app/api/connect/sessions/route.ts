@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase
     .from("connect_sessions")
     .select(
-      "id, user_id, consultant_id, type, status, scheduled_note, " +
-      "started_at, ended_at, minutes_used, amount_charged, currency_code, " +
+      "id, user_id, consultant_id, type, status, scheduled_note, scheduled_at, " +
+      "started_at, ended_at, minutes_used, amount_charged, currency_code, rate_per_min, " +
       "rating, review_text, review_submitted_at, created_at, " +
       "connect_consultants(display_name, photo_url, gender, rate_per_min)"
     )
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ ok: false, error: "Invalid body" }, { status: 400 });
 
-  const { consultant_id, type, scheduled_note } = body;
+  const { consultant_id, type, scheduled_note, scheduled_at } = body;
 
   if (!consultant_id) {
     return NextResponse.json({ ok: false, error: "consultant_id required" }, { status: 400 });
@@ -85,6 +85,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Consultant not found or not approved" }, { status: 404 });
   }
 
+  // Check if this user is blocked by the consultant
+  const { data: block } = await supabase
+    .from("connect_blocks")
+    .select("id")
+    .eq("consultant_id", consultant.id)
+    .eq("blocked_user_id", user.id)
+    .maybeSingle();
+
+  if (block) {
+    return NextResponse.json({ ok: false, error: "Unable to request a session with this companion." }, { status: 403 });
+  }
+
   // For instant sessions: verify user has balance
   if (type === "instant") {
     const { data: recharges } = await supabase
@@ -113,6 +125,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Fetch rate so it is locked in the session row at creation time
+  const { data: consultantFull } = await supabase
+    .from("connect_consultants")
+    .select("rate_per_min")
+    .eq("id", consultant_id)
+    .single();
+
   const { data: session, error } = await supabase
     .from("connect_sessions")
     .insert({
@@ -121,7 +140,9 @@ export async function POST(req: NextRequest) {
       type,
       status:         "pending",
       scheduled_note: scheduled_note?.trim() ?? null,
+      scheduled_at:   scheduled_at ?? null,
       currency_code:  consultant.currency_code,
+      rate_per_min:   Number(consultantFull?.rate_per_min ?? 0),
     })
     .select("id, status, created_at")
     .single();

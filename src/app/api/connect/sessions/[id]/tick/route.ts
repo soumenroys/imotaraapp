@@ -22,7 +22,7 @@ export async function POST(
 
   const { data: session } = await supabase
     .from("connect_sessions")
-    .select("id, user_id, consultant_id, status, minutes_used, amount_charged, currency_code")
+    .select("id, user_id, consultant_id, status, minutes_used, amount_charged, currency_code, rate_per_min")
     .eq("id", sessionId)
     .single();
 
@@ -35,6 +35,11 @@ export async function POST(
   if (session.status !== "active") {
     return NextResponse.json({ ok: false, status: session.status, remaining_minutes: 0 });
   }
+
+  // Use locked rate from session (falls back to consultant if migration not yet applied)
+  const ratePerMin = Number(session.rate_per_min) > 0
+    ? Number(session.rate_per_min)
+    : await fetchConsultantRate(supabase, session.consultant_id);
 
   // Calculate available balance for this consultant
   const { data: recharges } = await supabase
@@ -54,80 +59,107 @@ export async function POST(
   const totalCredited = (recharges ?? []).reduce((s, r) => s + Number(r.minutes_credited), 0);
   const totalUsed     = (usedSessions ?? []).reduce((s, r) => s + Number(r.minutes_used), 0);
   const balanceBefore = totalCredited - totalUsed;
+  const now           = new Date().toISOString();
 
   if (balanceBefore <= 0) {
     // Auto-complete: no balance remaining
     await supabase
       .from("connect_sessions")
-      .update({ status: "completed", ended_at: new Date().toISOString() })
+      .update({
+        status:         "completed",
+        ended_at:       now,
+        last_tick_at:   now,
+        amount_charged: Number(session.amount_charged ?? 0),
+      })
       .eq("id", sessionId);
 
-    await creditConsultant(supabase, session);
+    await creditConsultant(supabase, session.consultant_id, session.minutes_used);
 
     return NextResponse.json({ ok: true, status: "completed", remaining_minutes: 0 });
   }
 
   // Deduct 1 minute
-  const newMinutesUsed = Number(session.minutes_used) + 1;
-  await supabase
-    .from("connect_sessions")
-    .update({ minutes_used: newMinutesUsed })
-    .eq("id", sessionId);
-
-  const remaining = balanceBefore - 1;
+  const newMinutesUsed   = Number(session.minutes_used) + 1;
+  const newAmountCharged = newMinutesUsed * ratePerMin;
+  const remaining        = balanceBefore - 1;
 
   // Auto-complete when balance hits zero
   if (remaining <= 0) {
     await supabase
       .from("connect_sessions")
-      .update({ status: "completed", ended_at: new Date().toISOString(), minutes_used: newMinutesUsed })
+      .update({
+        status:         "completed",
+        ended_at:       now,
+        minutes_used:   newMinutesUsed,
+        amount_charged: newAmountCharged,
+        last_tick_at:   now,
+      })
       .eq("id", sessionId);
 
-    await creditConsultant(supabase, { ...session, minutes_used: newMinutesUsed });
+    await creditConsultant(supabase, session.consultant_id, newMinutesUsed);
 
     return NextResponse.json({ ok: true, status: "completed", remaining_minutes: 0 });
   }
 
+  await supabase
+    .from("connect_sessions")
+    .update({
+      minutes_used:   newMinutesUsed,
+      amount_charged: newAmountCharged,
+      last_tick_at:   now,
+    })
+    .eq("id", sessionId);
+
   return NextResponse.json({ ok: true, status: "active", remaining_minutes: remaining });
+}
+
+async function fetchConsultantRate(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  consultantId: string
+): Promise<number> {
+  const { data } = await supabase
+    .from("connect_consultants")
+    .select("rate_per_min")
+    .eq("id", consultantId)
+    .single();
+  return Number(data?.rate_per_min ?? 0);
 }
 
 async function creditConsultant(
   supabase: ReturnType<typeof getSupabaseAdmin>,
-  session: { consultant_id: string; minutes_used: number }
+  consultantId: string,
+  minutesUsed: number
 ) {
   const { data: consultant } = await supabase
     .from("connect_consultants")
     .select("id, user_id, rate_per_min, sessions_completed")
-    .eq("id", session.consultant_id)
+    .eq("id", consultantId)
     .single();
 
   if (!consultant) return;
 
-  const sessionEarnings = Number(session.minutes_used) * Number(consultant.rate_per_min) * 0.80;
+  const sessionEarnings = Number(minutesUsed) * Number(consultant.rate_per_min) * 0.80;
 
-  // Ensure wallet row exists
   await supabase
     .from("connect_wallet")
     .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
 
-  // Read current earned_amount then increment (avoids needing a custom RPC)
   const { data: wallet } = await supabase
     .from("connect_wallet")
-    .select("earned_amount, earned_currency")
+    .select("earned_amount")
     .eq("user_id", consultant.user_id)
     .single();
 
   await supabase
     .from("connect_wallet")
     .update({
-      earned_amount:  (Number(wallet?.earned_amount ?? 0) + sessionEarnings),
-      updated_at:     new Date().toISOString(),
+      earned_amount: (Number(wallet?.earned_amount ?? 0) + sessionEarnings),
+      updated_at:    new Date().toISOString(),
     })
     .eq("user_id", consultant.user_id);
 
-  // Increment sessions_completed counter
   await supabase
     .from("connect_consultants")
-    .update({ sessions_completed: (consultant.sessions_completed ?? 0) + 1 })
+    .update({ sessions_completed: (consultant.sessions_completed ?? 0) + 1, is_busy: false })
     .eq("id", consultant.id);
 }

@@ -3,11 +3,13 @@
 // Tabs: Browse | My Sessions | Wallet | Dashboard (if consultant)
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { createBrowserClient } from "@supabase/ssr";
 import {
   Users, MessageCircle, Wallet, LayoutDashboard,
   Loader2, RefreshCw, Star, Clock, ChevronRight, AlertCircle,
+  Bell, History, TrendingUp, Plus, Minus,
 } from "lucide-react";
 import ConsultantCard from "@/components/connect/ConsultantCard";
 import { getImotaraProfile } from "@/lib/imotara/profile";
@@ -15,6 +17,11 @@ import { getImotaraProfile } from "@/lib/imotara/profile";
 type Tab = "browse" | "sessions" | "wallet" | "dashboard";
 
 const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
+
+const supabaseBrowser = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -64,6 +71,17 @@ interface WalletData {
   pending_payout: number;
 }
 
+interface Transaction {
+  id: string;
+  type: "recharge" | "session";
+  consultant_name: string;
+  consultant_id: string;
+  minutes: number;
+  amount: number | null;
+  currency_code: string | null;
+  created_at: string;
+}
+
 const CURRENCY_SYMBOLS: Record<string, string> = {
   INR: "₹", USD: "$", EUR: "€", GBP: "£", AED: "د.إ", SGD: "S$", AUD: "A$",
 };
@@ -77,7 +95,10 @@ const STATUS_BADGES: Record<string, { label: string; cls: string }> = {
   cancelled: { label: "Cancelled", cls: "bg-zinc-700/40 text-zinc-500"     },
 };
 
-// ── Age Gate ──────────────────────────────────────────────────────────────────
+const EXPERTISE_TAGS = [
+  "Anxiety", "Depression", "Stress", "Relationships", "Grief", "Trauma",
+  "Career", "Self-esteem", "Parenting", "Life transitions", "Mindfulness", "Sleep",
+];
 
 // ── Browse Tab ────────────────────────────────────────────────────────────────
 
@@ -85,7 +106,8 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const router = useRouter();
   const [consultants, setConsultants] = useState<Consultant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState({ gender: "", online: false });
+  const [filter, setFilter] = useState({ gender: "", online: false, tag: "" });
+  const [sort, setSort] = useState<"rating" | "price_asc" | "price_desc" | "sessions">("rating");
 
   const fetchConsultants = useCallback(async () => {
     setLoading(true);
@@ -101,7 +123,7 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter.gender, filter.online]);
 
   useEffect(() => { fetchConsultants(); }, [fetchConsultants]);
 
@@ -112,6 +134,16 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
     router.push(`/connect/session/new?consultant_id=${consultantId}&type=scheduled`);
   }
 
+  const displayed = consultants
+    .filter((c) => !filter.tag || c.expertise_tags.includes(filter.tag))
+    .sort((a, b) => {
+      if (sort === "rating")      return (b.rating_avg || 0) - (a.rating_avg || 0);
+      if (sort === "price_asc")   return a.rate_per_min - b.rate_per_min;
+      if (sort === "price_desc")  return b.rate_per_min - a.rate_per_min;
+      if (sort === "sessions")    return b.sessions_completed - a.sessions_completed;
+      return 0;
+    });
+
   return (
     <div>
       <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
@@ -121,15 +153,36 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
         </span>
       </div>
 
+      {/* Filters + Sort */}
       <div className="mb-5 flex flex-wrap gap-2">
         <select
           value={filter.gender}
           onChange={(e) => setFilter((f) => ({ ...f, gender: e.target.value }))}
           className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-300 outline-none focus:border-violet-500"
         >
-          <option value="">All companions</option>
+          <option value="">All genders</option>
           <option value="female">Female</option>
           <option value="male">Male</option>
+        </select>
+
+        <select
+          value={filter.tag}
+          onChange={(e) => setFilter((f) => ({ ...f, tag: e.target.value }))}
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-300 outline-none focus:border-violet-500"
+        >
+          <option value="">All specialties</option>
+          {EXPERTISE_TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as typeof sort)}
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-300 outline-none focus:border-violet-500"
+        >
+          <option value="rating">Sort: Top rated</option>
+          <option value="price_asc">Sort: Price ↑</option>
+          <option value="price_desc">Sort: Price ↓</option>
+          <option value="sessions">Sort: Most sessions</option>
         </select>
 
         <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-300 select-none">
@@ -155,13 +208,13 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
         <div className="flex justify-center py-16">
           <Loader2 className="animate-spin text-violet-400" size={24} />
         </div>
-      ) : consultants.length === 0 ? (
+      ) : displayed.length === 0 ? (
         <div className="imotara-glass-card rounded-2xl py-16 text-center">
           <p className="text-zinc-400">No companions found. Try adjusting your filters.</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {consultants.map((c) => (
+          {displayed.map((c) => (
             <ConsultantCard
               key={c.id}
               consultant={c}
@@ -292,7 +345,10 @@ function SessionsTab() {
 
 function WalletTab() {
   const [wallet, setWallet] = useState<WalletData | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/connect/wallet", { credentials: "include" })
@@ -301,6 +357,18 @@ function WalletTab() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  async function loadHistory() {
+    if (transactions.length > 0) { setShowHistory((v) => !v); return; }
+    setHistoryLoading(true);
+    setShowHistory(true);
+    try {
+      const res = await fetch("/api/connect/wallet/history", { credentials: "include" });
+      const d = await res.json();
+      if (d.ok) setTransactions(d.transactions ?? []);
+    } catch { /* silent */ }
+    finally { setHistoryLoading(false); }
+  }
 
   if (loading) {
     return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-violet-400" size={24} /></div>;
@@ -344,6 +412,60 @@ function WalletTab() {
           Recharge using the <strong className="text-zinc-200">+ Balance</strong> button on any companion card, or click <strong className="text-zinc-200">Talk Now</strong> when a companion is online.
         </p>
       </div>
+
+      {/* Transaction History */}
+      <div className="imotara-glass-card rounded-2xl overflow-hidden">
+        <button
+          onClick={loadHistory}
+          className="flex w-full items-center justify-between p-5 text-left hover:bg-white/3 transition"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
+            <History size={14} className="text-violet-400" />
+            Transaction History
+          </span>
+          <span className="text-zinc-500">{showHistory ? "▲" : "▼"}</span>
+        </button>
+
+        {showHistory && (
+          <div className="border-t border-white/8 px-5 pb-5">
+            {historyLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="animate-spin text-violet-400" size={20} /></div>
+            ) : transactions.length === 0 ? (
+              <p className="pt-4 text-center text-sm text-zinc-500">No transactions yet.</p>
+            ) : (
+              <div className="mt-4 space-y-2">
+                {transactions.map((t) => (
+                  <div key={t.id} className="flex items-center gap-3 rounded-xl bg-white/3 px-3 py-2.5">
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                      t.type === "recharge" ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"
+                    }`}>
+                      {t.type === "recharge" ? <Plus size={13} /> : <Minus size={13} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium text-zinc-200">
+                        {t.type === "recharge" ? "Recharged" : "Session"} · {t.consultant_name}
+                      </p>
+                      <p className="text-[10px] text-zinc-500">
+                        {new Date(t.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className={`text-xs font-semibold ${t.type === "recharge" ? "text-emerald-400" : "text-rose-400"}`}>
+                        {t.type === "recharge" ? "+" : "-"}{t.minutes} min
+                      </p>
+                      {t.amount != null && t.currency_code && (
+                        <p className="text-[10px] text-zinc-500">
+                          {CURRENCY_SYMBOLS[t.currency_code] ?? t.currency_code}{t.amount.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -357,15 +479,22 @@ interface ConsultantSession {
   status: string;
   scheduled_note: string | null;
   started_at: string | null;
+  ended_at: string | null;
   minutes_used: number;
+  rating: number | null;
+  review_text: string | null;
   created_at: string;
 }
 
 function DashboardTab() {
   const router = useRouter();
-  const [profile, setProfile]   = useState<{ status: string; is_online: boolean; display_name: string } | null>(null);
+  const [profile, setProfile]   = useState<{ id: string; status: string; is_online: boolean; display_name: string } | null>(null);
   const [earnings, setEarnings] = useState<{ earned_amount: number; earned_currency: string; pending_payout: number; sessions_completed: number } | null>(null);
   const [incomingSessions, setIncomingSessions] = useState<ConsultantSession[]>([]);
+  const [history, setHistory]   = useState<ConsultantSession[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [loading, setLoading]   = useState(true);
   const [toggling, setToggling] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -375,6 +504,8 @@ function DashboardTab() {
   const [payoutAmount, setPayoutAmount]   = useState("");
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutMsg, setPayoutMsg]         = useState<{ ok: boolean; text: string } | null>(null);
+  const [newRequestAlert, setNewRequestAlert] = useState(false);
+  const prevPendingCount = useRef(0);
 
   const load = useCallback(async () => {
     const [p, e, s] = await Promise.all([
@@ -384,22 +515,71 @@ function DashboardTab() {
     ]);
     if (p.ok) setProfile(p.consultant);
     if (e.ok) setEarnings(e);
-    if (s.ok) setIncomingSessions(s.sessions ?? []);
+    if (s.ok) {
+      setIncomingSessions(s.sessions ?? []);
+      prevPendingCount.current = (s.sessions ?? []).filter((x: ConsultantSession) => x.status === "pending").length;
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  // Poll every 15s while Dashboard is visible so new requests appear promptly
+  // Poll every 15s while Dashboard is visible
   useEffect(() => {
     const t = setInterval(() => {
       fetch("/api/connect/consultant/sessions", { credentials: "include" })
         .then((r) => r.json())
-        .then((d) => { if (d.ok) setIncomingSessions(d.sessions ?? []); })
+        .then((d) => {
+          if (d.ok) {
+            const sessions = d.sessions ?? [];
+            const newPendingCount = sessions.filter((x: ConsultantSession) => x.status === "pending").length;
+            if (newPendingCount > prevPendingCount.current) setNewRequestAlert(true);
+            prevPendingCount.current = newPendingCount;
+            setIncomingSessions(sessions);
+          }
+        })
         .catch(() => {});
     }, 15_000);
     return () => clearInterval(t);
   }, []);
+
+  // Supabase Realtime: instant alert for new pending sessions
+  useEffect(() => {
+    if (!profile?.id) return;
+    const consultantId = profile.id;
+    const channel = supabaseBrowser
+      .channel(`dashboard:${consultantId}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "connect_sessions",
+        filter: `consultant_id=eq.${consultantId}`,
+      }, (payload) => {
+        const newSession = payload.new as ConsultantSession;
+        if (newSession.status === "pending") {
+          setIncomingSessions((prev) => {
+            if (prev.find((s) => s.id === newSession.id)) return prev;
+            setNewRequestAlert(true);
+            return [newSession, ...prev];
+          });
+        }
+      })
+      .subscribe();
+
+    return () => { supabaseBrowser.removeChannel(channel); };
+  }, [profile?.id]);
+
+  async function loadHistory() {
+    if (historyLoaded) { setShowHistory((v) => !v); return; }
+    setShowHistory(true);
+    setHistoryLoading(true);
+    try {
+      const res = await fetch("/api/connect/consultant/sessions?status=history", { credentials: "include" });
+      const d = await res.json();
+      if (d.ok) { setHistory(d.sessions ?? []); setHistoryLoaded(true); }
+    } catch { /* silent */ }
+    finally { setHistoryLoading(false); }
+  }
 
   async function handleAction(sessionId: string, action: "accept" | "decline") {
     setActionLoading(sessionId);
@@ -493,8 +673,28 @@ function DashboardTab() {
   const pending = incomingSessions.filter((s) => s.status === "pending");
   const active  = incomingSessions.filter((s) => s.status === "active");
 
+  // Pending sessions older than 5 min are auto-expired server-side; show countdown
+  function secondsUntilExpiry(createdAt: string) {
+    const created = new Date(createdAt).getTime();
+    const elapsed = (Date.now() - created) / 1000;
+    return Math.max(0, Math.round(300 - elapsed));
+  }
+
   return (
     <div className="space-y-4">
+
+      {/* New request flash alert */}
+      {newRequestAlert && (
+        <div
+          onClick={() => setNewRequestAlert(false)}
+          className="flex cursor-pointer items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-3 text-sm text-amber-300"
+        >
+          <Bell size={15} className="shrink-0 animate-pulse" />
+          <span className="font-semibold">New session request received!</span>
+          <span className="ml-auto text-xs opacity-60">tap to dismiss</span>
+        </div>
+      )}
+
       {/* Status + online toggle */}
       <div className="imotara-glass-card rounded-2xl p-5">
         <div className="flex items-center justify-between">
@@ -557,40 +757,48 @@ function DashboardTab() {
             Incoming Requests ({pending.length})
           </p>
           <div className="space-y-2">
-            {pending.map((s) => (
-              <div key={s.id} className="imotara-glass-card rounded-xl p-4">
-                <div className="mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-400">
-                      {s.type === "instant" ? "Instant" : "Scheduled"}
-                    </span>
-                    <span className="text-xs text-zinc-500">
-                      {new Date(s.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </span>
+            {pending.map((s) => {
+              const secs = secondsUntilExpiry(s.created_at);
+              return (
+                <div key={s.id} className="imotara-glass-card rounded-xl p-4">
+                  <div className="mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-400">
+                        {s.type === "instant" ? "Instant" : "Scheduled"}
+                      </span>
+                      <span className="text-xs text-zinc-500">
+                        {new Date(s.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      {secs <= 60 && (
+                        <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-medium text-rose-400">
+                          Expires in {secs}s
+                        </span>
+                      )}
+                    </div>
+                    {s.scheduled_note && (
+                      <p className="mt-2 text-sm text-zinc-300 italic">"{s.scheduled_note}"</p>
+                    )}
                   </div>
-                  {s.scheduled_note && (
-                    <p className="mt-2 text-sm text-zinc-300 italic">"{s.scheduled_note}"</p>
-                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAction(s.id, "accept")}
+                      disabled={actionLoading === s.id}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600/80 py-2 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
+                    >
+                      {actionLoading === s.id ? <Loader2 size={12} className="animate-spin" /> : null}
+                      Accept & Chat
+                    </button>
+                    <button
+                      onClick={() => handleAction(s.id, "decline")}
+                      disabled={actionLoading === s.id}
+                      className="flex flex-1 items-center justify-center rounded-lg border border-rose-500/30 bg-rose-500/10 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
+                    >
+                      Decline
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleAction(s.id, "accept")}
-                    disabled={actionLoading === s.id}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600/80 py-2 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
-                  >
-                    {actionLoading === s.id ? <Loader2 size={12} className="animate-spin" /> : null}
-                    Accept & Chat
-                  </button>
-                  <button
-                    onClick={() => handleAction(s.id, "decline")}
-                    disabled={actionLoading === s.id}
-                    className="flex flex-1 items-center justify-center rounded-lg border border-rose-500/30 bg-rose-500/10 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
-                  >
-                    Decline
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -598,7 +806,7 @@ function DashboardTab() {
       {pending.length === 0 && active.length === 0 && profile.status === "approved" && (
         <div className="imotara-glass-card rounded-xl p-5 text-center">
           <p className="text-sm text-zinc-500">No incoming requests right now.</p>
-          <p className="mt-1 text-xs text-zinc-600">Make sure you're online to receive requests.</p>
+          <p className="mt-1 text-xs text-zinc-600">Make sure you&apos;re online to receive requests.</p>
         </div>
       )}
 
@@ -676,6 +884,64 @@ function DashboardTab() {
           )}
         </div>
       )}
+
+      {/* Session History + Reviews */}
+      <div className="imotara-glass-card rounded-2xl overflow-hidden">
+        <button
+          onClick={loadHistory}
+          className="flex w-full items-center justify-between p-5 text-left hover:bg-white/3 transition"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
+            <History size={14} className="text-violet-400" />
+            Session History &amp; Reviews
+          </span>
+          <span className="text-zinc-500">{showHistory ? "▲" : "▼"}</span>
+        </button>
+
+        {showHistory && (
+          <div className="border-t border-white/8 px-5 pb-5">
+            {historyLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="animate-spin text-violet-400" size={20} /></div>
+            ) : history.length === 0 ? (
+              <p className="pt-4 text-center text-sm text-zinc-500">No completed sessions yet.</p>
+            ) : (
+              <div className="mt-4 space-y-2">
+                {history.map((s) => (
+                  <div key={s.id} className="rounded-xl bg-white/3 px-4 py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-zinc-300">
+                        {new Date(s.created_at).toLocaleDateString()} · {s.type} · {s.minutes_used.toFixed(0)} min
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {s.rating && (
+                          <span className="flex items-center gap-0.5 text-xs text-amber-400">
+                            <Star size={11} className="fill-current" />
+                            {s.rating}
+                          </span>
+                        )}
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          STATUS_BADGES[s.status]?.cls ?? "bg-zinc-600/40 text-zinc-400"
+                        }`}>{s.status}</span>
+                      </div>
+                    </div>
+                    {s.review_text && (
+                      <p className="mt-1.5 text-xs text-zinc-400 italic">"{s.review_text}"</p>
+                    )}
+                  </div>
+                ))}
+                <p className="flex items-center gap-1.5 pt-1 text-center text-[10px] text-zinc-600">
+                  <TrendingUp size={11} />
+                  {history.filter((s) => s.rating).length} reviewed sessions ·{" "}
+                  avg {history.filter((s) => s.rating).length > 0
+                    ? (history.filter((s) => s.rating).reduce((a, s) => a + (s.rating ?? 0), 0) /
+                       history.filter((s) => s.rating).length).toFixed(1)
+                    : "—"} ★
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

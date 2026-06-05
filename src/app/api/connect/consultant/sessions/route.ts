@@ -1,6 +1,8 @@
 // GET /api/connect/consultant/sessions
 // Returns sessions assigned to the authenticated consultant.
-// Query params: ?status=pending|active|all (default: pending,active)
+// Query params: ?status=pending|active|history|all (default: pending+active)
+// history → completed+declined+cancelled (last 50)
+// Auto-expires pending sessions older than 5 minutes on every call.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
@@ -26,16 +28,33 @@ export async function GET(req: NextRequest) {
   }
 
   const statusParam = req.nextUrl.searchParams.get("status") ?? "incoming";
+
+  // Auto-expire pending sessions older than 5 minutes (P4)
+  if (statusParam !== "history") {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    await supabase
+      .from("connect_sessions")
+      .update({ status: "cancelled" })
+      .eq("consultant_id", consultant.id)
+      .eq("status", "pending")
+      .lt("created_at", fiveMinutesAgo);
+  }
+
   const statusFilter =
     statusParam === "all"
       ? ["pending", "active", "completed", "declined", "cancelled"]
+      : statusParam === "history"
+      ? ["completed", "declined", "cancelled"]
       : statusParam === "active"
       ? ["active"]
-      : ["pending", "active"]; // default: show actionable sessions
+      : ["pending", "active"]; // default: actionable sessions
 
   const { data, error } = await supabase
     .from("connect_sessions")
-    .select("id, user_id, type, status, scheduled_note, started_at, minutes_used, created_at")
+    .select(
+      "id, user_id, type, status, scheduled_note, started_at, ended_at, " +
+      "minutes_used, rating, review_text, created_at"
+    )
     .eq("consultant_id", consultant.id)
     .in("status", statusFilter)
     .order("created_at", { ascending: false })

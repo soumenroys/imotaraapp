@@ -16,10 +16,10 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase
     .from("connect_sessions")
     .select(
-      "id, consultant_id, type, status, scheduled_note, " +
+      "id, user_id, consultant_id, type, status, scheduled_note, " +
       "started_at, ended_at, minutes_used, amount_charged, currency_code, " +
-      "rating, review_text, created_at, " +
-      "connect_consultants(display_name, photo_url, gender)"
+      "rating, review_text, review_submitted_at, created_at, " +
+      "connect_consultants(display_name, photo_url, gender, rate_per_min)"
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })

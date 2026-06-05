@@ -95,10 +95,9 @@ async function creditConsultant(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   session: { consultant_id: string; minutes_used: number }
 ) {
-  // Get consultant rate to calculate credit amount
   const { data: consultant } = await supabase
     .from("connect_consultants")
-    .select("user_id, rate_per_min")
+    .select("id, user_id, rate_per_min, sessions_completed")
     .eq("id", session.consultant_id)
     .single();
 
@@ -106,19 +105,29 @@ async function creditConsultant(
 
   const sessionEarnings = Number(session.minutes_used) * Number(consultant.rate_per_min) * 0.80;
 
+  // Ensure wallet row exists
   await supabase
     .from("connect_wallet")
-    .upsert(
-      { user_id: consultant.user_id },
-      { onConflict: "user_id", ignoreDuplicates: true }
-    );
+    .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
 
-  try {
-    await supabase.rpc("increment_consultant_earnings", {
-      p_user_id: consultant.user_id,
-      p_amount:  sessionEarnings,
-    });
-  } catch {
-    // RPC may not exist yet — non-blocking; earnings will be recalculated from sessions
-  }
+  // Read current earned_amount then increment (avoids needing a custom RPC)
+  const { data: wallet } = await supabase
+    .from("connect_wallet")
+    .select("earned_amount, earned_currency")
+    .eq("user_id", consultant.user_id)
+    .single();
+
+  await supabase
+    .from("connect_wallet")
+    .update({
+      earned_amount:  (Number(wallet?.earned_amount ?? 0) + sessionEarnings),
+      updated_at:     new Date().toISOString(),
+    })
+    .eq("user_id", consultant.user_id);
+
+  // Increment sessions_completed counter
+  await supabase
+    .from("connect_consultants")
+    .update({ sessions_completed: (consultant.sessions_completed ?? 0) + 1 })
+    .eq("id", consultant.id);
 }

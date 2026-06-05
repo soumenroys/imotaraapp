@@ -72,10 +72,18 @@ export default function SessionChatPage() {
   }, []);
 
   // ── Load session + messages ────────────────────────────────────────────────
+  // Direct Supabase query so both the user AND the consultant can load the page
+  // (RLS allows SELECT when auth.uid() = user_id OR user_id = consultant.user_id)
   const loadSession = useCallback(async () => {
-    const res = await fetch(`/api/connect/sessions`, { credentials: "include" });
-    const data = await res.json();
-    const s = (data.sessions ?? []).find((x: SessionData) => x.id === sessionId);
+    const { data: raw } = await supabase
+      .from("connect_sessions")
+      .select(
+        "id, user_id, consultant_id, status, minutes_used, rating, review_submitted_at, " +
+        "connect_consultants(display_name, photo_url, gender, rate_per_min)"
+      )
+      .eq("id", sessionId)
+      .single();
+    const s = raw as unknown as SessionData | null;
     if (s) {
       setSession(s);
       if (s.review_submitted_at) setReviewDone(true);

@@ -44,7 +44,7 @@ export default function NewSessionPage() {
       const data = await res.json();
 
       if (data.needs_recharge) {
-        router.replace(`/connect?recharge=${consultantId}`);
+        router.replace(`/connect?tab=wallet`);
         return;
       }
       if (!data.ok) {

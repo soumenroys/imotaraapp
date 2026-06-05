@@ -4,7 +4,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Users, MessageCircle, Wallet, LayoutDashboard,
   Loader2, RefreshCw, Star, Clock, ChevronRight, AlertCircle,
@@ -533,10 +533,16 @@ function DashboardTab() {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
+const VALID_TABS: Tab[] = ["browse", "sessions", "wallet", "dashboard"];
+
 export default function ConnectPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mounted, setMounted]           = useState(false);
-  const [activeTab, setActiveTab]       = useState<Tab>("browse");
+  const [activeTab, setActiveTab]       = useState<Tab>(() => {
+    // Will be corrected from URL on mount; default avoids hydration mismatch
+    return "browse";
+  });
   const [isConsultant, setIsConsultant] = useState(false);
 
   useEffect(() => {
@@ -547,11 +553,15 @@ export default function ConnectPage() {
       router.replace("/connect/age-restricted");
       return;
     }
+    // Respect ?tab= URL param so external links like /connect?tab=wallet work
+    const tabParam = searchParams.get("tab") as Tab | null;
+    if (tabParam && VALID_TABS.includes(tabParam)) setActiveTab(tabParam);
+
     fetch("/api/connect/consultant/profile", { credentials: "include" })
       .then((r) => r.json())
       .then((d) => { if (d.ok) setIsConsultant(true); })
       .catch(() => {});
-  }, [router]);
+  }, [router, searchParams]);
 
   if (!mounted) return null;
 

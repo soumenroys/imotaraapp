@@ -1,6 +1,6 @@
 # Imotara — Complete Project Overview
 
-> Last updated: 2026-05-28
+> Last updated: 2026-06-05
 > Author: Soumen Roy
 > Platforms: Web (Next.js / Vercel) · iOS · Android
 
@@ -419,6 +419,15 @@ The architecture does not currently support wearables. Heart rate data from Appl
 ### 14.10 Therapist Mode
 A professional-facing view where a therapist can (with user consent) see anonymised emotional patterns to supplement sessions. Requires strict consent architecture and possibly HIPAA-adjacent compliance. Long-term vision, not near-term.
 
+### 14.11 Imotara Connect — Human Consultancy Marketplace (Planned MVP v1.2)
+A real-human consultancy layer on top of the AI companion. Users browse verified wellness companions, recharge a pre-paid minute wallet, and chat in real time. Phase 1 MVP covers text chat with a Mental Wellness Companion role; later phases add audio/video, 11 additional consultant roles, and scheduled bookings.
+
+**Revenue model:** User pays a recharge amount. Imotara keeps 20% at recharge time. Consultant receives 80% (paid out as earned credits). Billing is per-minute — `minutes_credited = (amount × 0.80) / rate_per_min`. Consultants set their own rate in their local currency (INR/USD/EUR/GBP/AED/SGD/AUD).
+
+**Safety non-negotiables:** Non-clinical disclaimer on all profiles, under-18 hard block, emergency/crisis button inside every session pointing to regional hotlines, Code of Conduct agreement at registration.
+
+**Full specs:** `docs/connect-mvp-plan.pdf` (technical execution) and `docs/connect-full-vision.pdf` (12-role full vision). Pre-implementation milestone commit: `6c42e55`.
+
 ---
 
 ## 15. Release History (Summary)
@@ -433,6 +442,9 @@ A professional-facing view where a therapist can (with user consent) see anonymi
 | 1.1.3–1.1.5 | 85–93 | May 2026 | iOS IAP (8 products), Razorpay mobile payment flow, design overhaul (warm theme, chat header cleanup, settings restructure, banner queue), light-mode fixes, TTS rate/pitch pickers, 22-language scenarios |
 | 1.1.6 | 94 | May 2026 | Android Razorpay fetchWithTimeout + accessTokenRef pattern, upgrade page improvements |
 | 1.1.7 | 95 | May 28, 2026 | Feature gate matrix (5 new FeatureKeys: TTS_ADVANCED, SEARCH_MODE, REPLY_CADENCE, COMPANION_LETTER, GROWTH_ARC), Enterprise tier card + plan comparison table (47 features, 8 sections), LICENSING.md + full test suite (280 checks), avatar JPEG conversion (50.6 MB → 3.5 MB), Android resource shrinking |
+| 1.1.8–1.1.9 | 96–97 | May–Jun 2026 | Admin panel mobile-friendly layout, org onboarding banner suppression, Supabase env var fixes, payment flow cleanup |
+| 1.1.10 | 98 | Jun 2026 | Corporate/NGO/EDU org licensing — Phases 1–5: /admin Organizations tab, /org/new, /org/dashboard (overview, members, analytics, audit, settings), bulk CSV invite, API keys, custom branding, mobile org badge |
+| 1.1.11 | 99+ | Jun 2026 (web only) | Razorpay-native payment stack (replaces Stripe for web), corporate email payment flow, health check env var fixes |
 
 ---
 

@@ -1,6 +1,6 @@
 # Imotara — System Architecture Document
 
-> Version: 1.1.7 (Build 95) · Last updated: May 2026
+> Version: 1.1.11 (Build 99+) · Last updated: June 2026
 
 ---
 
@@ -171,7 +171,7 @@ imotaraapp/
 │   │   ├── profile/           # User profile
 │   │   ├── donate/            # Donation landing
 │   │   ├── about/             # Mission / philosophy
-│   │   ├── connect/           # Contact / partnerships
+│   │   ├── connect/           # Human consultancy marketplace (planned v1.2+)
 │   │   ├── privacy/           # Privacy policy
 │   │   ├── terms/             # Terms of service
 │   │   ├── layout.tsx         # Root layout (providers, SW, metadata)
@@ -205,7 +205,7 @@ imotaraapp/
 | `/settings` | 1,916 | Preferences — tone, language, consent, companion, data management |
 | `/profile` | 76 | User info + companion customization |
 | `/donate` | 209 | Donation landing — Razorpay presets (₹49–₹999) |
-| `/connect` | 284 | Contact form, social links, partnership info |
+| `/connect` | — | Human consultancy marketplace — browse & book real human companions (planned v1.2+) |
 | `/about` | 136 | Mission statement, app philosophy |
 | `/privacy` | 372 | Privacy policy + data practices |
 | `/terms` | 173 | Terms of service |
@@ -240,6 +240,8 @@ imotaraapp/
 | DELETE | `/api/push/subscribe` | Bearer/Cookie | Remove push subscription | Supabase |
 | GET | `/api/push/cron` | Cron secret | Send scheduled push notifications | web-push, Supabase |
 | GET | `/api/health` | None | Health check (env present, no secrets) | — |
+| GET/POST | `/api/admin/*` | Admin secret | Admin panel — licenses, users, tokens, org management | Supabase (service role) |
+| GET/POST | `/api/org/*` | Bearer/Cookie | Organization management — create, members, analytics, API keys | Supabase (service role) |
 
 ### 4d. Core Library Modules
 
@@ -494,7 +496,8 @@ RootNavigator (bottom-tab)
 ├── Chat          ← imotara://chat
 ├── History       ← imotara://history
 ├── Trends        ← imotara://trends
-└── Settings      ← imotara://settings
+├── Settings      ← imotara://settings
+└── Connect       ← imotara://connect  [planned v1.2+]
 ```
 
 Deep link scheme: `imotara://`
@@ -701,6 +704,19 @@ CREATE TABLE donations (
   created_at        TIMESTAMPTZ DEFAULT now()
 );
 ```
+
+#### Connect tables (planned v1.2+)
+
+Six tables supporting the Imotara Connect human consultancy marketplace. Full SQL + RLS at `docs/sql/connect_schema.sql`.
+
+| Table | Purpose |
+|-------|---------|
+| `connect_consultants` | Consultant profiles — display name, photo, bio, expertise tags, rate_per_min, currency, status |
+| `connect_sessions` | Active and historical text-chat sessions, per-minute billing state |
+| `connect_messages` | Chat messages within a Connect session (Realtime-enabled) |
+| `connect_wallet` | Per-user/per-consultant pre-paid minute balance |
+| `connect_recharges` | Recharge payment records — Razorpay (INR) / Stripe (international) |
+| `connect_payouts` | Consultant earnings and payout requests |
 
 ---
 
@@ -1481,6 +1497,27 @@ featureGates.gate(FeatureName.CLOUD_SYNC, licenseTier)
 ---
 
 ## 16. Future Enhancement Opportunities
+
+### Imotara Connect — Human Consultancy Marketplace (Planned MVP v1.2)
+
+A real-human consultancy layer where users can book and chat with verified wellness companions in real time. Full spec: `docs/connect-mvp-plan.pdf` and `docs/connect-full-vision.pdf`.
+
+| # | Enhancement | Effort | Status |
+|---|-------------|--------|--------|
+| C1 | **DB schema** — 6 new Supabase tables with RLS + Realtime (`docs/sql/connect_schema.sql`) | Medium | Planned |
+| C2 | **Consultant registration** — profile, expertise tags, photo, rate/currency, CoC agreement | Medium | Planned |
+| C3 | **Browse & filter** — web `/connect` page + mobile Connect tab, availability-first listing | Medium | Planned |
+| C4 | **Pre-pay wallet** — duration-first recharge UX: user enters minutes → fee breakdown → Razorpay/Stripe | Medium | Planned |
+| C5 | **Text-chat sessions** — Supabase Realtime channel per session, 60s server-tick balance deduction | Large | Planned |
+| C6 | **Safety additions** — non-clinical disclaimer, under-18 hard block, emergency/crisis button → regional hotlines | Small | Planned |
+| C7 | **Admin panel** — 5 new tabs: Verifications, Consultants, Sessions, Connect Analytics, Payouts | Medium | Planned |
+| C8 | **Consultant dashboard** — earnings, session history, availability toggle | Medium | Planned |
+
+**Billing formula:** `minutes_credited = (amount × 0.80) / rate_per_min` — Imotara keeps 20% at recharge time.  
+**Multi-currency:** INR/USD/EUR/GBP/AED/SGD/AUD — exchange rates from open.exchangerate-api.com, cached daily in `app_settings`.  
+**Milestone commit (pre-implementation state):** `6c42e55`
+
+---
 
 ### Cross-Platform / Shared Infrastructure
 

@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       email:         body.email.trim().toLowerCase(),
       name:          body.name.trim(),
       password_hash: hashPassword(body.password),
-      role:          body.role === "owner" ? "owner" : "admin",
+      role:          (["owner","admin","connect_reviewer"] as const).includes(body.role as "owner"|"admin"|"connect_reviewer") ? body.role : "admin",
       // "legacy" is not a UUID — only set created_by for real session-based admins
       created_by:    auth.admin.id === "legacy" ? null : auth.admin.id,
     })

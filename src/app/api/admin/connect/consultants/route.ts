@@ -3,11 +3,11 @@
 // Admin only.
 
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuthorized } from "@/app/api/admin/_auth";
+import { connectAdminAuthorized } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 export async function GET(req: NextRequest) {
-  if (!(await adminAuthorized(req))) {
+  if (!(await connectAdminAuthorized(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  if (!(await adminAuthorized(req))) {
+  if (!(await connectAdminAuthorized(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 

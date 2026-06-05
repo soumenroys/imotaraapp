@@ -1609,8 +1609,9 @@ function SuperAdminsSection({ token }: { token: string }) {
               <PasswordStrength password={newPwd} />
             </div>
             <select value={newRole} onChange={(e) => setNewRole(e.target.value)} className={`${inputCls} w-full`}>
-              <option value="admin">Admin (full access)</option>
-              <option value="owner">Owner (full access + manage admins)</option>
+              <option value="admin">Admin — full access</option>
+              <option value="owner">Owner — full access + manage admins</option>
+              <option value="connect_reviewer">Connect Reviewer — review Connect applications only</option>
             </select>
           </div>
           {error && <p className="text-xs text-rose-400">{error}</p>}
@@ -1640,7 +1641,11 @@ function SuperAdminsSection({ token }: { token: string }) {
                     <p className="text-sm font-medium text-zinc-100">{a.name}</p>
                     <p className="text-[11px] text-zinc-500">{a.email} · last login: {a.last_login_at ? timeAgo(a.last_login_at) : "never"}</p>
                   </div>
-                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium ${a.role === "owner" ? "bg-amber-500/15 text-amber-300" : "bg-indigo-500/15 text-indigo-300"}`}>{a.role}</span>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium ${
+                    a.role === "owner"            ? "bg-amber-500/15 text-amber-300" :
+                    a.role === "connect_reviewer" ? "bg-teal-500/15 text-teal-300" :
+                                                   "bg-indigo-500/15 text-indigo-300"
+                  }`}>{a.role === "connect_reviewer" ? "connect reviewer" : a.role}</span>
                   {isLocked && <span className="rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[10px] font-medium text-rose-300">🔒 Locked</span>}
                   {!a.active && <span className="text-[11px] text-zinc-600">inactive</span>}
                   {a.active && (
@@ -2338,6 +2343,7 @@ type Section = "comments" | "licenses" | "organizations" | "superadmins" | "stat
 
 export default function AdminPage() {
   const [token, setToken]     = useState<string | null>(null);
+  const [myRole, setMyRole]   = useState<string | null>(null);
   const [section, setSection] = useState<Section>("comments");
 
   const [tab, setTab]           = useState<CommentTab>("pending");
@@ -2349,6 +2355,21 @@ export default function AdminPage() {
     const saved = sessionStorage.getItem(SESSION_KEY);
     if (saved) setToken(saved);
   }, []);
+
+  // Fetch logged-in admin's role and restrict view for connect_reviewer
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/admin/auth/me", { credentials: "same-origin" })
+      .then(r => r.json())
+      .then(d => {
+        const role = d.admin?.role as string | undefined;
+        if (role) {
+          setMyRole(role);
+          if (role === "connect_reviewer") setSection("connect");
+        }
+      })
+      .catch(() => {});
+  }, [token]);
 
   const fetchComments = useCallback(async (status: CommentTab, tok: string) => {
     setLoadingC(true);
@@ -2422,7 +2443,9 @@ export default function AdminPage() {
             ["connect",       "🤝", "Connect"],
             ["superadmins",   "👑", "Admins"],
             ["stats",         "📊", "Dashboard"],
-          ] as const).map(([key, icon, label]) => (
+          ] as const)
+            .filter(([key]) => myRole !== "connect_reviewer" || key === "connect")
+            .map(([key, icon, label]) => (
             <button key={key} onClick={() => setSection(key)}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs whitespace-nowrap transition ${
                 section === key ? "bg-white/10 font-semibold text-zinc-100" : "text-zinc-500 hover:text-zinc-300"

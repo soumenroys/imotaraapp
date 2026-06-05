@@ -3,7 +3,7 @@
 // of the consultant with the given id.
 
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuthorized } from "@/app/api/admin/_auth";
+import { connectAdminAuthorized } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 const BUCKET = "connect-docs";
@@ -13,7 +13,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await adminAuthorized(req))) {
+  if (!(await connectAdminAuthorized(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
@@ -65,7 +65,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await adminAuthorized(req))) {
+  if (!(await connectAdminAuthorized(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 

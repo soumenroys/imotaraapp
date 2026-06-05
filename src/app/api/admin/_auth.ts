@@ -11,11 +11,15 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { hashSessionToken, SESSION_COOKIE } from "@/lib/imotara/adminCrypto";
 
 // ── adminAuthorized: checks ADMIN_SECRET Bearer OR session cookie ─────────────
-// Set ADMIN_SECRET_DISABLED=true in env vars to disable the legacy secret key.
+// connect_reviewer role is intentionally excluded — they use connectAdminAuthorized().
 export async function adminAuthorized(req: NextRequest): Promise<boolean> {
   // 1. Check session cookie first (preferred)
   const cookieResult = await requireSuperAdmin(req);
-  if (cookieResult.ok) return true;
+  if (cookieResult.ok) {
+    // connect_reviewer is scoped only to Connect routes
+    if (cookieResult.admin.role === "connect_reviewer") return false;
+    return true;
+  }
 
   // 2. Legacy ADMIN_SECRET Bearer — disabled when ADMIN_SECRET_DISABLED=true
   if (process.env.ADMIN_SECRET_DISABLED === "true") return false;
@@ -34,7 +38,7 @@ export interface SuperAdminInfo {
   id:    string;
   email: string;
   name:  string;
-  role:  "owner" | "admin";
+  role:  "owner" | "admin" | "connect_reviewer";
 }
 
 export type SuperAdminResult =
@@ -101,4 +105,21 @@ export async function requireSuperAdmin(req: NextRequest): Promise<SuperAdminRes
     ok:       false,
     response: NextResponse.json({ error: "unauthorized" }, { status: 401 }),
   };
+}
+
+/**
+ * Like adminAuthorized but also allows connect_reviewer role.
+ * Use this on all /api/admin/connect/* routes.
+ */
+export async function connectAdminAuthorized(req: NextRequest): Promise<boolean> {
+  const cookieResult = await requireSuperAdmin(req);
+  if (cookieResult.ok) return true;
+
+  if (process.env.ADMIN_SECRET_DISABLED === "true") return false;
+  const secret = process.env.ADMIN_SECRET?.trim();
+  if (!secret) return false;
+  const auth     = req.headers.get("authorization") ?? "";
+  const expected = `Bearer ${secret}`;
+  if (auth.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(auth), Buffer.from(expected));
 }

@@ -2,14 +2,14 @@
 // Admin only. Permanently deletes a consultant record and their uploaded documents.
 
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuthorized } from "@/app/api/admin/_auth";
+import { connectAdminAuthorized } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await adminAuthorized(req))) {
+  if (!(await connectAdminAuthorized(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 

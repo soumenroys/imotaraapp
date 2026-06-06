@@ -296,8 +296,8 @@ function SuperAdminSection() {
       </Step>
 
       <Step n={3} title="After sign-in you land on the main admin panel">
-        <p>You will see three tabs at the top: <strong className="text-zinc-300">📊 Dashboard</strong>, <strong className="text-zinc-300">🏢 Organizations</strong>, and <strong className="text-zinc-300">👑 Super Admins</strong>. Your name and a Logout button appear in the top-right corner.</p>
-        <Screen title="admin — Dashboard" caption="The admin panel after successful login. Three tabs are visible.">
+        <p>You will see six navigation tabs at the top: <strong className="text-zinc-300">💬 Comments</strong> (blog comment moderation), <strong className="text-zinc-300">🔑 Licenses</strong> (user license management and bans), <strong className="text-zinc-300">🏢 Orgs</strong> (organisation management), <strong className="text-zinc-300">🤝 Connect</strong> (companion marketplace), <strong className="text-zinc-300">👑 Admins</strong> (super-admin management), and <strong className="text-zinc-300">📊 Dashboard</strong> (platform stats). Your name and a Logout button appear in the top-right corner. The panel opens on the <strong className="text-zinc-300">💬 Comments</strong> tab by default.</p>
+        <Screen title="admin — Comments (default)" caption="The admin panel after successful login. Six tabs are visible. Comments is the default.">
           <div className="bg-[#0d0d10]">
             <div className="flex items-center justify-between border-b border-white/8 bg-black/30 px-5 py-3">
               <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">🌿 Imotara Admin</div>
@@ -306,16 +306,28 @@ function SuperAdminSection() {
                 <div className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-zinc-400">Logout</div>
               </div>
             </div>
-            <div className="flex border-b border-white/8">
-              {["📊 Dashboard","🏢 Organizations","👑 Super Admins"].map((t, i) => (
-                <div key={t} className={`px-5 py-3 text-xs font-medium ${i === 0 ? "border-b-2 border-indigo-400 text-indigo-300" : "text-zinc-500"}`}>{t}</div>
+            <div className="flex border-b border-white/8 overflow-x-auto">
+              {["💬 Comments","🔑 Licenses","🏢 Orgs","🤝 Connect","👑 Admins","📊 Dashboard"].map((t, i) => (
+                <div key={t} className={`shrink-0 px-3 py-3 text-[10px] font-medium ${i === 0 ? "border-b-2 border-indigo-400 text-indigo-300" : "text-zinc-500"}`}>{t}</div>
               ))}
             </div>
-            <div className="p-5 grid grid-cols-4 gap-3">
-              {[["2","Super Admins","text-violet-300"],["0","Active Orgs","text-emerald-300"],["0","Total Members","text-sky-300"],["0","Pool Licenses","text-amber-300"]].map(([v,l,c]) => (
-                <div key={l} className="rounded-xl border border-white/8 bg-white/4 p-3 text-center">
-                  <div className={`text-2xl font-bold ${c}`}>{v}</div>
-                  <div className="mt-1 text-[9px] text-zinc-500">{l}</div>
+            <div className="p-5 space-y-3">
+              <p className="text-[10px] font-semibold text-zinc-300">Blog Comments (3 pending)</p>
+              {[
+                {author:"Priya M.",comment:"This app is incredibly calming. Thank you! 🙏",pending:true},
+                {author:"Rahul K.",comment:"Can you add more Indian language support?",pending:true},
+                {author:"Ananya S.",comment:"Love the companion letters feature.",pending:false},
+              ].map((c) => (
+                <div key={c.author} className="rounded-xl border border-white/8 bg-white/3 p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-medium text-zinc-200">{c.author}</span>
+                    {c.pending && <Tag color="amber">pending</Tag>}
+                  </div>
+                  <p className="text-[9px] text-zinc-500">{c.comment}</p>
+                  {c.pending && <div className="mt-2 flex gap-1 text-[9px]">
+                    <div className="rounded bg-emerald-500/20 border border-emerald-400/20 px-2 py-0.5 text-emerald-300">✓ Approve</div>
+                    <div className="rounded bg-rose-500/15 border border-rose-400/20 px-2 py-0.5 text-rose-400">✕ Reject</div>
+                  </div>}
                 </div>
               ))}
             </div>
@@ -323,7 +335,7 @@ function SuperAdminSection() {
         </Screen>
       </Step>
 
-      <Note>If you enter the wrong password 5 times, your account will be locked for 15 minutes. An owner-role admin can unlock it early from the Super Admins tab → click the <strong>🔓 Unlock</strong> button on your row.</Note>
+      <Note>If you enter the wrong password 5 times, your account will be locked for 15 minutes. An owner-role admin can unlock it early from the 👑 Admins tab → click the <strong>🔓 Unlock</strong> button on your row.</Note>
 
       <H3>Forgot your password?</H3>
       <Step n={1} title='Click "Forgot password?" below the Sign in button'>
@@ -359,9 +371,9 @@ function SuperAdminSection() {
 
       <Screen title="admin — 📊 Dashboard" caption="Dashboard shows live platform stats: super-admins, orgs, members, pools, and a per-org table.">
         <div className="bg-[#0d0d10]">
-          <div className="flex border-b border-white/8">
-            {["📊 Dashboard","🏢 Organizations","👑 Super Admins"].map((t, i) => (
-              <div key={t} className={`px-5 py-3 text-xs font-medium ${i === 0 ? "border-b-2 border-indigo-400 text-indigo-300" : "text-zinc-500"}`}>{t}</div>
+          <div className="flex border-b border-white/8 overflow-x-auto">
+            {["💬 Comments","🔑 Licenses","🏢 Orgs","🤝 Connect","👑 Admins","📊 Dashboard"].map((t, i) => (
+              <div key={t} className={`shrink-0 px-3 py-3 text-[10px] font-medium ${i === 5 ? "border-b-2 border-indigo-400 text-indigo-300" : "text-zinc-500"}`}>{t}</div>
             ))}
           </div>
           <div className="p-5 space-y-5">
@@ -418,16 +430,45 @@ function SuperAdminSection() {
 
       <Divider />
 
+      {/* ── LICENSES ── */}
+      <H2 id="sa-licenses">Part 2B — Licenses Tab (User Management &amp; Bans)</H2>
+      <p className="text-sm text-zinc-400 mb-4">Click the <strong className="text-zinc-200">🔑 Licenses</strong> tab to manage individual user licenses, adjust token balances, and ban or unban users. It has two sub-tabs.</p>
+
+      <Table
+        headers={["Sub-tab","What it does"]}
+        rows={[
+          ["User Licenses","Search users by email, view their tier and token balance, manually change their plan, add tokens, and ban/unban their account"],
+          ["Action History","A log of all license changes made by admins — who changed what, when, and to which user"],
+        ]}
+      />
+
+      <H3>Viewing a user&apos;s license</H3>
+      <Step n={1} title="Click the 🔑 Licenses tab → User Licenses sub-tab">
+        <p>By default the tab loads the 20 most recently active users. Type an email in the search box and press Search to find a specific user.</p>
+      </Step>
+      <Step n={2} title="Each user row shows: email, current tier, token balance, expiry, source, and ban status">
+        <p>A <Tag color="rose">⛔ Banned</Tag> badge appears on rows where the user is currently banned. A <Tag color="zinc">Free</Tag> badge indicates no paid license.</p>
+      </Step>
+
+      <H3>Manually changing a user&apos;s plan or tokens</H3>
+      <Step n={1} title="Expand a user row and use the tier dropdown or token top-up form">
+        <p>Change the tier directly (e.g. Free → Pro for a comp account), or add tokens via the token top-up input. Changes take effect immediately and are logged in Action History.</p>
+      </Step>
+
+      <Tip>For banning a user, see <strong>Part 7 — User Bans</strong> below — it uses the same 🔑 Licenses → User Licenses flow.</Tip>
+
+      <Divider />
+
       {/* ── ORGANISATIONS ── */}
       <H2 id="sa-orgs">Part 3 — Managing Organisations</H2>
-      <p className="text-sm text-zinc-400 mb-4">Click the <strong className="text-zinc-200">🏢 Organizations</strong> tab to view, create, edit, and manage all corporate, NGO, and EDU accounts.</p>
+      <p className="text-sm text-zinc-400 mb-4">Click the <strong className="text-zinc-200">🏢 Orgs</strong> tab to view, create, edit, and manage all corporate, NGO, and EDU accounts.</p>
 
       <H3>Viewing all organisations</H3>
       <Screen title="admin — 🏢 Organizations" caption="Organisations list. Each row shows name, type, status, seats, and member count. Click a row to expand it.">
         <div className="bg-[#0d0d10]">
-          <div className="flex border-b border-white/8">
-            {["📊 Dashboard","🏢 Organizations","👑 Super Admins"].map((t, i) => (
-              <div key={t} className={`px-5 py-3 text-xs font-medium ${i === 1 ? "border-b-2 border-indigo-400 text-indigo-300" : "text-zinc-500"}`}>{t}</div>
+          <div className="flex border-b border-white/8 overflow-x-auto">
+            {["💬 Comments","🔑 Licenses","🏢 Orgs","🤝 Connect","👑 Admins","📊 Dashboard"].map((t, i) => (
+              <div key={t} className={`shrink-0 px-3 py-3 text-[10px] font-medium ${i === 2 ? "border-b-2 border-indigo-400 text-indigo-300" : "text-zinc-500"}`}>{t}</div>
             ))}
           </div>
           <div className="p-5 space-y-3">
@@ -442,7 +483,7 @@ function SuperAdminSection() {
               {[
                 ["Acme Wellness Pvt Ltd","ngo","active","70","34",true],
                 ["Sunrise Academy","edu","active","80","51",false],
-                ["TechCorp India — admin@techcorp.in (via Stripe)","commercial","pending","100","1",false],
+                ["TechCorp India — admin@techcorp.in (via Razorpay)","commercial","pending","100","1",false],
               ].map(([name,type,status,seats,mem,expanded]) => (
                 <div key={name as string} className={`border-t border-white/5 ${expanded ? "bg-indigo-500/5" : ""}`}>
                   <div className="grid grid-cols-6 gap-2 px-3 py-2.5 text-[10px] items-center">
@@ -467,7 +508,7 @@ function SuperAdminSection() {
       </Screen>
 
       <H3>Creating a new organisation manually</H3>
-      <Step n={1} title='Click the "+ New Org" button (top-right of the Organizations tab)'>
+      <Step n={1} title='Click the "+ New Org" button (top-right of the Orgs tab)'>
         <p>A form slides open below the button. Fill in all required fields.</p>
       </Step>
       <Step n={2} title="Fill in the organisation details">
@@ -630,13 +671,13 @@ function SuperAdminSection() {
 
       {/* ── SUPER ADMINS ── */}
       <H2 id="sa-admins">Part 5 — Managing Super-Admins</H2>
-      <p className="text-sm text-zinc-400 mb-4">Click the <strong className="text-zinc-200">👑 Super Admins</strong> tab. Only <Tag color="amber">owner</Tag>-role admins can manage other super-admins.</p>
+      <p className="text-sm text-zinc-400 mb-4">Click the <strong className="text-zinc-200">👑 Admins</strong> tab. Only <Tag color="amber">owner</Tag>-role admins can manage other super-admins.</p>
 
-      <Screen title="admin — 👑 Super Admins" caption="The Super Admins tab lists all accounts with lockout status, last login, and action buttons.">
+      <Screen title="admin — 👑 Admins" caption="The Admins tab lists all accounts with lockout status, last login, and action buttons.">
         <div className="bg-[#0d0d10]">
-          <div className="flex border-b border-white/8">
-            {["📊 Dashboard","🏢 Organizations","👑 Super Admins"].map((t, i) => (
-              <div key={t} className={`px-5 py-3 text-xs font-medium ${i === 2 ? "border-b-2 border-indigo-400 text-indigo-300" : "text-zinc-500"}`}>{t}</div>
+          <div className="flex border-b border-white/8 overflow-x-auto">
+            {["💬 Comments","🔑 Licenses","🏢 Orgs","🤝 Connect","👑 Admins","📊 Dashboard"].map((t, i) => (
+              <div key={t} className={`shrink-0 px-3 py-3 text-[10px] font-medium ${i === 4 ? "border-b-2 border-indigo-400 text-indigo-300" : "text-zinc-500"}`}>{t}</div>
             ))}
           </div>
           <div className="p-4 space-y-4">
@@ -713,7 +754,7 @@ function SuperAdminSection() {
       <p className="text-sm text-zinc-400 mb-4">Enable TOTP-based 2FA on your own account for extra security. Each admin manages their own 2FA — you cannot force 2FA on other admins, but you can see who has it enabled in the admin list.</p>
 
       <H3>Setting up 2FA</H3>
-      <Step n={1} title='In the 👑 Super Admins tab, scroll to "Two-factor authentication (2FA)"'>
+      <Step n={1} title='In the 👑 Admins tab, scroll to "Two-factor authentication (2FA)"'>
         <p>Click <strong className="text-zinc-300">Manage</strong> to expand the panel. If 2FA is not yet enabled on your account, you will see the Setup button.</p>
       </Step>
       <Step n={2} title='Click "Set up 2FA"'>
@@ -735,18 +776,18 @@ function SuperAdminSection() {
       <p className="text-sm text-zinc-400 mb-4">A user ban blocks access at the API level — not just license withdrawal. Banned users cannot use any Imotara feature even on the Free tier. Only <Tag color="amber">owner</Tag> and <Tag color="indigo">admin</Tag> roles can ban users.</p>
 
       <H3>Banning a user</H3>
-      <Step n={1} title='Open the 👥 Users tab and find the user by email or name'>
-        <p>Click on the user row to expand their detail panel.</p>
+      <Step n={1} title='Click the 🔑 Licenses tab → User Licenses sub-tab'>
+        <p>Search for the user by email in the search box and press Search. Their row appears with current tier, token balance, and any existing ban badge.</p>
       </Step>
-      <Step n={2} title='Scroll to the "Ban user" section at the bottom of the expanded panel'>
+      <Step n={2} title='Expand the user row and scroll to the "Ban user" section'>
         <p>Type a reason for the ban (required for audit trail). Click <strong className="text-zinc-300">Ban user</strong>.</p>
       </Step>
       <Step n={3} title='A "⛔ Banned" badge appears on the user row immediately'>
-        <p>The ban reason and your email are recorded. The user is blocked from all API endpoints until unbanned.</p>
+        <p>The ban reason and your admin email are recorded. The user is blocked from all API endpoints until unbanned.</p>
       </Step>
 
       <H3>Unbanning a user</H3>
-      <p className="text-sm text-zinc-400 mb-3">Expand the user panel and click <strong className="text-zinc-200">Unban</strong>. Access is restored immediately.</p>
+      <p className="text-sm text-zinc-400 mb-3">Expand the user row in 🔑 Licenses → User Licenses and click <strong className="text-zinc-200">Unban</strong>. Access is restored immediately.</p>
       <Note>Bans do not delete the user&apos;s data or cancel subscriptions — they block API access only. Cancel the subscription separately if needed via the payment gateway.</Note>
 
       <H2 id="sa-connect">Part 8 — Connect: Earnings &amp; Session Monitor</H2>
@@ -1148,7 +1189,7 @@ function FaqSection() {
   const faqs = [
     {
       q: "A corporate customer sent an enquiry but their org is not set up yet — what do I do?",
-      a: "When a customer clicks 'Get started' on /pricing/corporate, a pre-filled email is sent to info@imotara.com. Reply with a Razorpay payment link for the quoted amount. Once payment is confirmed, go to Admin panel → 🏢 Organizations tab → click '+ New Org' → fill in their details and set Status to 'active'. The customer then receives access to /org/dashboard.",
+      a: "When a customer clicks 'Get started' on /pricing/corporate, a pre-filled email is sent to info@imotara.com. Reply with a Razorpay payment link for the quoted amount. Once payment is confirmed, go to Admin panel → 🏢 Orgs tab → click '+ New Org' → fill in their details and set Status to 'active'. The customer then receives access to /org/dashboard.",
     },
     {
       q: "How do I handle a request for more seats after the initial purchase?",
@@ -1160,7 +1201,7 @@ function FaqSection() {
     },
     {
       q: "An admin account is locked (🔒 Locked badge visible). How do I unlock it?",
-      a: "Admin panel → 👑 Super Admins tab → find the locked admin (their row shows a 🔓 Unlock button) → click Unlock. The account is immediately accessible. If YOUR account is locked, contact another Owner-role admin to unlock it for you.",
+      a: "Admin panel → 👑 Admins tab → find the locked admin (their row shows a 🔓 Unlock button) → click Unlock. The account is immediately accessible. If YOUR account is locked, contact another Owner-role admin to unlock it for you.",
     },
     {
       q: "Can an org member have a higher tier than the org? (e.g. org is Enterprise but member bought personal Pro)",
@@ -1177,6 +1218,18 @@ function FaqSection() {
     {
       q: "An NGO customer says they didn't get the 60% discount — what do we do?",
       a: "The /pricing/corporate page shows the discounted price when NGO type is selected. The customer emails info@imotara.com with the pre-filled quote. If the wrong type was selected, simply reply with a Razorpay payment link at the correct discounted price — no payment has been taken yet at the enquiry stage.",
+    },
+    {
+      q: "How do I set up 2FA on my super-admin account?",
+      a: "Log in to the admin panel → 👑 Admins tab → scroll to the 'Two-factor authentication (2FA)' section → click Manage → click 'Set up 2FA'. A QR code appears. Scan it with Google Authenticator, Authy, or any TOTP app. Enter the 6-digit code and click 'Verify & enable'. You will receive 8 single-use backup codes — save them in a password manager. See Part 6 for the full walkthrough.",
+    },
+    {
+      q: "A user is harassing other users or abusing the AI — how do I block them immediately?",
+      a: "Go to 🔑 Licenses tab → User Licenses sub-tab → search by their email → expand their row → scroll to the 'Ban user' section → enter a reason → click Ban. The ban takes effect instantly and blocks all API access. Their data is not deleted. Unban any time using the same row. See Part 7 for details.",
+    },
+    {
+      q: "A companion is requesting a payout — what are the steps?",
+      a: "Go to 🤝 Connect tab → 💰 Earnings & Payouts sub-tab. The top table shows each companion's total earned amount and pending payout balance. Find the companion's payout request below → click 'Processing' → transfer funds via bank transfer or UPI → click 'Completed'. The pending_payout balance clears from their wallet. If the transfer fails, click 'Failed' so they know to follow up. See Part 8 for details.",
     },
   ];
 
@@ -1252,6 +1305,7 @@ export default function AdminGuidePage() {
             {active === "superadmin" && [
               ["sa-login","Part 1 — Logging in"],
               ["sa-dashboard","Part 2 — Dashboard"],
+              ["sa-licenses","Part 2B — Licenses & Bans"],
               ["sa-orgs","Part 3 — Organisations"],
               ["sa-pools","Part 4 — License pools"],
               ["sa-admins","Part 5 — Super-admins"],

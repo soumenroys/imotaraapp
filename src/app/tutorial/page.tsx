@@ -1704,9 +1704,9 @@ const FEATURES: Record<string, Feature[]> = {
       icon: "🧒",
       title: "Child-safe Mode",
       short: "Applies strict content filters — removes adult themes, violence, and scary content from all replies.",
-      long: "Child-safe mode tells Imotara to apply additional content filters across all responses — avoiding mature themes, graphic content, violence, and age-inappropriate topics. It's designed for families sharing an account with children. Enable it in Settings → Profile & Preferences → Child-safe Mode. Requires Family, EDU, or Enterprise plan.",
+      long: "Child-safe mode tells Imotara to apply additional content filters across all responses — avoiding mature themes, graphic content, violence, and age-inappropriate topics. It's designed for families sharing an account with children. Enable it in Settings → Your companion → Tone & Context Preferences → Child-safe Mode. Requires Family, EDU, or Enterprise plan.",
       steps: [
-        "Go to Settings → Profile & Preferences.",
+        "Go to Settings → Your companion → Tone & Context Preferences.",
         "Scroll to 'Child-safe Mode'.",
         "Toggle it on.",
         "All Imotara replies now use age-appropriate content filtering.",

@@ -2,6 +2,8 @@
 // Auth required. Returns user's balance per consultant + consultant earnings if applicable.
 // Query param: consultant_id — filter balance to a specific consultant
 
+export const preferredRegion = ["sin1"];
+
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
@@ -33,9 +35,24 @@ export async function GET(req: NextRequest) {
     sessionQuery  = sessionQuery.eq("consultant_id", consultantId);
   }
 
-  const [{ data: recharges }, { data: sessions }] = await Promise.all([
+  const [
+    { data: recharges },
+    { data: sessions },
+    { data: wallet },
+    { data: imotaraWallet },
+  ] = await Promise.all([
     rechargeQuery,
     sessionQuery,
+    supabase
+      .from("connect_wallet")
+      .select("earned_amount, earned_currency, pending_payout")
+      .eq("user_id", user.id)
+      .single(),
+    supabase
+      .from("imotara_wallets")
+      .select("balance, currency_code, expires_at, status, last_activity_at")
+      .eq("user_id", user.id)
+      .single(),
   ]);
 
   // Group by consultant
@@ -80,19 +97,24 @@ export async function GET(req: NextRequest) {
       currency_code:  v.currency,
     }));
 
-  // Consultant earnings (if this user is a consultant)
-  const { data: wallet } = await supabase
-    .from("connect_wallet")
-    .select("earned_amount, earned_currency, pending_payout")
-    .eq("user_id", user.id)
-    .single();
+  // wallet and imotaraWallet are fetched in the parallel Promise.all above
+
+  const expiresAt    = imotaraWallet?.expires_at ?? null;
+  const daysUntilExpiry = expiresAt
+    ? Math.floor((new Date(expiresAt).getTime() - Date.now()) / 86_400_000)
+    : null;
 
   return NextResponse.json({
     ok: true,
     balances: balanceByConsultant,
     wallets,
-    earned_amount:   wallet?.earned_amount   ?? 0,
-    earned_currency: wallet?.earned_currency ?? "INR",
-    pending_payout:  wallet?.pending_payout  ?? 0,
+    earned_amount:      wallet?.earned_amount   ?? 0,
+    earned_currency:    wallet?.earned_currency ?? "INR",
+    pending_payout:     wallet?.pending_payout  ?? 0,
+    wallet_balance:     Number(imotaraWallet?.balance     ?? 0),
+    wallet_currency:    imotaraWallet?.currency_code ?? "INR",
+    wallet_status:      imotaraWallet?.status         ?? "active",
+    expires_at:         expiresAt,
+    days_until_expiry:  daysUntilExpiry,
   });
 }

@@ -156,6 +156,11 @@ function isBadPlaceholderText(s: string): boolean {
   );
 }
 
+// Deploy to Singapore — closest Vercel region to Supabase ap-southeast-1 and Indian users.
+// Cuts Supabase round-trip latency from ~300 ms (US East) to ~10 ms and reduces
+// perceived chat reply delay in production.
+export const preferredRegion = ["sin1"];
+
 export async function GET() {
   // Friendly response so opening in browser doesn't show 405
   return NextResponse.json(

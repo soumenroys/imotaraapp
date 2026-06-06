@@ -32,6 +32,7 @@ interface UserLicense {
   license_notes: string | null;
   license_created_at: string | null;
   license_updated_at: string | null;
+  banned_at?: string | null;
 }
 
 interface UserDetail {
@@ -557,6 +558,9 @@ function UserLicenseRow({
   const [saving, setSaving]         = useState(false);
   const [savedMsg, setSavedMsg]     = useState("");
   const [tokenDeltaInput, setTokenDeltaInput] = useState("");
+  const [isBanned, setIsBanned]     = useState<boolean>(!!user.banned_at);
+  const [banReason, setBanReason]   = useState("");
+  const [banLoading, setBanLoading] = useState(false);
 
   // Collapsible sub-sections
   const [showPayments, setShowPayments] = useState(false);
@@ -631,6 +635,23 @@ function UserLicenseRow({
     persist(updated);
   }
 
+  async function toggleBan() {
+    if (!isBanned && !banReason.trim()) { setSavedMsg("Enter a ban reason first"); return; }
+    if (!confirm(isBanned ? `Unban ${user.email}?` : `Ban ${user.email}? They will lose access immediately.`)) return;
+    setBanLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users/${user.user_id}/ban`, {
+        method: isBanned ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: isBanned ? undefined : JSON.stringify({ reason: banReason.trim() }),
+      });
+      const d = await res.json();
+      if (d.ok) { setIsBanned(!isBanned); setBanReason(""); setSavedMsg(isBanned ? "✓ Unbanned" : "✓ Banned"); }
+      else setSavedMsg(`Error: ${d.error ?? "unknown"}`);
+    } catch { setSavedMsg("Network error"); }
+    finally { setBanLoading(false); setTimeout(() => setSavedMsg(""), 3000); }
+  }
+
   function addTokenDelta() {
     const delta = parseInt(tokenDeltaInput);
     if (isNaN(delta) || delta === 0) return;
@@ -670,6 +691,9 @@ function UserLicenseRow({
           )}
           {(user.token_balance ?? 0) > 0 && (
             <span className="text-[10px] text-amber-400">{user.token_balance} tokens</span>
+          )}
+          {isBanned && (
+            <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold text-rose-400">⛔ Banned</span>
           )}
           <button
             onClick={() => setExpanded((v) => !v)}
@@ -910,6 +934,35 @@ function UserLicenseRow({
                     </tbody>
                   </table>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Ban / Unban ── */}
+          <div className="border-t border-white/8 pt-4">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-rose-500/70">Account Ban</p>
+            {isBanned ? (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-rose-300">This account is banned.</span>
+                <button
+                  onClick={toggleBan}
+                  disabled={banLoading}
+                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-40"
+                >{banLoading ? "…" : "Unban user"}</button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  value={banReason}
+                  onChange={(e) => setBanReason(e.target.value)}
+                  placeholder="Ban reason (required)…"
+                  className="flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-rose-500/50"
+                />
+                <button
+                  onClick={toggleBan}
+                  disabled={banLoading || !banReason.trim()}
+                  className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-40"
+                >{banLoading ? "…" : "⛔ Ban user"}</button>
               </div>
             )}
           </div>
@@ -1487,6 +1540,7 @@ function SuperAdminsSection({ token }: { token: string }) {
     id: string; email: string; name: string; role: string; active: boolean;
     last_login_at: string | null; created_at: string;
     failed_attempts?: number; locked_until?: string | null;
+    totp_enabled?: boolean;
   }
   interface Session { id: string; ip_address: string|null; user_agent: string|null; created_at: string; expires_at: string; isCurrent: boolean }
 
@@ -1503,6 +1557,18 @@ function SuperAdminsSection({ token }: { token: string }) {
   const [showSessions, setShowSessions] = useState(false);
   const [revokingSession, setRevokingSession] = useState<string|null>(null);
 
+  // 2FA state
+  const [show2FA, setShow2FA]             = useState(false);
+  const [twoFASecret, setTwoFASecret]     = useState("");
+  const [twoFAQR, setTwoFAQR]             = useState("");
+  const [twoFACode, setTwoFACode]         = useState("");
+  const [twoFALoading, setTwoFALoading]   = useState(false);
+  const [twoFAMsg, setTwoFAMsg]           = useState("");
+  const [twoFAErr, setTwoFAErr]           = useState("");
+  const [backupCodes, setBackupCodes]     = useState<string[]>([]);
+  const [disableCode, setDisableCode]     = useState("");
+  const [myAdmin, setMyAdmin]             = useState<SuperAdmin | null>(null);
+
   // Legacy key status
   const legacyKeyActive = !token.startsWith("session:");
 
@@ -1511,7 +1577,9 @@ function SuperAdminsSection({ token }: { token: string }) {
     try {
       const r = await fetch("/api/admin/super-admins", adminFetchOpts(token));
       if (!r.ok) { setError("Not authorized or no super-admin accounts yet."); return; }
-      setAdmins((await r.json()).admins ?? []);
+      const list: SuperAdmin[] = (await r.json()).admins ?? [];
+      setAdmins(list);
+      void refreshMyAdmin();
     } catch { setError("Network error."); }
     finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1578,6 +1646,55 @@ function SuperAdminsSection({ token }: { token: string }) {
     await fetch("/api/admin/auth/sessions?all=true", adminFetchOpts(token, { method: "DELETE" }));
     void fetchSessions();
     setMsg("✓ All other sessions revoked");
+  }
+
+  async function refreshMyAdmin() {
+    const r = await fetch("/api/admin/auth/me", { credentials: "same-origin" });
+    if (r.ok) {
+      const d = await r.json();
+      if (d.admin) setMyAdmin(d.admin as SuperAdmin);
+    }
+  }
+
+  async function handle2FASetup() {
+    setTwoFALoading(true); setTwoFAErr(""); setTwoFAMsg(""); setBackupCodes([]);
+    const r = await fetch("/api/admin/auth/2fa/setup", adminFetchOpts(token, { method: "POST" }));
+    const j = await r.json();
+    setTwoFALoading(false);
+    if (!r.ok) { setTwoFAErr(j.error ?? "Setup failed"); return; }
+    setTwoFASecret(j.secret); setTwoFAQR(j.qrDataUrl); setTwoFACode("");
+  }
+
+  async function handle2FAVerify() {
+    setTwoFALoading(true); setTwoFAErr(""); setTwoFAMsg("");
+    const r = await fetch("/api/admin/auth/2fa/verify", adminFetchOpts(token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: twoFACode }),
+    }));
+    const j = await r.json();
+    setTwoFALoading(false);
+    if (!r.ok) { setTwoFAErr(j.error ?? "Verification failed"); return; }
+    if (j.backupCodes) setBackupCodes(j.backupCodes);
+    setTwoFAMsg("✓ 2FA enabled! Save your backup codes below.");
+    setTwoFAQR(""); setTwoFASecret(""); setTwoFACode("");
+    void fetchAdmins();
+  }
+
+  async function handle2FADisable() {
+    if (!disableCode || !/^\d{6}$/.test(disableCode)) { setTwoFAErr("Enter your 6-digit code to disable 2FA"); return; }
+    if (!confirm("Disable 2FA on your account?")) return;
+    setTwoFALoading(true); setTwoFAErr(""); setTwoFAMsg("");
+    const r = await fetch("/api/admin/auth/2fa/disable", adminFetchOpts(token, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: disableCode }),
+    }));
+    const j = await r.json();
+    setTwoFALoading(false);
+    if (!r.ok) { setTwoFAErr(j.error ?? "Failed to disable 2FA"); return; }
+    setTwoFAMsg("2FA disabled."); setDisableCode(""); setBackupCodes([]);
+    void fetchAdmins();
   }
 
   const inputCls = "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50";
@@ -1694,6 +1811,96 @@ function SuperAdminsSection({ token }: { token: string }) {
               ))}
             </div>
           </>
+        )}
+      </div>
+
+      {/* 2FA management */}
+      <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-zinc-300">Two-factor authentication (2FA)</p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">
+              {myAdmin?.totp_enabled
+                ? "✓ 2FA is enabled on your account."
+                : "2FA is not enabled. Enable it for extra security."}
+            </p>
+          </div>
+          <button onClick={() => { setShow2FA((v) => !v); setTwoFAMsg(""); setTwoFAErr(""); }}
+            className="text-xs text-indigo-400 hover:text-indigo-300 transition">
+            {show2FA ? "Hide" : "Manage"}
+          </button>
+        </div>
+
+        {show2FA && (
+          <div className="space-y-4">
+            {twoFAErr && <p className="text-xs text-rose-400">{twoFAErr}</p>}
+            {twoFAMsg && <p className="text-xs text-emerald-400">{twoFAMsg}</p>}
+
+            {/* Setup flow */}
+            {!myAdmin?.totp_enabled && (
+              <div className="space-y-3">
+                {!twoFAQR ? (
+                  <button onClick={handle2FASetup} disabled={twoFALoading}
+                    className="rounded-xl bg-indigo-500/80 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+                    {twoFALoading ? "Generating…" : "Set up 2FA"}
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-[11px] text-zinc-400">Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.):</p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={twoFAQR} alt="2FA QR Code" className="w-40 h-40 rounded-xl border border-white/10 bg-white p-1" />
+                    <p className="text-[11px] text-zinc-400">Or enter this secret manually:</p>
+                    <code className="block rounded-xl bg-black/30 px-3 py-2 text-xs font-mono text-zinc-300 tracking-widest break-all">{twoFASecret}</code>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        value={twoFACode} onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="Enter 6-digit code"
+                        className={`${inputCls} w-40 font-mono tracking-widest`}
+                        maxLength={6}
+                      />
+                      <button onClick={handle2FAVerify} disabled={twoFALoading || twoFACode.length !== 6}
+                        className="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50">
+                        {twoFALoading ? "Verifying…" : "Verify & enable"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Backup codes after setup */}
+            {backupCodes.length > 0 && (
+              <div className="rounded-xl border border-amber-500/25 bg-amber-500/8 px-4 py-3 space-y-2">
+                <p className="text-xs font-semibold text-amber-300">Save these backup codes — they won&apos;t be shown again:</p>
+                <div className="grid grid-cols-2 gap-1">
+                  {backupCodes.map((c) => (
+                    <code key={c} className="rounded-lg bg-black/30 px-2 py-1 text-xs font-mono text-zinc-300 text-center tracking-widest">{c}</code>
+                  ))}
+                </div>
+                <button onClick={() => navigator.clipboard.writeText(backupCodes.join("\n"))}
+                  className="text-[11px] text-indigo-400 hover:text-indigo-300 transition">Copy all</button>
+              </div>
+            )}
+
+            {/* Disable flow */}
+            {myAdmin?.totp_enabled && (
+              <div className="space-y-2">
+                <p className="text-[11px] text-zinc-400">Enter your current 6-digit code to disable 2FA:</p>
+                <div className="flex gap-2 items-center">
+                  <input
+                    value={disableCode} onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="6-digit code"
+                    className={`${inputCls} w-40 font-mono tracking-widest`}
+                    maxLength={6}
+                  />
+                  <button onClick={handle2FADisable} disabled={twoFALoading || disableCode.length !== 6}
+                    className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-50">
+                    {twoFALoading ? "Disabling…" : "Disable 2FA"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -1999,7 +2206,7 @@ const LANG_NAMES: Record<string, string> = {
 // ConnectSection
 // ─────────────────────────────────────────────────────────────────────────────
 
-type ConnectTab = "pending" | "all" | "payouts";
+type ConnectTab = "pending" | "all" | "payouts" | "sessions";
 
 interface ConnectConsultant {
   id: string; display_name: string; gender: string | null; status: string;
@@ -2016,9 +2223,27 @@ interface ConnectConsultant {
   created_at: string; email?: string | null;
 }
 
+interface EarningsConsultant extends ConnectConsultant {
+  earned_amount: number; pending_payout: number; earned_currency: string;
+}
+interface PayoutRecord {
+  id: string; consultant_user_id: string; amount: number; currency_code: string;
+  payout_method: string | null; status: string; admin_note: string | null;
+  created_at: string; processed_at: string | null;
+}
+interface ActiveSession {
+  id: string; type: string; status: string; started_at: string | null; ended_at: string | null;
+  minutes_used: number; amount_charged: number; currency_code: string; rate_per_min: number;
+  created_at: string;
+  connect_consultants: { display_name: string; photo_url: string | null } | null;
+}
+
 function ConnectSection({ token }: { token: string }) {
   const [ctab, setCtab]             = useState<ConnectTab>("pending");
   const [consultants, setConsultants] = useState<ConnectConsultant[]>([]);
+  const [earnings, setEarnings]     = useState<EarningsConsultant[]>([]);
+  const [payouts, setPayouts]       = useState<PayoutRecord[]>([]);
+  const [sessions, setSessions]     = useState<ActiveSession[]>([]);
   const [loading, setLoading]       = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionReason, setActionReason]   = useState<Record<string, string>>({});
@@ -2027,20 +2252,48 @@ function ConnectSection({ token }: { token: string }) {
   const [docsOpen, setDocsOpen]     = useState<Record<string, boolean>>({});
   const [docsData, setDocsData]     = useState<Record<string, Record<string, { url: string; name: string } | null>>>({});
   const [docsLoading, setDocsLoading] = useState<Record<string, boolean>>({});
+  const [payoutUpdating, setPayoutUpdating] = useState<string | null>(null);
 
   const fetchConsultants = useCallback(async (tab: ConnectTab) => {
     setLoading(true); setError("");
     try {
-      const path = tab === "pending"
-        ? "/api/admin/connect/pending"
-        : `/api/admin/connect/consultants${tab === "payouts" ? "" : ""}`;
-      const res = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) { setError("Failed to load."); return; }
-      const d = await res.json();
-      setConsultants(d.consultants ?? []);
+      if (tab === "payouts") {
+        const res = await fetch("/api/admin/connect/earnings", { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) { setError("Failed to load earnings."); return; }
+        const d = await res.json();
+        setEarnings(d.consultants ?? []);
+        setPayouts(d.payouts ?? []);
+      } else if (tab === "sessions") {
+        const res = await fetch("/api/admin/connect/active-sessions", { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) { setError("Failed to load sessions."); return; }
+        const d = await res.json();
+        setSessions(d.sessions ?? []);
+      } else {
+        const path = tab === "pending" ? "/api/admin/connect/pending" : "/api/admin/connect/consultants";
+        const res = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) { setError("Failed to load."); return; }
+        const d = await res.json();
+        setConsultants(d.consultants ?? []);
+      }
     } catch { setError("Network error."); }
     finally { setLoading(false); }
   }, [token]);
+
+  async function updatePayoutStatus(id: string, status: string, note?: string) {
+    setPayoutUpdating(id);
+    try {
+      const res = await fetch(`/api/admin/connect/payouts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status, admin_note: note }),
+      });
+      const d = await res.json();
+      if (d.ok) {
+        setPayouts((prev) => prev.map((p) => p.id === id ? { ...p, status, admin_note: note ?? p.admin_note } : p));
+      } else { setError(d.error ?? "Update failed"); }
+    } catch { setError("Network error."); }
+    finally { setPayoutUpdating(null); }
+  }
 
   useEffect(() => { fetchConsultants(ctab); }, [ctab, fetchConsultants]);
 
@@ -2112,10 +2365,15 @@ function ConnectSection({ token }: { token: string }) {
 
   return (
     <div>
-      <div className="mb-5 flex gap-1 rounded-xl border border-white/8 bg-white/5 p-1">
-        {([["pending", "Pending Applications"], ["all", "All Consultants"]] as const).map(([key, label]) => (
+      <div className="mb-5 flex gap-1 rounded-xl border border-white/8 bg-white/5 p-1 overflow-x-auto">
+        {([
+          ["pending",  "Pending"],
+          ["all",      "All Companions"],
+          ["payouts",  "💰 Earnings & Payouts"],
+          ["sessions", "📡 Session Monitor"],
+        ] as const).map(([key, label]) => (
           <button key={key} onClick={() => setCtab(key)}
-            className={`flex flex-1 items-center justify-center rounded-lg px-3 py-2 text-xs transition ${
+            className={`flex flex-1 items-center justify-center whitespace-nowrap rounded-lg px-3 py-2 text-xs transition ${
               ctab === key ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
             }`}>
             {label}
@@ -2125,13 +2383,151 @@ function ConnectSection({ token }: { token: string }) {
 
       {error && <p className="mb-4 text-xs text-rose-400">{error}</p>}
 
+      {/* ── Earnings & Payouts Tab ── */}
+      {ctab === "payouts" && !loading && (
+        <div className="space-y-6">
+          {/* Consultant earnings table */}
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Consultant Earnings</p>
+            {earnings.length === 0 ? (
+              <p className="py-6 text-center text-sm text-zinc-500">No approved consultants yet.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-white/10">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-white/8 text-left">
+                      {["Consultant", "Sessions", "Total Earned", "Pending Payout", "Status"].map((h) => (
+                        <th key={h} className="px-3 py-2 text-zinc-500 font-medium">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {earnings.map((c) => (
+                      <tr key={c.id} className="border-b border-white/5 hover:bg-white/3 transition">
+                        <td className="px-3 py-2.5">
+                          <p className="font-medium text-zinc-200">{c.display_name}</p>
+                          <p className="text-zinc-600">{c.currency_code}/min · ★{c.rating_avg?.toFixed(1) ?? "—"}</p>
+                        </td>
+                        <td className="px-3 py-2.5 text-zinc-300">{c.sessions_completed}</td>
+                        <td className="px-3 py-2.5 text-emerald-400 font-medium">{c.earned_currency} {c.earned_amount.toFixed(2)}</td>
+                        <td className="px-3 py-2.5">
+                          {c.pending_payout > 0
+                            ? <span className="text-amber-400 font-medium">{c.earned_currency} {c.pending_payout.toFixed(2)}</span>
+                            : <span className="text-zinc-600">—</span>}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            c.status === "approved" ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-300"
+                          }`}>{c.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Payout requests */}
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Payout Requests</p>
+            {payouts.length === 0 ? (
+              <p className="py-6 text-center text-sm text-zinc-500">No payout requests yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {payouts.map((p) => (
+                  <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/3 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium text-zinc-200">{p.currency_code} {Number(p.amount).toFixed(2)}</p>
+                      <p className="text-[11px] text-zinc-500">{p.payout_method?.toUpperCase() ?? "—"} · {new Date(p.created_at).toLocaleDateString()}</p>
+                      {p.admin_note && <p className="text-[11px] text-zinc-600 italic">Note: {p.admin_note}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        p.status === "completed" ? "bg-emerald-500/20 text-emerald-400" :
+                        p.status === "processing" ? "bg-blue-500/20 text-blue-300" :
+                        p.status === "failed" ? "bg-rose-500/20 text-rose-300" :
+                        "bg-amber-500/20 text-amber-300"
+                      }`}>{p.status}</span>
+                      {p.status === "pending" && (
+                        <button
+                          onClick={() => updatePayoutStatus(p.id, "processing")}
+                          disabled={payoutUpdating === p.id}
+                          className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[11px] text-blue-300 transition hover:bg-blue-500/20 disabled:opacity-40"
+                        >{payoutUpdating === p.id ? "…" : "Mark Processing"}</button>
+                      )}
+                      {p.status === "processing" && (
+                        <button
+                          onClick={() => updatePayoutStatus(p.id, "completed")}
+                          disabled={payoutUpdating === p.id}
+                          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-40"
+                        >{payoutUpdating === p.id ? "…" : "✓ Mark Paid"}</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Session Monitor Tab ── */}
+      {ctab === "sessions" && !loading && (
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Live &amp; Recent Sessions</p>
+            <button onClick={() => fetchConsultants("sessions")} className="text-xs text-indigo-400 hover:text-indigo-300 transition">↻ Refresh</button>
+          </div>
+          {sessions.length === 0 ? (
+            <p className="py-10 text-center text-sm text-zinc-500">No active sessions right now.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-white/10">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-white/8 text-left">
+                    {["Companion", "Type", "Status", "Started", "Duration", "Charged"].map((h) => (
+                      <th key={h} className="px-3 py-2 text-zinc-500 font-medium">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sessions.map((s) => (
+                    <tr key={s.id} className="border-b border-white/5 hover:bg-white/3 transition">
+                      <td className="px-3 py-2.5 font-medium text-zinc-200">
+                        {s.connect_consultants?.display_name ?? "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-zinc-400">{s.type}</td>
+                      <td className="px-3 py-2.5">
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          s.status === "active" ? "bg-emerald-500/20 text-emerald-400" :
+                          s.status === "pending" ? "bg-amber-500/20 text-amber-300" :
+                          "bg-zinc-500/20 text-zinc-400"
+                        }`}>{s.status}</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-zinc-500">
+                        {s.started_at ? new Date(s.started_at).toLocaleTimeString() : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-zinc-300">{s.minutes_used > 0 ? `${s.minutes_used} min` : "—"}</td>
+                      <td className="px-3 py-2.5 text-zinc-300">
+                        {s.amount_charged > 0 ? `${s.currency_code} ${Number(s.amount_charged).toFixed(2)}` : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-10"><span className="text-zinc-500 text-sm">Loading…</span></div>
-      ) : consultants.length === 0 ? (
+      ) : (ctab === "pending" || ctab === "all") && consultants.length === 0 ? (
         <p className="py-10 text-center text-sm text-zinc-500">
           {ctab === "pending" ? "No pending applications." : "No consultants found."}
         </p>
-      ) : (
+      ) : (ctab === "pending" || ctab === "all") && (
         <div className="space-y-3">
           {consultants.map((c) => (
             <div key={c.id} className="imotara-glass-card rounded-xl p-4 space-y-3">

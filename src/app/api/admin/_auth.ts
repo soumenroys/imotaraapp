@@ -35,10 +35,11 @@ export async function adminAuthorized(req: NextRequest): Promise<boolean> {
 // ── New: session-based multi-user super-admin ─────────────────────────────────
 
 export interface SuperAdminInfo {
-  id:    string;
-  email: string;
-  name:  string;
-  role:  "owner" | "admin" | "connect_reviewer";
+  id:           string;
+  email:        string;
+  name:         string;
+  role:         "owner" | "admin" | "connect_reviewer";
+  totp_enabled?: boolean;
 }
 
 export type SuperAdminResult =
@@ -72,14 +73,14 @@ export async function requireSuperAdmin(req: NextRequest): Promise<SuperAdminRes
       if (session && new Date(session.expires_at) > new Date()) {
         const { data: admin } = await supabase
           .from("super_admins")
-          .select("id, email, name, role, active")
+          .select("id, email, name, role, active, totp_enabled")
           .eq("id", session.admin_id)
           .single();
 
         if (admin?.active) {
           return {
             ok:    true,
-            admin: { id: admin.id, email: admin.email, name: admin.name, role: admin.role as "owner" | "admin" },
+            admin: { id: admin.id, email: admin.email, name: admin.name, role: admin.role as "owner" | "admin", totp_enabled: admin.totp_enabled ?? false },
           };
         }
       }

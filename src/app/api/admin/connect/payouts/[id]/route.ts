@@ -1,0 +1,58 @@
+// PATCH /api/admin/connect/payouts/[id]
+// Update payout status: pending → processing → completed | failed
+// Body: { status: "processing"|"completed"|"failed"; admin_note?: string }
+// Auth: admin or owner.
+
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { adminAuthorized } from "@/app/api/admin/_auth";
+
+const VALID_STATUSES = ["processing", "completed", "failed"] as const;
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const admin = await adminAuthorized(req);
+  if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  const status = body?.status;
+  const admin_note: string | undefined = body?.admin_note;
+
+  if (!VALID_STATUSES.includes(status)) {
+    return NextResponse.json({ ok: false, error: "status must be processing, completed, or failed" }, { status: 400 });
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  const { data: payout } = await supabase
+    .from("connect_payouts")
+    .select("id, status, consultant_user_id, amount")
+    .eq("id", id)
+    .single();
+
+  if (!payout) return NextResponse.json({ ok: false, error: "Payout not found" }, { status: 404 });
+
+  const update: Record<string, unknown> = { status };
+  if (admin_note) update.admin_note = admin_note;
+  if (status === "completed") update.processed_at = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("connect_payouts")
+    .update(update)
+    .eq("id", id);
+
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+
+  // If completed, clear pending_payout from wallet
+  if (status === "completed") {
+    await supabase
+      .from("connect_wallet")
+      .update({ pending_payout: 0, updated_at: new Date().toISOString() })
+      .eq("user_id", payout.consultant_user_id);
+  }
+
+  return NextResponse.json({ ok: true });
+}

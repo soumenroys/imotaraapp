@@ -406,14 +406,18 @@ function ToneAndContextTile() {
     >("prefer_not");
     const [userAvatarAge, setUserAvatarAge] = useState<number>(26);
     const [compAvatarAge, setCompAvatarAge] = useState<number>(26);
-    // GAP-12: Teen Mode toggle
+    // GAP-12: Teen Mode + Child-safe mode toggles
     const [teenMode, setTeenMode] = useState(false);
+    const [childSafeMode, setChildSafeMode] = useState(false);
+    const childSafeModeGate = useFeatureGate("CHILD_SAFE_MODE");
 
     useEffect(() => {
         // Hydration-safe: only read localStorage after mount
         const existing = safeParseProfile(window.localStorage.getItem(PROFILE_STORAGE_KEY));
         const savedTeenMode = window.localStorage.getItem("imotara.teen_mode.v1");
         if (savedTeenMode === "true") setTeenMode(true);
+        const savedChildSafe = window.localStorage.getItem("imotara.child_safe_mode.v1");
+        if (savedChildSafe === "true") setChildSafeMode(true);
         if (existing) {
             setUserName(existing.user?.name ?? "");
             setUserAge((existing.user?.ageRange as AgeRange) ?? "prefer_not");
@@ -474,6 +478,11 @@ function ToneAndContextTile() {
         if (!loaded) return;
         try { window.localStorage.setItem("imotara.teen_mode.v1", String(teenMode)); } catch { /* ignore */ }
     }, [loaded, teenMode]);
+
+    useEffect(() => {
+        if (!loaded) return;
+        try { window.localStorage.setItem("imotara.child_safe_mode.v1", String(childSafeMode)); } catch { /* ignore */ }
+    }, [loaded, childSafeMode]);
 
     function save() {
         try {
@@ -935,6 +944,27 @@ function ToneAndContextTile() {
                 </button>
             </div>
 
+            {/* Child-safe mode — gated: Family/EDU/Enterprise */}
+            <div className={`mt-3 flex items-center justify-between rounded-xl border px-4 py-3 ${childSafeModeGate.allowed ? "border-emerald-500/20 bg-emerald-500/6" : "border-white/8 bg-white/3 opacity-60"}`}>
+                <div className="min-w-0">
+                    <p className="text-sm font-medium text-zinc-200">Child-safe Mode</p>
+                    <p className="mt-0.5 text-[11px] text-zinc-500">Applies strict content filters — removes adult themes, violence, and scary content from all reflections.</p>
+                    {childSafeModeGate.nudge && (
+                        <p className="mt-0.5 text-[10px] text-amber-400">{childSafeModeGate.reason ?? "Requires Family, EDU, or Enterprise plan."}</p>
+                    )}
+                </div>
+                <button
+                    type="button"
+                    role="switch"
+                    aria-checked={childSafeMode}
+                    disabled={!childSafeModeGate.allowed}
+                    onClick={() => childSafeModeGate.allowed && setChildSafeMode((v) => !v)}
+                    className={`relative ml-4 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${childSafeMode && childSafeModeGate.allowed ? "bg-emerald-500" : "bg-zinc-600"} disabled:cursor-not-allowed`}
+                >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${childSafeMode && childSafeModeGate.allowed ? "translate-x-4" : "translate-x-0"}`} />
+                </button>
+            </div>
+
             <p className="mt-3 text-[11px] text-zinc-500">Stored only in this browser. Reset clears it.</p>
         </section>
     );
@@ -1113,6 +1143,7 @@ export default function SettingsPage() {
     const replyCadenceGate    = useFeatureGate("REPLY_CADENCE");
     const companionLetterGate = useFeatureGate("COMPANION_LETTER");
     const growthArcGate       = useFeatureGate("GROWTH_ARC");
+    const multiProfileGate    = useFeatureGate("MULTI_PROFILE");
 
     // Letter archive — loaded on mount
     type LetterEntry = { id: string; generatedAt: number; body: string; companionName: string; reaction?: string; reply?: string; replyAt?: number };
@@ -2730,6 +2761,29 @@ export default function SettingsPage() {
                         <p className="mt-3 text-[11px] text-rose-200/90">{lic.error}</p>
                     )}
                 </section>
+
+                {/* Multi-profile — gated: Family plan */}
+                {multiProfileGate.allowed && (
+                    <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                        <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Family Profiles</h2>
+                        <p className="mt-1 text-xs leading-5 text-zinc-400">
+                            Manage separate profiles for each family member. Each profile keeps its own settings, companion, and reflection history.
+                        </p>
+                        <div className="mt-3 rounded-xl border border-white/10 bg-white/4 px-4 py-3 text-xs text-zinc-400 space-y-1">
+                            <p className="font-medium text-zinc-300">Coming soon</p>
+                            <p>Full profile switcher is being built. You&apos;ll be able to create up to 6 profiles — each with its own companion and history.</p>
+                        </div>
+                    </section>
+                )}
+                {multiProfileGate.nudge && !multiProfileGate.allowed && (
+                    <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5 opacity-60">
+                        <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Family Profiles</h2>
+                        <p className="mt-1 text-xs leading-5 text-zinc-400">{multiProfileGate.reason ?? "Upgrade to the Family plan to create separate profiles for each family member."}</p>
+                        <Link href="/upgrade" className="mt-2 inline-flex items-center gap-1 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20">
+                            Upgrade to Family →
+                        </Link>
+                    </section>
+                )}
 
                 {/* Payment history */}
                 <PaymentHistoryPanel />

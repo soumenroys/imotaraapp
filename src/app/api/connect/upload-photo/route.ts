@@ -22,8 +22,16 @@ export async function POST(req: NextRequest) {
   const file = formData.get("file") as File | null;
   if (!file) return NextResponse.json({ ok: false, error: "No file provided" }, { status: 400 });
 
-  if (!file.type.startsWith("image/")) {
-    return NextResponse.json({ ok: false, error: "Only image files are allowed" }, { status: 400 });
+  // Allowlist by MIME type — never trust client-supplied filename extension
+  const ALLOWED_TYPES: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png":  "png",
+    "image/webp": "webp",
+    "image/gif":  "gif",
+  };
+  const ext = ALLOWED_TYPES[file.type];
+  if (!ext) {
+    return NextResponse.json({ ok: false, error: "Only JPEG, PNG, WebP, or GIF images are allowed" }, { status: 400 });
   }
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ ok: false, error: "File must be under 5 MB" }, { status: 400 });
@@ -37,11 +45,10 @@ export async function POST(req: NextRequest) {
     await supabase.storage.createBucket(BUCKET, {
       public: true,
       fileSizeLimit: MAX_SIZE,
-      allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+      allowedMimeTypes: Object.keys(ALLOWED_TYPES),
     });
   }
 
-  const ext  = (file.name.split(".").pop() ?? "jpg").toLowerCase();
   const path = `${user.id}/${Date.now()}.${ext}`;
 
   const bytes = await file.arrayBuffer();

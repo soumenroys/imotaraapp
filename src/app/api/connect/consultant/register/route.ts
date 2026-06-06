@@ -51,6 +51,9 @@ export async function POST(req: NextRequest) {
   if (!rate_per_min || isNaN(Number(rate_per_min)) || Number(rate_per_min) <= 0) {
     return NextResponse.json({ ok: false, error: "rate_per_min must be a positive number" }, { status: 400 });
   }
+  if (Number(rate_per_min) > 10000) {
+    return NextResponse.json({ ok: false, error: "rate_per_min cannot exceed 10000" }, { status: 400 });
+  }
   if (!SUPPORTED_CURRENCIES.includes(currency_code)) {
     return NextResponse.json({ ok: false, error: "Unsupported currency" }, { status: 400 });
   }
@@ -66,6 +69,19 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = getSupabaseAdmin();
+
+  // Prevent duplicate registrations
+  const { data: existing } = await supabase
+    .from("connect_consultants")
+    .select("id, status")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (existing) {
+    const msg = existing.status === "pending"
+      ? "You already have a pending application"
+      : "You are already registered as a consultant";
+    return NextResponse.json({ ok: false, error: msg, existing_status: existing.status }, { status: 409 });
+  }
 
   // Insert consultant row
   const { data: consultant, error } = await supabase

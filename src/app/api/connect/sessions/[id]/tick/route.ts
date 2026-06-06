@@ -101,14 +101,23 @@ export async function POST(
     return NextResponse.json({ ok: true, status: "completed", remaining_minutes: 0 });
   }
 
-  await supabase
+  // Optimistic lock: only write if minutes_used hasn't changed since we read it.
+  // Prevents double-deduction if two tick requests race each other.
+  const { data: updated } = await supabase
     .from("connect_sessions")
     .update({
       minutes_used:   newMinutesUsed,
       amount_charged: newAmountCharged,
       last_tick_at:   now,
     })
-    .eq("id", sessionId);
+    .eq("id", sessionId)
+    .eq("minutes_used", Number(session.minutes_used))
+    .select("id");
+
+  if (!updated || updated.length === 0) {
+    // Another concurrent tick already wrote — return current state without double-counting
+    return NextResponse.json({ ok: true, status: "active", remaining_minutes: remaining });
+  }
 
   return NextResponse.json({ ok: true, status: "active", remaining_minutes: remaining });
 }

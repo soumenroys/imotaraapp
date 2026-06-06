@@ -12,7 +12,12 @@ import { getConnectUser } from "@/lib/connect/auth";
 const BUCKET    = "connect-docs";
 const MAX_SIZE  = 10 * 1024 * 1024; // 10 MB
 const DOC_TYPES = ["selfie", "photo_id", "address_proof", "age_proof", "eligibility"] as const;
-const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+const ALLOWED_MIME: Record<string, string> = {
+  "image/jpeg":      "jpg",
+  "image/png":       "png",
+  "image/webp":      "webp",
+  "application/pdf": "pdf",
+};
 
 export async function POST(req: NextRequest) {
   const user = await getConnectUser(req);
@@ -31,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!docType || !DOC_TYPES.includes(docType as typeof DOC_TYPES[number])) {
     return NextResponse.json({ ok: false, error: "Invalid doc_type" }, { status: 400 });
   }
-  if (!ALLOWED_MIME.includes(file.type)) {
+  if (!ALLOWED_MIME[file.type]) {
     return NextResponse.json({ ok: false, error: "Only JPG, PNG, WebP, or PDF files are allowed" }, { status: 400 });
   }
   if (file.size > MAX_SIZE) {
@@ -46,11 +51,11 @@ export async function POST(req: NextRequest) {
     await supabase.storage.createBucket(BUCKET, {
       public: false,
       fileSizeLimit: MAX_SIZE,
-      allowedMimeTypes: ALLOWED_MIME,
+      allowedMimeTypes: Object.keys(ALLOWED_MIME),
     });
   }
 
-  const ext  = file.name.split(".").pop()?.toLowerCase() ?? "bin";
+  const ext  = ALLOWED_MIME[file.type];
   const path = `${user.id}/${docType}/${Date.now()}.${ext}`;
 
   const bytes = await file.arrayBuffer();

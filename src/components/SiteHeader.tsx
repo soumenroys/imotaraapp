@@ -103,10 +103,10 @@ export default function SiteHeader() {
     setMobileOpen(false);
   }, [pathname]);
 
-  const isMoreActive = mounted && MORE_LINKS.some((item) =>
+  const isMoreActive = MORE_LINKS.some((item) =>
     item.kind === "group"
       ? item.children.some((c) => pathname.startsWith(c.href))
-      : pathname.startsWith(item.href)
+      : item.href ? pathname.startsWith(item.href) : false
   );
 
   return (
@@ -229,11 +229,9 @@ export default function SiteHeader() {
               className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-zinc-500 transition hover:bg-white/10 hover:text-zinc-300 dark:border-zinc-700/60"
             >
               <span aria-hidden>🔍</span>
-              {mounted && (
-                <span className="hidden sm:inline text-[10px] opacity-60">
-                  {isMac ? "⌘K" : "Ctrl K"}
-                </span>
-              )}
+              <span className="hidden sm:inline text-[10px] opacity-60" suppressHydrationWarning>
+                {mounted ? (isMac ? "⌘K" : "Ctrl K") : ""}
+              </span>
             </button>
 
             {/* Mobile hamburger — sm:hidden so only appears on small screens */}

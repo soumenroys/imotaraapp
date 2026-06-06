@@ -73,33 +73,6 @@ interface Session {
   connect_consultants: { display_name: string; photo_url: string | null; gender: string | null; rate_per_min?: number } | null;
 }
 
-interface WalletEntry {
-  consultant_id: string;
-  display_name: string;
-  photo_url: string | null;
-  gender: string | null;
-  balance_minutes: number;
-  currency_code: string;
-}
-
-interface WalletData {
-  wallets: WalletEntry[];
-  earned_amount: number;
-  earned_currency: string;
-  pending_payout: number;
-}
-
-interface Transaction {
-  id: string;
-  type: "recharge" | "session";
-  consultant_name: string;
-  consultant_id: string;
-  minutes: number;
-  amount: number | null;
-  currency_code: string | null;
-  created_at: string;
-}
-
 interface ConsultantSession {
   id: string;
   user_id: string;
@@ -189,9 +162,24 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const [favLoading, setFavLoading] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [walletCurrency, setWalletCurrency] = useState<string>("INR");
 
   useEffect(() => {
-    supabaseBrowser.auth.getSession().then(({ data: { session } }) => setIsLoggedIn(!!session));
+    supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+      if (session) {
+        fetch("/api/connect/wallet", { credentials: "include" })
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.ok) {
+              setWalletBalance(Number(d.wallet_balance ?? 0));
+              setWalletCurrency(d.wallet_currency ?? "INR");
+            }
+          })
+          .catch(() => {});
+      }
+    });
     const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_, session) => setIsLoggedIn(!!session));
     return () => subscription.unsubscribe();
   }, []);
@@ -389,11 +377,14 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
               key={c.id}
               consultant={c}
               razorpayKeyId={razorpayKeyId}
+              walletBalance={walletBalance}
+              walletCurrency={walletCurrency}
               isFavorite={favorites.has(c.id)}
               favLoading={favLoading === c.id}
               onToggleFavorite={(e) => toggleFavorite(c.id, e)}
               onTalkNow={handleTalkNow}
               onRequestMeeting={handleRequestMeeting}
+              onWalletTopUp={(newBal) => setWalletBalance(newBal)}
             />
           ))}
         </div>
@@ -570,20 +561,179 @@ function SessionsTab() {
 
 // ── Wallet Tab ────────────────────────────────────────────────────────────────
 
-function WalletTab() {
-  const [wallet, setWallet] = useState<WalletData | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showHistory, setShowHistory] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RazorpayConstructor = new (opts: Record<string, any>) => { open(): void };
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).Razorpay) { resolve(true); return; }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload  = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+}
+
+const TOPUP_PRESETS = [1000, 2000, 5000, 10000];
+
+interface WalletTx {
+  id: string;
+  type: "topup" | "deduction" | "refund" | "session" | "dormancy_marked";
+  amount: number | null;
+  currency_code: string | null;
+  description: string;
+  consultant_name: string | null;
+  minutes: number | null;
+  created_at: string;
+}
+
+function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
+  const [isLoggedIn, setIsLoggedIn]           = useState<boolean | null>(null); // null = loading
+  const [walletBalance, setWalletBalance]     = useState<number>(0);
+  const [walletCurrency, setWalletCurrency]   = useState<string>("INR");
+  const [expiresAt, setExpiresAt]             = useState<string | null>(null);
+  const [daysUntilExpiry, setDaysUntilExpiry] = useState<number | null>(null);
+  const [walletStatus, setWalletStatus]       = useState<string>("active");
+  const [loading, setLoading]                 = useState(true);
+  const [selectedAmount, setSelectedAmount]   = useState<number>(1000);
+  const [customAmount, setCustomAmount]       = useState<string>("");
+  const [isCustom, setIsCustom]               = useState(false);
+  const [termsAccepted, setTermsAccepted]     = useState(false);
+  const [paying, setPaying]                   = useState(false);
+  const [payError, setPayError]               = useState<string>("");
+  const [transactions, setTransactions]       = useState<WalletTx[]>([]);
+  const [showHistory, setShowHistory]         = useState(false);
+  const [historyLoading, setHistoryLoading]   = useState(false);
+  // Refund request form
+  const [showRefund, setShowRefund]           = useState(false);
+  const [refundMethod, setRefundMethod]       = useState<"bank" | "upi">("upi");
+  const [refundUpi, setRefundUpi]             = useState("");
+  const [refundBank, setRefundBank]           = useState({ account_number: "", ifsc_code: "", account_holder: "", bank_name: "" });
+  const [refundReason, setRefundReason]       = useState("");
+  const [refundLoading, setRefundLoading]     = useState(false);
+  const [refundResult, setRefundResult]       = useState<{ ref: string; amount: number } | null>(null);
+  const [refundError, setRefundError]         = useState("");
+
+  const sym = CURRENCY_SYMBOLS[walletCurrency] ?? walletCurrency;
+  const topupAmount = isCustom ? Math.max(1, parseFloat(customAmount) || 0) : selectedAmount;
+
+  function fetchBalance() {
+    return fetch("/api/connect/wallet", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok) {
+          setWalletBalance(Number(d.wallet_balance ?? 0));
+          setWalletCurrency(d.wallet_currency ?? "INR");
+          setExpiresAt(d.expires_at ?? null);
+          setDaysUntilExpiry(d.days_until_expiry ?? null);
+          setWalletStatus(d.wallet_status ?? "active");
+        }
+      })
+      .catch(() => {});
+  }
 
   useEffect(() => {
-    fetch("/api/connect/wallet", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => { if (d.ok) setWallet(d); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+      if (session) {
+        setLoading(true);
+        fetchBalance().finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
+    const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_, session) => {
+      setIsLoggedIn(!!session);
+    });
+    return () => subscription.unsubscribe();
   }, []);
+
+  async function handleRefundRequest() {
+    setRefundLoading(true);
+    setRefundError("");
+    try {
+      const body =
+        refundMethod === "upi"
+          ? { upi_id: refundUpi, reason: refundReason }
+          : { ...refundBank, reason: refundReason };
+      const res = await fetch("/api/connect/wallet/refund-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
+      const d = await res.json();
+      if (!d.ok) throw new Error(d.error ?? "Request failed");
+      setRefundResult({ ref: d.reference_number, amount: d.amount });
+      setShowRefund(false);
+      fetchBalance();
+    } catch (err) {
+      setRefundError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setRefundLoading(false);
+    }
+  }
+
+  async function handleTopUp() {
+    if (topupAmount < 1) { setPayError("Please enter a valid amount"); return; }
+    if (!termsAccepted) { setPayError("Please accept the Wallet Terms to continue"); return; }
+    setPaying(true);
+    setPayError("");
+    try {
+      const loaded = await loadRazorpayScript();
+      if (!loaded) throw new Error("Payment gateway unavailable. Please try again.");
+
+      const res = await fetch("/api/connect/wallet/topup/create", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ amount: topupAmount, terms_accepted: true }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error ?? "Failed to create order");
+
+      await new Promise<void>((resolve, reject) => {
+        const RazorpayClass = (window as any).Razorpay as RazorpayConstructor; // eslint-disable-line @typescript-eslint/no-explicit-any
+        const rz = new RazorpayClass({
+          key:      razorpayKeyId,
+          order_id: data.razorpay_order_id,
+          amount:   data.amount_paise,
+          currency: "INR",
+          name:     "Imotara",
+          description: `Add ₹${topupAmount} to Imotara Wallet`,
+          handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+            try {
+              const vRes = await fetch("/api/connect/wallet/topup/verify", {
+                method:  "POST",
+                headers: { "Content-Type": "application/json" },
+                body:    JSON.stringify({
+                  razorpay_order_id:   response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature:  response.razorpay_signature,
+                }),
+                credentials: "include",
+              });
+              const vData = await vRes.json();
+              if (!vData.ok) reject(new Error(vData.error ?? "Payment verification failed"));
+              else { setWalletBalance(Number(vData.new_balance ?? 0)); resolve(); }
+            } catch (err) { reject(err); }
+          },
+          modal: { ondismiss: () => reject(new Error("Payment cancelled")) },
+          theme: { color: "#6366f1" },
+        });
+        rz.open();
+      });
+
+      setTransactions([]); // reset so history reloads fresh
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Payment failed";
+      if (msg !== "Payment cancelled") setPayError(msg);
+    } finally {
+      setPaying(false);
+    }
+  }
 
   async function loadHistory() {
     if (transactions.length > 0) { setShowHistory((v) => !v); return; }
@@ -597,54 +747,274 @@ function WalletTab() {
     finally { setHistoryLoading(false); }
   }
 
-  if (loading) {
+  if (isLoggedIn === null || loading) {
     return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-violet-400" size={24} /></div>;
   }
 
-  const entries = wallet?.wallets ?? [];
+  if (!isLoggedIn) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+        <div className="mb-4 text-5xl">🔒</div>
+        <h3 className="mb-2 text-lg font-semibold text-zinc-100">Sign in to use your Wallet</h3>
+        <p className="mb-6 max-w-xs text-sm text-zinc-400 leading-relaxed">
+          Your Imotara Wallet lets you add money and pay for sessions. Sign in to view your balance and top up.
+        </p>
+        <button
+          onClick={async () => {
+            await supabaseBrowser.auth.signInWithOAuth({
+              provider: "google",
+              options: { redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/connect?tab=wallet")}` },
+            });
+          }}
+          className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Sign in with Google
+        </button>
+      </div>
+    );
+  }
+
+  // Expiry display helpers
+  const expiryDate = expiresAt
+    ? new Date(expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
+    : null;
+  const isExpiringSoon  = daysUntilExpiry !== null && daysUntilExpiry <= 30 && walletBalance > 0;
+  const isExpired       = walletStatus === "forfeited";
 
   return (
     <div className="space-y-4">
-      <div className="imotara-glass-card rounded-2xl p-5">
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-          <Clock size={14} className="text-violet-400" />
-          Session Balance
-        </h3>
-        {entries.length === 0 ? (
-          <p className="text-sm text-zinc-500">No balance yet. Recharge from a companion&apos;s card to start a session.</p>
-        ) : (
-          <div className="space-y-2">
-            {entries.map((e) => (
-              <div key={e.consultant_id} className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3">
-                <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-violet-500/20 flex items-center justify-center text-base">
-                  {e.photo_url
-                    ? <img src={e.photo_url} className="h-full w-full object-cover" alt="" />
-                    : (e.gender === "female" ? "👩" : "👨")}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-zinc-100">{e.display_name}</p>
-                  <p className="text-xs text-zinc-500">{e.currency_code}</p>
-                </div>
-                <span className="shrink-0 text-base font-semibold text-violet-300">
-                  {e.balance_minutes} min
-                </span>
-              </div>
-            ))}
-          </div>
+      {/* ── Expiry warning banner ── */}
+      {isExpired && (
+        <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-5 py-4">
+          <p className="text-sm font-semibold text-rose-300">Your wallet balance has expired</p>
+          <p className="mt-1 text-xs text-rose-400/80">
+            Your balance was forfeited after 2 years of inactivity. You have a 6-month grace period to request a refund —
+            email <strong>support@imotara.com</strong> with subject &quot;Wallet Refund Request&quot;.
+          </p>
+        </div>
+      )}
+      {isExpiringSoon && !isExpired && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-5 py-4">
+          <p className="text-sm font-semibold text-amber-300">
+            Your wallet balance expires in {daysUntilExpiry} day{daysUntilExpiry === 1 ? "" : "s"}
+          </p>
+          <p className="mt-1 text-xs text-amber-400/80">
+            Add money or book a session before <strong>{expiryDate}</strong> to keep your balance active.
+            Unused balances expire after 2 years of inactivity.
+          </p>
+        </div>
+      )}
+
+      {/* ── Balance card ── */}
+      <div className="imotara-glass-card rounded-2xl p-6 text-center">
+        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Imotara Wallet Balance</p>
+        <p className={`text-5xl font-bold tracking-tight ${isExpired ? "text-zinc-600 line-through" : "text-violet-300"}`}>
+          {sym}{walletBalance.toFixed(2)}
+        </p>
+        <p className="mt-1 text-xs text-zinc-600">{walletCurrency} · Available for sessions</p>
+        {expiryDate && !isExpired && walletBalance > 0 && (
+          <p className={`mt-2 text-xs ${isExpiringSoon ? "text-amber-400" : "text-zinc-600"}`}>
+            Balance valid until {expiryDate}
+          </p>
         )}
       </div>
 
+      {/* ── Add Money card ── */}
       <div className="imotara-glass-card rounded-2xl p-5">
-        <p className="text-sm text-zinc-400">
-          Recharge using the <strong className="text-zinc-200">+ Balance</strong> button on any companion card, or click <strong className="text-zinc-200">Talk Now</strong> when a companion is online.
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-200">
+          <Plus size={14} className="text-violet-400" />
+          Add Money
+        </h3>
+
+        <p className="mb-2 text-xs font-medium uppercase tracking-widest text-zinc-500">Select Amount</p>
+        <div className="mb-3 grid grid-cols-4 gap-2">
+          {TOPUP_PRESETS.map((amt) => (
+            <button
+              key={amt}
+              onClick={() => { setIsCustom(false); setSelectedAmount(amt); }}
+              className={`rounded-xl border py-2.5 text-sm font-medium transition ${
+                !isCustom && selectedAmount === amt
+                  ? "border-violet-500 bg-violet-500/20 text-violet-300"
+                  : "border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+              }`}
+            >
+              {sym}{amt.toLocaleString("en-IN")}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={() => setIsCustom(true)}
+          className={`mb-3 w-full rounded-xl border py-2.5 text-sm transition ${
+            isCustom
+              ? "border-violet-500 bg-violet-500/20 text-violet-300 font-medium"
+              : "border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+          }`}
+        >
+          Custom amount
+        </button>
+
+        {isCustom && (
+          <div className="mb-3 relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400">{sym}</span>
+            <input
+              type="number"
+              min={1}
+              placeholder="Enter amount"
+              value={customAmount}
+              onChange={(e) => setCustomAmount(e.target.value)}
+              className="w-full rounded-xl border border-white/15 bg-white/5 pl-8 pr-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500"
+            />
+          </div>
+        )}
+
+        <div className="mb-4 rounded-xl border border-white/8 bg-white/3 px-4 py-3 flex items-center justify-between text-sm">
+          <span className="text-zinc-400">You will add</span>
+          <span className="font-semibold text-zinc-100">{sym}{topupAmount > 0 ? topupAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "—"}</span>
+        </div>
+
+        {/* ── Consent checkbox (recorded server-side per CPA 2019) ── */}
+        <label className="mb-4 flex items-start gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={termsAccepted}
+            onChange={(e) => setTermsAccepted(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-violet-500"
+          />
+          <span className="text-xs text-zinc-400 leading-relaxed group-hover:text-zinc-300 transition">
+            I have read and accept the{" "}
+            <a href="/connect/wallet-terms" target="_blank" rel="noopener noreferrer"
+              className="text-violet-400 underline underline-offset-2 hover:text-violet-300">
+              Imotara Wallet Terms
+            </a>
+            . I understand that my balance is valid for 2 years of inactivity, I will receive
+            6 email reminders before dormancy, and I can request a refund for 1 year after dormancy.
+          </span>
+        </label>
+
+        {payError && (
+          <p className="mb-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+            {payError}
+          </p>
+        )}
+
+        <button
+          onClick={handleTopUp}
+          disabled={paying || topupAmount < 1 || !termsAccepted}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
+        >
+          {paying ? <Loader2 size={16} className="animate-spin" /> : <Plus size={15} />}
+          {paying ? "Processing…" : `Add ${sym}${topupAmount > 0 ? topupAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""} to Wallet`}
+        </button>
+
+        <p className="mt-3 text-center text-[11px] text-zinc-600">
+          Secure payment via Razorpay · UPI, Net Banking, Cards accepted
         </p>
+
+        {/* ── Policy summary ── */}
+        <div className="mt-4 rounded-xl border border-white/6 bg-white/2 px-4 py-3">
+          <p className="text-[11px] font-semibold text-zinc-500 mb-1">Wallet Policy Summary</p>
+          <ul className="space-y-0.5 text-[11px] text-zinc-600 leading-relaxed list-disc list-inside">
+            <li>Balance valid for <strong className="text-zinc-500">2 years</strong> from last top-up or session</li>
+            <li><strong className="text-zinc-500">6 email reminders</strong> before dormancy (at 180, 90, 30, 14, 7, 1 days)</li>
+            <li>Annual balance statement sent every 12 months</li>
+            <li>Balance is <strong className="text-zinc-500">never lost</strong> — dormant wallets fully refundable for 1 year</li>
+            <li>Refund by bank transfer or UPI · processed in 7 business days</li>
+          </ul>
+          <a href="/connect/wallet-terms" target="_blank" rel="noopener noreferrer"
+            className="mt-2 inline-block text-[11px] text-violet-500 hover:text-violet-400 underline underline-offset-2">
+            Full Wallet Terms →
+          </a>
+        </div>
       </div>
 
-      {/* Transaction History */}
+      {/* ── Dormant wallet — Request Refund panel ── */}
+      {(walletStatus === "dormant" || walletStatus === "refund_requested") && walletBalance > 0 && (
+        <div className="imotara-glass-card rounded-2xl p-5 border border-amber-500/30">
+          <h3 className="mb-2 text-sm font-semibold text-amber-300">Dormant Balance — Request Refund</h3>
+          <p className="mb-4 text-xs text-zinc-400 leading-relaxed">
+            Your wallet balance of <strong className="text-zinc-200">{sym}{walletBalance.toFixed(2)}</strong> is dormant.
+            You can request a full refund below. We will process it within 7 business days.
+          </p>
+
+          {refundResult && (
+            <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+              <p className="text-sm font-semibold text-emerald-300">Refund request submitted</p>
+              <p className="text-xs text-zinc-400 mt-1">Reference: <strong>{refundResult.ref}</strong></p>
+              <p className="text-xs text-zinc-400">Amount: {sym}{refundResult.amount.toFixed(2)} · Confirmation sent to your email.</p>
+            </div>
+          )}
+
+          {walletStatus === "refund_requested" ? (
+            <p className="text-sm text-zinc-400 italic">Your refund request is being processed. Check your email for updates.</p>
+          ) : !showRefund ? (
+            <button
+              onClick={() => setShowRefund(true)}
+              className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm font-medium text-amber-300 hover:bg-amber-500/20 transition"
+            >
+              Request Refund
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                {(["upi", "bank"] as const).map((m) => (
+                  <button key={m} onClick={() => setRefundMethod(m)}
+                    className={`flex-1 rounded-xl border py-2 text-sm transition ${refundMethod === m ? "border-violet-500 bg-violet-500/20 text-violet-300" : "border-white/10 text-zinc-400 hover:border-white/20"}`}>
+                    {m === "upi" ? "UPI" : "Bank Transfer"}
+                  </button>
+                ))}
+              </div>
+
+              {refundMethod === "upi" ? (
+                <input type="text" placeholder="UPI ID (e.g. name@upi)" value={refundUpi}
+                  onChange={(e) => setRefundUpi(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
+              ) : (
+                <div className="space-y-2">
+                  {[
+                    ["bank_name",       "Bank Name"],
+                    ["account_number",  "Account Number"],
+                    ["ifsc_code",       "IFSC Code"],
+                    ["account_holder",  "Account Holder Name"],
+                  ].map(([field, label]) => (
+                    <input key={field} type="text" placeholder={label}
+                      value={refundBank[field as keyof typeof refundBank]}
+                      onChange={(e) => setRefundBank((b) => ({ ...b, [field]: e.target.value }))}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
+                  ))}
+                </div>
+              )}
+
+              <input type="text" placeholder="Reason (optional)" value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
+
+              {refundError && (
+                <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{refundError}</p>
+              )}
+
+              <div className="flex gap-2">
+                <button onClick={() => setShowRefund(false)}
+                  className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm text-zinc-400 hover:text-zinc-200 transition">
+                  Cancel
+                </button>
+                <button onClick={handleRefundRequest} disabled={refundLoading}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-600 py-2.5 text-sm font-semibold text-white hover:bg-amber-500 transition disabled:opacity-50">
+                  {refundLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+                  Submit Refund Request
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Transaction History ── */}
       <div className="imotara-glass-card rounded-2xl overflow-hidden">
         <button
           onClick={loadHistory}
-          className="flex w-full items-center justify-between p-5 text-left hover:bg-white/3 transition"
+          className="flex w-full items-center justify-between p-5 text-left hover:bg-white/5 transition"
         >
           <span className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
             <History size={14} className="text-violet-400" />
@@ -661,33 +1031,30 @@ function WalletTab() {
               <p className="pt-4 text-center text-sm text-zinc-500">No transactions yet.</p>
             ) : (
               <div className="mt-4 space-y-2">
-                {transactions.map((t) => (
-                  <div key={t.id} className="flex items-center gap-3 rounded-xl bg-white/3 px-3 py-2.5">
-                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-                      t.type === "recharge" ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"
-                    }`}>
-                      {t.type === "recharge" ? <Plus size={13} /> : <Minus size={13} />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-zinc-200">
-                        {t.type === "recharge" ? "Recharged" : "Session"} · {t.consultant_name}
-                      </p>
-                      <p className="text-[10px] text-zinc-500">
-                        {new Date(t.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className={`text-xs font-semibold ${t.type === "recharge" ? "text-emerald-400" : "text-rose-400"}`}>
-                        {t.type === "recharge" ? "+" : "-"}{t.minutes} min
-                      </p>
-                      {t.amount != null && t.currency_code && (
-                        <p className="text-[10px] text-zinc-500">
-                          {CURRENCY_SYMBOLS[t.currency_code] ?? t.currency_code}{t.amount.toFixed(2)}
+                {transactions.map((t) => {
+                  const isCredit = t.type === "topup" || t.type === "refund";
+                  const isEvent  = t.type === "dormancy_marked";
+                  return (
+                    <div key={t.id} className="flex items-center gap-3 rounded-xl bg-white/3 px-3 py-2.5">
+                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                        isEvent   ? "bg-amber-500/15 text-amber-400"
+                        : isCredit ? "bg-emerald-500/15 text-emerald-400"
+                        : "bg-rose-500/15 text-rose-400"
+                      }`}>
+                        {isEvent ? <Shield size={13} /> : isCredit ? <Plus size={13} /> : <Minus size={13} />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-zinc-200">{t.description}</p>
+                        <p className="text-[10px] text-zinc-500">{new Date(t.created_at).toLocaleDateString("en-IN")}</p>
+                      </div>
+                      {t.amount != null && !isEvent && (
+                        <p className={`shrink-0 text-xs font-semibold ${isCredit ? "text-emerald-400" : "text-rose-400"}`}>
+                          {isCredit ? "+" : "-"}{sym}{t.amount.toFixed(2)}
                         </p>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -884,7 +1251,10 @@ function DashboardTab() {
       const res = await fetch(`/api/connect/sessions/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          ...(action === "accept" && { consultant_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        }),
         credentials: "include",
       });
       const d = await res.json();
@@ -1482,7 +1852,7 @@ export default function ConnectPage() {
 
       {activeTab === "browse"    && <BrowseTab razorpayKeyId={RAZORPAY_KEY_ID} />}
       {activeTab === "sessions"  && <SessionsTab />}
-      {activeTab === "wallet"    && <WalletTab />}
+      {activeTab === "wallet"    && <WalletTab razorpayKeyId={RAZORPAY_KEY_ID} />}
       {activeTab === "dashboard" && <DashboardTab />}
     </main>
   );

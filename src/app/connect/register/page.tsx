@@ -205,17 +205,7 @@ export default function RegisterConsultantPage() {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
   const [isLoggedIn, setIsLoggedIn]   = useState(false);
-
-  useEffect(() => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsLoggedIn(!!session);
-      setAuthChecked(true);
-    });
-  }, []);
+  const [userEmail, setUserEmail]     = useState("");
 
   const TOTAL_STEPS = 5;
   const [step, setStep]       = useState(1);
@@ -287,7 +277,19 @@ export default function RegisterConsultantPage() {
   const [agreeInfoTrue, setAgreeInfoTrue]   = useState(false);
   const [digitalSignature, setDigitalSignature] = useState("");
 
-  // Auth guard — AFTER all hooks to satisfy Rules of Hooks
+  // Auth check — AFTER all hooks to satisfy Rules of Hooks
+  useEffect(() => {
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+      setUserEmail(session?.user?.email ?? "");
+      setAuthChecked(true);
+    });
+  }, []);
+
   if (!authChecked) return null;
   if (!isLoggedIn)  return <SignInGate />;
 
@@ -489,6 +491,12 @@ export default function RegisterConsultantPage() {
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Apply</p>
         <h1 className="mt-1 text-2xl font-semibold text-zinc-50">Become a Wellness Companion</h1>
         <p className="mt-1 text-xs text-zinc-500">Step {step} of {TOTAL_STEPS}</p>
+        {userEmail && (
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300">
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+            Signed in as {userEmail}
+          </div>
+        )}
       </div>
 
       {/* Progress bar */}

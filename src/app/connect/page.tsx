@@ -263,6 +263,21 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
     <>
     {showSignIn && <SignInModal onClose={() => setShowSignIn(false)} redirectTo="/connect" />}
     <div>
+      {!isLoggedIn && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-violet-500/25 bg-violet-500/10 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-violet-300">
+            <span>🔒</span>
+            <span>Sign in to book a session with a companion</span>
+          </div>
+          <button
+            onClick={() => setShowSignIn(true)}
+            className="shrink-0 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500"
+          >
+            Sign in
+          </button>
+        </div>
+      )}
+
       <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
         <AlertCircle size={15} className="mt-0.5 shrink-0" />
         <span>

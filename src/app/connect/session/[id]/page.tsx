@@ -8,7 +8,7 @@ import { useParams, useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import {
   ArrowLeft, Send, Phone, Loader2, AlertTriangle,
-  Star, X, CheckCircle2,
+  Star, X, CheckCircle2, Globe,
 } from "lucide-react";
 import EmergencyModal from "@/components/connect/EmergencyModal";
 
@@ -32,6 +32,12 @@ interface SessionData {
   minutes_used: number;
   rating: number | null;
   review_submitted_at: string | null;
+  started_at: string | null;
+  amount_charged: number | null;
+  currency_code: string;
+  rate_per_min: number | null;
+  user_timezone: string;
+  consultant_timezone: string;
   connect_consultants: {
     display_name: string;
     photo_url: string | null;
@@ -40,7 +46,57 @@ interface SessionData {
   } | null;
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  INR: "₹", USD: "$", EUR: "€", GBP: "£", AED: "د.إ", SGD: "S$", AUD: "A$",
+};
+
+function tzLabel(tz: string): string {
+  try {
+    const parts = Intl.DateTimeFormat("en", { timeZoneName: "short", timeZone: tz })
+      .formatToParts(new Date());
+    return parts.find((p) => p.type === "timeZoneName")?.value ?? tz;
+  } catch { return tz; }
+}
+
+function formatClock(date: Date, tz: string): string {
+  try {
+    return date.toLocaleString("en-IN", {
+      timeZone: tz,
+      weekday: "short", day: "numeric", month: "short",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    });
+  } catch { return date.toLocaleString(); }
+}
+
+function formatDuration(secs: number): string {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 const DISCLAIMER = "Peer wellness support only — not a substitute for professional mental health care.";
+
+const CHAT_LANGUAGES = [
+  { code: "en", label: "English",    flag: "🇬🇧" },
+  { code: "hi", label: "Hindi",      flag: "🇮🇳" },
+  { code: "bn", label: "Bengali",    flag: "🇧🇩" },
+  { code: "mr", label: "Marathi",    flag: "🇮🇳" },
+  { code: "ta", label: "Tamil",      flag: "🇮🇳" },
+  { code: "te", label: "Telugu",     flag: "🇮🇳" },
+  { code: "gu", label: "Gujarati",   flag: "🇮🇳" },
+  { code: "pa", label: "Punjabi",    flag: "🇮🇳" },
+  { code: "kn", label: "Kannada",    flag: "🇮🇳" },
+  { code: "ml", label: "Malayalam",  flag: "🇮🇳" },
+  { code: "ur", label: "Urdu",       flag: "🇵🇰" },
+  { code: "ar", label: "Arabic",     flag: "🇸🇦" },
+  { code: "es", label: "Spanish",    flag: "🇪🇸" },
+  { code: "fr", label: "French",     flag: "🇫🇷" },
+  { code: "de", label: "German",     flag: "🇩🇪" },
+  { code: "pt", label: "Portuguese", flag: "🇵🇹" },
+] as const;
+type LangCode = typeof CHAT_LANGUAGES[number]["code"];
 
 export default function SessionChatPage() {
   const { id: sessionId } = useParams<{ id: string }>();
@@ -59,16 +115,40 @@ export default function SessionChatPage() {
   const [rating, setRating]         = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [reviewDone, setReviewDone] = useState(false);
+  // Dual-panel state
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [elapsedSecs, setElapsedSecs]     = useState(0);
+  const [now, setNow]                     = useState(() => new Date());
+  const [panelOpen, setPanelOpen]         = useState(true);
+  // Translation state
+  const [chatLang, setChatLang]           = useState<LangCode | "">("");
+  const [translations, setTranslations]   = useState<Map<string, string>>(new Map());
+  const [translating, setTranslating]     = useState<Set<string>>(new Set());
+  const [showLangPicker, setShowLangPicker] = useState(false);
+  const langPickerRef                     = useRef<HTMLDivElement>(null);
+  const chatLangRef                       = useRef<LangCode | "">("");
 
   const bottomRef     = useRef<HTMLDivElement>(null);
   const tickRef       = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const clockRef      = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setMyUserId(s?.user?.id ?? null);
     });
+  }, []);
+
+  // ── Close lang picker on outside click ────────────────────────────────────
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (langPickerRef.current && !langPickerRef.current.contains(e.target as Node)) {
+        setShowLangPicker(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   // ── Load session + messages ────────────────────────────────────────────────
@@ -79,6 +159,8 @@ export default function SessionChatPage() {
       .from("connect_sessions")
       .select(
         "id, user_id, consultant_id, status, minutes_used, rating, review_submitted_at, " +
+        "started_at, amount_charged, currency_code, rate_per_min, " +
+        "user_timezone, consultant_timezone, " +
         "connect_consultants(display_name, photo_url, gender, rate_per_min)"
       )
       .eq("id", sessionId)
@@ -111,11 +193,31 @@ export default function SessionChatPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "connect_messages", filter: `session_id=eq.${sessionId}` },
         (payload) => {
+          const msg = payload.new as Message;
           setMessages((prev) => {
-            const msg = payload.new as Message;
             if (prev.find((m) => m.id === msg.id)) return prev;
             return [...prev, msg];
           });
+          // auto-translate if user has a language set
+          if (chatLangRef.current) {
+            const lang = chatLangRef.current;
+            const key = `${msg.id}::${lang}`;
+            setTranslations((prev) => {
+              if (prev.has(key)) return prev;
+              // fire and forget — result will update via setTranslations inside translateMessage
+              return prev;
+            });
+            fetch("/api/connect/translate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: msg.content, targetLang: lang }),
+              credentials: "include",
+            }).then((r) => r.json()).then((d) => {
+              if (d.ok && d.translatedText && d.translatedText.trim() !== msg.content.trim()) {
+                setTranslations((prev) => new Map(prev).set(key, d.translatedText));
+              }
+            }).catch(() => {});
+          }
         }
       )
       .on(
@@ -135,6 +237,28 @@ export default function SessionChatPage() {
     return () => { supabase.removeChannel(channel); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
+
+  // ── Wallet balance ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    fetch("/api/connect/wallet", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { if (d.ok) setWalletBalance(Number(d.wallet_balance ?? 0)); })
+      .catch(() => {});
+  }, []);
+
+  // ── Live clock + elapsed counter (1 s tick) ────────────────────────────────
+  useEffect(() => {
+    clockRef.current = setInterval(() => {
+      const tick = new Date();
+      setNow(tick);
+      setElapsedSecs((prev) => {
+        const startedAt = session?.started_at;
+        if (!startedAt || session?.status !== "active") return prev;
+        return Math.max(0, Math.floor((tick.getTime() - new Date(startedAt).getTime()) / 1000));
+      });
+    }, 1000);
+    return () => { if (clockRef.current) clearInterval(clockRef.current); };
+  }, [session?.started_at, session?.status]);
 
   // ── Auto-scroll ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -229,6 +353,43 @@ export default function SessionChatPage() {
     });
   }
 
+  // ── Translation ────────────────────────────────────────────────────────────
+  async function translateMessage(msgId: string, text: string, lang: LangCode) {
+    const key = `${msgId}::${lang}`;
+    if (translations.has(key) || translating.has(msgId)) return;
+    setTranslating((prev) => { const s = new Set(prev); s.add(msgId); return s; });
+    try {
+      const res = await fetch("/api/connect/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, targetLang: lang }),
+        credentials: "include",
+      });
+      const d = await res.json();
+      if (d.ok && d.translatedText && d.translatedText.trim() !== text.trim()) {
+        setTranslations((prev) => new Map(prev).set(key, d.translatedText));
+      }
+    } catch { /* silent */ }
+    finally {
+      setTranslating((prev) => { const s = new Set(prev); s.delete(msgId); return s; });
+    }
+  }
+
+  function translateAll(lang: LangCode, msgs: Message[]) {
+    msgs.forEach((m) => {
+      if (!translations.has(`${m.id}::${lang}`)) {
+        translateMessage(m.id, m.content, lang);
+      }
+    });
+  }
+
+  function handleLangChange(lang: LangCode | "") {
+    chatLangRef.current = lang;
+    setChatLang(lang);
+    setShowLangPicker(false);
+    if (lang) translateAll(lang, messages);
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -250,12 +411,6 @@ export default function SessionChatPage() {
     );
   }
 
-  function formatTime(secs: number): string {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  }
-
   const consultant   = session.connect_consultants;
   const isActive     = session.status === "active";
   const isCompleted  = session.status === "completed";
@@ -263,6 +418,17 @@ export default function SessionChatPage() {
   const isMine           = session.user_id === myUserId;
   const isConsultantView = !isMine && myUserId !== null;
   const isLowBalance     = displaySeconds !== null && displaySeconds <= 120 && isActive;
+
+  const sym          = CURRENCY_SYMBOLS[session.currency_code ?? "INR"] ?? "₹";
+  const rate         = Number(session.rate_per_min ?? consultant?.rate_per_min ?? 0);
+  const consumed     = (elapsedSecs / 60) * rate;
+
+  // Which timezone label to show as "You" vs "Companion"
+  const userTz       = session.user_timezone || "Asia/Kolkata";
+  const consultantTz = session.consultant_timezone || "Asia/Kolkata";
+  const myTz         = isMine ? userTz : consultantTz;
+  const theirTz      = isMine ? consultantTz : userTz;
+  const theirLabel   = isMine ? (consultant?.display_name ?? "Companion") : "User";
 
   return (
     <div className="flex h-[calc(100dvh-64px)] flex-col">
@@ -290,14 +456,67 @@ export default function SessionChatPage() {
           </p>
         </div>
 
-        {/* Timer */}
-        {isActive && displaySeconds !== null && (
-          <div className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-mono font-medium tabular-nums ${
-            isLowBalance ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
-          }`}>
-            {formatTime(displaySeconds)}
-          </div>
+        {/* Compact timer pill + panel toggle */}
+        {isActive && (
+          <button
+            onClick={() => setPanelOpen((v) => !v)}
+            className={`shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-mono font-medium tabular-nums transition ${
+              isLowBalance ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
+            }`}
+            title={panelOpen ? "Collapse session panel" : "Expand session panel"}
+          >
+            {formatDuration(elapsedSecs)}
+            <span className="opacity-60 text-[10px] font-sans">{panelOpen ? "▲" : "▼"}</span>
+          </button>
         )}
+
+        {/* Language picker */}
+        <div className="relative shrink-0" ref={langPickerRef}>
+          <button
+            onClick={() => setShowLangPicker((v) => !v)}
+            className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition ${
+              chatLang ? "bg-blue-500/20 text-blue-300 border border-blue-500/30" : "bg-white/5 text-zinc-400 hover:bg-white/10"
+            }`}
+            title="Translate messages"
+          >
+            <Globe size={13} />
+            {chatLang
+              ? <span className="font-semibold uppercase">{chatLang}</span>
+              : <span className="hidden sm:inline">Translate</span>
+            }
+          </button>
+          {showLangPicker && (
+            <div className="absolute right-0 top-full z-50 mt-1.5 w-72 rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl p-3">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                Translate messages to
+              </p>
+              <button
+                onClick={() => handleLangChange("")}
+                className={`mb-2 w-full rounded-lg border px-3 py-1.5 text-xs text-left transition ${
+                  !chatLang ? "border-zinc-500 bg-zinc-700 text-zinc-200" : "border-white/10 text-zinc-400 hover:bg-white/5"
+                }`}
+              >
+                Off — show original only
+              </button>
+              <div className="grid grid-cols-2 gap-1.5">
+                {CHAT_LANGUAGES.map((l) => (
+                  <button
+                    key={l.code}
+                    onClick={() => handleLangChange(l.code)}
+                    className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                      chatLang === l.code
+                        ? "border-blue-500 bg-blue-500/20 text-blue-300 font-medium"
+                        : "border-white/8 text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                    }`}
+                  >
+                    <span>{l.flag}</span>
+                    <span>{l.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Emergency button */}
         <button
@@ -308,6 +527,65 @@ export default function SessionChatPage() {
           <Phone size={14} />
         </button>
       </div>
+
+      {/* ── Dual session panel ──────────────────────────────────────────────── */}
+      {(isActive || isCompleted) && panelOpen && (
+        <div className="shrink-0 border-b border-white/6 bg-zinc-950/70 backdrop-blur-sm px-3 py-2.5">
+          {/* Metrics row */}
+          <div className="grid grid-cols-4 gap-1.5 mb-2">
+            {/* Elapsed */}
+            <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-2.5 py-2 text-center">
+              <p className="text-[9px] font-semibold uppercase tracking-widest text-amber-500/70 mb-0.5">Elapsed</p>
+              <p className="text-sm font-mono font-bold text-amber-400 tabular-nums">{formatDuration(elapsedSecs)}</p>
+            </div>
+            {/* Remaining */}
+            <div className={`rounded-xl border px-2.5 py-2 text-center ${
+              isLowBalance ? "bg-rose-500/10 border-rose-500/20" : "bg-emerald-500/10 border-emerald-500/20"
+            }`}>
+              <p className={`text-[9px] font-semibold uppercase tracking-widest mb-0.5 ${isLowBalance ? "text-rose-400/70" : "text-emerald-500/70"}`}>
+                Remaining
+              </p>
+              <p className={`text-sm font-mono font-bold tabular-nums ${isLowBalance ? "text-rose-400" : "text-emerald-400"}`}>
+                {displaySeconds !== null ? formatDuration(displaySeconds) : "—"}
+              </p>
+            </div>
+            {/* Consumed */}
+            <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-2.5 py-2 text-center">
+              <p className="text-[9px] font-semibold uppercase tracking-widest text-rose-400/70 mb-0.5">Used</p>
+              <p className="text-sm font-mono font-bold text-rose-400 tabular-nums">{sym}{consumed.toFixed(2)}</p>
+            </div>
+            {/* Wallet balance */}
+            <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 px-2.5 py-2 text-center">
+              <p className="text-[9px] font-semibold uppercase tracking-widest text-violet-400/70 mb-0.5">Balance</p>
+              <p className="text-sm font-mono font-bold text-violet-400 tabular-nums">
+                {walletBalance !== null ? `${sym}${walletBalance.toFixed(2)}` : "—"}
+              </p>
+            </div>
+          </div>
+
+          {/* Dual clock row */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="flex items-center gap-2 rounded-xl bg-white/4 border border-white/6 px-2.5 py-1.5">
+              <span className="text-base leading-none">🙋</span>
+              <div className="min-w-0">
+                <p className="text-[9px] font-semibold uppercase tracking-widest text-zinc-500 mb-0.5">
+                  You · {tzLabel(myTz)}
+                </p>
+                <p className="text-[11px] font-mono text-zinc-200 tabular-nums truncate">{formatClock(now, myTz)}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 rounded-xl bg-white/4 border border-white/6 px-2.5 py-1.5">
+              <span className="text-base leading-none">{isConsultantView ? "👤" : "🧑‍💼"}</span>
+              <div className="min-w-0">
+                <p className="text-[9px] font-semibold uppercase tracking-widest text-zinc-500 mb-0.5">
+                  {theirLabel} · {tzLabel(theirTz)}
+                </p>
+                <p className="text-[11px] font-mono text-zinc-200 tabular-nums truncate">{formatClock(now, theirTz)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status banners */}
       {isPending && (
@@ -356,6 +634,10 @@ export default function SessionChatPage() {
         )}
         {messages.map((m) => {
           const isMe = m.sender_id === myUserId;
+          const transKey = chatLang ? `${m.id}::${chatLang}` : null;
+          const translatedText = transKey ? translations.get(transKey) : undefined;
+          const isTranslating  = chatLang ? translating.has(m.id) : false;
+          const langLabel      = chatLang ? CHAT_LANGUAGES.find((l) => l.code === chatLang) : null;
           return (
             <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
@@ -364,6 +646,32 @@ export default function SessionChatPage() {
                   : "rounded-bl-sm bg-white/8 text-zinc-100"
               }`}>
                 {m.content}
+
+                {/* Translation section */}
+                {chatLang && (
+                  <div className={`mt-2 pt-2 ${isMe ? "border-t border-violet-400/30" : "border-t border-white/10"}`}>
+                    {isTranslating && !translatedText ? (
+                      <p className={`text-[11px] flex items-center gap-1 ${isMe ? "text-violet-200/60" : "text-zinc-500"}`}>
+                        <Loader2 size={10} className="animate-spin" />
+                        Translating…
+                      </p>
+                    ) : translatedText ? (
+                      <>
+                        <p className={`text-[10px] mb-0.5 ${isMe ? "text-violet-200/50" : "text-zinc-600"}`}>
+                          🌐 {langLabel?.flag} {langLabel?.label}
+                        </p>
+                        <p className={`text-[13px] leading-relaxed italic ${isMe ? "text-violet-100/90" : "text-zinc-300"}`}>
+                          {translatedText}
+                        </p>
+                      </>
+                    ) : (
+                      <p className={`text-[10px] ${isMe ? "text-violet-200/40" : "text-zinc-600"}`}>
+                        — same language
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <p className={`mt-1 text-[10px] ${isMe ? "text-violet-200" : "text-zinc-500"}`}>
                   {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </p>

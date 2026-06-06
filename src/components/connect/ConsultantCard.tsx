@@ -5,6 +5,19 @@ import { useState } from "react";
 import { Star, Globe, CircleDot, MessageCircle, Mic, Video } from "lucide-react";
 import RechargeModal from "./RechargeModal";
 
+const ROLE_CATEGORY_LABELS: Record<string, string> = {
+  wellness_companion: "🧘 Wellness Companion",
+  friend:             "🤝 Friend",
+  dad:                "👨 Dad",
+  mom:                "👩 Mom",
+  sister:             "👧 Sister",
+  brother:            "👦 Brother",
+  grandfather:        "👴 Grandfather",
+  grandmother:        "👵 Grandmother",
+  yoga_instructor:    "🧘 Yoga Instructor",
+  fitness_companion:  "💪 Fitness Companion",
+};
+
 interface Consultant {
   id: string;
   display_name: string;
@@ -14,6 +27,7 @@ interface Consultant {
   expertise_tags: string[];
   languages: string[];
   session_types: string[];
+  role_category: string;
   rate_per_min: number;
   currency_code: string;
   is_online: boolean;
@@ -75,6 +89,14 @@ export default function ConsultantCard({ consultant, razorpayKeyId, onTalkNow, o
                 </span>
               )}
             </div>
+
+            {consultant.role_category && (
+              <div className="mt-0.5">
+                <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-400">
+                  {ROLE_CATEGORY_LABELS[consultant.role_category] ?? consultant.role_category}
+                </span>
+              </div>
+            )}
 
             <div className="mt-0.5 flex items-center gap-2">
               <div className="flex items-center gap-0.5">

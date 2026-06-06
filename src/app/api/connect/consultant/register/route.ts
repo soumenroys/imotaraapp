@@ -1,6 +1,6 @@
 // POST /api/connect/consultant/register
 // Auth required. Creates a pending consultant application.
-// Body: { display_name, gender, photo_url?, bio, expertise_tags, languages,
+// Body: { display_name, gender, role_category?, photo_url?, bio, expertise_tags, languages,
 //         rate_per_min, currency_code, availability_note?, coc_agreed }
 
 import { NextRequest, NextResponse } from "next/server";
@@ -9,6 +9,10 @@ import { getConnectUser } from "@/lib/connect/auth";
 import nodemailer from "nodemailer";
 
 const SUPPORTED_CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED", "SGD", "AUD"];
+const VALID_ROLE_CATEGORIES = [
+  "wellness_companion", "friend", "dad", "mom", "sister", "brother",
+  "grandfather", "grandmother", "yoga_instructor", "fitness_companion",
+];
 
 export async function POST(req: NextRequest) {
   const user = await getConnectUser(req);
@@ -20,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (!body) return NextResponse.json({ ok: false, error: "Invalid body" }, { status: 400 });
 
   const {
-    display_name, gender, contact_email, contact_phone, website_url, social_links,
+    display_name, gender, role_category, contact_email, contact_phone, website_url, social_links,
     photo_url, bio, expertise_tags, languages, session_types,
     rate_per_min, currency_code, availability_note, availability_windows,
     verification_docs, payout_info, coc_agreed, digital_signature,
@@ -32,6 +36,9 @@ export async function POST(req: NextRequest) {
   if (!["male", "female"].includes(gender)) {
     return NextResponse.json({ ok: false, error: "gender must be male or female" }, { status: 400 });
   }
+  const normalizedCategory = role_category && VALID_ROLE_CATEGORIES.includes(role_category)
+    ? role_category
+    : "wellness_companion";
   if (!bio?.trim() || bio.length > 500) {
     return NextResponse.json({ ok: false, error: "bio is required (max 500 chars)" }, { status: 400 });
   }
@@ -67,6 +74,7 @@ export async function POST(req: NextRequest) {
       user_id:              user.id,
       display_name:         display_name.trim(),
       gender,
+      role_category:        normalizedCategory,
       contact_email:        contact_email?.trim() ?? null,
       contact_phone:        contact_phone?.trim() ?? null,
       website_url:          website_url?.trim() || null,

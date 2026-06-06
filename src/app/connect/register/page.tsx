@@ -74,6 +74,19 @@ const SESSION_TYPE_OPTIONS = [
   { key: "video", label: "Video Call",   icon: "📹", desc: "Face-to-face video sessions" },
 ] as const;
 
+const ROLE_CATEGORIES = [
+  { key: "wellness_companion", label: "Wellness Companion", icon: "🧘", desc: "Empathetic peer support for emotional wellness", phase: 1 },
+  { key: "friend",             label: "Friend",             icon: "🤝", desc: "A caring peer friend figure",                   phase: 2 },
+  { key: "dad",                label: "Dad",                icon: "👨", desc: "A supportive father figure",                    phase: 2 },
+  { key: "mom",                label: "Mom",                icon: "👩", desc: "A nurturing mother figure",                     phase: 2 },
+  { key: "sister",             label: "Sister",             icon: "👧", desc: "A caring sister figure",                       phase: 2 },
+  { key: "brother",            label: "Brother",            icon: "👦", desc: "A supportive brother figure",                  phase: 2 },
+  { key: "grandfather",        label: "Grandfather",        icon: "👴", desc: "A wise grandfather figure",                    phase: 2 },
+  { key: "grandmother",        label: "Grandmother",        icon: "👵", desc: "A warm grandmother figure",                    phase: 2 },
+  { key: "yoga_instructor",    label: "Yoga Instructor",    icon: "🧘", desc: "Yoga and mindfulness guidance",                phase: 3 },
+  { key: "fitness_companion",  label: "Fitness Companion",  icon: "💪", desc: "Physical wellness and fitness support",        phase: 3 },
+] as const;
+
 const COUNTRY_CODES = [
   { code: "+91",  name: "India",           flag: "🇮🇳", tz: "Asia/Kolkata" },
   { code: "+1",   name: "USA",             flag: "🇺🇸", tz: "America/New_York" },
@@ -162,6 +175,7 @@ export default function RegisterConsultantPage() {
   // Step 1 — Basic info
   const [displayName, setDisplayName]   = useState("");
   const [gender, setGender]             = useState<"male"|"female"|"">("");
+  const [roleCategory, setRoleCategory] = useState("wellness_companion");
   const [contactEmail, setContactEmail] = useState("");
   const [countryCode, setCountryCode]   = useState("+91");
   const [contactPhone, setContactPhone] = useState("");
@@ -362,6 +376,7 @@ export default function RegisterConsultantPage() {
         body: JSON.stringify({
           display_name:        displayName.trim(),
           gender,
+          role_category:       roleCategory,
           contact_email:       contactEmail.trim(),
           contact_phone:       contactPhone.trim() ? `${countryCode}${contactPhone.trim()}` : "",
           website_url:         websiteUrl.trim() || null,
@@ -454,6 +469,41 @@ export default function RegisterConsultantPage() {
                     {g === "female" ? "👩 Female" : "👨 Male"}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Role Category */}
+            <div>
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">
+                Role Category *
+                <span className="ml-2 normal-case font-normal text-zinc-600">— defines the relationship type you will offer</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {ROLE_CATEGORIES.map((rc) => {
+                  const active = roleCategory === rc.key;
+                  const locked = rc.phase > 1;
+                  return (
+                    <button
+                      key={rc.key}
+                      type="button"
+                      disabled={locked}
+                      onClick={() => !locked && setRoleCategory(rc.key)}
+                      className={`relative flex flex-col items-start gap-0.5 rounded-xl border p-3 text-left transition
+                        ${active ? "border-violet-500 bg-violet-500/15" : locked ? "border-white/5 opacity-50 cursor-not-allowed" : "border-white/10 hover:border-white/20 cursor-pointer"}`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base">{rc.icon}</span>
+                        <span className={`text-sm font-medium ${active ? "text-violet-300" : "text-zinc-300"}`}>{rc.label}</span>
+                      </div>
+                      <p className="text-[10px] text-zinc-500 leading-tight">{rc.desc}</p>
+                      {locked && (
+                        <span className="absolute right-2 top-2 rounded-full bg-zinc-700/60 px-1.5 py-0.5 text-[9px] text-zinc-500">
+                          Phase {rc.phase}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -1043,6 +1093,7 @@ export default function RegisterConsultantPage() {
                 <div>
                   <p className="font-medium text-zinc-100">{displayName}</p>
                   <p className="text-xs text-zinc-500 capitalize">{gender}</p>
+                  <p className="text-xs text-violet-400">{ROLE_CATEGORIES.find(r => r.key === roleCategory)?.label ?? roleCategory}</p>
                 </div>
               </div>
               <ReviewRow label="Contact Email" value={contactEmail} />

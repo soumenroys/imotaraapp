@@ -41,6 +41,7 @@ interface Consultant {
   expertise_tags: string[];
   languages: string[];
   session_types: string[];
+  role_category: string;
   rate_per_min: number;
   currency_code: string;
   availability_note: string | null;
@@ -135,6 +136,19 @@ const EXPERTISE_TAGS = [
   "Career", "Self-esteem", "Parenting", "Life transitions", "Mindfulness", "Sleep",
 ];
 
+const ROLE_CATEGORIES = [
+  { key: "wellness_companion", label: "Wellness Companion", icon: "🧘", phase: 1 },
+  { key: "friend",             label: "Friend",             icon: "🤝", phase: 2 },
+  { key: "dad",                label: "Dad",                icon: "👨", phase: 2 },
+  { key: "mom",                label: "Mom",                icon: "👩", phase: 2 },
+  { key: "sister",             label: "Sister",             icon: "👧", phase: 2 },
+  { key: "brother",            label: "Brother",            icon: "👦", phase: 2 },
+  { key: "grandfather",        label: "Grandfather",        icon: "👴", phase: 2 },
+  { key: "grandmother",        label: "Grandmother",        icon: "👵", phase: 2 },
+  { key: "yoga_instructor",    label: "Yoga Instructor",    icon: "🧘", phase: 3 },
+  { key: "fitness_companion",  label: "Fitness Companion",  icon: "💪", phase: 3 },
+] as const;
+
 const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 // ── Browse Tab ────────────────────────────────────────────────────────────────
@@ -143,7 +157,7 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const router = useRouter();
   const [consultants, setConsultants] = useState<Consultant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState({ gender: "", online: false, tag: "" });
+  const [filter, setFilter] = useState({ gender: "", online: false, tag: "", category: "" });
   const [sort, setSort] = useState<"rating" | "price_asc" | "price_desc" | "sessions">("rating");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [favLoading, setFavLoading] = useState<string | null>(null);
@@ -151,8 +165,9 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const fetchConsultants = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (filter.gender) params.set("gender", filter.gender);
-    if (filter.online) params.set("online", "true");
+    if (filter.gender)   params.set("gender", filter.gender);
+    if (filter.online)   params.set("online", "true");
+    if (filter.category) params.set("category", filter.category);
     try {
       const [cRes, fRes] = await Promise.all([
         fetch(`/api/connect/consultants?${params}`),
@@ -167,7 +182,7 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [filter.gender, filter.online]);
+  }, [filter.gender, filter.online, filter.category]);
 
   useEffect(() => { fetchConsultants(); }, [fetchConsultants]);
 
@@ -215,6 +230,36 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
         <span>
           Companions provide peer wellness support only — not licensed therapy. For emergencies, use the help button inside any active session.
         </span>
+      </div>
+
+      {/* Category chips */}
+      <div className="mb-3 -mx-1">
+        <div className="flex gap-2 overflow-x-auto pb-2 px-1" style={{ scrollbarWidth: "none" }}>
+          <button
+            onClick={() => setFilter((f) => ({ ...f, category: "" }))}
+            className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm transition whitespace-nowrap
+              ${!filter.category ? "border-violet-500 bg-violet-500/20 text-violet-300" : "border-white/10 text-zinc-400 hover:border-white/20"}`}
+          >
+            All
+          </button>
+          {ROLE_CATEGORIES.map((rc) => (
+            <button
+              key={rc.key}
+              disabled={rc.phase > 1}
+              onClick={() => rc.phase === 1 && setFilter((f) => ({ ...f, category: f.category === rc.key ? "" : rc.key }))}
+              className={`shrink-0 flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm whitespace-nowrap transition
+                ${filter.category === rc.key
+                  ? "border-violet-500 bg-violet-500/20 text-violet-300"
+                  : rc.phase === 1
+                    ? "border-white/10 text-zinc-400 hover:border-white/20 cursor-pointer"
+                    : "border-white/5 text-zinc-600 cursor-not-allowed"}`}
+            >
+              <span>{rc.icon}</span>
+              <span>{rc.label}</span>
+              {rc.phase > 1 && <span className="ml-0.5 text-[10px] text-zinc-600">Soon</span>}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Filters + Sort */}

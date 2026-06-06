@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
   let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
   if (smtpUser && smtpPass) {
     transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com", port: 465, secure: true,
+      host: process.env.SMTP_HOST ?? "smtp.hostinger.com", port: 465, secure: true,
       auth: { user: smtpUser, pass: smtpPass },
     });
   }

@@ -186,7 +186,7 @@ async function sendInviteEmail({ to, orgName, inviteUrl, role }: {
 
   try {
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com", port: 465, secure: true, auth: { user, pass },
+      host: process.env.SMTP_HOST ?? "smtp.hostinger.com", port: 465, secure: true, auth: { user, pass },
     });
     await transporter.sendMail({
       from:    `"Imotara" <${user}>`,

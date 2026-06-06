@@ -155,7 +155,7 @@ async function sendAdminAlert(data: {
 
   try {
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com", port: 465, secure: true,
+      host: process.env.SMTP_HOST ?? "smtp.hostinger.com", port: 465, secure: true,
       auth: { user, pass },
     });
 

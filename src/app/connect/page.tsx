@@ -697,7 +697,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
       await new Promise<void>((resolve, reject) => {
         const RazorpayClass = (window as any).Razorpay as RazorpayConstructor; // eslint-disable-line @typescript-eslint/no-explicit-any
         const rz = new RazorpayClass({
-          key:      razorpayKeyId,
+          key:      data.razorpay_key_id ?? razorpayKeyId,
           order_id: data.razorpay_order_id,
           amount:   data.amount_paise,
           currency: "INR",

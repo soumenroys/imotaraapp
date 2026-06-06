@@ -163,42 +163,6 @@ function ReviewRow({ label, value, ok }: { label: string; value: string; ok?: bo
   );
 }
 
-// ─── Auth gate ───────────────────────────────────────────────────────────────
-
-function SignInGate() {
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-  async function signInWithGoogle() {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback?redirectTo=/connect/register` },
-    });
-  }
-  return (
-    <main className="flex min-h-[60vh] items-center justify-center px-4">
-      <div className="imotara-glass-card w-full max-w-sm rounded-2xl p-8 text-center">
-        <div className="mb-4 text-5xl">🔒</div>
-        <h2 className="mb-2 text-xl font-bold text-zinc-50">Sign in to apply</h2>
-        <p className="mb-6 text-sm text-zinc-400 leading-relaxed">
-          You need a free Imotara account to apply as a Wellness Companion.
-        </p>
-        <button
-          onClick={signInWithGoogle}
-          className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-          Continue with Google
-        </button>
-        <a href="/connect" className="mt-4 block text-xs text-zinc-600 hover:text-zinc-400 transition">
-          ← Back to Connect
-        </a>
-      </div>
-    </main>
-  );
-}
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function RegisterConsultantPage() {
@@ -289,9 +253,6 @@ export default function RegisterConsultantPage() {
       setAuthChecked(true);
     });
   }, []);
-
-  if (!authChecked) return null;
-  if (!isLoggedIn)  return <SignInGate />;
 
   // ── Photo helpers ──────────────────────────────────────────────────────────
   function convertDriveUrl(raw: string): string {
@@ -490,23 +451,66 @@ export default function RegisterConsultantPage() {
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Apply</p>
         <h1 className="mt-1 text-2xl font-semibold text-zinc-50">Become a Wellness Companion</h1>
-        <p className="mt-1 text-xs text-zinc-500">Step {step} of {TOTAL_STEPS}</p>
-        {userEmail && (
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
-            Signed in as {userEmail}
-          </div>
+        {authChecked && isLoggedIn ? (
+          <>
+            <p className="mt-1 text-xs text-zinc-500">Step {step} of {TOTAL_STEPS}</p>
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+              Signed in as {userEmail}
+            </div>
+          </>
+        ) : (
+          <p className="mt-1 text-xs text-zinc-500">Sign in below to unlock the application form</p>
         )}
       </div>
 
-      {/* Progress bar */}
-      <div className="mb-6 flex gap-1.5">
-        {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map(n => (
-          <div key={n} className={`h-1.5 flex-1 rounded-full transition-all ${n <= step ? "bg-violet-500" : "bg-white/10"}`} />
-        ))}
-      </div>
+      {/* Progress bar — only shown when logged in */}
+      {authChecked && isLoggedIn && (
+        <div className="mb-6 flex gap-1.5">
+          {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map(n => (
+            <div key={n} className={`h-1.5 flex-1 rounded-full transition-all ${n <= step ? "bg-violet-500" : "bg-white/10"}`} />
+          ))}
+        </div>
+      )}
 
       <div className="imotara-glass-card rounded-2xl p-6">
+
+        {/* ── Auth gate — shown inline when not signed in ── */}
+        {!authChecked && (
+          <div className="flex items-center justify-center py-12">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+          </div>
+        )}
+
+        {authChecked && !isLoggedIn && (
+          <div className="flex flex-col items-center py-8 text-center">
+            <div className="mb-4 text-5xl">🔒</div>
+            <h2 className="mb-1 text-lg font-semibold text-zinc-50">Sign in to start your application</h2>
+            <p className="mb-6 max-w-xs text-sm text-zinc-400 leading-relaxed">
+              Create a free Imotara account first. Once signed in, the application form will unlock and your progress will be saved to your account.
+            </p>
+            <button
+              onClick={async () => {
+                const supabase = createBrowserClient(
+                  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                );
+                await supabase.auth.signInWithOAuth({
+                  provider: "google",
+                  options: { redirectTo: `${window.location.origin}/auth/callback?redirectTo=/connect/register` },
+                });
+              }}
+              className="flex items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+              Continue with Google
+            </button>
+            <a href="/connect" className="mt-4 text-xs text-zinc-600 hover:text-zinc-400 transition">← Back to Connect</a>
+          </div>
+        )}
+
+        {/* ── Form steps — only rendered when signed in ── */}
+        {authChecked && isLoggedIn && (<>
 
         {/* ══════════════════════════════════════════════════════════════
             STEP 1 — Basic Information
@@ -1286,6 +1290,7 @@ export default function RegisterConsultantPage() {
             </button>
           )}
         </div>
+        </>)}
       </div>
     </main>
   );

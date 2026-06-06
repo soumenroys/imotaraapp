@@ -68,6 +68,12 @@ const TIMEZONES = [
 ];
 const YEAR_OPTIONS = ["all", ...Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() + i))];
 
+const SESSION_TYPE_OPTIONS = [
+  { key: "chat",  label: "Text / Chat",  icon: "💬", desc: "Text-based messaging sessions" },
+  { key: "audio", label: "Audio Call",   icon: "🎙️", desc: "Voice-only audio sessions" },
+  { key: "video", label: "Video Call",   icon: "📹", desc: "Face-to-face video sessions" },
+] as const;
+
 const COUNTRY_CODES = [
   { code: "+91",  name: "India",           flag: "🇮🇳", tz: "Asia/Kolkata" },
   { code: "+1",   name: "USA",             flag: "🇺🇸", tz: "America/New_York" },
@@ -169,6 +175,7 @@ export default function RegisterConsultantPage() {
   const photoRef = useRef<HTMLInputElement>(null);
   const [expertiseTags, setExpertiseTags] = useState<string[]>([]);
   const [languages, setLanguages]       = useState<string[]>([]);
+  const [sessionTypes, setSessionTypes] = useState<string[]>([]);
 
   // Step 2 — Profile, rate, availability
   const [bio, setBio]               = useState("");
@@ -288,6 +295,7 @@ export default function RegisterConsultantPage() {
       if (!contactPhone.trim()) return "Enter a contact phone number.";
       if (expertiseTags.length === 0) return "Select at least one expertise area.";
       if (languages.length === 0) return "Select at least one language.";
+      if (sessionTypes.length === 0) return "Select at least one session type (Chat, Audio, or Video).";
     }
     if (s === 2) {
       if (bio.trim().length < 30) return "Bio must be at least 30 characters.";
@@ -362,6 +370,7 @@ export default function RegisterConsultantPage() {
           bio:                 bio.trim(),
           expertise_tags:      expertiseTags,
           languages,
+          session_types:       sessionTypes,
           rate_per_min:        Number(ratePerMin),
           currency_code:       currency,
           availability_windows: availWindows.length > 0 ? availWindows : null,
@@ -375,9 +384,7 @@ export default function RegisterConsultantPage() {
       });
       const data = await res.json();
       if (!data.ok) {
-        setError(data.status
-          ? `An application already exists with status: ${data.status}`
-          : (data.error ?? "Submission failed. Please try again."));
+        setError(data.error ?? "Submission failed. Please try again.");
       } else {
         setSubmitted(true);
       }
@@ -598,6 +605,34 @@ export default function RegisterConsultantPage() {
                     {l.label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Session types */}
+            <div>
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">
+                Session Types * <span className="text-zinc-600 normal-case">(select all modalities you can offer)</span>
+              </label>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {SESSION_TYPE_OPTIONS.map(opt => {
+                  const active = sessionTypes.includes(opt.key);
+                  return (
+                    <button key={opt.key} type="button"
+                      onClick={() => setSessionTypes(p => p.includes(opt.key) ? p.filter(x => x !== opt.key) : [...p, opt.key])}
+                      className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+                        active
+                          ? "border-violet-500 bg-violet-500/15 text-violet-200"
+                          : "border-white/10 bg-white/3 text-zinc-400 hover:border-white/20"
+                      }`}>
+                      <span className="text-2xl leading-none">{opt.icon}</span>
+                      <div>
+                        <p className="text-sm font-semibold">{opt.label}</p>
+                        <p className="text-[11px] text-zinc-500">{opt.desc}</p>
+                      </div>
+                      {active && <span className="ml-auto shrink-0 text-violet-400">✓</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1018,6 +1053,7 @@ export default function RegisterConsultantPage() {
               )}
               <ReviewRow label="Expertise" value={expertiseTags.join(", ") || "—"} />
               <ReviewRow label="Languages" value={languages.map(c => LANGUAGE_OPTIONS.find(l => l.code === c)?.label ?? c).join(", ") || "—"} />
+              <ReviewRow label="Session Types" value={sessionTypes.map(k => SESSION_TYPE_OPTIONS.find(o => o.key === k)?.label ?? k).join(", ") || "—"} ok={sessionTypes.length > 0 ? undefined : false} />
             </div>
 
             {/* ── Profile & Rate ── */}

@@ -46,10 +46,11 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    earned_amount:    wallet?.earned_amount  ?? 0,
-    earned_currency:  wallet?.earned_currency ?? consultant.currency_code,
-    pending_payout:   wallet?.pending_payout  ?? 0,
+    earned_amount:      wallet?.earned_amount  ?? 0,
+    earned_currency:    wallet?.earned_currency ?? consultant.currency_code,
+    pending_payout:     wallet?.pending_payout  ?? 0,
     sessions_completed: consultant.sessions_completed,
-    sessions:         sessionsWithEarnings,
+    rate_per_min:       consultant.rate_per_min,
+    sessions:           sessionsWithEarnings,
   });
 }

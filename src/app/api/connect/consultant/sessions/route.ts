@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     .from("connect_sessions")
     .select(
       "id, user_id, type, status, scheduled_note, scheduled_at, started_at, ended_at, " +
-      "minutes_used, rating, review_text, created_at"
+      "minutes_used, rate_per_min, amount_charged, rating, review_text, created_at"
     )
     .eq("consultant_id", consultant.id)
     .in("status", statusFilter)

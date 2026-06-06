@@ -40,6 +40,7 @@ interface Consultant {
   bio: string | null;
   expertise_tags: string[];
   languages: string[];
+  session_types: string[];
   rate_per_min: number;
   currency_code: string;
   availability_note: string | null;
@@ -108,6 +109,8 @@ interface ConsultantSession {
   started_at: string | null;
   ended_at: string | null;
   minutes_used: number;
+  rate_per_min: number | null;
+  amount_charged: number | null;
   rating: number | null;
   review_text: string | null;
   created_at: string;
@@ -674,6 +677,7 @@ function DashboardTab() {
   const [earnings, setEarnings] = useState<{
     earned_amount: number; earned_currency: string;
     pending_payout: number; sessions_completed: number;
+    rate_per_min?: number;
   } | null>(null);
   const [incomingSessions, setIncomingSessions] = useState<ConsultantSession[]>([]);
   const [history, setHistory]     = useState<ConsultantSession[]>([]);
@@ -1234,6 +1238,15 @@ function DashboardTab() {
                         </div>
                         <p className="text-[11px] text-zinc-500">
                           {new Date(s.created_at).toLocaleDateString()} · {s.type} · {Math.round(s.minutes_used)} min
+                          {(() => {
+                            const rate = s.rate_per_min ?? earnings?.rate_per_min;
+                            const earned = rate ? rate * (s.minutes_used ?? 0) * 0.80 : null;
+                            return earned ? (
+                              <span className="ml-1.5 font-medium text-emerald-400">
+                                · {sym}{earned.toFixed(2)} earned
+                              </span>
+                            ) : null;
+                          })()}
                         </p>
                         {s.review_text && (
                           <p className="mt-1 text-[11px] italic text-zinc-400">&ldquo;{s.review_text}&rdquo;</p>

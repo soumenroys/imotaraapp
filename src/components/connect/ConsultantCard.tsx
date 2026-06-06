@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star, Globe, CircleDot, MessageCircle } from "lucide-react";
+import { Star, Globe, CircleDot, MessageCircle, Mic, Video } from "lucide-react";
 import RechargeModal from "./RechargeModal";
 
 interface Consultant {
@@ -13,6 +13,7 @@ interface Consultant {
   bio: string | null;
   expertise_tags: string[];
   languages: string[];
+  session_types: string[];
   rate_per_min: number;
   currency_code: string;
   is_online: boolean;
@@ -114,9 +115,25 @@ export default function ConsultantCard({ consultant, razorpayKeyId, onTalkNow, o
 
         {/* Languages */}
         {consultant.languages.length > 0 && (
-          <div className="mb-4 flex items-center gap-1.5 text-xs text-zinc-500">
+          <div className="mb-3 flex items-center gap-1.5 text-xs text-zinc-500">
             <Globe size={11} />
             <span>{consultant.languages.slice(0, 3).join(", ")}</span>
+          </div>
+        )}
+
+        {/* Session types */}
+        {(consultant.session_types ?? []).length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            {(consultant.session_types ?? []).map((t) => (
+              <span key={t} className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                t === "chat"  ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
+                : t === "audio" ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                : "border-violet-500/30 bg-violet-500/10 text-violet-400"
+              }`}>
+                {t === "chat" ? <MessageCircle size={9} /> : t === "audio" ? <Mic size={9} /> : <Video size={9} />}
+                {t === "chat" ? "Chat" : t === "audio" ? "Audio" : "Video"}
+              </span>
+            ))}
           </div>
         )}
 

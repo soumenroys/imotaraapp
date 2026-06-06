@@ -73,7 +73,10 @@ async function sendConsultantNotification(data: {
 }) {
   const gmailUser = process.env.ALERT_GMAIL_USER?.trim();
   const gmailPass = process.env.ALERT_GMAIL_APP_PASSWORD?.trim();
-  if (!gmailUser || !gmailPass) return;
+  if (!gmailUser || !gmailPass) {
+    console.error("[Connect email] ALERT_GMAIL_USER or ALERT_GMAIL_APP_PASSWORD env var not set — skipping approval email");
+    return;
+  }
 
   const subject = data.action === "approve"
     ? "[Imotara Connect] Your application has been approved!"
@@ -129,7 +132,7 @@ async function sendConsultantNotification(data: {
       subject,
       text,
     });
-  } catch {
-    // non-blocking
+  } catch (err) {
+    console.error("[Connect email] Failed to send approval/rejection notification:", err);
   }
 }

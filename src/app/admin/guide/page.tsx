@@ -708,6 +708,74 @@ function SuperAdminSection() {
         ]}
       />
       <Note><strong>You cannot deactivate yourself.</strong> If there is only one owner account, you cannot deactivate it either — there must always be at least one active owner.</Note>
+
+      <H2 id="sa-2fa">Part 6 — Two-Factor Authentication (2FA)</H2>
+      <p className="text-sm text-zinc-400 mb-4">Enable TOTP-based 2FA on your own account for extra security. Each admin manages their own 2FA — you cannot force 2FA on other admins, but you can see who has it enabled in the admin list.</p>
+
+      <H3>Setting up 2FA</H3>
+      <Step n={1} title='In the 👑 Super Admins tab, scroll to "Two-factor authentication (2FA)"'>
+        <p>Click <strong className="text-zinc-300">Manage</strong> to expand the panel. If 2FA is not yet enabled on your account, you will see the Setup button.</p>
+      </Step>
+      <Step n={2} title='Click "Set up 2FA"'>
+        <p>A QR code and a 32-character secret are generated. The secret is stored in your admin account but 2FA is not yet active.</p>
+      </Step>
+      <Step n={3} title="Open your authenticator app and scan the QR code">
+        <p>Works with Google Authenticator, Authy, 1Password, Bitwarden, or any standard TOTP app. Alternatively, enter the secret manually.</p>
+      </Step>
+      <Step n={4} title='Enter the 6-digit code from your app and click "Verify & enable"'>
+        <p>If the code is correct, 2FA is activated and 8 single-use backup codes are shown. <strong className="text-zinc-200">Save these backup codes somewhere safe</strong> — they're shown only once and let you recover access if you lose your phone.</p>
+      </Step>
+
+      <H3>Disabling 2FA</H3>
+      <p className="text-sm text-zinc-400 mb-3">Enter your current 6-digit code in the Disable field and confirm. 2FA is removed immediately. You can re-enroll anytime.</p>
+
+      <Note><strong>2FA currently applies to the admin panel login only.</strong> Standard user accounts use Google/Apple OAuth and have their own MFA handled by those providers.</Note>
+
+      <H2 id="sa-bans">Part 7 — User Bans</H2>
+      <p className="text-sm text-zinc-400 mb-4">A user ban blocks access at the API level — not just license withdrawal. Banned users cannot use any Imotara feature even on the Free tier. Only <Tag color="amber">owner</Tag> and <Tag color="indigo">admin</Tag> roles can ban users.</p>
+
+      <H3>Banning a user</H3>
+      <Step n={1} title='Open the 👥 Users tab and find the user by email or name'>
+        <p>Click on the user row to expand their detail panel.</p>
+      </Step>
+      <Step n={2} title='Scroll to the "Ban user" section at the bottom of the expanded panel'>
+        <p>Type a reason for the ban (required for audit trail). Click <strong className="text-zinc-300">Ban user</strong>.</p>
+      </Step>
+      <Step n={3} title='A "⛔ Banned" badge appears on the user row immediately'>
+        <p>The ban reason and your email are recorded. The user is blocked from all API endpoints until unbanned.</p>
+      </Step>
+
+      <H3>Unbanning a user</H3>
+      <p className="text-sm text-zinc-400 mb-3">Expand the user panel and click <strong className="text-zinc-200">Unban</strong>. Access is restored immediately.</p>
+      <Note>Bans do not delete the user&apos;s data or cancel subscriptions — they block API access only. Cancel the subscription separately if needed via the payment gateway.</Note>
+
+      <H2 id="sa-connect">Part 8 — Connect: Earnings &amp; Session Monitor</H2>
+      <p className="text-sm text-zinc-400 mb-4">The <strong className="text-zinc-200">🤝 Connect</strong> tab has four sub-tabs. The last two are admin-only tools.</p>
+
+      <Table
+        headers={["Sub-tab","Who sees it","What it shows"]}
+        rows={[
+          ["Pending","All admin roles","New companion applications awaiting review"],
+          ["All Companions","All admin roles","All approved companions with status and rate"],
+          ["💰 Earnings & Payouts","admin / owner","Per-companion earned amounts and pending payout requests"],
+          ["📡 Session Monitor","admin / owner","Live and recent sessions — status, duration, amount charged"],
+        ]}
+      />
+
+      <H3>Processing a payout</H3>
+      <Step n={1} title='Open Connect → 💰 Earnings & Payouts'>
+        <p>The top table shows each companion&apos;s total earned amount and pending payout balance. Below it are individual payout requests.</p>
+      </Step>
+      <Step n={2} title='Find the payout request and click "Processing"'>
+        <p>This marks the payout as in-progress — the companion can see the status update. Transfer the funds externally (bank transfer / UPI).</p>
+      </Step>
+      <Step n={3} title='Once funds are sent, click "Completed"'>
+        <p>The pending_payout balance is cleared from the companion&apos;s wallet. The companion&apos;s history shows the payout as complete.</p>
+      </Step>
+      <Note>If a transfer fails, click <strong className="text-zinc-200">Failed</strong> — the payout returns to pending so you can retry. Always add an admin note explaining the failure.</Note>
+
+      <H3>Session Monitor</H3>
+      <p className="text-sm text-zinc-400 mb-3">The <strong className="text-zinc-200">📡 Session Monitor</strong> tab shows the most recent 60 sessions (pending, active, completed). Use it to detect stuck sessions or disputes. Sessions show: type, status, companion name, start time, minutes used, and amount charged.</p>
     </div>
   );
 }
@@ -1187,6 +1255,9 @@ export default function AdminGuidePage() {
               ["sa-orgs","Part 3 — Organisations"],
               ["sa-pools","Part 4 — License pools"],
               ["sa-admins","Part 5 — Super-admins"],
+              ["sa-2fa","Part 6 — 2FA"],
+              ["sa-bans","Part 7 — User bans"],
+              ["sa-connect","Part 8 — Connect"],
             ].map(([id, label]) => (
               <a key={id} href={`#${id}`} className="block rounded-lg px-3 py-1.5 text-xs text-zinc-500 hover:bg-white/5 hover:text-zinc-200 transition">{label as string}</a>
             ))}

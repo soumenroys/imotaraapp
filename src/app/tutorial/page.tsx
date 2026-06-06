@@ -553,6 +553,47 @@ function BannerLanguages() {
   );
 }
 
+function BannerConnect() {
+  return (
+    <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-900/30 to-teal-900/20 border border-emerald-500/20 p-6 flex gap-6 items-center">
+      <div className="flex-1 hidden sm:block">
+        <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-2">Imotara Connect</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Book a live session with a professional companion — counsellors, coaches, and wellness guides. Pay per minute. Fully private.</p>
+        <div className="mt-3 space-y-2">
+          {[
+            { icon: "📋", label: "Browse companions" },
+            { icon: "💳", label: "Top up wallet" },
+            { icon: "📞", label: "Instant or scheduled session" },
+            { icon: "⏱️", label: "Per-minute billing" },
+          ].map((s) => (
+            <div key={s.label} className="flex items-center gap-2 text-xs text-zinc-300">
+              <span>{s.icon}</span><span>{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Phone>
+        <div className="p-2 space-y-1.5">
+          <p className="text-[9px] text-zinc-500 uppercase tracking-wider py-1">Connect</p>
+          <div className="bg-zinc-800 rounded-lg p-2 space-y-1">
+            <p className="text-[8px] font-bold text-emerald-300">Dr. Priya S. 🟢 Online</p>
+            <p className="text-[7px] text-zinc-400">Wellness coach · ₹8/min</p>
+            <div className="flex gap-1 mt-1">
+              <div className="flex-1 rounded bg-emerald-600/80 text-center text-[7px] font-semibold text-white py-1">Connect now</div>
+              <div className="flex-1 rounded bg-white/8 border border-white/10 text-center text-[7px] text-zinc-400 py-1">Schedule</div>
+            </div>
+          </div>
+          <div className="bg-zinc-800 rounded-lg p-2 space-y-0.5">
+            <p className="text-[7px] text-zinc-500">Wallet balance</p>
+            <p className="text-[10px] font-bold text-zinc-200">₹240.00</p>
+            <div className="rounded bg-indigo-600/70 text-center text-[7px] font-semibold text-white py-0.5 mt-1">Top up</div>
+          </div>
+        </div>
+      </Phone>
+    </div>
+  );
+}
+
 // ─── Banner map ───────────────────────────────────────────────────────────────
 
 const BANNERS: Record<string, React.ReactNode> = {
@@ -567,6 +608,7 @@ const BANNERS: Record<string, React.ReactNode> = {
   privacy:    <BannerPrivacy />,
   advanced:   <BannerAdvanced />,
   plans:      <BannerPlans />,
+  connect:    <BannerConnect />,
   languages:  <BannerLanguages />,
 };
 
@@ -584,6 +626,7 @@ const CATEGORIES = [
   { id: "privacy",    icon: "🔒", label: "Settings: Privacy" },
   { id: "advanced",   icon: "🔧", label: "Settings: Advanced" },
   { id: "plans",      icon: "⭐", label: "Plans & Upgrade" },
+  { id: "connect",    icon: "🤝", label: "Imotara Connect" },
   { id: "languages",  icon: "🌐", label: "Languages" },
 ];
 
@@ -1657,6 +1700,20 @@ const FEATURES: Record<string, Feature[]> = {
         "You're signed out and your account is queued for deletion.",
       ],
     },
+    {
+      icon: "🧒",
+      title: "Child-safe Mode",
+      short: "Applies strict content filters — removes adult themes, violence, and scary content from all replies.",
+      long: "Child-safe mode tells Imotara to apply additional content filters across all responses — avoiding mature themes, graphic content, violence, and age-inappropriate topics. It's designed for families sharing an account with children. Enable it in Settings → Profile & Preferences → Child-safe Mode. Requires Family, EDU, or Enterprise plan.",
+      steps: [
+        "Go to Settings → Profile & Preferences.",
+        "Scroll to 'Child-safe Mode'.",
+        "Toggle it on.",
+        "All Imotara replies now use age-appropriate content filtering.",
+      ],
+      tiers: { free: false, plus: false, pro: false, ent: true, note: "Requires Family, EDU, or Enterprise plan." },
+      badge: "Family/EDU/Enterprise",
+    },
   ],
 
   // ─ Settings: Advanced ──────────────────────────────────────────────────────
@@ -1838,6 +1895,20 @@ const FEATURES: Record<string, Feature[]> = {
       ],
     },
     {
+      icon: "👨‍👩‍👧‍👦",
+      title: "Family Plan",
+      short: "Shared family account with multi-profile support, child-safe mode, and unlimited history.",
+      long: "The Family plan lets up to 6 family members share one subscription. Each member gets their own profile with separate companion settings and conversation history. Child-safe mode can be enabled per-profile to filter content for younger users. All profiles share unlimited history and cloud sync.",
+      steps: [
+        "Go to Settings → Plan & support → View plans & upgrade.",
+        "Select the Family plan.",
+        "Complete payment via Razorpay.",
+        "Once active, go to Settings → Family Profiles to create profiles for each family member.",
+        "Enable Child-safe Mode for any profile that belongs to a younger user.",
+      ],
+      tiers: { free: false, plus: false, pro: false, ent: true, note: "Family plan is a sub-tier of Enterprise. Contact info@imotara.com for pricing." },
+    },
+    {
       icon: "🏢",
       title: "Enterprise, EDU & NGO Plans (Custom Pricing)",
       short: "For companies, NGOs, schools, and healthcare platforms — org admin dashboard, member management, analytics, API access, and more.",
@@ -1876,6 +1947,75 @@ const FEATURES: Record<string, Feature[]> = {
         "Choose a preset amount.",
         "Complete payment via Razorpay (UPI, cards, netbanking).",
         "A thank-you note appears in your Donations history.",
+      ],
+    },
+  ],
+
+  // ─ Imotara Connect ────────────────────────────────────────────────────────
+  connect: [
+    {
+      icon: "🤝",
+      title: "What is Imotara Connect?",
+      short: "Book live sessions with professional companions — counsellors, coaches, and wellness guides.",
+      long: "Imotara Connect is a human consultancy layer inside the app. You can browse verified professional companions — counsellors, life coaches, wellness guides — and book instant or scheduled sessions with them. Sessions are billed per minute from your Connect Wallet. All sessions are private and confidential.",
+      steps: [
+        "Tap the Connect tab at the bottom of the app (or open imotara.com/connect on web).",
+        "Browse companions — filter by availability, language, or specialty.",
+        "Tap a companion card to see their profile, rate, and reviews.",
+        "Tap 'Connect now' for an instant session or 'Schedule' to book a future slot.",
+        "Top up your wallet before or during the booking flow.",
+      ],
+    },
+    {
+      icon: "💳",
+      title: "Connect Wallet",
+      short: "A pre-loaded wallet for paying companions — top up with any amount, pay per minute.",
+      long: "Your Connect Wallet holds a balance you use to pay for sessions. Top up via UPI, card, or netbanking (Razorpay). When a session runs, the per-minute rate is deducted automatically every 60 seconds. If your balance runs low, you get a warning and the session ends gracefully when it hits zero.",
+      steps: [
+        "Open Connect → tap 'Wallet' in the top right.",
+        "Tap 'Top up wallet'.",
+        "Choose an amount (₹100, ₹200, ₹500, ₹1000, or custom).",
+        "Complete payment via Razorpay.",
+        "Your balance updates immediately.",
+      ],
+      tip: "Top up before a session starts — mid-session top-ups are supported but may cause a brief pause.",
+    },
+    {
+      icon: "⏱️",
+      title: "Per-Minute Billing",
+      short: "You pay only for the time you use — billing stops the moment you end the session.",
+      long: "Each companion sets their own rate per minute (e.g. ₹5/min, ₹12/min). The clock starts when the companion accepts your request. Every 60 seconds, the rate is deducted from your wallet. You see a live timer and remaining balance during the session. End it anytime — you're billed to the nearest minute.",
+      steps: [
+        "Your per-minute rate is shown on the companion card before you connect.",
+        "The session timer starts when the companion accepts.",
+        "Watch the balance countdown in the session view.",
+        "Tap 'End session' when you're done.",
+        "A session summary with total time and cost is shown.",
+      ],
+    },
+    {
+      icon: "📋",
+      title: "Instant vs Scheduled Sessions",
+      short: "Connect now for an immediate session, or schedule a slot in advance.",
+      long: "Instant sessions connect you to an online companion right away — the companion has 60 seconds to accept before the request expires. Scheduled sessions let you pick a date and time in advance. The companion confirms availability and you both get a reminder before the session starts.",
+      steps: [
+        "Instant: tap 'Connect now' on any online companion.",
+        "Wait for the companion to accept (up to 60 seconds).",
+        "Scheduled: tap 'Schedule' and pick your preferred date and time.",
+        "You'll get a notification reminder before a scheduled session.",
+      ],
+    },
+    {
+      icon: "🧑‍💼",
+      title: "Becoming a Companion",
+      short: "Apply to become a verified Imotara Connect companion — set your own rate and hours.",
+      long: "Professionals can apply to become Imotara Connect companions. You'll need to provide credentials, a photo, and a short bio. Applications are reviewed manually. Once approved, you set your own per-minute rate, availability, and specialties. Earnings accumulate in your companion wallet and can be withdrawn.",
+      steps: [
+        "Go to Connect → scroll to 'Join as a companion'.",
+        "Fill in your display name, bio, photo, credentials, and rate.",
+        "Submit your application.",
+        "You'll hear back within 2–3 business days.",
+        "Once approved, go live by toggling your availability to 'Online'.",
       ],
     },
   ],

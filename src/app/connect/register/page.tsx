@@ -454,9 +454,25 @@ export default function RegisterConsultantPage() {
         {authChecked && isLoggedIn ? (
           <>
             <p className="mt-1 text-xs text-zinc-500">Step {step} of {TOTAL_STEPS}</p>
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
-              Signed in as {userEmail}
+            <div className="mt-3 flex items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300">
+                <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+                Signed in as {userEmail}
+              </div>
+              <button
+                onClick={async () => {
+                  const supabase = createBrowserClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                  );
+                  await supabase.auth.signOut();
+                  setIsLoggedIn(false);
+                  setUserEmail("");
+                }}
+                className="text-xs text-zinc-600 hover:text-zinc-400 transition underline underline-offset-2"
+              >
+                Sign out
+              </button>
             </div>
           </>
         ) : (

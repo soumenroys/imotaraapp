@@ -246,7 +246,15 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   }
   function handleRequestMeeting(consultantId: string) {
     if (!isLoggedIn) { setShowSignIn(true); return; }
-    router.push(`/connect/session/new?consultant_id=${consultantId}&type=scheduled`);
+    const c = consultants.find((x) => x.id === consultantId);
+    const params = new URLSearchParams({
+      consultant_id: consultantId,
+      type: "scheduled",
+      rate: String(c?.rate_per_min ?? 0),
+      currency: c?.currency_code ?? "INR",
+      name: c?.display_name ?? "",
+    });
+    router.push(`/connect/session/new?${params}`);
   }
 
   const displayed = consultants

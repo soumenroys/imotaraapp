@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase
     .from("connect_sessions")
     .select(
-      "id, user_id, consultant_id, type, status, scheduled_note, scheduled_at, " +
+      "id, user_id, consultant_id, type, status, scheduled_note, scheduled_at, scheduled_duration_min, " +
       "started_at, ended_at, minutes_used, amount_charged, currency_code, rate_per_min, " +
       "rating, review_text, review_submitted_at, created_at, " +
       "connect_consultants(display_name, photo_url, gender, rate_per_min)"
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ ok: false, error: "Invalid body" }, { status: 400 });
 
-  const { consultant_id, type, scheduled_note, scheduled_at } = body;
+  const { consultant_id, type, scheduled_note, scheduled_at, scheduled_duration_min } = body;
 
   if (!consultant_id) {
     return NextResponse.json({ ok: false, error: "consultant_id required" }, { status: 400 });
@@ -132,6 +132,10 @@ export async function POST(req: NextRequest) {
     .eq("id", consultant_id)
     .single();
 
+  const user_timezone = typeof body.user_timezone === "string" && body.user_timezone.length > 0
+    ? body.user_timezone
+    : "Asia/Kolkata";
+
   const { data: session, error } = await supabase
     .from("connect_sessions")
     .insert({
@@ -139,10 +143,12 @@ export async function POST(req: NextRequest) {
       consultant_id,
       type,
       status:         "pending",
-      scheduled_note: scheduled_note?.trim() ?? null,
-      scheduled_at:   scheduled_at ?? null,
+      scheduled_note:         scheduled_note?.trim() ?? null,
+      scheduled_at:           scheduled_at ?? null,
+      scheduled_duration_min: type === "scheduled" && Number.isInteger(scheduled_duration_min) ? scheduled_duration_min : null,
       currency_code:  consultant.currency_code,
       rate_per_min:   Number(consultantFull?.rate_per_min ?? 0),
+      user_timezone,
     })
     .select("id, status, created_at")
     .single();

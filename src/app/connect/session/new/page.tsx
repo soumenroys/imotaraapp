@@ -118,10 +118,12 @@ function NewSessionInner() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          consultant_id:  consultantId,
+          consultant_id:          consultantId,
           type,
-          scheduled_note: scheduledNote || null,
-          scheduled_at:   scheduledAt,
+          scheduled_note:         scheduledNote || null,
+          scheduled_at:           scheduledAt,
+          scheduled_duration_min: type === "scheduled" ? duration : null,
+          user_timezone:          Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
         credentials: "include",
       });

@@ -59,6 +59,13 @@ function CallbackHandler() {
             window.location.href = path;
         };
 
+        // If the component remounted (e.g. due to a hydration error recovery),
+        // the code may have already been exchanged. Check for an existing session
+        // immediately before setting up the listener.
+        supabase.auth.getSession().then(({ data: { session: existing } }) => {
+            if (existing) { navigate(redirectTo); }
+        });
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
                 subscription.unsubscribe();
@@ -66,7 +73,6 @@ function CallbackHandler() {
                 if (session) {
                     navigate(redirectTo);
                 } else {
-                    // Exchange completed but no session was established.
                     navigate(`${redirectTo}?auth_error=no_session`);
                 }
             }

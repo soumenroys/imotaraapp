@@ -217,9 +217,6 @@ export default function RegisterConsultantPage() {
     });
   }, []);
 
-  if (!authChecked) return null;
-  if (!isLoggedIn)  return <SignInGate />;
-
   const TOTAL_STEPS = 5;
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
@@ -289,6 +286,10 @@ export default function RegisterConsultantPage() {
   // Step 5 — Review & Sign
   const [agreeInfoTrue, setAgreeInfoTrue]   = useState(false);
   const [digitalSignature, setDigitalSignature] = useState("");
+
+  // Auth guard — AFTER all hooks to satisfy Rules of Hooks
+  if (!authChecked) return null;
+  if (!isLoggedIn)  return <SignInGate />;
 
   // ── Photo helpers ──────────────────────────────────────────────────────────
   function convertDriveUrl(raw: string): string {

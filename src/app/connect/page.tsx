@@ -324,32 +324,16 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {displayed.map((c) => (
-            <div key={c.id} className="relative">
-              {/* In-session badge */}
-              {c.is_busy && (
-                <div className="absolute right-10 top-3 z-10 rounded-full bg-orange-500/20 px-2 py-0.5 text-[10px] font-semibold text-orange-400">
-                  In Session
-                </div>
-              )}
-              {/* Favorite button */}
-              <button
-                onClick={(e) => toggleFavorite(c.id, e)}
-                disabled={favLoading === c.id}
-                className="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-zinc-400 transition hover:text-rose-400"
-                title={favorites.has(c.id) ? "Remove from favorites" : "Save to favorites"}
-              >
-                {favLoading === c.id
-                  ? <Loader2 size={12} className="animate-spin" />
-                  : <Heart size={13} className={favorites.has(c.id) ? "fill-rose-400 text-rose-400" : ""} />
-                }
-              </button>
-              <ConsultantCard
-                consultant={c}
-                razorpayKeyId={razorpayKeyId}
-                onTalkNow={handleTalkNow}
-                onRequestMeeting={handleRequestMeeting}
-              />
-            </div>
+            <ConsultantCard
+              key={c.id}
+              consultant={c}
+              razorpayKeyId={razorpayKeyId}
+              isFavorite={favorites.has(c.id)}
+              favLoading={favLoading === c.id}
+              onToggleFavorite={(e) => toggleFavorite(c.id, e)}
+              onTalkNow={handleTalkNow}
+              onRequestMeeting={handleRequestMeeting}
+            />
           ))}
         </div>
       )}

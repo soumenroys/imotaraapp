@@ -150,7 +150,9 @@ export default function SiteHeader() {
 
           {/* CENTER: Primary navigation (desktop only) */}
           <nav className={NAV_CLASS} aria-label="Main navigation">
-            {PRIMARY_LINKS.map((l) => {
+            {/* Render nav links only after hydration to prevent structural mismatches
+                caused by stale Turbopack SSR cache during development. */}
+            {mounted && PRIMARY_LINKS.map((l) => {
               const active =
                 l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
               const accentInactive = l.accent
@@ -169,7 +171,7 @@ export default function SiteHeader() {
             })}
 
             {/* Desktop ··· dropdown */}
-            <div className="relative" ref={moreRef}>
+            {mounted && <div className="relative" ref={moreRef}>
               <button
                 onClick={() => setMoreOpen((v) => !v)}
                 aria-label="More pages"
@@ -217,7 +219,7 @@ export default function SiteHeader() {
                   })}
                 </div>
               )}
-            </div>
+            </div>}
           </nav>
 
           {/* RIGHT: Search + mobile hamburger */}

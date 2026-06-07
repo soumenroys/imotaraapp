@@ -71,8 +71,13 @@ export async function PATCH(
   }
 
   const updatePayload: Record<string, unknown> = { status: transition.to };
-  if (action === "accept")   { updatePayload.started_at = new Date().toISOString(); }
-  if (action === "complete") { updatePayload.ended_at   = new Date().toISOString(); }
+  if (action === "accept") {
+    updatePayload.started_at = new Date().toISOString();
+    const tz = typeof body?.consultant_timezone === "string" && body.consultant_timezone.length > 0
+      ? body.consultant_timezone : "Asia/Kolkata";
+    updatePayload.consultant_timezone = tz;
+  }
+  if (action === "complete") { updatePayload.ended_at = new Date().toISOString(); }
   if (action === "decline" || action === "cancel" || action === "complete") {
     // Will clear is_busy on consultant after status update
   }

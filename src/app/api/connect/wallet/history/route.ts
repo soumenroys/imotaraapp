@@ -1,5 +1,5 @@
 // GET /api/connect/wallet/history
-// Auth required. Returns the last 50 wallet transactions (recharges + session usage).
+// Auth required. Returns the last 50 wallet transactions (topups + session usage).
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
@@ -13,29 +13,24 @@ export async function GET(req: NextRequest) {
 
   const supabase = getSupabaseAdmin();
 
-  const [{ data: recharges }, { data: sessions }] = await Promise.all([
+  const [{ data: topups }, { data: sessions }] = await Promise.all([
     supabase
-      .from("connect_recharges")
-      .select("id, consultant_id, minutes_credited, currency_code, amount, created_at, status")
+      .from("imotara_wallet_transactions")
+      .select("id, type, amount, currency_code, description, razorpay_payment_id, created_at")
       .eq("user_id", user.id)
-      .eq("status", "completed")
       .order("created_at", { ascending: false })
       .limit(50),
     supabase
       .from("connect_sessions")
-      .select("id, consultant_id, minutes_used, status, created_at")
+      .select("id, consultant_id, minutes_used, amount_charged, status, created_at")
       .eq("user_id", user.id)
       .in("status", ["completed", "active"])
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
 
-  // Enrich with consultant names
-  const consultantIds = [...new Set([
-    ...(recharges ?? []).map((r) => r.consultant_id),
-    ...(sessions ?? []).map((s) => s.consultant_id),
-  ])];
-
+  // Enrich sessions with consultant names
+  const consultantIds = [...new Set((sessions ?? []).map((s) => s.consultant_id))];
   const nameMap: Record<string, string> = {};
   if (consultantIds.length > 0) {
     const { data: consultants } = await supabase
@@ -48,25 +43,25 @@ export async function GET(req: NextRequest) {
   }
 
   const transactions = [
-    ...(recharges ?? []).map((r) => ({
-      id: r.id,
-      type: "recharge" as const,
-      consultant_name: nameMap[r.consultant_id] ?? "Companion",
-      consultant_id: r.consultant_id,
-      minutes: Number(r.minutes_credited),
-      amount: Number(r.amount),
-      currency_code: r.currency_code,
-      created_at: r.created_at,
+    ...(topups ?? []).map((t) => ({
+      id:              t.id,
+      type:            t.type as "topup" | "deduction" | "refund",
+      consultant_name: null,
+      minutes:         null,
+      amount:          Number(t.amount),
+      currency_code:   t.currency_code,
+      description:     t.description ?? "Wallet top-up",
+      created_at:      t.created_at,
     })),
     ...(sessions ?? []).map((s) => ({
-      id: s.id,
-      type: "session" as const,
+      id:              s.id,
+      type:            "session" as const,
       consultant_name: nameMap[s.consultant_id] ?? "Companion",
-      consultant_id: s.consultant_id,
-      minutes: Number(s.minutes_used),
-      amount: null,
-      currency_code: null,
-      created_at: s.created_at,
+      minutes:         Number(s.minutes_used),
+      amount:          s.amount_charged != null ? Number(s.amount_charged) : null,
+      currency_code:   "INR",
+      description:     `Session with ${nameMap[s.consultant_id] ?? "Companion"}`,
+      created_at:      s.created_at,
     })),
   ]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())

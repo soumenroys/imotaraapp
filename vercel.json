@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/connect-orphans",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/wallet-reminders",
+      "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/cron/wallet-dormant",
+      "schedule": "30 3 * * *"
     }
   ]
 }

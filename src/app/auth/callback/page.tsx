@@ -2,73 +2,66 @@
 
 // src/app/auth/callback/page.tsx
 //
-// createBrowserClient has detectSessionInUrl:true by default, so it
-// auto-exchanges the PKCE ?code= during initialize(). Calling
-// exchangeCodeForSession() a second time always fails ("invalid grant").
+// createBrowserClient has detectSessionInUrl:true by default — it auto-exchanges
+// the PKCE ?code= on initialization. We must NOT call exchangeCodeForSession()
+// manually (double-exchange always fails with "invalid grant").
 //
-// Fix: don't call it manually. Subscribe to onAuthStateChange, wait for
-// SIGNED_IN or INITIAL_SESSION (whichever arrives first), then do a
-// full-page navigation (window.location.href) to the destination.
-// A full reload means the destination page starts with a fresh
-// createBrowserClient that reads the session from cookies — reliable.
+// React Strict Mode (active in dev) runs effects TWICE with a cleanup in between.
+// The old "ran.current" guard caused the auth subscription to be killed by the
+// first cleanup before the SIGNED_IN event fired, leaving the page stuck.
 //
-// Error fast-path: if Supabase redirects back with ?error= (e.g. "Unable to
-// exchange external code"), skip waiting and redirect immediately so the
-// user isn't stuck on the "Signing you in…" screen for 10 seconds.
+// Fix: use a single module-level Supabase client (created once per page load)
+// so the PKCE exchange isn't repeated. The "done" flag prevents double-navigation.
+// No cleanup needed — the component unmounts immediately after navigate() fires.
 
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 
+// Module-level client — created once regardless of Strict Mode re-renders.
+// detectSessionInUrl:true (default) starts the PKCE exchange on first creation.
+const supabaseCb = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
+
+let navigated = false; // module-level flag — survives Strict Mode double-run
+
 function CallbackHandler() {
     const searchParams = useSearchParams();
-    const ran = useRef(false);
 
     useEffect(() => {
-        if (ran.current) return;
-        ran.current = true;
-
         const rawRedirect = searchParams.get("redirectTo") ?? "";
         const redirectTo =
             rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
                 ? rawRedirect
                 : "/chat";
 
-        // Fast-fail: Supabase itself returned an error before our app could exchange.
-        // Typical cause: Google OAuth redirect URI not configured in Supabase dashboard.
+        // Fast-fail: Supabase itself returned an OAuth error.
         const oauthError = searchParams.get("error");
         if (oauthError) {
             const desc = searchParams.get("error_description") || oauthError;
-            window.location.href = `${redirectTo}?auth_error=${encodeURIComponent(desc)}`;
+            if (!navigated) {
+                navigated = true;
+                window.location.href = `${redirectTo}?auth_error=${encodeURIComponent(desc)}`;
+            }
             return;
         }
 
-        // Creating the client triggers the auto-exchange of ?code= via detectSessionInUrl.
-        const supabase = createBrowserClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        );
-
-        let done = false;
-
         const navigate = (path: string) => {
-            if (done) return;
-            done = true;
-            // Full-page navigation so the destination starts with a clean JS
-            // environment and reads the session from cookies.
+            if (navigated) return;
+            navigated = true;
             window.location.href = path;
         };
 
-        // If the component remounted (e.g. due to a hydration error recovery),
-        // the code may have already been exchanged. Check for an existing session
-        // immediately before setting up the listener.
-        supabase.auth.getSession().then(({ data: { session: existing } }) => {
-            if (existing) { navigate(redirectTo); }
+        // The module-level client may have already exchanged the code and have
+        // a session — check immediately before subscribing.
+        supabaseCb.auth.getSession().then(({ data: { session } }) => {
+            if (session) { navigate(redirectTo); }
         });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        const { data: { subscription } } = supabaseCb.auth.onAuthStateChange((event, session) => {
             if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-                subscription.unsubscribe();
                 clearTimeout(fallback);
                 if (session) {
                     navigate(redirectTo);
@@ -78,17 +71,20 @@ function CallbackHandler() {
             }
         });
 
-        // Safety net: if the exchange never fires within 10 s, bail with an error.
+        // Safety net: redirect after 10 s even if the exchange never fires.
         const fallback = setTimeout(() => {
-            subscription.unsubscribe();
             navigate(`${redirectTo}?auth_error=timeout`);
         }, 10_000);
 
+        // Only unsubscribe when the component actually unmounts (navigation done).
+        // Do NOT unsubscribe in the Strict Mode cleanup — the subscription must
+        // stay alive until SIGNED_IN fires.
         return () => {
             subscription.unsubscribe();
             clearTimeout(fallback);
         };
-    }, [searchParams]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return null;
 }

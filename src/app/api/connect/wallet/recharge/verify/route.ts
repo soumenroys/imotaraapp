@@ -2,6 +2,9 @@
 // Auth required. Verifies Razorpay payment signature and activates the recharge.
 // Body: { razorpay_order_id, razorpay_payment_id, razorpay_signature }
 
+export const preferredRegion = ["sin1"];
+export const maxDuration = 30;
+
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";

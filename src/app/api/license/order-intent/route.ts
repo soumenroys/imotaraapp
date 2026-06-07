@@ -4,6 +4,9 @@
 // POST { productId: LicenseProductId }
 // → { ok: true, productId, razorpay: { orderId, keyId, amount, currency } }
 
+export const preferredRegion = ["sin1"];
+export const maxDuration = 30;
+
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { supabaseUserServer } from "@/lib/supabase/userServer";

@@ -30,7 +30,7 @@ const SUBSCRIPTION_PLANS = [
         name: "Free",
         monthlyPaise: 0,
         annualPaise: 0,
-        features: ["20 replies/day", "On-device replies (unlimited)", "7-day cloud history"],
+        features: ["20 cloud replies/day", "On-device replies (unlimited)", "7-day cloud history", "Imotara Connect access"],
         cta: "Current plan",
         accent: "zinc",
     },
@@ -41,7 +41,7 @@ const SUBSCRIPTION_PLANS = [
         annualId:  "plus_annual",
         monthlyPaise: 9_900,
         annualPaise:  69_900,
-        features: ["Unlimited replies", "90-day cloud history", "Companion mode", "Data export", "Priority support"],
+        features: ["Unlimited replies", "90-day cloud history", "Companion personas", "Azure Neural TTS", "Data export", "Priority support"],
         cta: "Subscribe",
         accent: "sky",
     },
@@ -52,7 +52,7 @@ const SUBSCRIPTION_PLANS = [
         annualId:  "pro_annual",
         monthlyPaise: 14_900,
         annualPaise:  129_900,
-        features: ["Everything in Plus", "Unlimited history", "Early access features", "Higher daily limits"],
+        features: ["Everything in Plus", "Unlimited history", "Emotion trends & mood graphs", "Companion letters", "Growth arc tracking"],
         cta: "Subscribe",
         accent: "indigo",
     },
@@ -812,6 +812,60 @@ export default function UpgradePage() {
                                     label: "Institution branding",
                                     desc: "Replace Imotara's logo and colours with your organisation's brand assets",
                                     free: false, plus: false, pro: false, ent: true,
+                                },
+                            ].map((row) => <CompareRow key={row.label} {...row} />)}
+
+                            {/* ── Imotara Connect ── */}
+                            <tr className="bg-white/[0.03]">
+                                <td colSpan={5} className="py-2 px-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Imotara Connect — Human Companions
+                                </td>
+                            </tr>
+                            {[
+                                {
+                                    label: "Browse wellness companions",
+                                    desc: "Discover and explore verified human wellness companions, therapists, and counsellors",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Book & start sessions",
+                                    desc: "Start a real-time chat session with a human companion — billed per minute, pay as you go",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Imotara Wallet",
+                                    desc: "Top up your INR wallet and use it across all Connect sessions — balance never expires",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Real-time message translation",
+                                    desc: "Translate session messages instantly so you and your companion can talk in different languages",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Scheduled sessions",
+                                    desc: "Request a future session at a specific date and time with your preferred companion",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Session notes & ratings",
+                                    desc: "Add private notes after a session and leave a star rating to help others find the right companion",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Favourite companions",
+                                    desc: "Save companions you connect with so you can find them quickly next time",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Connect session history",
+                                    desc: "Access your full Connect session transcript history — retention follows your subscription plan",
+                                    free: "7 days", plus: "90 days", pro: "Unlimited", ent: "Unlimited",
+                                },
+                                {
+                                    label: "Register as a companion",
+                                    desc: "Apply to become a verified wellness companion or counsellor on Imotara Connect",
+                                    free: true, plus: true, pro: true, ent: true,
                                 },
                             ].map((row) => <CompareRow key={row.label} {...row} />)}
 

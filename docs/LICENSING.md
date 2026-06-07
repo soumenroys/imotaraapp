@@ -209,14 +209,35 @@ Legend: ✅ Included · ❌ Not included · `value` — specific limit or parame
 
 ---
 
+### 13. Imotara Connect — Human Companions
+
+Imotara Connect is an integrated marketplace where users can have real-time text sessions with verified human wellness companions. Sessions are billed per minute from the user's prepaid Imotara Wallet. Connect is available on **all tiers** — the only tier-based difference is session history retention.
+
+| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
+|---------|-------------|------|------|-----|--------|-----|------------|
+| **Browse wellness companions** | Discover verified human companions by specialty, language, rating, and availability | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Book & start sessions** | Begin a live text session with any available companion; billed per minute from wallet | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Imotara Wallet** | Prepaid INR wallet — top up once, pay for sessions without per-session checkout friction | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Per-minute billing** | Session cost deducted at the companion's listed per-minute rate; auto-stops when balance runs low | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Real-time message translation** | Messages auto-translated between user and companion languages during a live session | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Scheduled sessions** | Book a future time slot; companion accepts and a calendar reminder is set | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Session notes & ratings** | Leave a private note and 1–5 star rating after each session ends | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Favourite companions** | Save companions as favourites for quick access and priority availability alerts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Connect session history** | Browse past sessions with transcript, notes, cost, and companion details | 7 days | 90 days | Unlimited | Unlimited | Unlimited | Unlimited |
+| **Register as a wellness companion** | Apply to become a verified companion; set rate, availability, languages, and specialty area | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+> **Note:** Session history retention follows the same schedule as conversation history — the tier that unlocks unlimited chat history also unlocks unlimited Connect session history.
+
+---
+
 ## Upgrade Trigger Summary
 
 Why a user or org should move to the next tier:
 
 | Current Tier | Key Upgrade Trigger |
 |---|---|
-| **Free → Plus** | Hitting the 10/day reply cap · needing history beyond 7 days · wanting cross-device sync or data export |
-| **Plus → Pro** | Wanting emotional insights, mood trends, weekly summaries, monthly letters, or growth arc |
+| **Free → Plus** | Hitting the 10/day reply cap · needing history beyond 7 days · wanting cross-device sync or data export · Connect session history beyond 7 days |
+| **Plus → Pro** | Wanting emotional insights, mood trends, weekly summaries, monthly letters, growth arc · unlimited Connect session history |
 | **Pro → Family** | Multiple household members sharing one app account · need for child-safe profiles |
 | **Pro → EDU** | Institution deploying for students/staff · need for admin panel, LMS, bulk provisioning |
 | **Pro → Enterprise** | Corporate deployment · API access · SSO · data residency · custom integrations |
@@ -268,4 +289,9 @@ Why a user or org should move to the next tier:
 
 ---
 
-*Last updated: 2026-05-29 — v1.2. Added: user emoji reactions (20 emoji), companion auto-reactions, companion letter archive + TTS + reactions + reply, show sync status toggle.*
+*Last updated: 2026-06-07 — v1.4.*
+
+*Changelog:*
+- *v1.2 (2026-05-29): Added user emoji reactions (20 emoji), companion auto-reactions, companion letter archive + TTS + reactions + reply, show sync status toggle.*
+- *v1.3 (2026-06-02): Added Imotara Connect marketplace foundation — wallet, per-minute billing, companion browse & book, real-time translation.*
+- *v1.4 (2026-06-07): Expanded Connect section — scheduled sessions, session notes & ratings, favourite companions, Connect session history (tier-tiered), register as wellness companion. Updated upgrade trigger summary.*

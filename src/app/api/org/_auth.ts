@@ -39,6 +39,11 @@ export function resolveOrgId(req: NextRequest, pathOrgId?: string): string | nul
 /**
  * Guard: user must be an active member (any role) of the org.
  * Returns { ok: true, userId, orgId, role } or a 401/403 NextResponse.
+ *
+ * orgId resolution order:
+ *   1. pathOrgId argument (explicit from URL)
+ *   2. X-Org-Id request header (mobile clients)
+ *   3. Auto-resolved from user's first active org membership (web dashboard — no header sent)
  */
 export async function requireOrgMember(
   req:       NextRequest,
@@ -52,30 +57,47 @@ export async function requireOrgMember(
     };
   }
 
-  const orgId = resolveOrgId(req, pathOrgId);
-  if (!orgId) {
-    return {
-      ok:       false,
-      response: NextResponse.json({ error: "org_id required" }, { status: 400 }),
-    };
+  const admin = getSupabaseAdmin();
+  const explicitOrgId = resolveOrgId(req, pathOrgId);
+
+  if (explicitOrgId) {
+    // Explicit org_id: verify membership directly
+    const { data, error } = await admin
+      .from("org_members")
+      .select("role, status")
+      .eq("org_id", explicitOrgId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error || !data || data.status !== "active") {
+      return {
+        ok:       false,
+        response: NextResponse.json({ error: "not an org member" }, { status: 403 }),
+      };
+    }
+
+    return { ok: true, userId, orgId: explicitOrgId, role: data.role };
   }
 
-  const admin = getSupabaseAdmin();
-  const { data, error } = await admin
+  // No explicit org_id — auto-resolve from user's active memberships.
+  // Used by web dashboard pages that don't pass X-Org-Id.
+  const { data: memberships, error: mErr } = await admin
     .from("org_members")
-    .select("role, status")
-    .eq("org_id", orgId)
+    .select("org_id, role, status")
     .eq("user_id", userId)
-    .maybeSingle();
+    .eq("status", "active")
+    .order("joined_at", { ascending: true })
+    .limit(1);
 
-  if (error || !data || data.status !== "active") {
+  if (mErr || !memberships || memberships.length === 0) {
     return {
       ok:       false,
       response: NextResponse.json({ error: "not an org member" }, { status: 403 }),
     };
   }
 
-  return { ok: true, userId, orgId, role: data.role };
+  const m = memberships[0];
+  return { ok: true, userId, orgId: m.org_id, role: m.role };
 }
 
 /**

@@ -19,6 +19,9 @@ export async function POST(req: NextRequest) {
 
   const email = body.email?.trim().toLowerCase();
   if (!email) return NextResponse.json({ error: "email required" }, { status: 400 });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json({ error: "invalid email format" }, { status: 400 });
+  }
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://imotara.com").replace(/\/$/, "");
   const admin   = getSupabaseAdmin();

@@ -826,11 +826,11 @@ function SuperAdminSection() {
 function OrgAdminSection() {
   return (
     <div>
-      <p className="text-zinc-400 leading-relaxed mb-6">Org admins manage their own organisation at <code className="bg-white/8 px-1.5 rounded text-zinc-200">/org/dashboard</code> using their normal Imotara Google/GitHub account — no separate admin password is needed.</p>
+      <p className="text-zinc-400 leading-relaxed mb-6">Org admins manage their own organisation at <code className="bg-white/8 px-1.5 rounded text-zinc-200">/org/dashboard</code> using their normal Imotara Google account — no separate admin password is needed.</p>
 
       <H2 id="oa-access">Part 1 — Accessing the Org Dashboard</H2>
-      <Step n={1} title="Sign in to Imotara with your Google or GitHub account">
-        <p>Use the same account that was set as the org owner when the organisation was created. Go to <strong className="text-zinc-300">imotara.com</strong> and click <strong className="text-zinc-300">Sign in with Google</strong> (or GitHub).</p>
+      <Step n={1} title="Sign in to Imotara with your Google account">
+        <p>Use the same Google account that was set as the org owner when the organisation was created. Go to <strong className="text-zinc-300">imotara.com</strong> and click <strong className="text-zinc-300">Sign in with Google</strong>.</p>
       </Step>
       <Step n={2} title='Navigate to https://imotara.com/org/dashboard'>
         <p>You are automatically redirected there after sign-in if you are an org admin. The sidebar shows all available tabs.</p>

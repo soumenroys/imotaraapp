@@ -7,6 +7,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
+import {
+  sendSessionSummaryEmail,
+  sendConsultantEarningsEmail,
+  sendPlatformRevenueEmail,
+} from "@/lib/connect/mailer";
 
 export async function POST(
   req: NextRequest,
@@ -62,8 +67,10 @@ export async function POST(
   const now           = new Date().toISOString();
 
   if (balanceBefore <= 0) {
-    // Auto-complete: no balance remaining
-    await supabase
+    // Auto-complete: no balance remaining.
+    // .eq("status","active") acts as an atomic guard — only the first concurrent
+    // request will succeed; the second will match 0 rows and skip creditConsultant.
+    const { data: completedRows } = await supabase
       .from("connect_sessions")
       .update({
         status:         "completed",
@@ -71,9 +78,22 @@ export async function POST(
         last_tick_at:   now,
         amount_charged: Number(session.amount_charged ?? 0),
       })
-      .eq("id", sessionId);
+      .eq("id", sessionId)
+      .eq("status", "active")
+      .select("id");
 
-    await creditConsultant(supabase, session.consultant_id, session.minutes_used);
+    if (completedRows && completedRows.length > 0) {
+      await creditConsultant(supabase, session.consultant_id, session.minutes_used, ratePerMin);
+      void sendCompletionEmails(supabase, {
+        sessionId,
+        userId:        session.user_id,
+        consultantId:  session.consultant_id,
+        minutesUsed:   Number(session.minutes_used),
+        amountCharged: Number(session.amount_charged ?? 0),
+        currency:      session.currency_code ?? "INR",
+        ratePerMin,
+      }).catch((e) => console.error("[tick] completion email error:", e));
+    }
 
     return NextResponse.json({ ok: true, status: "completed", remaining_minutes: 0 });
   }
@@ -83,9 +103,11 @@ export async function POST(
   const newAmountCharged = newMinutesUsed * ratePerMin;
   const remaining        = balanceBefore - 1;
 
-  // Auto-complete when balance hits zero
+  // Auto-complete when balance hits zero.
+  // Optimistic lock on minutes_used prevents a concurrent tick from also
+  // completing the session and double-crediting the consultant.
   if (remaining <= 0) {
-    await supabase
+    const { data: completedRows } = await supabase
       .from("connect_sessions")
       .update({
         status:         "completed",
@@ -94,9 +116,23 @@ export async function POST(
         amount_charged: newAmountCharged,
         last_tick_at:   now,
       })
-      .eq("id", sessionId);
+      .eq("id", sessionId)
+      .eq("status", "active")
+      .eq("minutes_used", Number(session.minutes_used))
+      .select("id");
 
-    await creditConsultant(supabase, session.consultant_id, newMinutesUsed);
+    if (completedRows && completedRows.length > 0) {
+      await creditConsultant(supabase, session.consultant_id, newMinutesUsed, ratePerMin);
+      void sendCompletionEmails(supabase, {
+        sessionId,
+        userId:        session.user_id,
+        consultantId:  session.consultant_id,
+        minutesUsed:   newMinutesUsed,
+        amountCharged: newAmountCharged,
+        currency:      session.currency_code ?? "INR",
+        ratePerMin,
+      }).catch((e) => console.error("[tick] completion email error:", e));
+    }
 
     return NextResponse.json({ ok: true, status: "completed", remaining_minutes: 0 });
   }
@@ -122,6 +158,100 @@ export async function POST(
   return NextResponse.json({ ok: true, status: "active", remaining_minutes: remaining });
 }
 
+// Fire-and-forget: send session summary to user, earnings credit to consultant,
+// and platform revenue notification to Imotara. Non-blocking — caller does not await this.
+async function sendCompletionEmails(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  data: {
+    sessionId:    string;
+    userId:       string;
+    consultantId: string;
+    minutesUsed:  number;
+    amountCharged: number;
+    currency:     string;
+    ratePerMin:   number;
+  }
+) {
+  try {
+    const totalCharged   = data.amountCharged;
+    const earnedAmount   = data.minutesUsed * data.ratePerMin * 0.80;
+    const platformFee    = data.minutesUsed * data.ratePerMin * 0.20;
+
+    // Fetch user email + most recent recharge invoice for reference
+    const [{ data: authUser }, { data: invoiceRow }] = await Promise.all([
+      supabase.auth.admin.getUserById(data.userId),
+      supabase
+        .from("payment_invoices")
+        .select("invoice_number")
+        .eq("user_id", data.userId)
+        .eq("product_id", "connect_session_minutes")
+        .order("issued_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const userEmail     = authUser?.user?.email;
+    const invoiceNumber = invoiceRow?.invoice_number ?? undefined;
+
+    // Fetch consultant name and user_id
+    const { data: consultant } = await supabase
+      .from("connect_consultants")
+      .select("display_name, user_id")
+      .eq("id", data.consultantId)
+      .limit(1)
+      .maybeSingle();
+
+    const consultantName = consultant?.display_name ?? "Companion";
+
+    // 1. User: session statement
+    if (userEmail) {
+      await sendSessionSummaryEmail({
+        userEmail,
+        consultantName,
+        minutesUsed:   data.minutesUsed,
+        amountCharged: totalCharged,
+        currency:      data.currency,
+        sessionId:     data.sessionId,
+        invoiceNumber,
+      });
+    }
+
+    // 2. Consultant: earnings credit (shows 3-way split)
+    if (consultant?.user_id) {
+      const { data: cAuthUser } = await supabase.auth.admin.getUserById(consultant.user_id);
+      const consultantEmail = cAuthUser?.user?.email;
+      if (consultantEmail) {
+        await sendConsultantEarningsEmail({
+          consultantEmail,
+          consultantName,
+          minutesUsed:   data.minutesUsed,
+          earnedAmount,
+          platformFee,
+          totalCharged,
+          currency:      data.currency,
+          sessionId:     data.sessionId,
+          userEmail:     userEmail ?? undefined,
+        });
+      }
+    }
+
+    // 3. Imotara: platform revenue notification
+    await sendPlatformRevenueEmail({
+      sessionId:        data.sessionId,
+      userEmail:        userEmail ?? data.userId,
+      consultantName,
+      minutesUsed:      data.minutesUsed,
+      totalCharged,
+      platformFee,
+      consultantEarned: earnedAmount,
+      currency:         data.currency,
+      invoiceNumber,
+    });
+  } catch (err) {
+    console.error("[tick/sendCompletionEmails] error:", err);
+  }
+}
+
 async function fetchConsultantRate(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   consultantId: string
@@ -137,17 +267,19 @@ async function fetchConsultantRate(
 async function creditConsultant(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   consultantId: string,
-  minutesUsed: number
+  minutesUsed: number,
+  lockedRatePerMin: number
 ) {
   const { data: consultant } = await supabase
     .from("connect_consultants")
-    .select("id, user_id, rate_per_min, sessions_completed")
+    .select("id, user_id, sessions_completed")
     .eq("id", consultantId)
     .single();
 
   if (!consultant) return;
 
-  const sessionEarnings = Number(minutesUsed) * Number(consultant.rate_per_min) * 0.80;
+  // Use the rate locked at session creation, not the consultant's current rate.
+  const sessionEarnings = Number(minutesUsed) * Number(lockedRatePerMin) * 0.80;
 
   await supabase
     .from("connect_wallet")

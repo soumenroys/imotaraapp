@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
+import { createInvoice } from "@/lib/imotara/invoiceUtils";
+import { sendRechargeInvoiceEmail } from "@/lib/connect/mailer";
 
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET ?? "";
 
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest) {
   // Fetch the pending recharge
   const { data: recharge } = await supabase
     .from("connect_recharges")
-    .select("id, user_id, consultant_id, minutes_credited, consultant_credit, status")
+    .select("id, user_id, consultant_id, minutes_credited, consultant_credit, amount, currency_code, status")
     .eq("razorpay_order_id", razorpay_order_id)
     .single();
 
@@ -74,10 +76,45 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: updateError.message }, { status: 500 });
   }
 
-  // Ensure wallet row exists for user
-  await supabase
-    .from("connect_wallet")
-    .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
+  // Note: connect_wallet is the consultant earnings ledger — do NOT create rows for regular users.
+  // The paying user's balance is tracked via connect_recharges, not connect_wallet.
+
+  // Fetch consultant name for invoice and email
+  const { data: consultant } = await supabase
+    .from("connect_consultants")
+    .select("display_name")
+    .eq("id", recharge.consultant_id)
+    .limit(1)
+    .maybeSingle();
+
+  const consultantName = consultant?.display_name ?? "Companion";
+  const amount         = Number(recharge.amount ?? 0);
+  const currency       = recharge.currency_code ?? "INR";
+  const minutes        = Number(recharge.minutes_credited ?? 0);
+
+  // Create invoice record
+  const invoice = await createInvoice(supabase, {
+    userId:         user.id,
+    productId:      "connect_session_minutes",
+    description:    `Imotara Connect · Session with ${consultantName} · ${minutes} min`,
+    paymentGateway: "razorpay",
+    gatewayRef:     razorpay_payment_id,
+    amountPaise:    Math.round(amount * 100),
+    currency,
+  });
+
+  // Send invoice email to user (non-blocking)
+  if (user.email) {
+    sendRechargeInvoiceEmail({
+      userEmail:       user.email,
+      consultantName,
+      minutesCredited: minutes,
+      amount,
+      currency,
+      paymentId:       razorpay_payment_id,
+      invoiceNumber:   invoice?.invoiceNumber,
+    }).catch((err) => console.error("[connect/recharge/verify] email error:", err));
+  }
 
   return NextResponse.json({ ok: true, minutes_credited: recharge.minutes_credited });
 }

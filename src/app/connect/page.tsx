@@ -51,6 +51,7 @@ interface Consultant {
   rating_avg: number;
   rating_count: number;
   sessions_completed: number;
+  balance_minutes?: number;
 }
 
 interface Session {
@@ -192,7 +193,7 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
     if (filter.category) params.set("category", filter.category);
     try {
       const [cRes, fRes] = await Promise.all([
-        fetch(`/api/connect/consultants?${params}`),
+        fetch(`/api/connect/consultants?${params}`, { credentials: "include" }),
         fetch("/api/connect/favorites", { credentials: "include" }),
       ]);
       const cData = await cRes.json();
@@ -230,7 +231,20 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
 
   function handleTalkNow(consultantId: string) {
     if (!isLoggedIn) { setShowSignIn(true); return; }
-    router.push(`/connect/session/new?consultant_id=${consultantId}&type=instant`);
+    const c = consultants.find((x) => x.id === consultantId);
+    const params = new URLSearchParams({
+      consultant_id: consultantId,
+      type:          "instant",
+      rate:          String(c?.rate_per_min ?? 0),
+      currency:      c?.currency_code ?? "INR",
+      name:          c?.display_name ?? "",
+    });
+    // If we already know the user has no balance with this consultant, skip the
+    // API round-trip and go straight to the recharge step.
+    if (typeof c?.balance_minutes === "number" && c.balance_minutes === 0) {
+      params.set("needs_recharge", "true");
+    }
+    router.push(`/connect/session/new?${params}`);
   }
   function handleRequestMeeting(consultantId: string) {
     if (!isLoggedIn) { setShowSignIn(true); return; }
@@ -589,6 +603,15 @@ interface WalletTx {
   created_at: string;
 }
 
+interface SessionWallet {
+  consultant_id:   string;
+  display_name:    string;
+  photo_url:       string | null;
+  gender:          string | null;
+  balance_minutes: number;
+  currency_code:   string;
+}
+
 function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const [isLoggedIn, setIsLoggedIn]           = useState<boolean | null>(null); // null = loading
   const [walletBalance, setWalletBalance]     = useState<number>(0);
@@ -596,6 +619,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const [expiresAt, setExpiresAt]             = useState<string | null>(null);
   const [daysUntilExpiry, setDaysUntilExpiry] = useState<number | null>(null);
   const [walletStatus, setWalletStatus]       = useState<string>("active");
+  const [sessionWallets, setSessionWallets]   = useState<SessionWallet[]>([]);
   const [loading, setLoading]                 = useState(true);
   const [selectedAmount, setSelectedAmount]   = useState<number>(1000);
   const [customAmount, setCustomAmount]       = useState<string>("");
@@ -629,6 +653,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
           setExpiresAt(d.expires_at ?? null);
           setDaysUntilExpiry(d.days_until_expiry ?? null);
           setWalletStatus(d.wallet_status ?? "active");
+          setSessionWallets(d.wallets ?? []);
         }
       })
       .catch(() => {});
@@ -819,6 +844,41 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
           </p>
         )}
       </div>
+
+      {/* ── Session Minutes per Companion ── */}
+      {sessionWallets.length > 0 && (
+        <div className="imotara-glass-card rounded-2xl p-5">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-200">
+            <Clock size={14} className="text-violet-400" />
+            Pre-purchased Session Minutes
+          </h3>
+          <div className="space-y-2">
+            {sessionWallets.map((sw) => {
+              const swSym = CURRENCY_SYMBOLS[sw.currency_code] ?? sw.currency_code;
+              return (
+                <div key={sw.consultant_id} className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/3 px-3 py-2.5">
+                  <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-violet-500/20 flex items-center justify-center text-base">
+                    {sw.photo_url
+                      ? <img src={sw.photo_url} className="h-full w-full object-cover" alt="" />
+                      : (sw.gender === "female" ? "👩" : "👨")}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-zinc-100">{sw.display_name}</p>
+                    <p className="text-xs text-zinc-500">{swSym} balance</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold text-violet-300">{sw.balance_minutes} min</p>
+                    <p className="text-[10px] text-zinc-600">remaining</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-[11px] text-zinc-600 leading-relaxed">
+            These are pre-purchased minutes with specific companions. Minutes are deducted during active sessions.
+          </p>
+        </div>
+      )}
 
       {/* ── Add Money card ── */}
       <div className="imotara-glass-card rounded-2xl p-5">
@@ -1132,6 +1192,7 @@ function DashboardTab() {
   const [profile, setProfile] = useState<{
     id: string; status: string; is_online: boolean; display_name: string;
     availability_windows: AvailabilityWindow[] | null;
+    rate_per_min: number | null; currency_code: string | null;
   } | null>(null);
   const [earnings, setEarnings] = useState<{
     earned_amount: number; earned_currency: string;
@@ -1159,6 +1220,12 @@ function DashboardTab() {
   const [editingAvail, setEditingAvail] = useState(false);
   const [availWindows, setAvailWindows] = useState<AvailabilityWindow[]>([]);
   const [availSaving, setAvailSaving]   = useState(false);
+
+  // Rate editing state
+  const [editingRate, setEditingRate] = useState(false);
+  const [newRate, setNewRate]         = useState("");
+  const [rateSaving, setRateSaving]   = useState(false);
+  const [rateMsg, setRateMsg]         = useState<{ ok: boolean; text: string } | null>(null);
 
   // Session notes (per session in history)
   const [openNoteSessionId, setOpenNoteSessionId] = useState<string | null>(null);
@@ -1287,7 +1354,8 @@ function DashboardTab() {
 
   async function requestPayout() {
     const amount = parseFloat(payoutAmount);
-    if (!amount || amount <= 0 || !payoutDetails.trim()) return;
+    if (!amount || amount <= 0) { setPayoutMsg({ ok: false, text: "Enter a valid positive amount." }); return; }
+    if (!payoutDetails.trim()) { setPayoutMsg({ ok: false, text: "Enter your payment details." }); return; }
     setPayoutLoading(true);
     setPayoutMsg(null);
     try {
@@ -1332,6 +1400,29 @@ function DashboardTab() {
       setEditingAvail(false);
     } catch { /* silent */ }
     finally { setAvailSaving(false); }
+  }
+
+  async function saveRate() {
+    const rate = parseFloat(newRate);
+    if (isNaN(rate) || rate <= 0) { setRateMsg({ ok: false, text: "Enter a valid positive rate." }); return; }
+    setRateSaving(true); setRateMsg(null);
+    try {
+      const res = await fetch("/api/connect/consultant/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rate_per_min: rate }),
+        credentials: "include",
+      });
+      const d = await res.json();
+      if (d.ok) {
+        setProfile((p) => p ? { ...p, rate_per_min: rate } : p);
+        setRateMsg({ ok: true, text: "Rate updated." });
+        setEditingRate(false);
+      } else {
+        setRateMsg({ ok: false, text: d.error ?? "Failed to update rate." });
+      }
+    } catch { setRateMsg({ ok: false, text: "Network error." }); }
+    finally { setRateSaving(false); }
   }
 
   async function openNote(sessionId: string) {
@@ -1491,23 +1582,117 @@ function DashboardTab() {
         )}
       </div>
 
+      {/* Rate Editing */}
+      <div className="imotara-glass-card rounded-2xl overflow-hidden">
+        <button
+          onClick={() => { setEditingRate((v) => !v); setNewRate(String(profile.rate_per_min ?? "")); setRateMsg(null); }}
+          className="flex w-full items-center justify-between p-5 text-left hover:bg-white/3 transition"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
+            <span className="text-violet-400 font-bold text-base">₹</span>
+            Rate per Minute
+            {profile.rate_per_min != null && (
+              <span className="text-xs font-normal text-zinc-400">
+                ({CURRENCY_SYMBOLS[profile.currency_code ?? "INR"] ?? profile.currency_code}{Number(profile.rate_per_min).toFixed(2)}/min)
+              </span>
+            )}
+          </span>
+          {editingRate ? <ChevronUp size={14} className="text-zinc-500" /> : <ChevronDown size={14} className="text-zinc-500" />}
+        </button>
+        {editingRate && (
+          <div className="border-t border-white/8 p-5 space-y-3">
+            <p className="text-xs text-zinc-500">Update your per-minute rate. New sessions will use this rate; ongoing sessions are unaffected.</p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-zinc-400">{profile.currency_code ?? "INR"}</span>
+              <input
+                type="number" min="0" step="0.01"
+                value={newRate}
+                onChange={(e) => setNewRate(e.target.value)}
+                placeholder="e.g. 5.00"
+                className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              />
+              <span className="text-xs text-zinc-500">/ min</span>
+            </div>
+            {rateMsg && (
+              <p className={`text-xs ${rateMsg.ok ? "text-emerald-400" : "text-red-400"}`}>{rateMsg.text}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setEditingRate(false); setRateMsg(null); }}
+                className="rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveRate}
+                disabled={rateSaving}
+                className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
+              >
+                {rateSaving && <Loader2 size={11} className="animate-spin" />}
+                Save
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Active sessions */}
       {active.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">Active Sessions</p>
           <div className="space-y-2">
             {active.map((s) => (
-              <div key={s.id} className="imotara-glass-card flex items-center justify-between rounded-xl p-4">
-                <div>
-                  <p className="text-sm font-medium text-zinc-100">Session in progress</p>
-                  <p className="text-xs text-zinc-500">{s.type} · {Math.round(s.minutes_used)} min used</p>
+              <div key={s.id} className="imotara-glass-card overflow-hidden rounded-xl">
+                <div className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-medium text-zinc-100">Session in progress</p>
+                    <p className="text-xs text-zinc-500">{s.type} · {Math.round(s.minutes_used)} min used</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      onClick={() => openNote(s.id)}
+                      className="flex items-center gap-1 rounded-lg border border-violet-500/20 bg-violet-500/10 px-2 py-1.5 text-[11px] text-violet-400 hover:bg-violet-500/20 transition"
+                      title="Private session notes"
+                    >
+                      <FileText size={11} /> Notes
+                    </button>
+                    <button
+                      onClick={() => router.push(`/connect/session/${s.id}`)}
+                      className="rounded-lg bg-emerald-600/80 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 transition"
+                    >
+                      Rejoin Chat
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => router.push(`/connect/session/${s.id}`)}
-                  className="rounded-lg bg-emerald-600/80 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 transition"
-                >
-                  Rejoin Chat
-                </button>
+                {openNoteSessionId === s.id && (
+                  <div className="border-t border-white/8 px-4 pb-3 pt-3 space-y-2">
+                    <p className="text-[10px] text-zinc-500 flex items-center gap-1">
+                      <Shield size={9} className="text-violet-500" /> Private — only visible to you
+                    </p>
+                    <textarea
+                      value={noteContent}
+                      onChange={(e) => setNoteContent(e.target.value)}
+                      maxLength={2000}
+                      rows={3}
+                      placeholder="Add a private note about this session..."
+                      className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-violet-500"
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-zinc-600">{noteContent.length}/2000</span>
+                      <div className="flex items-center gap-2">
+                        {noteMsg && <span className="text-[10px] text-emerald-400">{noteMsg}</span>}
+                        <button
+                          onClick={() => saveNote(s.id)}
+                          disabled={noteSaving}
+                          className="flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-500 disabled:opacity-50 transition"
+                        >
+                          {noteSaving ? <Loader2 size={10} className="animate-spin" /> : null}
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1611,7 +1796,13 @@ function DashboardTab() {
               >
                 {showPayout ? "Cancel" : `Request Payout · ${sym}${available.toFixed(2)} available`}
               </button>
-            ) : null;
+            ) : (
+              <p className="text-center text-xs text-zinc-500">
+                {Number(earnings.pending_payout) > 0
+                  ? "All earnings are currently pending payout processing."
+                  : "No balance available to withdraw yet."}
+              </p>
+            );
           })()}
           {showPayout && (
             <div className="space-y-3 border-t border-white/10 pt-3">

@@ -721,19 +721,19 @@ export default function HistoryPage() {
 
               {/* Tip text + mini legend + guidance hint */}
               <div className="space-y-1 px-1">
-                <p className="text-[11px] text-zinc-500">
+                <p className="text-[11px] text-zinc-400">
                   Tip: Use "Export JSON" to download a backup of your emotion
                   history. You can keep this file or import it into your own
                   tools later.
                 </p>
-                <p className="text-[11px] text-zinc-600">
+                <p className="text-[11px] text-zinc-400">
                   Legend:{" "}
                   <span className="text-emerald-300">●</span> synced entries ·{" "}
                   <span className="text-amber-300">●</span> entries with
                   conflicts you can review in the Conflicts panel.
                 </p>
                 {/* Guidance hint for teens – no functional change */}
-                <p className="text-[11px] text-zinc-500">
+                <p className="text-[11px] text-zinc-400">
                   Each entry below represents a moment from your conversations. You can open items to see more
                   detail or jump back into{" "}
                   <Link
@@ -904,17 +904,17 @@ export default function HistoryPage() {
                                 )}
                               </div>
                             </div>
-                            <span className={`shrink-0 text-[11px] text-zinc-500 transition-transform duration-200 mr-1 ${isExpanded ? "rotate-180" : ""}`}>▾</span>
+                            <span className={`shrink-0 text-sm text-zinc-400 transition-transform duration-200 mr-1 ${isExpanded ? "rotate-180" : ""}`}>▾</span>
                           </button>
                           <div className="relative pr-3">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === key ? null : key); }} className="text-zinc-600 hover:text-zinc-400 transition p-0.5" aria-label="More options">
-                              <MoreVertical className="h-3.5 w-3.5" />
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === key ? null : key); }} className="text-zinc-400 hover:text-zinc-200 transition p-0.5" aria-label="More options">
+                              <MoreVertical className="h-4 w-4" />
                             </button>
                             {openCapsuleMenu === key && (
-                              <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                              <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                                 <button type="button" onClick={() => { const next = { ...mindsetPrefs, [key]: false }; setMindsetPrefs(next); try { localStorage.setItem(MINDSET_PREFS_KEY, JSON.stringify(next)); window.dispatchEvent(new CustomEvent("imotara:mindsetPrefsChanged")); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                                 <button type="button" onClick={() => { setMindsetDismissedSession(prev => new Set([...prev, key])); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                                <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                                <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                               </div>
                             )}
                           </div>
@@ -996,6 +996,7 @@ export default function HistoryPage() {
                     autoFocus
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Escape") { setShowSearch(false); setSearchQuery(""); setDebouncedSearch(""); setSearchResultCount(-1); } }}
                     placeholder="Search by emotion or message…"
                     className="flex-1 bg-transparent text-xs text-zinc-100 placeholder:text-zinc-600 outline-none"
                   />
@@ -1028,10 +1029,10 @@ export default function HistoryPage() {
                       onClick={() => setOpenCapsuleMenu(openCapsuleMenu === "otd" ? null : "otd")}
                       className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-black/30 text-zinc-400 transition hover:bg-white/10 hover:text-zinc-200"
                     >
-                      <MoreVertical className="h-3.5 w-3.5" />
+                      <MoreVertical className="h-4 w-4" />
                     </button>
                     {openCapsuleMenu === "otd" && (
-                      <div className="absolute right-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl">
+                      <div className="absolute right-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl im-dropdown-menu">
                         <button type="button" onClick={() => { setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
                         <button type="button" onClick={() => { try { localStorage.setItem("imotara.history.otd.show.v1", "0"); } catch {} setOtdShow(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
                         <a href="/settings" className="block w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>

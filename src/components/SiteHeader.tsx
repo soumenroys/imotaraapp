@@ -182,7 +182,7 @@ export default function SiteHeader() {
               </button>
 
               {moreOpen && (
-                <div className="absolute right-0 top-full mt-1.5 min-w-[160px] rounded-2xl border border-white/15 bg-white/80 py-1.5 shadow-lg backdrop-blur-xl dark:border-zinc-700/60 dark:bg-zinc-900/90">
+                <div className="absolute right-0 top-full mt-1.5 min-w-[160px] rounded-2xl border border-zinc-200 bg-white py-1.5 shadow-lg dark:border-zinc-700/60 dark:bg-zinc-900/90">
                   {MORE_LINKS.map((item, idx) => {
                     if (item.kind === "group") {
                       return (
@@ -202,7 +202,7 @@ export default function SiteHeader() {
                               </Link>
                             );
                           })}
-                          <div className="my-1 mx-3 border-t border-white/10 dark:border-zinc-700/40" />
+                          <div className="my-1 mx-3 border-t border-zinc-100 dark:border-zinc-700/40" />
                         </div>
                       );
                     }

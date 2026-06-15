@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       .limit(50),
     supabase
       .from("connect_sessions")
-      .select("id, consultant_id, minutes_used, amount_charged, status, created_at")
+      .select("id, consultant_id, minutes_used, amount_charged, currency_code, status, created_at")
       .eq("user_id", user.id)
       .in("status", ["completed", "active"])
       .order("created_at", { ascending: false })
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       consultant_name: nameMap[s.consultant_id] ?? "Companion",
       minutes:         Number(s.minutes_used),
       amount:          s.amount_charged != null ? Number(s.amount_charged) : null,
-      currency_code:   "INR",
+      currency_code:   s.currency_code ?? "INR",
       description:     `Session with ${nameMap[s.consultant_id] ?? "Companion"}`,
       created_at:      s.created_at,
     })),

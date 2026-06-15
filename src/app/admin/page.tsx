@@ -796,7 +796,7 @@ function UserLicenseRow({
               <div>
                 <label className="mb-1 block text-[10px] text-zinc-500">Token balance (set)</label>
                 <input type="number" min={0} value={form.tokenBalance}
-                  onChange={(e) => setForm({ ...form, tokenBalance: parseInt(e.target.value) || 0 })}
+                  onChange={(e) => setForm({ ...form, tokenBalance: Math.max(0, parseInt(e.target.value, 10) || 0) })}
                   className="w-full rounded-lg border border-white/10 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-indigo-500/40" />
               </div>
               <div>
@@ -1332,6 +1332,10 @@ function OrganizationsSection({ token }: { token: string }) {
             placeholder="Search by name, slug, or owner email…"
             className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-indigo-400/50" />
           <button type="submit" className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-zinc-300 transition hover:bg-white/10">Search</button>
+          {searchInput && (
+            <button type="button" onClick={() => { setSearch(""); setSearchInput(""); }}
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-500 transition hover:text-zinc-300">✕</button>
+          )}
         </form>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-300 outline-none">

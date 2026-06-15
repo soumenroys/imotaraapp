@@ -1,13 +1,40 @@
 // POST /api/connect/translate
 // Translates text using MyMemory (free, no key) or Google Cloud Translation (if key set).
+// Auth required — prevents open-proxy abuse of the translation API key.
 // Body: { text: string; targetLang: string; sourceLang?: string }
 // Response: { ok: true; translatedText: string } | { ok: false; error: string }
 
 import { NextRequest, NextResponse } from "next/server";
+import { getConnectUser } from "@/lib/connect/auth";
 
 const GOOGLE_API_KEY = process.env.GOOGLE_TRANSLATE_API_KEY ?? "";
 
+// Per-user rate limit: max 60 translation requests per 60-second window.
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(userId: string): boolean {
+  const now    = Date.now();
+  const entry  = rateLimitMap.get(userId);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (entry.count >= 60) return false;
+  entry.count++;
+  return true;
+}
+
 export async function POST(req: NextRequest) {
+  // Auth guard — reject unauthenticated callers before doing any work
+  const user = await getConnectUser(req);
+  if (!user) {
+    return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
+  }
+
+  if (!checkRateLimit(user.id)) {
+    return NextResponse.json({ ok: false, error: "Too many translation requests — please wait a moment" }, { status: 429 });
+  }
+
   const body = await req.json().catch(() => null);
   const text: string       = typeof body?.text === "string" ? body.text.trim() : "";
   const targetLang: string = typeof body?.targetLang === "string" ? body.targetLang.trim() : "";

@@ -411,6 +411,22 @@ function ToneAndContextTile() {
     const [childSafeMode, setChildSafeMode] = useState(false);
     const childSafeModeGate = useFeatureGate("CHILD_SAFE_MODE");
 
+    // Auth state — used for cross-device profile sync
+    const [sbEmail, setSbEmail] = useState<string | null>(null);
+    useEffect(() => {
+        (async () => {
+            try {
+                const { createBrowserClient } = await import("@supabase/ssr");
+                const sb = createBrowserClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                );
+                const { data: { session } } = await sb.auth.getSession();
+                setSbEmail(session?.user?.email ?? null);
+            } catch { /* not signed in or env not set */ }
+        })();
+    }, []);
+
     useEffect(() => {
         // Hydration-safe: only read localStorage after mount
         const existing = safeParseProfile(window.localStorage.getItem(PROFILE_STORAGE_KEY));
@@ -472,6 +488,57 @@ function ToneAndContextTile() {
             console.error("[imotara] profile autosave failed:", e);
         }
     }, [loaded, profile]);
+
+    // Cross-device profile sync — pull from server when user signs in and local is empty
+    useEffect(() => {
+        if (!loaded || !sbEmail) return;
+        const localEmpty = !userName.trim() && !compName.trim();
+        if (!localEmpty) return;
+        fetch("/api/profile/sync")
+            .then((r) => r.ok ? r.json() : null)
+            .then((data) => {
+                const tc = data?.toneContext;
+                if (!tc) return;
+                if (tc?.user?.name)          setUserName(tc.user.name);
+                if (tc?.user?.preferredLang) setPreferredLang(tc.user.preferredLang as any);
+                if (tc?.user?.gender)        setUserGender(tc.user.gender as any);
+                if (tc?.user?.responseStyle) setResponseStyle(tc.user.responseStyle as any);
+                if (tc?.companion?.enabled !== undefined) setCompEnabled(!!tc.companion.enabled);
+                if (tc?.companion?.name)         setCompName(tc.companion.name);
+                if (tc?.companion?.relationship) setCompRel(tc.companion.relationship as any);
+                if (tc?.companion?.gender)       setCompGender(tc.companion.gender as any);
+            })
+            .catch(() => {}); // best-effort
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loaded, sbEmail]);
+
+    // Cross-device profile sync — push to server on profile change when signed in (debounced)
+    useEffect(() => {
+        if (!loaded || !sbEmail) return;
+        const timer = setTimeout(() => {
+            const toneContext = {
+                user: {
+                    name:          userName.trim() || undefined,
+                    preferredLang: preferredLang !== "auto" ? preferredLang : undefined,
+                    gender:        userGender !== "prefer_not" ? userGender : undefined,
+                    responseStyle: responseStyle !== "auto" ? responseStyle : undefined,
+                },
+                companion: {
+                    enabled:      compEnabled,
+                    name:         compEnabled && compName.trim() ? compName.trim() : undefined,
+                    relationship: compEnabled && compRel !== "prefer_not" ? compRel : undefined,
+                    gender:       compEnabled && compGender !== "prefer_not" ? compGender : undefined,
+                },
+            };
+            fetch("/api/profile/sync", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(toneContext),
+            }).catch(() => {}); // best-effort
+        }, 3000);
+        return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loaded, sbEmail, userName, preferredLang, userGender, responseStyle, compEnabled, compName, compRel, compGender]);
 
     // GAP-12: persist teen mode
     useEffect(() => {
@@ -1136,6 +1203,40 @@ function getStorageSummary() {
 export default function SettingsPage() {
     const { mode } = useAnalysisConsent();
     const { accent, setAccent, fontSize, setFontSize, colorMode, setColorMode } = useAppearance();
+
+    // ── Supabase session (nullable — local-only users have no session) ─────────
+    const [sbEmail, setSbEmail] = useState<string | null>(null);
+    const [signingOut, setSigningOut] = useState(false);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const { createBrowserClient } = await import("@supabase/ssr");
+                const sb = createBrowserClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                );
+                const { data: { session } } = await sb.auth.getSession();
+                setSbEmail(session?.user?.email ?? null);
+            } catch { /* not signed in or env not set */ }
+        })();
+    }, []);
+
+    async function handleSignOut() {
+        if (signingOut) return;
+        setSigningOut(true);
+        try {
+            const { createBrowserClient } = await import("@supabase/ssr");
+            const sb = createBrowserClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+            );
+            await sb.auth.signOut();
+            setSbEmail(null);
+        } catch { /* ignore */ } finally {
+            setSigningOut(false);
+        }
+    }
 
     // ── Feature gates ─────────────────────────────────────────────────────────
     const ttsAdvancedGate     = useFeatureGate("TTS_ADVANCED");
@@ -2316,6 +2417,24 @@ export default function SettingsPage() {
     const [deletingAccount, setDeletingAccount] = useState(false);
     const [deleteAccountMsg, setDeleteAccountMsg] = useState<string | null>(null);
 
+    function clearAllLocalImotaraData() {
+        const keysToRemove = [
+            "imotara:history:v1",
+            CHAT_STORAGE_KEY,
+            CHAT_LINK_KEY,
+            LOCAL_DONATIONS_KEY,
+            "imotara.profile.v1",
+            "imotara.companion_letters.archive.v1",
+            "imotara.companion_letter.v1",
+            "imotara.journal.autoDeleteDays.v1",
+            "imotara.haptic.intensity.v1",
+            "imotara.haptic.enabled.v1",
+            "imotara.teen_mode.v1",
+            "imotara.child_safe_mode.v1",
+        ];
+        keysToRemove.forEach((k) => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
+    }
+
     async function handleDeleteAccount() {
         if (deletingAccount) return;
         const step1 = typeof window !== "undefined"
@@ -2330,25 +2449,33 @@ export default function SettingsPage() {
         setDeletingAccount(true);
         setDeleteAccountMsg(null);
         try {
-            // Clear local data first
-            try { localStorage.removeItem("imotara:history:v1"); } catch { /* ignore */ }
-            try { localStorage.removeItem(CHAT_STORAGE_KEY); } catch { /* ignore */ }
+            const { createBrowserClient } = await import("@supabase/ssr");
+            const sb = createBrowserClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+            );
+            const { data: { session } } = await sb.auth.getSession();
 
-            // Call server-side account delete (uses cookie session)
-            const res = await fetch("/api/account/delete", { method: "DELETE" });
-            if (res.ok || res.status === 404) {
-                setDeleteAccountMsg("Account deleted. All your data has been removed.");
-                // Sign out via Supabase browser client
-                try {
-                    const { createBrowserClient } = await import("@supabase/ssr");
-                    const sb = createBrowserClient(
-                        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+            if (session) {
+                // Signed-in user — delete server-side first (cascades all cloud data), then clear local
+                const res = await fetch("/api/account/delete", { method: "DELETE" });
+                if (res.ok || res.status === 404) {
+                    clearAllLocalImotaraData();
+                    setSbEmail(null);
+                    setDeleteAccountMsg("Account deleted. All your data has been removed.");
+                    try { await sb.auth.signOut(); } catch { /* already gone */ }
+                } else {
+                    const json = await res.json().catch(() => null);
+                    setDeleteAccountMsg(
+                        json?.detail
+                            ? `Could not delete account: ${json.detail}`
+                            : "Could not delete account — please contact support at support@imotara.com"
                     );
-                    await sb.auth.signOut();
-                } catch { /* ignore — user is already effectively signed out */ }
+                }
             } else {
-                setDeleteAccountMsg("Could not delete account — please contact support.");
+                // Local-only user — no cloud account; just clear device data
+                clearAllLocalImotaraData();
+                setDeleteAccountMsg("All local data has been cleared from this device.");
             }
         } catch {
             setDeleteAccountMsg("Something went wrong. Please try again.");
@@ -3541,13 +3668,15 @@ export default function SettingsPage() {
                                         className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition"
                                         style={active ? {
                                             borderColor: o.color,
-                                            backgroundColor: `${o.color}28`,
-                                            color: "#f4f4f5",
-                                            boxShadow: `0 0 14px ${o.color}55`,
+                                            borderWidth: 2,
+                                            backgroundColor: colorMode === "light" ? `${o.color}55` : `${o.color}28`,
+                                            color: colorMode === "light" ? "#18181b" : "#f4f4f5",
+                                            fontWeight: 600,
+                                            boxShadow: colorMode === "light" ? `0 0 0 3px ${o.color}25` : `0 0 14px ${o.color}55`,
                                         } : {
-                                            borderColor: "rgba(255,255,255,0.10)",
-                                            backgroundColor: "rgba(255,255,255,0.05)",
-                                            color: "#a1a1aa",
+                                            borderColor: colorMode === "light" ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.10)",
+                                            backgroundColor: colorMode === "light" ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.05)",
+                                            color: colorMode === "light" ? "#52525b" : "#a1a1aa",
                                         }}
                                     >
                                         <span className="h-3 w-3 rounded-full shrink-0" style={swatchStyle} />
@@ -3988,17 +4117,32 @@ export default function SettingsPage() {
                 {/* ── Remote History Sync ─────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                     <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Remote history sync</h2>
+                    {sbEmail && (
+                        <p className="mt-1 text-[11px] text-emerald-400">Signed in as {sbEmail}</p>
+                    )}
                     <p className="mt-1 text-xs leading-5 text-zinc-400">
                         Push your local history to the Imotara cloud and pull any records from other devices. Requires being signed in.
                     </p>
-                    <button
-                        type="button"
-                        onClick={handleSyncNow}
-                        disabled={syncBusy}
-                        className="mt-3 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-200 transition hover:bg-indigo-500/20 disabled:opacity-50"
-                    >
-                        {syncBusy ? "Saving…" : "Back up now"}
-                    </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={handleSyncNow}
+                            disabled={syncBusy}
+                            className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-200 transition hover:bg-indigo-500/20 disabled:opacity-50"
+                        >
+                            {syncBusy ? "Saving…" : "Back up now"}
+                        </button>
+                        {sbEmail && (
+                            <button
+                                type="button"
+                                onClick={handleSignOut}
+                                disabled={signingOut}
+                                className="rounded-xl border border-zinc-500/40 bg-zinc-700/30 px-4 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-600/30 disabled:opacity-50"
+                            >
+                                {signingOut ? "Signing out…" : "Sign out"}
+                            </button>
+                        )}
+                    </div>
                     {syncMsg && <p className="mt-2 text-[11px] text-zinc-400">{syncMsg}</p>}
                 </section>
 
@@ -4641,7 +4785,9 @@ export default function SettingsPage() {
                 <section className="imotara-glass-soft rounded-2xl border border-rose-500/15 px-4 py-4 sm:px-5 sm:py-5">
                     <h2 className="text-sm font-semibold text-rose-300 sm:text-base">Delete account</h2>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">
-                        Permanently delete your Imotara account and all associated data — conversations, memories, and settings. This cannot be undone.
+                        {sbEmail
+                            ? "Permanently delete your Imotara account and all associated cloud data — conversations, memories, and settings. This cannot be undone."
+                            : "Clear all Imotara data from this device — conversations, memories, and settings. If you have a cloud account on another device, sign in first to delete it there too."}
                     </p>
                     <button
                         type="button"
@@ -4649,10 +4795,10 @@ export default function SettingsPage() {
                         disabled={deletingAccount}
                         className="mt-3 rounded-xl border border-rose-500/40 bg-rose-600/15 px-4 py-2 text-xs font-medium text-rose-300 transition hover:bg-rose-600/25 disabled:opacity-50"
                     >
-                        {deletingAccount ? "Deleting…" : "Delete my account"}
+                        {deletingAccount ? "Deleting…" : sbEmail ? "Delete my account" : "Clear all local data"}
                     </button>
                     {deleteAccountMsg && (
-                        <p className="mt-2 text-[11px] text-zinc-400">{deleteAccountMsg}</p>
+                        <p className={`mt-2 text-[11px] ${deleteAccountMsg.startsWith("Could not") ? "text-rose-400" : "text-zinc-400"}`}>{deleteAccountMsg}</p>
                     )}
                 </section>
 

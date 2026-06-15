@@ -72,6 +72,8 @@ export default function MembersPage() {
   const [inviting, setInviting]   = useState(false);
   const [inviteMsg, setInviteMsg] = useState("");
   const [removing, setRemoving]   = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // — CSV bulk import state
   const fileInputRef              = useRef<HTMLInputElement>(null);
@@ -91,6 +93,7 @@ export default function MembersPage() {
       const j = await r.json();
       setMembers(j.members ?? []);
       setInvites(j.invites ?? []);
+      if (j.currentUserId) setCurrentUserId(j.currentUserId);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -148,9 +151,18 @@ export default function MembersPage() {
 
   async function handleRemove(userId: string) {
     if (!confirm("Remove this member? Their license will be revoked.")) return;
-    setRemoving(userId);
-    await fetch(`/api/org/dashboard/members?userId=${userId}`, { method: "DELETE", credentials: "same-origin" });
-    setRemoving(null); void fetchMembers();
+    setRemoving(userId); setRemoveError("");
+    try {
+      const r = await fetch(`/api/org/dashboard/members?userId=${userId}`, { method: "DELETE", credentials: "same-origin" });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        setRemoveError((j as { error?: string }).error ?? `Remove failed (${r.status})`);
+        return;
+      }
+      void fetchMembers();
+    } finally {
+      setRemoving(null);
+    }
   }
 
   async function handleRoleChange(userId: string, role: string) {
@@ -319,7 +331,7 @@ export default function MembersPage() {
               <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${ROLE_COLORS[m.role] ?? ROLE_COLORS.member}`}>
                 {m.role}
               </span>
-              {m.role !== "owner" && (
+              {m.role !== "owner" && m.userId !== currentUserId && (
                 <div className="flex items-center gap-1">
                   <select value={m.role} onChange={(e) => handleRoleChange(m.userId, e.target.value)}
                     className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-xs text-zinc-300 outline-none">
@@ -336,6 +348,8 @@ export default function MembersPage() {
           ))}
         </div>
       )}
+
+      {removeError && <p className="text-xs text-rose-400">{removeError}</p>}
 
       {/* Pending invites */}
       {invites.length > 0 && (

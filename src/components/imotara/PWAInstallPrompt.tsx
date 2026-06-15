@@ -54,7 +54,7 @@ export default function PWAInstallPrompt() {
     <div
       role="dialog"
       aria-label="Add Imotara to your home screen"
-      className="fixed bottom-20 right-4 z-50 max-w-[280px] rounded-2xl border border-white/10 bg-black/85 px-4 py-3 shadow-xl backdrop-blur-xl animate-slide-up sm:bottom-6"
+      className="fixed bottom-20 left-4 right-4 z-50 max-w-[280px] rounded-2xl border border-white/10 bg-black/85 px-4 py-3 shadow-xl backdrop-blur-xl animate-slide-up sm:bottom-6 sm:left-auto"
     >
       <div className="flex items-start gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 text-xs font-bold text-white shadow">

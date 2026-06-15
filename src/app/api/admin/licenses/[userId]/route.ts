@@ -129,7 +129,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
   // Resolve new token balance
   let resolvedBalance = existing.token_balance ?? 0;
   if (tokenBalance !== undefined) {
-    resolvedBalance = tokenBalance; // absolute override
+    resolvedBalance = Math.max(0, tokenBalance); // absolute override, floor at 0
   } else if (tokenDelta !== undefined) {
     resolvedBalance = Math.max(0, resolvedBalance + tokenDelta); // relative, floor at 0
   }

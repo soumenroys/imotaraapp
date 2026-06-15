@@ -1,11 +1,65 @@
+// GET   /api/connect/sessions/[id]
 // PATCH /api/connect/sessions/[id]
-// Auth required. Session participants update session status.
-// Body: { action: "accept" | "decline" | "complete" | "cancel" }
+// Auth required. Session participants read or update session status.
+// PATCH body: { action: "accept" | "decline" | "complete" | "cancel" }
 // On "complete": credits consultant for minutes_used at 80% of rate.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
+import {
+  sendSessionSummaryEmail,
+  sendConsultantEarningsEmail,
+  sendPlatformRevenueEmail,
+  sendSessionAcceptedEmail,
+} from "@/lib/connect/mailer";
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const user = await getConnectUser(req);
+  if (!user) {
+    return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  const { data: sessionRaw, error } = await supabase
+    .from("connect_sessions")
+    .select(
+      "id, user_id, consultant_id, type, status, scheduled_note, scheduled_at, scheduled_duration_min, " +
+      "started_at, ended_at, minutes_used, amount_charged, currency_code, rate_per_min, " +
+      "rating, review_text, review_submitted_at, created_at, last_tick_at, " +
+      "connect_consultants(display_name, photo_url, gender, rate_per_min)"
+    )
+    .eq("id", id)
+    .single();
+
+  if (error || !sessionRaw) {
+    return NextResponse.json({ ok: false, error: "Session not found" }, { status: 404 });
+  }
+
+  const session = sessionRaw as unknown as {
+    id: string; user_id: string; consultant_id: string; [key: string]: unknown;
+  };
+
+  // Only the session user or the consultant may read the session
+  const { data: consultant } = await supabase
+    .from("connect_consultants")
+    .select("user_id")
+    .eq("id", session.consultant_id)
+    .single();
+
+  const isConsultant = consultant?.user_id === user.id;
+  const isUser       = session.user_id === user.id;
+  if (!isConsultant && !isUser) {
+    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+  }
+
+  return NextResponse.json({ ok: true, session });
+}
 
 const VALID_ACTIONS = ["accept", "decline", "complete", "cancel"] as const;
 type Action = typeof VALID_ACTIONS[number];
@@ -37,7 +91,7 @@ export async function PATCH(
 
   const { data: session } = await supabase
     .from("connect_sessions")
-    .select("id, user_id, consultant_id, status, minutes_used, rate_per_min")
+    .select("id, user_id, consultant_id, status, minutes_used, rate_per_min, currency_code")
     .eq("id", id)
     .single();
 
@@ -48,7 +102,7 @@ export async function PATCH(
   // Determine if caller is the consultant
   const { data: consultant } = await supabase
     .from("connect_consultants")
-    .select("id, user_id, rate_per_min, sessions_completed")
+    .select("id, user_id, display_name, rate_per_min, sessions_completed")
     .eq("id", session.consultant_id)
     .single();
 
@@ -95,6 +149,26 @@ export async function PATCH(
   if (consultant) {
     if (action === "accept") {
       await supabase.from("connect_consultants").update({ is_busy: true }).eq("id", consultant.id);
+
+      // Notify the session user that their request was accepted (email + push, non-blocking)
+      void supabase.auth.admin.getUserById(session.user_id).then(({ data: uAuth }) => {
+        const userEmail = uAuth?.user?.email;
+        const consultantName = consultant.display_name ?? "Your companion";
+
+        const jobs: Promise<unknown>[] = [];
+
+        if (userEmail) {
+          jobs.push(sendSessionAcceptedEmail({
+            userEmail, consultantName, sessionId: id,
+          }).catch((e) => console.error("[sessions/accept] email error:", e)));
+        }
+
+        // Push notification to user if they have a token (via expo_push_token stored on their profile
+        // — users don't have a connect_consultants row, so we look in a generic field on auth.users metadata)
+        // Best-effort only; most users will receive the Supabase Realtime status update instead.
+        return Promise.all(jobs);
+      }).catch((e) => console.error("[sessions/accept] notify error:", e));
+
     } else if (action === "complete" || action === "decline" || action === "cancel") {
       await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
     }
@@ -134,8 +208,78 @@ export async function PATCH(
       .from("connect_consultants")
       .update({ sessions_completed: (consultant.sessions_completed ?? 0) + 1 })
       .eq("id", consultant.id);
-  }
 
+    const currency        = session.currency_code ?? "INR";
+    const consultantName  = consultant.display_name ?? "Companion";
+    const minutesUsed     = Number(session.minutes_used);
+    const platformFee     = amountCharged * 0.20;
+
+    // Fire-and-forget: session statement (user), earnings (consultant), revenue (Imotara)
+    Promise.all([
+      // 1. Look up invoice and user email in parallel
+      Promise.all([
+        supabase.auth.admin.getUserById(session.user_id),
+        supabase
+          .from("payment_invoices")
+          .select("invoice_number")
+          .eq("user_id", session.user_id)
+          .eq("product_id", "connect_session_minutes")
+          .order("issued_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]).then(([{ data: uAuth }, { data: inv }]) => {
+        const userEmail     = uAuth?.user?.email;
+        const invoiceNumber = inv?.invoice_number ?? undefined;
+
+        const jobs: Promise<unknown>[] = [];
+
+        // User email
+        if (userEmail) {
+          jobs.push(sendSessionSummaryEmail({
+            userEmail,
+            consultantName,
+            minutesUsed,
+            amountCharged,
+            currency,
+            sessionId:    id,
+            invoiceNumber,
+          }));
+        }
+
+        // Imotara platform revenue email (always fires)
+        jobs.push(sendPlatformRevenueEmail({
+          sessionId:        id,
+          userEmail:        userEmail ?? session.user_id,
+          consultantName,
+          minutesUsed,
+          totalCharged:     amountCharged,
+          platformFee,
+          consultantEarned: sessionEarnings,
+          currency,
+          invoiceNumber,
+        }));
+
+        return Promise.all(jobs);
+      }),
+
+      // 2. Consultant earnings email
+      supabase.auth.admin.getUserById(consultant.user_id).then(({ data }) => {
+        const consultantEmail = data?.user?.email;
+        if (consultantEmail) {
+          return sendConsultantEarningsEmail({
+            consultantEmail,
+            consultantName,
+            minutesUsed,
+            earnedAmount:  sessionEarnings,
+            platformFee,
+            totalCharged:  amountCharged,
+            currency,
+            sessionId:     id,
+          });
+        }
+      }),
+    ]).catch((err) => console.error("[sessions/complete] email error:", err));
+  }
 
   return NextResponse.json({ ok: true, status: transition.to });
 }

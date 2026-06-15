@@ -444,7 +444,7 @@ function BannerAdvanced() {
             <input type="range" className="w-full h-1 mt-1 accent-indigo-500" defaultValue={20} min={10} max={60} readOnly />
             <p className="text-[7px] text-zinc-600 text-right">20s</p>
           </div>
-          <p className="text-[7px] text-zinc-600 text-center">v1.2.0 · build 100</p>
+          <p className="text-[7px] text-zinc-600 text-center">v1.2.1 · build 101</p>
         </div>
       </Phone>
     </div>
@@ -1910,19 +1910,19 @@ const FEATURES: Record<string, Feature[]> = {
     },
     {
       icon: "🏢",
-      title: "Enterprise, EDU & NGO Plans (Custom Pricing)",
-      short: "For companies, NGOs, schools, and healthcare platforms — org admin dashboard, member management, analytics, API access, and more.",
-      long: "Enterprise and EDU plans give your organisation a dedicated dashboard at imotara.com/org/dashboard. Key capabilities: invite members via email or bulk CSV; group them into classrooms or teams with a shared companion tone (EDU: classrooms, Enterprise: departments); track aggregate engagement analytics with emotion trends (EDU/NGO); embed Imotara in Moodle or Canvas via iframe; configure SSO/SAML for single sign-on; set data residency preference; manage REST API keys (Enterprise); customise branding with your logo and accent colour. NGOs also get referral codes for revenue sharing and can earn a recognition certificate. Audit logs and member lifecycle management are included.",
+      title: "Enterprise, EDU & NGO Plans",
+      short: "Self-serve seat-based pricing for companies, NGOs, and schools — ₹1,999/seat/yr (Company/Govt), ₹999 (EDU), ₹799 (NGO).",
+      long: "Organisation plans are seat-based (annual) with self-serve checkout. Pricing: ₹1,999/seat/yr for Companies and Government, ₹999/seat/yr for Educational institutions (50% off), and ₹799/seat/yr for NGOs/NPOs (60% off). Packages start at 10 seats (Starter), 50 seats (Team), 100 seats (Department), or 500 seats (Enterprise). Custom seat counts are available on request. All org plans include an admin dashboard at imotara.com/org/dashboard, member management, bulk CSV import, engagement analytics, audit logs, invoice & receipts, and priority support. Enterprise adds custom branding, API access, SSO/SAML, and sub-teams.",
       steps: [
-        "Go to imotara.com/org/new to submit an organisation request.",
-        "Fill in your org name, type (Company / NGO / Educational / Government), and contact details.",
-        "Imotara reviews and activates your account within 24–48 hours.",
-        "Once approved, access your org dashboard at imotara.com/org/dashboard.",
-        "Invite your team via the Members tab — single email or bulk CSV upload.",
-        "Use the Teams tab to group members into classrooms or departments with a shared tone.",
-        "NGOs: generate referral codes and download your recognition certificate from Settings.",
+        "Visit imotara.com/pricing/corporate to see seat options and pricing.",
+        "Select your organisation type (Company, NGO, Educational, Government).",
+        "Choose a seat package: 10, 50, 100, 500, or Custom.",
+        "Pay via Razorpay (UPI, cards, netbanking) — organisation created within 24 hours.",
+        "Or apply via the form at imotara.com/org/new for custom requirements.",
+        "Once active, access your org dashboard and invite members via email or CSV.",
+        "NGOs/EDU: the discount is applied automatically at checkout — no code needed.",
       ],
-      tiers: { free: false, plus: false, pro: false, ent: true, note: "Enterprise / EDU / NGO plans are for organisations. Apply at imotara.com/org/new or email info@imotara.com." },
+      tiers: { free: false, plus: false, pro: false, ent: true, note: "NGO 60% off · EDU 50% off · self-serve at imotara.com/pricing/corporate" },
     },
     {
       icon: "🔄",
@@ -1972,10 +1972,10 @@ const FEATURES: Record<string, Feature[]> = {
       short: "A pre-loaded wallet for paying companions — top up with any amount, pay per minute.",
       long: "Your Connect Wallet holds a balance you use to pay for sessions. Top up via UPI, card, or netbanking (Razorpay). When a session runs, the per-minute rate is deducted automatically every 60 seconds. If your balance runs low, you get a warning and the session ends gracefully when it hits zero.",
       steps: [
-        "Open Connect → tap 'Wallet' in the top right.",
-        "Tap 'Top up wallet'.",
-        "Choose an amount (₹100, ₹200, ₹500, ₹1000, or custom).",
-        "Complete payment via Razorpay.",
+        "Open Connect → Wallet tab.",
+        "Tap 'Add Money to Wallet'.",
+        "Choose an amount (₹1,000, ₹2,000, ₹5,000, ₹10,000, or custom).",
+        "Accept the Wallet Terms & Policy, then complete payment via Razorpay.",
         "Your balance updates immediately.",
       ],
       tip: "Top up before a session starts — mid-session top-ups are supported but may cause a brief pause.",
@@ -2003,6 +2003,20 @@ const FEATURES: Record<string, Feature[]> = {
         "Wait for the companion to accept (up to 60 seconds).",
         "Scheduled: tap 'Schedule' and pick your preferred date and time.",
         "You'll get a notification reminder before a scheduled session.",
+      ],
+    },
+    {
+      icon: "💰",
+      title: "Wallet Dormancy & Terms",
+      short: "Your wallet balance stays active for 2 years — it's never zeroed, even if dormant.",
+      long: "Imotara's Connect Wallet has a dormancy policy designed to protect you: your balance stays active for 2 full years from your last top-up or session. Before any dormancy, you receive 6 email reminders. After 2 years, the wallet enters 'dormant' status — but your balance is preserved and never erased. You have an additional 1-year grace period during which you can request a full refund of any remaining balance. The Wallet Terms & Policy covers all these rules in detail.",
+      steps: [
+        "Top up any amount — balance is active for 2 years from that date.",
+        "Imotara sends 6 reminder emails before dormancy.",
+        "After 2 years of no activity, wallet enters dormant status.",
+        "In dormant status, your balance is preserved — never zeroed.",
+        "Request a refund within 1 year of dormancy from Connect → Wallet → Refund balance.",
+        "Read the full policy: Connect → Wallet → 'Full Wallet Terms & Policy →'.",
       ],
     },
     {

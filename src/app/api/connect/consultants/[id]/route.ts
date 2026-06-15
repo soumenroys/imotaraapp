@@ -14,8 +14,8 @@ export async function GET(
   const { data, error } = await supabase
     .from("connect_consultants")
     .select(
-      "id, display_name, gender, photo_url, bio, expertise_tags, languages, " +
-      "rate_per_min, currency_code, availability_note, " +
+      "id, display_name, gender, photo_url, bio, expertise_tags, languages, session_types, " +
+      "rate_per_min, currency_code, availability_note, availability_windows, " +
       "is_online, rating_avg, rating_count, sessions_completed"
     )
     .eq("id", id)

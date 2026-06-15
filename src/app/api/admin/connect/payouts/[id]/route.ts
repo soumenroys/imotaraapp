@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { adminAuthorized } from "@/app/api/admin/_auth";
+import { connectAdminAuthorized } from "@/app/api/admin/_auth";
 
 const VALID_STATUSES = ["processing", "completed", "failed"] as const;
 
@@ -14,7 +14,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const admin = await adminAuthorized(req);
+  const admin = await connectAdminAuthorized(req);
   if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
@@ -46,11 +46,20 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  // If completed, clear pending_payout from wallet
+  // If completed, decrement pending_payout by the exact payout amount (not zero the whole field —
+  // the consultant may have multiple concurrent pending payout requests).
   if (status === "completed") {
+    const { data: wallet } = await supabase
+      .from("connect_wallet")
+      .select("pending_payout")
+      .eq("user_id", payout.consultant_user_id)
+      .single();
+
+    const newPending = Math.max(0, Number(wallet?.pending_payout ?? 0) - Number(payout.amount));
+
     await supabase
       .from("connect_wallet")
-      .update({ pending_payout: 0, updated_at: new Date().toISOString() })
+      .update({ pending_payout: newPending, updated_at: new Date().toISOString() })
       .eq("user_id", payout.consultant_user_id);
   }
 

@@ -33,9 +33,13 @@ export type GrantResult =
     | { ok: true;  tier: string; tokenBalance: number; expiresAt: string | null }
     | { ok: false; error: string };
 
+// Tier rank — higher number = higher tier. Never write a lower tier over a higher one.
+const TIER_RANK: Record<string, number> = { free: 0, plus: 1, pro: 2, family: 3, edu: 3, enterprise: 4 };
+
 /**
  * Upgrade or top-up a user's license row.
- * - Subscriptions: extends expiry (stacks on active subscription, resets if expired)
+ * - Subscriptions: extends expiry (stacks on active subscription, resets if expired).
+ *   Never downgrades tier — a Pro user who buys Plus keeps Pro tier with stacked expiry.
  * - Token packs: increments token_balance without touching tier/expiry
  * Caller must pass the admin (service-role) client.
  */
@@ -61,9 +65,14 @@ export async function grantLicense(
             const newExpiry = new Date(baseMs + product.days * 86_400_000).toISOString();
             const balance   = existing?.token_balance ?? 0;
 
+            // Never downgrade: if the user already holds a higher tier, keep it.
+            const currentRank = TIER_RANK[existing?.tier ?? "free"] ?? 0;
+            const newRank     = TIER_RANK[product.tier] ?? 0;
+            const tierToWrite = newRank >= currentRank ? product.tier : (existing!.tier);
+
             if (existing) {
                 const { error } = await admin.from("licenses")
-                    .update({ tier: product.tier, status: "valid", expires_at: newExpiry, source, updated_at: new Date().toISOString() })
+                    .update({ tier: tierToWrite, status: "valid", expires_at: newExpiry, source, updated_at: new Date().toISOString() })
                     .eq("user_id", userId);
                 if (error) throw new Error(`licenses update failed: ${error.message}`);
             } else {
@@ -74,7 +83,7 @@ export async function grantLicense(
                 if (error) throw new Error(`licenses insert failed: ${error.message}`);
             }
 
-            return { ok: true, tier: product.tier, tokenBalance: balance, expiresAt: newExpiry };
+            return { ok: true, tier: tierToWrite, tokenBalance: balance, expiresAt: newExpiry };
         } else {
             // Token pack — increment balance only; leave tier/expiry untouched
             const balance    = (existing?.token_balance ?? 0) + product.tokens;

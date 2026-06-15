@@ -43,6 +43,39 @@ export function resolveVoice(lang: string, gender: string | undefined): string {
     return voices.neutral;
 }
 
+// ── Expressive speaking styles ────────────────────────────────────────────────
+// Azure Neural voices that support <mstts:express-as> style tags.
+// Only voices with confirmed style support are listed here.
+// Indian-language and Arabic/Russian voices use standard neural (no style).
+//
+// Style choices for Imotara (companion app):
+//   empathetic — warm, emotionally resonant (JennyNeural)
+//   chat       — conversational, natural pacing (AndrewNeural, YunxiNeural, NanamiNeural, KeitaNeural)
+//   gentle     — soft and calm (XiaoxiaoNeural)
+//   cheerful   — warm and upbeat (DeniseNeural, HenriNeural, KatjaNeural, ElviraNeural, FranciscaNeural)
+
+export interface AzureStyleSet {
+    female?: string;
+    male?:   string;
+}
+
+export const AZURE_VOICE_STYLES: Record<string, AzureStyleSet> = {
+    en: { female: "empathetic", male: "chat"      },
+    zh: { female: "gentle",     male: "friendly"  },
+    ja: { female: "chat",       male: "chat"       },
+    fr: { female: "cheerful",   male: "cheerful"   },
+    de: { female: "cheerful",   male: undefined    },
+    pt: { female: "calm",       male: undefined    },
+    es: { female: "cheerful",   male: undefined    },
+};
+
+/** Return the emotional speaking style for a voice, or undefined if not supported. */
+export function resolveStyle(lang: string, gender: string | undefined): string | undefined {
+    const styles = AZURE_VOICE_STYLES[lang];
+    if (!styles) return undefined;
+    return gender === "male" ? styles.male : styles.female;
+}
+
 /** BCP-47 locale for each language — used in SSML xml:lang attribute. */
 export const AZURE_LOCALE: Record<string, string> = {
     en: "en-US", hi: "hi-IN", mr: "mr-IN", bn: "bn-IN",

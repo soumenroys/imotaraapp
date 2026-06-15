@@ -1049,9 +1049,10 @@ export default function ChatPage() {
   // #3: Track which thread IDs have already received a re-entry message this session
   const reentryShownRef = useRef<Set<string>>(new Set());
 
-  // #18: Message undo — pending reply timer + undo state
+  // #18: Message undo — undo button shows immediately, abort cancels in-flight request
   const [pendingUndo, setPendingUndo] = useState<{ messageId: string; threadId: string } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoAbortRef = useRef<AbortController | null>(null);
 
   // #19: Voice input
   const [isListening, setIsListening] = useState(false);
@@ -1202,6 +1203,7 @@ export default function ChatPage() {
   const [streamingReply, setStreamingReply] = useState<string>("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [renameError, setRenameError] = useState("");
 
   // ✅ NEW: header details toggle (collapses long header content by default)
   const [showHeader, setShowHeader] = useState(false);
@@ -1490,43 +1492,7 @@ export default function ChatPage() {
     return pick(["❤️", "🌟", "✨", "🫂", "💛", "🌸", "💫", "🌿", "💙", "🕊️"]);
   }
 
-  // Watch for new assistant messages and react to the preceding user message.
-  // Uses activeThread indirectly via the dependency on its message count —
-  // activeThread is declared later but useEffect closures capture latest values.
-  const _companionMsgsRef = useRef<{ messages: Message[] } | null>(null);
-  useEffect(() => {
-    _companionMsgsRef.current = activeThread ?? null;
-  });
-  useEffect(() => {
-    if (!companionReactionsEnabled || !mounted) return;
-    const msgs = _companionMsgsRef.current?.messages ?? [];
-    const lastBot = [...msgs].reverse().find(
-      (m) => m.role === "assistant" && !m.content.startsWith("__streaming"),
-    );
-    if (!lastBot || companionReactedBotIds.current.has(lastBot.id)) return;
-    companionReactedBotIds.current.add(lastBot.id);
-
-    const botIndex = msgs.findIndex((m) => m.id === lastBot.id);
-    const userMsg = botIndex > 0
-      ? [...msgs].slice(0, botIndex).reverse().find((m) => m.role === "user")
-      : undefined;
-    if (!userMsg) return;
-
-    const emotion = (lastBot as any).emotion ?? (lastBot as any).moodHint ?? "neutral";
-    const reaction = pickCompanionReactionWeb(emotion);
-    if (!reaction) return;
-
-    const delay = 1200 + Math.random() * 1300;
-    const timer = setTimeout(() => {
-      setReactions((prev) => {
-        if (prev[userMsg.id]) return prev;
-        return { ...prev, [userMsg.id]: reaction };
-      });
-    }, delay);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companionReactionsEnabled, mounted]);
+  // Companion auto-reactions effect is wired after activeThread is declared below.
 
   // #6: Compute weekly mood recap on mount
   useEffect(() => {
@@ -1700,6 +1666,38 @@ export default function ChatPage() {
     if (!latestUserMessage) return null;
     return getLocalMoodHint(latestUserMessage.content);
   }, [latestUserMessage]);
+
+  // ── Companion auto-reactions — fires when new bot messages arrive ────────────
+  // Placed here (after activeThread) so activeThread can be a proper dependency.
+  useEffect(() => {
+    if (!companionReactionsEnabled || !mounted) return;
+    const msgs = activeThread?.messages ?? [];
+    const lastBot = [...msgs].reverse().find(
+      (m) => m.role === "assistant" && !m.content.startsWith("__streaming"),
+    );
+    if (!lastBot || companionReactedBotIds.current.has(lastBot.id)) return;
+    companionReactedBotIds.current.add(lastBot.id);
+
+    const botIndex = msgs.findIndex((m) => m.id === lastBot.id);
+    const userMsg = botIndex > 0
+      ? [...msgs].slice(0, botIndex).reverse().find((m) => m.role === "user")
+      : undefined;
+    if (!userMsg) return;
+
+    const emotion = (lastBot as any).emotion ?? (lastBot as any).moodHint ?? "neutral";
+    const reaction = pickCompanionReactionWeb(emotion);
+    if (!reaction) return;
+
+    const delay = 1200 + Math.random() * 1300;
+    const timer = setTimeout(() => {
+      setReactions((prev) => {
+        if (prev[userMsg.id]) return prev;
+        return { ...prev, [userMsg.id]: reaction };
+      });
+    }, delay);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeThread, companionReactionsEnabled, mounted]);
 
   const EMOTION_GLOW_COLOR: Record<string, string> = {
     joy: "rgba(251,191,36,0.10)", happy: "rgba(251,191,36,0.10)", happiness: "rgba(251,191,36,0.10)",
@@ -2307,6 +2305,7 @@ export default function ChatPage() {
     threadId: string,
     msgsForAnalysis: Message[],
     userMessageId: string,
+    abortCtrl?: AbortController,
   ) {
     const replyKey = `${threadId}:${userMessageId}`;
     if (lastReplyKeyRef.current === replyKey) {
@@ -2416,7 +2415,22 @@ export default function ChatPage() {
               // Cross-thread memory: compact summary of past conversation threads
               ...((() => { const c = buildCrossThreadContext(); return c ? { crossThreadContext: c } : {}; })()),
             } as any,
-            (partial) => setStreamingReply(partial),
+            (() => {
+              // RAF-throttle: update at most once per animation frame (~60fps)
+              // instead of on every token, which would cause ~80 re-renders/sec.
+              // Also dismiss undo on first token (too late to undo once reply starts).
+              let rafId: ReturnType<typeof requestAnimationFrame> | null = null;
+              let firstToken = true;
+              return (partial: string) => {
+                if (firstToken && partial) {
+                  firstToken = false;
+                  if (undoTimerRef.current) { clearTimeout(undoTimerRef.current); undoTimerRef.current = null; }
+                  if (undoAbortRef.current === abortCtrl) { setPendingUndo(null); undoAbortRef.current = null; }
+                }
+                if (rafId !== null) cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(() => { rafId = null; setStreamingReply(partial); });
+              };
+            })(),
           );
           setStreamingReply("");
 
@@ -2478,11 +2492,17 @@ export default function ChatPage() {
               : undefined,
         };
 
+        // If user pressed Undo — discard reply silently
+        if (abortCtrl?.signal.aborted) return;
+
         // UX-5: pacing delay on heavy emotions — typing indicator stays visible during wait
         const HEAVY_EMOTIONS = new Set(["sad", "sadness", "grief", "anxious", "anxiety", "fear", "overwhelmed", "hopeless", "lonely", "anger", "frustrated", "hurt", "depressed", "depression", "lost", "empty"]);
         if (debugEmotion && HEAVY_EMOTIONS.has(debugEmotion.toLowerCase())) {
           await new Promise<void>((resolve) => setTimeout(resolve, 1500));
         }
+
+        // Second abort check (after pacing delay)
+        if (abortCtrl?.signal.aborted) return;
 
         setThreads((prev) =>
           prev.map((t) =>
@@ -2710,11 +2730,20 @@ export default function ChatPage() {
     setDeleteThreadConfirmId(null);
   }
 
-  function renameActive(title: string) {
-    if (!activeThread) return;
+  function renameActive(title: string): boolean {
+    if (!activeThread) return false;
+    const isDuplicate = threads.some(
+      (t) => t.id !== activeThread.id && t.title.trim().toLowerCase() === title.trim().toLowerCase()
+    );
+    if (isDuplicate) {
+      setRenameError("A conversation with this name already exists.");
+      return false;
+    }
+    setRenameError("");
     setThreads((prev) =>
       prev.map((t) => (t.id === activeThread.id ? { ...t, title } : t)),
     );
+    return true;
   }
 
   function sendMessage(override?: string) {
@@ -2823,18 +2852,22 @@ export default function ChatPage() {
       }
     }
 
-    // #18: 5-second undo window — delay generateAssistantReply (skipped if undo disabled in Settings)
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    // #18: Undo button shows immediately; 5s dismiss timer runs concurrently with reply
+    undoAbortRef.current?.abort();
+    const undoAbortCtrl = new AbortController();
+    undoAbortRef.current = undoAbortCtrl;
+
     if (undoSettingEnabled) {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       setPendingUndo({ messageId: userMsg.id, threadId: targetId });
       undoTimerRef.current = setTimeout(() => {
         setPendingUndo(null);
         undoTimerRef.current = null;
-        void generateAssistantReply(targetId!, msgsForAnalysis, userMsg.id);
+        if (undoAbortRef.current === undoAbortCtrl) undoAbortRef.current = null;
       }, 5000);
-    } else {
-      void generateAssistantReply(targetId!, msgsForAnalysis, userMsg.id);
     }
+
+    void generateAssistantReply(targetId!, msgsForAnalysis, userMsg.id, undoAbortCtrl);
 
     setDraft("");
   }
@@ -2923,6 +2956,10 @@ export default function ChatPage() {
       clearTimeout(undoTimerRef.current);
       undoTimerRef.current = null;
     }
+    // Abort in-flight reply so it isn't added after the user message is removed
+    undoAbortRef.current?.abort();
+    undoAbortRef.current = null;
+    setStreamingReply("");
     const { messageId, threadId } = pendingUndo;
     setPendingUndo(null);
     setThreads((prev) =>
@@ -2998,7 +3035,7 @@ export default function ChatPage() {
         </div>
       )}
 
-      <div className="mx-auto flex h-[calc(100dvh-13rem)] w-full max-w-7xl py-3 text-zinc-100 sm:h-[calc(100vh-200px)] sm:py-4">
+      <div className="mx-auto flex h-[calc(100dvh-13rem)] w-full max-w-7xl overflow-hidden py-3 text-zinc-100 sm:h-[calc(100vh-200px)] sm:py-4">
         {/* Sidebar */}
         <aside className="hidden w-72 flex-col gap-3 p-4 sm:flex imotara-glass-card">
           <div className="mb-1 flex items-center justify-between">
@@ -3080,29 +3117,38 @@ export default function ChatPage() {
                     <div className="min-w-0 flex-1">
                       {/* Conversation title — inline editable */}
                       {renamingId === t.id ? (
-                        <input
-                          autoFocus
-                          className="w-full rounded-md bg-white/10 px-1.5 py-0.5 text-sm font-medium text-zinc-50 outline-none ring-1 ring-indigo-400/60 focus:ring-indigo-400"
-                          value={renameValue}
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <input
+                            autoFocus
+                            className={`w-full rounded-md bg-white/10 px-1.5 py-0.5 text-sm font-medium text-zinc-50 outline-none ring-1 ${renameError ? "ring-rose-400/70" : "ring-indigo-400/60 focus:ring-indigo-400"}`}
+                            value={renameValue}
+                            onChange={(e) => { setRenameValue(e.target.value); setRenameError(""); }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                const trimmed = renameValue.trim();
+                                if (trimmed && renameActive(trimmed)) {
+                                  setRenamingId(null);
+                                  setRenameError("");
+                                }
+                              } else if (e.key === "Escape") {
+                                setRenamingId(null);
+                                setRenameError("");
+                              }
+                            }}
+                            onBlur={() => {
                               const trimmed = renameValue.trim();
+                              // On blur: silently revert if duplicate; save if valid
                               if (trimmed) renameActive(trimmed);
                               setRenamingId(null);
-                            } else if (e.key === "Escape") {
-                              setRenamingId(null);
-                            }
-                          }}
-                          onBlur={() => {
-                            const trimmed = renameValue.trim();
-                            if (trimmed) renameActive(trimmed);
-                            setRenamingId(null);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          maxLength={60}
-                        />
+                              setRenameError("");
+                            }}
+                            maxLength={60}
+                          />
+                          {renameError && (
+                            <p className="mt-0.5 text-[10px] text-rose-400 leading-tight">{renameError}</p>
+                          )}
+                        </div>
                       ) : (
                         <p
                           className={`truncate text-sm font-medium ${isActive ? "text-zinc-50" : "text-zinc-100"}`}
@@ -3126,6 +3172,7 @@ export default function ChatPage() {
                           e.stopPropagation();
                           setRenamingId(t.id);
                           setRenameValue(t.title || "");
+                          setRenameError("");
                         }}
                         aria-label="Rename"
                         title="Rename"
@@ -3199,7 +3246,7 @@ export default function ChatPage() {
         </aside>
 
         {/* Main */}
-        <main className="flex flex-1 flex-col">
+        <main className="flex flex-1 flex-col min-w-0">
           {/* HEADER — 3-level collapsible */}
           <header className="px-3 pt-2 sm:px-4 sm:pt-3">
             <div className="imotara-glass-card px-3 py-2">
@@ -3528,10 +3575,10 @@ export default function ChatPage() {
                       <MoreVertical className="h-3.5 w-3.5" />
                     </button>
                     {openCapsuleMenu === "dailyCheckin" && (
-                      <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                      <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                         <button type="button" onClick={() => { setDailyCheckinShow(false); try { localStorage.setItem("imotara.daily.checkin.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                         <button type="button" onClick={() => { try { localStorage.setItem(DAILY_CHECKIN_KEY, new Date().toISOString().slice(0, 10)); } catch {} setShowDailyCheckin(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                        <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                        <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                       </div>
                     )}
                   </div>
@@ -3632,6 +3679,7 @@ export default function ChatPage() {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Escape") { setShowSearch(false); setSearchQuery(""); } }}
                       placeholder="Search messages…"
                       aria-label="Search messages"
                       className="flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 outline-none"
@@ -3662,10 +3710,10 @@ export default function ChatPage() {
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
                       {openCapsuleMenu === "returnGreeting" && (
-                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                           <button type="button" onClick={() => { setReturnGreetingShow(false); try { localStorage.setItem("imotara.return.greeting.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                           <button type="button" onClick={() => { setShowReturnGreeting(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                         </div>
                       )}
                     </div>
@@ -3728,10 +3776,10 @@ export default function ChatPage() {
                           <MoreVertical className="h-3.5 w-3.5" />
                         </button>
                         {openCapsuleMenu === "trialCountdown" && (
-                          <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                          <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                             <button type="button" onClick={() => { setShowTrialBanner(false); try { localStorage.setItem("imotara.trial.banner.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                             <button type="button" onClick={() => { setShowTrialBanner(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                            <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                            <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                           </div>
                         )}
                       </div>
@@ -3753,10 +3801,10 @@ export default function ChatPage() {
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
                       {openCapsuleMenu === "milestone" && (
-                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                           <button type="button" onClick={() => { setMilestoneShow(false); try { localStorage.setItem("imotara.milestone.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                           <button type="button" onClick={() => { setMilestoneLoop(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                         </div>
                       )}
                     </div>
@@ -3776,10 +3824,10 @@ export default function ChatPage() {
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
                       {openCapsuleMenu === "collectivePulse" && (
-                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                           <button type="button" onClick={() => { setCollectivePulseShow(false); try { localStorage.setItem("imotara.collective.pulse.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                           <button type="button" onClick={() => { setPulseDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                         </div>
                       )}
                     </div>
@@ -3946,10 +3994,10 @@ export default function ChatPage() {
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
                       {openCapsuleMenu === "toneReflection" && (
-                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                           <button type="button" onClick={() => { setToneReflectionShow(false); try { localStorage.setItem("imotara.tone.reflection.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                           <button type="button" onClick={() => { setSessionToneCardDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                         </div>
                       )}
                     </div>
@@ -3988,10 +4036,10 @@ export default function ChatPage() {
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>
                   {openCapsuleMenu === "moodGlimpse" && (
-                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                       <button type="button" onClick={() => { setMoodGlimpseEnabled(false); try { localStorage.setItem(MOOD_GLIMPSE_KEY, "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                       <button type="button" onClick={() => { setMoodGlimpseDismissedSession(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                     </div>
                   )}
                 </div>
@@ -4013,10 +4061,10 @@ export default function ChatPage() {
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>
                   {openCapsuleMenu === "weeklyRecap" && (
-                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                       <button type="button" onClick={() => { setWeeklyRecapSettingEnabled(false); try { localStorage.setItem("imotara.weekly.recap.enabled.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                       <button type="button" onClick={() => { setWeeklyRecapDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                     </div>
                   )}
                 </div>
@@ -4037,10 +4085,10 @@ export default function ChatPage() {
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>
                   {openCapsuleMenu === "growNudge" && (
-                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                       <button type="button" onClick={() => { setGrowNudgeDismissed(true); try { localStorage.setItem("imotara.grow.nudge.perm.v1", "1"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                       <button type="button" onClick={() => { setGrowNudgeDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                     </div>
                   )}
                 </div>
@@ -4123,10 +4171,10 @@ export default function ChatPage() {
                       <MoreVertical className="h-3.5 w-3.5" />
                     </button>
                     {openCapsuleMenu === "messageUndo" && (
-                      <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                      <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                         <button type="button" onClick={() => { setUndoSettingEnabled(false); try { localStorage.setItem("imotara.undo.enabled.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                         <button type="button" onClick={() => { setPendingUndo(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                        <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                        <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                       </div>
                     )}
                   </div>
@@ -4239,10 +4287,10 @@ export default function ChatPage() {
                     <MoreVertical className="h-3 w-3" />
                   </button>
                   {openCapsuleMenu === "sentimentChips" && (
-                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                       <button type="button" onClick={() => { setSentimentChipsEnabled(false); try { localStorage.setItem("imotara.sentiment.chips.enabled.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                       <button type="button" onClick={() => { setSentimentChipsDismissedSession(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                     </div>
                   )}
                 </div>
@@ -4277,10 +4325,10 @@ export default function ChatPage() {
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>
                   {openCapsuleMenu === "unsentHint" && (
-                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                       <button type="button" onClick={() => { setUnsentHintShow(false); try { localStorage.setItem("imotara.unsent.hint.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
                       <button type="button" onClick={() => { setShowUnsentHint(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-500 hover:bg-white/5 transition">Cancel</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                     </div>
                   )}
                 </div>
@@ -5043,21 +5091,31 @@ function Bubble({
 
   // ── TTS ───────────────────────────────────────────────────────────
   const [speaking, setSpeaking] = useState(false);
-  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsAudioRef  = useRef<HTMLAudioElement | null>(null);
+  const ttsAbortRef  = useRef<AbortController | null>(null);
 
   async function doSpeak() {
     const bcp47  = resolveTTSLang(content);
     const lang   = bcp47.split("-")[0]; // "hi-IN" → "hi" for the API
     const gender = getTTSGenderPref();
+
+    // Cancel any previous in-flight request.
+    ttsAbortRef.current?.abort();
+    const abort = new AbortController();
+    ttsAbortRef.current = abort;
+
     setSpeaking(true);
     try {
       const res = await fetch("/api/tts", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ text: stripMarkdown(content), lang, gender }),
+        signal:  abort.signal,
       });
       if (!res.ok) throw new Error(`TTS ${res.status}`);
       const blob = await res.blob();
+      // Bail if stop was called while awaiting the response.
+      if (abort.signal.aborted) { setSpeaking(false); return; }
       const url  = URL.createObjectURL(blob);
       const audio = new Audio(url);
       try {
@@ -5069,12 +5127,17 @@ function Bubble({
       audio.onended = cleanup;
       audio.onerror = cleanup;
       await audio.play();
-    } catch {
+    } catch (err) {
+      // User-initiated abort — don't fall back to speech synthesis.
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setSpeaking(false);
+        return;
+      }
       // Azure unavailable — fall back to browser speech
       setSpeaking(false);
       if (typeof window === "undefined" || !window.speechSynthesis) return;
       const synth = window.speechSynthesis;
-      const utt   = new SpeechSynthesisUtterance(content);
+      const utt   = new SpeechSynthesisUtterance(stripMarkdown(content));
       utt.lang    = bcp47;
       try {
         const savedRate  = parseFloat(localStorage.getItem("imotara.tts.rate.v1")  ?? "0.95");
@@ -5094,6 +5157,8 @@ function Bubble({
   function toggleSpeak() {
     if (typeof window === "undefined") return;
     if (speaking) {
+      ttsAbortRef.current?.abort();
+      ttsAbortRef.current = null;
       ttsAudioRef.current?.pause();
       ttsAudioRef.current = null;
       window.speechSynthesis?.cancel();
@@ -5364,7 +5429,7 @@ function Bubble({
                 type="button"
                 onClick={onDelete}
                 title="Delete message"
-                className="rounded-full p-1 text-zinc-700 transition hover:scale-110 hover:text-rose-400"
+                className="rounded-full p-1 text-zinc-300 transition hover:scale-110 hover:text-rose-400"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -5372,17 +5437,29 @@ function Bubble({
           </div>
         )}
 
-        {/* Delete — user message (hover button, separate row since no reaction row) */}
-        {isUser && onDelete && (
-          <div className="mt-1 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              type="button"
-              onClick={onDelete}
-              title="Delete message"
-              className="rounded-full p-1 text-zinc-700 transition hover:scale-110 hover:text-rose-400"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
+        {/* Reaction (left) + Delete (right) — combined row under user message */}
+        {isUser && (reaction || onDelete) && (
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <div>
+              {reaction && (
+                <span
+                  className="rounded-full border border-white/10 bg-white/8 px-2 py-0.5 text-base leading-none"
+                  title="Imotara reacted"
+                >
+                  {reaction}
+                </span>
+              )}
+            </div>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                title="Delete message"
+                className="rounded-full p-1 text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 hover:text-rose-400"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
           </div>
         )}
       </div>

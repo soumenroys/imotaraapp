@@ -116,8 +116,8 @@ export default function SessionChatPage() {
   const [reviewText, setReviewText] = useState("");
   const [reviewDone, setReviewDone] = useState(false);
   // Dual-panel state
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
-  const [elapsedSecs, setElapsedSecs]     = useState(0);
+  const [totalCreditedMin, setTotalCreditedMin] = useState<number | null>(null);
+  const [elapsedSecs, setElapsedSecs]           = useState(0);
   const [now, setNow]                     = useState(() => new Date());
   const [panelOpen, setPanelOpen]         = useState(true);
   // Translation state
@@ -226,7 +226,14 @@ export default function SessionChatPage() {
         (payload) => {
           const updated = payload.new as Partial<SessionData>;
           setSession((prev) => prev ? { ...prev, ...updated } : prev);
-          if (updated.status === "active" && remaining === null) setRemaining(null);
+          // Consultant side: recompute remaining from server-authoritative minutes_used.
+          // (User side: remaining is updated directly by tick responses.)
+          if (updated.minutes_used !== undefined) {
+            setTotalCreditedMin((tc) => {
+              if (tc !== null) setRemaining(Math.max(0, tc - Number(updated.minutes_used)));
+              return tc;
+            });
+          }
           if (updated.status === "completed" || updated.status === "declined" || updated.status === "cancelled") {
             stopTick();
           }
@@ -238,13 +245,22 @@ export default function SessionChatPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  // ── Wallet balance ─────────────────────────────────────────────────────────
+  // ── Session balance (remaining minutes + total credited) ───────────────────
+  // Called by both user (on mount) and consultant (on mount).
+  // User also gets remaining_minutes from tick responses; consultant infers from Realtime.
   useEffect(() => {
-    fetch("/api/connect/wallet", { credentials: "include" })
+    if (!sessionId) return;
+    fetch(`/api/connect/sessions/${sessionId}/balance`, { credentials: "include" })
       .then((r) => r.json())
-      .then((d) => { if (d.ok) setWalletBalance(Number(d.wallet_balance ?? 0)); })
+      .then((d) => {
+        if (!d.ok) return;
+        setTotalCreditedMin(Number(d.total_credited_minutes ?? 0));
+        // Seed remaining from server on first load (both user and consultant)
+        if (remaining === null) setRemaining(Number(d.remaining_minutes ?? 0));
+      })
       .catch(() => {});
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
 
   // ── Live clock + elapsed counter (1 s tick) ────────────────────────────────
   useEffect(() => {
@@ -421,7 +437,10 @@ export default function SessionChatPage() {
 
   const sym          = CURRENCY_SYMBOLS[session.currency_code ?? "INR"] ?? "₹";
   const rate         = Number(session.rate_per_min ?? consultant?.rate_per_min ?? 0);
-  const consumed     = (elapsedSecs / 60) * rate;
+  // Use server-authoritative amount_charged (updated via Realtime on every tick).
+  const consumed     = Number(session.amount_charged ?? 0);
+  // Remaining balance in currency = remaining minutes × rate (server-authoritative remaining).
+  const sessionBalance = remaining !== null ? remaining * rate : null;
 
   // Which timezone label to show as "You" vs "Companion"
   const userTz       = session.user_timezone || "Asia/Kolkata";
@@ -554,11 +573,11 @@ export default function SessionChatPage() {
               <p className="text-[9px] font-semibold uppercase tracking-widest text-rose-400/70 mb-0.5">Used</p>
               <p className="text-sm font-mono font-bold text-rose-400 tabular-nums">{sym}{consumed.toFixed(2)}</p>
             </div>
-            {/* Wallet balance */}
+            {/* Session balance remaining */}
             <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 px-2.5 py-2 text-center">
               <p className="text-[9px] font-semibold uppercase tracking-widest text-violet-400/70 mb-0.5">Balance</p>
               <p className="text-sm font-mono font-bold text-violet-400 tabular-nums">
-                {walletBalance !== null ? `${sym}${walletBalance.toFixed(2)}` : "—"}
+                {sessionBalance !== null ? `${sym}${sessionBalance.toFixed(2)}` : "—"}
               </p>
             </div>
           </div>

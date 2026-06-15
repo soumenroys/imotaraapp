@@ -70,9 +70,9 @@ const TIMEZONES = [
 const YEAR_OPTIONS = ["all", ...Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() + i))];
 
 const SESSION_TYPE_OPTIONS = [
-  { key: "chat",  label: "Text / Chat",  icon: "💬", desc: "Text-based messaging sessions" },
-  { key: "audio", label: "Audio Call",   icon: "🎙️", desc: "Voice-only audio sessions" },
-  { key: "video", label: "Video Call",   icon: "📹", desc: "Face-to-face video sessions" },
+  { key: "chat",  label: "Text / Chat",  icon: "💬", desc: "Text-based messaging sessions",   phase: 1 },
+  { key: "audio", label: "Audio Call",   icon: "🎙️", desc: "Voice-only audio sessions",       phase: 3 },
+  { key: "video", label: "Video Call",   icon: "📹", desc: "Face-to-face video sessions",     phase: 3 },
 ] as const;
 
 const ROLE_CATEGORIES = [
@@ -321,10 +321,14 @@ export default function RegisterConsultantPage() {
   function validateStep(s: number): string {
     if (s === 1) {
       if (!displayName.trim()) return "Display name is required.";
+      if (!/^[A-Za-zÀ-ɏ\s'\-\.]{2,60}$/.test(displayName.trim()))
+        return "Display name may only contain letters, spaces, hyphens, and apostrophes (2–60 characters).";
       if (!gender) return "Please select your gender.";
       if (!contactEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail))
         return "Enter a valid contact email address.";
       if (!contactPhone.trim()) return "Enter a contact phone number.";
+      if (!/^\d{7,15}$/.test(contactPhone.trim().replace(/[\s\-\(\)]/g, "")))
+        return "Enter a valid phone number (7–15 digits).";
       if (expertiseTags.length === 0) return "Select at least one expertise area.";
       if (languages.length === 0) return "Select at least one language.";
       if (sessionTypes.length === 0) return "Select at least one session type (Chat, Audio, or Video).";
@@ -748,18 +752,22 @@ export default function RegisterConsultantPage() {
               </label>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {SESSION_TYPE_OPTIONS.map(opt => {
-                  const active = sessionTypes.includes(opt.key);
+                  const locked = (opt as any).phase > 1;
+                  const active = !locked && sessionTypes.includes(opt.key);
                   return (
                     <button key={opt.key} type="button"
-                      onClick={() => setSessionTypes(p => p.includes(opt.key) ? p.filter(x => x !== opt.key) : [...p, opt.key])}
+                      disabled={locked}
+                      onClick={() => !locked && setSessionTypes(p => p.includes(opt.key) ? p.filter(x => x !== opt.key) : [...p, opt.key])}
                       className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
-                        active
+                        locked
+                          ? "cursor-not-allowed border-white/5 bg-white/2 text-zinc-600 opacity-50"
+                          : active
                           ? "border-violet-500 bg-violet-500/15 text-violet-200"
                           : "border-white/10 bg-white/3 text-zinc-400 hover:border-white/20"
                       }`}>
                       <span className="text-2xl leading-none">{opt.icon}</span>
                       <div>
-                        <p className="text-sm font-semibold">{opt.label}</p>
+                        <p className="text-sm font-semibold">{opt.label}{locked ? " · Coming soon" : ""}</p>
                         <p className="text-[11px] text-zinc-500">{opt.desc}</p>
                       </div>
                       {active && <span className="ml-auto shrink-0 text-violet-400">✓</span>}

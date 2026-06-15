@@ -67,7 +67,48 @@ export async function POST(req: Request) {
 
             console.log("[razorpay/webhook] event:", eventType, "purpose:", purpose, "productId:", productId, "userId:", userId ? "present" : "missing");
 
-            if (purpose === "imotara_license" && isValidProductId(productId) && userId) {
+            if (purpose === "imotara_corporate" && userId) {
+                // ---- Corporate seat purchase — create org in pending state ----
+                const orgType  = String(notes?.orgType  ?? "commercial");
+                const seats    = parseInt(String(notes?.seats ?? "10"), 10) || 10;
+                const tier     = String(notes?.tier ?? "plus");
+                const userEmail = String(notes?.userEmail ?? "");
+
+                const tierMap: Record<string, string> = { commercial:"enterprise", ngo:"enterprise", edu:"edu", govt:"enterprise" };
+                const grantedTier = tierMap[orgType] ?? tier;
+
+                const { data: existingOrg } = await getSupabaseAdmin()
+                    .from("organizations")
+                    .select("id, name")
+                    .eq("owner_user_id", userId)
+                    .single();
+
+                if (!existingOrg) {
+                    const slug = `rzp-${userId.slice(0,8)}-${Date.now()}`;
+                    const orgLabel = { commercial:"Company", ngo:"NGO / NPO", edu:"Educational", govt:"Government" }[orgType] ?? orgType;
+                    const { data: org } = await getSupabaseAdmin().from("organizations").insert({
+                        name: `${orgLabel} — ${userEmail || userId} (via Razorpay)`,
+                        slug,
+                        billing_type: orgType,
+                        tier: grantedTier,
+                        status: "pending",
+                        seats_purchased: seats,
+                        owner_user_id: userId,
+                        notes: `Razorpay payment: ${paymentEntity?.id ?? "?"} · ${seats} seats · Activate from /admin → Organizations`,
+                    }).select("id").single();
+
+                    if (org) {
+                        await getSupabaseAdmin().from("org_members").insert({ org_id: org.id, user_id: userId, role: "owner", status: "active" });
+                        await getSupabaseAdmin().from("licenses").upsert(
+                            { user_id: userId, tier: "free", status: "valid", org_id: org.id, source: "org", updated_at: new Date().toISOString() },
+                            { onConflict: "user_id" }
+                        );
+                    }
+                    console.log("[razorpay/webhook] corporate org created:", slug, seats, "seats");
+                } else {
+                    console.log("[razorpay/webhook] corporate org already exists:", existingOrg.name);
+                }
+            } else if (purpose === "imotara_license" && isValidProductId(productId) && userId) {
                 // ---- LIC-5: license payment — grant tier / top up tokens ----
                 // Idempotency: verify-payment may have already processed this paymentId.
                 // Skip if already in payment_licenses to prevent double-grant on token packs.
@@ -134,6 +175,48 @@ export async function POST(req: Request) {
                         source: "razorpay",
                         rawEvent: event,
                     });
+                }
+            }
+        }
+
+        // ── Connect: payment failed ────────────────────────────────────────────
+        if (eventType === "payment.failed") {
+            const paymentEntity: any = event?.payload?.payment?.entity;
+            const orderId = paymentEntity?.order_id ?? paymentEntity?.notes?.order_id;
+            if (orderId) {
+                const supabase = getSupabaseAdmin();
+                const { data: recharge } = await supabase
+                    .from("connect_recharges")
+                    .select("id, status")
+                    .eq("razorpay_order_id", orderId)
+                    .maybeSingle();
+                if (recharge && recharge.status === "pending") {
+                    await supabase
+                        .from("connect_recharges")
+                        .update({ status: "failed" })
+                        .eq("id", recharge.id);
+                    console.log("[razorpay/webhook] Connect recharge marked failed:", recharge.id);
+                }
+            }
+        }
+
+        // ── Connect: refund processed ──────────────────────────────────────────
+        if (eventType === "refund.processed") {
+            const refundEntity: any = event?.payload?.refund?.entity;
+            const paymentId = refundEntity?.payment_id;
+            if (paymentId) {
+                const supabase = getSupabaseAdmin();
+                const { data: recharge } = await supabase
+                    .from("connect_recharges")
+                    .select("id, status")
+                    .eq("razorpay_payment_id", paymentId)
+                    .maybeSingle();
+                if (recharge && recharge.status === "completed") {
+                    await supabase
+                        .from("connect_recharges")
+                        .update({ status: "refunded" })
+                        .eq("id", recharge.id);
+                    console.log("[razorpay/webhook] Connect recharge marked refunded:", recharge.id);
                 }
             }
         }

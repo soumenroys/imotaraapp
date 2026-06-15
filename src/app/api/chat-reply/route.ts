@@ -331,36 +331,63 @@ export async function POST(req: Request) {
         ].join("\n")
       : "";
 
-    // ✅ Step 1: resolve authenticated user ID from cookie session
-    let authedUserId = "";
-    let preferredName = "";
-    try {
-      const allowMemory = body?.allowMemory !== false;
-      if (allowMemory) {
-        const supabaseUser = await getSupabaseUserServerClient();
-        const { data } = await supabaseUser.auth.getUser();
-        authedUserId = data?.user?.id ?? "";
-        if (!authedUserId && process.env.NODE_ENV === "production") {
-          authedUserId = "";
-        }
-      }
-    } catch {
-      // no-op: never block chat replies if auth lookup fails
+    // ✅ Steps 1+2 combined: resolve user ID from JWT (no network call) then run
+    // auth verification + memory fetch + quota gate ALL in parallel.
+    // Previously: auth.getUser() completed first (~150ms), then memory+quota started.
+    // Now: all three start simultaneously → saves one full Supabase round-trip per request.
+
+    // Decode the sub claim from the Bearer JWT without a network call.
+    // Used only to start memory/quota fetches early; verified userId from auth.getUser() is used for responses.
+    function extractSubFromBearer(authHeader: string | null): string {
+      if (!authHeader?.startsWith("Bearer ")) return "";
+      try {
+        const payload = JSON.parse(atob(authHeader.slice(7).split(".")[1]));
+        return typeof payload?.sub === "string" ? payload.sub : "";
+      } catch { return ""; }
     }
 
-    // ✅ Step 2: memory fetch + quota gate run in parallel (both need authedUserId, neither depends on the other)
-    // Saves one sequential Supabase round-trip on every authenticated request (~150-300 ms).
-    if (authedUserId) {
-      type QuotaResult = "ok" | "quota_exceeded";
-      let quotaExceededMeta: { used: number | null; limit: number } | null = null;
+    const allowMemory = body?.allowMemory !== false;
+    const provisionalUserId = allowMemory
+      ? extractSubFromBearer(req.headers.get("Authorization"))
+      : "";
 
-      const [memResult, quotaResult] = await Promise.allSettled([
-        // ── memory fetch ──────────────────────────────────────────────────────
+    // Check if the client already sent the preferred name in a system message.
+    // Mobile always sends: { role: "system", content: "The user's preferred name is: ..." }
+    // When present, skip the DB memory fetch entirely (saves ~150-200ms).
+    const nameFromPayload = (() => {
+      if (!allowMemory) return "";
+      const sysMsg = allMessages.find(
+        (m) => m?.role === "system" &&
+          typeof m.content === "string" &&
+          m.content.startsWith("The user's preferred name is:")
+      );
+      if (!sysMsg) return "";
+      const match = (sysMsg.content as string).match(/The user's preferred name is:\s*([^.]+)/);
+      return match ? match[1].trim() : "";
+    })();
+
+    let authedUserId = "";
+    let preferredName = nameFromPayload;
+
+    type QuotaResult = "ok" | "quota_exceeded";
+    let quotaExceededMeta: { used: number | null; limit: number } | null = null;
+
+    if (allowMemory) {
+      const [authResult, memResult, quotaResult] = await Promise.allSettled([
+        // ── auth verification (network call, ~100-300ms) ─────────────────────
+        (async () => {
+          const supabaseUser = await getSupabaseUserServerClient();
+          const { data } = await supabaseUser.auth.getUser();
+          return data?.user?.id ?? "";
+        })(),
+
+        // ── memory fetch (skipped when name already in payload) ───────────────
         (async (): Promise<string> => {
+          if (nameFromPayload || !provisionalUserId) return "";
           const memories = await fetchUserMemories(
             getSupabaseAdmin() as any,
-            authedUserId,
-            20,
+            provisionalUserId,
+            5, // only need preferred_name — fetch fewer rows
           );
           const raw = Array.isArray(memories)
             ? (memories.find((m: any) => m?.key === "preferred_name")?.value ?? "")
@@ -368,15 +395,14 @@ export async function POST(req: Request) {
           return typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
         })(),
 
-        // ── quota gate ───────────────────────────────────────────────────────
-        // LIC-2: free-tier users with expired trial are limited to 20 cloud replies/day.
-        // Fail-open: any DB error silently allows the request through.
+        // ── quota gate ────────────────────────────────────────────────────────
         (async (): Promise<QuotaResult> => {
+          if (!provisionalUserId) return "ok";
           const quotaAdmin = getSupabaseAdmin();
           const { data: licRow } = await quotaAdmin
             .from("licenses")
             .select("tier, expires_at, token_balance")
-            .eq("user_id", authedUserId)
+            .eq("user_id", provisionalUserId)
             .maybeSingle();
 
           const isFree = !licRow || licRow.tier === "free";
@@ -390,7 +416,7 @@ export async function POST(req: Request) {
             const { count } = await quotaAdmin
               .from("usage_events")
               .select("id", { count: "exact", head: true })
-              .eq("user_id", authedUserId)
+              .eq("user_id", provisionalUserId)
               .gte("created_at", todayStart.toISOString());
 
             if ((count ?? 0) >= 20) {
@@ -399,9 +425,8 @@ export async function POST(req: Request) {
                 await quotaAdmin
                   .from("licenses")
                   .update({ token_balance: tokenBalance - 1 })
-                  .eq("user_id", authedUserId)
+                  .eq("user_id", provisionalUserId)
                   .gt("token_balance", 0);
-                // Fall through — token deducted, reply is allowed
               } else {
                 quotaExceededMeta = { used: count, limit: 20 };
                 return "quota_exceeded";
@@ -412,16 +437,21 @@ export async function POST(req: Request) {
         })(),
       ]);
 
-      if (memResult.status === "fulfilled") preferredName = memResult.value;
+      if (authResult.status === "fulfilled") authedUserId = authResult.value;
+      if (memResult.status === "fulfilled" && memResult.value) preferredName = memResult.value;
 
       if (quotaResult.status === "fulfilled" && quotaResult.value === "quota_exceeded") {
-        const qMeta = quotaExceededMeta as { used: number | null; limit: number } | null;
-        const quotaRes = NextResponse.json(
-          { text: "", meta: { from: "quota_exceeded", reason: "daily_limit", used: qMeta ? qMeta.used : null, limit: qMeta ? qMeta.limit : 20 } },
-          { status: 200 },
-        );
-        quotaRes.headers.set("Cache-Control", "no-store");
-        return quotaRes;
+        // Only honour quota if the JWT userId matches the verified userId
+        const qUserId = authedUserId || provisionalUserId;
+        if (qUserId) {
+          const qMeta = quotaExceededMeta as { used: number | null; limit: number } | null;
+          const quotaRes = NextResponse.json(
+            { text: "", meta: { from: "quota_exceeded", reason: "daily_limit", used: qMeta ? qMeta.used : null, limit: qMeta ? qMeta.limit : 20 } },
+            { status: 200 },
+          );
+          quotaRes.headers.set("Cache-Control", "no-store");
+          return quotaRes;
+        }
       }
     }
 

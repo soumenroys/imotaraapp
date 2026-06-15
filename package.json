@@ -1,7 +1,7 @@
 {
   "name": "imotaraapp",
-  "version": "1.2.0",
-  "buildNumber": "100",
+  "version": "1.2.1",
+  "buildNumber": "101",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -95,6 +95,7 @@
     "next-auth": "^4.24.13",
     "nodemailer": "^7.0.13",
     "otplib": "^13.4.1",
+    "playwright": "^1.61.0",
     "prisma": "^6.18.0",
     "qrcode": "^1.5.4",
     "react": "19.2.0",
@@ -122,6 +123,7 @@
     "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "^16.1.6",
+    "marked": "^18.0.5",
     "tailwindcss": "^4",
     "typescript": "^5.9.3",
     "vite-tsconfig-paths": "^6.0.4",

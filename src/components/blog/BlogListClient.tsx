@@ -189,7 +189,7 @@ export default function BlogListClient({
   function countBadge(slug: string) {
     const n = counts[slug] ?? 0;
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-500">
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-white/8 bg-white/5 px-2 py-0.5 text-[10px] whitespace-nowrap text-zinc-500">
         <ChatIcon />
         {n === 0 ? "Comment" : `${n}`}
       </span>

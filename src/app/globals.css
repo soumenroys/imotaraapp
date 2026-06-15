@@ -216,6 +216,14 @@ html[data-theme="light"] .bg-zinc-900\/60 { background-color: rgba(0,0,0,0.05) !
 html[data-theme="light"] .bg-zinc-900\/80 { background-color: rgba(0,0,0,0.06) !important; }
 html[data-theme="light"] .bg-zinc-900\/90 { background-color: rgba(0,0,0,0.06) !important; }
 
+/* Dropdown menus — always solid background regardless of color mode */
+html[data-theme="light"] .im-dropdown-menu {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+}
+html[data-theme="light"] .im-dropdown-menu button { color: inherit !important; }
+
 /* SiteHeader outer nav active pill in light mode — light indigo tint with indigo text */
 html[data-theme="light"] .im-site-active {
   background-color: rgba(99, 102, 241, 0.12) !important;

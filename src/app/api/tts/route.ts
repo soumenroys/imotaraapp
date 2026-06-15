@@ -4,15 +4,33 @@
 // English always uses the browser/device native TTS and never reaches this route.
 
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { getAzureConfig } from "@/lib/azure-tts/regionRouter";
-import { resolveVoice, AZURE_LOCALE } from "@/lib/azure-tts/voices";
+import { resolveVoice, resolveStyle, AZURE_LOCALE } from "@/lib/azure-tts/voices";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
+    // Try cookie auth (web), then Bearer token (mobile).
     const supabase = await supabaseUserServer();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user: cookieUser } } = await supabase.auth.getUser();
+    let user = cookieUser;
+
+    if (!user) {
+        const authHeader = req.headers.get("Authorization");
+        if (authHeader?.startsWith("Bearer ")) {
+            const token = authHeader.slice(7);
+            const anon = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+                { auth: { persistSession: false, autoRefreshToken: false } },
+            );
+            const { data: { user: bearerUser } } = await anon.auth.getUser(token);
+            user = bearerUser;
+        }
+    }
+
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     let body: { text?: string; lang?: string; gender?: string };
@@ -45,10 +63,17 @@ export async function POST(req: NextRequest) {
 
     const voice  = resolveVoice(lang, gender);
     const locale = AZURE_LOCALE[lang] ?? "en-US";
+    const style  = resolveStyle(lang, gender);
 
-    const ssml = `<speak version="1.0" xml:lang="${locale}" xmlns="http://www.w3.org/2001/10/synthesis">
-  <voice name="${voice}">${escapeXml(text.trim())}</voice>
-</speak>`;
+    // Use mstts:express-as for voices that support emotional styles.
+    // For Indian-language and other standard Neural voices, plain text is used.
+    const bodyXml = style
+        ? `<mstts:express-as style="${style}" styledegree="1.4">${escapeXml(text.trim())}</mstts:express-as>`
+        : escapeXml(text.trim());
+
+    const msttsNs = style ? ` xmlns:mstts="http://www.w3.org/2001/mstts"` : "";
+
+    const ssml = `<speak version="1.0" xml:lang="${locale}" xmlns="http://www.w3.org/2001/10/synthesis"${msttsNs}><voice name="${voice}">${bodyXml}</voice></speak>`;
 
     const azureUrl = `https://${azureConfig.region}.tts.speech.microsoft.com/cognitiveservices/v1`;
 

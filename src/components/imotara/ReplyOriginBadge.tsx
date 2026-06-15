@@ -17,8 +17,8 @@ export default function ReplyOriginBadge({ origin }: ReplyOriginBadgeProps) {
 
     const toneClasses =
         origin === "openai"
-            ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/40"
-            : "bg-slate-500/15 text-slate-200 border-slate-500/40";
+            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/40"
+            : "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/40";
 
     return (
         <span

@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     invites = data ?? [];
   }
 
-  return NextResponse.json({ members: result.data, invites });
+  return NextResponse.json({ members: result.data, invites, currentUserId: auth.userId });
 }
 
 // ── POST — invite a member by email ──────────────────────────────────────────
@@ -97,7 +97,11 @@ export async function DELETE(req: NextRequest) {
   const targetUserId = req.nextUrl.searchParams.get("userId");
   if (!targetUserId) return NextResponse.json({ error: "userId required" }, { status: 400 });
 
-  // Prevent removing the owner
+  // Prevent self-removal and owner removal
+  if (targetUserId === auth.userId) {
+    return NextResponse.json({ error: "You cannot remove yourself" }, { status: 403 });
+  }
+
   const admin = getSupabaseAdmin();
   const { data: target } = await admin
     .from("org_members").select("role").eq("org_id", auth.orgId).eq("user_id", targetUserId).single();

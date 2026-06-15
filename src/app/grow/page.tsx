@@ -1537,7 +1537,7 @@ function ChallengeSection() {
             {isComplete ? "Challenge complete 🎉" : `Day ${currentDay + 1} of 30`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mr-8">
           <span className="text-xs text-zinc-500">{totalDone}/30</span>
           <button
             type="button"

@@ -29,6 +29,13 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   INR: "₹", USD: "$", EUR: "€", GBP: "£", AED: "د.إ", SGD: "S$", AUD: "A$",
 };
 
+interface AvailabilityWindow {
+  day: string;
+  start: string;
+  end: string;
+  timezone?: string;
+}
+
 interface Consultant {
   id: string;
   display_name: string;
@@ -42,11 +49,13 @@ interface Consultant {
   rate_per_min: number;
   currency_code: string;
   availability_note: string | null;
+  availability_windows?: AvailabilityWindow[] | null;
   is_online: boolean;
   is_busy: boolean;
   rating_avg: number;
   rating_count: number;
   sessions_completed: number;
+  balance_minutes?: number;
 }
 
 interface Props {
@@ -338,14 +347,25 @@ export default function ConsultantCard({
               </div>
             )}
 
-            {/* Availability note */}
-            {consultant.availability_note && (
+            {/* Availability — structured slots preferred over plain note */}
+            {(consultant.availability_windows?.length || consultant.availability_note) && (
               <div className="mb-4">
                 <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Availability</p>
-                <div className="flex items-start gap-2 text-sm text-zinc-400">
-                  <Clock size={13} className="mt-0.5 shrink-0" />
-                  <span>{consultant.availability_note}</span>
-                </div>
+                {consultant.availability_windows && consultant.availability_windows.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {consultant.availability_windows.map((w, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 rounded-lg bg-white/6 px-2.5 py-1 text-xs text-zinc-300">
+                        <Clock size={10} className="shrink-0 text-violet-400" />
+                        {w.day} {w.start}–{w.end}{w.timezone ? ` ${w.timezone}` : ""}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 text-sm text-zinc-400">
+                    <Clock size={13} className="mt-0.5 shrink-0" />
+                    <span>{consultant.availability_note}</span>
+                  </div>
+                )}
               </div>
             )}
 

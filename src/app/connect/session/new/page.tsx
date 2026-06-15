@@ -7,7 +7,9 @@ import {
   Loader2, AlertCircle, MessageSquare, Mic, Video,
   Calendar, Clock, ChevronDown, ChevronUp, Wallet,
 } from "lucide-react";
+import RechargeModal from "@/components/connect/RechargeModal";
 
+const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
 const PLATFORM_FEE_PCT = 20;
 
 const DURATION_OPTIONS = [
@@ -47,47 +49,51 @@ function NewSessionInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  const consultantId = searchParams.get("consultant_id") ?? "";
-  const type         = (searchParams.get("type") ?? "instant") as "instant" | "scheduled";
-  const ratePerMin   = parseFloat(searchParams.get("rate") ?? "0");
-  const currency     = searchParams.get("currency") ?? "INR";
-  const companionName = searchParams.get("name") ?? "Companion";
-  const sym          = CURRENCY_SYMBOLS[currency] ?? currency;
+  const consultantId    = searchParams.get("consultant_id") ?? "";
+  const type            = (searchParams.get("type") ?? "instant") as "instant" | "scheduled";
+  const ratePerMin      = parseFloat(searchParams.get("rate") ?? "0");
+  const currency        = searchParams.get("currency") ?? "INR";
+  const companionName   = searchParams.get("name") ?? "Companion";
+  const prefillRecharge = searchParams.get("needs_recharge") === "true";
+  const sym            = CURRENCY_SYMBOLS[currency] ?? currency;
 
   // ── form state ─────────────────────────────────────────────────────────────
-  const [mode, setMode]             = useState<"chat" | "audio" | "video">("chat");
-  const [date, setDate]             = useState(todayStr());
-  const [time, setTime]             = useState(defaultTime());
-  const [duration, setDuration]     = useState(30);
-  const [note, setNote]             = useState("");
-  const [showAlt, setShowAlt]       = useState(false);
-  const [altDate, setAltDate]       = useState("");
-  const [altTime, setAltTime]       = useState("");
+  const [mode, setMode]         = useState<"chat" | "audio" | "video">("chat");
+  const [date, setDate]         = useState(todayStr());
+  const [time, setTime]         = useState(defaultTime());
+  const [duration, setDuration] = useState(30);
+  const [note, setNote]         = useState("");
+  const [showAlt, setShowAlt]   = useState(false);
+  const [altDate, setAltDate]   = useState("");
+  const [altTime, setAltTime]   = useState("");
 
-  // ── wallet balance ──────────────────────────────────────────────────────────
-  const [balanceMin, setBalanceMin] = useState<number | null>(null);
-  const [walletLoading, setWalletLoading] = useState(true);
+  // ── wallet / recharge ───────────────────────────────────────────────────────
+  const [balanceMin, setBalanceMin]         = useState<number | null>(null);
+  const [walletLoading, setWalletLoading]   = useState(true);
+  const [showRecharge, setShowRecharge]     = useState(false);
+  const [rechargedMinutes, setRechargedMinutes] = useState(0);
 
   // ── submit state ───────────────────────────────────────────────────────────
-  const [error, setError]           = useState("");
-  const [loading, setLoading]       = useState(false);
-  const [started, setStarted]       = useState(false);
+  const [error, setError]   = useState("");
+  const [loading, setLoading] = useState(false);
+  const [started, setStarted] = useState(false);
 
   // ── cost calc ──────────────────────────────────────────────────────────────
-  const sessionFee   = ratePerMin * duration;
-  const platformFee  = sessionFee * (PLATFORM_FEE_PCT / 100);
-  const totalCost    = sessionFee + platformFee;
-  const balanceAmt   = balanceMin !== null ? balanceMin * ratePerMin : null;
-  const shortfall    = balanceAmt !== null ? Math.max(0, totalCost - balanceAmt) : null;
-  const hasEnough    = shortfall !== null && shortfall === 0;
+  const sessionFee  = ratePerMin * duration;
+  const platformFee = sessionFee * (PLATFORM_FEE_PCT / 100);
+  const totalCost   = sessionFee + platformFee;
+  const balanceAmt  = balanceMin !== null ? balanceMin * ratePerMin : null;
+  const shortfall   = balanceAmt !== null ? Math.max(0, totalCost - balanceAmt) : null;
+  const hasEnough   = shortfall !== null && shortfall === 0;
 
+  // fetch per-consultant balance minutes
   useEffect(() => {
     if (!consultantId) return;
     fetch(`/api/connect/wallet?consultant_id=${consultantId}`, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => {
         if (d.ok) {
-          const entry = d.wallets?.find((w: any) => w.consultant_id === consultantId);
+          const entry = (d.wallets ?? []).find((w: { consultant_id: string }) => w.consultant_id === consultantId);
           setBalanceMin(entry?.balance_minutes ?? 0);
         } else {
           setBalanceMin(0);
@@ -95,13 +101,17 @@ function NewSessionInner() {
       })
       .catch(() => setBalanceMin(0))
       .finally(() => setWalletLoading(false));
-  }, [consultantId]);
+  }, [consultantId, rechargedMinutes]); // re-check after a recharge succeeds
 
-  // ── instant session: auto-submit ───────────────────────────────────────────
+  // ── instant session: auto-submit (or jump to recharge when prefilled) ──────
   useEffect(() => {
     if (type === "instant" && consultantId && !started) {
-      setStarted(true);
-      createSession("");
+      if (prefillRecharge) {
+        setShowRecharge(true);
+      } else {
+        setStarted(true);
+        createSession("");
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -130,7 +140,9 @@ function NewSessionInner() {
       const data = await res.json();
 
       if (data.needs_recharge) {
-        router.replace(`/connect?tab=wallet`);
+        // Show RechargeModal inline — don't redirect away
+        setShowRecharge(true);
+        setLoading(false);
         return;
       }
       if (data.redirect && data.existing_session_id) {
@@ -147,6 +159,14 @@ function NewSessionInner() {
       setError("Network error. Please try again.");
       setLoading(false);
     }
+  }
+
+  // Called when RechargeModal completes successfully
+  function handleRechargeSuccess(minutes: number) {
+    setShowRecharge(false);
+    setRechargedMinutes((prev) => prev + minutes); // triggers wallet re-fetch
+    setStarted(false); // allow createSession to be called again
+    createSession(""); // retry session creation immediately
   }
 
   function handleSubmit() {
@@ -173,11 +193,25 @@ function NewSessionInner() {
     createSession(structured);
   }
 
+  // ── Recharge modal (shared between instant + scheduled) ────────────────────
+  const rechargeModal = showRecharge && consultantId ? (
+    <RechargeModal
+      consultant={{ id: consultantId, display_name: companionName, rate_per_min: ratePerMin, currency_code: currency }}
+      razorpayKeyId={RAZORPAY_KEY_ID}
+      onSuccess={handleRechargeSuccess}
+      onClose={() => {
+        setShowRecharge(false);
+        if (type === "instant") router.back();
+      }}
+    />
+  ) : null;
+
   // ── instant session UI ─────────────────────────────────────────────────────
   if (type === "instant") {
     return (
       <main className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
-        {loading ? (
+        {rechargeModal}
+        {loading && !showRecharge ? (
           <>
             <Loader2 className="animate-spin text-violet-400 mb-4" size={32} />
             <p className="text-zinc-400">Connecting you with a companion…</p>
@@ -198,6 +232,7 @@ function NewSessionInner() {
   // ── scheduled session UI ───────────────────────────────────────────────────
   return (
     <main className="mx-auto max-w-lg px-4 py-10 sm:px-6">
+      {rechargeModal}
       <div className="mb-5">
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Connect</p>
         <h1 className="mt-1 text-xl font-semibold text-zinc-50">Request a Meeting</h1>
@@ -363,12 +398,13 @@ function NewSessionInner() {
                       {balanceAmt !== null && balanceAmt > 0 && ` (Current balance: ${sym}${balanceAmt.toFixed(2)})`}
                     </span>
                   </div>
+                  {/* Open RechargeModal inline instead of navigating away */}
                   <button
                     type="button"
-                    onClick={() => router.push("/connect?tab=wallet")}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-500/20 border border-amber-500/30 px-3 py-2 text-xs font-semibold text-amber-300 transition hover:bg-amber-500/30"
+                    onClick={() => setShowRecharge(true)}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-violet-600/20 border border-violet-500/40 px-3 py-2 text-xs font-semibold text-violet-300 transition hover:bg-violet-600/30"
                   >
-                    <Wallet size={12} /> Add Balance
+                    <Wallet size={12} /> Add Session Balance
                   </button>
                 </div>
               )}

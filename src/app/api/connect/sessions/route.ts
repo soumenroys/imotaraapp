@@ -7,6 +7,7 @@ export const preferredRegion = ["sin1"];
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
+import { sendSessionRequestEmail } from "@/lib/connect/mailer";
 
 export async function GET(req: NextRequest) {
   const user = await getConnectUser(req);
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "type must be instant or scheduled" }, { status: 400 });
   }
   if (type === "scheduled" && !scheduled_note?.trim()) {
-    return NextResponse.json({ ok: false, error: "scheduled_note required for scheduled sessions" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Please add a message describing what you would like to discuss." }, { status: 400 });
   }
 
   const supabase = getSupabaseAdmin();
@@ -99,29 +100,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Unable to request a session with this companion." }, { status: 403 });
   }
 
-  // For instant sessions: verify user has balance
-  if (type === "instant") {
-    const { data: recharges } = await supabase
-      .from("connect_recharges")
-      .select("minutes_credited")
-      .eq("user_id", user.id)
-      .eq("consultant_id", consultant_id)
-      .eq("status", "completed");
+  // Bug #37 fix: prevent user from booking a session with their own consultant profile
+  const { data: selfConsultant } = await supabase
+    .from("connect_consultants")
+    .select("id")
+    .eq("id", consultant_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (selfConsultant) {
+    return NextResponse.json({ ok: false, error: "You cannot book a session with your own companion profile." }, { status: 403 });
+  }
 
-    const { data: sessions } = await supabase
-      .from("connect_sessions")
-      .select("minutes_used")
-      .eq("user_id", user.id)
-      .eq("consultant_id", consultant_id)
-      .in("status", ["completed", "active"]);
+  // Both instant and scheduled sessions require at least 1 minute of pre-paid balance.
+  // For scheduled sessions: the consultant accepts, then on the first tick the session would
+  // auto-complete immediately if balance is zero — wasting the consultant's accepted slot.
+  {
+    const [{ data: recharges }, { data: usedSessions }] = await Promise.all([
+      supabase
+        .from("connect_recharges")
+        .select("minutes_credited")
+        .eq("user_id", user.id)
+        .eq("consultant_id", consultant_id)
+        .eq("status", "completed"),
+      supabase
+        .from("connect_sessions")
+        .select("minutes_used")
+        .eq("user_id", user.id)
+        .eq("consultant_id", consultant_id)
+        .in("status", ["completed", "active"]),
+    ]);
 
     const totalCredited = (recharges ?? []).reduce((s, r) => s + Number(r.minutes_credited), 0);
-    const totalUsed     = (sessions ?? []).reduce((s, r) => s + Number(r.minutes_used), 0);
+    const totalUsed     = (usedSessions ?? []).reduce((s, r) => s + Number(r.minutes_used), 0);
     const balance       = totalCredited - totalUsed;
 
     if (balance < 1) {
       return NextResponse.json(
-        { ok: false, error: "Insufficient balance. Please recharge first.", needs_recharge: true },
+        { ok: false, error: "Insufficient balance. Please recharge session minutes first.", needs_recharge: true },
         { status: 402 }
       );
     }
@@ -157,6 +172,37 @@ export async function POST(req: NextRequest) {
 
   if (error || !session) {
     return NextResponse.json({ ok: false, error: error?.message ?? "Insert failed" }, { status: 500 });
+  }
+
+  // Notify consultant via Expo push if they have a token registered (mobile only, non-blocking)
+  const { data: consultantForPush } = await supabase
+    .from("connect_consultants")
+    .select("expo_push_token, display_name")
+    .eq("id", consultant_id)
+    .single();
+
+  // Confirmation email to the requesting user (P2-24, non-blocking)
+  if (user.email) {
+    void sendSessionRequestEmail({
+      userEmail:      user.email,
+      consultantName: consultantForPush?.display_name ?? "your companion",
+      sessionType:    type as "instant" | "scheduled",
+      sessionId:      session.id,
+    }).catch((e) => console.error("[sessions] request email error:", e));
+  }
+
+  if (consultantForPush?.expo_push_token) {
+    void fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        to:    consultantForPush.expo_push_token,
+        sound: "default",
+        title: "New Session Request",
+        body:  `A client is requesting a ${type} session with you`,
+        data:  { session_id: session.id, type: "session_request" },
+      }),
+    }).catch((e) => console.error("[sessions] push notification error:", e));
   }
 
   return NextResponse.json({ ok: true, session }, { status: 201 });

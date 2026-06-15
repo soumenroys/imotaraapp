@@ -1,11 +1,32 @@
-// POST /api/connect/consultant/payout
-// Auth required. Consultant requests a payout.
-// Body: { amount, currency_code, payout_method, payout_details }
+// GET  /api/connect/consultant/payout — list own payout history (last 50)
+// POST /api/connect/consultant/payout — request a new payout
+// Auth required.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
 import nodemailer from "nodemailer";
+
+export async function GET(req: NextRequest) {
+  const user = await getConnectUser(req);
+  if (!user) {
+    return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("connect_payouts")
+    .select("id, amount, currency_code, payout_method, status, admin_note, created_at, processed_at")
+    .eq("consultant_user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, payouts: data ?? [] });
+}
 
 export async function POST(req: NextRequest) {
   const user = await getConnectUser(req);
@@ -21,8 +42,9 @@ export async function POST(req: NextRequest) {
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     return NextResponse.json({ ok: false, error: "amount must be positive" }, { status: 400 });
   }
-  if (!["upi", "bank", "paypal"].includes(payout_method)) {
-    return NextResponse.json({ ok: false, error: "payout_method must be upi, bank, or paypal" }, { status: 400 });
+  // bank_in = Indian bank transfer, bank_int = international wire — both registered at sign-up
+  if (!["upi", "bank", "bank_in", "bank_int", "paypal"].includes(payout_method)) {
+    return NextResponse.json({ ok: false, error: "payout_method must be upi, bank, bank_in, bank_int, or paypal" }, { status: 400 });
   }
 
   const supabase = getSupabaseAdmin();

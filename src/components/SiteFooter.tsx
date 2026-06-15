@@ -62,7 +62,7 @@ const NAV_LINKS = [
   { href: "/history",  label: "History",  emoji: "🕰" },
   { href: "/about",    label: "About",    emoji: "🌿" },
   { href: "/grow",     label: "Grow",     emoji: "✨" },
-  { href: "/connect",  label: "Contact",  emoji: "✉️" },
+  { href: "/connect",  label: "Connect",  emoji: "🤝" },
   { href: "/careers",  label: "Careers",  emoji: "🌱" },
   { href: "/upgrade",           label: "Plans",      emoji: "💎" },
   { href: "/pricing/corporate", label: "For Teams",  emoji: "🏢" },
@@ -92,7 +92,7 @@ export default function SiteFooter() {
         className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[600px] -translate-x-1/2 rounded-full bg-indigo-600/8 blur-3xl"
       />
 
-      <div className="relative mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+      <div className="relative mx-auto w-full max-w-5xl px-4 py-6 sm:py-10 sm:px-6">
 
         {/* ── Main grid ─────────────────────────────────────────────────── */}
         <div className="grid gap-10 md:grid-cols-3">
@@ -190,7 +190,7 @@ export default function SiteFooter() {
                 aria-label="Download Imotara on the App Store"
                 className="group flex w-fit items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 transition hover:border-white/20 hover:bg-white/10"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-zinc-700 to-zinc-800 text-zinc-200 shadow-sm group-hover:from-zinc-600 group-hover:to-zinc-700 transition">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-zinc-100 dark:bg-gradient-to-br dark:from-zinc-700 dark:to-zinc-800 dark:text-zinc-200 shadow-sm transition">
                   <IconApple />
                 </span>
                 <div className="leading-tight">
@@ -220,7 +220,7 @@ export default function SiteFooter() {
         </div>
 
         {/* ── Divider ───────────────────────────────────────────────────── */}
-        <div className="my-8 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
+        <div className="my-4 sm:my-8 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
 
         {/* ── Bottom bar ────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] text-zinc-600">
@@ -228,8 +228,8 @@ export default function SiteFooter() {
             © {year} Imotara. Made with <IconHeart /> for a calmer world.
           </p>
           <div className="flex items-center gap-3">
-            <span className="text-zinc-700">Not a medical or crisis service.</span>
-            <span className="rounded-full border border-white/8 bg-white/5 px-2.5 py-0.5 text-[10px] text-zinc-600 backdrop-blur-sm">
+            <span className="text-zinc-500">Not a medical or crisis service.</span>
+            <span className="rounded-full border border-zinc-700/50 bg-white/5 px-2.5 py-0.5 text-[11px] text-zinc-400 backdrop-blur-sm">
               {versionLabel}
             </span>
           </div>

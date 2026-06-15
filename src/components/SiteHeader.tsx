@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
 import GlobalSearch from "@/components/imotara/GlobalSearch";
 
@@ -61,10 +61,35 @@ export default function SiteHeader() {
   const moreRef = useRef<HTMLDivElement>(null);
 
   const [isMac, setIsMac] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const sbRef = useRef<any>(null);
 
   useEffect(() => {
     setMounted(true);
     setIsMac(/Macintosh|MacIntel|MacPPC|Mac68K/.test(navigator.userAgent));
+  }, []);
+
+  useEffect(() => {
+    let sub: any;
+    (async () => {
+      const { createBrowserClient } = await import("@supabase/ssr");
+      const sb = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      );
+      sbRef.current = sb;
+      const { data: { session } } = await sb.auth.getSession();
+      setUser(session?.user ?? null);
+      const { data: { subscription } } = sb.auth.onAuthStateChange((_e: any, s: any) => {
+        setUser(s?.user ?? null);
+      });
+      sub = subscription;
+    })();
+    return () => { sub?.unsubscribe(); };
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    if (sbRef.current) await sbRef.current.auth.signOut();
   }, []);
 
   // Cmd+K / Ctrl+K → search; Escape → close any open overlay
@@ -222,7 +247,7 @@ export default function SiteHeader() {
             </div>}
           </nav>
 
-          {/* RIGHT: Search + mobile hamburger */}
+          {/* RIGHT: Search + sign-out + mobile hamburger */}
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -235,6 +260,18 @@ export default function SiteHeader() {
                 {mounted ? (isMac ? "⌘K" : "Ctrl K") : ""}
               </span>
             </button>
+
+            {/* Sign out — desktop only, visible when signed in */}
+            {mounted && user && (
+              <button
+                type="button"
+                onClick={handleSignOut}
+                aria-label="Sign out"
+                className="hidden sm:inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-500 transition hover:bg-white/10 hover:text-zinc-300 dark:border-zinc-700/60"
+              >
+                Sign out
+              </button>
+            )}
 
             {/* Mobile hamburger — sm:hidden so only appears on small screens */}
             <button
@@ -301,6 +338,19 @@ export default function SiteHeader() {
                   </Link>
                 );
               })}
+              {/* Sign out — mobile only, visible when signed in */}
+              {user && (
+                <>
+                  <div className="my-1 border-t border-white/10 dark:border-zinc-700/40" />
+                  <button
+                    type="button"
+                    onClick={() => { setMobileOpen(false); handleSignOut(); }}
+                    className="w-full rounded-xl px-3 py-2 text-left text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/5"
+                  >
+                    Sign out
+                  </button>
+                </>
+              )}
             </nav>
           </div>
         )}

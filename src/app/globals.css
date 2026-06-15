@@ -223,6 +223,8 @@ html[data-theme="light"] .im-dropdown-menu {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
 }
 html[data-theme="light"] .im-dropdown-menu button { color: inherit !important; }
+html[data-theme="light"] .im-dropdown-menu button:hover,
+html[data-theme="light"] .im-dropdown-menu a:hover { background-color: rgba(0, 0, 0, 0.06) !important; }
 
 /* SiteHeader outer nav active pill in light mode — light indigo tint with indigo text */
 html[data-theme="light"] .im-site-active {

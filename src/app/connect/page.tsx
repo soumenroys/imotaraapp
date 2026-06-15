@@ -1355,6 +1355,10 @@ function DashboardTab() {
   async function requestPayout() {
     const amount = parseFloat(payoutAmount);
     if (!amount || amount <= 0) { setPayoutMsg({ ok: false, text: "Enter a valid positive amount." }); return; }
+    const currency = (earnings?.earned_currency ?? "INR").toUpperCase();
+    const minPayout = currency === "USD" ? 10 : 500;
+    const minLabel  = currency === "USD" ? "$10" : "₹500";
+    if (amount < minPayout) { setPayoutMsg({ ok: false, text: `Minimum payout is ${minLabel}.` }); return; }
     if (!payoutDetails.trim()) { setPayoutMsg({ ok: false, text: "Enter your payment details." }); return; }
     setPayoutLoading(true);
     setPayoutMsg(null);
@@ -1827,13 +1831,18 @@ function DashboardTab() {
                 placeholder={payoutMethod === "upi" ? "UPI ID" : payoutMethod === "bank" ? "Account number" : "PayPal email"}
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500"
               />
-              <input
-                type="number"
-                value={payoutAmount}
-                onChange={(e) => setPayoutAmount(e.target.value)}
-                placeholder={`Amount in ${earnings.earned_currency}`}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500"
-              />
+              <div>
+                <input
+                  type="number"
+                  value={payoutAmount}
+                  onChange={(e) => setPayoutAmount(e.target.value)}
+                  placeholder={`Amount in ${earnings.earned_currency}`}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500"
+                />
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  Minimum payout: {(earnings.earned_currency ?? "INR").toUpperCase() === "USD" ? "$10" : "₹500"}
+                </p>
+              </div>
               {payoutMsg && (
                 <p className={`text-xs ${payoutMsg.ok ? "text-emerald-400" : "text-rose-400"}`}>{payoutMsg.text}</p>
               )}

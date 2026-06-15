@@ -47,10 +47,10 @@ export async function POST(req: NextRequest) {
   const { consultant_id, type, scheduled_note, scheduled_at, scheduled_duration_min } = body;
 
   if (!consultant_id) {
-    return NextResponse.json({ ok: false, error: "consultant_id required" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Companion not found. Please try again." }, { status: 400 });
   }
   if (!["instant", "scheduled"].includes(type)) {
-    return NextResponse.json({ ok: false, error: "type must be instant or scheduled" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Invalid session type. Please try again." }, { status: 400 });
   }
   if (type === "scheduled" && !scheduled_note?.trim()) {
     return NextResponse.json({ ok: false, error: "Please add a message describing what you would like to discuss." }, { status: 400 });
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error || !session) {
-    return NextResponse.json({ ok: false, error: error?.message ?? "Insert failed" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Session could not be created. Please try again." }, { status: 500 });
   }
 
   // Notify consultant via Expo push if they have a token registered (mobile only, non-blocking)

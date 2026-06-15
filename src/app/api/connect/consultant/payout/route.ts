@@ -42,6 +42,16 @@ export async function POST(req: NextRequest) {
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     return NextResponse.json({ ok: false, error: "amount must be positive" }, { status: 400 });
   }
+
+  const currency = (currency_code ?? "INR").toUpperCase();
+  const minPayout = currency === "USD" ? 10 : 500;
+  const minLabel  = currency === "USD" ? "$10" : "₹500";
+  if (Number(amount) < minPayout) {
+    return NextResponse.json(
+      { ok: false, error: `Minimum payout is ${minLabel}. Please accumulate more earnings before requesting.` },
+      { status: 400 }
+    );
+  }
   // bank_in = Indian bank transfer, bank_int = international wire — both registered at sign-up
   if (!["upi", "bank", "bank_in", "bank_int", "paypal"].includes(payout_method)) {
     return NextResponse.json({ ok: false, error: "payout_method must be upi, bank, bank_in, bank_int, or paypal" }, { status: 400 });

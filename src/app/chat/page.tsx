@@ -3035,9 +3035,9 @@ export default function ChatPage() {
         </div>
       )}
 
-      <div className="mx-auto flex h-[calc(100dvh-13rem)] w-full max-w-7xl overflow-hidden py-3 text-zinc-100 sm:h-[calc(100vh-200px)] sm:py-4">
+      <div className="mx-auto flex h-[calc(100dvh-200px)] w-full max-w-7xl overflow-hidden py-3 text-zinc-100 sm:h-[calc(100vh-200px)] sm:py-4">
         {/* Sidebar */}
-        <aside className="hidden w-72 flex-col gap-3 p-4 sm:flex imotara-glass-card">
+        <aside className="hidden w-64 flex-col gap-3 p-4 sm:flex md:w-72 imotara-glass-card">
           <div className="mb-1 flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
               Conversations
@@ -3850,7 +3850,7 @@ export default function ChatPage() {
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
                       {openCapsuleMenu === "sessionGreeting" && (
-                        <div className="absolute left-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl">
+                        <div className="absolute left-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl im-dropdown-menu">
                           <button type="button" onClick={() => { setSessionGreeting(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
                           <button type="button" onClick={() => { try { localStorage.setItem("imotara.session.greeting.show.v1", "0"); } catch {} setSessionGreeting(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
                           <a href="/settings" className="block w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>

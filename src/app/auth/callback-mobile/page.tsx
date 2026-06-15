@@ -19,6 +19,8 @@ import { useEffect, useState } from 'react';
 export default function MobileAuthCallback() {
     const [status, setStatus] = useState<'redirecting' | 'error'>('redirecting');
 
+    const [appUrl, setAppUrl] = useState<string | null>(null);
+
     useEffect(() => {
         const hash = window.location.hash;
         const search = window.location.search;
@@ -30,11 +32,12 @@ export default function MobileAuthCallback() {
         const refreshToken = params.get('refresh_token');
 
         if (accessToken && refreshToken) {
+            const url = `imotara://auth/callback#${source}`;
+            setAppUrl(url);
             // Redirect to the app — ASWebAuthenticationSession on iOS intercepts imotara://
             // before the navigation completes, returning the URL to the app code.
             // On Android the system intent redirects from the browser to the app.
-            const appUrl = `imotara://auth/callback#${source}`;
-            window.location.href = appUrl;
+            window.location.href = url;
         } else {
             setStatus('error');
         }
@@ -46,13 +49,25 @@ export default function MobileAuthCallback() {
             alignItems: 'center', justifyContent: 'center',
             height: '100vh', fontFamily: 'sans-serif',
             backgroundColor: '#0f172a', color: '#e2e8f0',
+            padding: '24px', textAlign: 'center',
         }}>
             {status === 'redirecting' ? (
                 <>
                     <div style={{ fontSize: 24, marginBottom: 12 }}>✓</div>
-                    <p style={{ fontSize: 16, color: '#94a3b8' }}>
+                    <p style={{ fontSize: 16, color: '#94a3b8', marginBottom: 20 }}>
                         Signed in — returning to Imotara…
                     </p>
+                    {appUrl && (
+                        <a
+                            href={appUrl}
+                            style={{
+                                fontSize: 13, color: '#818cf8',
+                                textDecoration: 'underline', marginTop: 4,
+                            }}
+                        >
+                            Tap here if the app didn&apos;t open automatically
+                        </a>
+                    )}
                 </>
             ) : (
                 <>

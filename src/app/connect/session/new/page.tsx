@@ -5,9 +5,10 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Loader2, AlertCircle, MessageSquare, Mic, Video,
-  Calendar, Clock, ChevronDown, ChevronUp, Wallet,
+  Calendar, Clock, ChevronDown, ChevronUp, Wallet, Globe,
 } from "lucide-react";
 import RechargeModal from "@/components/connect/RechargeModal";
+import { getImotaraProfile } from "@/lib/imotara/profile";
 
 const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
 const PLATFORM_FEE_PCT = 20;
@@ -30,6 +31,18 @@ const SESSION_MODES = [
 const CURRENCY_SYMBOLS: Record<string, string> = {
   INR: "₹", USD: "$", EUR: "€", GBP: "£", AED: "د.إ", SGD: "S$", AUD: "A$",
 };
+
+const LANG_OPTIONS: { code: string; label: string }[] = [
+  { code: "en", label: "English" }, { code: "hi", label: "Hindi" },
+  { code: "bn", label: "Bengali" }, { code: "mr", label: "Marathi" },
+  { code: "ta", label: "Tamil" },   { code: "te", label: "Telugu" },
+  { code: "gu", label: "Gujarati" },{ code: "pa", label: "Punjabi" },
+  { code: "kn", label: "Kannada" }, { code: "ml", label: "Malayalam" },
+  { code: "ur", label: "Urdu" },    { code: "ar", label: "Arabic" },
+  { code: "es", label: "Spanish" }, { code: "fr", label: "French" },
+  { code: "de", label: "German" },  { code: "pt", label: "Portuguese" },
+];
+const LANG_NAME: Record<string, string> = Object.fromEntries(LANG_OPTIONS.map((l) => [l.code, l.label]));
 
 // ── today's date as yyyy-mm-dd ──────────────────────────────────────────────
 function todayStr() {
@@ -55,6 +68,7 @@ function NewSessionInner() {
   const currency        = searchParams.get("currency") ?? "INR";
   const companionName   = searchParams.get("name") ?? "Companion";
   const prefillRecharge = searchParams.get("needs_recharge") === "true";
+  const consultantLang  = searchParams.get("consultant_lang") ?? "en";
   const sym            = CURRENCY_SYMBOLS[currency] ?? currency;
 
   // ── form state ─────────────────────────────────────────────────────────────
@@ -73,16 +87,30 @@ function NewSessionInner() {
   const [showRecharge, setShowRecharge]     = useState(false);
   const [rechargedMinutes, setRechargedMinutes] = useState(0);
 
+  // ── translation opt-in ─────────────────────────────────────────────────────
+  const [userLang, setUserLang]             = useState("en");
+  const [translationEnabled, setTranslationEnabled] = useState(false);
+  const [showTranslationModal, setShowTranslationModal] = useState(false);
+  const langsMatch = userLang === consultantLang;
+  const translationSurcharge = translationEnabled ? ratePerMin * 0.10 : 0;
+  const effectiveRate = ratePerMin + translationSurcharge;
+
+  // Pre-fill user language from Imotara profile
+  useEffect(() => {
+    const p = getImotaraProfile();
+    if (p?.user?.preferredLang) setUserLang(p.user.preferredLang);
+  }, []);
+
   // ── submit state ───────────────────────────────────────────────────────────
   const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
   const [started, setStarted] = useState(false);
 
   // ── cost calc ──────────────────────────────────────────────────────────────
-  const sessionFee  = ratePerMin * duration;
+  const sessionFee  = effectiveRate * duration;
   const platformFee = sessionFee * (PLATFORM_FEE_PCT / 100);
   const totalCost   = sessionFee + platformFee;
-  const balanceAmt  = balanceMin !== null ? balanceMin * ratePerMin : null;
+  const balanceAmt  = balanceMin !== null ? balanceMin * effectiveRate : null;
   const shortfall   = balanceAmt !== null ? Math.max(0, totalCost - balanceAmt) : null;
   const hasEnough   = shortfall !== null && shortfall === 0;
 
@@ -108,15 +136,18 @@ function NewSessionInner() {
     if (type === "instant" && consultantId && !started) {
       if (prefillRecharge) {
         setShowRecharge(true);
+      } else if (!langsMatch) {
+        // Languages differ — ask user about translation before starting
+        setShowTranslationModal(true);
       } else {
         setStarted(true);
-        createSession("");
+        createSession("", false);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function createSession(scheduledNote: string) {
+  async function createSession(scheduledNote: string, translationRequested = translationEnabled) {
     setLoading(true);
     setError("");
     try {
@@ -134,6 +165,8 @@ function NewSessionInner() {
           scheduled_at:           scheduledAt,
           scheduled_duration_min: type === "scheduled" ? duration : null,
           user_timezone:          Intl.DateTimeFormat().resolvedOptions().timeZone,
+          user_lang:              userLang,
+          translation_requested:  translationRequested,
         }),
         credentials: "include",
       });
@@ -166,7 +199,7 @@ function NewSessionInner() {
     setShowRecharge(false);
     setRechargedMinutes((prev) => prev + minutes); // triggers wallet re-fetch
     setStarted(false); // allow createSession to be called again
-    createSession(""); // retry session creation immediately
+    createSession("", translationEnabled); // retry session creation immediately
   }
 
   function handleSubmit() {
@@ -211,12 +244,45 @@ function NewSessionInner() {
     return (
       <main className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
         {rechargeModal}
-        {loading && !showRecharge ? (
+
+        {/* Translation opt-in modal for instant sessions */}
+        {showTranslationModal && !showRecharge && (
+          <div className="imotara-glass-card max-w-sm rounded-2xl p-6 text-left">
+            <div className="flex items-center gap-2 mb-3">
+              <Globe size={18} className="text-violet-400" />
+              <p className="text-sm font-semibold text-zinc-100">Enable Translation?</p>
+            </div>
+            <p className="text-xs text-zinc-400 mb-1">
+              Your language: <span className="text-zinc-200">{LANG_NAME[userLang] ?? userLang}</span>
+              {" · "}
+              Counselor&apos;s language: <span className="text-zinc-200">{LANG_NAME[consultantLang] ?? consultantLang}</span>
+            </p>
+            <p className="text-xs text-zinc-500 mb-4">
+              Adds +10% to the per-minute rate. Machine translation adds 1–3 seconds per message and may not capture full emotional nuance.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowTranslationModal(false); setStarted(true); createSession("", false); }}
+                className="flex-1 rounded-xl border border-white/15 px-3 py-2.5 text-xs text-zinc-400 hover:text-zinc-200 transition"
+              >
+                No, English only
+              </button>
+              <button
+                onClick={() => { setShowTranslationModal(false); setTranslationEnabled(true); setStarted(true); createSession("", true); }}
+                className="flex-1 rounded-xl bg-violet-600 px-3 py-2.5 text-xs font-semibold text-white hover:bg-violet-500 transition"
+              >
+                Yes, enable
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!showTranslationModal && loading && !showRecharge ? (
           <>
             <Loader2 className="animate-spin text-violet-400 mb-4" size={32} />
             <p className="text-zinc-400">Connecting you with a companion…</p>
           </>
-        ) : error ? (
+        ) : !showTranslationModal && error ? (
           <div className="imotara-glass-card max-w-sm rounded-2xl p-6">
             <AlertCircle className="mx-auto mb-3 text-rose-400" size={24} />
             <p className="text-sm text-zinc-300">{error}</p>
@@ -359,15 +425,73 @@ function NewSessionInner() {
           />
         </div>
 
+        {/* ── Session Language & Translation ───────────────────────────────── */}
+        <div className="imotara-glass-card rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Globe size={14} className="text-violet-400" />
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Session Language</p>
+          </div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs text-zinc-500">Your language</label>
+              <select
+                value={userLang}
+                onChange={(e) => { setUserLang(e.target.value); setTranslationEnabled(false); }}
+                className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-violet-500"
+              >
+                {LANG_OPTIONS.map((l) => (
+                  <option key={l.code} value={l.code} className="bg-zinc-900">{l.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-xs text-zinc-500">Counselor&apos;s language</label>
+              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-zinc-400">
+                {LANG_NAME[consultantLang] ?? consultantLang}
+              </div>
+            </div>
+          </div>
+          {!langsMatch && (
+            <div className="space-y-2">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={translationEnabled}
+                  onChange={(e) => setTranslationEnabled(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-violet-500"
+                />
+                <span className="text-xs text-zinc-300">
+                  Enable auto-translation for this session <span className="text-violet-400">(+10% per-minute rate)</span>
+                </span>
+              </label>
+              {translationEnabled && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-xs text-amber-300 leading-relaxed">
+                  Machine translation adds 1–3 seconds per message. Emotional nuance may be lost.
+                  Messages are translated by an external API. Translation increases your session cost by 10%.
+                </div>
+              )}
+            </div>
+          )}
+          {langsMatch && (
+            <p className="text-xs text-zinc-500">Both you and your counselor speak {LANG_NAME[userLang] ?? userLang} — no translation needed.</p>
+          )}
+        </div>
+
         {/* ── Cost Breakdown ───────────────────────────────────────────────── */}
         {ratePerMin > 0 && (
           <div className="imotara-glass-card rounded-2xl p-5">
             <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Cost Estimate</p>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-zinc-400">
-                <span>{sym}{ratePerMin}/min × {duration} min</span>
-                <span>{sym}{sessionFee.toFixed(2)}</span>
+                <span>{sym}{ratePerMin.toFixed(2)}/min × {duration} min</span>
+                <span>{sym}{(ratePerMin * duration).toFixed(2)}</span>
               </div>
+              {translationEnabled && (
+                <div className="flex justify-between text-violet-400">
+                  <span>Translation surcharge (+10%)</span>
+                  <span>{sym}{(translationSurcharge * duration).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-zinc-400">
                 <span>Platform fee ({PLATFORM_FEE_PCT}%)</span>
                 <span>{sym}{platformFee.toFixed(2)}</span>

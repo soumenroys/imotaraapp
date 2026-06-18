@@ -41,6 +41,7 @@ export async function PATCH(req: NextRequest) {
     "bio", "expertise_tags", "languages", "rate_per_min",
     "currency_code", "availability_note", "availability_windows", "photo_url", "display_name",
     "expo_push_token", // push token registered by mobile app for session-request notifications
+    "preferred_lang",  // primary language for Connect sessions
   ];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {

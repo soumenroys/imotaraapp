@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     display_name, gender, role_category, contact_email, contact_phone, website_url, social_links,
     photo_url, bio, expertise_tags, languages, session_types,
     rate_per_min, currency_code, availability_note, availability_windows,
-    verification_docs, payout_info, coc_agreed, digital_signature,
+    verification_docs, payout_info, coc_agreed, digital_signature, preferred_lang,
   } = body;
 
   if (!display_name?.trim()) {
@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
       session_types:        normalizedSessionTypes,
       coc_agreed:           true,
       digital_signature:    digital_signature?.trim() ?? null,
+      preferred_lang:       typeof preferred_lang === "string" && preferred_lang.trim() ? preferred_lang.trim() : "en",
       status:               "pending",
     })
     .select("id, status")

@@ -30,9 +30,10 @@ export async function GET(
     .from("connect_sessions")
     .select(
       "id, user_id, consultant_id, type, status, scheduled_note, scheduled_at, scheduled_duration_min, " +
-      "started_at, ended_at, minutes_used, amount_charged, currency_code, rate_per_min, " +
+      "started_at, ended_at, minutes_used, amount_charged, currency_code, rate_per_min, base_rate_per_min, " +
+      "translation_enabled, user_lang, consultant_lang, " +
       "rating, review_text, review_submitted_at, created_at, last_tick_at, " +
-      "connect_consultants(display_name, photo_url, gender, rate_per_min)"
+      "connect_consultants(display_name, photo_url, gender, rate_per_min, preferred_lang)"
     )
     .eq("id", id)
     .single();

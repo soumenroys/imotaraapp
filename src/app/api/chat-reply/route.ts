@@ -616,7 +616,7 @@ export async function POST(req: Request) {
 
     const langInstruction = resolvedLang && resolvedLang !== "en"
       ? (langInstructionMap[resolvedLang] ?? `Respond in the same language as the user's current message (detected: ${resolvedLang}).`)
-      : "Match the user's language — if they write in English, respond in English.";
+      : "LANGUAGE: Always respond in English. Even if the user's messages contain text in another script or language, reply in English only — do not mirror their non-English script.";
 
     const nameHint = preferredName
       ? `The user's preferred name is: ${preferredName}.\nUse it naturally (not every line).\n`
@@ -3316,18 +3316,23 @@ export async function POST(req: Request) {
       "",
       scriptMirrorInstruction, // LAST: repeat at end for highest LLM recall
       contextAnchor, // repeat context anchor near end for maximum recall
-      "Now write Imotara's next reply — warm, specific to what the user said, and feels like a natural continuation.",
+      "Now write Imotara's next reply — warm, specific to what the user said, and feels like a natural continuation. CRITICAL: Always finish your last sentence completely — never end mid-sentence or mid-word.",
     ]
       .filter(Boolean)
       .join("\n");
 
-    const maxTokens = isClosureIntent
+    const baseMaxTokens = isClosureIntent
       ? 80
       : arc.depth === "deep"
         ? 480
         : arc.depth === "moderate"
           ? 300
           : 260;
+    // Non-English Unicode scripts (Bengali, Hindi, Tamil, etc.) require significantly more
+    // tokens per unit of meaning than English — scale up to prevent mid-sentence cutoff.
+    const maxTokens = (!isClosureIntent && resolvedLang && resolvedLang !== "en")
+      ? Math.round(baseMaxTokens * 1.4)
+      : baseMaxTokens;
 
     const isRomanInput = resolvedLang !== "en" && isRomanizedInput(lastUserMsg, resolvedLang);
 
@@ -3378,7 +3383,7 @@ export async function POST(req: Request) {
           "Do NOT reuse phrases or ideas from your previous replies. Each reply must feel fresh and specific to this moment in the conversation.",
           isClosureIntent || isLightCasual ? "" : "If the user asks 'what would you say' or 'how should I say it', give them real, specific words they could actually use — tailored to their exact situation, not generic advice.",
           conversationText ? `\nConversation so far:\n${conversationText}` : "",
-          "Keep it 1-2 sentences. Be human, warm, not generic.",
+          "Keep it 1-2 sentences. Be human, warm, not generic. Always finish your last sentence completely.",
         ].filter(Boolean).join("\n")
       : null;
 

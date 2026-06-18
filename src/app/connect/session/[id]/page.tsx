@@ -21,6 +21,7 @@ interface Message {
   id: string;
   sender_id: string;
   content: string;
+  translated_content: string | null;
   created_at: string;
 }
 
@@ -38,6 +39,9 @@ interface SessionData {
   rate_per_min: number | null;
   user_timezone: string;
   consultant_timezone: string;
+  translation_enabled: boolean;
+  user_lang: string | null;
+  consultant_lang: string | null;
   connect_consultants: {
     display_name: string;
     photo_url: string | null;
@@ -161,6 +165,7 @@ export default function SessionChatPage() {
         "id, user_id, consultant_id, status, minutes_used, rating, review_submitted_at, " +
         "started_at, amount_charged, currency_code, rate_per_min, " +
         "user_timezone, consultant_timezone, " +
+        "translation_enabled, user_lang, consultant_lang, " +
         "connect_consultants(display_name, photo_url, gender, rate_per_min)"
       )
       .eq("id", sessionId)
@@ -175,10 +180,10 @@ export default function SessionChatPage() {
   const loadMessages = useCallback(async () => {
     const { data } = await supabase
       .from("connect_messages")
-      .select("id, sender_id, content, created_at")
+      .select("id, sender_id, content, translated_content, created_at")
       .eq("session_id", sessionId)
       .order("created_at", { ascending: true });
-    if (data) setMessages(data);
+    if (data) setMessages(data as Message[]);
   }, [sessionId]);
 
   useEffect(() => {
@@ -333,12 +338,23 @@ export default function SessionChatPage() {
     setSending(true);
     setInput("");
     try {
-      const { error } = await supabase.from("connect_messages").insert({
-        session_id: sessionId,
-        sender_id:  myUserId,
-        content:    text,
-      });
-      if (error) setInput(text); // restore on failure
+      if (session?.translation_enabled) {
+        // Route through API for server-side translation
+        const res = await fetch(`/api/connect/sessions/${sessionId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ content: text }),
+        });
+        if (!res.ok) setInput(text);
+      } else {
+        const { error } = await supabase.from("connect_messages").insert({
+          session_id: sessionId,
+          sender_id:  myUserId,
+          content:    text,
+        });
+        if (error) setInput(text);
+      }
     } catch {
       setInput(text);
     } finally {
@@ -489,8 +505,8 @@ export default function SessionChatPage() {
           </button>
         )}
 
-        {/* Language picker */}
-        <div className="relative shrink-0" ref={langPickerRef}>
+        {/* Language picker — hidden when session-level translation is active */}
+        {!session.translation_enabled && <div className="relative shrink-0" ref={langPickerRef}>
           <button
             onClick={() => setShowLangPicker((v) => !v)}
             className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition ${
@@ -535,7 +551,7 @@ export default function SessionChatPage() {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Emergency button */}
         <button
@@ -644,6 +660,14 @@ export default function SessionChatPage() {
         {DISCLAIMER}
       </div>
 
+      {/* Translation active banner */}
+      {session.translation_enabled && (
+        <div className="shrink-0 flex items-center justify-center gap-1.5 border-b border-blue-500/20 bg-blue-500/8 px-4 py-1.5 text-[10px] text-blue-400">
+          <Globe size={10} />
+          Auto-translation active — 1–3s delay per message · Machine translation only
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.length === 0 && !isPending && (
@@ -653,6 +677,36 @@ export default function SessionChatPage() {
         )}
         {messages.map((m) => {
           const isMe = m.sender_id === myUserId;
+
+          // Session-level translation: dual-language display
+          if (session.translation_enabled) {
+            const primaryText   = isMe ? m.content : (m.translated_content ?? m.content);
+            const secondaryText = isMe ? m.translated_content : m.content;
+            return (
+              <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                  isMe ? "rounded-br-sm bg-violet-600 text-white" : "rounded-bl-sm bg-white/8 text-zinc-100"
+                }`}>
+                  <p>{primaryText}</p>
+                  {secondaryText && secondaryText !== primaryText && (
+                    <div className={`mt-2 pt-2 ${isMe ? "border-t border-violet-400/30" : "border-t border-white/10"}`}>
+                      <p className={`text-[10px] mb-0.5 flex items-center gap-1 ${isMe ? "text-violet-200/50" : "text-zinc-600"}`}>
+                        <Globe size={9} /> {isMe ? "Their language" : "Original"}
+                      </p>
+                      <p className={`text-[13px] leading-relaxed italic ${isMe ? "text-violet-100/80" : "text-zinc-400"}`}>
+                        {secondaryText}
+                      </p>
+                    </div>
+                  )}
+                  <p className={`mt-1 text-[10px] ${isMe ? "text-violet-200" : "text-zinc-500"}`}>
+                    {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+              </div>
+            );
+          }
+
+          // Standard (manual) translation via globe picker
           const transKey = chatLang ? `${m.id}::${chatLang}` : null;
           const translatedText = transKey ? translations.get(transKey) : undefined;
           const isTranslating  = chatLang ? translating.has(m.id) : false;
@@ -666,7 +720,6 @@ export default function SessionChatPage() {
               }`}>
                 {m.content}
 
-                {/* Translation section */}
                 {chatLang && (
                   <div className={`mt-2 pt-2 ${isMe ? "border-t border-violet-400/30" : "border-t border-white/10"}`}>
                     {isTranslating && !translatedText ? (

@@ -161,14 +161,24 @@ export async function respondRemote(input: {
     const tone = relationship ? (toneMap[relationship] ?? undefined) : undefined;
 
     // ── AI path: try /api/chat-reply (OpenAI) first ──────────────────────────
-    // Lang priority: explicit switch request > script/Roman detection > profile preference > "en"
-    // Explicit wins so the user can override a locked profile language mid-conversation.
+    // Lang priority: explicit switch request > profile preference > script/Roman detection > "en"
+    // Profile preference wins over script detection so that a user who changed their setting
+    // to English gets English replies even when they type in Bengali/Hindi script.
+    // Explicit mid-conversation overrides (e.g. "reply in Hindi") still take top priority.
     const explicitLang = detectExplicitLangRequest(input.message);
     const detectedLang = detectLangFromMessage(input.message);
-    const profileLang = typeof (ctx as Record<string, unknown>).preferredLang === "string"
-        ? (ctx as Record<string, unknown>).preferredLang as string
-        : undefined;
-    const lang = explicitLang || (detectedLang !== "en" ? detectedLang : (profileLang || "en"));
+    // Read profile language from whichever key is present:
+    // · runRespondWithConsent sets ctx.preferredLanguage (full word)
+    // · some direct callers use ctx.preferredLang (abbreviated)
+    // · toneContext is the full profile — fallback for any path
+    const profileLang: string | undefined = (() => {
+        const c = ctx as Record<string, unknown>;
+        if (typeof c.preferredLanguage === "string") return c.preferredLanguage;
+        if (typeof c.preferredLang === "string") return c.preferredLang;
+        const tc = c.toneContext as { user?: { preferredLang?: string } } | undefined;
+        return tc?.user?.preferredLang ?? undefined;
+    })();
+    const lang = explicitLang || profileLang || (detectedLang !== "en" ? detectedLang : "en");
 
     // Gender: read from toneContext if provided
     const ctxTone = ctx.toneContext as { user?: { gender?: string }; companion?: { gender?: string } } | undefined;

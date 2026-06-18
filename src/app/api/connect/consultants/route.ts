@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     .select(
       "id, display_name, gender, photo_url, bio, expertise_tags, languages, role_category, session_types, " +
       "rate_per_min, currency_code, rate_per_min_inr, availability_note, availability_windows, " +
-      "is_online, is_busy, rating_avg, rating_count, sessions_completed",
+      "is_online, is_busy, rating_avg, rating_count, sessions_completed, preferred_lang",
       { count: "exact" }
     )
     .eq("status", "approved")

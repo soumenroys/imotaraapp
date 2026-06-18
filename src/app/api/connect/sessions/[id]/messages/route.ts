@@ -1,10 +1,13 @@
 // POST /api/connect/sessions/[id]/messages
 // Server-side message insertion with session-state validation and rate limiting.
+// When session.translation_enabled is true, translates content server-side before
+// storing so both parties receive the translated text via Supabase Realtime.
 // Auth required. Caller must be a session participant.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
+import { translateText } from "@/lib/connect/translate";
 
 const MAX_LEN = 2000;
 
@@ -52,7 +55,7 @@ export async function POST(
   // Verify session is active and caller is a participant
   const { data: session } = await supabase
     .from("connect_sessions")
-    .select("id, user_id, consultant_id, status")
+    .select("id, user_id, consultant_id, status, translation_enabled, user_lang, consultant_lang")
     .eq("id", id)
     .single();
 
@@ -77,14 +80,29 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
+  // Server-side translation: translate message to the other party's language
+  let translatedContent: string | null = null;
+  if (session.translation_enabled) {
+    const sourceLang = isConsultant
+      ? (session.consultant_lang ?? "en")
+      : (session.user_lang ?? "en");
+    const targetLang = isConsultant
+      ? (session.user_lang ?? "en")
+      : (session.consultant_lang ?? "en");
+    if (sourceLang !== targetLang) {
+      translatedContent = await translateText(content.trim(), targetLang, sourceLang);
+    }
+  }
+
   const { data: message, error } = await supabase
     .from("connect_messages")
     .insert({
-      session_id: id,
-      sender_id:  user.id,
-      content:    content.trim(),
+      session_id:         id,
+      sender_id:          user.id,
+      content:            content.trim(),
+      translated_content: translatedContent,
     })
-    .select("id, session_id, sender_id, content, created_at")
+    .select("id, session_id, sender_id, content, translated_content, created_at")
     .single();
 
   if (error || !message) {

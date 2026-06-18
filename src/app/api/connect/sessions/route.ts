@@ -20,9 +20,10 @@ export async function GET(req: NextRequest) {
     .from("connect_sessions")
     .select(
       "id, user_id, consultant_id, type, status, scheduled_note, scheduled_at, scheduled_duration_min, " +
-      "started_at, ended_at, minutes_used, amount_charged, currency_code, rate_per_min, " +
+      "started_at, ended_at, minutes_used, amount_charged, currency_code, rate_per_min, base_rate_per_min, " +
+      "translation_enabled, user_lang, consultant_lang, " +
       "rating, review_text, review_submitted_at, created_at, " +
-      "connect_consultants(display_name, photo_url, gender, rate_per_min)"
+      "connect_consultants(display_name, photo_url, gender, rate_per_min, preferred_lang)"
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
   // Verify consultant is approved
   const { data: consultant } = await supabase
     .from("connect_consultants")
-    .select("id, status, currency_code")
+    .select("id, status, currency_code, preferred_lang")
     .eq("id", consultant_id)
     .eq("status", "approved")
     .single();
@@ -153,6 +154,14 @@ export async function POST(req: NextRequest) {
     ? body.user_timezone
     : "Asia/Kolkata";
 
+  // Translation opt-in: +10% surcharge baked into rate_per_min when enabled
+  const SUPPORTED_LANGS = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","ur","ar","es","fr","de","pt"];
+  const userLang       = typeof body.user_lang === "string" && SUPPORTED_LANGS.includes(body.user_lang) ? body.user_lang : "en";
+  const consultantLang = typeof consultant.preferred_lang === "string" ? consultant.preferred_lang : "en";
+  const translationEnabled = body.translation_requested === true && userLang !== consultantLang;
+  const baseRate       = Number(consultantFull?.rate_per_min ?? 0);
+  const effectiveRate  = translationEnabled ? +((baseRate * 1.10).toFixed(4)) : baseRate;
+
   const { data: session, error } = await supabase
     .from("connect_sessions")
     .insert({
@@ -164,7 +173,11 @@ export async function POST(req: NextRequest) {
       scheduled_at:           scheduled_at ?? null,
       scheduled_duration_min: type === "scheduled" && Number.isInteger(scheduled_duration_min) ? scheduled_duration_min : null,
       currency_code:  consultant.currency_code,
-      rate_per_min:   Number(consultantFull?.rate_per_min ?? 0),
+      rate_per_min:   effectiveRate,
+      base_rate_per_min: translationEnabled ? baseRate : null,
+      translation_enabled: translationEnabled,
+      user_lang:       translationEnabled ? userLang : null,
+      consultant_lang: translationEnabled ? consultantLang : null,
       user_timezone,
     })
     .select("id, status, created_at")

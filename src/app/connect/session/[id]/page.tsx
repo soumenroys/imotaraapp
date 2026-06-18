@@ -119,6 +119,8 @@ export default function SessionChatPage() {
   const [rating, setRating]         = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [reviewDone, setReviewDone] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [ending, setEnding]         = useState(false);
   // Dual-panel state
   const [totalCreditedMin, setTotalCreditedMin] = useState<number | null>(null);
   const [elapsedSecs, setElapsedSecs]           = useState(0);
@@ -131,6 +133,7 @@ export default function SessionChatPage() {
   const [showLangPicker, setShowLangPicker] = useState(false);
   const langPickerRef                     = useRef<HTMLDivElement>(null);
   const chatLangRef                       = useRef<LangCode | "">("");
+  const myUserIdRef                       = useRef<string | null>(null);
 
   const bottomRef     = useRef<HTMLDivElement>(null);
   const tickRef       = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -140,7 +143,9 @@ export default function SessionChatPage() {
   // ── Auth ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setMyUserId(s?.user?.id ?? null);
+      const uid = s?.user?.id ?? null;
+      setMyUserId(uid);
+      myUserIdRef.current = uid;
     });
   }, []);
 
@@ -203,15 +208,10 @@ export default function SessionChatPage() {
             if (prev.find((m) => m.id === msg.id)) return prev;
             return [...prev, msg];
           });
-          // auto-translate if user has a language set
-          if (chatLangRef.current) {
+          // auto-translate incoming messages (skip own sent messages — no value in round-tripping)
+          if (chatLangRef.current && msg.sender_id !== myUserIdRef.current) {
             const lang = chatLangRef.current;
             const key = `${msg.id}::${lang}`;
-            setTranslations((prev) => {
-              if (prev.has(key)) return prev;
-              // fire and forget — result will update via setTranslations inside translateMessage
-              return prev;
-            });
             fetch("/api/connect/translate", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -364,25 +364,36 @@ export default function SessionChatPage() {
 
   // ── Submit review ──────────────────────────────────────────────────────────
   async function submitReview() {
-    if (rating === 0) return;
-    const res = await fetch(`/api/connect/sessions/${sessionId}/review`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rating, review_text: reviewText || null }),
-      credentials: "include",
-    });
-    const d = await res.json();
-    if (d.ok) { setReviewDone(true); setShowReview(false); }
+    if (rating === 0 || submittingReview) return;
+    setSubmittingReview(true);
+    try {
+      const res = await fetch(`/api/connect/sessions/${sessionId}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating, review_text: reviewText || null }),
+        credentials: "include",
+      });
+      const d = await res.json();
+      if (d.ok) { setReviewDone(true); setShowReview(false); }
+    } finally {
+      setSubmittingReview(false);
+    }
   }
 
   // ── Update session status ──────────────────────────────────────────────────
   async function updateStatus(action: "complete" | "cancel") {
-    await fetch(`/api/connect/sessions/${sessionId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-      credentials: "include",
-    });
+    if (ending) return;
+    setEnding(true);
+    try {
+      await fetch(`/api/connect/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+        credentials: "include",
+      });
+    } finally {
+      setEnding(false);
+    }
   }
 
   // ── Translation ────────────────────────────────────────────────────────────
@@ -800,9 +811,10 @@ export default function SessionChatPage() {
         <div className="shrink-0 border-t border-white/5 bg-zinc-900/60 px-4 pb-2 pt-1 text-center">
           <button
             onClick={() => updateStatus("complete")}
-            className="text-xs text-zinc-500 hover:text-zinc-300 transition"
+            disabled={ending}
+            className="text-xs text-zinc-500 hover:text-zinc-300 transition disabled:opacity-50"
           >
-            End session
+            {ending ? "Ending…" : "End session"}
           </button>
         </div>
       )}
@@ -841,11 +853,11 @@ export default function SessionChatPage() {
             />
             <button
               onClick={submitReview}
-              disabled={rating === 0}
+              disabled={rating === 0 || submittingReview}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-60"
             >
-              <CheckCircle2 size={15} />
-              Submit Review
+              {submittingReview ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={15} />}
+              {submittingReview ? "Submitting…" : "Submit Review"}
             </button>
           </div>
         </div>

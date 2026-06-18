@@ -44,10 +44,9 @@ const LANG_OPTIONS: { code: string; label: string }[] = [
 ];
 const LANG_NAME: Record<string, string> = Object.fromEntries(LANG_OPTIONS.map((l) => [l.code, l.label]));
 
-// ── today's date as yyyy-mm-dd ──────────────────────────────────────────────
+// ── today's date as yyyy-mm-dd in LOCAL time (not UTC) ─────────────────────
 function todayStr() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+  return new Date().toLocaleDateString("en-CA"); // returns yyyy-mm-dd in local tz
 }
 
 // ── default time 1 hour from now, rounded to 30 min ────────────────────────
@@ -89,16 +88,18 @@ function NewSessionInner() {
 
   // ── translation opt-in ─────────────────────────────────────────────────────
   const [userLang, setUserLang]             = useState("en");
+  const [profileLoaded, setProfileLoaded]   = useState(false);
   const [translationEnabled, setTranslationEnabled] = useState(false);
   const [showTranslationModal, setShowTranslationModal] = useState(false);
   const langsMatch = userLang === consultantLang;
   const translationSurcharge = translationEnabled ? ratePerMin * 0.10 : 0;
   const effectiveRate = ratePerMin + translationSurcharge;
 
-  // Pre-fill user language from Imotara profile
+  // Pre-fill user language from Imotara profile — must complete before instant auto-start
   useEffect(() => {
     const p = getImotaraProfile();
     if (p?.user?.preferredLang) setUserLang(p.user.preferredLang);
+    setProfileLoaded(true);
   }, []);
 
   // ── submit state ───────────────────────────────────────────────────────────
@@ -131,13 +132,14 @@ function NewSessionInner() {
       .finally(() => setWalletLoading(false));
   }, [consultantId, rechargedMinutes]); // re-check after a recharge succeeds
 
-  // ── instant session: auto-submit (or jump to recharge when prefilled) ──────
+  // ── instant session: auto-submit — gated on profileLoaded to avoid race ────
+  // profileLoaded ensures userLang is set from profile before langsMatch is evaluated
   useEffect(() => {
+    if (!profileLoaded) return;
     if (type === "instant" && consultantId && !started) {
       if (prefillRecharge) {
         setShowRecharge(true);
       } else if (!langsMatch) {
-        // Languages differ — ask user about translation before starting
         setShowTranslationModal(true);
       } else {
         setStarted(true);
@@ -145,7 +147,7 @@ function NewSessionInner() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [profileLoaded]);
 
   async function createSession(scheduledNote: string, translationRequested = translationEnabled) {
     setLoading(true);

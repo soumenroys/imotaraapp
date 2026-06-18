@@ -135,7 +135,11 @@ export async function POST(req: NextRequest) {
     const totalUsed     = (usedSessions ?? []).reduce((s, r) => s + Number(r.minutes_used), 0);
     const balance       = totalCredited - totalUsed;
 
-    if (balance < 1) {
+    // Scale minimum balance by 1.1× when translation is requested so the surcharge
+    // doesn't allow a session with effectively less than 1 usable minute
+    const translationRequested = body.translation_requested === true;
+    const minBalanceRequired = translationRequested ? 1.1 : 1;
+    if (balance < minBalanceRequired) {
       return NextResponse.json(
         { ok: false, error: "Insufficient balance. Please recharge session minutes first.", needs_recharge: true },
         { status: 402 }

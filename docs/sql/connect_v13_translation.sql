@@ -17,7 +17,24 @@ ALTER TABLE connect_sessions
 ALTER TABLE connect_messages
   ADD COLUMN IF NOT EXISTS translated_content TEXT;
 
+-- 4. CRITICAL: Full replica identity on connect_messages so Supabase Realtime INSERT
+--    events carry ALL columns (including translated_content) to subscribers.
+--    Without this, translated_content is null in every Realtime payload.
+ALTER TABLE connect_messages REPLICA IDENTITY FULL;
+
+-- 5. Atomic wallet earnings increment — avoids read-modify-write race condition
+--    Called from sessions/[id]/route.ts on session completion.
+CREATE OR REPLACE FUNCTION increment_wallet_earnings(p_user_id UUID, p_amount NUMERIC)
+RETURNS void LANGUAGE sql AS $$
+  UPDATE connect_wallet
+  SET earned_amount = earned_amount + p_amount,
+      updated_at    = now()
+  WHERE user_id = p_user_id;
+$$;
+
 -- Verify
 -- SELECT column_name FROM information_schema.columns WHERE table_name = 'connect_consultants' AND column_name = 'preferred_lang';
 -- SELECT column_name FROM information_schema.columns WHERE table_name = 'connect_sessions' AND column_name IN ('translation_enabled','user_lang','consultant_lang','base_rate_per_min');
 -- SELECT column_name FROM information_schema.columns WHERE table_name = 'connect_messages' AND column_name = 'translated_content';
+-- SELECT relreplident FROM pg_class WHERE relname = 'connect_messages'; -- should return 'f' (full)
+-- SELECT proname FROM pg_proc WHERE proname = 'increment_wallet_earnings';

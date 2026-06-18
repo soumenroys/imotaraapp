@@ -17,8 +17,17 @@ export function detectScript(text: string): string {
     else if (cp >= 0x0C00 && cp <= 0x0C7F) counts.te = (counts.te ?? 0) + 1;
     else if (cp >= 0x0C80 && cp <= 0x0CFF) counts.kn = (counts.kn ?? 0) + 1;
     else if (cp >= 0x0D00 && cp <= 0x0D7F) counts.ml = (counts.ml ?? 0) + 1;
-    else if (cp >= 0x0600 && cp <= 0x06FF) counts.ur = (counts.ur ?? 0) + 1;
-    else if (cp >= 0x0040 && cp <= 0x007E) counts.en = (counts.en ?? 0) + 1;
+    // Arabic block: distinguish Urdu-specific chars first, then Arabic
+    else if (cp >= 0x0600 && cp <= 0x06FF) {
+      // Urdu-specific: ے ی ں ڈ ڑ — codepoints 0x06CC,0x06CC,0x06BA,0x0688,0x0691
+      if (cp === 0x06BA || cp === 0x06CC || cp === 0x0688 || cp === 0x0691 || cp === 0x06C1 || cp === 0x06BE) {
+        counts.ur = (counts.ur ?? 0) + 1;
+      } else {
+        counts.ar = (counts.ar ?? 0) + 1;
+      }
+    }
+    // Latin letters only (A-Z, a-z) — excludes @ and ASCII punctuation
+    else if ((cp >= 0x0041 && cp <= 0x005A) || (cp >= 0x0061 && cp <= 0x007A)) counts.en = (counts.en ?? 0) + 1;
   }
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
   return top ? top[0] : "en";

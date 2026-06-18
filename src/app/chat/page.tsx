@@ -931,8 +931,8 @@ export default function ChatPage() {
   const [griefMode, setGriefMode] = useState(false);
 
   // Feature discovery cards — state and helpers (effect wired after activeThread is declared)
-  type DiscoveryCardId = "trends" | "companion" | "offline" | "unsent_letter";
-  const DISCOVERY_CARD_ORDER: DiscoveryCardId[] = ["trends", "companion", "offline", "unsent_letter"];
+  type DiscoveryCardId = "trends" | "companion" | "offline" | "unsent_letter" | "connect_translation";
+  const DISCOVERY_CARD_ORDER: DiscoveryCardId[] = ["trends", "companion", "offline", "unsent_letter", "connect_translation"];
   const DISCOVERY_CARDS_KEY = "imotara.onboarding.discovery.v1";
   const [discoveryCard, setDiscoveryCard] = useState<DiscoveryCardId | null>(null);
   const discoveryShownRef = useRef(false);
@@ -4226,13 +4226,14 @@ export default function ChatPage() {
             {discoveryCard && (
               <div className="mx-auto mb-2 max-w-3xl flex items-center gap-3 rounded-xl border border-indigo-500/20 bg-indigo-500/8 px-3.5 py-2 text-xs text-indigo-200/80">
                 <span className="shrink-0 text-base">
-                  {discoveryCard === "trends" ? "📊" : discoveryCard === "companion" ? "✨" : discoveryCard === "unsent_letter" ? "✉️" : "📡"}
+                  {discoveryCard === "trends" ? "📊" : discoveryCard === "companion" ? "✨" : discoveryCard === "unsent_letter" ? "✉️" : discoveryCard === "connect_translation" ? "🌐" : "📡"}
                 </span>
                 <span className="flex-1 leading-snug">
                   {discoveryCard === "trends" && "Your mood over time — see your emotional patterns in"}
                   {discoveryCard === "companion" && "Make Imotara yours — personalize your companion's name and tone in"}
                   {discoveryCard === "offline" && "Always here, even offline — Imotara replies without internet using local mode."}
                   {discoveryCard === "unsent_letter" && "Write to someone you can't reach — the Unsent Letter space is here for you."}
+                  {discoveryCard === "connect_translation" && "Talk to a companion in your language — Connect now supports auto-translation between you and your counsellor."}
                   {(discoveryCard === "trends" || discoveryCard === "companion") && (
                     <a
                       href={discoveryCard === "trends" ? "/history" : "/settings"}
@@ -4250,6 +4251,15 @@ export default function ChatPage() {
                     >
                       Try it →
                     </button>
+                  )}
+                  {discoveryCard === "connect_translation" && (
+                    <a
+                      href="/connect"
+                      onClick={dismissDiscoveryCard}
+                      className="ml-1 font-semibold text-indigo-300 underline underline-offset-2 hover:text-indigo-200 transition"
+                    >
+                      Explore Connect →
+                    </a>
                   )}
                 </span>
                 <button

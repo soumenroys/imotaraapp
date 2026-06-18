@@ -565,6 +565,7 @@ function BannerConnect() {
             { icon: "💳", label: "Top up wallet" },
             { icon: "📞", label: "Instant or scheduled session" },
             { icon: "⏱️", label: "Per-minute billing" },
+            { icon: "🌐", label: "Auto-translation (opt-in, +10%)" },
           ].map((s) => (
             <div key={s.label} className="flex items-center gap-2 text-xs text-zinc-300">
               <span>{s.icon}</span><span>{s.label}</span>
@@ -2004,6 +2005,21 @@ const FEATURES: Record<string, Feature[]> = {
         "Scheduled: tap 'Schedule' and pick your preferred date and time.",
         "You'll get a notification reminder before a scheduled session.",
       ],
+    },
+    {
+      icon: "🌐",
+      title: "Multilingual Sessions (Auto-Translation)",
+      short: "Talk to a companion who speaks a different language — auto-translation bridges the gap.",
+      long: "If you and your companion speak different languages, you can opt in to session-level auto-translation at booking. Every message is translated server-side before delivery — you see the translated text as the primary message, with the original shown below it. Translation adds a small 1–3 second delay per message and a +10% per-minute surcharge. Machine translation is used — emotional nuance may occasionally be lost. Both instant and scheduled sessions support this.",
+      steps: [
+        "When booking, your language is pre-filled from your Imotara profile.",
+        "The companion's preferred language is shown alongside yours.",
+        "If the languages differ, an 'Enable Translation' option appears.",
+        "Check the box (scheduled) or tap 'Yes, enable' (instant) to opt in.",
+        "A blue banner confirms translation is active during the session.",
+        "Each message bubble shows the translated text first, original below.",
+      ],
+      tip: "Translation is entirely optional — if you prefer English-only, simply skip the opt-in. Same-language sessions have zero overhead.",
     },
     {
       icon: "💰",

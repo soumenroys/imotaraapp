@@ -838,8 +838,8 @@ export default function UpgradePage() {
                                     free: true, plus: true, pro: true, ent: true,
                                 },
                                 {
-                                    label: "Real-time message translation",
-                                    desc: "Translate session messages instantly so you and your companion can talk in different languages",
+                                    label: "Multilingual session translation",
+                                    desc: "Opt-in auto-translation at booking — each message is translated server-side so you and your companion can speak different languages. +10% per-minute surcharge when enabled.",
                                     free: true, plus: true, pro: true, ent: true,
                                 },
                                 {

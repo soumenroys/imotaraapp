@@ -72,19 +72,10 @@ export async function GET(req: NextRequest) {
           .from("connect_wallet")
           .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
 
-        const { data: wallet } = await supabase
-          .from("connect_wallet")
-          .select("earned_amount")
-          .eq("user_id", consultant.user_id)
-          .single();
-
-        await supabase
-          .from("connect_wallet")
-          .update({
-            earned_amount: (Number(wallet?.earned_amount ?? 0) + earnings),
-            updated_at:    now,
-          })
-          .eq("user_id", consultant.user_id);
+        await supabase.rpc("increment_wallet_earnings", {
+          p_user_id: consultant.user_id,
+          p_amount:  earnings,
+        });
 
         await supabase
           .from("connect_consultants")

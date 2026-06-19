@@ -165,7 +165,7 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const [sort, setSort] = useState<"rating" | "price_asc" | "price_desc" | "sessions">("rating");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [favLoading, setFavLoading] = useState<string | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [showSignIn, setShowSignIn] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [walletCurrency, setWalletCurrency] = useState<string>("INR");
@@ -296,7 +296,7 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
     <>
     {showSignIn && <SignInModal onClose={() => setShowSignIn(false)} redirectTo="/connect" />}
     <div>
-      {!isLoggedIn && (
+      {isLoggedIn === false && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-violet-500/25 bg-violet-500/10 px-4 py-3">
           <div className="flex items-center gap-2 text-sm text-violet-300">
             <span>🔒</span>

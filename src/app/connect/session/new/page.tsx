@@ -74,8 +74,10 @@ function NewSessionInner() {
 
   // ── form state ─────────────────────────────────────────────────────────────
   const [mode, setMode]         = useState<"chat" | "audio" | "video">("chat");
-  const [date, setDate]         = useState(todayStr());
-  const [time, setTime]         = useState(defaultTime());
+  // Derive both date and time from the same future Date so they always agree,
+  // even when the current time is close to midnight (defaultTime() can roll over to the next day).
+  const [date, setDate]         = useState(() => new Date(Date.now() + 60 * 60 * 1000).toLocaleDateString("en-CA"));
+  const [time, setTime]         = useState(defaultTime);
   const [duration, setDuration] = useState(30);
   const [note, setNote]         = useState("");
   const [showAlt, setShowAlt]   = useState(false);

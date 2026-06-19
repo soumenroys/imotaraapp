@@ -1398,14 +1398,18 @@ function DashboardTab() {
         table: "connect_sessions",
         filter: `consultant_id=eq.${consultantId}`,
       }, (payload) => {
-        const updated = payload.new as ConsultantSession;
+        const updated = payload.new as Partial<ConsultantSession>;
+        // connect_sessions uses REPLICA IDENTITY DEFAULT, so payload.new only carries
+        // changed columns. Tick updates touch minutes_used/amount_charged but not status.
+        // Guard on undefined to avoid false-positive removal from tick UPDATEs.
+        if (updated.status === undefined) return;
         if (!["pending", "active"].includes(updated.status)) {
-          // Session was cancelled, declined, or completed — remove from incoming list immediately
+          // Cancelled, declined, or completed — remove from incoming list immediately
           setIncomingSessions((prev) => prev.filter((s) => s.id !== updated.id));
         } else {
-          // Status moved to active (consultant accepted) — update in place
+          // Status moved to active (accepted) or remained pending — update in place
           setIncomingSessions((prev) =>
-            prev.map((s) => s.id === updated.id ? { ...s, status: updated.status } : s)
+            prev.map((s) => s.id === updated.id ? { ...s, status: updated.status as ConsultantSession["status"] } : s)
           );
         }
       })

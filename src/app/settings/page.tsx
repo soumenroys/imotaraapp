@@ -573,7 +573,7 @@ function ToneAndContextTile() {
         setUserName("");
         setUserAge("prefer_not");
         setUserGender("prefer_not");
-        setPreferredLang("en");
+        setPreferredLang("auto");
         setResponseStyle("auto");
         setCompEnabled(false);
         setCompName("");

@@ -52,6 +52,7 @@ interface Consultant {
   rating_count: number;
   sessions_completed: number;
   balance_minutes?: number;
+  preferred_lang?: string;
 }
 
 interface Session {
@@ -241,11 +242,12 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
     if (!isLoggedIn) { setShowSignIn(true); return; }
     const c = consultants.find((x) => x.id === consultantId);
     const params = new URLSearchParams({
-      consultant_id: consultantId,
-      type:          "instant",
-      rate:          String(c?.rate_per_min ?? 0),
-      currency:      c?.currency_code ?? "INR",
-      name:          c?.display_name ?? "",
+      consultant_id:   consultantId,
+      type:            "instant",
+      rate:            String(c?.rate_per_min ?? 0),
+      currency:        c?.currency_code ?? "INR",
+      name:            c?.display_name ?? "",
+      consultant_lang: c?.preferred_lang ?? "en",
     });
     // If we already know the user has no balance with this consultant, skip the
     // API round-trip and go straight to the recharge step.
@@ -258,11 +260,12 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
     if (!isLoggedIn) { setShowSignIn(true); return; }
     const c = consultants.find((x) => x.id === consultantId);
     const params = new URLSearchParams({
-      consultant_id: consultantId,
-      type: "scheduled",
-      rate: String(c?.rate_per_min ?? 0),
-      currency: c?.currency_code ?? "INR",
-      name: c?.display_name ?? "",
+      consultant_id:   consultantId,
+      type:            "scheduled",
+      rate:            String(c?.rate_per_min ?? 0),
+      currency:        c?.currency_code ?? "INR",
+      name:            c?.display_name ?? "",
+      consultant_lang: c?.preferred_lang ?? "en",
     });
     router.push(`/connect/session/new?${params}`);
   }
@@ -470,7 +473,8 @@ function SessionsTab() {
       });
       const d = await res.json();
       if (d.ok) setSessions((prev) => prev.map((s) => s.id === id ? { ...s, status: "cancelled" } : s));
-    } catch { /* silent */ }
+      else alert(d.error ?? "Could not cancel session");
+    } catch { alert("Network error — please try again."); }
     finally { setCancelling(null); }
   }
 
@@ -1384,8 +1388,10 @@ function DashboardTab() {
         } else {
           setIncomingSessions((prev) => prev.filter((s) => s.id !== sessionId));
         }
+      } else {
+        alert(d.error ?? `Could not ${action} session`);
       }
-    } catch { /* silent */ }
+    } catch { alert("Network error — please try again."); }
     finally { setActionLoading(null); }
   }
 

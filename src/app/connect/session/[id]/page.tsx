@@ -121,7 +121,9 @@ export default function SessionChatPage() {
   const [reviewText, setReviewText] = useState("");
   const [reviewDone, setReviewDone] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [ending, setEnding]         = useState(false);
+  const [endError, setEndError]     = useState<string | null>(null);
   // Dual-panel state
   const [totalCreditedMin, setTotalCreditedMin] = useState<number | null>(null);
   const [elapsedSecs, setElapsedSecs]           = useState(0);
@@ -374,6 +376,7 @@ export default function SessionChatPage() {
   async function submitReview() {
     if (rating === 0 || submittingReview || reviewDone) return;
     setSubmittingReview(true);
+    setReviewError(null);
     try {
       const res = await fetch(`/api/connect/sessions/${sessionId}/review`, {
         method: "POST",
@@ -383,6 +386,9 @@ export default function SessionChatPage() {
       });
       const d = await res.json();
       if (d.ok) { setReviewDone(true); setShowReview(false); }
+      else setReviewError(d.error ?? "Could not submit review. Please try again.");
+    } catch {
+      setReviewError("Network error — please try again.");
     } finally {
       setSubmittingReview(false);
     }
@@ -392,13 +398,18 @@ export default function SessionChatPage() {
   async function updateStatus(action: "complete" | "cancel") {
     if (ending) return;
     setEnding(true);
+    setEndError(null);
     try {
-      await fetch(`/api/connect/sessions/${sessionId}`, {
+      const res = await fetch(`/api/connect/sessions/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
         credentials: "include",
       });
+      const d = await res.json().catch(() => null);
+      if (!res.ok || !d?.ok) setEndError(d?.error ?? "Could not end session. Please try again.");
+    } catch {
+      setEndError("Network error — please try again.");
     } finally {
       setEnding(false);
     }
@@ -830,6 +841,7 @@ export default function SessionChatPage() {
       )}
       {isActive && isConsultantView && (
         <div className="shrink-0 border-t border-white/5 bg-zinc-900/60 px-4 pb-2 pt-1 text-center">
+          {endError && <p className="mb-1 text-xs text-red-400">{endError}</p>}
           <button
             onClick={() => updateStatus("complete")}
             disabled={ending}
@@ -872,6 +884,7 @@ export default function SessionChatPage() {
               rows={3}
               className="mb-4 w-full resize-none rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500"
             />
+            {reviewError && <p className="text-xs text-red-400 text-center">{reviewError}</p>}
             <button
               onClick={submitReview}
               disabled={rating === 0 || submittingReview}

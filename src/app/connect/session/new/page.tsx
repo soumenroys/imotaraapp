@@ -576,7 +576,7 @@ function NewSessionInner() {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={loading || !date || !time}
+            disabled={loading || !date || !time || hasEnough === false}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-60"
           >
             {loading && <Loader2 size={15} className="animate-spin" />}

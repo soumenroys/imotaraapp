@@ -438,7 +438,7 @@ function ToneAndContextTile() {
             setUserName(existing.user?.name ?? "");
             setUserAge((existing.user?.ageRange as AgeRange) ?? "prefer_not");
             setUserGender((existing.user?.gender as Gender) ?? "prefer_not");
-            setPreferredLang((existing.user?.preferredLang as SupportedLang) ?? "en");
+            setPreferredLang((existing.user?.preferredLang as SupportedLang | "auto") ?? "auto");
             setResponseStyle((existing.user?.responseStyle as ResponseStyle) ?? "auto");
 
             const enabled = !!existing.companion?.enabled;

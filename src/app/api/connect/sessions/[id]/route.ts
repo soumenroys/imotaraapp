@@ -68,7 +68,7 @@ type Action = typeof VALID_ACTIONS[number];
 const TRANSITIONS: Record<Action, { from: string[]; to: string; consultantOnly?: boolean }> = {
   accept:   { from: ["pending"],  to: "active",    consultantOnly: true },
   decline:  { from: ["pending"],  to: "declined",  consultantOnly: true },
-  complete: { from: ["active"],   to: "completed" },
+  complete: { from: ["active"],   to: "completed", consultantOnly: true },
   cancel:   { from: ["pending"], to: "cancelled" },
 };
 

@@ -181,7 +181,15 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
           .catch(() => {});
       }
     });
-    const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_, session) => setIsLoggedIn(!!session));
+    const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_, session) => {
+      setIsLoggedIn(!!session);
+      if (session) {
+        fetch("/api/connect/wallet", { credentials: "include" })
+          .then((r) => r.json())
+          .then((d) => { if (d.ok) { setWalletBalance(Number(d.wallet_balance ?? 0)); setWalletCurrency(d.wallet_currency ?? "INR"); } })
+          .catch(() => {});
+      }
+    });
     return () => subscription.unsubscribe();
   }, []);
 
@@ -712,6 +720,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
     });
     const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_, session) => {
       setIsLoggedIn(!!session);
+      if (session) fetchBalance().catch(() => {});
     });
     return () => subscription.unsubscribe();
   }, []);

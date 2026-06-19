@@ -1453,15 +1453,20 @@ function DashboardTab() {
   async function saveAvailability() {
     setAvailSaving(true);
     try {
-      await fetch("/api/connect/consultant/profile", {
+      const res = await fetch("/api/connect/consultant/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ availability_windows: availWindows }),
         credentials: "include",
       });
-      setProfile((p) => p ? { ...p, availability_windows: availWindows } : p);
-      setEditingAvail(false);
-    } catch { /* silent */ }
+      const d = await res.json().catch(() => null);
+      if (res.ok && d?.ok) {
+        setProfile((p) => p ? { ...p, availability_windows: availWindows } : p);
+        setEditingAvail(false);
+      } else {
+        alert(d?.error ?? "Could not save availability. Please try again.");
+      }
+    } catch { alert("Network error — please try again."); }
     finally { setAvailSaving(false); }
   }
 

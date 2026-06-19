@@ -356,7 +356,9 @@ export default function SessionChatPage() {
           credentials: "include",
           body: JSON.stringify({ content: text }),
         });
-        if (!res.ok) setInput(text);
+        if (!res.ok) { setInput(text); return; }
+        const d = await res.json().catch(() => null);
+        if (!d?.ok) setInput(text);
       } else {
         const { error } = await supabase.from("connect_messages").insert({
           session_id: sessionId,

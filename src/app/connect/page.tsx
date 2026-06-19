@@ -1392,6 +1392,23 @@ function DashboardTab() {
           });
         }
       })
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "connect_sessions",
+        filter: `consultant_id=eq.${consultantId}`,
+      }, (payload) => {
+        const updated = payload.new as ConsultantSession;
+        if (!["pending", "active"].includes(updated.status)) {
+          // Session was cancelled, declined, or completed — remove from incoming list immediately
+          setIncomingSessions((prev) => prev.filter((s) => s.id !== updated.id));
+        } else {
+          // Status moved to active (consultant accepted) — update in place
+          setIncomingSessions((prev) =>
+            prev.map((s) => s.id === updated.id ? { ...s, status: updated.status } : s)
+          );
+        }
+      })
       .subscribe();
     return () => { supabaseBrowser.removeChannel(channel); };
   }, [profile?.id]);

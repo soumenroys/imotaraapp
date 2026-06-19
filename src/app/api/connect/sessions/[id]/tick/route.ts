@@ -84,6 +84,9 @@ export async function POST(
         status:         "completed",
         ended_at:       now,
         last_tick_at:   now,
+        // minutes_used is not incremented — this tick fired on a zero balance, so
+        // no additional minute is charged to the user or credited to the consultant.
+        minutes_used:   Number(session.minutes_used),
         amount_charged: Number(session.amount_charged ?? 0),
       })
       .eq("id", sessionId)

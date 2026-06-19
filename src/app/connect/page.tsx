@@ -158,6 +158,9 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const router = useRouter();
   const [consultants, setConsultants] = useState<Consultant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [filter, setFilter] = useState({ gender: "", online: false, tag: "", category: "" });
   const [sort, setSort] = useState<"rating" | "price_asc" | "price_desc" | "sessions">("rating");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -194,29 +197,38 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchConsultants = useCallback(async () => {
-    setLoading(true);
+  const fetchConsultants = useCallback(async (pageNum = 1) => {
+    if (pageNum === 1) setLoading(true); else setLoadingMore(true);
     const params = new URLSearchParams();
     if (filter.gender)   params.set("gender", filter.gender);
     if (filter.online)   params.set("online", "true");
     if (filter.category) params.set("category", filter.category);
+    params.set("page", String(pageNum));
     try {
+      const fetchFavs = pageNum === 1
+        ? fetch("/api/connect/favorites", { credentials: "include" })
+        : Promise.resolve(null);
       const [cRes, fRes] = await Promise.all([
         fetch(`/api/connect/consultants?${params}`, { credentials: "include" }),
-        fetch("/api/connect/favorites", { credentials: "include" }),
+        fetchFavs,
       ]);
       const cData = await cRes.json();
-      const fData = await fRes.json();
-      if (cData.ok) setConsultants(cData.consultants);
-      if (fData.ok) setFavorites(new Set(fData.favorites ?? []));
+      const fData = fRes ? await fRes.json() : null;
+      if (cData.ok) {
+        if (pageNum === 1) setConsultants(cData.consultants ?? []);
+        else setConsultants((prev) => [...prev, ...(cData.consultants ?? [])]);
+        setHasMore(pageNum < (cData.totalPages ?? 1));
+        setPage(pageNum);
+      }
+      if (fData?.ok) setFavorites(new Set(fData.favorites ?? []));
     } catch {
       // silent
     } finally {
-      setLoading(false);
+      if (pageNum === 1) setLoading(false); else setLoadingMore(false);
     }
   }, [filter.gender, filter.online, filter.category]);
 
-  useEffect(() => { fetchConsultants(); }, [fetchConsultants]);
+  useEffect(() => { fetchConsultants(1); }, [fetchConsultants]);
 
   async function toggleFavorite(consultantId: string, e: React.MouseEvent) {
     e.stopPropagation();
@@ -396,23 +408,37 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
           <p className="text-zinc-400">No companions found. Try adjusting your filters.</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {displayed.map((c) => (
-            <ConsultantCard
-              key={c.id}
-              consultant={c}
-              razorpayKeyId={razorpayKeyId}
-              walletBalance={walletBalance}
-              walletCurrency={walletCurrency}
-              isFavorite={favorites.has(c.id)}
-              favLoading={favLoading === c.id}
-              onToggleFavorite={(e) => toggleFavorite(c.id, e)}
-              onTalkNow={handleTalkNow}
-              onRequestMeeting={handleRequestMeeting}
-              onWalletTopUp={(newBal) => setWalletBalance(newBal)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {displayed.map((c) => (
+              <ConsultantCard
+                key={c.id}
+                consultant={c}
+                razorpayKeyId={razorpayKeyId}
+                walletBalance={walletBalance}
+                walletCurrency={walletCurrency}
+                isFavorite={favorites.has(c.id)}
+                favLoading={favLoading === c.id}
+                onToggleFavorite={(e) => toggleFavorite(c.id, e)}
+                onTalkNow={handleTalkNow}
+                onRequestMeeting={handleRequestMeeting}
+                onWalletTopUp={(newBal) => setWalletBalance(newBal)}
+              />
+            ))}
+          </div>
+          {hasMore && (
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={() => fetchConsultants(page + 1)}
+                disabled={loadingMore}
+                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/10 disabled:opacity-50"
+              >
+                {loadingMore ? <Loader2 size={14} className="animate-spin" /> : null}
+                {loadingMore ? "Loading…" : "Load more companions"}
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       <div className="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-white/8 bg-white/3 p-6 text-center">

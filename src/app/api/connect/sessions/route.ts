@@ -59,6 +59,20 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabaseAdmin();
 
+  // Rate limit: max 10 session creates per user per 10 minutes (blocks push-notification spam)
+  const rateLimitWindow = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const { count: recentCount } = await supabase
+    .from("connect_sessions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .gte("created_at", rateLimitWindow);
+  if ((recentCount ?? 0) >= 10) {
+    return NextResponse.json(
+      { ok: false, error: "Too many session requests. Please wait a moment before trying again." },
+      { status: 429 }
+    );
+  }
+
   // Prevent duplicate open sessions with the same consultant
   const { data: existing } = await supabase
     .from("connect_sessions")

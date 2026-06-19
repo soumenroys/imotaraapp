@@ -132,7 +132,7 @@ export async function PATCH(
       ? body.consultant_timezone : "Asia/Kolkata";
     updatePayload.consultant_timezone = tz;
   }
-  if (action === "complete") { updatePayload.ended_at = new Date().toISOString(); }
+  if (action === "complete" || action === "decline" || action === "cancel") { updatePayload.ended_at = new Date().toISOString(); }
   if (action === "decline" || action === "cancel" || action === "complete") {
     // Will clear is_busy on consultant after status update
   }

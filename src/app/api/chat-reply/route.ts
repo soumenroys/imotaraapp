@@ -156,10 +156,8 @@ function isBadPlaceholderText(s: string): boolean {
   );
 }
 
-// Edge runtime: zero cold-start overhead, deployed globally at the edge.
-// All dependencies are fetch-based (Supabase JS v2, OpenAI fetch) — fully edge-compatible.
-export const runtime = "edge";
-// Deploy to Singapore — closest Vercel edge PoP to Supabase ap-southeast-1 and Indian users.
+// Node.js runtime — required for next/headers (used by getSupabaseUserServerClient for cookie auth).
+// Deploy to Singapore — closest Vercel region to Supabase ap-southeast-1 and Indian users.
 export const preferredRegion = ["sin1"];
 
 export async function GET() {

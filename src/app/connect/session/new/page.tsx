@@ -183,6 +183,7 @@ function NewSessionInner() {
         return;
       }
       if (data.redirect && data.existing_session_id) {
+        setLoading(false);
         router.replace(`/connect/session/${data.existing_session_id}`);
         return;
       }
@@ -191,6 +192,7 @@ function NewSessionInner() {
         setLoading(false);
         return;
       }
+      setLoading(false);
       router.replace(`/connect/session/${data.session.id}`);
     } catch {
       setError("Network error. Please try again.");
@@ -509,6 +511,7 @@ function NewSessionInner() {
               {translationEnabled && (
                 <div className="flex justify-between text-violet-400 text-xs">
                   <span>Incl. translation surcharge (+10% on {sym}{ratePerMin.toFixed(2)}/min base)</span>
+                  <span>+{sym}{(translationSurcharge * duration).toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-zinc-400">

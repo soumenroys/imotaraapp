@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
       session_types:        normalizedSessionTypes,
       coc_agreed:           true,
       digital_signature:    digital_signature?.trim() ?? null,
-      preferred_lang:       (typeof preferred_lang === "string" && ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","ur","ar","es","fr","de","pt"].includes(preferred_lang.trim())) ? preferred_lang.trim() : "en",
+      preferred_lang:       (typeof preferred_lang === "string" && ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","or","ur","ar","he","ru","zh","ja","es","fr","de","pt"].includes(preferred_lang.trim())) ? preferred_lang.trim() : "en",
       status:               "pending",
     })
     .select("id, status")

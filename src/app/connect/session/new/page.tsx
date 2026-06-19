@@ -13,14 +13,13 @@ import { getImotaraProfile } from "@/lib/imotara/profile";
 const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
 const PLATFORM_FEE_PCT = 20;
 
-const DURATION_OPTIONS = [
-  { value: 15,  label: "15 min"  },
-  { value: 30,  label: "30 min"  },
-  { value: 45,  label: "45 min"  },
-  { value: 60,  label: "1 hour"  },
-  { value: 90,  label: "1.5 hrs" },
-  { value: 120, label: "2 hours" },
-];
+function formatMinutes(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} hr${h > 1 ? "s" : ""}`;
+  return `${h} hr${h > 1 ? "s" : ""} ${m} min`;
+}
 
 const SESSION_MODES = [
   { key: "chat",  label: "Text Chat",  Icon: MessageSquare, available: true  },
@@ -33,14 +32,17 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 };
 
 const LANG_OPTIONS: { code: string; label: string }[] = [
-  { code: "en", label: "English" }, { code: "hi", label: "Hindi" },
-  { code: "bn", label: "Bengali" }, { code: "mr", label: "Marathi" },
-  { code: "ta", label: "Tamil" },   { code: "te", label: "Telugu" },
-  { code: "gu", label: "Gujarati" },{ code: "pa", label: "Punjabi" },
-  { code: "kn", label: "Kannada" }, { code: "ml", label: "Malayalam" },
-  { code: "ur", label: "Urdu" },    { code: "ar", label: "Arabic" },
-  { code: "es", label: "Spanish" }, { code: "fr", label: "French" },
-  { code: "de", label: "German" },  { code: "pt", label: "Portuguese" },
+  { code: "en", label: "English" },   { code: "hi", label: "Hindi" },
+  { code: "bn", label: "Bengali" },   { code: "mr", label: "Marathi" },
+  { code: "ta", label: "Tamil" },     { code: "te", label: "Telugu" },
+  { code: "gu", label: "Gujarati" },  { code: "pa", label: "Punjabi" },
+  { code: "kn", label: "Kannada" },   { code: "ml", label: "Malayalam" },
+  { code: "or", label: "Odia" },      { code: "ur", label: "Urdu" },
+  { code: "ar", label: "Arabic" },    { code: "he", label: "Hebrew" },
+  { code: "ru", label: "Russian" },   { code: "zh", label: "Chinese" },
+  { code: "ja", label: "Japanese" },  { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },    { code: "de", label: "German" },
+  { code: "pt", label: "Portuguese" },
 ];
 const LANG_NAME: Record<string, string> = Object.fromEntries(LANG_OPTIONS.map((l) => [l.code, l.label]));
 
@@ -368,22 +370,33 @@ function NewSessionInner() {
             </div>
           </div>
 
-          {/* Duration */}
-          <p className="mb-2 mt-4 text-xs text-zinc-500">Duration</p>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {DURATION_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setDuration(opt.value)}
-                className={`rounded-xl border py-2 text-xs font-medium transition
-                  ${duration === opt.value
-                    ? "border-violet-500 bg-violet-500/20 text-violet-300"
-                    : "border-white/10 text-zinc-400 hover:border-white/20"}`}
-              >
-                {opt.label}
-              </button>
-            ))}
+          {/* Duration — slider 15 min → 4 hrs in 15-min steps */}
+          <div className="mt-4">
+            <div className="flex items-baseline justify-between mb-3">
+              <p className="text-xs text-zinc-500">Duration</p>
+              <span className="text-lg font-bold text-violet-300">{formatMinutes(duration)}</span>
+            </div>
+            <input
+              type="range"
+              min={15}
+              max={240}
+              step={15}
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+              className="w-full cursor-pointer accent-violet-500"
+            />
+            <div className="flex justify-between mt-1">
+              {[15, 60, 120, 180, 240].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setDuration(m)}
+                  className={`text-xs transition ${duration === m ? "font-semibold text-violet-400" : "text-zinc-500 hover:text-zinc-300"}`}
+                >
+                  {formatMinutes(m)}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

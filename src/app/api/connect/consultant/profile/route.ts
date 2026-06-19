@@ -7,7 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
 
 const SUPPORTED_CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED", "SGD", "AUD"];
-const SUPPORTED_LANGS      = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","ur","ar","es","fr","de","pt"];
+const SUPPORTED_LANGS      = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","or","ur","ar","he","ru","zh","ja","es","fr","de","pt"];
 
 export async function GET(req: NextRequest) {
   const user = await getConnectUser(req);

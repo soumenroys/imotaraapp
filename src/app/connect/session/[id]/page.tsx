@@ -325,16 +325,17 @@ export default function SessionChatPage() {
   }
 
   useEffect(() => {
-    if (session?.status === "active") startTick();
+    const isSessionMine = myUserId !== null && session?.user_id === myUserId;
+    if (session?.status === "active" && isSessionMine) startTick();
     else stopTick();
     return stopTick;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.status]);
+  }, [session?.status, session?.user_id, myUserId]);
 
   // ── Send message ───────────────────────────────────────────────────────────
   async function sendMessage() {
     const text = input.trim();
-    if (!text || sending) return;
+    if (!text || sending || !myUserId) return;
     setSending(true);
     setInput("");
     try {
@@ -364,7 +365,7 @@ export default function SessionChatPage() {
 
   // ── Submit review ──────────────────────────────────────────────────────────
   async function submitReview() {
-    if (rating === 0 || submittingReview) return;
+    if (rating === 0 || submittingReview || reviewDone) return;
     setSubmittingReview(true);
     try {
       const res = await fetch(`/api/connect/sessions/${sessionId}/review`, {

@@ -156,9 +156,10 @@ function isBadPlaceholderText(s: string): boolean {
   );
 }
 
-// Deploy to Singapore — closest Vercel region to Supabase ap-southeast-1 and Indian users.
-// Cuts Supabase round-trip latency from ~300 ms (US East) to ~10 ms and reduces
-// perceived chat reply delay in production.
+// Edge runtime: zero cold-start overhead, deployed globally at the edge.
+// All dependencies are fetch-based (Supabase JS v2, OpenAI fetch) — fully edge-compatible.
+export const runtime = "edge";
+// Deploy to Singapore — closest Vercel edge PoP to Supabase ap-southeast-1 and Indian users.
 export const preferredRegion = ["sin1"];
 
 export async function GET() {
@@ -903,7 +904,10 @@ export async function POST(req: Request) {
         : "";
 
     // Cross-thread memory: what the user talked about in past conversation threads
+    // Skip for light/casual turns — saves input tokens and inference time on short exchanges.
     const crossThreadContextHint =
+      !isLightCasual &&
+      arc.depth !== "light" &&
       typeof body?.crossThreadContext === "string" && body.crossThreadContext.trim()
         ? `The user has had these past conversations with you (titles + recent messages — use only to show continuity, never force-reference):\n${body.crossThreadContext.trim()}`
         : "";
@@ -3324,10 +3328,10 @@ export async function POST(req: Request) {
     const baseMaxTokens = isClosureIntent
       ? 80
       : arc.depth === "deep"
-        ? 480
+        ? 320
         : arc.depth === "moderate"
-          ? 300
-          : 260;
+          ? 220
+          : 200;
     // Non-English Unicode scripts (Bengali, Hindi, Tamil, etc.) require significantly more
     // tokens per unit of meaning than English — scale up to prevent mid-sentence cutoff.
     const maxTokens = (!isClosureIntent && resolvedLang && resolvedLang !== "en")

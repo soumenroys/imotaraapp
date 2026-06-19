@@ -147,7 +147,7 @@ export async function callImotaraAI(
 
   // Optional timeout support: if the request hangs or is very slow,
   // we abort and fall back with the same style of message.
-  const abortMs = options.abortMs ?? 25_000; // 25s default
+  const abortMs = options.abortMs ?? 15_000; // 25s default
   const controller = new AbortController();
   const timeoutId =
     abortMs > 0
@@ -271,7 +271,7 @@ async function callGeminiAI(
   const systemPrompt = options.system ?? "You are Imotara — an emotion-aware, privacy-first companion. Be warm, concise, and human.";
   const temperature = typeof options.temperature === "number" ? options.temperature : 0.7;
   const maxTokens = options.maxTokens ?? 350;
-  const abortMs = options.abortMs ?? 25_000;
+  const abortMs = options.abortMs ?? 15_000;
 
   const controller = new AbortController();
   const timeoutId = abortMs > 0 ? setTimeout(() => controller.abort(), abortMs) : undefined;
@@ -392,7 +392,7 @@ export async function* streamImotaraAI(
   const systemPrompt = options.system ?? "You are Imotara — a warm, caring emotional companion. Be concise and human.";
   const temperature = typeof options.temperature === "number" ? options.temperature : 0.7;
   const maxTokens = options.maxTokens ?? 350;
-  const abortMs = options.abortMs ?? 25_000;
+  const abortMs = options.abortMs ?? 15_000;
   const controller = new AbortController();
   const timeoutId = abortMs > 0 ? setTimeout(() => controller.abort(), abortMs) : undefined;
 

@@ -802,6 +802,8 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
       });
 
       setTransactions([]); // reset so history reloads fresh
+      setShowHistory(false);
+      fetchBalance().catch(() => {}); // refresh full wallet metadata (expiresAt, status, etc.)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Payment failed";
       if (msg !== "Payment cancelled") setPayError(msg);

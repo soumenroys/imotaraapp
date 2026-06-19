@@ -27,7 +27,7 @@ export async function POST(
 
   const { data: session } = await supabase
     .from("connect_sessions")
-    .select("id, user_id, consultant_id, status, minutes_used, amount_charged, currency_code, rate_per_min")
+    .select("id, user_id, consultant_id, status, minutes_used, amount_charged, currency_code, rate_per_min, last_tick_at")
     .eq("id", sessionId)
     .single();
 
@@ -39,6 +39,14 @@ export async function POST(
   }
   if (session.status !== "active") {
     return NextResponse.json({ ok: false, status: session.status, remaining_minutes: 0 });
+  }
+
+  // Server-side rate limit: reject ticks faster than every 55 seconds (5s grace for network jitter)
+  if (session.last_tick_at) {
+    const msSince = Date.now() - new Date(session.last_tick_at as string).getTime();
+    if (msSince < 55_000) {
+      return NextResponse.json({ ok: false, error: "tick_too_soon" }, { status: 429 });
+    }
   }
 
   // Use locked rate from session (falls back to consultant if migration not yet applied)

@@ -818,6 +818,16 @@ export default function SessionChatPage() {
           </button>
         </div>
       )}
+      {isCompleted && isMine && (
+        <div className="shrink-0 border-t border-white/5 bg-zinc-900/60 px-4 pb-2 pt-1 text-center">
+          <button
+            onClick={() => router.push("/connect")}
+            className="text-xs text-violet-400 hover:text-violet-300 transition"
+          >
+            ← Back to Connect
+          </button>
+        </div>
+      )}
       {isActive && isConsultantView && (
         <div className="shrink-0 border-t border-white/5 bg-zinc-900/60 px-4 pb-2 pt-1 text-center">
           <button

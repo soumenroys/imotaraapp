@@ -66,13 +66,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, amount_credited: order.amount, new_balance: wallet?.balance ?? 0 });
   }
 
-  // Mark order completed
-  await supabase
+  // Mark order completed — .eq("status","pending") is the atomic idempotency gate:
+  // only the first concurrent verify request wins; the second matches 0 rows and is ignored.
+  const { data: markedRows } = await supabase
     .from("imotara_wallet_orders")
     .update({ razorpay_payment_id, status: "completed" })
-    .eq("id", order.id);
+    .eq("id", order.id)
+    .eq("status", "pending")
+    .select("id");
 
-  // Credit wallet — upsert balance row, increment atomically
+  if (!markedRows || markedRows.length === 0) {
+    // Another concurrent request already completed this order — return idempotent response
+    const { data: wallet } = await supabase
+      .from("imotara_wallets")
+      .select("balance")
+      .eq("user_id", user.id)
+      .single();
+    return NextResponse.json({ ok: true, amount_credited: order.amount, new_balance: wallet?.balance ?? 0 });
+  }
+
+  // Credit wallet — safe to read-modify-write now because only one request reaches this point
+  // (the .eq("status","pending") predicate above serialises concurrent requests at the DB level)
   const { data: existing } = await supabase
     .from("imotara_wallets")
     .select("balance")

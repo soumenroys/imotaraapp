@@ -63,17 +63,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, minutes_credited: recharge.minutes_credited });
   }
 
-  // Mark recharge completed
-  const { error: updateError } = await supabase
+  // Mark recharge completed — .eq("status","pending") is the atomic idempotency gate:
+  // only the first concurrent verify request wins; the second matches 0 rows and is ignored.
+  const { data: markedRows, error: updateError } = await supabase
     .from("connect_recharges")
     .update({
       razorpay_payment_id,
       status: "completed",
     })
-    .eq("id", recharge.id);
+    .eq("id", recharge.id)
+    .eq("status", "pending")
+    .select("id");
 
   if (updateError) {
     return NextResponse.json({ ok: false, error: updateError.message }, { status: 500 });
+  }
+  if (!markedRows || markedRows.length === 0) {
+    // Another concurrent request already completed this recharge
+    return NextResponse.json({ ok: true, minutes_credited: recharge.minutes_credited });
   }
 
   // Note: connect_wallet is the consultant earnings ledger — do NOT create rows for regular users.

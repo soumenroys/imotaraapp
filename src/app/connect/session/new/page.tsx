@@ -213,7 +213,13 @@ function NewSessionInner() {
     setShowRecharge(false);
     setRechargedMinutes((prev) => prev + minutes); // triggers wallet re-fetch
     setStarted(false); // allow createSession to be called again
-    createSession("", translationEnabled); // retry session creation immediately
+    // If this was a prefillRecharge path (recharge shown before translation choice),
+    // show translation modal now instead of skipping it.
+    if (type === "instant" && !langsMatch && !translationEnabled) {
+      setShowTranslationModal(true);
+    } else {
+      createSession("", translationEnabled); // retry session creation immediately
+    }
   }
 
   function handleSubmit() {
@@ -248,7 +254,7 @@ function NewSessionInner() {
   // ── Recharge modal (shared between instant + scheduled) ────────────────────
   const rechargeModal = showRecharge && consultantId ? (
     <RechargeModal
-      consultant={{ id: consultantId, display_name: companionName, rate_per_min: ratePerMin, currency_code: currency }}
+      consultant={{ id: consultantId, display_name: companionName, rate_per_min: effectiveRate, currency_code: currency }}
       razorpayKeyId={RAZORPAY_KEY_ID}
       onSuccess={handleRechargeSuccess}
       onClose={() => {

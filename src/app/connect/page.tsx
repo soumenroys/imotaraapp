@@ -391,7 +391,7 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
         </label>
 
         <button
-          onClick={fetchConsultants}
+          onClick={() => fetchConsultants(1)}
           className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-400 transition hover:text-zinc-200"
         >
           <RefreshCw size={13} />

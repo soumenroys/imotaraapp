@@ -677,7 +677,7 @@ export default function SessionChatPage() {
       )}
       {isCompleted && (
         <div className="shrink-0 border-b border-zinc-700/50 bg-zinc-800/60 px-4 py-2.5 text-xs text-zinc-400 text-center">
-          Session completed · {session.minutes_used.toFixed(0)} minutes
+          Session completed · {(session.minutes_used ?? 0).toFixed(0)} minutes
           {isMine && !reviewDone && (
             <button
               onClick={() => setShowReview(true)}

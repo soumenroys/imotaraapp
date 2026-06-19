@@ -1313,8 +1313,21 @@ function DashboardTab() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Poll every 15s
+  // Stop polling and clear state on sign-out
   useEffect(() => {
+    const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setProfile(null);
+        setIncomingSessions([]);
+        setEarnings(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Poll every 15s — gated on profile so it stops after sign-out clears profile
+  useEffect(() => {
+    if (!profile) return;
     const t = setInterval(() => {
       fetch("/api/connect/consultant/sessions", { credentials: "include" })
         .then((r) => r.json())
@@ -1330,7 +1343,7 @@ function DashboardTab() {
         .catch(() => {});
     }, 15_000);
     return () => clearInterval(t);
-  }, []);
+  }, [profile]);
 
   // Supabase Realtime: instant alert
   useEffect(() => {

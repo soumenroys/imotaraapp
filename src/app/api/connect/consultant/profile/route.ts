@@ -61,6 +61,12 @@ export async function PATCH(req: NextRequest) {
   if ("preferred_lang" in updates && !SUPPORTED_LANGS.includes(updates.preferred_lang as string)) {
     return NextResponse.json({ ok: false, error: "Unsupported language code" }, { status: 400 });
   }
+  if ("availability_windows" in updates) {
+    const aw = updates.availability_windows;
+    if (!Array.isArray(aw) || aw.length > 28 || JSON.stringify(aw).length > 8192) {
+      return NextResponse.json({ ok: false, error: "Invalid availability_windows" }, { status: 400 });
+    }
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ ok: false, error: "No updatable fields provided" }, { status: 400 });

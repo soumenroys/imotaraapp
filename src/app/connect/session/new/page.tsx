@@ -1,7 +1,7 @@
 // src/app/connect/session/new/page.tsx
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Loader2, AlertCircle, MessageSquare, Mic, Video,
@@ -108,6 +108,7 @@ function NewSessionInner() {
   const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
   const [started, setStarted] = useState(false);
+  const creatingRef = useRef(false); // synchronous guard against double-tap race
 
   // ── cost calc ──────────────────────────────────────────────────────────────
   const sessionFee  = effectiveRate * duration;
@@ -152,6 +153,8 @@ function NewSessionInner() {
   }, [profileLoaded]);
 
   async function createSession(scheduledNote: string, translationRequested = translationEnabled) {
+    if (creatingRef.current) return;
+    creatingRef.current = true;
     setLoading(true);
     setError("");
     try {
@@ -180,23 +183,28 @@ function NewSessionInner() {
         // Show RechargeModal inline — don't redirect away
         setShowRecharge(true);
         setLoading(false);
+        creatingRef.current = false;
         return;
       }
       if (data.redirect && data.existing_session_id) {
         setLoading(false);
+        creatingRef.current = false;
         router.replace(`/connect/session/${data.existing_session_id}`);
         return;
       }
       if (!data.ok) {
         setError(data.error ?? "Failed to create session");
         setLoading(false);
+        creatingRef.current = false;
         return;
       }
       setLoading(false);
+      creatingRef.current = false;
       router.replace(`/connect/session/${data.session.id}`);
     } catch {
       setError("Network error. Please try again.");
       setLoading(false);
+      creatingRef.current = false;
     }
   }
 

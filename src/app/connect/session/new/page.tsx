@@ -207,10 +207,15 @@ function NewSessionInner() {
   }
 
   function handleSubmit() {
-    const dateLabel = new Date(`${date}T${time}`).toLocaleDateString("en-IN", {
+    const scheduledDateTime = new Date(`${date}T${time}`);
+    if (scheduledDateTime.getTime() <= Date.now()) {
+      setError("Please choose a future date and time.");
+      return;
+    }
+    const dateLabel = scheduledDateTime.toLocaleDateString("en-IN", {
       weekday: "long", day: "numeric", month: "long", year: "numeric",
     });
-    const timeLabel = new Date(`${date}T${time}`).toLocaleTimeString("en-IN", {
+    const timeLabel = scheduledDateTime.toLocaleTimeString("en-IN", {
       hour: "2-digit", minute: "2-digit",
     });
     const altLabel = (altDate && altTime)
@@ -498,13 +503,12 @@ function NewSessionInner() {
             <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Cost Estimate</p>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-zinc-400">
-                <span>{sym}{ratePerMin.toFixed(2)}/min × {duration} min</span>
-                <span>{sym}{(ratePerMin * duration).toFixed(2)}</span>
+                <span>{sym}{effectiveRate.toFixed(2)}/min × {duration} min</span>
+                <span>{sym}{(effectiveRate * duration).toFixed(2)}</span>
               </div>
               {translationEnabled && (
-                <div className="flex justify-between text-violet-400">
-                  <span>Translation surcharge (+10%)</span>
-                  <span>{sym}{(translationSurcharge * duration).toFixed(2)}</span>
+                <div className="flex justify-between text-violet-400 text-xs">
+                  <span>Incl. translation surcharge (+10% on {sym}{ratePerMin.toFixed(2)}/min base)</span>
                 </div>
               )}
               <div className="flex justify-between text-zinc-400">

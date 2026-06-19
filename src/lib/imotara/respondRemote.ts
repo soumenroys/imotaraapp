@@ -230,14 +230,15 @@ export async function respondRemote(input: {
             let done = false;
 
             while (!done) {
-                // Per-chunk 10s stall guard: if no data arrives mid-stream, cancel and fall through
+                // Per-chunk 20s stall guard: if no data arrives mid-stream, cancel and fall through.
+                // 20s matches the overall API timeout and gives slow networks enough headroom.
                 let stallTimer: ReturnType<typeof setTimeout> | null = null;
                 let chunk: ReadableStreamReadResult<Uint8Array<ArrayBufferLike>>;
                 try {
                     chunk = await Promise.race([
                         reader.read(),
                         new Promise<never>((_, reject) => {
-                            stallTimer = setTimeout(() => reject(new Error("stream_stall")), 10_000);
+                            stallTimer = setTimeout(() => reject(new Error("stream_stall")), 20_000);
                         }),
                     ]);
                 } catch (stallErr) {

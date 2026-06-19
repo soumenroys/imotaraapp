@@ -904,10 +904,10 @@ export async function POST(req: Request) {
         : "";
 
     // Cross-thread memory: what the user talked about in past conversation threads
-    // Skip for light/casual turns — saves input tokens and inference time on short exchanges.
+    // Skip for light/casual turns (short, non-emotional messages) — saves tokens.
+    // Do NOT gate on arc.depth: a first emotional message still needs prior context.
     const crossThreadContextHint =
       !isLightCasual &&
-      arc.depth !== "light" &&
       typeof body?.crossThreadContext === "string" && body.crossThreadContext.trim()
         ? `The user has had these past conversations with you (titles + recent messages — use only to show continuity, never force-reference):\n${body.crossThreadContext.trim()}`
         : "";

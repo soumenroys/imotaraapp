@@ -198,12 +198,21 @@ export async function POST(req: NextRequest) {
       consultant_lang: translationEnabled ? consultantLang : null,
       user_timezone,
     })
-    .select("id, status, created_at")
+    .select(
+      "id, status, created_at, user_id, consultant_id, type, " +
+      "rate_per_min, base_rate_per_min, translation_enabled, user_lang, consultant_lang, " +
+      "minutes_used, amount_charged, currency_code, user_timezone, started_at"
+    )
     .single();
 
   if (error || !session) {
     return NextResponse.json({ ok: false, error: "Session could not be created. Please try again." }, { status: 500 });
   }
+
+  // Supabase TypeScript inference produces GenericStringError on multi-field selects when
+  // columns added in later migrations are not yet reflected in the generated types. We assert
+  // the known shape here — the runtime value is always correct after the insert succeeds.
+  const createdSession = session as unknown as { id: string; [key: string]: unknown };
 
   // Notify consultant via Expo push if they have a token registered (mobile only, non-blocking)
   const { data: consultantForPush } = await supabase
@@ -218,7 +227,7 @@ export async function POST(req: NextRequest) {
       userEmail:      user.email,
       consultantName: consultantForPush?.display_name ?? "your companion",
       sessionType:    type as "instant" | "scheduled",
-      sessionId:      session.id,
+      sessionId:      createdSession.id,
     }).catch((e) => console.error("[sessions] request email error:", e));
   }
 
@@ -231,10 +240,10 @@ export async function POST(req: NextRequest) {
         sound: "default",
         title: "New Session Request",
         body:  `A client is requesting a ${type} session with you`,
-        data:  { session_id: session.id, type: "session_request" },
+        data:  { session_id: createdSession.id, type: "session_request" },
       }),
     }).catch((e) => console.error("[sessions] push notification error:", e));
   }
 
-  return NextResponse.json({ ok: true, session }, { status: 201 });
+  return NextResponse.json({ ok: true, session: createdSession }, { status: 201 });
 }

@@ -65,6 +65,10 @@ export async function POST(req: NextRequest) {
       .single();
     return NextResponse.json({ ok: true, amount_credited: order.amount, new_balance: wallet?.balance ?? 0 });
   }
+  if (order.status !== "pending") {
+    // Order is in a terminal non-completable state (failed, expired, etc.)
+    return NextResponse.json({ ok: false, error: "Order cannot be verified" }, { status: 409 });
+  }
 
   // Mark order completed — .eq("status","pending") is the atomic idempotency gate:
   // only the first concurrent verify request wins; the second matches 0 rows and is ignored.

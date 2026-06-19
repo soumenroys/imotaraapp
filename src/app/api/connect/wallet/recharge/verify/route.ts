@@ -62,6 +62,10 @@ export async function POST(req: NextRequest) {
     // Idempotent — already processed
     return NextResponse.json({ ok: true, minutes_credited: recharge.minutes_credited });
   }
+  if (recharge.status !== "pending") {
+    // Recharge is in a terminal non-completable state (failed, expired, etc.)
+    return NextResponse.json({ ok: false, error: "Recharge cannot be verified" }, { status: 409 });
+  }
 
   // Mark recharge completed — .eq("status","pending") is the atomic idempotency gate:
   // only the first concurrent verify request wins; the second matches 0 rows and is ignored.

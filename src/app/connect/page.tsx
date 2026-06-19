@@ -811,7 +811,8 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   }
 
   async function loadHistory() {
-    if (transactions.length > 0) { setShowHistory((v) => !v); return; }
+    if (showHistory) { setShowHistory(false); return; }
+    if (transactions.length > 0) { setShowHistory(true); return; }
     setHistoryLoading(true);
     setShowHistory(true);
     try {

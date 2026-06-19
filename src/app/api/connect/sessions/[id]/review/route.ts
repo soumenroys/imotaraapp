@@ -45,15 +45,21 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Already reviewed" }, { status: 409 });
   }
 
-  // Update session
-  await supabase
+  // Atomic update — the IS NULL filter prevents a second concurrent submission from overwriting
+  const { data: updated } = await supabase
     .from("connect_sessions")
     .update({
       rating,
       review_text:         review_text?.trim() ?? null,
       review_submitted_at: new Date().toISOString(),
     })
-    .eq("id", sessionId);
+    .eq("id", sessionId)
+    .is("review_submitted_at", null)
+    .select("id");
+
+  if (!updated || updated.length === 0) {
+    return NextResponse.json({ ok: false, error: "Already reviewed" }, { status: 409 });
+  }
 
   // Recompute consultant rating_avg and rating_count
   const { data: allRatings } = await supabase

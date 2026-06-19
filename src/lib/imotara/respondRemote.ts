@@ -230,7 +230,23 @@ export async function respondRemote(input: {
             let done = false;
 
             while (!done) {
-                const { done: streamDone, value } = await reader.read();
+                // Per-chunk 10s stall guard: if no data arrives mid-stream, cancel and fall through
+                let stallTimer: ReturnType<typeof setTimeout> | null = null;
+                let chunk: ReadableStreamReadResult<Uint8Array<ArrayBufferLike>>;
+                try {
+                    chunk = await Promise.race([
+                        reader.read(),
+                        new Promise<never>((_, reject) => {
+                            stallTimer = setTimeout(() => reject(new Error("stream_stall")), 10_000);
+                        }),
+                    ]);
+                } catch (stallErr) {
+                    reader.cancel().catch(() => {});
+                    throw stallErr;
+                } finally {
+                    if (stallTimer !== null) clearTimeout(stallTimer);
+                }
+                const { done: streamDone, value } = chunk;
                 if (streamDone) break;
 
                 buffer += decoder.decode(value, { stream: true });

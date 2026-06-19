@@ -112,6 +112,7 @@ export default function SessionChatPage() {
   const [sending, setSending]       = useState(false);
   const [loading, setLoading]       = useState(true);
   const [myUserId, setMyUserId]     = useState<string | null>(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
   const [remaining, setRemaining]     = useState<number | null>(null);
   const [displaySeconds, setDisplaySeconds] = useState<number | null>(null);
   const [showEmergency, setShowEmergency] = useState(false);
@@ -146,8 +147,14 @@ export default function SessionChatPage() {
       const uid = s?.user?.id ?? null;
       setMyUserId(uid);
       myUserIdRef.current = uid;
+      setAuthLoaded(true);
     });
   }, []);
+
+  // Redirect unauthenticated users to Connect
+  useEffect(() => {
+    if (authLoaded && !myUserId) router.replace("/connect");
+  }, [authLoaded, myUserId, router]);
 
   // ── Close lang picker on outside click ────────────────────────────────────
   useEffect(() => {
@@ -436,13 +443,16 @@ export default function SessionChatPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  if (loading) {
+  if (loading || !authLoaded) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="animate-spin text-violet-400" size={28} />
       </div>
     );
   }
+
+  // authLoaded && !myUserId → redirect effect will fire; render nothing in the meantime
+  if (!myUserId) return null;
 
   if (!session) {
     return (

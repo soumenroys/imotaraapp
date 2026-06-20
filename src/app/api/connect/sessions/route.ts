@@ -59,7 +59,10 @@ export async function POST(req: NextRequest) {
   if (scheduled_note && scheduled_note.length > 500) {
     return NextResponse.json({ ok: false, error: "Message must be 500 characters or fewer." }, { status: 400 });
   }
-  if (type === "scheduled" && scheduled_at) {
+  if (type === "scheduled") {
+    if (!scheduled_at) {
+      return NextResponse.json({ ok: false, error: "Please select a date and time for the session." }, { status: 400 });
+    }
     const scheduledDate = new Date(scheduled_at);
     if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
       return NextResponse.json({ ok: false, error: "Please choose a valid future date and time." }, { status: 400 });

@@ -466,8 +466,10 @@ function NewSessionInner() {
             onChange={(e) => setNote(e.target.value)}
             placeholder="Anything you'd like the companion to know in advance…"
             rows={3}
+            maxLength={400}
             className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500 resize-none"
           />
+          <p className="mt-1 text-right text-xs text-zinc-600">{note.length}/400</p>
         </div>
 
         {/* ── Session Language & Translation ───────────────────────────────── */}
@@ -570,7 +572,24 @@ function NewSessionInner() {
                   {/* Open RechargeModal inline instead of navigating away */}
                   <button
                     type="button"
-                    onClick={() => setShowRecharge(true)}
+                    onClick={() => {
+                      // For scheduled sessions, save the assembled note before opening the recharge
+                      // modal so handleRechargeSuccess can retry createSession with the full note.
+                      if (type === "scheduled" && date && time) {
+                        const dt = new Date(`${date}T${time}`);
+                        if (!isNaN(dt.getTime())) {
+                          const dateLabel = dt.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+                          const timeLabel = dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+                          const modeLabel = SESSION_MODES.find((m) => m.key === mode)?.label ?? mode;
+                          const altLabel = (altDate && altTime)
+                            ? `\nAlt slot: ${new Date(`${altDate}T${altTime}`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })} at ${new Date(`${altDate}T${altTime}`).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`
+                            : "";
+                          const structured = [`Mode: ${modeLabel}`, `Date: ${dateLabel}`, `Time: ${timeLabel}`, `Duration: ${duration} min`, altLabel, note.trim() ? `\nNote: ${note.trim()}` : ""].filter(Boolean).join("\n");
+                          lastNoteRef.current = structured;
+                        }
+                      }
+                      setShowRecharge(true);
+                    }}
                     className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-violet-600/20 border border-violet-500/40 px-3 py-2 text-xs font-semibold text-violet-300 transition hover:bg-violet-600/30"
                   >
                     <Wallet size={12} /> Add Session Balance

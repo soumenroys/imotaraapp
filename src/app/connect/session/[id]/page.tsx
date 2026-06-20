@@ -124,6 +124,7 @@ export default function SessionChatPage() {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [ending, setEnding]         = useState(false);
   const [endError, setEndError]     = useState<string | null>(null);
+  const [sendError, setSendError]   = useState<string | null>(null);
   // Dual-panel state
   const [totalCreditedMin, setTotalCreditedMin] = useState<number | null>(null);
   const [elapsedSecs, setElapsedSecs]           = useState(0);
@@ -363,6 +364,7 @@ export default function SessionChatPage() {
     setSending(true);
     setInput("");
     try {
+      setSendError(null);
       if (session?.translation_enabled) {
         // Route through API for server-side translation
         const res = await fetch(`/api/connect/sessions/${sessionId}/messages`, {
@@ -371,19 +373,25 @@ export default function SessionChatPage() {
           credentials: "include",
           body: JSON.stringify({ content: text }),
         });
-        if (!res.ok) { setInput(text); return; }
         const d = await res.json().catch(() => null);
-        if (!d?.ok) setInput(text);
+        if (!res.ok || !d?.ok) {
+          setInput(text);
+          setSendError(d?.error ?? "Failed to send — please try again.");
+        }
       } else {
         const { error } = await supabase.from("connect_messages").insert({
           session_id: sessionId,
           sender_id:  myUserId,
           content:    text,
         });
-        if (error) setInput(text);
+        if (error) {
+          setInput(text);
+          setSendError("Failed to send — please try again.");
+        }
       }
     } catch {
       setInput(text);
+      setSendError("Network error — please try again.");
     } finally {
       setSending(false);
     }
@@ -806,7 +814,11 @@ export default function SessionChatPage() {
 
       {/* Input */}
       {isActive && (
-        <div className="shrink-0 flex gap-2 border-t border-white/8 bg-zinc-900/80 px-4 py-3 backdrop-blur-md">
+        <div className="shrink-0 border-t border-white/8 bg-zinc-900/80 backdrop-blur-md">
+          {sendError && (
+            <p className="px-4 pt-2 text-xs text-rose-400">{sendError}</p>
+          )}
+        <div className="flex gap-2 px-4 py-3">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -821,6 +833,7 @@ export default function SessionChatPage() {
           >
             {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
           </button>
+        </div>
         </div>
       )}
 

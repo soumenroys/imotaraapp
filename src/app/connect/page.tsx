@@ -461,6 +461,7 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
 function SessionsTab() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
@@ -469,9 +470,11 @@ function SessionsTab() {
   useEffect(() => {
     supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
       setIsLoggedIn(!!session);
+      setUserId(session?.user?.id ?? null);
     });
     const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_, session) => {
       setIsLoggedIn(!!session);
+      setUserId(session?.user?.id ?? null);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -486,6 +489,28 @@ function SessionsTab() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [isLoggedIn]);
+
+  // Realtime: update session status when consultant accepts/declines/cancels
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabaseBrowser
+      .channel(`sessions-tab-${userId}`)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "connect_sessions",
+        filter: `user_id=eq.${userId}`,
+      }, (payload) => {
+        const updated = payload.new as { id: string; status: string };
+        if (updated?.id && updated?.status) {
+          setSessions((prev) =>
+            prev.map((s) => s.id === updated.id ? { ...s, status: updated.status } : s)
+          );
+        }
+      })
+      .subscribe();
+    return () => { supabaseBrowser.removeChannel(channel); };
+  }, [userId]);
 
   async function cancelSession(id: string, e: React.MouseEvent) {
     e.stopPropagation();

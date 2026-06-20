@@ -266,6 +266,15 @@ export default function SessionChatPage() {
             // Call stopTick outside the setSession updater — side effects inside
             // React state setters are not safe in concurrent mode.
             setTimeout(stopTick, 0);
+            // Auto-open review prompt for the session user when session completes
+            if (updated.status === "completed" && myUserIdRef.current) {
+              setSession((s) => {
+                if (s && myUserIdRef.current === s.user_id && !s.review_submitted_at) {
+                  setTimeout(() => setShowReview(true), 800);
+                }
+                return s;
+              });
+            }
           }
         }
       )

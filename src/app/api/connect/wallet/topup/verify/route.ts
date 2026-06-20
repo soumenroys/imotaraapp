@@ -72,13 +72,17 @@ export async function POST(req: NextRequest) {
 
   // Mark order completed — .eq("status","pending") is the atomic idempotency gate:
   // only the first concurrent verify request wins; the second matches 0 rows and is ignored.
-  const { data: markedRows } = await supabase
+  const { data: markedRows, error: markError } = await supabase
     .from("imotara_wallet_orders")
     .update({ razorpay_payment_id, status: "completed" })
     .eq("id", order.id)
     .eq("status", "pending")
     .select("id");
 
+  if (markError) {
+    console.error("[wallet/topup/verify] order mark failed:", markError.message);
+    return NextResponse.json({ ok: false, error: "Payment verification failed. Please contact support." }, { status: 500 });
+  }
   if (!markedRows || markedRows.length === 0) {
     // Another concurrent request already completed this order — return idempotent response
     const { data: wallet } = await supabase

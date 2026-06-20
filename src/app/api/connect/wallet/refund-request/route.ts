@@ -58,6 +58,14 @@ export async function POST(req: NextRequest) {
   const hasBankDetails = account_number && ifsc_code && account_holder;
   const hasUpi         = !!upi_id;
 
+  // Length guards to prevent bloated DB rows and email abuse
+  if (typeof bank_name === "string"      && bank_name.length > 100)      return NextResponse.json({ ok: false, error: "bank_name too long" }, { status: 400 });
+  if (typeof account_number === "string" && account_number.length > 30)  return NextResponse.json({ ok: false, error: "account_number too long" }, { status: 400 });
+  if (typeof ifsc_code === "string"      && ifsc_code.length > 20)       return NextResponse.json({ ok: false, error: "ifsc_code too long" }, { status: 400 });
+  if (typeof account_holder === "string" && account_holder.length > 100) return NextResponse.json({ ok: false, error: "account_holder too long" }, { status: 400 });
+  if (typeof upi_id === "string"         && upi_id.length > 60)          return NextResponse.json({ ok: false, error: "upi_id too long" }, { status: 400 });
+  if (typeof reason === "string"         && reason.length > 500)         return NextResponse.json({ ok: false, error: "reason too long (max 500 chars)" }, { status: 400 });
+
   if (!hasBankDetails && !hasUpi) {
     return NextResponse.json(
       { ok: false, error: "Provide bank account details (account number + IFSC + holder name) or a UPI ID" },

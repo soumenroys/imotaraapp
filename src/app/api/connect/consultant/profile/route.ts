@@ -58,7 +58,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Unsupported currency" }, { status: 400 });
   }
   if ("rate_per_min" in updates && (isNaN(Number(updates.rate_per_min)) || Number(updates.rate_per_min) <= 0 || Number(updates.rate_per_min) > 10000)) {
-    return NextResponse.json({ ok: false, error: "rate_per_min must be between 0 and 10000" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "rate_per_min must be greater than 0 and at most 10000" }, { status: 400 });
   }
   if ("preferred_lang" in updates && !SUPPORTED_LANGS.includes(updates.preferred_lang as string)) {
     return NextResponse.json({ ok: false, error: "Unsupported language code" }, { status: 400 });

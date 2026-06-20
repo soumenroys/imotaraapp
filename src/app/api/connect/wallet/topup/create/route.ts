@@ -63,13 +63,17 @@ export async function POST(req: NextRequest) {
   const order = await orderRes.json();
   const supabase = getSupabaseAdmin();
 
-  await supabase.from("imotara_wallet_orders").insert({
+  const { error: insertError } = await supabase.from("imotara_wallet_orders").insert({
     user_id:           user.id,
     razorpay_order_id: order.id,
     amount,
     currency_code:     "INR",
     status:            "pending",
   });
+  if (insertError) {
+    console.error("[topup/create] insert failed:", insertError.message);
+    return NextResponse.json({ ok: false, error: "Failed to create order record. Please try again." }, { status: 500 });
+  }
 
   // Record consent BEFORE payment — legally irrefutable audit record.
   await recordWalletConsent({

@@ -105,8 +105,8 @@ export async function POST(req: NextRequest) {
 
   const order = await orderRes.json();
 
-  // Persist pending recharge
-  await supabase.from("connect_recharges").insert({
+  // Persist pending recharge — must succeed before returning order to client
+  const { error: insertError } = await supabase.from("connect_recharges").insert({
     user_id:             user.id,
     consultant_id,
     razorpay_order_id:   order.id,
@@ -117,6 +117,10 @@ export async function POST(req: NextRequest) {
     consultant_credit:   consultantCredit,
     status:              "pending",
   });
+  if (insertError) {
+    console.error("[recharge/create] insert failed:", insertError.message);
+    return NextResponse.json({ ok: false, error: "Failed to create recharge record. Please try again." }, { status: 500 });
+  }
 
   return NextResponse.json({
     ok: true,

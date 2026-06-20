@@ -74,6 +74,20 @@ export async function POST(req: NextRequest) {
   if (coc_agreed !== true) {
     return NextResponse.json({ ok: false, error: "You must agree to the Code of Conduct" }, { status: 400 });
   }
+  // URL scheme allow-list prevents javascript: and other dangerous schemes from being
+  // stored and later rendered as <img src> or <a href> in the browse UI.
+  if (photo_url !== undefined && photo_url !== null) {
+    const scheme = String(photo_url).trim().toLowerCase().slice(0, 10);
+    if (!scheme.startsWith("https://") && !scheme.startsWith("http://") && String(photo_url).trim() !== "") {
+      return NextResponse.json({ ok: false, error: "photo_url must be a valid https:// URL" }, { status: 400 });
+    }
+  }
+  if (website_url !== undefined && website_url !== null && String(website_url).trim() !== "") {
+    const scheme = String(website_url).trim().toLowerCase().slice(0, 10);
+    if (!scheme.startsWith("https://") && !scheme.startsWith("http://")) {
+      return NextResponse.json({ ok: false, error: "website_url must be a valid https:// URL" }, { status: 400 });
+    }
+  }
   const VALID_SESSION_TYPES = ["chat", "audio", "video"];
   const normalizedSessionTypes = Array.isArray(session_types)
     ? session_types.filter((t: string) => VALID_SESSION_TYPES.includes(t))

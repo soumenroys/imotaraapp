@@ -48,18 +48,23 @@ export async function GET(req: NextRequest) {
   let completed = 0;
 
   for (const session of trueOrphans) {
+    // RETURNING minutes_used gives us the DB's actual value at lock time — a tick may have
+    // incremented it between our SELECT (line 25) and this UPDATE.
     const { data: wonRows, error: updateError } = await supabase
       .from("connect_sessions")
       .update({ status: "completed", ended_at: now })
       .eq("id", session.id)
       .eq("status", "active") // guard against concurrent completion
-      .select("id");
+      .select("id, minutes_used");
 
     // Skip if another process (tick, consultant/sessions cleanup) already completed this session
     if (updateError || !wonRows || wonRows.length === 0) continue;
 
+    // Use the locked minutes_used from RETURNING, not the pre-read stale value.
+    const freshMinutes = Number(wonRows[0].minutes_used ?? session.minutes_used);
+
     // Credit consultant if any minutes were used
-    if (Number(session.minutes_used) > 0) {
+    if (freshMinutes > 0) {
       const { data: consultant } = await supabase
         .from("connect_consultants")
         .select("id, user_id, rate_per_min, sessions_completed")
@@ -71,7 +76,7 @@ export async function GET(req: NextRequest) {
         const rate = Number(session.rate_per_min) > 0
           ? Number(session.rate_per_min)
           : Number(consultant.rate_per_min);
-        const amountCharged = Number(session.minutes_used) * rate;
+        const amountCharged = freshMinutes * rate;
         const earnings = amountCharged * 0.80;
 
         // Write amount_charged if a tick hasn't already done so

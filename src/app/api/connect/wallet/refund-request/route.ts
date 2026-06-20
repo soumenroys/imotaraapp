@@ -84,15 +84,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Check for duplicate pending request
-  const { data: existing } = await supabase
+  // Check for duplicate pending request.
+  // Use maybeSingle() (not single()) so zero rows returns null without error.
+  // Also check for a DB error — if the lookup fails we must not allow the request through.
+  const { data: existing, error: existingErr } = await supabase
     .from("imotara_wallet_refund_requests")
     .select("id, status")
     .eq("user_id", user.id)
     .in("status", ["pending", "processing"])
     .limit(1)
-    .single();
+    .maybeSingle();
 
+  if (existingErr) {
+    console.error("[wallet/refund-request] duplicate check failed:", existingErr.message);
+    return NextResponse.json({ ok: false, error: "Unable to verify request status. Please try again." }, { status: 500 });
+  }
   if (existing) {
     return NextResponse.json(
       { ok: false, error: "You already have a pending refund request. Please wait for it to be processed." },
@@ -124,10 +130,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Failed to submit refund request. Please try again." }, { status: 500 });
   }
 
-  // Update wallet status
-  await supabase.from("imotara_wallets")
+  // Update wallet status — log on failure (the refund row already exists, so this
+  // is non-fatal for the user, but the wallet.status guard on future requests won't fire).
+  const { error: statusErr } = await supabase.from("imotara_wallets")
     .update({ status: "refund_requested" })
     .eq("user_id", user.id);
+  if (statusErr) console.error("[wallet/refund-request] wallet status update failed:", statusErr.message, "user:", user.id);
 
   // Send confirmation email to user
   const { data: { user: authUser } } = await supabase.auth.admin.getUserById(user.id);

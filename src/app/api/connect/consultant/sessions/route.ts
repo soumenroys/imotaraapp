@@ -61,21 +61,26 @@ export async function GET(req: NextRequest) {
       for (const stale of staleSessions) {
         // Atomic guard: only credit if THIS request wins the status transition.
         // If another process (tick, orphan cron) already completed it, we skip.
+        // RETURNING minutes_used gives us the DB's actual value at lock time — a tick
+        // may have incremented it between our SELECT (line 52) and this UPDATE.
         const { data: wonRows } = await supabase
           .from("connect_sessions")
           .update({ status: "completed", ended_at: now })
           .eq("id", stale.id)
           .eq("status", "active")
-          .select("id");
+          .select("id, minutes_used");
 
         if (!wonRows || wonRows.length === 0) continue; // another process already handled it
 
+        // Use the locked minutes_used from RETURNING, not the pre-read stale value.
+        const freshMinutes = Number(wonRows[0].minutes_used ?? stale.minutes_used);
+
         // Credit consultant for minutes already consumed before client disconnected.
         // Mirrors the 80/20 split in sessions/[id]/route.ts manual completion.
-        if (Number(stale.minutes_used) > 0 && Number(stale.rate_per_min) > 0) {
+        if (freshMinutes > 0 && Number(stale.rate_per_min) > 0) {
           const lockedRate      = Number(stale.rate_per_min);
-          const sessionEarnings = Number(stale.minutes_used) * lockedRate * 0.80;
-          const amountCharged   = Number(stale.minutes_used) * lockedRate;
+          const sessionEarnings = freshMinutes * lockedRate * 0.80;
+          const amountCharged   = freshMinutes * lockedRate;
 
           // Only set amount_charged if a late tick hasn't already done so (NULL or 0)
           await supabase.from("connect_sessions")
@@ -90,7 +95,7 @@ export async function GET(req: NextRequest) {
             p_user_id: user.id,
             p_amount:  sessionEarnings,
           });
-          if (rpcErr) console.error("[stale-complete] increment_wallet_earnings failed:", rpcErr.message, stale.id);
+          if (rpcErr) console.error("[stale-complete] increment_wallet_earnings failed:", rpcErr.message, "session:", stale.id);
 
           // Increment sessions_completed counter for this stale-completed session
           const { data: cRow } = await supabase

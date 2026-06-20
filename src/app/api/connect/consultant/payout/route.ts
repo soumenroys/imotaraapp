@@ -58,6 +58,12 @@ export async function POST(req: NextRequest) {
   if (!["upi", "bank", "bank_in", "bank_int", "paypal"].includes(payout_method)) {
     return NextResponse.json({ ok: false, error: "payout_method must be upi, bank, bank_in, bank_int, or paypal" }, { status: 400 });
   }
+  if (payout_details !== undefined && payout_details !== null) {
+    const serialized = JSON.stringify(payout_details);
+    if (serialized.length > 2000) {
+      return NextResponse.json({ ok: false, error: "payout_details too large (max 2000 characters)" }, { status: 400 });
+    }
+  }
 
   const supabase = getSupabaseAdmin();
 
@@ -122,7 +128,8 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error || !payout) {
-    return NextResponse.json({ ok: false, error: error?.message ?? "Insert failed" }, { status: 500 });
+    console.error("[payout] insert failed:", error?.message);
+    return NextResponse.json({ ok: false, error: "Failed to submit payout request. Please try again." }, { status: 500 });
   }
 
   // Atomic increment prevents double-payout if two concurrent requests both

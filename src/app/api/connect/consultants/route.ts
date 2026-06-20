@@ -46,10 +46,16 @@ export async function GET(req: NextRequest) {
   // (before executing the main query, so the page count is also correct).
   const user = await getConnectUser(req);
   if (user) {
-    const { data: blockedBy } = await supabase
+    const { data: blockedBy, error: blockErr } = await supabase
       .from("connect_blocks")
       .select("consultant_id")
       .eq("blocked_user_id", user.id);
+    if (blockErr) {
+      // Fail closed: if we can't verify blocks, return an error rather than silently
+      // showing consultants that may have blocked this user.
+      console.error("[consultants/GET] blocked-by lookup failed:", blockErr.message);
+      return NextResponse.json({ ok: false, error: "Could not load companions. Please try again." }, { status: 500 });
+    }
     const blockedIds = (blockedBy ?? []).map((b) => b.consultant_id).filter(Boolean);
     if (blockedIds.length > 0) {
       query = query.not("id", "in", `(${blockedIds.join(",")})`);

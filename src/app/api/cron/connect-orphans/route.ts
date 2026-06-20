@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
   const { data: orphans, error } = await supabase
     .from("connect_sessions")
-    .select("id, consultant_id, minutes_used, rate_per_min, started_at, last_tick_at")
+    .select("id, consultant_id, minutes_used, rate_per_min, started_at, last_tick_at, type")
     .eq("status", "active")
     .or(`last_tick_at.is.null,last_tick_at.lt.${cutoff}`);
 
@@ -31,10 +31,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
-  // For sessions that never received a tick, also require started_at > 15 min ago
+  // For sessions that never received a tick:
+  // - Only instant sessions are killed (scheduled sessions can legitimately have
+  //   last_tick_at=null while waiting for the call start time).
+  // - Also require started_at > 15 min ago to avoid false positives on brand-new sessions.
   const trueOrphans = (orphans ?? []).filter((s) => {
     if (s.last_tick_at) return true; // already filtered by cutoff above
-    return new Date(s.started_at).getTime() < Date.now() - 15 * 60 * 1000;
+    return s.type === "instant" && new Date(s.started_at).getTime() < Date.now() - 15 * 60 * 1000;
   });
 
   if (trueOrphans.length === 0) {

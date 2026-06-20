@@ -79,21 +79,22 @@ export async function POST(
 
   if (balanceBefore <= 0) {
     // Auto-complete: no balance remaining.
-    // .eq("status","active") acts as an atomic guard — only the first concurrent
-    // request will succeed; the second will match 0 rows and skip creditConsultant.
+    // minutes_used lock is required here too — a concurrent tick that took the
+    // "remaining=0" path could have already incremented minutes_used between our
+    // balance read and this write. Without the lock that tick's increment would be
+    // silently overwritten, under-crediting the consultant.
     const { data: completedRows } = await supabase
       .from("connect_sessions")
       .update({
         status:         "completed",
         ended_at:       now,
         last_tick_at:   now,
-        // minutes_used is not incremented — this tick fired on a zero balance, so
-        // no additional minute is charged to the user or credited to the consultant.
         minutes_used:   Number(session.minutes_used),
         amount_charged: Number(session.amount_charged ?? 0),
       })
       .eq("id", sessionId)
       .eq("status", "active")
+      .eq("minutes_used", Number(session.minutes_used))
       .select("id");
 
     if (completedRows && completedRows.length > 0) {

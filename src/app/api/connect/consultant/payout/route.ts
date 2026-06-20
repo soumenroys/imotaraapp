@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
     .limit(50);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[payout/GET] query error:", error.message);
+    return NextResponse.json({ ok: false, error: "Failed to fetch payouts. Please try again." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, payouts: data ?? [] });
@@ -126,10 +127,16 @@ export async function POST(req: NextRequest) {
 
   // Atomic increment prevents double-payout if two concurrent requests both
   // pass the available-balance check before either write completes.
-  await supabase.rpc("increment_pending_payout", {
+  const { error: rpcErr } = await supabase.rpc("increment_pending_payout", {
     p_user_id: user.id,
     p_amount:  Number(amount),
   });
+  if (rpcErr) {
+    console.error("[payout] CRITICAL: increment_pending_payout failed for payout", payout.id, rpcErr.message);
+    // Cancel the orphaned payout row so it doesn't block future requests
+    await supabase.from("connect_payouts").update({ status: "failed" }).eq("id", payout.id);
+    return NextResponse.json({ ok: false, error: "Payout request failed. Please try again." }, { status: 500 });
+  }
 
   // Notify admin
   await notifyAdminPayout({ name: consultant.display_name, amount: Number(amount), currency_code, payout_method });

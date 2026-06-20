@@ -45,8 +45,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "A refund request is already in progress. Please wait for it to be processed." }, { status: 400 });
   }
 
-  // Check 1-year grace period for dormant wallets
-  if (wallet.status === "dormant" && wallet.dormant_at) {
+  // Check 1-year grace period for dormant wallets.
+  // If dormant_at is null, treat as expired — the timestamp should always be set when
+  // the wallet is marked dormant, and a missing value is an unsafe state to allow refunds from.
+  if (wallet.status === "dormant") {
+    if (!wallet.dormant_at) {
+      return NextResponse.json(
+        { ok: false, error: "This dormant balance cannot be refunded automatically. Please contact support@imotara.com." },
+        { status: 400 }
+      );
+    }
     const gracePeriodEnd = new Date(new Date(wallet.dormant_at).getTime() + 365 * 86_400_000);
     if (new Date() > gracePeriodEnd) {
       return NextResponse.json(
@@ -96,8 +104,9 @@ export async function POST(req: NextRequest) {
   const amount  = Number(wallet.balance);
   const now     = new Date().toISOString();
 
-  // Insert refund request
-  await supabase.from("imotara_wallet_refund_requests").insert({
+  // Insert refund request — must succeed before any subsequent side effects.
+  // If the insert fails, wallet status must NOT be updated and emails must NOT be sent.
+  const { error: insertErr } = await supabase.from("imotara_wallet_refund_requests").insert({
     user_id:          user.id,
     amount,
     currency_code:    wallet.currency_code ?? "INR",
@@ -110,6 +119,10 @@ export async function POST(req: NextRequest) {
     status:           "pending",
     reference_number: ref,
   });
+  if (insertErr) {
+    console.error("[wallet/refund-request] insert failed:", insertErr.message);
+    return NextResponse.json({ ok: false, error: "Failed to submit refund request. Please try again." }, { status: 500 });
+  }
 
   // Update wallet status
   await supabase.from("imotara_wallets")

@@ -29,7 +29,8 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase
     .from("connect_blocks")
     .select("blocked_user_id, reason, created_at")
-    .eq("consultant_id", consultant.id);
+    .eq("consultant_id", consultant.id)
+    .limit(100);
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, blocked: data ?? [] });

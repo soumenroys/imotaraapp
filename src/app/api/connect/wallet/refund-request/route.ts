@@ -41,6 +41,9 @@ export async function POST(req: NextRequest) {
   if (!wallet || Number(wallet.balance) <= 0) {
     return NextResponse.json({ ok: false, error: "No balance available for refund" }, { status: 400 });
   }
+  if (wallet.status === "refund_requested") {
+    return NextResponse.json({ ok: false, error: "A refund request is already in progress. Please wait for it to be processed." }, { status: 400 });
+  }
 
   // Check 1-year grace period for dormant wallets
   if (wallet.status === "dormant" && wallet.dormant_at) {

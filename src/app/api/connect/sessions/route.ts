@@ -77,11 +77,15 @@ export async function POST(req: NextRequest) {
 
   // Rate limit: max 10 session creates per user per 10 minutes (blocks push-notification spam)
   const rateLimitWindow = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  const { count: recentCount } = await supabase
+  const { count: recentCount, error: rlErr } = await supabase
     .from("connect_sessions")
     .select("id", { count: "exact", head: true })
     .eq("user_id", user.id)
     .gte("created_at", rateLimitWindow);
+  if (rlErr) {
+    console.error("[sessions] rate-limit count failed:", rlErr.message);
+    return NextResponse.json({ ok: false, error: "Service temporarily unavailable. Please try again." }, { status: 503 });
+  }
   if ((recentCount ?? 0) >= 10) {
     return NextResponse.json(
       { ok: false, error: "Too many session requests. Please wait a moment before trying again." },
@@ -120,13 +124,17 @@ export async function POST(req: NextRequest) {
   }
 
   // Check if this user is blocked by the consultant
-  const { data: block } = await supabase
+  const { data: block, error: blockErr } = await supabase
     .from("connect_blocks")
     .select("id")
     .eq("consultant_id", consultant.id)
     .eq("blocked_user_id", user.id)
     .maybeSingle();
 
+  if (blockErr) {
+    console.error("[sessions] block check failed:", blockErr.message);
+    return NextResponse.json({ ok: false, error: "Could not verify eligibility. Please try again." }, { status: 500 });
+  }
   if (block) {
     return NextResponse.json({ ok: false, error: "Unable to request a session with this companion." }, { status: 403 });
   }
@@ -184,7 +192,7 @@ export async function POST(req: NextRequest) {
     .eq("id", consultant_id)
     .single();
 
-  const user_timezone = typeof body.user_timezone === "string" && body.user_timezone.length > 0
+  const user_timezone = typeof body.user_timezone === "string" && body.user_timezone.length > 0 && body.user_timezone.length <= 64
     ? body.user_timezone
     : "Asia/Kolkata";
 

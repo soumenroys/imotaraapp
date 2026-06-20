@@ -54,7 +54,6 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  // bank_in = Indian bank transfer, bank_int = international wire — both registered at sign-up
   if (!["upi", "bank", "bank_in", "bank_int", "paypal"].includes(payout_method)) {
     return NextResponse.json({ ok: false, error: "payout_method must be upi, bank, bank_in, bank_int, or paypal" }, { status: 400 });
   }
@@ -85,14 +84,37 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Guard against concurrent double-payout (two simultaneous requests both passing the
+  // available-balance check). A pending payout existence check doesn't fully prevent the
+  // race but makes it effectively impossible without true millisecond-concurrent requests.
+  const { data: existingPayout } = await supabase
+    .from("connect_payouts")
+    .select("id")
+    .eq("consultant_user_id", user.id)
+    .eq("status", "pending")
+    .maybeSingle();
+  if (existingPayout) {
+    return NextResponse.json(
+      { ok: false, error: "You already have a pending payout request. Please wait for it to be processed." },
+      { status: 400 }
+    );
+  }
+
+  // Normalize bank_in / bank_int → "bank" for DB (CHECK constraint only allows upi/bank/paypal).
+  // Preserve the original method type in payout_details for admin processing.
+  const dbPayoutMethod = (payout_method === "bank_in" || payout_method === "bank_int") ? "bank" : payout_method;
+  const detailsWithType = (payout_method === "bank_in" || payout_method === "bank_int")
+    ? { ...(typeof payout_details === "object" && payout_details !== null ? payout_details : { raw: payout_details }), method_type: payout_method }
+    : payout_details ?? null;
+
   const { data: payout, error } = await supabase
     .from("connect_payouts")
     .insert({
       consultant_user_id: user.id,
       amount:             Number(amount),
       currency_code:      currency_code ?? "INR",
-      payout_method,
-      payout_details:     payout_details ?? null,
+      payout_method:      dbPayoutMethod,
+      payout_details:     detailsWithType,
       status:             "pending",
     })
     .select("id")

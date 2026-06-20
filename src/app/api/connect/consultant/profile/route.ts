@@ -51,8 +51,20 @@ export async function PATCH(req: NextRequest) {
     if (key in body) updates[key] = body[key];
   }
 
+  if ("display_name" in updates) {
+    const dn = updates.display_name as string;
+    if (typeof dn !== "string" || !dn.trim() || dn.trim().length > 100) {
+      return NextResponse.json({ ok: false, error: "display_name must be 1–100 characters" }, { status: 400 });
+    }
+  }
   if ("bio" in updates && (typeof updates.bio !== "string" || (updates.bio as string).length > 500)) {
     return NextResponse.json({ ok: false, error: "bio max 500 chars" }, { status: 400 });
+  }
+  if ("availability_note" in updates && typeof updates.availability_note === "string" && (updates.availability_note as string).length > 500) {
+    return NextResponse.json({ ok: false, error: "availability_note max 500 chars" }, { status: 400 });
+  }
+  if ("expo_push_token" in updates && typeof updates.expo_push_token === "string" && (updates.expo_push_token as string).length > 200) {
+    return NextResponse.json({ ok: false, error: "expo_push_token too long" }, { status: 400 });
   }
   if ("currency_code" in updates && !SUPPORTED_CURRENCIES.includes(updates.currency_code as string)) {
     return NextResponse.json({ ok: false, error: "Unsupported currency" }, { status: 400 });

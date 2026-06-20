@@ -24,6 +24,10 @@ export async function getConnectUser(req: Request): Promise<ConnectUser | null> 
     if (data?.user?.id) {
       return { id: data.user.id, email: data.user.email };
     }
+    // Bearer token present but invalid/expired — fail immediately.
+    // Do NOT fall through to cookie auth: that would allow an expired mobile token
+    // combined with a valid web cookie to silently authenticate as the cookie's user.
+    return null;
   }
 
   // 2. Cookie session (web)

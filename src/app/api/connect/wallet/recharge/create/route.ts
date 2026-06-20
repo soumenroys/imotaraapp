@@ -83,6 +83,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Payment gateway not configured" }, { status: 503 });
   }
 
+  if (amountPaise < 100) {
+    return NextResponse.json({ ok: false, error: "Minimum payment amount is ₹1. Please check the consultant's rate and try again." }, { status: 400 });
+  }
+
   const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString("base64");
   const receipt = `connect_${user.id.slice(0, 8)}_${Date.now()}`;
 

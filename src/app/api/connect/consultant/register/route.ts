@@ -35,6 +35,9 @@ export async function POST(req: NextRequest) {
   if (!display_name?.trim()) {
     return NextResponse.json({ ok: false, error: "display_name is required" }, { status: 400 });
   }
+  if (display_name.trim().length > 100) {
+    return NextResponse.json({ ok: false, error: "display_name must be 100 characters or fewer" }, { status: 400 });
+  }
   if (!["male", "female"].includes(gender)) {
     return NextResponse.json({ ok: false, error: "gender must be male or female" }, { status: 400 });
   }
@@ -47,8 +50,17 @@ export async function POST(req: NextRequest) {
   if (!Array.isArray(expertise_tags) || expertise_tags.length === 0) {
     return NextResponse.json({ ok: false, error: "At least one expertise tag required" }, { status: 400 });
   }
+  if (expertise_tags.length > 20 || expertise_tags.some((t: unknown) => typeof t !== "string" || t.length > 50)) {
+    return NextResponse.json({ ok: false, error: "expertise_tags: max 20 items, each max 50 characters" }, { status: 400 });
+  }
   if (!Array.isArray(languages) || languages.length === 0) {
     return NextResponse.json({ ok: false, error: "At least one language required" }, { status: 400 });
+  }
+  if (languages.length > 20 || languages.some((l: unknown) => typeof l !== "string" || l.length > 20)) {
+    return NextResponse.json({ ok: false, error: "languages: max 20 items, each max 20 characters" }, { status: 400 });
+  }
+  if (availability_note && availability_note.length > 500) {
+    return NextResponse.json({ ok: false, error: "availability_note must be 500 characters or fewer" }, { status: 400 });
   }
   if (!rate_per_min || isNaN(Number(rate_per_min)) || Number(rate_per_min) <= 0) {
     return NextResponse.json({ ok: false, error: "rate_per_min must be a positive number" }, { status: 400 });

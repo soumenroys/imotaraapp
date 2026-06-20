@@ -136,22 +136,16 @@ export async function PATCH(
   }
   if (action === "complete" || action === "decline" || action === "cancel") { updatePayload.ended_at = new Date().toISOString(); }
 
-  // Fold amount_charged into the atomic status UPDATE for "complete" so that if the process
-  // dies between the status write and a separate amount_charged write, the session still has
-  // the correct charge recorded (avoids a window where status=completed but amount_charged=0).
-  if (action === "complete" && consultant && Number(session.minutes_used) > 0) {
-    const lockedRate = Number(session.rate_per_min) > 0 ? Number(session.rate_per_min) : Number(consultant.rate_per_min);
-    updatePayload.amount_charged = Number(session.minutes_used) * lockedRate;
-  }
-
   // Atomic status predicate prevents TOCTOU: if status changed between read and write
   // (e.g. concurrent tick completed the session), the update matches 0 rows and we 409.
+  // We return minutes_used so that amount_charged can be set from the DB's actual value
+  // (a concurrent tick may have incremented it between our read and this write).
   const { data: updatedRows, error } = await supabase
     .from("connect_sessions")
     .update(updatePayload)
     .eq("id", id)
     .eq("status", session.status)
-    .select("id");
+    .select("id, minutes_used");
 
   if (error) {
     return NextResponse.json({ ok: false, error: "Could not update session" }, { status: 500 });
@@ -193,11 +187,19 @@ export async function PATCH(
   }
 
   // Credit consultant earnings on manual completion (minutes_used > 0).
-  // amount_charged is already set atomically in updatePayload above; no second write needed.
-  if (action === "complete" && consultant && Number(session.minutes_used) > 0) {
+  // Use the fresh minutes_used from the RETURNING clause — the DB's actual value at the moment
+  // the status was locked to "completed". This is always >= session.minutes_used read above
+  // (a concurrent tick may have incremented it between our read and this write).
+  const freshMinutes = Number(updatedRows?.[0]?.minutes_used ?? session.minutes_used);
+  if (action === "complete" && consultant && freshMinutes > 0) {
     const lockedRate     = Number(session.rate_per_min) > 0 ? Number(session.rate_per_min) : Number(consultant.rate_per_min);
-    const amountCharged   = Number(session.minutes_used) * lockedRate;
+    const amountCharged   = freshMinutes * lockedRate;
     const sessionEarnings = amountCharged * 0.80;
+
+    // Write the correct amount_charged (status is now "completed", no more ticks possible)
+    await supabase.from("connect_sessions")
+      .update({ amount_charged: amountCharged })
+      .eq("id", id);
 
     await supabase
       .from("connect_wallet")
@@ -216,7 +218,7 @@ export async function PATCH(
 
     const currency        = session.currency_code ?? "INR";
     const consultantName  = consultant.display_name ?? "Companion";
-    const minutesUsed     = Number(session.minutes_used);
+    const minutesUsed     = freshMinutes;
     const platformFee     = amountCharged * 0.20;
 
     // Fire-and-forget: session statement (user), earnings (consultant), revenue (Imotara)

@@ -42,6 +42,20 @@ export async function GET(req: NextRequest) {
   if (lang)            query = query.contains("languages", [lang]);
   if (category)        query = query.eq("role_category", category);
 
+  // If the caller is authenticated, filter out consultants who have blocked them
+  // (before executing the main query, so the page count is also correct).
+  const user = await getConnectUser(req);
+  if (user) {
+    const { data: blockedBy } = await supabase
+      .from("connect_blocks")
+      .select("consultant_id")
+      .eq("blocked_user_id", user.id);
+    const blockedIds = (blockedBy ?? []).map((b) => b.consultant_id).filter(Boolean);
+    if (blockedIds.length > 0) {
+      query = query.not("id", "in", `(${blockedIds.join(",")})`);
+    }
+  }
+
   const { data, error, count } = await query;
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
@@ -55,7 +69,6 @@ export async function GET(req: NextRequest) {
 
   // If the caller is authenticated, attach their pre-purchased balance per consultant.
   // balance_minutes > 0 means they already have paid minutes to use with that consultant.
-  const user = await getConnectUser(req);
   if (user && consultants.length > 0) {
     const consultantIds = consultants.map((c) => c.id);
 

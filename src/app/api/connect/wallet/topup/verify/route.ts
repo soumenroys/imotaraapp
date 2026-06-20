@@ -96,11 +96,15 @@ export async function POST(req: NextRequest) {
   // Atomic credit via RPC to prevent the race where two different top-up orders complete
   // simultaneously, both reading the same balance and one overwriting the other's credit.
   // credit_imotara_wallet uses INSERT … ON CONFLICT DO UPDATE SET balance += p_amount.
-  await supabase.rpc("credit_imotara_wallet", {
+  const { error: creditErr } = await supabase.rpc("credit_imotara_wallet", {
     p_user_id:  user.id,
     p_amount:   Number(order.amount),
     p_currency: order.currency_code,
   });
+  if (creditErr) {
+    console.error("[wallet/topup/verify] CRITICAL: credit_imotara_wallet failed for order", order.id, creditErr.message);
+    return NextResponse.json({ ok: false, error: "Payment received but wallet credit failed. Please contact support@imotara.com with your payment ID." }, { status: 500 });
+  }
 
   // Read back the new balance for the response
   const { data: credited } = await supabase
@@ -110,8 +114,8 @@ export async function POST(req: NextRequest) {
     .single();
   const newBalance = Number(credited?.balance ?? 0);
 
-  // Log transaction
-  await supabase.from("imotara_wallet_transactions").insert({
+  // Log transaction — non-critical but required for audit/reconciliation
+  const { error: txErr } = await supabase.from("imotara_wallet_transactions").insert({
     user_id:             user.id,
     type:                "topup",
     amount:              Number(order.amount),
@@ -120,6 +124,7 @@ export async function POST(req: NextRequest) {
     razorpay_payment_id,
     razorpay_order_id,
   });
+  if (txErr) console.error("[wallet/topup/verify] transaction log insert failed:", txErr.message, "order:", order.id, "payment:", razorpay_payment_id);
 
   // Reset inactivity clock — balance is now active for another 2 years
   await updateWalletActivity(user.id);

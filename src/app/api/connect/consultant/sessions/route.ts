@@ -46,12 +46,15 @@ export async function GET(req: NextRequest) {
     // Auto-complete active sessions whose client has disconnected (no billing tick for 5+ min).
     // last_tick_at is set by the tick endpoint; null means the session went active but never
     // received a tick — use started_at as the staleness reference in that case.
+    // Only auto-complete sessions that have stalled after ticking, OR instant sessions that
+    // never received a tick. Scheduled sessions that were just accepted (status=active, no
+    // tick yet) must NOT be killed — the actual meeting may not start for hours.
     const { data: staleSessions } = await supabase
       .from("connect_sessions")
       .select("id, minutes_used, rate_per_min, amount_charged, translation_enabled, user_lang, consultant_lang, currency_code")
       .eq("consultant_id", consultant.id)
       .eq("status", "active")
-      .or(`last_tick_at.lt.${fiveMinutesAgo},and(last_tick_at.is.null,started_at.lt.${fiveMinutesAgo})`);
+      .or(`last_tick_at.lt.${fiveMinutesAgo},and(last_tick_at.is.null,started_at.lt.${fiveMinutesAgo},type.eq.instant)`);
 
     if (staleSessions && staleSessions.length > 0) {
       const now = new Date().toISOString();

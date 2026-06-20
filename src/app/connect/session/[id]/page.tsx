@@ -289,16 +289,17 @@ export default function SessionChatPage() {
   // User also gets remaining_minutes from tick responses; consultant infers from Realtime.
   useEffect(() => {
     if (!sessionId) return;
+    // Reset remaining to null before the async fetch so that if this effect fires for a
+    // new sessionId, leftover state from the previous session is cleared immediately.
+    setRemaining(null);
     fetch(`/api/connect/sessions/${sessionId}/balance`, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => {
         if (!d.ok) return;
         setTotalCreditedMin(Number(d.total_credited_minutes ?? 0));
-        // Seed remaining from server on first load (both user and consultant)
-        if (remaining === null) setRemaining(Number(d.remaining_minutes ?? 0));
+        setRemaining(Number(d.remaining_minutes ?? 0));
       })
       .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   // ── Live clock + elapsed counter (1 s tick) ────────────────────────────────

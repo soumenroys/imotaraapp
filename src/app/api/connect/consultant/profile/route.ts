@@ -81,19 +81,53 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Invalid availability_windows" }, { status: 400 });
     }
   }
+  if ("languages" in updates) {
+    const langs = updates.languages;
+    if (!Array.isArray(langs) || langs.length === 0 || langs.length > 20 || langs.some((l) => typeof l !== "string" || l.length > 20)) {
+      return NextResponse.json({ ok: false, error: "languages: 1–20 items, each max 20 characters" }, { status: 400 });
+    }
+  }
+  if ("expertise_tags" in updates) {
+    const tags = updates.expertise_tags;
+    if (!Array.isArray(tags) || tags.length === 0 || tags.length > 20 || tags.some((t) => typeof t !== "string" || t.length > 50)) {
+      return NextResponse.json({ ok: false, error: "expertise_tags: 1–20 items, each max 50 characters" }, { status: 400 });
+    }
+  }
+  if ("photo_url" in updates) {
+    const u = updates.photo_url;
+    if (u !== null && u !== undefined && u !== "") {
+      const scheme = String(u).trim().toLowerCase();
+      if (!scheme.startsWith("https://") && !scheme.startsWith("http://")) {
+        return NextResponse.json({ ok: false, error: "photo_url must be a valid https:// URL or null" }, { status: 400 });
+      }
+    }
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ ok: false, error: "No updatable fields provided" }, { status: 400 });
   }
 
   const supabase = getSupabaseAdmin();
+
+  // Verify the profile exists before updating — without this check the update
+  // silently matches 0 rows and returns ok:true, which is misleading to callers.
+  const { data: existing } = await supabase
+    .from("connect_consultants")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!existing) {
+    return NextResponse.json({ ok: false, error: "Consultant profile not found" }, { status: 404 });
+  }
+
   const { error } = await supabase
     .from("connect_consultants")
     .update(updates)
     .eq("user_id", user.id);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[consultant/profile PATCH] update failed:", error.message);
+    return NextResponse.json({ ok: false, error: "Failed to update profile. Please try again." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

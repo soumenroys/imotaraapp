@@ -301,10 +301,11 @@ async function creditConsultant(
     .from("connect_wallet")
     .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
 
-  await supabase.rpc("increment_wallet_earnings", {
+  const { error: earningsErr } = await supabase.rpc("increment_wallet_earnings", {
     p_user_id: consultant.user_id,
     p_amount:  sessionEarnings,
   });
+  if (earningsErr) console.error("[tick/creditConsultant] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "consultantId:", consultantId);
 
   await supabase
     .from("connect_consultants")

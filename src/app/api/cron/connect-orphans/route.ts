@@ -72,27 +72,34 @@ export async function GET(req: NextRequest) {
         .single();
 
       if (consultant) {
-        // Use locked session rate; fall back to current rate
+        // Use locked session rate; fall back to current consultant rate.
+        // Guard against zero-rate: a rate of 0 produces amountCharged=0 which would
+        // pass the amount_charged.eq.0 guard and overwrite any valid non-zero value
+        // previously set by a tick. Skip credit entirely when rate is 0.
         const rate = Number(session.rate_per_min) > 0
           ? Number(session.rate_per_min)
           : Number(consultant.rate_per_min);
-        const amountCharged = freshMinutes * rate;
-        const earnings = amountCharged * 0.80;
 
-        // Write amount_charged if a tick hasn't already done so
-        await supabase.from("connect_sessions")
-          .update({ amount_charged: amountCharged })
-          .eq("id", session.id)
-          .or("amount_charged.is.null,amount_charged.eq.0");
+        if (rate > 0) {
+          const amountCharged = freshMinutes * rate;
+          const earnings = amountCharged * 0.80;
 
-        await supabase
-          .from("connect_wallet")
-          .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
+          // Write amount_charged if a tick hasn't already done so
+          await supabase.from("connect_sessions")
+            .update({ amount_charged: amountCharged })
+            .eq("id", session.id)
+            .or("amount_charged.is.null,amount_charged.eq.0");
 
-        await supabase.rpc("increment_wallet_earnings", {
-          p_user_id: consultant.user_id,
-          p_amount:  earnings,
-        });
+          await supabase
+            .from("connect_wallet")
+            .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
+
+          const { error: earningsErr } = await supabase.rpc("increment_wallet_earnings", {
+            p_user_id: consultant.user_id,
+            p_amount:  earnings,
+          });
+          if (earningsErr) console.error("[connect-orphans] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", session.id);
+        }
 
         await supabase
           .from("connect_consultants")

@@ -197,19 +197,21 @@ export async function PATCH(
     const sessionEarnings = amountCharged * 0.80;
 
     // Write the correct amount_charged (status is now "completed", no more ticks possible)
-    await supabase.from("connect_sessions")
+    const { error: acErr } = await supabase.from("connect_sessions")
       .update({ amount_charged: amountCharged })
       .eq("id", id);
+    if (acErr) console.error("[sessions/complete] amount_charged update failed:", acErr.message, "session:", id);
 
     await supabase
       .from("connect_wallet")
       .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
 
     // Atomic increment — avoids read-modify-write race condition on concurrent completes
-    await supabase.rpc("increment_wallet_earnings", {
+    const { error: earningsErr } = await supabase.rpc("increment_wallet_earnings", {
       p_user_id: consultant.user_id,
       p_amount:  sessionEarnings,
     });
+    if (earningsErr) console.error("[sessions/complete] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", id);
 
     await supabase
       .from("connect_consultants")

@@ -68,7 +68,14 @@ export async function GET(req: NextRequest) {
         const rate = Number(session.rate_per_min) > 0
           ? Number(session.rate_per_min)
           : Number(consultant.rate_per_min);
-        const earnings = Number(session.minutes_used) * rate * 0.80;
+        const amountCharged = Number(session.minutes_used) * rate;
+        const earnings = amountCharged * 0.80;
+
+        // Write amount_charged if a tick hasn't already done so
+        await supabase.from("connect_sessions")
+          .update({ amount_charged: amountCharged })
+          .eq("id", session.id)
+          .or("amount_charged.is.null,amount_charged.eq.0");
 
         await supabase
           .from("connect_wallet")

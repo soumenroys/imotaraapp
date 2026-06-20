@@ -1434,6 +1434,8 @@ function DashboardTab() {
         if (!["pending", "active"].includes(updated.status)) {
           // Cancelled, declined, or completed — remove from incoming list immediately
           setIncomingSessions((prev) => prev.filter((s) => s.id !== updated.id));
+          // Invalidate history cache so completed sessions appear on next open
+          if (updated.status === "completed") setHistoryLoaded(false);
         } else {
           // Status moved to active (accepted) or remained pending — update in place
           setIncomingSessions((prev) =>
@@ -1908,7 +1910,7 @@ function DashboardTab() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleAction(s.id, "accept")}
-                      disabled={actionLoading === s.id}
+                      disabled={actionLoading !== null}
                       className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600/80 py-2 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
                     >
                       {actionLoading === s.id ? <Loader2 size={12} className="animate-spin" /> : null}
@@ -1916,7 +1918,7 @@ function DashboardTab() {
                     </button>
                     <button
                       onClick={() => handleAction(s.id, "decline")}
-                      disabled={actionLoading === s.id}
+                      disabled={actionLoading !== null}
                       className="flex flex-1 items-center justify-center rounded-lg border border-rose-500/30 bg-rose-500/10 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
                     >
                       Decline

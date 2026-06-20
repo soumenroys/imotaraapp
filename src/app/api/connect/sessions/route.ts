@@ -56,8 +56,8 @@ export async function POST(req: NextRequest) {
   if (type === "scheduled" && !scheduled_note?.trim()) {
     return NextResponse.json({ ok: false, error: "Please add a message describing what you would like to discuss." }, { status: 400 });
   }
-  if (scheduled_note && scheduled_note.length > 500) {
-    return NextResponse.json({ ok: false, error: "Message must be 500 characters or fewer." }, { status: 400 });
+  if (scheduled_note && scheduled_note.length > 800) {
+    return NextResponse.json({ ok: false, error: "Message must be 800 characters or fewer." }, { status: 400 });
   }
   if (type === "scheduled") {
     if (!scheduled_at) {
@@ -66,6 +66,10 @@ export async function POST(req: NextRequest) {
     const scheduledDate = new Date(scheduled_at);
     if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
       return NextResponse.json({ ok: false, error: "Please choose a valid future date and time." }, { status: 400 });
+    }
+    const maxDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+    if (scheduledDate > maxDate) {
+      return NextResponse.json({ ok: false, error: "Sessions can only be scheduled up to 90 days in advance." }, { status: 400 });
     }
   }
 

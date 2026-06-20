@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     // received a tick — use started_at as the staleness reference in that case.
     const { data: staleSessions } = await supabase
       .from("connect_sessions")
-      .select("id, minutes_used, rate_per_min, amount_charged")
+      .select("id, minutes_used, rate_per_min, amount_charged, translation_enabled, user_lang, consultant_lang, currency_code")
       .eq("consultant_id", consultant.id)
       .eq("status", "active")
       .or(`last_tick_at.lt.${fiveMinutesAgo},and(last_tick_at.is.null,started_at.lt.${fiveMinutesAgo})`);
@@ -88,6 +88,17 @@ export async function GET(req: NextRequest) {
             p_amount:  sessionEarnings,
           });
           if (rpcErr) console.error("[stale-complete] increment_wallet_earnings failed:", rpcErr.message, stale.id);
+
+          // Increment sessions_completed counter for this stale-completed session
+          const { data: cRow } = await supabase
+            .from("connect_consultants")
+            .select("sessions_completed")
+            .eq("id", consultant.id)
+            .single();
+          await supabase
+            .from("connect_consultants")
+            .update({ sessions_completed: (cRow?.sessions_completed ?? 0) + 1 })
+            .eq("id", consultant.id);
         }
       }
       // Clear is_busy — no active sessions remain for this consultant.

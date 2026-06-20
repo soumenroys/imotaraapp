@@ -56,10 +56,16 @@ export async function GET(req: NextRequest) {
     if (staleSessions && staleSessions.length > 0) {
       const now = new Date().toISOString();
       for (const stale of staleSessions) {
-        await supabase
+        // Atomic guard: only credit if THIS request wins the status transition.
+        // If another process (tick, orphan cron) already completed it, we skip.
+        const { data: wonRows } = await supabase
           .from("connect_sessions")
           .update({ status: "completed", ended_at: now })
-          .eq("id", stale.id);
+          .eq("id", stale.id)
+          .eq("status", "active")
+          .select("id");
+
+        if (!wonRows || wonRows.length === 0) continue; // another process already handled it
 
         // Credit consultant for minutes already consumed before client disconnected.
         // Mirrors the 80/20 split in sessions/[id]/route.ts manual completion.
@@ -68,19 +74,20 @@ export async function GET(req: NextRequest) {
           const sessionEarnings = Number(stale.minutes_used) * lockedRate * 0.80;
           const amountCharged   = Number(stale.minutes_used) * lockedRate;
 
-          // Only set amount_charged if a late tick hasn't already done so
+          // Only set amount_charged if a late tick hasn't already done so (NULL or 0)
           await supabase.from("connect_sessions")
             .update({ amount_charged: amountCharged })
             .eq("id", stale.id)
-            .eq("amount_charged", 0);
+            .or("amount_charged.is.null,amount_charged.eq.0");
 
           await supabase.from("connect_wallet")
             .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
 
-          await supabase.rpc("increment_wallet_earnings", {
+          const { error: rpcErr } = await supabase.rpc("increment_wallet_earnings", {
             p_user_id: user.id,
             p_amount:  sessionEarnings,
           });
+          if (rpcErr) console.error("[stale-complete] increment_wallet_earnings failed:", rpcErr.message, stale.id);
         }
       }
       // Clear is_busy — no active sessions remain for this consultant.
@@ -104,7 +111,8 @@ export async function GET(req: NextRequest) {
     .from("connect_sessions")
     .select(
       "id, user_id, type, status, scheduled_note, scheduled_at, started_at, ended_at, " +
-      "minutes_used, rate_per_min, amount_charged, rating, review_text, created_at"
+      "minutes_used, rate_per_min, amount_charged, rating, review_text, created_at, " +
+      "translation_enabled, user_lang, consultant_lang, currency_code"
     )
     .eq("consultant_id", consultant.id)
     .in("status", statusFilter)

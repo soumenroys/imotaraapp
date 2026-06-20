@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // PATCH /api/connect/consultant/status
 // Auth required. Approved consultants toggle their is_online status.
 // Body: { is_online: boolean }

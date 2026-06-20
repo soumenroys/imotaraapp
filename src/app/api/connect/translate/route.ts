@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // POST /api/connect/translate
 // Translates text using MyMemory (free, no key) or Google Cloud Translation (if key set).
 // Auth required — prevents open-proxy abuse of the translation API key.

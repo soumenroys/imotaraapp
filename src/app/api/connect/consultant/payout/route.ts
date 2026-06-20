@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // GET  /api/connect/consultant/payout — list own payout history (last 50)
 // POST /api/connect/consultant/payout — request a new payout
 // Auth required.
@@ -100,11 +102,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: error?.message ?? "Insert failed" }, { status: 500 });
   }
 
-  // Update pending_payout
-  await supabase
-    .from("connect_wallet")
-    .update({ pending_payout: Number(wallet?.pending_payout ?? 0) + Number(amount) })
-    .eq("user_id", user.id);
+  // Atomic increment prevents double-payout if two concurrent requests both
+  // pass the available-balance check before either write completes.
+  await supabase.rpc("increment_pending_payout", {
+    p_user_id: user.id,
+    p_amount:  Number(amount),
+  });
 
   // Notify admin
   await notifyAdminPayout({ name: consultant.display_name, amount: Number(amount), currency_code, payout_method });

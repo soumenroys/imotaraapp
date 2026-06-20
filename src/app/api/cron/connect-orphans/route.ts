@@ -45,13 +45,15 @@ export async function GET(req: NextRequest) {
   let completed = 0;
 
   for (const session of trueOrphans) {
-    const { error: updateError } = await supabase
+    const { data: wonRows, error: updateError } = await supabase
       .from("connect_sessions")
       .update({ status: "completed", ended_at: now })
       .eq("id", session.id)
-      .eq("status", "active"); // guard against concurrent completion
+      .eq("status", "active") // guard against concurrent completion
+      .select("id");
 
-    if (updateError) continue;
+    // Skip if another process (tick, consultant/sessions cleanup) already completed this session
+    if (updateError || !wonRows || wonRows.length === 0) continue;
 
     // Credit consultant if any minutes were used
     if (Number(session.minutes_used) > 0) {

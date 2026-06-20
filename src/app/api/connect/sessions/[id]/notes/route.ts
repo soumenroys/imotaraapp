@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // GET  /api/connect/sessions/[id]/notes — consultant reads own session note
 // POST /api/connect/sessions/[id]/notes — consultant upserts session note { content }
 // Auth required. Consultant-only.

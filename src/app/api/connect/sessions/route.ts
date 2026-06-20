@@ -201,7 +201,8 @@ export async function POST(req: NextRequest) {
       status:         "pending",
       scheduled_note:         scheduled_note?.trim() ?? null,
       scheduled_at:           scheduled_at ?? null,
-      scheduled_duration_min: type === "scheduled" && Number.isInteger(scheduled_duration_min) ? scheduled_duration_min : null,
+      scheduled_duration_min: type === "scheduled" && Number.isInteger(scheduled_duration_min)
+        && scheduled_duration_min >= 5 && scheduled_duration_min <= 480 ? scheduled_duration_min : null,
       currency_code:  consultant.currency_code,
       rate_per_min:   effectiveRate,
       base_rate_per_min: translationEnabled ? baseRate : null,

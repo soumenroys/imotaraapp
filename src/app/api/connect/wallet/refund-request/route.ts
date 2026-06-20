@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // POST /api/connect/wallet/refund-request
 // Auth required. Submits a wallet refund request for a dormant balance.
 // Body: { bank_name?, account_number?, ifsc_code?, account_holder?, upi_id?, reason? }

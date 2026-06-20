@@ -194,6 +194,10 @@ export default function SessionChatPage() {
     if (s) {
       setSession(s);
       if (s.review_submitted_at) setReviewDone(true);
+      // If the session is already active when the page loads (e.g., consultant accepted before
+      // we got here), the tick useEffect may have already evaluated with session=null and skipped.
+      // Explicitly start the tick now so billing continues without waiting for the next Realtime event.
+      if (s.status === "active" && s.user_id === myUserIdRef.current) startTick();
     }
   }, [sessionId]);
 
@@ -206,9 +210,12 @@ export default function SessionChatPage() {
     if (data) setMessages(data as Message[]);
   }, [sessionId]);
 
+  // Gate initial load on auth: avoids a race where loadSession runs before the cookie
+  // is applied and returns null for a valid participant, showing a false "not found" screen.
   useEffect(() => {
+    if (!authLoaded) return;
     Promise.all([loadSession(), loadMessages()]).finally(() => setLoading(false));
-  }, [loadSession, loadMessages]);
+  }, [authLoaded, loadSession, loadMessages]);
 
   // ── Realtime subscription ──────────────────────────────────────────────────
   useEffect(() => {
@@ -255,7 +262,9 @@ export default function SessionChatPage() {
             });
           }
           if (updated.status === "completed" || updated.status === "declined" || updated.status === "cancelled") {
-            stopTick();
+            // Call stopTick outside the setSession updater — side effects inside
+            // React state setters are not safe in concurrent mode.
+            setTimeout(stopTick, 0);
           }
         }
       )
@@ -293,7 +302,7 @@ export default function SessionChatPage() {
         return Math.max(0, Math.floor((tick.getTime() - new Date(startedAt).getTime()) / 1000));
       });
     }, 1000);
-    return () => { if (clockRef.current) clearInterval(clockRef.current); };
+    return () => { if (clockRef.current) { clearInterval(clockRef.current); clockRef.current = null; } };
   }, [session?.started_at, session?.status]);
 
   // ── Auto-scroll ────────────────────────────────────────────────────────────

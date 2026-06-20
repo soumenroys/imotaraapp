@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // GET /api/connect/consultants/[id]
 // Public — full approved consultant profile.
 

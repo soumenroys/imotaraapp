@@ -93,7 +93,12 @@ export async function POST(
       ? (session.user_lang ?? "en")
       : (session.consultant_lang ?? "en");
     if (sourceLang !== targetLang) {
-      translatedContent = await translateText(content.trim(), targetLang, sourceLang);
+      // 4-second timeout prevents a slow/hung translation API from blocking message delivery.
+      const timeoutPromise = new Promise<null>((res) => setTimeout(() => res(null), 4000));
+      translatedContent = await Promise.race([
+        translateText(content.trim(), targetLang, sourceLang),
+        timeoutPromise,
+      ]);
     }
   }
 

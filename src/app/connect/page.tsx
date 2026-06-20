@@ -833,6 +833,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
       });
 
       setTransactions([]); // reset so history reloads fresh
+      setHistoryLoaded(false); // force re-fetch on next open
       setShowHistory(false);
       fetchBalance().catch(() => {}); // refresh full wallet metadata (expiresAt, status, etc.)
     } catch (err) {
@@ -1592,15 +1593,20 @@ function DashboardTab() {
     if (!confirm("Block this user? They will no longer be able to request sessions with you.")) return;
     setBlockingUserId(userId);
     try {
-      await fetch("/api/connect/blocks", {
+      const res = await fetch("/api/connect/blocks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ blocked_user_id: userId, reason: "Reported by companion" }),
         credentials: "include",
       });
-      // Remove from history UI
+      const d = await res.json().catch(() => null);
+      if (!res.ok || !d?.ok) {
+        alert(d?.error ?? "Could not block user. Please try again.");
+        return;
+      }
+      // Remove from history UI only on success
       setHistory((prev) => prev.filter((s) => s.user_id !== userId));
-    } catch { /* silent */ }
+    } catch { alert("Network error. Please try again."); }
     finally { setBlockingUserId(null); }
   }
 
@@ -2135,14 +2141,17 @@ export default function ConnectPage() {
       router.replace("/connect/age-restricted");
       return;
     }
-    const tabParam = searchParams.get("tab") as Tab | null;
+    // Read tab param once on mount — do not include searchParams in deps to avoid
+    // re-firing (and re-fetching consultant profile) on every URL change.
+    const tabParam = new URLSearchParams(window.location.search).get("tab") as Tab | null;
     if (tabParam && VALID_TABS.includes(tabParam)) setActiveTab(tabParam);
 
     fetch("/api/connect/consultant/profile", { credentials: "include" })
       .then((r) => r.json())
       .then((d) => { if (d.ok) setIsConsultant(true); })
       .catch(() => {});
-  }, [router, searchParams]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
   if (!mounted) return null;
 

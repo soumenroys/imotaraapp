@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // POST /api/connect/sessions/[id]/review
 // Auth required. User submits a rating (1–5) after a completed session.
 // Body: { rating: number, review_text?: string }
@@ -23,8 +25,13 @@ export async function POST(
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     return NextResponse.json({ ok: false, error: "rating must be integer 1–5" }, { status: 400 });
   }
-  if (review_text && review_text.length > 200) {
-    return NextResponse.json({ ok: false, error: "review_text max 200 chars" }, { status: 400 });
+  if (review_text !== undefined && review_text !== null) {
+    if (typeof review_text !== "string") {
+      return NextResponse.json({ ok: false, error: "review_text must be a string" }, { status: 400 });
+    }
+    if (review_text.length > 200) {
+      return NextResponse.json({ ok: false, error: "review_text max 200 chars" }, { status: 400 });
+    }
   }
 
   const supabase = getSupabaseAdmin();

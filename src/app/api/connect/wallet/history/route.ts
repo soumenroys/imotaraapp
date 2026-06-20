@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // GET /api/connect/wallet/history
 // Auth required. Returns the last 50 wallet transactions (topups + session usage).
 

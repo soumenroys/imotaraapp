@@ -152,7 +152,7 @@ export async function POST(
   }
 
   // Optimistic lock: only write if minutes_used hasn't changed since we read it.
-  // Prevents double-deduction if two tick requests race each other.
+  // Also require status="active" so a concurrent PATCH complete cannot be overwritten.
   const { data: updated } = await supabase
     .from("connect_sessions")
     .update({
@@ -161,6 +161,7 @@ export async function POST(
       last_tick_at:   now,
     })
     .eq("id", sessionId)
+    .eq("status", "active")
     .eq("minutes_used", Number(session.minutes_used))
     .select("id");
 

@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // GET /api/connect/sessions/[id]/balance
 // Auth required. Returns remaining session minutes and total credited minutes.
 // Accessible to both the session user and the consultant — both need live balance info.

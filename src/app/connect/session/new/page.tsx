@@ -126,7 +126,7 @@ function NewSessionInner() {
 
   // fetch per-consultant balance minutes
   useEffect(() => {
-    if (!consultantId) return;
+    if (!consultantId) { setBalanceMin(0); setWalletLoading(false); return; }
     fetch(`/api/connect/wallet?consultant_id=${consultantId}`, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => {
@@ -230,7 +230,9 @@ function NewSessionInner() {
   }
 
   function handleSubmit() {
+    if (!date || !time) { setError("Please select a date and time."); return; }
     const scheduledDateTime = new Date(`${date}T${time}`);
+    if (isNaN(scheduledDateTime.getTime())) { setError("Invalid date or time. Please try again."); return; }
     if (scheduledDateTime.getTime() <= Date.now()) {
       setError("Please choose a future date and time.");
       return;

@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // POST /api/connect/consultant/register
 // Auth required. Creates a pending consultant application.
 // Body: { display_name, gender, role_category?, photo_url?, bio, expertise_tags, languages,

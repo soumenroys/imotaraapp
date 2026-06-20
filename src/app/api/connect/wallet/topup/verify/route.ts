@@ -89,21 +89,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, amount_credited: order.amount, new_balance: wallet?.balance ?? 0 });
   }
 
-  // Credit wallet — safe to read-modify-write now because only one request reaches this point
-  // (the .eq("status","pending") predicate above serialises concurrent requests at the DB level)
-  const { data: existing } = await supabase
+  // Atomic credit via RPC to prevent the race where two different top-up orders complete
+  // simultaneously, both reading the same balance and one overwriting the other's credit.
+  // credit_imotara_wallet uses INSERT … ON CONFLICT DO UPDATE SET balance += p_amount.
+  await supabase.rpc("credit_imotara_wallet", {
+    p_user_id:  user.id,
+    p_amount:   Number(order.amount),
+    p_currency: order.currency_code,
+  });
+
+  // Read back the new balance for the response
+  const { data: credited } = await supabase
     .from("imotara_wallets")
     .select("balance")
     .eq("user_id", user.id)
     .single();
-
-  const currentBalance = Number(existing?.balance ?? 0);
-  const newBalance     = currentBalance + Number(order.amount);
-
-  await supabase.from("imotara_wallets").upsert(
-    { user_id: user.id, balance: newBalance, currency_code: order.currency_code, updated_at: new Date().toISOString() },
-    { onConflict: "user_id" }
-  );
+  const newBalance = Number(credited?.balance ?? 0);
 
   // Log transaction
   await supabase.from("imotara_wallet_transactions").insert({

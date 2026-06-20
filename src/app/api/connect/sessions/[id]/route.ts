@@ -135,8 +135,13 @@ export async function PATCH(
     updatePayload.consultant_timezone = tz;
   }
   if (action === "complete" || action === "decline" || action === "cancel") { updatePayload.ended_at = new Date().toISOString(); }
-  if (action === "decline" || action === "cancel" || action === "complete") {
-    // Will clear is_busy on consultant after status update
+
+  // Fold amount_charged into the atomic status UPDATE for "complete" so that if the process
+  // dies between the status write and a separate amount_charged write, the session still has
+  // the correct charge recorded (avoids a window where status=completed but amount_charged=0).
+  if (action === "complete" && consultant && Number(session.minutes_used) > 0) {
+    const lockedRate = Number(session.rate_per_min) > 0 ? Number(session.rate_per_min) : Number(consultant.rate_per_min);
+    updatePayload.amount_charged = Number(session.minutes_used) * lockedRate;
   }
 
   // Atomic status predicate prevents TOCTOU: if status changed between read and write
@@ -187,17 +192,12 @@ export async function PATCH(
     }
   }
 
-  // Credit consultant earnings on manual completion (minutes_used > 0)
-  // Use rate locked in session row; fall back to current rate if not yet migrated.
+  // Credit consultant earnings on manual completion (minutes_used > 0).
+  // amount_charged is already set atomically in updatePayload above; no second write needed.
   if (action === "complete" && consultant && Number(session.minutes_used) > 0) {
     const lockedRate     = Number(session.rate_per_min) > 0 ? Number(session.rate_per_min) : Number(consultant.rate_per_min);
-    const sessionEarnings = Number(session.minutes_used) * lockedRate * 0.80;
     const amountCharged   = Number(session.minutes_used) * lockedRate;
-
-    await supabase
-      .from("connect_sessions")
-      .update({ amount_charged: amountCharged })
-      .eq("id", id);
+    const sessionEarnings = amountCharged * 0.80;
 
     await supabase
       .from("connect_wallet")

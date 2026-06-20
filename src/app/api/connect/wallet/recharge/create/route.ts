@@ -46,8 +46,9 @@ export async function POST(req: NextRequest) {
   if (!consultant_id) {
     return NextResponse.json({ ok: false, error: "consultant_id required" }, { status: 400 });
   }
-  if (!Number.isFinite(Number(minutes)) || Number(minutes) < 1) {
-    return NextResponse.json({ ok: false, error: "minutes must be a positive number" }, { status: 400 });
+  const minutesNum = Number(minutes);
+  if (!Number.isFinite(minutesNum) || !Number.isInteger(minutesNum) || minutesNum < 1 || minutesNum > 1000) {
+    return NextResponse.json({ ok: false, error: "minutes must be a whole number between 1 and 1000" }, { status: 400 });
   }
 
   const supabase = getSupabaseAdmin();
@@ -98,7 +99,8 @@ export async function POST(req: NextRequest) {
 
   if (!orderRes.ok) {
     const txt = await orderRes.text();
-    return NextResponse.json({ ok: false, error: `Payment gateway error: ${txt}` }, { status: 502 });
+    console.error("[recharge/create] Razorpay error:", txt);
+    return NextResponse.json({ ok: false, error: "Payment processing failed. Please try again." }, { status: 502 });
   }
 
   const order = await orderRes.json();

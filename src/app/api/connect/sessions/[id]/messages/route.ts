@@ -1,3 +1,6 @@
+export const preferredRegion = ["sin1"];
+export const maxDuration = 30;
+
 // POST /api/connect/sessions/[id]/messages
 // Server-side message insertion with session-state validation and rate limiting.
 // When session.translation_enabled is true, translates content server-side before

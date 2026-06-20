@@ -1,3 +1,6 @@
+export const preferredRegion = ["sin1"];
+export const maxDuration = 30;
+
 // POST /api/connect/sessions/[id]/tick
 // Called every 60s by the client during an active session.
 // Server-authoritative: deducts 1 minute from the user's recharge balance.

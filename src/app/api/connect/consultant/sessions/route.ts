@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // GET /api/connect/consultant/sessions
 // Returns sessions assigned to the authenticated consultant.
 // Query params: ?status=pending|active|history|all (default: pending+active)
@@ -58,6 +60,28 @@ export async function GET(req: NextRequest) {
           .from("connect_sessions")
           .update({ status: "completed", ended_at: now })
           .eq("id", stale.id);
+
+        // Credit consultant for minutes already consumed before client disconnected.
+        // Mirrors the 80/20 split in sessions/[id]/route.ts manual completion.
+        if (Number(stale.minutes_used) > 0 && Number(stale.rate_per_min) > 0) {
+          const lockedRate      = Number(stale.rate_per_min);
+          const sessionEarnings = Number(stale.minutes_used) * lockedRate * 0.80;
+          const amountCharged   = Number(stale.minutes_used) * lockedRate;
+
+          // Only set amount_charged if a late tick hasn't already done so
+          await supabase.from("connect_sessions")
+            .update({ amount_charged: amountCharged })
+            .eq("id", stale.id)
+            .eq("amount_charged", 0);
+
+          await supabase.from("connect_wallet")
+            .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
+
+          await supabase.rpc("increment_wallet_earnings", {
+            p_user_id: user.id,
+            p_amount:  sessionEarnings,
+          });
+        }
       }
       // Clear is_busy — no active sessions remain for this consultant.
       await supabase

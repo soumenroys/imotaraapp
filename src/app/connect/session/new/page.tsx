@@ -101,8 +101,11 @@ function NewSessionInner() {
 
   // Pre-fill user language from Imotara profile — must complete before instant auto-start
   useEffect(() => {
+    const SUPPORTED_LANGS = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","ur","ar","es","fr","de","pt"];
     const p = getImotaraProfile();
-    if (p?.user?.preferredLang) setUserLang(p.user.preferredLang);
+    if (p?.user?.preferredLang && SUPPORTED_LANGS.includes(p.user.preferredLang)) {
+      setUserLang(p.user.preferredLang);
+    }
     setProfileLoaded(true);
   }, []);
 
@@ -111,6 +114,7 @@ function NewSessionInner() {
   const [loading, setLoading] = useState(false);
   const [started, setStarted] = useState(false);
   const creatingRef = useRef(false); // synchronous guard against double-tap race
+  const lastNoteRef = useRef(""); // preserves scheduled note across recharge retry
 
   // ── cost calc ──────────────────────────────────────────────────────────────
   const sessionFee  = effectiveRate * duration;
@@ -157,6 +161,7 @@ function NewSessionInner() {
   async function createSession(scheduledNote: string, translationRequested = translationEnabled) {
     if (creatingRef.current) return;
     creatingRef.current = true;
+    if (scheduledNote) lastNoteRef.current = scheduledNote; // save for post-recharge retry
     setLoading(true);
     setError("");
     try {
@@ -220,7 +225,7 @@ function NewSessionInner() {
     if (type === "instant" && !langsMatch && !translationEnabled) {
       setShowTranslationModal(true);
     } else {
-      createSession("", translationEnabled); // retry session creation immediately
+      createSession(lastNoteRef.current, translationEnabled); // retry with original note
     }
   }
 

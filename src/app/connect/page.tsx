@@ -283,7 +283,7 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   }
 
   const displayed = consultants
-    .filter((c) => !filter.tag || c.expertise_tags.includes(filter.tag))
+    .filter((c) => !filter.tag || (c.expertise_tags ?? []).includes(filter.tag))
     .sort((a, b) => {
       if (sort === "rating")     return (b.rating_avg || 0) - (a.rating_avg || 0);
       if (sort === "price_asc")  return a.rate_per_min - b.rate_per_min;
@@ -709,6 +709,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const [transactions, setTransactions]       = useState<WalletTx[]>([]);
   const [showHistory, setShowHistory]         = useState(false);
   const [historyLoading, setHistoryLoading]   = useState(false);
+  const [historyLoaded, setHistoryLoaded]     = useState(false);
   // Refund request form
   const [showRefund, setShowRefund]           = useState(false);
   const [refundMethod, setRefundMethod]       = useState<"bank" | "upi">("upi");
@@ -844,13 +845,14 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
 
   async function loadHistory() {
     if (showHistory) { setShowHistory(false); return; }
-    if (transactions.length > 0) { setShowHistory(true); return; }
+    if (historyLoaded) { setShowHistory(true); return; }
+    if (historyLoading) return; // prevent double-fetch on rapid double-click
     setHistoryLoading(true);
     setShowHistory(true);
     try {
       const res = await fetch("/api/connect/wallet/history", { credentials: "include" });
       const d = await res.json();
-      if (d.ok) setTransactions(d.transactions ?? []);
+      if (d.ok) { setTransactions(d.transactions ?? []); setHistoryLoaded(true); }
     } catch { /* silent */ }
     finally { setHistoryLoading(false); }
   }
@@ -1419,6 +1421,7 @@ function DashboardTab() {
 
   async function loadHistory() {
     if (historyLoaded) { setShowHistory((v) => !v); return; }
+    if (historyLoading) return; // prevent double-fetch on rapid double-click
     setShowHistory(true);
     setHistoryLoading(true);
     try {
@@ -1511,6 +1514,11 @@ function DashboardTab() {
   }
 
   async function saveAvailability() {
+    const invalid = availWindows.find((w) => w.start >= w.end);
+    if (invalid) {
+      alert(`Invalid window: ${invalid.day} end time must be after start time.`);
+      return;
+    }
     setAvailSaving(true);
     try {
       const res = await fetch("/api/connect/consultant/profile", {

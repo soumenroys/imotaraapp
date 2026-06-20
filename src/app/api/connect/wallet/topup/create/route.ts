@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
   }
 
   const amount = Number(body.amount);
-  if (!Number.isFinite(amount) || amount < 1) {
-    return NextResponse.json({ ok: false, error: "Invalid amount" }, { status: 400 });
+  if (!Number.isFinite(amount) || amount < 1 || amount > 50000) {
+    return NextResponse.json({ ok: false, error: "Amount must be between ₹1 and ₹50,000" }, { status: 400 });
   }
 
   if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
 
   if (!orderRes.ok) {
     const txt = await orderRes.text();
-    return NextResponse.json({ ok: false, error: `Payment gateway error: ${txt}` }, { status: 502 });
+    console.error("[topup/create] Razorpay error:", txt);
+    return NextResponse.json({ ok: false, error: "Payment processing failed. Please try again." }, { status: 502 });
   }
 
   const order = await orderRes.json();

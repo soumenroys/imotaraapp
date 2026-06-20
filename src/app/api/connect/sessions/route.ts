@@ -56,6 +56,15 @@ export async function POST(req: NextRequest) {
   if (type === "scheduled" && !scheduled_note?.trim()) {
     return NextResponse.json({ ok: false, error: "Please add a message describing what you would like to discuss." }, { status: 400 });
   }
+  if (scheduled_note && scheduled_note.length > 500) {
+    return NextResponse.json({ ok: false, error: "Message must be 500 characters or fewer." }, { status: 400 });
+  }
+  if (type === "scheduled" && scheduled_at) {
+    const scheduledDate = new Date(scheduled_at);
+    if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+      return NextResponse.json({ ok: false, error: "Please choose a valid future date and time." }, { status: 400 });
+    }
+  }
 
   const supabase = getSupabaseAdmin();
 
@@ -177,7 +186,10 @@ export async function POST(req: NextRequest) {
   const userLang       = typeof body.user_lang === "string" && SUPPORTED_LANGS.includes(body.user_lang) ? body.user_lang : "en";
   const consultantLang = typeof consultant.preferred_lang === "string" ? consultant.preferred_lang : "en";
   const translationEnabled = body.translation_requested === true && userLang !== consultantLang;
-  const baseRate       = Number(consultantFull?.rate_per_min ?? 0);
+  const baseRate = Number(consultantFull?.rate_per_min ?? 0);
+  if (!consultantFull || baseRate <= 0) {
+    return NextResponse.json({ ok: false, error: "Consultant rate unavailable. Please try again." }, { status: 409 });
+  }
   const effectiveRate  = translationEnabled ? +((baseRate * 1.10).toFixed(4)) : baseRate;
 
   const { data: session, error } = await supabase

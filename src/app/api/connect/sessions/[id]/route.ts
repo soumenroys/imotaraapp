@@ -4,6 +4,8 @@
 // PATCH body: { action: "accept" | "decline" | "complete" | "cancel" }
 // On "complete": credits consultant for minutes_used at 80% of rate.
 
+export const preferredRegion = ["sin1"];
+
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
@@ -137,13 +139,23 @@ export async function PATCH(
     // Will clear is_busy on consultant after status update
   }
 
-  const { error } = await supabase
+  // Atomic status predicate prevents TOCTOU: if status changed between read and write
+  // (e.g. concurrent tick completed the session), the update matches 0 rows and we 409.
+  const { data: updatedRows, error } = await supabase
     .from("connect_sessions")
     .update(updatePayload)
-    .eq("id", id);
+    .eq("id", id)
+    .eq("status", session.status)
+    .select("id");
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Could not update session" }, { status: 500 });
+  }
+  if (!updatedRows || updatedRows.length === 0) {
+    return NextResponse.json(
+      { ok: false, error: `Session status has changed — cannot ${action}` },
+      { status: 409 }
+    );
   }
 
   // Set consultant is_busy=true on accept, clear on complete/decline/cancel

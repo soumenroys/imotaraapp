@@ -145,12 +145,18 @@ export default function SessionChatPage() {
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      const uid = s?.user?.id ?? null;
-      setMyUserId(uid);
-      myUserIdRef.current = uid;
-      setAuthLoaded(true);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session: s } }) => {
+        const uid = s?.user?.id ?? null;
+        setMyUserId(uid);
+        myUserIdRef.current = uid;
+        setAuthLoaded(true);
+      })
+      .catch(() => {
+        setMyUserId(null);
+        myUserIdRef.current = null;
+        setAuthLoaded(true);
+      });
   }, []);
 
   // Redirect unauthenticated users to Connect
@@ -320,7 +326,7 @@ export default function SessionChatPage() {
         });
         const d = await res.json();
         if (d.ok) {
-          setRemaining(d.remaining_minutes);
+          setRemaining(Math.max(0, d.remaining_minutes));
           if (d.status === "completed") { stopTick(); setSession((p) => p ? { ...p, status: "completed" } : p); }
         }
       } catch {

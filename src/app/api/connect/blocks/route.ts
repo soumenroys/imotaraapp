@@ -32,7 +32,10 @@ export async function GET(req: NextRequest) {
     .eq("consultant_id", consultant.id)
     .limit(100);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[blocks/GET] query error:", error.message);
+    return NextResponse.json({ ok: false, error: "Could not load blocked users. Please try again." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, blocked: data ?? [] });
 }
 
@@ -56,7 +59,10 @@ export async function POST(req: NextRequest) {
       { onConflict: "consultant_id,blocked_user_id", ignoreDuplicates: false }
     );
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[blocks] DB error:", error.message);
+    return NextResponse.json({ ok: false, error: "Operation failed. Please try again." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }
 
@@ -78,6 +84,9 @@ export async function DELETE(req: NextRequest) {
     .eq("consultant_id", consultant.id)
     .eq("blocked_user_id", blocked_user_id);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[blocks] DB error:", error.message);
+    return NextResponse.json({ ok: false, error: "Operation failed. Please try again." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

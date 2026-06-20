@@ -114,7 +114,8 @@ export async function POST(
     .single();
 
   if (error || !message) {
-    return NextResponse.json({ ok: false, error: error?.message ?? "Insert failed" }, { status: 500 });
+    console.error("[messages/POST] insert failed:", error?.message, "session:", id);
+    return NextResponse.json({ ok: false, error: "Failed to send message. Please try again." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, message }, { status: 201 });

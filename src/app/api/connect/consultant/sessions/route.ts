@@ -139,7 +139,8 @@ export async function GET(req: NextRequest) {
     .limit(50);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[consultant/sessions/GET] query error:", error.message);
+    return NextResponse.json({ ok: false, error: "Could not load sessions. Please try again." }, { status: 500 });
   }
 
   type SessionRow = {

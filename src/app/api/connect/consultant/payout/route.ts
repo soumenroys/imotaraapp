@@ -141,7 +141,8 @@ export async function POST(req: NextRequest) {
   if (rpcErr) {
     console.error("[payout] CRITICAL: increment_pending_payout failed for payout", payout.id, rpcErr.message);
     // Cancel the orphaned payout row so it doesn't block future requests
-    await supabase.from("connect_payouts").update({ status: "failed" }).eq("id", payout.id);
+    const { error: cancelErr } = await supabase.from("connect_payouts").update({ status: "failed" }).eq("id", payout.id);
+    if (cancelErr) console.error("[payout] CRITICAL: orphan cancel failed for payout", payout.id, "— consultant may be permanently blocked from future payouts:", cancelErr.message);
     return NextResponse.json({ ok: false, error: "Payout request failed. Please try again." }, { status: 500 });
   }
 

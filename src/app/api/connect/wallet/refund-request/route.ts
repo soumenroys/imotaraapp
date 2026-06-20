@@ -130,11 +130,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Failed to submit refund request. Please try again." }, { status: 500 });
   }
 
-  // Update wallet status — log on failure (the refund row already exists, so this
-  // is non-fatal for the user, but the wallet.status guard on future requests won't fire).
+  // Update wallet status — predicate prevents overwriting terminal states if an admin
+  // action races this write between the guard read (line 35) and here.
+  // Log on failure — the refund row exists, so this is non-fatal for the user,
+  // but the wallet.status guard on future requests won't fire.
   const { error: statusErr } = await supabase.from("imotara_wallets")
     .update({ status: "refund_requested" })
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .in("status", ["active", "dormant"]);
   if (statusErr) console.error("[wallet/refund-request] wallet status update failed:", statusErr.message, "user:", user.id);
 
   // Send confirmation email to user

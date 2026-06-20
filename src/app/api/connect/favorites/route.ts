@@ -20,7 +20,10 @@ export async function GET(req: NextRequest) {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[favorites] DB error:", error.message);
+    return NextResponse.json({ ok: false, error: "Operation failed. Please try again." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, favorites: (data ?? []).map((f) => f.consultant_id) });
 }
 
@@ -37,7 +40,10 @@ export async function POST(req: NextRequest) {
     .from("connect_favorites")
     .upsert({ user_id: user.id, consultant_id }, { onConflict: "user_id,consultant_id", ignoreDuplicates: true });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[favorites] DB error:", error.message);
+    return NextResponse.json({ ok: false, error: "Operation failed. Please try again." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }
 
@@ -56,6 +62,9 @@ export async function DELETE(req: NextRequest) {
     .eq("user_id", user.id)
     .eq("consultant_id", consultant_id);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[favorites] DB error:", error.message);
+    return NextResponse.json({ ok: false, error: "Operation failed. Please try again." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

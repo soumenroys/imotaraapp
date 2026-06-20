@@ -44,6 +44,14 @@ export async function POST(req: NextRequest) {
   if (!targetLang) return NextResponse.json({ ok: false, error: "targetLang is required" }, { status: 400 });
   if (text.length > 2000) return NextResponse.json({ ok: false, error: "text too long (max 2000 chars)" }, { status: 400 });
 
+  const SUPPORTED_LANGS = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","or","ur","ar","he","ru","zh","ja","es","fr","de","pt"];
+  if (!SUPPORTED_LANGS.includes(targetLang)) {
+    return NextResponse.json({ ok: false, error: "Unsupported targetLang" }, { status: 400 });
+  }
+  if (rawSource !== "auto" && !SUPPORTED_LANGS.includes(rawSource)) {
+    return NextResponse.json({ ok: false, error: "Unsupported sourceLang" }, { status: 400 });
+  }
+
   const sourceLang = rawSource === "auto" ? detectScript(text) : rawSource;
 
   if (sourceLang === targetLang) {

@@ -44,12 +44,16 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabaseAdmin();
 
-  const { data: order } = await supabase
+  const { data: order, error: orderErr } = await supabase
     .from("imotara_wallet_orders")
     .select("id, user_id, amount, currency_code, status")
     .eq("razorpay_order_id", razorpay_order_id)
     .single();
 
+  if (orderErr) {
+    console.error("[wallet/topup/verify] order lookup failed:", orderErr.message, "order:", razorpay_order_id);
+    return NextResponse.json({ ok: false, error: "Payment verification failed. Please try again." }, { status: 500 });
+  }
   if (!order) {
     return NextResponse.json({ ok: false, error: "Order not found" }, { status: 404 });
   }

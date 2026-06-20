@@ -82,6 +82,9 @@ export async function POST(
       { onConflict: "session_id,consultant_user_id" }
     );
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[notes/POST] upsert failed:", error.message, "session:", sessionId);
+    return NextResponse.json({ ok: false, error: "Failed to save note. Please try again." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

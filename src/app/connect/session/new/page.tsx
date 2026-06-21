@@ -145,6 +145,10 @@ function NewSessionInner() {
   // profileLoaded ensures userLang is set from profile before langsMatch is evaluated
   useEffect(() => {
     if (!profileLoaded) return;
+    if (type === "instant" && !consultantId) {
+      setError("No companion selected. Please go back and try again.");
+      return;
+    }
     if (type === "instant" && consultantId && !started) {
       if (prefillRecharge) {
         setShowRecharge(true);

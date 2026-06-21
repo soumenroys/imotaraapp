@@ -106,7 +106,7 @@ export async function PATCH(
   // Determine if caller is the consultant
   const { data: consultant } = await supabase
     .from("connect_consultants")
-    .select("id, user_id, display_name, rate_per_min, sessions_completed")
+    .select("id, user_id, display_name, rate_per_min, sessions_completed, is_busy")
     .eq("id", session.consultant_id)
     .single();
 
@@ -115,6 +115,13 @@ export async function PATCH(
 
   if (!isConsultant && !isUser) {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+  }
+
+  if (action === "accept" && consultant?.is_busy) {
+    return NextResponse.json(
+      { ok: false, error: "Cannot accept: already in an active session." },
+      { status: 409 }
+    );
   }
 
   const transition = TRANSITIONS[action];

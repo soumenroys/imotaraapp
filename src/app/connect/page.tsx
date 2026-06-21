@@ -156,6 +156,7 @@ function SignInModal({ onClose, redirectTo }: { onClose: () => void; redirectTo:
 
 function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const router = useRouter();
+  const navigatingRef = useRef(false);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -252,6 +253,8 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
 
   function handleTalkNow(consultantId: string) {
     if (!isLoggedIn) { setShowSignIn(true); return; }
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
     const c = consultants.find((x) => x.id === consultantId);
     const params = new URLSearchParams({
       consultant_id:   consultantId,
@@ -270,6 +273,8 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   }
   function handleRequestMeeting(consultantId: string) {
     if (!isLoggedIn) { setShowSignIn(true); return; }
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
     const c = consultants.find((x) => x.id === consultantId);
     const params = new URLSearchParams({
       consultant_id:   consultantId,

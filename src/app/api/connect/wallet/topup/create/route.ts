@@ -39,6 +39,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Payment gateway not configured" }, { status: 503 });
   }
 
+  const supabase = getSupabaseAdmin();
+
+  // Prevent order spam — reject if user already has 3+ unverified pending orders
+  const { count: pendingCount } = await supabase
+    .from("imotara_wallet_orders")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("status", "pending");
+  if ((pendingCount ?? 0) >= 3) {
+    return NextResponse.json(
+      { ok: false, error: "Too many pending orders. Please complete or wait for existing orders to expire." },
+      { status: 429 }
+    );
+  }
+
   const amountPaise = Math.round(amount * 100);
   const receipt     = `wallet_${user.id.slice(0, 8)}_${Date.now()}`;
   const auth        = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString("base64");
@@ -61,7 +76,6 @@ export async function POST(req: NextRequest) {
   }
 
   const order = await orderRes.json();
-  const supabase = getSupabaseAdmin();
 
   const { error: insertError } = await supabase.from("imotara_wallet_orders").insert({
     user_id:           user.id,

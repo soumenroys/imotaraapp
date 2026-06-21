@@ -97,7 +97,8 @@ export async function PATCH(req: NextRequest) {
     .eq("id", body.id);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[admin/refunds PATCH] update failed:", error.message, "refund:", body.id);
+    return NextResponse.json({ ok: false, error: "Failed to update refund. Please try again." }, { status: 500 });
   }
 
   // If completed, zero out the wallet balance (refund has been issued)
@@ -108,10 +109,15 @@ export async function PATCH(req: NextRequest) {
       .eq("id", body.id)
       .single();
     if (refund?.user_id) {
-      await supabase
+      const { error: walletErr } = await supabase
         .from("imotara_wallets")
         .update({ balance: 0, status: "active" })
         .eq("user_id", refund.user_id);
+      if (walletErr) {
+        console.error("[admin/refunds PATCH] CRITICAL: wallet zero-out failed for user:", refund.user_id, "refund:", body.id, walletErr.message);
+      }
+    } else {
+      console.error("[admin/refunds PATCH] refund row not found after update — wallet NOT zeroed. refund_id:", body.id);
     }
   }
 

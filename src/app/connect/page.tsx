@@ -2214,8 +2214,10 @@ export default function ConnectPage() {
       router.replace("/connect/age-restricted");
       return;
     }
-    // If no profile exists (first visit / incognito / cleared storage) show inline age gate.
-    if (!profile || !age) {
+    // If no profile at all (first visit / incognito / cleared storage) show inline age gate.
+    // A profile with no ageRange (e.g. "prefer_not") is treated as adult — only truly
+    // new/anonymous users (null profile) need to pass the gate.
+    if (!profile) {
       setAgeVerified(null);
       return;
     }

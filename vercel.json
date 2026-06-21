@@ -22,11 +22,11 @@
     },
     {
       "path": "/api/cron/wallet-expiry-notice",
-      "schedule": "30 2 * * *"
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/wallet-forfeit",
-      "schedule": "30 3 * * *"
+      "schedule": "0 4 * * *"
     },
     {
       "path": "/api/cron/connect-scheduled",

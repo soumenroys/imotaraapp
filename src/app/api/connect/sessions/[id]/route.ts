@@ -67,11 +67,11 @@ export async function GET(
 const VALID_ACTIONS = ["accept", "decline", "complete", "cancel"] as const;
 type Action = typeof VALID_ACTIONS[number];
 
-const TRANSITIONS: Record<Action, { from: string[]; to: string; consultantOnly?: boolean }> = {
+const TRANSITIONS: Record<Action, { from: string[]; to: string; consultantOnly?: boolean; userOnly?: boolean }> = {
   accept:   { from: ["pending"],  to: "active",    consultantOnly: true },
   decline:  { from: ["pending"],  to: "declined",  consultantOnly: true },
   complete: { from: ["active"],   to: "completed", consultantOnly: true },
-  cancel:   { from: ["pending"], to: "cancelled" },
+  cancel:   { from: ["pending"],  to: "cancelled", userOnly: true },
 };
 
 export async function PATCH(
@@ -125,6 +125,9 @@ export async function PATCH(
   }
   if (transition.consultantOnly && !isConsultant) {
     return NextResponse.json({ ok: false, error: "Only the consultant can perform this action" }, { status: 403 });
+  }
+  if (transition.userOnly && !isUser) {
+    return NextResponse.json({ ok: false, error: "Only the session requester can perform this action" }, { status: 403 });
   }
 
   const updatePayload: Record<string, unknown> = { status: transition.to };

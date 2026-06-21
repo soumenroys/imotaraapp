@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const status = req.nextUrl.searchParams.get("status") ?? "pending";
   const supabase = getSupabaseAdmin();
 
-  const query = supabase
+  let query = supabase
     .from("imotara_wallet_refund_requests")
     .select(
       "id, user_id, reference_number, amount, currency_code, " +
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     .limit(100);
 
   if (status !== "all") {
-    query.eq("status", status);
+    query = query.eq("status", status);
   }
 
   const { data, error } = await query;

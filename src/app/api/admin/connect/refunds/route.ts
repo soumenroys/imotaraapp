@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[admin/connect/refunds GET] query failed:", error.message);
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 
   type RefundRow = {

@@ -123,6 +123,23 @@ export async function POST(req: NextRequest) {
     }, { status: 409 });
   }
 
+  // Prevent concurrent sessions with any OTHER consultant (one active session at a time)
+  const { data: anyOtherActive } = await supabase
+    .from("connect_sessions")
+    .select("id")
+    .eq("user_id", user.id)
+    .neq("consultant_id", consultant_id)
+    .in("status", ["pending", "active"])
+    .maybeSingle();
+
+  if (anyOtherActive) {
+    return NextResponse.json({
+      ok: false,
+      error: "You already have an active session with another companion. Please end it before starting a new one.",
+      existing_session_id: anyOtherActive.id,
+    }, { status: 409 });
+  }
+
   // Verify consultant is approved
   const { data: consultant } = await supabase
     .from("connect_consultants")
@@ -210,8 +227,10 @@ export async function POST(req: NextRequest) {
     .eq("id", consultant_id)
     .single();
 
-  const user_timezone = typeof body.user_timezone === "string" && body.user_timezone.length > 0 && body.user_timezone.length <= 64
-    ? body.user_timezone
+  // Validate user_timezone against a safe character set (IANA timezone format) before storing
+  const rawTz = typeof body.user_timezone === "string" ? body.user_timezone : "";
+  const user_timezone = rawTz.length > 0 && rawTz.length <= 64 && /^[A-Za-z0-9/_+\-]{1,64}$/.test(rawTz)
+    ? rawTz
     : "Asia/Kolkata";
 
   // Translation opt-in: +10% surcharge baked into rate_per_min when enabled

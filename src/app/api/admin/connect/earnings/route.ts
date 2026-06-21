@@ -56,7 +56,10 @@ export async function GET(req: NextRequest) {
     })(),
   ]);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[admin/connect/earnings] query failed:", error.message);
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
+  }
 
   const walletMap = Object.fromEntries((wallets ?? []).map((w) => [w.user_id, w]));
 

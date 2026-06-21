@@ -41,6 +41,17 @@ function footer() {
   ].join("\n");
 }
 
+// Escapes user-supplied strings before interpolating them into HTML templates
+// to prevent XSS if a consultant or user sets a display name containing HTML chars.
+function htmlEscape(s: unknown): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 async function send(to: string, subject: string, text: string, html?: string) {
   const t = makeTransporter();
   if (!t) {
@@ -103,10 +114,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1
 <div class="card">
   <div class="hdr"><div class="hdr-title">Payment Receipt</div><div class="hdr-sub">Imotara Connect</div></div>
   <div class="body">
-    <div class="row"><span class="lbl">Companion</span><span class="val">${data.consultantName}</span></div>
+    <div class="row"><span class="lbl">Companion</span><span class="val">${htmlEscape(data.consultantName)}</span></div>
     <div class="row"><span class="lbl">Minutes credited</span><span class="val">${data.minutesCredited} min</span></div>
-    <div class="row"><span class="lbl">Payment reference</span><span class="val" style="font-family:monospace;font-size:12px">${data.paymentId}</span></div>
-    ${data.invoiceNumber ? `<div class="row"><span class="lbl">Invoice number</span><span class="val">${data.invoiceNumber}</span></div>` : ""}
+    <div class="row"><span class="lbl">Payment reference</span><span class="val" style="font-family:monospace;font-size:12px">${htmlEscape(data.paymentId)}</span></div>
+    ${data.invoiceNumber ? `<div class="row"><span class="lbl">Invoice number</span><span class="val">${htmlEscape(data.invoiceNumber)}</span></div>` : ""}
     <div class="amt"><span class="amt-lbl">Total paid</span><span class="amt-val">${amtStr}</span></div>
     <a href="${CONNECT_URL}" class="cta">Start Your Session</a>
   </div>
@@ -170,10 +181,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1
   <div class="hdr"><div class="hdr-title">Session Statement</div><div class="hdr-sub">Imotara Connect</div></div>
   <div class="body">
     <p style="font-size:14px;color:#374151;margin-bottom:20px">Your session has completed. The following amount was deducted from your pre-paid balance.</p>
-    <div class="row"><span class="lbl">Companion</span><span class="val">${data.consultantName}</span></div>
+    <div class="row"><span class="lbl">Companion</span><span class="val">${htmlEscape(data.consultantName)}</span></div>
     <div class="row"><span class="lbl">Duration</span><span class="val">${data.minutesUsed} min</span></div>
-    <div class="row"><span class="lbl">Session reference</span><span class="val" style="font-family:monospace;font-size:12px">${data.sessionId}</span></div>
-    ${data.invoiceNumber ? `<div class="row"><span class="lbl">Invoice reference</span><span class="val">${data.invoiceNumber}</span></div>` : ""}
+    <div class="row"><span class="lbl">Session reference</span><span class="val" style="font-family:monospace;font-size:12px">${htmlEscape(data.sessionId)}</span></div>
+    ${data.invoiceNumber ? `<div class="row"><span class="lbl">Invoice reference</span><span class="val">${htmlEscape(data.invoiceNumber)}</span></div>` : ""}
     <div class="amt"><span class="amt-lbl">Amount charged</span><span class="amt-val">${amtStr}</span></div>
     <a href="${historyUrl}" class="cta">View Session History</a>
     <p style="text-align:center;margin-top:12px;font-size:12px;color:#6b7280">
@@ -249,8 +260,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1
   <div class="hdr"><div class="hdr-title">Earnings Credited</div><div class="hdr-sub">Imotara Connect · Session Statement</div></div>
   <div class="body">
     <div class="row"><span class="lbl">Session duration</span><span class="val">${data.minutesUsed} min</span></div>
-    <div class="row"><span class="lbl">Session reference</span><span class="val" style="font-family:monospace;font-size:12px">${data.sessionId}</span></div>
-    ${data.userEmail ? `<div class="row"><span class="lbl">User</span><span class="val">${data.userEmail}</span></div>` : ""}
+    <div class="row"><span class="lbl">Session reference</span><span class="val" style="font-family:monospace;font-size:12px">${htmlEscape(data.sessionId)}</span></div>
+    ${data.userEmail ? `<div class="row"><span class="lbl">User</span><span class="val">${htmlEscape(data.userEmail)}</span></div>` : ""}
     <div class="split">
       <div class="split-title">Payment breakdown</div>
       <div class="split-row"><span style="color:#374151">Total charged to user (100%)</span><span style="font-weight:600">${totalStr}</span></div>
@@ -340,8 +351,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1
     <div class="row"><span class="lbl">Session ref</span><span class="val" style="font-family:monospace;font-size:12px">${data.sessionId}</span></div>
     ${data.invoiceNumber ? `<div class="row"><span class="lbl">Invoice</span><span class="val">${data.invoiceNumber}</span></div>` : ""}
     <div class="row"><span class="lbl">Duration</span><span class="val">${data.minutesUsed} min</span></div>
-    <div class="row"><span class="lbl">User</span><span class="val">${data.userEmail}</span></div>
-    <div class="row"><span class="lbl">Companion</span><span class="val">${data.consultantName}</span></div>
+    <div class="row"><span class="lbl">User</span><span class="val">${htmlEscape(data.userEmail)}</span></div>
+    <div class="row"><span class="lbl">Companion</span><span class="val">${htmlEscape(data.consultantName)}</span></div>
     <div class="split">
       <div class="split-hdr">3-Way Payment Breakdown</div>
       <div class="split-body">
@@ -477,8 +488,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1
     <p>${greet}</p>
     <p>Your Imotara organization has been set up. You can now invite your team and manage everything from the organization dashboard.</p>
     <div class="detail">
-      <p><strong>Organization:</strong> ${data.orgName}</p>
-      <p><strong>Slug:</strong> ${data.orgSlug}</p>
+      <p><strong>Organization:</strong> ${htmlEscape(data.orgName)}</p>
+      <p><strong>Slug:</strong> ${htmlEscape(data.orgSlug)}</p>
     </div>
     <p>Sign in to Imotara with your Google or Apple account to access your dashboard:</p>
     <a href="${ORG_URL}" class="cta">Open Organization Dashboard →</a>

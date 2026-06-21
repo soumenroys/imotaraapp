@@ -23,7 +23,8 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: true });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[admin/connect/pending] query failed:", error.message);
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 
   type ConsultantRow = {

@@ -13,17 +13,21 @@ import { getConnectUser } from "@/lib/connect/auth";
 import { translateText } from "@/lib/connect/translate";
 
 const MAX_LEN = 2000;
+const RATE_LIMIT_MAX = 60;
+const RATE_LIMIT_WINDOW_MS = 60_000;
 
-// In-memory per-user rate limiter: 60 messages per 60 seconds.
+// In-process fast-path guard: catches obvious spam without a DB round-trip.
+// NOTE: per-serverless-instance — does NOT enforce globally across concurrent
+// cold-start instances. The DB-level COUNT below is the authoritative global guard.
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-function checkRateLimit(userId: string): boolean {
+function checkInProcessRateLimit(userId: string): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(userId);
   if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + 60_000 });
+    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
     return true;
   }
-  if (entry.count >= 60) return false;
+  if (entry.count >= RATE_LIMIT_MAX) return false;
   entry.count++;
   return true;
 }
@@ -39,7 +43,7 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
   }
 
-  if (!checkRateLimit(user.id)) {
+  if (!checkInProcessRateLimit(user.id)) {
     return NextResponse.json({ ok: false, error: "Too many messages. Please slow down." }, { status: 429 });
   }
 
@@ -54,6 +58,18 @@ export async function POST(
   }
 
   const supabase = getSupabaseAdmin();
+
+  // Global DB-level rate limit: count this user's messages in the last 60 s across all instances.
+  // Requires idx_connect_messages_sender_created (connect_v16_security_hardening.sql).
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+  const { count: recentMsgCount } = await supabase
+    .from("connect_messages")
+    .select("id", { count: "exact", head: true })
+    .eq("sender_id", user.id)
+    .gte("created_at", windowStart);
+  if ((recentMsgCount ?? 0) >= RATE_LIMIT_MAX) {
+    return NextResponse.json({ ok: false, error: "Too many messages. Please slow down." }, { status: 429 });
+  }
 
   // Verify session is active and caller is a participant
   const { data: session } = await supabase

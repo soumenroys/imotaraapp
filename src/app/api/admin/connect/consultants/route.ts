@@ -30,7 +30,8 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[admin/connect/consultants GET] query failed:", error.message);
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 
   function maskPayout(info: Record<string, string> | null): Record<string, string> | null {
@@ -87,7 +88,8 @@ export async function PATCH(req: NextRequest) {
     .eq("id", id);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[admin/connect/consultants PATCH] DB update failed:", error.message, "id:", id);
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, status: statusMap[action] });

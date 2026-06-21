@@ -56,7 +56,8 @@ export async function PATCH(
     .eq("id", id);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[admin/connect/approve] DB update failed:", error.message, "consultant:", id);
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 
   // Get consultant's email and send notification

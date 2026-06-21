@@ -24,7 +24,10 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(60);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[admin/connect/active-sessions] query failed:", error.message);
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true, sessions: sessions ?? [] });
 }

@@ -56,7 +56,8 @@ export async function PATCH(
     .eq("id", id);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[admin/connect/[id] PATCH] DB update failed:", error.message, "consultant:", id);
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, updated: Object.keys(update).filter((k) => k !== "updated_at") });
@@ -97,7 +98,8 @@ export async function DELETE(
     .eq("id", id);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[admin/connect/[id] DELETE] DB update failed:", error.message, "consultant:", id);
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 
   // Archive the wallet — mark it so revenue reports exclude it from active payables.

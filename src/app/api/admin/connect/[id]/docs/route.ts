@@ -87,6 +87,9 @@ export async function PATCH(
     .update(updates)
     .eq("id", id);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[admin/connect/docs] DB update failed:", error.message, "consultant:", id);
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

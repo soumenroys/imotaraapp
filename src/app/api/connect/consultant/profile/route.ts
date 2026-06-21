@@ -76,6 +76,9 @@ export async function PATCH(req: NextRequest) {
   if ("preferred_lang" in updates && !SUPPORTED_LANGS.includes(updates.preferred_lang as string)) {
     return NextResponse.json({ ok: false, error: "Unsupported language code" }, { status: 400 });
   }
+  if ("is_online" in updates && typeof updates.is_online !== "boolean") {
+    return NextResponse.json({ ok: false, error: "is_online must be a boolean" }, { status: 400 });
+  }
   if ("availability_windows" in updates) {
     const aw = updates.availability_windows;
     if (!Array.isArray(aw) || aw.length > 28 || JSON.stringify(aw).length > 8192) {

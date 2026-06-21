@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error("[connect-scheduled] query error:", error.message);
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 
   if (!expired || expired.length === 0) {

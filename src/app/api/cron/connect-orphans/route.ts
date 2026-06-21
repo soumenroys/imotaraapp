@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error("[connect-orphans] query error:", error.message);
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 
   // For sessions that never received a tick:

@@ -95,6 +95,26 @@ export async function POST(req: NextRequest) {
   if (normalizedSessionTypes.length === 0) {
     return NextResponse.json({ ok: false, error: "Select at least one session type (chat, audio, or video)" }, { status: 400 });
   }
+  if (contact_email !== undefined && contact_email !== null && String(contact_email).trim() !== "") {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(contact_email).trim())) {
+      return NextResponse.json({ ok: false, error: "contact_email must be a valid email address" }, { status: 400 });
+    }
+  }
+  if (social_links !== undefined && social_links !== null) {
+    if (JSON.stringify(social_links).length > 4096) {
+      return NextResponse.json({ ok: false, error: "social_links payload too large" }, { status: 400 });
+    }
+  }
+  if (verification_docs !== undefined && verification_docs !== null) {
+    if (JSON.stringify(verification_docs).length > 4096) {
+      return NextResponse.json({ ok: false, error: "verification_docs payload too large" }, { status: 400 });
+    }
+  }
+  if (payout_info !== undefined && payout_info !== null) {
+    if (JSON.stringify(payout_info).length > 2048) {
+      return NextResponse.json({ ok: false, error: "payout_info payload too large" }, { status: 400 });
+    }
+  }
 
   const supabase = getSupabaseAdmin();
 

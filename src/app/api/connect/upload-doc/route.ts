@@ -66,7 +66,8 @@ export async function POST(req: NextRequest) {
     .upload(path, bytes, { contentType: file.type, upsert: true });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[upload-doc] storage upload failed:", error.message);
+    return NextResponse.json({ ok: false, error: "Failed to upload document" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, path, name: file.name });

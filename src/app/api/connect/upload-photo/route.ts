@@ -59,7 +59,8 @@ export async function POST(req: NextRequest) {
     .upload(path, bytes, { contentType: file.type, upsert: true });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[upload-photo] storage upload failed:", error.message);
+    return NextResponse.json({ ok: false, error: "Failed to upload photo" }, { status: 500 });
   }
 
   const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path);

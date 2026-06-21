@@ -45,6 +45,7 @@ export async function PATCH(req: NextRequest) {
     "currency_code", "availability_note", "availability_windows", "photo_url", "display_name",
     "expo_push_token", // push token registered by mobile app for session-request notifications
     "preferred_lang",  // primary language for Connect sessions
+    "is_online",       // consultant online/offline toggle from the dashboard
   ];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {

@@ -439,7 +439,7 @@ export default function SessionChatPage() {
   }
 
   // ── Update session status ──────────────────────────────────────────────────
-  async function updateStatus(action: "complete" | "cancel") {
+  async function updateStatus(action: "complete" | "cancel" | "userEnd") {
     if (ending) return;
     setEnding(true);
     setEndError(null);
@@ -898,6 +898,18 @@ export default function SessionChatPage() {
             className="text-xs text-zinc-500 hover:text-zinc-300 transition disabled:opacity-50"
           >
             {ending ? "Ending…" : "End session"}
+          </button>
+        </div>
+      )}
+      {isActive && isMine && (
+        <div className="shrink-0 border-t border-white/5 bg-zinc-900/60 px-4 pb-2 pt-1 text-center">
+          {endError && <p className="mb-1 text-xs text-red-400">{endError}</p>}
+          <button
+            onClick={() => updateStatus("userEnd")}
+            disabled={ending}
+            className="text-xs text-zinc-500 hover:text-zinc-300 transition disabled:opacity-50"
+          >
+            {ending ? "Ending…" : "End session early"}
           </button>
         </div>
       )}

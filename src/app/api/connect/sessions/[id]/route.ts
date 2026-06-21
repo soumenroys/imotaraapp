@@ -64,7 +64,7 @@ export async function GET(
   return NextResponse.json({ ok: true, session });
 }
 
-const VALID_ACTIONS = ["accept", "decline", "complete", "cancel"] as const;
+const VALID_ACTIONS = ["accept", "decline", "complete", "cancel", "userEnd"] as const;
 type Action = typeof VALID_ACTIONS[number];
 
 const TRANSITIONS: Record<Action, { from: string[]; to: string; consultantOnly?: boolean; userOnly?: boolean }> = {
@@ -72,6 +72,7 @@ const TRANSITIONS: Record<Action, { from: string[]; to: string; consultantOnly?:
   decline:  { from: ["pending"],  to: "declined",  consultantOnly: true },
   complete: { from: ["active"],   to: "completed", consultantOnly: true },
   cancel:   { from: ["pending"],  to: "cancelled", userOnly: true },
+  userEnd:  { from: ["active"],   to: "completed", userOnly: true },
 };
 
 export async function PATCH(
@@ -137,7 +138,7 @@ export async function PATCH(
       ? body.consultant_timezone : "Asia/Kolkata";
     updatePayload.consultant_timezone = tz;
   }
-  if (action === "complete" || action === "decline" || action === "cancel") { updatePayload.ended_at = new Date().toISOString(); }
+  if (action === "complete" || action === "decline" || action === "cancel" || action === "userEnd") { updatePayload.ended_at = new Date().toISOString(); }
 
   // Atomic status predicate prevents TOCTOU: if status changed between read and write
   // (e.g. concurrent tick completed the session), the update matches 0 rows and we 409.
@@ -184,7 +185,7 @@ export async function PATCH(
         return Promise.all(jobs);
       }).catch((e) => console.error("[sessions/accept] notify error:", e));
 
-    } else if (action === "complete" || action === "decline" || action === "cancel") {
+    } else if (action === "complete" || action === "decline" || action === "cancel" || action === "userEnd") {
       await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
     }
   }
@@ -194,7 +195,7 @@ export async function PATCH(
   // the status was locked to "completed". This is always >= session.minutes_used read above
   // (a concurrent tick may have incremented it between our read and this write).
   const freshMinutes = Number(updatedRows?.[0]?.minutes_used ?? session.minutes_used);
-  if (action === "complete" && consultant && freshMinutes > 0) {
+  if ((action === "complete" || action === "userEnd") && consultant && freshMinutes > 0) {
     const lockedRate     = Number(session.rate_per_min) > 0 ? Number(session.rate_per_min) : Number(consultant.rate_per_min);
     const amountCharged   = freshMinutes * lockedRate;
     const sessionEarnings = amountCharged * 0.80;

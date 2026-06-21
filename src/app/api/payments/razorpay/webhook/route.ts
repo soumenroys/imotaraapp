@@ -1,4 +1,6 @@
 // src/app/api/payments/razorpay/webhook/route.ts
+export const preferredRegion = ["sin1"];
+
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { logDonation } from "@/lib/donations/logDonation";

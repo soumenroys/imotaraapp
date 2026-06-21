@@ -2192,6 +2192,19 @@ export default function ConnectPage() {
   const [mounted, setMounted]           = useState(false);
   const [activeTab, setActiveTab]       = useState<Tab>("browse");
   const [isConsultant, setIsConsultant] = useState(false);
+  const [ageVerified, setAgeVerified]   = useState<boolean | null>(null);
+
+  // Runs deferred tab-param + consultant-profile steps after age is confirmed.
+  useEffect(() => {
+    if (!ageVerified) return;
+    const tabParam = new URLSearchParams(window.location.search).get("tab") as Tab | null;
+    if (tabParam && VALID_TABS.includes(tabParam)) setActiveTab(tabParam);
+    fetch("/api/connect/consultant/profile", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { if (d.ok) setIsConsultant(true); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ageVerified]);
 
   useEffect(() => {
     setMounted(true);
@@ -2201,19 +2214,42 @@ export default function ConnectPage() {
       router.replace("/connect/age-restricted");
       return;
     }
-    // Read tab param once on mount — do not include searchParams in deps to avoid
-    // re-firing (and re-fetching consultant profile) on every URL change.
-    const tabParam = new URLSearchParams(window.location.search).get("tab") as Tab | null;
-    if (tabParam && VALID_TABS.includes(tabParam)) setActiveTab(tabParam);
-
-    fetch("/api/connect/consultant/profile", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => { if (d.ok) setIsConsultant(true); })
-      .catch(() => {});
+    // If no profile exists (first visit / incognito / cleared storage) show inline age gate.
+    if (!profile || !age) {
+      setAgeVerified(null);
+      return;
+    }
+    setAgeVerified(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   if (!mounted) return null;
+
+  if (ageVerified === null) {
+    return (
+      <main className="flex min-h-[60vh] flex-col items-center justify-center px-6 py-16 text-center text-zinc-50">
+        <div className="mb-5 text-5xl">🔒</div>
+        <h2 className="mb-2 text-xl font-bold text-zinc-100">Age Verification</h2>
+        <p className="mb-8 max-w-xs text-sm leading-relaxed text-zinc-400">
+          Imotara Connect is for adults 18 and older. Please confirm your age to continue.
+        </p>
+        <div className="flex w-full max-w-xs flex-col gap-3">
+          <button
+            onClick={() => setAgeVerified(true)}
+            className="rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-500"
+          >
+            I am 18 or older — Continue
+          </button>
+          <button
+            onClick={() => router.replace("/connect/age-restricted")}
+            className="rounded-xl border border-white/10 py-3 text-sm text-zinc-400 transition hover:text-zinc-200"
+          >
+            I am under 18
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode }> = [
     { key: "browse",   label: "Browse",      icon: <Users size={15} />         },

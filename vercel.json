@@ -19,6 +19,18 @@
     {
       "path": "/api/cron/wallet-dormant",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/wallet-expiry-notice",
+      "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/cron/wallet-forfeit",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/connect-scheduled",
+      "schedule": "0 * * * *"
     }
   ]
 }

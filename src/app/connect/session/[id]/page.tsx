@@ -125,6 +125,7 @@ export default function SessionChatPage() {
   const [ending, setEnding]         = useState(false);
   const [endError, setEndError]     = useState<string | null>(null);
   const [sendError, setSendError]   = useState<string | null>(null);
+  const [tickPaused, setTickPaused] = useState(false);
   // Dual-panel state
   const [totalCreditedMin, setTotalCreditedMin] = useState<number | null>(null);
   const [elapsedSecs, setElapsedSecs]           = useState(0);
@@ -354,6 +355,11 @@ export default function SessionChatPage() {
           credentials: "include",
         });
         const d = await res.json();
+        if (res.status === 401 || d?.error === "Authentication required") {
+          stopTick();
+          setTickPaused(true);
+          return;
+        }
         if (d.ok) {
           setRemaining(Math.max(0, d.remaining_minutes));
           if (d.status === "completed") { stopTick(); setSession((p) => p ? { ...p, status: "completed" } : p); }
@@ -712,6 +718,17 @@ export default function SessionChatPage() {
       {isPending && (
         <div className="shrink-0 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-300 text-center">
           Waiting for the companion to accept your session request…
+        </div>
+      )}
+      {tickPaused && isActive && (
+        <div className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-300">
+          Session billing paused (connection issue).{" "}
+          <button
+            onClick={() => { setTickPaused(false); startTick(); }}
+            className="font-medium underline hover:text-amber-200"
+          >
+            Reconnect
+          </button>
         </div>
       )}
       {isLowBalance && (

@@ -553,6 +553,10 @@ function NewSessionInner() {
               </div>
             </div>
 
+            <p className="mt-2 text-[10px] text-zinc-500 leading-relaxed">
+              Estimate based on the listed rate at time of browse. Actual billing uses the rate locked when the session starts.
+            </p>
+
             {/* Balance check */}
             <div className="mt-4 rounded-xl border p-3">
               {walletLoading ? (

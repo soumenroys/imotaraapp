@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   const { data: expired, error } = await supabase
     .from("connect_sessions")
-    .select("id, user_id, scheduled_at")
+    .select("id, user_id, consultant_id, scheduled_at")
     .eq("status", "pending")
     .eq("type", "scheduled")
     .lt("scheduled_at", cutoff);
@@ -63,6 +63,32 @@ export async function GET(req: NextRequest) {
         }),
       });
     }).catch(() => {});
+
+    // Notify consultant — best-effort, non-blocking
+    void (async () => {
+      try {
+        const { data: c } = await supabase
+          .from("connect_consultants")
+          .select("user_id")
+          .eq("id", session.consultant_id)
+          .single();
+        if (!c?.user_id) return;
+        const { data: cAuth } = await supabase.auth.admin.getUserById(c.user_id);
+        const pushToken = cAuth?.user?.user_metadata?.expo_connect_push_token as string | undefined;
+        if (!pushToken) return;
+        await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            to: pushToken,
+            sound: "default",
+            title: "Scheduled Session Expired",
+            body: "A scheduled session request you hadn't accepted has been automatically cancelled.",
+            data: { session_id: session.id, type: "session_expired_consultant" },
+          }),
+        });
+      } catch {}
+    })();
 
     expiredCount++;
   }

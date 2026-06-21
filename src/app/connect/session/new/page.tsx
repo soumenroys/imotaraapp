@@ -103,11 +103,16 @@ function NewSessionInner() {
   useEffect(() => {
     const SUPPORTED_LANGS = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","ur","ar","es","fr","de","pt"];
     const p = getImotaraProfile();
+    const age = p?.user?.ageRange;
+    if (age === "under_13" || age === "13_17") {
+      router.replace("/connect/age-restricted");
+      return;
+    }
     if (p?.user?.preferredLang && SUPPORTED_LANGS.includes(p.user.preferredLang)) {
       setUserLang(p.user.preferredLang);
     }
     setProfileLoaded(true);
-  }, []);
+  }, [router]);
 
   // ── submit state ───────────────────────────────────────────────────────────
   const [error, setError]   = useState("");
@@ -553,10 +558,6 @@ function NewSessionInner() {
               </div>
             </div>
 
-            <p className="mt-2 text-[10px] text-zinc-500 leading-relaxed">
-              Estimate based on the listed rate at time of browse. Actual billing uses the rate locked when the session starts.
-            </p>
-
             {/* Balance check */}
             <div className="mt-4 rounded-xl border p-3">
               {walletLoading ? (
@@ -607,6 +608,10 @@ function NewSessionInner() {
             </div>
           </div>
         )}
+
+        <p className="text-[10px] text-zinc-500 leading-relaxed">
+          Estimate based on the listed rate at time of browse. Actual billing uses the rate locked when the session starts.
+        </p>
 
         {error && (
           <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">

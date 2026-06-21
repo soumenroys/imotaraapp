@@ -3,6 +3,8 @@
 // Auto-completes active sessions that have not received a tick in > 15 minutes
 // (client crashed, network dropped, etc.) and credits the consultant.
 
+export const preferredRegion = ["sin1"];
+
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 

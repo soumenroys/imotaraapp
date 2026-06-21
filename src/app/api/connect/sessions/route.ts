@@ -191,7 +191,6 @@ export async function POST(req: NextRequest) {
 
     // Require at least 1 minute of balance. Translation surcharge is baked into
     // rate_per_min at creation time — no extra minutes are needed upfront.
-    const translationRequested = body.translation_requested === true;
     const minBalanceRequired = 1;
     if (balance < minBalanceRequired) {
       return NextResponse.json(

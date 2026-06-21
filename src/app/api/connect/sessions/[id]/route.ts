@@ -237,12 +237,6 @@ export async function PATCH(
     const amountCharged   = freshMinutes * lockedRate;
     const sessionEarnings = amountCharged * 0.80;
 
-    // Write the correct amount_charged (status is now "completed", no more ticks possible)
-    const { error: acErr } = await supabase.from("connect_sessions")
-      .update({ amount_charged: amountCharged })
-      .eq("id", id);
-    if (acErr) console.error("[sessions/complete] amount_charged update failed:", acErr.message, "session:", id);
-
     await supabase
       .from("connect_wallet")
       .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
@@ -253,6 +247,14 @@ export async function PATCH(
       p_amount:  sessionEarnings,
     });
     if (earningsErr) console.error("[sessions/complete] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", id);
+
+    // Write amount_charged after wallet is credited so the consultant is always paid
+    // even if this receipt update fails. Guard with status predicate as an extra safeguard.
+    const { error: acErr } = await supabase.from("connect_sessions")
+      .update({ amount_charged: amountCharged })
+      .eq("id", id)
+      .eq("status", "completed");
+    if (acErr) console.error("[sessions/complete] amount_charged update failed:", acErr.message, "session:", id);
 
     const { error: scErr } = await supabase.rpc("increment_sessions_completed", {
       p_consultant_id: consultant.id,

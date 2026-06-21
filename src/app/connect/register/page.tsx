@@ -1296,8 +1296,8 @@ export default function RegisterConsultantPage() {
         {/* Navigation */}
         <div className="mt-6 flex gap-3">
           {step > 1 && (
-            <button type="button" onClick={() => { setError(""); setStep(s => s - 1); }}
-              className="flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-zinc-400 transition hover:text-zinc-200">
+            <button type="button" onClick={() => { setError(""); setStep(s => s - 1); }} disabled={loading}
+              className="flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-zinc-400 transition hover:text-zinc-200 disabled:opacity-40">
               <ChevronLeft size={14} /> Back
             </button>
           )}

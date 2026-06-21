@@ -35,6 +35,10 @@ export async function PATCH(
 
   if (!payout) return NextResponse.json({ ok: false, error: "Payout not found" }, { status: 404 });
 
+  if (payout.status === "completed") {
+    return NextResponse.json({ ok: false, error: "Payout already completed" }, { status: 409 });
+  }
+
   const update: Record<string, unknown> = { status };
   if (admin_note) update.admin_note = admin_note;
   if (status === "completed") update.processed_at = new Date().toISOString();

@@ -33,7 +33,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, consultants: data ?? [] });
+  function maskPayout(info: Record<string, string> | null): Record<string, string> | null {
+    if (!info) return null;
+    const masked = { ...info };
+    for (const key of ["account_number", "iban", "swift_code", "routing_number", "upi_id"]) {
+      if (masked[key]) {
+        const v = String(masked[key]);
+        masked[key] = v.length > 4 ? `${"*".repeat(v.length - 4)}${v.slice(-4)}` : "****";
+      }
+    }
+    return masked;
+  }
+
+  type ConsultantRow = Record<string, unknown> & { payout_info?: Record<string, string> | null };
+  const consultants = ((data ?? []) as unknown as ConsultantRow[]).map((c) => ({
+    ...c,
+    payout_info: maskPayout(c.payout_info ?? null),
+  }));
+
+  return NextResponse.json({ ok: true, consultants });
 }
 
 export async function PATCH(req: NextRequest) {

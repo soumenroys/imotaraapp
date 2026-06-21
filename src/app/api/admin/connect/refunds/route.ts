@@ -61,6 +61,8 @@ export async function GET(req: NextRequest) {
     account_number: r.account_number
       ? `${"*".repeat(Math.max(0, r.account_number.length - 4))}${r.account_number.slice(-4)}`
       : null,
+    ifsc_code: r.ifsc_code ? `${"*".repeat(Math.max(0, r.ifsc_code.length - 4))}${r.ifsc_code.slice(-4)}` : null,
+    upi_id:    r.upi_id ? `${"*".repeat(Math.max(0, r.upi_id.length - 4))}${r.upi_id.slice(-4)}` : null,
   }));
 
   return NextResponse.json({ ok: true, refunds });

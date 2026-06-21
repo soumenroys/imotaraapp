@@ -3,7 +3,7 @@
 // Body: { action: "approve" | "reject", reason?: string }
 
 import { NextRequest, NextResponse } from "next/server";
-import { connectAdminAuthorized } from "@/app/api/admin/_auth";
+import { requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import nodemailer from "nodemailer";
 
@@ -11,8 +11,13 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await connectAdminAuthorized(req))) {
+  // Approve/reject is owner or admin only — connect_reviewer cannot approve applications.
+  const authResult = await requireSuperAdmin(req);
+  if (!authResult.ok) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
+  if (authResult.admin.role === "connect_reviewer") {
+    return NextResponse.json({ ok: false, error: "Insufficient privileges to approve consultants" }, { status: 403 });
   }
 
   const { id } = await params;

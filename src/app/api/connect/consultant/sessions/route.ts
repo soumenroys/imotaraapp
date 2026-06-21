@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     .single();
 
   if (!consultant) {
-    return NextResponse.json({ ok: false, error: "Not a registered consultant" }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Not a registered consultant" }, { status: 403 });
   }
 
   const statusParam = req.nextUrl.searchParams.get("status") ?? "incoming";

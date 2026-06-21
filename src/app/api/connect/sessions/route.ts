@@ -43,6 +43,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
   }
 
+  // Server-side age enforcement — rejects users who have explicitly confirmed they are under 18.
+  if (user.user_metadata?.connect_age_restricted === true) {
+    return NextResponse.json(
+      { ok: false, error: "Age restricted: Imotara Connect is not available for users under 18." },
+      { status: 403 }
+    );
+  }
+
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ ok: false, error: "Invalid body" }, { status: 400 });
 

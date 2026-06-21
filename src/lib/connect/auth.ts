@@ -9,6 +9,9 @@ import { supabaseUserServer } from "@/lib/supabase/userServer";
 export interface ConnectUser {
   id: string;
   email?: string;
+  // user_metadata from Supabase auth — populated when available (cookie/Bearer sessions).
+  // Used for server-side feature enforcement (e.g. age gate).
+  user_metadata?: Record<string, unknown>;
 }
 
 /**
@@ -22,7 +25,11 @@ export async function getConnectUser(req: Request): Promise<ConnectUser | null> 
     const token = auth.slice(7).trim();
     const { data } = await supabaseServer.auth.getUser(token);
     if (data?.user?.id) {
-      return { id: data.user.id, email: data.user.email };
+      return {
+        id: data.user.id,
+        email: data.user.email,
+        user_metadata: (data.user.user_metadata as Record<string, unknown>) ?? undefined,
+      };
     }
     // Bearer token present but invalid/expired — fail immediately.
     // Do NOT fall through to cookie auth: that would allow an expired mobile token
@@ -34,7 +41,11 @@ export async function getConnectUser(req: Request): Promise<ConnectUser | null> 
   try {
     const supabase = await supabaseUserServer();
     const { data: { user } } = await supabase.auth.getUser();
-    if (user?.id) return { id: user.id, email: user.email };
+    if (user?.id) return {
+      id: user.id,
+      email: user.email,
+      user_metadata: (user.user_metadata as Record<string, unknown>) ?? undefined,
+    };
   } catch {
     // no cookie session
   }

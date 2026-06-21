@@ -103,12 +103,20 @@ export async function GET(req: NextRequest) {
           if (earningsErr) console.error("[connect-orphans] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", session.id);
         }
 
+        const { error: scErr } = await supabase.rpc("increment_sessions_completed", {
+          p_consultant_id: consultant.id,
+        });
+        if (scErr) {
+          console.warn("[connect-orphans] increment_sessions_completed RPC unavailable, using fallback:", scErr.message);
+          await supabase
+            .from("connect_consultants")
+            .update({ sessions_completed: (consultant.sessions_completed ?? 0) + 1 })
+            .eq("id", consultant.id);
+        }
+
         await supabase
           .from("connect_consultants")
-          .update({
-            sessions_completed: (consultant.sessions_completed ?? 0) + 1,
-            is_busy: false,
-          })
+          .update({ is_busy: false })
           .eq("id", consultant.id);
       }
     } else {

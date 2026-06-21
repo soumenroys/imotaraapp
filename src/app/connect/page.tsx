@@ -2235,13 +2235,29 @@ export default function ConnectPage() {
         </p>
         <div className="flex w-full max-w-xs flex-col gap-3">
           <button
-            onClick={() => setAgeVerified(true)}
+            onClick={() => {
+              fetch("/api/connect/user/age-gate", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ restricted: false }),
+              }).catch(() => {});
+              setAgeVerified(true);
+            }}
             className="rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-500"
           >
             I am 18 or older — Continue
           </button>
           <button
-            onClick={() => router.replace("/connect/age-restricted")}
+            onClick={() => {
+              fetch("/api/connect/user/age-gate", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ restricted: true }),
+              }).catch(() => {});
+              router.replace("/connect/age-restricted");
+            }}
             className="rounded-xl border border-white/10 py-3 text-sm text-zinc-400 transition hover:text-zinc-200"
           >
             I am under 18

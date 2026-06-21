@@ -562,6 +562,15 @@ function ToneAndContextTile() {
             setToast({ message: "Save failed", type: "error" });
             window.setTimeout(() => setToast(null), 2200);
         }
+        // Sync age-gate status to server so Connect API can enforce age server-side.
+        fetch("/api/connect/user/age-gate", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+                restricted: userAge === "under_13" || userAge === "13_17",
+            }),
+        }).catch(() => {});
     }
 
     function reset() {

@@ -21,6 +21,26 @@ const ALLOWED_MIME: Record<string, string> = {
   "application/pdf": "pdf",
 };
 
+async function verifyMagicBytes(file: File, declaredType: string): Promise<boolean> {
+  const buf = await file.arrayBuffer();
+  const b = new Uint8Array(buf, 0, Math.min(buf.byteLength, 12));
+  switch (declaredType) {
+    case "image/jpeg":
+      return b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF;
+    case "image/png":
+      return b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47;
+    case "image/webp":
+      // RIFF....WEBP
+      return b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46
+          && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50;
+    case "application/pdf":
+      // %PDF
+      return b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46;
+    default:
+      return false;
+  }
+}
+
 export async function POST(req: NextRequest) {
   const user = await getConnectUser(req);
   if (!user) {
@@ -43,6 +63,15 @@ export async function POST(req: NextRequest) {
   }
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ ok: false, error: "File must be under 10 MB" }, { status: 400 });
+  }
+
+  // Magic-byte verification — file.type is client-supplied and can be spoofed
+  const magicOk = await verifyMagicBytes(file, file.type);
+  if (!magicOk) {
+    return NextResponse.json(
+      { ok: false, error: "File content does not match its declared type." },
+      { status: 422 }
+    );
   }
 
   const supabase = getSupabaseAdmin();

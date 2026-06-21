@@ -88,14 +88,15 @@ export async function POST(
     // "remaining=0" path could have already incremented minutes_used between our
     // balance read and this write. Without the lock that tick's increment would be
     // silently overwritten, under-crediting the consultant.
+    // Do NOT write amount_charged here — it was already set correctly by the
+    // last path-A/B tick. Writing the pre-SELECT value would overwrite it with stale data.
     const { data: completedRows } = await supabase
       .from("connect_sessions")
       .update({
-        status:         "completed",
-        ended_at:       now,
-        last_tick_at:   now,
-        minutes_used:   Number(session.minutes_used),
-        amount_charged: Number(session.amount_charged ?? 0),
+        status:       "completed",
+        ended_at:     now,
+        last_tick_at: now,
+        minutes_used: Number(session.minutes_used),
       })
       .eq("id", sessionId)
       .eq("status", "active")

@@ -73,7 +73,14 @@ export async function GET(req: NextRequest) {
         .eq("id", session.consultant_id)
         .single();
 
-      if (consultant) {
+      if (!consultant) {
+        // Consultant row missing or inaccessible — still clear busy flag so they
+        // are not permanently locked out of accepting new sessions.
+        await supabase
+          .from("connect_consultants")
+          .update({ is_busy: false })
+          .eq("id", session.consultant_id);
+      } else {
         // Use locked session rate; fall back to current consultant rate.
         // Guard against zero-rate: a rate of 0 produces amountCharged=0 which would
         // pass the amount_charged.eq.0 guard and overwrite any valid non-zero value

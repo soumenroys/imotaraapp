@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // GET /api/cron/exchange-rates
 // Fetches latest USD-base exchange rates and stores them in app_settings.
 // Call from Vercel Cron or any scheduler — protected by CRON_SECRET header.
@@ -48,7 +50,8 @@ export async function GET(req: NextRequest) {
     .upsert({ key: "exchange_rates", value: rates, updated_at: new Date().toISOString() }, { onConflict: "key" });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message, rates }, { status: 500 });
+    console.error("[exchange-rates] DB upsert error:", error.message);
+    return NextResponse.json({ ok: false, error: "Internal error", rates }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, rates, updated_at: new Date().toISOString() });

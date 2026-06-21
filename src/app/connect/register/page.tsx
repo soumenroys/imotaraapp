@@ -376,6 +376,7 @@ export default function RegisterConsultantPage() {
   }
 
   async function submit() {
+    if (loading) return;
     const err = validateStep(5);
     if (err) { setError(err); return; }
     setLoading(true); setError("");

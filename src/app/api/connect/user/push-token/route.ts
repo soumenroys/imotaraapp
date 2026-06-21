@@ -20,6 +20,9 @@ export async function PATCH(req: NextRequest) {
   if (typeof token !== "string" || token.length === 0 || token.length > 200) {
     return NextResponse.json({ ok: false, error: "Invalid push token" }, { status: 400 });
   }
+  if (!/^Expo(nent)?PushToken\[.+\]$/.test(token)) {
+    return NextResponse.json({ ok: false, error: "Invalid push token format" }, { status: 400 });
+  }
 
   const supabase = getSupabaseAdmin();
   const { error } = await supabase.auth.admin.updateUserById(user.id, {

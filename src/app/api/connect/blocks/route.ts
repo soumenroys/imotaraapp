@@ -46,7 +46,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const { blocked_user_id, reason } = body ?? {};
   if (!blocked_user_id) return NextResponse.json({ ok: false, error: "blocked_user_id required" }, { status: 400 });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(blocked_user_id))) {
+    return NextResponse.json({ ok: false, error: "blocked_user_id must be a valid UUID" }, { status: 400 });
+  }
   if (blocked_user_id === user.id) return NextResponse.json({ ok: false, error: "You cannot block yourself." }, { status: 400 });
+  if (reason !== undefined && reason !== null && String(reason).length > 500) {
+    return NextResponse.json({ ok: false, error: "reason must be 500 characters or fewer" }, { status: 400 });
+  }
 
   const supabase = getSupabaseAdmin();
   const consultant = await resolveConsultant(supabase, user.id);

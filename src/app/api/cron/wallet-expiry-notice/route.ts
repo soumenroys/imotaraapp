@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // GET /api/cron/wallet-expiry-notice
 // Vercel Cron — runs daily at 08:00 IST (02:30 UTC).
 // Finds wallets expiring within the next 30 days that have not yet received a notice,
@@ -62,7 +64,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error("[wallet-expiry-notice] query error:", error.message);
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 
   if (!wallets || wallets.length === 0) {

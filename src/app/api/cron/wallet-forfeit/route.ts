@@ -1,3 +1,5 @@
+export const preferredRegion = ["sin1"];
+
 // GET /api/cron/wallet-forfeit
 // Vercel Cron — runs daily at 09:00 IST (03:30 UTC).
 // Finds active wallets whose expires_at has passed and forfeits their balance:
@@ -66,7 +68,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error("[wallet-forfeit] query error:", error.message);
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 
   if (!wallets || wallets.length === 0) {

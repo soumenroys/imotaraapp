@@ -451,7 +451,12 @@ export default function SessionChatPage() {
         credentials: "include",
       });
       const d = await res.json().catch(() => null);
-      if (!res.ok || !d?.ok) setEndError(d?.error ?? "Could not end session. Please try again.");
+      if (!res.ok || !d?.ok) {
+        setEndError(d?.error ?? "Could not end session. Please try again.");
+      } else if (action === "complete" || action === "userEnd") {
+        stopTick();
+        setSession((prev) => prev ? { ...prev, status: "completed" } : prev);
+      }
     } catch {
       setEndError("Network error — please try again.");
     } finally {

@@ -115,13 +115,20 @@ export async function POST(req: NextRequest) {
   // Verify consultant is approved
   const { data: consultant } = await supabase
     .from("connect_consultants")
-    .select("id, status, currency_code, preferred_lang")
+    .select("id, status, is_busy, currency_code, preferred_lang")
     .eq("id", consultant_id)
     .eq("status", "approved")
     .single();
 
   if (!consultant) {
     return NextResponse.json({ ok: false, error: "Consultant not found or not approved" }, { status: 404 });
+  }
+
+  if (consultant.is_busy) {
+    return NextResponse.json(
+      { ok: false, error: "This companion is currently in a session. Please try again shortly." },
+      { status: 409 }
+    );
   }
 
   // Check if this user is blocked by the consultant

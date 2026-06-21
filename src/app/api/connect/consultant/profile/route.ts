@@ -57,8 +57,8 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "display_name must be 1–100 characters" }, { status: 400 });
     }
   }
-  if ("bio" in updates && (typeof updates.bio !== "string" || (updates.bio as string).length > 500)) {
-    return NextResponse.json({ ok: false, error: "bio max 500 chars" }, { status: 400 });
+  if ("bio" in updates && (typeof updates.bio !== "string" || !(updates.bio as string).trim() || (updates.bio as string).length > 500)) {
+    return NextResponse.json({ ok: false, error: "bio must be 1–500 characters" }, { status: 400 });
   }
   if ("availability_note" in updates && typeof updates.availability_note === "string" && (updates.availability_note as string).length > 500) {
     return NextResponse.json({ ok: false, error: "availability_note max 500 chars" }, { status: 400 });

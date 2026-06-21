@@ -99,11 +99,15 @@ export async function POST(req: NextRequest) {
   const supabase = getSupabaseAdmin();
 
   // Prevent duplicate registrations
-  const { data: existing } = await supabase
+  const { data: existing, error: existingErr } = await supabase
     .from("connect_consultants")
     .select("id, status")
     .eq("user_id", user.id)
     .maybeSingle();
+  if (existingErr) {
+    console.error("[consultant/register] duplicate check failed:", existingErr.message);
+    return NextResponse.json({ ok: false, error: "Registration check failed. Please try again." }, { status: 500 });
+  }
   if (existing) {
     const msg = existing.status === "pending"
       ? "You already have a pending application"
@@ -143,7 +147,8 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error || !consultant) {
-    return NextResponse.json({ ok: false, error: error?.message ?? "Insert failed" }, { status: 500 });
+    console.error("[consultant/register] insert failed:", error?.message);
+    return NextResponse.json({ ok: false, error: "Registration failed. Please try again." }, { status: 500 });
   }
 
   // Ensure wallet row exists for this user

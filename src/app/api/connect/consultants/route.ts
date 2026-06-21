@@ -64,7 +64,8 @@ export async function GET(req: NextRequest) {
 
   const { data, error, count } = await query;
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    console.error("[consultants/GET] query error:", error.message);
+    return NextResponse.json({ ok: false, error: "Could not load companions. Please try again." }, { status: 500 });
   }
 
   const total      = count ?? 0;

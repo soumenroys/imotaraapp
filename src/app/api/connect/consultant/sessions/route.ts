@@ -109,11 +109,17 @@ export async function GET(req: NextRequest) {
             .eq("id", consultant.id);
         }
       }
-      // Clear is_busy — no active sessions remain for this consultant.
-      await supabase
-        .from("connect_consultants")
-        .update({ is_busy: false })
-        .eq("id", consultant.id);
+      // Only clear is_busy when no active sessions remain — guards against incorrectly
+      // clearing it when another process (tick, cron) still holds a legitimately active
+      // session and all our atomic wins above were already claimed by that other process.
+      const { count: remainingActive } = await supabase
+        .from("connect_sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("consultant_id", consultant.id)
+        .eq("status", "active");
+      if ((remainingActive ?? 0) === 0) {
+        await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
+      }
     }
   }
 

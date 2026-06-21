@@ -138,6 +138,7 @@ export default function SessionChatPage() {
   const langPickerRef                     = useRef<HTMLDivElement>(null);
   const chatLangRef                       = useRef<LangCode | "">("");
   const myUserIdRef                       = useRef<string | null>(null);
+  const reviewAutoOpenedRef              = useRef(false);
 
   const bottomRef     = useRef<HTMLDivElement>(null);
   const tickRef       = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -269,7 +270,10 @@ export default function SessionChatPage() {
             // Auto-open review prompt for the session user when session completes
             if (updated.status === "completed" && myUserIdRef.current) {
               setSession((s) => {
-                if (s && myUserIdRef.current === s.user_id && !s.review_submitted_at) {
+                // reviewAutoOpenedRef prevents duplicate Realtime UPDATE events (reconnect,
+                // channel re-subscribe) from scheduling multiple setShowReview(true) timeouts.
+                if (s && myUserIdRef.current === s.user_id && !s.review_submitted_at && !reviewAutoOpenedRef.current) {
+                  reviewAutoOpenedRef.current = true;
                   setTimeout(() => setShowReview(true), 800);
                 }
                 return s;

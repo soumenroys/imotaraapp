@@ -59,6 +59,9 @@ export async function POST(req: NextRequest) {
   if (!consultant_id) {
     return NextResponse.json({ ok: false, error: "Companion not found. Please try again." }, { status: 400 });
   }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(consultant_id))) {
+    return NextResponse.json({ ok: false, error: "Companion not found. Please try again." }, { status: 400 });
+  }
   if (!["instant", "scheduled"].includes(type)) {
     return NextResponse.json({ ok: false, error: "Invalid session type. Please try again." }, { status: 400 });
   }

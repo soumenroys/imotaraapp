@@ -425,6 +425,7 @@ export default function SessionChatPage() {
   // ── Submit review ──────────────────────────────────────────────────────────
   async function submitReview() {
     if (rating === 0 || submittingReview || reviewDone) return;
+    if (session?.status !== "completed") return;
     setSubmittingReview(true);
     setReviewError(null);
     try {

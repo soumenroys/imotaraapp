@@ -72,6 +72,11 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Floor minutes to 0 — sessions can exceed recharges in edge cases (billing rounding)
+  for (const cid of Object.keys(balanceByConsultant)) {
+    balanceByConsultant[cid].minutes = Math.max(0, balanceByConsultant[cid].minutes);
+  }
+
   // Enrich balances with consultant names/photos (for display)
   const consultantIds = Object.keys(balanceByConsultant);
   const nameMap: Record<string, { display_name: string; photo_url: string | null; gender: string | null }> = {};

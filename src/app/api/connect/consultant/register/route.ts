@@ -115,6 +115,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "payout_info payload too large" }, { status: 400 });
     }
   }
+  if (contact_phone !== undefined && contact_phone !== null && String(contact_phone).trim().length > 30) {
+    return NextResponse.json({ ok: false, error: "contact_phone must be 30 characters or fewer" }, { status: 400 });
+  }
+  if (digital_signature !== undefined && digital_signature !== null && String(digital_signature).trim().length > 200) {
+    return NextResponse.json({ ok: false, error: "digital_signature must be 200 characters or fewer" }, { status: 400 });
+  }
+  if (availability_windows !== undefined && availability_windows !== null) {
+    if (!Array.isArray(availability_windows) || availability_windows.length > 28 || JSON.stringify(availability_windows).length > 8192) {
+      return NextResponse.json({ ok: false, error: "availability_windows is invalid or too large" }, { status: 400 });
+    }
+  }
 
   const supabase = getSupabaseAdmin();
 

@@ -267,6 +267,11 @@ export default function SessionChatPage() {
             // Call stopTick outside the setSession updater — side effects inside
             // React state setters are not safe in concurrent mode.
             setTimeout(stopTick, 0);
+            // Zero out the countdown immediately — otherwise the remaining-time display
+            // keeps ticking after the consultant ends the session via PATCH (which does
+            // not return a tick response, so remaining/displaySeconds would stay stale).
+            setRemaining(0);
+            setDisplaySeconds(0);
             // Auto-open review prompt for the session user when session completes
             if (updated.status === "completed" && myUserIdRef.current) {
               setSession((s) => {
@@ -838,6 +843,7 @@ export default function SessionChatPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
             placeholder="Type a message…"
+            maxLength={2000}
             className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500"
           />
           <button

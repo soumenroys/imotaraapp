@@ -186,19 +186,51 @@ export async function POST(req: Request) {
                             console.log("[razorpay/webhook] Connect recharge auto-completed via webhook:", recharge.id);
                         }
                     } else {
-                        // Not a Connect recharge — log as donation (existing flow)
-                        const donationPayment = paymentEntity;
-                        if (donationPayment?.id && donationPayment?.amount) {
-                            await logDonation({
-                                paymentId: donationPayment.id,
-                                orderId: donationPayment.order_id,
-                                amount: donationPayment.amount,
-                                currency: donationPayment.currency || "INR",
-                                status: eventType === "payment.captured" ? "captured" : "paid",
-                                createdAt: (donationPayment.created_at || event.created_at) * 1000,
-                                source: "razorpay",
-                                rawEvent: event,
-                            });
+                        // Not a Connect recharge — check if it is a wallet topup order.
+                        // Topup orders use notes.type = "wallet_topup" (not notes.purpose),
+                        // so they fall through to this else branch. Without this handler,
+                        // a browser crash after payment leaves the wallet permanently uncredited.
+                        const { data: topupOrder } = await supabase
+                            .from("imotara_wallet_orders")
+                            .select("id, user_id, amount, currency_code, status")
+                            .eq("razorpay_order_id", orderId)
+                            .maybeSingle();
+
+                        if (topupOrder && topupOrder.status === "pending") {
+                            const { data: markedTopup } = await supabase
+                                .from("imotara_wallet_orders")
+                                .update({ razorpay_payment_id: paymentId, status: "completed" })
+                                .eq("id", topupOrder.id)
+                                .eq("status", "pending")
+                                .select("id");
+
+                            if (markedTopup && markedTopup.length > 0) {
+                                const { error: creditErr } = await supabase.rpc("credit_imotara_wallet", {
+                                    p_user_id:  topupOrder.user_id,
+                                    p_amount:   Number(topupOrder.amount),
+                                    p_currency: topupOrder.currency_code ?? "INR",
+                                });
+                                if (creditErr) {
+                                    console.error("[razorpay/webhook] CRITICAL: wallet topup credit failed for order:", topupOrder.id, creditErr.message);
+                                } else {
+                                    console.log("[razorpay/webhook] Wallet topup auto-completed via webhook:", topupOrder.id);
+                                }
+                            }
+                        } else {
+                            // Not a known order — log as donation (existing flow)
+                            const donationPayment = paymentEntity;
+                            if (donationPayment?.id && donationPayment?.amount) {
+                                await logDonation({
+                                    paymentId: donationPayment.id,
+                                    orderId: donationPayment.order_id,
+                                    amount: donationPayment.amount,
+                                    currency: donationPayment.currency || "INR",
+                                    status: eventType === "payment.captured" ? "captured" : "paid",
+                                    createdAt: (donationPayment.created_at || event.created_at) * 1000,
+                                    source: "razorpay",
+                                    rawEvent: event,
+                                });
+                            }
                         }
                     }
                 } else {

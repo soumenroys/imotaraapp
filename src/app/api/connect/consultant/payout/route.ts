@@ -132,6 +132,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Failed to submit payout request. Please try again." }, { status: 500 });
   }
 
+  // Post-insert race detection: if two concurrent requests both passed the pending-payout guard,
+  // both will have inserted rows. The one that now sees > 1 pending row loses and self-cancels.
+  const { count: dupeCount } = await supabase
+    .from("connect_payouts")
+    .select("id", { count: "exact", head: true })
+    .eq("consultant_user_id", user.id)
+    .eq("status", "pending");
+  if ((dupeCount ?? 0) > 1) {
+    await supabase.from("connect_payouts").update({ status: "failed" }).eq("id", payout.id);
+    return NextResponse.json(
+      { ok: false, error: "You already have a pending payout request. Please wait for it to be processed." },
+      { status: 409 }
+    );
+  }
+
   // Atomic increment prevents double-payout if two concurrent requests both
   // pass the available-balance check before either write completes.
   const { error: rpcErr } = await supabase.rpc("increment_pending_payout", {

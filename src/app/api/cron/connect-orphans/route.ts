@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
   const { data: orphans, error } = await supabase
     .from("connect_sessions")
-    .select("id, consultant_id, minutes_used, rate_per_min, started_at, last_tick_at, type")
+    .select("id, user_id, consultant_id, minutes_used, rate_per_min, started_at, last_tick_at, type")
     .eq("status", "active")
     .or(`last_tick_at.is.null,last_tick_at.lt.${cutoff}`);
 
@@ -116,6 +116,23 @@ export async function GET(req: NextRequest) {
         .update({ is_busy: false })
         .eq("id", session.consultant_id);
     }
+
+    // Notify the user that the session was force-closed (best-effort push, non-blocking)
+    void supabase.auth.admin.getUserById(session.user_id).then(({ data: uAuth }) => {
+      const pushToken = uAuth?.user?.user_metadata?.expo_connect_push_token as string | undefined;
+      if (!pushToken) return;
+      return fetch("https://exp.host/--/api/v2/push/send", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          to:    pushToken,
+          sound: "default",
+          title: "Session Ended",
+          body:  "Your session was closed due to inactivity.",
+          data:  { session_id: session.id, type: "session_force_closed" },
+        }),
+      });
+    }).catch(() => {});
 
     completed++;
   }

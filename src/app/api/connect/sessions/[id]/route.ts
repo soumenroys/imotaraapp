@@ -168,8 +168,9 @@ export async function PATCH(
 
       // Notify the session user that their request was accepted (email + push, non-blocking)
       void supabase.auth.admin.getUserById(session.user_id).then(({ data: uAuth }) => {
-        const userEmail = uAuth?.user?.email;
+        const userEmail    = uAuth?.user?.email;
         const consultantName = consultant.display_name ?? "Your companion";
+        const userPushToken  = uAuth?.user?.user_metadata?.expo_connect_push_token as string | undefined;
 
         const jobs: Promise<unknown>[] = [];
 
@@ -179,14 +180,43 @@ export async function PATCH(
           }).catch((e) => console.error("[sessions/accept] email error:", e)));
         }
 
-        // Push notification to user if they have a token (via expo_push_token stored on their profile
-        // — users don't have a connect_consultants row, so we look in a generic field on auth.users metadata)
-        // Best-effort only; most users will receive the Supabase Realtime status update instead.
+        if (userPushToken) {
+          jobs.push(fetch("https://exp.host/--/api/v2/push/send", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              to:    userPushToken,
+              sound: "default",
+              title: "Session Accepted!",
+              body:  `${consultantName} has accepted your request. Join now.`,
+              data:  { session_id: id, type: "session_accepted" },
+            }),
+          }).catch((e) => console.error("[sessions/accept] push error:", e)));
+        }
+
         return Promise.all(jobs);
       }).catch((e) => console.error("[sessions/accept] notify error:", e));
 
     } else if (action === "complete" || action === "decline" || action === "cancel" || action === "userEnd") {
       await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
+
+      if (action === "decline") {
+        void supabase.auth.admin.getUserById(session.user_id).then(({ data: uAuth }) => {
+          const pushToken = uAuth?.user?.user_metadata?.expo_connect_push_token as string | undefined;
+          if (!pushToken) return;
+          return fetch("https://exp.host/--/api/v2/push/send", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              to:    pushToken,
+              sound: "default",
+              title: "Session Request Declined",
+              body:  "The companion is unavailable right now. Try another or check back later.",
+              data:  { session_id: id, type: "session_declined" },
+            }),
+          });
+        }).catch((e) => console.error("[sessions/decline] push error:", e));
+      }
     }
   }
 

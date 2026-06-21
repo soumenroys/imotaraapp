@@ -57,6 +57,11 @@ export async function POST(
     ? Number(session.rate_per_min)
     : await fetchConsultantRate(supabase, session.consultant_id);
 
+  if (ratePerMin <= 0) {
+    console.error("[tick] session has no valid rate:", sessionId, "rate:", ratePerMin, "— aborting tick");
+    return NextResponse.json({ ok: false, error: "session_rate_invalid" }, { status: 422 });
+  }
+
   // Calculate available balance for this consultant
   const { data: recharges } = await supabase
     .from("connect_recharges")

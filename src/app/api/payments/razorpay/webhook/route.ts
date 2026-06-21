@@ -162,19 +162,60 @@ export async function POST(req: Request) {
                     console.error("[razorpay/webhook] grantLicense failed:", e);
                 }
             } else {
-                // ---- Donation receipt logging (existing flow) ----
-                const donationPayment = paymentEntity;
-                if (donationPayment?.id && donationPayment?.amount) {
-                    await logDonation({
-                        paymentId: donationPayment.id,
-                        orderId: donationPayment.order_id,
-                        amount: donationPayment.amount,
-                        currency: donationPayment.currency || "INR",
-                        status: eventType === "payment.captured" ? "captured" : "paid",
-                        createdAt: (donationPayment.created_at || event.created_at) * 1000,
-                        source: "razorpay",
-                        rawEvent: event,
-                    });
+                // ---- Check if this is a Connect recharge (no purpose note set at order creation) ----
+                // Covers the case where the user's browser crashes after payment but before /recharge/verify.
+                // Without this handler, the recharge row stays "pending" forever and the user loses their money.
+                const orderId = paymentEntity?.order_id ?? orderEntity?.id;
+                const paymentId = paymentEntity?.id;
+                if (orderId && paymentId) {
+                    const supabase = getSupabaseAdmin();
+                    const { data: recharge } = await supabase
+                        .from("connect_recharges")
+                        .select("id, status")
+                        .eq("razorpay_order_id", orderId)
+                        .maybeSingle();
+
+                    if (recharge && recharge.status === "pending") {
+                        const { data: markedRows } = await supabase
+                            .from("connect_recharges")
+                            .update({ razorpay_payment_id: paymentId, status: "completed" })
+                            .eq("id", recharge.id)
+                            .eq("status", "pending")
+                            .select("id");
+                        if (markedRows && markedRows.length > 0) {
+                            console.log("[razorpay/webhook] Connect recharge auto-completed via webhook:", recharge.id);
+                        }
+                    } else {
+                        // Not a Connect recharge — log as donation (existing flow)
+                        const donationPayment = paymentEntity;
+                        if (donationPayment?.id && donationPayment?.amount) {
+                            await logDonation({
+                                paymentId: donationPayment.id,
+                                orderId: donationPayment.order_id,
+                                amount: donationPayment.amount,
+                                currency: donationPayment.currency || "INR",
+                                status: eventType === "payment.captured" ? "captured" : "paid",
+                                createdAt: (donationPayment.created_at || event.created_at) * 1000,
+                                source: "razorpay",
+                                rawEvent: event,
+                            });
+                        }
+                    }
+                } else {
+                    // No order ID available — fall through to donation log
+                    const donationPayment = paymentEntity;
+                    if (donationPayment?.id && donationPayment?.amount) {
+                        await logDonation({
+                            paymentId: donationPayment.id,
+                            orderId: donationPayment.order_id,
+                            amount: donationPayment.amount,
+                            currency: donationPayment.currency || "INR",
+                            status: eventType === "payment.captured" ? "captured" : "paid",
+                            createdAt: (donationPayment.created_at || event.created_at) * 1000,
+                            source: "razorpay",
+                            rawEvent: event,
+                        });
+                    }
                 }
             }
         }

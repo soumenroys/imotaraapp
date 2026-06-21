@@ -36,6 +36,27 @@ export async function POST(req: NextRequest) {
   if (!consultant_id) return NextResponse.json({ ok: false, error: "consultant_id required" }, { status: 400 });
 
   const supabase = getSupabaseAdmin();
+
+  // Validate consultant exists and is approved
+  const { data: consultant } = await supabase
+    .from("connect_consultants")
+    .select("id")
+    .eq("id", consultant_id)
+    .eq("status", "approved")
+    .maybeSingle();
+  if (!consultant) {
+    return NextResponse.json({ ok: false, error: "Consultant not found" }, { status: 404 });
+  }
+
+  // Cap at 100 favorites per user
+  const { count } = await supabase
+    .from("connect_favorites")
+    .select("consultant_id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+  if ((count ?? 0) >= 100) {
+    return NextResponse.json({ ok: false, error: "Favorites limit reached (100 max)" }, { status: 429 });
+  }
+
   const { error } = await supabase
     .from("connect_favorites")
     .upsert({ user_id: user.id, consultant_id }, { onConflict: "user_id,consultant_id", ignoreDuplicates: true });

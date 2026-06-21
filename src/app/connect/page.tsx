@@ -1540,6 +1540,8 @@ function DashboardTab() {
     const minPayout = currency === "USD" ? 10 : 500;
     const minLabel  = currency === "USD" ? "$10" : "₹500";
     if (amount < minPayout) { setPayoutMsg({ ok: false, text: `Minimum payout is ${minLabel}.` }); return; }
+    const available = Number(earnings?.earned_amount ?? 0) - Number(earnings?.pending_payout ?? 0);
+    if (amount > available) { setPayoutMsg({ ok: false, text: `Amount exceeds your available balance of ${available.toFixed(2)} ${currency}.` }); return; }
     if (!payoutDetails.trim()) { setPayoutMsg({ ok: false, text: "Enter your payment details." }); return; }
     setPayoutLoading(true);
     setPayoutMsg(null);

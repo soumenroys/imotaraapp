@@ -429,7 +429,11 @@ export default function SessionChatPage() {
         credentials: "include",
       });
       const d = await res.json();
-      if (d.ok) { setReviewDone(true); setShowReview(false); }
+      if (d.ok) {
+        setReviewDone(true);
+        setShowReview(false);
+        setSession((s) => s ? { ...s, rating, review_text: reviewText || null, review_submitted_at: new Date().toISOString() } : s);
+      }
       else setReviewError(d.error ?? "Could not submit review. Please try again.");
     } catch {
       setReviewError("Network error — please try again.");
@@ -733,7 +737,11 @@ export default function SessionChatPage() {
               Leave a review
             </button>
           )}
-          {reviewDone && <span className="ml-2 text-emerald-400">✓ Reviewed</span>}
+          {reviewDone && (
+            <span className="ml-2 text-emerald-400">
+              ✓ Reviewed{session.rating ? ` · ${session.rating}/5` : ""}
+            </span>
+          )}
         </div>
       )}
 

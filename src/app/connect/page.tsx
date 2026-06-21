@@ -270,6 +270,8 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
       params.set("needs_recharge", "true");
     }
     router.push(`/connect/session/new?${params}`);
+    // Reset after navigation so bfcache restoration doesn't silently block future clicks
+    setTimeout(() => { navigatingRef.current = false; }, 1000);
   }
   function handleRequestMeeting(consultantId: string) {
     if (!isLoggedIn) { setShowSignIn(true); return; }
@@ -285,6 +287,7 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
       consultant_lang: c?.preferred_lang ?? "en",
     });
     router.push(`/connect/session/new?${params}`);
+    setTimeout(() => { navigatingRef.current = false; }, 1000);
   }
 
   const displayed = consultants
@@ -656,6 +659,14 @@ function SessionsTab() {
               </div>
             </button>
             <div className="flex shrink-0 flex-col gap-1.5">
+              {s.status === "active" && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); router.push(`/connect/session/${s.id}`); }}
+                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[10px] font-medium text-emerald-400 transition hover:bg-emerald-500/20"
+                >
+                  Rejoin
+                </button>
+              )}
               {canCancel && (
                 <button
                   onClick={(e) => cancelSession(s.id, e)}
@@ -749,6 +760,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const [refundLoading, setRefundLoading]     = useState(false);
   const [refundResult, setRefundResult]       = useState<{ ref: string; amount: number } | null>(null);
   const [refundError, setRefundError]         = useState("");
+  const [fetchError, setFetchError]           = useState(false);
 
   const sym = CURRENCY_SYMBOLS[walletCurrency] ?? walletCurrency;
   const topupAmount = isCustom ? Math.max(1, parseFloat(customAmount) || 0) : selectedAmount;
@@ -758,15 +770,18 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
       .then((r) => r.json())
       .then((d) => {
         if (d.ok) {
+          setFetchError(false);
           setWalletBalance(Number(d.wallet_balance ?? 0));
           setWalletCurrency(d.wallet_currency ?? "INR");
           setExpiresAt(d.expires_at ?? null);
           setDaysUntilExpiry(d.days_until_expiry ?? null);
           setWalletStatus(d.wallet_status ?? "active");
           setSessionWallets(d.wallets ?? []);
+        } else {
+          setFetchError(true);
         }
       })
-      .catch(() => {});
+      .catch(() => { setFetchError(true); });
   }
 
   useEffect(() => {
@@ -925,6 +940,17 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
 
   return (
     <div className="space-y-4">
+      {fetchError && (
+        <div className="flex items-center justify-between rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3">
+          <p className="text-sm text-rose-400">Could not load wallet data.</p>
+          <button
+            onClick={() => { setFetchError(false); fetchBalance().catch(() => setFetchError(true)); }}
+            className="ml-4 rounded-lg bg-rose-500/20 px-3 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-500/30 transition"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       {/* ── Expiry warning banner ── */}
       {isExpired && (
         <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-5 py-4">

@@ -131,18 +131,11 @@ export async function PATCH(req: NextRequest) {
   // If completed, zero out the wallet balance (refund has been issued)
   if (body.status === "completed") {
     if (refundUserId) {
-      // Subtract only the refunded amount — do not zero the entire wallet; the user
-      // may have topped up again between the refund request and its approval.
-      const { data: walletRow } = await supabase
-        .from("imotara_wallets")
-        .select("balance")
-        .eq("user_id", refundUserId)
-        .single();
-      const newBalance = Math.max(0, Number(walletRow?.balance ?? 0) - refundAmount);
+      // Atomically decrement wallet balance — the DB function evaluates
+      // GREATEST(0, balance - amount) at UPDATE lock time, so a concurrent
+      // top-up between a JS SELECT and a JS UPDATE cannot be silently lost.
       const { error: walletErr } = await supabase
-        .from("imotara_wallets")
-        .update({ balance: newBalance, status: "active" })
-        .eq("user_id", refundUserId);
+        .rpc("decrement_wallet_balance", { p_user_id: refundUserId, p_amount: refundAmount });
       if (walletErr) {
         console.error("[admin/refunds PATCH] CRITICAL: wallet adjustment failed for user:", refundUserId, "refund:", body.id, walletErr.message);
       }

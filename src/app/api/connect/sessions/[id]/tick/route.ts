@@ -102,7 +102,11 @@ export async function POST(
         userId:        session.user_id,
         consultantId:  session.consultant_id,
         minutesUsed:   Number(session.minutes_used),
-        amountCharged: Number(session.amount_charged ?? 0),
+        // Use computed value rather than the DB field — session.amount_charged was read
+        // at request start; a concurrent tick may have written a larger value since then.
+        // The optimistic lock guarantees minutes_used hasn't changed, so the computed
+        // amount is authoritative and consistent with what creditConsultant credits.
+        amountCharged: Number(session.minutes_used) * ratePerMin,
         currency:      session.currency_code ?? "INR",
         ratePerMin,
       }).catch((e) => console.error("[tick] completion email error:", e));

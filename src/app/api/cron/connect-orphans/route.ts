@@ -107,7 +107,15 @@ export async function GET(req: NextRequest) {
             p_user_id: consultant.user_id,
             p_amount:  earnings,
           });
-          if (earningsErr) console.error("[connect-orphans] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", session.id);
+          if (earningsErr) {
+            // Earnings credit failed — clear is_busy so the consultant is not locked out,
+            // but do NOT increment sessions_completed. The discrepancy (session completed
+            // but no earnings + no count increment) surfaces clearly in the earnings dashboard.
+            console.error("[connect-orphans] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", session.id, "— skipping sessions_completed to keep discrepancy visible");
+            await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
+            completed++;
+            continue;
+          }
         }
 
         const { error: scErr } = await supabase.rpc("increment_sessions_completed", {

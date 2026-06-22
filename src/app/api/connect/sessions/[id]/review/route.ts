@@ -68,23 +68,11 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Already reviewed" }, { status: 409 });
   }
 
-  // Recompute consultant rating_avg and rating_count
-  const { data: allRatings } = await supabase
-    .from("connect_sessions")
-    .select("rating")
-    .eq("consultant_id", session.consultant_id)
-    .eq("status", "completed")
-    .not("rating", "is", null);
-
-  const ratings = (allRatings ?? []).map((r) => Number(r.rating));
-  const avg = ratings.length > 0
-    ? Math.round((ratings.reduce((s, r) => s + r, 0) / ratings.length) * 100) / 100
-    : 0;
-
-  await supabase
-    .from("connect_consultants")
-    .update({ rating_avg: avg, rating_count: ratings.length })
-    .eq("id", session.consultant_id);
+  // Rating aggregate is handled atomically by the DB trigger trg_update_consultant_rating
+  // (connect_v16_security_hardening.sql). The trigger fires AFTER UPDATE of the rating
+  // column inside the same transaction, so no application-level aggregate is needed.
+  // Keeping the aggregate here would overwrite the trigger's correct value with a
+  // non-atomic read taken after the INSERT — dropping concurrent reviews from the average.
 
   return NextResponse.json({ ok: true });
 }

@@ -187,32 +187,16 @@ export async function POST(req: NextRequest) {
   }
 
   // Both instant and scheduled sessions require at least 1 minute of pre-paid balance.
-  // For scheduled sessions: the consultant accepts, then on the first tick the session would
-  // auto-complete immediately if balance is zero — wasting the consultant's accepted slot.
+  // Uses the atomic get_session_balance RPC (single SQL expression) to avoid the
+  // two-query TOCTOU window where a concurrent recharge or session could land between reads.
   {
-    const [{ data: recharges }, { data: usedSessions }] = await Promise.all([
-      supabase
-        .from("connect_recharges")
-        .select("minutes_credited")
-        .eq("user_id", user.id)
-        .eq("consultant_id", consultant_id)
-        .eq("status", "completed"),
-      supabase
-        .from("connect_sessions")
-        .select("minutes_used")
-        .eq("user_id", user.id)
-        .eq("consultant_id", consultant_id)
-        .in("status", ["completed", "active"]),
-    ]);
-
-    const totalCredited = (recharges ?? []).reduce((s, r) => s + Number(r.minutes_credited), 0);
-    const totalUsed     = (usedSessions ?? []).reduce((s, r) => s + Number(r.minutes_used), 0);
-    const balance       = totalCredited - totalUsed;
-
-    // Require at least 1 minute of balance. Translation surcharge is baked into
-    // rate_per_min at creation time — no extra minutes are needed upfront.
-    const minBalanceRequired = 1;
-    if (balance < minBalanceRequired) {
+    const { data: balance, error: balErr } = await supabase
+      .rpc("get_session_balance", { p_user_id: user.id, p_consultant_id: consultant_id });
+    if (balErr) {
+      console.error("[sessions/POST] get_session_balance failed:", balErr.message);
+      return NextResponse.json({ ok: false, error: "Service temporarily unavailable. Please try again." }, { status: 503 });
+    }
+    if (Number(balance ?? 0) < 1) {
       return NextResponse.json(
         { ok: false, error: "Insufficient balance. Please recharge session minutes first.", needs_recharge: true },
         { status: 402 }

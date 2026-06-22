@@ -60,21 +60,19 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Payout already completed" }, { status: 409 });
   }
 
-  // If completed, decrement pending_payout by the exact payout amount (not zero the whole field —
-  // the consultant may have multiple concurrent pending payout requests).
+  // Atomically decrement pending_payout — the DB function evaluates the new value
+  // inside the UPDATE lock, eliminating the JS read-compute-write race that allowed
+  // two concurrent payout completions to both read the same pending_payout and each
+  // only decrement once (effectively dropping one decrement).
   if (status === "completed") {
-    const { data: wallet } = await supabase
-      .from("connect_wallet")
-      .select("pending_payout")
-      .eq("user_id", payout.consultant_user_id)
-      .single();
-
-    const newPending = Math.max(0, Number(wallet?.pending_payout ?? 0) - Number(payout.amount));
-
-    await supabase
-      .from("connect_wallet")
-      .update({ pending_payout: newPending, updated_at: new Date().toISOString() })
-      .eq("user_id", payout.consultant_user_id);
+    const { error: decrementErr } = await supabase
+      .rpc("decrement_pending_payout", {
+        p_user_id: payout.consultant_user_id,
+        p_amount:  Number(payout.amount),
+      });
+    if (decrementErr) {
+      console.error("[admin/connect/payouts PATCH] CRITICAL: decrement_pending_payout failed:", decrementErr.message, "payout:", id);
+    }
   }
 
   return NextResponse.json({ ok: true });

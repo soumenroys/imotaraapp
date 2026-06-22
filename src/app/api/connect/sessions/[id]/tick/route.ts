@@ -62,24 +62,16 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "session_rate_invalid" }, { status: 422 });
   }
 
-  // Calculate available balance for this consultant
-  const { data: recharges } = await supabase
-    .from("connect_recharges")
-    .select("minutes_credited")
-    .eq("user_id", user.id)
-    .eq("consultant_id", session.consultant_id)
-    .eq("status", "completed");
-
-  const { data: usedSessions } = await supabase
-    .from("connect_sessions")
-    .select("minutes_used")
-    .eq("user_id", user.id)
-    .eq("consultant_id", session.consultant_id)
-    .in("status", ["completed", "active"]);
-
-  const totalCredited = (recharges ?? []).reduce((s, r) => s + Number(r.minutes_credited), 0);
-  const totalUsed     = (usedSessions ?? []).reduce((s, r) => s + Number(r.minutes_used), 0);
-  const balanceBefore = totalCredited - totalUsed;
+  // Calculate available balance for this consultant using a single atomic DB
+  // expression — replaces two sequential reads that had a TOCTOU window where a
+  // concurrent tick or recharge could land between them and produce a stale balance.
+  const { data: balanceData, error: balanceErr } = await supabase
+    .rpc("get_session_balance", { p_user_id: user.id, p_consultant_id: session.consultant_id });
+  if (balanceErr) {
+    console.error("[tick] get_session_balance failed:", balanceErr.message, "session:", sessionId);
+    return NextResponse.json({ ok: false, error: "Service temporarily unavailable. Please try again." }, { status: 503 });
+  }
+  const balanceBefore = Number(balanceData ?? 0);
   const now           = new Date().toISOString();
 
   if (balanceBefore <= 0) {

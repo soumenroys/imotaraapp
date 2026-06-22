@@ -99,7 +99,7 @@ export async function PATCH(req: NextRequest) {
       .from("imotara_wallet_refund_requests")
       .select("user_id, amount")
       .eq("id", body.id)
-      .eq("status", "pending")  // only pre-fetch if still actionable
+      .neq("status", "completed")  // covers both pending → completed and processing → completed
       .single();
     refundUserId = preFetch?.user_id ?? null;
     refundAmount = Number(preFetch?.amount ?? 0);

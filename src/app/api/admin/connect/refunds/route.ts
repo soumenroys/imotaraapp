@@ -3,7 +3,7 @@
 // Admin only.
 
 import { NextRequest, NextResponse } from "next/server";
-import { connectAdminAuthorized } from "@/app/api/admin/_auth";
+import { connectAdminAuthorized, requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 const VALID_STATUSES = ["processing", "completed", "rejected"] as const;
@@ -70,8 +70,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  if (!(await connectAdminAuthorized(req))) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireSuperAdmin(req);
+  if (!authResult.ok) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (authResult.admin.role === "connect_reviewer") {
+    return NextResponse.json({ ok: false, error: "Insufficient privileges to approve refunds" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
@@ -97,6 +99,7 @@ export async function PATCH(req: NextRequest) {
       .from("imotara_wallet_refund_requests")
       .select("user_id, amount")
       .eq("id", body.id)
+      .eq("status", "pending")  // only pre-fetch if still actionable
       .single();
     refundUserId = preFetch?.user_id ?? null;
     refundAmount = Number(preFetch?.amount ?? 0);
@@ -108,14 +111,21 @@ export async function PATCH(req: NextRequest) {
   }
   if (body.admin_note) update.admin_note = body.admin_note;
 
-  const { error } = await supabase
+  // Optimistic lock: prevent double-completion if two admins approve the same refund
+  // concurrently — only the first UPDATE wins; the second sees 0 rows.
+  const { data: updatedRows, error } = await supabase
     .from("imotara_wallet_refund_requests")
     .update(update)
-    .eq("id", body.id);
+    .eq("id", body.id)
+    .neq("status", "completed")
+    .select("id");
 
   if (error) {
     console.error("[admin/refunds PATCH] update failed:", error.message, "refund:", body.id);
     return NextResponse.json({ ok: false, error: "Failed to update refund. Please try again." }, { status: 500 });
+  }
+  if (!updatedRows || updatedRows.length === 0) {
+    return NextResponse.json({ ok: false, error: "Refund already completed or not found" }, { status: 409 });
   }
 
   // If completed, zero out the wallet balance (refund has been issued)

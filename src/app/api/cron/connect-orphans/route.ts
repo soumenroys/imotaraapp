@@ -113,6 +113,22 @@ export async function GET(req: NextRequest) {
             // but no earnings + no count increment) surfaces clearly in the earnings dashboard.
             console.error("[connect-orphans] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", session.id, "— skipping sessions_completed to keep discrepancy visible");
             await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
+            // Still notify the user that their session was force-closed
+            void supabase.auth.admin.getUserById(session.user_id).then(({ data: uAuth }) => {
+              const pushToken = uAuth?.user?.user_metadata?.expo_connect_push_token as string | undefined;
+              if (!pushToken) return;
+              return fetch("https://exp.host/--/api/v2/push/send", {
+                method:  "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify({
+                  to:    pushToken,
+                  sound: "default",
+                  title: "Session Ended",
+                  body:  "Your session was closed due to inactivity.",
+                  data:  { session_id: session.id, type: "session_force_closed" },
+                }),
+              });
+            }).catch(() => {});
             completed++;
             continue;
           }

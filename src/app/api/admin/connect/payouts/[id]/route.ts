@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { connectAdminAuthorized } from "@/app/api/admin/_auth";
+import { requireSuperAdmin } from "@/app/api/admin/_auth";
 
 const VALID_STATUSES = ["processing", "completed", "failed"] as const;
 
@@ -14,8 +14,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const admin = await connectAdminAuthorized(req);
-  if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireSuperAdmin(req);
+  if (!authResult.ok) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (authResult.admin.role === "connect_reviewer") {
+    return NextResponse.json({ ok: false, error: "Insufficient privileges to approve payouts" }, { status: 403 });
+  }
 
   const body = await req.json().catch(() => null);
   const status = body?.status;
@@ -72,6 +75,10 @@ export async function PATCH(
       });
     if (decrementErr) {
       console.error("[admin/connect/payouts PATCH] CRITICAL: decrement_pending_payout failed:", decrementErr.message, "payout:", id);
+      return NextResponse.json(
+        { ok: false, error: "Payout marked complete but wallet decrement failed — contact engineering before retrying" },
+        { status: 500 }
+      );
     }
   }
 

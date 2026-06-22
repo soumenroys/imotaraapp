@@ -52,14 +52,18 @@ export async function PATCH(
   update.updated_at = new Date().toISOString();
 
   const supabase = getSupabaseAdmin();
-  const { error } = await supabase
+  const { data: updatedRows, error } = await supabase
     .from("connect_consultants")
     .update(update)
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) {
     console.error("[admin/connect/[id] PATCH] DB update failed:", error.message, "consultant:", id);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
+  }
+  if (!updatedRows || updatedRows.length === 0) {
+    return NextResponse.json({ ok: false, error: "Consultant not found" }, { status: 404 });
   }
 
   return NextResponse.json({ ok: true, updated: Object.keys(update).filter((k) => k !== "updated_at") });

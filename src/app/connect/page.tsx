@@ -532,7 +532,7 @@ function SessionsTab() {
       });
       const d = await res.json();
       if (d.ok) setSessions((prev) => prev.map((s) => s.id === id ? { ...s, status: "cancelled" } : s));
-      else alert(d.error ?? "Could not cancel session");
+      else alert("Could not cancel session. Please try again.");
     } catch { alert("Network error — please try again."); }
     finally { setCancelling(null); }
   }
@@ -1511,7 +1511,7 @@ function DashboardTab() {
           setIncomingSessions((prev) => prev.filter((s) => s.id !== sessionId));
         }
       } else {
-        alert(d.error ?? `Could not ${action} session`);
+        alert(`Could not ${action} session. Please try again.`);
       }
     } catch { alert("Network error — please try again."); }
     finally { setActionLoading(null); }

@@ -33,7 +33,9 @@ ALTER TABLE connect_consultants
 -- Fix: split the policy into SELECT-only (for reading own profile) and a
 -- restricted UPDATE that explicitly prevents changing the status column.
 
-DROP POLICY IF EXISTS "connect_consultants_own_all" ON connect_consultants;
+DROP POLICY IF EXISTS "connect_consultants_own_all"    ON connect_consultants;
+DROP POLICY IF EXISTS "connect_consultants_own_select" ON connect_consultants;
+DROP POLICY IF EXISTS "connect_consultants_own_update" ON connect_consultants;
 
 -- Allow consultants to read their own row (needed for the dashboard)
 CREATE POLICY "connect_consultants_own_select"

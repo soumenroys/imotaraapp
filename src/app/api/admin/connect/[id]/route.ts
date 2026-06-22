@@ -2,7 +2,7 @@
 // DELETE /api/admin/connect/[id] — soft-delete (status → deleted); data kept for accounting.
 
 import { NextRequest, NextResponse } from "next/server";
-import { connectAdminAuthorized } from "@/app/api/admin/_auth";
+import { requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 const EDITABLE_FIELDS = ["rate_per_min", "bio", "expertise_tags", "availability_note", "display_name"] as const;
@@ -12,8 +12,10 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await connectAdminAuthorized(req))) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireSuperAdmin(req);
+  if (!authResult.ok) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (authResult.admin.role === "connect_reviewer") {
+    return NextResponse.json({ ok: false, error: "Insufficient privileges to edit consultant profiles" }, { status: 403 });
   }
 
   const { id } = await params;
@@ -67,8 +69,10 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await connectAdminAuthorized(req))) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireSuperAdmin(req);
+  if (!authResult.ok) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (authResult.admin.role === "connect_reviewer") {
+    return NextResponse.json({ ok: false, error: "Insufficient privileges to delete consultants" }, { status: 403 });
   }
 
   const { id } = await params;

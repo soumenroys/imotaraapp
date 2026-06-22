@@ -3,7 +3,7 @@
 // Admin only.
 
 import { NextRequest, NextResponse } from "next/server";
-import { connectAdminAuthorized } from "@/app/api/admin/_auth";
+import { connectAdminAuthorized, requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 export async function GET(req: NextRequest) {
@@ -56,8 +56,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  if (!(await connectAdminAuthorized(req))) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  // Suspend / reinstate / reject requires owner or admin — connect_reviewer is read-only.
+  const authResult = await requireSuperAdmin(req);
+  if (!authResult.ok) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (authResult.admin.role === "connect_reviewer") {
+    return NextResponse.json({ ok: false, error: "Insufficient privileges to change consultant status" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);

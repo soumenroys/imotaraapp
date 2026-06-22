@@ -79,6 +79,9 @@ export async function DELETE(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const { blocked_user_id } = body ?? {};
   if (!blocked_user_id) return NextResponse.json({ ok: false, error: "blocked_user_id required" }, { status: 400 });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(blocked_user_id))) {
+    return NextResponse.json({ ok: false, error: "blocked_user_id must be a valid UUID" }, { status: 400 });
+  }
 
   const supabase = getSupabaseAdmin();
   const consultant = await resolveConsultant(supabase, user.id);

@@ -13,8 +13,16 @@ export async function GET(req: NextRequest) {
   if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = req.nextUrl;
-  const from = searchParams.get("from"); // e.g. "2026-06-01"
-  const to   = searchParams.get("to");   // e.g. "2026-06-30"
+  const fromRaw = searchParams.get("from");
+  const toRaw   = searchParams.get("to");
+
+  // Validate date strings before passing to new Date() to avoid unhandled NaN.toISOString() throws
+  const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  if ((fromRaw && !ISO_DATE_RE.test(fromRaw)) || (toRaw && !ISO_DATE_RE.test(toRaw))) {
+    return NextResponse.json({ ok: false, error: "from and to must be ISO dates (YYYY-MM-DD)" }, { status: 400 });
+  }
+  const from = fromRaw;
+  const to   = toRaw;
 
   const supabase = getSupabaseAdmin();
 

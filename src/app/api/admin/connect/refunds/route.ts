@@ -88,17 +88,18 @@ export async function PATCH(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const now      = new Date().toISOString();
 
-  // Pre-fetch user_id before the UPDATE so the wallet zero-out does not depend on
-  // a second SELECT in the window between UPDATE and wallet write (row could be
-  // concurrently modified or deleted in that gap).
+  // Pre-fetch user_id and amount before the UPDATE so the wallet adjustment does not
+  // depend on a second SELECT in the window between UPDATE and wallet write.
   let refundUserId: string | null = null;
+  let refundAmount  = 0;
   if (body.status === "completed") {
     const { data: preFetch } = await supabase
       .from("imotara_wallet_refund_requests")
-      .select("user_id")
+      .select("user_id, amount")
       .eq("id", body.id)
       .single();
     refundUserId = preFetch?.user_id ?? null;
+    refundAmount = Number(preFetch?.amount ?? 0);
   }
 
   const update: Record<string, unknown> = { status: body.status };
@@ -120,12 +121,20 @@ export async function PATCH(req: NextRequest) {
   // If completed, zero out the wallet balance (refund has been issued)
   if (body.status === "completed") {
     if (refundUserId) {
+      // Subtract only the refunded amount — do not zero the entire wallet; the user
+      // may have topped up again between the refund request and its approval.
+      const { data: walletRow } = await supabase
+        .from("imotara_wallets")
+        .select("balance")
+        .eq("user_id", refundUserId)
+        .single();
+      const newBalance = Math.max(0, Number(walletRow?.balance ?? 0) - refundAmount);
       const { error: walletErr } = await supabase
         .from("imotara_wallets")
-        .update({ balance: 0, status: "active" })
+        .update({ balance: newBalance, status: "active" })
         .eq("user_id", refundUserId);
       if (walletErr) {
-        console.error("[admin/refunds PATCH] CRITICAL: wallet zero-out failed for user:", refundUserId, "refund:", body.id, walletErr.message);
+        console.error("[admin/refunds PATCH] CRITICAL: wallet adjustment failed for user:", refundUserId, "refund:", body.id, walletErr.message);
       }
     } else {
       console.error("[admin/refunds PATCH] refund row not found before update — wallet NOT zeroed. refund_id:", body.id);

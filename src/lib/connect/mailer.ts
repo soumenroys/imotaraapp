@@ -348,8 +348,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1
     <div class="hdr-sub">Imotara Internal · ${now} IST</div>
   </div>
   <div class="body">
-    <div class="row"><span class="lbl">Session ref</span><span class="val" style="font-family:monospace;font-size:12px">${data.sessionId}</span></div>
-    ${data.invoiceNumber ? `<div class="row"><span class="lbl">Invoice</span><span class="val">${data.invoiceNumber}</span></div>` : ""}
+    <div class="row"><span class="lbl">Session ref</span><span class="val" style="font-family:monospace;font-size:12px">${htmlEscape(data.sessionId)}</span></div>
+    ${data.invoiceNumber ? `<div class="row"><span class="lbl">Invoice</span><span class="val">${htmlEscape(data.invoiceNumber)}</span></div>` : ""}
     <div class="row"><span class="lbl">Duration</span><span class="val">${data.minutesUsed} min</span></div>
     <div class="row"><span class="lbl">User</span><span class="val">${htmlEscape(data.userEmail)}</span></div>
     <div class="row"><span class="lbl">Companion</span><span class="val">${htmlEscape(data.consultantName)}</span></div>
@@ -448,8 +448,9 @@ export async function sendOrgWelcomeEmail(data: {
 }) {
   const APP_URL = "https://imotara.com";
   const ORG_URL = `${APP_URL}/org`;
-  const greet   = data.ownerName ? `Hi ${data.ownerName},` : "Hi,";
-  const subject = `Welcome to Imotara — Your organization "${data.orgName}" is ready`;
+  const greet     = data.ownerName ? `Hi ${data.ownerName},` : "Hi,";
+  const htmlGreet = data.ownerName ? `Hi ${htmlEscape(data.ownerName)},` : "Hi,";
+  const subject   = `Welcome to Imotara — Your organization "${data.orgName}" is ready`;
 
   const text = [
     greet,
@@ -485,7 +486,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1
 <div class="card">
   <div class="hdr"><div class="hdr-title">Welcome to Imotara</div><div class="hdr-sub">Your organization is ready</div></div>
   <div class="body">
-    <p>${greet}</p>
+    <p>${htmlGreet}</p>
     <p>Your Imotara organization has been set up. You can now invite your team and manage everything from the organization dashboard.</p>
     <div class="detail">
       <p><strong>Organization:</strong> ${htmlEscape(data.orgName)}</p>

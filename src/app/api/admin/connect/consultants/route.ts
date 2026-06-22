@@ -66,6 +66,9 @@ export async function PATCH(req: NextRequest) {
   }
 
   const { id, action, reason } = body;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id))) {
+    return NextResponse.json({ ok: false, error: "Invalid consultant id" }, { status: 400 });
+  }
   const VALID_ACTIONS = ["suspend", "reinstate", "reject"];
   if (!VALID_ACTIONS.includes(action)) {
     return NextResponse.json({ ok: false, error: "action must be suspend, reinstate, or reject" }, { status: 400 });
@@ -78,13 +81,19 @@ export async function PATCH(req: NextRequest) {
   };
 
   const supabase = getSupabaseAdmin();
+
+  // Build update object conditionally — passing `undefined` as a value causes the Supabase
+  // client to serialise it as JSON null, which would silently overwrite is_online to NULL
+  // and break availability checks for reinstated consultants.
+  const updatePayload: Record<string, unknown> = {
+    status:           statusMap[action],
+    rejection_reason: reason?.trim() ?? null,
+  };
+  if (action !== "reinstate") updatePayload.is_online = false;
+
   const { error } = await supabase
     .from("connect_consultants")
-    .update({
-      status:           statusMap[action],
-      rejection_reason: reason?.trim() ?? null,
-      is_online:        action !== "reinstate" ? false : undefined,
-    })
+    .update(updatePayload)
     .eq("id", id);
 
   if (error) {

@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     }
     const blockedIds = (blockedBy ?? []).map((b) => b.consultant_id).filter(Boolean);
     if (blockedIds.length > 0) {
-      query = query.not("id", "in", `(${blockedIds.join(",")})`);
+      query = query.not("id", "in", blockedIds);
     }
   }
 

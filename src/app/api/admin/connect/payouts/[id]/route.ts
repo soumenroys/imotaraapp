@@ -43,14 +43,21 @@ export async function PATCH(
   if (admin_note) update.admin_note = admin_note;
   if (status === "completed") update.processed_at = new Date().toISOString();
 
-  const { error } = await supabase
+  // Optimistic lock: only update if not already completed, preventing a concurrent
+  // double-complete race from decrementing pending_payout twice.
+  const { data: wonRows, error } = await supabase
     .from("connect_payouts")
     .update(update)
-    .eq("id", id);
+    .eq("id", id)
+    .neq("status", "completed")
+    .select("id");
 
   if (error) {
     console.error("[admin/connect/payouts PATCH] DB update failed:", error.message, "payout:", id);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
+  }
+  if (!wonRows || wonRows.length === 0) {
+    return NextResponse.json({ ok: false, error: "Payout already completed" }, { status: 409 });
   }
 
   // If completed, decrement pending_payout by the exact payout amount (not zero the whole field —

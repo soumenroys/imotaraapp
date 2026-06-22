@@ -84,6 +84,22 @@ export async function DELETE(
     return NextResponse.json({ ok: false, error: "Consultant not found" }, { status: 404 });
   }
 
+  // Block deletion if the consultant has an in-progress session — deleting mid-session
+  // forces is_busy=false while billing is still running, allowing them to accept a second session.
+  const { data: activeSessions } = await supabase
+    .from("connect_sessions")
+    .select("id")
+    .eq("consultant_id", id)
+    .in("status", ["pending", "active"])
+    .limit(1);
+
+  if (activeSessions && activeSessions.length > 0) {
+    return NextResponse.json({
+      ok: false,
+      error: "Cannot delete a consultant with active or pending sessions. End the session first.",
+    }, { status: 409 });
+  }
+
   // Soft-delete: set status=deleted rather than hard-deleting — session and earnings history
   // must remain for accounting, dispute resolution, and regulatory compliance.
   const now = new Date().toISOString();

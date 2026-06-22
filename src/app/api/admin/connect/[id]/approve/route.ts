@@ -46,6 +46,11 @@ export async function PATCH(
 
   const newStatus = action === "approve" ? "approved" : "rejected";
 
+  // Idempotency guard: skip DB write + email if already in target status.
+  if (consultant.status === newStatus) {
+    return NextResponse.json({ ok: true, status: newStatus });
+  }
+
   const { error } = await supabase
     .from("connect_consultants")
     .update({

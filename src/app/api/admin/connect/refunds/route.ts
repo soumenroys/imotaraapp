@@ -88,6 +88,19 @@ export async function PATCH(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const now      = new Date().toISOString();
 
+  // Pre-fetch user_id before the UPDATE so the wallet zero-out does not depend on
+  // a second SELECT in the window between UPDATE and wallet write (row could be
+  // concurrently modified or deleted in that gap).
+  let refundUserId: string | null = null;
+  if (body.status === "completed") {
+    const { data: preFetch } = await supabase
+      .from("imotara_wallet_refund_requests")
+      .select("user_id")
+      .eq("id", body.id)
+      .single();
+    refundUserId = preFetch?.user_id ?? null;
+  }
+
   const update: Record<string, unknown> = { status: body.status };
   if (body.status === "completed" || body.status === "rejected") {
     update.processed_at = now;
@@ -106,21 +119,16 @@ export async function PATCH(req: NextRequest) {
 
   // If completed, zero out the wallet balance (refund has been issued)
   if (body.status === "completed") {
-    const { data: refund } = await supabase
-      .from("imotara_wallet_refund_requests")
-      .select("user_id")
-      .eq("id", body.id)
-      .single();
-    if (refund?.user_id) {
+    if (refundUserId) {
       const { error: walletErr } = await supabase
         .from("imotara_wallets")
         .update({ balance: 0, status: "active" })
-        .eq("user_id", refund.user_id);
+        .eq("user_id", refundUserId);
       if (walletErr) {
-        console.error("[admin/refunds PATCH] CRITICAL: wallet zero-out failed for user:", refund.user_id, "refund:", body.id, walletErr.message);
+        console.error("[admin/refunds PATCH] CRITICAL: wallet zero-out failed for user:", refundUserId, "refund:", body.id, walletErr.message);
       }
     } else {
-      console.error("[admin/refunds PATCH] refund row not found after update — wallet NOT zeroed. refund_id:", body.id);
+      console.error("[admin/refunds PATCH] refund row not found before update — wallet NOT zeroed. refund_id:", body.id);
     }
   }
 

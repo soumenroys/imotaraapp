@@ -51,7 +51,7 @@ CREATE POLICY "connect_consultants_own_update"
   WITH CHECK (
     auth.uid() = user_id
     AND status = (
-      SELECT status FROM connect_consultants WHERE user_id = auth.uid()
+      SELECT status FROM connect_consultants WHERE user_id = auth.uid() LIMIT 1
     )
   );
 
@@ -60,10 +60,11 @@ CREATE POLICY "connect_consultants_own_update"
 -- then wrote it back. Two concurrent reviews could both read a stale count and
 -- produce an off-by-one aggregate.
 --
--- Fix: a BEFORE INSERT trigger on connect_sessions (the reviews are stored on
--- sessions) computes the aggregate atomically using SQL aggregation. Because
--- the trigger runs inside the same transaction as the INSERT, it always reads
--- the final committed state.
+-- Fix: an AFTER UPDATE trigger on connect_sessions fires when the rating column
+-- is set (review submitted). It computes the aggregate atomically inside the
+-- same transaction — because it is AFTER UPDATE, the current row is already
+-- committed, and the query excludes it by id to get the "others" count, then
+-- folds in the new rating via an incremental average formula.
 
 CREATE OR REPLACE FUNCTION update_consultant_rating()
 RETURNS TRIGGER
@@ -87,7 +88,7 @@ BEGIN
   WHERE consultant_id = NEW.consultant_id
     AND rating IS NOT NULL
     AND rating > 0
-    AND id != NEW.id;  -- exclude the current row (not yet committed)
+    AND id != NEW.id;  -- exclude current row; will be folded in below via incremental formula
 
   -- Include the current review in the aggregate
   v_count := v_count + 1;

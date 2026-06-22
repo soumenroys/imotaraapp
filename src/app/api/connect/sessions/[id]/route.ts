@@ -141,9 +141,9 @@ export async function PATCH(
   const updatePayload: Record<string, unknown> = { status: transition.to };
   if (action === "accept") {
     updatePayload.started_at = new Date().toISOString();
-    const tz = typeof body?.consultant_timezone === "string" && body.consultant_timezone.length > 0
-      ? body.consultant_timezone : "Asia/Kolkata";
-    updatePayload.consultant_timezone = tz;
+    const rawCtz = typeof body?.consultant_timezone === "string" ? body.consultant_timezone : "";
+    updatePayload.consultant_timezone = rawCtz.length > 0 && rawCtz.length <= 64
+      && /^[A-Za-z0-9/_+\-]{1,64}$/.test(rawCtz) ? rawCtz : "Asia/Kolkata";
   }
   if (action === "complete" || action === "decline" || action === "cancel" || action === "userEnd") { updatePayload.ended_at = new Date().toISOString(); }
 

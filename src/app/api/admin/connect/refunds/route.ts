@@ -109,7 +109,7 @@ export async function PATCH(req: NextRequest) {
   if (body.status === "completed" || body.status === "rejected") {
     update.processed_at = now;
   }
-  if (body.admin_note) update.admin_note = body.admin_note;
+  if (body.admin_note) update.admin_notes = body.admin_note;
 
   // Optimistic lock: prevent double-completion if two admins approve the same refund
   // concurrently — only the first UPDATE wins; the second sees 0 rows.

@@ -36,8 +36,8 @@ export async function PATCH(
   // Validate rate_per_min if present
   if ("rate_per_min" in update) {
     const rate = Number(update.rate_per_min);
-    if (isNaN(rate) || rate <= 0) {
-      return NextResponse.json({ ok: false, error: "rate_per_min must be a positive number" }, { status: 400 });
+    if (isNaN(rate) || rate <= 0 || rate > 10000) {
+      return NextResponse.json({ ok: false, error: "rate_per_min must be between 0 and 10000" }, { status: 400 });
     }
     update.rate_per_min = rate;
   }

@@ -248,10 +248,14 @@ export async function PATCH(
     });
     if (earningsErr) console.error("[sessions/complete] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", id);
 
-    // Write amount_charged after wallet is credited so the consultant is always paid
-    // even if this receipt update fails. Guard with status predicate as an extra safeguard.
+    // Write amount_charged, platform_fee, and consultant_credited after wallet is credited
+    // so the consultant is always paid even if this receipt update fails.
     const { error: acErr } = await supabase.from("connect_sessions")
-      .update({ amount_charged: amountCharged })
+      .update({
+        amount_charged:      amountCharged,
+        platform_fee:        +(amountCharged * 0.20).toFixed(4),
+        consultant_credited: +sessionEarnings.toFixed(4),
+      })
       .eq("id", id)
       .eq("status", "completed");
     if (acErr) console.error("[sessions/complete] amount_charged update failed:", acErr.message, "session:", id);

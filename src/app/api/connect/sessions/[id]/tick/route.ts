@@ -82,13 +82,16 @@ export async function POST(
     // silently overwritten, under-crediting the consultant.
     // Do NOT write amount_charged here — it was already set correctly by the
     // last path-A/B tick. Writing the pre-SELECT value would overwrite it with stale data.
+    const pathCAmount      = Number(session.minutes_used) * ratePerMin;
     const { data: completedRows } = await supabase
       .from("connect_sessions")
       .update({
-        status:       "completed",
-        ended_at:     now,
-        last_tick_at: now,
-        minutes_used: Number(session.minutes_used),
+        status:              "completed",
+        ended_at:            now,
+        last_tick_at:        now,
+        minutes_used:        Number(session.minutes_used),
+        platform_fee:        +(pathCAmount * 0.20).toFixed(4),
+        consultant_credited: +(pathCAmount * 0.80).toFixed(4),
       })
       .eq("id", sessionId)
       .eq("status", "active")
@@ -127,11 +130,13 @@ export async function POST(
     const { data: completedRows } = await supabase
       .from("connect_sessions")
       .update({
-        status:         "completed",
-        ended_at:       now,
-        minutes_used:   newMinutesUsed,
-        amount_charged: newAmountCharged,
-        last_tick_at:   now,
+        status:              "completed",
+        ended_at:            now,
+        minutes_used:        newMinutesUsed,
+        amount_charged:      newAmountCharged,
+        platform_fee:        +(newAmountCharged * 0.20).toFixed(4),
+        consultant_credited: +(newAmountCharged * 0.80).toFixed(4),
+        last_tick_at:        now,
       })
       .eq("id", sessionId)
       .eq("status", "active")

@@ -93,9 +93,13 @@ export async function GET(req: NextRequest) {
           const amountCharged = freshMinutes * rate;
           const earnings = amountCharged * 0.80;
 
-          // Write amount_charged and platform_fee if a tick hasn't already done so
+          // Write amount_charged, platform_fee, and consultant_credited if a tick hasn't already done so
           await supabase.from("connect_sessions")
-            .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
+            .update({
+              amount_charged:      amountCharged,
+              platform_fee:        +(amountCharged * 0.20).toFixed(4),
+              consultant_credited: +earnings.toFixed(4),
+            })
             .eq("id", session.id)
             .or("amount_charged.is.null,amount_charged.eq.0");
 

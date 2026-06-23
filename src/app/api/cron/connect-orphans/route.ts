@@ -93,7 +93,12 @@ export async function GET(req: NextRequest) {
           const amountCharged = freshMinutes * rate;
           const earnings = amountCharged * 0.80;
 
-          // Write amount_charged, platform_fee, and consultant_credited if a tick hasn't already done so
+          // Write amount_charged, platform_fee, and consultant_credited.
+          // Guard: skip the entire update if path-B/C already wrote all three columns
+          // (amount_charged non-zero AND consultant_credited non-null).
+          // The OR includes consultant_credited.is.null so that sessions where a
+          // path-A tick already wrote amount_charged (but never writes consultant_credited)
+          // still receive the fee columns from the orphan cron.
           await supabase.from("connect_sessions")
             .update({
               amount_charged:      amountCharged,
@@ -101,7 +106,7 @@ export async function GET(req: NextRequest) {
               consultant_credited: +earnings.toFixed(4),
             })
             .eq("id", session.id)
-            .or("amount_charged.is.null,amount_charged.eq.0");
+            .or("amount_charged.is.null,amount_charged.eq.0,consultant_credited.is.null");
 
           await supabase
             .from("connect_wallet")

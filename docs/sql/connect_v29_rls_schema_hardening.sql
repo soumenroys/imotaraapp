@@ -31,6 +31,14 @@
 ALTER TABLE connect_sessions
   ALTER COLUMN rate_per_min DROP DEFAULT;
 
+-- Also enforce NOT NULL: without this, an INSERT omitting rate_per_min stores NULL.
+-- NULL > 0 evaluates to NULL in SQL (not FALSE), so the v28 CHECK (rate_per_min > 0)
+-- silently passes for NULL values. NOT NULL makes the constraint airtight.
+-- Pre-flight: verify no existing rows have NULL before running.
+--   SELECT id FROM connect_sessions WHERE rate_per_min IS NULL;
+ALTER TABLE connect_sessions
+  ALTER COLUMN rate_per_min SET NOT NULL;
+
 
 -- ─── 2. RLS UPDATE policy WITH CHECK on connect_sessions ─────────────────────
 --
@@ -80,6 +88,52 @@ CREATE POLICY "connect_sessions_participant_update"
         (SELECT cs.platform_fee FROM connect_sessions cs WHERE cs.id = connect_sessions.id)
     AND consultant_credited IS NOT DISTINCT FROM
         (SELECT cs.consultant_credited FROM connect_sessions cs WHERE cs.id = connect_sessions.id)
+    -- Rating columns: only allow changes when the session is already completed.
+    -- Prevents a user from rating a pending or active session via direct client call,
+    -- which would corrupt the rating_avg trigger aggregate.
+    AND (
+      rating IS NOT DISTINCT FROM
+        (SELECT cs.rating FROM connect_sessions cs WHERE cs.id = connect_sessions.id)
+      OR (SELECT cs.status FROM connect_sessions cs WHERE cs.id = connect_sessions.id) = 'completed'
+    )
+  );
+
+
+-- ─── 2b. INSERT RLS: require approved consultant + prevent self-booking ────────
+--
+-- The existing INSERT policy (connect_sessions_user_insert from v16/v23) checks
+-- auth.uid() = user_id and the blocks check, but does NOT verify:
+-- (a) that the consultant has status='approved' — suspended/rejected consultants
+--     produce orphan sessions that cannot be accepted but count against the user's
+--     duplicate-session check;
+-- (b) that the consultant is not the user themselves (self-booking bypass).
+-- The API layer enforces both, but the DB has no backstop.
+
+DROP POLICY IF EXISTS "connect_sessions_user_insert" ON connect_sessions;
+
+CREATE POLICY "connect_sessions_user_insert"
+  ON connect_sessions
+  FOR INSERT
+  WITH CHECK (
+    auth.uid() = user_id
+    -- Blocked users cannot create sessions with the consultant
+    AND NOT EXISTS (
+      SELECT 1 FROM connect_blocks b
+       WHERE b.consultant_id   = connect_sessions.consultant_id
+         AND b.blocked_user_id = auth.uid()
+    )
+    -- Consultant must be approved — prevents sessions with pending/suspended consultants
+    AND EXISTS (
+      SELECT 1 FROM connect_consultants cc
+       WHERE cc.id = connect_sessions.consultant_id
+         AND cc.status = 'approved'
+    )
+    -- Users cannot book themselves (self-booking bypass prevention)
+    AND NOT EXISTS (
+      SELECT 1 FROM connect_consultants cc
+       WHERE cc.id = connect_sessions.consultant_id
+         AND cc.user_id = auth.uid()
+    )
   );
 
 
@@ -164,12 +218,12 @@ BEGIN
        WHERE consultant_id = NEW.consultant_id
          AND rating IS NOT NULL AND rating > 0
     ),
-    rating_avg = ROUND(GREATEST(0, (
+    rating_avg = ROUND(GREATEST(0, COALESCE((
       SELECT AVG(rating)::NUMERIC
         FROM connect_sessions
        WHERE consultant_id = NEW.consultant_id
          AND rating IS NOT NULL AND rating > 0
-    )), 2)
+    ), 0)), 2)
   WHERE id = NEW.consultant_id;
 
   RETURN NEW;
@@ -218,7 +272,10 @@ ALTER TABLE connect_payouts
   ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
 CREATE OR REPLACE FUNCTION _set_connect_payouts_updated_at()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
+RETURNS TRIGGER LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;

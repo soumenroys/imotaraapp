@@ -219,23 +219,24 @@ export async function PATCH(
       // consultant who is legitimately busy with a separate active session.
       await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
 
-      if (action === "decline") {
-        void supabase.auth.admin.getUserById(session.user_id).then(({ data: uAuth }) => {
-          const pushToken = uAuth?.user?.user_metadata?.expo_connect_push_token as string | undefined;
-          if (!pushToken) return;
-          return fetch("https://exp.host/--/api/v2/push/send", {
-            method:  "POST",
-            headers: { "Content-Type": "application/json", Accept: "application/json" },
-            body: JSON.stringify({
-              to:    pushToken,
-              sound: "default",
-              title: "Session Request Declined",
-              body:  "The companion is unavailable right now. Try another or check back later.",
-              data:  { session_id: id, type: "session_declined" },
-            }),
-          });
-        }).catch((e) => console.error("[sessions/decline] push error:", e));
-      }
+    } else if (action === "decline") {
+      // Notify the session user their request was declined (best-effort push, non-blocking).
+      // NOTE: decline acts on a pending session — is_busy was never set, so no clear needed.
+      void supabase.auth.admin.getUserById(session.user_id).then(({ data: uAuth }) => {
+        const pushToken = uAuth?.user?.user_metadata?.expo_connect_push_token as string | undefined;
+        if (!pushToken) return;
+        return fetch("https://exp.host/--/api/v2/push/send", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            to:    pushToken,
+            sound: "default",
+            title: "Session Request Declined",
+            body:  "The companion is unavailable right now. Try another or check back later.",
+            data:  { session_id: id, type: "session_declined" },
+          }),
+        });
+      }).catch((e) => console.error("[sessions/decline] push error:", e));
     }
   }
 
@@ -254,6 +255,12 @@ export async function PATCH(
       .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
     if (walletErr) {
       console.error("[sessions/complete] CRITICAL: wallet upsert failed — earnings not credited:", walletErr.message, "session:", id, "consultant user_id:", consultant.user_id);
+      // Write billing amounts but NOT consultant_credited — the earnings were never actually
+      // credited. A non-zero consultant_credited with no corresponding wallet entry would be
+      // a false audit record. The discrepancy surfaces in the earnings dashboard logs.
+      await supabase.from("connect_sessions")
+        .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
+        .eq("id", id).eq("status", "completed");
     } else {
       // Atomic increment — avoids read-modify-write race condition on concurrent completes
       const { error: earningsErr } = await supabase.rpc("increment_wallet_earnings", {
@@ -261,19 +268,19 @@ export async function PATCH(
         p_amount:  sessionEarnings,
       });
       if (earningsErr) console.error("[sessions/complete] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", id);
-    }
 
-    // Write amount_charged, platform_fee, and consultant_credited after wallet is credited
-    // so the consultant is always paid even if this receipt update fails.
-    const { error: acErr } = await supabase.from("connect_sessions")
-      .update({
-        amount_charged:      amountCharged,
-        platform_fee:        +(amountCharged * 0.20).toFixed(4),
-        consultant_credited: +sessionEarnings.toFixed(4),
-      })
-      .eq("id", id)
-      .eq("status", "completed");
-    if (acErr) console.error("[sessions/complete] amount_charged update failed:", acErr.message, "session:", id);
+      // Write receipt columns only when the wallet was actually credited so that
+      // consultant_credited in the session row is an accurate audit record.
+      const { error: acErr } = await supabase.from("connect_sessions")
+        .update({
+          amount_charged:      amountCharged,
+          platform_fee:        +(amountCharged * 0.20).toFixed(4),
+          consultant_credited: +sessionEarnings.toFixed(4),
+        })
+        .eq("id", id)
+        .eq("status", "completed");
+      if (acErr) console.error("[sessions/complete] amount_charged update failed:", acErr.message, "session:", id);
+    }
 
     const { error: scErr } = await supabase.rpc("increment_sessions_completed", {
       p_consultant_id: consultant.id,

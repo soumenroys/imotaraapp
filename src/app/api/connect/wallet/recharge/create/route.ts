@@ -74,8 +74,14 @@ export async function POST(req: NextRequest) {
   const platformFee       = totalAmount * 0.20;
   const consultantCredit  = totalAmount * 0.80;
 
-  // Convert to INR for Razorpay (which only accepts INR for domestic)
-  const rateToINR    = rates[currency] ?? 1;
+  // Convert to INR for Razorpay (which only accepts INR for domestic).
+  // Do NOT fall back to 1 for unknown currencies — a 1:1 rate would silently undercharge
+  // users for non-INR consultants (e.g. USD treated as INR = 83x undercharge).
+  const rateToINR = rates[currency] ?? FALLBACK_RATES[currency];
+  if (!rateToINR || rateToINR <= 0) {
+    console.error("[recharge/create] no exchange rate for currency:", currency);
+    return NextResponse.json({ ok: false, error: "Exchange rate temporarily unavailable. Please try again." }, { status: 503 });
+  }
   const amountINR    = totalAmount * rateToINR;
   const amountPaise  = Math.round(amountINR * 100); // Razorpay uses paise
 

@@ -105,7 +105,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "social_links payload too large" }, { status: 400 });
     }
     if (Array.isArray(social_links)) {
+      const ALLOWED_LINK_KEYS = new Set(["platform", "url", "handle", "label"]);
       for (const link of social_links) {
+        if (!link || typeof link !== "object" || Array.isArray(link)) {
+          return NextResponse.json({ ok: false, error: "Each social_links entry must be an object" }, { status: 400 });
+        }
+        for (const k of Object.keys(link as Record<string, unknown>)) {
+          if (!ALLOWED_LINK_KEYS.has(k)) {
+            return NextResponse.json({ ok: false, error: `social_links: unexpected key '${k}'` }, { status: 400 });
+          }
+        }
         if (link && typeof link.url === "string" && link.url.trim() !== "") {
           if (!link.url.trim().toLowerCase().startsWith("https://")) {
             return NextResponse.json({ ok: false, error: "All social_links URLs must use https://" }, { status: 400 });
@@ -117,6 +126,14 @@ export async function POST(req: NextRequest) {
   if (verification_docs !== undefined && verification_docs !== null) {
     if (JSON.stringify(verification_docs).length > 4096) {
       return NextResponse.json({ ok: false, error: "verification_docs payload too large" }, { status: 400 });
+    }
+    // Key names must be safe identifiers (no HTML/script injection via key rendering in admin UI)
+    if (typeof verification_docs === "object" && !Array.isArray(verification_docs)) {
+      for (const key of Object.keys(verification_docs as Record<string, unknown>)) {
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]{0,49}$/.test(key)) {
+          return NextResponse.json({ ok: false, error: "verification_docs keys must be alphanumeric identifiers" }, { status: 400 });
+        }
+      }
     }
   }
   if (payout_info !== undefined && payout_info !== null) {
@@ -133,6 +150,29 @@ export async function POST(req: NextRequest) {
   if (availability_windows !== undefined && availability_windows !== null) {
     if (!Array.isArray(availability_windows) || availability_windows.length > 28 || JSON.stringify(availability_windows).length > 8192) {
       return NextResponse.json({ ok: false, error: "availability_windows is invalid or too large" }, { status: 400 });
+    }
+    const ALLOWED_DAYS = new Set(["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]);
+    const TIME_RE = /^\d{2}:\d{2}$/;
+    const ALLOWED_WIN_KEYS = new Set(["day","start_time","end_time"]);
+    for (const w of availability_windows) {
+      if (!w || typeof w !== "object" || Array.isArray(w)) {
+        return NextResponse.json({ ok: false, error: "Each availability_windows entry must be an object" }, { status: 400 });
+      }
+      for (const k of Object.keys(w as Record<string, unknown>)) {
+        if (!ALLOWED_WIN_KEYS.has(k)) {
+          return NextResponse.json({ ok: false, error: `availability_windows: unexpected key '${k}'` }, { status: 400 });
+        }
+      }
+      const win = w as Record<string, unknown>;
+      if (typeof win.day !== "string" || !ALLOWED_DAYS.has(win.day.toLowerCase())) {
+        return NextResponse.json({ ok: false, error: "availability_windows: day must be a day of the week" }, { status: 400 });
+      }
+      if (typeof win.start_time !== "string" || !TIME_RE.test(win.start_time)) {
+        return NextResponse.json({ ok: false, error: "availability_windows: start_time must be HH:MM" }, { status: 400 });
+      }
+      if (typeof win.end_time !== "string" || !TIME_RE.test(win.end_time)) {
+        return NextResponse.json({ ok: false, error: "availability_windows: end_time must be HH:MM" }, { status: 400 });
+      }
     }
   }
 

@@ -46,11 +46,13 @@ export async function GET(req: NextRequest) {
       .from("connect_consultants")
       .select("id, user_id, display_name, photo_url, status, currency_code, rate_per_min, sessions_completed, rating_avg, created_at")
       .in("status", ["approved", "suspended"])
-      .order("sessions_completed", { ascending: false }),
+      .order("sessions_completed", { ascending: false })
+      .limit(1000),
 
     supabase
       .from("connect_wallet")
-      .select("user_id, earned_amount, earned_currency, pending_payout"),
+      .select("user_id, earned_amount, earned_currency, pending_payout")
+      .limit(1000),
 
     supabase
       .from("connect_payouts")

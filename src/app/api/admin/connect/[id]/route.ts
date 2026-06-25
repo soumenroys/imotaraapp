@@ -44,9 +44,31 @@ export async function PATCH(
 
   // Validate expertise_tags if present
   if ("expertise_tags" in update) {
-    if (!Array.isArray(update.expertise_tags) || update.expertise_tags.some((t) => typeof t !== "string")) {
-      return NextResponse.json({ ok: false, error: "expertise_tags must be an array of strings" }, { status: 400 });
+    const tags = update.expertise_tags;
+    if (!Array.isArray(tags) || tags.length > 20 || tags.some((t) => typeof t !== "string" || t.length > 50)) {
+      return NextResponse.json({ ok: false, error: "expertise_tags: max 20 items, each max 50 characters" }, { status: 400 });
     }
+  }
+  if ("display_name" in update) {
+    const dn = String(update.display_name ?? "").trim();
+    if (!dn || dn.length > 100) {
+      return NextResponse.json({ ok: false, error: "display_name must be 1–100 characters" }, { status: 400 });
+    }
+    update.display_name = dn;
+  }
+  if ("bio" in update) {
+    const b = String(update.bio ?? "").trim();
+    if (!b || b.length > 500) {
+      return NextResponse.json({ ok: false, error: "bio must be 1–500 characters" }, { status: 400 });
+    }
+    update.bio = b;
+  }
+  if ("availability_note" in update) {
+    const an = String(update.availability_note ?? "").trim();
+    if (an.length > 200) {
+      return NextResponse.json({ ok: false, error: "availability_note must be 200 characters or fewer" }, { status: 400 });
+    }
+    update.availability_note = an;
   }
 
   update.updated_at = new Date().toISOString();

@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
       "contact_email, contact_phone, website_url, social_links, " +
       "payout_info, digital_signature, rejection_reason, approval_note, created_at"
     )
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(500);
 
   if (status) query = query.eq("status", status);
 

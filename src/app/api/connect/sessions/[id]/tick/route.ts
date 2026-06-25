@@ -82,16 +82,18 @@ export async function POST(
     // silently overwritten, under-crediting the consultant.
     // Do NOT write amount_charged here — it was already set correctly by the
     // last path-A/B tick. Writing the pre-SELECT value would overwrite it with stale data.
+    // consultant_credited is intentionally NOT written here — it is written inside
+    // creditConsultant() ONLY after the wallet is actually credited, to prevent a
+    // false audit record if wallet upsert or earnings RPC subsequently fails.
     const pathCAmount      = Number(session.minutes_used) * ratePerMin;
     const { data: completedRows, error: pathCErr } = await supabase
       .from("connect_sessions")
       .update({
-        status:              "completed",
-        ended_at:            now,
-        last_tick_at:        now,
-        minutes_used:        Number(session.minutes_used),
-        platform_fee:        +(pathCAmount * 0.20).toFixed(4),
-        consultant_credited: +(pathCAmount * 0.80).toFixed(4),
+        status:       "completed",
+        ended_at:     now,
+        last_tick_at: now,
+        minutes_used: Number(session.minutes_used),
+        platform_fee: +(pathCAmount * 0.20).toFixed(4),
       })
       .eq("id", sessionId)
       .eq("status", "active")
@@ -103,7 +105,7 @@ export async function POST(
     }
 
     if (completedRows && completedRows.length > 0) {
-      await creditConsultant(supabase, session.consultant_id, session.minutes_used, ratePerMin);
+      await creditConsultant(supabase, session.consultant_id, session.minutes_used, ratePerMin, sessionId);
       void sendCompletionEmails(supabase, {
         sessionId,
         userId:        session.user_id,
@@ -130,17 +132,18 @@ export async function POST(
   // Auto-complete when balance hits zero.
   // Optimistic lock on minutes_used prevents a concurrent tick from also
   // completing the session and double-crediting the consultant.
+  // consultant_credited is intentionally NOT written here — written inside
+  // creditConsultant() ONLY after wallet is actually credited.
   if (remaining <= 0) {
     const { data: completedRows, error: pathBErr } = await supabase
       .from("connect_sessions")
       .update({
-        status:              "completed",
-        ended_at:            now,
-        minutes_used:        newMinutesUsed,
-        amount_charged:      newAmountCharged,
-        platform_fee:        +(newAmountCharged * 0.20).toFixed(4),
-        consultant_credited: +(newAmountCharged * 0.80).toFixed(4),
-        last_tick_at:        now,
+        status:         "completed",
+        ended_at:       now,
+        minutes_used:   newMinutesUsed,
+        amount_charged: newAmountCharged,
+        platform_fee:   +(newAmountCharged * 0.20).toFixed(4),
+        last_tick_at:   now,
       })
       .eq("id", sessionId)
       .eq("status", "active")
@@ -152,7 +155,7 @@ export async function POST(
     }
 
     if (completedRows && completedRows.length > 0) {
-      await creditConsultant(supabase, session.consultant_id, newMinutesUsed, ratePerMin);
+      await creditConsultant(supabase, session.consultant_id, newMinutesUsed, ratePerMin, sessionId);
       void sendCompletionEmails(supabase, {
         sessionId,
         userId:        session.user_id,
@@ -299,11 +302,14 @@ async function fetchConsultantRate(
   return Number(data?.rate_per_min ?? 0);
 }
 
+// sessionId: when provided, consultant_credited is written to the session row ONLY
+// after both wallet upsert and earnings RPC succeed — ensuring no false audit record.
 async function creditConsultant(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   consultantId: string,
   minutesUsed: number,
-  lockedRatePerMin: number
+  lockedRatePerMin: number,
+  sessionId?: string
 ) {
   const { data: consultant } = await supabase
     .from("connect_consultants")
@@ -331,7 +337,16 @@ async function creditConsultant(
     p_user_id: consultant.user_id,
     p_amount:  sessionEarnings,
   });
-  if (earningsErr) console.error("[tick/creditConsultant] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "consultantId:", consultantId);
+  if (earningsErr) {
+    console.error("[tick/creditConsultant] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "consultantId:", consultantId, "— consultant_credited NOT written");
+  } else if (sessionId) {
+    // Both wallet ops succeeded — write consultant_credited audit column now.
+    const { error: acErr } = await supabase
+      .from("connect_sessions")
+      .update({ consultant_credited: +sessionEarnings.toFixed(4) })
+      .eq("id", sessionId);
+    if (acErr) console.error("[tick/creditConsultant] consultant_credited write failed:", acErr.message, "session:", sessionId);
+  }
 
   const { error: scErr } = await supabase.rpc("increment_sessions_completed", {
     p_consultant_id: consultant.id,

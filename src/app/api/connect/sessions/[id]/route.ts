@@ -180,7 +180,8 @@ export async function PATCH(
   // Set consultant is_busy=true on accept, clear on complete/decline/cancel
   if (consultant) {
     if (action === "accept") {
-      await supabase.from("connect_consultants").update({ is_busy: true }).eq("id", consultant.id);
+      const { error: busyErr } = await supabase.from("connect_consultants").update({ is_busy: true }).eq("id", consultant.id);
+      if (busyErr) console.error("[sessions/accept] WARN: is_busy=true write failed — consultant may appear available to other users:", busyErr.message, "consultant:", consultant.id);
 
       // Notify the session user that their request was accepted (email + push, non-blocking)
       void supabase.auth.admin.getUserById(session.user_id).then(({ data: uAuth }) => {

@@ -52,8 +52,12 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Already reviewed" }, { status: 409 });
   }
 
-  // Atomic update — the IS NULL filter prevents a second concurrent submission from overwriting
-  const { data: updated } = await supabase
+  // Atomic update — the IS NULL filter prevents a second concurrent submission from overwriting.
+  // Capture error separately: if the DB trigger (trg_update_consultant_rating) throws (e.g. lock
+  // timeout on connect_consultants), Postgres rolls back the TX and PostgREST returns an error.
+  // Dropping the error would cause updated=null → 409 "Already reviewed", permanently blocking
+  // the user from resubmitting even though nothing was saved.
+  const { data: updated, error: updateErr } = await supabase
     .from("connect_sessions")
     .update({
       rating,
@@ -64,6 +68,10 @@ export async function POST(
     .is("review_submitted_at", null)
     .select("id");
 
+  if (updateErr) {
+    console.error("[review] DB update failed:", updateErr.message, "session:", sessionId);
+    return NextResponse.json({ ok: false, error: "Failed to submit review. Please try again." }, { status: 500 });
+  }
   if (!updated || updated.length === 0) {
     return NextResponse.json({ ok: false, error: "Already reviewed" }, { status: 409 });
   }

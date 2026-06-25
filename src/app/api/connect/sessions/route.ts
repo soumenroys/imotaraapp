@@ -159,6 +159,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // For scheduled sessions, prevent double-booking the same consultant at the same time slot.
+  // is_busy only reflects live sessions — it doesn't guard against two future bookings at
+  // the same scheduled_at, so we need an explicit conflict check here.
+  if (type === "scheduled" && scheduled_at) {
+    const slotStart = new Date(scheduled_at);
+    const slotEnd   = new Date(slotStart.getTime() + 30 * 60 * 1000); // 30-min conflict window
+    const { data: slotConflict } = await supabase
+      .from("connect_sessions")
+      .select("id")
+      .eq("consultant_id", consultant_id)
+      .in("status", ["pending", "active"])
+      .gte("scheduled_at", slotStart.toISOString())
+      .lt("scheduled_at",  slotEnd.toISOString())
+      .maybeSingle();
+    if (slotConflict) {
+      return NextResponse.json(
+        { ok: false, error: "This companion already has a session booked at that time. Please choose a different slot." },
+        { status: 409 }
+      );
+    }
+  }
+
   // Check if this user is blocked by the consultant
   const { data: block, error: blockErr } = await supabase
     .from("connect_blocks")

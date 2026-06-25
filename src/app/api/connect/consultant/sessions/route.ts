@@ -103,16 +103,22 @@ export async function GET(req: NextRequest) {
           });
           if (rpcErr) console.error("[stale-complete] increment_wallet_earnings failed:", rpcErr.message, "session:", stale.id);
 
-          // Increment sessions_completed counter for this stale-completed session
-          const { data: cRow } = await supabase
-            .from("connect_consultants")
-            .select("sessions_completed")
-            .eq("id", consultant.id)
-            .single();
-          await supabase
-            .from("connect_consultants")
-            .update({ sessions_completed: (cRow?.sessions_completed ?? 0) + 1 })
-            .eq("id", consultant.id);
+          // Increment sessions_completed atomically via RPC (same pattern as tick and sessions/[id]).
+          // RPC serialises concurrent increments inside the DB lock; fallback to read-modify-write
+          // only when the RPC is unavailable.
+          const { error: rpcScErr } = await supabase.rpc("increment_sessions_completed", { p_consultant_id: consultant.id });
+          if (rpcScErr) {
+            console.error("[stale-complete] increment_sessions_completed RPC failed, falling back:", rpcScErr.message);
+            const { data: cRow } = await supabase
+              .from("connect_consultants")
+              .select("sessions_completed")
+              .eq("id", consultant.id)
+              .single();
+            await supabase
+              .from("connect_consultants")
+              .update({ sessions_completed: (cRow?.sessions_completed ?? 0) + 1 })
+              .eq("id", consultant.id);
+          }
         }
       }
       // Only clear is_busy when no active sessions remain — guards against incorrectly

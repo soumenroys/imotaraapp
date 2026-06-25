@@ -38,6 +38,10 @@ export async function PATCH(
 
   if (!payout) return NextResponse.json({ ok: false, error: "Payout not found" }, { status: 404 });
 
+  if (Number(payout.amount) <= 0) {
+    return NextResponse.json({ ok: false, error: "Payout amount must be positive" }, { status: 422 });
+  }
+
   if (payout.status === "completed") {
     return NextResponse.json({ ok: false, error: "Payout already completed" }, { status: 409 });
   }

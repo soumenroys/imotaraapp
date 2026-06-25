@@ -159,21 +159,41 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // For scheduled sessions, prevent double-booking the same consultant at the same time slot.
-  // is_busy only reflects live sessions — it doesn't guard against two future bookings at
-  // the same scheduled_at, so we need an explicit conflict check here.
+  // For scheduled sessions, prevent double-booking the same consultant at overlapping time slots.
+  // is_busy only reflects live sessions — it doesn't guard future calendar conflicts.
+  // The original 30-min window check was one-directional: it only caught new bookings within
+  // 30 min of an existing start, missing the case where a new booking lands DURING a long
+  // existing session (e.g. 4-hour session at 10:00 AM — a new booking at 11:30 AM passed).
+  // Fix: fetch all existing scheduled sessions that start before the new booking ends (looking
+  // back up to 8 hours to cover the maximum session length), then check true interval overlap
+  // in JS: [newStart, newEnd) ∩ [existingStart, existingStart + existingDuration) ≠ ∅
   if (type === "scheduled" && scheduled_at) {
-    const slotStart = new Date(scheduled_at);
-    const slotEnd   = new Date(slotStart.getTime() + 30 * 60 * 1000); // 30-min conflict window
-    const { data: slotConflict } = await supabase
+    const newStart   = new Date(scheduled_at);
+    const newDurMin  = Number.isInteger(scheduled_duration_min) && scheduled_duration_min >= 5
+                       ? scheduled_duration_min : 60;
+    const newEnd     = new Date(newStart.getTime() + newDurMin * 60 * 1000);
+    // Look back max 8 hours (maximum allowed session duration) so a long existing session
+    // that started before newStart can still be detected as conflicting.
+    const lookbackStart = new Date(newStart.getTime() - 8 * 60 * 60 * 1000);
+
+    const { data: nearSessions } = await supabase
       .from("connect_sessions")
-      .select("id")
+      .select("id, scheduled_at, scheduled_duration_min")
       .eq("consultant_id", consultant_id)
       .in("status", ["pending", "active"])
-      .gte("scheduled_at", slotStart.toISOString())
-      .lt("scheduled_at",  slotEnd.toISOString())
-      .maybeSingle();
-    if (slotConflict) {
+      .eq("type", "scheduled")
+      .not("scheduled_at", "is", null)
+      .gte("scheduled_at", lookbackStart.toISOString())
+      .lt("scheduled_at",  newEnd.toISOString());
+
+    const hasConflict = (nearSessions ?? []).some((ex) => {
+      const exStart  = new Date(ex.scheduled_at as string);
+      const exDurMin = Number.isInteger(ex.scheduled_duration_min) && ex.scheduled_duration_min >= 5
+                       ? ex.scheduled_duration_min : 60;
+      const exEnd    = new Date(exStart.getTime() + exDurMin * 60 * 1000);
+      return newStart < exEnd && newEnd > exStart;
+    });
+    if (hasConflict) {
       return NextResponse.json(
         { ok: false, error: "This companion already has a session booked at that time. Please choose a different slot." },
         { status: 409 }

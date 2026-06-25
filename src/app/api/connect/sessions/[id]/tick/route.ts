@@ -309,6 +309,9 @@ async function creditConsultant(
     .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
   if (walletErr) {
     console.error("[tick/creditConsultant] CRITICAL: wallet upsert failed — earnings not credited:", walletErr.message, "consultant user_id:", consultant.user_id);
+    // Still clear is_busy so the consultant is not permanently locked out of new sessions.
+    // The orphan cron cannot recover this because the session is already status=completed.
+    await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
     return;
   }
 

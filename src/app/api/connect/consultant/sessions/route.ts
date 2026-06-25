@@ -82,11 +82,17 @@ export async function GET(req: NextRequest) {
           const sessionEarnings = freshMinutes * lockedRate * 0.80;
           const amountCharged   = freshMinutes * lockedRate;
 
-          // Only set amount_charged if a late tick hasn't already done so (NULL or 0)
+          // Write all three receipt columns if a late tick hasn't already done so (NULL or 0).
+          // Matching the orphan cron and tick completion paths — all three must be set together
+          // so admin revenue reports and dispute audits see consistent data on every completed session.
           await supabase.from("connect_sessions")
-            .update({ amount_charged: amountCharged })
+            .update({
+              amount_charged:      amountCharged,
+              platform_fee:        +(amountCharged * 0.20).toFixed(4),
+              consultant_credited: +sessionEarnings.toFixed(4),
+            })
             .eq("id", stale.id)
-            .or("amount_charged.is.null,amount_charged.eq.0");
+            .or("amount_charged.is.null,amount_charged.eq.0,consultant_credited.is.null");
 
           await supabase.from("connect_wallet")
             .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });

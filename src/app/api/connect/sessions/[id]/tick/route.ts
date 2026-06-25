@@ -83,7 +83,7 @@ export async function POST(
     // Do NOT write amount_charged here — it was already set correctly by the
     // last path-A/B tick. Writing the pre-SELECT value would overwrite it with stale data.
     const pathCAmount      = Number(session.minutes_used) * ratePerMin;
-    const { data: completedRows } = await supabase
+    const { data: completedRows, error: pathCErr } = await supabase
       .from("connect_sessions")
       .update({
         status:              "completed",
@@ -97,6 +97,10 @@ export async function POST(
       .eq("status", "active")
       .eq("minutes_used", Number(session.minutes_used))
       .select("id");
+    if (pathCErr) {
+      console.error("[tick/pathC] update error:", pathCErr.message, "session:", sessionId);
+      return NextResponse.json({ ok: false, error: "Service temporarily unavailable. Please try again." }, { status: 503 });
+    }
 
     if (completedRows && completedRows.length > 0) {
       await creditConsultant(supabase, session.consultant_id, session.minutes_used, ratePerMin);
@@ -127,7 +131,7 @@ export async function POST(
   // Optimistic lock on minutes_used prevents a concurrent tick from also
   // completing the session and double-crediting the consultant.
   if (remaining <= 0) {
-    const { data: completedRows } = await supabase
+    const { data: completedRows, error: pathBErr } = await supabase
       .from("connect_sessions")
       .update({
         status:              "completed",
@@ -142,6 +146,10 @@ export async function POST(
       .eq("status", "active")
       .eq("minutes_used", Number(session.minutes_used))
       .select("id");
+    if (pathBErr) {
+      console.error("[tick/pathB] update error:", pathBErr.message, "session:", sessionId);
+      return NextResponse.json({ ok: false, error: "Service temporarily unavailable. Please try again." }, { status: 503 });
+    }
 
     if (completedRows && completedRows.length > 0) {
       await creditConsultant(supabase, session.consultant_id, newMinutesUsed, ratePerMin);
@@ -161,7 +169,7 @@ export async function POST(
 
   // Optimistic lock: only write if minutes_used hasn't changed since we read it.
   // Also require status="active" so a concurrent PATCH complete cannot be overwritten.
-  const { data: updated } = await supabase
+  const { data: updated, error: pathAErr } = await supabase
     .from("connect_sessions")
     .update({
       minutes_used:   newMinutesUsed,
@@ -172,6 +180,10 @@ export async function POST(
     .eq("status", "active")
     .eq("minutes_used", Number(session.minutes_used))
     .select("id");
+  if (pathAErr) {
+    console.error("[tick/pathA] update error:", pathAErr.message, "session:", sessionId);
+    return NextResponse.json({ ok: false, error: "Service temporarily unavailable. Please try again." }, { status: 503 });
+  }
 
   if (!updated || updated.length === 0) {
     // Another concurrent tick already wrote — return current state without double-counting

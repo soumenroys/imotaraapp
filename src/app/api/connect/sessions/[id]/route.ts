@@ -213,7 +213,10 @@ export async function PATCH(
         return Promise.all(jobs);
       }).catch((e) => console.error("[sessions/accept] notify error:", e));
 
-    } else if (action === "complete" || action === "decline" || action === "cancel" || action === "userEnd") {
+    } else if (action === "complete" || action === "userEnd") {
+      // Only clear is_busy when an active session ends. "decline" and "cancel" operate on
+      // pending sessions which never set is_busy=true; clearing it here would unblock a
+      // consultant who is legitimately busy with a separate active session.
       await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
 
       if (action === "decline") {
@@ -246,16 +249,19 @@ export async function PATCH(
     const amountCharged   = freshMinutes * lockedRate;
     const sessionEarnings = amountCharged * 0.80;
 
-    await supabase
+    const { error: walletErr } = await supabase
       .from("connect_wallet")
       .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
-
-    // Atomic increment — avoids read-modify-write race condition on concurrent completes
-    const { error: earningsErr } = await supabase.rpc("increment_wallet_earnings", {
-      p_user_id: consultant.user_id,
-      p_amount:  sessionEarnings,
-    });
-    if (earningsErr) console.error("[sessions/complete] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", id);
+    if (walletErr) {
+      console.error("[sessions/complete] CRITICAL: wallet upsert failed — earnings not credited:", walletErr.message, "session:", id, "consultant user_id:", consultant.user_id);
+    } else {
+      // Atomic increment — avoids read-modify-write race condition on concurrent completes
+      const { error: earningsErr } = await supabase.rpc("increment_wallet_earnings", {
+        p_user_id: consultant.user_id,
+        p_amount:  sessionEarnings,
+      });
+      if (earningsErr) console.error("[sessions/complete] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", id);
+    }
 
     // Write amount_charged, platform_fee, and consultant_credited after wallet is credited
     // so the consultant is always paid even if this receipt update fails.

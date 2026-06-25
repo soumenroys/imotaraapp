@@ -236,15 +236,15 @@ export async function POST(req: NextRequest) {
     .from("connect_wallet")
     .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
 
-  // Notify admin + confirm receipt to applicant (non-blocking)
+  // Notify admin + confirm receipt to applicant (fire-and-forget — SMTP latency must not block the response)
   const applicantEmail = contact_email?.trim() || user.email || "";
-  await sendRegistrationEmails({
+  void sendRegistrationEmails({
     display_name,
     applicant_email: applicantEmail,
     auth_email: user.email ?? "",
     currency_code,
     rate_per_min,
-  });
+  }).catch((e) => console.error("[consultant/register] email error:", e));
 
   return NextResponse.json({ ok: true, id: consultant.id, status: "pending" }, { status: 201 });
 }

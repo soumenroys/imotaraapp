@@ -101,7 +101,7 @@ export async function PATCH(req: NextRequest) {
     const u = updates.photo_url;
     if (u !== null && u !== undefined && u !== "") {
       const scheme = String(u).trim().toLowerCase();
-      if (!scheme.startsWith("https://") && !scheme.startsWith("http://")) {
+      if (!scheme.startsWith("https://")) {
         return NextResponse.json({ ok: false, error: "photo_url must be a valid https:// URL or null" }, { status: 400 });
       }
     }

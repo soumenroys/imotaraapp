@@ -337,11 +337,12 @@ async function creditConsultant(
     p_consultant_id: consultant.id,
   });
   if (scErr) {
-    console.warn("[tick/creditConsultant] increment_sessions_completed RPC unavailable, using fallback:", scErr.message);
-    await supabase
-      .from("connect_consultants")
-      .update({ sessions_completed: (consultant.sessions_completed ?? 0) + 1 })
-      .eq("id", consultant.id);
+    // Do NOT fall back to read-modify-write: a stale sessions_completed value read before
+    // the session started would produce a lost-update under concurrent completions (two
+    // concurrent completes each read N, both write N+1 → final value N+1 instead of N+2).
+    // The increment_sessions_completed RPC is atomic and has been deployed and granted since
+    // v15. Log CRITICAL so the discrepancy is visible in Vercel logs but do not write stale data.
+    console.error("[tick/creditConsultant] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", scErr.message, "consultantId:", consultantId);
   }
 
   await supabase

@@ -156,11 +156,10 @@ export async function GET(req: NextRequest) {
           p_consultant_id: consultant.id,
         });
         if (scErr) {
-          console.warn("[connect-orphans] increment_sessions_completed RPC unavailable, using fallback:", scErr.message);
-          await supabase
-            .from("connect_consultants")
-            .update({ sessions_completed: (consultant.sessions_completed ?? 0) + 1 })
-            .eq("id", consultant.id);
+          // Do NOT fall back to read-modify-write — concurrent orphan runs would each
+          // read the same stale value and produce a lost update. Log CRITICAL so the
+          // discrepancy can be corrected manually from admin panel / Supabase dashboard.
+          console.error("[connect-orphans] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", scErr.message, "session:", session.id, "consultant:", consultant.id);
         }
 
         await supabase

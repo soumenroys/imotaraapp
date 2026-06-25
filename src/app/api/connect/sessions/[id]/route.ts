@@ -286,12 +286,10 @@ export async function PATCH(
       p_consultant_id: consultant.id,
     });
     if (scErr) {
-      // RPC not yet deployed — fall back to read-modify-write
-      console.warn("[sessions/complete] increment_sessions_completed RPC unavailable, using fallback:", scErr.message);
-      await supabase
-        .from("connect_consultants")
-        .update({ sessions_completed: (consultant.sessions_completed ?? 0) + 1 })
-        .eq("id", consultant.id);
+      // Do NOT fall back to read-modify-write — the stale value from the pre-request
+      // SELECT would produce a lost update under concurrent completions. The RPC is
+      // atomic and has been deployed since v15. Log CRITICAL for manual correction.
+      console.error("[sessions/complete] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", scErr.message, "session:", id);
     }
 
     const currency        = session.currency_code ?? "INR";

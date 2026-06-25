@@ -103,6 +103,9 @@ export async function PATCH(req: NextRequest) {
       .single();
     refundUserId = preFetch?.user_id ?? null;
     refundAmount = Number(preFetch?.amount ?? 0);
+    if (refundAmount <= 0) {
+      return NextResponse.json({ ok: false, error: "Refund amount must be positive" }, { status: 422 });
+    }
   }
 
   const update: Record<string, unknown> = { status: body.status };

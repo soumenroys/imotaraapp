@@ -65,8 +65,8 @@ export async function PATCH(
   }
   if ("availability_note" in update) {
     const an = String(update.availability_note ?? "").trim();
-    if (an.length > 200) {
-      return NextResponse.json({ ok: false, error: "availability_note must be 200 characters or fewer" }, { status: 400 });
+    if (an.length > 500) {
+      return NextResponse.json({ ok: false, error: "availability_note must be 500 characters or fewer" }, { status: 400 });
     }
     update.availability_note = an;
   }

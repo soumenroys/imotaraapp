@@ -21,6 +21,16 @@ export async function GET(req: NextRequest) {
   if ((fromRaw && !ISO_DATE_RE.test(fromRaw)) || (toRaw && !ISO_DATE_RE.test(toRaw))) {
     return NextResponse.json({ ok: false, error: "from and to must be ISO dates (YYYY-MM-DD)" }, { status: 400 });
   }
+  // Cap range to 366 days to prevent full-table scans on unbounded queries
+  if (fromRaw && toRaw) {
+    const spanMs = new Date(toRaw).getTime() - new Date(fromRaw).getTime();
+    if (spanMs < 0) {
+      return NextResponse.json({ ok: false, error: "from must not be after to" }, { status: 400 });
+    }
+    if (spanMs > 366 * 24 * 60 * 60 * 1000) {
+      return NextResponse.json({ ok: false, error: "Date range must not exceed 366 days" }, { status: 400 });
+    }
+  }
   const from = fromRaw;
   const to   = toRaw;
 

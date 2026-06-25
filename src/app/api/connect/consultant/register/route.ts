@@ -104,6 +104,15 @@ export async function POST(req: NextRequest) {
     if (JSON.stringify(social_links).length > 4096) {
       return NextResponse.json({ ok: false, error: "social_links payload too large" }, { status: 400 });
     }
+    if (Array.isArray(social_links)) {
+      for (const link of social_links) {
+        if (link && typeof link.url === "string" && link.url.trim() !== "") {
+          if (!link.url.trim().toLowerCase().startsWith("https://")) {
+            return NextResponse.json({ ok: false, error: "All social_links URLs must use https://" }, { status: 400 });
+          }
+        }
+      }
+    }
   }
   if (verification_docs !== undefined && verification_docs !== null) {
     if (JSON.stringify(verification_docs).length > 4096) {

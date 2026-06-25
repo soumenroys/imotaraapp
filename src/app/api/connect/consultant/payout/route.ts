@@ -63,6 +63,36 @@ export async function POST(req: NextRequest) {
     if (serialized.length > 2000) {
       return NextResponse.json({ ok: false, error: "payout_details too large (max 2000 characters)" }, { status: 400 });
     }
+    // Allowlist keys only — reject arbitrary keys that could be rendered in the admin panel
+    const method = (payout_method === "bank_in" || payout_method === "bank_int") ? "bank" : payout_method;
+    const ALLOWED: Record<string, Set<string>> = {
+      upi:    new Set(["upi_id"]),
+      bank:   new Set(["account_holder", "account_number", "ifsc_code", "bank_name"]),
+      paypal: new Set(["email"]),
+    };
+    const allowed = ALLOWED[method];
+    if (allowed && typeof payout_details === "object" && !Array.isArray(payout_details)) {
+      for (const key of Object.keys(payout_details as Record<string, unknown>)) {
+        if (!allowed.has(key)) {
+          return NextResponse.json({ ok: false, error: `payout_details contains unexpected key: ${key}` }, { status: 400 });
+        }
+      }
+      const d = payout_details as Record<string, unknown>;
+      if (method === "upi" && typeof d.upi_id === "string" && !/^[\w.\-+]+@[\w]+$/.test(d.upi_id)) {
+        return NextResponse.json({ ok: false, error: "upi_id must be in format name@bank" }, { status: 400 });
+      }
+      if (method === "bank") {
+        if (typeof d.account_number === "string" && !/^\d{8,18}$/.test(d.account_number)) {
+          return NextResponse.json({ ok: false, error: "account_number must be 8–18 digits" }, { status: 400 });
+        }
+        if (typeof d.ifsc_code === "string" && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(d.ifsc_code)) {
+          return NextResponse.json({ ok: false, error: "ifsc_code must match XXXX0XXXXXX format" }, { status: 400 });
+        }
+      }
+      if (method === "paypal" && typeof d.email === "string" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) {
+        return NextResponse.json({ ok: false, error: "paypal email must be a valid email address" }, { status: 400 });
+      }
+    }
   }
 
   const supabase = getSupabaseAdmin();

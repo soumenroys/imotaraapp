@@ -14,10 +14,15 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
 
   const supabase = getSupabaseAdmin();
+  // Join connect_consultants to filter out soft-deleted consultants — a cascade
+  // DELETE only fires on hard-delete, so soft-deleted (status='deleted') rows remain
+  // in connect_favorites until explicitly removed. Returning deleted consultant IDs
+  // breaks the browse UI with empty/missing cards.
   const { data, error } = await supabase
     .from("connect_favorites")
-    .select("consultant_id, created_at")
+    .select("consultant_id, created_at, connect_consultants!inner(status)")
     .eq("user_id", user.id)
+    .neq("connect_consultants.status", "deleted")
     .order("created_at", { ascending: false });
 
   if (error) {

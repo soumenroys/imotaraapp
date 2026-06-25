@@ -267,19 +267,26 @@ export async function PATCH(
         p_user_id: consultant.user_id,
         p_amount:  sessionEarnings,
       });
-      if (earningsErr) console.error("[sessions/complete] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", id);
-
-      // Write receipt columns only when the wallet was actually credited so that
-      // consultant_credited in the session row is an accurate audit record.
-      const { error: acErr } = await supabase.from("connect_sessions")
-        .update({
-          amount_charged:      amountCharged,
-          platform_fee:        +(amountCharged * 0.20).toFixed(4),
-          consultant_credited: +sessionEarnings.toFixed(4),
-        })
-        .eq("id", id)
-        .eq("status", "completed");
-      if (acErr) console.error("[sessions/complete] amount_charged update failed:", acErr.message, "session:", id);
+      if (earningsErr) {
+        console.error("[sessions/complete] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", id);
+        // Wallet upsert succeeded but earnings increment failed — write amount_charged
+        // without consultant_credited so the audit record reflects no actual credit.
+        await supabase.from("connect_sessions")
+          .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
+          .eq("id", id).eq("status", "completed");
+      } else {
+        // Write consultant_credited only after the wallet was successfully incremented —
+        // this is the authoritative audit record of what was actually paid to the consultant.
+        const { error: acErr } = await supabase.from("connect_sessions")
+          .update({
+            amount_charged:      amountCharged,
+            platform_fee:        +(amountCharged * 0.20).toFixed(4),
+            consultant_credited: +sessionEarnings.toFixed(4),
+          })
+          .eq("id", id)
+          .eq("status", "completed");
+        if (acErr) console.error("[sessions/complete] amount_charged update failed:", acErr.message, "session:", id);
+      }
     }
 
     const { error: scErr } = await supabase.rpc("increment_sessions_completed", {

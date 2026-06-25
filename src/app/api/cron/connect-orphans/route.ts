@@ -96,27 +96,20 @@ export async function GET(req: NextRequest) {
           const amountCharged = freshMinutes * rate;
           const earnings = amountCharged * 0.80;
 
-          // Write amount_charged, platform_fee, and consultant_credited.
-          // Guard: skip the entire update if path-B/C already wrote all three columns
-          // (amount_charged non-zero AND consultant_credited non-null).
-          // The OR includes consultant_credited.is.null so that sessions where a
-          // path-A tick already wrote amount_charged (but never writes consultant_credited)
-          // still receive the fee columns from the orphan cron.
-          await supabase.from("connect_sessions")
-            .update({
-              amount_charged:      amountCharged,
-              platform_fee:        +(amountCharged * 0.20).toFixed(4),
-              consultant_credited: +earnings.toFixed(4),
-            })
-            .eq("id", session.id)
-            .or("amount_charged.is.null,amount_charged.eq.0,consultant_credited.is.null");
-
+          // Attempt wallet credit FIRST. Only write consultant_credited to the session row
+          // after the wallet is actually incremented — writing it beforehand creates a false
+          // audit record if the wallet upsert or earnings RPC subsequently fails.
           const { error: walletErr } = await supabase
             .from("connect_wallet")
             .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
 
           if (walletErr) {
             console.error("[connect-orphans] CRITICAL: wallet upsert failed — earnings not credited:", walletErr.message, "session:", session.id, "consultant user_id:", consultant.user_id);
+            // Write amount_charged + platform_fee but NOT consultant_credited (no credit happened).
+            await supabase.from("connect_sessions")
+              .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
+              .eq("id", session.id)
+              .or("amount_charged.is.null,amount_charged.eq.0");
             await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
             continue;
           }
@@ -130,6 +123,11 @@ export async function GET(req: NextRequest) {
             // but do NOT increment sessions_completed. The discrepancy (session completed
             // but no earnings + no count increment) surfaces clearly in the earnings dashboard.
             console.error("[connect-orphans] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", session.id, "— skipping sessions_completed to keep discrepancy visible");
+            // Write without consultant_credited — earnings not actually credited.
+            await supabase.from("connect_sessions")
+              .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
+              .eq("id", session.id)
+              .or("amount_charged.is.null,amount_charged.eq.0");
             await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
             // Still notify the user that their session was force-closed
             void supabase.auth.admin.getUserById(session.user_id).then(({ data: uAuth }) => {
@@ -150,6 +148,18 @@ export async function GET(req: NextRequest) {
             completed++;
             continue;
           }
+
+          // Both wallet operations succeeded — write all three receipt columns.
+          // Guard: skip if path-B/C already wrote consultant_credited (non-null); only
+          // fill in sessions where a path-A tick wrote amount_charged but not consultant_credited.
+          await supabase.from("connect_sessions")
+            .update({
+              amount_charged:      amountCharged,
+              platform_fee:        +(amountCharged * 0.20).toFixed(4),
+              consultant_credited: +earnings.toFixed(4),
+            })
+            .eq("id", session.id)
+            .or("amount_charged.is.null,amount_charged.eq.0,consultant_credited.is.null");
         }
 
         const { error: scErr } = await supabase.rpc("increment_sessions_completed", {

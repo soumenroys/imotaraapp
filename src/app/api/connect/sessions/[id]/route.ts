@@ -237,6 +237,25 @@ export async function PATCH(
           }),
         });
       }).catch((e) => console.error("[sessions/decline] push error:", e));
+
+    } else if (action === "cancel") {
+      // Notify the consultant that the user cancelled so they don't wait on a dead request.
+      // cancel acts on a pending session — is_busy was never set, so no clear needed.
+      void supabase.auth.admin.getUserById(consultant.user_id).then(({ data: cAuth }) => {
+        const pushToken = cAuth?.user?.user_metadata?.expo_push_token as string | undefined;
+        if (!pushToken) return;
+        return fetch("https://exp.host/--/api/v2/push/send", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            to:    pushToken,
+            sound: "default",
+            title: "Session Request Cancelled",
+            body:  "The user has cancelled their session request.",
+            data:  { session_id: id, type: "session_cancelled" },
+          }),
+        });
+      }).catch((e) => console.error("[sessions/cancel] push error:", e));
     }
   }
 

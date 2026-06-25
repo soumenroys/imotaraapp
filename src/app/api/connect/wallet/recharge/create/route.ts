@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
     razorpay_order_id:   order.id,
     amount:              totalAmount,
     currency_code:       currency,
+    amount_inr:          +amountINR.toFixed(4), // INR equivalent at order-creation time — used by verify for invoice
     minutes_credited:    Number(minutes),
     platform_fee:        platformFee,
     consultant_credit:   consultantCredit,

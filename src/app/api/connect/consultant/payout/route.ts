@@ -99,12 +99,23 @@ export async function POST(req: NextRequest) {
 
   const { data: consultant } = await supabase
     .from("connect_consultants")
-    .select("id, display_name, status")
+    .select("id, display_name, status, currency_code")
     .eq("user_id", user.id)
     .single();
 
   if (!consultant || consultant.status !== "approved") {
     return NextResponse.json({ ok: false, error: "Consultant account not approved" }, { status: 403 });
+  }
+
+  // Reject mismatched currency — earned_amount is always in the consultant's own
+  // currency_code. A payout in a different currency would compare incompatible units
+  // (e.g., USD 500 against an INR 50,000 balance, appearing solvent at 500 < 50,000).
+  const earnedCurrency = consultant.currency_code ?? "INR";
+  if (currency_code !== earnedCurrency) {
+    return NextResponse.json(
+      { ok: false, error: `Payout currency must match your earnings currency (${earnedCurrency})` },
+      { status: 422 }
+    );
   }
 
   const { data: wallet } = await supabase
@@ -116,7 +127,7 @@ export async function POST(req: NextRequest) {
   const available = Number(wallet?.earned_amount ?? 0) - Number(wallet?.pending_payout ?? 0);
   if (Number(amount) > available) {
     return NextResponse.json(
-      { ok: false, error: `Insufficient balance. Available: ${available.toFixed(2)}` },
+      { ok: false, error: `Insufficient balance. Available: ${available.toFixed(2)} ${earnedCurrency}` },
       { status: 402 }
     );
   }

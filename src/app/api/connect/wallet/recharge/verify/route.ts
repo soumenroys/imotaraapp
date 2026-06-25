@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   // Fetch the pending recharge
   const { data: recharge } = await supabase
     .from("connect_recharges")
-    .select("id, user_id, consultant_id, minutes_credited, consultant_credit, amount, currency_code, status")
+    .select("id, user_id, consultant_id, minutes_credited, consultant_credit, amount, currency_code, amount_inr, status")
     .eq("razorpay_order_id", razorpay_order_id)
     .single();
 
@@ -104,6 +104,11 @@ export async function POST(req: NextRequest) {
   const amount         = Number(recharge.amount ?? 0);
   const currency       = recharge.currency_code ?? "INR";
   const minutes        = Number(recharge.minutes_credited ?? 0);
+  // Use the INR equivalent stored at order-creation time. For INR consultants this
+  // equals `amount`; for non-INR consultants the rate may have drifted between create
+  // and verify — using the locked value ensures the invoice matches the actual charge.
+  // Fallback to amount for legacy rows that predate the amount_inr column.
+  const amountINR      = Number(recharge.amount_inr ?? recharge.amount ?? 0);
 
   // Create invoice record
   const invoice = await createInvoice(supabase, {
@@ -112,8 +117,8 @@ export async function POST(req: NextRequest) {
     description:    `Imotara Connect · Session with ${consultantName} · ${minutes} min`,
     paymentGateway: "razorpay",
     gatewayRef:     razorpay_payment_id,
-    amountPaise:    Math.round(amount * 100),
-    currency,
+    amountPaise:    Math.round(amountINR * 100),
+    currency:       "INR",
   });
 
   // Send invoice email to user (non-blocking)

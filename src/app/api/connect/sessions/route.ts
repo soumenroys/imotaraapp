@@ -76,7 +76,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Please select a date and time for the session." }, { status: 400 });
     }
     const scheduledDate = new Date(scheduled_at);
-    if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+    // Require at least 60 seconds in the future: the POST handler does ~5 sequential DB
+    // round-trips before INSERT, so a timestamp only a second or two ahead could arrive
+    // already-past and be treated as an immediately-stale session by the orphan cron.
+    if (isNaN(scheduledDate.getTime()) || scheduledDate.getTime() < Date.now() + 60_000) {
       return NextResponse.json({ ok: false, error: "Please choose a valid future date and time." }, { status: 400 });
     }
     const maxDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
@@ -143,7 +146,7 @@ export async function POST(req: NextRequest) {
   // Verify consultant is approved
   const { data: consultant } = await supabase
     .from("connect_consultants")
-    .select("id, status, is_busy, currency_code, preferred_lang")
+    .select("id, status, is_busy, currency_code, preferred_lang, rate_per_min")
     .eq("id", consultant_id)
     .eq("status", "approved")
     .single();
@@ -246,26 +249,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Fetch rate so it is locked in the session row at creation time
-  const { data: consultantFull } = await supabase
-    .from("connect_consultants")
-    .select("rate_per_min")
-    .eq("id", consultant_id)
-    .single();
-
   // Validate user_timezone against a safe character set (IANA timezone format) before storing
   const rawTz = typeof body.user_timezone === "string" ? body.user_timezone : "";
   const user_timezone = rawTz.length > 0 && rawTz.length <= 64 && /^[A-Za-z0-9/_+\-]{1,64}$/.test(rawTz)
     ? rawTz
     : "Asia/Kolkata";
 
-  // Translation opt-in: +10% surcharge baked into rate_per_min when enabled
+  // Translation opt-in: +10% surcharge baked into rate_per_min when enabled.
+  // rate_per_min is read from the same query that verified status='approved' (line 144) —
+  // a separate re-fetch would not re-check status and could use a suspended consultant's rate.
   const SUPPORTED_LANGS = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","ur","ar","es","fr","de","pt"];
   const userLang       = typeof body.user_lang === "string" && SUPPORTED_LANGS.includes(body.user_lang) ? body.user_lang : "en";
   const consultantLang = typeof consultant.preferred_lang === "string" ? consultant.preferred_lang : "en";
   const translationEnabled = body.translation_requested === true && userLang !== consultantLang;
-  const baseRate = Number(consultantFull?.rate_per_min ?? 0);
-  if (!consultantFull || baseRate <= 0) {
+  const baseRate = Number(consultant.rate_per_min ?? 0);
+  if (baseRate <= 0) {
     return NextResponse.json({ ok: false, error: "Consultant rate unavailable. Please try again." }, { status: 409 });
   }
   const effectiveRate  = translationEnabled ? +((baseRate * 1.10).toFixed(4)) : baseRate;

@@ -3,6 +3,28 @@
 -- Run in Supabase SQL editor AFTER connect_v28_integrity_constraints.sql.
 -- Apply statements one at a time (Supabase SQL editor does not wrap in a transaction).
 --
+-- PRE-FLIGHT: Run all three queries below and confirm each returns ZERO rows before
+-- applying any statements. Non-zero results require manual cleanup first.
+--
+--   1. Blocks SET NOT NULL on rate_per_min (item 1b):
+--      SELECT id FROM connect_sessions WHERE rate_per_min IS NULL;
+--
+--   2. Blocks uq_connect_sessions_consultant_scheduled_at index build (item 5):
+--      SELECT consultant_id, scheduled_at, COUNT(*)
+--        FROM connect_sessions
+--       WHERE status IN ('pending','active')
+--         AND type = 'scheduled'
+--         AND scheduled_at IS NOT NULL
+--       GROUP BY consultant_id, scheduled_at
+--       HAVING COUNT(*) > 1;
+--
+--   3. Blocks uq_connect_recharges_stripe_payment_id index build (item 3):
+--      SELECT stripe_payment_id, COUNT(*)
+--        FROM connect_recharges
+--       WHERE stripe_payment_id IS NOT NULL
+--       GROUP BY stripe_payment_id
+--       HAVING COUNT(*) > 1;
+--
 -- Summary:
 -- 1. DROP DEFAULT 0 from connect_sessions.rate_per_min — DEFAULT now conflicts with
 --    the CHECK (rate_per_min > 0) added in v28.

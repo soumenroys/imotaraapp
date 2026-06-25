@@ -34,14 +34,15 @@ export async function GET(req: NextRequest) {
   }
 
   // For sessions that never received a tick:
-  // - Skip scheduled sessions where started_at is null — they are legitimately waiting
-  //   for their call start time and should not be killed.
-  // - Kill any session (instant OR scheduled) where started_at is set but no tick has
-  //   arrived in > 15 minutes — the client crashed after session start.
+  // - Skip scheduled sessions — started_at is set at accept time, but the actual call
+  //   may not begin for hours. A scheduled session with no tick is legitimately waiting;
+  //   killing it prematurely would end a session the consultant accepted in advance.
+  // - Kill instant sessions where started_at is set but no tick arrived in > 15 minutes
+  //   — the client crashed after session start. Instant sessions tick immediately.
   // - Also require started_at > 15 min ago to avoid false positives on brand-new sessions.
   const trueOrphans = (orphans ?? []).filter((s) => {
-    if (s.last_tick_at) return true; // already filtered by cutoff above
-    return s.started_at != null && new Date(s.started_at).getTime() < Date.now() - 15 * 60 * 1000;
+    if (s.last_tick_at) return true; // already filtered by cutoff above — had ticks but went silent
+    return s.type === "instant" && s.started_at != null && new Date(s.started_at).getTime() < Date.now() - 15 * 60 * 1000;
   });
 
   if (trueOrphans.length === 0) {

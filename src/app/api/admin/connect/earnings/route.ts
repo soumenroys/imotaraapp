@@ -72,7 +72,10 @@ export async function GET(req: NextRequest) {
         toDate.setDate(toDate.getDate() + 1); // inclusive end-of-day
         q = q.lt("ended_at", toDate.toISOString());
       }
-      return q;
+      // PostgREST defaults to 1 000 rows if no limit is set, which silently truncates
+      // revenue totals on large date ranges. 10 000 accommodates well beyond current
+      // expected volume for a 366-day range.
+      return q.limit(10000);
     })(),
   ]);
 

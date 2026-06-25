@@ -159,6 +159,15 @@ export async function PATCH(
     .select("id, minutes_used");
 
   if (error) {
+    // 23505 = unique_violation: the partial unique index uq_connect_sessions_consultant_active
+    // (WHERE status='active') rejected this accept because another concurrent accept of a
+    // different session already made this consultant active.
+    if (error.code === "23505") {
+      return NextResponse.json(
+        { ok: false, error: "Companion is already in another active session." },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ ok: false, error: "Could not update session" }, { status: 500 });
   }
   if (!updatedRows || updatedRows.length === 0) {

@@ -73,7 +73,8 @@ export async function POST(req: NextRequest) {
     .from("connect_recharges")
     .update({
       razorpay_payment_id,
-      status: "completed",
+      status:       "completed",
+      completed_at: new Date().toISOString(),
     })
     .eq("id", recharge.id)
     .eq("status", "pending")

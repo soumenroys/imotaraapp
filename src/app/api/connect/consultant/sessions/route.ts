@@ -76,15 +76,40 @@ export async function GET(req: NextRequest) {
         const freshMinutes = Number(wonRows[0].minutes_used ?? stale.minutes_used);
 
         // Credit consultant for minutes already consumed before client disconnected.
-        // Mirrors the 80/20 split in sessions/[id]/route.ts manual completion.
+        // Mirrors the 80/20 split in sessions/[id]/route.ts and orphan cron:
+        // attempt wallet ops FIRST, write consultant_credited ONLY on success.
         if (freshMinutes > 0 && Number(stale.rate_per_min) > 0) {
           const lockedRate      = Number(stale.rate_per_min);
           const sessionEarnings = freshMinutes * lockedRate * 0.80;
           const amountCharged   = freshMinutes * lockedRate;
 
-          // Write all three receipt columns if a late tick hasn't already done so (NULL or 0).
-          // Matching the orphan cron and tick completion paths — all three must be set together
-          // so admin revenue reports and dispute audits see consistent data on every completed session.
+          const { error: walletErr } = await supabase.from("connect_wallet")
+            .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
+
+          if (walletErr) {
+            console.error("[stale-complete] CRITICAL: wallet upsert failed — earnings not credited:", walletErr.message, "session:", stale.id);
+            await supabase.from("connect_sessions")
+              .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
+              .eq("id", stale.id)
+              .or("amount_charged.is.null,amount_charged.eq.0");
+            continue;
+          }
+
+          const { error: rpcErr } = await supabase.rpc("increment_wallet_earnings", {
+            p_user_id: user.id,
+            p_amount:  sessionEarnings,
+          });
+
+          if (rpcErr) {
+            console.error("[stale-complete] CRITICAL: increment_wallet_earnings failed:", rpcErr.message, "session:", stale.id, "— consultant_credited NOT written");
+            await supabase.from("connect_sessions")
+              .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
+              .eq("id", stale.id)
+              .or("amount_charged.is.null,amount_charged.eq.0");
+            continue;
+          }
+
+          // Both wallet ops succeeded — write all three receipt columns.
           await supabase.from("connect_sessions")
             .update({
               amount_charged:      amountCharged,
@@ -94,30 +119,11 @@ export async function GET(req: NextRequest) {
             .eq("id", stale.id)
             .or("amount_charged.is.null,amount_charged.eq.0,consultant_credited.is.null");
 
-          await supabase.from("connect_wallet")
-            .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
-
-          const { error: rpcErr } = await supabase.rpc("increment_wallet_earnings", {
-            p_user_id: user.id,
-            p_amount:  sessionEarnings,
-          });
-          if (rpcErr) console.error("[stale-complete] increment_wallet_earnings failed:", rpcErr.message, "session:", stale.id);
-
-          // Increment sessions_completed atomically via RPC (same pattern as tick and sessions/[id]).
-          // RPC serialises concurrent increments inside the DB lock; fallback to read-modify-write
-          // only when the RPC is unavailable.
           const { error: rpcScErr } = await supabase.rpc("increment_sessions_completed", { p_consultant_id: consultant.id });
           if (rpcScErr) {
-            console.error("[stale-complete] increment_sessions_completed RPC failed, falling back:", rpcScErr.message);
-            const { data: cRow } = await supabase
-              .from("connect_consultants")
-              .select("sessions_completed")
-              .eq("id", consultant.id)
-              .single();
-            await supabase
-              .from("connect_consultants")
-              .update({ sessions_completed: (cRow?.sessions_completed ?? 0) + 1 })
-              .eq("id", consultant.id);
+            // Do NOT fall back to read-modify-write — concurrent runs would each read the same
+            // stale value and produce a lost update. Log CRITICAL for manual correction.
+            console.error("[stale-complete] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", rpcScErr.message, "session:", stale.id, "consultant:", consultant.id);
           }
         }
       }
@@ -175,12 +181,19 @@ export async function GET(req: NextRequest) {
     .filter((s) => s.status === "pending" || s.status === "active")
     .map((s) => s.user_id);
 
-  const userPreviewMap: Record<string, { email: string }> = {};
+  // Expose only non-sensitive display fields to the consultant — email is never shared.
+  const userPreviewMap: Record<string, { display_name: string | null; photo_url: string | null }> = {};
   if (previewUserIds.length > 0) {
     for (const uid of previewUserIds) {
       try {
         const { data: u } = await supabase.auth.admin.getUserById(uid);
-        if (u?.user?.email) userPreviewMap[uid] = { email: u.user.email };
+        if (u?.user) {
+          const meta = u.user.user_metadata ?? {};
+          userPreviewMap[uid] = {
+            display_name: meta.full_name ?? meta.display_name ?? meta.name ?? null,
+            photo_url:    meta.avatar_url ?? meta.photo_url ?? null,
+          };
+        }
       } catch { /* non-critical */ }
     }
   }

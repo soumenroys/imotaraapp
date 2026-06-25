@@ -118,3 +118,38 @@ CREATE POLICY "connect_messages_no_delete"
 
 ALTER TABLE connect_recharges
   ADD COLUMN IF NOT EXISTS amount_inr NUMERIC(12,4);
+
+
+-- ─── 7. connect_recharges: INR backfill for pre-v30 pending rows ──────────────
+--
+-- Pending recharges created before v30 have amount_inr IS NULL. The verify route
+-- falls back to `amount` for these rows, which is correct for INR consultants
+-- but wrong for non-INR consultants (e.g. amount=50 USD → 5,000 paise instead of
+-- ~417,500 paise). This backfill fixes INR-only rows (where amount=amount_inr anyway).
+-- Non-INR pending rows cannot be backfilled because the original exchange rate is
+-- unknown; the verify route now logs a warning for those rows so they can be
+-- manually identified and refunded if needed.
+--
+-- Safe to run on live traffic: scoped only to status='pending' rows with NULL amount_inr
+-- where currency_code='INR' — for INR the conversion is 1:1.
+
+UPDATE connect_recharges
+   SET amount_inr = amount
+ WHERE status = 'pending'
+   AND amount_inr IS NULL
+   AND currency_code = 'INR';
+
+
+-- ─── 8. connect_recharges: explicit DELETE deny policy ────────────────────────
+--
+-- v30 added explicit INSERT and UPDATE deny policies. DELETE was left on implicit-deny.
+-- A user who could delete their own pending recharge row could avoid having their
+-- pending payment record stored (the Razorpay order would still exist, but the DB
+-- would return 404 on verify). Making the deny explicit closes the same gap as items 2-3.
+
+DROP POLICY IF EXISTS "connect_recharges_no_direct_delete" ON connect_recharges;
+
+CREATE POLICY "connect_recharges_no_direct_delete"
+  ON connect_recharges
+  FOR DELETE
+  USING (false);

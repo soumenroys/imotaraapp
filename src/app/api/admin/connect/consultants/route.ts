@@ -3,6 +3,7 @@
 // Admin only.
 
 import { NextRequest, NextResponse } from "next/server";
+import nodemailer from "nodemailer";
 import { connectAdminAuthorized, requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
@@ -86,6 +87,13 @@ export async function PATCH(req: NextRequest) {
 
   const supabase = getSupabaseAdmin();
 
+  // Fetch before update so we have user_id and display_name for notification email.
+  const { data: consultantRow } = await supabase
+    .from("connect_consultants")
+    .select("id, user_id, display_name")
+    .eq("id", id)
+    .single();
+
   // Build update object conditionally — passing `undefined` as a value causes the Supabase
   // client to serialise it as JSON null, which would silently overwrite is_online to NULL
   // and break availability checks for reinstated consultants.
@@ -105,5 +113,76 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 
+  // Notify the consultant of their status change — non-blocking.
+  if (consultantRow?.user_id) {
+    void supabase.auth.admin.getUserById(consultantRow.user_id).then(({ data: authUser }) => {
+      const email = authUser?.user?.email;
+      if (!email) return;
+      return sendStatusChangeEmail({ email, name: consultantRow.display_name ?? "Companion", action: action as "suspend" | "reinstate" | "reject", reason });
+    }).catch((e) => console.error("[admin/connect/consultants PATCH] notify error:", e));
+  }
+
   return NextResponse.json({ ok: true, status: statusMap[action] });
+}
+
+async function sendStatusChangeEmail(data: {
+  email: string; name: string; action: "suspend" | "reinstate" | "reject"; reason?: string;
+}) {
+  const gmailUser = process.env.ALERT_GMAIL_USER?.trim();
+  const gmailPass = process.env.ALERT_GMAIL_APP_PASSWORD?.trim();
+  if (!gmailUser || !gmailPass) return;
+
+  const subjectMap = {
+    suspend:   "[Imotara Connect] Your account has been suspended",
+    reinstate: "[Imotara Connect] Your account has been reinstated",
+    reject:    "[Imotara Connect] Application update",
+  };
+  const bodyMap = {
+    suspend: [
+      `Hi ${data.name},`,
+      ``,
+      `Your Imotara Connect companion account has been temporarily suspended by our moderation team.`,
+      data.reason ? `Reason: ${data.reason}` : null,
+      ``,
+      `If you believe this is a mistake, please reply to this email or contact support@imotara.com.`,
+      ``,
+      `— The Imotara Team`,
+    ].filter((l) => l !== null).join("\n"),
+    reinstate: [
+      `Hi ${data.name},`,
+      ``,
+      `Good news — your Imotara Connect companion account has been reinstated. You can log in and resume accepting sessions.`,
+      ``,
+      `Thank you for your patience.`,
+      ``,
+      `— The Imotara Team`,
+    ].join("\n"),
+    reject: [
+      `Hi ${data.name},`,
+      ``,
+      `Thank you for applying to Imotara Connect.`,
+      `After review, we are unable to approve your application at this time.`,
+      ``,
+      data.reason ? `Reason: ${data.reason}` : null,
+      ``,
+      `If you believe this is a mistake, please reply to this email.`,
+      ``,
+      `— The Imotara Team`,
+    ].filter((l) => l !== null).join("\n"),
+  };
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST ?? "smtp.hostinger.com", port: 465, secure: true,
+      auth: { user: gmailUser, pass: gmailPass },
+    });
+    await transporter.sendMail({
+      from:    `"Imotara Connect" <${gmailUser}>`,
+      to:      data.email,
+      subject: subjectMap[data.action],
+      text:    bodyMap[data.action],
+    });
+  } catch (err) {
+    console.error("[Connect email] Failed to send status change notification:", err);
+  }
 }

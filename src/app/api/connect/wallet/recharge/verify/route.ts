@@ -108,6 +108,13 @@ export async function POST(req: NextRequest) {
   // equals `amount`; for non-INR consultants the rate may have drifted between create
   // and verify — using the locked value ensures the invoice matches the actual charge.
   // Fallback to amount for legacy rows that predate the amount_inr column.
+  if (recharge.amount_inr == null && currency !== "INR") {
+    console.warn(
+      "[connect/recharge/verify] WARN: amount_inr is NULL for non-INR recharge",
+      recharge.id, "currency:", currency, "amount:", amount,
+      "— invoice amountPaise will use consultant-currency value (likely wrong). Manual refund check required."
+    );
+  }
   const amountINR      = Number(recharge.amount_inr ?? recharge.amount ?? 0);
 
   // Create invoice record

@@ -122,6 +122,14 @@ export async function POST(req: NextRequest) {
     status:              "pending",
   });
   if (insertError) {
+    // 23505: partial unique index uq_connect_recharges_user_consultant_pending prevented this insert.
+    // Another recharge is already pending for this user+consultant pair — prevent double-payment.
+    if (insertError.code === "23505") {
+      return NextResponse.json(
+        { ok: false, error: "A recharge is already in progress for this companion. Please complete or cancel it first." },
+        { status: 409 }
+      );
+    }
     console.error("[recharge/create] insert failed:", insertError.message);
     return NextResponse.json({ ok: false, error: "Failed to create recharge record. Please try again." }, { status: 500 });
   }

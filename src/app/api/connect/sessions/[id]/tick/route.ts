@@ -304,9 +304,13 @@ async function creditConsultant(
   // Use the rate locked at session creation, not the consultant's current rate.
   const sessionEarnings = Number(minutesUsed) * Number(lockedRatePerMin) * 0.80;
 
-  await supabase
+  const { error: walletErr } = await supabase
     .from("connect_wallet")
     .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
+  if (walletErr) {
+    console.error("[tick/creditConsultant] CRITICAL: wallet upsert failed — earnings not credited:", walletErr.message, "consultant user_id:", consultant.user_id);
+    return;
+  }
 
   const { error: earningsErr } = await supabase.rpc("increment_wallet_earnings", {
     p_user_id: consultant.user_id,

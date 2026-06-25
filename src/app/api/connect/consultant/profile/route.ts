@@ -53,13 +53,18 @@ export async function PATCH(req: NextRequest) {
   }
 
   if ("display_name" in updates) {
-    const dn = updates.display_name as string;
-    if (typeof dn !== "string" || !dn.trim() || dn.trim().length > 100) {
+    const dn = typeof updates.display_name === "string" ? (updates.display_name as string).trim() : "";
+    if (!dn || dn.length > 100) {
       return NextResponse.json({ ok: false, error: "display_name must be 1–100 characters" }, { status: 400 });
     }
+    updates.display_name = dn;
   }
-  if ("bio" in updates && (typeof updates.bio !== "string" || !(updates.bio as string).trim() || (updates.bio as string).length > 500)) {
-    return NextResponse.json({ ok: false, error: "bio must be 1–500 characters" }, { status: 400 });
+  if ("bio" in updates) {
+    const bioVal = typeof updates.bio === "string" ? (updates.bio as string).trim() : "";
+    if (!bioVal || bioVal.length > 500) {
+      return NextResponse.json({ ok: false, error: "bio must be 1–500 characters" }, { status: 400 });
+    }
+    updates.bio = bioVal;
   }
   if ("availability_note" in updates && typeof updates.availability_note === "string" && (updates.availability_note as string).length > 500) {
     return NextResponse.json({ ok: false, error: "availability_note max 500 chars" }, { status: 400 });
@@ -123,9 +128,12 @@ export async function PATCH(req: NextRequest) {
   if ("photo_url" in updates) {
     const u = updates.photo_url;
     if (u !== null && u !== undefined && u !== "") {
-      const scheme = String(u).trim().toLowerCase();
-      if (!scheme.startsWith("https://")) {
+      const uStr = String(u).trim();
+      if (!uStr.toLowerCase().startsWith("https://")) {
         return NextResponse.json({ ok: false, error: "photo_url must be a valid https:// URL or null" }, { status: 400 });
+      }
+      if (uStr.length > 512) {
+        return NextResponse.json({ ok: false, error: "photo_url must be at most 512 characters" }, { status: 400 });
       }
     }
   }

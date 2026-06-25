@@ -103,7 +103,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_connect_recharges_payment_id
   ON connect_recharges (razorpay_payment_id)
   WHERE razorpay_payment_id IS NOT NULL;
 
--- ─── 6. connect_sessions: at most one active session per consultant ──────────
+-- ─── 6. connect_recharges: at most one pending recharge per user+consultant ──
+--
+-- A user double-tapping "Recharge" creates two concurrent POST requests. Both
+-- call Razorpay and create distinct order IDs, then both insert successfully
+-- (different razorpay_order_id values) — the existing UNIQUE on razorpay_order_id
+-- does not prevent this. The user pays twice if they complete both Razorpay flows.
+-- Partial unique index: only pending rows participate, so a user can have many
+-- completed recharges but at most one in-flight pending recharge per consultant.
+-- The application (recharge/create/route.ts) maps 23505 to 409:
+--   "A recharge is already in progress for this companion."
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_connect_recharges_user_consultant_pending
+  ON connect_recharges (user_id, consultant_id)
+  WHERE status = 'pending';
+
+-- ─── 7. connect_sessions: at most one active session per consultant ──────────
 --
 -- Two concurrent accept requests for two different pending sessions (from two
 -- different users) could both pass the application-level is_busy=false check

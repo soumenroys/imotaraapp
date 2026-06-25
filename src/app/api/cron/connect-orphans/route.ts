@@ -111,9 +111,15 @@ export async function GET(req: NextRequest) {
             .eq("id", session.id)
             .or("amount_charged.is.null,amount_charged.eq.0,consultant_credited.is.null");
 
-          await supabase
+          const { error: walletErr } = await supabase
             .from("connect_wallet")
             .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
+
+          if (walletErr) {
+            console.error("[connect-orphans] CRITICAL: wallet upsert failed — earnings not credited:", walletErr.message, "session:", session.id, "consultant user_id:", consultant.user_id);
+            await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
+            continue;
+          }
 
           const { error: earningsErr } = await supabase.rpc("increment_wallet_earnings", {
             p_user_id: consultant.user_id,

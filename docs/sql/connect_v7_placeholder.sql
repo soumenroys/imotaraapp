@@ -1,0 +1,5 @@
+-- connect_v7_placeholder.sql
+-- v7 was applied directly in Supabase production without a saved migration file.
+-- The schema changes it introduced were absorbed into subsequent migrations.
+-- This placeholder preserves the version number in the chain so v6 → v7 → v8 is unambiguous.
+-- DO NOT RUN — this file is a documentation record only.

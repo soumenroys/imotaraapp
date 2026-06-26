@@ -23,7 +23,8 @@ export async function GET(req: NextRequest) {
     .select("consultant_id, created_at, connect_consultants!inner(status)")
     .eq("user_id", user.id)
     .neq("connect_consultants.status", "deleted")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(200);
 
   if (error) {
     console.error("[favorites] DB error:", error.message);

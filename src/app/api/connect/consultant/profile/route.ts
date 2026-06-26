@@ -144,15 +144,21 @@ export async function PATCH(req: NextRequest) {
 
   const supabase = getSupabaseAdmin();
 
-  // Verify the profile exists before updating — without this check the update
-  // silently matches 0 rows and returns ok:true, which is misleading to callers.
+  // Verify the profile exists and fetch status — used to guard is_online below.
   const { data: existing } = await supabase
     .from("connect_consultants")
-    .select("id")
+    .select("id, status")
     .eq("user_id", user.id)
     .maybeSingle();
   if (!existing) {
     return NextResponse.json({ ok: false, error: "Consultant profile not found" }, { status: 404 });
+  }
+
+  // Only approved consultants may set themselves online. A pending/rejected/suspended
+  // consultant setting is_online=true would make them appear available in online-filtered
+  // queries, bypassing the approved-only guard that exists on /consultant/status.
+  if ("is_online" in updates && updates.is_online === true && existing.status !== "approved") {
+    return NextResponse.json({ ok: false, error: "Account must be approved to go online" }, { status: 403 });
   }
 
   const { error } = await supabase

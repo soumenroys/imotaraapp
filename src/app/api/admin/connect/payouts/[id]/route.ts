@@ -67,22 +67,21 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Payout already completed" }, { status: 409 });
   }
 
-  // Atomically decrement pending_payout — the DB function evaluates the new value
-  // inside the UPDATE lock, eliminating the JS read-compute-write race that allowed
-  // two concurrent payout completions to both read the same pending_payout and each
-  // only decrement once (effectively dropping one decrement).
-  if (status === "completed") {
+  // Atomically decrement pending_payout on both completed AND failed transitions.
+  // Without decrementing on "failed", the consultant's pending_payout remains inflated
+  // permanently, making available = earned - pending_payout = 0 for future requests.
+  if (status === "completed" || status === "failed") {
     const { error: decrementErr } = await supabase
       .rpc("decrement_pending_payout", {
         p_user_id: payout.consultant_user_id,
         p_amount:  Number(payout.amount),
       });
     if (decrementErr) {
+      const errorContext = status === "completed"
+        ? "Payout marked complete but wallet decrement failed — contact engineering before retrying"
+        : "Payout marked failed but pending_payout decrement failed — consultant may be permanently unable to request payout";
       console.error("[admin/connect/payouts PATCH] CRITICAL: decrement_pending_payout failed:", decrementErr.message, "payout:", id);
-      return NextResponse.json(
-        { ok: false, error: "Payout marked complete but wallet decrement failed — contact engineering before retrying" },
-        { status: 500 }
-      );
+      return NextResponse.json({ ok: false, error: errorContext }, { status: 500 });
     }
   }
 

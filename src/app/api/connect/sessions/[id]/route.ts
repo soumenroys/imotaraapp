@@ -103,10 +103,10 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Session not found" }, { status: 404 });
   }
 
-  // Determine if caller is the consultant
+  // Determine if caller is the consultant — include status for suspension check on accept.
   const { data: consultant } = await supabase
     .from("connect_consultants")
-    .select("id, user_id, display_name, rate_per_min, sessions_completed, is_busy")
+    .select("id, user_id, display_name, rate_per_min, sessions_completed, is_busy, status")
     .eq("id", session.consultant_id)
     .single();
 
@@ -121,6 +121,15 @@ export async function PATCH(
     return NextResponse.json(
       { ok: false, error: "Cannot accept: already in an active session." },
       { status: 409 }
+    );
+  }
+
+  // Re-check consultant status at accept time — they may have been suspended between
+  // the session request being made and the moment they tap Accept.
+  if (action === "accept" && consultant?.status !== "approved") {
+    return NextResponse.json(
+      { ok: false, error: "Account suspended — cannot accept new sessions." },
+      { status: 403 }
     );
   }
 

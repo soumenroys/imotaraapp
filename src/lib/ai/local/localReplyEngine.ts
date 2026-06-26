@@ -895,6 +895,128 @@ function buildSituationalBridge(label: PersonLabel, language: string): string {
     return tpl(p);
 }
 
+// Detects greeting / casual messages that are about the AI itself or are
+// simple social openers — these don't belong in the emotional support flow.
+function detectCasualGreeting(text: string, lang: LocalLanguage): boolean {
+    const t = text.trim().toLowerCase();
+    const len = t.length;
+    if (len > 120) return false; // longer messages are almost certainly substantive
+
+    // Pure greeting tokens (any language)
+    if (/^(hello|hi|hey|yo|sup|hiya|howdy|hola|bonjour|ciao|namaste|namaskar|salut|oi|olá|hallo|merhaba|ahoj|salam|shalom|konnichiwa|konnichwah|nihao|ni hao|nǐ hǎo|привет|здравствуй|مرحبا|नमस्ते|হ্যালো|வணக்கம்|నమస్కారం|ਸਤ ਸ੍ਰੀ ਅਕਾਲ|ਹੈਲੋ|ನಮಸ್ಕಾರ|നമസ്‌കാരം|ଶୁଭ|السلام عليكم)[.!?]?$/i.test(t)) return true;
+
+    // Questions directed at the AI about itself
+    if (/\b(what are you doing|what do you do|who are you|what is imotara|what can you do|how do you work|what kind of ai|are you a bot|are you an ai|are you human|can you help me|what is your name|what('s| is) your name|tell me about yourself|introduce yourself|what do you know|how are you doing|how are you|you there|you okay|are you there|you awake)\b/.test(t)) return true;
+
+    // Single-word or very short casual queries (≤3 words, no emotional keywords)
+    if (len <= 20 && /^(ok|okay|fine|sure|alright|cool|nice|good|great|thanks|thank you|welcome|bye|goodbye|see you|later|lol|haha|hmm|oh|ah|wow|really|true|yep|nope|no|yes|yeah|nah)\??$/.test(t)) return true;
+
+    // Language-specific casual greetings
+    if (lang === "hi" && /^(kya haal hai|kaise ho|kaisa chal raha|sab theek|haan|nahi|acha|thik hai|kal milte hain|alvida|shukriya|shukriya bhai)[.?!]?$/i.test(t)) return true;
+    if (lang === "bn" && /^(ki khobor|kemon acho|thik ache|haan|na|acha|dhanyabad|bye)[.?!]?$/i.test(t)) return true;
+    if (lang === "ta" && /^(vanakkam|enna nadakuthu|epdi irukeenga|nandri|bye)[.?!]?$/i.test(t)) return true;
+    if (lang === "te" && /^(ela unnaru|namaskaram|dhanyavaadalu|bye)[.?!]?$/i.test(t)) return true;
+    if (lang === "mr" && /^(kasa ahe|kay chal ahe|theek|dhanyavad|bye)[.?!]?$/i.test(t)) return true;
+
+    return false;
+}
+
+// Language-keyed casual redirect responses
+const CASUAL_REPLIES: Partial<Record<LocalLanguage, string[]>> = {
+    en: [
+        "I'm here for you — feel free to share what's on your mind.",
+        "Hey! I'm your Imotara companion — here to listen whenever you're ready.",
+        "Hi there! I'm always here to listen. What would you like to talk about?",
+        "Hello! Whenever something's weighing on you — big or small — I'm here.",
+        "I'm Imotara, your calm space to think and feel. What's on your mind today?",
+    ],
+    hi: [
+        "मैं यहाँ हूँ — जो भी मन में है, बेझिझक बताओ।",
+        "हाय! मैं Imotara हूँ — जब भी कुछ share करना हो, बस बताओ।",
+        "नमस्ते! जब भी कुछ मन में हो — बड़ा या छोटा — मैं यहीं हूँ।",
+    ],
+    bn: [
+        "আমি এখানে আছি — যা মনে আসছে তা শেয়ার করতে পারো।",
+        "হ্যালো! Imotara তোমার পাশে আছে — যখনই কথা বলতে চাও।",
+    ],
+    mr: [
+        "मी इथे आहे — मनात जे असेल ते सांग।",
+        "हाय! मी Imotara आहे — कधीही मन मोकळं कर।",
+    ],
+    ta: [
+        "நான் இங்கே இருக்கிறேன் — மனதில் உள்ளதை பகிர்ந்து கொள்ளுங்கள்.",
+        "வணக்கம்! Imotara இங்கே — எப்போது வேண்டுமானாலும் பேசலாம்.",
+    ],
+    te: [
+        "నేను ఇక్కడ ఉన్నాను — మనసులో ఉన్నది చెప్పండి.",
+        "హలో! Imotara మీతో ఉంది — ఎప్పుడైనా మాట్లాడవచ్చు.",
+    ],
+    gu: [
+        "હું અહીં છું — મનમાં જે છે તે કહો.",
+        "નમસ્તે! Imotara તમારી સાથે — ગમે ત્યારે વાત કરો.",
+    ],
+    pa: [
+        "ਮੈਂ ਇੱਥੇ ਹਾਂ — ਜੋ ਮਨ ਵਿੱਚ ਹੈ ਉਹ ਦੱਸੋ।",
+        "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! Imotara ਤੁਹਾਡੇ ਨਾਲ ਹੈ।",
+    ],
+    kn: [
+        "ನಾನು ಇಲ್ಲಿದ್ದೇನೆ — ಮನಸ್ಸಿನಲ್ಲಿ ಏನಿದೆ ಅದನ್ನು ಹೇಳಿ.",
+        "ನಮಸ್ಕಾರ! Imotara ನಿಮ್ಮ ಜೊತೆ ಇದೆ।",
+    ],
+    ml: [
+        "ഞാൻ ഇവിടെ ഉണ്ട് — മനസ്സിലുള്ളത് പറയൂ.",
+        "നമസ്‌കാരം! Imotara നിങ്ങളോടൊപ്പം ഉണ്ട്।",
+    ],
+    or: [
+        "ମୁଁ ଏଠାରେ ଅଛି — ମନରେ ଯାହା ଅଛି ତାହା କୁହ।",
+        "ନମସ୍କାର! Imotara ତୁମ ସାଥୀ।",
+    ],
+    ur: [
+        "میں یہاں ہوں — جو دل میں ہے وہ شیئر کرو۔",
+        "ہیلو! Imotara تمہارے ساتھ ہے — جب چاہو بات کرو۔",
+    ],
+    zh: [
+        "我在这里 — 随时可以分享心里的事。",
+        "你好！Imotara 陪伴着你 — 有什么想聊的都可以说。",
+    ],
+    es: [
+        "Aquí estoy — cuéntame lo que tengas en mente.",
+        "¡Hola! Soy Imotara, tu espacio tranquilo. ¿Qué quieres compartir hoy?",
+    ],
+    ar: [
+        "أنا هنا — شارك ما يدور في ذهنك.",
+        "مرحباً! أنا Imotara — متاح دائماً للاستماع.",
+    ],
+    fr: [
+        "Je suis là — parle-moi de ce qui te pèse.",
+        "Bonjour ! Je suis Imotara — prêt à t'écouter quand tu veux.",
+    ],
+    pt: [
+        "Estou aqui — compartilha o que está na tua mente.",
+        "Olá! Sou o Imotara — sempre disponível para te ouvir.",
+    ],
+    ru: [
+        "Я здесь — расскажи, что у тебя на душе.",
+        "Привет! Я Imotara — всегда готов выслушать.",
+    ],
+    id: [
+        "Aku di sini — ceritakan apa yang ada di pikiranmu.",
+        "Halo! Aku Imotara — siap mendengarkan kapanpun kamu mau.",
+    ],
+    de: [
+        "Ich bin hier — erzähl mir, was dich beschäftigt.",
+        "Hallo! Ich bin Imotara — immer bereit zuzuhören.",
+    ],
+    he: [
+        "אני כאן — שתף אותי במה שעובר עליך.",
+        "שלום! אני Imotara — תמיד כאן להקשיב.",
+    ],
+    ja: [
+        "ここにいるよ — 何でも話しかけてね。",
+        "こんにちは！Imotaraです。いつでも聞くよ。",
+    ],
+};
+
 export function buildLocalReply(
     message: string,
     toneContext?: ToneContext,
@@ -913,6 +1035,17 @@ export function buildLocalReply(
 
     const companionName = toneContext?.companion?.name ?? "Imotara";
     const language = detectLanguage(message, recentContext);
+
+    // ── Casual greeting / AI-directed question gate ────────────────────────
+    // Fires before emotional signal detection so "what are you doing?" and
+    // simple greetings don't bleed into the emotional support reply pool.
+    if (detectCasualGreeting(message, language)) {
+        const pool = CASUAL_REPLIES[language] ?? CASUAL_REPLIES.en!;
+        const idx = hash32(`${message}::${language}::${toneContext?.sessionTurn ?? 0}`) % pool.length;
+        return { message: pool[idx] };
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
     const recentSignature = buildRecentSignature(recentContext);
 
     // #9: Include sessionTurn in seed so repeated messages produce different replies
@@ -1470,15 +1603,14 @@ export function buildLocalReply(
             `It makes sense your system is slowing down. It's asking you to listen.`,
         ],
         okay: [
+            `I'm here — what would you like to talk about?`,
             `Tell me a little more.`,
-            `I'm with you — what's going on?`,
-            `What's been on your mind?`,
-            `Okay. What's the main thing you're sitting with right now?`,
-            `I'm here — take whatever direction feels right.`,
-            `Something brought you here. What is it?`,
-            `What's the thing you've been carrying around today?`,
-            `I'm in no rush. What's sitting with you?`,
-            `What's weighing on you most right now?`,
+            `What's been on your mind lately?`,
+            `I'm listening — take whatever direction feels right.`,
+            `What's the main thing you want to explore today?`,
+            `I'm in no rush. What's on your mind?`,
+            `Feel free to share whatever's there — big or small.`,
+            `What would feel good to talk through today?`,
         ],
     };
 

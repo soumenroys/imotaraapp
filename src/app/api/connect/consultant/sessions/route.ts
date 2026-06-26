@@ -198,9 +198,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const enriched = sessions.map((s) => ({
-    ...s,
-    user_preview: userPreviewMap[s.user_id] ?? null,
+  // Strip user_id from the response — the raw DB UUID is used only for the preview
+  // lookup above and should not be sent to the consultant's client; user_preview
+  // contains the only user-identifying fields the consultant needs to see.
+  const enriched = sessions.map(({ user_id, ...rest }) => ({
+    ...rest,
+    user_preview: userPreviewMap[user_id] ?? null,
   }));
 
   return NextResponse.json({ ok: true, sessions: enriched, consultant_id: consultant.id });

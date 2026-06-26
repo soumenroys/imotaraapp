@@ -93,6 +93,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Minimum payment amount is ₹1. Please check the consultant's rate and try again." }, { status: 400 });
   }
 
+  // Razorpay domestic transactions are capped at ₹5,00,000 per order. Guard here to
+  // return a friendly 400 instead of a cryptic Razorpay 4xx at order creation time.
+  const RAZORPAY_MAX_PAISE = 50_000_000; // ₹5,00,000
+  if (amountPaise > RAZORPAY_MAX_PAISE) {
+    return NextResponse.json(
+      { ok: false, error: "Maximum single recharge is ₹5,00,000. Please reduce the number of minutes." },
+      { status: 400 }
+    );
+  }
+
   const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString("base64");
   const receipt = `connect_${user.id.slice(0, 8)}_${Date.now()}`;
 

@@ -104,31 +104,13 @@ GRANT EXECUTE ON FUNCTION credit_imotara_wallet(UUID, NUMERIC, TEXT) TO service_
 
 -- ─── 4. connect_payouts admin SELECT ─────────────────────────────────────────
 --
--- Admin payout panel uses getSupabaseAdmin() (BYPASSRLS) so it works without this,
--- but formalising the intent prevents a future regression if BYPASSRLS is ever
--- removed or the route switches to a user-scoped client.
--- Requires a super_admins table. If it doesn't exist yet, this is a no-op guard.
+-- SKIPPED: super_admins uses email/id for auth (not linked to auth.uid()), so
+-- an RLS policy referencing super_admins cannot be written against auth.uid().
+-- The admin payout panel uses getSupabaseAdmin() (BYPASSRLS service_role) so
+-- no RLS policy is required for admin access. The existing connect_payouts_own_select
+-- policy (consultant sees own rows) is sufficient.
 
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables
-             WHERE table_schema = 'public' AND table_name = 'super_admins') THEN
-
-    DROP POLICY IF EXISTS "connect_payouts_admin_select" ON connect_payouts;
-
-    EXECUTE $policy$
-      CREATE POLICY "connect_payouts_admin_select"
-        ON connect_payouts
-        FOR SELECT
-        USING (
-          auth.uid() = consultant_user_id
-          OR EXISTS (SELECT 1 FROM super_admins WHERE user_id = auth.uid())
-        );
-    $policy$;
-
-  END IF;
-END;
-$$;
+-- (no SQL to run for block 4)
 
 
 -- ─── 5. connect_blocks: split FOR ALL → explicit policies + UPDATE deny ───────

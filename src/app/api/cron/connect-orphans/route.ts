@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     // incremented it between our SELECT (line 25) and this UPDATE.
     const { data: wonRows, error: updateError } = await supabase
       .from("connect_sessions")
-      .update({ status: "completed", ended_at: now })
+      .update({ status: "completed", ended_at: now, last_tick_at: now })
       .eq("id", session.id)
       .eq("status", "active") // guard against concurrent completion
       .select("id, minutes_used");

@@ -294,7 +294,20 @@ export async function POST(req: NextRequest) {
     )
     .single();
 
-  if (error || !session) {
+  if (error) {
+    // 23505: the partial unique index uq_connect_sessions_user_active fired — two concurrent
+    // POSTs both passed the maybeSingle() check before either INSERT landed. Surface a 409
+    // identical to the explicit duplicate check so the client can redirect to the existing session.
+    if (error.code === "23505") {
+      return NextResponse.json({
+        ok: false,
+        error: "You already have an open session. Please check your active sessions.",
+        redirect: true,
+      }, { status: 409 });
+    }
+    return NextResponse.json({ ok: false, error: "Session could not be created. Please try again." }, { status: 500 });
+  }
+  if (!session) {
     return NextResponse.json({ ok: false, error: "Session could not be created. Please try again." }, { status: 500 });
   }
 

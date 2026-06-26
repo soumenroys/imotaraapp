@@ -160,16 +160,16 @@ export async function GET(req: NextRequest) {
             })
             .eq("id", session.id)
             .or("amount_charged.is.null,amount_charged.eq.0,consultant_credited.is.null");
-        }
 
-        const { error: scErr } = await supabase.rpc("increment_sessions_completed", {
-          p_consultant_id: consultant.id,
-        });
-        if (scErr) {
-          // Do NOT fall back to read-modify-write — concurrent orphan runs would each
-          // read the same stale value and produce a lost update. Log CRITICAL so the
-          // discrepancy can be corrected manually from admin panel / Supabase dashboard.
-          console.error("[connect-orphans] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", scErr.message, "session:", session.id, "consultant:", consultant.id);
+          const { error: scErr } = await supabase.rpc("increment_sessions_completed", {
+            p_consultant_id: consultant.id,
+          });
+          if (scErr) {
+            // Do NOT fall back to read-modify-write — concurrent orphan runs would each
+            // read the same stale value and produce a lost update. Log CRITICAL so the
+            // discrepancy can be corrected manually from admin panel / Supabase dashboard.
+            console.error("[connect-orphans] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", scErr.message, "session:", session.id, "consultant:", consultant.id);
+          }
         }
 
         await supabase

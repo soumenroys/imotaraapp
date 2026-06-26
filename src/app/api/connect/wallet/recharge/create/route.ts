@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
       rate_per_min:     ratePerMin,
       currency,
       minutes:          Number(minutes),
-      consultant_fee:   totalAmount,
+      consultant_credit: consultantCredit,
       platform_fee:     platformFee,
       total:            totalAmount,
     },

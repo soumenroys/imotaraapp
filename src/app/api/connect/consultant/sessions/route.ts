@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   // Resolve consultant id from authenticated user
   const { data: consultant } = await supabase
     .from("connect_consultants")
-    .select("id")
+    .select("id, user_id")
     .eq("user_id", user.id)
     .single();
 
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     // tick yet) must NOT be killed — the actual meeting may not start for hours.
     const { data: staleSessions } = await supabase
       .from("connect_sessions")
-      .select("id, minutes_used, rate_per_min, amount_charged, translation_enabled, user_lang, consultant_lang, currency_code")
+      .select("id, user_id, consultant_id, minutes_used, rate_per_min, amount_charged, translation_enabled, user_lang, consultant_lang, currency_code")
       .eq("consultant_id", consultant.id)
       .eq("status", "active")
       .or(`last_tick_at.lt.${fiveMinutesAgo},and(last_tick_at.is.null,started_at.lt.${fiveMinutesAgo},type.eq.instant)`);
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
           const amountCharged   = freshMinutes * lockedRate;
 
           const { error: walletErr } = await supabase.from("connect_wallet")
-            .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
+            .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
 
           if (walletErr) {
             console.error("[stale-complete] CRITICAL: wallet upsert failed — earnings not credited:", walletErr.message, "session:", stale.id);
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
           }
 
           const { error: rpcErr } = await supabase.rpc("increment_wallet_earnings", {
-            p_user_id: user.id,
+            p_user_id: consultant.user_id,
             p_amount:  sessionEarnings,
           });
 
@@ -119,11 +119,11 @@ export async function GET(req: NextRequest) {
             .eq("id", stale.id)
             .or("amount_charged.is.null,amount_charged.eq.0,consultant_credited.is.null");
 
-          const { error: rpcScErr } = await supabase.rpc("increment_sessions_completed", { p_consultant_id: consultant.id });
+          const { error: rpcScErr } = await supabase.rpc("increment_sessions_completed", { p_consultant_id: stale.consultant_id });
           if (rpcScErr) {
             // Do NOT fall back to read-modify-write — concurrent runs would each read the same
             // stale value and produce a lost update. Log CRITICAL for manual correction.
-            console.error("[stale-complete] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", rpcScErr.message, "session:", stale.id, "consultant:", consultant.id);
+            console.error("[stale-complete] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", rpcScErr.message, "session:", stale.id, "consultant:", stale.consultant_id);
           }
         }
       }

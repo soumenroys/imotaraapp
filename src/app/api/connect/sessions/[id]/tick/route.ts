@@ -89,11 +89,12 @@ export async function POST(
     const { data: completedRows, error: pathCErr } = await supabase
       .from("connect_sessions")
       .update({
-        status:       "completed",
-        ended_at:     now,
-        last_tick_at: now,
-        minutes_used: Number(session.minutes_used),
-        platform_fee: +(pathCAmount * 0.20).toFixed(4),
+        status:         "completed",
+        ended_at:       now,
+        last_tick_at:   now,
+        minutes_used:   Number(session.minutes_used),
+        amount_charged: +pathCAmount.toFixed(4),
+        platform_fee:   +(pathCAmount * 0.20).toFixed(4),
       })
       .eq("id", sessionId)
       .eq("status", "active")

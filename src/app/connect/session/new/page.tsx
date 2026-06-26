@@ -123,8 +123,8 @@ function NewSessionInner() {
 
   // ── cost calc ──────────────────────────────────────────────────────────────
   const sessionFee  = effectiveRate * duration;
-  const platformFee = sessionFee * (PLATFORM_FEE_PCT / 100);
-  const totalCost   = sessionFee + platformFee;
+  const platformFee = sessionFee * (PLATFORM_FEE_PCT / 100); // internal split shown for info only
+  const totalCost   = sessionFee; // user pays sessionFee — platform fee is a portion of that, not additive
   const balanceAmt  = balanceMin !== null ? balanceMin * effectiveRate : null;
   const shortfall   = balanceAmt !== null ? Math.max(0, totalCost - balanceAmt) : null;
   const hasEnough   = shortfall !== null && shortfall === 0;
@@ -548,12 +548,12 @@ function NewSessionInner() {
                   <span>+{sym}{(translationSurcharge * duration).toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-zinc-400">
-                <span>Platform fee ({PLATFORM_FEE_PCT}%)</span>
-                <span>{sym}{platformFee.toFixed(2)}</span>
+              <div className="flex justify-between text-zinc-500 text-xs">
+                <span>Incl. {PLATFORM_FEE_PCT}% platform fee ({sym}{platformFee.toFixed(2)})</span>
+                <span className="text-zinc-600">internal split</span>
               </div>
               <div className="mt-2 flex justify-between border-t border-white/10 pt-2 font-semibold text-zinc-100">
-                <span>Total</span>
+                <span>Estimated total</span>
                 <span className="text-violet-300">{sym}{totalCost.toFixed(2)}</span>
               </div>
             </div>

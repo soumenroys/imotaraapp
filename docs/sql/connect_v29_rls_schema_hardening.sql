@@ -159,15 +159,9 @@ CREATE POLICY "connect_sessions_user_insert"
   );
 
 
--- ─── 3. stripe_payment_id: unique where not null ──────────────────────────────
---
--- Mirrors the razorpay_payment_id index added in v28. Without this, a Stripe webhook
--- retry on timeout would find status='pending' and double-credit the user's minutes.
--- Partial index: NULL values (non-Stripe recharges) do not conflict.
-
-CREATE UNIQUE INDEX IF NOT EXISTS uq_connect_recharges_stripe_payment_id
-  ON connect_recharges (stripe_payment_id)
-  WHERE stripe_payment_id IS NOT NULL;
+-- ─── 3. stripe_payment_id index — SKIPPED ────────────────────────────────────
+-- Production uses Razorpay only; stripe_payment_id column does not exist.
+-- Razorpay unique index already added in v28.
 
 
 -- ─── 4. connect_recharges.completed_at ───────────────────────────────────────

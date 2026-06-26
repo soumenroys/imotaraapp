@@ -71,7 +71,9 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Too many messages. Please slow down." }, { status: 429 });
   }
 
-  // Verify session is active and caller is a participant
+  // Fetch session and verify participant identity BEFORE checking status.
+  // Checking status first would leak "session exists but is not active" to any
+  // authenticated user who guesses a session UUID — participant check must come first.
   const { data: session } = await supabase
     .from("connect_sessions")
     .select("id, user_id, consultant_id, status, translation_enabled, user_lang, consultant_lang")
@@ -79,14 +81,10 @@ export async function POST(
     .single();
 
   if (!session) {
-    return NextResponse.json({ ok: false, error: "Session not found" }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
-  if (session.status !== "active") {
-    return NextResponse.json({ ok: false, error: "Session is not active" }, { status: 409 });
-  }
-
-  // Verify caller is a session participant
+  // Verify caller is a session participant before revealing anything about session state
   const { data: consultant } = await supabase
     .from("connect_consultants")
     .select("user_id")
@@ -97,6 +95,10 @@ export async function POST(
   const isUser       = session.user_id === user.id;
   if (!isConsultant && !isUser) {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+  }
+
+  if (session.status !== "active") {
+    return NextResponse.json({ ok: false, error: "Session is not active" }, { status: 409 });
   }
 
   // Server-side translation: translate message to the other party's language

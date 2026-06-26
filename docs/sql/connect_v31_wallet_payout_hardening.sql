@@ -90,3 +90,34 @@ CREATE POLICY "connect_payouts_no_direct_delete"
 ALTER TABLE connect_sessions
   ADD CONSTRAINT connect_sessions_rating_range
   CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5));
+
+
+-- ─── 8. increment_sessions_completed: add missing-consultant guard ────────────
+--
+-- v15 defined this as a plain SQL UPDATE with no row-count check. When called with
+-- a stale or deleted consultant_id, the UPDATE matches 0 rows and the function returns
+-- void with no error — the sessions_completed increment is silently dropped.
+-- All callers already log CRITICAL when the RPC fails, so raising an EXCEPTION here
+-- surfaces the discrepancy through that existing error path rather than hiding it.
+-- Rewrite as plpgsql to enable GET DIAGNOSTICS row_count after the UPDATE.
+
+CREATE OR REPLACE FUNCTION increment_sessions_completed(p_consultant_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_rows INT;
+BEGIN
+  UPDATE connect_consultants
+     SET sessions_completed = COALESCE(sessions_completed, 0) + 1
+   WHERE id = p_consultant_id;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  IF v_rows = 0 THEN
+    RAISE EXCEPTION 'increment_sessions_completed: consultant % not found', p_consultant_id;
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION increment_sessions_completed(uuid) TO service_role;

@@ -205,12 +205,15 @@ export default function SessionChatPage() {
   }, [sessionId]);
 
   const loadMessages = useCallback(async () => {
+    // Limit initial load to the most recent 200 messages to prevent OOM on long sessions.
+    // Realtime delivers subsequent messages; older history is available via the Sessions page.
     const { data } = await supabase
       .from("connect_messages")
       .select("id, sender_id, content, translated_content, created_at")
       .eq("session_id", sessionId)
-      .order("created_at", { ascending: true });
-    if (data) setMessages(data as Message[]);
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (data) setMessages((data as Message[]).reverse());
   }, [sessionId]);
 
   // Gate initial load on auth: avoids a race where loadSession runs before the cookie

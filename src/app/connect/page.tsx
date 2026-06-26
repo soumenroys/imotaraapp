@@ -745,6 +745,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const [customAmount, setCustomAmount]       = useState<string>("");
   const [isCustom, setIsCustom]               = useState(false);
   const [termsAccepted, setTermsAccepted]     = useState(false);
+  const [ageConfirmed, setAgeConfirmed]       = useState(false);
   const [paying, setPaying]                   = useState(false);
   const [payError, setPayError]               = useState<string>("");
   const [transactions, setTransactions]       = useState<WalletTx[]>([]);
@@ -829,6 +830,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
 
   async function handleTopUp() {
     if (topupAmount < 1) { setPayError("Please enter a valid amount"); return; }
+    if (!ageConfirmed) { setPayError("Please confirm you are 18 or older to continue"); return; }
     if (!termsAccepted) { setPayError("Please accept the Wallet Terms to continue"); return; }
     setPaying(true);
     setPayError("");
@@ -1076,6 +1078,19 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
           <span className="font-semibold text-zinc-100">{sym}{topupAmount > 0 ? topupAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "—"}</span>
         </div>
 
+        {/* ── Age confirmation ── */}
+        <label className="mb-3 flex items-center gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={ageConfirmed}
+            onChange={(e) => setAgeConfirmed(e.target.checked)}
+            className="h-4 w-4 shrink-0 accent-violet-500"
+          />
+          <span className="text-xs text-zinc-400 leading-relaxed group-hover:text-zinc-300 transition">
+            I confirm I am 18 years of age or older.
+          </span>
+        </label>
+
         {/* ── Consent checkbox (recorded server-side per CPA 2019) ── */}
         <label className="mb-4 flex items-start gap-3 cursor-pointer group">
           <input
@@ -1103,7 +1118,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
 
         <button
           onClick={handleTopUp}
-          disabled={paying || topupAmount < 1 || !termsAccepted}
+          disabled={paying || topupAmount < 1 || !ageConfirmed || !termsAccepted}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
         >
           {paying ? <Loader2 size={16} className="animate-spin" /> : <Plus size={15} />}
@@ -2192,11 +2207,9 @@ export default function ConnectPage() {
   const [mounted, setMounted]           = useState(false);
   const [activeTab, setActiveTab]       = useState<Tab>("browse");
   const [isConsultant, setIsConsultant] = useState(false);
-  const [ageVerified, setAgeVerified]   = useState<boolean | null>(null);
 
-  // Runs deferred tab-param + consultant-profile steps after age is confirmed.
   useEffect(() => {
-    if (!ageVerified) return;
+    setMounted(true);
     const tabParam = new URLSearchParams(window.location.search).get("tab") as Tab | null;
     if (tabParam && VALID_TABS.includes(tabParam)) setActiveTab(tabParam);
     fetch("/api/connect/consultant/profile", { credentials: "include" })
@@ -2204,70 +2217,9 @@ export default function ConnectPage() {
       .then((d) => { if (d.ok) setIsConsultant(true); })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ageVerified]);
-
-  useEffect(() => {
-    setMounted(true);
-    const profile = getImotaraProfile();
-    const age = profile?.user?.ageRange;
-    if (age === "under_13" || age === "13_17") {
-      router.replace("/connect/age-restricted");
-      return;
-    }
-    // If no profile at all (first visit / incognito / cleared storage) show inline age gate.
-    // A profile with no ageRange (e.g. "prefer_not") is treated as adult — only truly
-    // new/anonymous users (null profile) need to pass the gate.
-    if (!profile) {
-      setAgeVerified(null);
-      return;
-    }
-    setAgeVerified(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
+  }, []);
 
   if (!mounted) return null;
-
-  if (ageVerified === null) {
-    return (
-      <main className="flex min-h-[60vh] flex-col items-center justify-center px-6 py-16 text-center text-zinc-50">
-        <div className="mb-5 text-5xl">🔒</div>
-        <h2 className="mb-2 text-xl font-bold text-zinc-100">Age Verification</h2>
-        <p className="mb-8 max-w-xs text-sm leading-relaxed text-zinc-400">
-          Imotara Connect is for adults 18 and older. Please confirm your age to continue.
-        </p>
-        <div className="flex w-full max-w-xs flex-col gap-3">
-          <button
-            onClick={() => {
-              fetch("/api/connect/user/age-gate", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({ restricted: false }),
-              }).catch(() => {});
-              setAgeVerified(true);
-            }}
-            className="rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-500"
-          >
-            I am 18 or older — Continue
-          </button>
-          <button
-            onClick={() => {
-              fetch("/api/connect/user/age-gate", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({ restricted: true }),
-              }).catch(() => {});
-              router.replace("/connect/age-restricted");
-            }}
-            className="rounded-xl border border-white/10 py-3 text-sm text-zinc-400 transition hover:text-zinc-200"
-          >
-            I am under 18
-          </button>
-        </div>
-      </main>
-    );
-  }
 
   const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode }> = [
     { key: "browse",   label: "Browse",      icon: <Users size={15} />         },

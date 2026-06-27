@@ -147,7 +147,7 @@ export async function callImotaraAI(
 
   // Optional timeout support: if the request hangs or is very slow,
   // we abort and fall back with the same style of message.
-  const abortMs = options.abortMs ?? 15_000; // 25s default
+  const abortMs = options.abortMs ?? 15_000; // 15s default
   const controller = new AbortController();
   const timeoutId =
     abortMs > 0

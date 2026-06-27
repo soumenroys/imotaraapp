@@ -1,5 +1,5 @@
 export const preferredRegion = ["sin1"];
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // POST /api/connect/sessions/[id]/tick
 // Called every 60s by the client during an active session.
@@ -340,29 +340,31 @@ async function creditConsultant(
   });
   if (earningsErr) {
     console.error("[tick/creditConsultant] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "consultantId:", consultantId, "— consultant_credited NOT written");
-  } else if (sessionId) {
-    // Both wallet ops succeeded — write consultant_credited audit column now.
-    const { error: acErr } = await supabase
-      .from("connect_sessions")
-      .update({ consultant_credited: +sessionEarnings.toFixed(4) })
-      .eq("id", sessionId);
-    if (acErr) console.error("[tick/creditConsultant] consultant_credited write failed:", acErr.message, "session:", sessionId);
   }
 
-  const { error: scErr } = await supabase.rpc("increment_sessions_completed", {
-    p_consultant_id: consultant.id,
-  });
-  if (scErr) {
-    // Do NOT fall back to read-modify-write: a stale sessions_completed value read before
-    // the session started would produce a lost-update under concurrent completions (two
-    // concurrent completes each read N, both write N+1 → final value N+1 instead of N+2).
-    // The increment_sessions_completed RPC is atomic and has been deployed and granted since
-    // v15. Log CRITICAL so the discrepancy is visible in Vercel logs but do not write stale data.
-    console.error("[tick/creditConsultant] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", scErr.message, "consultantId:", consultantId);
-  }
+  // After earnings RPC: audit write, sessions_completed increment, and is_busy clear
+  // are all independent — run them in parallel to reduce tick response time.
+  await Promise.all([
+    // Audit: only written when earnings succeeded (prevents false record if wallet RPC failed)
+    earningsErr
+      ? Promise.resolve()
+      : sessionId
+        ? supabase
+            .from("connect_sessions")
+            .update({ consultant_credited: +sessionEarnings.toFixed(4) })
+            .eq("id", sessionId)
+            .then(({ error: acErr }) => {
+              if (acErr) console.error("[tick/creditConsultant] consultant_credited write failed:", acErr.message, "session:", sessionId);
+            })
+        : Promise.resolve(),
 
-  await supabase
-    .from("connect_consultants")
-    .update({ is_busy: false })
-    .eq("id", consultant.id);
+    // Increment sessions_completed counter (atomic RPC — do NOT fall back to read-modify-write)
+    supabase.rpc("increment_sessions_completed", { p_consultant_id: consultant.id })
+      .then(({ error: scErr }) => {
+        if (scErr) console.error("[tick/creditConsultant] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", scErr.message, "consultantId:", consultantId);
+      }),
+
+    // Clear is_busy so the consultant can accept new sessions
+    supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id),
+  ]);
 }

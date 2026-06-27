@@ -10,6 +10,7 @@ import { resolveVoice, resolveStyle, AZURE_LOCALE } from "@/lib/azure-tts/voices
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
     // Try cookie auth (web), then Bearer token (mobile).

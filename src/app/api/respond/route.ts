@@ -9,7 +9,6 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 import { fetchUserMemories } from "@/lib/memory/fetchUserMemories";
 import { selectPinnedRecall } from "@/lib/memory/memoryRelevance";
-import { buildLocalReply } from "@/lib/ai/local/localReplyEngine";
 import { formatImotaraReply } from "@/lib/imotara/response/responseFormatter";
 
 import type { ResponseTone } from "@/lib/ai/response/responseBlueprint";
@@ -29,6 +28,8 @@ import {
   ROMAN_OR_LANG_HINT_REGEX,
 } from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
+
+export const maxDuration = 60;
 
 type LanguageCode =
   | "en"
@@ -1384,6 +1385,10 @@ export async function POST(req: Request) {
       bnStepLineRepeated ||
       bnHindiMismatch;
 
+    // Bengali anchor/step issues are fixed locally below — no AI retry needed for those alone.
+    const needsAIRetry =
+      isDuplicate || looksLikeTemplate || isTooGeneric || bnHindiMismatch;
+
     // ✅ If ONLY the Bengali anchor is repeating (and rest is fine), just swap the ending locally
     if (
       !bnHindiMismatch &&
@@ -1437,7 +1442,7 @@ export async function POST(req: Request) {
         (result as any).reply = current;
     }
 
-    if (shouldHumanize) {
+    if (needsAIRetry) {
       const retryDirective =
         [
           "RETRY_REPHRASE:",

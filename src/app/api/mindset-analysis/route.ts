@@ -8,6 +8,8 @@ import { NextResponse } from "next/server";
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 
+export const maxDuration = 60;
+
 const PSYCH_SYSTEM = `You are a psychologically attuned observer — part therapist, part poet — writing deeply personal insight for someone about their own mind and heart. You receive messages they shared in a private emotional companion app.
 
 Your task: two sections.

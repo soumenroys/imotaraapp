@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 // Max audio size: 10 MB (Whisper limit is 25 MB; 60s m4a ≈ 1 MB in practice)
 const MAX_BYTES = 10 * 1024 * 1024;

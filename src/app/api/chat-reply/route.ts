@@ -159,6 +159,7 @@ function isBadPlaceholderText(s: string): boolean {
 // Node.js runtime — required for next/headers (used by getSupabaseUserServerClient for cookie auth).
 // Deploy to Singapore — closest Vercel region to Supabase ap-southeast-1 and Indian users.
 export const preferredRegion = ["sin1"];
+export const maxDuration = 60;
 
 export async function GET() {
   // Friendly response so opening in browser doesn't show 405

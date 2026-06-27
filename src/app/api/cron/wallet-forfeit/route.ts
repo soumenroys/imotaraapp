@@ -1,4 +1,5 @@
 export const preferredRegion = ["sin1"];
+export const maxDuration = 60;
 
 // GET /api/cron/wallet-forfeit
 // Vercel Cron — runs daily at 09:00 IST (03:30 UTC).

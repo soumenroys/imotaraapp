@@ -1,4 +1,5 @@
 export const preferredRegion = ["sin1"];
+export const maxDuration = 60;
 
 // GET /api/cron/wallet-reminders
 // Vercel Cron — runs daily at 08:00 IST (02:30 UTC).

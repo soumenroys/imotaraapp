@@ -6,6 +6,8 @@
 // the uq_connect_recharges_user_consultant_pending unique index blocks all future
 // recharges for that user+consultant pair until the stale row is cleaned up.
 
+export const maxDuration = 60;
+
 export const preferredRegion = ["sin1"];
 
 import { NextRequest, NextResponse } from "next/server";

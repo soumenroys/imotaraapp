@@ -1,5 +1,6 @@
 // src/app/api/license/verify-payment/route.ts
 // LIC-5: Called after a Razorpay payment succeeds (mobile direct call or web confirm).
+export const maxDuration = 30;
 // Verifies the payment with Razorpay, then grants license via grantLicense().
 // Auth: Bearer token (mobile) or Supabase cookie (web).
 //

@@ -55,7 +55,9 @@ async function myMemoryTranslate(text: string, targetLang: string, sourceLang: s
   const langpair = `${sourceLang}|${targetLang}`;
   const email    = process.env.MYMEMORY_EMAIL ?? "";
   const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(langpair)}${email ? `&de=${encodeURIComponent(email)}` : ""}`;
-  const res  = await fetch(url, { headers: { "User-Agent": "Imotara/1.0" } });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10_000);
+  const res  = await fetch(url, { headers: { "User-Agent": "Imotara/1.0" }, signal: ctrl.signal }).finally(() => clearTimeout(timer));
   const data = await res.json();
   const translated: string = data?.responseData?.translatedText ?? "";
   if (!translated || translated.toUpperCase().includes("INVALID") || translated.toUpperCase().includes("QUERY LENGTH")) {
@@ -66,7 +68,9 @@ async function myMemoryTranslate(text: string, targetLang: string, sourceLang: s
 
 async function googleTranslate(text: string, targetLang: string, sourceLang: string): Promise<string | null> {
   const params = new URLSearchParams({ q: text, target: targetLang, key: GOOGLE_API_KEY, format: "text", source: sourceLang });
-  const res  = await fetch(`https://translation.googleapis.com/language/translate/v2?${params}`);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10_000);
+  const res  = await fetch(`https://translation.googleapis.com/language/translate/v2?${params}`, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
   const data = await res.json();
   return data?.data?.translations?.[0]?.translatedText ?? null;
 }

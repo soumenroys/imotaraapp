@@ -5,6 +5,7 @@
 // On "complete": credits consultant for minutes_used at 80% of rate.
 
 export const preferredRegion = ["sin1"];
+export const maxDuration = 30;
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";

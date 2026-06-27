@@ -4,6 +4,7 @@
 // (client crashed, network dropped, etc.) and credits the consultant.
 
 export const preferredRegion = ["sin1"];
+export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";

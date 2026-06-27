@@ -147,13 +147,20 @@ export async function POST(req: NextRequest) {
   // Verify consultant is approved
   const { data: consultant } = await supabase
     .from("connect_consultants")
-    .select("id, status, is_busy, currency_code, preferred_lang, rate_per_min")
+    .select("id, status, is_busy, is_online, currency_code, preferred_lang, rate_per_min")
     .eq("id", consultant_id)
     .eq("status", "approved")
     .single();
 
   if (!consultant) {
     return NextResponse.json({ ok: false, error: "Consultant not found or not approved" }, { status: 404 });
+  }
+
+  if (type === "instant" && !consultant.is_online) {
+    return NextResponse.json(
+      { ok: false, error: "This companion is currently offline. Please try again when they are online." },
+      { status: 409 }
+    );
   }
 
   if (consultant.is_busy) {

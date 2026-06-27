@@ -1,5 +1,6 @@
 // src/app/api/payments/razorpay/corporate/route.ts
 // POST /api/payments/razorpay/corporate
+export const maxDuration = 30;
 // Creates a Razorpay order for a corporate seat purchase.
 // Auth: Supabase cookie (web only — this page is web-only).
 //

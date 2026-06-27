@@ -3,6 +3,7 @@
 // Auto-cancels pending scheduled sessions whose scheduled_at passed > 2 hours ago.
 
 export const preferredRegion = ["sin1"];
+export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";

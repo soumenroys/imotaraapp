@@ -1,4 +1,5 @@
 export const preferredRegion = ["sin1"];
+export const maxDuration = 30;
 
 // GET /api/cron/exchange-rates
 // Fetches latest USD-base exchange rates and stores them in app_settings.

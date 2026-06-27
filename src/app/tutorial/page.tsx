@@ -444,7 +444,7 @@ function BannerAdvanced() {
             <input type="range" className="w-full h-1 mt-1 accent-indigo-500" defaultValue={20} min={10} max={60} readOnly />
             <p className="text-[7px] text-zinc-600 text-right">20s</p>
           </div>
-          <p className="text-[7px] text-zinc-600 text-center">v1.2.1 · build 101</p>
+          <p className="text-[7px] text-zinc-600 text-center">v1.2.2 · build 102</p>
         </div>
       </Phone>
     </div>

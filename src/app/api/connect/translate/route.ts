@@ -1,4 +1,5 @@
 export const preferredRegion = ["sin1"];
+export const maxDuration = 15;
 
 // POST /api/connect/translate
 // Translates text using MyMemory (free, no key) or Google Cloud Translation (if key set).

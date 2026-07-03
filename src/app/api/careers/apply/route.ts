@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
     // 1. Notify publisher with attachments
     await transporter.sendMail({
       from: `"Imotara Careers" <${user}>`,
-      to: "publisher@imotara.com",
+      to: "info@imotara.com",
       replyTo: email,
       subject: `New Application — Digital Content Creator (${name})`,
       text: [

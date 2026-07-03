@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Imotara — Key Differentiators</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --pink:   #FF6B9D;
+      --blue:   #4B9FE1;
+      --teal:   #38C9B9;
+      --gold:   #F5C842;
+      --purple: #9B6FE8;
+      --green:  #3DBE8A;
+      --orange: #FF8C42;
+      --navy:   #12274F;
+      --navy2:  #1E3A6E;
+      --slate:  #3D5580;
+      --light:  #F0F6FF;
+      --border: #D4E2F7;
+      --white:  #FFFFFF;
+      --gray:   #6B7EA4;
+    }
+
+    html, body {
+      width: 210mm;
+      font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--white);
+      color: var(--navy);
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ── PAGE SHELL ── */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      display: flex;
+      flex-direction: column;
+      page-break-after: always;
+    }
+    .page:last-child { page-break-after: avoid; }
+
+    /* ── HEADER ── */
+    .header {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 55%, #1B4F8A 100%);
+      padding: 22px 38px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content:'';
+      position:absolute; top:-70px; right:-50px;
+      width:220px; height:220px;
+      background:radial-gradient(circle, rgba(75,159,225,.18) 0%, transparent 70%);
+      border-radius:50%;
+    }
+    .header::after {
+      content:'';
+      position:absolute; bottom:-50px; left:35%;
+      width:180px; height:180px;
+      background:radial-gradient(circle, rgba(255,107,157,.12) 0%, transparent 70%);
+      border-radius:50%;
+    }
+    .header-left  { display:flex; align-items:center; gap:16px; z-index:1; }
+    .header-logo  { height:58px; width:auto; }
+    .header-text  {}
+    .header-sub   { color:rgba(255,255,255,.65); font-size:10.5px; font-weight:400; margin-top:2px; }
+    .header-badge {
+      z-index:1;
+      background:linear-gradient(135deg,var(--pink),var(--blue));
+      color:#fff; font-size:9.5px; font-weight:700;
+      letter-spacing:.9px; text-transform:uppercase;
+      padding:6px 14px; border-radius:20px;
+    }
+
+    /* ── GRADIENT BAR ── */
+    .gradient-bar { height:4px; background:linear-gradient(to right,var(--pink),var(--gold),var(--teal),var(--blue)); }
+
+    /* ── HERO STRIP (page 1 only) ── */
+    .hero {
+      background:linear-gradient(135deg,#FFF0F6 0%,#EEF4FF 50%,#EAF9F7 100%);
+      border-bottom:1px solid var(--border);
+      padding:16px 38px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .hero-claim {
+      font-size:14px; font-weight:800; color:var(--navy);
+      line-height:1.35; max-width:340px;
+    }
+    .hero-claim em { font-style:normal; background:linear-gradient(135deg,var(--pink),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .hero-sub { font-size:10px; color:var(--gray); margin-top:4px; line-height:1.5; max-width:340px; }
+    .hero-pills { display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+    .hero-pill {
+      background:var(--white); border:1px solid var(--border);
+      border-radius:20px; padding:5px 14px;
+      font-size:9.5px; font-weight:600; color:var(--navy);
+      display:flex; align-items:center; gap:6px;
+    }
+    .hero-pill .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+    /* ── BODY ── */
+    .body { padding:22px 38px 0; flex:1; }
+
+    /* ── SECTION HEADING ── */
+    .section-heading {
+      font-size:9.5px; font-weight:700; letter-spacing:1.8px;
+      text-transform:uppercase; color:var(--blue);
+      margin-bottom:14px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .section-heading::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* ── DIFFERENTIATOR CARDS GRID ── */
+    .diff-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+
+    .diff-card {
+      border-radius:12px; padding:16px 18px;
+      border:1px solid var(--border);
+      position:relative; overflow:hidden;
+      display:flex; flex-direction:column; gap:6px;
+    }
+    .diff-card::before {
+      content:'';
+      position:absolute; top:0; left:0; bottom:0;
+      width:4px; border-radius:4px 0 0 4px;
+    }
+
+    /* accent colours */
+    .acc-pink   { background:#FFF5F8; } .acc-pink::before   { background:var(--pink); }
+    .acc-blue   { background:#F0F7FF; } .acc-blue::before   { background:var(--blue); }
+    .acc-teal   { background:#EDFAF7; } .acc-teal::before   { background:var(--teal); }
+    .acc-gold   { background:#FFFBEE; } .acc-gold::before   { background:var(--gold); }
+    .acc-purple { background:#F5F0FF; } .acc-purple::before { background:var(--purple); }
+    .acc-green  { background:#EDFAF2; } .acc-green::before  { background:var(--green); }
+    .acc-orange { background:#FFF6EF; } .acc-orange::before { background:var(--orange); }
+    .acc-navy   { background:#EDF0F7; } .acc-navy::before   { background:var(--navy); }
+
+    .diff-icon { font-size:22px; line-height:1; }
+    .diff-title { font-size:12px; font-weight:800; color:var(--navy); line-height:1.2; }
+    .diff-body  { font-size:10.5px; color:var(--slate); line-height:1.55; }
+    .diff-proof {
+      margin-top:4px;
+      background:rgba(255,255,255,.75); border-radius:6px;
+      padding:5px 10px; font-size:9.5px; color:var(--navy2);
+      font-weight:600; border-left:3px solid;
+    }
+    .acc-pink .diff-proof   { border-color:var(--pink); }
+    .acc-blue .diff-proof   { border-color:var(--blue); }
+    .acc-teal .diff-proof   { border-color:var(--teal); }
+    .acc-gold .diff-proof   { border-color:var(--gold); }
+    .acc-purple .diff-proof { border-color:var(--purple); }
+    .acc-green .diff-proof  { border-color:var(--green); }
+    .acc-orange .diff-proof { border-color:var(--orange); }
+    .acc-navy .diff-proof   { border-color:var(--navy); }
+
+    /* ── FULL-WIDTH CARD ── */
+    .diff-card-full {
+      border-radius:12px; padding:16px 20px;
+      border:1px solid var(--border);
+      display:flex; gap:16px; align-items:flex-start;
+      margin-bottom:16px;
+    }
+    .diff-card-full .icon-wrap { font-size:28px; line-height:1; flex-shrink:0; }
+    .diff-card-full .content {}
+    .diff-card-full .diff-title { font-size:12.5px; font-weight:800; color:var(--navy); margin-bottom:4px; }
+    .diff-card-full .diff-body  { font-size:10.5px; color:var(--slate); line-height:1.6; }
+
+    /* language pills inside full card */
+    .lang-wrap { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+    .lpill {
+      font-size:9px; font-weight:600; padding:3px 9px;
+      border-radius:12px;
+    }
+    .lpill.indian  { background:#EEF4FF; color:var(--navy2); border:1px solid #C9DCFF; }
+    .lpill.global  { background:#F5F5F5; color:var(--gray);  border:1px solid #DDD; }
+
+    /* ── COMPARISON TABLE ── */
+    .comp-table { width:100%; border-collapse:collapse; font-size:10px; margin-bottom:16px; }
+    .comp-table thead tr th {
+      background:var(--navy); color:var(--white);
+      padding:8px 12px; text-align:center; font-size:9.5px;
+    }
+    .comp-table thead tr th:first-child { text-align:left; border-radius:8px 0 0 0; }
+    .comp-table thead tr th:last-child  { border-radius:0 8px 0 0; }
+    .comp-table tbody tr td { padding:7px 12px; border-bottom:1px solid var(--border); text-align:center; color:var(--gray); }
+    .comp-table tbody tr td:first-child { text-align:left; font-weight:600; color:var(--navy); }
+    .comp-table tbody tr:nth-child(even) td { background:var(--light); }
+    .comp-table tbody tr:last-child td { border-bottom:none; }
+    .comp-table tbody tr:first-child td { color:var(--navy); font-weight:700; }
+    .check { color:#3DBE8A; font-weight:700; font-size:13px; }
+    .cross { color:#E05252; font-weight:700; font-size:13px; }
+    .partial { color:#F5A623; font-weight:700; font-size:11px; }
+
+    /* ── SUMMARY STRIP ── */
+    .summary-strip {
+      background:linear-gradient(135deg,var(--navy),var(--navy2));
+      border-radius:10px; padding:14px 22px;
+      display:flex; justify-content:space-around;
+      align-items:center; margin-bottom:16px;
+    }
+    .s-stat { text-align:center; }
+    .s-num  { font-size:22px; font-weight:900; color:#fff; line-height:1; }
+    .s-num sup { font-size:11px; font-weight:500; }
+    .s-lbl  { font-size:8.5px; color:rgba(255,255,255,.55); text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+    .s-div  { width:1px; background:rgba(255,255,255,.15); align-self:stretch; }
+
+    /* ── PROOF BAR ── */
+    .proof-bar {
+      background:#EAF9F7; border:1px solid #B8EDE3;
+      border-radius:10px; padding:12px 18px;
+      font-size:10.5px; color:var(--navy2); line-height:1.6;
+      margin-bottom:16px;
+    }
+    .proof-bar strong { color:var(--navy); font-weight:700; }
+
+    /* ── FOOTER ── */
+    .footer {
+      background:var(--navy);
+      padding:10px 38px;
+      display:flex; align-items:center; justify-content:space-between;
+      margin-top:auto;
+    }
+    .footer-left  { display:flex; align-items:center; gap:10px; }
+    .footer-logo  { height:22px; width:auto; filter:brightness(0) invert(1); opacity:.8; }
+    .footer-copy  { font-size:9px; color:rgba(255,255,255,.45); }
+    .footer-center { font-size:9px; color:rgba(255,255,255,.4); }
+    .footer-page  { font-size:9px; color:rgba(255,255,255,.5); font-weight:600; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════  PAGE 1  ═══════════════════════ -->
+<div class="page">
+
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div class="header-text">
+        <div class="header-sub">Key Differentiators — Why Imotara Wins</div>
+      </div>
+    </div>
+    <div class="header-badge">Confidential · June 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div>
+      <div class="hero-claim">What makes Imotara<br/><em>unlike anything else</em> in emotional wellness</div>
+      <div class="hero-sub">8 structural advantages that competitors cannot easily replicate — each a separate moat, together an unassailable position in the Indian mental wellness market.</div>
+    </div>
+    <div class="hero-pills">
+      <div class="hero-pill"><span class="dot" style="background:var(--pink)"></span> Language-First Architecture</div>
+      <div class="hero-pill"><span class="dot" style="background:var(--blue)"></span> Privacy by Design</div>
+      <div class="hero-pill"><span class="dot" style="background:var(--teal)"></span> Offline-Capable AI</div>
+      <div class="hero-pill"><span class="dot" style="background:var(--gold)"></span> ₹79/mo — Accessible Pricing</div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- SUMMARY STRIP -->
+    <div class="summary-strip">
+      <div class="s-stat"><div class="s-num">11</div><div class="s-lbl">Indian languages</div></div>
+      <div class="s-div"></div>
+      <div class="s-stat"><div class="s-num">71</div><div class="s-lbl">Psychological tools</div></div>
+      <div class="s-div"></div>
+      <div class="s-stat"><div class="s-num">0</div><div class="s-lbl">Ads or data selling</div></div>
+      <div class="s-div"></div>
+      <div class="s-stat"><div class="s-num">₹79<sup>/mo</sup></div><div class="s-lbl">Starting price</div></div>
+      <div class="s-div"></div>
+      <div class="s-stat"><div class="s-num">3</div><div class="s-lbl">Platforms (iOS / Android / Web)</div></div>
+    </div>
+
+    <!-- DIFFERENTIATOR 1 — FULL WIDTH (Language) -->
+    <div class="section-heading">Differentiator 1 — The Language Moat</div>
+    <div class="diff-card-full acc-pink" style="background:linear-gradient(135deg,#FFF5F8,#FFF0F5); border-color:#FFCCE0; margin-bottom:16px;">
+      <div class="icon-wrap">🌏</div>
+      <div class="content">
+        <div class="diff-title">The only mental wellness app with 11 Indian languages — and gendered AI grammar</div>
+        <div class="diff-body">
+          Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Odia, and Urdu — plus 10 global languages (22 total). Competitor apps offer at best 1–2 Indian languages. Imotara's AI also conjugates verbs by gender in Indic languages — a technical challenge no competitor has solved.
+        </div>
+        <div class="lang-wrap">
+          <span class="lpill indian">Hindi</span><span class="lpill indian">Bengali</span>
+          <span class="lpill indian">Tamil</span><span class="lpill indian">Telugu</span>
+          <span class="lpill indian">Marathi</span><span class="lpill indian">Gujarati</span>
+          <span class="lpill indian">Punjabi</span><span class="lpill indian">Kannada</span>
+          <span class="lpill indian">Malayalam</span><span class="lpill indian">Odia</span>
+          <span class="lpill indian">Urdu</span><span class="lpill indian">English</span>
+          <span class="lpill global">Spanish</span><span class="lpill global">French</span>
+          <span class="lpill global">German</span><span class="lpill global">Portuguese</span>
+          <span class="lpill global">Russian</span><span class="lpill global">Arabic</span>
+          <span class="lpill global">Chinese</span><span class="lpill global">Japanese</span>
+          <span class="lpill global">Hebrew</span><span class="lpill global">Indonesian</span>
+        </div>
+        <div class="diff-proof" style="margin-top:10px; border-color:var(--pink);">
+          Market signal: 600M+ Indians speak a language other than English as their mother tongue. No competitor is speaking to them in their own voice.
+        </div>
+      </div>
+    </div>
+
+    <!-- 2×2 GRID — Differentiators 2–5 -->
+    <div class="section-heading">Differentiators 2 – 5</div>
+    <div class="diff-grid">
+
+      <div class="diff-card acc-blue">
+        <div class="diff-icon">🔒</div>
+        <div class="diff-title">Privacy by Design — Data Stays on Your Phone</div>
+        <div class="diff-body">
+          Chat history and profile are stored locally first. Cloud sync is opt-in. Imotara never sells user data, runs no ad targeting, and has no social feed. Users own their emotional data completely.
+        </div>
+        <div class="diff-proof">
+          Trust signal: In mental health, privacy = willingness to open up. Users share more deeply when they know no one is watching.
+        </div>
+      </div>
+
+      <div class="diff-card acc-teal">
+        <div class="diff-icon">📡</div>
+        <div class="diff-title">Offline AI — Works Without Internet</div>
+        <div class="diff-body">
+          On mobile, Imotara falls back to a local pattern-matching AI engine across all 22 languages. This is critical for users in Tier 2/3 cities or areas with patchy connectivity. No competitor offers this.
+        </div>
+        <div class="diff-proof">
+          Market reach: 300M+ Indians have unreliable internet. An offline-capable wellness app can serve them — others cannot.
+        </div>
+      </div>
+
+      <div class="diff-card acc-gold">
+        <div class="diff-icon">💰</div>
+        <div class="diff-title">₹79/month — Fraction of Therapy Cost</div>
+        <div class="diff-body">
+          One therapy session in India costs ₹1,500–₹3,000. Imotara Plus is ₹79/month — about 2–4% of that cost. A free tier (20 messages/day) removes the barrier entirely for first-time users.
+        </div>
+        <div class="diff-proof">
+          Retention signal: Low price + free tier = users try it, keep it, upgrade organically without sales pressure.
+        </div>
+      </div>
+
+      <div class="diff-card acc-purple">
+        <div class="diff-icon">🧠</div>
+        <div class="diff-title">71 Psychological Tools — Not Generic Wellness Tips</div>
+        <div class="diff-body">
+          Imotara's AI draws from 71 evidence-backed psychological frameworks: CBT, DBT, ACT, Narrative Therapy, Somatic approaches, and more — deployed contextually in conversation, not as a menu.
+        </div>
+        <div class="diff-proof">
+          Clinical credibility: Generic wellness apps offer mood logging. Imotara offers structured psychological support in everyday language.
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /body p1 -->
+
+  <!-- FOOTER PAGE 1 -->
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Key Differentiators</span>
+    </div>
+    <div class="footer-center">imotara.com &nbsp;·&nbsp; soumenroys@gmail.com</div>
+    <div class="footer-page">Page 1 of 2</div>
+  </div>
+
+</div><!-- /page 1 -->
+
+
+<!-- ═══════════════════════  PAGE 2  ═══════════════════════ -->
+<div class="page">
+
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div class="header-text">
+        <div class="header-sub">Key Differentiators — Why Imotara Wins</div>
+      </div>
+    </div>
+    <div class="header-badge">Confidential · June 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="body">
+
+    <!-- DIFFERENTIATORS 6–8 -->
+    <div class="section-heading" style="margin-top:10px;">Differentiators 6 – 8</div>
+    <div class="diff-grid">
+
+      <div class="diff-card acc-green">
+        <div class="diff-icon">💌</div>
+        <div class="diff-title">Monthly Personal Letter from Your Companion</div>
+        <div class="diff-body">
+          Every month, Imotara writes a personalised letter to the user — reflecting on their emotional journey that month, celebrating growth, and gently noting patterns. No other wellness app does this.
+        </div>
+        <div class="diff-proof">
+          Emotional lock-in: This feature creates a ritual. Users wait for their letter. It transforms the app from a tool into a relationship — fundamentally different from transactional apps.
+        </div>
+      </div>
+
+      <div class="diff-card acc-orange">
+        <div class="diff-icon">🎭</div>
+        <div class="diff-title">Companion Persona — Fully Customisable Relationship</div>
+        <div class="diff-body">
+          Users set their companion's name, age, gender, and relationship vibe (Friend / Mentor / Elder / Coach / Sibling / Partner-like). The AI adapts tone, vocabulary, and response style to match. This is not a chatbot — it is a relationship.
+        </div>
+        <div class="diff-proof">
+          Engagement signal: Personalised relationships increase daily active usage by making every session feel unique to the user's emotional needs.
+        </div>
+      </div>
+
+      <div class="diff-card acc-navy">
+        <div class="diff-icon">🏛️</div>
+        <div class="diff-title">Culturally Rooted — Indian Mythology, Wisdom & Stories</div>
+        <div class="diff-body">
+          Imotara integrates cultural content engines — Vedic stories, regional wisdom quotes, and mythological parallels — to give emotional support in a culturally resonant frame. Western apps have no equivalent.
+        </div>
+        <div class="diff-proof">
+          Cultural moat: This content took months to curate. It cannot be replicated by a Western competitor without deep local knowledge and editorial effort.
+        </div>
+      </div>
+
+      <div class="diff-card acc-pink">
+        <div class="diff-icon">🎙️</div>
+        <div class="diff-title">Voice Input + Neural TTS in Indian Languages</div>
+        <div class="diff-body">
+          Users can speak in Hindi, Bengali, Tamil, and other Indian languages — the AI transcribes, responds, and reads replies aloud using Azure Neural TTS with a native Indian voice. Accessible to users who prefer speaking over typing.
+        </div>
+        <div class="diff-proof">
+          Accessibility angle: Reaches older users, low-literacy users, and those who find typing in regional scripts difficult — a completely untapped segment.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- COMPETITIVE COMPARISON TABLE -->
+    <div class="section-heading">Head-to-Head Comparison</div>
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th>Imotara</th>
+          <th>Wysa</th>
+          <th>YourDOST</th>
+          <th>Replika</th>
+          <th>InnerHour</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Indian languages (count)</td>
+          <td style="color:#3DBE8A;font-weight:800;">11 ✓</td>
+          <td>1</td>
+          <td>1</td>
+          <td>0</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td>Offline AI capability</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+        </tr>
+        <tr>
+          <td>No ads / No data selling</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="partial">Partial</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="partial">Partial</span></td>
+        </tr>
+        <tr>
+          <td>Monthly companion letter</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+        </tr>
+        <tr>
+          <td>Companion persona customisation</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="partial">Partial</span></td>
+          <td><span class="cross">✗</span></td>
+        </tr>
+        <tr>
+          <td>Voice input + TTS (Indian voices)</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+        </tr>
+        <tr>
+          <td>Cultural content (mythology/wisdom)</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+        </tr>
+        <tr>
+          <td>Local-first privacy (data on device)</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+          <td><span class="cross">✗</span></td>
+        </tr>
+        <tr>
+          <td>Starting price (monthly)</td>
+          <td style="color:var(--green);font-weight:700;">Free / ₹79</td>
+          <td>Free / ₹599</td>
+          <td>Free / ₹499</td>
+          <td>Free / $9.99</td>
+          <td>Free / ₹499</td>
+        </tr>
+        <tr>
+          <td>Available on Web + iOS + Android</td>
+          <td><span class="check">✓</span></td>
+          <td><span class="partial">iOS+Android</span></td>
+          <td><span class="partial">Web+App</span></td>
+          <td><span class="partial">iOS+Android</span></td>
+          <td><span class="partial">iOS+Android</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- PROOF BAR -->
+    <div class="proof-bar">
+      <strong>The bottom line for Suchismita:</strong> Every single differentiator above is a feature that took months to build — language models, offline engines, cultural content libraries, persona systems, voice integration. These are not features a competitor can add in a sprint. They represent a <strong>structural moat</strong> that makes Imotara the only credible emotional wellness platform built for India, in Indian languages, at Indian prices, with Indian cultural context.
+    </div>
+
+    <!-- KEY MESSAGES FOR MARKETING -->
+    <div class="section-heading">3 Core Messages for All Campaigns</div>
+    <div class="diff-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom:16px;">
+
+      <div class="diff-card acc-pink" style="grid-column: span 1;">
+        <div class="diff-icon">💬</div>
+        <div class="diff-title" style="font-size:11px;">"Apni bhasha mein, apni sharti pe"</div>
+        <div class="diff-body" style="font-size:10px;">
+          (In your language, on your terms.) — Lead with the language moat in Hindi-speaking markets. This is the most emotionally resonant opening line in the Indian context.
+        </div>
+      </div>
+
+      <div class="diff-card acc-blue" style="grid-column: span 1;">
+        <div class="diff-icon">🛡️</div>
+        <div class="diff-title" style="font-size:11px;">"No one reads your conversations. Ever."</div>
+        <div class="diff-body" style="font-size:10px;">
+          Privacy is the #1 concern blocking mental health app adoption in India. Lead with this in any segment that has tried therapy or counselling.
+        </div>
+      </div>
+
+      <div class="diff-card acc-teal" style="grid-column: span 1;">
+        <div class="diff-icon">❤️</div>
+        <div class="diff-title" style="font-size:11px;">"₹79/month. Less than one cup of coffee a week."</div>
+        <div class="diff-body" style="font-size:10px;">
+          Price anchoring against therapy (₹1,500–₹3,000/session) makes ₹79 feel like an impulse purchase. Use this in urban 22–35 campaigns.
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /body p2 -->
+
+  <!-- FOOTER PAGE 2 -->
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Key Differentiators</span>
+    </div>
+    <div class="footer-center">imotara.com &nbsp;·&nbsp; soumenroys@gmail.com</div>
+    <div class="footer-page">Page 2 of 2</div>
+  </div>
+
+</div><!-- /page 2 -->
+
+</body>
+</html>

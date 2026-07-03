@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     nodemailer.createTransport({ host: process.env.SMTP_HOST ?? "smtp.hostinger.com", port: 465, secure: true, auth: { user: smtpUser, pass: smtpPass } })
       .sendMail({
         from: `"Imotara Alerts" <${smtpUser}>`,
-        to:   "publisher@imotara.com",
+        to:   "info@imotara.com",
         subject: `[Verification] ${org?.name} (${org?.billing_type}) submitted verification docs`,
         text: `Org: ${org?.name}\nType: ${org?.billing_type}\nDoc URL: ${body.documentUrl}\nNotes: ${body.notes ?? "none"}\n\nReview at /admin → Organizations`,
       }).catch(() => {});

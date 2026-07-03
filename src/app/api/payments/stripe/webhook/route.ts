@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
             nodemailer.createTransport({ host: process.env.SMTP_HOST ?? "smtp.hostinger.com", port: 465, secure: true, auth: { user: smtpUser, pass: smtpPass } })
               .sendMail({
                 from: `"Imotara" <${smtpUser}>`,
-                to:   "publisher@imotara.com",
+                to:   "info@imotara.com",
                 subject: `[Corporate Purchase] ${orgType} org, ${seats} seats — ACTIVATE NOW`,
                 text: `Stripe payment received.\n\nUser: ${userEmail}\nOrg type: ${orgType}\nSeats: ${seats}\nPayment: ${pi.id}\nAmount: ${(pi.amount_received/100).toFixed(2)} ${pi.currency?.toUpperCase()}\n\nActivate at /admin → Organizations → find "${slug}"`,
               }).catch(() => {});

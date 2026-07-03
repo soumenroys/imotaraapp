@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Imotara — Product One-Pager</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --pink:    #FF6B9D;
+      --blue:    #4B9FE1;
+      --teal:    #38C9B9;
+      --gold:    #F5C842;
+      --navy:    #12274F;
+      --navy2:   #1E3A6E;
+      --slate:   #3D5580;
+      --light:   #F0F6FF;
+      --border:  #D4E2F7;
+      --white:   #FFFFFF;
+      --gray:    #6B7EA4;
+    }
+
+    html, body {
+      width: 210mm;
+      font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--white);
+      color: var(--navy);
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ── PAGE ── */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 0;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 60%, #1B4F8A 100%);
+      padding: 28px 40px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 220px; height: 220px;
+      background: radial-gradient(circle, rgba(75,159,225,0.18) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -40px; left: 30%;
+      width: 160px; height: 160px;
+      background: radial-gradient(circle, rgba(255,107,157,0.12) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .header-left { display: flex; align-items: center; gap: 18px; z-index: 1; }
+    .header-logo { height: 64px; width: auto; }
+    .header-text {}
+    .header-tagline {
+      color: rgba(255,255,255,0.75);
+      font-size: 11.5px;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+    .header-badge {
+      z-index: 1;
+      background: linear-gradient(135deg, var(--pink), var(--blue));
+      color: var(--white);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+
+    /* ── GRADIENT DIVIDER ── */
+    .gradient-bar {
+      height: 4px;
+      background: linear-gradient(to right, var(--pink), var(--gold), var(--teal), var(--blue));
+    }
+
+    /* ── BODY ── */
+    .body { padding: 28px 40px 0; flex: 1; }
+
+    /* ── INTRO STRIP ── */
+    .intro {
+      background: var(--light);
+      border-left: 4px solid var(--blue);
+      border-radius: 0 10px 10px 0;
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      font-size: 12.5px;
+      line-height: 1.7;
+      color: var(--slate);
+    }
+    .intro strong { color: var(--navy); }
+
+    /* ── SECTION TITLE ── */
+    .section-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── TWO COL LAYOUT ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 22px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 22px; }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card-title .icon { font-size: 14px; }
+
+    /* ── FEATURE PILLS ── */
+    .pill-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pill {
+      background: var(--light);
+      border: 1px solid var(--border);
+      color: var(--slate);
+      font-size: 9.5px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .pill.accent { background: linear-gradient(135deg, #FFE8F2, #E8F4FF); border-color: #C9DCFF; color: var(--navy2); }
+
+    /* ── DIFFERENTIATOR LIST ── */
+    .diff-list { list-style: none; }
+    .diff-list li {
+      font-size: 11px;
+      color: var(--slate);
+      line-height: 1.5;
+      padding: 4px 0;
+      padding-left: 18px;
+      position: relative;
+      border-bottom: 1px dashed var(--border);
+    }
+    .diff-list li:last-child { border-bottom: none; }
+    .diff-list li::before {
+      content: '✦';
+      position: absolute;
+      left: 0;
+      color: var(--pink);
+      font-size: 8px;
+      top: 5px;
+    }
+    .diff-list li strong { color: var(--navy); font-weight: 600; }
+
+    /* ── PRICING TABLE ── */
+    .pricing-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+    .pricing-table th {
+      background: var(--navy);
+      color: var(--white);
+      padding: 7px 10px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 10px;
+    }
+    .pricing-table th:first-child { border-radius: 6px 0 0 0; }
+    .pricing-table th:last-child  { border-radius: 0 6px 0 0; }
+    .pricing-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--slate); }
+    .pricing-table tr:last-child td { border-bottom: none; }
+    .pricing-table tr:nth-child(even) td { background: var(--light); }
+    .tier-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      color: white;
+    }
+    .tier-free  { background: var(--gray); }
+    .tier-plus  { background: var(--blue); }
+    .tier-pro   { background: linear-gradient(135deg, var(--pink), var(--blue)); }
+
+    /* ── AUDIENCE CARDS ── */
+    .audience-card {
+      background: linear-gradient(135deg, var(--light), var(--white));
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 15px;
+      text-align: center;
+    }
+    .audience-card .emoji { font-size: 22px; margin-bottom: 6px; }
+    .audience-card .label { font-size: 10px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+    .audience-card .desc  { font-size: 9.5px; color: var(--gray); line-height: 1.4; }
+
+    /* ── STAT STRIP ── */
+    .stat-strip {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-around;
+      padding: 14px 20px;
+      margin-bottom: 22px;
+    }
+    .stat { text-align: center; }
+    .stat-number { font-size: 20px; font-weight: 800; color: var(--white); line-height: 1; }
+    .stat-number span { font-size: 11px; font-weight: 500; }
+    .stat-label { font-size: 9px; color: rgba(255,255,255,0.6); margin-top: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
+    .stat-divider { width: 1px; background: rgba(255,255,255,0.15); }
+
+    /* ── CTA STRIP ── */
+    .cta-strip {
+      background: linear-gradient(135deg, #FFE8F2, #E8F4FF);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+    }
+    .cta-text .cta-title { font-size: 12px; font-weight: 700; color: var(--navy); }
+    .cta-text .cta-sub   { font-size: 10px; color: var(--slate); margin-top: 2px; }
+    .cta-buttons { display: flex; gap: 10px; }
+    .cta-btn {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 20px;
+      text-decoration: none;
+      letter-spacing: 0.3px;
+    }
+    .cta-btn-primary {
+      background: linear-gradient(135deg, var(--pink), var(--blue));
+      color: white;
+    }
+    .cta-btn-secondary {
+      background: var(--white);
+      color: var(--navy);
+      border: 1px solid var(--border);
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      background: var(--navy);
+      padding: 10px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: auto;
+    }
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .footer-logo { height: 22px; width: auto; filter: brightness(0) invert(1); opacity: 0.85; }
+    .footer-copy { font-size: 9px; color: rgba(255,255,255,0.5); }
+    .footer-center { font-size: 9px; color: rgba(255,255,255,0.4); }
+    .footer-page { font-size: 9px; color: rgba(255,255,255,0.5); font-weight: 600; }
+
+    /* ── LANG STRIP ── */
+    .lang-strip {
+      background: var(--light);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 16px;
+      margin-bottom: 22px;
+    }
+    .lang-title { font-size: 9.5px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+    .lang-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+    .lang-pill {
+      font-size: 9px;
+      font-weight: 500;
+      padding: 3px 9px;
+      border-radius: 12px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      color: var(--slate);
+    }
+    .lang-pill.indian { border-color: #C9DCFF; background: #EEF4FF; color: var(--navy2); }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════ PAGE 1 ═══════════════════════════════════════ -->
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara" />
+      <div class="header-text">
+        <div class="header-tagline">Your AI Emotional Wellness Companion</div>
+      </div>
+    </div>
+    <div class="header-badge">Product One-Pager · June 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <!-- BODY -->
+  <div class="body">
+
+    <!-- INTRO -->
+    <div class="intro">
+      <strong>Imotara</strong> is a calm, private AI-powered emotional wellness companion — a safe space to talk about feelings, track mood, and receive gentle, culturally-aware support. <strong>No social feed. No ads. No data selling.</strong> Built for everyday emotional health, not clinical diagnosis.
+    </div>
+
+    <!-- STAT STRIP -->
+    <div class="stat-strip">
+      <div class="stat">
+        <div class="stat-number">22</div>
+        <div class="stat-label">Languages</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <div class="stat-number">71</div>
+        <div class="stat-label">Psychological Tools</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <div class="stat-number">8</div>
+        <div class="stat-label">Emotion States Tracked</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <div class="stat-number">₹79<span>/mo</span></div>
+        <div class="stat-label">Starting Price</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <div class="stat-number">iOS + Android + Web</div>
+        <div class="stat-label">All Platforms</div>
+      </div>
+    </div>
+
+    <!-- ROW: WHY IMOTARA + TARGET AUDIENCE -->
+    <div class="two-col">
+      <div>
+        <div class="section-title">Why Imotara</div>
+        <div class="card">
+          <ul class="diff-list">
+            <li><strong>Only mental wellness app with 11 Indian languages</strong> — Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu</li>
+            <li><strong>Local-first privacy</strong> — data stays on the user's device by default</li>
+            <li><strong>No ads, no data selling</strong> — pure user-centric product</li>
+            <li><strong>Monthly personal letter</strong> from the AI companion</li>
+            <li><strong>Fraction of therapy cost</strong> — ₹79/month vs ₹1,500–3,000/therapy session</li>
+            <li><strong>Offline AI fallback</strong> — works without internet on mobile</li>
+            <li><strong>Culturally aware</strong> — gendered verb conjugation in Indic languages, mythology & wisdom content</li>
+          </ul>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">Target Audience</div>
+        <div class="three-col" style="grid-template-columns:1fr 1fr; gap:10px;">
+          <div class="audience-card">
+            <div class="emoji">🧑‍💼</div>
+            <div class="label">Urban Professionals</div>
+            <div class="desc">22–35, stressed, therapy-curious but time & budget constrained</div>
+          </div>
+          <div class="audience-card">
+            <div class="emoji">🎓</div>
+            <div class="label">College Students</div>
+            <div class="desc">18–24, first time living alone, no mental health support system</div>
+          </div>
+          <div class="audience-card">
+            <div class="emoji">🌏</div>
+            <div class="label">Regional India</div>
+            <div class="desc">Hindi / Bengali / Tamil speakers who want support in their own language</div>
+          </div>
+          <div class="audience-card">
+            <div class="emoji">🏠</div>
+            <div class="label">Homemakers & Parents</div>
+            <div class="desc">35–50, emotional load is high, private outlet needed</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CORE FEATURES -->
+    <div class="section-title">Core Features</div>
+    <div style="margin-bottom: 22px;">
+      <div class="pill-grid">
+        <span class="pill accent">AI Chat — Emotion-aware replies</span>
+        <span class="pill accent">Mood Check-in (8 emotions)</span>
+        <span class="pill accent">Voice Input + TTS Playback</span>
+        <span class="pill accent">Companion Memory</span>
+        <span class="pill accent">Dark Mode</span>
+        <span class="pill accent">Offline AI (mobile)</span>
+        <span class="pill accent">Guided Breathing</span>
+        <span class="pill accent">Daily Streak Tracker</span>
+        <span class="pill accent">30-day Mood Chart</span>
+        <span class="pill accent">Emotion Heatmap</span>
+        <span class="pill accent">Future Letters (write to future self)</span>
+        <span class="pill accent">Monthly Companion Letter</span>
+        <span class="pill accent">Chat History &amp; Threads</span>
+        <span class="pill accent">Data Export (JSON/CSV)</span>
+        <span class="pill accent">Companion Persona Customisation</span>
+        <span class="pill accent">On This Day (past journal)</span>
+        <span class="pill accent">Cultural Stories &amp; Wisdom Quotes</span>
+        <span class="pill accent">Reply Origin Badge (cloud vs local)</span>
+        <span class="pill accent">Cross-device Profile Sync</span>
+        <span class="pill accent">Daily Reminder Notifications</span>
+      </div>
+    </div>
+
+    <!-- LANGUAGES -->
+    <div class="lang-strip">
+      <div class="lang-title">22 Supported Languages — 11 Indian languages, the most of any wellness app</div>
+      <div class="lang-pills">
+        <span class="lang-pill indian">Hindi</span>
+        <span class="lang-pill indian">Bengali</span>
+        <span class="lang-pill indian">Tamil</span>
+        <span class="lang-pill indian">Telugu</span>
+        <span class="lang-pill indian">Marathi</span>
+        <span class="lang-pill indian">Gujarati</span>
+        <span class="lang-pill indian">Punjabi</span>
+        <span class="lang-pill indian">Kannada</span>
+        <span class="lang-pill indian">Malayalam</span>
+        <span class="lang-pill indian">Odia</span>
+        <span class="lang-pill indian">Urdu</span>
+        <span class="lang-pill indian">English</span>
+        <span class="lang-pill">Spanish</span>
+        <span class="lang-pill">French</span>
+        <span class="lang-pill">German</span>
+        <span class="lang-pill">Portuguese</span>
+        <span class="lang-pill">Russian</span>
+        <span class="lang-pill">Arabic</span>
+        <span class="lang-pill">Chinese</span>
+        <span class="lang-pill">Japanese</span>
+        <span class="lang-pill">Hebrew</span>
+        <span class="lang-pill">Indonesian</span>
+      </div>
+    </div>
+
+    <!-- PRICING -->
+    <div class="two-col" style="margin-bottom: 22px;">
+      <div>
+        <div class="section-title">Pricing Plans</div>
+        <table class="pricing-table">
+          <thead>
+            <tr>
+              <th>Plan</th>
+              <th>Price</th>
+              <th>What's Included</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="tier-badge tier-free">Free</span></td>
+              <td>₹0</td>
+              <td>20 AI messages/day, core features</td>
+            </tr>
+            <tr>
+              <td><span class="tier-badge tier-plus">Plus</span></td>
+              <td>₹79/mo</td>
+              <td>Unlimited AI cloud messages</td>
+            </tr>
+            <tr>
+              <td><span class="tier-badge tier-pro">Pro</span></td>
+              <td>₹149/mo</td>
+              <td>Unlimited + full history access</td>
+            </tr>
+            <tr>
+              <td colspan="3" style="font-size:9px; color: var(--gray); padding-top:6px;">
+                Token top-ups: ₹49 → 100 tokens &nbsp;|&nbsp; ₹99 → 250 &nbsp;|&nbsp; ₹199 → 600 &nbsp;|&nbsp; ₹499 → 1800
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <div class="section-title">Competitive Edge</div>
+        <div class="card">
+          <table style="width:100%; font-size: 9.5px; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left; color:var(--navy); padding:4px 6px; border-bottom:2px solid var(--border); font-size:9px;">App</th>
+                <th style="text-align:center; color:var(--navy); padding:4px 6px; border-bottom:2px solid var(--border); font-size:9px;">Indian Languages</th>
+                <th style="text-align:center; color:var(--navy); padding:4px 6px; border-bottom:2px solid var(--border); font-size:9px;">Offline AI</th>
+                <th style="text-align:center; color:var(--navy); padding:4px 6px; border-bottom:2px solid var(--border); font-size:9px;">Privacy-First</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:5px 6px; font-weight:700; color:var(--navy);">Imotara</td>
+                <td style="text-align:center; padding:5px 6px; color:green; font-weight:700;">11 ✓</td>
+                <td style="text-align:center; padding:5px 6px; color:green;">✓</td>
+                <td style="text-align:center; padding:5px 6px; color:green;">✓</td>
+              </tr>
+              <tr style="background:var(--light);">
+                <td style="padding:5px 6px; color:var(--gray);">Wysa</td>
+                <td style="text-align:center; padding:5px 6px; color:var(--gray);">1</td>
+                <td style="text-align:center; padding:5px 6px; color:var(--gray);">✗</td>
+                <td style="text-align:center; padding:5px 6px; color:var(--gray);">Partial</td>
+              </tr>
+              <tr>
+                <td style="padding:5px 6px; color:var(--gray);">YourDOST</td>
+                <td style="text-align:center; padding:5px 6px; color:var(--gray);">1</td>
+                <td style="text-align:center; padding:5px 6px; color:var(--gray);">✗</td>
+                <td style="text-align:center; padding:5px 6px; color:var(--gray);">✗</td>
+              </tr>
+              <tr style="background:var(--light);">
+                <td style="padding:5px 6px; color:var(--gray);">Replika</td>
+                <td style="text-align:center; padding:5px 6px; color:var(--gray);">0</td>
+                <td style="text-align:center; padding:5px 6px; color:var(--gray);">✗</td>
+                <td style="text-align:center; padding:5px 6px; color:var(--gray);">✗</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-strip">
+      <div class="cta-text">
+        <div class="cta-title">Ready to experience Imotara?</div>
+        <div class="cta-sub">Available on iOS App Store, Google Play, and Web — free to start</div>
+      </div>
+      <div class="cta-buttons">
+        <span class="cta-btn cta-btn-primary">iOS App Store</span>
+        <span class="cta-btn cta-btn-primary">Google Play</span>
+        <span class="cta-btn cta-btn-secondary">imotara.com</span>
+      </div>
+    </div>
+
+  </div><!-- /body -->
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara" />
+      <span class="footer-copy">© 2026 Imotara · Confidential</span>
+    </div>
+    <div class="footer-center">imotara.com &nbsp;·&nbsp; soumenroys@gmail.com</div>
+    <div class="footer-page">Page 1 of 1</div>
+  </div>
+
+</div><!-- /page -->
+
+</body>
+</html>

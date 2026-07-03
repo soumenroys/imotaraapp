@@ -161,7 +161,7 @@ async function sendAdminAlert(data: {
 
     await transporter.sendMail({
       from:    `"Imotara Alerts" <${user}>`,
-      to:      "publisher@imotara.com",
+      to:      "info@imotara.com",
       subject: `[New Org Request] ${data.orgName} (${data.billingType})`,
       text: [
         `New organization request submitted and pending approval.`,

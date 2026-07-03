@@ -279,7 +279,7 @@ async function sendRegistrationEmails(data: {
   try {
     await t.transporter.sendMail({
       from:    t.from,
-      to:      "publisher@imotara.com",
+      to:      "info@imotara.com",
       subject: `[Connect] New companion application — ${data.display_name}`,
       text: [
         `A new companion has applied on Imotara Connect.`,

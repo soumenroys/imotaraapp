@@ -1093,6 +1093,21 @@ export default function ChatPage() {
     };
   }, []);
 
+  // W-4: on thread switch, stop any live recognition session AND clear pending
+  // transcript — otherwise a result arriving after the switch inserts into the
+  // wrong thread (onresult has no thread context guard).
+  useEffect(() => {
+    setPendingVoiceTranscript(null);
+    if (isListening) {
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+      setIsListening(false);
+      if (voiceAutoStopTimerRef.current) { clearTimeout(voiceAutoStopTimerRef.current); voiceAutoStopTimerRef.current = null; }
+    }
+  // isListening intentionally omitted — we only want this on thread change, not every listen toggle
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
+
   // Clear undo timer on unmount — prevents generateAssistantReply firing after navigation
   useEffect(() => {
     return () => {
@@ -1200,6 +1215,19 @@ export default function ChatPage() {
 
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  // W-2: ref mirrors analyzing so the SpeechRecognition onresult closure always
+  // reads the live value without a stale capture.
+  // The ref is also set synchronously alongside every setAnalyzing() call below
+  // to eliminate the one-render-paint lag that useEffect would introduce.
+  const analyzingRef = useRef(false);
+  // sendMessage is a plain function (not useCallback) that closes over threads,
+  // activeId, analyzing, draft, and many other state values. In handsfree/continuous
+  // mode the onresult closure is created at toggleVoice() call time and can be
+  // seconds or minutes old by the time the user speaks. Using a ref guarantees
+  // onresult always calls the latest sendMessage with fresh state.
+  const sendMessageRef = useRef<(override?: string) => void>(() => {});
+  // no dep array — update the ref after every render so it's always current
+  useEffect(() => { sendMessageRef.current = sendMessage; });
   const [streamingReply, setStreamingReply] = useState<string>("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -2097,7 +2125,7 @@ export default function ChatPage() {
 
   async function triggerAnalyze() {
     if (!activeThread?.messages?.length) return;
-    setAnalyzing(true);
+    analyzingRef.current = true; setAnalyzing(true);
     try {
       const res = (await runAnalysisWithConsent(
         activeThread.messages,
@@ -2108,7 +2136,7 @@ export default function ChatPage() {
     } catch (err) {
       console.error("[imotara] manual analysis failed:", err);
     } finally {
-      setAnalyzing(false);
+      analyzingRef.current = false; setAnalyzing(false);
     }
   }
 
@@ -2335,12 +2363,12 @@ export default function ChatPage() {
             : t,
         ),
       );
-      setAnalyzing(false);
+      analyzingRef.current = false; setAnalyzing(false);
       return;
     }
     // ─────────────────────────────────────────────────────────────────────
 
-    setAnalyzing(true);
+    analyzingRef.current = true; setAnalyzing(true);
     try {
       let debugEmotion: string | undefined;
       let debugEmotionSource: DebugEmotionSource = "unknown";
@@ -2697,7 +2725,7 @@ export default function ChatPage() {
       // Focus when fallback reply is shown
       setTimeout(() => composerRef.current?.focus(), 0);
     } finally {
-      setAnalyzing(false);
+      analyzingRef.current = false; setAnalyzing(false);
     }
   }
 
@@ -2890,62 +2918,156 @@ export default function ChatPage() {
     if (!SpeechRecognition) return;
 
     if (isListening) {
-      recognitionRef.current?.stop();
+      // Null the ref BEFORE calling stop() so that onend's handsfree-restart
+      // guard (recognitionRef.current === rec) evaluates false and the session
+      // does not silently restart after an explicit user stop.
+      const stopping = recognitionRef.current;
+      recognitionRef.current = null;
+      stopping?.stop();
       setIsListening(false);
+      setPendingVoiceTranscript(null); // dismiss any lingering confirm banner
       if (voiceAutoStopTimerRef.current) { clearTimeout(voiceAutoStopTimerRef.current); voiceAutoStopTimerRef.current = null; }
       return;
     }
 
     const rec = new SpeechRecognition();
-    rec.continuous = false;
+    // In handsfree mode the user expects speak → auto-send → speak again without
+    // re-tapping the mic. continuous=true keeps the session alive between utterances.
+    // In normal mode one utterance is enough so we keep continuous=false.
+    rec.continuous = handsfreeRef.current;
     rec.interimResults = false;
-    // #19: Set recognition language from user profile, fall back to browser default
-    const LANG_TO_BCP47: Record<string, string> = {
-      hi: "hi-IN", mr: "mr-IN", bn: "bn-IN", ta: "ta-IN",
-      te: "te-IN", kn: "kn-IN", ml: "ml-IN", gu: "gu-IN",
-      pa: "pa-IN", or: "or-IN", en: "en-IN",
-      ar: "ar-SA", he: "he-IL", de: "de-DE",
-    };
+    // W-3: use the module-level LANG_TO_BCP47 which covers all supported languages
+    // (the previous local copy was missing fr, zh, es, pt, ru, id, ja, ur).
     const profileLang = getImotaraProfile()?.user?.preferredLang ?? "";
     rec.lang = LANG_TO_BCP47[profileLang] ?? "en-US";
     recognitionRef.current = rec;
+    // Capture the wall-clock start of this session so the onend restart path
+    // can compute remaining time rather than resetting to the full durSecs.
+    const sessionStartMs = Date.now();
+    // BUG-12A: track whether onresult fired this session. In continuous=false mode,
+    // onend fires immediately after onresult (session auto-ends after one utterance).
+    // React batches the setPendingVoiceTranscript(transcript) from onresult with
+    // the setPendingVoiceTranscript(null) from onend — null wins, clearing the banner
+    // before the user can tap "Use". Only clear in onend when no result was received.
+    let resultReceivedThisSession = false;
 
     // Read voice settings from localStorage at start time
     const durSecs = parseInt(localStorage.getItem("imotara.voice.maxDuration.v1") ?? "60", 10);
     const voiceConfirmEnabled = localStorage.getItem("imotara.voice.confirmTranscription.v1") === "1";
 
     rec.onresult = (e: any) => {
-      const transcript: string = e.results[0]?.[0]?.transcript ?? "";
+      // In continuous mode the ResultList grows — e.resultIndex points to the
+      // newly-finalized utterance. Using [0] would re-send the first utterance
+      // on every subsequent speak in handsfree mode.
+      const transcript: string = e.results[e.resultIndex]?.[0]?.transcript ?? "";
       if (!transcript.trim()) return;
-      if (voiceConfirmEnabled) {
+      resultReceivedThisSession = true;
+      // W-5: handsfree takes precedence over voiceConfirm (matches mobile behaviour).
+      // W-2: guard with analyzingRef.current so we don't double-send while a reply
+      // is already in flight (the `analyzing` local capture would be stale here).
+      if (handsfreeRef.current) {
+        if (!analyzingRef.current) sendMessageRef.current(transcript.trim());
+      } else if (voiceConfirmEnabled) {
         // Show confirmation banner before inserting into draft
         setPendingVoiceTranscript(transcript.trim());
-      } else if (handsfreeRef.current) {
-        sendMessage(transcript.trim());
       } else {
         setDraft((prev) => (prev.trim() ? `${prev} ${transcript.trim()}` : transcript.trim()));
       }
     };
     rec.onerror = (e: any) => {
       setIsListening(false);
+      recognitionRef.current = null; // prevent stale callbacks firing into a new session
+      setPendingVoiceTranscript(null); // BUG-11C: dismiss confirm banner on error (contradictory UI state)
       if (voiceAutoStopTimerRef.current) { clearTimeout(voiceAutoStopTimerRef.current); voiceAutoStopTimerRef.current = null; }
-      if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
-        setChatToast({ message: "Microphone access denied — allow it in your browser settings.", type: "error" });
+      const err: string = e?.error ?? "";
+      if (err === "not-allowed" || err === "service-not-allowed") {
+        const httpsMsg = typeof window !== "undefined" && window.location.protocol !== "https:" && window.location.hostname !== "localhost"
+          ? "Voice input requires HTTPS. Please use the secure version of the site."
+          : "Microphone access denied — allow it in your browser settings.";
+        setChatToast({ message: httpsMsg, type: "error" });
+      } else if (err === "network") {
+        setChatToast({ message: "Voice input needs an internet connection. Please check your network and try again.", type: "error" });
+      } else if (err === "audio-capture") {
+        setChatToast({ message: "No microphone found. Please connect one and try again.", type: "error" });
+      } else if (err === "no-speech") {
+        setChatToast({ message: "No speech detected — try speaking closer to your microphone.", type: "error" });
+      } else if (err === "language-not-supported") {
+        setChatToast({ message: "Voice input isn't available in your current language. Try switching to English in Settings.", type: "error" });
       }
+      // "aborted" is intentional (user clicked stop) — no toast needed
     };
     rec.onend = () => {
-      setIsListening(false);
       if (voiceAutoStopTimerRef.current) { clearTimeout(voiceAutoStopTimerRef.current); voiceAutoStopTimerRef.current = null; }
+      // In handsfree continuous mode Chrome silently ends the session after a
+      // silence period (~7s). If the user didn't explicitly stop (recognitionRef
+      // still points to this rec object) restart silently so the session
+      // continues without requiring a manual mic tap.
+      if (handsfreeRef.current && recognitionRef.current === rec) {
+        try {
+          rec.start();
+          // setIsListening stays true — no visual flicker
+          // Re-arm the auto-stop timer using the REMAINING time from session start
+          // so rapid Chrome silence-restart cycles cannot perpetually defer the limit.
+          // (BUG-10A: using durSecs * 1000 on every restart allowed the timer to be
+          // cleared and reset indefinitely, making the durSecs limit never fire.)
+          if (isFinite(durSecs) && durSecs > 0) {
+            const elapsed = Date.now() - sessionStartMs;
+            const remaining = durSecs * 1000 - elapsed;
+            if (remaining > 0) {
+              voiceAutoStopTimerRef.current = setTimeout(() => {
+                // Null ref before stop() so onend's restart guard evaluates false.
+                recognitionRef.current = null;
+                rec.stop();
+                voiceAutoStopTimerRef.current = null;
+                setChatToast({ message: `Voice session ended after ${durSecs}s. Tap the mic to continue.`, type: "info" });
+              }, remaining);
+            } else {
+              // Session has already overrun — stop immediately without re-starting.
+              recognitionRef.current = null;
+              rec.stop();
+              setChatToast({ message: `Voice session ended after ${durSecs}s. Tap the mic to continue.`, type: "info" });
+            }
+          }
+        } catch {
+          setIsListening(false);
+          recognitionRef.current = null;
+        }
+      } else {
+        setIsListening(false);
+        // BUG-11B / BUG-12A: only clear confirm banner when no result was received
+        // this session. If onresult already set a pending transcript, leave it so
+        // the user can tap "Use" — onend fires in the same React flush in
+        // continuous=false mode, so clearing here would race and win over the set.
+        if (!resultReceivedThisSession) {
+          setPendingVoiceTranscript(null);
+        }
+      }
     };
 
-    rec.start();
-    setIsListening(true);
+    // W-1: start() can throw synchronously in Safari before onerror fires.
+    // Move setIsListening(true) to after a successful start to avoid leaving
+    // isListening stuck as true with no recognition session running.
+    try {
+      rec.start();
+      setIsListening(true);
+    } catch (err) {
+      console.warn("[voice] rec.start() threw:", err);
+      recognitionRef.current = null;
+      setChatToast({ message: "Could not start voice input. Please try again.", type: "error" });
+      return;
+    }
 
     // Auto-stop after max duration (V-1 setting)
     if (isFinite(durSecs) && durSecs > 0) {
       voiceAutoStopTimerRef.current = setTimeout(() => {
+        // Null ref before stop() so onend's restart guard evaluates false —
+        // the durSecs limit must end the session, not restart it.
+        recognitionRef.current = null;
         rec.stop();
         voiceAutoStopTimerRef.current = null;
+        // Notify the user when the duration limit ends the session, especially
+        // in handsfree mode where the stop is otherwise completely silent.
+        setChatToast({ message: `Voice session ended after ${durSecs}s. Tap the mic to continue.`, type: "info" });
       }, durSecs * 1000);
     }
   }

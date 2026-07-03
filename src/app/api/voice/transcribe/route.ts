@@ -35,11 +35,26 @@ export async function POST(req: NextRequest) {
     // Optional language hint (BCP-47 or ISO-639-1) — helps Whisper accuracy
     const lang = formData.get("lang");
 
+    // Whisper supported language codes (ISO-639-1). Sending an unsupported code
+    // causes a 400 from Whisper — omitting the param lets Whisper auto-detect instead.
+    // Odia ("or"), for example, is not in Whisper's list and would silently fail.
+    // Full Whisper v1 supported language set (ISO-639-1).
+    // bn/te/ml/gu/pa added — Whisper supports all five; previously missing, causing
+    // auto-detection that mislabels short Indic utterances as Hindi/Arabic.
+    // "or" (Odia) remains absent — not in Whisper's supported list.
+    const WHISPER_LANGS = new Set(["af","ar","hy","az","be","bs","bg","bn","ca","zh","hr","cs","da","nl","en","et","fi","fr","gl","gu","de","el","he","hi","hu","is","id","it","ja","kn","kk","ko","lv","lt","mk","ml","ms","mr","mi","ne","no","fa","pl","pt","pa","ro","ru","sr","sk","sl","es","sw","sv","tl","ta","te","th","tr","uk","ur","vi","cy"]);
+
     const whisperForm = new FormData();
+    // All mobile recordings are MPEG_4/AAC (.m4a) — Android LOW_QUALITY is
+    // overridden at record time to avoid THREE_GPP which Whisper does not accept.
     whisperForm.append("file", file, "voice.m4a");
     whisperForm.append("model", "whisper-1");
     if (lang && typeof lang === "string") {
-        whisperForm.append("language", lang.split("-")[0]); // whisper wants ISO-639-1
+        const code = lang.split("-")[0];
+        if (WHISPER_LANGS.has(code)) {
+            whisperForm.append("language", code); // whisper wants ISO-639-1
+        }
+        // else: unsupported code — omit language and let Whisper auto-detect
     }
 
     let whisperRes: Response;
@@ -64,6 +79,15 @@ export async function POST(req: NextRequest) {
     if (!whisperRes.ok) {
         const errText = await whisperRes.text().catch(() => "");
         console.error(`[voice/transcribe] Whisper ${whisperRes.status}:`, errText);
+        // Detect quota exhaustion so the client can show a clearer message
+        if (whisperRes.status === 429) {
+            try {
+                const errJson = JSON.parse(errText);
+                if (errJson?.error?.code === "insufficient_quota") {
+                    return NextResponse.json({ error: "quota_exceeded" }, { status: 503 });
+                }
+            } catch { /* not JSON — fall through */ }
+        }
         return NextResponse.json({ error: "Transcription failed" }, { status: 502 });
     }
 

@@ -222,7 +222,7 @@ async function notifyAdminPayout(data: {
     });
     await transporter.sendMail({
       from:    `"Imotara Alerts" <${gmailUser}>`,
-      to:      "publisher@imotara.com",
+      to:      "info@imotara.com",
       subject: `[Connect] Payout request — ${data.name}`,
       text: [
         `Consultant has requested a payout.`,

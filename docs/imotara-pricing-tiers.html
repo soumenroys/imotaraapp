@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Imotara — Pricing & Tiers</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --pink:   #FF6B9D;
+      --blue:   #4B9FE1;
+      --teal:   #38C9B9;
+      --gold:   #F5C842;
+      --purple: #9B6FE8;
+      --green:  #3DBE8A;
+      --orange: #FF8C42;
+      --navy:   #12274F;
+      --navy2:  #1E3A6E;
+      --slate:  #3D5580;
+      --light:  #F0F6FF;
+      --border: #D4E2F7;
+      --white:  #FFFFFF;
+      --gray:   #6B7EA4;
+    }
+
+    html, body {
+      width:210mm;
+      font-family:'Inter','Helvetica Neue',Arial,sans-serif;
+      background:var(--white);
+      color:var(--navy);
+      -webkit-print-color-adjust:exact;
+      print-color-adjust:exact;
+    }
+
+    .page {
+      width:210mm;
+      min-height:297mm;
+      display:flex;
+      flex-direction:column;
+      page-break-after:always;
+    }
+    .page:last-child { page-break-after:avoid; }
+
+    /* ── HEADER ── */
+    .header {
+      background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 55%,#1B4F8A 100%);
+      padding:20px 36px 18px;
+      display:flex; align-items:center; justify-content:space-between;
+      position:relative; overflow:hidden;
+    }
+    .header::before {
+      content:''; position:absolute; top:-60px; right:-40px;
+      width:200px; height:200px;
+      background:radial-gradient(circle,rgba(75,159,225,.18) 0%,transparent 70%);
+      border-radius:50%;
+    }
+    .header::after {
+      content:''; position:absolute; bottom:-50px; left:40%;
+      width:160px; height:160px;
+      background:radial-gradient(circle,rgba(255,107,157,.12) 0%,transparent 70%);
+      border-radius:50%;
+    }
+    .header-left { display:flex; align-items:center; gap:14px; z-index:1; }
+    .header-logo { height:54px; width:auto; }
+    .header-sub  { color:rgba(255,255,255,.65); font-size:10px; margin-top:2px; }
+    .header-badge {
+      z-index:1;
+      background:linear-gradient(135deg,var(--pink),var(--blue));
+      color:#fff; font-size:9px; font-weight:700;
+      letter-spacing:.9px; text-transform:uppercase;
+      padding:6px 14px; border-radius:20px;
+    }
+    .gradient-bar { height:4px; background:linear-gradient(to right,var(--pink),var(--gold),var(--teal),var(--blue)); }
+
+    /* ── BODY ── */
+    .body { padding:18px 36px 0; flex:1; }
+
+    /* ── SECTION HEADING ── */
+    .sec {
+      font-size:9px; font-weight:700; letter-spacing:1.8px;
+      text-transform:uppercase; color:var(--blue);
+      margin-bottom:12px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .sec::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* ── HERO ── */
+    .hero {
+      background:linear-gradient(135deg,#FFF0F6 0%,#EEF4FF 50%,#EAFAF7 100%);
+      border-bottom:1px solid var(--border);
+      padding:14px 36px;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .hero-title { font-size:16px; font-weight:900; color:var(--navy); line-height:1.25; }
+    .hero-title em { font-style:normal; background:linear-gradient(135deg,var(--pink),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .hero-sub { font-size:10px; color:var(--gray); margin-top:4px; }
+    .hero-right { display:flex; flex-direction:column; gap:5px; align-items:flex-end; }
+    .hero-pill {
+      background:var(--white); border:1px solid var(--border);
+      border-radius:20px; padding:5px 12px;
+      font-size:9px; font-weight:600; color:var(--navy);
+      display:flex; align-items:center; gap:6px;
+    }
+    .hero-pill .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+    /* ── LAUNCH OFFER BANNER ── */
+    .launch-banner {
+      background:linear-gradient(135deg,#FFF3CD,#FFEEBA);
+      border:1.5px solid #FFD700;
+      border-radius:10px;
+      padding:10px 16px;
+      display:flex; align-items:center; gap:12px;
+      margin-bottom:16px;
+    }
+    .launch-icon { font-size:22px; flex-shrink:0; }
+    .launch-title { font-size:11px; font-weight:800; color:#7B5C00; }
+    .launch-sub   { font-size:9.5px; color:#8A6C00; margin-top:2px; }
+    .launch-badge {
+      margin-left:auto; flex-shrink:0;
+      background:#FFD700; color:#7B5C00;
+      font-size:9px; font-weight:800;
+      padding:5px 12px; border-radius:16px;
+      text-transform:uppercase; letter-spacing:.5px;
+    }
+
+    /* ── PLAN CARDS ── */
+    .plans { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:14px; }
+    .plan-card {
+      border-radius:14px; padding:18px 16px 16px;
+      border:1.5px solid var(--border);
+      display:flex; flex-direction:column;
+      position:relative; overflow:hidden;
+    }
+    .plan-card.popular { border-color:var(--blue); box-shadow:0 0 0 3px rgba(75,159,225,.1); }
+    .plan-card.pro {
+      background:linear-gradient(145deg,var(--navy) 0%,var(--navy2) 100%);
+      border-color:transparent;
+    }
+    .popular-badge {
+      position:absolute; top:11px; right:-24px;
+      background:linear-gradient(135deg,var(--pink),var(--blue));
+      color:#fff; font-size:7.5px; font-weight:700;
+      letter-spacing:1px; text-transform:uppercase;
+      padding:4px 32px; transform:rotate(38deg);
+    }
+    .plan-icon { font-size:20px; margin-bottom:8px; }
+    .plan-name { font-size:13px; font-weight:800; color:var(--navy); margin-bottom:2px; }
+    .plan-card.pro .plan-name { color:#fff; }
+
+    /* Pricing block */
+    .price-block { margin-bottom:4px; }
+    .price-monthly { font-size:24px; font-weight:900; color:var(--navy); line-height:1; }
+    .price-monthly sup { font-size:13px; font-weight:600; vertical-align:super; }
+    .price-monthly sub { font-size:10px; font-weight:400; color:var(--gray); }
+    .plan-card.pro .price-monthly { color:#fff; }
+    .plan-card.pro .price-monthly sub { color:rgba(255,255,255,.55); }
+    .price-annual {
+      font-size:9px; color:var(--green); font-weight:600;
+      background:#EDFAF2; border-radius:8px;
+      padding:3px 8px; display:inline-block; margin-top:4px;
+    }
+    .plan-card.pro .price-annual { background:rgba(61,190,138,.15); color:#6FE8B5; }
+    .price-ios { font-size:8.5px; color:var(--gray); margin-top:2px; }
+    .plan-card.pro .price-ios { color:rgba(255,255,255,.4); }
+
+    .plan-tagline { font-size:9px; color:var(--gray); margin-bottom:12px; font-weight:500; }
+    .plan-card.pro .plan-tagline { color:rgba(255,255,255,.5); }
+    .plan-divider { height:1px; background:var(--border); margin-bottom:10px; }
+    .plan-card.pro .plan-divider { background:rgba(255,255,255,.15); }
+
+    .plan-features { list-style:none; display:flex; flex-direction:column; gap:5px; flex:1; }
+    .plan-features li { font-size:9.5px; color:var(--slate); display:flex; align-items:flex-start; gap:6px; line-height:1.4; }
+    .plan-card.pro .plan-features li { color:rgba(255,255,255,.8); }
+    .plan-features li .tk { color:var(--green); font-size:11px; flex-shrink:0; }
+    .plan-features li .lk { color:#CBD5E1; font-size:11px; flex-shrink:0; }
+    .plan-card.pro .plan-features li .tk { color:var(--gold); }
+
+    .plan-cta {
+      margin-top:12px; display:block; text-align:center;
+      font-size:10px; font-weight:700; padding:8px 0;
+      border-radius:20px;
+    }
+    .cta-free { background:var(--light); color:var(--navy); border:1px solid var(--border); }
+    .cta-plus { background:linear-gradient(135deg,var(--blue),var(--teal)); color:#fff; }
+    .cta-pro  { background:linear-gradient(135deg,var(--pink),var(--gold)); color:#fff; }
+
+    /* ── BILLING TOGGLE NOTE ── */
+    .billing-note {
+      text-align:center; font-size:9px; color:var(--gray);
+      margin-bottom:14px;
+    }
+    .billing-note strong { color:var(--green); }
+
+    /* ── VALUE STRIP ── */
+    .value-strip {
+      background:linear-gradient(135deg,var(--navy),var(--navy2));
+      border-radius:10px; padding:13px 20px;
+      display:flex; align-items:center; gap:18px; margin-bottom:14px;
+    }
+    .vs-left { flex:1; }
+    .vs-title { font-size:11px; font-weight:800; color:#fff; margin-bottom:3px; }
+    .vs-sub   { font-size:9.5px; color:rgba(255,255,255,.6); line-height:1.5; }
+    .vs-div   { width:1px; background:rgba(255,255,255,.15); align-self:stretch; }
+    .vs-stats { display:flex; gap:18px; }
+    .vs-stat  { text-align:center; }
+    .vs-num   { font-size:18px; font-weight:900; color:var(--gold); line-height:1; }
+    .vs-lbl   { font-size:8px; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
+
+    /* ── PAYMENT STRIP ── */
+    .pay-strip {
+      background:var(--light); border:1px solid var(--border);
+      border-radius:10px; padding:11px 16px;
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:14px;
+    }
+    .pay-title { font-size:10px; font-weight:700; color:var(--navy); margin-bottom:2px; }
+    .pay-sub   { font-size:9px; color:var(--slate); }
+    .pay-methods { display:flex; gap:7px; }
+    .pay-badge {
+      font-size:8.5px; font-weight:600; padding:5px 11px;
+      border-radius:16px; border:1px solid var(--border);
+      background:#fff; color:var(--navy);
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      background:var(--navy); padding:9px 36px;
+      display:flex; align-items:center; justify-content:space-between;
+      margin-top:auto;
+    }
+    .footer-left { display:flex; align-items:center; gap:10px; }
+    .footer-logo { height:20px; filter:brightness(0) invert(1); opacity:.8; }
+    .footer-copy { font-size:8.5px; color:rgba(255,255,255,.4); }
+    .footer-mid  { font-size:8.5px; color:rgba(255,255,255,.35); }
+    .footer-page { font-size:8.5px; color:rgba(255,255,255,.5); font-weight:600; }
+
+    /* ═══════════════════════════════ PAGE 2 STYLES ═══════════════════════════════ */
+
+    /* ── TOKEN HERO ── */
+    .token-hero {
+      background:linear-gradient(135deg,#F5F0FF,#EEF4FF,#EAFAF7);
+      border-bottom:1px solid var(--border);
+      padding:14px 36px;
+    }
+    .token-hero-title { font-size:15px; font-weight:900; color:var(--navy); }
+    .token-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--purple),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .token-hero-sub { font-size:10px; color:var(--gray); margin-top:4px; max-width:500px; line-height:1.5; }
+
+    /* ── TOKEN PACKS ── */
+    .token-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+    .token-card {
+      border:1.5px solid var(--border); border-radius:14px;
+      padding:16px 12px 14px; text-align:center;
+      background:var(--white); position:relative; overflow:hidden;
+    }
+    .token-card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; }
+    .tok-1::before { background:linear-gradient(to right,#94A3B8,#CBD5E1); }
+    .tok-2::before { background:linear-gradient(to right,var(--blue),var(--teal)); }
+    .tok-3::before { background:linear-gradient(to right,var(--purple),var(--pink)); }
+    .tok-4::before { background:linear-gradient(to right,var(--gold),var(--orange)); }
+
+    .token-price  { font-size:22px; font-weight:900; color:var(--navy); line-height:1; }
+    .token-tokens { font-size:14px; font-weight:800; color:var(--blue); margin:5px 0 2px; }
+    .token-sub    { font-size:9px; color:var(--gray); }
+    .token-rate   { margin-top:8px; font-size:9px; font-weight:600; background:var(--light); border-radius:8px; padding:4px 6px; color:var(--slate); }
+    .token-save   {
+      position:absolute; top:10px; right:8px;
+      font-size:7.5px; font-weight:700; text-transform:uppercase;
+      padding:2px 7px; border-radius:8px;
+    }
+    .best-value { background:#FFF3CD; color:#856404; }
+    .popular-tok { background:#EEF4FF; color:var(--navy2); }
+
+    /* ── WHEN TO USE ── */
+    .when-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+    .when-card {
+      border:1px solid var(--border); border-radius:10px;
+      padding:13px 15px; display:flex; gap:10px; align-items:flex-start;
+    }
+    .when-icon { font-size:20px; flex-shrink:0; }
+    .when-title { font-size:10.5px; font-weight:700; color:var(--navy); margin-bottom:4px; }
+    .when-body  { font-size:9.5px; color:var(--slate); line-height:1.5; }
+
+    /* ── TOKEN EXPLAINER TABLE ── */
+    .tok-table { width:100%; border-collapse:collapse; font-size:9.5px; margin-bottom:16px; }
+    .tok-table thead th { background:var(--navy); color:#fff; padding:7px 10px; font-size:9px; text-align:left; }
+    .tok-table thead th:first-child { border-radius:7px 0 0 0; }
+    .tok-table thead th:last-child  { border-radius:0 7px 0 0; }
+    .tok-table tbody td { padding:6px 10px; border-bottom:1px solid var(--border); color:var(--slate); }
+    .tok-table tbody tr:nth-child(even) td { background:var(--light); }
+    .tok-table tbody tr:last-child td { border-bottom:none; }
+
+    /* ── FEATURE MATRIX ── */
+    .matrix { width:100%; border-collapse:collapse; font-size:9.5px; margin-bottom:14px; }
+    .matrix thead th { background:var(--navy); color:#fff; padding:7px 10px; text-align:center; font-size:9px; }
+    .matrix thead th:first-child { text-align:left; border-radius:7px 0 0 0; min-width:130px; }
+    .matrix thead th:last-child  { border-radius:0 7px 0 0; }
+    .matrix thead .th-free  { background:#546B8F; }
+    .matrix thead .th-plus  { background:#2980C4; }
+    .matrix thead .th-pro   { background:linear-gradient(135deg,#C0446A,#2460A0); }
+    .matrix tbody td { padding:5px 10px; border-bottom:1px solid var(--border); text-align:center; }
+    .matrix tbody td:first-child { text-align:left; color:var(--slate); font-weight:500; }
+    .matrix tbody tr:nth-child(even) td { background:var(--light); }
+    .matrix tbody tr:last-child td { border-bottom:none; }
+    .matrix .cat-row td { background:var(--navy) !important; color:rgba(255,255,255,.65); font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px; padding:5px 10px; }
+    .chk { color:var(--green); font-size:12px; font-weight:700; }
+    .crs { color:#CBD5E1; font-size:12px; }
+    .lim { color:var(--gold); font-size:9.5px; font-weight:600; }
+
+    /* ═══════════════════════════════ PAGE 3 STYLES ═══════════════════════════════ */
+
+    /* ── ORG HERO ── */
+    .org-hero {
+      background:linear-gradient(135deg,#FFF0F6 0%,#EEF4FF 50%,#EAFAF7 100%);
+      border-bottom:1px solid var(--border);
+      padding:14px 36px;
+    }
+    .org-hero-title { font-size:16px; font-weight:900; color:var(--navy); line-height:1.25; }
+    .org-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--teal),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .org-hero-sub { font-size:10px; color:var(--gray); margin-top:4px; }
+
+    /* ── ORG CARDS ── */
+    .org-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+    .org-card {
+      border-radius:14px; padding:18px 18px 16px;
+      border:1.5px solid var(--border);
+      display:flex; flex-direction:column; position:relative; overflow:hidden;
+    }
+    .org-card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; }
+    .org-corp::before   { background:linear-gradient(to right,var(--blue),var(--teal)); }
+    .org-ngo::before    { background:linear-gradient(to right,var(--green),var(--teal)); }
+    .org-edu::before    { background:linear-gradient(to right,var(--purple),var(--blue)); }
+    .org-govt::before   { background:linear-gradient(to right,var(--gold),var(--orange)); }
+
+    .org-icon { font-size:22px; margin-bottom:8px; }
+    .org-type {
+      display:inline-block; font-size:8px; font-weight:700;
+      letter-spacing:1px; text-transform:uppercase;
+      padding:3px 10px; border-radius:10px; margin-bottom:8px;
+    }
+    .badge-corp { background:#EEF4FF; color:var(--navy2); }
+    .badge-ngo  { background:#EDFAF2; color:#1B6B44; }
+    .badge-edu  { background:#F5F0FF; color:#5C3D9E; }
+    .badge-govt { background:#FFF8E1; color:#7B5C00; }
+
+    .org-name    { font-size:13px; font-weight:800; color:var(--navy); margin-bottom:4px; }
+    .org-desc    { font-size:9.5px; color:var(--gray); line-height:1.5; margin-bottom:12px; }
+    .org-pricing { background:var(--light); border-radius:8px; padding:10px 12px; margin-bottom:12px; }
+    .org-pricing-label  { font-size:8.5px; color:var(--gray); text-transform:uppercase; letter-spacing:.5px; font-weight:600; }
+    .org-pricing-value  { font-size:16px; font-weight:900; color:var(--navy); margin-top:2px; line-height:1; }
+    .org-pricing-value sub { font-size:9px; font-weight:400; color:var(--gray); }
+    .org-pricing-note   { font-size:8.5px; color:var(--slate); margin-top:3px; }
+
+    .org-features { list-style:none; display:flex; flex-direction:column; gap:5px; flex:1; }
+    .org-features li { font-size:9.5px; color:var(--slate); display:flex; align-items:flex-start; gap:7px; line-height:1.4; }
+    .org-features li .tk { color:var(--green); font-size:11px; flex-shrink:0; }
+
+    .org-cta {
+      margin-top:12px; display:block; text-align:center;
+      font-size:9.5px; font-weight:700; padding:8px 0;
+      border-radius:20px; border:1.5px solid var(--border);
+      background:var(--white); color:var(--navy);
+    }
+    .org-cta-primary {
+      background:linear-gradient(135deg,var(--blue),var(--teal));
+      color:#fff; border:none;
+    }
+
+    /* ── SEAT PRICING TABLE ── */
+    .seat-table { width:100%; border-collapse:collapse; font-size:9.5px; margin-bottom:16px; }
+    .seat-table thead th { background:var(--navy); color:#fff; padding:7px 12px; text-align:center; font-size:9px; }
+    .seat-table thead th:first-child { text-align:left; border-radius:7px 0 0 0; }
+    .seat-table thead th:last-child  { border-radius:0 7px 0 0; }
+    .seat-table tbody td { padding:7px 12px; border-bottom:1px solid var(--border); text-align:center; color:var(--slate); }
+    .seat-table tbody td:first-child { text-align:left; font-weight:600; color:var(--navy); }
+    .seat-table tbody tr:nth-child(even) td { background:var(--light); }
+    .seat-table tbody tr:last-child td { border-bottom:none; }
+
+    /* ── NGO PROOF STRIP ── */
+    .ngo-strip {
+      background:linear-gradient(135deg,#EDFAF2,#EAF4FF);
+      border:1.5px solid #B8EDE3;
+      border-radius:10px; padding:12px 16px; margin-bottom:16px;
+      display:flex; gap:14px; align-items:flex-start;
+    }
+    .ngo-strip-icon { font-size:24px; flex-shrink:0; }
+    .ngo-strip-title { font-size:10.5px; font-weight:700; color:var(--navy); margin-bottom:4px; }
+    .ngo-strip-body  { font-size:9.5px; color:var(--slate); line-height:1.55; }
+
+    /* ── FAQ GRID ── */
+    .faq-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+    .faq-card { border:1px solid var(--border); border-radius:10px; padding:11px 13px; background:var(--light); }
+    .faq-q { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:4px; display:flex; gap:6px; }
+    .faq-q span { color:var(--blue); flex-shrink:0; }
+    .faq-a { font-size:9px; color:var(--slate); line-height:1.55; }
+
+    /* ── CONTACT CARD ── */
+    .contact-card {
+      background:linear-gradient(135deg,var(--navy),var(--navy2));
+      border-radius:12px; padding:16px 22px;
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:14px;
+    }
+    .contact-title { font-size:12px; font-weight:800; color:#fff; margin-bottom:3px; }
+    .contact-sub   { font-size:9.5px; color:rgba(255,255,255,.6); line-height:1.5; }
+    .contact-detail { text-align:right; }
+    .contact-email { font-size:11px; font-weight:700; color:var(--gold); }
+    .contact-note  { font-size:9px; color:rgba(255,255,255,.5); margin-top:3px; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════  PAGE 1: Individual Plans  ══════════════════════════════ -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Pricing &amp; Tiers — Complete Guide</div></div>
+    </div>
+    <div class="header-badge">Confidential · June 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="hero">
+    <div>
+      <div class="hero-title">Simple, honest pricing.<br/><em>No hidden fees. No data traps.</em></div>
+      <div class="hero-sub">Start free forever — upgrade only when Imotara becomes indispensable to you.</div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-pill"><span class="dot" style="background:var(--gold)"></span> Annual plans save up to 26%</div>
+      <div class="hero-pill"><span class="dot" style="background:var(--green)"></span> Tokens never expire</div>
+      <div class="hero-pill"><span class="dot" style="background:var(--blue)"></span> Org &amp; NGO pricing available</div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- LAUNCH OFFER BANNER -->
+    <div class="launch-banner">
+      <div class="launch-icon">🎉</div>
+      <div>
+        <div class="launch-title">Early Adopter Offer — Plus free for 90 days</div>
+        <div class="launch-sub">All users who install Imotara before 1 July 2026 receive Plus tier at no charge for 90 days. No credit card required.</div>
+      </div>
+      <div class="launch-badge">Limited Time</div>
+    </div>
+
+    <!-- PLAN CARDS -->
+    <div class="sec">Individual plans</div>
+    <div class="plans">
+
+      <!-- FREE -->
+      <div class="plan-card">
+        <div class="plan-icon">🌱</div>
+        <div class="plan-name">Free</div>
+        <div class="price-block">
+          <div class="price-monthly">₹<span style="font-size:26px;">0</span></div>
+          <div style="font-size:9px; color:var(--gray); margin-top:2px;">Forever free · No card needed</div>
+        </div>
+        <div class="plan-tagline" style="margin-top:6px;">Try Imotara risk-free, every day</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><span class="tk">✓</span> 20 AI cloud messages / day</li>
+          <li><span class="tk">✓</span> Offline AI (mobile, all languages)</li>
+          <li><span class="tk">✓</span> Mood check-in · 8 emotions</li>
+          <li><span class="tk">✓</span> Companion persona setup</li>
+          <li><span class="tk">✓</span> 22 languages + voice input</li>
+          <li><span class="tk">✓</span> 7-day chat history</li>
+          <li><span class="lk">○</span> <span style="color:#aaa;font-size:9px;">Unlimited messages</span></li>
+          <li><span class="lk">○</span> <span style="color:#aaa;font-size:9px;">Monthly companion letter</span></li>
+          <li><span class="lk">○</span> <span style="color:#aaa;font-size:9px;">Cross-device sync</span></li>
+        </ul>
+        <span class="plan-cta cta-free">Get Started — Free</span>
+      </div>
+
+      <!-- PLUS -->
+      <div class="plan-card popular">
+        <div class="popular-badge">Most Popular</div>
+        <div class="plan-icon">⭐</div>
+        <div class="plan-name">Plus</div>
+        <div class="price-block">
+          <div class="price-monthly"><sup>₹</sup>79<sub>/month</sub></div>
+          <div class="price-annual">💚 Or ₹699/year — save ₹249</div>
+          <div class="price-ios">iOS: ₹99/month via App Store</div>
+        </div>
+        <div class="plan-tagline" style="margin-top:4px;">Unlimited support, every day</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><span class="tk">✓</span> <strong>Unlimited</strong> AI cloud messages</li>
+          <li><span class="tk">✓</span> Offline AI fallback (mobile)</li>
+          <li><span class="tk">✓</span> Mood timeline · 30-day charts</li>
+          <li><span class="tk">✓</span> 90-day chat history</li>
+          <li><span class="tk">✓</span> Monthly companion letter</li>
+          <li><span class="tk">✓</span> Neural TTS (Indian voices)</li>
+          <li><span class="tk">✓</span> Cross-device sync</li>
+          <li><span class="tk">✓</span> Future letters · Daily reminders</li>
+          <li><span class="lk">○</span> <span style="color:#aaa;font-size:9px;">Unlimited full history</span></li>
+        </ul>
+        <span class="plan-cta cta-plus">Start Plus — ₹79/mo</span>
+      </div>
+
+      <!-- PRO -->
+      <div class="plan-card pro">
+        <div class="plan-icon">🔥</div>
+        <div class="plan-name">Pro</div>
+        <div class="price-block">
+          <div class="price-monthly"><sup>₹</sup>149<sub>/month</sub></div>
+          <div class="price-annual" style="background:rgba(61,190,138,.15); color:#6FE8B5;">💚 Or ₹1,199/year — save ₹589</div>
+          <div class="price-ios">iOS annual: ₹1,299/year via App Store</div>
+        </div>
+        <div class="plan-tagline" style="margin-top:4px;">Your complete wellness record</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><span class="tk">✓</span> <strong>Unlimited</strong> AI cloud messages</li>
+          <li><span class="tk">✓</span> Offline AI fallback (mobile)</li>
+          <li><span class="tk">✓</span> Mood timeline · Full history charts</li>
+          <li><span class="tk">✓</span> <strong>Unlimited</strong> chat history</li>
+          <li><span class="tk">✓</span> Monthly companion letter</li>
+          <li><span class="tk">✓</span> Neural TTS · Data export (JSON/CSV)</li>
+          <li><span class="tk">✓</span> Cross-device sync + companion memory</li>
+          <li><span class="tk">✓</span> On This Day · Future letters</li>
+          <li><span class="tk">✓</span> Priority AI response speed</li>
+        </ul>
+        <span class="plan-cta cta-pro">Go Pro — ₹149/mo</span>
+      </div>
+
+    </div>
+
+    <div class="billing-note">
+      Monthly plans cancel anytime · Annual plans billed once, 26% cheaper · <strong>All plans include offline AI at no extra cost</strong>
+    </div>
+
+    <!-- VALUE STRIP -->
+    <div class="value-strip">
+      <div class="vs-left">
+        <div class="vs-title">Why ₹79/month is the smartest spend for your mental health</div>
+        <div class="vs-sub">One therapy session in India costs ₹1,500–₹3,000. Imotara Plus gives you unlimited, 24/7 judgment-free support for less than a cup of coffee a week.</div>
+      </div>
+      <div class="vs-div"></div>
+      <div class="vs-stats">
+        <div class="vs-stat"><div class="vs-num">₹79</div><div class="vs-lbl">Imotara Plus/mo</div></div>
+        <div class="vs-stat"><div class="vs-num">₹1,500+</div><div class="vs-lbl">1 therapy session</div></div>
+        <div class="vs-stat"><div class="vs-num">5%</div><div class="vs-lbl">of therapy cost</div></div>
+      </div>
+    </div>
+
+    <!-- PAYMENT METHODS -->
+    <div class="pay-strip">
+      <div>
+        <div class="pay-title">Secure payment methods</div>
+        <div class="pay-sub">Encrypted · Imotara never stores your card details</div>
+      </div>
+      <div class="pay-methods">
+        <span class="pay-badge">🇮🇳 Razorpay — UPI · Cards · Net Banking</span>
+        <span class="pay-badge"> Apple In-App Purchase (iOS)</span>
+        <span class="pay-badge">Google Play Billing (Android)</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Pricing &amp; Tiers</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; soumenroys@gmail.com</div>
+    <div class="footer-page">Page 1 of 3</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════  PAGE 2: Token Top-Ups + Feature Matrix  ══════════════════════════════ -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Token Top-Ups &amp; Full Feature Matrix</div></div>
+    </div>
+    <div class="header-badge">Confidential · June 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="token-hero">
+    <div class="token-hero-title">Token Top-Ups — <em>Pay only for what you use</em></div>
+    <div class="token-hero-sub">Tokens are one-time credits that never expire. Use them as a flexible top-up on the Free plan, or as a safety net on Plus/Pro. No subscription commitment required.</div>
+  </div>
+
+  <div class="body">
+
+    <!-- TOKEN PACKS -->
+    <div class="sec" style="margin-top:2px;">Token recharge packs</div>
+    <div class="token-grid">
+      <div class="token-card tok-1">
+        <div class="token-price">₹49</div>
+        <div class="token-tokens">100 Tokens</div>
+        <div class="token-sub">Starter recharge</div>
+        <div class="token-rate">₹0.49 per message</div>
+      </div>
+      <div class="token-card tok-2">
+        <div class="token-save popular-tok">Popular</div>
+        <div class="token-price">₹99</div>
+        <div class="token-tokens">250 Tokens</div>
+        <div class="token-sub">Great for occasional use</div>
+        <div class="token-rate">₹0.40 per message</div>
+      </div>
+      <div class="token-card tok-3">
+        <div class="token-price">₹199</div>
+        <div class="token-tokens">600 Tokens</div>
+        <div class="token-sub">Regular top-up</div>
+        <div class="token-rate">₹0.33 per message</div>
+      </div>
+      <div class="token-card tok-4">
+        <div class="token-save best-value">Best Value</div>
+        <div class="token-price">₹499</div>
+        <div class="token-tokens">1,800 Tokens</div>
+        <div class="token-sub">Power user pack</div>
+        <div class="token-rate">₹0.28 per message</div>
+      </div>
+    </div>
+
+    <!-- HOW TOKENS WORK TABLE -->
+    <div class="sec">How tokens work across plans</div>
+    <table class="tok-table">
+      <thead>
+        <tr>
+          <th>Scenario</th>
+          <th>Free Plan</th>
+          <th>Plus / Pro Plan</th>
+          <th>Tokens Needed?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Regular daily chat (under 20 messages)</td>
+          <td>✓ Free cloud AI</td>
+          <td>✓ Always included</td>
+          <td style="color:var(--green); font-weight:700;">No</td>
+        </tr>
+        <tr>
+          <td>Heavy usage day (20+ messages)</td>
+          <td>Falls back to offline AI → token deducted for each cloud message over limit</td>
+          <td>Unlimited — no tokens needed ever</td>
+          <td style="color:var(--gold); font-weight:700;">Free: Yes · Plus/Pro: No</td>
+        </tr>
+        <tr>
+          <td>Offline AI replies</td>
+          <td>Always free, no tokens used</td>
+          <td>Always free, no tokens used</td>
+          <td style="color:var(--green); font-weight:700;">Never</td>
+        </tr>
+        <tr>
+          <td>No subscription, occasional use</td>
+          <td>Buy tokens → use as needed, no monthly commitment</td>
+          <td>N/A</td>
+          <td style="color:var(--blue); font-weight:700;">Yes — pay-as-you-go</td>
+        </tr>
+        <tr>
+          <td>Token balance at 0 (Free)</td>
+          <td>Imotara falls back to offline AI — never hard blocks mid-conversation</td>
+          <td>N/A — always has cloud access</td>
+          <td style="color:var(--slate);">Optional refill</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- WHEN TO USE TOKENS VS SUBSCRIPTION -->
+    <div class="sec">When to choose tokens vs subscription</div>
+    <div class="when-grid" style="margin-bottom:16px;">
+      <div class="when-card">
+        <div class="when-icon">🪙</div>
+        <div>
+          <div class="when-title">Choose Tokens if…</div>
+          <div class="when-body">You use Imotara occasionally (a few days per week), don't want a recurring charge, or want to try cloud AI beyond the 20/day free limit without committing to a subscription. Tokens give full flexibility — spend only when you choose to.</div>
+        </div>
+      </div>
+      <div class="when-card">
+        <div class="when-icon">📅</div>
+        <div>
+          <div class="when-title">Choose Plus / Pro if…</div>
+          <div class="when-body">You chat with Imotara daily, want companion letters, full history, and cross-device sync without worrying about limits. At 20+ messages per week, Plus at ₹79/mo is far cheaper than buying equivalent tokens (250 tokens = ₹99, barely 12 days of heavy use).</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURE MATRIX -->
+    <div class="sec">Full feature matrix — Free vs Plus vs Pro</div>
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th class="th-free">Free</th>
+          <th class="th-plus">Plus ₹79/mo</th>
+          <th class="th-pro">Pro ₹149/mo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="cat-row"><td colspan="4">AI &amp; Messaging</td></tr>
+        <tr><td>AI cloud messages</td><td><span class="lim">20/day</span></td><td><span class="chk">✓ Unlimited</span></td><td><span class="chk">✓ Unlimited</span></td></tr>
+        <tr><td>Offline AI fallback (mobile, all 22 langs)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Streaming replies (web)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Voice input (speech → text)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>TTS — AI reads replies aloud</td><td><span class="lim">Basic</span></td><td><span class="chk">✓ Neural</span></td><td><span class="chk">✓ Neural</span></td></tr>
+        <tr><td>22 languages + gendered Indic grammar</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr class="cat-row"><td colspan="4">Personalisation</td></tr>
+        <tr><td>Companion persona (name, tone, vibe)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Companion memory (remembers facts)</td><td><span class="lim">Basic</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓ Full</span></td></tr>
+        <tr><td>Cultural content (mythology, wisdom)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr class="cat-row"><td colspan="4">History &amp; Data</td></tr>
+        <tr><td>Chat history retention</td><td><span class="lim">7 days</span></td><td><span class="lim">90 days</span></td><td><span class="chk">✓ Unlimited</span></td></tr>
+        <tr><td>Conversation threads</td><td><span class="lim">3 threads</span></td><td><span class="chk">✓ Unlimited</span></td><td><span class="chk">✓ Unlimited</span></td></tr>
+        <tr><td>Data export (JSON / CSV)</td><td><span class="crs">—</span></td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Cross-device profile sync</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr class="cat-row"><td colspan="4">Wellness Features</td></tr>
+        <tr><td>Mood check-in (8 emotions)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Emotion timeline + charts</td><td><span class="lim">7 days</span></td><td><span class="chk">✓ 30 days</span></td><td><span class="chk">✓ Full</span></td></tr>
+        <tr><td>Monthly companion letter</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Future letters (write to future self)</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>On This Day (past journal recall)</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Daily streak + breathing modal (mobile)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Token top-ups (add-on credits)</td><td><span class="chk">✓ Available</span></td><td><span class="chk">✓ Available</span></td><td><span class="chk">✓ Available</span></td></tr>
+      </tbody>
+    </table>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Pricing &amp; Tiers</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; soumenroys@gmail.com</div>
+    <div class="footer-page">Page 2 of 3</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════  PAGE 3: Corporate, NGO, EDU, Govt  ══════════════════════════════ -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Organisation, Corporate, NGO &amp; Government Pricing</div></div>
+    </div>
+    <div class="header-badge">Confidential · June 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="org-hero">
+    <div class="org-hero-title">Imotara for <em>Organisations</em></div>
+    <div class="org-hero-sub">Bulk licensing for corporates, NGOs, educational institutions, and government bodies — all with the same full feature set, admin dashboards, and anonymised analytics for impact reporting.</div>
+  </div>
+
+  <div class="body">
+
+    <!-- ORG PLAN CARDS -->
+    <div class="sec" style="margin-top:4px;">Organisation licensing plans</div>
+    <div class="org-grid">
+
+      <!-- CORPORATE -->
+      <div class="org-card org-corp">
+        <div class="org-icon">🏢</div>
+        <span class="org-type badge-corp">Corporate / Enterprise</span>
+        <div class="org-name">Corporate Wellness</div>
+        <div class="org-desc">For companies and startups investing in employee emotional wellbeing. Includes full admin dashboard, HR analytics, and bulk onboarding.</div>
+        <div class="org-pricing">
+          <div class="org-pricing-label">Pricing model</div>
+          <div class="org-pricing-value">Custom<sub> per seat / year</sub></div>
+          <div class="org-pricing-note">Contact sales for a tailored quote · Minimum 10 seats</div>
+        </div>
+        <ul class="org-features">
+          <li><span class="tk">✓</span> All Pro features for every member</li>
+          <li><span class="tk">✓</span> Org admin dashboard + member management</li>
+          <li><span class="tk">✓</span> Bulk CSV invite + seat tracking</li>
+          <li><span class="tk">✓</span> Anonymised wellness analytics (no individual data)</li>
+          <li><span class="tk">✓</span> Branded welcome experience</li>
+          <li><span class="tk">✓</span> Dedicated account support</li>
+        </ul>
+        <span class="plan-cta org-cta org-cta-primary">Contact Sales</span>
+      </div>
+
+      <!-- NGO -->
+      <div class="org-card org-ngo">
+        <div class="org-icon">🤝</div>
+        <span class="org-type badge-ngo">NGO / Non-Profit</span>
+        <div class="org-name">Community Impact</div>
+        <div class="org-desc">For registered NGOs and non-profits focused on mental health, education, women's welfare, or community resilience. Same features as Corporate — subsidised pricing.</div>
+        <div class="org-pricing">
+          <div class="org-pricing-label">Subsidised pricing</div>
+          <div class="org-pricing-value">50–80%<sub> off corporate rates</sub></div>
+          <div class="org-pricing-note">500 / 1,000 / 5,000 seat packs · NGO registration required</div>
+        </div>
+        <ul class="org-features">
+          <li><span class="tk">✓</span> All Pro features for every beneficiary</li>
+          <li><span class="tk">✓</span> Org admin dashboard + member management</li>
+          <li><span class="tk">✓</span> Bulk CSV invite + seat tracking</li>
+          <li><span class="tk">✓</span> Impact analytics PDF export (for grant reports)</li>
+          <li><span class="tk">✓</span> "Emotionally Healthy Community" milestone badge</li>
+          <li><span class="tk">✓</span> Revenue-sharing referral programme (10%)</li>
+        </ul>
+        <span class="plan-cta org-cta" style="border-color:#B8EDE3; color:#1B6B44;">Contact for NGO Pricing</span>
+      </div>
+
+      <!-- EDU -->
+      <div class="org-card org-edu">
+        <div class="org-icon">🎓</div>
+        <span class="org-type badge-edu">Educational Institution</span>
+        <div class="org-name">Campus Wellness</div>
+        <div class="org-desc">For schools, colleges, and universities looking to provide students with a private, always-available emotional support companion. Academic pricing applies.</div>
+        <div class="org-pricing">
+          <div class="org-pricing-label">Academic pricing</div>
+          <div class="org-pricing-value">Per seat<sub> / academic year</sub></div>
+          <div class="org-pricing-note">Annual billing · Proof of institution required · Min 50 seats</div>
+        </div>
+        <ul class="org-features">
+          <li><span class="tk">✓</span> All Plus features for every student</li>
+          <li><span class="tk">✓</span> Org admin dashboard + student management</li>
+          <li><span class="tk">✓</span> Bulk invite via student email domain</li>
+          <li><span class="tk">✓</span> Anonymised engagement analytics</li>
+          <li><span class="tk">✓</span> Counsellor awareness dashboard (aggregate only)</li>
+          <li><span class="tk">✓</span> Age-adaptive tone (teens, young adults)</li>
+        </ul>
+        <span class="plan-cta org-cta" style="border-color:#C9BCFF; color:#5C3D9E;">Contact for EDU Pricing</span>
+      </div>
+
+      <!-- GOVT -->
+      <div class="org-card org-govt">
+        <div class="org-icon">🏛️</div>
+        <span class="org-type badge-govt">Government / Public Sector</span>
+        <div class="org-name">Public Wellness Initiative</div>
+        <div class="org-desc">For state / central government departments, health ministries, and public sector undertakings seeking to provide emotional support at scale for employees or citizens.</div>
+        <div class="org-pricing">
+          <div class="org-pricing-label">Engagement model</div>
+          <div class="org-pricing-value">MoU / Tender<sub> based</sub></div>
+          <div class="org-pricing-note">Flexible deployment · Bulk pricing · Data residency options available</div>
+        </div>
+        <ul class="org-features">
+          <li><span class="tk">✓</span> All Pro features included</li>
+          <li><span class="tk">✓</span> Full admin + analytics dashboard</li>
+          <li><span class="tk">✓</span> Custom deployment and onboarding</li>
+          <li><span class="tk">✓</span> DPDP Act compliance support</li>
+          <li><span class="tk">✓</span> Hindi + regional language priority</li>
+          <li><span class="tk">✓</span> Impact reporting for policy use</li>
+        </ul>
+        <span class="plan-cta org-cta" style="border-color:#FFE082; color:#7B5C00;">Contact for Govt Engagement</span>
+      </div>
+
+    </div>
+
+    <!-- SEAT PRICING COMPARISON -->
+    <div class="sec">Indicative seat pricing (all tiers — final quote on request)</div>
+    <table class="seat-table">
+      <thead>
+        <tr>
+          <th>Segment</th>
+          <th>Billing Type</th>
+          <th>Seat Packs Available</th>
+          <th>Pricing Model</th>
+          <th>Discount vs Individual Pro</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Corporate / Enterprise</td>
+          <td>Commercial</td>
+          <td>10 · 50 · 100 · 250 · 500+</td>
+          <td>Per-seat annual contract</td>
+          <td style="color:var(--blue); font-weight:700;">Custom — contact sales</td>
+        </tr>
+        <tr>
+          <td>NGO / Non-Profit</td>
+          <td>NGO (subsidised)</td>
+          <td>500 · 1,000 · 5,000</td>
+          <td>Annual bulk rate</td>
+          <td style="color:var(--green); font-weight:700;">50–80% off</td>
+        </tr>
+        <tr>
+          <td>Educational Institution</td>
+          <td>EDU (academic)</td>
+          <td>50 · 100 · 500 · Full campus</td>
+          <td>Per-seat academic year</td>
+          <td style="color:var(--purple); font-weight:700;">Academic rate — contact</td>
+        </tr>
+        <tr>
+          <td>Government / PSU</td>
+          <td>Govt</td>
+          <td>Custom</td>
+          <td>MoU / Tender / Project</td>
+          <td style="color:var(--gold); font-weight:700;">Negotiated</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- NGO PROOF STRIP -->
+    <div class="ngo-strip">
+      <div class="ngo-strip-icon">💚</div>
+      <div>
+        <div class="ngo-strip-title">Why Imotara offers subsidised pricing for NGOs</div>
+        <div class="ngo-strip-body">
+          Mental health support reaches the people who need it most through NGOs — domestic violence survivors, rural youth, marginalised communities. Imotara's 11 Indian languages and offline AI capability make it uniquely suitable for outreach in underserved communities. NGOs with active programmes can apply for 50–80% subsidised pricing. Verified registration required. <strong>Contact soumenroys@gmail.com with your organisation details and beneficiary count.</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- ORG FAQs -->
+    <div class="sec">Organisation FAQ</div>
+    <div class="faq-grid">
+      <div class="faq-card">
+        <div class="faq-q"><span>Q</span> What features do org members get?</div>
+        <div class="faq-a">All org members receive Pro-tier features (or Plus for EDU). They see an org tier badge in their Settings but otherwise use Imotara identically to a personal subscriber. Individual emotional data is never visible to org admins.</div>
+      </div>
+      <div class="faq-card">
+        <div class="faq-q"><span>Q</span> Can admins see what employees talk about?</div>
+        <div class="faq-a">Never. Org admins see only anonymised aggregate data — WAU trends, check-in rates, emotional themes at population level. No individual conversation, message, or identity is exposed to the organisation.</div>
+      </div>
+      <div class="faq-card">
+        <div class="faq-q"><span>Q</span> What happens if a member already has a personal plan?</div>
+        <div class="faq-a">Their personal license is never downgraded. If the org tier is lower, the personal plan takes precedence. If the org tier is higher, they enjoy the org's features while membership is active.</div>
+      </div>
+      <div class="faq-card">
+        <div class="faq-q"><span>Q</span> How do we onboard members?</div>
+        <div class="faq-a">Via the org admin dashboard at imotara.com/org/dashboard — invite by email or upload a CSV. Members receive an invite link; on acceptance, their Imotara account is automatically provisioned with the org's tier.</div>
+      </div>
+    </div>
+
+    <!-- CONTACT CARD -->
+    <div class="contact-card">
+      <div>
+        <div class="contact-title">Ready to bring Imotara to your organisation?</div>
+        <div class="contact-sub">We'll set up a call, understand your headcount and goals,<br/>and send you a custom quote within 48 hours.</div>
+      </div>
+      <div class="contact-detail">
+        <div class="contact-email">soumenroys@gmail.com</div>
+        <div class="contact-note">imotara.com &nbsp;·&nbsp; Response within 48 hours</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Pricing &amp; Tiers</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; soumenroys@gmail.com</div>
+    <div class="footer-page">Page 3 of 3</div>
+  </div>
+</div>
+
+</body>
+</html>

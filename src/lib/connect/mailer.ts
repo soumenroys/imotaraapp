@@ -11,7 +11,7 @@ const FROM_LABEL     = `"Imotara Connect" <${FROM_USER}>`;
 const SUPPORT        = "support@imotara.com";
 const CONNECT_URL    = "https://imotara.com/connect";
 // Internal address that receives platform revenue notifications after every session.
-const PLATFORM_EMAIL = process.env.CONNECT_PLATFORM_EMAIL ?? "publisher@imotara.com";
+const PLATFORM_EMAIL = process.env.CONNECT_PLATFORM_EMAIL ?? "info@imotara.com";
 
 function makeTransporter() {
   if (!FROM_USER || !FROM_PASS) return null;
@@ -280,7 +280,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1
 
 /**
  * Internal platform revenue notification to Imotara after every session completion.
- * Recipient: CONNECT_PLATFORM_EMAIL env var (default: publisher@imotara.com).
+ * Recipient: CONNECT_PLATFORM_EMAIL env var (default: info@imotara.com).
  * Shows the full 3-way split so the team has a complete audit trail per session.
  */
 export async function sendPlatformRevenueEmail(data: {

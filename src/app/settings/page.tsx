@@ -171,6 +171,31 @@ function previewGenderFile(gender: string): "male" | "female" {
     return gender === "male" ? "male" : "female";
 }
 
+// Tracks the single currently-playing preview <audio> so the two preview
+// buttons (Personal Info / Companion) can never sound at once.
+let _previewAudio: HTMLAudioElement | null = null;
+
+// Gender-correct name-tail spoken after a non-English preview. Entirely
+// native/offline (no network, no login) — picks a gender-matched browser
+// voice the same way the English branch below does.
+function speakNameTail(effectiveName: string, gender: string) {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const synth = window.speechSynthesis;
+    const voices = synth.getVoices();
+    const pool = voices.filter(v => v.lang === "en-US" || v.lang.startsWith("en-") || v.lang === "en");
+    const src = pool.length > 0 ? pool : voices;
+    const isFemV = (v: SpeechSynthesisVoice) => FEMALE_PAT.test(v.name.toLowerCase());
+    const isMaleV = (v: SpeechSynthesisVoice) => MALE_PAT.test(v.name.toLowerCase());
+    const voice = gender === "male"
+        ? (src.find(isMaleV) ?? src.find(v => !isFemV(v)) ?? src[0])
+        : (src.find(isFemV) ?? src.find(v => !isMaleV(v)) ?? src[0]);
+    const nameUtt = new SpeechSynthesisUtterance(`I'm ${effectiveName}.`);
+    nameUtt.lang = "en-US";
+    nameUtt.rate = 0.95;
+    if (voice) nameUtt.voice = voice;
+    synth.speak(nameUtt);
+}
+
 // Localised preview sentences — one per supported language
 const PREVIEW_TEXT_BY_LANG: Record<string, string> = {
     en: "Hi, I'm Imotara. I'm here with you.",
@@ -206,6 +231,10 @@ function speakPreview(gender: string, lang: string, name?: string, onResult?: (i
     const voiceSnapshot = synth.getVoices();
 
     synth.cancel();
+    if (_previewAudio) {
+        _previewAudio.pause();
+        _previewAudio = null;
+    }
     const bcp47 = LANG_TO_BCP47_SETTINGS[lang] ?? "en-US";
 
     const doSpeak = () => {
@@ -224,23 +253,19 @@ function speakPreview(gender: string, lang: string, name?: string, onResult?: (i
         const effectiveName = name?.trim() || "Imotara";
         const hasCustomName = effectiveName !== "Imotara";
 
-        // Non-English: always use pre-generated Azure MP3s for accurate language
-        // and gender-specific voice. Then play a short English name greeting after.
+        // Non-English: always use pre-generated, bundled Azure MP3s for
+        // accurate language + gender — no network/login required. Then, if a
+        // custom name is set, play a short gender-matched English name tail.
         if (lang !== "en") {
             const genderFile = previewGenderFile(gender);
             const src = `/tts-preview/${lang}-${genderFile}.mp3`;
             onResult?.(`Azure Neural (${lang}-${genderFile})`, false);
             const audio = new Audio(src);
             audio.playbackRate = 0.95;
+            _previewAudio = audio;
             if (hasCustomName) {
-                // After the language MP3 finishes, speak the name in English
-                audio.onended = () => {
-                    const synth2 = window.speechSynthesis;
-                    const nameUtt = new SpeechSynthesisUtterance(`I'm ${effectiveName}.`);
-                    nameUtt.lang  = "en-US";
-                    nameUtt.rate  = 0.95;
-                    synth2.speak(nameUtt);
-                };
+                // After the language MP3 finishes, speak the name in a gender-matched voice
+                audio.onended = () => { speakNameTail(effectiveName, gender); };
             }
             audio.play().catch(err => console.warn("[speakPreview] audio play failed:", err));
             return;
@@ -372,7 +397,6 @@ function TinyBadge({ children }: { children: React.ReactNode }) {
 function ToneAndContextTile() {
     const [loaded, setLoaded] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: "auto" | "manual" | "error" | "reset" } | null>(null);
-    const [userVoiceInfo, setUserVoiceInfo] = useState<{ text: string; missing: boolean } | null>(null);
     const [compVoiceInfo, setCompVoiceInfo] = useState<{ text: string; missing: boolean } | null>(null);
 
     // Personal info
@@ -720,18 +744,6 @@ function ToneAndContextTile() {
                                     <option value="nonbinary">Non-binary</option>
                                     <option value="other">Other</option>
                                 </select>
-                                <button
-                                    type="button"
-                                    onClick={() => speakPreview(userGender, preferredLang, userName.trim(), (text, missing) => setUserVoiceInfo({ text, missing }))}
-                                    className="mt-0.5 flex items-center gap-1 self-start text-[11px] text-zinc-400 transition hover:text-zinc-200"
-                                >
-                                    🔊 Preview voice
-                                </button>
-                                {userVoiceInfo && (
-                                    <span className="text-[10px] text-amber-400/80 font-mono leading-snug">
-                                        {userVoiceInfo.text}
-                                    </span>
-                                )}
                             </div>
                         </div>
 

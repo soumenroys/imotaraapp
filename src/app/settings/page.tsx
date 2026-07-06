@@ -164,7 +164,16 @@ const LANG_TO_BCP47_SETTINGS: Record<string, string> = {
 };
 
 const FEMALE_PAT = /\b(female|woman|girl|samantha|victoria|karen|moira|tessa|fiona|zira|aria|jenny|emily|nancy|lisa|kate|susan|natasha|anna|ava|allison|noelle|zoe|olivia|heather|monica|serena|vicki|hazel|lekha|veena|damayanti|kanya)\b/i;
-const MALE_PAT   = /\b(male|man|alex|tom|daniel|liam|david|james|mark|richard|aaron|evan|reed|bruce|fred|gordon|lee|rishi|aarav|hemant|kabir)\b/i;
+const MALE_PAT   = /\b(male|man|alex|tom|daniel|liam|david|james|mark|richard|aaron|evan|bruce|gordon|lee|rishi|aarav|hemant|kabir)\b/i;
+
+// macOS/Chrome ship a handful of "novelty" system voices (robotic, comedic,
+// or otherwise hard to understand) that must never be picked as a default —
+// they're fine if a user deliberately selects one, but should never win a
+// pool[0]/fallback selection ahead of a normal-sounding voice. Note: several
+// of these (Fred, Reed, ...) are also plausible-looking "real names" — they
+// must NOT also appear in MALE_PAT/FEMALE_PAT, or gender-matching would
+// preferentially select the exact novelty voice this list exists to avoid.
+const NOVELTY_VOICE_PAT = /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|eddy|flo|fred|good news|grandma|grandpa|hysterical|jester|junior|kathy|organ|pipe organ|princess|ralph|reed|rocko|sandy|shelley|superstar|trinoids|whisper|wobble|zarvox)\b/i;
 
 // Gender mapping to the two preview file variants (nonbinary/other/prefer_not → female file)
 function previewGenderFile(gender: string): "male" | "female" {
@@ -174,27 +183,6 @@ function previewGenderFile(gender: string): "male" | "female" {
 // Tracks the single currently-playing preview <audio> so the two preview
 // buttons (Personal Info / Companion) can never sound at once.
 let _previewAudio: HTMLAudioElement | null = null;
-
-// Gender-correct name-tail spoken after a non-English preview. Entirely
-// native/offline (no network, no login) — picks a gender-matched browser
-// voice the same way the English branch below does.
-function speakNameTail(effectiveName: string, gender: string) {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    const synth = window.speechSynthesis;
-    const voices = synth.getVoices();
-    const pool = voices.filter(v => v.lang === "en-US" || v.lang.startsWith("en-") || v.lang === "en");
-    const src = pool.length > 0 ? pool : voices;
-    const isFemV = (v: SpeechSynthesisVoice) => FEMALE_PAT.test(v.name.toLowerCase());
-    const isMaleV = (v: SpeechSynthesisVoice) => MALE_PAT.test(v.name.toLowerCase());
-    const voice = gender === "male"
-        ? (src.find(isMaleV) ?? src.find(v => !isFemV(v)) ?? src[0])
-        : (src.find(isFemV) ?? src.find(v => !isMaleV(v)) ?? src[0]);
-    const nameUtt = new SpeechSynthesisUtterance(`I'm ${effectiveName}.`);
-    nameUtt.lang = "en-US";
-    nameUtt.rate = 0.95;
-    if (voice) nameUtt.voice = voice;
-    synth.speak(nameUtt);
-}
 
 // Localised preview sentences — one per supported language
 const PREVIEW_TEXT_BY_LANG: Record<string, string> = {
@@ -254,8 +242,10 @@ function speakPreview(gender: string, lang: string, name?: string, onResult?: (i
         const hasCustomName = effectiveName !== "Imotara";
 
         // Non-English: always use pre-generated, bundled Azure MP3s for
-        // accurate language + gender — no network/login required. Then, if a
-        // custom name is set, play a short gender-matched English name tail.
+        // accurate language + gender — no network/login required. These are
+        // fixed recordings (always say "Imotara"), so no name tail is played
+        // afterward even if a custom name is set — appending a separate
+        // English-only clip made the preview sound like two disjointed clips.
         if (lang !== "en") {
             const genderFile = previewGenderFile(gender);
             const src = `/tts-preview/${lang}-${genderFile}.mp3`;
@@ -263,10 +253,6 @@ function speakPreview(gender: string, lang: string, name?: string, onResult?: (i
             const audio = new Audio(src);
             audio.playbackRate = 0.95;
             _previewAudio = audio;
-            if (hasCustomName) {
-                // After the language MP3 finishes, speak the name in a gender-matched voice
-                audio.onended = () => { speakNameTail(effectiveName, gender); };
-            }
             audio.play().catch(err => console.warn("[speakPreview] audio play failed:", err));
             return;
         }
@@ -279,14 +265,19 @@ function speakPreview(gender: string, lang: string, name?: string, onResult?: (i
         const langPool = voices.filter(
             v => v.lang === bcp47 || v.lang.startsWith(langBase + "-") || v.lang === langBase,
         );
-        const pool = langPool.length > 0 ? langPool : voices;
+        const langSrc = langPool.length > 0 ? langPool : voices;
+        const isNovelty = (v: SpeechSynthesisVoice) => NOVELTY_VOICE_PAT.test(nm(v));
+        const nonNovelty = langSrc.filter(v => !isNovelty(v));
+        const pool = nonNovelty.length > 0 ? nonNovelty : langSrc;
         let voice: SpeechSynthesisVoice;
         if (gender === "male") {
             voice = pool.find(isMaleV) ?? pool.find(v => !isFemV(v)) ?? pool[0];
-        } else if (gender === "female") {
-            voice = pool.find(isFemV) ?? pool.find(v => !isMaleV(v)) ?? pool[0];
         } else {
-            voice = pool[0];
+            // female, and any unset/non-male gender (nonbinary/other/prefer_not) —
+            // matches previewGenderFile()'s default below for the non-English
+            // branch, so English and non-English previews sound consistent
+            // when no explicit gender is chosen.
+            voice = pool.find(isFemV) ?? pool.find(v => !isMaleV(v)) ?? pool[0];
         }
         onResult?.(`${voice.name} (${voice.lang})`, false);
 

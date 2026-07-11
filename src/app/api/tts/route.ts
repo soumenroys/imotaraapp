@@ -15,23 +15,32 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-    // Try cookie auth (web), then Bearer token (mobile).
-    const supabase = await supabaseUserServer();
-    const { data: { user: cookieUser } } = await supabase.auth.getUser();
-    let user = cookieUser;
+    const tStart = Date.now();
+
+    // Mobile always sends a Bearer token and never a Supabase session cookie,
+    // so checking cookie auth first wasted a full round trip to Supabase Auth
+    // (getUser() re-validates against the server every call, unlike
+    // getSession()) that was guaranteed to fail on every mobile request.
+    // Check Bearer first when present; only fall back to cookie auth (web) otherwise.
+    let user = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.slice(7);
+        const anon = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { auth: { persistSession: false, autoRefreshToken: false } },
+        );
+        const { data: { user: bearerUser } } = await anon.auth.getUser(token);
+        user = bearerUser;
+    }
+    console.log(`[tts] bearer auth done at +${Date.now() - tStart}ms user=${!!user}`);
 
     if (!user) {
-        const authHeader = req.headers.get("Authorization");
-        if (authHeader?.startsWith("Bearer ")) {
-            const token = authHeader.slice(7);
-            const anon = createClient(
-                process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-                { auth: { persistSession: false, autoRefreshToken: false } },
-            );
-            const { data: { user: bearerUser } } = await anon.auth.getUser(token);
-            user = bearerUser;
-        }
+        const supabase = await supabaseUserServer();
+        const { data: { user: cookieUser } } = await supabase.auth.getUser();
+        user = cookieUser;
+        console.log(`[tts] cookie auth done at +${Date.now() - tStart}ms user=${!!user}`);
     }
 
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -102,6 +111,7 @@ export async function POST(req: NextRequest) {
         console.error("[tts] Azure fetch failed:", err);
         return NextResponse.json({ error: "TTS service unavailable" }, { status: 502 });
     }
+    console.log(`[tts] azure fetch done at +${Date.now() - tStart}ms status=${azureRes.status} region=${azureConfig.region} textLen=${text.length}`);
 
     if (!azureRes.ok) {
         const errText = await azureRes.text().catch(() => "");
@@ -110,6 +120,7 @@ export async function POST(req: NextRequest) {
     }
 
     const audioBuffer = await azureRes.arrayBuffer();
+    console.log(`[tts] total done at +${Date.now() - tStart}ms bytes=${audioBuffer.byteLength}`);
 
     return new NextResponse(audioBuffer, {
         status:  200,

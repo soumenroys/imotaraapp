@@ -1,7 +1,9 @@
 // src/app/api/tts/route.ts
 // Azure Neural TTS endpoint — streams audio/mpeg back to the client.
-// Called only when the user's device lacks a native TTS voice for the selected language.
-// English always uses the browser/device native TTS and never reaches this route.
+// Web: called only when the browser lacks a native voice for the selected language.
+// Mobile: speakMessage() (chat-reply playback) always calls this route first,
+// for every language including English, then falls back to native on-device
+// TTS only if this request fails — so English does reach this route on mobile.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -66,11 +68,17 @@ export async function POST(req: NextRequest) {
     const locale = AZURE_LOCALE[lang] ?? "en-US";
     const style  = resolveStyle(lang, gender);
 
-    // Use mstts:express-as for voices that support emotional styles.
-    // For Indian-language and other standard Neural voices, plain text is used.
+    // Use mstts:express-as for voices that support emotional styles (currently
+    // en/zh/ja/fr/de/pt/es — see AZURE_VOICE_STYLES). For Indian-language,
+    // Arabic, and Russian voices, no express-as style exists yet, so a plain
+    // <prosody> pass adds a lighter-weight warmth/pacing pass instead of
+    // sending completely flat, unadorned text — a slightly slower rate reads
+    // as more considered and less clipped/rushed than default-rate neutral
+    // synthesis, without any voice-specific style support required.
+    const escapedText = escapeXml(text.trim());
     const bodyXml = style
-        ? `<mstts:express-as style="${style}" styledegree="1.4">${escapeXml(text.trim())}</mstts:express-as>`
-        : escapeXml(text.trim());
+        ? `<mstts:express-as style="${style}" styledegree="1.4">${escapedText}</mstts:express-as>`
+        : `<prosody rate="-8%" pitch="+1%">${escapedText}</prosody>`;
 
     const msttsNs = style ? ` xmlns:mstts="http://www.w3.org/2001/mstts"` : "";
 

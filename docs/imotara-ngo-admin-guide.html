@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Imotara — NGO Administrator Guide</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --pink:   #FF6B9D;
+      --blue:   #4B9FE1;
+      --teal:   #38C9B9;
+      --gold:   #F5C842;
+      --purple: #9B6FE8;
+      --green:  #3DBE8A;
+      --orange: #FF8C42;
+      --navy:   #12274F;
+      --navy2:  #1E3A6E;
+      --slate:  #3D5580;
+      --light:  #F0F6FF;
+      --border: #D4E2F7;
+      --white:  #FFFFFF;
+      --gray:   #6B7EA4;
+      --amber-bg: #FFF8E8;
+      --amber-border: #F3DFA8;
+      --amber-ink: #8A6414;
+    }
+
+    html, body {
+      width:210mm;
+      font-family:'Inter','Helvetica Neue',Arial,sans-serif;
+      background:var(--white);
+      color:var(--navy);
+      -webkit-print-color-adjust:exact;
+      print-color-adjust:exact;
+    }
+
+    .page { width:210mm; min-height:297mm; display:flex; flex-direction:column; page-break-after:always; }
+    .page:last-child { page-break-after:avoid; }
+
+    .header {
+      background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 55%,#1B4F8A 100%);
+      padding:18px 36px 16px; display:flex; align-items:center; justify-content:space-between;
+      position:relative; overflow:hidden;
+    }
+    .header::before { content:''; position:absolute; top:-60px; right:-40px; width:200px; height:200px; background:radial-gradient(circle,rgba(75,159,225,.18) 0%,transparent 70%); border-radius:50%; }
+    .header::after { content:''; position:absolute; bottom:-50px; left:40%; width:160px; height:160px; background:radial-gradient(circle,rgba(255,107,157,.12) 0%,transparent 70%); border-radius:50%; }
+    .header-left { display:flex; align-items:center; gap:14px; z-index:1; }
+    .header-logo { height:48px; width:auto; }
+    .header-sub  { color:rgba(255,255,255,.65); font-size:10px; margin-top:2px; }
+    .header-badge { z-index:1; background:linear-gradient(135deg,var(--pink),var(--blue)); color:#fff; font-size:9px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; padding:6px 14px; border-radius:20px; }
+    .gradient-bar { height:4px; background:linear-gradient(to right,var(--pink),var(--gold),var(--teal),var(--blue)); }
+
+    .body { padding:16px 36px 0; flex:1; }
+
+    .sec { font-size:9px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--blue); margin-bottom:11px; display:flex; align-items:center; gap:8px; }
+    .sec::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    .footer { background:var(--navy); padding:9px 36px; display:flex; align-items:center; justify-content:space-between; margin-top:auto; }
+    .footer-left { display:flex; align-items:center; gap:10px; }
+    .footer-logo { height:20px; filter:brightness(0) invert(1); opacity:.8; }
+    .footer-copy { font-size:8.5px; color:rgba(255,255,255,.4); }
+    .footer-mid  { font-size:8.5px; color:rgba(255,255,255,.35); }
+    .footer-page { font-size:8.5px; color:rgba(255,255,255,.5); font-weight:600; }
+
+    /* Generic page hero (used on every page for the section intro) */
+    .p-hero { background:linear-gradient(135deg,#EAFAF7 0%,#EEF4FF 50%,#FFF8E1 100%); border-bottom:1px solid var(--border); padding:20px 36px 18px; }
+    .p-hero-eyebrow { font-size:9px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:var(--green); margin-bottom:7px; }
+    .p-hero-title { font-size:22px; font-weight:900; color:var(--navy); line-height:1.22; margin-bottom:7px; max-width:640px; }
+    .p-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--green),var(--teal)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .p-hero-sub { font-size:10.5px; color:var(--slate); max-width:640px; line-height:1.55; }
+    /* Compact variant for inner pages */
+    .p-hero.compact { padding:14px 36px; }
+    .p-hero.compact .p-hero-title { font-size:16px; margin-bottom:4px; }
+    .p-hero.compact .p-hero-sub { font-size:10px; color:var(--gray); }
+
+    /* Role cards */
+    .role-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:6px; }
+    .role-card { border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+    .role-badge { display:inline-block; font-size:8px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; padding:3px 9px; border-radius:9px; margin-bottom:7px; }
+    .role-badge.owner  { background:#FFF3CD; color:#8A6414; }
+    .role-badge.admin  { background:#EEF4FF; color:#1B4F8A; }
+    .role-badge.member { background:#EDFAF2; color:#1B6B44; }
+    .role-body { font-size:8.8px; color:var(--slate); line-height:1.5; }
+
+    /* Module grid (cover) */
+    .module-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:6px; }
+    .module-card { border:1px solid var(--border); border-radius:10px; padding:11px 12px; background:var(--light); }
+    .module-icon { font-size:16px; margin-bottom:4px; }
+    .module-name { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:2px; }
+    .module-body { font-size:8.2px; color:var(--slate); line-height:1.4; }
+
+    .adv-note { font-size:8.5px; color:var(--gray); line-height:1.5; margin-bottom:4px; }
+
+    /* Numbered vertical step list */
+    .steps { margin-bottom:14px; }
+    .step-row { display:flex; gap:11px; margin-bottom:9px; align-items:flex-start; }
+    .step-num { flex-shrink:0; width:22px; height:22px; border-radius:50%; background:linear-gradient(135deg,var(--green),var(--teal)); color:#fff; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+    .step-title { font-size:9.8px; font-weight:700; color:var(--navy); margin-bottom:2px; }
+    .step-body { font-size:9px; color:var(--slate); line-height:1.5; }
+
+    /* Callout / caveat box */
+    .note-box { border-radius:10px; padding:11px 14px; margin-bottom:14px; display:flex; gap:10px; align-items:flex-start; }
+    .note-box.info   { background:var(--light); border:1px solid var(--border); }
+    .note-box.caveat { background:var(--amber-bg); border:1px solid var(--amber-border); }
+    .note-icon { font-size:14px; flex-shrink:0; }
+    .note-title { font-size:9.3px; font-weight:700; margin-bottom:3px; }
+    .note-box.info .note-title   { color:var(--navy); }
+    .note-box.caveat .note-title { color:var(--amber-ink); }
+    .note-body { font-size:8.7px; line-height:1.5; }
+    .note-box.info .note-body   { color:var(--slate); }
+    .note-box.caveat .note-body { color:#7A5A10; }
+
+    /* Two-column feature/checklist */
+    .check-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 16px; margin-bottom:6px; }
+    .check-item { font-size:9px; color:var(--slate); display:flex; align-items:flex-start; gap:6px; line-height:1.45; }
+    .check-item .tk { color:var(--green); font-size:10.5px; flex-shrink:0; }
+
+    /* Small data table (reused for permission matrix, seat table etc.) */
+    .dtable { width:100%; border-collapse:collapse; font-size:9px; margin-bottom:14px; }
+    .dtable thead th { background:var(--navy); color:#fff; padding:6px 11px; text-align:left; font-size:8.5px; }
+    .dtable thead th:first-child { border-radius:7px 0 0 0; }
+    .dtable thead th:last-child  { border-radius:0 7px 0 0; }
+    .dtable tbody td { padding:6px 11px; border-bottom:1px solid var(--border); color:var(--slate); }
+    .dtable tbody td:first-child { font-weight:700; color:var(--navy); }
+    .dtable tbody tr:nth-child(even) td { background:var(--light); }
+    .dtable tbody tr:last-child td { border-bottom:none; }
+    .dtable .yes { color:var(--green); font-weight:800; }
+    .dtable .no  { color:#C4506B; font-weight:800; }
+
+    /* Chart card (for analytics page) */
+    .chart-row { display:flex; gap:14px; margin-bottom:14px; }
+    .chart-card { flex:1; border:1px solid var(--border); border-radius:12px; padding:13px 15px 11px; }
+    .chart-title { font-size:9.8px; font-weight:700; color:var(--navy); margin-bottom:2px; }
+    .chart-note { font-size:7.8px; color:var(--gray); margin-bottom:9px; }
+    .donut-wrap { display:flex; align-items:center; gap:14px; }
+    .donut-stats { flex:1; display:flex; flex-direction:column; gap:7px; }
+    .donut-stat-num { font-size:15px; font-weight:900; color:var(--navy); line-height:1; }
+    .donut-stat-lbl { font-size:7.8px; color:var(--gray); margin-top:2px; }
+
+    /* Contact + QR (last page) */
+    .qr-strip { display:flex; gap:12px; margin-bottom:14px; }
+    .qr-card { flex:1; border:1px solid var(--border); border-radius:12px; padding:11px 12px; display:flex; align-items:center; gap:10px; }
+    .qr-img { width:50px; height:50px; border:1px solid var(--border); border-radius:6px; flex-shrink:0; }
+    .qr-platform { font-size:9px; font-weight:700; color:var(--navy); margin-bottom:2px; }
+    .qr-sub { font-size:7.6px; color:var(--slate); line-height:1.35; }
+
+    .contact-card { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:12px; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    .contact-title { font-size:11px; font-weight:800; color:#fff; margin-bottom:3px; }
+    .contact-sub   { font-size:9px; color:rgba(255,255,255,.6); line-height:1.5; }
+    .contact-detail { text-align:right; }
+    .contact-email { font-size:10.5px; font-weight:700; color:var(--gold); }
+    .contact-note  { font-size:8.5px; color:rgba(255,255,255,.5); margin-top:3px; }
+
+    .faq-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:14px; }
+    .faq-card { border:1px solid var(--border); border-radius:10px; padding:10px 12px; background:var(--light); }
+    .faq-q { font-size:9px; font-weight:700; color:var(--navy); margin-bottom:3px; display:flex; gap:5px; }
+    .faq-q span { color:var(--green); flex-shrink:0; }
+    .faq-a { font-size:8.3px; color:var(--slate); line-height:1.5; }
+  </style>
+</head>
+<body>
+
+<!-- PAGE 1: Cover — Roles & Dashboard Map -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">NGO Administrator Guide — Managing Your Organisation</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p-hero">
+    <div class="p-hero-eyebrow">For Org Owners &amp; Admins</div>
+    <div class="p-hero-title">Everything you need to run your Imotara organisation, <em>in one place.</em></div>
+    <div class="p-hero-sub">This guide walks through every module of your Imotara org admin dashboard — inviting and managing beneficiaries or staff, tracking seats, running reports for your donors, and configuring the advanced tools available to NGO accounts. Keep it handy as a reference for your whole admin team.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:14px;">Your role — and who can do what</div>
+    <div class="role-grid">
+      <div class="role-card">
+        <span class="role-badge owner">Owner</span>
+        <div class="role-body">The person who created the organisation (or was assigned ownership). Full control of every module, including danger-zone actions like requesting org deletion. Usually the person Imotara's team contacts directly.</div>
+      </div>
+      <div class="role-card">
+        <span class="role-badge admin">Admin</span>
+        <div class="role-body">Day-to-day operator. Can invite/remove members, run reports, configure branding and integrations — everything except ownership transfer and deletion requests.</div>
+      </div>
+      <div class="role-card">
+        <span class="role-badge member">Member</span>
+        <div class="role-body">A beneficiary or staff member covered by your licence. Uses the Imotara app itself — has no access to the admin dashboard at all.</div>
+      </div>
+    </div>
+
+    <div class="sec">How you get admin access</div>
+    <div class="check-grid" style="margin-bottom:14px;">
+      <div class="check-item"><span class="tk">✓</span> If you created the org (via imotara.com/org/new or a seat purchase at /pricing/corporate), you're the Owner automatically.</div>
+      <div class="check-item"><span class="tk">✓</span> Otherwise, an existing Owner or Admin invites you by email with the "Admin" role — accept the invite and sign in at imotara.com/org/dashboard with that same email.</div>
+    </div>
+
+    <div class="sec">Your dashboard at a glance — core six modules</div>
+    <div class="module-grid">
+      <div class="module-card">
+        <div class="module-icon">📈</div>
+        <div class="module-name">Overview</div>
+        <div class="module-body">Seats used, renewal date, tier badge, weekly active members.</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon">👥</div>
+        <div class="module-name">Members</div>
+        <div class="module-body">Invite, bulk-import, manage roles, remove.</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon">📊</div>
+        <div class="module-name">Analytics</div>
+        <div class="module-body">Aggregate engagement trends, never individual data.</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon">🎨</div>
+        <div class="module-name">Settings &amp; Branding</div>
+        <div class="module-body">Org name, logo, accent colour, brand name.</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon">🔑</div>
+        <div class="module-name">API Keys</div>
+        <div class="module-body">Scoped keys for your own M&amp;E systems.</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon">🗂️</div>
+        <div class="module-name">Audit Log</div>
+        <div class="module-body">Every change, timestamped and exportable.</div>
+      </div>
+    </div>
+    <div class="adv-note">Plus advanced modules covered later in this guide: License Pools, Cohorts, Domain Auto-Join, Contracts, Verification, SSO and Embed.</div>
+
+    <div class="sec" style="margin-top:16px;">Before you start inviting anyone</div>
+    <div class="role-grid">
+      <div class="role-card">
+        <span class="role-badge admin">1</span>
+        <div class="role-body">Sign in at <strong>imotara.com/org/dashboard</strong> and confirm your role (Owner or Admin) and your organisation's name on the Overview tab.</div>
+      </div>
+      <div class="role-card">
+        <span class="role-badge admin">2</span>
+        <div class="role-body">Check your seat count and tier on Overview — this is how many beneficiaries or staff you can invite before needing more seats.</div>
+      </div>
+      <div class="role-card">
+        <span class="role-badge admin">3</span>
+        <div class="role-body">Have your beneficiary or staff email list ready (a spreadsheet works fine) — you'll turn it into a CSV for bulk invites on the next page.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · NGO Administrator Guide</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 1 of 4</div>
+  </div>
+</div>
+
+
+<!-- PAGE 2: Members, License Pools & Cohorts -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Managing Members, License Pools &amp; Cohorts</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p-hero compact">
+    <div class="p-hero-title">Bring your beneficiaries and staff <em>onto their licences.</em></div>
+    <div class="p-hero-sub">The Members tab is where you'll spend most of your time — inviting people one at a time or in bulk, managing roles, and keeping an eye on your seat count.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:14px;">Inviting a single member</div>
+    <div class="steps">
+      <div class="step-row"><div class="step-num">1</div><div><div class="step-title">Open Members → Invite</div><div class="step-body">From your dashboard sidebar, go to Members and click "Invite member."</div></div></div>
+      <div class="step-row"><div class="step-num">2</div><div><div class="step-title">Enter their email and role</div><div class="step-body">Type the person's email address and choose Admin or Member.</div></div></div>
+      <div class="step-row"><div class="step-num">3</div><div><div class="step-title">They accept by email</div><div class="step-body">They receive an invite email with a link. Accepting signs them in (or creates their account) and joins them to your org.</div></div></div>
+      <div class="step-row"><div class="step-num">4</div><div><div class="step-title">Their licence is assigned automatically</div><div class="step-body">The moment they accept, a seat is used and they're granted your org's tier — no separate step needed.</div></div></div>
+    </div>
+
+    <div class="sec">Bulk-inviting a whole cohort by CSV</div>
+    <div class="steps">
+      <div class="step-row"><div class="step-num">1</div><div><div class="step-title">Prepare your file</div><div class="step-body">A CSV with an "email" column (a "role" column is optional — defaults to Member).</div></div></div>
+      <div class="step-row"><div class="step-num">2</div><div><div class="step-title">Upload in Members → bulk import</div><div class="step-body">Drag and drop the file, or use the file picker.</div></div></div>
+      <div class="step-row"><div class="step-num">3</div><div><div class="step-title">Review the preview</div><div class="step-body">Each row is checked and flagged as valid or invalid before you send anything.</div></div></div>
+      <div class="step-row"><div class="step-num">4</div><div><div class="step-title">Send and review results</div><div class="step-body">Up to 500 invites per batch. Any failures (already a member, malformed email) are reported per row so you can fix and resend just those.</div></div></div>
+    </div>
+
+    <div class="sec">Roles, removal &amp; seats</div>
+    <div class="check-grid" style="margin-bottom:6px;">
+      <div class="check-item"><span class="tk">✓</span> Change a member's role any time (Admin ⇄ Member) from their row in the Members list.</div>
+      <div class="check-item"><span class="tk">✓</span> Removing a member frees their seat immediately and revokes their org-level licence.</div>
+      <div class="check-item"><span class="tk">✓</span> A member's own personal Imotara subscription (if they have one) is never downgraded by removal or by your org's tier.</div>
+      <div class="check-item"><span class="tk">✓</span> Your seat counter ("X / Y used") is always visible — invites are blocked once you're at capacity until a seat frees up or more are purchased.</div>
+    </div>
+
+    <div class="note-box info">
+      <div class="note-icon">🌐</div>
+      <div>
+        <div class="note-title">Let people join without waiting for an invite</div>
+        <div class="note-body">In Settings → Domain Auto-Join, list your organisation's email domain(s) (e.g. yourgo.org) and switch it on. Anyone signing up with a matching email can join your org directly — useful for large or fast-moving cohorts where sending individual invites isn't practical.</div>
+      </div>
+    </div>
+
+    <div class="sec">Not every member needs the same tier — license pools</div>
+    <div class="check-grid" style="margin-bottom:6px;">
+      <div class="check-item"><span class="tk">✓</span> Imotara's team can issue your organisation one or more named pools (e.g. "200 Pro seats — Case Workers") with a set quantity and optional expiry, so your programme isn't stuck on one blanket tier.</div>
+      <div class="check-item"><span class="tk">✓</span> You, as org admin, assign individual pool licences to specific members from the Pools module — and withdraw them just as easily if someone leaves that programme.</div>
+      <div class="check-item"><span class="tk">✓</span> A member can only hold one active pool assignment at a time; withdrawing frees that unit back into the pool for reuse.</div>
+      <div class="check-item"><span class="tk">✓</span> If tiers ever overlap, Imotara always resolves it the same way, automatically: pool assignment first, then a per-member override, then a personal subscription, then your org's default tier, then Free.</div>
+    </div>
+
+    <div class="sec">Cohorts — organising members into sub-teams</div>
+    <div class="check-grid" style="margin-bottom:6px;">
+      <div class="check-item"><span class="tk">✓</span> Create a cohort for any sub-group you manage separately — a field office, a programme, an age band (e.g. "Delhi Field Team", "Under-18 Outreach").</div>
+      <div class="check-item"><span class="tk">✓</span> Add members to a cohort — they must already be an active member of your organisation first.</div>
+      <div class="check-item"><span class="tk">✓</span> Set a companion tone policy per cohort, restricted to Close Friend, Calm Companion, Coach or Mentor — useful for programmes with specific care guidelines.</div>
+      <div class="check-item"><span class="tk">✓</span> Cohorts are an organisational view for your team, not a separate billing unit — seats still come from your org's pool or licence.</div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · NGO Administrator Guide</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 2 of 4</div>
+  </div>
+</div>
+
+
+<!-- PAGE 3: Analytics, Impact Reporting, Audit Log, Branding, Embed & API Keys -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Analytics, Branding, Embed &amp; API Keys</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p-hero compact">
+    <div class="p-hero-title">Report your impact <em>without ever seeing an identity.</em></div>
+    <div class="p-hero-sub">Everything in Analytics and your Impact Report is aggregate — built for grant and donor reporting, never for looking into an individual beneficiary's activity.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:14px;">Sample Analytics view <span style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#B8926B;background:#FFF3CD;border-radius:6px;padding:2px 6px;margin-left:4px;">Illustrative data</span></div>
+    <div class="chart-row">
+      <div class="chart-card" style="flex:1.4;">
+        <div class="chart-title">Weekly Active Members — last 8 weeks</div>
+        <div class="chart-note">Analytics tab → choose a 30/90/180-day range</div>
+        <svg viewBox="0 0 320 110" width="100%" height="110">
+          <line x1="0" y1="94" x2="320" y2="94" stroke="#D4E2F7" stroke-width="1"/>
+          <g>
+            <rect x="6"   y="56" width="26" height="38" rx="3" fill="#94A3B8"/>
+            <rect x="42"  y="50" width="26" height="44" rx="3" fill="#94A3B8"/>
+            <rect x="78"  y="52" width="26" height="42" rx="3" fill="#3DBE8A"/>
+            <rect x="114" y="42" width="26" height="52" rx="3" fill="#3DBE8A"/>
+            <rect x="150" y="36" width="26" height="58" rx="3" fill="#38C9B9"/>
+            <rect x="186" y="38" width="26" height="56" rx="3" fill="#38C9B9"/>
+            <rect x="222" y="26" width="26" height="68" rx="3" fill="#4B9FE1"/>
+            <rect x="258" y="20" width="26" height="74" rx="3" fill="#4B9FE1"/>
+          </g>
+          <g font-family="Inter" font-size="7.5" fill="#6B7EA4">
+            <text x="19"  y="105" text-anchor="middle">W1</text>
+            <text x="55"  y="105" text-anchor="middle">W2</text>
+            <text x="91"  y="105" text-anchor="middle">W3</text>
+            <text x="127" y="105" text-anchor="middle">W4</text>
+            <text x="163" y="105" text-anchor="middle">W5</text>
+            <text x="199" y="105" text-anchor="middle">W6</text>
+            <text x="235" y="105" text-anchor="middle">W7</text>
+            <text x="271" y="105" text-anchor="middle">W8</text>
+          </g>
+        </svg>
+      </div>
+      <div class="chart-card" style="flex:1;">
+        <div class="chart-title">Seat Utilisation</div>
+        <div class="chart-note">Sample org: 1,000-seat licence</div>
+        <div class="donut-wrap">
+          <svg viewBox="0 0 100 100" width="78" height="78">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#E7EEFB" stroke-width="14"/>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="url(#donutGradAdmin)" stroke-width="14"
+                    stroke-dasharray="181.0 251.33" stroke-dashoffset="0" stroke-linecap="round"
+                    transform="rotate(-90 50 50)"/>
+            <defs>
+              <linearGradient id="donutGradAdmin" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#3DBE8A"/><stop offset="100%" stop-color="#38C9B9"/>
+              </linearGradient>
+            </defs>
+            <text x="50" y="47" text-anchor="middle" font-family="Inter" font-size="15" font-weight="900" fill="#12274F">72%</text>
+            <text x="50" y="61" text-anchor="middle" font-family="Inter" font-size="6" fill="#6B7EA4">used</text>
+          </svg>
+          <div class="donut-stats">
+            <div><div class="donut-stat-num">720/1,000</div><div class="donut-stat-lbl">Seats provisioned</div></div>
+            <div><div class="donut-stat-num">58%</div><div class="donut-stat-lbl">Weekly check-in rate</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">Generating an Impact Report for donors</div>
+    <div class="steps">
+      <div class="step-row"><div class="step-num">1</div><div><div class="step-title">Open the Certificate / Impact Report page</div><div class="step-body">Available once your org has been active 30+ days with at least 10 seats in use.</div></div></div>
+      <div class="step-row"><div class="step-num">2</div><div><div class="step-title">Review your aggregate stats</div><div class="step-body">Real usage data for your org — weekly active members, engagement trends — with no individual identities anywhere in it.</div></div></div>
+      <div class="step-row"><div class="step-num">3</div><div><div class="step-title">Print or save it</div><div class="step-body">The report opens as a print-ready page — use your browser's Print → Save as PDF to keep a copy for your grant file or donor pack.</div></div></div>
+    </div>
+
+    <div class="sec">Audit Log</div>
+    <div class="check-grid" style="margin-bottom:6px;">
+      <div class="check-item"><span class="tk">✓</span> Every invite, role change, seat change and removal is logged with a timestamp and who performed it.</div>
+      <div class="check-item"><span class="tk">✓</span> Browse the full history, paginated, from the Audit Log tab.</div>
+      <div class="check-item"><span class="tk">✓</span> Export the whole log to CSV any time — useful for your own compliance records.</div>
+    </div>
+
+    <div class="sec">Custom branding</div>
+    <div class="check-grid" style="margin-bottom:6px;">
+      <div class="check-item"><span class="tk">✓</span> Settings → Branding: set a logo URL, an accent colour (any hex value), and a brand name.</div>
+      <div class="check-item"><span class="tk">✓</span> These appear across your org's admin dashboard — your sidebar and reports carry your organisation's identity.</div>
+    </div>
+    <div class="note-box info" style="margin-bottom:14px;">
+      <div class="note-icon">ℹ️</div>
+      <div><div class="note-title">Scope of branding today</div><div class="note-body">Branding customises your org admin dashboard. It does not currently change the Imotara app your beneficiaries use — they see the standard Imotara experience regardless of your org's branding.</div></div>
+    </div>
+
+    <div class="sec">Embedding Imotara in your own site</div>
+    <div class="steps">
+      <div class="step-row"><div class="step-num">1</div><div><div class="step-title">Open the Embed module</div><div class="step-body">A persistent embed key is generated automatically for your organisation.</div></div></div>
+      <div class="step-row"><div class="step-num">2</div><div><div class="step-title">Allow-list your domain(s)</div><div class="step-body">Add the domain(s) where you'll embed Imotara — for example your own portal, intranet or LMS.</div></div></div>
+      <div class="step-row"><div class="step-num">3</div><div><div class="step-title">Copy the iframe snippet</div><div class="step-body">Paste the ready-made snippet into your site to embed an Imotara chat window directly.</div></div></div>
+    </div>
+
+    <div class="sec">Generating an API key</div>
+    <div class="check-grid" style="margin-bottom:6px;">
+      <div class="check-item"><span class="tk">✓</span> API Keys tab → generate a new key. Keys are hashed and shown to you only once — store it securely.</div>
+      <div class="check-item"><span class="tk">✓</span> Two scopes only: read:stats (aggregate analytics) and read:members (your member list) — no write access, no conversation data.</div>
+      <div class="check-item"><span class="tk">✓</span> Use a key to pull data into your own M&amp;E dashboard or reporting pipeline; revoke any key instantly if it's no longer needed.</div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · NGO Administrator Guide</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 3 of 4</div>
+  </div>
+</div>
+
+
+<!-- PAGE 4: Verification, Contracts, SSO, FAQ, Contact -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Verification, Contracts, SSO &amp; Getting Help</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p-hero compact">
+    <div class="p-hero-title">A few things your team sets up <em>once.</em></div>
+    <div class="p-hero-sub">Registration verification, contract storage, and single sign-on — plus where to go when you need a hand.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:14px;">Submitting registration verification</div>
+    <div class="steps">
+      <div class="step-row"><div class="step-num">1</div><div><div class="step-title">Host your registration document</div><div class="step-body">Upload your 80G / FCRA / Section 8 (or your country's equivalent) proof to a service you already use — Google Drive, Dropbox, etc. — and copy a shareable link.</div></div></div>
+      <div class="step-row"><div class="step-num">2</div><div><div class="step-title">Paste it into the Verification module</div><div class="step-body">Add the document link, choose a document type, and add any notes for context.</div></div></div>
+      <div class="step-row"><div class="step-num">3</div><div><div class="step-title">Imotara's team reviews it</div><div class="step-body">Your status shows as "pending review" and Imotara's team is notified automatically to review it by hand.</div></div></div>
+    </div>
+    <div class="note-box caveat">
+      <div class="note-icon">⏳</div>
+      <div><div class="note-title">This is a link-based submission, not a file upload</div><div class="note-body">There's no drag-and-drop upload box in the dashboard today — host the file yourself and share the link. Review is manual, not automatic.</div></div>
+    </div>
+
+    <div class="sec">Storing contracts &amp; SLAs</div>
+    <div class="check-grid" style="margin-bottom:14px;">
+      <div class="check-item"><span class="tk">✓</span> Contracts module: add a link to any signed agreement (already hosted elsewhere), its type, signed date and valid-until date.</div>
+      <div class="check-item"><span class="tk">✓</span> Useful as a shared record for your team and Imotara's account contact — same link-based approach as Verification.</div>
+    </div>
+
+    <div class="sec">Single sign-on (SSO)</div>
+    <div class="note-box caveat">
+      <div class="note-icon">🔐</div>
+      <div><div class="note-title">Configuration today, not yet self-serve login</div><div class="note-body">You can save your identity provider's details (entity ID, SSO URL, certificate, email domain) in the SSO module — this puts your request into "pending" status. Actual SSO sign-in requires Imotara's team to complete setup on our side; it isn't instant or automatic yet. Contact info@imotara.com after submitting to start that process.</div></div>
+    </div>
+
+    <div class="sec">Frequently asked questions</div>
+    <div class="faq-grid">
+      <div class="faq-card"><div class="faq-q"><span>Q</span> An invite email never arrived — what now?</div><div class="faq-a">Ask them to check spam, or remove and re-invite from the Members tab. You can also turn on Domain Auto-Join so matching emails can join without an invite at all.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> A member already has a personal Imotara plan?</div><div class="faq-a">It's never downgraded. If your org's tier is higher, they get the benefit of both while their membership with you is active.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> We've run out of seats — what are our options?</div><div class="faq-a">Free up a seat by removing an inactive member, or contact your account owner about purchasing more seats or requesting a License Pool.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> Can anyone on our team see what a beneficiary discusses?</div><div class="faq-a">No — not even Owners or Admins. Every view in the dashboard is aggregate only. Individual conversations are never exposed at the organisation level.</div></div>
+    </div>
+
+    <div class="sec">Try Imotara yourself — scan to download</div>
+    <div class="qr-strip">
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-web.png" alt="Imotara Web QR"/>
+        <div><div class="qr-platform">🌐 Web App</div><div class="qr-sub">Scan to open imotara.com — no install needed.</div></div>
+      </div>
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-ios.png" alt="Imotara iOS QR"/>
+        <div><div class="qr-platform"> App Store</div><div class="qr-sub">Scan to download for iPhone &amp; iPad.</div></div>
+      </div>
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-android.png" alt="Imotara Android QR"/>
+        <div><div class="qr-platform">▶ Google Play</div><div class="qr-sub">Scan to download for Android.</div></div>
+      </div>
+    </div>
+
+    <div class="contact-card">
+      <div>
+        <div class="contact-title">Need a hand with anything in this guide?</div>
+        <div class="contact-sub">Your organisation has a named Imotara contact for onboarding, seats, and configuration questions.</div>
+      </div>
+      <div class="contact-detail">
+        <div class="contact-email">info@imotara.com</div>
+        <div class="contact-note">imotara.com &nbsp;·&nbsp; Response within 48 hours</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · NGO Administrator Guide</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 4 of 4</div>
+  </div>
+</div>
+
+</body>
+</html>

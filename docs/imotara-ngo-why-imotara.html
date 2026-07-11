@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Imotara — Why NGOs Need Imotara: Leadership Briefing</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --pink:   #FF6B9D;
+      --blue:   #4B9FE1;
+      --teal:   #38C9B9;
+      --gold:   #F5C842;
+      --purple: #9B6FE8;
+      --green:  #3DBE8A;
+      --orange: #FF8C42;
+      --navy:   #12274F;
+      --navy2:  #1E3A6E;
+      --slate:  #3D5580;
+      --light:  #F0F6FF;
+      --border: #D4E2F7;
+      --white:  #FFFFFF;
+      --gray:   #6B7EA4;
+    }
+
+    html, body {
+      width:210mm;
+      font-family:'Inter','Helvetica Neue',Arial,sans-serif;
+      background:var(--white);
+      color:var(--navy);
+      -webkit-print-color-adjust:exact;
+      print-color-adjust:exact;
+    }
+
+    .page { width:210mm; min-height:297mm; display:flex; flex-direction:column; page-break-after:always; }
+    .page:last-child { page-break-after:avoid; }
+
+    .header {
+      background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 55%,#1B4F8A 100%);
+      padding:20px 36px 18px; display:flex; align-items:center; justify-content:space-between;
+      position:relative; overflow:hidden;
+    }
+    .header::before { content:''; position:absolute; top:-60px; right:-40px; width:200px; height:200px; background:radial-gradient(circle,rgba(75,159,225,.18) 0%,transparent 70%); border-radius:50%; }
+    .header::after { content:''; position:absolute; bottom:-50px; left:40%; width:160px; height:160px; background:radial-gradient(circle,rgba(255,107,157,.12) 0%,transparent 70%); border-radius:50%; }
+    .header-left { display:flex; align-items:center; gap:14px; z-index:1; }
+    .header-logo { height:54px; width:auto; }
+    .header-sub  { color:rgba(255,255,255,.65); font-size:10px; margin-top:2px; }
+    .header-badge { z-index:1; background:linear-gradient(135deg,var(--pink),var(--blue)); color:#fff; font-size:9px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; padding:6px 14px; border-radius:20px; }
+    .gradient-bar { height:4px; background:linear-gradient(to right,var(--pink),var(--gold),var(--teal),var(--blue)); }
+
+    .body { padding:18px 36px 0; flex:1; }
+
+    .sec { font-size:9px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--blue); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+    .sec::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    .footer { background:var(--navy); padding:9px 36px; display:flex; align-items:center; justify-content:space-between; margin-top:auto; }
+    .footer-left { display:flex; align-items:center; gap:10px; }
+    .footer-logo { height:20px; filter:brightness(0) invert(1); opacity:.8; }
+    .footer-copy { font-size:8.5px; color:rgba(255,255,255,.4); }
+    .footer-mid  { font-size:8.5px; color:rgba(255,255,255,.35); }
+    .footer-page { font-size:8.5px; color:rgba(255,255,255,.5); font-weight:600; }
+
+    /* PAGE 1 — HERO */
+    .hero1 { background:linear-gradient(135deg,#EAFAF7 0%,#EEF4FF 50%,#FFF8E1 100%); border-bottom:1px solid var(--border); padding:26px 36px 22px; }
+    .hero1-eyebrow { font-size:9.5px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:var(--green); margin-bottom:8px; }
+    .hero1-title { font-size:25px; font-weight:900; color:var(--navy); line-height:1.22; margin-bottom:8px; max-width:640px; }
+    .hero1-title em { font-style:normal; background:linear-gradient(135deg,var(--green),var(--teal)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .hero1-sub { font-size:11px; color:var(--slate); max-width:640px; line-height:1.6; }
+
+    .market-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0; }
+    .market-card { border:1.5px solid var(--border); border-radius:12px; padding:14px 14px 12px; text-align:center; position:relative; overflow:hidden; }
+    .market-card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; }
+    .mc-1::before { background:linear-gradient(to right,var(--pink),var(--purple)); }
+    .mc-2::before { background:linear-gradient(to right,var(--orange),var(--gold)); }
+    .mc-3::before { background:linear-gradient(to right,var(--blue),var(--teal)); }
+    .mc-4::before { background:linear-gradient(to right,var(--green),var(--teal)); }
+    .market-num { font-size:20px; font-weight:900; color:var(--navy); line-height:1; }
+    .market-lbl { font-size:8.5px; color:var(--gray); margin-top:6px; line-height:1.4; }
+    .market-src { font-size:7px; color:#B8C6E0; margin-top:5px; }
+
+    /* Comparison table (reuses seat-table pattern from the Licensing guide) */
+    .cmp-table { width:100%; border-collapse:collapse; font-size:9.5px; margin-bottom:6px; }
+    .cmp-table thead th { background:var(--navy); color:#fff; padding:8px 14px; text-align:left; font-size:9px; }
+    .cmp-table thead th:first-child { border-radius:7px 0 0 0; }
+    .cmp-table thead th:last-child  { border-radius:0 7px 0 0; }
+    .cmp-table thead th.cmp-col-them { color:rgba(255,255,255,.55); font-weight:500; }
+    .cmp-table thead th.cmp-col-us   { color:var(--gold); }
+    .cmp-table tbody td { padding:8px 14px; border-bottom:1px solid var(--border); color:var(--slate); vertical-align:top; }
+    .cmp-table tbody td:first-child { font-weight:700; color:var(--navy); width:22%; }
+    .cmp-table tbody td.cmp-them { color:var(--gray); }
+    .cmp-table tbody td.cmp-us { color:var(--navy); font-weight:600; }
+    .cmp-table tbody td.cmp-us::before { content:'✓ '; color:var(--green); font-weight:900; }
+    .cmp-table tbody tr:nth-child(even) td { background:var(--light); }
+    .cmp-table tbody tr:last-child td { border-bottom:none; }
+    .cmp-foot { font-size:7.5px; color:var(--gray); line-height:1.5; margin-bottom:14px; }
+
+    .why-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px; }
+    .why-card { border:1px solid var(--border); border-radius:10px; padding:13px 14px; }
+    .why-icon { font-size:19px; margin-bottom:6px; }
+    .why-title { font-size:10px; font-weight:700; color:var(--navy); margin-bottom:5px; }
+    .why-body { font-size:9px; color:var(--slate); line-height:1.5; }
+
+    .roi-strip { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:12px; padding:16px 22px; display:flex; align-items:center; gap:20px; }
+    .roi-left { flex:1; }
+    .roi-title { font-size:12px; font-weight:800; color:#fff; margin-bottom:5px; }
+    .roi-sub { font-size:9.5px; color:rgba(255,255,255,.6); line-height:1.55; }
+    .roi-div { width:1px; background:rgba(255,255,255,.15); align-self:stretch; }
+    .roi-stats { display:flex; gap:20px; }
+    .roi-stat { text-align:center; }
+    .roi-num { font-size:19px; font-weight:900; color:var(--gold); line-height:1; }
+    .roi-lbl { font-size:8px; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:.4px; margin-top:4px; max-width:92px; line-height:1.35; }
+
+    /* PAGE 2 */
+    .p2-hero { background:linear-gradient(135deg,#EDFAF2 0%,#EEF4FF 100%); border-bottom:1px solid var(--border); padding:16px 36px; }
+    .p2-hero-title { font-size:16px; font-weight:900; color:var(--navy); }
+    .p2-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--green),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .p2-hero-sub { font-size:10px; color:var(--gray); margin-top:4px; max-width:600px; line-height:1.5; }
+
+    .chart-row { display:flex; gap:14px; margin-bottom:6px; }
+    .chart-card { flex:1; border:1px solid var(--border); border-radius:12px; padding:14px 16px 12px; }
+    .chart-title { font-size:10px; font-weight:700; color:var(--navy); margin-bottom:2px; }
+    .chart-note { font-size:8px; color:var(--gray); margin-bottom:10px; }
+    .chart-tag { display:inline-block; font-size:7px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#B8926B; background:#FFF3CD; border-radius:6px; padding:2px 6px; margin-left:6px; }
+
+    .donut-wrap { display:flex; align-items:center; gap:16px; }
+    .donut-stats { flex:1; display:flex; flex-direction:column; gap:8px; }
+    .donut-stat-num { font-size:17px; font-weight:900; color:var(--navy); line-height:1; }
+    .donut-stat-lbl { font-size:8px; color:var(--gray); margin-top:2px; }
+
+    .feat-card { border:1.5px solid var(--green); box-shadow:0 0 0 3px rgba(61,190,138,.08); border-radius:12px; padding:14px 18px; margin-bottom:6px; }
+    .feat-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 16px; }
+    .feat-item { font-size:9.5px; color:var(--slate); display:flex; align-items:flex-start; gap:6px; line-height:1.4; }
+    .feat-item .tk { color:var(--green); font-size:11px; flex-shrink:0; }
+    .feat-note { font-size:8.5px; color:var(--gray); margin-top:6px; padding-top:8px; border-top:1px solid var(--border); }
+
+    .hero1-pills { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+    .hero1-pill { background:var(--white); border:1px solid var(--border); border-radius:20px; padding:6px 13px; font-size:9px; font-weight:600; color:var(--navy); display:flex; align-items:center; gap:6px; }
+    .hero1-pill .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+    .contact-card { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:12px; padding:16px 22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .contact-title { font-size:12px; font-weight:800; color:#fff; margin-bottom:3px; }
+    .contact-sub   { font-size:9.5px; color:rgba(255,255,255,.6); line-height:1.5; }
+    .contact-detail { text-align:right; }
+    .contact-email { font-size:11px; font-weight:700; color:var(--gold); }
+    .contact-note  { font-size:9px; color:rgba(255,255,255,.5); margin-top:3px; }
+
+    .qr-strip { display:flex; gap:12px; margin-bottom:6px; }
+    .qr-card { flex:1; border:1px solid var(--border); border-radius:12px; padding:12px 13px; display:flex; align-items:center; gap:11px; }
+    .qr-img { width:56px; height:56px; border:1px solid var(--border); border-radius:6px; flex-shrink:0; }
+    .qr-platform { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:3px; }
+    .qr-sub { font-size:8px; color:var(--slate); line-height:1.4; }
+
+    .timeline { display:flex; align-items:flex-start; margin-bottom:16px; }
+    .tl-step { flex:1; text-align:center; position:relative; padding-top:2px; }
+    .tl-circle { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,var(--green),var(--teal)); color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; margin:0 auto 8px; position:relative; z-index:1; }
+    .tl-step:nth-child(2) .tl-circle { background:linear-gradient(135deg,var(--blue),var(--teal)); }
+    .tl-step:nth-child(3) .tl-circle { background:linear-gradient(135deg,var(--gold),var(--orange)); }
+    .tl-step::before { content:''; position:absolute; top:14px; left:-50%; width:100%; height:2px; background:var(--border); z-index:0; }
+    .tl-step:first-child::before { display:none; }
+    .tl-title { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:4px; padding:0 8px; }
+    .tl-body { font-size:8px; color:var(--slate); line-height:1.4; padding:0 10px; }
+  </style>
+</head>
+<body>
+
+<!-- PAGE 1 -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Why NGOs Need Imotara — Leadership Briefing</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="hero1">
+    <div class="hero1-eyebrow">For NGO Directors, Programme Leads &amp; Trustees</div>
+    <div class="hero1-title">Your mission needs a <em>force-multiplier</em>, not another line item.</div>
+    <div class="hero1-sub">Every NGO serving vulnerable communities hits the same wall: too few counsellors, too many languages, and beneficiaries who will never ask for help face-to-face. Imotara puts a private, always-on emotional wellness companion in every beneficiary's pocket — for a fraction of the cost of one more field visit.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:16px;">The gap your programme is already fighting</div>
+    <div class="market-strip">
+      <div class="market-card mc-1">
+        <div class="market-num">76%</div>
+        <div class="market-lbl">People with mental health conditions in low- &amp; middle-income countries who receive no treatment at all</div>
+        <div class="market-src">Source: WHO Mental Health Atlas</div>
+      </div>
+      <div class="market-card mc-2">
+        <div class="market-num">0.75</div>
+        <div class="market-lbl">Psychiatrists available per 100,000 people in India — one of the widest care gaps in the world</div>
+        <div class="market-src">Source: WHO Mental Health Atlas, India</div>
+      </div>
+      <div class="market-card mc-3">
+        <div class="market-num">22</div>
+        <div class="market-lbl">Languages Imotara speaks — reaching beneficiaries most helplines and apps simply can't</div>
+        <div class="market-src">Product capability</div>
+      </div>
+      <div class="market-card mc-4">
+        <div class="market-num">60%</div>
+        <div class="market-lbl">Discount off commercial pricing for every verified NGO, out of the box</div>
+        <div class="market-src">Imotara NGO pricing</div>
+      </div>
+    </div>
+
+    <div class="sec">Traditional in-person support vs. Imotara</div>
+    <table class="cmp-table">
+      <thead>
+        <tr><th></th><th class="cmp-col-them">Traditional in-person support</th><th class="cmp-col-us">With Imotara</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Availability</td><td class="cmp-them">Business hours, by appointment</td><td class="cmp-us">24 hours a day, 7 days a week</td></tr>
+        <tr><td>Wait time</td><td class="cmp-them">Days to weeks for a first session</td><td class="cmp-us">Instant — no waiting list</td></tr>
+        <tr><td>Language reach</td><td class="cmp-them">Usually 1–2 languages per counsellor</td><td class="cmp-us">22 languages, including 11+ Indian languages</td></tr>
+        <tr><td>Cost per seat / yr</td><td class="cmp-them">₹1,500–3,000 for a single session</td><td class="cmp-us">From ₹799/seat/yr* — 60% off commercial</td></tr>
+        <tr><td>What your org sees</td><td class="cmp-them">Case notes &amp; personal details</td><td class="cmp-us">Aggregate trends only — never an identity</td></tr>
+      </tbody>
+    </table>
+    <div class="cmp-foot">*₹799/seat/year is Imotara's self-serve NGO rate for seat packs up to 500 (60% off the ₹1,999/seat/year commercial rate). Larger cohorts and consortiums are quoted individually and may qualify for a deeper subsidy. Counselling-session cost reflects commonly reported urban India averages and varies by provider and region. Full seat pricing in the Imotara NGO Licensing &amp; Facilities guide.</div>
+
+    <div class="sec">Why NGO leadership chooses Imotara</div>
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="why-icon">📈</div>
+        <div class="why-title">Multiply reach, not headcount</div>
+        <div class="why-body">One Imotara seat costs a fraction of one field visit — so a fixed grant budget now supports thousands of beneficiaries year-round, not just the ones your staff can physically reach.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">🛡️</div>
+        <div class="why-title">Lower organisational risk</div>
+        <div class="why-body">Beneficiary conversations are never visible to your organisation — only aggregate trends are. Less liability, less sensitive data to protect, a lighter compliance burden for your team.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">📊</div>
+        <div class="why-title">Walk into donor reviews with proof</div>
+        <div class="why-body">Weekly active use, engagement trends and check-in rates — ready to cite in your next grant renewal or board report, without a single beneficiary identity ever changing hands.</div>
+      </div>
+    </div>
+
+    <div class="roi-strip">
+      <div class="roi-left">
+        <div class="roi-title">The multiplier, at a glance</div>
+        <div class="roi-sub">A single Imotara licence doesn't replace your field team — it extends what they can already do, to every hour of the day and every beneficiary on your books, at a cost no in-person model can match.</div>
+      </div>
+      <div class="roi-div"></div>
+      <div class="roi-stats">
+        <div class="roi-stat"><div class="roi-num">24/7</div><div class="roi-lbl">support available, every day of the year</div></div>
+        <div class="roi-stat"><div class="roi-num">365</div><div class="roi-lbl">days of coverage per beneficiary, per year</div></div>
+        <div class="roi-stat"><div class="roi-num">60%+</div><div class="roi-lbl">lower cost than commercial pricing</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Why NGOs Need Imotara</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 1 of 2</div>
+  </div>
+</div>
+
+
+<!-- PAGE 2 -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Impact, Fit &amp; Next Steps</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p2-hero">
+    <div class="p2-hero-title">See the impact. <em>Never see the individual.</em></div>
+    <div class="p2-hero-sub">A sample of what your organisation's admin dashboard shows — engagement your team can act on and report, with nothing that identifies a single beneficiary.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:14px;">Sample admin dashboard view <span class="chart-tag">Illustrative data</span></div>
+    <div class="chart-row">
+      <div class="chart-card" style="flex:1.4;">
+        <div class="chart-title">Weekly Active Beneficiaries — last 8 weeks</div>
+        <div class="chart-note">Sample trend as shown in Org Dashboard → Analytics</div>
+        <svg viewBox="0 0 320 130" width="100%" height="130">
+          <line x1="0" y1="110" x2="320" y2="110" stroke="#D4E2F7" stroke-width="1"/>
+          <g font-family="Inter" font-size="7.5" fill="#6B7EA4">
+            <rect x="6"   y="66" width="26" height="44" rx="3" fill="#94A3B8"/>
+            <rect x="42"  y="58" width="26" height="52" rx="3" fill="#94A3B8"/>
+            <rect x="78"  y="60" width="26" height="50" rx="3" fill="#3DBE8A"/>
+            <rect x="114" y="48" width="26" height="62" rx="3" fill="#3DBE8A"/>
+            <rect x="150" y="42" width="26" height="68" rx="3" fill="#38C9B9"/>
+            <rect x="186" y="44" width="26" height="66" rx="3" fill="#38C9B9"/>
+            <rect x="222" y="30" width="26" height="80" rx="3" fill="#4B9FE1"/>
+            <rect x="258" y="22" width="26" height="88" rx="3" fill="#4B9FE1"/>
+            <text x="19"  y="122" text-anchor="middle">W1</text>
+            <text x="55"  y="122" text-anchor="middle">W2</text>
+            <text x="91"  y="122" text-anchor="middle">W3</text>
+            <text x="127" y="122" text-anchor="middle">W4</text>
+            <text x="163" y="122" text-anchor="middle">W5</text>
+            <text x="199" y="122" text-anchor="middle">W6</text>
+            <text x="235" y="122" text-anchor="middle">W7</text>
+            <text x="271" y="122" text-anchor="middle">W8</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="chart-card" style="flex:1;">
+        <div class="chart-title">Seat Utilisation</div>
+        <div class="chart-note">Sample org: 1,000-seat NGO licence</div>
+        <div class="donut-wrap">
+          <svg viewBox="0 0 100 100" width="88" height="88">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#E7EEFB" stroke-width="14"/>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="url(#donutGrad2)" stroke-width="14"
+                    stroke-dasharray="181.0 251.33" stroke-dashoffset="0" stroke-linecap="round"
+                    transform="rotate(-90 50 50)"/>
+            <defs>
+              <linearGradient id="donutGrad2" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#3DBE8A"/>
+                <stop offset="100%" stop-color="#38C9B9"/>
+              </linearGradient>
+            </defs>
+            <text x="50" y="47" text-anchor="middle" font-family="Inter" font-size="17" font-weight="900" fill="#12274F">72%</text>
+            <text x="50" y="61" text-anchor="middle" font-family="Inter" font-size="6.5" fill="#6B7EA4">used</text>
+          </svg>
+          <div class="donut-stats">
+            <div><div class="donut-stat-num">720 / 1,000</div><div class="donut-stat-lbl">Seats provisioned</div></div>
+            <div><div class="donut-stat-num">58%</div><div class="donut-stat-lbl">Weekly check-in rate</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">What every beneficiary &amp; staff member gets</div>
+    <div class="feat-card">
+      <div class="feat-grid">
+        <div class="feat-item"><span class="tk">✓</span> Full Pro-tier features for every beneficiary</div>
+        <div class="feat-item"><span class="tk">✓</span> Unlimited, judgment-free AI conversations</div>
+        <div class="feat-item"><span class="tk">✓</span> Voice &amp; text support in 22 languages</div>
+        <div class="feat-item"><span class="tk">✓</span> Offline AI fallback — support never stops</div>
+        <div class="feat-item"><span class="tk">✓</span> Aggregate-only analytics for your reporting</div>
+        <div class="feat-item"><span class="tk">✓</span> A beneficiary's personal account is never downgraded</div>
+      </div>
+      <div class="feat-note">Full feature list, admin-dashboard tour, and seat pricing → see the Imotara NGO Licensing &amp; Facilities guide.</div>
+    </div>
+
+    <div class="hero1-pills">
+      <div class="hero1-pill"><span class="dot" style="background:var(--blue)"></span> Row-level access control</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--teal)"></span> Encrypted in transit</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--green)"></span> No individual data ever shown to your org</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--gold)"></span> Privacy-by-design programme (GDPR/DPDP-aligned, in progress)</div>
+    </div>
+
+    <div class="sec">Your first 30 days</div>
+    <div class="timeline">
+      <div class="tl-step"><div class="tl-circle">1</div><div class="tl-title">Apply &amp; verify</div><div class="tl-body">Share registration details, beneficiary count and programme goals.</div></div>
+      <div class="tl-step"><div class="tl-circle">2</div><div class="tl-title">Get your subsidy tier</div><div class="tl-body">Receive a verified subsidy tier and seat-pack quote within 48 hours.</div></div>
+      <div class="tl-step"><div class="tl-circle">3</div><div class="tl-title">Roll out to your cohort</div><div class="tl-body">Bulk-invite beneficiaries or staff by CSV — they accept and get full access instantly.</div></div>
+    </div>
+
+    <div class="sec">Try Imotara yourself — scan to download</div>
+    <div class="qr-strip">
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-web.png" alt="Imotara Web QR"/>
+        <div><div class="qr-platform">🌐 Web App</div><div class="qr-sub">Scan to open imotara.com in your browser — no install needed.</div></div>
+      </div>
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-ios.png" alt="Imotara iOS QR"/>
+        <div><div class="qr-platform"> App Store</div><div class="qr-sub">Scan to download for iPhone &amp; iPad.</div></div>
+      </div>
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-android.png" alt="Imotara Android QR"/>
+        <div><div class="qr-platform">▶ Google Play</div><div class="qr-sub">Scan to download for Android.</div></div>
+      </div>
+    </div>
+
+    <div class="contact-card">
+      <div>
+        <div class="contact-title">Ready to see what this means for your beneficiaries?</div>
+        <div class="contact-sub">Share your registration details and beneficiary count — we'll respond<br/>with a subsidy tier and onboarding plan within 48 hours.</div>
+      </div>
+      <div class="contact-detail">
+        <div class="contact-email">info@imotara.com</div>
+        <div class="contact-note">imotara.com &nbsp;·&nbsp; Response within 48 hours</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Why NGOs Need Imotara</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 2 of 2</div>
+  </div>
+</div>
+
+</body>
+</html>

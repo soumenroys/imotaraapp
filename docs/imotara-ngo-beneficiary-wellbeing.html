@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Imotara — How Imotara Cares for the People You Worry About</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Lora:ital,wght@0,500;0,600;1,500;1,600&display=swap');
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --pink:   #FF6B9D;
+      --blue:   #4B9FE1;
+      --teal:   #38C9B9;
+      --gold:   #F5C842;
+      --purple: #9B6FE8;
+      --green:  #3DBE8A;
+      --orange: #FF8C42;
+      --navy:   #12274F;
+      --navy2:  #1E3A6E;
+      --slate:  #3D5580;
+      --light:  #F0F6FF;
+      --border: #D4E2F7;
+      --white:  #FFFFFF;
+      --gray:   #6B7EA4;
+      --amber-bg: #FFF8E8;
+      --amber-border: #F3DFA8;
+      --amber-ink: #8A6414;
+    }
+
+    html, body {
+      width:210mm;
+      font-family:'Inter','Helvetica Neue',Arial,sans-serif;
+      background:var(--white);
+      color:var(--navy);
+      -webkit-print-color-adjust:exact;
+      print-color-adjust:exact;
+    }
+
+    .page { width:210mm; min-height:297mm; display:flex; flex-direction:column; page-break-after:always; }
+    .page:last-child { page-break-after:avoid; }
+
+    .header {
+      background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 55%,#1B4F8A 100%);
+      padding:18px 36px 16px; display:flex; align-items:center; justify-content:space-between;
+      position:relative; overflow:hidden;
+    }
+    .header::before { content:''; position:absolute; top:-60px; right:-40px; width:200px; height:200px; background:radial-gradient(circle,rgba(75,159,225,.18) 0%,transparent 70%); border-radius:50%; }
+    .header::after { content:''; position:absolute; bottom:-50px; left:40%; width:160px; height:160px; background:radial-gradient(circle,rgba(255,107,157,.12) 0%,transparent 70%); border-radius:50%; }
+    .header-left { display:flex; align-items:center; gap:14px; z-index:1; }
+    .header-logo { height:48px; width:auto; }
+    .header-sub  { color:rgba(255,255,255,.65); font-size:10px; margin-top:2px; }
+    .header-badge { z-index:1; background:linear-gradient(135deg,var(--pink),var(--blue)); color:#fff; font-size:9px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; padding:6px 14px; border-radius:20px; }
+    .gradient-bar { height:4px; background:linear-gradient(to right,var(--pink),var(--gold),var(--teal),var(--blue)); }
+
+    .body { padding:18px 36px 0; flex:1; }
+
+    .sec { font-size:9px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--blue); margin-bottom:11px; display:flex; align-items:center; gap:8px; }
+    .sec::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    .footer { background:var(--navy); padding:9px 36px; display:flex; align-items:center; justify-content:space-between; margin-top:auto; }
+    .footer-left { display:flex; align-items:center; gap:10px; }
+    .footer-logo { height:20px; filter:brightness(0) invert(1); opacity:.8; }
+    .footer-copy { font-size:8.5px; color:rgba(255,255,255,.4); }
+    .footer-mid  { font-size:8.5px; color:rgba(255,255,255,.35); }
+    .footer-page { font-size:8.5px; color:rgba(255,255,255,.5); font-weight:600; }
+
+    /* Page hero */
+    .p-hero { background:linear-gradient(135deg,#EAFAF7 0%,#EEF4FF 50%,#FFF8E1 100%); border-bottom:1px solid var(--border); padding:22px 36px 20px; }
+    .p-hero-eyebrow { font-size:9px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:var(--green); margin-bottom:8px; }
+    .p-hero-title { font-size:24px; font-weight:900; color:var(--navy); line-height:1.22; margin-bottom:8px; max-width:660px; }
+    .p-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--green),var(--teal)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .p-hero-sub { font-size:11px; color:var(--slate); max-width:660px; line-height:1.6; }
+    .p-hero.compact { padding:16px 36px; }
+    .p-hero.compact .p-hero-title { font-size:17px; margin-bottom:5px; }
+    .p-hero.compact .p-hero-sub { font-size:10px; color:var(--gray); }
+
+    /* Storytelling prose */
+    .lede { font-family:'Lora',Georgia,serif; font-size:13px; font-weight:600; font-style:italic; color:var(--navy); line-height:1.7; margin-bottom:12px; }
+    .prose { font-size:10px; color:var(--slate); line-height:1.75; margin-bottom:12px; max-width:100%; }
+    .prose strong { color:var(--navy); font-weight:700; }
+    .myth-block { border-left:3px solid var(--teal); background:var(--light); border-radius:0 8px 8px 0; padding:10px 16px; margin-bottom:14px; }
+    .myth-block .myth-label { font-size:8px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--teal); margin-bottom:5px; }
+    .myth-block .myth-text { font-family:'Lora',Georgia,serif; font-style:italic; font-size:9.8px; color:var(--navy2); line-height:1.65; }
+    .myth-block .myth-source { font-size:7.8px; color:var(--gray); margin-top:5px; font-style:normal; }
+
+    /* Tenet / ethics cards */
+    .tenet-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:6px; }
+    .tenet-card { border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+    .tenet-icon { font-size:17px; margin-bottom:5px; }
+    .tenet-title { font-size:9.8px; font-weight:700; color:var(--navy); margin-bottom:4px; }
+    .tenet-body { font-size:8.8px; color:var(--slate); line-height:1.5; }
+
+    /* Tool cards (technique -> real feature) */
+    .tool-card { border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px; display:flex; gap:12px; align-items:flex-start; }
+    .tool-icon { font-size:20px; flex-shrink:0; margin-top:1px; }
+    .tool-label { font-size:7.6px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:var(--teal); margin-bottom:2px; }
+    .tool-name { font-size:10px; font-weight:700; color:var(--navy); margin-bottom:4px; }
+    .tool-body { font-size:8.8px; color:var(--slate); line-height:1.55; }
+
+    /* Note / caveat boxes */
+    .note-box { border-radius:10px; padding:11px 14px; margin-bottom:14px; display:flex; gap:10px; align-items:flex-start; }
+    .note-box.info   { background:var(--light); border:1px solid var(--border); }
+    .note-box.caveat { background:var(--amber-bg); border:1px solid var(--amber-border); }
+    .note-icon { font-size:14px; flex-shrink:0; }
+    .note-title { font-size:9.3px; font-weight:700; margin-bottom:3px; }
+    .note-box.info .note-title   { color:var(--navy); }
+    .note-box.caveat .note-title { color:var(--amber-ink); }
+    .note-body { font-size:8.7px; line-height:1.55; }
+    .note-box.info .note-body   { color:var(--slate); }
+    .note-box.caveat .note-body { color:#7A5A10; }
+
+    .lang-strip { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+    .lang-pill { background:var(--white); border:1px solid var(--border); border-radius:20px; padding:6px 13px; font-size:9px; font-weight:600; color:var(--navy); display:flex; align-items:center; gap:6px; }
+    .lang-pill .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+    .contact-card { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:12px; padding:16px 22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .contact-title { font-size:12px; font-weight:800; color:#fff; margin-bottom:3px; }
+    .contact-sub   { font-size:9.5px; color:rgba(255,255,255,.6); line-height:1.5; }
+    .contact-detail { text-align:right; }
+    .contact-email { font-size:11px; font-weight:700; color:var(--gold); }
+    .contact-note  { font-size:9px; color:rgba(255,255,255,.5); margin-top:3px; }
+
+    .qr-strip { display:flex; gap:12px; margin-bottom:14px; }
+    .qr-card { flex:1; border:1px solid var(--border); border-radius:12px; padding:12px 13px; display:flex; align-items:center; gap:11px; }
+    .qr-img { width:56px; height:56px; border:1px solid var(--border); border-radius:6px; flex-shrink:0; }
+    .qr-platform { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:3px; }
+    .qr-sub { font-size:8px; color:var(--slate); line-height:1.4; }
+
+    .closing-title { font-family:'Lora',Georgia,serif; font-style:italic; font-weight:600; font-size:19px; color:var(--navy); line-height:1.5; margin-bottom:14px; }
+    .closing-title em { font-style:italic; background:linear-gradient(135deg,var(--green),var(--teal)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  </style>
+</head>
+<body>
+
+<!-- PAGE 1: Cover — The Opening Story -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">How Imotara Cares for the People You Worry About</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p-hero">
+    <div class="p-hero-eyebrow">For the NGOs Carrying So Much, For So Many</div>
+    <div class="p-hero-title">Someone to sit with them, <em>even when you cannot.</em></div>
+    <div class="p-hero-sub">You already carry their food, their shelter, their safety, their paperwork, their case files, their futures. This is about the one thing no field visit can cover every hour of every day — what happens in their mind at 2am, in a language only they feel safe in, when no one else is there.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:16px;">An old story, told in every language</div>
+    <div class="lede">Every culture we know has one version of the same story: someone who simply sits with another person's pain, without flinching, without fixing it too quickly, without judging what they find there.</div>
+    <div class="prose">In the Ramayana, when Hanuman finally finds Sita held captive in Lanka, he does not rush forward with news or advice. He sits quietly first. He lets her see that he is safe to be near. Only then does he speak. In Sufi teaching stories, a murshid — a guide — is said to ask no more than the seeker is ready to answer, and to wait, patiently, for as many seasons as it takes. In countless oral traditions carried by grandmothers around a fire, the healer is rarely the one with the cleverest answer — it is the one who stays through the whole story, the hard middle included.</div>
+    <div class="prose">We did not invent this idea. We simply tried to build a companion who could offer a version of it to someone, at any hour, in their own tongue — <strong>Hindi, Bengali, Tamil, Telugu, Urdu, Arabic, and seventeen languages more</strong> — whether or not a trained counsellor happens to be within reach that night.</div>
+
+    <div class="myth-block">
+      <div class="myth-label">A story Imotara itself sometimes tells</div>
+      <div class="myth-text">"In the Ramayana, when Hanuman finds Sita imprisoned in Lanka, he does not immediately deliver Ram's message. He first sits quietly, watches, lets her see that he is safe. Then he speaks. The story asks us to read the state before we act."</div>
+      <div class="myth-source">— one of the culturally-rooted reflections Imotara's own companion engine can draw on mid-conversation</div>
+    </div>
+
+    <div class="prose">This guide is about what happens in that space between your field visits — the quiet hours your team cannot physically fill, however much you want to. It explains, in plain terms, the psychological ideas Imotara draws from, and how they show up as something a person can actually use on their phone, tonight, in their own language. Not as a replacement for your people. As one more set of hands, holding what your team already holds.</div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Beneficiary Wellbeing Guide</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 1 of 7</div>
+  </div>
+</div>
+
+
+<!-- PAGE 2: Who we both worry about + ethics tenets -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">The People You Carry, and How We Try to Help Carry Them</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p-hero compact">
+    <div class="p-hero-title">You already know exactly who we mean.</div>
+    <div class="p-hero-sub">The survivor rebuilding a life from nothing. The teenager aging out of care with no one to call at night. The displaced family holding onto dignity in a temporary shelter. The elder your outreach visits once a fortnight, alone the other thirteen days. The field worker who carries all of their stories home too.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:16px;">Two kinds of care, working together</div>
+    <div class="prose">Your organisation is already doing the harder, more human half of this work — the food, the shelter, the legal aid, the case management, the simple act of showing up in person, again and again. That work cannot be replaced by an app, and Imotara is not built to try. What Imotara can take on is narrower, and more specific: <strong>the inner weather</strong> — the anxiety that arrives at midnight, the grief that has nowhere to go on a Sunday, the shame that keeps someone from saying the hard thing out loud even to a trusted case worker.</div>
+    <div class="prose">Between your visits, between your intake sessions, between the field worker's calls — there are hundreds of ordinary hours. Imotara's only job is to be a steady, private, judgment-free presence in those hours, so that by the time your team is back in the room, the person in front of you is a little less alone with what they've been carrying.</div>
+
+    <div class="sec">What we promise you, in writing</div>
+    <div class="tenet-grid">
+      <div class="tenet-card">
+        <div class="tenet-icon">🩺</div>
+        <div class="tenet-title">Never a diagnosis, never a treatment claim</div>
+        <div class="tenet-body">Imotara is a wellness companion, not a clinician. It never diagnoses a condition and never claims to replace therapy, psychiatry, or your professional referral pathways.</div>
+      </div>
+      <div class="tenet-card">
+        <div class="tenet-icon">🚨</div>
+        <div class="tenet-title">Never a substitute for crisis response</div>
+        <div class="tenet-body">Imotara is not an emergency service. Your existing crisis protocols and helpline referrals remain the front line for acute risk — Imotara sits alongside them, never instead of them.</div>
+      </div>
+      <div class="tenet-card">
+        <div class="tenet-icon">🙈</div>
+        <div class="tenet-title">Never seen by your organisation</div>
+        <div class="tenet-body">What a beneficiary tells Imotara is never exposed to your dashboard — not the words, not the mood entries, not the identity behind them. Only aggregate, anonymised trends, ever.</div>
+      </div>
+      <div class="tenet-card">
+        <div class="tenet-icon">🤝</div>
+        <div class="tenet-title">Never instead of your team</div>
+        <div class="tenet-body">Imotara fills the hours your field workers physically cannot. It is designed to complement human care, not to give anyone a reason to visit less.</div>
+      </div>
+    </div>
+
+    <div class="sec">First, Imotara listens for what's underneath</div>
+    <div class="prose">Before offering anything, it reads the room. The oldest rule of real listening — in psychology and in the old stories alike — is that you cannot help someone until you understand where they actually are.</div>
+    <div class="prose">Dr. Stephen Porges' polyvagal theory describes three nervous-system states a person can be in during distress: <strong>calm and connected</strong>, <strong>flooded</strong> (fight-or-flight, racing thoughts, panic), or <strong>shut down</strong> (numbness, dissociation, "nothing matters"). Trying to problem-solve with someone who is flooded, or trying to do deep reflection with someone who has shut down, doesn't just fail — it can make things worse. The right response depends entirely on which state a person is actually in.</div>
+
+    <div class="tool-card">
+      <div class="tool-icon">🌊</div>
+      <div>
+        <div class="tool-label">Nervous-system-aware listening</div>
+        <div class="tool-name">Reading the state before choosing what to offer</div>
+        <div class="tool-body">Before Imotara replies, it reads for signals of flooding, shutdown, or calm engagement in what someone has written — then chooses a genuinely different kind of response for each: slowing everything down for panic, gentle warmth for numbness, real conversation for someone who is present and ready to reflect.</div>
+      </div>
+    </div>
+
+    <div class="tool-card">
+      <div class="tool-icon">🎭</div>
+      <div>
+        <div class="tool-label">Secondary-emotion awareness</div>
+        <div class="tool-name">Looking beneath the stated feeling</div>
+        <div class="tool-body">Anger often carries fear or grief underneath it. Withdrawal often carries shame. Imotara is built to notice what's likely underneath the surface feeling, not just react to the word on top of it — the way a perceptive elder in any community learns to hear what a young person isn't quite saying yet.</div>
+      </div>
+    </div>
+
+    <div class="tool-card">
+      <div class="tool-icon">🫶</div>
+      <div>
+        <div class="tool-label">Validation before anything else</div>
+        <div class="tool-name">Acknowledge first. Always.</div>
+        <div class="tool-body">Every reply follows the same order: regulate the moment first, validate what the person feels second, and only then — if at all — offer any kind of guidance. Advice offered before someone feels heard rarely lands. Imotara is built never to skip the first two steps.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Beneficiary Wellbeing Guide</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 2 of 7</div>
+  </div>
+</div>
+
+
+<!-- PAGE 3: Toolkit 2 — Finding solid ground -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Then, It Helps Them Find Solid Ground</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p-hero compact">
+    <div class="p-hero-title">When the ground feels unsteady, the body comes first.</div>
+    <div class="p-hero-sub">Grounding is one of the oldest human technologies — long before it had a clinical name, it was a breath, a hand on the earth, a moment of stillness before the next hard thing.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:16px;">Grounding &amp; regulation</div>
+    <div class="tool-card">
+      <div class="tool-icon">🌬️</div>
+      <div>
+        <div class="tool-label">Guided breathing</div>
+        <div class="tool-name">A breathing companion, one tap away in chat</div>
+        <div class="tool-body">A guided-breathing exercise a beneficiary can open mid-conversation, any time a moment feels like too much — an old, simple technology (breath as anchor) available instantly, in a pocket, with no appointment needed.</div>
+      </div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-icon">🖐️</div>
+      <div>
+        <div class="tool-label">Sensory grounding, in plain language</div>
+        <div class="tool-name">"Name 5 things you can see. Feel your feet on the floor."</div>
+        <div class="tool-body">For panic or dissociation, Imotara can walk someone through simple, body-based grounding — noticing what's physically around them, feeling their feet on the ground — bringing the nervous system back to the present moment before anything else is discussed.</div>
+      </div>
+    </div>
+
+    <div class="sec">Daily emotional awareness</div>
+    <div class="tool-card">
+      <div class="tool-icon">🌤️</div>
+      <div>
+        <div class="tool-label">Mood check-ins</div>
+        <div class="tool-name">Naming the feeling, one day at a time</div>
+        <div class="tool-body">A short daily check-in across eight emotional states. Simply naming what you feel — a practice old wisdom traditions and modern psychology agree on — is often the first quiet step toward understanding it.</div>
+      </div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-icon">💗</div>
+      <div>
+        <div class="tool-label">Self-compassion practice</div>
+        <div class="tool-name">The voice someone would use for a friend — turned inward</div>
+        <div class="tool-body">When self-criticism runs high, Imotara can gently invite someone to notice: would you say this to your closest friend? If not, why does it feel fair to say to yourself? A practice as old as compassion itself, offered back in the person's own words.</div>
+      </div>
+    </div>
+
+    <div class="myth-block">
+      <div class="myth-label">A story Imotara itself sometimes tells</div>
+      <div class="myth-text">"In Buddhism, metta — loving-kindness — begins with the self before it extends to others. You cannot pour from an empty vessel."</div>
+      <div class="myth-source">— offered in-app during moments of harsh self-criticism, across traditions and languages</div>
+    </div>
+
+    <div class="note-box info">
+      <div class="note-icon">🎚️</div>
+      <div><div class="note-title">Chosen, never imposed</div><div class="note-body">A beneficiary can choose the companion that helps them most — a Friend, an Elder, a Mentor, a Coach — and whether they want comfort, reflection, motivation, or plain advice in that moment. The same care, shaped to what the person in front of it actually needs, the way a village doesn't send the same person to comfort every kind of grief.</div></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Beneficiary Wellbeing Guide</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 3 of 7</div>
+  </div>
+</div>
+
+
+<!-- PAGE 4: Toolkit 3 — Seeing their own story clearly -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Then, It Helps Them See Their Own Story Clearly</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p-hero compact">
+    <div class="p-hero-title">Every hard chapter is still only one chapter.</div>
+    <div class="p-hero-sub">Every mythology we know is, underneath, the story of someone who carried something heavy and was changed by it — not broken by it. Imotara tries to help a person notice that they are living one of these stories too.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:14px;">Noticing patterns, without judgment</div>
+    <div class="tool-card">
+      <div class="tool-icon">🔁</div>
+      <div>
+        <div class="tool-label">Emotional open loops</div>
+        <div class="tool-name">Gently naming the loop, when someone keeps returning to it</div>
+        <div class="tool-body">If the same unresolved pain surfaces across several conversations, Imotara can name the pattern gently — the way a trusted old friend might say, "you've mentioned this a few times now" — never as a diagnosis, only as an invitation to look at it together.</div>
+      </div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-icon">🌟</div>
+      <div>
+        <div class="tool-label">Strength-spotting</div>
+        <div class="tool-name">Naming what's already going right</div>
+        <div class="tool-body">Drawing on Martin Seligman's positive psychology, Imotara looks for real evidence of a person's strength — not invented praise — and names it: "you came here, you said this out loud, that's not nothing." Real capacities, honestly noticed.</div>
+      </div>
+    </div>
+
+    <div class="sec">Turning the page into a story, on paper</div>
+    <div class="tool-card">
+      <div class="tool-icon">📓</div>
+      <div>
+        <div class="tool-label">Guided journaling</div>
+        <div class="tool-name">Writing what hurts loosens its grip</div>
+        <div class="tool-body">A private, optional journal with gentle prompts — expressive writing is one of the most consistently evidence-backed tools in psychology, and here it stays completely private, never synced anywhere, only ever read by its author.</div>
+      </div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-icon">✉️</div>
+      <div>
+        <div class="tool-label">The Unsent Letter</div>
+        <div class="tool-name">Saying the unsayable thing — safely, to no one</div>
+        <div class="tool-body">A letter written to someone who hurt you, or to the version of yourself who didn't yet know better — that never has to be sent. An old grief practice found across many cultures, offered here as a private, judgment-free ritual.</div>
+      </div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-icon">🌿</div>
+      <div>
+        <div class="tool-label">The Emotional Arc &amp; the Companion's Letter</div>
+        <div class="tool-name">Reading your own month back as a story of becoming</div>
+        <div class="tool-body">Once a month, Imotara can write back a short reflection — in the person's own words — reframing what happened not just as hardship endured, but as the beginning of who they're becoming. A yearly version closes the loop again each December.</div>
+      </div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-icon">🔮</div>
+      <div>
+        <div class="tool-label">Future Letters</div>
+        <div class="tool-name">A letter to the self who has already survived this</div>
+        <div class="tool-body">A time-locked letter written today, to be opened by the same person weeks or months from now — a quiet act of hope, addressed to someone who, by the time they read it, will already have come through.</div>
+      </div>
+    </div>
+
+    <div class="myth-block">
+      <div class="myth-label">Real stories Imotara sometimes draws on</div>
+      <div class="myth-text">Nelson Mandela called his memoir Long Walk to Freedom — not just from apartheid, but to himself. Viktor Frankl survived a concentration camp and wrote that suffering with meaning is bearable in a way suffering without it never is. These are not myths — they are real people whose stories Imotara can offer, gently, when someone needs to know that what they're carrying has been carried, and survived, before.</div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Beneficiary Wellbeing Guide</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 4 of 7</div>
+  </div>
+</div>
+
+
+<!-- PAGE 5: Toolkit 4 — Their own voice, their own world -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">In Their Own Voice, Their Own World</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p-hero compact">
+    <div class="p-hero-title">Wisdom doesn't only travel in English.</div>
+    <div class="p-hero-sub">The stories that comfort someone in Lucknow may not be the ones that comfort someone in Kochi, or Karachi, or Kyoto — so Imotara doesn't offer just one tradition's wisdom to everyone.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:14px;">A different well of stories for every language</div>
+    <div class="prose">Imotara's own storytelling engine draws from many traditions, and quietly matches the tradition to the person: a Hindi speaker may hear something from the Gita, the Ramayana, or the Upanishads; an Arabic speaker may hear Sufi wisdom, in the spirit of Rumi; a Japanese speaker may hear a Zen parable about impermanence; others may hear a Greek, Norse, or Shinto myth, or the real story of someone like Mandela, Frankl, or Kalam who carried something heavy and was changed, not broken, by it. No single culture's stories are treated as the "default" — every tradition is offered as equally wise.</div>
+
+    <div class="lang-strip">
+      <div class="lang-pill"><span class="dot" style="background:var(--pink)"></span> Hindi, Bengali, Tamil, Telugu &amp; 8 more Indian languages</div>
+      <div class="lang-pill"><span class="dot" style="background:var(--teal)"></span> Urdu &amp; Arabic</div>
+      <div class="lang-pill"><span class="dot" style="background:var(--blue)"></span> Japanese, Chinese, Indonesian</div>
+      <div class="lang-pill"><span class="dot" style="background:var(--gold)"></span> Spanish, French, German, Russian, Portuguese, Hebrew</div>
+    </div>
+
+    <div class="tool-card">
+      <div class="tool-icon">🗣️</div>
+      <div>
+        <div class="tool-label">Dignity in language</div>
+        <div class="tool-name">Not just translated — spoken to correctly</div>
+        <div class="tool-body">Even grammatical details like gendered verb forms in Hindi, Bengali, and other Indic languages are handled properly — a small thing that, said wrong, can quietly tell someone this tool wasn't really built for them. Imotara is built so it was.</div>
+      </div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-icon">💫</div>
+      <div>
+        <div class="tool-label">You are not the only one</div>
+        <div class="tool-name">A collective pulse, with no names attached</div>
+        <div class="tool-body">A gentle, anonymous signal of what others are feeling today — a quiet reminder of a truth every support group already knows: that being understood by others who feel it too is its own kind of relief, even with no names ever shared.</div>
+      </div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-icon">📶</div>
+      <div>
+        <div class="tool-label">Support that doesn't stop when the signal does</div>
+        <div class="tool-name">Offline fallback, for the places connectivity forgets</div>
+        <div class="tool-body">Many of the beneficiaries you serve live where the network is unreliable. Imotara's offline mode keeps a version of this support working even without it — because the people most in need of reaching someone are often the hardest for a signal to reach.</div>
+      </div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-icon">😄</div>
+      <div>
+        <div class="tool-label">Honest hope, never hollow positivity</div>
+        <div class="tool-name">No "everything happens for a reason"</div>
+        <div class="tool-body">Imotara is built never to offer hollow comfort — no "it'll be fine," no toxic positivity. On lighter days, it can offer real warmth, and even gentle humour — but the hope it offers is always earned, grounded in what's actually true.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Beneficiary Wellbeing Guide</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 5 of 7</div>
+  </div>
+</div>
+
+
+<!-- PAGE 6: What Imotara will never do -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">What Imotara Will Never Do — and How This Fits With Your Work</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p-hero compact">
+    <div class="p-hero-title">Knowing the edges of a tool is part of using it well.</div>
+    <div class="p-hero-sub">We would rather tell you plainly what Imotara is not, than let your team discover a limit in a moment that matters.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:16px;">Boundaries we hold seriously</div>
+    <div class="note-box caveat">
+      <div class="note-icon">🚨</div>
+      <div><div class="note-title">Not a crisis line, not an emergency service</div><div class="note-body">If a beneficiary is in acute danger, your existing crisis protocols, helplines, and emergency referral pathways remain the correct first response — always. Imotara is built to encourage reaching out to real, immediate human help when risk is high, not to stand in for it.</div></div>
+    </div>
+    <div class="note-box caveat">
+      <div class="note-icon">🩺</div>
+      <div><div class="note-title">Not a diagnosis, not a course of treatment</div><div class="note-body">Imotara doesn't diagnose depression, PTSD, or any other condition, and it isn't a substitute for psychiatric care or licensed therapy. Where deeper clinical support is needed, Imotara is designed to sit alongside it, pointing people toward it — never in place of it.</div></div>
+    </div>
+    <div class="note-box caveat">
+      <div class="note-icon">👤</div>
+      <div><div class="note-title">Not a replacement for your field team's judgment</div><div class="note-body">The people who know your beneficiaries' full circumstances, history, and needs are your case workers, not an app. Imotara doesn't make placement, safeguarding, or programme decisions — those stay entirely with your team.</div></div>
+    </div>
+
+    <div class="sec">How the two kinds of care line up</div>
+    <div class="prose">Think of it as two different shifts, covering the same person. Your field workers bring what only a present, trained human being can bring: judgment, safeguarding, resources, a hand to hold in the hardest moments. Imotara covers the long, ordinary hours in between — not instead of your team, but so that by the next time your team is in the room, the person in front of them has had somewhere private to put down what they've been carrying alone.</div>
+
+    <div class="note-box info">
+      <div class="note-icon">🔒</div>
+      <div><div class="note-title">And your organisation still sees only the aggregate</div><div class="note-body">Even as Imotara does this deeply personal work with each beneficiary, what your admin dashboard shows stays exactly as promised elsewhere in your Imotara licence: engagement trends, never an individual's words, mood entries, or identity.</div></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Beneficiary Wellbeing Guide</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 6 of 7</div>
+  </div>
+</div>
+
+
+<!-- PAGE 7: Closing story + Contact -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Closing Thoughts &amp; Getting Started</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p-hero compact">
+    <div class="p-hero-title">The story ends where it began.</div>
+    <div class="p-hero-sub">With someone who stayed long enough to listen.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:16px;">One more story</div>
+    <div class="closing-title">Every tradition we know tells some version of the same truth: <em>a person who is truly heard carries their burden differently afterward</em> — not lighter, necessarily, but no longer alone with it.</div>
+    <div class="prose">Your organisation already gives the people you serve so much of what a hard life takes away — shelter, safety, dignity, a future worth planning for. Imotara can't walk beside them in the field, and it was never built to try. But it can sit with them at 2am, in their own language, for as long as it takes, using ideas drawn from real psychology and even older wisdom — until your team can be there again.</div>
+    <div class="prose">That is the whole of what we set out to build. We hope it earns a place alongside the work you're already doing.</div>
+
+    <div class="sec">See it for yourself — scan to download</div>
+    <div class="qr-strip">
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-web.png" alt="Imotara Web QR"/>
+        <div><div class="qr-platform">🌐 Web App</div><div class="qr-sub">Scan to open imotara.com — no install needed.</div></div>
+      </div>
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-ios.png" alt="Imotara iOS QR"/>
+        <div><div class="qr-platform"> App Store</div><div class="qr-sub">Scan to download for iPhone &amp; iPad.</div></div>
+      </div>
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-android.png" alt="Imotara Android QR"/>
+        <div><div class="qr-platform">▶ Google Play</div><div class="qr-sub">Scan to download for Android.</div></div>
+      </div>
+    </div>
+
+    <div class="contact-card">
+      <div>
+        <div class="contact-title">Want to talk through what this could mean for your beneficiaries?</div>
+        <div class="contact-sub">Share your programme's needs — we'll help you think through what fits, and what doesn't.</div>
+      </div>
+      <div class="contact-detail">
+        <div class="contact-email">info@imotara.com</div>
+        <div class="contact-note">imotara.com &nbsp;·&nbsp; Response within 48 hours</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Beneficiary Wellbeing Guide</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 7 of 7</div>
+  </div>
+</div>
+
+</body>
+</html>

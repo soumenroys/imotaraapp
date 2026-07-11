@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Imotara — User Licensing &amp; Facilities</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --pink:   #FF6B9D;
+      --blue:   #4B9FE1;
+      --teal:   #38C9B9;
+      --gold:   #F5C842;
+      --purple: #9B6FE8;
+      --green:  #3DBE8A;
+      --orange: #FF8C42;
+      --navy:   #12274F;
+      --navy2:  #1E3A6E;
+      --slate:  #3D5580;
+      --light:  #F0F6FF;
+      --border: #D4E2F7;
+      --white:  #FFFFFF;
+      --gray:   #6B7EA4;
+    }
+
+    html, body {
+      width:210mm;
+      font-family:'Inter','Helvetica Neue',Arial,sans-serif;
+      background:var(--white);
+      color:var(--navy);
+      -webkit-print-color-adjust:exact;
+      print-color-adjust:exact;
+    }
+
+    .page { width:210mm; min-height:297mm; display:flex; flex-direction:column; page-break-after:always; }
+    .page:last-child { page-break-after:avoid; }
+
+    .header {
+      background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 55%,#1B4F8A 100%);
+      padding:20px 36px 18px; display:flex; align-items:center; justify-content:space-between;
+      position:relative; overflow:hidden;
+    }
+    .header::before { content:''; position:absolute; top:-60px; right:-40px; width:200px; height:200px; background:radial-gradient(circle,rgba(75,159,225,.18) 0%,transparent 70%); border-radius:50%; }
+    .header::after { content:''; position:absolute; bottom:-50px; left:40%; width:160px; height:160px; background:radial-gradient(circle,rgba(255,107,157,.12) 0%,transparent 70%); border-radius:50%; }
+    .header-left { display:flex; align-items:center; gap:14px; z-index:1; }
+    .header-logo { height:54px; width:auto; }
+    .header-sub  { color:rgba(255,255,255,.65); font-size:10px; margin-top:2px; }
+    .header-badge { z-index:1; background:linear-gradient(135deg,var(--pink),var(--blue)); color:#fff; font-size:9px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; padding:6px 14px; border-radius:20px; }
+    .gradient-bar { height:4px; background:linear-gradient(to right,var(--pink),var(--gold),var(--teal),var(--blue)); }
+
+    .body { padding:18px 36px 0; flex:1; }
+
+    .sec { font-size:9px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--blue); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+    .sec::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    .footer { background:var(--navy); padding:9px 36px; display:flex; align-items:center; justify-content:space-between; margin-top:auto; }
+    .footer-left { display:flex; align-items:center; gap:10px; }
+    .footer-logo { height:20px; filter:brightness(0) invert(1); opacity:.8; }
+    .footer-copy { font-size:8.5px; color:rgba(255,255,255,.4); }
+    .footer-mid  { font-size:8.5px; color:rgba(255,255,255,.35); }
+    .footer-page { font-size:8.5px; color:rgba(255,255,255,.5); font-weight:600; }
+
+    /* PAGE 1 — COVER */
+    .hero1 { background:linear-gradient(135deg,#FFF0F6 0%,#EEF4FF 50%,#EAFAF7 100%); border-bottom:1px solid var(--border); padding:26px 36px 22px; }
+    .hero1-eyebrow { font-size:9.5px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:var(--blue); margin-bottom:8px; }
+    .hero1-title { font-size:26px; font-weight:900; color:var(--navy); line-height:1.2; margin-bottom:8px; }
+    .hero1-title em { font-style:normal; background:linear-gradient(135deg,var(--pink),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .hero1-sub { font-size:11.5px; color:var(--slate); max-width:620px; line-height:1.6; margin-bottom:14px; }
+    .hero1-pills { display:flex; gap:8px; flex-wrap:wrap; }
+    .hero1-pill { background:var(--white); border:1px solid var(--border); border-radius:20px; padding:6px 13px; font-size:9px; font-weight:600; color:var(--navy); display:flex; align-items:center; gap:6px; }
+    .hero1-pill .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+    .market-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0; }
+    .market-card { border:1.5px solid var(--border); border-radius:12px; padding:14px 14px 12px; text-align:center; position:relative; overflow:hidden; }
+    .market-card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; }
+    .mc-1::before { background:linear-gradient(to right,var(--pink),var(--purple)); }
+    .mc-2::before { background:linear-gradient(to right,var(--blue),var(--teal)); }
+    .mc-3::before { background:linear-gradient(to right,var(--green),var(--teal)); }
+    .mc-4::before { background:linear-gradient(to right,var(--gold),var(--orange)); }
+    .market-num { font-size:20px; font-weight:900; color:var(--navy); line-height:1; }
+    .market-lbl { font-size:8.5px; color:var(--gray); margin-top:6px; line-height:1.4; }
+    .market-src { font-size:7px; color:#B8C6E0; margin-top:5px; }
+
+    .about-strip { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:12px; padding:16px 20px; margin-bottom:14px; display:flex; align-items:center; gap:18px; }
+    .about-icon { font-size:30px; flex-shrink:0; }
+    .about-title { font-size:11.5px; font-weight:800; color:#fff; margin-bottom:4px; }
+    .about-body { font-size:9.5px; color:rgba(255,255,255,.65); line-height:1.55; }
+
+    .why-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:6px; }
+    .why-card { border:1px solid var(--border); border-radius:10px; padding:13px 14px; }
+    .why-icon { font-size:19px; margin-bottom:6px; }
+    .why-title { font-size:10px; font-weight:700; color:var(--navy); margin-bottom:5px; }
+    .why-body { font-size:9px; color:var(--slate); line-height:1.5; }
+
+    /* PAGE 2 — PLANS */
+    .plan-hero { background:linear-gradient(135deg,#EEF4FF 0%,#FFF0F6 100%); border-bottom:1px solid var(--border); padding:16px 36px; }
+    .plan-hero-title { font-size:16px; font-weight:900; color:var(--navy); }
+    .plan-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--blue),var(--teal)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .plan-hero-sub { font-size:10px; color:var(--gray); margin-top:4px; max-width:560px; line-height:1.5; }
+
+    .plans { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px; }
+    .plan-card { border-radius:14px; padding:16px 15px 14px; border:1.5px solid var(--border); display:flex; flex-direction:column; position:relative; overflow:hidden; }
+    .plan-card.popular { border-color:var(--blue); box-shadow:0 0 0 3px rgba(75,159,225,.1); }
+    .plan-card.pro { background:linear-gradient(145deg,var(--navy) 0%,var(--navy2) 100%); border-color:transparent; }
+    .popular-badge { position:absolute; top:10px; right:-24px; background:linear-gradient(135deg,var(--pink),var(--blue)); color:#fff; font-size:7px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:3px 30px; transform:rotate(38deg); }
+    .plan-icon { font-size:18px; margin-bottom:6px; }
+    .plan-name { font-size:12px; font-weight:800; color:var(--navy); margin-bottom:2px; }
+    .plan-card.pro .plan-name { color:#fff; }
+    .price-block { margin-bottom:4px; }
+    .price-monthly { font-size:20px; font-weight:900; color:var(--navy); line-height:1; }
+    .price-monthly sup { font-size:11px; font-weight:600; vertical-align:super; }
+    .price-monthly sub { font-size:9px; font-weight:400; color:var(--gray); }
+    .plan-card.pro .price-monthly { color:#fff; }
+    .plan-card.pro .price-monthly sub { color:rgba(255,255,255,.55); }
+    .price-annual { font-size:8.5px; color:var(--green); font-weight:600; background:#EDFAF2; border-radius:7px; padding:2px 7px; display:inline-block; margin-top:4px; }
+    .plan-card.pro .price-annual { background:rgba(61,190,138,.15); color:#6FE8B5; }
+    .price-ios { font-size:8px; color:var(--gray); margin-top:2px; }
+    .plan-card.pro .price-ios { color:rgba(255,255,255,.4); }
+    .plan-tagline { font-size:8.5px; color:var(--gray); margin-bottom:10px; font-weight:500; }
+    .plan-card.pro .plan-tagline { color:rgba(255,255,255,.5); }
+    .plan-divider { height:1px; background:var(--border); margin-bottom:9px; }
+    .plan-card.pro .plan-divider { background:rgba(255,255,255,.15); }
+    .plan-features { list-style:none; display:flex; flex-direction:column; gap:4px; flex:1; }
+    .plan-features li { font-size:8.5px; color:var(--slate); display:flex; align-items:flex-start; gap:5px; line-height:1.4; }
+    .plan-card.pro .plan-features li { color:rgba(255,255,255,.8); }
+    .plan-features li .tk { color:var(--green); font-size:10px; flex-shrink:0; }
+    .plan-cta { margin-top:10px; display:block; text-align:center; font-size:9px; font-weight:700; padding:7px 0; border-radius:18px; }
+    .cta-free { background:var(--light); color:var(--navy); border:1px solid var(--border); }
+    .cta-plus { background:linear-gradient(135deg,var(--blue),var(--teal)); color:#fff; }
+    .cta-pro  { background:linear-gradient(135deg,var(--pink),var(--gold)); color:#fff; }
+
+    .value-strip { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:10px; padding:12px 18px; display:flex; align-items:center; gap:16px; margin-bottom:14px; }
+    .vs-left { flex:1; }
+    .vs-title { font-size:10.5px; font-weight:800; color:#fff; margin-bottom:3px; }
+    .vs-sub   { font-size:9px; color:rgba(255,255,255,.6); line-height:1.5; }
+    .vs-div   { width:1px; background:rgba(255,255,255,.15); align-self:stretch; }
+    .vs-stats { display:flex; gap:16px; }
+    .vs-stat  { text-align:center; }
+    .vs-num   { font-size:16px; font-weight:900; color:var(--gold); line-height:1; }
+    .vs-lbl   { font-size:7.5px; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
+
+    /* PAGE 3 — ANALYTICS */
+    .an-hero { background:linear-gradient(135deg,#F5F0FF,#EEF4FF,#EAFAF7); border-bottom:1px solid var(--border); padding:16px 36px; }
+    .an-hero-title { font-size:16px; font-weight:900; color:var(--navy); }
+    .an-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--purple),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .an-hero-sub { font-size:10px; color:var(--gray); margin-top:4px; max-width:560px; line-height:1.5; }
+
+    .chart-row { display:flex; gap:14px; margin-bottom:14px; }
+    .chart-card { flex:1; border:1px solid var(--border); border-radius:12px; padding:14px 16px 12px; }
+    .chart-title { font-size:10px; font-weight:700; color:var(--navy); margin-bottom:2px; }
+    .chart-note { font-size:8px; color:var(--gray); margin-bottom:10px; }
+
+    .roi-strip { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:12px; padding:14px 20px; margin-bottom:14px; display:flex; align-items:center; gap:18px; }
+    .roi-left { flex:1; }
+    .roi-title { font-size:11px; font-weight:800; color:#fff; margin-bottom:4px; }
+    .roi-sub { font-size:9px; color:rgba(255,255,255,.6); line-height:1.55; }
+    .roi-div { width:1px; background:rgba(255,255,255,.15); align-self:stretch; }
+    .roi-stats { display:flex; gap:16px; }
+    .roi-stat { text-align:center; }
+    .roi-num { font-size:16px; font-weight:900; color:var(--gold); line-height:1; }
+    .roi-lbl { font-size:7.5px; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; max-width:80px; }
+    .footnote { font-size:7.5px; color:var(--gray); line-height:1.5; margin-top:2px; }
+
+    /* PAGE 4 — TRUST & HOW IT WORKS */
+    .sec-hero { background:linear-gradient(135deg,#EAFAF7,#EEF4FF); border-bottom:1px solid var(--border); padding:16px 36px; }
+    .sec-hero-title { font-size:16px; font-weight:900; color:var(--navy); }
+    .sec-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--green),var(--teal)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .sec-hero-sub { font-size:10px; color:var(--gray); margin-top:4px; max-width:560px; line-height:1.5; }
+
+    .trust-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+    .trust-card { border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; gap:10px; align-items:flex-start; }
+    .trust-icon { font-size:18px; flex-shrink:0; }
+    .trust-title { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:4px; }
+    .trust-body { font-size:8.5px; color:var(--slate); line-height:1.5; }
+
+    .timeline { display:flex; align-items:flex-start; margin-bottom:16px; }
+    .tl-step { flex:1; text-align:center; position:relative; padding-top:2px; }
+    .tl-circle { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--blue),var(--teal)); color:#fff; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; margin:0 auto 8px; position:relative; z-index:1; }
+    .tl-step:nth-child(2) .tl-circle { background:linear-gradient(135deg,var(--purple),var(--pink)); }
+    .tl-step:nth-child(3) .tl-circle { background:linear-gradient(135deg,var(--gold),var(--orange)); }
+    .tl-step:nth-child(4) .tl-circle { background:linear-gradient(135deg,var(--green),var(--teal)); }
+    .tl-step::before { content:''; position:absolute; top:15px; left:-50%; width:100%; height:2px; background:var(--border); z-index:0; }
+    .tl-step:first-child::before { display:none; }
+    .tl-title { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:4px; padding:0 8px; }
+    .tl-body { font-size:8px; color:var(--slate); line-height:1.4; padding:0 10px; }
+
+    /* PAGE 5 — TOKENS / FAQ / CONTACT */
+    .p5-hero { background:linear-gradient(135deg,#FFF0F6 0%,#EEF4FF 50%,#EAFAF7 100%); border-bottom:1px solid var(--border); padding:16px 36px; }
+    .p5-hero-title { font-size:16px; font-weight:900; color:var(--navy); }
+    .p5-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--pink),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .p5-hero-sub { font-size:10px; color:var(--gray); margin-top:4px; }
+
+    .token-table { width:100%; border-collapse:collapse; font-size:9.5px; margin-bottom:16px; }
+    .token-table thead th { background:var(--navy); color:#fff; padding:7px 12px; text-align:center; font-size:9px; }
+    .token-table thead th:first-child { text-align:left; border-radius:7px 0 0 0; }
+    .token-table thead th:last-child  { border-radius:0 7px 0 0; }
+    .token-table tbody td { padding:7px 12px; border-bottom:1px solid var(--border); text-align:center; color:var(--slate); }
+    .token-table tbody td:first-child { text-align:left; font-weight:600; color:var(--navy); }
+    .token-table tbody tr:nth-child(even) td { background:var(--light); }
+    .token-table tbody tr:last-child td { border-bottom:none; }
+
+    .faq-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+    .faq-card { border:1px solid var(--border); border-radius:10px; padding:11px 13px; background:var(--light); }
+    .faq-q { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:4px; display:flex; gap:6px; }
+    .faq-q span { color:var(--blue); flex-shrink:0; }
+    .faq-a { font-size:9px; color:var(--slate); line-height:1.55; }
+
+    .qr-strip { display:flex; gap:12px; margin-bottom:16px; }
+    .qr-card { flex:1; border:1px solid var(--border); border-radius:12px; padding:13px 14px; display:flex; align-items:center; gap:12px; }
+    .qr-img { width:64px; height:64px; border:1px solid var(--border); border-radius:6px; flex-shrink:0; }
+    .qr-platform { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:3px; }
+    .qr-sub { font-size:8px; color:var(--slate); line-height:1.4; }
+
+    .contact-card { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:12px; padding:16px 22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .contact-title { font-size:12px; font-weight:800; color:#fff; margin-bottom:3px; }
+    .contact-sub   { font-size:9.5px; color:rgba(255,255,255,.6); line-height:1.5; }
+    .contact-detail { text-align:right; }
+    .contact-email { font-size:11px; font-weight:700; color:var(--gold); }
+    .contact-note  { font-size:9px; color:rgba(255,255,255,.5); margin-top:3px; }
+  </style>
+</head>
+<body>
+
+<!-- PAGE 1: Cover -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">User Licensing &amp; Facilities — Complete Guide</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="hero1">
+    <div class="hero1-eyebrow">For Individual Subscribers</div>
+    <div class="hero1-title">Your own emotional companion, <em>anytime you need it.</em></div>
+    <div class="hero1-sub">Imotara's User Licensing covers every individual who signs up on web, iOS or Android — from a completely free daily-use tier to unlimited Pro access. This guide explains what each personal plan includes, how token top-ups work, and why Imotara is priced to be genuinely accessible.</div>
+    <div class="hero1-pills">
+      <div class="hero1-pill"><span class="dot" style="background:var(--green)"></span> Free tier, forever</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--blue)"></span> Cancel anytime</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--gold)"></span> Tokens never expire</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--pink)"></span> 22 languages supported</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--purple)"></span> Offline AI included free</div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:16px;">Why a personal companion matters</div>
+    <div class="market-strip">
+      <div class="market-card mc-1">
+        <div class="market-num">$1T+</div>
+        <div class="market-lbl">Lost globally every year in productivity due to depression &amp; anxiety</div>
+        <div class="market-src">Source: World Health Organization</div>
+      </div>
+      <div class="market-card mc-2">
+        <div class="market-num">24/7</div>
+        <div class="market-lbl">Imotara is available around the clock — no waitlists, no appointments</div>
+        <div class="market-src">Product capability</div>
+      </div>
+      <div class="market-card mc-3">
+        <div class="market-num">₹0</div>
+        <div class="market-lbl">Cost to start — the Free plan works forever, no card required</div>
+        <div class="market-src">Imotara pricing</div>
+      </div>
+      <div class="market-card mc-4">
+        <div class="market-num">22</div>
+        <div class="market-lbl">Languages supported, including 11+ Indian languages with gendered grammar</div>
+        <div class="market-src">Product capability</div>
+      </div>
+    </div>
+
+    <div class="about-strip">
+      <div class="about-icon">💛</div>
+      <div>
+        <div class="about-title">What is Imotara?</div>
+        <div class="about-body">Imotara is an AI-powered emotional wellness companion — a private, judgment-free space to process feelings, build daily emotional awareness, and get support in your own language and tone. Mood check-ins, a personalised companion persona, voice &amp; text conversation, and gentle long-term memory — available on web, iOS and Android, with an offline mode that keeps core support working even without internet.</div>
+      </div>
+    </div>
+
+    <div class="sec">Why people choose Imotara</div>
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="why-icon">🔒</div>
+        <div class="why-title">Completely private</div>
+        <div class="why-body">Your conversations are yours. No one else — not even Imotara's team — reads them for anything other than powering your own replies.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">🌍</div>
+        <div class="why-title">Speaks your language</div>
+        <div class="why-body">Hindi, Bengali, Tamil, Telugu and more — support that doesn't force you into English to be understood.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">📶</div>
+        <div class="why-title">Works without internet</div>
+        <div class="why-body">An offline AI mode on mobile keeps core support working even with patchy or no connectivity — always free, on every plan.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · User Licensing &amp; Facilities</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 1 of 5</div>
+  </div>
+</div>
+
+
+<!-- PAGE 2: Plans -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Individual Plans</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="plan-hero">
+    <div class="plan-hero-title">Simple, honest pricing. <em>No hidden fees.</em></div>
+    <div class="plan-hero-sub">Start free forever — upgrade only when Imotara becomes indispensable to you. Every plan includes offline AI support at no extra cost.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:6px;">Individual plans</div>
+    <div class="plans">
+
+      <div class="plan-card">
+        <div class="plan-icon">🌱</div>
+        <div class="plan-name">Free</div>
+        <div class="price-block">
+          <div class="price-monthly">₹<span style="font-size:22px;">0</span></div>
+          <div style="font-size:8.5px; color:var(--gray); margin-top:2px;">Forever free · No card needed</div>
+        </div>
+        <div class="plan-tagline" style="margin-top:5px;">Try Imotara risk-free, every day</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><span class="tk">✓</span> 20 AI cloud messages / day</li>
+          <li><span class="tk">✓</span> Offline AI (mobile, all languages)</li>
+          <li><span class="tk">✓</span> Mood check-in · 8 emotions</li>
+          <li><span class="tk">✓</span> Companion persona setup</li>
+          <li><span class="tk">✓</span> 22 languages + voice input</li>
+          <li><span class="tk">✓</span> 7-day chat history</li>
+        </ul>
+        <span class="plan-cta cta-free">Get Started — Free</span>
+      </div>
+
+      <div class="plan-card popular">
+        <div class="popular-badge">Most Popular</div>
+        <div class="plan-icon">⭐</div>
+        <div class="plan-name">Plus</div>
+        <div class="price-block">
+          <div class="price-monthly"><sup>₹</sup>79<sub>/month</sub></div>
+          <div class="price-annual">💚 Or ₹699/year — save ₹249</div>
+          <div class="price-ios">iOS: ₹99/month via App Store</div>
+        </div>
+        <div class="plan-tagline" style="margin-top:4px;">Unlimited support, every day</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><span class="tk">✓</span> <strong>Unlimited</strong> AI cloud messages</li>
+          <li><span class="tk">✓</span> Mood timeline · 30-day charts</li>
+          <li><span class="tk">✓</span> 90-day chat history</li>
+          <li><span class="tk">✓</span> Monthly companion letter</li>
+          <li><span class="tk">✓</span> Neural TTS (Indian voices)</li>
+          <li><span class="tk">✓</span> Cross-device sync</li>
+        </ul>
+        <span class="plan-cta cta-plus">Start Plus — ₹79/mo</span>
+      </div>
+
+      <div class="plan-card pro">
+        <div class="plan-icon">🔥</div>
+        <div class="plan-name">Pro</div>
+        <div class="price-block">
+          <div class="price-monthly"><sup>₹</sup>149<sub>/month</sub></div>
+          <div class="price-annual" style="background:rgba(61,190,138,.15); color:#6FE8B5;">💚 Or ₹1,199/year — save ₹589</div>
+          <div class="price-ios">iOS annual: ₹1,299/year via App Store</div>
+        </div>
+        <div class="plan-tagline" style="margin-top:4px;">Your complete wellness record</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><span class="tk">✓</span> <strong>Unlimited</strong> AI cloud messages</li>
+          <li><span class="tk">✓</span> Full mood history charts</li>
+          <li><span class="tk">✓</span> <strong>Unlimited</strong> chat history</li>
+          <li><span class="tk">✓</span> Neural TTS · Data export (JSON/CSV)</li>
+          <li><span class="tk">✓</span> Cross-device sync + companion memory</li>
+          <li><span class="tk">✓</span> On This Day · Future letters</li>
+        </ul>
+        <span class="plan-cta cta-pro">Go Pro — ₹149/mo</span>
+      </div>
+
+    </div>
+
+    <div class="value-strip">
+      <div class="vs-left">
+        <div class="vs-title">Why ₹79/month is a smart spend for your mental health</div>
+        <div class="vs-sub">One therapy session in India commonly costs ₹1,500–₹3,000. Imotara Plus gives you unlimited, 24/7 judgment-free support for a small fraction of that, every month.</div>
+      </div>
+      <div class="vs-div"></div>
+      <div class="vs-stats">
+        <div class="vs-stat"><div class="vs-num">₹79</div><div class="vs-lbl">Imotara Plus/mo</div></div>
+        <div class="vs-stat"><div class="vs-num">₹1,500+</div><div class="vs-lbl">1 therapy session</div></div>
+        <div class="vs-stat"><div class="vs-num">~5%</div><div class="vs-lbl">of one session's cost</div></div>
+      </div>
+    </div>
+
+    <div class="sec">Secure payment methods</div>
+    <div class="trust-grid" style="grid-template-columns:1fr 1fr 1fr; margin-bottom:6px;">
+      <div class="trust-card"><div class="trust-icon">🇮🇳</div><div><div class="trust-title">Razorpay</div><div class="trust-body">UPI, cards and net banking for India — Imotara never stores your card details.</div></div></div>
+      <div class="trust-card"><div class="trust-icon"></div><div><div class="trust-title">Apple In-App Purchase</div><div class="trust-body">Managed entirely through your Apple ID on iOS.</div></div></div>
+      <div class="trust-card"><div class="trust-icon">▶</div><div><div class="trust-title">Google Play Billing</div><div class="trust-body">Managed entirely through your Google Play account on Android.</div></div></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · User Licensing &amp; Facilities</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 2 of 5</div>
+  </div>
+</div>
+
+
+<!-- PAGE 3: Token Economics -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Token Economics &amp; Value</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="an-hero">
+    <div class="an-hero-title">Pay only for what you use — <em>if you choose to.</em></div>
+    <div class="an-hero-sub">Token top-ups are one-time credits that never expire — a flexible option for occasional users who don't want a recurring subscription.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:4px;">Token pack economics</div>
+    <div class="chart-row">
+      <div class="chart-card" style="flex:1.3;">
+        <div class="chart-title">Cost per message — the bigger the pack, the better the rate</div>
+        <div class="chart-note">Illustrative — based on Imotara's published token pack pricing</div>
+        <svg viewBox="0 0 320 130" width="100%" height="130">
+          <line x1="0" y1="108" x2="320" y2="108" stroke="#D4E2F7" stroke-width="1"/>
+          <g font-family="Inter" font-size="8" fill="#12274F" font-weight="700">
+            <rect x="14"  y="16" width="56" height="92" rx="4" fill="url(#tokGrad1)"/>
+            <text x="42" y="12" text-anchor="middle" font-size="8.5">₹0.49</text>
+            <text x="42" y="122" text-anchor="middle" font-weight="500" font-size="7.5" fill="#6B7EA4">100 tokens (₹49)</text>
+
+            <rect x="100" y="30" width="56" height="78" rx="4" fill="url(#tokGrad2)"/>
+            <text x="128" y="26" text-anchor="middle" font-size="8.5">₹0.40</text>
+            <text x="128" y="122" text-anchor="middle" font-weight="500" font-size="7.5" fill="#6B7EA4">250 tokens (₹99)</text>
+
+            <rect x="186" y="44" width="56" height="64" rx="4" fill="url(#tokGrad3)"/>
+            <text x="214" y="40" text-anchor="middle" font-size="8.5">₹0.33</text>
+            <text x="214" y="122" text-anchor="middle" font-weight="500" font-size="7.5" fill="#6B7EA4">600 tokens (₹199)</text>
+
+            <rect x="272" y="60" width="56" height="48" rx="4" fill="url(#tokGrad4)"/>
+            <text x="300" y="56" text-anchor="middle" font-size="8.5">₹0.28</text>
+            <text x="300" y="122" text-anchor="middle" font-weight="500" font-size="7.5" fill="#6B7EA4">1,800 (₹499)</text>
+          </g>
+          <defs>
+            <linearGradient id="tokGrad1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#94A3B8"/><stop offset="100%" stop-color="#CBD5E1"/></linearGradient>
+            <linearGradient id="tokGrad2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4B9FE1"/><stop offset="100%" stop-color="#38C9B9"/></linearGradient>
+            <linearGradient id="tokGrad3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#9B6FE8"/><stop offset="100%" stop-color="#FF6B9D"/></linearGradient>
+            <linearGradient id="tokGrad4" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#F5C842"/><stop offset="100%" stop-color="#FF8C42"/></linearGradient>
+          </defs>
+        </svg>
+      </div>
+    </div>
+
+    <div class="sec">Cost comparison — Imotara Pro vs. one therapy session</div>
+    <div class="chart-row">
+      <div class="chart-card" style="flex:1;">
+        <div class="chart-title">Approximate annual cost</div>
+        <div class="chart-note">Based on Imotara's published Pro-tier pricing vs. reported average cost of a single in-person therapy session in India</div>
+        <svg viewBox="0 0 320 130" width="100%" height="130">
+          <line x1="0" y1="108" x2="320" y2="108" stroke="#D4E2F7" stroke-width="1"/>
+          <g font-family="Inter" font-size="8" fill="#12274F" font-weight="700">
+            <rect x="40"  y="82" width="60" height="26" rx="4" fill="url(#barGradU1)"/>
+            <text x="70" y="76" text-anchor="middle">₹1,199/yr</text>
+            <text x="70" y="122" text-anchor="middle" font-weight="500" font-size="8" fill="#6B7EA4">Imotara Pro (annual)</text>
+
+            <rect x="180" y="13" width="60" height="95" rx="4" fill="url(#barGradU2)"/>
+            <text x="210" y="10" text-anchor="middle">₹1,500–3,000</text>
+            <text x="210" y="122" text-anchor="middle" font-weight="500" font-size="8" fill="#6B7EA4">1 therapy session</text>
+          </g>
+          <defs>
+            <linearGradient id="barGradU1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3DBE8A"/><stop offset="100%" stop-color="#38C9B9"/></linearGradient>
+            <linearGradient id="barGradU2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6B9D"/><stop offset="100%" stop-color="#F5C842"/></linearGradient>
+          </defs>
+        </svg>
+        <div class="footnote">Illustrative comparison. Imotara Pro annual list price: ₹1,199/year. Single-session therapy cost range reflects commonly reported urban India averages and varies by provider, city and specialisation.</div>
+      </div>
+    </div>
+
+    <div class="roi-strip">
+      <div class="roi-left">
+        <div class="roi-title">Why this matters for you</div>
+        <div class="roi-sub">A full year of unlimited Imotara Pro access — unlimited conversations, full history, neural voice — costs roughly the same as <strong>one</strong> in-person therapy session. It's a low-cost, always-available layer of everyday emotional support.</div>
+      </div>
+      <div class="roi-div"></div>
+      <div class="roi-stats">
+        <div class="roi-stat"><div class="roi-num">365</div><div class="roi-lbl">days of access per year</div></div>
+        <div class="roi-stat"><div class="roi-num">22</div><div class="roi-lbl">languages covered</div></div>
+        <div class="roi-stat"><div class="roi-num">∞</div><div class="roi-lbl">token validity — never expires</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · User Licensing &amp; Facilities</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 3 of 5</div>
+  </div>
+</div>
+
+
+<!-- PAGE 4: Trust & How It Works -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Your Data, Your Privacy &amp; Getting Started</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="sec-hero">
+    <div class="sec-hero-title">Your conversations belong to <em>you — not anyone else.</em></div>
+    <div class="sec-hero-sub">Imotara is built around one rule: your data is yours to see, export, or delete, whenever you choose.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:4px;">Trust &amp; data handling</div>
+    <div class="trust-grid">
+      <div class="trust-card"><div class="trust-icon">🔐</div><div><div class="trust-title">Encrypted in transit</div><div class="trust-body">All traffic between the app and Imotara's servers is encrypted (TLS). Payment details are handled by certified payment processors — Imotara never stores your card data.</div></div></div>
+      <div class="trust-card"><div class="trust-icon">📤</div><div><div class="trust-title">Export your data anytime</div><div class="trust-body">Pro subscribers can export their full conversation and mood history as JSON or CSV, whenever they want a personal copy.</div></div></div>
+      <div class="trust-card"><div class="trust-icon">🗑️</div><div><div class="trust-title">Delete your account anytime</div><div class="trust-body">Account deletion is available directly in Settings on both web and mobile — no support ticket required.</div></div></div>
+      <div class="trust-card"><div class="trust-icon">📶</div><div><div class="trust-title">Offline AI, on-device</div><div class="trust-body">On mobile, offline replies are generated on your device — nothing is sent to a server when you're using offline mode.</div></div></div>
+      <div class="trust-card"><div class="trust-icon">🙅</div><div><div class="trust-title">Never sold or shared</div><div class="trust-body">Your conversations are never sold to advertisers or shared with third parties for marketing purposes.</div></div></div>
+      <div class="trust-card"><div class="trust-icon">🌐</div><div><div class="trust-title">Privacy-by-design programme</div><div class="trust-body">Data handling practices are being formalised against GDPR and India's DPDP Act as part of an ongoing compliance programme.</div></div></div>
+    </div>
+
+    <div class="sec">Getting started takes under two minutes</div>
+    <div class="timeline">
+      <div class="tl-step"><div class="tl-circle">1</div><div class="tl-title">Sign up</div><div class="tl-body">Create your account on web, iOS or Android — no card required for the Free plan.</div></div>
+      <div class="tl-step"><div class="tl-circle">2</div><div class="tl-title">Meet your companion</div><div class="tl-body">Choose a name, tone and vibe for your personal Imotara companion.</div></div>
+      <div class="tl-step"><div class="tl-circle">3</div><div class="tl-title">Daily check-in</div><div class="tl-body">Log your mood and start a conversation whenever you need to, in your own language.</div></div>
+      <div class="tl-step"><div class="tl-circle">4</div><div class="tl-title">Upgrade anytime</div><div class="tl-body">Move to Plus or Pro, or top up tokens, whenever it makes sense for you — cancel anytime.</div></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · User Licensing &amp; Facilities</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 4 of 5</div>
+  </div>
+</div>
+
+
+<!-- PAGE 5: Tokens, FAQ, QR, Contact -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Token Packs, FAQ &amp; Contact</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p5-hero">
+    <div class="p5-hero-title">Token top-ups — <em>flexible, one-time, no expiry.</em></div>
+    <div class="p5-hero-sub">A simple alternative to a subscription for occasional users, or a safety net for Free-plan users on a heavy usage day.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:4px;">Token recharge packs</div>
+    <table class="token-table">
+      <thead><tr><th>Pack</th><th>Tokens</th><th>Price</th><th>Rate per message</th></tr></thead>
+      <tbody>
+        <tr><td>Starter</td><td>100</td><td>₹49</td><td>₹0.49</td></tr>
+        <tr><td>Popular</td><td>250</td><td>₹99</td><td>₹0.40</td></tr>
+        <tr><td>Regular top-up</td><td>600</td><td>₹199</td><td>₹0.33</td></tr>
+        <tr><td>Best value</td><td>1,800</td><td>₹499</td><td>₹0.28</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sec">Try Imotara yourself — scan to download</div>
+    <div class="qr-strip">
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-web.png" alt="Imotara Web QR"/>
+        <div><div class="qr-platform">🌐 Web App</div><div class="qr-sub">Scan to open imotara.com directly in your browser — no install needed.</div></div>
+      </div>
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-ios.png" alt="Imotara iOS QR"/>
+        <div><div class="qr-platform"> App Store</div><div class="qr-sub">Scan to download Imotara for iPhone &amp; iPad on the App Store.</div></div>
+      </div>
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-android.png" alt="Imotara Android QR"/>
+        <div><div class="qr-platform">▶ Google Play</div><div class="qr-sub">Scan to download Imotara for Android on Google Play.</div></div>
+      </div>
+    </div>
+
+    <div class="sec">Frequently asked questions</div>
+    <div class="faq-grid">
+      <div class="faq-card"><div class="faq-q"><span>Q</span> Is the Free plan really free forever?</div><div class="faq-a">Yes — 20 cloud AI messages per day, offline AI, mood check-ins and 7-day history, with no card required and no time limit.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> What happens when I hit my daily Free limit?</div><div class="faq-a">Imotara never hard-blocks you — you're gently switched to offline AI for the rest of the day, or you can use a token top-up for extra cloud messages.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> Can I cancel anytime?</div><div class="faq-a">Yes — monthly Plus and Pro subscriptions can be cancelled anytime from Settings; you keep access until the end of your billing period.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> Do tokens expire?</div><div class="faq-a">No — token top-ups never expire. Use them whenever you like, on any plan.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> Can I switch between plans?</div><div class="faq-a">Yes — upgrade, downgrade, or move between monthly and annual billing anytime from Settings.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> Is my data private from Imotara's own team?</div><div class="faq-a">Your conversations power your own AI replies and are never sold or shared with third parties for marketing. You can export or delete your data anytime.</div></div>
+    </div>
+
+    <div class="contact-card">
+      <div>
+        <div class="contact-title">Questions about your plan?</div>
+        <div class="contact-sub">Reach out anytime — we typically respond<br/>within 48 hours.</div>
+      </div>
+      <div class="contact-detail">
+        <div class="contact-email">info@imotara.com</div>
+        <div class="contact-note">imotara.com &nbsp;·&nbsp; Response within 48 hours</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · User Licensing &amp; Facilities</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 5 of 5</div>
+  </div>
+</div>
+
+</body>
+</html>

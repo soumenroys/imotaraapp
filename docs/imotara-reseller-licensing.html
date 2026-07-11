@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Imotara — Reseller &amp; Partner Licensing</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --pink:   #FF6B9D;
+      --blue:   #4B9FE1;
+      --teal:   #38C9B9;
+      --gold:   #F5C842;
+      --purple: #9B6FE8;
+      --green:  #3DBE8A;
+      --orange: #FF8C42;
+      --navy:   #12274F;
+      --navy2:  #1E3A6E;
+      --slate:  #3D5580;
+      --light:  #F0F6FF;
+      --border: #D4E2F7;
+      --white:  #FFFFFF;
+      --gray:   #6B7EA4;
+    }
+
+    html, body {
+      width:210mm;
+      font-family:'Inter','Helvetica Neue',Arial,sans-serif;
+      background:var(--white);
+      color:var(--navy);
+      -webkit-print-color-adjust:exact;
+      print-color-adjust:exact;
+    }
+
+    .page { width:210mm; min-height:297mm; display:flex; flex-direction:column; page-break-after:always; }
+    .page:last-child { page-break-after:avoid; }
+
+    .header {
+      background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 55%,#1B4F8A 100%);
+      padding:20px 36px 18px; display:flex; align-items:center; justify-content:space-between;
+      position:relative; overflow:hidden;
+    }
+    .header::before { content:''; position:absolute; top:-60px; right:-40px; width:200px; height:200px; background:radial-gradient(circle,rgba(245,200,66,.18) 0%,transparent 70%); border-radius:50%; }
+    .header::after { content:''; position:absolute; bottom:-50px; left:40%; width:160px; height:160px; background:radial-gradient(circle,rgba(255,140,66,.14) 0%,transparent 70%); border-radius:50%; }
+    .header-left { display:flex; align-items:center; gap:14px; z-index:1; }
+    .header-logo { height:54px; width:auto; }
+    .header-sub  { color:rgba(255,255,255,.65); font-size:10px; margin-top:2px; }
+    .header-badge { z-index:1; background:linear-gradient(135deg,var(--gold),var(--orange)); color:#1B1200; font-size:9px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; padding:6px 14px; border-radius:20px; }
+    .gradient-bar { height:4px; background:linear-gradient(to right,var(--gold),var(--orange),var(--pink),var(--purple)); }
+
+    .body { padding:18px 36px 0; flex:1; }
+
+    .sec { font-size:9px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:#B8792E; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+    .sec::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    .footer { background:var(--navy); padding:9px 36px; display:flex; align-items:center; justify-content:space-between; margin-top:auto; }
+    .footer-left { display:flex; align-items:center; gap:10px; }
+    .footer-logo { height:20px; filter:brightness(0) invert(1); opacity:.8; }
+    .footer-copy { font-size:8.5px; color:rgba(255,255,255,.4); }
+    .footer-mid  { font-size:8.5px; color:rgba(255,255,255,.35); }
+    .footer-page { font-size:8.5px; color:rgba(255,255,255,.5); font-weight:600; }
+
+    /* PAGE 1 — COVER */
+    .hero1 { background:linear-gradient(135deg,#FFF8E1 0%,#FFF0F6 50%,#EEF4FF 100%); border-bottom:1px solid var(--border); padding:26px 36px 22px; }
+    .hero1-eyebrow { font-size:9.5px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:#B8792E; margin-bottom:8px; }
+    .hero1-title { font-size:26px; font-weight:900; color:var(--navy); line-height:1.2; margin-bottom:8px; }
+    .hero1-title em { font-style:normal; background:linear-gradient(135deg,var(--orange),var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .hero1-sub { font-size:11.5px; color:var(--slate); max-width:620px; line-height:1.6; margin-bottom:14px; }
+    .hero1-pills { display:flex; gap:8px; flex-wrap:wrap; }
+    .hero1-pill { background:var(--white); border:1px solid var(--border); border-radius:20px; padding:6px 13px; font-size:9px; font-weight:600; color:var(--navy); display:flex; align-items:center; gap:6px; }
+    .hero1-pill .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+    .market-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0; }
+    .market-card { border:1.5px solid var(--border); border-radius:12px; padding:14px 14px 12px; text-align:center; position:relative; overflow:hidden; }
+    .market-card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; }
+    .mc-1::before { background:linear-gradient(to right,var(--gold),var(--orange)); }
+    .mc-2::before { background:linear-gradient(to right,var(--blue),var(--teal)); }
+    .mc-3::before { background:linear-gradient(to right,var(--green),var(--teal)); }
+    .mc-4::before { background:linear-gradient(to right,var(--pink),var(--purple)); }
+    .market-num { font-size:20px; font-weight:900; color:var(--navy); line-height:1; }
+    .market-lbl { font-size:8.5px; color:var(--gray); margin-top:6px; line-height:1.4; }
+    .market-src { font-size:7px; color:#B8C6E0; margin-top:5px; }
+
+    .about-strip { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:12px; padding:16px 20px; margin-bottom:14px; display:flex; align-items:center; gap:18px; }
+    .about-icon { font-size:30px; flex-shrink:0; }
+    .about-title { font-size:11.5px; font-weight:800; color:#fff; margin-bottom:4px; }
+    .about-body { font-size:9.5px; color:rgba(255,255,255,.65); line-height:1.55; }
+
+    .why-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:6px; }
+    .why-card { border:1px solid var(--border); border-radius:10px; padding:13px 14px; }
+    .why-icon { font-size:19px; margin-bottom:6px; }
+    .why-title { font-size:10px; font-weight:700; color:var(--navy); margin-bottom:5px; }
+    .why-body { font-size:9px; color:var(--slate); line-height:1.5; }
+
+    /* PAGE 2 — PARTNER TIERS */
+    .plan-hero { background:linear-gradient(135deg,#FFF8E1 0%,#FFF0F6 100%); border-bottom:1px solid var(--border); padding:16px 36px; }
+    .plan-hero-title { font-size:16px; font-weight:900; color:var(--navy); }
+    .plan-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--orange),var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .plan-hero-sub { font-size:10px; color:var(--gray); margin-top:4px; max-width:560px; line-height:1.5; }
+
+    .org-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px; }
+    .org-card { border-radius:14px; padding:16px 15px 14px; border:1.5px solid var(--border); display:flex; flex-direction:column; position:relative; overflow:hidden; }
+    .org-card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; }
+    .org-1::before { background:linear-gradient(to right,#94A3B8,#CBD5E1); }
+    .org-2::before { background:linear-gradient(to right,var(--gold),var(--orange)); border-color:var(--gold); }
+    .org-3::before { background:linear-gradient(to right,var(--navy),var(--navy2)); }
+    .org-2 { border-color:var(--gold); box-shadow:0 0 0 3px rgba(245,200,66,.12); }
+    .org-icon { font-size:20px; margin-bottom:6px; }
+    .org-type { display:inline-block; font-size:7.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:3px 9px; border-radius:10px; margin-bottom:6px; }
+    .badge-1 { background:#F1F5F9; color:#475569; }
+    .badge-2 { background:#FFF3CD; color:#7B5C00; }
+    .badge-3 { background:#EEF4FF; color:var(--navy2); }
+    .org-name { font-size:12.5px; font-weight:800; color:var(--navy); margin-bottom:3px; }
+    .org-comm { font-size:19px; font-weight:900; color:var(--navy); line-height:1; margin-bottom:2px; }
+    .org-comm sub { font-size:8.5px; font-weight:500; color:var(--gray); }
+    .org-desc { font-size:8.5px; color:var(--gray); line-height:1.5; margin-bottom:10px; }
+    .org-features { list-style:none; display:flex; flex-direction:column; gap:4px; flex:1; }
+    .org-features li { font-size:8.5px; color:var(--slate); display:flex; align-items:flex-start; gap:6px; line-height:1.4; }
+    .org-features li .tk { color:var(--green); font-size:10px; flex-shrink:0; }
+
+    .module-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px; }
+    .module-card { border:1px solid var(--border); border-radius:10px; padding:12px 13px; background:var(--light); }
+    .module-icon { font-size:17px; margin-bottom:5px; }
+    .module-name { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:3px; }
+    .module-body { font-size:8.5px; color:var(--slate); line-height:1.45; }
+
+    /* PAGE 3 — ECONOMICS */
+    .an-hero { background:linear-gradient(135deg,#FFF8E1,#FFF0F6,#EEF4FF); border-bottom:1px solid var(--border); padding:16px 36px; }
+    .an-hero-title { font-size:16px; font-weight:900; color:var(--navy); }
+    .an-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--orange),var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .an-hero-sub { font-size:10px; color:var(--gray); margin-top:4px; max-width:560px; line-height:1.5; }
+
+    .chart-row { display:flex; gap:14px; margin-bottom:14px; }
+    .chart-card { flex:1; border:1px solid var(--border); border-radius:12px; padding:14px 16px 12px; }
+    .chart-title { font-size:10px; font-weight:700; color:var(--navy); margin-bottom:2px; }
+    .chart-note { font-size:8px; color:var(--gray); margin-bottom:10px; }
+    .chart-tag { display:inline-block; font-size:7px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#B8926B; background:#FFF3CD; border-radius:6px; padding:2px 6px; margin-left:6px; }
+
+    .earn-table { width:100%; border-collapse:collapse; font-size:9px; margin-bottom:6px; }
+    .earn-table thead th { background:var(--navy); color:#fff; padding:6px 9px; text-align:center; font-size:8.5px; }
+    .earn-table thead th:first-child { text-align:left; border-radius:6px 0 0 0; }
+    .earn-table thead th:last-child  { border-radius:0 6px 0 0; }
+    .earn-table tbody td { padding:6px 9px; border-bottom:1px solid var(--border); text-align:center; color:var(--slate); }
+    .earn-table tbody td:first-child { text-align:left; font-weight:600; color:var(--navy); }
+    .earn-table tbody tr:nth-child(even) td { background:var(--light); }
+
+    .roi-strip { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:12px; padding:14px 20px; margin-bottom:14px; display:flex; align-items:center; gap:18px; }
+    .roi-left { flex:1; }
+    .roi-title { font-size:11px; font-weight:800; color:#fff; margin-bottom:4px; }
+    .roi-sub { font-size:9px; color:rgba(255,255,255,.6); line-height:1.55; }
+    .roi-div { width:1px; background:rgba(255,255,255,.15); align-self:stretch; }
+    .roi-stats { display:flex; gap:16px; }
+    .roi-stat { text-align:center; }
+    .roi-num { font-size:16px; font-weight:900; color:var(--gold); line-height:1; }
+    .roi-lbl { font-size:7.5px; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; max-width:80px; }
+    .footnote { font-size:7.5px; color:var(--gray); line-height:1.5; margin-top:6px; }
+
+    .benefit-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+    .benefit-card { border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; gap:10px; align-items:flex-start; }
+    .benefit-icon { font-size:17px; flex-shrink:0; }
+    .benefit-title { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:3px; }
+    .benefit-body { font-size:8.5px; color:var(--slate); line-height:1.5; }
+
+    /* PAGE 4 — HOW IT WORKS & TRUST */
+    .sec-hero { background:linear-gradient(135deg,#FFF8E1,#EEF4FF); border-bottom:1px solid var(--border); padding:16px 36px; }
+    .sec-hero-title { font-size:16px; font-weight:900; color:var(--navy); }
+    .sec-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--orange),var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .sec-hero-sub { font-size:10px; color:var(--gray); margin-top:4px; max-width:560px; line-height:1.5; }
+
+    .trust-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+    .trust-card { border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; gap:10px; align-items:flex-start; }
+    .trust-icon { font-size:18px; flex-shrink:0; }
+    .trust-title { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:4px; }
+    .trust-body { font-size:8.5px; color:var(--slate); line-height:1.5; }
+
+    .timeline { display:flex; align-items:flex-start; margin-bottom:16px; }
+    .tl-step { flex:1; text-align:center; position:relative; padding-top:2px; }
+    .tl-circle { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--gold),var(--orange)); color:#1B1200; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; margin:0 auto 8px; position:relative; z-index:1; }
+    .tl-step:nth-child(2) .tl-circle { background:linear-gradient(135deg,var(--orange),var(--pink)); color:#fff; }
+    .tl-step:nth-child(3) .tl-circle { background:linear-gradient(135deg,var(--blue),var(--teal)); color:#fff; }
+    .tl-step:nth-child(4) .tl-circle { background:linear-gradient(135deg,var(--green),var(--teal)); color:#fff; }
+    .tl-step::before { content:''; position:absolute; top:15px; left:-50%; width:100%; height:2px; background:var(--border); z-index:0; }
+    .tl-step:first-child::before { display:none; }
+    .tl-title { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:4px; padding:0 8px; }
+    .tl-body { font-size:8px; color:var(--slate); line-height:1.4; padding:0 10px; }
+
+    .roadmap-card { background:var(--light); border:1px solid var(--border); border-radius:10px; padding:13px 16px; margin-bottom:14px; }
+    .roadmap-title { font-size:10px; font-weight:700; color:var(--navy); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+    .roadmap-list { display:flex; flex-wrap:wrap; gap:8px; }
+    .roadmap-pill { font-size:8.5px; font-weight:600; color:var(--slate); background:#fff; border:1px solid var(--border); border-radius:14px; padding:4px 11px; }
+
+    /* PAGE 5 — FAQ / CONTACT */
+    .p5-hero { background:linear-gradient(135deg,#FFF8E1 0%,#FFF0F6 50%,#EEF4FF 100%); border-bottom:1px solid var(--border); padding:16px 36px; }
+    .p5-hero-title { font-size:16px; font-weight:900; color:var(--navy); }
+    .p5-hero-title em { font-style:normal; background:linear-gradient(135deg,var(--orange),var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .p5-hero-sub { font-size:10px; color:var(--gray); margin-top:4px; }
+
+    .faq-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+    .faq-card { border:1px solid var(--border); border-radius:10px; padding:11px 13px; background:var(--light); }
+    .faq-q { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:4px; display:flex; gap:6px; }
+    .faq-q span { color:#B8792E; flex-shrink:0; }
+    .faq-a { font-size:9px; color:var(--slate); line-height:1.55; }
+
+    .qr-strip { display:flex; gap:12px; margin-bottom:16px; }
+    .qr-card { flex:1; border:1px solid var(--border); border-radius:12px; padding:13px 14px; display:flex; align-items:center; gap:12px; }
+    .qr-img { width:64px; height:64px; border:1px solid var(--border); border-radius:6px; flex-shrink:0; }
+    .qr-platform { font-size:9.5px; font-weight:700; color:var(--navy); margin-bottom:3px; }
+    .qr-sub { font-size:8px; color:var(--slate); line-height:1.4; }
+
+    .contact-card { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:12px; padding:16px 22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .contact-title { font-size:12px; font-weight:800; color:#fff; margin-bottom:3px; }
+    .contact-sub   { font-size:9.5px; color:rgba(255,255,255,.6); line-height:1.5; }
+    .contact-detail { text-align:right; }
+    .contact-email { font-size:11px; font-weight:700; color:var(--gold); }
+    .contact-note  { font-size:9px; color:rgba(255,255,255,.5); margin-top:3px; }
+  </style>
+</head>
+<body>
+
+<!-- PAGE 1: Cover -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Reseller &amp; Partner Licensing — Complete Guide</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="hero1">
+    <div class="hero1-eyebrow">For Consultants, Agencies &amp; Wellness Providers</div>
+    <div class="hero1-title">Bring Imotara to your clients — <em>and earn on every one.</em></div>
+    <div class="hero1-sub">The Imotara Partner Programme lets wellness consultants, HR/EAP providers, education advisors and digital agencies refer or resell Imotara to their own clients — earning recurring commission, with sales support and co-branded materials to help you close. This guide explains how the programme works, what each tier includes, and how commissions are paid.</div>
+    <div class="hero1-pills">
+      <div class="hero1-pill"><span class="dot" style="background:var(--gold)"></span> Recurring commission</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--orange)"></span> No cost to join</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--blue)"></span> 48-hour application review</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--green)"></span> Co-branded sales materials</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--pink)"></span> 3 partner tiers</div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:16px;">Why partner with Imotara</div>
+    <div class="market-strip">
+      <div class="market-card mc-1">
+        <div class="market-num">10–20%</div>
+        <div class="market-lbl">Recurring commission on every active account you bring, depending on partner tier</div>
+        <div class="market-src">Imotara Partner Programme</div>
+      </div>
+      <div class="market-card mc-2">
+        <div class="market-num">₹0</div>
+        <div class="market-lbl">Cost to join as a Referral Partner — no upfront fees, no minimum commitment</div>
+        <div class="market-src">Imotara Partner Programme</div>
+      </div>
+      <div class="market-card mc-3">
+        <div class="market-num">48h</div>
+        <div class="market-lbl">Typical turnaround to review and approve your partner application</div>
+        <div class="market-src">Imotara Partner Programme</div>
+      </div>
+      <div class="market-card mc-4">
+        <div class="market-num">4</div>
+        <div class="market-lbl">Licensing categories you can resell into — Individual, Corporate, NGO and Educational</div>
+        <div class="market-src">Product capability</div>
+      </div>
+    </div>
+
+    <div class="about-strip">
+      <div class="about-icon">🤝</div>
+      <div>
+        <div class="about-title">What is Imotara?</div>
+        <div class="about-body">Imotara is an AI-powered emotional wellness companion — a private, judgment-free space for people to process feelings, build daily emotional awareness, and get support in their own language and tone. It's already licensed to individuals, corporates, NGOs and educational institutions — giving partners a ready-built product to bring to their own client relationships rather than building something from scratch.</div>
+      </div>
+    </div>
+
+    <div class="sec">Who this programme is for</div>
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="why-icon">🧑‍💼</div>
+        <div class="why-title">HR &amp; wellness consultants</div>
+        <div class="why-body">Add a ready-made digital wellness layer to the benefits packages you already design for corporate clients.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">🏫</div>
+        <div class="why-title">Education &amp; NGO advisors</div>
+        <div class="why-body">Bring subsidised, multi-lingual emotional support into the institutions and non-profits you already work with.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">📣</div>
+        <div class="why-title">Agencies &amp; digital consultants</div>
+        <div class="why-body">Extend your service offering with a recurring-revenue product your clients will actually value and use.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Reseller &amp; Partner Licensing</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 1 of 5</div>
+  </div>
+</div>
+
+
+<!-- PAGE 2: Partner Tiers -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Partner Tiers &amp; What's Included</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="plan-hero">
+    <div class="plan-hero-title">Three tiers, <em>one growing partnership.</em></div>
+    <div class="plan-hero-sub">Start as a Referral Partner with zero commitment, and grow into a Certified Reseller or Strategic Partner as your book of referred clients grows.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:4px;">Partner tiers</div>
+    <div class="org-grid">
+
+      <div class="org-card org-1">
+        <div class="org-icon">🔗</div>
+        <span class="org-type badge-1">Entry Tier</span>
+        <div class="org-name">Referral Partner</div>
+        <div class="org-comm">10%<sub> recurring, year 1</sub></div>
+        <div class="org-desc">The simplest way to start. Share your unique referral code — earn commission on every account that subscribes.</div>
+        <ul class="org-features">
+          <li><span class="tk">✓</span> Free to join, no minimums</li>
+          <li><span class="tk">✓</span> Unique referral code</li>
+          <li><span class="tk">✓</span> Access to marketing one-pagers</li>
+          <li><span class="tk">✓</span> Quarterly commission payout</li>
+        </ul>
+      </div>
+
+      <div class="org-card org-2">
+        <div class="org-icon">🏅</div>
+        <span class="org-type badge-2">Most Committed</span>
+        <div class="org-name">Certified Reseller</div>
+        <div class="org-comm">15%<sub> recurring, ongoing</sub></div>
+        <div class="org-desc">For consultants and agencies actively selling Imotara as part of their offering, with a short onboarding call.</div>
+        <ul class="org-features">
+          <li><span class="tk">✓</span> Everything in Referral Partner</li>
+          <li><span class="tk">✓</span> Co-branded pitch decks &amp; case studies</li>
+          <li><span class="tk">✓</span> Discounted seats for client demos</li>
+          <li><span class="tk">✓</span> Priority email support</li>
+        </ul>
+      </div>
+
+      <div class="org-card org-3">
+        <div class="org-icon">🚀</div>
+        <span class="org-type badge-3">Invite Only</span>
+        <div class="org-name">Strategic Partner</div>
+        <div class="org-comm">Custom<sub> negotiated rate</sub></div>
+        <div class="org-desc">For established platforms, distributors and institutional consultants bringing significant volume.</div>
+        <ul class="org-features">
+          <li><span class="tk">✓</span> Everything in Certified Reseller</li>
+          <li><span class="tk">✓</span> Dedicated account manager</li>
+          <li><span class="tk">✓</span> Joint go-to-market planning</li>
+          <li><span class="tk">✓</span> Volume-based commission uplift</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="sec">What every partner gets access to</div>
+    <div class="module-grid">
+      <div class="module-card">
+        <div class="module-icon">🔗</div>
+        <div class="module-name">Referral Code</div>
+        <div class="module-body">A unique, trackable code or link for every client you refer — attributed to you for commission purposes.</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon">🖼️</div>
+        <div class="module-name">Sales Materials</div>
+        <div class="module-body">One-pagers, pitch decks and pricing sheets for Individual, Corporate, NGO and Educational licensing.</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon">🎓</div>
+        <div class="module-name">Product Training</div>
+        <div class="module-body">A short onboarding session so you can confidently answer client questions about features and pricing.</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon">💰</div>
+        <div class="module-name">Quarterly Payout</div>
+        <div class="module-body">Commission is reconciled and paid out quarterly via bank transfer or UPI, with a statement per client.</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon">📧</div>
+        <div class="module-name">Partnerships Contact</div>
+        <div class="module-body">A dedicated Imotara partnerships contact for deal support, pricing questions and escalations.</div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon">🗂️</div>
+        <div class="module-name">Deal Registration</div>
+        <div class="module-body">Register a prospective client before you pitch, so your attribution is protected as the deal progresses.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Reseller &amp; Partner Licensing</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 2 of 5</div>
+  </div>
+</div>
+
+
+<!-- PAGE 3: Economics -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Partner Economics &amp; Earning Potential</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="an-hero">
+    <div class="an-hero-title">Simple commission, <em>paid on what you bring in.</em></div>
+    <div class="an-hero-sub">Commission is calculated on the net subscription value of every account attributed to your referral code, for as long as that account stays active.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:4px;">Commission by tier <span class="chart-tag">Illustrative example</span></div>
+    <div class="chart-row">
+      <div class="chart-card" style="flex:1.3;">
+        <div class="chart-title">Commission rate comparison</div>
+        <div class="chart-note">Recurring commission as a percentage of referred client's subscription value</div>
+        <svg viewBox="0 0 320 130" width="100%" height="130">
+          <line x1="0" y1="108" x2="320" y2="108" stroke="#D4E2F7" stroke-width="1"/>
+          <g font-family="Inter" font-size="8" fill="#12274F" font-weight="700">
+            <rect x="30"  y="58" width="56" height="50" rx="4" fill="url(#barGradR1)"/>
+            <text x="58" y="52" text-anchor="middle" font-size="9">10%</text>
+            <text x="58" y="122" text-anchor="middle" font-weight="500" font-size="7.5" fill="#6B7EA4">Referral Partner</text>
+
+            <rect x="132" y="33" width="56" height="75" rx="4" fill="url(#barGradR2)"/>
+            <text x="160" y="27" text-anchor="middle" font-size="9">15%</text>
+            <text x="160" y="122" text-anchor="middle" font-weight="500" font-size="7.5" fill="#6B7EA4">Certified Reseller</text>
+
+            <rect x="234" y="18" width="56" height="90" rx="4" fill="url(#barGradR3)"/>
+            <text x="262" y="12" text-anchor="middle" font-size="9">20%+</text>
+            <text x="262" y="122" text-anchor="middle" font-weight="500" font-size="7.5" fill="#6B7EA4">Strategic Partner</text>
+          </g>
+          <defs>
+            <linearGradient id="barGradR1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#94A3B8"/><stop offset="100%" stop-color="#CBD5E1"/></linearGradient>
+            <linearGradient id="barGradR2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#F5C842"/><stop offset="100%" stop-color="#FF8C42"/></linearGradient>
+            <linearGradient id="barGradR3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#12274F"/><stop offset="100%" stop-color="#1E3A6E"/></linearGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <div class="chart-card" style="flex:1;">
+        <div class="chart-title">Example earning scenario</div>
+        <div class="chart-note">Hypothetical — for illustration only, not a guarantee</div>
+        <table class="earn-table">
+          <thead><tr><th>Clients referred</th><th>Avg. deal size /yr</th><th>Referral (10%)</th></tr></thead>
+          <tbody>
+            <tr><td>5 corporate accounts</td><td>₹1,50,000</td><td>₹75,000</td></tr>
+            <tr><td>10 individual upgrades</td><td>₹1,788</td><td>₹1,788</td></tr>
+            <tr><td>1 NGO licence</td><td>₹3,00,000</td><td>₹30,000</td></tr>
+          </tbody>
+        </table>
+        <div class="footnote">Figures are hypothetical examples to illustrate how commission is calculated — actual deal sizes and outcomes vary. Certified Reseller and Strategic Partner tiers earn a higher rate on the same deals.</div>
+      </div>
+    </div>
+
+    <div class="roi-strip">
+      <div class="roi-left">
+        <div class="roi-title">Why this is a low-risk addition to your business</div>
+        <div class="roi-sub">There's no cost to join, no minimum volume commitment at the Referral tier, and commission is recurring — you keep earning for as long as the client you referred stays subscribed, not just on the first sale.</div>
+      </div>
+      <div class="roi-div"></div>
+      <div class="roi-stats">
+        <div class="roi-stat"><div class="roi-num">₹0</div><div class="roi-lbl">cost to join</div></div>
+        <div class="roi-stat"><div class="roi-num">4</div><div class="roi-lbl">licensing categories to resell</div></div>
+        <div class="roi-stat"><div class="roi-num">Qtly</div><div class="roi-lbl">commission payout cycle</div></div>
+      </div>
+    </div>
+
+    <div class="sec">Partner benefits at a glance</div>
+    <div class="benefit-grid">
+      <div class="benefit-card"><div class="benefit-icon">🖼️</div><div><div class="benefit-title">Co-branded materials</div><div class="benefit-body">Pitch decks and one-pagers with your branding alongside Imotara's, ready to send to prospects.</div></div></div>
+      <div class="benefit-card"><div class="benefit-icon">🎟️</div><div><div class="benefit-title">Discounted demo seats</div><div class="benefit-body">Certified Resellers get discounted seats to demo Imotara live with prospective clients.</div></div></div>
+      <div class="benefit-card"><div class="benefit-icon">📈</div><div><div class="benefit-title">Sales support</div><div class="benefit-body">Our partnerships team can join client calls for Corporate, NGO and Educational deals you bring to us.</div></div></div>
+      <div class="benefit-card"><div class="benefit-icon">🔒</div><div><div class="benefit-title">Protected attribution</div><div class="benefit-body">Register a deal before you pitch, and your commission is protected for that client relationship.</div></div></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Reseller &amp; Partner Licensing</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 3 of 5</div>
+  </div>
+</div>
+
+
+<!-- PAGE 4: How It Works & Trust -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">How It Works &amp; Partner Agreement</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="sec-hero">
+    <div class="sec-hero-title">Simple to join, <em>transparent to track.</em></div>
+    <div class="sec-hero-sub">The programme is currently run as a managed partnership — every referral is tracked and reconciled by our partnerships team, with a self-serve partner dashboard on our roadmap.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:4px;">How referral tracking &amp; payout works today</div>
+    <div class="trust-grid">
+      <div class="trust-card">
+        <div class="trust-icon">🔗</div>
+        <div><div class="trust-title">Your unique referral code</div><div class="trust-body">On approval, you receive a unique referral code and link to share with prospective clients — used to attribute any resulting sign-up to you.</div></div>
+      </div>
+      <div class="trust-card">
+        <div class="trust-icon">📝</div>
+        <div><div class="trust-title">Deal registration</div><div class="trust-body">Register a prospect by name before you pitch — this protects your attribution even if the client also finds Imotara independently.</div></div>
+      </div>
+      <div class="trust-card">
+        <div class="trust-icon">🧾</div>
+        <div><div class="trust-title">Manual reconciliation</div><div class="trust-body">Our partnerships team currently reconciles referrals and commission manually each quarter — a self-serve tracking dashboard is on our roadmap.</div></div>
+      </div>
+      <div class="trust-card">
+        <div class="trust-icon">💳</div>
+        <div><div class="trust-title">Quarterly payout</div><div class="trust-body">Commission is paid out quarterly via bank transfer or UPI, with a statement showing each attributed account.</div></div>
+      </div>
+      <div class="trust-card">
+        <div class="trust-icon">📄</div>
+        <div><div class="trust-title">Simple partner agreement</div><div class="trust-body">A short partner agreement covers commission terms, confidentiality and brand usage — no long-term lock-in for Referral Partners.</div></div>
+      </div>
+      <div class="trust-card">
+        <div class="trust-icon">🔐</div>
+        <div><div class="trust-title">Your clients' data stays private</div><div class="trust-body">As a partner, you never gain access to your referred clients' individual conversation data — Imotara's privacy guarantees apply the same way to every account.</div></div>
+      </div>
+    </div>
+
+    <div class="sec">How onboarding works</div>
+    <div class="timeline">
+      <div class="tl-step"><div class="tl-circle">1</div><div class="tl-title">Apply</div><div class="tl-body">Tell us about your business, client base and which tier fits you.</div></div>
+      <div class="tl-step"><div class="tl-circle">2</div><div class="tl-title">Review &amp; approve</div><div class="tl-body">Our partnerships team reviews and responds within 48 hours.</div></div>
+      <div class="tl-step"><div class="tl-circle">3</div><div class="tl-title">Get your kit</div><div class="tl-body">Receive your referral code, sales materials, and a short onboarding call.</div></div>
+      <div class="tl-step"><div class="tl-circle">4</div><div class="tl-title">Refer &amp; earn</div><div class="tl-body">Share your code, register deals, and receive quarterly commission payouts.</div></div>
+    </div>
+
+    <div class="roadmap-card">
+      <div class="roadmap-title">🛣️ On our roadmap for the Partner Programme (coming soon)</div>
+      <div class="roadmap-list">
+        <span class="roadmap-pill">Self-serve partner dashboard</span>
+        <span class="roadmap-pill">Real-time referral &amp; commission tracking</span>
+        <span class="roadmap-pill">Automated monthly payouts</span>
+        <span class="roadmap-pill">Partner directory listing on imotara.com</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Reseller &amp; Partner Licensing</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 4 of 5</div>
+  </div>
+</div>
+
+
+<!-- PAGE 5: FAQ, QR, Contact -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">FAQ &amp; Contact</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="p5-hero">
+    <div class="p5-hero-title">Ready to become a partner? <em>Here's what people ask us.</em></div>
+    <div class="p5-hero-sub">Common questions from consultants and agencies evaluating the Imotara Partner Programme.</div>
+  </div>
+
+  <div class="body">
+
+    <div class="sec" style="margin-top:4px;">Try Imotara yourself — scan to download</div>
+    <div class="qr-strip">
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-web.png" alt="Imotara Web QR"/>
+        <div><div class="qr-platform">🌐 Web App</div><div class="qr-sub">Scan to open imotara.com directly in your browser — no install needed.</div></div>
+      </div>
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-ios.png" alt="Imotara iOS QR"/>
+        <div><div class="qr-platform"> App Store</div><div class="qr-sub">Scan to download Imotara for iPhone &amp; iPad on the App Store.</div></div>
+      </div>
+      <div class="qr-card">
+        <img class="qr-img" src="file:///Users/soumenroy/Projects/imotaraapp/docs/qr/qr-android.png" alt="Imotara Android QR"/>
+        <div><div class="qr-platform">▶ Google Play</div><div class="qr-sub">Scan to download Imotara for Android on Google Play.</div></div>
+      </div>
+    </div>
+
+    <div class="sec">Frequently asked questions</div>
+    <div class="faq-grid">
+      <div class="faq-card"><div class="faq-q"><span>Q</span> Is there a cost to join as a partner?</div><div class="faq-a">No — the Referral Partner tier is free to join with no minimum commitment. Certified Reseller and Strategic Partner tiers are by application based on activity level.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> How is commission calculated and paid?</div><div class="faq-a">Commission is a percentage of the net subscription value of each attributed account, reconciled and paid quarterly via bank transfer or UPI, with a per-client statement.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> What can I resell — just individual plans?</div><div class="faq-a">No — partners can refer across all four licensing categories: Individual, Corporate, NGO and Educational, each with its own commission calculation.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> Is referral tracking automated?</div><div class="faq-a">Not yet — referrals are currently tracked via your unique code and reconciled manually by our partnerships team each quarter. A self-serve dashboard is on our roadmap.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> Can I see what my referred clients discuss on Imotara?</div><div class="faq-a">No — partner access never includes visibility into any client's individual conversations or data. Our privacy guarantees apply equally to every account, regardless of how it was referred.</div></div>
+      <div class="faq-card"><div class="faq-q"><span>Q</span> Is there a contract or lock-in period?</div><div class="faq-a">Referral Partners sign a simple agreement with no lock-in and can stop at any time. Certified Reseller and Strategic Partner terms are discussed individually.</div></div>
+    </div>
+
+    <div class="contact-card">
+      <div>
+        <div class="contact-title">Ready to become an Imotara partner?</div>
+        <div class="contact-sub">Tell us about your business and client base — we'll respond<br/>with the right tier and next steps within 48 hours.</div>
+      </div>
+      <div class="contact-detail">
+        <div class="contact-email">info@imotara.com</div>
+        <div class="contact-note">imotara.com &nbsp;·&nbsp; Response within 48 hours</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Reseller &amp; Partner Licensing</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 5 of 5</div>
+  </div>
+</div>
+
+</body>
+</html>

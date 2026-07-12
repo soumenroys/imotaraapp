@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Imotara — Payment Rails Audit</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --pink:   #FF6B9D;
+      --blue:   #4B9FE1;
+      --teal:   #38C9B9;
+      --gold:   #F5C842;
+      --purple: #9B6FE8;
+      --green:  #3DBE8A;
+      --orange: #FF8C42;
+      --red:    #E45B5B;
+      --navy:   #12274F;
+      --navy2:  #1E3A6E;
+      --slate:  #3D5580;
+      --light:  #F0F6FF;
+      --border: #D4E2F7;
+      --white:  #FFFFFF;
+      --gray:   #6B7EA4;
+    }
+
+    html, body {
+      width:210mm;
+      font-family:'Inter','Helvetica Neue',Arial,sans-serif;
+      background:var(--white);
+      color:var(--navy);
+      -webkit-print-color-adjust:exact;
+      print-color-adjust:exact;
+    }
+
+    code, .mono { font-family:'JetBrains Mono',monospace; }
+
+    .page { width:210mm; min-height:297mm; display:flex; flex-direction:column; page-break-after:always; }
+    .page:last-child { page-break-after:avoid; }
+
+    .header {
+      background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 55%,#1B4F8A 100%);
+      padding:20px 36px 18px; display:flex; align-items:center; justify-content:space-between;
+      position:relative; overflow:hidden;
+    }
+    .header::before { content:''; position:absolute; top:-60px; right:-40px; width:200px; height:200px; background:radial-gradient(circle,rgba(75,159,225,.18) 0%,transparent 70%); border-radius:50%; }
+    .header-left { display:flex; align-items:center; gap:14px; z-index:1; }
+    .header-logo { height:54px; width:auto; }
+    .header-sub  { color:rgba(255,255,255,.65); font-size:10px; margin-top:2px; }
+    .header-badge { z-index:1; background:linear-gradient(135deg,var(--pink),var(--blue)); color:#fff; font-size:9px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; padding:6px 14px; border-radius:20px; }
+    .gradient-bar { height:4px; background:linear-gradient(to right,var(--pink),var(--gold),var(--teal),var(--blue)); }
+
+    .body { padding:20px 36px 0; flex:1; }
+
+    .sec { font-size:9px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--blue); margin:16px 0 10px; display:flex; align-items:center; gap:8px; }
+    .sec::after { content:''; flex:1; height:1px; background:var(--border); }
+    .sec:first-child { margin-top:0; }
+
+    .footer { background:var(--navy); padding:9px 36px; display:flex; align-items:center; justify-content:space-between; margin-top:auto; }
+    .footer-left { display:flex; align-items:center; gap:10px; }
+    .footer-logo { height:20px; filter:brightness(0) invert(1); opacity:.8; }
+    .footer-copy { font-size:8.5px; color:rgba(255,255,255,.4); }
+    .footer-mid  { font-size:8.5px; color:rgba(255,255,255,.35); }
+    .footer-page { font-size:8.5px; color:rgba(255,255,255,.5); font-weight:600; }
+
+    /* COVER */
+    .hero1 { background:linear-gradient(135deg,#EAF2FF 0%,#EEF4FF 50%,#FCEFF5 100%); border-bottom:1px solid var(--border); padding:26px 36px 22px; }
+    .hero1-eyebrow { font-size:9.5px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:var(--blue); margin-bottom:8px; }
+    .hero1-title { font-size:25px; font-weight:900; color:var(--navy); line-height:1.2; margin-bottom:8px; }
+    .hero1-title em { font-style:normal; background:linear-gradient(135deg,var(--blue),var(--purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .hero1-sub { font-size:11px; color:var(--slate); max-width:620px; line-height:1.6; margin-bottom:14px; }
+    .hero1-pills { display:flex; gap:8px; flex-wrap:wrap; }
+    .hero1-pill { background:var(--white); border:1px solid var(--border); border-radius:20px; padding:6px 13px; font-size:9px; font-weight:600; color:var(--navy); display:flex; align-items:center; gap:6px; }
+    .hero1-pill .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+    .stat-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0; }
+    .stat-card { border:1.5px solid var(--border); border-radius:12px; padding:14px 14px 12px; text-align:center; position:relative; overflow:hidden; }
+    .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; }
+    .sc-1::before { background:linear-gradient(to right,var(--green),var(--teal)); }
+    .sc-2::before { background:linear-gradient(to right,var(--red),var(--orange)); }
+    .sc-3::before { background:linear-gradient(to right,var(--gold),var(--orange)); }
+    .sc-4::before { background:linear-gradient(to right,var(--blue),var(--purple)); }
+    .stat-num { font-size:22px; font-weight:900; color:var(--navy); line-height:1; }
+    .stat-lbl { font-size:8.5px; color:var(--gray); margin-top:6px; line-height:1.4; }
+
+    .exec-box { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:12px; padding:16px 20px; margin-bottom:6px; }
+    .exec-title { font-size:11.5px; font-weight:800; color:#fff; margin-bottom:6px; }
+    .exec-body { font-size:9.5px; color:rgba(255,255,255,.72); line-height:1.6; }
+
+    /* SOLID LIST */
+    .solid-item { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+    .solid-item:last-child { border-bottom:none; }
+    .solid-tick { color:var(--green); font-size:13px; flex-shrink:0; margin-top:1px; }
+    .solid-text { font-size:9.7px; color:var(--slate); line-height:1.55; }
+    .solid-text b { color:var(--navy); font-weight:700; }
+
+    /* FINDINGS */
+    .finding { border:1px solid var(--border); border-radius:10px; padding:12px 15px; margin-bottom:10px; position:relative; overflow:hidden; }
+    .finding::before { content:''; position:absolute; top:0; left:0; bottom:0; width:4px; }
+    .f-p1::before { background:var(--red); }
+    .f-p2::before { background:var(--orange); }
+    .f-p3::before { background:var(--gray); }
+    .finding-head { display:flex; align-items:center; gap:8px; margin-bottom:5px; flex-wrap:wrap; }
+    .badge { font-size:7.5px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; padding:3px 8px; border-radius:8px; color:#fff; }
+    .badge-p1 { background:var(--red); }
+    .badge-p2 { background:var(--orange); }
+    .badge-p3 { background:var(--gray); }
+    .badge-fixed { background:var(--green); }
+    .finding-title { font-size:10.3px; font-weight:700; color:var(--navy); }
+    .finding-body { font-size:9.3px; color:var(--slate); line-height:1.55; }
+    .finding-file { font-size:8px; color:var(--blue); margin-top:5px; }
+
+    /* PLAN PHASES */
+    .phase { display:flex; gap:12px; padding:9px 0; border-bottom:1px solid var(--border); }
+    .phase:last-child { border-bottom:none; }
+    .phase-num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--light); color:var(--blue); font-size:9px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+    .phase-body { font-size:9.5px; color:var(--slate); line-height:1.5; }
+    .phase-body b { color:var(--navy); }
+
+    /* TODO */
+    .todo-group-title { font-size:10.5px; font-weight:800; color:var(--navy); margin:14px 0 8px; }
+    .todo-row { display:flex; align-items:flex-start; gap:9px; padding:6px 0; border-bottom:1px solid var(--border); }
+    .todo-row:last-child { border-bottom:none; }
+    .todo-check { flex-shrink:0; width:15px; height:15px; border-radius:4px; margin-top:1px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; }
+    .tc-done { background:var(--green); color:#fff; }
+    .tc-pending { background:var(--light); border:1.5px solid var(--border); }
+    .todo-text { font-size:9.3px; color:var(--slate); line-height:1.5; }
+    .todo-text.done { text-decoration:line-through; color:var(--gray); }
+    .todo-text b { color:var(--navy); }
+
+    .callout { border:1px solid var(--border); background:var(--light); border-radius:10px; padding:12px 15px; font-size:9.3px; color:var(--slate); line-height:1.55; margin-top:10px; }
+    .callout b { color:var(--navy); }
+  </style>
+</head>
+<body>
+
+<!-- PAGE 1: Cover -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Internal Engineering Review</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="hero1">
+    <div class="hero1-eyebrow">Payment Rails Audit</div>
+    <div class="hero1-title">A full, code-verified review of <em>every payment path in Imotara.</em></div>
+    <div class="hero1-sub">Every gateway and billing surface was audited by reading the actual production code — not by trusting prior documentation. This report covers Razorpay, Stripe, Apple IAP, Google Play Billing, Imotara Connect's wallet/payout system, admin tooling, invoicing, and webhook security, plus the international-payments work that prompted the audit and the concrete plan to wire up Stripe for global payments.</div>
+    <div class="hero1-pills">
+      <div class="hero1-pill"><span class="dot" style="background:var(--green)"></span> 12 areas audited</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--red)"></span> 10 gaps found</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--teal)"></span> 2 already fixed</div>
+      <div class="hero1-pill"><span class="dot" style="background:var(--blue)"></span> Stripe wiring plan included</div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="stat-strip">
+      <div class="stat-card sc-1">
+        <div class="stat-num">2 / 10</div>
+        <div class="stat-lbl">Gaps already fixed &amp; shipped (v1.2.5)</div>
+      </div>
+      <div class="stat-card sc-2">
+        <div class="stat-num">2</div>
+        <div class="stat-lbl">P1 — real risk, fix soon</div>
+      </div>
+      <div class="stat-card sc-3">
+        <div class="stat-num">5 + 3</div>
+        <div class="stat-lbl">P2 real gaps / P3 minor hygiene</div>
+      </div>
+      <div class="stat-card sc-4">
+        <div class="stat-num">20</div>
+        <div class="stat-lbl">Steps in the Stripe international-payments plan</div>
+      </div>
+    </div>
+
+    <div class="exec-box">
+      <div class="exec-title">Executive summary</div>
+      <div class="exec-body">The core payment infrastructure is solid: Razorpay (web), Apple IAP, and Google Play Billing all do real, correctly-verified transactions with proper webhook security. Ten concrete gaps were found across the mobile purchase paths, Connect's marketplace system, and admin tooling — two (the highest-severity ones) were fixed and shipped in the same release this audit produced. Separately, a session-long thread about accepting international payments concluded that Stripe — already built into the backend but never turned on — is the fastest path to global licensing and donations, pending a business-identity decision that needs a chartered accountant's sign-off before the Stripe account is opened.</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Payment Rails Audit</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 1 of 6</div>
+  </div>
+</div>
+
+
+<!-- PAGE 2: Scope, methodology, what's solid -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Scope, Methodology &amp; What's Working</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="body">
+    <div class="sec">What was audited, and how</div>
+    <div class="solid-item">
+      <div class="solid-text">Every finding below came from reading the actual source code directly — Razorpay checkout/webhook/donations/corporate, Stripe checkout/webhook/cancellation, Apple IAP verification, Google Play Billing verification, the dead legacy Razorpay-Android path, Imotara Connect's wallet/recharge/payout/refund system, admin token tooling, invoice generation, and both gateways' webhook signature verification — not inferred from prior memory or documentation. Two focused sub-reviews ran across the mobile IAP code and the Connect/admin/invoicing code respectively, alongside direct checks of webhook signatures and live Vercel environment variables.</div>
+    </div>
+
+    <div class="sec">Confirmed solid — no action needed</div>
+    <div class="solid-item"><span class="solid-tick">✓</span><span class="solid-text"><b>Razorpay web</b> (subscriptions, corporate, donations) — real orders, genuine HMAC-SHA256 signature verification with a timing-safe comparison; the previously-reported stuck-checkout-button bug is confirmed fixed on both the upgrade and donate pages.</span></div>
+    <div class="solid-item"><span class="solid-tick">✓</span><span class="solid-text"><b>Stripe backend</b> (checkout, webhook, cancellation) — fully built and correct; only needs an account, configuration, and frontend wiring, not more backend engineering (see the Stripe Wiring Plan on page 5).</span></div>
+    <div class="solid-item"><span class="solid-tick">✓</span><span class="solid-text"><b>Both webhook endpoints are genuinely secure</b> — Razorpay uses manual HMAC-SHA256 with a timing-safe comparison; Stripe uses its own official SDK's signature verification. Neither can be spoofed.</span></div>
+    <div class="solid-item"><span class="solid-tick">✓</span><span class="solid-text"><b>Apple IAP</b> — real server-to-server verification against Apple's App Store Server API, correct cryptographic signature verification, cross-checks the purchased product against Apple's own record, and self-heals if a prior grant attempt failed partway through.</span></div>
+    <div class="solid-item"><span class="solid-tick">✓</span><span class="solid-text"><b>Google Play Billing</b> — real server-to-server verification against the Android Publisher API, fails safely closed if credentials are missing. Two previously-reported bugs (a mislabeled payment source, and invoices showing the wrong currency) are confirmed fixed in the current code.</span></div>
+    <div class="solid-item"><span class="solid-tick">✓</span><span class="solid-text"><b>Imotara Connect's wallet</b> — recharge and top-up amounts are always recalculated server-side, never trusted from the client; the 80% consultant-earnings split and the minimum payout threshold are both correctly and consistently enforced, with solid protection against duplicate payout requests.</span></div>
+    <div class="solid-item"><span class="solid-tick">✓</span><span class="solid-text"><b>Admin token tooling</b> — supports both incremental and absolute balance edits, correctly blocks negative values, and logs every action to an audit trail.</span></div>
+    <div class="solid-item"><span class="solid-tick">✓</span><span class="solid-text"><b>Invoice generation</b> — a real, working generator that displays the correct currency for each payment gateway, not hardcoded to one currency.</span></div>
+    <div class="solid-item"><span class="solid-tick">✓</span><span class="solid-text"><b>Donation preset ordering</b> — confirmed clean and consistent on both web and mobile.</span></div>
+    <div class="solid-item"><span class="solid-tick">✓</span><span class="solid-text"><b>The old Razorpay-Android purchase path</b> — confirmed genuinely dead code with zero references anywhere; safe to remove whenever convenient, not a live risk today.</span></div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Payment Rails Audit</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 2 of 6</div>
+  </div>
+</div>
+
+
+<!-- PAGE 3: Findings P1 + start P2 -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Findings — Priority 1 &amp; Priority 2</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="body">
+    <div class="sec">Priority 1 — real risk, addressed immediately</div>
+
+    <div class="finding f-p1">
+      <div class="finding-head"><span class="badge badge-p1">P1</span><span class="badge badge-fixed">Fixed in v1.2.5</span><span class="finding-title">Apple IAP had no fail-closed protection</span></div>
+      <div class="finding-body">If Apple's server credentials were ever absent or misconfigured, purchase verification was silently skipped entirely and the license was granted anyway — unlike the Google Play path, which correctly refuses the purchase in the same situation. Credentials are present in production today, so this was not actively exploitable, but it was a real, inconsistent latent risk. Now fails closed to match Google Play's behaviour.</div>
+      <div class="finding-file mono">src/app/api/license/verify-apple-purchase/route.ts</div>
+    </div>
+
+    <div class="finding f-p1">
+      <div class="finding-head"><span class="badge badge-p1">P1</span><span class="badge badge-fixed">Fixed in v1.2.5</span><span class="finding-title">Purchases could go unacknowledged on two edge cases</span></div>
+      <div class="finding-body">If a purchased product ID couldn't be mapped (iOS) or a purchase token was missing (Android), the code returned early without acknowledging the transaction — risking an automatic refund from Apple or Google within 3 days, or a purchase stuck permanently pending. Both edge cases now acknowledge the transaction before returning, matching the discipline already used on the normal success/cancel/error paths.</div>
+      <div class="finding-file mono">imotara-mobile/src/components/imotara/UpgradeSheet.tsx</div>
+    </div>
+
+    <div class="sec">Priority 2 — real gaps, lower urgency</div>
+
+    <div class="finding f-p2">
+      <div class="finding-head"><span class="badge badge-p2">P2</span><span class="finding-title">The Android in-app-donation fix only reached one of two entry points</span></div>
+      <div class="finding-body">A prior fix made the Settings screen's donate button open Razorpay checkout inside the app on Android. A second, separate donation entry point — the "Support Imotara" quick panel — still opens the external system browser instead. A genuine duplicate-surface miss that wasn't previously known.</div>
+      <div class="finding-file mono">imotara-mobile/src/components/imotara/PlanSupportQuickPanel.tsx</div>
+    </div>
+
+    <div class="finding f-p2">
+      <div class="finding-head"><span class="badge badge-p2">P2</span><span class="finding-title">Google Play Billing lacks Apple's self-healing re-grant</span></div>
+      <div class="finding-body">If the server crashes in the narrow window after recording a purchase but before granting the license, Apple's path automatically retries and corrects itself on the next check. Google Play's path has no equivalent protection — a retry in that exact window would report "already processed" without ever actually granting what was paid for.</div>
+      <div class="finding-file mono">src/app/api/payments/google-play/verify/route.ts</div>
+    </div>
+
+    <div class="finding f-p2">
+      <div class="finding-head"><span class="badge badge-p2">P2</span><span class="finding-title">Android's "pending" purchase state isn't explicitly handled</span></div>
+      <div class="finding-body">Deferred payment methods on Android produce a "pending" purchase state that isn't specifically handled in the purchase-error UI — only cancellation and "already owned" are. A user paying this way could be left in an unclear state with no explicit messaging.</div>
+      <div class="finding-file mono">imotara-mobile/src/components/imotara/UpgradeSheet.tsx</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Payment Rails Audit</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 3 of 6</div>
+  </div>
+</div>
+
+
+<!-- PAGE 4: Findings P2 cont. + P3 -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Findings — Priority 2 (cont.) &amp; Priority 3</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="body">
+    <div class="finding f-p2">
+      <div class="finding-head"><span class="badge badge-p2">P2</span><span class="finding-title">Mobile IAP invoices don't show the buyer's true currency</span></div>
+      <div class="finding-body">Not a security issue, an accuracy one. Apple IAP invoices show "—" for the amount rather than a wrong figure (since the server can't know Apple's actual local-currency charge), which is at least honest but still uninformative. Google Play invoices now show a fixed USD amount — this fixed the previously-reported wrong-currency bug, but replaced it with a different fixed currency rather than the buyer's actual one.</div>
+      <div class="finding-file mono">imotara-app invoice pipeline (Apple &amp; Google Play routes)</div>
+    </div>
+
+    <div class="finding f-p2">
+      <div class="finding-head"><span class="badge badge-p2">P2</span><span class="badge badge-p3" style="background:var(--purple)">Decision needed</span><span class="finding-title">No real tier gate exists for the voice feature, despite the tutorial promising one</span></div>
+      <div class="finding-body">The in-app tutorial states plainly that the Free tier gets only the basic device voice while Plus and above unlock Imotara's neural voice. In the actual code, there is no tier or license check anywhere in the voice feature — every user, on every tier, gets the full neural voice by default. This is separate from the deliberate "everyone gets everything" soft-launch setting, which has nothing to do with voice specifically — this restriction appears to have been planned and documented, but never actually built. A decision is needed: correct the tutorial text to match reality, or build the gate to match what's already being promised and sold. This matters most once the soft-launch access setting is switched off.</div>
+      <div class="finding-file mono">imotara-mobile/src/lib/tts/mobileTTS.ts · src/app/tutorial/page.tsx</div>
+    </div>
+
+    <div class="sec">Priority 3 — minor, cosmetic or hygiene</div>
+
+    <div class="finding f-p3">
+      <div class="finding-head"><span class="badge badge-p3">P3</span><span class="finding-title">A billing audit-trail write can fail silently</span></div>
+      <div class="finding-body">On the admin license-update path, if the write to the audit-history table fails, it's only logged on the server — the admin using the panel still sees a success message. Low severity, but worth tightening specifically because this is the audit trail for billing actions.</div>
+      <div class="finding-file mono">src/app/api/admin/licenses/[userId]/route.ts</div>
+    </div>
+
+    <div class="finding f-p3">
+      <div class="finding-head"><span class="badge badge-p3">P3</span><span class="finding-title">Connect refunds are a manual process, by design</span></div>
+      <div class="finding-body">Not a bug — refund requests correctly create a ticket and notify support, to be actioned by a person within seven business days. Worth explicitly documenting as a manual process wherever it's surfaced, so nobody mistakes it for an automatic refund when reviewing the system later.</div>
+      <div class="finding-file mono">Imotara Connect wallet refund-request flow</div>
+    </div>
+
+    <div class="finding f-p3">
+      <div class="finding-head"><span class="badge badge-p3">P3</span><span class="finding-title">Dead code cleanup</span></div>
+      <div class="finding-body">The legacy Razorpay-based Android purchase function confirmed unreachable on page 2 can be deleted whenever convenient. No urgency, no risk in leaving it either way.</div>
+      <div class="finding-file mono">imotara-mobile/src/components/imotara/UpgradeSheet.tsx</div>
+    </div>
+
+    <div class="callout"><b>Where this audit came from:</b> a session-long thread that began with a simple question — how should Imotara accept payments from outside India? That exploration (a temporary PayPal bridge for donations, a look at making Razorpay itself international, and ultimately a decision to wire up Stripe) surfaced enough open questions about the wider payment system that a full audit made sense before building anything new on top of it. The international-payments plan is on the next page.</div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Payment Rails Audit</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 4 of 6</div>
+  </div>
+</div>
+
+
+<!-- PAGE 5: Recommendations - Stripe wiring plan + international context -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Recommendation — Wiring Up International Payments</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="body">
+    <div class="sec">Why Stripe, and not Razorpay-international or a new PayPal account</div>
+    <div class="solid-item"><span class="solid-text">Three options were compared for accepting payments from outside India: asking Razorpay to lift its existing international-payment block, opening a dedicated new PayPal Business account, or turning on Stripe. <b>Stripe won clearly</b> — its checkout, webhook, license-granting, invoicing, and cancellation logic are already fully built and sitting unused in the codebase, while the other two options each depend on a third party's approval timeline or need real integration work built from nothing.</span></div>
+
+    <div class="sec">The plan — six phases</div>
+    <div class="phase"><div class="phase-num">1</div><div class="phase-body"><b>Business setup.</b> Resolve which legal identity the Stripe account should be opened under, then complete Stripe's own business verification. This is the one step blocked on a decision, not engineering — see the callout below.</div></div>
+    <div class="phase"><div class="phase-num">2</div><div class="phase-body"><b>Stripe Dashboard configuration.</b> Create the 8 price objects matching Imotara's existing product catalogue (4 subscription tiers, 4 token packs), and a webhook pointed at the existing, already-correct webhook endpoint.</div></div>
+    <div class="phase"><div class="phase-num">3</div><div class="phase-body"><b>Environment variables.</b> Add the Stripe secret key, webhook secret, publishable key, and all 8 price IDs to production, then redeploy.</div></div>
+    <div class="phase"><div class="phase-num">4</div><div class="phase-body"><b>Frontend — subscriptions &amp; corporate.</b> The only real remaining engineering gap: add an actual button/flow that calls the already-built Stripe checkout route, on both the individual upgrade page and the corporate pricing page.</div></div>
+    <div class="phase"><div class="phase-num">5</div><div class="phase-body"><b>Donations via Stripe.</b> The other real gap — donations currently have no Stripe path at all, only Razorpay in Indian rupees. Needs a new route mirroring the existing donation flow, plus a currency picker for international donors.</div></div>
+    <div class="phase"><div class="phase-num">6</div><div class="phase-body"><b>Testing.</b> A full test-mode run across every purchase type, then one small real transaction in live mode before considering it done — the same rigor recommended for Google Play Billing's still-unverified real-money path.</div></div>
+
+    <div class="callout"><b>What this plan deliberately excludes:</b> mobile app-store purchases (Apple/Google already require and correctly handle their own in-app purchase systems — Stripe cannot and should not replace them there), and Imotara Connect's international counsellor payouts, which is a fundamentally different and larger problem. Paying a global network of consultants requires real multi-country payout infrastructure — a distinct product from a simple checkout, needing its own dedicated engineering phase once Connect is ready to onboard counsellors outside India. It is not live with international counsellors today, so there is no urgency to build this ahead of need.</div>
+
+    <div class="callout"><b>The one open decision blocking Phase 1:</b> which legal identity the new Stripe account (and ideally Razorpay's existing account) should be registered under. Imotara operates as a partnership firm with its own distinct PAN, but the payment processor accounts currently in use may not consistently match that legal entity. This is a genuine partnership-law and tax-structuring question — involving PAN registration, foreign-remittance purpose codes, and income-attribution rules — and needs a chartered accountant's confirmation before the new Stripe account is opened, not an engineering decision to make unilaterally.</div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Payment Rails Audit</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 5 of 6</div>
+  </div>
+</div>
+
+
+<!-- PAGE 6: Todo list -->
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img class="header-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <div><div class="header-sub">Action List — Current Status</div></div>
+    </div>
+    <div class="header-badge">Confidential · July 2026</div>
+  </div>
+  <div class="gradient-bar"></div>
+
+  <div class="body">
+    <div class="todo-group-title">Payment Rails Audit fixes</div>
+    <div class="todo-row"><div class="todo-check tc-done">✓</div><div class="todo-text done">P1 — Make Apple IAP verification fail closed if credentials go missing</div></div>
+    <div class="todo-row"><div class="todo-check tc-done">✓</div><div class="todo-text done">P1 — Acknowledge purchase transactions on the two edge-case early-returns</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text">P2 — Fix the second Android donation entry point to open checkout in-app, matching the first</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text">P2 — Add the same self-healing re-grant protection to Google Play Billing that Apple's path already has</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text">P2 — Explicitly handle Android's "pending" purchase state in the UI</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text">P2 — Improve currency accuracy on Apple/Google Play invoices to reflect the buyer's true purchase currency</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text">P2 — Decide and build the real voice-feature tier gate (or correct the tutorial to match current behaviour)</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text">P3 — Make audit-trail write failures surface rather than fail silently</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text">P3 — Explicitly document the Connect refund process as manual, wherever it's shown to users or admins</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text">P3 — Delete the confirmed-dead legacy Android purchase code</div></div>
+
+    <div class="todo-group-title">Stripe international-payments wiring</div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text"><b>Phase 1</b> — Resolve the business-identity question with a chartered accountant, then open the Stripe account and complete verification</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text"><b>Phase 2</b> — Create the 8 price objects and the webhook endpoint in Stripe's dashboard</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text"><b>Phase 3</b> — Add all Stripe environment variables to production and redeploy</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text"><b>Phase 4</b> — Add the Stripe checkout trigger to the upgrade and corporate-pricing pages</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text"><b>Phase 5</b> — Build the Stripe donation flow, including a currency picker for international donors</div></div>
+    <div class="todo-row"><div class="todo-check tc-pending"></div><div class="todo-text"><b>Phase 6</b> — Full test-mode verification across every purchase type, then one real live-mode transaction</div></div>
+
+    <div class="callout" style="margin-top:18px;"><b>Status as of this report:</b> the two highest-severity findings are already fixed and were shipped in production release v1.2.5 (iOS build 105, Android version code 105) on both platforms. Everything else above is scoped and ready to schedule for a future release cycle — none of it is blocking or urgent on its own.</div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <img class="footer-logo" src="file:///Users/soumenroy/Projects/imotaraapp/public/Imotara Firm.png" alt="Imotara"/>
+      <span class="footer-copy">© 2026 Imotara · Confidential · Payment Rails Audit</span>
+    </div>
+    <div class="footer-mid">imotara.com &nbsp;·&nbsp; info@imotara.com</div>
+    <div class="footer-page">Page 6 of 6</div>
+  </div>
+</div>
+
+</body>
+</html>

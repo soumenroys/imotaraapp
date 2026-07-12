@@ -229,35 +229,43 @@ export async function POST(req: Request) {
             return res;
         }
 
-        // Verify with Apple App Store Server API
+        // Verify with Apple App Store Server API.
+        // Fail closed if credentials are missing — never silently grant an
+        // unverified license (matches the Google Play verify route's behavior).
         const hasAppleCredentials =
             process.env.APPLE_IAP_ISSUER_ID &&
             process.env.APPLE_IAP_KEY_ID &&
             process.env.APPLE_IAP_PRIVATE_KEY;
 
-        if (hasAppleCredentials) {
-            const verification = await verifyAppleTransaction(transactionId);
-            if (!verification.ok) {
+        if (!hasAppleCredentials) {
+            console.error("[verify-apple-purchase] CRITICAL: Apple IAP credentials not configured — refusing to grant an unverified license.");
+            return NextResponse.json(
+                { ok: false, error: "Apple purchase verification is temporarily unavailable. Please try again shortly or contact support." },
+                { status: 503 },
+            );
+        }
+
+        const verification = await verifyAppleTransaction(transactionId);
+        if (!verification.ok) {
+            return NextResponse.json(
+                { ok: false, error: `Apple verification failed: ${verification.error}` },
+                { status: 400 },
+            );
+        }
+        // Confirm Apple's productId matches what the client claimed.
+        // App Store Connect stores the full bundle-prefixed SKU (e.g.
+        // "com.imotara.imotara.plus_monthly"), but the client sends the
+        // short catalog key ("plus_monthly"). Strip the bundle prefix
+        // before comparing so both forms match correctly.
+        if (verification.appleProductId) {
+            const normalizedAppleId = verification.appleProductId.startsWith(`${APPLE_BUNDLE_ID}.`)
+                ? verification.appleProductId.slice(`${APPLE_BUNDLE_ID}.`.length)
+                : verification.appleProductId;
+            if (normalizedAppleId !== productId) {
                 return NextResponse.json(
-                    { ok: false, error: `Apple verification failed: ${verification.error}` },
+                    { ok: false, error: "productId mismatch with Apple transaction" },
                     { status: 400 },
                 );
-            }
-            // Confirm Apple's productId matches what the client claimed.
-            // App Store Connect stores the full bundle-prefixed SKU (e.g.
-            // "com.imotara.imotara.plus_monthly"), but the client sends the
-            // short catalog key ("plus_monthly"). Strip the bundle prefix
-            // before comparing so both forms match correctly.
-            if (verification.appleProductId) {
-                const normalizedAppleId = verification.appleProductId.startsWith(`${APPLE_BUNDLE_ID}.`)
-                    ? verification.appleProductId.slice(`${APPLE_BUNDLE_ID}.`.length)
-                    : verification.appleProductId;
-                if (normalizedAppleId !== productId) {
-                    return NextResponse.json(
-                        { ok: false, error: "productId mismatch with Apple transaction" },
-                        { status: 400 },
-                    );
-                }
             }
         }
 

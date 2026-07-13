@@ -66,19 +66,26 @@ export async function POST(req: NextRequest) {
 
   // ── CORPORATE PURCHASE ────────────────────────────────────────────────────────
   if (isCorporate) {
+    // orgType and seats drive the price — both must be validated before use.
+    // Previously the actual charge (displayedAmountSmallestUnit) came straight
+    // from the client with only a `> 0` check, while this exact price table
+    // sat unused — a modified client could request e.g. seats:500 at $0.01.
+    if (!Object.prototype.hasOwnProperty.call(ORG_DISCOUNTS, orgType!)) {
+      return NextResponse.json({ error: "invalid orgType" }, { status: 400 });
+    }
+    if (!Number.isInteger(seats) || seats! < 1 || seats! > 100_000) {
+      return NextResponse.json({ error: "invalid seats" }, { status: 400 });
+    }
+
     const orgTier  = tierForSeats(seats!, orgType!);
     const orgLabel = { commercial:"Company", ngo:"NGO / NPO", edu:"Educational", govt:"Government" }[orgType!] ?? orgType!;
 
-    // Use the EXACT amount the user saw on the pricing page — prevents any discrepancy
-    // between displayed price and charged amount.
-    // Stripe requires smallest currency unit (cents for USD, paise for INR).
-    // For INR, we must use Stripe's INR support or convert; Stripe Checkout supports INR.
-    const chargeAmountUnit = body.displayedAmountSmallestUnit ?? 0;
-    const chargeCurrency   = (body.displayedCurrency ?? "USD").toLowerCase();
-
-    if (chargeAmountUnit <= 0) {
-      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
-    }
+    // Price computed server-side from the whitelisted per-seat table + org
+    // discount — the client's displayed amount is never trusted for the
+    // actual charge, only used earlier in the UI to show this same figure.
+    const discount = ORG_DISCOUNTS[orgType!];
+    const chargeAmountUnit = Math.round(CORPORATE_BASE_USD_CENTS_PER_SEAT * seats! * (1 - discount));
+    const chargeCurrency   = "usd";
 
     try {
       const session = await stripe.checkout.sessions.create({

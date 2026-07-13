@@ -79,6 +79,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Pool not found or not active" }, { status: 404 });
   }
 
+  // Verify the target user is an active member of this org — without this,
+  // an org-admin could assign a paid license entitlement to an arbitrary
+  // Supabase user id outside their own org.
+  const { data: targetMember } = await admin
+    .from("org_members")
+    .select("user_id")
+    .eq("org_id", auth.orgId)
+    .eq("user_id", body.userId)
+    .eq("status", "active")
+    .single();
+
+  if (!targetMember) {
+    return NextResponse.json({ error: "user is not an active org member" }, { status: 409 });
+  }
+
   // Call DB function
   const { data: assignmentId, error } = await admin.rpc("assign_pool_license", {
     p_pool_id:     body.poolId,

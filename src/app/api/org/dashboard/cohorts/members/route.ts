@@ -83,6 +83,14 @@ export async function DELETE(req: NextRequest) {
   const userId   = req.nextUrl.searchParams.get("userId");
   if (!cohortId || !userId) return NextResponse.json({ error: "cohortId and userId required" }, { status: 400 });
 
-  await getSupabaseAdmin().from("cohort_members").delete().eq("cohort_id", cohortId).eq("user_id", userId);
+  const admin = getSupabaseAdmin();
+
+  // Verify cohort belongs to this org — same check GET/POST already do.
+  // Without it, any org-admin (of ANY org) can delete another org's
+  // cohort_members rows by guessing/enumerating cohortId/userId.
+  const { data: cohort } = await admin.from("cohorts").select("id").eq("id", cohortId).eq("org_id", auth.orgId).single();
+  if (!cohort) return NextResponse.json({ error: "cohort not found" }, { status: 404 });
+
+  await admin.from("cohort_members").delete().eq("cohort_id", cohortId).eq("user_id", userId);
   return NextResponse.json({ ok: true });
 }

@@ -10,9 +10,20 @@ import { createClient } from "@supabase/supabase-js";
 import { getAzureConfig } from "@/lib/azure-tts/regionRouter";
 import { resolveVoice, resolveStyle, AZURE_LOCALE } from "@/lib/azure-tts/voices";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+// Anonymous Supabase identities (signed-out mobile users) get real Azure
+// Neural TTS instead of no identity at all, but — unlike real signed-in
+// accounts, which still have zero quota here by design (any authenticated
+// user always had unlimited Azure spend; anonymous auth just removes the
+// email-signup friction that used to be the only thing bounding who could
+// reach this) — anonymous identities are cheap to create, so this quota is
+// the mandatory prerequisite for enabling anonymous sign-ins at all. Mirrors
+// the usage_events daily-quota pattern already used in chat-reply/route.ts.
+const ANONYMOUS_TTS_DAILY_LIMIT = 15;
 
 export async function POST(req: NextRequest) {
     const tStart = Date.now();
@@ -44,6 +55,25 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (user.is_anonymous) {
+        const quotaAdmin = getSupabaseAdmin();
+        const todayStart = new Date();
+        todayStart.setUTCHours(0, 0, 0, 0);
+        const { count } = await quotaAdmin
+            .from("usage_events")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id)
+            .eq("event_type", "tts")
+            .gte("created_at", todayStart.toISOString());
+
+        if ((count ?? 0) >= ANONYMOUS_TTS_DAILY_LIMIT) {
+            return NextResponse.json(
+                { error: "Daily voice limit reached. Sign in for unlimited voice.", code: "quota_exceeded" },
+                { status: 429 },
+            );
+        }
+    }
 
     let body: { text?: string; lang?: string; gender?: string };
     try {
@@ -121,6 +151,18 @@ export async function POST(req: NextRequest) {
 
     const audioBuffer = await azureRes.arrayBuffer();
     console.log(`[tts] total done at +${Date.now() - tStart}ms bytes=${audioBuffer.byteLength}`);
+
+    // Fire-and-forget usage tracking — only for anonymous identities, since
+    // that's the only tier this route quota-gates. Mirrors chat-reply's
+    // post-success usage_events insert.
+    if (user.is_anonymous) {
+        void Promise.resolve(
+            getSupabaseAdmin().from("usage_events").insert({
+                user_id:    user.id,
+                event_type: "tts",
+            })
+        ).catch(() => {});
+    }
 
     return new NextResponse(audioBuffer, {
         status:  200,

@@ -4,12 +4,15 @@
 // Enterprise tier only.
 
 import { NextRequest, NextResponse } from "next/server";
-import { verifyApiKey } from "@/lib/imotara/apiKeyAuth";
+import { verifyApiKey, checkApiKeyRateLimit } from "@/lib/imotara/apiKeyAuth";
 import { getOrgMembers } from "@/lib/imotara/org";
 
 export async function GET(req: NextRequest) {
   const ctx = await verifyApiKey(req);
   if (!ctx) return NextResponse.json({ error: "invalid or missing API key" }, { status: 401 });
+  if (!checkApiKeyRateLimit(ctx)) {
+    return NextResponse.json({ error: "rate limit exceeded" }, { status: 429 });
+  }
   if (!ctx.scopes.includes("read:members")) {
     return NextResponse.json({ error: "API key missing read:members scope" }, { status: 403 });
   }

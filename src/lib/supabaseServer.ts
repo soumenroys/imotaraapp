@@ -19,6 +19,16 @@ if (!serviceRoleKey) {
     throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
 }
 
+// @supabase/ssr's own default is httpOnly: false — meaning the session
+// cookies it sets are readable via document.cookie, so any XSS anywhere in
+// the app could steal a real user's session outright, not just deface the
+// page. Every createServerClient() call in this app should pass this.
+export const SECURE_COOKIE_OPTIONS = {
+    httpOnly: true,
+    secure:   process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+};
+
 /**
  * Admin client (service role) — bypasses RLS.
  * Use ONLY for trusted server-side operations where you explicitly intend admin access.
@@ -48,6 +58,7 @@ export async function getSupabaseUserServerClient() {
                 // no-op
             },
         },
+        cookieOptions: SECURE_COOKIE_OPTIONS,
     });
 }
 

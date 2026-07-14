@@ -111,6 +111,12 @@ export async function POST(req: Request) {
         if (!paymentId) {
             return NextResponse.json({ ok: false, error: "paymentId required" }, { status: 400 });
         }
+        // Interpolated unencoded into the Razorpay API URL below — restrict to
+        // Razorpay's real payment-ID shape so a crafted value can't redirect
+        // the server-to-server request elsewhere in Razorpay's API namespace.
+        if (!/^pay_[A-Za-z0-9]+$/.test(paymentId)) {
+            return NextResponse.json({ ok: false, error: "Invalid paymentId format" }, { status: 400 });
+        }
 
         // Verify with Razorpay — polls for capture (handles UPI mandate "authorized" delay)
         const payment = await fetchRzpPaymentCaptured(paymentId);

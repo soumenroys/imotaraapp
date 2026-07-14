@@ -2,6 +2,19 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// Duplicated from src/lib/supabaseServer.ts's SECURE_COOKIE_OPTIONS rather
+// than imported — this file is Edge middleware running on every request;
+// importing the full supabaseServer.ts module would couple it to
+// SUPABASE_SERVICE_ROLE_KEY's presence-check at module load, an unnecessary
+// risk for code this critical. Keep both in sync if either changes.
+// @supabase/ssr's own default is httpOnly: false, which would let any XSS
+// steal a real session cookie outright via document.cookie.
+const SECURE_COOKIE_OPTIONS = {
+    httpOnly: true,
+    secure:   process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+};
+
 function isProd() {
     return process.env.NODE_ENV === "production";
 }
@@ -42,6 +55,7 @@ export async function middleware(req: NextRequest) {
                     );
                 },
             },
+            cookieOptions: SECURE_COOKIE_OPTIONS,
         }
     );
 

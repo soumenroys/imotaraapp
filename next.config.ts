@@ -42,6 +42,12 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(self), geolocation=()",
   },
+  {
+    // Vercel injects this at the edge automatically, but enforcing it in-repo
+    // means the guarantee doesn't silently disappear on a different host.
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains; preload",
+  },
 ];
 
 const nextConfig: NextConfig = {

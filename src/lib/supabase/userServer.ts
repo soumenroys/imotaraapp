@@ -1,6 +1,7 @@
 // src/lib/supabase/userServer.ts
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { SECURE_COOKIE_OPTIONS } from "@/lib/supabaseServer";
 
 /**
  * User-scoped Supabase client (RLS enforced).
@@ -31,5 +32,6 @@ export async function supabaseUserServer() {
                 });
             },
         },
+        cookieOptions: SECURE_COOKIE_OPTIONS,
     });
 }

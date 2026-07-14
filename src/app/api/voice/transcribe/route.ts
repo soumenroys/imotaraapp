@@ -4,6 +4,9 @@
 // Returns { text: string }.
 
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { supabaseUserServer } from "@/lib/supabase/userServer";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -11,10 +14,56 @@ export const maxDuration = 60;
 // Max audio size: 10 MB (Whisper limit is 25 MB; 60s m4a ≈ 1 MB in practice)
 const MAX_BYTES = 10 * 1024 * 1024;
 
+// Same quota shape as /api/tts — anonymous identities get real Whisper STT
+// instead of no identity at all, but need a bound since they're cheap to
+// create. Real signed-in accounts remain unlimited, unchanged.
+const ANONYMOUS_TRANSCRIBE_DAILY_LIMIT = 20;
+
 export async function POST(req: NextRequest) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
         return NextResponse.json({ error: "STT not configured" }, { status: 503 });
+    }
+
+    // This route had NO auth check at all — any anonymous caller could POST
+    // audio and have it transcribed on the app's own OpenAI key, with no
+    // rate limiting either. Same pattern as /api/tts's fix.
+    let user = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.slice(7);
+        const anon = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { auth: { persistSession: false, autoRefreshToken: false } },
+        );
+        const { data: { user: bearerUser } } = await anon.auth.getUser(token);
+        user = bearerUser;
+    }
+    if (!user) {
+        const supabase = await supabaseUserServer();
+        const { data: { user: cookieUser } } = await supabase.auth.getUser();
+        user = cookieUser;
+    }
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (user.is_anonymous) {
+        const quotaAdmin = getSupabaseAdmin();
+        const todayStart = new Date();
+        todayStart.setUTCHours(0, 0, 0, 0);
+        const { count } = await quotaAdmin
+            .from("usage_events")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id)
+            .eq("event_type", "voice_transcribe")
+            .gte("created_at", todayStart.toISOString());
+
+        if ((count ?? 0) >= ANONYMOUS_TRANSCRIBE_DAILY_LIMIT) {
+            // Same { error: "quota_exceeded" } / 503 shape the client already
+            // handles for Whisper's own quota exhaustion below — reuses the
+            // existing "Voice unavailable" alert rather than needing a new one.
+            return NextResponse.json({ error: "quota_exceeded" }, { status: 503 });
+        }
     }
 
     let formData: FormData;
@@ -92,5 +141,15 @@ export async function POST(req: NextRequest) {
     }
 
     const json = await whisperRes.json().catch(() => null);
+
+    if (user.is_anonymous) {
+        void Promise.resolve(
+            getSupabaseAdmin().from("usage_events").insert({
+                user_id:    user.id,
+                event_type: "voice_transcribe",
+            })
+        ).catch(() => {});
+    }
+
     return NextResponse.json({ text: (json?.text ?? "").trim() });
 }

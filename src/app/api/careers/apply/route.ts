@@ -1,9 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { getClientIp, checkIpRateLimit } from "@/lib/imotara/ipRateLimit";
 
 export const runtime = "nodejs";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB per file
+// Public, unauthenticated, sends real email via SMTP — cap abuse per IP.
+const APPLY_RATE_LIMIT = 5;
+const APPLY_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+// Only the browser-supplied File.type was checked before, which is
+// attacker-controlled — validate real content via magic bytes instead so an
+// arbitrary executable can't ride along as an "attachment" mailed to a human.
+function sniffFileType(buf: Buffer): "pdf" | "doc" | "docx" | "jpeg" | "png" | "webp" | null {
+  if (buf.length < 4) return null;
+  if (buf.subarray(0, 4).toString("latin1") === "%PDF") return "pdf";
+  if (buf.subarray(0, 4).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0]))) return "doc";
+  if (buf.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) return "docx";
+  if (buf.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) return "jpeg";
+  if (buf.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))) return "png";
+  if (buf.length >= 12 && buf.subarray(0, 4).toString("latin1") === "RIFF" && buf.subarray(8, 12).toString("latin1") === "WEBP") return "webp";
+  return null;
+}
+
+const CV_TYPES    = new Set(["pdf", "doc", "docx"]);
+const PHOTO_TYPES = new Set(["jpeg", "png", "webp"]);
 
 function buildThankYouHtml(firstName: string) {
   return `
@@ -87,6 +108,11 @@ function buildThankYouHtml(firstName: string) {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  if (!checkIpRateLimit(`careers_apply:${ip}`, APPLY_RATE_LIMIT, APPLY_RATE_WINDOW_MS)) {
+    return NextResponse.json({ error: "Too many applications from this connection — please try again later." }, { status: 429 });
+  }
+
   let formData: FormData;
   try {
     formData = await req.formData();
@@ -119,12 +145,20 @@ export async function POST(req: NextRequest) {
   }
 
   const cvBuffer = Buffer.from(await cv.arrayBuffer());
+  const cvType = sniffFileType(cvBuffer);
+  if (!cvType || !CV_TYPES.has(cvType)) {
+    return NextResponse.json({ error: "CV must be a PDF or Word document." }, { status: 400 });
+  }
   const attachments: nodemailer.SendMailOptions["attachments"] = [
     { filename: cv.name || "cv.pdf", content: cvBuffer, contentType: cv.type || "application/pdf" },
   ];
 
   if (photo && photo.size > 0) {
     const photoBuffer = Buffer.from(await photo.arrayBuffer());
+    const photoType = sniffFileType(photoBuffer);
+    if (!photoType || !PHOTO_TYPES.has(photoType)) {
+      return NextResponse.json({ error: "Photo must be a JPEG, PNG, or WEBP image." }, { status: 400 });
+    }
     attachments.push({
       filename: photo.name || "photo.jpg",
       content: photoBuffer,

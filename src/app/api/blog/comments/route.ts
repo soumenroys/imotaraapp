@@ -1,6 +1,11 @@
 // src/app/api/blog/comments/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { getClientIp, checkIpRateLimit } from "@/lib/imotara/ipRateLimit";
+
+// Public, unauthenticated — cap abuse per IP.
+const COMMENT_RATE_LIMIT = 10;
+const COMMENT_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 // ── GET /api/blog/comments?slug=<slug>        → comments for one post
 // ── GET /api/blog/comments?slugs=a,b,c        → { counts: {slug: n} }
@@ -81,6 +86,11 @@ export async function GET(req: NextRequest) {
 // ── POST /api/blog/comments ───────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  if (!checkIpRateLimit(`blog_comment:${ip}`, COMMENT_RATE_LIMIT, COMMENT_RATE_WINDOW_MS)) {
+    return NextResponse.json({ error: "Too many comments from this connection — please try again later." }, { status: 429 });
+  }
+
   let body: { slug?: string; name?: string; message?: string };
   try {
     body = await req.json();

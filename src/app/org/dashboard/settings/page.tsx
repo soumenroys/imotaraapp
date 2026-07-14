@@ -726,6 +726,18 @@ function DomainVerifySection() {
   );
 }
 
+// file_url is stored free-text and rendered as a raw <a href>; a javascript:
+// or data: URI from a privileged org-admin actor (or stale bad data) would
+// otherwise execute in every viewer's session. Only allow http(s) links.
+function isSafeHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 // ── Contract / SLA Storage ────────────────────────────────────────────────────
 function ContractsSection() {
   interface Contract { id: string; label: string; type: string; file_url: string; signed_at: string | null; valid_until: string | null; created_at: string }
@@ -790,7 +802,9 @@ function ContractsSection() {
                 <p className="text-xs font-medium text-zinc-200">{c.label}</p>
                 <p className="text-[10px] text-zinc-500">{c.type}{c.valid_until ? ` · valid until ${new Date(c.valid_until).toLocaleDateString("en-GB")}` : ""}</p>
               </div>
-              <a href={c.file_url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-indigo-400 hover:text-indigo-300">View</a>
+              {isSafeHttpUrl(c.file_url) && (
+                <a href={c.file_url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-indigo-400 hover:text-indigo-300">View</a>
+              )}
               <button onClick={() => handleDelete(c.id)} className="text-[11px] text-rose-400 hover:text-rose-300">Delete</button>
             </div>
           ))}

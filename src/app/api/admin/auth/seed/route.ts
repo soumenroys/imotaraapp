@@ -42,11 +42,20 @@ export async function POST(req: NextRequest) {
       password_hash: hashPassword(body.password),
       role:          "owner",
       active:        true,
+      is_seed_owner: true,
     })
     .select("id, email, name, role")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // 23505: the partial unique index super_admins_single_seed_owner fired —
+    // a concurrent request already won the seed race between our count check
+    // and this insert. Report it the same way as the normal already-seeded case.
+    if (error.code === "23505") {
+      return NextResponse.json({ error: "Seed already done — super_admins table is not empty" }, { status: 409 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({
     ok:      true,

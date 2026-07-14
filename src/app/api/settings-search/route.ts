@@ -3,8 +3,16 @@
 // Called when local keyword matching has low confidence.
 // POST { query: string } → { ids: string[] }
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { callImotaraAI } from "@/lib/imotara/aiClient";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { supabaseUserServer } from "@/lib/supabase/userServer";
+
+// Same shape as /api/tts and /api/voice/transcribe — this route had no auth
+// and no rate limit at all, calling the paid LLM on every request. Real
+// signed-in accounts stay unlimited; anonymous identities get a daily cap.
+const ANONYMOUS_SEARCH_DAILY_LIMIT = 30;
 
 const SETTINGS_LIST = [
   { id: "companion_name", title: "Companion name", description: "Change the name of your AI companion" },
@@ -55,8 +63,43 @@ If nothing matches, return {"ids": []}.
 SETTINGS LIST:
 ${SETTINGS_LIST}`;
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    let user = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.slice(7);
+      const anon = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { persistSession: false, autoRefreshToken: false } },
+      );
+      const { data: { user: bearerUser } } = await anon.auth.getUser(token);
+      user = bearerUser;
+    }
+    if (!user) {
+      const supabase = await supabaseUserServer();
+      const { data: { user: cookieUser } } = await supabase.auth.getUser();
+      user = cookieUser;
+    }
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (user.is_anonymous) {
+      const quotaAdmin = getSupabaseAdmin();
+      const todayStart = new Date();
+      todayStart.setUTCHours(0, 0, 0, 0);
+      const { count } = await quotaAdmin
+        .from("usage_events")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("event_type", "settings_search")
+        .gte("created_at", todayStart.toISOString());
+
+      if ((count ?? 0) >= ANONYMOUS_SEARCH_DAILY_LIMIT) {
+        return NextResponse.json({ ids: [] });
+      }
+    }
+
     const body = await req.json().catch(() => ({}));
     const query = typeof body.query === "string" ? body.query.trim().slice(0, 200) : "";
     if (!query) return NextResponse.json({ ids: [] });
@@ -65,6 +108,15 @@ export async function POST(req: Request) {
       `User is looking for a setting. Their description: "${query}"`,
       { system: SYSTEM, maxTokens: 80, temperature: 0.1 }
     );
+
+    if (user.is_anonymous) {
+      void Promise.resolve(
+        getSupabaseAdmin().from("usage_events").insert({
+          user_id:    user.id,
+          event_type: "settings_search",
+        })
+      ).catch(() => {});
+    }
 
     if (!result.text) return NextResponse.json({ ids: [] });
 

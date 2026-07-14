@@ -37,6 +37,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "file_url and label required" }, { status: 400 });
   }
 
+  // file_url is rendered as a raw <a href> in the dashboard — reject anything
+  // that isn't http(s) so a javascript:/data: URI can't be stored and later
+  // executed in another viewer's session.
+  try {
+    const parsed = new URL(body.file_url.trim());
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return NextResponse.json({ error: "file_url must be an http(s) link" }, { status: 400 });
+    }
+  } catch {
+    return NextResponse.json({ error: "file_url must be a valid URL" }, { status: 400 });
+  }
+
   const admin    = getSupabaseAdmin();
   const { data: org } = await admin.from("organizations").select("org_settings").eq("id", auth.orgId).single();
   const settings = (org?.org_settings ?? {}) as Record<string, unknown>;

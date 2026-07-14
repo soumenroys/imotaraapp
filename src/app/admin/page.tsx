@@ -1632,8 +1632,28 @@ function SuperAdminsSection({ token }: { token: string }) {
 
   async function handleDeactivate(id: string) {
     if (!confirm("Deactivate this admin? They will lose all access immediately.")) return;
-    const r = await fetch(`/api/admin/super-admins/${id}`, adminFetchOpts(token, { method: "DELETE" }));
+    const r = await fetch(`/api/admin/super-admins/${id}`, adminFetchOpts(token, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: false }),
+    }));
     if (r.ok) void fetchAdmins(); else alert("Failed to deactivate.");
+  }
+
+  async function handleActivate(id: string, name: string) {
+    if (!confirm(`Reactivate ${name}'s account? They will regain access immediately.`)) return;
+    const r = await fetch(`/api/admin/super-admins/${id}`, adminFetchOpts(token, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: true }),
+    }));
+    if (r.ok) void fetchAdmins(); else alert("Failed to reactivate.");
+  }
+
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Permanently delete ${name}'s admin account? This cannot be undone. (Their login/action history is kept separately and is not affected.)`)) return;
+    const r = await fetch(`/api/admin/super-admins/${id}`, adminFetchOpts(token, { method: "DELETE" }));
+    if (r.ok) void fetchAdmins(); else alert("Failed to delete.");
   }
 
   async function handleRevokeSession(sessionId: string, isCurrent: boolean) {
@@ -1774,6 +1794,12 @@ function SuperAdminsSection({ token }: { token: string }) {
                       <button onClick={() => handleResetPwd(a.id, a.name)} className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-300 transition hover:bg-white/10">Reset pwd</button>
                       {isLocked && <button onClick={() => handleUnlock(a.id, a.name)} className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300 transition hover:bg-amber-500/20">Unlock</button>}
                       <button onClick={() => handleDeactivate(a.id)} className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-xs text-rose-400 transition hover:bg-rose-500/20">Deactivate</button>
+                    </div>
+                  )}
+                  {!a.active && (
+                    <div className="flex flex-wrap gap-1.5">
+                      <button onClick={() => handleActivate(a.id, a.name)} className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300 transition hover:bg-amber-500/20">Activate</button>
+                      <button onClick={() => handleDelete(a.id, a.name)} className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-xs text-rose-400 transition hover:bg-rose-500/20">Delete</button>
                     </div>
                   )}
                 </div>

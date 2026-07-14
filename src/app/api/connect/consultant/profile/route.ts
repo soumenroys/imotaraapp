@@ -89,9 +89,13 @@ export async function PATCH(req: NextRequest) {
     if (!Array.isArray(aw) || aw.length > 28 || JSON.stringify(aw).length > 8192) {
       return NextResponse.json({ ok: false, error: "Invalid availability_windows" }, { status: 400 });
     }
+    // Shape matches the profile-edit UI (mobile ConnectScreen.tsx:3895):
+    // { day: "Monday", start: "09:00", end: "17:00" } — singular day, plain
+    // start/end. Previously required start_time/end_time, rejecting every
+    // edit — see docs/connect_availability_windows_bug for detail.
     const ALLOWED_DAYS = new Set(["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]);
     const TIME_RE = /^\d{2}:\d{2}$/;
-    const ALLOWED_WIN_KEYS = new Set(["day","start_time","end_time"]);
+    const ALLOWED_WIN_KEYS = new Set(["day","start","end"]);
     for (const w of aw) {
       if (!w || typeof w !== "object" || Array.isArray(w)) {
         return NextResponse.json({ ok: false, error: "Each availability_windows entry must be an object" }, { status: 400 });
@@ -105,11 +109,11 @@ export async function PATCH(req: NextRequest) {
       if (typeof win.day !== "string" || !ALLOWED_DAYS.has(win.day.toLowerCase())) {
         return NextResponse.json({ ok: false, error: "availability_windows: day must be a day of the week" }, { status: 400 });
       }
-      if (typeof win.start_time !== "string" || !TIME_RE.test(win.start_time)) {
-        return NextResponse.json({ ok: false, error: "availability_windows: start_time must be HH:MM" }, { status: 400 });
+      if (typeof win.start !== "string" || !TIME_RE.test(win.start)) {
+        return NextResponse.json({ ok: false, error: "availability_windows: start must be HH:MM" }, { status: 400 });
       }
-      if (typeof win.end_time !== "string" || !TIME_RE.test(win.end_time)) {
-        return NextResponse.json({ ok: false, error: "availability_windows: end_time must be HH:MM" }, { status: 400 });
+      if (typeof win.end !== "string" || !TIME_RE.test(win.end)) {
+        return NextResponse.json({ ok: false, error: "availability_windows: end must be HH:MM" }, { status: 400 });
       }
     }
   }

@@ -30,7 +30,11 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 };
 
 interface AvailabilityWindow {
-  day: string;
+  // Registration writes `days` (multi-day picker); the profile-edit UI
+  // writes singular `day` — both shapes can exist in the same DB column
+  // depending on which flow last wrote a given entry.
+  day?: string;
+  days?: string[];
   start: string;
   end: string;
   timezone?: string;
@@ -356,7 +360,7 @@ export default function ConsultantCard({
                     {consultant.availability_windows.map((w, i) => (
                       <span key={i} className="inline-flex items-center gap-1 rounded-lg bg-white/6 px-2.5 py-1 text-xs text-zinc-300">
                         <Clock size={10} className="shrink-0 text-violet-400" />
-                        {w.day} {w.start}–{w.end}{w.timezone ? ` ${w.timezone}` : ""}
+                        {(w.days?.length ? w.days.join(", ") : w.day) ?? ""} {w.start}–{w.end}{w.timezone ? ` ${w.timezone}` : ""}
                       </span>
                     ))}
                   </div>

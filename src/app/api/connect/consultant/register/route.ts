@@ -129,9 +129,19 @@ export async function POST(req: NextRequest) {
     }
     // Key names must be safe identifiers (no HTML/script injection via key rendering in admin UI)
     if (typeof verification_docs === "object" && !Array.isArray(verification_docs)) {
-      for (const key of Object.keys(verification_docs as Record<string, unknown>)) {
+      for (const [key, entry] of Object.entries(verification_docs as Record<string, unknown>)) {
         if (!/^[a-zA-Z_][a-zA-Z0-9_]{0,49}$/.test(key)) {
           return NextResponse.json({ ok: false, error: "verification_docs keys must be alphanumeric identifiers" }, { status: 400 });
+        }
+        // Each doc's storage path must belong to the submitting user — without
+        // this, a consultant could reference another user's real uploaded
+        // document (e.g. their private ID photo) as their own, and the admin
+        // doc-review UI would generate a signed URL for it.
+        if (entry && typeof entry === "object" && "path" in entry) {
+          const path = (entry as { path?: unknown }).path;
+          if (typeof path === "string" && path.length > 0 && !path.startsWith(`${user.id}/`)) {
+            return NextResponse.json({ ok: false, error: `verification_docs.${key}: path does not belong to this account` }, { status: 403 });
+          }
         }
       }
     }
@@ -151,9 +161,16 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(availability_windows) || availability_windows.length > 28 || JSON.stringify(availability_windows).length > 8192) {
       return NextResponse.json({ ok: false, error: "availability_windows is invalid or too large" }, { status: 400 });
     }
-    const ALLOWED_DAYS = new Set(["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]);
+    // Shape matches what the registration form actually sends (web
+    // connect/register/page.tsx and mobile ConnectScreen.tsx, both built the
+    // same day): { days: string[], months: string[], start, end, timezone,
+    // year }. A stricter { day, start_time, end_time } allowlist was added
+    // later without being matched to this real shape, silently rejecting
+    // every submission — see docs/connect_availability_windows_bug for detail.
+    const ALLOWED_DAYS   = new Set(["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]);
+    const ALLOWED_MONTHS = new Set(["january","february","march","april","may","june","july","august","september","october","november","december"]);
     const TIME_RE = /^\d{2}:\d{2}$/;
-    const ALLOWED_WIN_KEYS = new Set(["day","start_time","end_time"]);
+    const ALLOWED_WIN_KEYS = new Set(["days","months","start","end","timezone","year"]);
     for (const w of availability_windows) {
       if (!w || typeof w !== "object" || Array.isArray(w)) {
         return NextResponse.json({ ok: false, error: "Each availability_windows entry must be an object" }, { status: 400 });
@@ -164,14 +181,27 @@ export async function POST(req: NextRequest) {
         }
       }
       const win = w as Record<string, unknown>;
-      if (typeof win.day !== "string" || !ALLOWED_DAYS.has(win.day.toLowerCase())) {
-        return NextResponse.json({ ok: false, error: "availability_windows: day must be a day of the week" }, { status: 400 });
+      if (!Array.isArray(win.days) || win.days.length === 0 || win.days.length > 7 ||
+          !win.days.every((d) => typeof d === "string" && ALLOWED_DAYS.has(d.toLowerCase()))) {
+        return NextResponse.json({ ok: false, error: "availability_windows: days must be a non-empty array of days of the week" }, { status: 400 });
       }
-      if (typeof win.start_time !== "string" || !TIME_RE.test(win.start_time)) {
-        return NextResponse.json({ ok: false, error: "availability_windows: start_time must be HH:MM" }, { status: 400 });
+      if (win.months !== undefined) {
+        if (!Array.isArray(win.months) || win.months.length > 12 ||
+            !win.months.every((m) => typeof m === "string" && ALLOWED_MONTHS.has(m.toLowerCase()))) {
+          return NextResponse.json({ ok: false, error: "availability_windows: months must be an array of month names" }, { status: 400 });
+        }
       }
-      if (typeof win.end_time !== "string" || !TIME_RE.test(win.end_time)) {
-        return NextResponse.json({ ok: false, error: "availability_windows: end_time must be HH:MM" }, { status: 400 });
+      if (typeof win.start !== "string" || !TIME_RE.test(win.start)) {
+        return NextResponse.json({ ok: false, error: "availability_windows: start must be HH:MM" }, { status: 400 });
+      }
+      if (typeof win.end !== "string" || !TIME_RE.test(win.end)) {
+        return NextResponse.json({ ok: false, error: "availability_windows: end must be HH:MM" }, { status: 400 });
+      }
+      if (win.timezone !== undefined && (typeof win.timezone !== "string" || win.timezone.length > 64)) {
+        return NextResponse.json({ ok: false, error: "availability_windows: timezone must be a string (max 64 chars)" }, { status: 400 });
+      }
+      if (win.year !== undefined && (typeof win.year !== "string" || win.year.length > 16)) {
+        return NextResponse.json({ ok: false, error: "availability_windows: year must be a string (max 16 chars)" }, { status: 400 });
       }
     }
   }

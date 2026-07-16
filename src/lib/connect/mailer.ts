@@ -501,3 +501,73 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1
 
   await send(data.ownerEmail, subject, text, html);
 }
+
+export async function sendOrgVerificationDecisionEmail(data: {
+  ownerEmail: string;
+  ownerName?: string | null;
+  orgName:    string;
+  approved:   boolean;
+  reviewNote?: string | null;
+}) {
+  const APP_URL = "https://imotara.com";
+  const ORG_URL = `${APP_URL}/org/dashboard/settings`;
+  const greet     = data.ownerName ? `Hi ${data.ownerName},` : "Hi,";
+  const htmlGreet = data.ownerName ? `Hi ${htmlEscape(data.ownerName)},` : "Hi,";
+  const subject   = data.approved
+    ? `Your organization "${data.orgName}" is verified`
+    : `Update on your "${data.orgName}" verification request`;
+
+  const text = [
+    greet,
+    ``,
+    data.approved
+      ? `Good news — we've reviewed and approved your organization's verification documents.`
+      : `We've reviewed your organization's verification documents and are unable to approve them as submitted.`,
+    ``,
+    `  Organization: ${data.orgName}`,
+    `  Status:       ${data.approved ? "Verified" : "Not verified"}`,
+    data.reviewNote ? `  Note:         ${data.reviewNote}` : ``,
+    ``,
+    data.approved
+      ? `No further action is needed.`
+      : `You can resubmit updated documentation any time from your organization dashboard.`,
+    ``,
+    `${ORG_URL}`,
+    ``,
+    `If you have any questions, reach us at ${SUPPORT}.`,
+    ``,
+    `The Imotara Team`,
+    footer(),
+  ].filter((l) => l !== ``).join("\n");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#111827;background:#f9fafb;padding:24px;margin:0}
+.card{background:#fff;border-radius:12px;max-width:560px;margin:auto;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.07)}
+.hdr{background:linear-gradient(135deg,${data.approved ? "#16a34a,#15803d" : "#7c3aed,#4f46e5"});padding:28px 36px;color:#fff}
+.hdr-title{font-size:20px;font-weight:700}.hdr-sub{font-size:13px;opacity:.8;margin-top:4px}
+.body{padding:32px 36px}.detail{background:${data.approved ? "#f0fdf4" : "#f5f3ff"};border-radius:10px;padding:16px 20px;margin:20px 0}
+.detail p{margin:4px 0;font-size:14px;color:#374151}.detail strong{color:${data.approved ? "#16a34a" : "#7c3aed"}}
+.cta{display:inline-block;margin-top:20px;background:#7c3aed;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px}
+.footer{font-size:11px;color:#9ca3af;padding:16px 36px;border-top:1px solid #f3f4f6}
+</style></head><body>
+<div class="card">
+  <div class="hdr"><div class="hdr-title">${data.approved ? "Organization verified" : "Verification update"}</div><div class="hdr-sub">${htmlEscape(data.orgName)}</div></div>
+  <div class="body">
+    <p>${htmlGreet}</p>
+    <p>${data.approved
+      ? "Good news — we've reviewed and approved your organization's verification documents."
+      : "We've reviewed your organization's verification documents and are unable to approve them as submitted."}</p>
+    <div class="detail">
+      <p><strong>Status:</strong> ${data.approved ? "Verified" : "Not verified"}</p>
+      ${data.reviewNote ? `<p><strong>Note:</strong> ${htmlEscape(data.reviewNote)}</p>` : ""}
+    </div>
+    <p>${data.approved ? "No further action is needed." : "You can resubmit updated documentation any time from your organization dashboard."}</p>
+    <a href="${ORG_URL}" class="cta">Open Organization Dashboard →</a>
+    <p style="margin-top:24px;font-size:13px;color:#6b7280">Questions? Contact us at <a href="mailto:${SUPPORT}">${SUPPORT}</a></p>
+  </div>
+  <div class="footer">Imotara · <a href="${APP_URL}">${APP_URL}</a></div>
+</div></body></html>`;
+
+  await send(data.ownerEmail, subject, text, html);
+}

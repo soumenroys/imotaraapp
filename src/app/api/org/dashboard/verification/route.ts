@@ -25,6 +25,8 @@ export async function GET(req: NextRequest) {
     verificationDocUrl:   settings.verification_doc_url ?? null,
     verificationNote:     settings.verification_note ?? null,
     submittedAt:          settings.verification_submitted_at ?? null,
+    reviewedAt:           settings.verification_reviewed_at ?? null,
+    reviewNote:           settings.verification_review_note ?? null,
   });
 }
 

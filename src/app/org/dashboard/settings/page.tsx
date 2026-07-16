@@ -578,16 +578,21 @@ function CertificateSection({ orgName, orgTier, seatsUsed }: { orgName: string; 
 
 // ── NGO Verification ──────────────────────────────────────────────────────────
 function VerificationSection() {
-  const [status, setStatus]   = useState<string>("loading");
-  const [docUrl, setDocUrl]   = useState("");
-  const [docType, setDocType] = useState("80G Certificate");
-  const [notes, setNotes]     = useState("");
-  const [saving, setSaving]   = useState(false);
-  const [msg, setMsg]         = useState("");
+  const [status, setStatus]         = useState<string>("loading");
+  const [docUrl, setDocUrl]         = useState("");
+  const [docType, setDocType]       = useState("80G Certificate");
+  const [notes, setNotes]           = useState("");
+  const [saving, setSaving]         = useState(false);
+  const [msg, setMsg]               = useState("");
+  const [reviewNote, setReviewNote] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/org/dashboard/verification", { credentials: "same-origin" })
-      .then((r) => r.json()).then((j) => { setStatus(j.verificationStatus ?? "unverified"); setDocUrl(j.verificationDocUrl ?? ""); })
+      .then((r) => r.json()).then((j) => {
+        setStatus(j.verificationStatus ?? "unverified");
+        setDocUrl(j.verificationDocUrl ?? "");
+        setReviewNote(j.reviewNote ?? null);
+      })
       .catch(() => setStatus("unverified"));
   }, []);
 
@@ -607,6 +612,7 @@ function VerificationSection() {
     unverified:     { label: "Not submitted", color: "text-zinc-500 bg-zinc-500/10" },
     pending_review: { label: "Under review",  color: "text-amber-300 bg-amber-500/15" },
     verified:       { label: "Verified ✓",    color: "text-emerald-300 bg-emerald-500/15" },
+    rejected:       { label: "Not approved",  color: "text-rose-400 bg-rose-500/15" },
   };
   const s = STATUS_LABELS[status] ?? STATUS_LABELS.unverified;
 
@@ -617,6 +623,11 @@ function VerificationSection() {
         <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${s.color}`}>{s.label}</span>
       </div>
       <p className="text-xs text-zinc-500">Upload your NGO/NPO registration documents (80G certificate, FCRA registration, or trust deed) to get verified status and access subsidized pricing.</p>
+      {status === "rejected" && reviewNote && (
+        <p className="text-xs text-rose-400 rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2">
+          Reviewer note: {reviewNote} — you can update your documents and resubmit below.
+        </p>
+      )}
       {status !== "verified" && (
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>

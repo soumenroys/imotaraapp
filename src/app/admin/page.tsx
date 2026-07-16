@@ -1123,6 +1123,117 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OrgVerificationPanel — super-admin reviews NGO/EDU verification submissions.
+// Previously verification_status could only ever reach "pending_review" —
+// nothing anywhere could set it to "approved"/"rejected". This closes that gap.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function OrgVerificationPanel({ orgId, token }: { orgId: string; token: string }) {
+  interface VerificationInfo {
+    status:      string;
+    docUrl:      string | null;
+    docType:     string | null;
+    note:        string | null;
+    submittedAt: string | null;
+    reviewedAt:  string | null;
+    reviewNote:  string | null;
+  }
+  const [info, setInfo]         = useState<VerificationInfo | null>(null);
+  const [loaded, setLoaded]     = useState(false);
+  const [show, setShow]         = useState(false);
+  const [working, setWorking]   = useState(false);
+  const [reviewNote, setReviewNote] = useState("");
+
+  async function load() {
+    if (loaded) return;
+    const r = await fetch(`/api/admin/organizations/${orgId}`, adminFetchOpts(token));
+    if (r.ok) {
+      const j = await r.json();
+      const settings = (j.org?.org_settings ?? {}) as Record<string, unknown>;
+      setInfo({
+        status:      (settings.verification_status as string) ?? "unverified",
+        docUrl:      (settings.verification_doc_url as string) ?? null,
+        docType:     (settings.verification_doc_type as string) ?? null,
+        note:        (settings.verification_note as string) ?? null,
+        submittedAt: (settings.verification_submitted_at as string) ?? null,
+        reviewedAt:  (settings.verification_reviewed_at as string) ?? null,
+        reviewNote:  (settings.verification_review_note as string) ?? null,
+      });
+      setLoaded(true);
+    }
+  }
+
+  async function decide(decision: "approved" | "rejected") {
+    setWorking(true);
+    try {
+      const res = await fetch(`/api/admin/organizations/${orgId}`, adminFetchOpts(token, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verification_decision: decision, verification_review_note: reviewNote.trim() || null }),
+      }));
+      if (res.ok) {
+        setInfo((p) => p ? { ...p, status: decision === "approved" ? "verified" : "rejected", reviewedAt: new Date().toISOString(), reviewNote: reviewNote.trim() || null } : p);
+        setReviewNote("");
+      }
+    } finally { setWorking(false); }
+  }
+
+  const statusColors: Record<string, string> = {
+    unverified:     "text-zinc-400 bg-zinc-500/10",
+    pending_review: "text-amber-300 bg-amber-500/10",
+    verified:       "text-emerald-300 bg-emerald-500/10",
+    rejected:       "text-rose-400 bg-rose-500/10",
+  };
+
+  return (
+    <div className="border-t border-white/8 pt-3">
+      <button onClick={async () => { setShow((v) => !v); if (!show && !loaded) await load(); }} className="text-xs text-indigo-400 hover:text-indigo-300 transition">
+        {show ? "▲ Hide verification" : "▼ NGO/EDU verification review"}
+      </button>
+      {show && info && (
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusColors[info.status] ?? statusColors.unverified}`}>
+              {info.status.replace("_", " ")}
+            </span>
+            {info.submittedAt && <span className="text-[10px] text-zinc-500">submitted {fmtDate(info.submittedAt)}</span>}
+          </div>
+          {info.docUrl ? (
+            <a href={info.docUrl} target="_blank" rel="noopener noreferrer" className="block text-xs text-indigo-400 hover:text-indigo-300 truncate">
+              📄 {info.docType ?? "verification document"} →
+            </a>
+          ) : (
+            <p className="text-xs text-zinc-500">No document submitted yet.</p>
+          )}
+          {info.note && <p className="text-xs text-zinc-400">Org note: {info.note}</p>}
+          {info.reviewedAt && (
+            <p className="text-[10px] text-zinc-500">
+              Reviewed {fmtDate(info.reviewedAt)}{info.reviewNote ? ` — ${info.reviewNote}` : ""}
+            </p>
+          )}
+          {info.docUrl && info.status !== "verified" && info.status !== "rejected" && (
+            <div className="space-y-1.5">
+              <input value={reviewNote} onChange={(e) => setReviewNote(e.target.value)}
+                placeholder="Optional note (sent to the org owner)"
+                className="w-full rounded-lg border border-white/10 bg-black/20 px-2 py-1.5 text-xs text-zinc-200 outline-none" />
+              <div className="flex gap-2">
+                <button onClick={() => decide("approved")} disabled={working}
+                  className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-40">
+                  {working ? "…" : "✓ Approve"}
+                </button>
+                <button onClick={() => decide("rejected")} disabled={working}
+                  className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-1 text-[10px] text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-40">
+                  {working ? "…" : "✕ Reject"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // OrgPoolsPanel — super-admin issues license pools to an org
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1505,6 +1616,8 @@ function OrganizationsSection({ token }: { token: string }) {
                     <OrgMembersPanel orgId={org.orgId} token={token} />
                     {/* License pool issuance */}
                     <OrgPoolsPanel orgId={org.orgId} token={token} />
+                    {/* NGO/EDU verification review */}
+                    <OrgVerificationPanel orgId={org.orgId} token={token} />
                   </div>
                 )}
               </div>

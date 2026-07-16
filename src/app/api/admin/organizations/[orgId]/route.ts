@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { adminAuthorized } from "@/app/api/admin/_auth";
 import { getOrgMembers } from "@/lib/imotara/org";
+import { sendOrgVerificationDecisionEmail } from "@/lib/connect/mailer";
 
 // ── GET — org detail + member list ───────────────────────────────────────────
 export async function GET(
@@ -48,19 +49,31 @@ export async function PATCH(
   const { orgId } = await params;
 
   let body: Partial<{
-    name:            string;
-    billing_type:    string;
-    tier:            string;
-    status:          string;
-    seats_purchased: number;
-    expires_at:      string | null;
-    notes:           string | null;
+    name:                     string;
+    billing_type:             string;
+    tier:                     string;
+    status:                   string;
+    seats_purchased:          number;
+    expires_at:               string | null;
+    notes:                    string | null;
+    // Verification review — the only way verification_status can ever move
+    // past "pending_review" (see docs/org/dashboard/verification submit route).
+    verification_decision:    "approved" | "rejected";
+    verification_review_note: string | null;
   }>;
 
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
+  }
+
+  if (
+    body.verification_decision !== undefined &&
+    body.verification_decision !== "approved" &&
+    body.verification_decision !== "rejected"
+  ) {
+    return NextResponse.json({ error: "verification_decision must be 'approved' or 'rejected'" }, { status: 400 });
   }
 
   const admin = getSupabaseAdmin();
@@ -75,6 +88,31 @@ export async function PATCH(
   if (body.expires_at      !== undefined) update.expires_at      = body.expires_at;
   if (body.notes           !== undefined) update.notes           = body.notes;
 
+  let orgSettingsForEmail: Record<string, unknown> | null = null;
+  let ownerUserIdForEmail: string | null = null;
+  let orgNameForEmail: string | null = null;
+
+  if (body.verification_decision !== undefined) {
+    const { data: existing } = await admin
+      .from("organizations")
+      .select("name, org_settings, owner_user_id")
+      .eq("id", orgId)
+      .single();
+
+    const settings = (existing?.org_settings ?? {}) as Record<string, unknown>;
+    orgSettingsForEmail = {
+      ...settings,
+      // "verified" (not "approved") — matches the value the org dashboard's
+      // STATUS_LABELS map already expected before this fix existed.
+      verification_status:      body.verification_decision === "approved" ? "verified" : "rejected",
+      verification_review_note: body.verification_review_note?.trim() || null,
+      verification_reviewed_at: new Date().toISOString(),
+    };
+    update.org_settings = orgSettingsForEmail;
+    ownerUserIdForEmail  = existing?.owner_user_id ?? null;
+    orgNameForEmail      = existing?.name ?? null;
+  }
+
   const { data, error } = await admin
     .from("organizations")
     .update(update)
@@ -85,6 +123,21 @@ export async function PATCH(
   if (error) {
     console.error("[admin/organizations PATCH]", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Notify the org owner of the verification decision (fire-and-forget).
+  if (body.verification_decision !== undefined && ownerUserIdForEmail) {
+    admin.auth.admin.getUserById(ownerUserIdForEmail).then(({ data: userData }) => {
+      const email = userData?.user?.email;
+      if (!email) return;
+      void sendOrgVerificationDecisionEmail({
+        ownerEmail:  email,
+        ownerName:   (userData.user?.user_metadata?.full_name as string | undefined) ?? null,
+        orgName:     orgNameForEmail ?? "your organization",
+        approved:    body.verification_decision === "approved",
+        reviewNote:  (orgSettingsForEmail?.verification_review_note as string | null) ?? null,
+      }).catch((err) => console.error("[admin/organizations PATCH] verification email failed:", err));
+    }).catch((err) => console.error("[admin/organizations PATCH] owner lookup failed:", err));
   }
 
   // If tier OR status changed to active, sync all active org members' licenses

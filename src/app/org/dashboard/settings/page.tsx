@@ -434,8 +434,9 @@ function EmbedSection({ orgTier }: { orgTier: string }) {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setMsg("");
+    // Only dataResidency — this form no longer edits embed domains (see EmbedSection).
     await fetch("/api/org/dashboard/embed", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ allowedDomains: [], dataResidency: residency || null }) });
+      body: JSON.stringify({ dataResidency: residency || null }) });
     setSaving(false); setMsg("Saved ✓");
   }
 

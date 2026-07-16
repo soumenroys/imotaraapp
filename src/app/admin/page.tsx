@@ -1096,17 +1096,13 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
 
   async function load() {
     if (loaded) return;
-    const [r1, r2] = await Promise.all([
-      fetch(`/api/admin/organizations/${orgId}`, adminFetchOpts(token)),
-      fetch(`/api/admin/organizations/${orgId}`, adminFetchOpts(token)),
-    ]);
-    if (r1.ok) {
-      const j = await r1.json();
+    const r = await fetch(`/api/admin/organizations/${orgId}`, adminFetchOpts(token));
+    if (r.ok) {
+      const j = await r.json();
       setMembers(j.members ?? []);
       setOrgTier(j.org?.tier ?? "enterprise");
       setLoaded(true);
     }
-    void r2; // r2 was redundant, just satisfy TS
   }
 
   async function patch(userId: string, body: object) {
@@ -1711,7 +1707,7 @@ function OrganizationsSection({ token }: { token: string }) {
             <label>
               <span className={labelCls}>Tier</span>
               <select value={createForm.tier} onChange={(e) => setCreateForm((p) => ({ ...p, tier: e.target.value }))} className={inputCls}>
-                {["edu","enterprise"].map((v) => <option key={v} value={v}>{v}</option>)}
+                {["plus","edu","enterprise"].map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
             </label>
             <label>
@@ -1806,7 +1802,7 @@ function OrganizationsSection({ token }: { token: string }) {
                       ))}
                       {[
                         { key: "billing_type", label: "Type",   opts: ["commercial","ngo","edu","govt"] },
-                        { key: "tier",         label: "Tier",   opts: ["edu","enterprise"] },
+                        { key: "tier",         label: "Tier",   opts: ["plus","edu","enterprise"] },
                         { key: "status",       label: "Status", opts: ["pending","active","suspended","cancelled"] },
                       ].map(({ key, label, opts }) => (
                         <label key={key}>

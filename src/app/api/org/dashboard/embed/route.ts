@@ -45,7 +45,7 @@ export async function PATCH(req: NextRequest) {
   const auth = await requireOrgAdmin(req);
   if (!auth.ok) return auth.response;
 
-  let body: { allowedDomains: string[]; dataResidency?: string };
+  let body: { allowedDomains?: string[]; dataResidency?: string };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "invalid JSON" }, { status: 400 }); }
 
@@ -53,10 +53,15 @@ export async function PATCH(req: NextRequest) {
   const { data: org } = await admin.from("organizations").select("org_settings").eq("id", auth.orgId).single();
   const settings = (org?.org_settings ?? {}) as Record<string, unknown>;
 
-  const updated: Record<string, unknown> = {
-    ...settings,
-    embed_allowed_domains: (body.allowedDomains ?? []).map((d) => d.trim()).filter(Boolean),
-  };
+  const updated: Record<string, unknown> = { ...settings };
+  // Only touch this field when the caller actually sent it — the LMS embed
+  // feature isn't built yet ("Coming soon" in the dashboard UI), and the
+  // Data Residency form in the same section saves independently. Previously
+  // that save always sent allowedDomains: [], silently wiping any
+  // already-configured domains on every unrelated Data Residency save.
+  if (body.allowedDomains !== undefined) {
+    updated.embed_allowed_domains = body.allowedDomains.map((d) => d.trim()).filter(Boolean);
+  }
   if (body.dataResidency !== undefined) updated.data_residency = body.dataResidency || null;
 
   const { error } = await admin.from("organizations").update({

@@ -42,7 +42,14 @@ export async function POST(req: NextRequest) {
     .filter((d) => d.includes("."));
 
   const admin = getSupabaseAdmin();
-  const { data: org } = await admin.from("organizations").select("org_settings").eq("id", auth.orgId).single();
+  const { data: org } = await admin.from("organizations").select("billing_type, org_settings").eq("id", auth.orgId).single();
+
+  // The UI only exposes this to NGO/EDU orgs (DomainVerifySection) — enforce
+  // the same restriction server-side instead of relying solely on the UI gate.
+  if (body.autoJoinEnabled && !["ngo", "edu"].includes(org?.billing_type ?? "")) {
+    return NextResponse.json({ error: "Domain auto-join is available for NGO and EDU accounts only" }, { status: 403 });
+  }
+
   const settings = (org?.org_settings ?? {}) as Record<string, unknown>;
 
   const updated = {

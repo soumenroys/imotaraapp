@@ -72,14 +72,10 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Type the organisation's exact name to confirm deletion" }, { status: 400 });
   }
 
-  // licenses.org_id is ON DELETE SET NULL, not CASCADE — deleting the org
-  // without this step would leave every former member's paid org-derived
-  // tier permanently in place with no org behind it. Reset first, matching
-  // exactly what revoke_org_license() does per-user on ordinary removal.
-  await admin
-    .from("licenses")
-    .update({ org_id: null, tier: "free", status: "valid", expires_at: null, source: "manual", updated_at: new Date().toISOString() })
-    .eq("org_id", auth.orgId);
+  // Member licenses are reset by a DB trigger (see
+  // docs/sql/org_delete_license_release_trigger.sql) that fires on any
+  // organizations delete, not just this route — guaranteed regardless of
+  // what triggers the deletion.
 
   // Alert Imotara so there's a record this happened — org_audit_log itself
   // cascades away with the delete below, so this email is the only trace
@@ -88,7 +84,8 @@ export async function DELETE(req: NextRequest) {
 
   // Deletes the org row; org_members, org_audit_log, api_keys,
   // org_license_pools/assignments, org_invites, cohorts/cohort_members all
-  // cascade-delete automatically via their existing FK constraints.
+  // cascade-delete automatically via their existing FK constraints, and the
+  // trigger above releases member licenses in the same transaction.
   const { error } = await admin.from("organizations").delete().eq("id", auth.orgId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

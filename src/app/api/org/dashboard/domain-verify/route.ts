@@ -1,7 +1,10 @@
 // src/app/api/org/dashboard/domain-verify/route.ts
-// GET  — get configured email domains
+// GET  — get configured email domains (org-admin only)
 // POST — set allowed email domains for auto-join (EDU: students auto-approved by domain)
-// PATCH ?action=check&email= — check if an email matches allowed domains (public-ish)
+//
+// The actual public-facing "does this email qualify" + join flow lives in
+// /api/org/join-by-domain — a durable, repeatable link org admins share
+// (see /org/join/[slug]), rather than piggybacking on a single invite token.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireOrgAdmin } from "@/app/api/org/_auth";

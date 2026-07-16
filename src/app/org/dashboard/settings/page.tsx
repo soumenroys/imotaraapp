@@ -334,7 +334,7 @@ export default function SettingsPage() {
 
       {/* EDU: domain auto-join + academic year */}
       {org && org.billing_type === "edu" && (
-        <DomainVerifySection />
+        <DomainVerifySection orgSlug={org.slug} />
       )}
 
       {/* Contract/SLA storage — EDU + Enterprise */}
@@ -640,7 +640,7 @@ function VerificationSection() {
 }
 
 // ── EDU Domain Verification + Academic Calendar ───────────────────────────────
-function DomainVerifySection() {
+function DomainVerifySection({ orgSlug }: { orgSlug: string }) {
   const [domains, setDomains]       = useState<string[]>([]);
   const [autoJoin, setAutoJoin]     = useState(false);
   const [newDomain, setNewDomain]   = useState("");
@@ -648,6 +648,12 @@ function DomainVerifySection() {
   const [yearEnd, setYearEnd]       = useState("07-31");
   const [saving, setSaving]         = useState(false);
   const [msg, setMsg]               = useState("");
+  const [copied, setCopied]         = useState(false);
+
+  const joinLink = typeof window !== "undefined" ? `${window.location.origin}/org/join/${orgSlug}` : `/org/join/${orgSlug}`;
+  function handleCopyLink() {
+    navigator.clipboard.writeText(joinLink).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {});
+  }
 
   useEffect(() => {
     fetch("/api/org/dashboard/domain-verify", { credentials: "same-origin" })
@@ -677,7 +683,7 @@ function DomainVerifySection() {
       <p className="text-xs text-zinc-500">Configure allowed email domains for student auto-join, and set your academic year billing cycle.</p>
       <form onSubmit={handleSave} className="space-y-4">
         <div>
-          <label className="block text-xs text-zinc-400 mb-1">Allowed email domains (students auto-join on invite)</label>
+          <label className="block text-xs text-zinc-400 mb-1">Allowed email domains (for auto-join)</label>
           <div className="flex gap-2 mb-2">
             <input value={newDomain} onChange={(e) => setNewDomain(e.target.value)} placeholder="university.edu"
               className={`${inputCls} flex-1`} />
@@ -697,6 +703,13 @@ function DomainVerifySection() {
           <input type="checkbox" checked={autoJoin} onChange={(e) => setAutoJoin(e.target.checked)} className="rounded" />
           <span className="text-xs text-zinc-300">Auto-approve users whose email domain matches (no explicit invite needed)</span>
         </label>
+        {autoJoin && domains.length > 0 && (
+          <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+            <p className="text-[10px] text-zinc-500 mb-1">Share this link with your whole cohort — anyone with a matching email can join, any number of times (unlike a single invite link)</p>
+            <code className="block text-[11px] text-zinc-300 font-mono break-all leading-relaxed">{joinLink}</code>
+            <button type="button" onClick={handleCopyLink} className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 transition">{copied ? "✓ Copied!" : "Copy link"}</button>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-zinc-400 mb-1">Academic year start (MM-DD)</label>

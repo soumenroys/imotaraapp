@@ -11,6 +11,8 @@ type Step = "loading" | "preview" | "signin_required" | "accepting" | "accepted"
 interface InviteInfo {
   email: string; role: string; expiresAt: string;
   org: { name: string; billing_type: string; tier: string };
+  orgSlug: string | null;
+  domainAutoJoin: boolean;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -122,6 +124,8 @@ export default function InviteAcceptPage() {
   }
 
   // preview / accepting
+  const emailMismatch = !!(userEmail && invite && userEmail.toLowerCase() !== invite.email.toLowerCase());
+
   return (
     <div className="mx-auto max-w-md px-4 py-16">
       {invite && (
@@ -148,10 +152,28 @@ export default function InviteAcceptPage() {
               ))}
             </div>
 
-            <button onClick={handleAccept} disabled={step === "accepting"}
-              className="mt-6 w-full rounded-2xl bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-110 disabled:opacity-60">
-              {step === "accepting" ? "Joining…" : `Join ${invite.org.name}`}
-            </button>
+            {emailMismatch ? (
+              invite.domainAutoJoin && invite.orgSlug ? (
+                <>
+                  <p className="mt-6 text-xs text-amber-400">
+                    This invite was sent to {invite.email}, but {invite.org.name} also accepts anyone signing in with a matching email domain.
+                  </p>
+                  <Link href={`/org/join/${invite.orgSlug}`}
+                    className="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-110">
+                    Check if your email qualifies →
+                  </Link>
+                </>
+              ) : (
+                <p className="mt-6 text-xs text-rose-400">
+                  This invite was sent to {invite.email}. Please sign in with that email to accept it.
+                </p>
+              )
+            ) : (
+              <button onClick={handleAccept} disabled={step === "accepting"}
+                className="mt-6 w-full rounded-2xl bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-110 disabled:opacity-60">
+                {step === "accepting" ? "Joining…" : `Join ${invite.org.name}`}
+              </button>
+            )}
 
             <p className="mt-3 text-[11px] text-zinc-600">
               Expires {new Date(invite.expiresAt).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" })}

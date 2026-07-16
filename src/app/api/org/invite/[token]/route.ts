@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { data: invite, error } = await admin
     .from("org_invites")
-    .select("id, org_id, email, role, expires_at, accepted_at, organizations(name, billing_type, tier)")
+    .select("id, org_id, email, role, expires_at, accepted_at, organizations(name, billing_type, tier, slug, org_settings)")
     .eq("token", token)
     .single();
 
@@ -31,12 +31,21 @@ export async function GET(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "invite expired" }, { status: 410 });
   }
 
+  // Surfaced so the acceptance page can offer /org/join/[slug] as an
+  // alternative when the signed-in user's email doesn't match the invite —
+  // see join-by-domain/route.ts for the durable, repeatable version of this.
+  type OrgRow = { name: string; billing_type: string; tier: string; slug: string; org_settings: Record<string, unknown> | null };
+  const orgRow = invite.organizations as unknown as OrgRow;
+  const settings = orgRow?.org_settings ?? {};
+
   return NextResponse.json({
     invite: {
       email:     invite.email,
       role:      invite.role,
       expiresAt: invite.expires_at,
-      org:       invite.organizations,
+      org:       { name: orgRow?.name, billing_type: orgRow?.billing_type, tier: orgRow?.tier },
+      orgSlug:          orgRow?.slug ?? null,
+      domainAutoJoin:   !!settings.auto_join_by_domain,
     },
   });
 }
@@ -78,26 +87,20 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (invite.accepted_at)  return NextResponse.json({ error: "already accepted" }, { status: 409 });
   if (new Date(invite.expires_at) < new Date()) return NextResponse.json({ error: "expired" }, { status: 410 });
 
-  // Email match check — enforce if invite has a specific email
+  // Email match check — enforce if invite has a specific email. Domain-based
+  // auto-join is handled by the dedicated /api/org/join-by-domain endpoint
+  // instead of here — this token is single-use and tied to one recipient;
+  // letting anyone else consume it via a domain match used to both prevent
+  // repeat use by other qualifying users AND risk locking out the invite's
+  // actual intended recipient if someone else claimed it first.
   if (invite.email && userEmail) {
     const inviteEmail = invite.email.toLowerCase();
     const currentEmail = userEmail.toLowerCase();
     if (inviteEmail !== currentEmail) {
-      // Check if org has auto_join_by_domain enabled and user's domain matches
-      const { data: orgData } = await admin.from("organizations").select("org_settings").eq("id", invite.org_id).single();
-      const settings = (orgData?.org_settings ?? {}) as Record<string, unknown>;
-      const allowedDomains = (settings.allowed_email_domains as string[] | null) ?? [];
-      const autoJoin = settings.auto_join_by_domain as boolean | null;
-      const userDomain = currentEmail.split("@")[1] ?? "";
-      const domainMatches = autoJoin && allowedDomains.some((d) => userDomain === d || userDomain.endsWith("." + d));
-
-      if (!domainMatches) {
-        return NextResponse.json(
-          { error: `This invite was sent to ${invite.email}. Please sign in with that email.` },
-          { status: 403 },
-        );
-      }
-      // Domain matches — user can join even without explicit invite to their email
+      return NextResponse.json(
+        { error: `This invite was sent to ${invite.email}. Please sign in with that email.` },
+        { status: 403 },
+      );
     }
   }
 

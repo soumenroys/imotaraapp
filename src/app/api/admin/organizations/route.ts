@@ -120,6 +120,12 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
+    // 23505: the partial unique index organizations_single_owner fired —
+    // same race as org/new/route.ts, lower severity here since this path
+    // is admin-gated, but the check-then-insert above has the same gap.
+    if (error.code === "23505") {
+      return NextResponse.json({ error: `This owner already owns another organization. Each account can own only one.` }, { status: 409 });
+    }
     console.error("[admin/organizations POST]", error.message);
     // Bug #22: return a generic message — never expose raw DB error details
     return NextResponse.json({ error: "Failed to create organization. Please check your input and try again." }, { status: 500 });

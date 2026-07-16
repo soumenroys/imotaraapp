@@ -33,6 +33,15 @@ export async function POST(req: NextRequest) {
 
   if (!body.name?.trim()) return NextResponse.json({ error: "name is required" }, { status: 400 });
 
+  // UI hides key generation for non-Enterprise orgs, but nothing stopped a
+  // direct API call from minting a permanently-useless key (the two
+  // consuming endpoints, /api/v1/org/members and /stats, already require
+  // Enterprise). Enforcing it here too for defense-in-depth.
+  const { data: org } = await getSupabaseAdmin().from("organizations").select("tier").eq("id", auth.orgId).single();
+  if (org?.tier !== "enterprise") {
+    return NextResponse.json({ error: "API access requires the Enterprise plan" }, { status: 403 });
+  }
+
   const VALID_SCOPES = ["read:stats", "read:members"];
   const scopes = (body.scopes ?? ["read:stats", "read:members"])
     .filter((s) => VALID_SCOPES.includes(s));

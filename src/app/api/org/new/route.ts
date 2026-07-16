@@ -108,6 +108,15 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (insertErr || !org) {
+    // 23505: the partial unique index organizations_single_owner fired — a
+    // concurrent request already won the race between our check above and
+    // this insert. Report it the same way as the normal already-owns-an-org case.
+    if (insertErr?.code === "23505") {
+      return NextResponse.json(
+        { error: "You already have an org. Contact support to create another." },
+        { status: 409 },
+      );
+    }
     console.error("[org/new POST]", insertErr?.message);
     return NextResponse.json({ error: insertErr?.message ?? "Failed to create org" }, { status: 500 });
   }

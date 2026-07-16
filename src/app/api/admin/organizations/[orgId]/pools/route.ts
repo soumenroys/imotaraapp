@@ -79,6 +79,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "invalid JSON" }, { status: 400 }); }
 
+  if (body.quantity_total !== undefined) {
+    const { data: pool } = await getSupabaseAdmin()
+      .from("org_license_pools")
+      .select("quantity_used")
+      .eq("id", poolId)
+      .eq("org_id", orgId)
+      .single();
+    if (pool && body.quantity_total < pool.quantity_used) {
+      return NextResponse.json(
+        { error: `quantity_total (${body.quantity_total}) can't be less than the ${pool.quantity_used} seats already assigned from this pool` },
+        { status: 400 },
+      );
+    }
+  }
+
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.quantity_total !== undefined) update.quantity_total = body.quantity_total;
   if (body.active         !== undefined) update.active         = body.active;

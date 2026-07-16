@@ -1581,7 +1581,7 @@ function OrgBadge({ label, colors }: { label: string; colors: string }) {
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-white/10 ${colors}`}>{label}</span>;
 }
 
-function OrganizationsSection({ token }: { token: string }) {
+function OrganizationsSection({ token, myRole }: { token: string; myRole: string | null }) {
   const [orgs, setOrgs]               = useState<OrgRow[]>([]);
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState("");
@@ -1841,6 +1841,13 @@ function OrganizationsSection({ token }: { token: string }) {
                     <OrgAnalyticsPanel orgId={org.orgId} token={token} />
                     {/* Audit log (read-only) */}
                     <OrgAuditLogPanel orgId={org.orgId} token={token} />
+                    {/* Delete org — Imotara owner role only */}
+                    {myRole === "owner" && (
+                      <OrgDangerZonePanel
+                        orgId={org.orgId} orgName={org.name} token={token}
+                        onDeleted={() => { setExpandedId(null); void fetchOrgs(search, statusFilter); }}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -1848,6 +1855,51 @@ function OrganizationsSection({ token }: { token: string }) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OrgDangerZonePanel — Imotara owner role only, permanently delete an org
+// ─────────────────────────────────────────────────────────────────────────────
+
+function OrgDangerZonePanel({
+  orgId, orgName, token, onDeleted,
+}: { orgId: string; orgName: string; token: string; onDeleted: () => void }) {
+  const [confirmName, setConfirmName] = useState("");
+  const [deleting, setDeleting]       = useState(false);
+  const [error, setError]             = useState("");
+
+  async function handleDelete() {
+    if (!confirm(`Permanently delete "${orgName}"? This cannot be undone.`)) return;
+    setDeleting(true); setError("");
+    try {
+      const res = await fetch(`/api/admin/organizations/${orgId}`, adminFetchOpts(token, {
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmName }),
+      }));
+      const j = await res.json();
+      if (!res.ok) { setError(j.error ?? "Delete failed."); return; }
+      onDeleted();
+    } finally { setDeleting(false); }
+  }
+
+  return (
+    <div className="border-t border-rose-500/20 pt-3">
+      <p className="text-xs font-semibold text-rose-300">Danger zone — owner only</p>
+      <p className="mt-1 text-[11px] text-zinc-500">
+        Permanently deletes this org: all members, license pools, API keys, invites, cohorts, and audit history. Member licenses reset to free. This cannot be undone.
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)}
+          placeholder={`Type "${orgName}" to confirm`}
+          className="rounded-xl border border-rose-500/20 bg-black/20 px-3 py-1.5 text-xs text-zinc-100 outline-none focus:border-rose-500/50" />
+        <button onClick={handleDelete} disabled={deleting || confirmName !== orgName}
+          className="rounded-xl border border-rose-500/30 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/25 disabled:opacity-40">
+          {deleting ? "Deleting…" : "Permanently delete organisation"}
+        </button>
+      </div>
+      {error && <p className="mt-1.5 text-[11px] text-rose-400">{error}</p>}
     </div>
   );
 }
@@ -3227,7 +3279,7 @@ export default function AdminPage() {
             ["superadmins",   "👑", "Admins"],
             ["stats",         "📊", "Dashboard"],
           ] as const)
-            .filter(([key]) => myRole !== "connect_reviewer" || key === "connect")
+            .filter(([key]) => myRole !== "connect_reviewer" || key === "connect" || key === "comments")
             .map(([key, icon, label]) => (
             <button key={key} onClick={() => setSection(key)}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs whitespace-nowrap transition ${
@@ -3305,7 +3357,7 @@ export default function AdminPage() {
       )}
 
       {section === "licenses"      && <LicensesSection      token={token} />}
-      {section === "organizations" && <OrganizationsSection token={token} />}
+      {section === "organizations" && <OrganizationsSection token={token} myRole={myRole} />}
       {section === "connect"       && <ConnectSection       token={token} />}
       {section === "superadmins"   && <SuperAdminsSection   token={token} />}
       {section === "stats"         && <StatsSection         token={token} />}

@@ -1,13 +1,14 @@
 // src/app/api/admin/comments/route.ts
 // GET /api/admin/comments?status=pending|approved|all
 // Protected by ADMIN_SECRET env var (Bearer token)
+// Any authenticated superadmin role (owner/admin/connect_reviewer) may view/moderate.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { adminAuthorized } from "@/app/api/admin/_auth";
+import { connectAdminAuthorized } from "@/app/api/admin/_auth";
 
 export async function GET(req: NextRequest) {
-  if (!await adminAuthorized(req)) {
+  if (!await connectAdminAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

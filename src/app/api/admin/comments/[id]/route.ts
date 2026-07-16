@@ -2,16 +2,17 @@
 // PATCH  → approve comment
 // DELETE → delete comment
 // Protected by ADMIN_SECRET env var (Bearer token)
+// Any authenticated superadmin role (owner/admin/connect_reviewer) may moderate.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { adminAuthorized } from "@/app/api/admin/_auth";
+import { connectAdminAuthorized } from "@/app/api/admin/_auth";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!await adminAuthorized(req)) {
+  if (!await connectAdminAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -35,7 +36,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!await adminAuthorized(req)) {
+  if (!await connectAdminAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

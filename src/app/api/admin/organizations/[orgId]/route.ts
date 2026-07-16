@@ -1,13 +1,19 @@
 // src/app/api/admin/organizations/[orgId]/route.ts
-// GET   /api/admin/organizations/:orgId   — org detail + members
-// PATCH /api/admin/organizations/:orgId   — update org (tier, seats, status, etc.)
+// GET    /api/admin/organizations/:orgId   — org detail + members
+// PATCH  /api/admin/organizations/:orgId   — update org (tier, seats, status, etc.)
+// DELETE /api/admin/organizations/:orgId   — permanently delete the org. Imotara
+//         owner role only (not admin, not connect_reviewer) — a deliberately
+//         narrower reversal of "superadmin never deletes orgs," reserved for
+//         the top platform tier, with the same typed-name confirmation used
+//         on the org's own owner-initiated delete (org/dashboard/settings).
 // Protected by ADMIN_SECRET Bearer token.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { adminAuthorized } from "@/app/api/admin/_auth";
+import { adminAuthorized, requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getOrgMembers } from "@/lib/imotara/org";
 import { sendOrgVerificationDecisionEmail } from "@/lib/connect/mailer";
+import nodemailer from "nodemailer";
 
 // ── GET — org detail + member list ───────────────────────────────────────────
 export async function GET(
@@ -171,4 +177,63 @@ export async function PATCH(
   }
 
   return NextResponse.json({ org: data }, { status: 200 });
+}
+
+// ── DELETE — permanently delete the org (Imotara owner role only) ────────────
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ orgId: string }> },
+) {
+  const auth = await requireSuperAdmin(req);
+  if (!auth.ok) return auth.response;
+  if (auth.admin.role !== "owner") {
+    return NextResponse.json({ error: "Only the Imotara owner role can delete organizations" }, { status: 403 });
+  }
+
+  const { orgId } = await params;
+
+  let body: { confirmName?: string };
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "invalid JSON" }, { status: 400 }); }
+
+  const admin = getSupabaseAdmin();
+  const { data: org } = await admin.from("organizations").select("name").eq("id", orgId).single();
+  if (!org) return NextResponse.json({ error: "org not found" }, { status: 404 });
+
+  if (body.confirmName?.trim() !== org.name) {
+    return NextResponse.json({ error: "Type the organisation's exact name to confirm deletion" }, { status: 400 });
+  }
+
+  // Member licenses are released automatically by the same DB trigger used
+  // by the org's own owner-initiated delete — see
+  // docs/sql/org_delete_license_release_trigger.sql.
+  void sendAdminDeletionAlert({
+    orgName:      org.name,
+    orgId,
+    deletedByAdminEmail: auth.admin.email,
+  });
+
+  const { error } = await admin.from("organizations").delete().eq("id", orgId);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ ok: true });
+}
+
+async function sendAdminDeletionAlert(data: { orgName: string; orgId: string; deletedByAdminEmail: string }) {
+  const user = process.env.ALERT_GMAIL_USER?.trim();
+  const pass = process.env.ALERT_GMAIL_APP_PASSWORD?.trim();
+  if (!user || !pass) return;
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST ?? "smtp.hostinger.com", port: 465, secure: true, auth: { user, pass },
+    });
+    await transporter.sendMail({
+      from: `"Imotara Alerts" <${user}>`,
+      to: "info@imotara.com",
+      subject: `[Org Deleted by Superadmin] ${data.orgName}`,
+      text: `Organisation "${data.orgName}" (${data.orgId}) was permanently deleted via the admin panel by Imotara owner ${data.deletedByAdminEmail}.\n\nAll members, licenses, pools, API keys, and audit history for this org are gone.`,
+    });
+  } catch (err) {
+    console.error("[admin/organizations DELETE] alert email failed:", err);
+  }
 }

@@ -1161,7 +1161,7 @@ function OrgAdminSection() {
               { title: "🎨 Custom branding", desc: "Logo, accent colour, and brand name", tag: "EDU + Enterprise" },
               { title: "🔒 SSO / SAML", desc: "Configure Okta, Google Workspace, or Azure AD", tag: "EDU + Enterprise" },
               { title: "🖼 LMS / iframe embed", desc: "Get embed snippet for Moodle / Canvas", tag: "EDU + Enterprise" },
-              { title: "📜 NGO verification", desc: "Submit 80G/FCRA documents for subsidised pricing", tag: "NGO" },
+              { title: "📜 NGO verification", desc: "Submit 80G/FCRA documents for grant/donor records — subsidised pricing already applies at checkout, no verification required", tag: "NGO" },
               { title: "🔗 Referral codes", desc: "Generate referral codes with commission tracking", tag: "NGO" },
               { title: "📅 Academic calendar", desc: "Year dates, student email domain auto-join", tag: "EDU" },
               { title: "📋 Contracts & SLAs", desc: "Store signed agreements with expiry tracking", tag: "Enterprise" },

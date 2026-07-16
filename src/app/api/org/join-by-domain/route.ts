@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
-import { assignOrgLicense } from "@/lib/imotara/org";
+import { assignOrgLicense, releasePriorOrgMembership } from "@/lib/imotara/org";
 
 function emailDomainMatches(email: string, allowedDomains: string[]): boolean {
   const domain = email.toLowerCase().split("@")[1] ?? "";
@@ -105,6 +105,10 @@ export async function POST(req: NextRequest) {
   if (existing?.status === "active") {
     return NextResponse.json({ error: "You are already a member of this organisation" }, { status: 409 });
   }
+
+  // Release any different active org membership first — a user can only
+  // occupy one paid org seat at a time (see releasePriorOrgMembership).
+  await releasePriorOrgMembership(userId, org.id);
 
   await admin.from("org_members").upsert({
     org_id:     org.id,

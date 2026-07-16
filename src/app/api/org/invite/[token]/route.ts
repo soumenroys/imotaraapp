@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
-import { assignOrgLicense } from "@/lib/imotara/org";
+import { assignOrgLicense, releasePriorOrgMembership } from "@/lib/imotara/org";
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -115,6 +115,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (existing?.status === "active") {
     return NextResponse.json({ error: "You are already a member of this organisation" }, { status: 409 });
   }
+
+  // Release any different active org membership first — a user can only
+  // occupy one paid org seat at a time (see releasePriorOrgMembership).
+  await releasePriorOrgMembership(userId, invite.org_id);
 
   // Add to org_members
   await admin.from("org_members").upsert({

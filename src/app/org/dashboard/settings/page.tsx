@@ -308,7 +308,7 @@ export default function SettingsPage() {
 
       {/* NGO / EDU Recognition Certificate */}
       {org && ["ngo","edu"].includes(org.billing_type) && (
-        <CertificateSection orgName={org.name} orgTier={org.tier} seatsUsed={org.seats_used} />
+        <CertificateSection orgName={org.name} orgTier={org.tier} seatsUsed={org.seats_used} orgStatus={org.status} createdAt={org.created_at} />
       )}
 
       {/* Impact report — EDU/NGO */}
@@ -535,8 +535,12 @@ function ReferralSection() {
 }
 
 // ── NGO / EDU Recognition Certificate ────────────────────────────────────────
-function CertificateSection({ orgName, orgTier, seatsUsed }: { orgName: string; orgTier: string; seatsUsed: number }) {
-  const eligible = seatsUsed >= 10;
+function CertificateSection({ orgName, orgTier, seatsUsed, orgStatus, createdAt }: { orgName: string; orgTier: string; seatsUsed: number; orgStatus: string; createdAt: string }) {
+  // Mirrors the backend's exact eligibility check (src/app/api/org/certificate/route.ts)
+  // so the badge/button never promise a certificate the download route will refuse.
+  const daysSinceCreation = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24);
+  const eligible = orgStatus === "active" && seatsUsed >= 10 && daysSinceCreation >= 30;
+  const daysRemaining = Math.max(0, Math.ceil(30 - daysSinceCreation));
   return (
     <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-3">
       <div className="flex items-center justify-between">
@@ -548,7 +552,9 @@ function CertificateSection({ orgName, orgTier, seatsUsed }: { orgName: string; 
       <p className="text-xs text-zinc-500">
         {eligible
           ? `${orgName} qualifies for the Imotara Emotional Wellness Champion certificate. Download it for use in grant applications, CSR reports, or website recognition.`
-          : `Earn this certificate when you have 10+ active members and have been active for 30+ days. Currently: ${seatsUsed} member${seatsUsed !== 1 ? "s" : ""}.`}
+          : seatsUsed < 10
+            ? `Earn this certificate when you have 10+ active members and have been active for 30+ days. Currently: ${seatsUsed} member${seatsUsed !== 1 ? "s" : ""}.`
+            : `You have enough members — ${daysRemaining} more day${daysRemaining !== 1 ? "s" : ""} until your organisation has been active for 30 days.`}
       </p>
       {eligible && (
         <a href="/api/org/certificate" target="_blank" rel="noopener noreferrer"
@@ -606,7 +612,7 @@ function VerificationSection() {
         <p className="text-sm font-medium text-zinc-300">NGO Verification</p>
         <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${s.color}`}>{s.label}</span>
       </div>
-      <p className="text-xs text-zinc-500">Upload your NGO/NPO registration documents (80G certificate, FCRA registration, or trust deed) to get verified status and access subsidized pricing.</p>
+      <p className="text-xs text-zinc-500">Upload your NGO/NPO registration documents (80G certificate, FCRA registration, or trust deed) to get verified status — useful for your own grant/donor records. Subsidised pricing already applies automatically at checkout and doesn&apos;t require verification.</p>
       {status === "rejected" && reviewNote && (
         <p className="text-xs text-rose-400 rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2">
           Reviewer note: {reviewNote} — you can update your documents and resubmit below.

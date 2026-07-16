@@ -145,6 +145,31 @@ export async function assignOrgLicense(
 }
 
 
+// ── 2B. Release Any Prior Org Membership ──────────────────────────────────────
+// Call before adding a user to a new org (invite-accept, domain-join,
+// admin add-by-email). assign_org_license() upserts on user_id conflict —
+// silently overwriting licenses.org_id and incrementing the NEW org's
+// seats_used, but never decrementing the OLD org's, and never touching the
+// old org_members row. A user already occupying a paid seat in Org A could
+// join Org B's link and end up "active" in both, permanently leaking a seat
+// Org A keeps paying for. This releases any different active membership
+// first so a user can only ever occupy one paid org seat at a time.
+export async function releasePriorOrgMembership(userId: string, newOrgId: string): Promise<void> {
+  const admin = getSupabaseAdmin();
+  const { data: existing } = await admin
+    .from("org_members")
+    .select("org_id")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .neq("org_id", newOrgId)
+    .maybeSingle();
+
+  if (existing?.org_id) {
+    await revokeOrgLicense(userId, existing.org_id, undefined, "system", "Superseded by joining a different organisation");
+  }
+}
+
+
 // ── 3. Revoke Org License ─────────────────────────────────────────────────────
 // Call this when a member is removed from an org.
 // Resets their license to free and decrements org seats_used.

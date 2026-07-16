@@ -1,7 +1,12 @@
 // POST   /api/admin/users/[userId]/ban   — ban a user
 // DELETE /api/admin/users/[userId]/ban   — unban a user
+// GET    /api/admin/users/[userId]/ban   — ban status
 // Body (POST): { reason: string }
-// Auth: admin or owner.
+// Auth: admin or owner. connect_reviewer excluded on ALL THREE handlers —
+// DELETE/GET previously only had requireSuperAdmin with no role check,
+// letting a connect_reviewer (meant to be Connect-routes-only) unban any
+// user and read any ban record. Consequential as of the fix below: DELETE
+// used to only toggle an inert audit row, now it calls a real Supabase ban.
 //
 // user_bans is an audit table only (who banned whom, when, why) — it was
 // never actually checked anywhere else in the app (confirmed via a
@@ -63,6 +68,7 @@ export async function DELETE(
   const { userId } = await params;
   const result = await requireSuperAdmin(req);
   if (!result.ok) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (result.admin.role === "connect_reviewer") return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   const supabase = getSupabaseAdmin();
 
@@ -89,6 +95,7 @@ export async function GET(
   const { userId } = await params;
   const result = await requireSuperAdmin(req);
   if (!result.ok) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (result.admin.role === "connect_reviewer") return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   const supabase = getSupabaseAdmin();
 

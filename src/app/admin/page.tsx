@@ -1033,6 +1033,10 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
   const [loaded, setLoaded]     = useState(false);
   const [show, setShow]         = useState(false);
   const [working, setWorking]   = useState<string | null>(null);
+  const [addEmail, setAddEmail] = useState("");
+  const [addRole, setAddRole]   = useState("member");
+  const [adding, setAdding]     = useState(false);
+  const [addErr, setAddErr]     = useState("");
 
   async function load() {
     if (loaded) return;
@@ -1068,12 +1072,32 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
     setMembers((p) => p.map((m) => m.userId === userId ? { ...m, override_tier: overrideTier } : m));
   }
 
+  async function suspendAccess(userId: string, suspend: boolean) {
+    if (suspend && !confirm("Suspend this account's access to Imotara? They won't be able to sign in or refresh their session. This can be reversed.")) return;
+    await patch(userId, { suspendAccess: suspend });
+  }
+
   async function removeMember(userId: string) {
     if (!confirm("Remove this member? Their license will be revoked.")) return;
     setWorking(userId);
     await fetch(`/api/admin/organizations/${orgId}/members?userId=${userId}`, adminFetchOpts(token, { method: "DELETE" }));
     setWorking(null);
     setMembers((p) => p.filter((m) => m.userId !== userId));
+  }
+
+  async function addMember(e: React.FormEvent) {
+    e.preventDefault();
+    setAdding(true); setAddErr("");
+    try {
+      const res = await fetch(`/api/admin/organizations/${orgId}/members`, adminFetchOpts(token, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: addEmail, role: addRole }),
+      }));
+      const j = await res.json();
+      if (!res.ok) { setAddErr(j.error ?? "Failed to add member."); return; }
+      setMembers((p) => [...p, { userId: j.userId, email: j.email, role: j.role, joinedAt: new Date().toISOString() }]);
+      setAddEmail(""); setAddRole("member");
+    } finally { setAdding(false); }
   }
 
   const TIERS = ["free","plus","pro","edu","enterprise"];
@@ -1085,6 +1109,22 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
       </button>
       {show && (
         <div className="mt-3 space-y-1.5">
+          <form onSubmit={addMember} className="flex flex-wrap items-center gap-1.5 rounded-xl border border-white/8 bg-white/3 px-2 py-2">
+            <input required type="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)}
+              placeholder="Add existing user by email…" disabled={adding}
+              className="min-w-[160px] flex-1 rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-[11px] text-zinc-200 outline-none" />
+            <select value={addRole} onChange={(e) => setAddRole(e.target.value)} disabled={adding}
+              className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-[10px] text-zinc-300 outline-none">
+              <option value="member">member</option>
+              <option value="admin">admin</option>
+              <option value="owner">owner</option>
+            </select>
+            <button type="submit" disabled={adding}
+              className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-40">
+              {adding ? "…" : "+ Add"}
+            </button>
+            {addErr && <p className="w-full text-[10px] text-rose-400">{addErr}</p>}
+          </form>
           {members.length === 0 && loaded && <p className="text-xs text-zinc-500">No members yet.</p>}
           {members.map((m) => (
             <div key={m.userId} className="rounded-xl border border-white/8 bg-white/3 px-3 py-2 space-y-1">
@@ -1114,6 +1154,133 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
                 </select>
                 {m.override_tier && <span className="text-[9px] text-amber-400">override active</span>}
               </div>
+              {/* Account access — Supabase ban, not an instant session kill (see route comment) */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-zinc-600">Account access:</span>
+                <button onClick={() => suspendAccess(m.userId, true)} disabled={working === m.userId}
+                  className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300 transition hover:bg-amber-500/20 disabled:opacity-40">
+                  Suspend
+                </button>
+                <button onClick={() => suspendAccess(m.userId, false)} disabled={working === m.userId}
+                  className="rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-300 transition hover:bg-white/10 disabled:opacity-40">
+                  Restore
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OrgAnalyticsPanel — super-admin aggregate-only usage view (WAU, avg session
+// length, check-in rate). Deliberately no individual-member data — mirrors
+// the same aggregate-only privacy line the org-admin-facing analytics tab
+// already holds. Previously superadmin had zero usage visibility into any
+// org anywhere in /admin.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function OrgAnalyticsPanel({ orgId, token }: { orgId: string; token: string }) {
+  interface Summary { totalEvents: number; uniqueDays: number; avgWAU: number; avgSessionMins: number }
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [days, setDays]       = useState(30);
+  const [loading, setLoading] = useState(false);
+  const [show, setShow]       = useState(false);
+
+  async function load(d: number) {
+    setLoading(true);
+    const r = await fetch(`/api/admin/organizations/${orgId}/analytics?days=${d}`, adminFetchOpts(token));
+    if (r.ok) setSummary((await r.json()).summary ?? null);
+    setLoading(false);
+  }
+
+  return (
+    <div className="border-t border-white/8 pt-3">
+      <button onClick={async () => { setShow((v) => !v); if (!show) await load(days); }} className="text-xs text-indigo-400 hover:text-indigo-300 transition">
+        {show ? "▲ Hide usage stats" : "▼ View aggregate usage stats"}
+      </button>
+      {show && (
+        <div className="mt-3 space-y-2">
+          <div className="flex gap-1.5">
+            {[30, 90, 180].map((d) => (
+              <button key={d} onClick={() => { setDays(d); void load(d); }}
+                className={`rounded-lg border px-2.5 py-1 text-[10px] transition ${days === d ? "border-indigo-400/40 bg-indigo-500/15 text-indigo-300" : "border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200"}`}>
+                {d}d
+              </button>
+            ))}
+          </div>
+          {loading ? (
+            <div className="h-14 animate-pulse rounded-xl bg-white/5" />
+          ) : summary ? (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                { label: "Avg weekly active", value: summary.avgWAU },
+                { label: "Avg session (min)",  value: summary.avgSessionMins },
+                { label: "Active days",        value: summary.uniqueDays },
+                { label: "Total events",       value: summary.totalEvents },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-xl border border-white/8 bg-white/3 px-3 py-2">
+                  <p className="text-[10px] text-zinc-500">{label}</p>
+                  <p className="text-sm font-semibold text-zinc-100">{value}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-zinc-500">No usage data yet.</p>
+          )}
+          <p className="text-[10px] text-zinc-600">Aggregate only — same privacy line as the org&apos;s own analytics tab. No individual member data.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OrgAuditLogPanel — super-admin read-only view of an org's audit log.
+// Previously only the org's own admins could see this (/org/dashboard/audit);
+// superadmin had no equivalent view of NGO admin activity anywhere in /admin.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function OrgAuditLogPanel({ orgId, token }: { orgId: string; token: string }) {
+  interface AuditEntry {
+    id: string; action: string; actor_email: string | null; actor_role: string | null;
+    target_email: string | null; changes: Record<string, unknown> | null; notes: string | null; created_at: string;
+  }
+  const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [loaded, setLoaded]   = useState(false);
+  const [show, setShow]       = useState(false);
+
+  async function load() {
+    if (loaded) return;
+    const r = await fetch(`/api/admin/organizations/${orgId}/audit?limit=25`, adminFetchOpts(token));
+    if (r.ok) {
+      const j = await r.json();
+      setEntries(j.entries ?? []);
+      setLoaded(true);
+    }
+  }
+
+  return (
+    <div className="border-t border-white/8 pt-3">
+      <button onClick={async () => { setShow((v) => !v); if (!show && !loaded) await load(); }} className="text-xs text-indigo-400 hover:text-indigo-300 transition">
+        {show ? "▲ Hide audit log" : "▼ View audit log"}
+      </button>
+      {show && (
+        <div className="mt-3 space-y-1.5">
+          {entries.length === 0 && loaded && <p className="text-xs text-zinc-500">No activity logged yet.</p>}
+          {entries.map((e) => (
+            <div key={e.id} className="rounded-xl border border-white/8 bg-white/3 px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-zinc-200">{e.action.replace(/_/g, " ")}</span>
+                <span className="text-[10px] text-zinc-600">{new Date(e.created_at).toLocaleString()}</span>
+              </div>
+              <p className="mt-0.5 text-[10px] text-zinc-500">
+                {e.actor_email ?? "system"}{e.actor_role ? ` (${e.actor_role})` : ""}
+                {e.target_email ? ` → ${e.target_email}` : ""}
+              </p>
+              {e.notes && <p className="mt-0.5 text-[10px] text-zinc-600">{e.notes}</p>}
             </div>
           ))}
         </div>
@@ -1618,6 +1785,10 @@ function OrganizationsSection({ token }: { token: string }) {
                     <OrgPoolsPanel orgId={org.orgId} token={token} />
                     {/* NGO/EDU verification review */}
                     <OrgVerificationPanel orgId={org.orgId} token={token} />
+                    {/* Aggregate usage stats (read-only, no individual data) */}
+                    <OrgAnalyticsPanel orgId={org.orgId} token={token} />
+                    {/* Audit log (read-only) */}
+                    <OrgAuditLogPanel orgId={org.orgId} token={token} />
                   </div>
                 )}
               </div>

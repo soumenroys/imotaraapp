@@ -10,6 +10,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { grantLicense, isValidProductId } from "@/lib/imotara/grantLicense";
 import type { LicenseProductId } from "@/lib/imotara/grantLicense";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
+import { releasePriorOrgMembership } from "@/lib/imotara/org";
 
 export async function POST(req: NextRequest) {
   const body      = await req.text();
@@ -85,6 +86,9 @@ export async function POST(req: NextRequest) {
           }).select("id, name").single();
 
           if (org) {
+            // Release any different active org membership first — see
+            // releasePriorOrgMembership; same fix as the Razorpay webhook.
+            await releasePriorOrgMembership(userId, org.id);
             await admin.from("org_members").insert({ org_id: org.id, user_id: userId, role: "owner", status: "active" });
             await admin.from("licenses").upsert({ user_id: userId, tier: "free", status: "valid", org_id: org.id, source: "org", updated_at: new Date().toISOString() }, { onConflict: "user_id" });
           }

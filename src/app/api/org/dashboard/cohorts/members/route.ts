@@ -60,12 +60,20 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin();
 
   // Verify cohort is in this org
-  const { data: cohort } = await admin.from("cohorts").select("id").eq("id", body.cohortId).eq("org_id", auth.orgId).single();
+  const { data: cohort } = await admin.from("cohorts").select("id, seat_limit").eq("id", body.cohortId).eq("org_id", auth.orgId).single();
   if (!cohort) return NextResponse.json({ error: "cohort not found" }, { status: 404 });
 
   // Verify user is an active org member
   const { data: member } = await admin.from("org_members").select("user_id").eq("org_id", auth.orgId).eq("user_id", body.userId).eq("status", "active").single();
   if (!member) return NextResponse.json({ error: "user is not an active org member" }, { status: 409 });
+
+  // Enforce seat_limit — was stored but never checked, a dead capacity control.
+  if (cohort.seat_limit != null) {
+    const { count } = await admin.from("cohort_members").select("user_id", { count: "exact", head: true }).eq("cohort_id", body.cohortId);
+    if ((count ?? 0) >= cohort.seat_limit) {
+      return NextResponse.json({ error: `This cohort is at its seat limit (${cohort.seat_limit})` }, { status: 409 });
+    }
+  }
 
   const { error } = await admin.from("cohort_members").upsert({
     cohort_id: body.cohortId, user_id: body.userId, added_by: auth.userId,

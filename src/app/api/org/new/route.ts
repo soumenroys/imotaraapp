@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
+import { releasePriorOrgMembership } from "@/lib/imotara/org";
 
 function slugify(name: string): string {
   return name
@@ -111,7 +112,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: insertErr?.message ?? "Failed to create org" }, { status: 500 });
   }
 
-  // 6. Add owner as org_member with role=owner
+  // 6. Release any different active org membership first — a user can only
+  // occupy one paid org seat at a time (see releasePriorOrgMembership).
+  await releasePriorOrgMembership(userId, org.id);
+
+  // Add owner as org_member with role=owner
   await admin.from("org_members").insert({
     org_id:  org.id,
     user_id: userId,

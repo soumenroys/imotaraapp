@@ -8,6 +8,7 @@ import { logDonation } from "@/lib/donations/logDonation";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { grantLicense, isValidProductId, PRODUCT_CATALOG } from "@/lib/imotara/grantLicense";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
+import { releasePriorOrgMembership } from "@/lib/imotara/org";
 
 const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || "";
 
@@ -101,6 +102,12 @@ export async function POST(req: Request) {
                     }).select("id").single();
 
                     if (org) {
+                        // Release any different active org membership first — a user can
+                        // only occupy one paid org seat at a time. Reachable purely by an
+                        // authenticated user paying for their own corporate plan, with no
+                        // admin gatekeeping, so this is the highest-severity instance of
+                        // this fix (see releasePriorOrgMembership).
+                        await releasePriorOrgMembership(userId, org.id);
                         await getSupabaseAdmin().from("org_members").insert({ org_id: org.id, user_id: userId, role: "owner", status: "active" });
                         await getSupabaseAdmin().from("licenses").upsert(
                             { user_id: userId, tier: "free", status: "valid", org_id: org.id, source: "org", updated_at: new Date().toISOString() },

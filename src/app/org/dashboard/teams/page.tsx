@@ -11,6 +11,7 @@ interface Cohort {
   memberCount: number; created_at: string;
 }
 interface CohortMember { userId: string; email: string; role: string; addedAt: string }
+interface OrgMember { userId: string; email: string }
 
 const TONE_LABELS: Record<string, string> = {
   close_friend:  "🤝 Close Friend",
@@ -27,6 +28,14 @@ export default function TeamsPage() {
   const [members, setMembers]       = useState<CohortMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [saving, setSaving]         = useState(false);
+
+  // Org members available to add to a cohort — the "Add members from the
+  // Members tab" hint text was never backed by any actual control; this is it.
+  const [orgMembers, setOrgMembers]     = useState<OrgMember[]>([]);
+  const [orgMembersLoaded, setOrgMembersLoaded] = useState(false);
+  const [addSelection, setAddSelection] = useState("");
+  const [addingMember, setAddingMember] = useState(false);
+  const [addError, setAddError]         = useState("");
 
   // Create form
   const [showCreate, setShowCreate] = useState(false);
@@ -47,11 +56,32 @@ export default function TeamsPage() {
   useEffect(() => { void fetchCohorts(); }, [fetchCohorts]);
 
   async function loadMembers(cohortId: string) {
-    setExpanded(cohortId); setMembersLoading(true);
+    setExpanded(cohortId); setMembersLoading(true); setAddError(""); setAddSelection("");
     try {
       const r = await fetch(`/api/org/dashboard/cohorts/members?cohortId=${cohortId}`, { credentials: "same-origin" });
       setMembers((await r.json()).members ?? []);
+      if (!orgMembersLoaded) {
+        const r2 = await fetch("/api/org/dashboard/members", { credentials: "same-origin" });
+        setOrgMembers((await r2.json()).members ?? []);
+        setOrgMembersLoaded(true);
+      }
     } finally { setMembersLoading(false); }
+  }
+
+  async function handleAddMember(cohortId: string) {
+    if (!addSelection) return;
+    setAddingMember(true); setAddError("");
+    try {
+      const r = await fetch("/api/org/dashboard/cohorts/members", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cohortId, userId: addSelection }),
+      });
+      if (!r.ok) { setAddError((await r.json()).error ?? "Failed to add member"); return; }
+      setAddSelection("");
+      await loadMembers(cohortId);
+      void fetchCohorts();
+    } finally { setAddingMember(false); }
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -151,21 +181,46 @@ export default function TeamsPage() {
               </div>
 
               {expanded === c.id && (
-                <div className="border-t border-white/8 px-4 py-3">
+                <div className="border-t border-white/8 px-4 py-3 space-y-3">
                   {membersLoading ? (
                     <div className="h-10 animate-pulse rounded-xl bg-white/5" />
-                  ) : members.length === 0 ? (
-                    <p className="text-xs text-zinc-500 py-2">No members in this group yet. Add members from the Members tab.</p>
                   ) : (
-                    <div className="space-y-1.5">
-                      {members.map((m) => (
-                        <div key={m.userId} className="flex items-center justify-between rounded-xl bg-white/3 px-3 py-2">
-                          <span className="text-xs text-zinc-300 truncate">{m.email}</span>
-                          <button onClick={() => handleRemoveMember(c.id, m.userId)}
-                            className="ml-2 text-[11px] text-rose-400 hover:text-rose-300 transition shrink-0">Remove</button>
+                    <>
+                      {members.length === 0 ? (
+                        <p className="text-xs text-zinc-500">No members in this group yet — add one below.</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {members.map((m) => (
+                            <div key={m.userId} className="flex items-center justify-between rounded-xl bg-white/3 px-3 py-2">
+                              <span className="text-xs text-zinc-300 truncate">{m.email}</span>
+                              <button onClick={() => handleRemoveMember(c.id, m.userId)}
+                                className="ml-2 text-[11px] text-rose-400 hover:text-rose-300 transition shrink-0">Remove</button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      )}
+                      {(() => {
+                        const inCohort = new Set(members.map((m) => m.userId));
+                        const available = orgMembers.filter((m) => !inCohort.has(m.userId));
+                        if (available.length === 0) {
+                          return <p className="text-[11px] text-zinc-600">{orgMembersLoaded ? "All active org members are already in this group." : ""}</p>;
+                        }
+                        return (
+                          <div className="flex flex-wrap items-center gap-2 border-t border-white/8 pt-3">
+                            <select value={addSelection} onChange={(e) => setAddSelection(e.target.value)}
+                              className="min-w-[160px] flex-1 rounded-lg border border-white/10 bg-black/20 px-2 py-1.5 text-xs text-zinc-200 outline-none">
+                              <option value="">Add a member…</option>
+                              {available.map((m) => <option key={m.userId} value={m.userId}>{m.email}</option>)}
+                            </select>
+                            <button onClick={() => handleAddMember(c.id)} disabled={!addSelection || addingMember}
+                              className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-[11px] text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-40">
+                              {addingMember ? "…" : "+ Add"}
+                            </button>
+                          </div>
+                        );
+                      })()}
+                      {addError && <p className="text-[11px] text-rose-400">{addError}</p>}
+                    </>
                   )}
                 </div>
               )}

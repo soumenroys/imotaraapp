@@ -2,6 +2,16 @@
 // DELETE /api/admin/users/[userId]/ban   — unban a user
 // Body (POST): { reason: string }
 // Auth: admin or owner.
+//
+// user_bans is an audit table only (who banned whom, when, why) — it was
+// never actually checked anywhere else in the app (confirmed via a
+// repo-wide grep: this file was the only reference to it). Banning a user
+// via this route previously did nothing except set that row; the confirm
+// dialog's "They will lose access immediately" was false. Real enforcement
+// now comes from Supabase's own ban mechanism (auth.admin.updateUserById
+// ban_duration), the same one used for org-member suspension — blocks
+// sign-in and token refresh at the Auth layer itself, not something this
+// app has to separately remember to check.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
@@ -22,6 +32,13 @@ export async function POST(
 
   const supabase = getSupabaseAdmin();
 
+  // Real enforcement first — don't record an audit row claiming "banned" if
+  // the actual block failed to apply.
+  const { error: banError } = await supabase.auth.admin.updateUserById(userId, {
+    ban_duration: "876000h", // ~100 years — effectively indefinite, matches the org-member suspend convention
+  });
+  if (banError) return NextResponse.json({ ok: false, error: banError.message }, { status: 500 });
+
   const { error } = await supabase
     .from("user_bans")
     .upsert({
@@ -32,7 +49,9 @@ export async function POST(
       unbanned_at: null,
     }, { onConflict: "user_id" });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  // The real ban already succeeded — an audit-log write failure shouldn't
+  // report the whole action as failed, just get logged for follow-up.
+  if (error) console.error("[users/ban] user_bans audit write failed after real ban succeeded:", error.message);
 
   return NextResponse.json({ ok: true, message: "User banned" });
 }
@@ -47,13 +66,18 @@ export async function DELETE(
 
   const supabase = getSupabaseAdmin();
 
+  const { error: unbanError } = await supabase.auth.admin.updateUserById(userId, {
+    ban_duration: "none",
+  });
+  if (unbanError) return NextResponse.json({ ok: false, error: unbanError.message }, { status: 500 });
+
   const { error } = await supabase
     .from("user_bans")
     .update({ unbanned_at: new Date().toISOString() })
     .eq("user_id", userId)
     .is("unbanned_at", null);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) console.error("[users/ban] user_bans audit write failed after real unban succeeded:", error.message);
 
   return NextResponse.json({ ok: true, message: "User unbanned" });
 }

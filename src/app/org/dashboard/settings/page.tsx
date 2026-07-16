@@ -416,21 +416,11 @@ function SsoSection({ orgTier }: { orgTier: string }) {
 
 // ── Data Residency + LMS Embed ────────────────────────────────────────────────
 function EmbedSection({ orgTier }: { orgTier: string }) {
-  const [embedUrl, setEmbedUrl]   = useState("");
-  const [snippet, setSnippet]     = useState("");
-  const [domains, setDomains]     = useState("");
   const [residency, setResidency] = useState("");
   const [saving, setSaving]       = useState(false);
   const [msg, setMsg]             = useState("");
-  const [copied, setCopied]       = useState(false);
 
   useEffect(() => {
-    fetch("/api/org/dashboard/embed", { credentials: "same-origin" })
-      .then((r) => r.json()).then((j) => {
-        setEmbedUrl(j.embedUrl ?? "");
-        setSnippet(j.iframeSnippet ?? "");
-        setDomains((j.allowedDomains ?? []).join(", "));
-      }).catch(() => {});
     fetch("/api/org/dashboard/settings", { credentials: "same-origin" })
       .then((r) => r.json()).then((j) => {
         const s = j.org?.org_settings as Record<string,unknown> ?? {};
@@ -441,36 +431,23 @@ function EmbedSection({ orgTier }: { orgTier: string }) {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setMsg("");
     await fetch("/api/org/dashboard/embed", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ allowedDomains: domains.split(",").map((d) => d.trim()).filter(Boolean), dataResidency: residency || null }) });
+      body: JSON.stringify({ allowedDomains: [], dataResidency: residency || null }) });
     setSaving(false); setMsg("Saved ✓");
-  }
-
-  function handleCopy() {
-    navigator.clipboard.writeText(snippet).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {});
   }
 
   const inputCls = "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50";
   return (
     <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-5">
-      {/* LMS Embed */}
-      <div className="space-y-3">
-        <p className="text-sm font-medium text-zinc-300">LMS / iframe Embed</p>
-        <p className="text-xs text-zinc-500">Embed the Imotara companion in Moodle, Canvas, or any LMS that supports iframes. Add your LMS domain to the allowlist below.</p>
-        {embedUrl && (
-          <div className="rounded-xl border border-white/8 bg-black/20 p-3">
-            <p className="text-[10px] text-zinc-500 mb-1">Embed snippet</p>
-            <code className="block text-[11px] text-zinc-300 font-mono break-all leading-relaxed">{snippet}</code>
-            <button onClick={handleCopy} className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 transition">{copied ? "✓ Copied!" : "Copy snippet"}</button>
-          </div>
-        )}
+      {/* LMS Embed — not yet built, see roadmap */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-zinc-300">LMS / iframe Embed</p>
+          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">Coming soon</span>
+        </div>
+        <p className="text-xs text-zinc-500">Embedding Imotara in Moodle, Canvas, or your LMS via iframe is on our roadmap but not yet available. Contact info@imotara.com if this is a priority for your rollout.</p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-3">
-        <label>
-          <span className="block text-xs text-zinc-400 mb-1">Allowed domains (comma-separated)</span>
-          <input value={domains} onChange={(e) => setDomains(e.target.value)} placeholder="moodle.yourschool.edu, canvas.yourorg.com" className={inputCls} />
-        </label>
-
         {/* Data Residency */}
         <div className="border-t border-white/8 pt-3">
           <p className="text-sm font-medium text-zinc-300 mb-1">Data Residency</p>
@@ -524,8 +501,11 @@ function ReferralSection() {
 
   return (
     <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
-      <p className="text-sm font-medium text-zinc-300">Referral Codes (Revenue Sharing)</p>
-      <p className="text-xs text-zinc-500">Distribute referral codes to your beneficiaries. When someone upgrades to a paid plan using your code, Imotara shares 10% of first-year revenue with your organisation.</p>
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-medium text-zinc-300">Referral Codes (Revenue Sharing)</p>
+        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">Commission tracking coming soon</span>
+      </div>
+      <p className="text-xs text-zinc-500">Reserve a referral code now for your beneficiaries. Automatic commission tracking (10% of first-year revenue when someone upgrades using your code) is on our roadmap and not yet active — usage/earnings below won't accrue until it ships.</p>
       <form onSubmit={handleGenerate} className="flex gap-2">
         <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Code label (optional)" className="flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50" />
         <button type="submit" disabled={saving} className="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50">{saving ? "…" : "Generate"}</button>

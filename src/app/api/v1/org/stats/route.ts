@@ -11,7 +11,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 export async function GET(req: NextRequest) {
   const ctx = await verifyApiKey(req);
   if (!ctx) return NextResponse.json({ error: "invalid or missing API key" }, { status: 401 });
-  if (!checkApiKeyRateLimit(ctx)) {
+  if (!(await checkApiKeyRateLimit(ctx))) {
     return NextResponse.json({ error: "rate limit exceeded" }, { status: 429 });
   }
   if (!ctx.scopes.includes("read:stats")) {

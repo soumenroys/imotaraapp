@@ -48,10 +48,17 @@ export async function verifyApiKey(req: NextRequest): Promise<ApiKeyContext | nu
 // Per-key rate limit, enforced against the org_api_keys.rate_limit column
 // (requests per minute). Was fetched into ApiKeyContext but never checked —
 // every Enterprise key had unlimited throughput regardless of its configured cap.
+//
+// In-memory Map kept as a cheap first-line, same-instance check (and as the
+// fail-open fallback if the DB-backed check below errors, e.g. the
+// api_key_rate_limit.sql migration hasn't been run in this environment yet —
+// see that file). The real cross-instance precision comes from
+// check_api_key_rate_limit(), a row-locked Postgres function, since Vercel's
+// multi-instance serverless meant this Map alone gave an effective limit of
+// rate_limit × (warm instance count), not a precise global cap.
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
-/** Returns true if the request is within ctx.rateLimit (requests/minute), false if it should be rejected with 429. */
-export function checkApiKeyRateLimit(ctx: ApiKeyContext): boolean {
+function checkInMemoryRateLimit(ctx: ApiKeyContext): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(ctx.keyId);
   if (!entry || now > entry.resetAt) {
@@ -61,6 +68,24 @@ export function checkApiKeyRateLimit(ctx: ApiKeyContext): boolean {
   if (entry.count >= ctx.rateLimit) return false;
   entry.count++;
   return true;
+}
+
+/** Returns true if the request is within ctx.rateLimit (requests/minute), false if it should be rejected with 429. */
+export async function checkApiKeyRateLimit(ctx: ApiKeyContext): Promise<boolean> {
+  if (!checkInMemoryRateLimit(ctx)) return false;
+
+  try {
+    const { data, error } = await getSupabaseAdmin().rpc("check_api_key_rate_limit", {
+      p_key_id: ctx.keyId,
+      p_limit:  ctx.rateLimit,
+    });
+    if (error) throw error;
+    return data === true;
+  } catch {
+    // Fail open — e.g. the migration hasn't been run yet in this environment.
+    // The in-memory check above still applies, so this isn't unlimited.
+    return true;
+  }
 }
 
 /** Generate a new API key. Returns { key, prefix, hash }. key is shown once. */

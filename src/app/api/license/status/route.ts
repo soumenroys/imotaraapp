@@ -66,7 +66,7 @@ export async function GET(req: Request) {
         let effectiveStatus: string = "valid";
         let effectiveExpiry: string | null = null;
         let effectiveTokens: number = 0;
-        let orgContext: { orgId: string; orgName: string; orgRole: string } | null = null;
+        let orgContext: { orgId: string; orgName: string; orgRole: string; billingType: string | null } | null = null;
 
         if (tierResult.ok) {
             const t = tierResult.data;
@@ -78,7 +78,7 @@ export async function GET(req: Request) {
             effectiveTokens = t.tokenBalance;
 
             if (t.orgId) {
-                orgContext = { orgId: t.orgId, orgName: t.orgName ?? "", orgRole: t.orgRole ?? "member" };
+                orgContext = { orgId: t.orgId, orgName: t.orgName ?? "", orgRole: t.orgRole ?? "member", billingType: t.orgBillingType ?? null };
             }
         }
 

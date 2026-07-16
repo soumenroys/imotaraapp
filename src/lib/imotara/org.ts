@@ -17,6 +17,7 @@ export interface ResolvedUserTier {
   orgId:          string | null;
   orgName:        string | null;
   orgRole:        OrgRole | null;
+  orgBillingType: OrgBillingType | null;
   expiresAt:      string | null;
   tokenBalance:   number;
   status:         string;
@@ -76,6 +77,7 @@ export async function resolveUserTier(userId: string): Promise<OrgResult<Resolve
           orgId:         null,
           orgName:       null,
           orgRole:       null,
+          orgBillingType: null,
           expiresAt:     null,
           tokenBalance:  0,
           status:        "valid",
@@ -84,6 +86,16 @@ export async function resolveUserTier(userId: string): Promise<OrgResult<Resolve
     }
 
     const row = data[0];
+
+    // resolve_user_tier() doesn't return billing_type — fetch it separately
+    // rather than modifying the RPC (avoids a manual SQL migration for what's
+    // otherwise a read-only display field). Only runs when the user has an org.
+    let orgBillingType: OrgBillingType | null = null;
+    if (row.org_id) {
+      const { data: orgRow } = await admin.from("organizations").select("billing_type").eq("id", row.org_id).single();
+      orgBillingType = (orgRow?.billing_type as OrgBillingType | undefined) ?? null;
+    }
+
     return {
       ok: true,
       data: {
@@ -92,6 +104,7 @@ export async function resolveUserTier(userId: string): Promise<OrgResult<Resolve
         orgId:         row.org_id   ?? null,
         orgName:       row.org_name ?? null,
         orgRole:       row.org_role ?? null,
+        orgBillingType,
         expiresAt:     row.expires_at ?? null,
         tokenBalance:  row.token_balance ?? 0,
         status:        row.status ?? "valid",

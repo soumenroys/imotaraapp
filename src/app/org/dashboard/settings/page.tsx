@@ -311,11 +311,15 @@ export default function SettingsPage() {
         <CertificateSection orgName={org.name} orgTier={org.tier} seatsUsed={org.seats_used} />
       )}
 
-      {/* Impact PDF report — EDU/NGO */}
+      {/* Impact report — EDU/NGO */}
       {org && ["ngo","edu"].includes(org.billing_type) && (
         <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-3">
-          <p className="text-sm font-medium text-zinc-300">📄 Impact Report (Grant-ready PDF)</p>
-          <p className="text-xs text-zinc-500">Download an aggregate, anonymised impact report for grant applications, CSR reporting, or donor updates.</p>
+          <p className="text-sm font-medium text-zinc-300">📄 Impact Report</p>
+          <p className="text-xs text-zinc-500">
+            An aggregate, anonymised impact report for grant applications, CSR reporting, or donor updates.
+            Opens as a printable page — use your browser&apos;s Print → Save as PDF if you need a PDF file.
+            A dedicated PDF export is on our roadmap.
+          </p>
           <div className="flex flex-wrap gap-2">
             {[3,6,12].map((m) => (
               <a key={m} href={`/api/org/certificate/impact-report?months=${m}`} target="_blank" rel="noopener noreferrer"
@@ -332,9 +336,9 @@ export default function SettingsPage() {
         <VerificationSection />
       )}
 
-      {/* EDU: domain auto-join + academic year */}
-      {org && org.billing_type === "edu" && (
-        <DomainVerifySection orgSlug={org.slug} />
+      {/* Domain auto-join (NGO + EDU) + academic year (EDU only) */}
+      {org && ["ngo","edu"].includes(org.billing_type) && (
+        <DomainVerifySection orgSlug={org.slug} billingType={org.billing_type} />
       )}
 
       {/* Contract/SLA storage — EDU + Enterprise */}
@@ -640,7 +644,8 @@ function VerificationSection() {
 }
 
 // ── EDU Domain Verification + Academic Calendar ───────────────────────────────
-function DomainVerifySection({ orgSlug }: { orgSlug: string }) {
+function DomainVerifySection({ orgSlug, billingType }: { orgSlug: string; billingType: string }) {
+  const isEdu = billingType === "edu";
   const [domains, setDomains]       = useState<string[]>([]);
   const [autoJoin, setAutoJoin]     = useState(false);
   const [newDomain, setNewDomain]   = useState("");
@@ -670,7 +675,13 @@ function DomainVerifySection({ orgSlug }: { orgSlug: string }) {
     await fetch("/api/org/dashboard/domain-verify", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ allowedDomains: domains, autoJoinEnabled: autoJoin, academicYearStart: yearStart, academicYearEnd: yearEnd }),
+      body: JSON.stringify({
+        allowedDomains: domains,
+        autoJoinEnabled: autoJoin,
+        // Academic year is an EDU-only concept — don't write meaningless
+        // default values into an NGO's org_settings.
+        ...(isEdu ? { academicYearStart: yearStart, academicYearEnd: yearEnd } : {}),
+      }),
     });
     setSaving(false); setMsg("Saved ✓");
   }
@@ -679,13 +690,17 @@ function DomainVerifySection({ orgSlug }: { orgSlug: string }) {
 
   return (
     <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
-      <p className="text-sm font-medium text-zinc-300">EDU Domain Settings + Academic Calendar</p>
-      <p className="text-xs text-zinc-500">Configure allowed email domains for student auto-join, and set your academic year billing cycle.</p>
+      <p className="text-sm font-medium text-zinc-300">{isEdu ? "EDU Domain Settings + Academic Calendar" : "Domain Auto-Join"}</p>
+      <p className="text-xs text-zinc-500">
+        {isEdu
+          ? "Configure allowed email domains for student auto-join, and set your academic year billing cycle."
+          : "Configure allowed email domains so staff or beneficiaries with a matching email can join automatically, without an individual invite."}
+      </p>
       <form onSubmit={handleSave} className="space-y-4">
         <div>
           <label className="block text-xs text-zinc-400 mb-1">Allowed email domains (for auto-join)</label>
           <div className="flex gap-2 mb-2">
-            <input value={newDomain} onChange={(e) => setNewDomain(e.target.value)} placeholder="university.edu"
+            <input value={newDomain} onChange={(e) => setNewDomain(e.target.value)} placeholder={isEdu ? "university.edu" : "yourngo.org"}
               className={`${inputCls} flex-1`} />
             <button type="button" onClick={() => { if (newDomain.trim()) { setDomains((p) => [...p, newDomain.trim().toLowerCase()]); setNewDomain(""); } }}
               className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-300">+ Add</button>
@@ -710,17 +725,21 @@ function DomainVerifySection({ orgSlug }: { orgSlug: string }) {
             <button type="button" onClick={handleCopyLink} className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 transition">{copied ? "✓ Copied!" : "Copy link"}</button>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">Academic year start (MM-DD)</label>
-            <input value={yearStart} onChange={(e) => setYearStart(e.target.value)} placeholder="08-01" className={`${inputCls} w-full`} />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">Academic year end (MM-DD)</label>
-            <input value={yearEnd} onChange={(e) => setYearEnd(e.target.value)} placeholder="07-31" className={`${inputCls} w-full`} />
-          </div>
-        </div>
-        <p className="text-[11px] text-zinc-600">Academic year dates are used for renewal reminders and billing cycle reference.</p>
+        {isEdu && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Academic year start (MM-DD)</label>
+                <input value={yearStart} onChange={(e) => setYearStart(e.target.value)} placeholder="08-01" className={`${inputCls} w-full`} />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Academic year end (MM-DD)</label>
+                <input value={yearEnd} onChange={(e) => setYearEnd(e.target.value)} placeholder="07-31" className={`${inputCls} w-full`} />
+              </div>
+            </div>
+            <p className="text-[11px] text-zinc-600">Academic year dates are used for renewal reminders and billing cycle reference.</p>
+          </>
+        )}
         {msg && <p className="text-xs text-emerald-400">{msg}</p>}
         <button type="submit" disabled={saving} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
           {saving ? "Saving…" : "Save domain settings"}

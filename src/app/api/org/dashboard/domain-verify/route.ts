@@ -1,6 +1,6 @@
 // src/app/api/org/dashboard/domain-verify/route.ts
 // GET  — get configured email domains (org-admin only)
-// POST — set allowed email domains for auto-join (EDU: students auto-approved by domain)
+// POST — set allowed email domains for auto-join (NGO/EDU: staff/students auto-approved by domain)
 //
 // The actual public-facing "does this email qualify" + join flow lives in
 // /api/org/join-by-domain — a durable, repeatable link org admins share

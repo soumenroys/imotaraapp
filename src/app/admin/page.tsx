@@ -562,6 +562,12 @@ function UserLicenseRow({
   const [banReason, setBanReason]   = useState("");
   const [banLoading, setBanLoading] = useState(false);
 
+  // Account recovery — see recovery-link route for the full design rationale.
+  const [recoveryLink, setRecoveryLink]       = useState<string | null>(null);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [recoveryErr, setRecoveryErr]         = useState("");
+  const [recoveryCopied, setRecoveryCopied]   = useState(false);
+
   // Collapsible sub-sections
   const [showPayments, setShowPayments] = useState(false);
   const [showHistory,  setShowHistory]  = useState(false);
@@ -650,6 +656,29 @@ function UserLicenseRow({
       else setSavedMsg(`Error: ${d.error ?? "unknown"}`);
     } catch { setSavedMsg("Network error"); }
     finally { setBanLoading(false); setTimeout(() => setSavedMsg(""), 3000); }
+  }
+
+  async function generateRecoveryLink() {
+    if (!confirm(`Generate a sign-in link for ${user.email}?\n\nOnly do this once you're satisfied this request is genuinely from the account owner — this link signs in as them directly.`)) return;
+    setRecoveryLoading(true); setRecoveryErr(""); setRecoveryLink(null);
+    try {
+      const res = await fetch(`/api/admin/users/${user.user_id}/recovery-link`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const d = await res.json();
+      if (d.ok) setRecoveryLink(d.actionLink);
+      else setRecoveryErr(d.error ?? "Failed to generate link");
+    } catch { setRecoveryErr("Network error"); }
+    finally { setRecoveryLoading(false); }
+  }
+
+  function copyRecoveryLink() {
+    if (!recoveryLink) return;
+    navigator.clipboard.writeText(recoveryLink).then(() => {
+      setRecoveryCopied(true);
+      setTimeout(() => setRecoveryCopied(false), 2000);
+    }).catch(() => {});
   }
 
   function addTokenDelta() {
@@ -965,6 +994,33 @@ function UserLicenseRow({
                 >{banLoading ? "…" : "⛔ Ban user"}</button>
               </div>
             )}
+          </div>
+
+          {/* ── Account recovery ── */}
+          <div className="border-t border-white/8 pt-4">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-amber-500/70">Account Recovery</p>
+            <p className="mb-2 text-[10px] text-zinc-600">
+              For when someone has permanently lost access to the Google/Apple account their sign-in is tied to (there is no separate Imotara password to reset).
+              Generates a one-time sign-in link — nothing is sent automatically. Verify the request is genuinely from {user.email} before delivering it.
+            </p>
+            {recoveryLink ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                  <code className="flex-1 truncate text-[10px] text-zinc-300">{recoveryLink}</code>
+                  <button onClick={copyRecoveryLink} className="shrink-0 text-[10px] text-indigo-400 hover:text-indigo-300 transition">
+                    {recoveryCopied ? "✓ Copied" : "Copy"}
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-600">Expires in ~1 hour. Deliver manually — do not paste into any automated email/message tool.</p>
+              </div>
+            ) : (
+              <button
+                onClick={generateRecoveryLink}
+                disabled={recoveryLoading}
+                className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-300 transition hover:bg-amber-500/20 disabled:opacity-40"
+              >{recoveryLoading ? "…" : "Generate sign-in link"}</button>
+            )}
+            {recoveryErr && <p className="mt-1.5 text-[10px] text-rose-400">{recoveryErr}</p>}
           </div>
 
         </div>

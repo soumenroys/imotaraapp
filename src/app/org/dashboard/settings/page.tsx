@@ -25,11 +25,17 @@ function ReadOnlyField({ label, value, note }: { label: string; value: string; n
 
 export default function SettingsPage() {
   const [org, setOrg]         = useState<OrgSettings | null>(null);
+  const [myRole, setMyRole]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
   const [name, setName]       = useState("");
   const [msg, setMsg]         = useState("");
   const [error, setError]     = useState("");
+
+  // Delete-org state — owner only, see the Danger zone section.
+  const [confirmName, setConfirmName] = useState("");
+  const [deleting, setDeleting]       = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   // API Keys state
   const [apiKeys, setApiKeys]       = useState<{id:string;name:string;key_prefix:string;scopes:string[];last_used_at:string|null;created_at:string}[]>([]);
@@ -72,7 +78,7 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch("/api/org/dashboard/settings", { credentials: "same-origin" })
       .then((r) => r.json())
-      .then((j) => { setOrg(j.org); setName(j.org?.name ?? ""); })
+      .then((j) => { setOrg(j.org); setName(j.org?.name ?? ""); setMyRole(j.role ?? null); })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
     void loadBranding();
@@ -135,6 +141,21 @@ export default function SettingsPage() {
       setOrg((prev) => prev ? { ...prev, name: j.org.name } : prev);
       setMsg("Saved ✓");
     } finally { setSaving(false); }
+  }
+
+  async function handleDeleteOrg() {
+    if (!org) return;
+    setDeleting(true); setDeleteError("");
+    try {
+      const r = await fetch("/api/org/dashboard/settings", {
+        method: "DELETE", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmName }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setDeleteError(j.error ?? "Failed to delete organisation."); return; }
+      window.location.href = "/";
+    } finally { setDeleting(false); }
   }
 
   if (loading) return <div className="h-40 animate-pulse rounded-2xl bg-white/5" />;
@@ -349,11 +370,31 @@ export default function SettingsPage() {
       {/* Danger zone */}
       <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 px-5 py-5">
         <p className="text-sm font-semibold text-rose-300">Danger zone</p>
-        <p className="mt-1 text-xs text-zinc-500">To delete this organisation and remove all members, contact us directly.</p>
-        <a href="mailto:info@imotara.com?subject=Delete org request"
-          className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-medium text-rose-400 transition hover:bg-rose-500/20">
-          Request deletion →
-        </a>
+        {myRole === "owner" ? (
+          <div className="mt-2 space-y-2">
+            <p className="text-xs text-zinc-500">
+              Permanently delete <strong className="text-zinc-300">{org?.name}</strong> — removes every member&apos;s access, API keys, license pools, and audit history. This cannot be undone. Only the owner can do this; Imotara support cannot do it on your behalf.
+            </p>
+            <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)}
+              placeholder={`Type "${org?.name ?? ""}" to confirm`}
+              className="w-full rounded-xl border border-rose-500/20 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-rose-500/50" />
+            {deleteError && <p className="text-xs text-rose-400">{deleteError}</p>}
+            <button
+              onClick={() => { if (confirm(`Permanently delete "${org?.name}"? This cannot be undone.`)) void handleDeleteOrg(); }}
+              disabled={deleting || confirmName !== org?.name}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/15 px-4 py-2 text-xs font-medium text-rose-300 transition hover:bg-rose-500/25 disabled:opacity-40">
+              {deleting ? "Deleting…" : "Permanently delete organisation"}
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="mt-1 text-xs text-zinc-500">Only the organisation owner can delete it. Ask your owner, or contact us if you need help.</p>
+            <a href="mailto:info@imotara.com?subject=Delete org request"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-medium text-rose-400 transition hover:bg-rose-500/20">
+              Contact support →
+            </a>
+          </>
+        )}
       </div>
     </div>
   );

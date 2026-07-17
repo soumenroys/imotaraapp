@@ -5042,8 +5042,23 @@ async function autoSpeakText(text: string): Promise<void> {
     } catch { utt.rate = 0.95; utt.pitch = 1.0; }
     const voice = pickVoice(synth, bcp47, gender);
     if (voice) utt.voice = voice;
+    const stopKeepAlive = keepSpeechSynthesisAlive(synth);
+    utt.onend   = stopKeepAlive;
+    utt.onerror = stopKeepAlive;
     synth.speak(utt);
   }
+}
+
+// Chrome/Safari can silently pause/stop a long SpeechSynthesisUtterance
+// partway through (a well-documented browser bug, roughly 15s+) unless the
+// engine is periodically nudged awake. Only engages when this fallback path
+// is actually used (Azure TTS unavailable) — starts a resume() ping loop and
+// returns a function to stop it once the utterance ends/errors/is cancelled.
+function keepSpeechSynthesisAlive(synth: SpeechSynthesis): () => void {
+  const interval = setInterval(() => {
+    if (synth.speaking) synth.resume();
+  }, 10_000);
+  return () => clearInterval(interval);
 }
 
 function stripMarkdown(text: string): string {
@@ -5223,8 +5238,9 @@ function Bubble({
 
   // ── TTS ───────────────────────────────────────────────────────────
   const [speaking, setSpeaking] = useState(false);
-  const ttsAudioRef  = useRef<HTMLAudioElement | null>(null);
-  const ttsAbortRef  = useRef<AbortController | null>(null);
+  const ttsAudioRef      = useRef<HTMLAudioElement | null>(null);
+  const ttsAbortRef      = useRef<AbortController | null>(null);
+  const ttsKeepAliveRef  = useRef<(() => void) | null>(null);
 
   async function doSpeak() {
     const bcp47  = resolveTTSLang(content);
@@ -5280,8 +5296,10 @@ function Bubble({
       const voice = pickVoice(synth, bcp47, gender);
       if (voice) utt.voice = voice;
       setSpeaking(true);
-      utt.onend  = () => setSpeaking(false);
-      utt.onerror = () => setSpeaking(false);
+      ttsKeepAliveRef.current = keepSpeechSynthesisAlive(synth);
+      const stopFallback = () => { ttsKeepAliveRef.current?.(); ttsKeepAliveRef.current = null; setSpeaking(false); };
+      utt.onend   = stopFallback;
+      utt.onerror = stopFallback;
       synth.speak(utt);
     }
   }
@@ -5293,6 +5311,8 @@ function Bubble({
       ttsAbortRef.current = null;
       ttsAudioRef.current?.pause();
       ttsAudioRef.current = null;
+      ttsKeepAliveRef.current?.();
+      ttsKeepAliveRef.current = null;
       window.speechSynthesis?.cancel();
       setSpeaking(false);
       return;

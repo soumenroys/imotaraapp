@@ -67,20 +67,28 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Payout already completed" }, { status: 409 });
   }
 
-  // Atomically decrement pending_payout on both completed AND failed transitions.
-  // Without decrementing on "failed", the consultant's pending_payout remains inflated
-  // permanently, making available = earned - pending_payout = 0 for future requests.
+  // Wallet accounting on terminal transitions (connect_v38):
+  // - completed → finalize_completed_payout: debits BOTH earned_amount and
+  //   pending_payout atomically. Debiting earned_amount is essential — the
+  //   available balance is (earned - pending), so releasing only the hold
+  //   would make the same lifetime earnings withdrawable again after every
+  //   completed payout (the v38 accounting-hole fix).
+  // - failed → decrement_pending_payout: the money was never sent, so only
+  //   the hold is released and earnings are preserved. Without this, the
+  //   consultant's pending_payout stays inflated permanently, making
+  //   available = earned - pending_payout = 0 for future requests.
   if (status === "completed" || status === "failed") {
+    const rpcName = status === "completed" ? "finalize_completed_payout" : "decrement_pending_payout";
     const { error: decrementErr } = await supabase
-      .rpc("decrement_pending_payout", {
+      .rpc(rpcName, {
         p_user_id: payout.consultant_user_id,
         p_amount:  Number(payout.amount),
       });
     if (decrementErr) {
       const errorContext = status === "completed"
-        ? "Payout marked complete but wallet decrement failed — contact engineering before retrying"
+        ? "Payout marked complete but wallet finalization failed — contact engineering before retrying"
         : "Payout marked failed but pending_payout decrement failed — consultant may be permanently unable to request payout";
-      console.error("[admin/connect/payouts PATCH] CRITICAL: decrement_pending_payout failed:", decrementErr.message, "payout:", id);
+      console.error(`[admin/connect/payouts PATCH] CRITICAL: ${rpcName} failed:`, decrementErr.message, "payout:", id);
       return NextResponse.json({ ok: false, error: errorContext }, { status: 500 });
     }
   }

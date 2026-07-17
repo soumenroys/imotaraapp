@@ -25,10 +25,6 @@
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/wallet-forfeit",
-      "schedule": "0 4 * * *"
-    },
-    {
       "path": "/api/cron/connect-scheduled",
       "schedule": "0 * * * *"
     },

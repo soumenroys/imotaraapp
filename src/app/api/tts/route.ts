@@ -88,9 +88,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "text is required" }, { status: 400 });
     }
 
-    // Hard cap — prevent abuse
-    if (text.length > 3000) {
-        return NextResponse.json({ error: "text too long (max 3000 chars)" }, { status: 400 });
+    // Hard cap — prevent abuse. Actual replies are capped server-side at
+    // roughly 1200-2500 chars (see chat-reply's maxTokens), so 8000 leaves
+    // generous headroom for legitimate long-form replies without ever being
+    // the reason a real reply gets rejected outright and dropped to the
+    // native-voice fallback.
+    if (text.length > 8000) {
+        return NextResponse.json({ error: "text too long (max 8000 chars)" }, { status: 400 });
     }
 
     let azureConfig;

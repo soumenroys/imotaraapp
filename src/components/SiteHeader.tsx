@@ -30,6 +30,7 @@ const MORE_LINKS: MoreItem[] = [
   },
   { href: "/settings",  label: "Settings"  },
   { href: "/tutorial",  label: "Tutorial"  },
+  { href: "/help",      label: "Help"      },
   { href: "/blog",      label: "Blog"      },
   { href: "/about",     label: "About"     },
   { href: "/careers",   label: "Careers"   },

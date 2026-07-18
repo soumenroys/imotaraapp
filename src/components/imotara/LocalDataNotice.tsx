@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const STORAGE_KEY = "imotara.localNotice.v1";
-const SUPPRESS_PATHS = ["/admin"];
+const SUPPRESS_PATHS = ["/admin", "/help"];
 
 export default function LocalDataNotice() {
     const [visible, setVisible] = useState(false);

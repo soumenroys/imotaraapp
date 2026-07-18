@@ -99,6 +99,18 @@ export async function GET(
 
   const supabase = getSupabaseAdmin();
 
+  // Authoritative: Supabase's own banned_until, not the user_bans audit
+  // table — a ban applied any way other than this route's POST (direct in
+  // Supabase, a future admin tool) would leave no audit row, and the audit
+  // table alone could drift from what's actually enforced at the Auth layer.
+  const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+  if (userError) return NextResponse.json({ ok: false, error: userError.message }, { status: 500 });
+
+  const bannedUntil = userData.user?.banned_until;
+  const banned = !!bannedUntil && new Date(bannedUntil) > new Date();
+
+  // Audit metadata (who/why/when) is still useful context when available,
+  // but no longer what decides the banned boolean itself.
   const { data } = await supabase
     .from("user_bans")
     .select("user_id, banned_by, reason, banned_at, unbanned_at")
@@ -106,5 +118,5 @@ export async function GET(
     .is("unbanned_at", null)
     .maybeSingle();
 
-  return NextResponse.json({ ok: true, banned: !!data, ban: data ?? null });
+  return NextResponse.json({ ok: true, banned, bannedUntil: bannedUntil ?? null, ban: data ?? null });
 }

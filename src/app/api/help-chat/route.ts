@@ -9,11 +9,32 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { retrieveHelpContext } from "@/lib/help/helpSearch";
 import { checkIpRateLimit, getClientIp } from "@/lib/imotara/ipRateLimit";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 const MAX_QUESTION_CHARS = 600;
 const MAX_HISTORY_TURNS = 6;
 const RATE_LIMIT = 10; // requests
 const RATE_WINDOW_MS = 60_000; // per minute per IP
+const RATE_WINDOW_SECONDS = RATE_WINDOW_MS / 1000;
+
+// This endpoint spends real OpenAI tokens per request, so the in-memory
+// check alone (per-serverless-instance, see ipRateLimit.ts) isn't a precise
+// cap under multi-instance traffic. Layer a DB-backed global check on top —
+// same pattern as check_api_key_rate_limit(). Fails open if the migration
+// hasn't been run yet in this environment; the in-memory check still applies.
+async function checkGlobalRateLimit(ip: string): Promise<boolean> {
+  try {
+    const { data, error } = await getSupabaseAdmin().rpc("check_help_chat_rate_limit", {
+      p_ip_key: ip,
+      p_limit: RATE_LIMIT,
+      p_window_seconds: RATE_WINDOW_SECONDS,
+    });
+    if (error) throw error;
+    return data === true;
+  } catch {
+    return true;
+  }
+}
 
 const SYSTEM_PROMPT = `You are the Imotara Help Assistant on www.imotara.com.
 Imotara is a privacy-first, emotion-aware AI companion for mental wellbeing. You answer questions from users, organization admins, and Imotara Connect consultants about how to use Imotara.
@@ -50,6 +71,12 @@ function sanitizeHistory(raw: unknown): HistoryTurn[] {
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   if (!checkIpRateLimit(`help-chat:${ip}`, RATE_LIMIT, RATE_WINDOW_MS)) {
+    return NextResponse.json(
+      { ok: false, error: "Too many questions — please wait a minute and try again." },
+      { status: 429 }
+    );
+  }
+  if (!(await checkGlobalRateLimit(ip))) {
     return NextResponse.json(
       { ok: false, error: "Too many questions — please wait a minute and try again." },
       { status: 429 }

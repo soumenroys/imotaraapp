@@ -9,7 +9,7 @@ const CONSENT_KEY = "imotara.analysisConsent.v1";
 const ONBOARDED_KEY = "imotara.onboarded.v1";
 
 // Paths where user-onboarding banners should never appear
-const SUPPRESS_PATHS = ["/admin"];
+const SUPPRESS_PATHS = ["/admin", "/help"];
 
 export default function FirstVisitBanner() {
   const [show, setShow] = useState(false);

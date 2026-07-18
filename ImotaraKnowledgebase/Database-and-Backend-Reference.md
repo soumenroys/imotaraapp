@@ -22,7 +22,7 @@ There is no migration runner. Ordering is **by naming convention and documented 
 3. Run in the Supabase SQL Editor as service-role. Later `connect_vNN` files frequently **`CREATE OR REPLACE`** an earlier function (e.g. `resolve_user_tier`, `increment_pending_payout`, `revoke_org_license`, `update_consultant_rating` all have multiple definitions across files) — **the highest-numbered / latest-applied definition is authoritative.** When reconstructing the schema, apply in order and let later files win.
 4. `docs/CHANGELOG_v1.2.7.md` records exactly which SQL files were run for a given release (e.g. that release ran `api_key_rate_limit.sql`, `fix_pool_release_on_member_removal.sql`, `org_owner_race_lockdown.sql`). Use the changelog as the deployment record.
 
-> **Caveat — wallet forfeiture inconsistency.** `imotara_wallet_v2_expiry.sql` introduced a `forfeited` status and a forfeit path; `imotara_wallet_v3_ultra_safe.sql` then **removed** `forfeited` from the status CHECK (allowing only `active | dormant | refund_requested | refunded`) and states balances are *never* zeroed. Yet the `wallet-forfeit` cron still tries to set `status='forfeited'` and `balance=0`. Against a v3 schema that write violates the CHECK constraint. In practice the **dormant** policy (v3) is the live one; the forfeit cron is effectively de-scoped/superseded. Flag before relying on it.
+> **✅ RESOLVED 2026-07-18 — wallet forfeiture inconsistency.** `imotara_wallet_v2_expiry.sql` introduced a `forfeited` status and a forfeit path; `imotara_wallet_v3_ultra_safe.sql` then **removed** `forfeited` from the status CHECK (allowing only `active | dormant | refund_requested | refunded`) and states balances are *never* zeroed. The `wallet-forfeit` cron still tried to set `status='forfeited'` and `balance=0`, which would have violated the v3 CHECK constraint — it was never actually reachable in practice (`wallet-dormant` runs 30 minutes earlier and already converts the same wallets). **The cron entry was removed from `vercel.json` entirely** — the **dormant** policy (v3) is now the only path, with nothing superseded left sitting in the codebase.
 
 ---
 
@@ -187,7 +187,7 @@ Grouped by area; one line each.
 
 ---
 
-## 6. Cron jobs (all 9 from `vercel.json`)
+## 6. Cron jobs (8 from `vercel.json` — was 9 before `wallet-forfeit` was removed 2026-07-18)
 
 Every cron route is gated by **`CRON_SECRET`**. Most check `Authorization: Bearer <CRON_SECRET>` (Vercel Cron sends this); `exchange-rates` reads `x-cron-secret` header or `?secret=`. If `CRON_SECRET` is unset or mismatched → 401.
 
@@ -199,7 +199,7 @@ Every cron route is gated by **`CRON_SECRET`**. Most check `Authorization: Beare
 | `/api/cron/wallet-reminders` | `30 2 * * *` (daily) | Sends 6 milestone expiry reminders (180/90/30/14/7/1 days) + annual balance statements; each milestone tracked in a `notified_*_at` column to prevent duplicates. |
 | `/api/cron/wallet-dormant` | `30 3 * * *` (daily) | Marks wallets inactive ≥2 years as `dormant` (balance **preserved**, refundable 1 year), logs an event, notifies the user. |
 | `/api/cron/wallet-expiry-notice` | `0 3 * * *` (daily) | Sends a 30-day advance expiry warning to active wallets, sets `expiry_notified_at`. |
-| `/api/cron/wallet-forfeit` | `0 4 * * *` (daily) | *(Legacy/superseded)* Attempts to zero expired balances to `status='forfeited'`. Conflicts with the v3 "never zero / dormant" policy — see the migration caveat in §1. |
+| ~~`/api/cron/wallet-forfeit`~~ | — | **Removed 2026-07-18** (was `0 4 * * *`). Used to attempt zeroing expired balances to `status='forfeited'`, conflicting with the v3 "never zero / dormant" policy — see §1. No longer in `vercel.json`; the cron table now has 8 entries, not 9. |
 | `/api/cron/connect-scheduled` | `0 * * * *` (hourly) | Auto-cancels pending scheduled sessions whose `scheduled_at` passed >2h ago; notifies the user via push. |
 | `/api/cron/connect-recharge-expiry` | `*/30 * * * *` (every 30 min) | Marks abandoned `connect_recharges` (`pending` >30 min) as `failed`, clearing the partial-unique-index that would otherwise block new recharges for that user+consultant pair. |
 
@@ -208,6 +208,8 @@ Every cron route is gated by **`CRON_SECRET`**. Most check `Authorization: Beare
 ## 7. Environment variable reference
 
 From `.env.example` plus vars discovered in code that are **not** in the example (marked ⚠ gap).
+
+> **✅ RESOLVED 2026-07-18**: all ⚠-marked gaps below (Azure TTS, Stripe, Apple IAP, Google Play, donations) were added to `.env.example` in the KB-audit fix pass. The ⚠ markers are kept here as a historical record of what used to be missing, not a current gap.
 
 ### Supabase
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.

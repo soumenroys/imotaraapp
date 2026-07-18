@@ -175,7 +175,7 @@
 ### CJ7. Payout processing (admin side)
 1. **`PATCH /api/admin/connect/payouts/[id]`** `{ status: "processing" | "completed" | "failed", admin_note? }`. `connect_reviewer` is **blocked** (403). Optimistic lock `.neq('status','completed')`.
 2. On **completed** (sets `processed_at`) **or failed**, calls **`decrement_pending_payout` RPC** to release the hold.
-3. **⚠ FINDING — payout accounting hole.** `decrement_pending_payout` only reduces `pending_payout`; **`earned_amount` is never reduced on a completed payout** (verified in `connect_v17`/`connect_v34` SQL — the UPDATE touches `pending_payout` alone). Because `available = earned_amount − pending_payout`, once a payout completes and the hold is released, the *same lifetime earnings become withdrawable again*. There is no `paid_out` ledger column or `earned_amount` debit anywhere in the payout path. This means a consultant could request payout of their full `earned_amount` repeatedly after each one is marked completed. Recommend adding an `earned_amount` debit (or a `paid_out` running total) at completion, and reconciling existing balances. *(Not called out in the reference doc.)*
+3. **✅ RESOLVED 2026-07-18 — payout accounting hole.** `decrement_pending_payout` used to only reduce `pending_payout`, never `earned_amount` (verified in `connect_v17`/`connect_v34` SQL). Because `available = earned_amount − pending_payout`, this meant the same lifetime earnings became withdrawable again after every completed payout. Fixed via `docs/sql/connect_v38_payout_accounting.sql` — a new `finalize_completed_payout()` RPC atomically debits both fields on completion (kept `decrement_pending_payout` for failed payouts, correctly, since money never left in that case), plus a guarded one-time backfill for any historical completed payouts. Verified live: zero real payouts had actually completed before the fix shipped, so no consultant was ever double-paid — this was caught before it could cause harm, not after.
 
 ### CJ8. Suspension / blocks (consultant side)
 - Admin sets `status='suspended'` via `/api/admin/connect/consultants`. Effects verified in code: `PATCH …/sessions accept` re-checks `status='approved'` (suspended → 403 "Account suspended"); payout requires `approved` (403). A suspended consultant disappears from browse (approved-only filter).
@@ -197,7 +197,7 @@
 1. **Session notes** max length is **2000 chars** (reference implied 200).
 2. **Emergency button is implemented** in the web session page (reference said aspirational).
 3. **Recharge expiry = 30 minutes**, not 30 days; the 30-day figure is the wallet expiry *notice*; balance expiry is 2 years.
-4. **wallet-forfeit** still zeros balances but is out-ordered by wallet-dormant (03:30 < 04:00) and blocked by the v3 CHECK constraint — disable it.
-5. **Payout completion never debits `earned_amount`** → paid earnings become re-withdrawable (new finding, recommend a fix).
+4. ✅ **RESOLVED** — `wallet-forfeit` removed entirely from `vercel.json` (was out-ordered by wallet-dormant anyway, and would have violated the v3 CHECK constraint).
+5. ✅ **RESOLVED** — payout completion now debits `earned_amount` correctly via `finalize_completed_payout()`, verified live. Zero real consultants were ever affected before the fix.
 6. **Only consultant→user blocks** exist; no user-side block endpoint.
 7. Admin registration alert email goes to **`info@imotara.com`**; refund/action alerts go to **`support@imotara.com`**.

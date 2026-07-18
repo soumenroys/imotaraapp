@@ -107,10 +107,12 @@ Both profiles are `distribution: "store"`, base URL `https://www.imotara.com`, s
 | Setting | `iosTestflight` | `production` |
 |---|---|---|
 | Platforms | iOS only | iOS + Android (`android.buildType: app-bundle`) |
-| `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` | `true` | `false` |
+| `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` | `true` | `true` *(corrected 2026-07-18, was `false`)* |
 | `EXPO_PUBLIC_RAZORPAY_KEY_ID` | `rzp_test_...` (test) | `rzp_live_...` (**live**) |
 
-> ⚠️ Two traps: (a) `production` uses the **live** Razorpay key — never ship a store build on the test key. (b) The launch flag: `eas.json` sets `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL`, but the mobile code actually derives its free-cloud-sync override from `EXPO_PUBLIC_IMOTARA_LAUNCH_DATE`/`EXPO_PUBLIC_IMOTARA_FREE_DAYS` (defaults to free-for-all when unset). Confirm the *intended* behavior in-app, not just the eas.json value.
+> ⚠️ One trap remains: `production` uses the **live** Razorpay key — never ship a store build on the test key.
+>
+> ✅ **RESOLVED 2026-07-18** — the launch-flag trap: `eas.json` sets `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL`, but the mobile code used to derive its free-cloud-sync override from a different, never-set env var pair instead (defaulting to free-for-all only by accident of that fallback). Fixed: the code now reads `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` directly, and `production`'s value was corrected from `"false"` to `"true"` above to match current soft-launch intent. Flipping that one value to `"false"` in a future release is now enough to turn on real cloud-sync enforcement — no code change needed.
 
 ### B3. iOS build + auto-submit
 

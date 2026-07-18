@@ -40,23 +40,25 @@ This Project is the knowledge base for **Imotara** — a privacy-first, emotion-
 - **"User paid but has no license"** → Playbook — Payments & Purchases, diagnostic section (per-rail checklists).
 - **"A member's tier looks wrong"** → Org How-Tos §2 priority chain (pool > override > higher of personal vs org default) + Troubleshooting runbook 7.
 
-## Known open items & findings (as of 2026-07-17)
+## Known open items & findings (as of 2026-07-17, refreshed 2026-07-18)
 
-**Code bugs / issues found while building this KB (worth fixing):**
-- ⚠️ **Connect payout accounting hole:** completing a payout releases the pending hold but never debits `earned_amount`, so the same lifetime earnings become withdrawable again after each payout (`connect_v17`/`connect_v34`; no `paid_out` column). Needs a fix + reconciliation.
-- **Web Settings content-sensitivity buttons mislabeled:** values are `relaxed/standard/strict` but labels render both "relaxed" and "strict" as "Conservative"; no "Sensitive" label ever shows (`settings/page.tsx` ~line 4010).
-- **Ban alert points to `support@imotara.com`** while all other channels use `info@imotara.com` — appeals may hit an unmonitored inbox.
-- **Soft-launch institutional-gate bug on mobile** (bypass revoked MULTI_PROFILE/CHILD_SAFE_MODE/ADMIN_DASHBOARD from real Family/EDU/Enterprise users) — FIXED in the unpushed `test/safety-net` branch.
-- **`wallet-forfeit` cron is practically inert** (runs after wallet-dormant converts the same wallets; blocked by a CHECK constraint) — should be disabled.
-- **iOS tip-jar SKU names don't match their prices** (`donation_49` ≈ ₹79 etc.).
-- **`user_bans` table is audit-only** — `auth.users.banned_until` is authoritative; a ban set directly in Supabase leaves no `user_bans` row.
+**RESOLVED since this KB was generated** (all fixed and shipped 2026-07-18 — the code below has moved on from what the rest of this KB describes in places; treat those spots as historical unless noted):
+- ✅ **Connect payout accounting hole** — fixed via `finalize_completed_payout()` RPC (`docs/sql/connect_v38_payout_accounting.sql`), wired into the payout-completion route, verified live. Zero real payouts had completed before the fix shipped, so no consultant was ever actually double-paid.
+- ✅ **Ban alert pointed to `support@imotara.com`** — corrected to `info@imotara.com`.
+- ✅ **Soft-launch institutional-gate bug on mobile** — fixed and **pushed** (no longer sitting in an unpushed branch); still needs a new EAS build to reach real devices.
+- ✅ **`wallet-forfeit` cron** — removed entirely (was practically inert anyway; see Database & Backend Reference).
+- ✅ **`user_bans` table being treated as authoritative** — the admin ban-status endpoint now reads `auth.users.banned_until` directly; `user_bans` is kept only as supporting context.
+- ✅ **Jest test-suite + CI branch for imotara-mobile** — pushed to `main` (commits differ from the originally-drafted `d03dade`/`7889964` — they landed via `git am` as `ad80719`/`d0d2cdb`/`8e2a548`/`2cd6018`). CI is active on the remote.
+- ✅ **Web `.env.example` gaps** (Azure TTS, Stripe, Apple IAP, Google Play, donation vars) — filled in.
+- ✅ **Public web FAQ wrong languages** (Korean/Turkish/Italian) — corrected to the real 22-language list.
+- ✅ **`eas.json`'s launch-flag env var mismatch** — code now reads `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` directly (matching what `eas.json` actually sets), and `eas.json`'s `production` value was corrected from `"false"` to `"true"` to match current soft-launch intent (everyone free for now; flip that one value later to turn on real enforcement).
 
-**Operational open items:**
-- The **Jest test-suite + CI branch for imotara-mobile** (`test/safety-net`, 82 tests, version-sync check, GitHub Actions) exists as patch files but is **not yet pushed** to GitHub.
-- Web `.env.example` is missing the Azure TTS and Stripe variable names used in code.
-- The public web FAQ lists wrong example languages (Korean/Turkish/Italian); authoritative 22-language list is in the Product Overview. Live pricing (Plus ₹99 / Pro ₹149) differs from some marketing collateral (₹79).
-- `eas.json`'s `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` var is **not** what mobile code reads — it derives the override from `EXPO_PUBLIC_IMOTARA_LAUNCH_DATE`/`FREE_DAYS` (release-day trap; Release Runbook B2).
+**Confirmed FALSE ALARM, not a bug:** the "Web Settings content-sensitivity buttons mislabeled" item below was investigated and found incorrect — there are two separate, correctly-labeled controls (content guard Relaxed/Standard/Strict; crisis threshold Sensitive/Standard/Conservative) sitting next to each other. No change was made.
+
+**Still genuinely open:**
+- **iOS tip-jar SKU names don't match their real prices** (`donation_49` is really priced ~₹79, etc. — Apple's price-point localization, not a simple currency conversion). Deliberately **left as-is**: users are never shown the wrong number (the app always renders Apple's live `displayPrice`, never the SKU name), and Apple doesn't support renaming a live product ID — "fixing" it would mean provisioning new App Store Connect products and migrating, for a purely cosmetic internal-naming inconsistency. The code comment in `IOSTipJar.tsx` now documents this explicitly.
 - "Coming soon" org features with UI present but not functional: LMS/iframe embed, referral commission tracking; NGO Impact Report is HTML, not PDF.
 - `/reflect` redirects to `/grow`; mobile Settings offers only Google sign-in (no magic link on mobile).
+- Help-chat rate limiting (`/api/help-chat`, added 2026-07-18) is being hardened from in-memory-per-instance to a DB-backed global cap (`docs/sql/help_chat_rate_limit.sql`) — same reasoning as the API-key rate limiter.
 
-*Knowledge base generated 2026-07-17 from the repos at v1.2.7 (web commit `4281603`, mobile commit `9becac8`). 17 docs total: 11 reference + 5 playbooks + this index. When the code changes materially, update the affected doc rather than letting it drift.*
+*Knowledge base generated 2026-07-17 from the repos at v1.2.7 (web commit `4281603`, mobile commit `9becac8`). 17 docs total: 11 reference + 5 playbooks + this index. When the code changes materially, update the affected doc rather than letting it drift — this index was refreshed 2026-07-18, but the body text of individual docs (payout mechanics, cron tables, env var lists) may still describe the pre-fix state in places; treat this index as the current source of truth until a full doc-by-doc refresh happens.*

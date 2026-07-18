@@ -74,7 +74,7 @@ Governed by the `imotara_wallets` v2/v3 migrations and four wallet crons:
 - `expires_at = last_activity_at + 2 years`, refreshed by a trigger on activity.
 - **Reminders** (`wallet-reminders`, daily): 180/90/30/14/7/1-day milestone emails + annual statements, each tracked to avoid duplicates. Plus a dedicated 30-day notice (`wallet-expiry-notice`).
 - **Dormancy** (`wallet-dormant`, daily): after 2 years inactive, wallet → `dormant`. **Balance is preserved, never zeroed**, and remains **refundable for 1 year** after dormancy (rationale cited in code: India's Consumer Protection Act 2019; Imotara's closed-loop wallet is PPI-exempt but honours consumer rights).
-- **Forfeiture** (`wallet-forfeit`, daily): a *legacy/superseded* path that tries to zero balances to `status='forfeited'`. The v3 "ultra-safe" migration removed `forfeited` from the allowed statuses and enshrined "never zero." Treat the **dormant** policy as the live one; the forfeit cron is de-scoped and inconsistent with the current schema.
+- **Forfeiture** (`wallet-forfeit`) — **removed 2026-07-18.** It used to try zeroing balances to `status='forfeited'`; the v3 "ultra-safe" migration had already removed `forfeited` from the allowed statuses and enshrined "never zero," making the cron unreachable in practice. It's no longer in `vercel.json` at all — the **dormant** policy is now the only path.
 
 ### 3.4 Consent records
 Each top-up is meant to capture an `imotara_wallet_consents` row (terms version, accepted-at, amount, order ID, IP, user agent). Wallet terms live at `/connect/wallet-terms`.
@@ -163,8 +163,8 @@ The `connect_reviewer` role exists so document/queue review can be delegated wit
 
 ---
 
-I've grounded every section in the actual code and migrations. Three notable honesty flags worth surfacing to whoever consumes this knowledge base:
+I've grounded every section in the actual code and migrations. Three notable honesty flags worth surfacing to whoever consumes this knowledge base (updated 2026-07-18 — items 2 and 3 below are now resolved, kept for history):
 
 1. **Only the 20/day Free quota is hard-enforced** — all other tier gates are dormant behind `LICENSE_MODE=off` + the launch offer.
-2. **The wallet-forfeit cron is inconsistent with the v3 schema** (which removed the `forfeited` status and mandates "never zero balance"); the dormant policy is the live one.
-3. **Several env vars are missing from `.env.example`** — Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*`), Apple IAP, Google Play, and multi-region Azure Speech (`AZURE_SPEECH_KEY_<SUFFIX>` / `AZURE_SPEECH_REGION_<SUFFIX>`) all appear only in code.
+2. ✅ **RESOLVED** — the wallet-forfeit cron was inconsistent with the v3 schema; it has now been removed entirely rather than left inconsistent.
+3. ✅ **RESOLVED** — the missing env vars (Stripe, Apple IAP, Google Play, multi-region Azure Speech) have all been added to `.env.example`.

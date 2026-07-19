@@ -63,6 +63,7 @@ export default function SiteHeader() {
 
   const [isMac, setIsMac] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [orgHref, setOrgHref] = useState<string | null>(null);
   const sbRef = useRef<any>(null);
 
   useEffect(() => {
@@ -88,6 +89,17 @@ export default function SiteHeader() {
     })();
     return () => { sub?.unsubscribe(); };
   }, []);
+
+  // Org-dashboard nav entry — only shown to signed-in org members/admins.
+  useEffect(() => {
+    if (!user) { setOrgHref(null); return; }
+    let cancelled = false;
+    fetch("/api/license/status", { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((json) => { if (!cancelled) setOrgHref(json?.org?.orgId ? "/org/dashboard" : null); })
+      .catch(() => { if (!cancelled) setOrgHref(null); });
+    return () => { cancelled = true; };
+  }, [user]);
 
   const handleSignOut = useCallback(async () => {
     if (sbRef.current) await sbRef.current.auth.signOut();
@@ -129,7 +141,11 @@ export default function SiteHeader() {
     setMobileOpen(false);
   }, [pathname]);
 
-  const isMoreActive = MORE_LINKS.some((item) =>
+  const moreLinks: MoreItem[] = orgHref
+    ? [{ href: orgHref, label: "🏢 Organisation" }, ...MORE_LINKS]
+    : MORE_LINKS;
+
+  const isMoreActive = moreLinks.some((item) =>
     item.kind === "group"
       ? item.children.some((c) => pathname.startsWith(c.href))
       : item.href ? pathname.startsWith(item.href) : false
@@ -209,7 +225,7 @@ export default function SiteHeader() {
 
               {moreOpen && (
                 <div className="absolute right-0 top-full mt-1.5 min-w-[160px] rounded-2xl border border-zinc-200 bg-white py-1.5 shadow-lg dark:border-zinc-700/60 dark:bg-zinc-900/90">
-                  {MORE_LINKS.map((item, idx) => {
+                  {moreLinks.map((item, idx) => {
                     if (item.kind === "group") {
                       return (
                         <div key={idx}>
@@ -306,7 +322,7 @@ export default function SiteHeader() {
               })}
               <div className="my-1 border-t border-white/10 dark:border-zinc-700/40" />
               {/* Overflow links + groups */}
-              {MORE_LINKS.map((item, idx) => {
+              {moreLinks.map((item, idx) => {
                 if (item.kind === "group") {
                   return (
                     <div key={idx}>

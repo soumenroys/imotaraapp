@@ -284,6 +284,31 @@ Behavior (`src/app/api/admin/organizations/[orgId]/route.ts` DELETE):
 - **PATCH** — change a member's `role`, set a per-member `overrideTier`, and/or `suspendAccess: true|false` (a reversible Supabase ban on that user; same ~1h token caveat as §7).
 - **DELETE `?userId=`** — remove the member and release their seat/license.
 
+### 10.6.1 Create & Invite — provisioning a member who has no Imotara account yet
+Every end-user sign-in on Imotara is Google-only, so the plain **"Add existing user"** action above only works if the person has already signed in with Google at least once. **Create & Invite** removes that dependency: it creates the account for them and emails a **set-your-own-password** link — no plaintext password is ever emailed.
+
+**Where:** the org's **Members** panel — check **"Create new account + email a password-set invite"** before submitting the add-member form.
+
+**Steps:**
+1. Expand the org, open **Members**, enter the person's email and role.
+2. Check the **Create & Invite** box, then submit.
+3. They receive an email ("You've been invited to join *[org]*") with an **"Accept invite & set your password →"** link, plus website/Android/iOS QR codes.
+4. They click the link, land on **imotara.com/auth/accept**, choose a password (same complexity policy as admin passwords — see §4), and are signed straight into their org dashboard.
+5. From then on, they sign in at **imotara.com/login** with that email + password — a separate, gated login page that only ever works for accounts created this way. It is **not** wired into the regular Google sign-in used everywhere else, so it doesn't expand the attack surface for the rest of the user base. **"Forgot password?"** on that page (`/auth/forgot-password`) lets them reset it themselves later.
+
+Behavior (`POST .../members` with `action: "create_and_invite"`, requires a full session-based super-admin login — the legacy `ADMIN_SECRET` bearer also works but has no name/email to record):
+- If the email has no Imotara account, creates one (`email_confirm: false`) and sends a Supabase **invite**-type link. If the email already has an account (e.g. a prior Google user), sends a **recovery**-type link instead — either way they land on the same set-password page.
+- Idempotent: re-inviting the same email re-issues the link without duplicating the seat or the `org_members` row.
+- Rate-limited to **20 provisions/hour per admin**.
+- Every provision writes an `org_audit_log` row (`member_provisioned`), and a second row is written when they actually finish setting their password — `member_joined` for a genuine first accept, or `password_reset` for a later reset (distinguished server-side by whether `org_members.joined_at` is within the last 10 minutes).
+- If account creation, license assignment, or link generation fails partway through, everything already done in that call is rolled back (member row removed, license revoked, and — if a new account was created this call — the account itself deleted) rather than leaving a half-provisioned, seat-consuming ghost member.
+- Invite links expire after **24 hours** (Supabase's own hard cap for email links) — this is shorter than the plain 7-day member-invite link in §10.6, because it doubles as the only way to set a first password.
+- `connect_reviewer` cannot provision members.
+
+**Org-owner/admin self-service Create & Invite is not built yet** — as of this writing it's super-admin-only, from `/admin`. Org owners/admins cannot trigger this themselves.
+
+**Related API endpoints:** `POST .../members` (`action: "create_and_invite"`), `GET /auth/accept`, `GET /login`, `GET /auth/forgot-password`
+
 ### 10.7 Org analytics and audit (read-only oversight)
 - `GET /api/admin/organizations/[orgId]/analytics?days=30` — aggregate-only usage (total events, active days, average WAU, average session minutes). **No individual-member data** by design.
 - `GET /api/admin/organizations/[orgId]/audit?page=&limit=` — read-only view of the org's own audit log (invites, role changes, removals, tier changes).

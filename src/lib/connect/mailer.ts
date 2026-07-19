@@ -502,6 +502,107 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1
   await send(data.ownerEmail, subject, text, html);
 }
 
+// Admin-provisioned org-admin/member — sends an invite link only, never a
+// plaintext password (Option A: recipient sets their own password by
+// clicking through). Works both for brand-new accounts (Supabase "invite"
+// link type) and existing accounts that just need a password set for the
+// first time ("recovery" link type) — the caller picks which, the email
+// copy is the same either way since the recipient experience is identical.
+//
+// Styling note: every element below carries its critical styles INLINE, not
+// just via the <style> block — Gmail and several other clients strip <style>
+// tags unreliably, which is exactly what made the CTA button's white text
+// disappear against its purple background in testing. The <style> block is
+// kept only for clients that do honor it; nothing depends on it working.
+export async function sendOrgInviteEmail(data: {
+  to:        string;
+  orgName:   string;
+  role:      string;
+  acceptUrl: string;
+}) {
+  const APP_URL      = "https://imotara.com";
+  const LOGO_URL     = `${APP_URL}/android-chrome-192.png`;
+  const PLAY_URL     = "https://play.google.com/store/apps/details?id=com.imotara.imotara";
+  const APPSTORE_URL = "https://apps.apple.com/in/app/imotara/id6756697569";
+  const roleLabel    = data.role.charAt(0).toUpperCase() + data.role.slice(1);
+  const subject      = `You've been invited to join "${data.orgName}" on Imotara`;
+
+  // Static, pre-generated PNGs hosted at these fixed paths (see
+  // scripts/generate-qr-codes.js) — NOT data: URIs. Gmail and several other
+  // clients silently strip inline base64 images for security reasons, which
+  // is exactly what made the QR codes render as broken images in testing.
+  const qrWeb      = `${APP_URL}/qr-website.png`;
+  const qrPlay     = `${APP_URL}/qr-android.png`;
+  const qrAppStore = `${APP_URL}/qr-ios.png`;
+
+  const text = [
+    `Hi,`,
+    ``,
+    `You've been invited to join "${data.orgName}" on Imotara as ${roleLabel === "Admin" ? "an" : "a"} ${roleLabel}.`,
+    ``,
+    `Accept the invite and set your password here:`,
+    `${data.acceptUrl}`,
+    ``,
+    `This link expires in 24 hours. If you weren't expecting this invite, you can safely ignore this email — no account access is granted until the link above is used.`,
+    ``,
+    `Get Imotara: ${APP_URL} · Android: ${PLAY_URL} · iOS: ${APPSTORE_URL}`,
+    footer(),
+  ].join("\n");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#111827;background:#f9fafb;padding:24px;margin:0}
+.card{background:#fff;border-radius:12px;max-width:560px;margin:auto;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.07)}
+.hdr{background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:28px 36px;color:#fff;text-align:center}
+.hdr-title{font-size:20px;font-weight:700}.hdr-sub{font-size:13px;opacity:.8;margin-top:4px}
+.body{padding:32px 36px}.detail{background:#f5f3ff;border-radius:10px;padding:16px 20px;margin:20px 0}
+.detail p{margin:4px 0;font-size:14px;color:#374151}.detail strong{color:#7c3aed}
+.note{margin-top:20px;font-size:12px;color:#9ca3af}
+.footer{font-size:11px;color:#9ca3af;padding:16px 36px;border-top:1px solid #f3f4f6}
+.qr-col{text-align:center;font-size:11px;color:#6b7280;padding:0 10px}
+</style></head><body>
+<div class="card">
+  <div class="hdr" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:28px 36px;color:#ffffff;text-align:center">
+    <img src="${LOGO_URL}" width="48" height="48" alt="Imotara" style="border-radius:12px;display:block;margin:0 auto 12px" />
+    <div class="hdr-title" style="font-size:20px;font-weight:700;color:#ffffff">You've been invited</div>
+    <div class="hdr-sub" style="font-size:13px;opacity:.85;margin-top:4px;color:#ffffff">Join ${htmlEscape(data.orgName)} on Imotara</div>
+  </div>
+  <div class="body">
+    <p>Hi,</p>
+    <p>You've been invited to join <strong>${htmlEscape(data.orgName)}</strong> on Imotara as ${roleLabel === "Admin" ? "an" : "a"} <strong>${htmlEscape(roleLabel)}</strong>.</p>
+    <div class="detail">
+      <p><strong>Organization:</strong> ${htmlEscape(data.orgName)}</p>
+      <p><strong>Role:</strong> ${htmlEscape(roleLabel)}</p>
+    </div>
+    <a href="${data.acceptUrl}" style="display:inline-block;margin-top:20px;background-color:#7c3aed;color:#ffffff !important;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px;-webkit-text-fill-color:#ffffff">Accept invite &amp; set your password →</a>
+    <p class="note">This link expires in 24 hours. If you weren't expecting this invite, you can safely ignore this email — no account access is granted until the link above is used.</p>
+
+    <table role="presentation" width="100%" style="margin-top:28px;border-top:1px solid #f3f4f6;padding-top:20px" cellpadding="0" cellspacing="0">
+      <tr>
+        <td class="qr-col" style="text-align:center;font-size:11px;color:#6b7280;padding:0 10px">
+          <a href="${APP_URL}" style="text-decoration:none;color:#6b7280">
+            <img src="${qrWeb}" width="80" height="80" alt="imotara.com QR code" style="display:block;margin:0 auto 6px;border-radius:6px" /><br/>imotara.com
+          </a>
+        </td>
+        <td class="qr-col" style="text-align:center;font-size:11px;color:#6b7280;padding:0 10px">
+          <a href="${PLAY_URL}" style="text-decoration:none;color:#6b7280">
+            <img src="${qrPlay}" width="80" height="80" alt="Get it on Google Play QR code" style="display:block;margin:0 auto 6px;border-radius:6px" /><br/>Android
+          </a>
+        </td>
+        <td class="qr-col" style="text-align:center;font-size:11px;color:#6b7280;padding:0 10px">
+          <a href="${APPSTORE_URL}" style="text-decoration:none;color:#6b7280">
+            <img src="${qrAppStore}" width="80" height="80" alt="Download on the App Store QR code" style="display:block;margin:0 auto 6px;border-radius:6px" /><br/>iOS
+          </a>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <div class="footer">Imotara · <a href="${APP_URL}">${APP_URL}</a></div>
+</div></body></html>`;
+
+  await send(data.to, subject, text, html);
+}
+
 export async function sendOrgVerificationDecisionEmail(data: {
   ownerEmail: string;
   ownerName?: string | null;

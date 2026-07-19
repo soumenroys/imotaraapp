@@ -7,6 +7,7 @@ import { saveHistory } from "@/lib/imotara/historyPersist";
 import { useAppearance, type Accent, type FontSize, type ColorMode } from "@/hooks/useAppearance";
 import EmotionalFingerprint from "@/components/imotara/EmotionalFingerprint";
 import useFeatureGate from "@/hooks/useFeatureGate";
+import GoogleGIcon from "@/components/imotara/GoogleGIcon";
 
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 
@@ -1219,6 +1220,7 @@ export default function SettingsPage() {
     // ── Supabase session (nullable — local-only users have no session) ─────────
     const [sbEmail, setSbEmail] = useState<string | null>(null);
     const [signingOut, setSigningOut] = useState(false);
+    const [signingIn, setSigningIn] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -1233,6 +1235,22 @@ export default function SettingsPage() {
             } catch { /* not signed in or env not set */ }
         })();
     }, []);
+
+    async function handleSignIn() {
+        if (signingIn) return;
+        setSigningIn(true);
+        try {
+            const { createBrowserClient } = await import("@supabase/ssr");
+            const sb = createBrowserClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+            );
+            const rawRedirect = new URLSearchParams(window.location.search).get("redirect") ?? "";
+            const target = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/settings";
+            const redirectTo = `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(target)}`;
+            await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
+        } catch { setSigningIn(false); }
+    }
 
     async function handleSignOut() {
         if (signingOut) return;
@@ -4136,22 +4154,34 @@ export default function SettingsPage() {
                         Push your local history to the Imotara cloud and pull any records from other devices. Requires being signed in.
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                        <button
-                            type="button"
-                            onClick={handleSyncNow}
-                            disabled={syncBusy}
-                            className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-200 transition hover:bg-indigo-500/20 disabled:opacity-50"
-                        >
-                            {syncBusy ? "Saving…" : "Back up now"}
-                        </button>
-                        {sbEmail && (
+                        {sbEmail ? (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={handleSyncNow}
+                                    disabled={syncBusy}
+                                    className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-200 transition hover:bg-indigo-500/20 disabled:opacity-50"
+                                >
+                                    {syncBusy ? "Saving…" : "Back up now"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSignOut}
+                                    disabled={signingOut}
+                                    className="rounded-xl border border-zinc-500/40 bg-zinc-700/30 px-4 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-600/30 disabled:opacity-50"
+                                >
+                                    {signingOut ? "Signing out…" : "Sign out"}
+                                </button>
+                            </>
+                        ) : (
                             <button
                                 type="button"
-                                onClick={handleSignOut}
-                                disabled={signingOut}
-                                className="rounded-xl border border-zinc-500/40 bg-zinc-700/30 px-4 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-600/30 disabled:opacity-50"
+                                onClick={handleSignIn}
+                                disabled={signingIn}
+                                className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-100 transition hover:bg-white/10 disabled:opacity-50"
                             >
-                                {signingOut ? "Signing out…" : "Sign out"}
+                                <GoogleGIcon className="h-3.5 w-3.5" />
+                                {signingIn ? "Redirecting…" : "Sign in"}
                             </button>
                         )}
                     </div>

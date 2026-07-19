@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import GoogleGIcon from "@/components/imotara/GoogleGIcon";
 
 type BillingType = "commercial" | "ngo" | "edu" | "govt";
 
@@ -29,6 +30,7 @@ export default function OrgNewPage() {
   const [step, setStep]       = useState<Step>(stripePaid ? "stripe_paid" : "form");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]     = useState("");
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const [orgName,      setOrgName]      = useState("");
   const [billingType,  setBillingType]  = useState<BillingType>("commercial");
@@ -48,7 +50,7 @@ export default function OrgNewPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(""); setSubmitting(true);
+    setError(""); setSessionExpired(false); setSubmitting(true);
     try {
       const res = await fetch("/api/org/new", {
         method:  "POST",
@@ -62,7 +64,15 @@ export default function OrgNewPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) { setError(json.error ?? "Something went wrong."); return; }
+      if (!res.ok) {
+        if (res.status === 401 || json.error === "unauthenticated") {
+          setSessionExpired(true);
+          setError("Your session expired. Please sign in again to submit this request.");
+        } else {
+          setError(json.error ?? "Something went wrong.");
+        }
+        return;
+      }
       setStep("submitted");
     } catch {
       setError("Network error. Please try again.");
@@ -87,9 +97,18 @@ export default function OrgNewPage() {
         <p className="text-4xl">🔐</p>
         <h1 className="mt-4 text-xl font-semibold text-zinc-100">Sign in required</h1>
         <p className="mt-2 text-sm text-zinc-400">You need to be signed in to submit an organisation request.</p>
-        <Link href="/settings" className="mt-6 inline-flex items-center gap-2 rounded-full bg-indigo-500/80 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500">
-          Sign in →
-        </Link>
+        <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <Link href="/settings" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
+            <GoogleGIcon />
+            Sign in
+          </Link>
+          <Link href="/login?redirect=/org/new" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
+            Sign in with email &amp; password
+          </Link>
+        </div>
+        <p className="mt-4 text-xs text-zinc-500">
+          Was your account set up by an Imotara admin? Use email &amp; password. Everyone else uses the Google option.
+        </p>
       </div>
     );
   }
@@ -235,9 +254,21 @@ export default function OrgNewPage() {
         </div>
 
         {error && (
-          <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-300">
-            {error}
-          </p>
+          <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-300">
+            <p>{error}</p>
+            {sessionExpired && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                <Link href="/settings?redirect=/org/new" className="inline-flex items-center gap-1.5 underline hover:text-rose-200">
+                  <GoogleGIcon />
+                  Sign in
+                </Link>
+                <span className="text-rose-400/60">or</span>
+                <Link href="/login?redirect=/org/new" className="underline hover:text-rose-200">
+                  sign in with email &amp; password
+                </Link>
+              </div>
+            )}
+          </div>
         )}
 
         <button

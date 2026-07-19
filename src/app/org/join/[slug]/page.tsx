@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import GoogleGIcon from "@/components/imotara/GoogleGIcon";
 
 type Step = "loading" | "preview" | "signin_required" | "joining" | "joined" | "error";
 
@@ -60,7 +61,14 @@ export default function JoinByDomainPage() {
       body: JSON.stringify({ orgSlug: slug }),
     });
     const j = await r.json();
-    if (!r.ok) { setErrorMsg(j.error ?? "Failed to join."); setStep("error"); return; }
+    if (!r.ok) {
+      if (r.status === 401 || j.error === "unauthenticated") {
+        setUserEmail(null);
+        setStep("signin_required");
+        return;
+      }
+      setErrorMsg(j.error ?? "Failed to join."); setStep("error"); return;
+    }
     setStep("joined");
   }
 
@@ -101,10 +109,20 @@ export default function JoinByDomainPage() {
             Sign in to check if your account qualifies.
           </p>
         )}
-        <Link href={`/settings?redirect=/org/join/${slug}`}
-          className="mt-6 inline-flex items-center gap-2 rounded-full bg-indigo-500/80 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500">
-          Sign in →
-        </Link>
+        <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <Link href={`/settings?redirect=/org/join/${slug}`}
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
+            <GoogleGIcon />
+            Sign in
+          </Link>
+          <Link href={`/login?redirect=/org/join/${slug}`}
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
+            Sign in with email &amp; password
+          </Link>
+        </div>
+        <p className="mt-4 text-xs text-zinc-500">
+          Was your account set up by an Imotara admin? Use email &amp; password. Everyone else uses the Google option.
+        </p>
       </div>
     );
   }
@@ -163,6 +181,8 @@ export default function JoinByDomainPage() {
           <p className="mt-4 text-center text-xs text-zinc-600">
             Wrong account?{" "}
             <Link href="/settings" className="underline hover:text-zinc-400">Sign in with a different account</Link>
+            {" "}or{" "}
+            <Link href={`/login?redirect=/org/join/${slug}`} className="underline hover:text-zinc-400">sign in with email &amp; password instead</Link>
           </p>
         </>
       )}

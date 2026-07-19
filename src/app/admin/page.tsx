@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect, useCallback, useTransition } from "react";
 import type { LicenseTier } from "@/types/license";
+import EyeIcon from "@/components/imotara/EyeIcon";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -158,21 +159,6 @@ function providerLabel(p: string | null) {
 // Eye icon (inline SVG — no extra dep)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function EyeIcon({ open }: { open: boolean }) {
-  return open ? (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-4 w-4">
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  ) : (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-4 w-4">
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-6.5 0-10-8-10-8a18.4 18.4 0 0 1 5.06-5.94" />
-      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19" />
-      <line x1="1" y1="1" x2="23" y2="23" />
-    </svg>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // LoginGate
 // ─────────────────────────────────────────────────────────────────────────────
@@ -285,7 +271,7 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
   const inputCls = "w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-4 pr-10 text-sm text-zinc-200 placeholder-zinc-600 outline-none transition focus:border-indigo-500/40";
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-10">
+    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 py-10">
       <div className="flex w-full max-w-4xl flex-col gap-5 lg:flex-row lg:items-stretch lg:gap-6">
 
         {/* ── LEFT: Login card ─────────────────────────────────────────────── */}
@@ -1093,6 +1079,11 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
   const [addRole, setAddRole]   = useState("member");
   const [adding, setAdding]     = useState(false);
   const [addErr, setAddErr]     = useState("");
+  const [addOk, setAddOk]       = useState("");
+  // Off = existing behavior (attach role to an already-existing Imotara account).
+  // On  = create_and_invite: creates the account if needed and emails a
+  // credentialed invite link (Option A — link only, never a password).
+  const [createInvite, setCreateInvite] = useState(false);
 
   async function load() {
     if (loaded) return;
@@ -1139,15 +1130,30 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
 
   async function addMember(e: React.FormEvent) {
     e.preventDefault();
-    setAdding(true); setAddErr("");
+    setAdding(true); setAddErr(""); setAddOk("");
     try {
       const res = await fetch(`/api/admin/organizations/${orgId}/members`, adminFetchOpts(token, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: addEmail, role: addRole }),
+        body: JSON.stringify({
+          email: addEmail,
+          role:  addRole,
+          ...(createInvite ? { action: "create_and_invite" } : {}),
+        }),
       }));
       const j = await res.json();
       if (!res.ok) { setAddErr(j.error ?? "Failed to add member."); return; }
-      setMembers((p) => [...p, { userId: j.userId, email: j.email, role: j.role, joinedAt: new Date().toISOString() }]);
+      // Upsert, not append — re-inviting/re-adding the same user (e.g. a
+      // password-reset re-send) returns the same userId, and blindly
+      // appending produced duplicate React keys for the same member.
+      setMembers((p) => [
+        ...p.filter((m) => m.userId !== j.userId),
+        { userId: j.userId, email: j.email, role: j.role, joinedAt: new Date().toISOString() },
+      ]);
+      if (createInvite) {
+        setAddOk(j.accountExisted
+          ? "Existing account added — password-set link emailed to them."
+          : "New account created — invite link emailed to them.");
+      }
       setAddEmail(""); setAddRole("member");
     } finally { setAdding(false); }
   }
@@ -1163,7 +1169,8 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
         <div className="mt-3 space-y-1.5">
           <form onSubmit={addMember} className="flex flex-wrap items-center gap-1.5 rounded-xl border border-white/8 bg-white/3 px-2 py-2">
             <input required type="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)}
-              placeholder="Add existing user by email…" disabled={adding}
+              placeholder={createInvite ? "New user's email — creates account + emails invite…" : "Add existing user by email…"}
+              disabled={adding}
               className="min-w-[160px] flex-1 rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-[11px] text-zinc-200 outline-none" />
             <select value={addRole} onChange={(e) => setAddRole(e.target.value)} disabled={adding}
               className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-[10px] text-zinc-300 outline-none">
@@ -1173,9 +1180,14 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
             </select>
             <button type="submit" disabled={adding}
               className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-40">
-              {adding ? "…" : "+ Add"}
+              {adding ? "…" : createInvite ? "+ Create & Invite" : "+ Add"}
             </button>
+            <label className="flex w-full items-center gap-1.5 text-[10px] text-zinc-400">
+              <input type="checkbox" checked={createInvite} onChange={(e) => setCreateInvite(e.target.checked)} disabled={adding} />
+              Create new account + email a password-set invite (for people who don't have an Imotara account yet)
+            </label>
             {addErr && <p className="w-full text-[10px] text-rose-400">{addErr}</p>}
+            {addOk && <p className="w-full text-[10px] text-emerald-400">{addOk}</p>}
           </form>
           {members.length === 0 && loaded && <p className="text-xs text-zinc-500">No members yet.</p>}
           {members.map((m) => (
@@ -3189,6 +3201,22 @@ export default function AdminPage() {
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
     if (saved) setToken(saved);
+  }, []);
+
+  // The admin panel is a separate internal tool built dark-only — it was
+  // never designed to work with the consumer app's data-theme="light"
+  // toggle, which force-overrides zinc/white-opacity utility classes with
+  // !important (see globals.css). If a browser carries that attribute over
+  // from the consumer app (same-origin, same <html>), text and backgrounds
+  // here collide into unreadable dark-on-dark. Force it off for as long as
+  // /admin is mounted, restore whatever it was on unmount.
+  useEffect(() => {
+    const html = document.documentElement;
+    const prevTheme = html.getAttribute("data-theme");
+    html.removeAttribute("data-theme");
+    return () => {
+      if (prevTheme) html.setAttribute("data-theme", prevTheme);
+    };
   }, []);
 
   // Fetch logged-in admin's role and restrict view for connect_reviewer

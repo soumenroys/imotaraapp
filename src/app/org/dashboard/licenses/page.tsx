@@ -89,7 +89,15 @@ export default function LicensesPage() {
   useEffect(() => { void fetchData(); }, [fetchData]);
 
   async function handleTierChange(userId: string, overrideTier: string | null) {
-    setSaving(userId); setMsg("");
+    setSaving(userId); setMsg(""); setError("");
+    // Update the dropdown's displayed value immediately — it's a controlled <select>
+    // bound to member state, so waiting for the network round-trip to update state
+    // causes it to visibly snap back to the old value on the very next re-render.
+    const prevMembers = members;
+    setMembers((prev) => prev.map((m) =>
+      m.userId === userId ? { ...m, overrideTier, effectiveTier: overrideTier ?? (inventory?.tier ?? "enterprise") } : m
+    ));
+
     const r = await fetch("/api/org/dashboard/members", {
       method: "PATCH", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
@@ -98,23 +106,26 @@ export default function LicensesPage() {
     setSaving(null);
     if (r.ok) {
       setMsg("License updated ✓");
-      setMembers((prev) => prev.map((m) =>
-        m.userId === userId ? { ...m, overrideTier, effectiveTier: overrideTier ?? (inventory?.tier ?? "enterprise") } : m
-      ));
       void fetchData();
     } else {
       const j = await r.json().catch(() => ({}));
+      setMembers(prevMembers); // revert the optimistic change
       setError(j.error ?? "Failed to update license");
     }
   }
 
   async function handleWithdraw(userId: string, email: string) {
     if (!confirm(`Withdraw Imotara license from ${email}?\n\nThey will be removed from the org and their license revoked.`)) return;
-    setSaving(userId);
-    await fetch(`/api/org/dashboard/members?userId=${userId}`, { method: "DELETE", credentials: "same-origin" });
+    setSaving(userId); setError("");
+    const r = await fetch(`/api/org/dashboard/members?userId=${userId}`, { method: "DELETE", credentials: "same-origin" });
     setSaving(null);
-    setMembers((prev) => prev.filter((m) => m.userId !== userId));
-    void fetchData();
+    if (r.ok) {
+      setMembers((prev) => prev.filter((m) => m.userId !== userId));
+      void fetchData();
+    } else {
+      const j = await r.json().catch(() => ({}));
+      setError(j.error ?? "Failed to withdraw license");
+    }
   }
 
   const filtered = members.filter((m) => {

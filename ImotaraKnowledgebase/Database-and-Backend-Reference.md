@@ -22,7 +22,7 @@ There is no migration runner. Ordering is **by naming convention and documented 
 3. Run in the Supabase SQL Editor as service-role. Later `connect_vNN` files frequently **`CREATE OR REPLACE`** an earlier function (e.g. `resolve_user_tier`, `increment_pending_payout`, `revoke_org_license`, `update_consultant_rating` all have multiple definitions across files) — **the highest-numbered / latest-applied definition is authoritative.** When reconstructing the schema, apply in order and let later files win.
 4. `docs/CHANGELOG_v1.2.7.md` records exactly which SQL files were run for a given release (e.g. that release ran `api_key_rate_limit.sql`, `fix_pool_release_on_member_removal.sql`, `org_owner_race_lockdown.sql`). Use the changelog as the deployment record.
 
-> **✅ RESOLVED 2026-07-18 — wallet forfeiture inconsistency.** `imotara_wallet_v2_expiry.sql` introduced a `forfeited` status and a forfeit path; `imotara_wallet_v3_ultra_safe.sql` then **removed** `forfeited` from the status CHECK (allowing only `active | dormant | refund_requested | refunded`) and states balances are *never* zeroed. The `wallet-forfeit` cron still tried to set `status='forfeited'` and `balance=0`, which would have violated the v3 CHECK constraint — it was never actually reachable in practice (`wallet-dormant` runs 30 minutes earlier and already converts the same wallets). **The cron entry was removed from `vercel.json` entirely** — the **dormant** policy (v3) is now the only path, with nothing superseded left sitting in the codebase.
+> **✅ RESOLVED 2026-07-19 — wallet forfeiture inconsistency.** `imotara_wallet_v2_expiry.sql` introduced a `forfeited` status and a forfeit path; `imotara_wallet_v3_ultra_safe.sql` then **removed** `forfeited` from the status CHECK (allowing only `active | dormant | refund_requested | refunded`) and states balances are *never* zeroed. The `wallet-forfeit` cron still tried to set `status='forfeited'` and `balance=0`, which would have violated the v3 CHECK constraint — it was never actually reachable in practice (`wallet-dormant` runs 30 minutes earlier and already converts the same wallets). The cron entry was removed from `vercel.json` on 2026-07-18, but the route file itself (`src/app/api/cron/wallet-forfeit/route.ts`) kept lingering on disk until a 2026-07-19 doc-vs-code review caught it — it has now been **deleted outright**, not just descheduled. The **dormant** policy (v3) is the only path, live in both schedule and code.
 
 ---
 
@@ -141,7 +141,7 @@ Grouped by area; one line each.
 - `GET/POST /api/chat/messages` — chat history CRUD.
 - `GET/POST/DELETE /api/history`, `POST /api/history/sync` — emotion records + incremental sync.
 - `GET/POST/DELETE /api/memory` — user memory CRUD.
-- `POST /api/mindset-analysis`, `POST /api/pulse`, `GET /api/social-proof`, `POST /api/imotara-ai`, `POST /api/settings-search` — supporting AI/UX endpoints.
+- `POST /api/mindset-analysis`, `POST /api/pulse`, `GET /api/social-proof`, `POST /api/settings-search` — supporting AI/UX endpoints. (`POST /api/imotara-ai` is **retired** — always returns `410 { error:"deprecated_route", canonical:"/api/respond" }`, kept only so stale clients get a clear signal to update, not a live endpoint.)
 - `POST /api/tts` — Azure Neural TTS proxy. `POST /api/voice/transcribe` — STT.
 
 ### Account / data
@@ -199,7 +199,7 @@ Every cron route is gated by **`CRON_SECRET`**. Most check `Authorization: Beare
 | `/api/cron/wallet-reminders` | `30 2 * * *` (daily) | Sends 6 milestone expiry reminders (180/90/30/14/7/1 days) + annual balance statements; each milestone tracked in a `notified_*_at` column to prevent duplicates. |
 | `/api/cron/wallet-dormant` | `30 3 * * *` (daily) | Marks wallets inactive ≥2 years as `dormant` (balance **preserved**, refundable 1 year), logs an event, notifies the user. |
 | `/api/cron/wallet-expiry-notice` | `0 3 * * *` (daily) | Sends a 30-day advance expiry warning to active wallets, sets `expiry_notified_at`. |
-| ~~`/api/cron/wallet-forfeit`~~ | — | **Removed 2026-07-18** (was `0 4 * * *`). Used to attempt zeroing expired balances to `status='forfeited'`, conflicting with the v3 "never zero / dormant" policy — see §1. No longer in `vercel.json`; the cron table now has 8 entries, not 9. |
+| ~~`/api/cron/wallet-forfeit`~~ | — | **Descheduled 2026-07-18, route file deleted 2026-07-19** (was `0 4 * * *`). Used to attempt zeroing expired balances to `status='forfeited'`, conflicting with the v3 "never zero / dormant" policy — see §1. No longer in `vercel.json` and no longer in the codebase at all; the cron table now has 8 entries, not 9. |
 | `/api/cron/connect-scheduled` | `0 * * * *` (hourly) | Auto-cancels pending scheduled sessions whose `scheduled_at` passed >2h ago; notifies the user via push. |
 | `/api/cron/connect-recharge-expiry` | `*/30 * * * *` (every 30 min) | Marks abandoned `connect_recharges` (`pending` >30 min) as `failed`, clearing the partial-unique-index that would otherwise block new recharges for that user+consultant pair. |
 

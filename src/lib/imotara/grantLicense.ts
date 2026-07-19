@@ -34,7 +34,7 @@ export type GrantResult =
     | { ok: false; error: string };
 
 // Tier rank — higher number = higher tier. Never write a lower tier over a higher one.
-const TIER_RANK: Record<string, number> = { free: 0, plus: 1, pro: 2, family: 3, edu: 3, enterprise: 4 };
+const TIER_RANK: Record<string, number> = { free: 0, plus: 1, pro: 2, family: 3, edu: 4, enterprise: 5 };
 
 /**
  * Upgrade or top-up a user's license row.

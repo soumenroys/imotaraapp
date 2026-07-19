@@ -29,7 +29,7 @@ The "About" page tells the origin story: Imotara was conceived not in a boardroo
 ## What makes Imotara different
 
 1. **Privacy-first by design.** Local-first by default — conversations are stored on the user's own device, and cloud sync/analysis only happens with explicit consent. No ads, no data selling, no third-party tracking SDKs, no analytics on emotional content.
-2. **Emotion-aware.** Every reply is shaped by the emotion detected in the message (8 states: joy, sadness, anger, fear, anxiety, loneliness, gratitude, neutral) plus the user's emotional history.
+2. **Emotion-aware.** Every reply is shaped by the emotion detected in the message plus the user's emotional history. Two real palettes exist, not one: the on-device analyzer tracks **9 states** (joy, sadness, anger, fear, anxiety, disgust, surprise, gratitude, neutral), while the cloud AI palette tracks **15** (adds love, curiosity, confusion, shame, guilt, loneliness, hope — swaps out gratitude). Corrected 2026-07-19 from a stale "8 states" claim that matched neither real model.
 3. **22 languages as a first-class feature**, including 11 Indian languages with gendered verb conjugation for Indic languages — a technical capability the internal competitor analysis says no rival has matched.
 4. **Offline fallback.** On mobile, when there is no internet or the cloud quota is exhausted, an on-device engine keeps the companion present. It never hard-blocks the user.
 5. **A real companion persona**, not a nameless bot — the user configures a name, gender, age, relationship vibe, and response style.
@@ -92,7 +92,7 @@ The authoritative language set (from the TTS voice map and emotion keyword maps)
 
 Every language is supported across AI reply generation (cloud + local), Azure Neural TTS voices, emotion keyword detection, local reply banks, and native wisdom fragments.
 
-> **Support note:** The public web FAQ text on the home page currently lists "Korean, Turkish, Italian" as examples — this is marketing copy that does not match the actual supported set above (which includes Hebrew, Indonesian, and Russian instead). When answering language questions, use the authoritative 22-language list.
+> **Support note (resolved 2026-07-19):** Three surfaces — `layout.tsx` JSON-LD, the `ai-mental-wellness` FAQ, and `public/llms.txt` — used to list "Korean, Turkish, Italian" as examples, which don't match the actual supported set above. The home-page FAQ (`src/app/page.tsx`) was correct the whole time and was never the source of the bug. All three wrong locations now match the authoritative 22-language list.
 
 **Platforms:** Web (Next.js on Vercel, PWA-capable), iOS (App Store — `id6756697569`), Android (Google Play — `com.imotara.imotara`). Both mobile apps share the same Vercel-hosted backend API.
 

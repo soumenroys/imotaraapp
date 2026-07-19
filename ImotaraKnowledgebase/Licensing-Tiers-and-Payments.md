@@ -90,7 +90,7 @@ Exactly one thing: the **Free-tier daily cloud-reply quota** in `src/app/api/cha
 
 Security note: the quota decision is only applied when the bearer token's identity is **signature-verified** (`authedUserId === provisionalUserId`). A forged token that merely *claims* a victim's `sub` never passes verification, so it can't burn a victim's quota or credits.
 
-> Practical implication for support: the "20/day" limit in `docs/LICENSING.md` sometimes reads as "10/day" in the marketing matrix. **The code enforces 20.** The 10/day figure is stale copy.
+> Resolved 2026-07-19: `docs/LICENSING.md` used to read "10/day" in one matrix table against "20/day" elsewhere in the same doc. **The code enforces 20** and `LICENSING.md` has been corrected to say so consistently throughout.
 
 ### 2.3 Phase-3 reply constraints (only in enforce mode)
 

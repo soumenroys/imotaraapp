@@ -160,7 +160,7 @@
 3. Azure region/key misconfig → `502`/`503` from `/api/tts`.
 4. Wrong gender → native OEM voice used (ignores gender) instead of Azure.
 5. Browser using its own `speechSynthesis` for that language.
-6. Text over the 3,000-char hard cap → `400`.
+6. Text over the 8,000-char hard cap → `400`.
 
 **Diagnosis steps:**
 1. **Signed in or guest?** `/api/tts` gives signed-in accounts **unlimited** Azure TTS. Anonymous identities are capped at **15/day**; on exceed the route returns `429 { error:"Daily voice limit reached. Sign in for unlimited voice.", code:"quota_exceeded" }`. Verify:
@@ -175,7 +175,7 @@
    - `503` "Azure not configured" → `[tts] config error` (region/key env missing).
    - `502` "TTS service unavailable" → `[tts] Azure fetch failed` (network to Azure).
    - `502` "TTS synthesis failed" → `[tts] Azure error <status>` (Azure rejected the SSML/key). Look for `region=` in `[tts] azure fetch done` to confirm routing (region derives from `x-vercel-ip-country`, defaults India).
-   - `400` "text too long (max 3000 chars)" → oversized input.
+   - `400` "text too long (max 8000 chars)" → oversized input.
 5. **Web, "it speaks but sounds like the OS voice":** On web `/api/tts` is only called when the browser **lacks** a native voice for the language; otherwise the browser's `speechSynthesis` is used (with a `resume()` keep-alive). That's expected behavior, not a bug.
 6. **Wrong language spoken:** the voice's language detection is separate from chat detection — see Runbook 5.
 
@@ -447,7 +447,7 @@
    | `/api/cron/wallet-reminders` | `30 2 * * *` | wallet reminders |
    | `/api/cron/wallet-expiry-notice` | `0 3 * * *` | wallet expiry notice |
    | `/api/cron/wallet-dormant` | `30 3 * * *` | dormant wallets |
-   | `/api/cron/wallet-forfeit` | `0 4 * * *` | wallet forfeiture |
+   (`wallet-forfeit` was removed from the schedule 2026-07-18 and its route file deleted 2026-07-19 — dormant is the only wallet-lifecycle cron now.)
    Check the Vercel dashboard Cron tab for last-run status; each returns `401` if `CRON_SECRET` is wrong/missing. An admin can trigger one manually with the correct `Authorization: Bearer <CRON_SECRET>` header.
 3. **Supabase status** — dashboard project health / status.supabase.com. Auth outage surfaces as sign-in failures (Runbook 1); DB outage surfaces as fail-open behaviors (quota not enforced, license falls back to free).
 4. **AI outage alert email** — subject **"🔴 ALERT: OpenAI API unavailable — Gemini fallback active"** to `info@imotara.com` means OpenAI errored and traffic auto-switched to Gemini. Replies still work (`meta.from:"fallback"`); this is informational, throttled to 1 per 5 min per instance. Confirm at status.openai.com.
@@ -476,7 +476,7 @@
 ## Discrepancies & traps found (worth fixing / knowing)
 
 1. ✅ **RESOLVED 2026-07-18 — ban alert pointed to an undocumented mailbox.** The mobile "You've been signed out" alert (`AuthContext.tsx`) used to tell users to contact `support@imotara.com`, inconsistent with the escalation inbox everywhere else in mobile (`info@imotara.com`). Fixed — the alert now says `info@imotara.com`. (Note: `support@imotara.com` remains the correct, deliberately-used address for Connect/wallet support specifically — see `src/lib/wallet/mailer.ts`/`src/lib/connect/mailer.ts` — this was only ever a mobile-specific inconsistency, not a sign the address itself is wrong.)
-2. **Free daily reply limit is 20/day in code, not 10.** Both `/api/respond` and `/api/chat-reply` enforce **20** (`limit:20`, `count >= 20`). The design-phase `LICENSING.md` "10/day" is stale — code is authoritative. (Already flagged in the AI/TTS doc; re-confirmed against both routes.)
+2. **Free daily reply limit is 20/day.** Both `/api/respond` and `/api/chat-reply` enforce **20** (`limit:20`, `count >= 20`). `docs/LICENSING.md` used to say "10/day" in one table — resolved 2026-07-19, now consistent at 20/day throughout that doc too.
 3. **`/api/imotara-ai` is retired (410).** It returns `410 { error:"deprecated_route", canonical:"/api/respond" }`. Live clients use `/api/chat-reply` (primary) and `/api/respond` (fallback). A user hitting the 410 is on a **stale build** — a useful signal, but note the KB's "reply pipeline" naming assumes current builds.
 4. ✅ **RESOLVED 2026-07-18 — `user_bans` was audit-only; the ban-status endpoint used to trust it as truth.** A ban applied directly in Supabase (not via the admin route) left no `user_bans` row, so `GET /api/admin/users/[userId]/ban` could report "not banned" for a genuinely banned user. Fixed — the endpoint now reads `auth.admin.getUserById(userId).banned_until` as the authoritative source, with `user_bans` kept only as supporting context (who/why/when). Verified live: banned a test user directly via Supabase with no audit row, confirmed the endpoint correctly reported `banned:true`.
 5. **No email magic-link on mobile.** The FAQ lists magic-link as a sign-in method; on mobile only Google/Apple/anonymous exist. Magic-link is web-only. Support should not tell mobile users to "check for the sign-in email."

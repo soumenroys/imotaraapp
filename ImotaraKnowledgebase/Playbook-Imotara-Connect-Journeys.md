@@ -126,10 +126,10 @@
 - **`GET /api/cron/wallet-expiry-notice`** — **daily 03:00 UTC** (`0 3 * * *`). Wallets expiring within **30 days** with no notice yet get a 30-day warning email; `expiry_notified_at` is stamped.
 - **`GET /api/cron/wallet-reminders`** — **daily ~02:30 UTC** (`30 2 * * *`). Six milestone emails at **180 / 90 / 30 / 14 / 7 / 1 days** before expiry (each tracked in its own `notified_*d_at` column, 2-day window so a skipped cron day still fires) plus an **annual balance statement** once per year.
 
-### C5. ⚠ The forfeit cron — still inconsistent
-- **`GET /api/cron/wallet-forfeit`** runs **daily 04:00 UTC** (`0 4 * * *`) and **still contains code that zeros the balance** (`balance = 0, status='forfeited', forfeited_at, forfeited_amount`) and emails a "forfeited — 6-month refund window" notice.
-- **Why it's practically inert but still a hazard:** it selects only `status='active'` wallets, and `wallet-dormant` runs **30 minutes earlier** (03:30 vs 04:00) converting the same expired wallets to `status='dormant'` — so by 04:00 there is normally nothing left for forfeit to catch. Additionally the v3 "ultra-safe" migration removed `forfeited` from the allowed statuses, so any row this cron *did* hit would fail the CHECK constraint.
-- **Operational guidance:** treat **dormant (never-zero, 1-year refund)** as the live policy; the forfeit cron and its "6-month grace" email are superseded and should be disabled. This matches the reference doc's honesty flag #2; the added detail here is the **03:30-before-04:00 ordering** that makes dormancy win in practice.
+### C5. ✅ RESOLVED 2026-07-19 — the forfeit route file is now actually deleted
+- Earlier revisions of this doc (and several others in this KB) said the `wallet-forfeit` cron was "removed entirely," but that only ever meant removed from `vercel.json`'s schedule — the route file `src/app/api/cron/wallet-forfeit/route.ts` still existed on disk, still contained code that zeros the balance (`balance = 0, status='forfeited', forfeited_at, forfeited_amount`), and would have violated the v3 "never zero" CHECK constraint if anything ever called it directly.
+- A 2026-07-18 doc-vs-code review caught this gap (dead code contradicting live policy is a latent risk even if unreachable today). The route file has now been **deleted from the codebase**, not just descheduled — there is nothing left to accidentally re-wire.
+- **Operational guidance (unchanged):** **dormant (never-zero, 1-year refund)** is the only wallet-lifecycle policy now, live in both schedule and code.
 
 ---
 
@@ -197,7 +197,7 @@
 1. **Session notes** max length is **2000 chars** (reference implied 200).
 2. **Emergency button is implemented** in the web session page (reference said aspirational).
 3. **Recharge expiry = 30 minutes**, not 30 days; the 30-day figure is the wallet expiry *notice*; balance expiry is 2 years.
-4. ✅ **RESOLVED** — `wallet-forfeit` removed entirely from `vercel.json` (was out-ordered by wallet-dormant anyway, and would have violated the v3 CHECK constraint).
+4. ✅ **RESOLVED** — `wallet-forfeit` removed from `vercel.json` 2026-07-18 (was out-ordered by wallet-dormant anyway, and would have violated the v3 CHECK constraint); its route file, which had lingered on disk as latent risk, was deleted outright 2026-07-19 — see §C5 above.
 5. ✅ **RESOLVED** — payout completion now debits `earned_amount` correctly via `finalize_completed_payout()`, verified live. Zero real consultants were ever affected before the fix.
 6. **Only consultant→user blocks** exist; no user-side block endpoint.
 7. Admin registration alert email goes to **`info@imotara.com`**; refund/action alerts go to **`support@imotara.com`**.

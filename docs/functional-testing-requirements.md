@@ -628,7 +628,7 @@ All banners below appear at the top of the chat screen. Only one banner appears 
 **Expected:** Token pack credits are consumed (server-side). User gets a cloud reply. Balance decreases by 1.
 
 #### TC-LIC-04 — Upgrade to Plus — Razorpay (Web, Android)
-**Steps:** As a Free user, tap Upgrade → select Plus plan (₹79/mo) → complete Razorpay payment flow with test card  
+**Steps:** As a Free user, tap Upgrade → select Plus plan (₹99/mo) → complete Razorpay payment flow with test card  
 **Expected:** Payment succeeds. License tier updates to Plus. Quota banner disappears.
 
 #### TC-LIC-05 — Upgrade to Pro — Razorpay (Web, Android)

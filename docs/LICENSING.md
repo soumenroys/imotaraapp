@@ -40,7 +40,7 @@ Legend: ✅ Included · ❌ Not included · `value` — specific limit or parame
 
 | Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
 |---------|-------------|------|------|-----|--------|-----|------------|
-| **Daily reply limit** | Max AI replies the user can send per calendar day before needing token top-up | 10/day | Unlimited | Unlimited | Unlimited | Unlimited | Unlimited |
+| **Daily reply limit** | Max AI replies the user can send per calendar day before needing token top-up | 20/day | Unlimited | Unlimited | Unlimited | Unlimited | Unlimited |
 | **Companion tone selection** | Choose the personality/mood of the AI companion (e.g. Warm, Direct, Playful) | 1 tone | All tones | All tones | All tones | All tones | All tones |
 | **Response length control** | Switch between short, medium, and long AI response modes | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Conversation threading** | Replies grouped into sessions/threads for cleaner navigation | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -236,7 +236,7 @@ Why a user or org should move to the next tier:
 
 | Current Tier | Key Upgrade Trigger |
 |---|---|
-| **Free → Plus** | Hitting the 10/day reply cap · needing history beyond 7 days · wanting cross-device sync or data export · Connect session history beyond 7 days |
+| **Free → Plus** | Hitting the 20/day reply cap · needing history beyond 7 days · wanting cross-device sync or data export · Connect session history beyond 7 days |
 | **Plus → Pro** | Wanting emotional insights, mood trends, weekly summaries, monthly letters, growth arc · unlimited Connect session history |
 | **Pro → Family** | Multiple household members sharing one app account · need for child-safe profiles |
 | **Pro → EDU** | Institution deploying for students/staff · need for admin panel, LMS, bulk provisioning |

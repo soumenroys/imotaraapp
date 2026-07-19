@@ -15,7 +15,7 @@
 | `tokens_1800` | token_pack | 1800 | ₹499 | 49,900 | — |
 
 **`grantLicense(userId, productId, admin, source)` semantics:**
-- **Subscription:** stacks expiry (`baseMs = max(now, existing expiry)` + `days`), **never downgrades tier** (TIER_RANK: free 0 · plus 1 · pro 2 · family/edu 3 · enterprise 4 — a Pro user who buys Plus keeps Pro with stacked expiry). Writes `licenses` row `status='valid'`, `source`.
+- **Subscription:** stacks expiry (`baseMs = max(now, existing expiry)` + `days`), **never downgrades tier** (TIER_RANK: free 0 · plus 1 · pro 2 · family 3 · edu 4 · enterprise 5 — a Pro user who buys Plus keeps Pro with stacked expiry; fixed 2026-07-19, `grantLicense.ts` used to tie family/edu at 3 and short enterprise to 4, diverging from the canonical ranking in `serverGate.ts`). Writes `licenses` row `status='valid'`, `source`.
 - **Token pack:** `token_balance += tokens`; tier/expiry untouched.
 - **Idempotency** lives one layer up in each rail via the **`payment_licenses`** table keyed by `payment_id` (Razorpay pay id / Apple transactionId / Google purchaseToken).
 

@@ -46,11 +46,11 @@ This Project is the knowledge base for **Imotara** — a privacy-first, emotion-
 - ✅ **Connect payout accounting hole** — fixed via `finalize_completed_payout()` RPC (`docs/sql/connect_v38_payout_accounting.sql`), wired into the payout-completion route, verified live. Zero real payouts had completed before the fix shipped, so no consultant was ever actually double-paid.
 - ✅ **Ban alert pointed to `support@imotara.com`** — corrected to `info@imotara.com`.
 - ✅ **Soft-launch institutional-gate bug on mobile** — fixed and **pushed** (no longer sitting in an unpushed branch); still needs a new EAS build to reach real devices.
-- ✅ **`wallet-forfeit` cron** — removed entirely (was practically inert anyway; see Database & Backend Reference).
+- ✅ **`wallet-forfeit` cron** — descheduled from `vercel.json` 2026-07-18, and the route file itself (which had lingered on disk, still able to violate the v3 wallet CHECK constraint if ever called directly) was deleted 2026-07-19; see Database & Backend Reference.
 - ✅ **`user_bans` table being treated as authoritative** — the admin ban-status endpoint now reads `auth.users.banned_until` directly; `user_bans` is kept only as supporting context.
 - ✅ **Jest test-suite + CI branch for imotara-mobile** — pushed to `main` (commits differ from the originally-drafted `d03dade`/`7889964` — they landed via `git am` as `ad80719`/`d0d2cdb`/`8e2a548`/`2cd6018`). CI is active on the remote.
 - ✅ **Web `.env.example` gaps** (Azure TTS, Stripe, Apple IAP, Google Play, donation vars) — filled in.
-- ✅ **Public web FAQ wrong languages** (Korean/Turkish/Italian) — corrected to the real 22-language list.
+- ✅ **Public language list wrong in 3 places** (`layout.tsx` JSON-LD, `ai-mental-wellness/page.tsx` FAQ, `public/llms.txt` ×2) — all said Korean/Turkish/Italian, which don't exist, and omitted Russian/Hebrew/Indonesian, which do. Fixed 2026-07-19. Note: the home-page FAQ (`src/app/page.tsx`) was never actually wrong — an earlier pass in this doc mislocated the bug there.
 - ✅ **`eas.json`'s launch-flag env var mismatch** — code now reads `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` directly (matching what `eas.json` actually sets), and `eas.json`'s `production` value was corrected from `"false"` to `"true"` to match current soft-launch intent (everyone free for now; flip that one value later to turn on real enforcement).
 
 **Confirmed FALSE ALARM, not a bug:** the "Web Settings content-sensitivity buttons mislabeled" item below was investigated and found incorrect — there are two separate, correctly-labeled controls (content guard Relaxed/Standard/Strict; crisis threshold Sensitive/Standard/Conservative) sitting next to each other. No change was made.

@@ -120,8 +120,9 @@ The engine uses:
 - Romanised language detection (2-hit threshold, script mirroring at >65% Latin)
 
 ### 5.3 Emotion Detection
-8 emotion states: joy, sadness, anger, fear, anxiety, loneliness, gratitude, neutral.
-Detection is keyword-based on device; cloud AI detects with higher accuracy and returns an `emotion` + `intensity` (0–1) field used for history tracking and adaptive responses.
+Two separate palettes, not one 8-state model:
+- **On-device (keyword-based), 9 states** (`src/types/analysis.ts`): joy, sadness, anger, fear, anxiety, disgust, surprise, gratitude, neutral.
+- **Cloud AI, 15 states** (`src/lib/ai/emotion/emotionTypes.ts`): neutral, joy, sadness, anger, fear, anxiety, disgust, surprise, love, curiosity, confusion, shame, guilt, loneliness, hope — higher accuracy, returns an `emotion` + `intensity` (0–1) field used for history tracking and adaptive responses.
 
 ### 5.4 Language Detection
 22 languages detected from message content. The engine:

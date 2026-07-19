@@ -715,6 +715,18 @@ const FEATURES: Record<string, Feature[]> = {
       ],
       tip: "Signing out does not delete your local history — everything stays on your device.",
     },
+    {
+      icon: "🆘",
+      title: "Get Help Anytime",
+      short: "A free AI support assistant at imotara.com/help answers questions from our real documentation — no account needed.",
+      long: "Stuck on something, or just want to know how a feature works before you try it? The Help assistant at imotara.com/help answers in plain language, grounded only in Imotara's actual support documentation — it won't make things up. No sign-in required, and it's rate-limited to keep it fast and available for everyone.",
+      steps: [
+        "Go to imotara.com/help, or tap 'Help' in the site footer/nav.",
+        "Type your question in plain language — e.g. 'How do I cancel my subscription?'",
+        "Read the grounded answer, with the source topics it drew from.",
+      ],
+      tip: "If the assistant can't find an answer in the docs, it will say so rather than guessing.",
+    },
   ],
 
   // ─ Chat ────────────────────────────────────────────────────────────────────
@@ -1538,15 +1550,15 @@ const FEATURES: Record<string, Feature[]> = {
       icon: "📖",
       title: "Grow Cadence Controls",
       short: "Set how often your companion sends letters and how the arc updates.",
-      long: "Available on Plus and above. Control the frequency of companion letters (Monthly, Every 2 months) and the arc narrative update cycle. More frequent updates mean shorter, more focused reflections; less frequent means broader, deeper summaries.",
+      long: "Available on Pro and above. Control the frequency of companion letters and the arc narrative update cycle — 7, 14, 30, or 60 days for each, set independently. More frequent updates mean shorter, more focused reflections; less frequent means broader, deeper summaries.",
       steps: [
         "Go to Settings → Experience → Chat behaviour.",
         "Find 'Companion letter cadence'.",
-        "Select Monthly or Every 2 months.",
-        "Find 'Growth arc cadence' — Monthly or Quarterly.",
+        "Select 7, 14, 30, or 60 days.",
+        "Find 'Growth arc cadence' — also 7, 14, 30, or 60 days.",
       ],
-      tiers: { free: false, plus: true, pro: true, ent: true },
-      badge: "Plus+ required",
+      tiers: { free: false, plus: false, pro: true, ent: true },
+      badge: "Pro+ required",
     },
     {
       icon: "🔎",

@@ -56,7 +56,7 @@ const faqs = [
   },
   {
     q: "What languages does Imotara support?",
-    a: "Imotara supports 22 languages: English, Hindi, Bengali, Tamil, Telugu, Malayalam, Kannada, Marathi, Gujarati, Punjabi, Odia, Urdu, Spanish, French, German, Portuguese, Arabic, Japanese, Korean, Turkish, Italian, and Chinese.",
+    a: "Imotara supports 22 languages: English, Hindi, Bengali, Marathi, Tamil, Telugu, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu, Spanish, French, German, Portuguese, Russian, Arabic, Chinese, Japanese, Hebrew, and Indonesian.",
   },
   {
     q: "Can Imotara help with anxiety or stress?",

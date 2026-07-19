@@ -58,8 +58,8 @@ Once decided, a **strict language directive** is injected ("Reply ONLY in Bengal
 
 ## Emotion detection
 
-- **On-device / keyword-based:** `keywordMaps.ts` holds multilingual regex patterns across 21 languages; `analyzeLocal` runs pure regex with no API call. This is fast but can misfire on short, mixed-script, or ironic messages. Eight emotion states are tracked: joy, sadness, anger, fear, anxiety, loneliness, gratitude, neutral.
-- **Cloud analysis:** higher accuracy; returns an `emotion` label + `intensity` (0–1) used for history tracking and adaptive responses.
+- **On-device / keyword-based:** `keywordMaps.ts` holds multilingual regex patterns across 21 languages; `analyzeLocal` runs pure regex with no API call. This is fast but can misfire on short, mixed-script, or ironic messages. **9 emotion states** are tracked (`src/types/analysis.ts`): joy, sadness, anger, fear, anxiety, disgust, surprise, gratitude, neutral.
+- **Cloud analysis:** higher accuracy; returns an `emotion` label + `intensity` (0–1) used for history tracking and adaptive responses. Uses a separate, wider **15-state palette** (`src/lib/ai/emotion/emotionTypes.ts`): neutral, joy, sadness, anger, fear, anxiety, disgust, surprise, love, curiosity, confusion, shame, guilt, loneliness, hope. Note the two palettes aren't a strict superset/subset of each other — local has gratitude (cloud doesn't), cloud has loneliness/love/curiosity/confusion/shame/guilt/hope (local doesn't). Corrected 2026-07-19 from a stale "8 states" claim that matched neither.
 - **Consent-gated modes:** analysis mode is user-selectable — **Auto / Cloud / Local**. On web, cloud analysis only runs after explicit consent (`runAnalysisWithConsent` / `runRespondWithConsent`); the language preference is stored locally and never sent to the server.
 
 ## Text-to-speech (`/api/tts`) — Azure Neural TTS
@@ -68,7 +68,7 @@ Once decided, a **strict language directive** is injected ("Reply ONLY in Bengal
 - **Gender-matched voices:** `voices.ts` maps all 22 languages to Azure Neural voice names with male/female/neutral variants (e.g. `hi-IN-MadhurNeural`/`hi-IN-SwaraNeural`, `en-US-AndrewNeural`/`en-US-JennyNeural`). Nonbinary/other/prefer-not fall back to the neutral (female) voice. Native `expo-speech` was abandoned for chat replies because it ignores the gender parameter — so English also goes through Azure on mobile to keep gender consistent.
 - **SSML express-as styles per language:** voices with confirmed style support use `<mstts:express-as>` (English empathetic/chat, Chinese gentle/friendly, Japanese/French/German/Portuguese/Spanish styles). Languages without a supported style (Indian languages, Arabic, Russian) get a lighter **prosody fallback** (`<prosody rate="-8%" pitch="+1%">`) so speech reads as considered rather than flat.
 - **Region routing:** `regionRouter.ts` maps the Vercel `x-vercel-ip-country` header to the nearest Azure Speech region (centralindia / westeurope / eastus / japaneast), defaulting to India.
-- **Anonymous cap:** signed-in accounts have unlimited Azure TTS; **anonymous identities are capped at 15 TTS calls/day** (429 on exceed). Text is hard-capped at 3,000 chars.
+- **Anonymous cap:** signed-in accounts have unlimited Azure TTS; **anonymous identities are capped at 15 TTS calls/day** (429 on exceed). Text is hard-capped at 8,000 chars (raised from 3,000 in v1.2.7 — actual replies run ~1,200-2,500 chars, so this is headroom, not a practical limit).
 - **Browser fallback:** on web, the route is only called when the browser lacks a native voice for the language; otherwise the browser's `speechSynthesis` is used (with a `resume()` keep-alive fix for long utterances). Mobile falls back to native `expo-speech` only if the Azure request fails.
 - **Pre-generated previews:** 42 pre-rendered preview MP3s on the CDN (22 languages × male/female) power the voice picker without hitting the API.
 - **Mobile chunked playback:** mobile splits replies into sentence chunks (multilingual terminators `. ! ? । ۔ ؟ 。！？`), caps the first chunk small so speech starts fast, and pipelines fetch of chunk N+1 while chunk N plays, with a per-chunk 20s timeout.
@@ -92,4 +92,4 @@ Mobile voice input forwards recorded audio (m4a, max 10 MB) to **OpenAI Whisper 
 - **Anonymous limits:** TTS 15/day, Whisper transcription 20/day (both keyed on `usage_events`).
 - Paid/trial tiers and users within the launch offer are unlimited.
 
-> **Doc discrepancy to be aware of:** the design-phase `LICENSING.md` matrix lists a "10/day" free reply limit in one table, but the shipping server code and the product overview both enforce **20/day**. The code is authoritative.
+> **Resolved 2026-07-19:** `LICENSING.md`'s design-phase matrix used to list a stale "10/day" free reply limit in one table; the shipping server code and the product overview always enforced **20/day**. `LICENSING.md` has now been corrected to match.

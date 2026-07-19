@@ -22,7 +22,7 @@ Imotara was built in India and is designed to be accessible to people globally, 
 
 - **Private AI chat**: Emotional support conversations powered by advanced language models
 - **Mood history timeline**: Visual record of emotional patterns over days, weeks, months
-- **22 languages**: English, Hindi, Bengali, Tamil, Telugu, Malayalam, Kannada, Marathi, Gujarati, Punjabi, Odia, Urdu, Spanish, French, German, Portuguese, Arabic, Japanese, Korean, Turkish, Italian, Chinese
+- **22 languages**: English, Hindi, Bengali, Marathi, Tamil, Telugu, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu, Spanish, French, German, Portuguese, Russian, Arabic, Chinese, Japanese, Hebrew, Indonesian
 - **Local-first storage**: All data stays on the device by default — no account required
 - **Optional cloud sync**: Cross-device sync available with explicit user consent only
 - **Voice input**: Speak your thoughts on mobile apps
@@ -107,7 +107,7 @@ A: Yes. Imotara is free to use. All core features — AI chat, mood timeline, 22
 A: Yes. All conversations are stored only on your device by default. Cloud sync is optional and requires sign-in with explicit consent. No ads, no data selling, no analytics tracking.
 
 **Q: What languages does Imotara support?**
-A: 22 languages: English, Hindi, Bengali, Tamil, Telugu, Malayalam, Kannada, Marathi, Gujarati, Punjabi, Odia, Urdu, Spanish, French, German, Portuguese, Arabic, Japanese, Korean, Turkish, Italian, and Chinese.
+A: 22 languages: English, Hindi, Bengali, Marathi, Tamil, Telugu, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu, Spanish, French, German, Portuguese, Russian, Arabic, Chinese, Japanese, Hebrew, and Indonesian.
 
 **Q: Is there an Imotara mobile app?**
 A: Yes. Imotara is available on Android (Google Play) and iOS (App Store). There is also a web app at https://imotara.com that installs as a PWA.

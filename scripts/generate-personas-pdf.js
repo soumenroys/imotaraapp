@@ -272,7 +272,7 @@ html,body{
       <div class="pc-footer">
         <div>
           <div class="pc-msg-label">Message that resonates</div>
-          <div class="pc-msg-text">"₹79/month. Less than one therapy copay. Available at 2 AM."</div>
+          <div class="pc-msg-text">"₹99/month. Less than one therapy copay. Available at 2 AM."</div>
         </div>
         <div class="pc-channel-wrap">
           <div class="pc-channel-label">Best channels</div>
@@ -549,7 +549,7 @@ html,body{
       </thead>
       <tbody>
         <tr>
-          <td>₹79 vs therapy cost</td>
+          <td>₹99 vs therapy cost</td>
           <td><span class="mhigh">★ Lead</span></td>
           <td><span class="mchk">✓</span></td>
           <td><span class="mcrs">—</span></td>

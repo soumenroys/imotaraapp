@@ -320,7 +320,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
             </ul>
           </div>
         </div>
-        <div class="comp-footer">Imotara opening: 24/7 availability + ₹79/mo vs ₹499/session scheduling friction</div>
+        <div class="comp-footer">Imotara opening: 24/7 availability + ₹99/mo vs ₹499/session scheduling friction</div>
       </div>
 
       <!-- INNERHOUR -->
@@ -660,7 +660,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
           <td><span class="crs">$9.99 USD</span></td>
           <td><span class="chk">Free only</span></td>
           <td><span class="crs">$12+ USD</span></td>
-          <td><span class="win">₹79 ★</span></td>
+          <td><span class="win">₹99 ★</span></td>
         </tr>
       </tbody>
     </table>
@@ -720,7 +720,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
         <div class="price-col-header">Imotara</div>
         <div class="price-col-body">
           <div class="price-free">Free</div>
-          <div class="price-paid" style="color:var(--pink);">₹79/mo</div>
+          <div class="price-paid" style="color:var(--pink);">₹99/mo</div>
           <div class="price-note" style="color:var(--green);font-weight:700;">Lowest in category</div>
         </div>
       </div>
@@ -743,7 +743,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
           <div class="battle-row">
             <div class="battle-dimension">Pricing</div>
             <div class="battle-them">₹599/month</div>
-            <div class="battle-us">₹79/month</div>
+            <div class="battle-us">₹99/month</div>
           </div>
           <div class="battle-row">
             <div class="battle-dimension">Offline AI</div>
@@ -771,7 +771,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
           <div class="battle-row">
             <div class="battle-dimension">Cost</div>
             <div class="battle-them">₹499/session</div>
-            <div class="battle-us">₹79/month unlimited</div>
+            <div class="battle-us">₹99/month unlimited</div>
           </div>
           <div class="battle-row">
             <div class="battle-dimension">Languages</div>
@@ -947,7 +947,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
       <div class="moat-stats">
         <div class="moat-stat"><div class="moat-stat-num">11</div><div class="moat-stat-lbl">Indian languages — no competitor matches</div></div>
         <div class="moat-stat"><div class="moat-stat-num">71</div><div class="moat-stat-lbl">Psychological tools — clinical depth</div></div>
-        <div class="moat-stat"><div class="moat-stat-num">₹79</div><div class="moat-stat-lbl">vs avg ₹549 across all competitors</div></div>
+        <div class="moat-stat"><div class="moat-stat-num">₹99</div><div class="moat-stat-lbl">vs avg ₹549 across all competitors</div></div>
       </div>
     </div>
 
@@ -960,7 +960,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
       </div>
       <div class="takeaway-card" style="background:#EEF4FF;border-color:#C0D9F5;">
         <div class="takeaway-title">💰 The price angle is a layup vs every competitor</div>
-        <div class="takeaway-body">At ₹79/month, Imotara is 7× cheaper than Wysa, 6× cheaper than one YourDOST session, and 13× cheaper than Headspace at USD pricing. Use price anchoring freely — it's objectively the most affordable full-featured wellness AI in India.</div>
+        <div class="takeaway-body">At ₹99/month, Imotara is 6× cheaper than Wysa, 5× cheaper than one YourDOST session, and 10× cheaper than Headspace at USD pricing. Use price anchoring freely — it's objectively the most affordable full-featured wellness AI in India.</div>
       </div>
       <div class="takeaway-card" style="background:#EDFAF2;border-color:#B8EDE3;">
         <div class="takeaway-title">🔒 Privacy beats every global competitor</div>

@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import GoogleGIcon from "@/components/imotara/GoogleGIcon";
+import SsoIcon from "@/components/imotara/SsoIcon";
 
 type Step = "loading" | "preview" | "signin_required" | "accepting" | "accepted" | "error";
 
@@ -107,7 +107,7 @@ export default function InviteAcceptPage() {
         <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Link href={`/settings?redirect=/org/invite/${token}`}
             className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
-            <GoogleGIcon />
+            <SsoIcon />
             Sign in
           </Link>
           <Link href={`/login?redirect=/org/invite/${token}`}
@@ -116,7 +116,7 @@ export default function InviteAcceptPage() {
           </Link>
         </div>
         <p className="mt-4 text-xs text-zinc-500">
-          Was your account set up by an Imotara admin? Use email &amp; password. Everyone else uses the Google option.
+          Was your account set up by an Imotara admin? Use email &amp; password. Everyone else uses single sign-on.
         </p>
       </div>
     );

@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import GoogleGIcon from "@/components/imotara/GoogleGIcon";
+import SsoIcon from "@/components/imotara/SsoIcon";
 
 type BillingType = "commercial" | "ngo" | "edu" | "govt";
 
@@ -99,7 +99,7 @@ export default function OrgNewPage() {
         <p className="mt-2 text-sm text-zinc-400">You need to be signed in to submit an organisation request.</p>
         <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Link href="/settings" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
-            <GoogleGIcon />
+            <SsoIcon />
             Sign in
           </Link>
           <Link href="/login?redirect=/org/new" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
@@ -107,7 +107,7 @@ export default function OrgNewPage() {
           </Link>
         </div>
         <p className="mt-4 text-xs text-zinc-500">
-          Was your account set up by an Imotara admin? Use email &amp; password. Everyone else uses the Google option.
+          Was your account set up by an Imotara admin? Use email &amp; password. Everyone else uses single sign-on.
         </p>
       </div>
     );
@@ -259,7 +259,7 @@ export default function OrgNewPage() {
             {sessionExpired && (
               <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                 <Link href="/settings?redirect=/org/new" className="inline-flex items-center gap-1.5 underline hover:text-rose-200">
-                  <GoogleGIcon />
+                  <SsoIcon />
                   Sign in
                 </Link>
                 <span className="text-rose-400/60">or</span>

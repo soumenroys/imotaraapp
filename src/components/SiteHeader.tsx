@@ -141,9 +141,11 @@ export default function SiteHeader() {
     setMobileOpen(false);
   }, [pathname]);
 
-  const moreLinks: MoreItem[] = orgHref
-    ? [{ href: orgHref, label: "🏢 Organisation" }, ...MORE_LINKS]
-    : MORE_LINKS;
+  const moreLinks: MoreItem[] = [
+    ...(orgHref ? [{ href: orgHref, label: "🏢 Organisation" }] : []),
+    ...(mounted && !user ? [{ href: "/settings", label: "🔑 Sign in" }] : []),
+    ...MORE_LINKS,
+  ];
 
   const isMoreActive = moreLinks.some((item) =>
     item.kind === "group"
@@ -250,7 +252,7 @@ export default function SiteHeader() {
                     }
                     const active = pathname.startsWith(item.href);
                     return (
-                      <Link key={item.href} href={item.href}
+                      <Link key={`${idx}-${item.href}`} href={item.href}
                         className={`block px-4 py-2 text-xs transition-colors ${
                           active ? "font-semibold text-zinc-900 dark:text-zinc-50"
                                  : "text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
@@ -346,7 +348,7 @@ export default function SiteHeader() {
                 }
                 const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
                 return (
-                  <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                  <Link key={`${idx}-${item.href}`} href={item.href} onClick={() => setMobileOpen(false)}
                     className={`rounded-xl px-3 py-2 text-sm transition-colors ${
                       active ? "bg-zinc-900/10 font-semibold text-zinc-900 dark:bg-white/10 dark:text-zinc-50"
                              : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/5"

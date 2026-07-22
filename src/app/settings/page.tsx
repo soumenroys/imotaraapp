@@ -7,7 +7,7 @@ import { saveHistory } from "@/lib/imotara/historyPersist";
 import { useAppearance, type Accent, type FontSize, type ColorMode } from "@/hooks/useAppearance";
 import EmotionalFingerprint from "@/components/imotara/EmotionalFingerprint";
 import useFeatureGate from "@/hooks/useFeatureGate";
-import GoogleGIcon from "@/components/imotara/GoogleGIcon";
+import SsoIcon from "@/components/imotara/SsoIcon";
 
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 
@@ -1221,6 +1221,7 @@ export default function SettingsPage() {
     const [sbEmail, setSbEmail] = useState<string | null>(null);
     const [signingOut, setSigningOut] = useState(false);
     const [signingIn, setSigningIn] = useState(false);
+    const [emailPasswordHref, setEmailPasswordHref] = useState("/login");
 
     useEffect(() => {
         (async () => {
@@ -1234,6 +1235,10 @@ export default function SettingsPage() {
                 setSbEmail(session?.user?.email ?? null);
             } catch { /* not signed in or env not set */ }
         })();
+
+        const rawRedirect = new URLSearchParams(window.location.search).get("redirect") ?? "";
+        const target = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/settings";
+        setEmailPasswordHref(`/login?redirect=${encodeURIComponent(target)}`);
     }, []);
 
     async function handleSignIn() {
@@ -2752,6 +2757,43 @@ export default function SettingsPage() {
                     </p>
                 </header>
 
+                {/* Signed-out sign-in prompt — surfaced right up top so it's visible
+                    without scrolling past every local-preference section below. The
+                    full sign-in controls also live further down in "Remote history
+                    sync" for context; this is just the fast path to them. */}
+                {mounted && !sbEmail && (
+                    <section className="imotara-glass-card rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
+                        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 shadow-lg">
+                                <SsoIcon className="h-6 w-6 text-white" />
+                            </div>
+                            <div className="flex-1">
+                                <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Sign in</h2>
+                                <p className="mt-1 text-xs leading-5 text-zinc-400">
+                                    Sign in to sync your history across devices, manage your plan, or access an organisation account.
+                                </p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleSignIn}
+                                        disabled={signingIn}
+                                        className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-100 transition hover:bg-white/10 disabled:opacity-50"
+                                    >
+                                        <SsoIcon className="h-3.5 w-3.5" />
+                                        {signingIn ? "Redirecting…" : "Sign in"}
+                                    </button>
+                                    <Link
+                                        href={emailPasswordHref}
+                                        className="inline-flex items-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-300 transition hover:bg-white/10"
+                                    >
+                                        or sign in with email &amp; password
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                )}
+
                 {/* ── Group 1: Your companion ──────────────────────────── */}
                 <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 shrink-0">Your companion</span>
@@ -4153,38 +4195,30 @@ export default function SettingsPage() {
                     <p className="mt-1 text-xs leading-5 text-zinc-400">
                         Push your local history to the Imotara cloud and pull any records from other devices. Requires being signed in.
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                        {sbEmail ? (
-                            <>
-                                <button
-                                    type="button"
-                                    onClick={handleSyncNow}
-                                    disabled={syncBusy}
-                                    className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-200 transition hover:bg-indigo-500/20 disabled:opacity-50"
-                                >
-                                    {syncBusy ? "Saving…" : "Back up now"}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleSignOut}
-                                    disabled={signingOut}
-                                    className="rounded-xl border border-zinc-500/40 bg-zinc-700/30 px-4 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-600/30 disabled:opacity-50"
-                                >
-                                    {signingOut ? "Signing out…" : "Sign out"}
-                                </button>
-                            </>
-                        ) : (
+                    {sbEmail ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
                             <button
                                 type="button"
-                                onClick={handleSignIn}
-                                disabled={signingIn}
-                                className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-100 transition hover:bg-white/10 disabled:opacity-50"
+                                onClick={handleSyncNow}
+                                disabled={syncBusy}
+                                className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-200 transition hover:bg-indigo-500/20 disabled:opacity-50"
                             >
-                                <GoogleGIcon className="h-3.5 w-3.5" />
-                                {signingIn ? "Redirecting…" : "Sign in"}
+                                {syncBusy ? "Saving…" : "Back up now"}
                             </button>
-                        )}
-                    </div>
+                            <button
+                                type="button"
+                                onClick={handleSignOut}
+                                disabled={signingOut}
+                                className="rounded-xl border border-zinc-500/40 bg-zinc-700/30 px-4 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-600/30 disabled:opacity-50"
+                            >
+                                {signingOut ? "Signing out…" : "Sign out"}
+                            </button>
+                        </div>
+                    ) : (
+                        <p className="mt-2 text-[11px] text-zinc-500">
+                            Use the <strong className="text-zinc-400">Sign in</strong> section at the top of this page.
+                        </p>
+                    )}
                     {syncMsg && <p className="mt-2 text-[11px] text-zinc-400">{syncMsg}</p>}
                 </section>
 

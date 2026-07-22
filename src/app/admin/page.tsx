@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState, useEffect, useCallback, useTransition } from "react";
 import type { LicenseTier } from "@/types/license";
 import EyeIcon from "@/components/imotara/EyeIcon";
@@ -330,6 +331,10 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
               Forgot password?
             </button>
             <p className="text-center text-[11px] text-zinc-600">First time? Run <code className="text-zinc-400">POST /api/admin/auth/seed</code> to create owner account.</p>
+            <p className="text-center text-[11px] text-zinc-600">
+              This is Imotara&apos;s own internal panel — not for org accounts.
+              Org member or admin? <Link href="/login" className="text-indigo-400 hover:text-indigo-300 underline">Sign in here instead</Link>.
+            </p>
           </form>
         )}
 

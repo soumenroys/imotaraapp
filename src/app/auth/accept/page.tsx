@@ -16,6 +16,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { checkPasswordComplexity, PASSWORD_POLICY } from "@/lib/imotara/passwordPolicy";
 import EyeIcon from "@/components/imotara/EyeIcon";
@@ -25,7 +26,7 @@ const supabaseAccept = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
-type Step = "verifying" | "set_password" | "saving" | "done" | "error";
+type Step = "verifying" | "set_password" | "saving" | "done" | "error" | "session_lost";
 
 function AcceptHandler() {
     const router = useRouter();
@@ -106,6 +107,16 @@ function AcceptHandler() {
         setStep("saving");
         const { error: updateErr } = await supabaseAccept.auth.updateUser({ password });
         if (updateErr) {
+            // "Auth session missing" (and similar) means the session this page
+            // established has since gone away — retrying the same updateUser()
+            // call here will just fail identically forever, since nothing
+            // re-establishes it. Route to a real recovery path instead of
+            // silently dropping the user back on a form that can never succeed.
+            const sessionLost = /session/i.test(updateErr.message ?? "");
+            if (sessionLost) {
+                setStep("session_lost");
+                return;
+            }
             setFieldError(updateErr.message || "Could not set your password. Please try again.");
             setStep("set_password");
             return;
@@ -132,6 +143,22 @@ function AcceptHandler() {
 
     if (step === "done") {
         return <p className="text-sm text-zinc-500 dark:text-zinc-400">Password set — taking you to your dashboard…</p>;
+    }
+
+    if (step === "session_lost") {
+        return (
+            <div className="w-full max-w-sm text-center">
+                <p className="text-sm text-red-600 dark:text-red-400">
+                    Your session has expired, so we can&apos;t save this password. This can happen if the link sat open for a while, or a newer invite was sent to this email since.
+                </p>
+                <Link
+                    href="/auth/forgot-password"
+                    className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+                >
+                    Request a new link
+                </Link>
+            </div>
+        );
     }
 
     return (

@@ -105,6 +105,21 @@ function AcceptHandler() {
         if (password !== confirm) { setFieldError("Passwords do not match."); return; }
 
         setStep("saving");
+
+        // Force a fresh session check right before the write. getSession()
+        // transparently refreshes an expired access token using the refresh
+        // token already in the client — without this, a session established
+        // by setSession() minutes earlier (while the user was reading the
+        // password policy, typing, retyping) can have gone stale by the time
+        // we actually submit, since it's easy for more time to pass here than
+        // the access token's lifetime. Confirmed as the real trigger via a
+        // live report — this isn't a hypothetical edge case.
+        const { data: { session: freshSession } } = await supabaseAccept.auth.getSession();
+        if (!freshSession) {
+            setStep("session_lost");
+            return;
+        }
+
         const { error: updateErr } = await supabaseAccept.auth.updateUser({ password });
         if (updateErr) {
             // "Auth session missing" (and similar) means the session this page

@@ -51,13 +51,30 @@ export default function InviteAcceptPage() {
       setInvite(invJson.invite);
       const email = authJson?.user?.email ?? null;
       setUserEmail(email);
-      setStep(email ? "preview" : "signin_required");
+
+      if (!email) {
+        setStep("signin_required");
+        return;
+      }
+
+      // Auto-accept the moment we know the signed-in email matches the
+      // invite — signing in with the exact invited address already is the
+      // consent signal; a separate "Join" click was just an extra step that
+      // people were skipping, leaving them signed in but never actually
+      // added as a member (found via a real support case 2026-07-22/23).
+      const matches = email.toLowerCase() === invJson.invite.email.toLowerCase();
+      if (matches) {
+        void acceptInvite();
+      } else {
+        setStep("preview");
+      }
     }
     void load();
   }, [token]);
 
-  // 2. Accept invite
-  async function handleAccept() {
+  // 2. Accept invite — called automatically on a matching sign-in, or via
+  // the manual "Join" button as a fallback (e.g. retry after a transient error).
+  async function acceptInvite() {
     setStep("accepting");
     const r = await fetch(`/api/org/invite/${token}`, { method: "POST", credentials: "same-origin" });
     const j = await r.json();
@@ -187,7 +204,7 @@ export default function InviteAcceptPage() {
                 </p>
               )
             ) : (
-              <button onClick={handleAccept} disabled={step === "accepting"}
+              <button onClick={acceptInvite} disabled={step === "accepting"}
                 className="mt-6 w-full rounded-2xl bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-110 disabled:opacity-60">
                 {step === "accepting" ? "Joining…" : `Join ${invite.org.name}`}
               </button>

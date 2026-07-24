@@ -1085,6 +1085,7 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
   const [adding, setAdding]     = useState(false);
   const [addErr, setAddErr]     = useState("");
   const [addOk, setAddOk]       = useState("");
+  const [resendMsg, setResendMsg] = useState<Record<string, string>>({});
   // Off = existing behavior (attach role to an already-existing Imotara account).
   // On  = create_and_invite: creates the account if needed and emails a
   // credentialed invite link (Option A — link only, never a password).
@@ -1123,6 +1124,22 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
   async function suspendAccess(userId: string, suspend: boolean) {
     if (suspend && !confirm("Suspend this account's access to Imotara? They won't be able to sign in or refresh their session. This can be reversed.")) return;
     await patch(userId, { suspendAccess: suspend });
+  }
+
+  async function resendPasswordLink(userId: string, email: string) {
+    if (!confirm(`Send a fresh password-set link to ${email}?`)) return;
+    setWorking(userId);
+    setResendMsg((p) => ({ ...p, [userId]: "" }));
+    try {
+      const res = await fetch(`/api/admin/organizations/${orgId}/members`, adminFetchOpts(token, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, action: "resend_password_link" }),
+      }));
+      const j = await res.json();
+      setResendMsg((p) => ({ ...p, [userId]: res.ok ? "Link emailed ✓" : (j.error ?? "Failed to send.") }));
+    } finally {
+      setWorking(null);
+    }
   }
 
   async function removeMember(userId: string) {
@@ -1234,6 +1251,16 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
                   className="rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-300 transition hover:bg-white/10 disabled:opacity-40">
                   Restore
                 </button>
+                <span className="text-[10px] text-zinc-700">·</span>
+                <button onClick={() => resendPasswordLink(m.userId, m.email)} disabled={working === m.userId}
+                  className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-2 py-0.5 text-[10px] text-indigo-300 transition hover:bg-indigo-500/20 disabled:opacity-40">
+                  {working === m.userId ? "…" : "Resend password link"}
+                </button>
+                {resendMsg[m.userId] && (
+                  <span className={`text-[10px] ${resendMsg[m.userId].includes("✓") ? "text-emerald-400" : "text-rose-400"}`}>
+                    {resendMsg[m.userId]}
+                  </span>
+                )}
               </div>
             </div>
           ))}

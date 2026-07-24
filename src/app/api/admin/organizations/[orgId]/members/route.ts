@@ -57,6 +57,18 @@ export async function POST(req: NextRequest, { params }: Params) {
     return createAndInvite(orgId, email, role, auth.admin);
   }
 
+  if (body.action === "resend_password_link") {
+    const auth = await requireSuperAdmin(req);
+    if (!auth.ok) return auth.response;
+    if (auth.admin.role === "connect_reviewer") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+    if (!checkIpRateLimit(`provision:${auth.admin.id}`, PROVISION_LIMIT, PROVISION_WINDOW_MS)) {
+      return NextResponse.json({ error: "Too many provisioning requests — please wait and try again." }, { status: 429 });
+    }
+
+    return resendPasswordLink(orgId, email, auth.admin);
+  }
+
   if (!await adminAuthorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const admin = getSupabaseAdmin();
@@ -314,4 +326,70 @@ async function createAndInvite(
     role,
     accountExisted: linkType === "recovery",
   });
+}
+
+// Dedicated resend path for an already-active member who lost/never got a
+// working password-set link. createAndInvite() deliberately refuses to touch
+// an already-active membership (409) — that guard exists to stop it from
+// silently re-running the membership/license-assignment side effects, but it
+// also meant there was no way to just re-send the link for someone who's
+// already properly a member. This skips membership/license entirely and only
+// does the one thing a "resend" should: generate a fresh recovery link and
+// email it, exactly like the accept/set-password flow the member already
+// went through (or got stuck on) once.
+async function resendPasswordLink(
+  orgId: string,
+  email: string,
+  actor: { id: string; email: string },
+) {
+  const admin = getSupabaseAdmin();
+
+  const { data: org } = await admin.from("organizations").select("name").eq("id", orgId).single();
+  if (!org) return NextResponse.json({ error: "org not found" }, { status: 404 });
+
+  const { data: users } = await admin.auth.admin.listUsers();
+  const match = users?.users?.find((u) => u.email?.toLowerCase() === email);
+  if (!match) return NextResponse.json({ error: "No Imotara account found with that email." }, { status: 404 });
+
+  // Confirm they're actually an active member of this org — this action is
+  // only ever wired to a member row in the admin UI, but don't trust the
+  // client's word for which org/user pair this applies to.
+  const { data: member } = await admin
+    .from("org_members")
+    .select("role, status")
+    .eq("org_id", orgId)
+    .eq("user_id", match.id)
+    .maybeSingle();
+  if (!member || member.status !== "active") {
+    return NextResponse.json({ error: "This user is not an active member of this organisation." }, { status: 404 });
+  }
+
+  const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+    type:    "recovery",
+    email,
+    options: { redirectTo: ACCEPT_REDIRECT },
+  });
+  if (linkErr || !linkData?.properties?.action_link) {
+    return NextResponse.json({ error: linkErr?.message ?? "failed to generate link" }, { status: 500 });
+  }
+
+  await sendOrgInviteEmail({
+    to:        email,
+    orgName:   org.name,
+    role:      member.role,
+    acceptUrl: linkData.properties.action_link,
+  });
+
+  await admin.from("org_audit_log").insert({
+    org_id:         orgId,
+    actor_id:       actor.id === "legacy" ? null : actor.id,
+    actor_email:    actor.email,
+    actor_role:     "imotara_admin",
+    action:         "password_link_resent",
+    target_email:   email,
+    target_user_id: match.id,
+    changes:        {},
+  });
+
+  return NextResponse.json({ ok: true, userId: match.id, email });
 }

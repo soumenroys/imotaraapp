@@ -52,31 +52,45 @@ function AcceptHandler() {
         const refreshToken = hashParams.get("refresh_token");
 
         if (accessToken && refreshToken) {
+            // Hash tokens present — this is the real, known flow. Rely
+            // solely on this call's own result. Racing it against the
+            // getSession()/onAuthStateChange fallback below was a real bug:
+            // if this browser already had ANY other valid session cached
+            // (e.g. the admin's own login, or a leftover session from
+            // testing), that unrelated fallback could resolve first, mark
+            // the page "settled" using the WRONG session, and cause this
+            // setSession() call — the one actually processing THIS invite's
+            // tokens — to silently no-op when it resolved afterward. Visible
+            // symptom: the hash tokens stay stuck, unprocessed, in the URL.
             supabaseAccept.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
                 .then(({ data: { session }, error: setSessionErr }) => {
                     if (settled) return;
+                    settled = true;
                     if (session && !setSessionErr) {
-                        settled = true;
                         // Clear the tokens from the visible URL now that they're consumed.
                         window.history.replaceState(null, "", window.location.pathname);
                         setStep("set_password");
                     } else {
-                        settled = true;
                         setError("This invite link is invalid or has already been used.");
                         setStep("error");
                     }
                 });
+        } else {
+            // No hash tokens — this page was reached some other way (direct
+            // navigation, or a future PKCE-style link). Only in this case
+            // does it make sense to check for an existing/incoming session.
+            supabaseAccept.auth.getSession().then(({ data: { session } }) => {
+                if (session && !settled) { settled = true; setStep("set_password"); }
+            });
         }
-
-        // Fallback: also watch for a session the normal (PKCE) way, in case
-        // this page is ever reached via a different link type.
-        supabaseAccept.auth.getSession().then(({ data: { session } }) => {
-            if (session && !settled) { settled = true; setStep("set_password"); }
-        });
 
         const { data: { subscription } } = supabaseAccept.auth.onAuthStateChange((event, session) => {
             if (settled) return;
-            if (event === "SIGNED_IN" && session) {
+            // Same reasoning as above — only trust a SIGNED_IN event here
+            // when there was no hash token to process ourselves; otherwise
+            // this could fire from an unrelated session change in another
+            // tab sharing the same browser/localStorage.
+            if (!accessToken && event === "SIGNED_IN" && session) {
                 settled = true;
                 setStep("set_password");
             }

@@ -41,6 +41,7 @@
 5. Apple Sign In cancelled or misconfigured.
 6. Session fixation gate rejected a deep link the app didn't initiate (rare; user tapped an auth link from outside the app).
 7. Stale mobile build calling a retired endpoint.
+8. **(Web) Ended up signed in as the wrong Google account.**
 
 **Diagnosis steps:**
 1. **Establish platform + method.** Mobile offers only **Google, Apple, and anonymous guest** (`src/auth/AuthContext.tsx`, `SignInPrompt.tsx`) — there is **no email magic-link on mobile**. Magic link is a **web-only** path (`/auth/callback`). If a mobile user is "waiting for a magic-link email," that's the confusion — direct them to Google/Apple.
@@ -60,12 +61,14 @@
 5. **"I was banned but could still use it for a while":** Expected. A ban blocks **new sign-ins and token refresh**, but an **already-issued Supabase access token (JWT) stays valid until it expires (~1 hour default).** So a banned user keeps working until their current token lapses, then the refresh fails and the "You've been signed out" alert appears. There is no forced instant kill.
 6. **Magic link not arriving (web):** Confirm the address, check spam, and confirm Supabase Auth SMTP/email provider is configured and not rate-limited. The link completes at `/auth/callback`.
 7. **Very old app version:** If a user's client hits `POST /api/imotara-ai` and gets `410 { error:"deprecated_route", message:"This endpoint has been retired. Use POST /api/respond instead." }`, they are on a **stale build**. Have them update from the store.
+8. **(Web) "I meant to sign in as account A but I'm on account B":** Every web Google sign-in button (`settings`, `upgrade`, `connect`, `connect/register`) passes `prompt: "select_account"`, so Google's account picker shows every time — this is intentional, not a bug in itself. If someone reports landing on the wrong account despite explicitly picking the right one, check `localhost`/`imotara.com` `/api/license/status` — its `user.email` is the **server-side (cookie) session**, which is authoritative; the client-side "Signed in as…" text elsewhere on the page can lag behind it if a browser tab is holding stale in-memory state. A hard reload of the page reading the wrong-looking text usually resolves it; if `/api/license/status` itself is wrong even after a clean sign-out + sign-in with no other tabs of the site open, that's a real bug — escalate rather than assume user error.
 
 **Resolution:**
 - Android timing → reassure; wait 5s / reopen.
 - Banned in error → an admin unbans via `DELETE /api/admin/users/[userId]/ban` (sets `ban_duration:"none"`, stamps `user_bans.unbanned_at`). Tell the user it may take **up to ~1 hour** for a fresh token to issue if they were mid-session; signing out and back in is immediate.
 - Magic link → resend; if repeated failures, check Supabase email logs.
 - Apple "ERR_CANCELED" → user dismissed the sheet; not an error, retry.
+- Wrong account (web) → close other tabs of the site, sign out, sign back in and explicitly pick the intended account on Google's picker; verify via `/api/license/status`, not just on-page text.
 
 **Escalate when…** ban status in `auth.users` disagrees with what the user/admin expects; `banned_until` is set but no `user_bans` row (banned directly in Supabase, not via the admin route — needs investigation); or OAuth init fails for **all** users (provider/Supabase outage → Runbook 13).
 
@@ -277,6 +280,8 @@
 ## Runbook 8 — "Org member can't join / invite not working"
 
 **Symptom:** Invite link errors, or joining fails.
+
+> Scope check first: this runbook covers the **self-service member invite** (`/api/org/invite/[token]`, org owners/admins send these themselves from their own dashboard — `Org-Owner-and-Admin-How-Tos.md` §3). If the complaint is instead about a link from **super-admin-provisioned Create & Invite / Resend password link** (`/auth/accept?token_hash=...`, for members without a Google account — `Admin-Guide-Super-Admin.md` §10.7.1–10.7.2), it's a different system with a different failure mode: those links used to break on a genuinely fresh send if an email security scanner pre-fetched them (fixed as of this version — see §10.7.1's note). If someone reports "session has expired" on a *just-sent* link from that flow on an older build, re-send it rather than debugging as an org_invites issue.
 
 **Likely causes:**
 1. Invite **expired** or **already accepted**.

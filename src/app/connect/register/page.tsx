@@ -518,7 +518,7 @@ export default function RegisterConsultantPage() {
                 );
                 await supabase.auth.signInWithOAuth({
                   provider: "google",
-                  options: { redirectTo: `${window.location.origin}/auth/callback?redirectTo=/connect/register` },
+                  options: { redirectTo: `${window.location.origin}/auth/callback?redirectTo=/connect/register`, queryParams: { prompt: "select_account" } },
                 });
               }}
               className="flex items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-zinc-200 transition hover:bg-white/10"

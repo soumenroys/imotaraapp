@@ -1253,7 +1253,12 @@ export default function SettingsPage() {
             const rawRedirect = new URLSearchParams(window.location.search).get("redirect") ?? "";
             const target = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/settings";
             const redirectTo = `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(target)}`;
-            await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
+            // prompt: "select_account" forces Google's account chooser every
+            // time — without it, Google can silently reuse whichever Google
+            // account is already active in the browser, signing the user
+            // into a completely different Imotara account than the one they
+            // meant to pick, with no visible choice or warning.
+            await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo, queryParams: { prompt: "select_account" } } });
         } catch { setSigningIn(false); }
     }
 

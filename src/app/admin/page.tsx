@@ -528,10 +528,12 @@ function CommentCard({
 function UserLicenseRow({
   user,
   token,
+  myRole,
   onUpdated,
 }: {
   user: UserLicense;
   token: string;
+  myRole: string | null;
   onUpdated: () => void;
 }) {
   const [expanded, setExpanded]       = useState(false);
@@ -662,6 +664,32 @@ function UserLicenseRow({
       else setRecoveryErr(d.error ?? "Failed to generate link");
     } catch { setRecoveryErr("Network error"); }
     finally { setRecoveryLoading(false); }
+  }
+
+  // Permanent account deletion — owner only. Separate, standalone action:
+  // does NOT touch org deletion or its members (see §10.6 vs §10.9 in
+  // Admin-Guide-Super-Admin.md) — this deletes one specific person's entire
+  // Imotara account (chat history, memories, licenses, org membership).
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
+  const [deletingAccount, setDeletingAccount]        = useState(false);
+  const [deleteErr, setDeleteErr]                    = useState("");
+  const [deleted, setDeleted]                        = useState(false);
+
+  async function deleteAccount() {
+    if (deleteConfirmEmail.trim().toLowerCase() !== user.email.toLowerCase()) return;
+    if (!confirm(`Permanently delete ${user.email}'s entire Imotara account — chat history, memories, licenses, everything? This cannot be undone.`)) return;
+    setDeletingAccount(true); setDeleteErr("");
+    try {
+      const res = await fetch(`/api/admin/users/${user.user_id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ confirmEmail: deleteConfirmEmail.trim() }),
+      });
+      const d = await res.json();
+      if (d.ok) { setDeleted(true); setTimeout(onUpdated, 1200); }
+      else setDeleteErr(d.error ?? "Failed to delete account");
+    } catch { setDeleteErr("Network error"); }
+    finally { setDeletingAccount(false); }
   }
 
   function copyRecoveryLink() {
@@ -1013,6 +1041,39 @@ function UserLicenseRow({
             )}
             {recoveryErr && <p className="mt-1.5 text-[10px] text-rose-400">{recoveryErr}</p>}
           </div>
+
+          {/* ── Danger zone: permanent account deletion (owner only) ── */}
+          {myRole === "owner" && (
+            <div className="border-t border-rose-500/20 pt-4">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-rose-500/70">Danger zone — owner only</p>
+              {deleted ? (
+                <p className="text-[11px] text-emerald-400">✓ Account deleted.</p>
+              ) : (
+                <>
+                  <p className="mb-2 text-[10px] text-zinc-600">
+                    Permanently deletes {user.email}&apos;s entire Imotara account — chat history, memories, licenses, and org membership (releasing any active org seat first). Independent of org deletion; this cannot be undone.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="text"
+                      value={deleteConfirmEmail}
+                      onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                      placeholder={`Type "${user.email}" to confirm`}
+                      className="w-64 rounded-lg border border-white/10 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-rose-500/40"
+                    />
+                    <button
+                      onClick={deleteAccount}
+                      disabled={deletingAccount || deleteConfirmEmail.trim().toLowerCase() !== user.email.toLowerCase()}
+                      className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-40"
+                    >
+                      {deletingAccount ? "Deleting…" : "Permanently delete account"}
+                    </button>
+                  </div>
+                  {deleteErr && <p className="mt-1.5 text-[10px] text-rose-400">{deleteErr}</p>}
+                </>
+              )}
+            </div>
+          )}
 
         </div>
       )}
@@ -1629,6 +1690,7 @@ function OrganizationsSection({ token, myRole }: { token: string; myRole: string
   const [orgs, setOrgs]               = useState<OrgRow[]>([]);
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState("");
+  const [createWarning, setCreateWarning] = useState("");
   const [search, setSearch]           = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -1664,13 +1726,20 @@ function OrganizationsSection({ token, myRole }: { token: string; myRole: string
   useEffect(() => { void fetchOrgs(search, statusFilter); }, [fetchOrgs, search, statusFilter]);
 
   async function handleCreate(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault(); setSaving(true); setCreateWarning("");
     try {
       const res = await fetch("/api/admin/organizations", {
         method: "POST", headers: { "Content-Type": "application/json", ...(token.startsWith("session:") ? {} : { Authorization: `Bearer ${token}` }) },
         body: JSON.stringify({ ...createForm, seats_purchased: Number(createForm.seats_purchased), expires_at: createForm.expires_at || null }),
       });
-      if (!res.ok) { setError((await res.json()).error ?? "Create failed."); return; }
+      const j = await res.json();
+      if (!res.ok) { setError(j.error ?? "Create failed."); return; }
+      if (j.ownerProvisioned === false) {
+        setCreateWarning(
+          `Org created, but "${createForm.owner_email}" wasn't fully provisioned as owner yet (${j.ownerProvisionError ?? "unknown error"}). ` +
+          `This usually means the org is still "pending" with no seats — activate it, then use "Add member by email" or "Resend password link" on this org to finish setting them up.`
+        );
+      }
       setShowCreate(false);
       setCreateForm({ name: "", slug: "", billing_type: "commercial", tier: "enterprise", status: "pending", seats_purchased: "10", expires_at: "", notes: "", owner_email: "" });
       void fetchOrgs(search, statusFilter);
@@ -1787,6 +1856,7 @@ function OrganizationsSection({ token, myRole }: { token: string; myRole: string
       )}
 
       {error && <p className="text-sm text-rose-400">{error}</p>}
+      {createWarning && <p className="text-sm text-amber-400">⚠️ {createWarning}</p>}
 
       {/* Org list */}
       {loading ? (
@@ -2512,7 +2582,7 @@ function StatsSection({ token }: { token: string }) {
 // LicensesSection
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LicensesSection({ token }: { token: string }) {
+function LicensesSection({ token, myRole }: { token: string; myRole: string | null }) {
   type LicTab = "users" | "history";
   const [licTab, setLicTab]           = useState<LicTab>("users");
   const [searchInput, setSearchInput] = useState("");
@@ -2612,7 +2682,7 @@ function LicensesSection({ token }: { token: string }) {
           ) : (
             <div className="space-y-3">
               {users.map((u) => (
-                <UserLicenseRow key={u.user_id} user={u} token={token}
+                <UserLicenseRow key={u.user_id} user={u} token={token} myRole={myRole}
                   onUpdated={() => fetchUsers(search)} />
               ))}
               <p className="text-center text-[10px] text-zinc-700">
@@ -3416,7 +3486,7 @@ export default function AdminPage() {
         </>
       )}
 
-      {section === "licenses"      && <LicensesSection      token={token} />}
+      {section === "licenses"      && <LicensesSection      token={token} myRole={myRole} />}
       {section === "organizations" && <OrganizationsSection token={token} myRole={myRole} />}
       {section === "connect"       && <ConnectSection       token={token} />}
       {section === "superadmins"   && <SuperAdminsSection   token={token} />}

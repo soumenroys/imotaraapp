@@ -54,14 +54,38 @@ function CallbackHandler() {
             window.location.href = path;
         };
 
-        // The module-level client may have already exchanged the code and have
-        // a session — check immediately before subscribing.
-        supabaseCb.auth.getSession().then(({ data: { session } }) => {
-            if (session) { navigate(redirectTo); }
-        });
+        // Real bug, confirmed live: a user picked account A on Google's
+        // consent screen but landed back on the app still signed in as
+        // account B. Root cause was this page racing an immediate
+        // getSession() (and accepting the subscription's INITIAL_SESSION
+        // event, which fires synchronously with whatever CURRENT state
+        // existed the instant we subscribed) against the actual PKCE code
+        // exchange, which is an async network round-trip kicked off at
+        // module load. Either of those early checks reads whatever session
+        // this browser already had BEFORE the exchange completes — if this
+        // browser had any prior session cached (this app's session storage
+        // is shared across tabs via cookies), that stale, unrelated session
+        // resolves first and navigate() fires with it, permanently winning
+        // over the real, still-in-flight exchange for the account the user
+        // actually just picked.
+        //
+        // Only a code param means an exchange is actually happening — in
+        // that case, wait specifically for a genuine SIGNED_IN event (fired
+        // when the exchange itself completes), not INITIAL_SESSION (which
+        // reflects pre-exchange state) and not an immediate getSession()
+        // call. With no code param, there's nothing to exchange, so any
+        // existing/incoming session is legitimately the relevant one.
+        const code = searchParams.get("code");
+
+        if (!code) {
+            supabaseCb.auth.getSession().then(({ data: { session } }) => {
+                if (session) { navigate(redirectTo); }
+            });
+        }
 
         const { data: { subscription } } = supabaseCb.auth.onAuthStateChange((event, session) => {
-            if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+            const relevant = code ? event === "SIGNED_IN" : (event === "SIGNED_IN" || event === "INITIAL_SESSION");
+            if (relevant) {
                 clearTimeout(fallback);
                 if (session) {
                     navigate(redirectTo);

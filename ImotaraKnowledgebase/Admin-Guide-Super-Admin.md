@@ -17,7 +17,7 @@ Key facts (from `src/app/api/admin/_auth.ts` and `src/lib/imotara/adminCrypto.ts
 - Passwords are hashed with **scrypt** (never stored in plain text).
 - A successful login issues a session stored as an **httpOnly cookie** named `imotara_admin_session`.
 - **Sessions last 8 hours** (`SESSION_TTL_MS = 8 hours`), then require re-login.
-- Every admin API route checks the session cookie first. There is also a legacy `ADMIN_SECRET` Bearer-token fallback (see §14).
+- Every admin API route checks the session cookie first. There is also a legacy `ADMIN_SECRET` Bearer-token fallback (see §15).
 
 ### 1.1 Roles and exactly what each can/cannot do
 
@@ -30,6 +30,7 @@ There are three roles: **owner**, **admin**, and **connect_reviewer**.
 | View/manage Organizations (create, edit, verify, suspend) | yes | yes | no |
 | **Delete an organization** | yes | no | no |
 | Ban / unban users; generate recovery links; suspend accounts | yes | yes | no |
+| **Permanently delete a user's account** (own action, unrelated to orgs) | yes | no | no |
 | List and **create** super-admin accounts | yes | yes (cannot create an *owner*) | no |
 | **Create another owner** account | yes | no | no |
 | **Edit / deactivate / delete / unlock** an existing super-admin | yes | no | no |
@@ -39,7 +40,7 @@ There are three roles: **owner**, **admin**, and **connect_reviewer**.
 
 Notes grounded in code:
 - `connect_reviewer` is intentionally **excluded** from `adminAuthorized()` — it can only reach `/api/admin/connect/*` and `/api/admin/comments/*`. It cannot touch licenses, orgs, or user bans (`src/app/api/admin/_auth.ts`).
-- Even inside Connect, `connect_reviewer` is **view + comment moderation only**. The consultant-approve, payout, and refund endpoints each reject it with a 403 ("Insufficient privileges..."). See §12.
+- Even inside Connect, `connect_reviewer` is **view + comment moderation only**. The consultant-approve, payout, and refund endpoints each reject it with a 403 ("Insufficient privileges..."). See §13.
 - `admin` can create other admins/reviewers but **cannot manage them afterward** — editing role/password/active status, deleting, and unlocking all require `owner` (`super-admins/[id]/route.ts`, `unlock/route.ts`).
 
 ---
@@ -153,7 +154,7 @@ When 2FA is enabled, login is completed by verifying the TOTP code against the p
 
 ### 6.1 Log in
 1. Go to `/admin`.
-2. The login card has two tabs: **Email / Password** (preferred, your personal account) and **Secret key** (legacy emergency fallback, see §14).
+2. The login card has two tabs: **Email / Password** (preferred, your personal account) and **Secret key** (legacy emergency fallback, see §15).
 3. Enter credentials and submit (`POST /api/admin/auth/login`). A session cookie is set for **8 hours**.
 
 ### 6.2 See your active sessions
@@ -214,7 +215,30 @@ Behavior (`src/app/api/admin/users/[userId]/recovery-link/route.ts`):
 
 ---
 
-## 9. Managing licenses from admin
+## 9. Permanently deleting a user's account (owner only)
+
+Standalone, general-purpose account deletion — independent of orgs. **This is different from deleting an org (§11.6):** deleting an org releases its members' seats and resets their licenses to free but keeps their accounts intact; this action deletes one specific person's *entire* Imotara identity — chat history, memories, licenses, and any org membership. Use it for a person who genuinely needs to be gone (e.g. a stray test/leftover account), not as a side effect of an org going away.
+
+**Where:** **Licenses** → open the user's detail panel → **"Danger zone — owner only"** at the bottom (only rendered for the `owner` role).
+
+**Steps:**
+1. Open the user's detail panel in Licenses.
+2. Scroll to **Danger zone**.
+3. Type the account's **exact email** into the confirmation field (the delete button stays disabled until it matches).
+4. Click **Permanently delete account** and confirm the native dialog.
+
+Behavior (`DELETE /api/admin/users/[userId]`, owner-only, `{confirmEmail}` in the body must match exactly):
+- If the user holds any **active org membership**, it's released first via the same `revokeOrgLicense` path used elsewhere (correctly decrements the org's `seats_used`) — this avoids leaving an orphaned `org_members` row, since that table's `user_id` FK is `on delete set null`, not cascade.
+- Deletes `imotara_history`, `user_memory` (companion memory + push subscriptions), `licenses`, `payment_licenses`, and `usage_events` for the user — the same data set the person's own self-service **"Delete my account"** (Settings) removes.
+- Deletes the Supabase auth user last, once everything else succeeds.
+- Sends an alert email to `info@imotara.com` recording who deleted whom.
+- `admin` and `connect_reviewer` cannot use this — 403.
+
+**Related API endpoints:** `DELETE /api/admin/users/[userId]`
+
+---
+
+## 10. Managing licenses from admin
 
 **Where:** `/admin` -> **Licenses**. Two sub-tabs: **User Licenses** and **Action History**.
 
@@ -236,21 +260,26 @@ These routes use `adminAuthorized` (owner/admin; connect_reviewer excluded).
 
 ---
 
-## 10. Organization oversight
+## 11. Organization oversight
 
 **Where:** `/admin` -> **Organizations**. You can search by name, slug, or owner email, and filter by status.
 
-### 10.1 View orgs and org detail
+### 11.1 View orgs and org detail
 - The list comes from `adminSearchOrgs` (name, slug, billing type, tier, status, seats purchased/used, owner email, member count).
+- **Owner email** is derived from the org's real, active `org_members` row (preferring role `owner`, else `admin`) — not from a separate pointer. If an org has no active members at all, it falls back to a legacy `organizations.owner_user_id` field and shows "no owner" if that's also empty.
 - Expanding an org loads its detail + member list (`GET /api/admin/organizations/[orgId]`).
 
-### 10.2 Activate a pending org
+### 11.2 Create a new org, with an owner (`+ New Org`)
+The create-org form's **Owner email** field, when filled in, goes through the **same provisioning pipeline as Create & Invite (§11.7.1)** — it creates the account if needed, adds them as an active `org_members` row (role `owner`), assigns the seat/license, and emails them a set-your-password invite. This only works if the org is created with **status active** and at least **1 seat purchased** — an org created as (default) **pending**, or with 0 seats, still gets created, but the owner isn't provisioned yet; the form shows an amber warning telling you to activate the org and then use **Create & Invite** or **Resend password link** (§11.7.1) to finish it. Check the org's member list to confirm the owner actually landed before considering it done — an owner email on the list row is not by itself proof they have a working seat if the org was created pending.
+
+### 11.3 Activate a pending org
 New self-serve orgs arrive as **pending**. To make one live:
 1. Expand the org.
 2. Set its **tier** and **seats_purchased**, and set **status -> active**.
 3. Save. When tier changes or the org becomes active, the API syncs a `licenses` row for every active member so the org tier resolves immediately (`PATCH /api/admin/organizations/[orgId]`).
+4. If the org was created with an **Owner email** that wasn't provisioned yet (§11.2), activating it here does **not** retroactively provision them — use **Create & Invite** or **Resend password link** afterward.
 
-### 10.3 Verify an NGO/EDU org (approve or reject)
+### 11.4 Verify an NGO/EDU org (approve or reject)
 An org submits verification docs. To resolve it:
 1. Expand the org and open the verification review.
 2. Choose **approve** or **reject**, optionally adding a review note.
@@ -261,10 +290,10 @@ An org submits verification docs. To resolve it:
 
 > Honesty note (per v1.2.7 changelog): document verification is **not** a prerequisite for subsidized NGO/EDU pricing — the discount applies unconditionally at checkout. Verification is an oversight/record step, not a paywall.
 
-### 10.4 Suspend an org
+### 11.5 Suspend an org
 - Set **status -> suspended** via `PATCH`. Members lose the org tier and fall back to their personal license or free.
 
-### 10.5 Delete an org (owner only) — and what happens to licenses
+### 11.6 Delete an org (owner only) — and what happens to licenses
 **Only the Imotara `owner` role can delete an org.** admin and connect_reviewer get 403.
 
 **Steps:**
@@ -278,13 +307,13 @@ Behavior (`src/app/api/admin/organizations/[orgId]/route.ts` DELETE):
 - A **database trigger** (`trg_release_licenses_on_org_delete`) automatically **resets every affected member's license to free**: `tier: free`, `org_id: null`, `status: valid`, no `expires_at`, `source: manual`. This runs regardless of which delete path is used (admin or the org owner's own self-delete).
 - An alert email is sent to `info@imotara.com` on every successful deletion.
 
-### 10.6 Add a member to an org by email / change roles / suspend an account
+### 11.7 Add a member to an org by email / change roles / suspend an account
 `/api/admin/organizations/[orgId]/members`:
 - **POST** — add an existing Imotara user directly by email (they must already have an account). Releases any prior org membership first (a user can only hold one paid org seat), then assigns the seat (seat-limit enforced).
 - **PATCH** — change a member's `role`, set a per-member `overrideTier`, and/or `suspendAccess: true|false` (a reversible Supabase ban on that user; same ~1h token caveat as §7).
 - **DELETE `?userId=`** — remove the member and release their seat/license.
 
-### 10.6.1 Create & Invite — provisioning a member who has no Imotara account yet
+### 11.7.1 Create & Invite — provisioning a member who has no Imotara account yet
 Every end-user sign-in on Imotara is Google-only, so the plain **"Add existing user"** action above only works if the person has already signed in with Google at least once. **Create & Invite** removes that dependency: it creates the account for them and emails a **set-your-own-password** link — no plaintext password is ever emailed.
 
 **Where:** the org's **Members** panel — check **"Create new account + email a password-set invite"** before submitting the add-member form.
@@ -302,14 +331,25 @@ Behavior (`POST .../members` with `action: "create_and_invite"`, requires a full
 - Rate-limited to **20 provisions/hour per admin**.
 - Every provision writes an `org_audit_log` row (`member_provisioned`), and a second row is written when they actually finish setting their password — `member_joined` for a genuine first accept, or `password_reset` for a later reset (distinguished server-side by whether `org_members.joined_at` is within the last 10 minutes).
 - If account creation, license assignment, or link generation fails partway through, everything already done in that call is rolled back (member row removed, license revoked, and — if a new account was created this call — the account itself deleted) rather than leaving a half-provisioned, seat-consuming ghost member.
-- Invite links expire after **24 hours** (Supabase's own hard cap for email links) — this is shorter than the plain 7-day member-invite link in §10.6, because it doubles as the only way to set a first password.
+- Invite links expire after **24 hours** (Supabase's own hard cap for email links) — this is shorter than the plain 7-day member-invite link in §11.7, because it doubles as the only way to set a first password.
 - `connect_reviewer` cannot provision members.
+- **Link delivery:** the email contains our own `imotara.com/auth/accept?token_hash=...&type=...` URL, verified client-side (`verifyOtp`) — not Supabase's raw one-time link. Fixed as of this version: the raw link is a bare, unauthenticated GET that consumes the one-time token on the *first* HTTP fetch — including a corporate email security scanner pre-visiting the link before the recipient ever opens it, which made even a genuinely fresh invite show "session has expired." If a member reports that symptom on an older build, re-send the link (§11.7.2) — it'll use the fixed format.
 
-**Org-owner/admin self-service Create & Invite is not built yet** — as of this writing it's super-admin-only, from `/admin`. Org owners/admins cannot trigger this themselves.
+**Org-owner/admin self-service Create & Invite is not built yet** — as of this writing, provisioning someone **without** a Google account is still super-admin-only, from `/admin`. This is different from the self-service invite org owners/admins already have for members *with* Google accounts (`Org-Owner-and-Admin-How-Tos.md` §3) — that one they can trigger themselves.
 
 **Related API endpoints:** `POST .../members` (`action: "create_and_invite"`), `GET /auth/accept`, `GET /login`, `GET /auth/forgot-password`
 
-### 10.7 Org analytics and audit (read-only oversight)
+### 11.7.2 Resend password link — for a member already provisioned but stuck
+For an already-active member (created via §11.7.1) who lost their original email, or whose link expired/was consumed before they used it — **Create & Invite** refuses to touch an already-active membership (409), so use this instead: on the org's **Members** panel, click **"Resend password link"** next to that member's row.
+
+Behavior (`POST .../members` with `action: "resend_password_link"`, super-admin session required, `connect_reviewer` excluded, same 20/hour rate limit):
+- Confirms the target is an **active** member of *this* org first (404 if not — this can't be used to send an arbitrary user an unrelated login link).
+- Generates a fresh **recovery**-type link (same `token_hash` delivery as §11.7.1) and emails it — does **not** touch membership, role, or license, since the person is already a confirmed member.
+- Writes an `org_audit_log` row (`password_link_resent`).
+
+**Related API endpoints:** `POST .../members` (`action: "resend_password_link"`)
+
+### 11.8 Org analytics and audit (read-only oversight)
 - `GET /api/admin/organizations/[orgId]/analytics?days=30` — aggregate-only usage (total events, active days, average WAU, average session minutes). **No individual-member data** by design.
 - `GET /api/admin/organizations/[orgId]/audit?page=&limit=` — read-only view of the org's own audit log (invites, role changes, removals, tier changes).
 
@@ -317,7 +357,7 @@ Behavior (`POST .../members` with `action: "create_and_invite"`, requires a full
 
 ---
 
-## 11. Blog comment moderation
+## 12. Blog comment moderation
 
 **Where:** `/admin` -> **Comments**. Sub-tabs: pending / approved / all.
 
@@ -331,7 +371,7 @@ Behavior (`POST .../members` with `action: "create_and_invite"`, requires a full
 
 ---
 
-## 12. Connect review — what connect_reviewer (and owner/admin) can do
+## 13. Connect review — what connect_reviewer (and owner/admin) can do
 
 `/admin` -> **Connect**. Sub-tabs include pending applications, all consultants, earnings/payouts, and session monitor.
 
@@ -355,13 +395,13 @@ Behavior (`POST .../members` with `action: "create_and_invite"`, requires a full
 
 ---
 
-## 13. The Dashboard tab
+## 14. The Dashboard tab
 
 `/admin` -> **Dashboard** shows live platform stats: total/owners/admins/inactive super-admins, org counts, member counts, pool utilization, and a per-org breakdown table (member count, pool issued/available, status). Use it for an at-a-glance health check and to spot under- or over-provisioned pools (available = 0 with issued > 0 is flagged in red).
 
 ---
 
-## 14. Security note: the ADMIN_SECRET legacy fallback
+## 15. Security note: the ADMIN_SECRET legacy fallback
 
 There is a legacy authentication path: a single shared secret sent as `Authorization: Bearer <ADMIN_SECRET>`. When accepted, it authenticates as a synthetic **owner** ("Admin (legacy key)").
 

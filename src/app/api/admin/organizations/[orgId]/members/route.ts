@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuthorized, requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { revokeOrgLicense, assignOrgLicense, releasePriorOrgMembership } from "@/lib/imotara/org";
+import { revokeOrgLicense, assignOrgLicense, releasePriorOrgMembership, provisionOrgMember } from "@/lib/imotara/org";
 import { sendOrgInviteEmail } from "@/lib/connect/mailer";
 import { checkIpRateLimit } from "@/lib/imotara/ipRateLimit";
 
@@ -207,125 +207,21 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 // Option A: the email contains a set-password link only, never a password.
 // Idempotent: re-invoking for the same email re-issues the link without
 // duplicating the org_members row or double-granting the license.
+// Thin wrapper around the shared provisionOrgMember() pipeline (also used by
+// org creation, when a super admin sets an owner_email up front) — kept as a
+// separate function here only to map its result onto this route's existing
+// response shapes.
 async function createAndInvite(
   orgId: string,
   email: string,
   role: string,
   actor: { id: string; email: string },
 ) {
-  const admin = getSupabaseAdmin();
-
-  const { data: org } = await admin.from("organizations").select("name").eq("id", orgId).single();
-  if (!org) return NextResponse.json({ error: "org not found" }, { status: 404 });
-
-  const { data: users } = await admin.auth.admin.listUsers();
-  let match = users?.users?.find((u) => u.email?.toLowerCase() === email);
-
-  // "invite" for brand-new accounts (no password, unconfirmed). "recovery"
-  // for accounts that already exist under any provider — it lets them set a
-  // password for the first time without touching however they signed in
-  // before (e.g. Google).
-  let linkType: "invite" | "recovery" = "invite";
-  let wasNewUser = false;
-
-  if (!match) {
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email,
-      email_confirm: false,
-    });
-    if (createErr || !created?.user) {
-      return NextResponse.json({ error: createErr?.message ?? "failed to create account" }, { status: 500 });
-    }
-    match = created.user;
-    wasNewUser = true;
-  } else {
-    linkType = "recovery";
+  const result = await provisionOrgMember(orgId, email, role, actor, ACCEPT_REDIRECT);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
-
-  const { data: existingMember } = await admin
-    .from("org_members")
-    .select("id, status")
-    .eq("org_id", orgId)
-    .eq("user_id", match.id)
-    .maybeSingle();
-
-  if (existingMember?.status === "active") {
-    return NextResponse.json({ error: "This user is already a member of this organisation." }, { status: 409 });
-  }
-
-  await releasePriorOrgMembership(match.id, orgId);
-
-  // invited_by references auth.users(id) — actor.id here is a super_admins.id
-  // (or the literal "legacy" sentinel for the ADMIN_SECRET fallback), neither of
-  // which is a valid auth.users row, so this must always be null. "Who
-  // provisioned this" is already captured below via the org_audit_log insert
-  // (actor_id/actor_email/actor_role), which is the correct place for it.
-  const { error: memberErr } = await admin.from("org_members").upsert({
-    org_id:     orgId,
-    user_id:    match.id,
-    role,
-    status:     "active",
-    invited_by: null,
-    joined_at:  new Date().toISOString(),
-  }, { onConflict: "org_id,user_id" });
-
-  if (memberErr) {
-    if (wasNewUser) {
-      await admin.auth.admin.deleteUser(match.id);
-    }
-    return NextResponse.json({ error: `Failed to add member: ${memberErr.message}` }, { status: 500 });
-  }
-
-  const licResult = await assignOrgLicense(match.id, orgId, undefined, "imotara_admin");
-  if (!licResult.ok) {
-    await admin.from("org_members").delete().eq("org_id", orgId).eq("user_id", match.id);
-    return NextResponse.json({ error: licResult.error }, { status: 409 });
-  }
-
-  const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
-    type:    linkType,
-    email,
-    options: { redirectTo: ACCEPT_REDIRECT },
-  });
-
-  if (linkErr || !linkData?.properties?.action_link) {
-    // Don't leave a member active with a seat/license consumed but no way to ever
-    // log in — roll back everything this call did, mirroring the license-failure
-    // branch above. If this call created the auth user, remove it too so a retry
-    // doesn't get stuck treating it as a pre-existing account.
-    await admin.from("org_members").delete().eq("org_id", orgId).eq("user_id", match.id);
-    await revokeOrgLicense(match.id, orgId, undefined, "imotara_admin");
-    if (wasNewUser) {
-      await admin.auth.admin.deleteUser(match.id);
-    }
-    return NextResponse.json({ error: linkErr?.message ?? "failed to generate invite link" }, { status: 500 });
-  }
-
-  await sendOrgInviteEmail({
-    to:        email,
-    orgName:   org.name,
-    role,
-    acceptUrl: linkData.properties.action_link,
-  });
-
-  await admin.from("org_audit_log").insert({
-    org_id:         orgId,
-    actor_id:       actor.id === "legacy" ? null : actor.id,
-    actor_email:    actor.email,
-    actor_role:     "imotara_admin",
-    action:         "member_provisioned",
-    target_email:   email,
-    target_user_id: match.id,
-    changes:        { role },
-  });
-
-  return NextResponse.json({
-    ok:             true,
-    userId:         match.id,
-    email,
-    role,
-    accountExisted: linkType === "recovery",
-  });
+  return NextResponse.json({ ok: true, ...result.data });
 }
 
 // Dedicated resend path for an already-active member who lost/never got a
@@ -369,15 +265,21 @@ async function resendPasswordLink(
     email,
     options: { redirectTo: ACCEPT_REDIRECT },
   });
-  if (linkErr || !linkData?.properties?.action_link) {
+  if (linkErr || !linkData?.properties?.hashed_token) {
     return NextResponse.json({ error: linkErr?.message ?? "failed to generate link" }, { status: 500 });
   }
+
+  // See provisionOrgMember() in @/lib/imotara/org for why this is built from
+  // token_hash rather than the raw action_link — action_link is consumed by
+  // the first HTTP fetch (e.g. a corporate email security scanner), before
+  // the real recipient ever clicks it.
+  const acceptUrl = `${ACCEPT_REDIRECT}?token_hash=${encodeURIComponent(linkData.properties.hashed_token)}&type=${encodeURIComponent(linkData.properties.verification_type ?? "recovery")}`;
 
   await sendOrgInviteEmail({
     to:        email,
     orgName:   org.name,
     role:      member.role,
-    acceptUrl: linkData.properties.action_link,
+    acceptUrl,
   });
 
   await admin.from("org_audit_log").insert({

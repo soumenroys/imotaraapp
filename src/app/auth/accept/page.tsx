@@ -15,7 +15,7 @@
 // policy as the super-admin system (src/lib/imotara/passwordPolicy.ts).
 
 import { Suspense, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { checkPasswordComplexity, PASSWORD_POLICY } from "@/lib/imotara/passwordPolicy";
@@ -30,6 +30,7 @@ type Step = "verifying" | "set_password" | "saving" | "done" | "error" | "sessio
 
 function AcceptHandler() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [step, setStep] = useState<Step>("verifying");
     const [error, setError] = useState<string | null>(null);
     const [password, setPassword] = useState("");
@@ -40,13 +41,47 @@ function AcceptHandler() {
     useEffect(() => {
         let settled = false;
 
-        // Supabase's invite/recovery action_link redirects here with tokens
-        // in the URL HASH (#access_token=...&refresh_token=...) — the older
-        // implicit-grant style, not a PKCE ?code=. createBrowserClient from
-        // @supabase/ssr hardcodes flowType:"pkce", so its automatic
-        // detectSessionInUrl only watches for ?code= and never picks up a
-        // hash-based token — the session was never being established at all.
-        // Parse the hash ourselves and call setSession() explicitly.
+        // Current link format: our own /auth/accept?token_hash=...&type=...
+        // URL (see provisionOrgMember() in @/lib/imotara/org), verified here
+        // via verifyOtp(). This replaced emailing Supabase's raw action_link
+        // because that link is a bare, unauthenticated GET against Supabase's
+        // own /verify endpoint that consumes the one-time token on the FIRST
+        // fetch — confirmed live that a single plain HTTP fetch (no browser,
+        // no JS) is enough to burn it. Corporate email security scanners
+        // (Microsoft Defender for Office 365 Safe Links, Google Workspace
+        // link scanning, etc.) do exactly that to every link in an inbound
+        // email, so the real recipient's own click landed on an
+        // already-"expired" link even on a genuinely fresh invite. A scanner
+        // fetches this page's static HTML but never executes its JS, so
+        // verifyOtp() here only ever runs for a real browser.
+        const tokenHash = searchParams.get("token_hash");
+        const otpType    = searchParams.get("type");
+
+        if (tokenHash && otpType) {
+            supabaseAccept.auth.verifyOtp({ token_hash: tokenHash, type: otpType as "recovery" | "invite" | "email" })
+                .then(({ data: { session }, error: verifyErr }) => {
+                    if (settled) return;
+                    settled = true;
+                    if (session && !verifyErr) {
+                        window.history.replaceState(null, "", window.location.pathname);
+                        setStep("set_password");
+                    } else {
+                        setError("This invite link is invalid or has already been used.");
+                        setStep("error");
+                    }
+                });
+            return;
+        }
+
+        // Fallback: older link format, for any invite/recovery emails already
+        // sent before the token_hash format above. Supabase's action_link
+        // redirects here with tokens in the URL HASH
+        // (#access_token=...&refresh_token=...) — the implicit-grant style,
+        // not a PKCE ?code=. createBrowserClient from @supabase/ssr hardcodes
+        // flowType:"pkce", so its automatic detectSessionInUrl only watches
+        // for ?code= and never picks up a hash-based token — the session was
+        // never being established at all. Parse the hash ourselves and call
+        // setSession() explicitly.
         const hashParams  = new URLSearchParams(window.location.hash.replace(/^#/, ""));
         const accessToken  = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
@@ -108,6 +143,10 @@ function AcceptHandler() {
             subscription.unsubscribe();
             clearTimeout(fallback);
         };
+        // searchParams is read once on mount via a stable snapshot from
+        // next/navigation — re-running this on every params identity change
+        // would re-trigger verifyOtp/setSession, which are one-shot.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     async function handleSubmit(e: React.FormEvent) {
@@ -164,8 +203,14 @@ function AcceptHandler() {
 
     if (step === "error") {
         return (
-            <div className="text-center">
+            <div className="w-full max-w-sm text-center">
                 <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <Link
+                    href="/auth/forgot-password"
+                    className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+                >
+                    Request a new link
+                </Link>
             </div>
         );
     }

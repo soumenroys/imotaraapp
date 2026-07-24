@@ -132,7 +132,7 @@ function SignInModal({ onClose, redirectTo }: { onClose: () => void; redirectTo:
   async function signInWithGoogle() {
     await supabaseBrowser.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`, queryParams: { prompt: "select_account" } },
     });
   }
   return (
@@ -584,7 +584,7 @@ function SessionsTab() {
           onClick={async () => {
             await supabaseBrowser.auth.signInWithOAuth({
               provider: "google",
-              options: { redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/connect?tab=sessions")}` },
+              options: { redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/connect?tab=sessions")}`, queryParams: { prompt: "select_account" } },
             });
           }}
           className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
@@ -921,7 +921,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
           onClick={async () => {
             await supabaseBrowser.auth.signInWithOAuth({
               provider: "google",
-              options: { redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/connect?tab=wallet")}` },
+              options: { redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/connect?tab=wallet")}`, queryParams: { prompt: "select_account" } },
             });
           }}
           className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-zinc-200 transition hover:bg-white/10"

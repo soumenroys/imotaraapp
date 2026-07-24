@@ -5,10 +5,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { adminAuthorized } from "@/app/api/admin/_auth";
-import { adminSearchOrgs } from "@/lib/imotara/org";
+import { adminAuthorized, requireSuperAdmin } from "@/app/api/admin/_auth";
+import { adminSearchOrgs, provisionOrgMember } from "@/lib/imotara/org";
 import type { OrgStatus } from "@/lib/imotara/org";
 import { sendOrgWelcomeEmail } from "@/lib/connect/mailer";
+
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://imotara.com").replace(/\/$/, "");
+const ACCEPT_REDIRECT = `${SITE_URL}/auth/accept`;
 
 // ── GET — list / search orgs ──────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
@@ -32,9 +35,9 @@ export async function GET(req: NextRequest) {
 
 // ── POST — create org (Imotara admin manually creates org for a client) ───────
 export async function POST(req: NextRequest) {
-  if (!await adminAuthorized(req)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = await requireSuperAdmin(req);
+  if (!auth.ok) return auth.response;
+  if (auth.admin.role === "connect_reviewer") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   let body: {
     name:           string;
@@ -131,14 +134,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create organization. Please check your input and try again." }, { status: 500 });
   }
 
-  // Bug #34 fix: send welcome email to org owner so they know the org is ready
+  // Bug #34 fix, then superseded: owner_email used to only set the decorative
+  // owner_user_id column above and send a generic "your org is ready" email —
+  // that never created an org_members row or a licenses.org_id for them, so
+  // they had no seat, no license, and no way to actually reach their org
+  // dashboard despite showing up as "owner" in the super-admin org list. Now
+  // routed through the same provisionOrgMember() pipeline member-provisioning
+  // uses, which actually creates the membership/seat and emails a working
+  // set-password link. This can fail (e.g. the org was created as "pending"
+  // with 0 seats) without the org creation itself failing — surfaced via
+  // ownerProvisioned so the admin UI can tell the operator to finish this via
+  // "Add member by email" once the org is activated.
+  let ownerProvisioned: boolean | null = null;
+  let ownerProvisionError: string | null = null;
   if (ownerEmail) {
-    sendOrgWelcomeEmail({
-      ownerEmail,
-      orgName: data.name,
-      orgSlug: data.slug,
-    }).catch((err) => console.error("[admin/organizations] welcome email failed:", err));
+    const provision = await provisionOrgMember(
+      data.id, ownerEmail, "owner",
+      { id: auth.admin.id, email: auth.admin.email },
+      ACCEPT_REDIRECT,
+    );
+    ownerProvisioned = provision.ok;
+    if (!provision.ok) {
+      ownerProvisionError = provision.error;
+      // Fall back to the old informational email so the intended owner at
+      // least hears something, since the real invite couldn't go out.
+      sendOrgWelcomeEmail({
+        ownerEmail,
+        orgName: data.name,
+        orgSlug: data.slug,
+      }).catch((err) => console.error("[admin/organizations] welcome email failed:", err));
+    }
   }
 
-  return NextResponse.json({ org: data }, { status: 201 });
+  return NextResponse.json({ org: data, ownerProvisioned, ownerProvisionError }, { status: 201 });
 }

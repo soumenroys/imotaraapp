@@ -3,6 +3,7 @@
 // All functions use the service-role admin client — never called from the browser.
 
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { sendOrgInviteEmail } from "@/lib/connect/mailer";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -197,6 +198,155 @@ export async function revokeOrgLicense(
     console.error("[revokeOrgLicense]", err);
     return { ok: false, error: String(err) };
   }
+}
+
+
+// ── 3B. Provision Org Member ──────────────────────────────────────────────────
+// Full pipeline for making someone an actually-working org member: find-or-
+// create their Imotara account, add the org_members row, assign the license/
+// seat, and email a working set-password link. Shared by admin member-
+// provisioning (members/route.ts createAndInvite) and org creation
+// (organizations/route.ts, when an owner_email is supplied at creation time).
+//
+// Org creation used to just set organizations.owner_user_id and send a
+// generic "your org is ready" email — that column is purely a display label
+// (admin_search_orgs reads it for the super-admin org list); it was never
+// connected to org_members or licenses.org_id, so that "owner" had no seat,
+// no license, and no nav entry to their own org dashboard despite showing up
+// as "owner" everywhere in the super-admin UI. This is the one real pipeline;
+// both callers should go through it instead of any partial version of it.
+//
+// Emails a link built from generateLink()'s token_hash + verification_type
+// rather than its raw action_link — action_link is a bare, unauthenticated
+// HTTP GET against Supabase's own /verify endpoint that consumes the
+// one-time token on the FIRST fetch, JS or no JS. Corporate email security
+// scanners (Microsoft Defender for Office 365 Safe Links, Google Workspace
+// link scanning, etc.) fetch every link in an inbound email to check it —
+// which silently burns the token before the real recipient ever clicks,
+// so their own click lands on an already-"expired" link. Confirmed live
+// against this project: a single plain fetch of a real action_link was
+// enough to invalidate it for the next visit. Emailing our own
+// /auth/accept?token_hash=...&type=... URL instead defeats this, because a
+// scanner fetches the page's HTML but doesn't execute its client-side JS —
+// only a real browser actually calls verifyOtp() and consumes the token.
+export interface ProvisionedOrgMember {
+  userId:         string;
+  email:          string;
+  role:           string;
+  accountExisted: boolean;
+}
+
+export async function provisionOrgMember(
+  orgId:      string,
+  email:      string,
+  role:       string,
+  actor:      { id: string; email: string },
+  redirectTo: string,
+): Promise<
+  | { ok: true; data: ProvisionedOrgMember }
+  | { ok: false; error: string; status: number }
+> {
+  const admin = getSupabaseAdmin();
+
+  const { data: org } = await admin.from("organizations").select("name").eq("id", orgId).single();
+  if (!org) return { ok: false, error: "org not found", status: 404 };
+
+  const { data: users } = await admin.auth.admin.listUsers();
+  let match = users?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+
+  // "invite" for brand-new accounts (no password, unconfirmed). "recovery"
+  // for accounts that already exist under any provider — it lets them set a
+  // password for the first time without touching however they signed in
+  // before (e.g. Google).
+  let linkType: "invite" | "recovery" = "invite";
+  let wasNewUser = false;
+
+  if (!match) {
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email,
+      email_confirm: false,
+    });
+    if (createErr || !created?.user) {
+      return { ok: false, error: createErr?.message ?? "failed to create account", status: 500 };
+    }
+    match = created.user;
+    wasNewUser = true;
+  } else {
+    linkType = "recovery";
+  }
+
+  const { data: existingMember } = await admin
+    .from("org_members")
+    .select("id, status")
+    .eq("org_id", orgId)
+    .eq("user_id", match.id)
+    .maybeSingle();
+
+  if (existingMember?.status === "active") {
+    return { ok: false, error: "This user is already a member of this organisation.", status: 409 };
+  }
+
+  await releasePriorOrgMembership(match.id, orgId);
+
+  const { error: memberErr } = await admin.from("org_members").upsert({
+    org_id:     orgId,
+    user_id:    match.id,
+    role,
+    status:     "active",
+    invited_by: null,
+    joined_at:  new Date().toISOString(),
+  }, { onConflict: "org_id,user_id" });
+
+  if (memberErr) {
+    if (wasNewUser) await admin.auth.admin.deleteUser(match.id);
+    return { ok: false, error: `Failed to add member: ${memberErr.message}`, status: 500 };
+  }
+
+  const licResult = await assignOrgLicense(match.id, orgId, undefined, "imotara_admin");
+  if (!licResult.ok) {
+    await admin.from("org_members").delete().eq("org_id", orgId).eq("user_id", match.id);
+    if (wasNewUser) await admin.auth.admin.deleteUser(match.id);
+    return { ok: false, error: licResult.error, status: 409 };
+  }
+
+  const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+    type:    linkType,
+    email,
+    options: { redirectTo },
+  });
+
+  if (linkErr || !linkData?.properties?.hashed_token) {
+    // Don't leave a member active with a seat/license consumed but no way to ever
+    // log in — roll back everything this call did. If this call created the
+    // auth user, remove it too so a retry doesn't get stuck treating it as a
+    // pre-existing account.
+    await admin.from("org_members").delete().eq("org_id", orgId).eq("user_id", match.id);
+    await revokeOrgLicense(match.id, orgId, undefined, "imotara_admin");
+    if (wasNewUser) await admin.auth.admin.deleteUser(match.id);
+    return { ok: false, error: linkErr?.message ?? "failed to generate invite link", status: 500 };
+  }
+
+  const acceptUrl = `${redirectTo}?token_hash=${encodeURIComponent(linkData.properties.hashed_token)}&type=${encodeURIComponent(linkData.properties.verification_type ?? linkType)}`;
+
+  await sendOrgInviteEmail({
+    to:        email,
+    orgName:   org.name,
+    role,
+    acceptUrl,
+  });
+
+  await admin.from("org_audit_log").insert({
+    org_id:         orgId,
+    actor_id:       actor.id === "legacy" ? null : actor.id,
+    actor_email:    actor.email,
+    actor_role:     "imotara_admin",
+    action:         "member_provisioned",
+    target_email:   email,
+    target_user_id: match.id,
+    changes:        { role },
+  });
+
+  return { ok: true, data: { userId: match.id, email, role, accountExisted: linkType === "recovery" } };
 }
 
 

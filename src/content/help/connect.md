@@ -21,14 +21,13 @@ Connect is available on every plan; find it at **imotara.com/connect** or the Co
 4. Tap a card for the full profile.
 5. **Favorites:** tap the heart on a card to save a companion to your favorites (up to 100). If you already have paid minutes with a companion, the card shows your remaining balance with them.
 
-## Paying for sessions: wallet and minutes
+## Paying for sessions: minutes with a companion
 
-There are two simple money concepts in Connect:
-
-1. **Your Imotara wallet** — a general prepaid balance in INR. Top it up in the wallet tab: enter an amount (₹1 up to ₹50,000), accept the Wallet Terms, and pay through the Razorpay checkout. Your balance updates right away.
-2. **Minutes with a specific companion** — sessions are started from prepaid minutes purchased **for that companion**. From a companion's profile, choose how many minutes you'd like (1 to 1,000), and pay through checkout. The price is simply their per-minute rate × minutes.
+Sessions are started from prepaid minutes purchased **for that specific companion** — from a companion's profile, choose how many minutes you'd like (1 to 1,000), and pay through checkout. The price is simply their per-minute rate × minutes.
 
 You need at least 1 minute of balance with a companion to start a session with them.
+
+If you have an older **Imotara Wallet** balance from before, it no longer accepts new top-ups and can't be used to pay for sessions — see **Refunds of unused balance** below to get it back.
 
 ### If a recharge shows as "pending"
 Occasionally a payment window closes at the wrong moment. Don't worry:
@@ -75,9 +74,9 @@ Your money stays yours:
 3. Minutes already used in sessions aren't refundable — a real person was paid for that time. If you believe you were over-charged for a session, email **info@imotara.com** and we'll review it.
 
 ### Wallet inactivity policy
-- Your wallet stays active as long as you use it — any top-up or session resets the clock.
-- After **2 years** of no activity, the wallet is marked **dormant**. **Your balance is preserved — it is never zeroed.** You'll receive reminder emails well before this happens (at 180, 90, 30, 14, 7, and 1 days), plus an annual statement.
-- A dormant balance remains **refundable for 1 year** — just submit a refund request in-app or email **info@imotara.com**.
+- Since top-ups are no longer available, an existing balance just sits untouched until you request a refund — no need to wait for any particular status.
+- After **2 years** of no activity, the wallet is marked **dormant** as a matter of record. **Your balance is preserved — it is never zeroed.** You'll receive reminder emails well before this happens (at 180, 90, 30, 14, 7, and 1 days), plus an annual statement.
+- A refund can be requested **at any time**, active or dormant — dormant balances specifically remain refundable for 1 year after going dormant.
 
 ## Becoming a companion
 

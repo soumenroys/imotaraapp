@@ -24,7 +24,9 @@
 1. Heart/star on a card → **`POST /api/connect/favorites`** `{ consultant_id }`. Validates the consultant is `approved`; caps at **100 favorites** (429 beyond).
 2. Row upserted into `connect_favorites` (unique `user_id,consultant_id`). Remove = **`DELETE`**; list = **`GET`** (which joins `connect_consultants` and hides `status='deleted'` consultants so browse cards don't break).
 
-### A4. Top up the unified INR wallet
+### A4. Top up the unified INR wallet — **⚠ UI REMOVED 2026-07-26**
+No UI (web or mobile) calls this anymore — the steps below describe backend capability that still exists and would still work if called, but there is no longer any way for a user to reach it. Removed because it never actually paid for anything (see §13's correction in the Marketplace reference doc): negligible real adoption, and its client-side balance check on mobile was routing users to the wrong pre-session recharge flow. The only remaining user-facing action on `imotara_wallets` is requesting a refund of an existing balance (§below), now available regardless of dormant status.
+
 1. In the wallet tab the user enters an amount and must tick **accept Wallet Terms** (`/connect/wallet-terms`).
 2. **`POST /api/connect/wallet/topup/create`** `{ amount, terms_accepted: true }`. Guards: `terms_accepted` required; amount **₹1–₹50,000**; max **3 pending** `imotara_wallet_orders` (429 otherwise).
 3. Creates a Razorpay order + a `pending` `imotara_wallet_orders` row, then **records consent BEFORE payment** via `recordWalletConsent` into `imotara_wallet_consents` (terms version, amount, order id, **IP + user-agent**) — deliberately written pre-payment for an irrefutable audit record.

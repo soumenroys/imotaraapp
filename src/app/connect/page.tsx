@@ -696,22 +696,6 @@ function SessionsTab() {
 // ── Wallet Tab ────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type RazorpayConstructor = new (opts: Record<string, any>) => { open(): void };
-
-function loadRazorpayScript(): Promise<boolean> {
-  return new Promise((resolve) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((window as any).Razorpay) { resolve(true); return; }
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload  = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.head.appendChild(script);
-  });
-}
-
-const TOPUP_PRESETS = [1000, 2000, 5000, 10000];
-
 interface WalletTx {
   id: string;
   type: "topup" | "deduction" | "refund" | "session" | "dormancy_marked";
@@ -732,7 +716,7 @@ interface SessionWallet {
   currency_code:   string;
 }
 
-function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
+function WalletTab() {
   const [isLoggedIn, setIsLoggedIn]           = useState<boolean | null>(null); // null = loading
   const [walletBalance, setWalletBalance]     = useState<number>(0);
   const [walletCurrency, setWalletCurrency]   = useState<string>("INR");
@@ -741,13 +725,6 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const [walletStatus, setWalletStatus]       = useState<string>("active");
   const [sessionWallets, setSessionWallets]   = useState<SessionWallet[]>([]);
   const [loading, setLoading]                 = useState(true);
-  const [selectedAmount, setSelectedAmount]   = useState<number>(1000);
-  const [customAmount, setCustomAmount]       = useState<string>("");
-  const [isCustom, setIsCustom]               = useState(false);
-  const [termsAccepted, setTermsAccepted]     = useState(false);
-  const [ageConfirmed, setAgeConfirmed]       = useState(false);
-  const [paying, setPaying]                   = useState(false);
-  const [payError, setPayError]               = useState<string>("");
   const [transactions, setTransactions]       = useState<WalletTx[]>([]);
   const [showHistory, setShowHistory]         = useState(false);
   const [historyLoading, setHistoryLoading]   = useState(false);
@@ -764,7 +741,6 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const [fetchError, setFetchError]           = useState(false);
 
   const sym = CURRENCY_SYMBOLS[walletCurrency] ?? walletCurrency;
-  const topupAmount = isCustom ? Math.max(1, parseFloat(customAmount) || 0) : selectedAmount;
 
   function fetchBalance() {
     return fetch("/api/connect/wallet", { credentials: "include" })
@@ -828,69 +804,6 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
     }
   }
 
-  async function handleTopUp() {
-    if (topupAmount < 1) { setPayError("Please enter a valid amount"); return; }
-    if (!ageConfirmed) { setPayError("Please confirm you are 18 or older to continue"); return; }
-    if (!termsAccepted) { setPayError("Please accept the Wallet Terms to continue"); return; }
-    setPaying(true);
-    setPayError("");
-    try {
-      const loaded = await loadRazorpayScript();
-      if (!loaded) throw new Error("Payment gateway unavailable. Please try again.");
-
-      const res = await fetch("/api/connect/wallet/topup/create", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ amount: topupAmount, terms_accepted: true }),
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error ?? "Failed to create order");
-
-      await new Promise<void>((resolve, reject) => {
-        const RazorpayClass = (window as any).Razorpay as RazorpayConstructor; // eslint-disable-line @typescript-eslint/no-explicit-any
-        const rz = new RazorpayClass({
-          key:      data.razorpay_key_id ?? razorpayKeyId,
-          order_id: data.razorpay_order_id,
-          amount:   data.amount_paise,
-          currency: "INR",
-          name:     "Imotara",
-          description: `Add ₹${topupAmount} to Imotara Wallet`,
-          handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
-            try {
-              const vRes = await fetch("/api/connect/wallet/topup/verify", {
-                method:  "POST",
-                headers: { "Content-Type": "application/json" },
-                body:    JSON.stringify({
-                  razorpay_order_id:   response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature:  response.razorpay_signature,
-                }),
-                credentials: "include",
-              });
-              const vData = await vRes.json();
-              if (!vData.ok) reject(new Error(vData.error ?? "Payment verification failed"));
-              else { setWalletBalance(Number(vData.new_balance ?? 0)); resolve(); }
-            } catch (err) { reject(err); }
-          },
-          modal: { ondismiss: () => reject(new Error("Payment cancelled")) },
-          theme: { color: "#6366f1" },
-        });
-        rz.open();
-      });
-
-      setTransactions([]); // reset so history reloads fresh
-      setHistoryLoaded(false); // force re-fetch on next open
-      setShowHistory(false);
-      fetchBalance().catch(() => {}); // refresh full wallet metadata (expiresAt, status, etc.)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Payment failed";
-      if (msg !== "Payment cancelled") setPayError(msg);
-    } finally {
-      setPaying(false);
-    }
-  }
-
   async function loadHistory() {
     if (showHistory) { setShowHistory(false); return; }
     if (historyLoaded) { setShowHistory(true); return; }
@@ -915,7 +828,8 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
         <div className="mb-4 text-5xl">🔒</div>
         <h3 className="mb-2 text-lg font-semibold text-zinc-100">Sign in to use your Wallet</h3>
         <p className="mb-6 max-w-xs text-sm text-zinc-400 leading-relaxed">
-          Your Imotara Wallet lets you add money and pay for sessions. Sign in to view your balance and top up.
+          Sign in to view your Imotara Wallet balance or request a refund. To pay for a session, purchase
+          minutes directly with a companion instead.
         </p>
         <button
           onClick={async () => {
@@ -969,7 +883,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
             Your wallet balance expires in {daysUntilExpiry} day{daysUntilExpiry === 1 ? "" : "s"}
           </p>
           <p className="mt-1 text-xs text-amber-400/80">
-            Add money or book a session before <strong>{expiryDate}</strong> to keep your balance active.
+            Request a refund before <strong>{expiryDate}</strong> to keep your balance active.
             Unused balances expire after 2 years of inactivity.
           </p>
         </div>
@@ -981,7 +895,7 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
         <p className={`text-5xl font-bold tracking-tight ${isExpired ? "text-zinc-600 line-through" : "text-violet-300"}`}>
           {sym}{walletBalance.toFixed(2)}
         </p>
-        <p className="mt-1 text-xs text-zinc-600">{walletCurrency} · Available for sessions</p>
+        <p className="mt-1 text-xs text-zinc-600">{walletCurrency} · Refundable, top-ups retired</p>
         {expiryDate && !isExpired && walletBalance > 0 && (
           <p className={`mt-2 text-xs ${isExpiringSoon ? "text-amber-400" : "text-zinc-600"}`}>
             Balance valid until {expiryDate}
@@ -1024,135 +938,34 @@ function WalletTab({ razorpayKeyId }: { razorpayKeyId: string }) {
         </div>
       )}
 
-      {/* ── Add Money card ── */}
+      {/* ── Wallet top-ups retired — pay per-companion instead ── */}
       <div className="imotara-glass-card rounded-2xl p-5">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-          <Plus size={14} className="text-violet-400" />
-          Add Money
+        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-200">
+          <Clock size={14} className="text-violet-400" />
+          Paying for sessions
         </h3>
-
-        <p className="mb-2 text-xs font-medium uppercase tracking-widest text-zinc-500">Select Amount</p>
-        <div className="mb-3 grid grid-cols-4 gap-2">
-          {TOPUP_PRESETS.map((amt) => (
-            <button
-              key={amt}
-              onClick={() => { setIsCustom(false); setSelectedAmount(amt); }}
-              className={`rounded-xl border py-2.5 text-sm font-medium transition ${
-                !isCustom && selectedAmount === amt
-                  ? "border-violet-500 bg-violet-500/20 text-violet-300"
-                  : "border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
-              }`}
-            >
-              {sym}{amt.toLocaleString("en-IN")}
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={() => setIsCustom(true)}
-          className={`mb-3 w-full rounded-xl border py-2.5 text-sm transition ${
-            isCustom
-              ? "border-violet-500 bg-violet-500/20 text-violet-300 font-medium"
-              : "border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
-          }`}
-        >
-          Custom amount
-        </button>
-
-        {isCustom && (
-          <div className="mb-3 relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400">{sym}</span>
-            <input
-              type="number"
-              min={1}
-              placeholder="Enter amount"
-              value={customAmount}
-              onChange={(e) => setCustomAmount(e.target.value)}
-              className="w-full rounded-xl border border-white/15 bg-white/5 pl-8 pr-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500"
-            />
-          </div>
-        )}
-
-        <div className="mb-4 rounded-xl border border-white/8 bg-white/3 px-4 py-3 flex items-center justify-between text-sm">
-          <span className="text-zinc-400">You will add</span>
-          <span className="font-semibold text-zinc-100">{sym}{topupAmount > 0 ? topupAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "—"}</span>
-        </div>
-
-        {/* ── Age confirmation ── */}
-        <label className="mb-3 flex items-center gap-3 cursor-pointer group">
-          <input
-            type="checkbox"
-            checked={ageConfirmed}
-            onChange={(e) => setAgeConfirmed(e.target.checked)}
-            className="h-4 w-4 shrink-0 accent-violet-500"
-          />
-          <span className="text-xs text-zinc-400 leading-relaxed group-hover:text-zinc-300 transition">
-            I confirm I am 18 years of age or older.
-          </span>
-        </label>
-
-        {/* ── Consent checkbox (recorded server-side per CPA 2019) ── */}
-        <label className="mb-4 flex items-start gap-3 cursor-pointer group">
-          <input
-            type="checkbox"
-            checked={termsAccepted}
-            onChange={(e) => setTermsAccepted(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 accent-violet-500"
-          />
-          <span className="text-xs text-zinc-400 leading-relaxed group-hover:text-zinc-300 transition">
-            I have read and accept the{" "}
-            <a href="/connect/wallet-terms" target="_blank" rel="noopener noreferrer"
-              className="text-violet-400 underline underline-offset-2 hover:text-violet-300">
-              Imotara Wallet Terms
-            </a>
-            . I understand that my balance is valid for 2 years of inactivity, I will receive
-            6 email reminders before dormancy, and I can request a refund for 1 year after dormancy.
-          </span>
-        </label>
-
-        {payError && (
-          <p className="mb-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
-            {payError}
+        <p className="text-xs text-zinc-400 leading-relaxed">
+          Imotara Wallet no longer accepts new top-ups. To pay for a session, purchase minutes directly with a
+          companion from their profile or during a session — that balance is shown under
+          &quot;Pre-purchased Session Minutes&quot; above.
+        </p>
+        {walletBalance > 0 && (
+          <p className="mt-3 text-xs text-zinc-500 leading-relaxed">
+            You still have an existing wallet balance below — you can request a refund for it any time.
           </p>
         )}
-
-        <button
-          onClick={handleTopUp}
-          disabled={paying || topupAmount < 1 || !ageConfirmed || !termsAccepted}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
-        >
-          {paying ? <Loader2 size={16} className="animate-spin" /> : <Plus size={15} />}
-          {paying ? "Processing…" : `Add ${sym}${topupAmount > 0 ? topupAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""} to Wallet`}
-        </button>
-
-        <p className="mt-3 text-center text-[11px] text-zinc-600">
-          Secure payment via Razorpay · UPI, Net Banking, Cards accepted
-        </p>
-
-        {/* ── Policy summary ── */}
-        <div className="mt-4 rounded-xl border border-white/6 bg-white/2 px-4 py-3">
-          <p className="text-[11px] font-semibold text-zinc-500 mb-1">Wallet Policy Summary</p>
-          <ul className="space-y-0.5 text-[11px] text-zinc-600 leading-relaxed list-disc list-inside">
-            <li>Balance valid for <strong className="text-zinc-500">2 years</strong> from last top-up or session</li>
-            <li><strong className="text-zinc-500">6 email reminders</strong> before dormancy (at 180, 90, 30, 14, 7, 1 days)</li>
-            <li>Annual balance statement sent every 12 months</li>
-            <li>Balance is <strong className="text-zinc-500">never lost</strong> — dormant wallets fully refundable for 1 year</li>
-            <li>Refund by bank transfer or UPI · processed in 7 business days</li>
-          </ul>
-          <a href="/connect/wallet-terms" target="_blank" rel="noopener noreferrer"
-            className="mt-2 inline-block text-[11px] text-violet-500 hover:text-violet-400 underline underline-offset-2">
-            Full Wallet Terms →
-          </a>
-        </div>
       </div>
 
-      {/* ── Dormant wallet — Request Refund panel ── */}
-      {(walletStatus === "dormant" || walletStatus === "refund_requested") && walletBalance > 0 && (
+      {/* ── Request Refund panel — shown for any positive balance, since top-ups are
+           retired and the API itself never required "dormant" status to accept a
+           refund request (that was only ever a frontend-side gate). ── */}
+      {walletBalance > 0 && (
         <div className="imotara-glass-card rounded-2xl p-5 border border-amber-500/30">
-          <h3 className="mb-2 text-sm font-semibold text-amber-300">Dormant Balance — Request Refund</h3>
+          <h3 className="mb-2 text-sm font-semibold text-amber-300">Request a Refund</h3>
           <p className="mb-4 text-xs text-zinc-400 leading-relaxed">
-            Your wallet balance of <strong className="text-zinc-200">{sym}{walletBalance.toFixed(2)}</strong> is dormant.
-            You can request a full refund below. We will process it within 7 business days.
+            Your wallet balance of <strong className="text-zinc-200">{sym}{walletBalance.toFixed(2)}</strong> can no
+            longer be spent from here — top-ups are retired. You can request a full refund below;
+            we will process it within 7 business days.
           </p>
 
           {refundResult && (
@@ -2259,7 +2072,7 @@ export default function ConnectPage() {
 
       {activeTab === "browse"    && <BrowseTab razorpayKeyId={RAZORPAY_KEY_ID} />}
       {activeTab === "sessions"  && <SessionsTab />}
-      {activeTab === "wallet"    && <WalletTab razorpayKeyId={RAZORPAY_KEY_ID} />}
+      {activeTab === "wallet"    && <WalletTab />}
       {activeTab === "dashboard" && <DashboardTab />}
     </main>
   );

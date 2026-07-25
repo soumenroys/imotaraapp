@@ -4,6 +4,8 @@
 
 > **Status.** Connect ships as working code (37 numbered `connect_v*` migrations, live API routes, `/connect` pages, Realtime chat, Vercel crons) but was originally scoped as the v1.2 MVP and parts of the "full vision" remain aspirational. Sessions are **text chat** today (consultants may register interest in audio/video, but the billed session is text). Available on **all consumer tiers** — the only tier difference is session-history retention.
 
+> **⚠ UPDATE 2026-07-26.** The `imotara_wallets` top-up UI (web and mobile) has been **removed** — it never actually paid for sessions (see the correction to §13 below), had negligible real adoption (₹9 total across 2 users at the time), and its client-side balance check was even routing users to the wrong recharge flow in one place. The backend (`topup/create`/`topup/verify` routes, schema, crons) is untouched and still functions if called, matching the dormant-Stripe-backend pattern elsewhere in this codebase — it's just unreachable from any current UI. The only user-facing action left on `imotara_wallets` is **refund of an existing balance**, now available regardless of dormant status (the API never actually required it — only the old UI did). `connect_recharges` (the per-consultant system) is unaffected and remains the only real way to pay for a session.
+
 ---
 
 ## 1. What Connect is
@@ -11,8 +13,8 @@
 Connect lets a user have a real-time **text session** with a verified human "wellness companion," billed **per minute** from a prepaid wallet. It is explicitly **non-clinical**. Consultants set their own per-minute rate and currency; Imotara takes a **20% platform fee** at recharge time (the consultant is credited 80%).
 
 Two distinct wallet systems exist — don't confuse them:
-- **`imotara_wallets`** — the unified per-user INR balance (topped up generically), with 2-year expiry/dormancy rules and refund handling.
-- **`connect_wallet`** — a per-user/per-consultant construct that also holds **consultant earnings** (`earned_amount`, `pending_payout`). Session balances for a specific consultant are tracked via `connect_recharges` and read atomically by `get_session_balance(user, consultant)`.
+- **`imotara_wallets`** — the unified per-user INR balance. **Top-up UI removed 2026-07-26** (see status note above) — this balance never actually paid for sessions; the only remaining user action on it is requesting a refund.
+- **`connect_wallet`** — a per-user/per-consultant construct that also holds **consultant earnings** (`earned_amount`, `pending_payout`). Session balances for a specific consultant are tracked via `connect_recharges` and read atomically by `get_session_balance(user, consultant)` — **this is the only system that actually pays for a session.**
 
 ---
 

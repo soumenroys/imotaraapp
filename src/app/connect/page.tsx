@@ -1429,7 +1429,10 @@ function DashboardTab() {
 
   async function saveRate() {
     const rate = parseFloat(newRate);
-    if (isNaN(rate) || rate <= 0) { setRateMsg({ ok: false, text: "Enter a valid positive rate." }); return; }
+    if (isNaN(rate) || rate < 0 || (rate !== 0 && !Number.isInteger(rate))) {
+      setRateMsg({ ok: false, text: "Enter 0 for free, or a whole number of 1 or more — no decimals." });
+      return;
+    }
     setRateSaving(true); setRateMsg(null);
     try {
       const res = await fetch("/api/connect/consultant/profile", {
@@ -1631,14 +1634,14 @@ function DashboardTab() {
         </button>
         {editingRate && (
           <div className="border-t border-white/8 p-5 space-y-3">
-            <p className="text-xs text-zinc-500">Update your per-minute rate. New sessions will use this rate; ongoing sessions are unaffected.</p>
+            <p className="text-xs text-zinc-500">Update your per-minute rate — whole numbers only, or 0 to offer free sessions. New sessions will use this rate; ongoing sessions are unaffected.</p>
             <div className="flex items-center gap-2">
               <span className="text-sm text-zinc-400">{profile.currency_code ?? "INR"}</span>
               <input
-                type="number" min="0" step="0.01"
+                type="number" min="0" step="1"
                 value={newRate}
                 onChange={(e) => setNewRate(e.target.value)}
-                placeholder="e.g. 5.00"
+                placeholder="e.g. 5, or 0 for free"
                 className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               />
               <span className="text-xs text-zinc-500">/ min</span>

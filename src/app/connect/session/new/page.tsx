@@ -534,6 +534,12 @@ function NewSessionInner() {
         </div>
 
         {/* ── Cost Breakdown ───────────────────────────────────────────────── */}
+        {ratePerMin === 0 && (
+          <div className="imotara-glass-card rounded-2xl p-5 text-center">
+            <p className="text-lg font-bold text-emerald-400">Free session</p>
+            <p className="mt-1 text-xs text-zinc-500">This companion doesn&apos;t charge for sessions.</p>
+          </div>
+        )}
         {ratePerMin > 0 && (
           <div className="imotara-glass-card rounded-2xl p-5">
             <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Cost Estimate</p>

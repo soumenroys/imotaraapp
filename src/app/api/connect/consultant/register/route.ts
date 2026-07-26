@@ -62,10 +62,20 @@ export async function POST(req: NextRequest) {
   if (availability_note && availability_note.length > 500) {
     return NextResponse.json({ ok: false, error: "availability_note must be 500 characters or fewer" }, { status: 400 });
   }
-  if (!rate_per_min || isNaN(Number(rate_per_min)) || Number(rate_per_min) <= 0) {
-    return NextResponse.json({ ok: false, error: "rate_per_min must be a positive number" }, { status: 400 });
+  // Whole numbers only, or exactly 0 for a free companion. A fractional rate
+  // (e.g. 0.005) can round to a per-session total below Razorpay's own ₹1
+  // minimum order amount, making the companion silently unbookable — the
+  // user sees a rate but can never actually pay it. 0 is the one deliberate
+  // exception: it means genuinely free, and recharge/create skips payment
+  // entirely for it rather than trying to charge ₹0.
+  const rateNum = Number(rate_per_min);
+  if (rate_per_min === undefined || rate_per_min === null || isNaN(rateNum) || rateNum < 0) {
+    return NextResponse.json({ ok: false, error: "rate_per_min must be 0 (free) or a positive whole number" }, { status: 400 });
   }
-  if (Number(rate_per_min) > 10000) {
+  if (rateNum !== 0 && (!Number.isInteger(rateNum) || rateNum < 1)) {
+    return NextResponse.json({ ok: false, error: "rate_per_min must be 0 (free) or a whole number of 1 or more" }, { status: 400 });
+  }
+  if (rateNum > 10000) {
     return NextResponse.json({ ok: false, error: "rate_per_min cannot exceed 10000" }, { status: 400 });
   }
   if (!SUPPORTED_CURRENCIES.includes(currency_code)) {

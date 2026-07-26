@@ -75,8 +75,15 @@ export async function PATCH(req: NextRequest) {
   if ("currency_code" in updates && !SUPPORTED_CURRENCIES.includes(updates.currency_code as string)) {
     return NextResponse.json({ ok: false, error: "Unsupported currency" }, { status: 400 });
   }
-  if ("rate_per_min" in updates && (isNaN(Number(updates.rate_per_min)) || Number(updates.rate_per_min) <= 0 || Number(updates.rate_per_min) > 10000)) {
-    return NextResponse.json({ ok: false, error: "rate_per_min must be greater than 0 and at most 10000" }, { status: 400 });
+  if ("rate_per_min" in updates) {
+    // Whole numbers only, or exactly 0 for a free companion — see the
+    // register route for why (fractional rates can round to a per-session
+    // total below Razorpay's own ₹1 minimum, making the companion silently
+    // unbookable).
+    const rateNum = Number(updates.rate_per_min);
+    if (isNaN(rateNum) || rateNum < 0 || rateNum > 10000 || (rateNum !== 0 && !Number.isInteger(rateNum))) {
+      return NextResponse.json({ ok: false, error: "rate_per_min must be 0 (free) or a whole number from 1 to 10000" }, { status: 400 });
+    }
   }
   if ("preferred_lang" in updates && !SUPPORTED_LANGS.includes(updates.preferred_lang as string)) {
     return NextResponse.json({ ok: false, error: "Unsupported language code" }, { status: 400 });

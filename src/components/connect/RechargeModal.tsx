@@ -46,6 +46,7 @@ export default function RechargeModal({ consultant, razorpayKeyId, onSuccess, on
 
   const selectedMinutes = isCustom ? Math.max(1, parseInt(customMinutes) || 1) : minutes;
   const sym = CURRENCY_SYMBOLS[consultant.currency_code] ?? consultant.currency_code;
+  const isFree = Number(consultant.rate_per_min) === 0;
   const consultantFee = consultant.rate_per_min * selectedMinutes;
   const platformFee   = consultantFee * 0.20;
   const total         = consultantFee; // user pays total; platform fee is internal
@@ -55,9 +56,6 @@ export default function RechargeModal({ consultant, razorpayKeyId, onSuccess, on
     setError("");
 
     try {
-      const loaded = await loadRazorpay();
-      if (!loaded) throw new Error("Payment gateway unavailable. Please try again.");
-
       const res = await fetch("/api/connect/wallet/recharge/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -67,6 +65,16 @@ export default function RechargeModal({ consultant, razorpayKeyId, onSuccess, on
 
       const data = await res.json();
       if (!data.ok) throw new Error(data.error ?? "Failed to create order");
+
+      // Free companion (rate_per_min = 0) — recharge/create already completed
+      // the recharge directly, no payment to collect.
+      if (data.free) {
+        onSuccess(selectedMinutes);
+        return;
+      }
+
+      const loaded = await loadRazorpay();
+      if (!loaded) throw new Error("Payment gateway unavailable. Please try again.");
 
       const { razorpay_order_id, amount_paise } = data;
 
@@ -179,18 +187,24 @@ export default function RechargeModal({ consultant, razorpayKeyId, onSuccess, on
 
         {/* Cost breakdown */}
         <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-4 space-y-2 text-sm">
-          <div className="flex justify-between text-zinc-300">
-            <span>{selectedMinutes} min × {sym}{consultant.rate_per_min}/min</span>
-            <span className="font-medium">{sym}{consultantFee.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-zinc-500">
-            <span>Platform fee (20%)</span>
-            <span>{sym}{platformFee.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between border-t border-white/10 pt-2 font-semibold text-zinc-50">
-            <span>Total</span>
-            <span>{sym}{total.toFixed(2)}</span>
-          </div>
+          {isFree ? (
+            <p className="text-center font-semibold text-emerald-400">This companion is free — no payment needed</p>
+          ) : (
+            <>
+              <div className="flex justify-between text-zinc-300">
+                <span>{selectedMinutes} min × {sym}{consultant.rate_per_min}/min</span>
+                <span className="font-medium">{sym}{consultantFee.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-zinc-500">
+                <span>Platform fee (20%)</span>
+                <span>{sym}{platformFee.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-t border-white/10 pt-2 font-semibold text-zinc-50">
+                <span>Total</span>
+                <span>{sym}{total.toFixed(2)}</span>
+              </div>
+            </>
+          )}
           <p className="text-xs text-zinc-500 text-center">You get {selectedMinutes} minutes with {consultant.display_name}</p>
         </div>
 
@@ -206,7 +220,7 @@ export default function RechargeModal({ consultant, razorpayKeyId, onSuccess, on
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-60"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
-          {loading ? "Processing…" : `Pay ${sym}${total.toFixed(2)}`}
+          {loading ? "Processing…" : isFree ? `Get ${selectedMinutes} min free` : `Pay ${sym}${total.toFixed(2)}`}
         </button>
       </div>
     </div>

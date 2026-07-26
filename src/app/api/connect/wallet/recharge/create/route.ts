@@ -64,6 +64,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Consultant not found" }, { status: 404 });
   }
 
+  // A consultant who has deliberately set rate_per_min to 0 is free — skip
+  // Razorpay entirely rather than trying to create a ₹0 order (which
+  // Razorpay itself would reject, same as any sub-₹1 order below). Insert
+  // the recharge as already-completed; there is nothing to verify.
+  if (Number(consultant.rate_per_min) === 0) {
+    const { data: freeRecharge, error: freeInsertError } = await supabase
+      .from("connect_recharges")
+      .insert({
+        user_id:           user.id,
+        consultant_id,
+        amount:            0,
+        currency_code:     consultant.currency_code,
+        amount_inr:        0,
+        minutes_credited:  minutesNum,
+        platform_fee:      0,
+        consultant_credit: 0,
+        status:            "completed",
+        completed_at:      new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (freeInsertError) {
+      console.error("[recharge/create] free-recharge insert failed:", freeInsertError.message);
+      return NextResponse.json({ ok: false, error: "Failed to add free minutes. Please try again." }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ok:               true,
+      free:             true,
+      minutes_credited: minutesNum,
+      breakdown: {
+        consultant_name: consultant.display_name,
+        rate_per_min:    0,
+        currency:        consultant.currency_code,
+        minutes:         minutesNum,
+        total:           0,
+      },
+    });
+  }
+
   const rates = await getExchangeRates(supabase);
   const ratePerMin   = Number(consultant.rate_per_min);
   const currency     = consultant.currency_code;

@@ -159,8 +159,14 @@ export default function ConsultantCard({
               </button>
             )}
             <div className="text-right">
-              <p className="text-base font-semibold text-violet-300">{sym}{consultant.rate_per_min}</p>
-              <p className="text-xs text-zinc-500">/min</p>
+              {Number(consultant.rate_per_min) === 0 ? (
+                <p className="text-base font-semibold text-emerald-400">Free</p>
+              ) : (
+                <>
+                  <p className="text-base font-semibold text-violet-300">{sym}{consultant.rate_per_min}</p>
+                  <p className="text-xs text-zinc-500">/min</p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -297,7 +303,11 @@ export default function ConsultantCard({
             {/* Price */}
             <div className="mb-4 rounded-xl border border-violet-500/20 bg-violet-500/5 px-4 py-3 flex items-center justify-between">
               <span className="text-sm text-zinc-400">Rate</span>
-              <span className="text-xl font-bold text-violet-300">{sym}{consultant.rate_per_min}<span className="text-sm font-normal text-zinc-500">/min</span></span>
+              {Number(consultant.rate_per_min) === 0 ? (
+                <span className="text-xl font-bold text-emerald-400">Free</span>
+              ) : (
+                <span className="text-xl font-bold text-violet-300">{sym}{consultant.rate_per_min}<span className="text-sm font-normal text-zinc-500">/min</span></span>
+              )}
             </div>
 
             {/* Bio */}

@@ -336,8 +336,11 @@ export default function RegisterConsultantPage() {
     if (s === 2) {
       if (bio.trim().length < 30) return "Bio must be at least 30 characters.";
       if (bio.length > 500)       return "Bio must be 500 characters or less.";
-      if (!ratePerMin || isNaN(Number(ratePerMin)) || Number(ratePerMin) <= 0)
-        return "Enter a valid rate per minute (greater than 0).";
+      {
+        const rateNum = Number(ratePerMin);
+        if (ratePerMin === "" || isNaN(rateNum) || rateNum < 0 || (rateNum !== 0 && !Number.isInteger(rateNum)))
+          return "Enter a rate per minute — 0 for free, or a whole number of 1 or more (no decimals).";
+      }
     }
     if (s === 3) {
       const required = ["selfie","photo_id","address_proof","age_proof","eligibility"] as const;
@@ -802,7 +805,7 @@ export default function RegisterConsultantPage() {
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">Rate per Minute *</label>
-                <input type="number" min={0} step={0.5} value={ratePerMin} onChange={e => setRatePerMin(e.target.value)} placeholder="e.g. 5"
+                <input type="number" min={0} step={1} value={ratePerMin} onChange={e => setRatePerMin(e.target.value)} placeholder="e.g. 5, or 0 for free"
                   className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
               </div>
               <div className="w-40">
@@ -813,6 +816,10 @@ export default function RegisterConsultantPage() {
                 </select>
               </div>
             </div>
+            <p className="text-xs text-zinc-500">Whole numbers only — no decimals. A fractional rate can round to a per-session amount too small to actually charge.</p>
+            {ratePerMin !== "" && Number(ratePerMin) === 0 && (
+              <p className="text-xs text-emerald-400">Your sessions will be free — users won&apos;t be asked to pay anything.</p>
+            )}
             {ratePerMin && Number(ratePerMin) > 0 && (
               <p className="text-xs text-zinc-500">
                 Users pay {CURRENCIES.find(c => c.code === currency)?.label.split(" ")[0]}{Number(ratePerMin).toFixed(2)}/min.

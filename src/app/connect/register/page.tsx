@@ -17,15 +17,21 @@ const EXPERTISE_OPTIONS = [
   "Work & Career Pressure", "Self-Esteem", "Family Conflicts", "Life Transitions",
   "Emotional Regulation", "Mindfulness", "General Wellness",
 ];
+// All 22 languages Imotara supports (see src/content/help/languages-and-voice.md) —
+// this list previously had only 16, silently missing Odia, Hebrew, Russian, Chinese,
+// Japanese, and Indonesian as selectable options for a companion registering.
 const LANGUAGE_OPTIONS = [
   { code: "en", label: "English" }, { code: "hi", label: "Hindi" },
   { code: "bn", label: "Bengali" }, { code: "mr", label: "Marathi" },
   { code: "ta", label: "Tamil" },   { code: "te", label: "Telugu" },
   { code: "gu", label: "Gujarati" }, { code: "pa", label: "Punjabi" },
   { code: "kn", label: "Kannada" }, { code: "ml", label: "Malayalam" },
-  { code: "ur", label: "Urdu" },    { code: "ar", label: "Arabic" },
-  { code: "es", label: "Spanish" }, { code: "fr", label: "French" },
-  { code: "de", label: "German" },  { code: "pt", label: "Portuguese" },
+  { code: "or", label: "Odia" },    { code: "ur", label: "Urdu" },
+  { code: "ar", label: "Arabic" },  { code: "he", label: "Hebrew" },
+  { code: "ru", label: "Russian" }, { code: "zh", label: "Chinese" },
+  { code: "ja", label: "Japanese" }, { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },  { code: "de", label: "German" },
+  { code: "pt", label: "Portuguese" }, { code: "id", label: "Indonesian" },
 ];
 const CURRENCIES = [
   { code: "INR", label: "₹ Indian Rupee" },

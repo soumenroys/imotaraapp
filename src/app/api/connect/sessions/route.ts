@@ -266,7 +266,7 @@ export async function POST(req: NextRequest) {
   // Translation opt-in: +10% surcharge baked into rate_per_min when enabled.
   // rate_per_min is read from the same query that verified status='approved' (line 144) —
   // a separate re-fetch would not re-check status and could use a suspended consultant's rate.
-  const SUPPORTED_LANGS = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","ur","ar","es","fr","de","pt"];
+  const SUPPORTED_LANGS = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","or","ur","ar","he","ru","zh","ja","es","fr","de","pt","id"];
   const userLang       = typeof body.user_lang === "string" && SUPPORTED_LANGS.includes(body.user_lang) ? body.user_lang : "en";
   const consultantLang = typeof consultant.preferred_lang === "string" ? consultant.preferred_lang : "en";
   const translationEnabled = body.translation_requested === true && userLang !== consultantLang;

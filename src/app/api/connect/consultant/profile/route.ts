@@ -9,7 +9,10 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
 
 const SUPPORTED_CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED", "SGD", "AUD"];
-const SUPPORTED_LANGS      = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","or","ur","ar","he","ru","zh","ja","es","fr","de","pt"];
+// The full 22 languages Imotara advertises (see src/content/help/languages-and-voice.md) —
+// "id" (Indonesian) was missing here, silently blocking it as a preferred_lang even
+// though the main app fully supports it.
+const SUPPORTED_LANGS      = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","or","ur","ar","he","ru","zh","ja","es","fr","de","pt","id"];
 
 export async function GET(req: NextRequest) {
   const user = await getConnectUser(req);

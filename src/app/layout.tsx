@@ -205,7 +205,7 @@ function JsonLd() {
     },
     author: { "@type": "Organization", name: "Imotara", url: site },
     inLanguage: [
-      "en","es","hi","fr","bn","ar","pt","de","ja","ko","tr","it","zh",
+      "en","es","hi","fr","bn","ar","pt","de","ja","ru","he","id","zh",
       "ta","te","ml","kn","mr","gu","pa","ur","or",
     ],
     keywords:

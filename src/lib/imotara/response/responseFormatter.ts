@@ -2337,7 +2337,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     const _endPunct =
       lang === "ur"
         ? "۔"
-        : ["hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa"].includes(lang)
+        : ["hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa", "or"].includes(lang)
           ? "।"
           : ".";
     const _qRe = /[?؟？]/g;
@@ -2371,7 +2371,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   const endPunct =
     lang === "ur"
       ? "۔"
-      : ["hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa"].includes(lang)
+      : ["hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa", "or"].includes(lang)
         ? "।"
         : ".";
 

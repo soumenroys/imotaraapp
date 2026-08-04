@@ -42,7 +42,7 @@ const LANG_OPTIONS: { code: string; label: string }[] = [
   { code: "ru", label: "Russian" },   { code: "zh", label: "Chinese" },
   { code: "ja", label: "Japanese" },  { code: "es", label: "Spanish" },
   { code: "fr", label: "French" },    { code: "de", label: "German" },
-  { code: "pt", label: "Portuguese" },
+  { code: "pt", label: "Portuguese" }, { code: "id", label: "Indonesian" },
 ];
 const LANG_NAME: Record<string, string> = Object.fromEntries(LANG_OPTIONS.map((l) => [l.code, l.label]));
 
@@ -101,7 +101,7 @@ function NewSessionInner() {
 
   // Pre-fill user language from Imotara profile — must complete before instant auto-start
   useEffect(() => {
-    const SUPPORTED_LANGS = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","ur","ar","es","fr","de","pt"];
+    const SUPPORTED_LANGS = ["en","hi","bn","mr","ta","te","gu","pa","kn","ml","or","ur","ar","he","ru","zh","ja","es","fr","de","pt","id"];
     const p = getImotaraProfile();
     const age = p?.user?.ageRange;
     if (age === "under_13" || age === "13_17") {

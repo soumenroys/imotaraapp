@@ -176,6 +176,7 @@ export default function RegisterConsultantPage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [isLoggedIn, setIsLoggedIn]   = useState(false);
   const [userEmail, setUserEmail]     = useState("");
+  const [authError, setAuthError]     = useState("");
 
   const TOTAL_STEPS = 5;
   const [step, setStep]       = useState(1);
@@ -247,7 +248,26 @@ export default function RegisterConsultantPage() {
   const [agreeInfoTrue, setAgreeInfoTrue]   = useState(false);
   const [digitalSignature, setDigitalSignature] = useState("");
 
-  // Auth check — AFTER all hooks to satisfy Rules of Hooks
+  // Auth check — AFTER all hooks to satisfy Rules of Hooks.
+  // Surface a failed OAuth round-trip (see /auth/callback's ?auth_error=...)
+  // instead of silently re-showing the same locked gate — previously
+  // indistinguishable from "the Google button did nothing."
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("auth_error");
+    if (err) {
+      setAuthError(err === "timeout" ? "Sign-in timed out. Please try again." : "Sign-in failed. Please try again.");
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete("auth_error");
+      window.history.replaceState({}, "", clean.toString());
+    }
+  }, []);
+
+  // Auth session check — also subscribe to onAuthStateChange (not just a
+  // one-shot getSession()) so the gate self-heals if the initial check ever
+  // misses the session cookie just written by /auth/callback's hard
+  // navigation back to this page. Mirrors the same pattern already used by
+  // src/app/connect/page.tsx's BrowseTab gate.
   useEffect(() => {
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -258,6 +278,12 @@ export default function RegisterConsultantPage() {
       setUserEmail(session?.user?.email ?? "");
       setAuthChecked(true);
     });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+      setUserEmail(session?.user?.email ?? "");
+      setAuthChecked(true);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   // ── Photo helpers ──────────────────────────────────────────────────────────
@@ -519,6 +545,9 @@ export default function RegisterConsultantPage() {
             <p className="mb-6 max-w-xs text-sm text-zinc-400 leading-relaxed">
               Create a free Imotara account first. Once signed in, the application form will unlock and your progress will be saved to your account.
             </p>
+            {authError && (
+              <p className="mb-4 max-w-xs text-sm text-red-400">{authError}</p>
+            )}
             <button
               onClick={async () => {
                 const supabase = createBrowserClient(

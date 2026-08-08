@@ -1,6 +1,6 @@
 # Imotara — Mobile App Technical Guide
 
-Imotara Mobile is the Expo / React Native client for Imotara. This build is **v1.2.7 (build 107)**. Mobile and web share one backend (`www.imotara.com` + Supabase project `rfsbvbqtiesswnplslln`). Repo: `github.com/soumenroys/imotara-mobile`. This guide is grounded in the actual source.
+Imotara Mobile is the Expo / React Native client for Imotara. This build is **v1.2.10 (build 110)**. Mobile and web share one backend (`www.imotara.com` + Supabase project `rfsbvbqtiesswnplslln`). Repo: `github.com/soumenroys/imotara-mobile`. This guide is grounded in the actual source.
 
 ## 1. Stack summary
 

@@ -141,7 +141,7 @@ No UI (web or mobile) calls this anymore — the steps below describe backend ca
 1. `/connect/register` → **`POST /api/connect/consultant/register`** (auth required). Every field validated in code:
    - `display_name` (required, ≤100) · `gender` (**male|female** only) · `role_category` (one of `wellness_companion, friend, dad, mom, sister, brother, grandfather, grandmother, yoga_instructor, fitness_companion`; invalid → defaults `wellness_companion`).
    - `bio` (required, ≤500) · `expertise_tags` (1–20, each ≤50) · `languages` (1–20, each ≤20) · `preferred_lang` (allow-listed, default `en`).
-   - `rate_per_min` (>0, ≤10,000) · `currency_code` (**INR/USD/EUR/GBP/AED/SGD/AUD**).
+   - `rate_per_min` (0 = a real free session, or a whole number 1–10,000 — fractional rates are rejected since 2026-07-26) · `currency_code` (**INR/USD/EUR/GBP/AED/SGD/AUD**).
    - `session_types` (filtered to `chat/audio/video`; empty → error; default `["chat"]`). **Note:** billed sessions are text chat today; audio/video are interest flags.
    - `contact_email` (valid email if present) · `contact_phone` (≤30) · `website_url` (**https://** only) · `social_links` (array; allowed keys `platform/url/handle/label`; URLs must be https; ≤4096 bytes) · `photo_url` (**https://** only).
    - `availability_note` (≤500) · `availability_windows` (array ≤28, ≤8192 bytes; shape `{ days[], months[], start "HH:MM", end "HH:MM", timezone, year }`). *(A stricter `{day,start_time,end_time}` allow-list that once silently rejected every submission was reverted to this real shape.)*

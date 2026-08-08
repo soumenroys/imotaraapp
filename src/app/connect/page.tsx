@@ -17,8 +17,6 @@ import { getImotaraProfile } from "@/lib/imotara/profile";
 
 type Tab = "browse" | "sessions" | "wallet" | "dashboard";
 
-const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
-
 const supabaseBrowser = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -154,7 +152,7 @@ function SignInModal({ onClose, redirectTo }: { onClose: () => void; redirectTo:
   );
 }
 
-function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
+function BrowseTab() {
   const router = useRouter();
   const navigatingRef = useRef(false);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
@@ -168,32 +166,13 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
   const [favLoading, setFavLoading] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [showSignIn, setShowSignIn] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number>(0);
-  const [walletCurrency, setWalletCurrency] = useState<string>("INR");
 
   useEffect(() => {
     supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
       setIsLoggedIn(!!session);
-      if (session) {
-        fetch("/api/connect/wallet", { credentials: "include" })
-          .then((r) => r.json())
-          .then((d) => {
-            if (d.ok) {
-              setWalletBalance(Number(d.wallet_balance ?? 0));
-              setWalletCurrency(d.wallet_currency ?? "INR");
-            }
-          })
-          .catch(() => {});
-      }
     });
     const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_, session) => {
       setIsLoggedIn(!!session);
-      if (session) {
-        fetch("/api/connect/wallet", { credentials: "include" })
-          .then((r) => r.json())
-          .then((d) => { if (d.ok) { setWalletBalance(Number(d.wallet_balance ?? 0)); setWalletCurrency(d.wallet_currency ?? "INR"); } })
-          .catch(() => {});
-      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -422,15 +401,11 @@ function BrowseTab({ razorpayKeyId }: { razorpayKeyId: string }) {
               <ConsultantCard
                 key={c.id}
                 consultant={c}
-                razorpayKeyId={razorpayKeyId}
-                walletBalance={walletBalance}
-                walletCurrency={walletCurrency}
                 isFavorite={favorites.has(c.id)}
                 favLoading={favLoading === c.id}
                 onToggleFavorite={(e) => toggleFavorite(c.id, e)}
                 onTalkNow={handleTalkNow}
                 onRequestMeeting={handleRequestMeeting}
-                onWalletTopUp={(newBal) => setWalletBalance(newBal)}
               />
             ))}
           </div>
@@ -2073,7 +2048,7 @@ export default function ConnectPage() {
         ))}
       </div>
 
-      {activeTab === "browse"    && <BrowseTab razorpayKeyId={RAZORPAY_KEY_ID} />}
+      {activeTab === "browse"    && <BrowseTab />}
       {activeTab === "sessions"  && <SessionsTab />}
       {activeTab === "wallet"    && <WalletTab />}
       {activeTab === "dashboard" && <DashboardTab />}

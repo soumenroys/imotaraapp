@@ -833,8 +833,8 @@ export default function UpgradePage() {
                                     free: true, plus: true, pro: true, ent: true,
                                 },
                                 {
-                                    label: "Imotara Wallet",
-                                    desc: "Top up your INR wallet and use it across all Connect sessions — balance never expires",
+                                    label: "Prepaid session minutes",
+                                    desc: "Recharge minutes directly with each companion, pay per minute during the session",
                                     free: true, plus: true, pro: true, ent: true,
                                 },
                                 {

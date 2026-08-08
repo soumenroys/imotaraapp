@@ -2,8 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star, Globe, CircleDot, MessageCircle, Mic, Video, Heart, X, Loader2, Clock, Wallet } from "lucide-react";
-import WalletTopUpModal from "./WalletTopUpModal";
+import { Star, Globe, CircleDot, MessageCircle, Mic, Video, Heart, X, Loader2, Clock } from "lucide-react";
 
 const ROLE_CATEGORY_LABELS: Record<string, string> = {
   wellness_companion: "🧘 Wellness Companion",
@@ -64,23 +63,18 @@ interface Consultant {
 
 interface Props {
   consultant: Consultant;
-  razorpayKeyId: string;
-  walletBalance: number;
-  walletCurrency: string;
   isFavorite?: boolean;
   favLoading?: boolean;
   onToggleFavorite?: (e: React.MouseEvent) => void;
   onTalkNow: (consultantId: string) => void;
   onRequestMeeting: (consultantId: string) => void;
-  onWalletTopUp: (newBalance: number) => void;
 }
 
 export default function ConsultantCard({
-  consultant, razorpayKeyId, walletBalance, walletCurrency,
+  consultant,
   isFavorite, favLoading, onToggleFavorite,
-  onTalkNow, onRequestMeeting, onWalletTopUp,
+  onTalkNow, onRequestMeeting,
 }: Props) {
-  const [showTopUp, setShowTopUp] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const sym = CURRENCY_SYMBOLS[consultant.currency_code] ?? consultant.currency_code;
   const langNames = consultant.languages.map((c) => LANGUAGE_MAP[c] ?? c);
@@ -236,14 +230,6 @@ export default function ConsultantCard({
               Request Meeting
             </button>
           )}
-          <button
-            onClick={() => setShowTopUp(true)}
-            className="flex items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-2.5 text-sm font-medium text-violet-400 transition hover:bg-violet-500/20 shrink-0"
-            title="View wallet balance / Add balance"
-          >
-            <Wallet size={13} />
-            <span className="font-semibold">{CURRENCY_SYMBOLS[walletCurrency] ?? walletCurrency}{walletBalance.toFixed(0)}</span>
-          </button>
         </div>
       </div>
 
@@ -402,14 +388,6 @@ export default function ConsultantCard({
                   Request Meeting
                 </button>
               )}
-              <button
-                onClick={() => { setShowProfile(false); setShowTopUp(true); }}
-                className="flex items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-2.5 text-sm font-medium text-violet-400 transition hover:bg-violet-500/20 shrink-0"
-                title="Add balance"
-              >
-                <Wallet size={13} />
-                <span className="font-semibold">{CURRENCY_SYMBOLS[walletCurrency] ?? walletCurrency}{walletBalance.toFixed(0)}</span>
-              </button>
             </div>
 
             <p className="mt-4 text-[10px] leading-relaxed text-zinc-600">
@@ -417,16 +395,6 @@ export default function ConsultantCard({
             </p>
           </div>
         </div>
-      )}
-
-      {showTopUp && (
-        <WalletTopUpModal
-          walletBalance={walletBalance}
-          walletCurrency={walletCurrency}
-          razorpayKeyId={razorpayKeyId}
-          onSuccess={(newBal) => { onWalletTopUp(newBal); setShowTopUp(false); }}
-          onClose={() => setShowTopUp(false)}
-        />
       )}
     </>
   );

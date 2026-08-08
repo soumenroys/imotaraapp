@@ -563,7 +563,7 @@ function BannerConnect() {
         <div className="mt-3 space-y-2">
           {[
             { icon: "📋", label: "Browse companions" },
-            { icon: "💳", label: "Top up wallet" },
+            { icon: "💳", label: "Recharge minutes per companion" },
             { icon: "📞", label: "Instant or scheduled session" },
             { icon: "⏱️", label: "Per-minute billing" },
             { icon: "🌐", label: "Auto-translation (opt-in, +10%)" },
@@ -586,9 +586,9 @@ function BannerConnect() {
             </div>
           </div>
           <div className="bg-zinc-800 rounded-lg p-2 space-y-0.5">
-            <p className="text-[7px] text-zinc-500">Wallet balance</p>
-            <p className="text-[10px] font-bold text-zinc-200">₹240.00</p>
-            <div className="rounded bg-indigo-600/70 text-center text-[7px] font-semibold text-white py-0.5 mt-1">Top up</div>
+            <p className="text-[7px] text-zinc-500">Balance with Dr. Priya S.</p>
+            <p className="text-[10px] font-bold text-zinc-200">30 min</p>
+            <div className="rounded bg-indigo-600/70 text-center text-[7px] font-semibold text-white py-0.5 mt-1">Recharge</div>
           </div>
         </div>
       </Phone>
@@ -1971,34 +1971,34 @@ const FEATURES: Record<string, Feature[]> = {
       icon: "🤝",
       title: "What is Imotara Connect?",
       short: "Book live sessions with professional companions — counsellors, coaches, and wellness guides.",
-      long: "Imotara Connect is a human consultancy layer inside the app. You can browse verified professional companions — counsellors, life coaches, wellness guides — and book instant or scheduled sessions with them. Sessions are billed per minute from your Connect Wallet. All sessions are private and confidential.",
+      long: "Imotara Connect is a human consultancy layer inside the app. You can browse verified professional companions — counsellors, life coaches, wellness guides — and book instant or scheduled sessions with them. Sessions are billed per minute from your prepaid balance with that specific companion. All sessions are private and confidential.",
       steps: [
         "Tap the Connect tab at the bottom of the app (or open imotara.com/connect on web).",
         "Browse companions — filter by availability, language, or specialty.",
         "Tap a companion card to see their profile, rate, and reviews.",
         "Tap 'Connect now' for an instant session or 'Schedule' to book a future slot.",
-        "Top up your wallet before or during the booking flow.",
+        "If you don't have enough balance with that companion yet, you'll be prompted to recharge before the session starts.",
       ],
     },
     {
       icon: "💳",
       title: "Connect Wallet",
-      short: "A pre-loaded wallet for paying companions — top up with any amount, pay per minute.",
-      long: "Your Connect Wallet holds a balance you use to pay for sessions. Top up via UPI, card, or netbanking (Razorpay). When a session runs, the per-minute rate is deducted automatically every 60 seconds. If your balance runs low, you get a warning and the session ends gracefully when it hits zero.",
+      short: "Prepaid minutes with each companion — recharge when booking, pay per minute.",
+      long: "There's no single wallet to pre-load — you recharge minutes directly with the specific companion you want to talk to. When you tap 'Talk Now' and don't have enough balance with them, you'll be prompted to add minutes at their rate, paid via Razorpay (UPI, card, or netbanking). That balance is only usable with that one companion. Once recharged, the per-minute rate is deducted automatically every 60 seconds during the session; if your balance runs low, you get a warning and the session ends gracefully when it hits zero. The Wallet tab shows a breakdown of your balance with every companion you've recharged.",
       steps: [
-        "Open Connect → Wallet tab.",
-        "Tap 'Add Money to Wallet'.",
-        "Choose an amount (₹1,000, ₹2,000, ₹5,000, ₹10,000, or custom).",
-        "Accept the Wallet Terms & Policy, then complete payment via Razorpay.",
-        "Your balance updates immediately.",
+        "Tap 'Talk Now' on a companion, or open their profile and pick 'Schedule'.",
+        "If your balance with them is too low, a recharge prompt opens automatically.",
+        "Choose how many minutes to add, at their per-minute rate.",
+        "Complete payment via Razorpay.",
+        "Your balance with that companion updates immediately, and the session begins.",
       ],
-      tip: "Top up before a session starts — mid-session top-ups are supported but may cause a brief pause.",
+      tip: "Recharge before a session starts — mid-session recharges are supported but may cause a brief pause.",
     },
     {
       icon: "⏱️",
       title: "Per-Minute Billing",
       short: "You pay only for the time you use — billing stops the moment you end the session.",
-      long: "Each companion sets their own rate per minute (e.g. ₹5/min, ₹12/min). The clock starts when the companion accepts your request. Every 60 seconds, the rate is deducted from your wallet. You see a live timer and remaining balance during the session. End it anytime — you're billed to the nearest minute.",
+      long: "Each companion sets their own rate per minute (e.g. ₹5/min, ₹12/min). The clock starts when the companion accepts your request. Every 60 seconds, the rate is deducted from your balance with that companion. You see a live timer and remaining balance during the session. End it anytime — you're billed to the nearest minute.",
       steps: [
         "Your per-minute rate is shown on the companion card before you connect.",
         "The session timer starts when the companion accepts.",
@@ -2037,12 +2037,12 @@ const FEATURES: Record<string, Feature[]> = {
     {
       icon: "💰",
       title: "Wallet Dormancy & Terms",
-      short: "Your wallet balance stays active for 2 years — it's never zeroed, even if dormant.",
-      long: "Imotara's Connect Wallet has a dormancy policy designed to protect you: your balance stays active for 2 full years from your last top-up or session. Before any dormancy, you receive 6 email reminders. After 2 years, the wallet enters 'dormant' status — but your balance is preserved and never erased. You have an additional 1-year grace period during which you can request a full refund of any remaining balance. The Wallet Terms & Policy covers all these rules in detail.",
+      short: "If you have an older balance from before top-ups were retired, it stays protected for 2+ years.",
+      long: "Imotara's old shared wallet — the one you could top up directly — has been retired; you now recharge minutes per companion instead. If you still have a leftover balance from before that change, it's protected: it stays active for 2 full years from your last activity, you get 6 email reminders before any dormancy, and after 2 years it enters 'dormant' status — but your balance is preserved and never erased. You have an additional 1-year grace period to request a full refund of any remaining balance. The Wallet Terms & Policy covers all these rules in detail.",
       steps: [
-        "Top up any amount — balance is active for 2 years from that date.",
+        "Any pre-existing balance stays active for 2 years from your last activity.",
         "Imotara sends 6 reminder emails before dormancy.",
-        "After 2 years of no activity, wallet enters dormant status.",
+        "After 2 years of no activity, it enters dormant status.",
         "In dormant status, your balance is preserved — never zeroed.",
         "Request a refund within 1 year of dormancy from Connect → Wallet → Refund balance.",
         "Read the full policy: Connect → Wallet → 'Full Wallet Terms & Policy →'.",

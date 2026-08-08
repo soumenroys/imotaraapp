@@ -827,7 +827,7 @@ function WalletTab() {
     ? new Date(expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
     : null;
   const isExpiringSoon  = daysUntilExpiry !== null && daysUntilExpiry <= 30 && walletBalance > 0;
-  const isExpired       = walletStatus === "forfeited";
+  const isDormant       = walletStatus === "dormant";
 
   return (
     <div className="space-y-4">
@@ -842,24 +842,26 @@ function WalletTab() {
           </button>
         </div>
       )}
-      {/* ── Expiry warning banner ── */}
-      {isExpired && (
+      {/* ── Dormancy / expiry warning banner ── */}
+      {isDormant && (
         <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-5 py-4">
-          <p className="text-sm font-semibold text-rose-300">Your wallet balance has expired</p>
+          <p className="text-sm font-semibold text-rose-300">Your wallet balance is dormant</p>
           <p className="mt-1 text-xs text-rose-400/80">
-            Your balance was forfeited after 2 years of inactivity. You have a 6-month grace period to request a refund —
+            Your balance is preserved, not lost — it was marked dormant after 2 years of inactivity.
+            You have a 1-year grace period from that date to request a full refund —
             email <strong>support@imotara.com</strong> with subject &quot;Wallet Refund Request&quot;.
           </p>
         </div>
       )}
-      {isExpiringSoon && !isExpired && (
+      {isExpiringSoon && !isDormant && (
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-5 py-4">
           <p className="text-sm font-semibold text-amber-300">
-            Your wallet balance expires in {daysUntilExpiry} day{daysUntilExpiry === 1 ? "" : "s"}
+            Your wallet balance goes dormant in {daysUntilExpiry} day{daysUntilExpiry === 1 ? "" : "s"}
           </p>
           <p className="mt-1 text-xs text-amber-400/80">
-            Request a refund before <strong>{expiryDate}</strong> to keep your balance active.
-            Unused balances expire after 2 years of inactivity.
+            On <strong>{expiryDate}</strong> it will be marked dormant after 2 years of inactivity —
+            this is just a status label, your balance is never reduced. If you&apos;d like a refund
+            now instead of waiting, you can request one anytime.
           </p>
         </div>
       )}
@@ -867,11 +869,11 @@ function WalletTab() {
       {/* ── Balance card ── */}
       <div className="imotara-glass-card rounded-2xl p-6 text-center">
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Imotara Wallet Balance</p>
-        <p className={`text-5xl font-bold tracking-tight ${isExpired ? "text-zinc-600 line-through" : "text-violet-300"}`}>
+        <p className={`text-5xl font-bold tracking-tight ${isDormant ? "text-zinc-600 line-through" : "text-violet-300"}`}>
           {sym}{walletBalance.toFixed(2)}
         </p>
         <p className="mt-1 text-xs text-zinc-600">{walletCurrency} · Refundable, top-ups retired</p>
-        {expiryDate && !isExpired && walletBalance > 0 && (
+        {expiryDate && !isDormant && walletBalance > 0 && (
           <p className={`mt-2 text-xs ${isExpiringSoon ? "text-amber-400" : "text-zinc-600"}`}>
             Balance valid until {expiryDate}
           </p>

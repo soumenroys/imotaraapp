@@ -78,7 +78,8 @@
     "test:ai:e2e:id:mobile": "LANG=id PLATFORM=mobile tsx tests/imotara-ai/runner.ts",
     "test:ai:e2e:id:verbose": "LANG=id VERBOSE=1 tsx tests/imotara-ai/runner.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check": "npm run typecheck && npm run build",
+    "check:kb-version": "node scripts/check-kb-version.mjs",
+    "check": "npm run typecheck && npm run check:kb-version && npm run build",
     "donation:check": "node -e \"fetch('http://localhost:3000/api/payments/donation-intent',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({presetId:'inr_99',purpose:'imotara_donation',platform:'web'})}).then(r=>r.json()).then(j=>{console.log(j); if(!j.ok) process.exit(1);}).catch(e=>{console.error(e); process.exit(1);});\""
   },
   "dependencies": {

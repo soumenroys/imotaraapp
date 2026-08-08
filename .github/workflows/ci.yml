@@ -1,0 +1,42 @@
+# CI for imotaraapp: typecheck + KB version-sync + unit tests on every push/PR.
+# Mirrors imotara-mobile's ci.yml. The KB version-sync check exists because the
+# ImotaraKnowledgebase/*.md "Current release" headers drifted out of sync with
+# package.json twice in the same day (2026-08-08) with nothing catching it.
+#
+# Deliberately does NOT run `next build` here: it needs real Supabase/Razorpay
+# secrets to prerender some routes, and `postbuild` pings an external URL
+# (scripts/ping-sitemap.mjs) — neither is safe to depend on in a bare runner
+# without provisioning production secrets as GitHub Actions secrets, which
+# wasn't done as part of this change. Add a `build` job later once that's
+# deliberately set up, rather than risk a red CI badge for infra reasons
+# unrelated to code correctness.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: KB version sync (ImotaraKnowledgebase/*.md vs package.json)
+        run: npm run check:kb-version
+
+      - name: Unit tests
+        run: npx vitest run

@@ -21,9 +21,10 @@ export default function WalletTermsPage() {
       <Section title="1. What is the Imotara Wallet?">
         <p>
           The Imotara Wallet is a closed-loop prepaid balance held within the Imotara platform.
-          Balance can only be used to pay for sessions with Imotara wellness companions.
-          It cannot be transferred to third parties, used at other merchants, or withdrawn as cash
-          (except via the refund process described below).
+          It no longer accepts new top-ups and is not used to pay for Connect sessions — sessions
+          are paid for using a separate, per-companion prepaid balance instead (see Section 2). Any
+          existing Imotara Wallet balance cannot be transferred to third parties, used at other
+          merchants, or withdrawn as cash, except via the refund process described below.
         </p>
         <p className="mt-2">
           As a closed-loop instrument, the Imotara Wallet is exempt from RBI Prepaid Payment

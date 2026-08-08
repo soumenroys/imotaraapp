@@ -128,7 +128,7 @@ export default function RechargeModal({ consultant, razorpayKeyId, onSuccess, on
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      onClick={onClose}
+      onClick={loading ? undefined : onClose}
     >
       <div
         className="imotara-glass-card w-full max-w-sm rounded-2xl p-6 shadow-2xl"
@@ -140,7 +140,11 @@ export default function RechargeModal({ consultant, razorpayKeyId, onSuccess, on
             <h2 className="mt-1 text-lg font-semibold text-zinc-50">Add Session Time</h2>
             <p className="mt-0.5 text-sm text-zinc-400">{consultant.display_name}</p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 transition">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
             <X size={16} />
           </button>
         </div>

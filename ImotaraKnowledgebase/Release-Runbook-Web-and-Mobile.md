@@ -1,6 +1,6 @@
 # Imotara — Release Runbook (Web + Mobile)
 
-Operational source-of-truth for shipping Imotara. **Web** = `imotaraapp` (Next.js on Vercel, `www.imotara.com`). **Mobile** = `imotara-mobile` (Expo/EAS, iOS + Android). Both share Supabase project `rfsbvbqtiesswnplslln`. Current release: **v1.2.10 / build 110**. Grounded in the repos' own release docs and scripts (`RELEASE_COMMANDS.md`, `RELEASE_GO_NO_GO.md`, `WEBHOOK_PROD_CHECK.md`, `scripts/bump-version.mjs`, `eas.json`) — do not improvise steps.
+Operational source-of-truth for shipping Imotara. **Web** = `imotaraapp` (Next.js on Vercel, `www.imotara.com`). **Mobile** = `imotara-mobile` (Expo/EAS, iOS + Android). Both share Supabase project `rfsbvbqtiesswnplslln`. Current release: **v1.2.11 / build 111**. Grounded in the repos' own release docs and scripts (`RELEASE_COMMANDS.md`, `RELEASE_GO_NO_GO.md`, `WEBHOOK_PROD_CHECK.md`, `scripts/bump-version.mjs`, `eas.json`) — do not improvise steps.
 
 ---
 

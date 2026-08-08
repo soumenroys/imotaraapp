@@ -1,6 +1,6 @@
 # Imotara Connect — Consultant Marketplace
 
-*Reference for Imotara Connect: the human-companion marketplace layered onto Imotara. Covers the user-side booking + per-minute wallet billing flow, the two wallet systems, consultant onboarding and earnings, session lifecycle and crons, moderation/admin, safety, and support answers. Grounded in `src/app/api/connect/**`, `src/lib/connect/**`, `src/lib/wallet/**`, `src/app/connect/**`, and the `connect_*` / `imotara_wallet_*` SQL. Current as of v1.2.10.*
+*Reference for Imotara Connect: the human-companion marketplace layered onto Imotara. Covers the user-side booking + per-minute wallet billing flow, the two wallet systems, consultant onboarding and earnings, session lifecycle and crons, moderation/admin, safety, and support answers. Grounded in `src/app/api/connect/**`, `src/lib/connect/**`, `src/lib/wallet/**`, `src/app/connect/**`, and the `connect_*` / `imotara_wallet_*` SQL. Current as of v1.2.11.*
 
 > **Status.** Connect ships as working code (37 numbered `connect_v*` migrations, live API routes, `/connect` pages, Realtime chat, Vercel crons) but was originally scoped as the v1.2 MVP and parts of the "full vision" remain aspirational. Sessions are **text chat** today (consultants may register interest in audio/video, but the billed session is text). Available on **all consumer tiers** — the only tier difference is session-history retention.
 

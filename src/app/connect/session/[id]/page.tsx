@@ -11,11 +11,14 @@ import {
   Star, X, CheckCircle2, Globe,
 } from "lucide-react";
 import EmergencyModal from "@/components/connect/EmergencyModal";
+import RechargeModal from "@/components/connect/RechargeModal";
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
 
 interface Message {
   id: string;
@@ -126,6 +129,7 @@ export default function SessionChatPage() {
   const [endError, setEndError]     = useState<string | null>(null);
   const [sendError, setSendError]   = useState<string | null>(null);
   const [tickPaused, setTickPaused] = useState(false);
+  const [showRecharge, setShowRecharge] = useState(false);
   // Dual-panel state
   const [totalCreditedMin, setTotalCreditedMin] = useState<number | null>(null);
   const [elapsedSecs, setElapsedSecs]           = useState(0);
@@ -298,13 +302,11 @@ export default function SessionChatPage() {
   }, [sessionId]);
 
   // ── Session balance (remaining minutes + total credited) ───────────────────
-  // Called by both user (on mount) and consultant (on mount).
+  // Called by both user (on mount) and consultant (on mount), and again after a
+  // successful in-session recharge (see handleRechargeSuccess below).
   // User also gets remaining_minutes from tick responses; consultant infers from Realtime.
-  useEffect(() => {
+  const fetchBalance = useCallback(() => {
     if (!sessionId) return;
-    // Reset remaining to null before the async fetch so that if this effect fires for a
-    // new sessionId, leftover state from the previous session is cleared immediately.
-    setRemaining(null);
     fetch(`/api/connect/sessions/${sessionId}/balance`, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => {
@@ -314,6 +316,13 @@ export default function SessionChatPage() {
       })
       .catch(() => {});
   }, [sessionId]);
+
+  useEffect(() => {
+    // Reset remaining to null before the async fetch so that if this effect fires for a
+    // new sessionId, leftover state from the previous session is cleared immediately.
+    setRemaining(null);
+    fetchBalance();
+  }, [fetchBalance]);
 
   // ── Live clock + elapsed counter (1 s tick) ────────────────────────────────
   useEffect(() => {
@@ -375,6 +384,15 @@ export default function SessionChatPage() {
 
   function stopTick() {
     if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
+  }
+
+  // Called when the in-session RechargeModal completes successfully. The session
+  // itself doesn't need to be recreated — it's already active — so just refresh
+  // the balance the tick loop reads from and let the next tick continue as normal
+  // instead of auto-completing the session for lack of balance.
+  function handleRechargeSuccess() {
+    setShowRecharge(false);
+    fetchBalance();
   }
 
   useEffect(() => {
@@ -545,7 +563,7 @@ export default function SessionChatPage() {
   const isPending    = session.status === "pending";
   const isMine           = session.user_id === myUserId;
   const isConsultantView = !isMine && myUserId !== null;
-  const isLowBalance     = displaySeconds !== null && displaySeconds <= 120 && isActive;
+  const isLowBalance     = displaySeconds !== null && displaySeconds <= 120 && isActive && isMine;
 
   const sym          = CURRENCY_SYMBOLS[session.currency_code ?? "INR"] ?? "₹";
   const rate         = Number(session.rate_per_min ?? consultant?.rate_per_min ?? 0);
@@ -739,10 +757,10 @@ export default function SessionChatPage() {
         <div className="shrink-0 border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-center text-xs font-medium text-rose-300">
           Less than 2 minutes remaining.{" "}
           <button
-            onClick={() => router.push("/connect?tab=wallet")}
+            onClick={() => setShowRecharge(true)}
             className="underline hover:text-rose-200"
           >
-            Top up wallet
+            Add more minutes
           </button>
           {" "}to continue.
         </div>
@@ -950,6 +968,22 @@ export default function SessionChatPage() {
 
       {/* Emergency modal */}
       {showEmergency && <EmergencyModal onClose={() => setShowEmergency(false)} />}
+
+      {/* In-session recharge modal — the session stays open; only the balance
+          it reads from needs topping up (see handleRechargeSuccess above). */}
+      {showRecharge && isMine && (
+        <RechargeModal
+          consultant={{
+            id: session.consultant_id,
+            display_name: consultant?.display_name ?? "Companion",
+            rate_per_min: rate,
+            currency_code: session.currency_code,
+          }}
+          razorpayKeyId={RAZORPAY_KEY_ID}
+          onSuccess={handleRechargeSuccess}
+          onClose={() => setShowRecharge(false)}
+        />
+      )}
 
       {/* Review modal */}
       {showReview && (

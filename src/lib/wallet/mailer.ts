@@ -47,22 +47,20 @@ function buildEmail(
   switch (type) {
     case "180d_warning":
       return {
-        subject: `Imotara Wallet: Your balance of ${bal} is valid for 6 more months`,
+        subject: `Imotara Wallet: Your balance of ${bal} — a note about ${expDate}`,
         text: [
           `Dear Imotara user,`,
           ``,
-          `Your Imotara Wallet balance of ${bal} is currently active.`,
+          `You have an Imotara Wallet balance of ${bal}. Imotara Wallet no longer accepts`,
+          `new top-ups, so this balance simply sits untouched until you request a refund —`,
+          `there's nothing you need to do to "use" or "keep" it.`,
           ``,
-          `As a courtesy reminder: your balance will expire on ${expDate} if no top-up`,
-          `or session is used before that date. This is 6 months away — plenty of time.`,
+          `As a record-keeping matter, an inactive balance is marked "dormant" after 2 years —`,
+          `for you, that would be ${expDate}. This is just a status label: your balance is`,
+          `never reduced, and it remains fully refundable both before and after that date.`,
           ``,
-          `To keep your balance active beyond ${expDate}, simply top up any amount`,
-          `or book a session before that date.`,
-          ``,
-          `Current balance: ${bal}`,
-          `Expires on:      ${expDate}`,
-          ``,
-          `Add money or book a session: ${WALLET_URL}`,
+          `If you'd rather have the money back now instead of waiting, you can request a`,
+          `refund at any time: ${WALLET_URL}`,
           ``,
           `View full wallet policy: ${TERMS_URL}`,
           footer(),
@@ -71,20 +69,18 @@ function buildEmail(
 
     case "90d_warning":
       return {
-        subject: `Imotara Wallet: 3 months left — your balance of ${bal} expires on ${expDate}`,
+        subject: `Imotara Wallet: Your balance of ${bal} — ${expDate} is about 3 months away`,
         text: [
           `Dear Imotara user,`,
           ``,
-          `This is a reminder that your Imotara Wallet balance of ${bal} will expire`,
-          `on ${expDate} (in approximately 3 months) due to inactivity.`,
+          `This is a courtesy update on your Imotara Wallet balance of ${bal}. It will be`,
+          `marked "dormant" on ${expDate} (in about 3 months) as a record-keeping status —`,
+          `not a loss of funds. Your balance is never reduced, and stays fully refundable`,
+          `whether it's active or dormant.`,
           ``,
-          `To reset the 2-year inactivity clock and keep your balance active,`,
-          `simply top up any amount or use a session before ${expDate}.`,
-          ``,
-          `Current balance: ${bal}`,
-          `Expires on:      ${expDate}`,
-          ``,
-          `Add money or book a session: ${WALLET_URL}`,
+          `Imotara Wallet no longer accepts new top-ups, so there's no action needed on`,
+          `your part. If you'd like a refund now rather than later, you can request one`,
+          `anytime: ${WALLET_URL}`,
           ``,
           `View full wallet policy: ${TERMS_URL}`,
           footer(),
@@ -93,25 +89,19 @@ function buildEmail(
 
     case "30d_warning":
       return {
-        subject: `⚠️ Imotara Wallet: 30 days left — ${bal} expires on ${expDate}`,
+        subject: `Imotara Wallet: Your balance of ${bal} goes dormant on ${expDate} (30 days)`,
         text: [
           `Dear Imotara user,`,
           ``,
-          `IMPORTANT: Your Imotara Wallet balance of ${bal} will expire on ${expDate}`,
-          `(30 days from now) due to 2 years of inactivity.`,
+          `Your Imotara Wallet balance of ${bal} will be marked "dormant" on ${expDate} —`,
+          `30 days from now. This is a status label only: your balance is never reduced,`,
+          `and remains fully refundable before or after that date.`,
           ``,
-          `ACTION REQUIRED:`,
-          `To keep your balance, top up any amount or book a session before ${expDate}.`,
+          `Imotara Wallet no longer accepts new top-ups, so there's nothing you need to do`,
+          `to keep this balance safe — it already is. If you'd prefer a refund now instead`,
+          `of waiting, you can request one anytime: ${WALLET_URL}`,
           ``,
-          `Even adding the minimum amount will reset your balance validity for another 2 years.`,
-          ``,
-          `Current balance: ${bal}`,
-          `Expires on:      ${expDate}`,
-          ``,
-          `Add money now: ${WALLET_URL}`,
-          ``,
-          `If you do not take action, your balance will go dormant on ${expDate}.`,
-          `After dormancy, you will have a 1-year grace period to request a full refund`,
+          `After dormancy, you'll still have a 1-year grace period to request a full refund`,
           `by emailing ${SUPPORT} with subject "Wallet Refund Request".`,
           ``,
           `View full wallet policy: ${TERMS_URL}`,
@@ -121,25 +111,21 @@ function buildEmail(
 
     case "14d_warning":
       return {
-        subject: `⚠️ Urgent: Imotara Wallet balance of ${bal} expires in 14 days (${expDate})`,
+        subject: `Imotara Wallet: Your balance of ${bal} goes dormant on ${expDate} (14 days)`,
         text: [
           `Dear Imotara user,`,
           ``,
-          `URGENT REMINDER: Your Imotara Wallet balance of ${bal} will expire`,
-          `on ${expDate} — just 14 days away.`,
+          `Your Imotara Wallet balance of ${bal} will be marked "dormant" on ${expDate} —`,
+          `14 days from now. This is a status label only; your balance is never reduced`,
+          `and stays fully refundable either way.`,
           ``,
-          `To prevent your balance from going dormant, please add money or`,
-          `book a session before ${expDate}.`,
+          `This is reminder 4 of 6 (you previously received notices at 6 months, 3 months,`,
+          `and 30 days before this date).`,
           ``,
-          `This is reminder 4 of 6. You previously received notices at 6 months,`,
-          `3 months, and 1 month before this date.`,
+          `Imotara Wallet no longer accepts new top-ups — no action is needed on your part.`,
+          `If you'd like a refund now, you can request one anytime: ${WALLET_URL}`,
           ``,
-          `Current balance: ${bal}`,
-          `Expires on:      ${expDate}`,
-          ``,
-          `Add money now: ${WALLET_URL}`,
-          ``,
-          `After dormancy, you will have a 1-year grace period to claim a full refund.`,
+          `After dormancy, you'll still have a 1-year grace period to claim a full refund.`,
           `View full wallet policy: ${TERMS_URL}`,
           footer(),
         ].join("\n"),
@@ -147,23 +133,22 @@ function buildEmail(
 
     case "7d_warning":
       return {
-        subject: `🚨 7 days left: Imotara Wallet balance of ${bal} expires on ${expDate}`,
+        subject: `Imotara Wallet: Your balance of ${bal} goes dormant on ${expDate} (7 days)`,
         text: [
           `Dear Imotara user,`,
           ``,
-          `FINAL WEEK WARNING: Your Imotara Wallet balance of ${bal} expires`,
-          `on ${expDate} — only 7 days remaining.`,
+          `Your Imotara Wallet balance of ${bal} will be marked "dormant" on ${expDate} —`,
+          `just 7 days away. This is reminder 5 of 6.`,
           ``,
-          `This is reminder 5 of 6. Act now to keep your balance active.`,
-          `Simply top up any amount or book a session before ${expDate}.`,
+          `To be clear: this is a status label, not a loss of funds. Your balance is never`,
+          `reduced, and it remains fully refundable whether it's active or dormant.`,
           ``,
-          `Current balance: ${bal}`,
-          `Expires on:      ${expDate}`,
+          `Imotara Wallet no longer accepts new top-ups, so no action is needed. If you'd`,
+          `like your money back now rather than later, request a refund anytime:`,
+          `${WALLET_URL}`,
           ``,
-          `Add money now: ${WALLET_URL}`,
-          ``,
-          `After expiry, your balance goes dormant. You will still be able to request`,
-          `a full refund within 1 year by emailing ${SUPPORT}.`,
+          `After dormancy, you'll still have a 1-year grace period to request a full refund`,
+          `by emailing ${SUPPORT}.`,
           ``,
           `View full wallet policy: ${TERMS_URL}`,
           footer(),
@@ -172,23 +157,22 @@ function buildEmail(
 
     case "1d_warning":
       return {
-        subject: `🚨 TOMORROW: Imotara Wallet balance of ${bal} expires on ${expDate}`,
+        subject: `Imotara Wallet: Your balance of ${bal} goes dormant tomorrow (${expDate})`,
         text: [
           `Dear Imotara user,`,
           ``,
-          `LAST CHANCE: Your Imotara Wallet balance of ${bal} expires TOMORROW`,
-          `(${expDate}).`,
+          `Your Imotara Wallet balance of ${bal} will be marked "dormant" tomorrow`,
+          `(${expDate}). This is your final reminder (6 of 6).`,
           ``,
-          `This is your final reminder (6 of 6). After tomorrow, your balance will`,
-          `go dormant. You will NOT lose access to a refund immediately — you will`,
-          `have 1 year to request a full refund — but your balance will no longer`,
-          `be available for sessions.`,
+          `This is only a status change — your balance will not be reduced, and it stays`,
+          `fully refundable, with a 1-year grace period after dormancy to request a full`,
+          `refund. There is nothing you need to do; Imotara Wallet no longer accepts new`,
+          `top-ups, so no action can or needs to be taken to "keep it active."`,
           ``,
-          `To keep your balance active for another 2 years, add money now:`,
+          `If you'd like a refund now instead of waiting, you can request one anytime:`,
           `${WALLET_URL}`,
           ``,
           `Current balance: ${bal}`,
-          `Expires on:      ${expDate}`,
           ``,
           `View full wallet policy: ${TERMS_URL}`,
           footer(),
@@ -234,18 +218,19 @@ function buildEmail(
           ``,
           `This is your annual Imotara Wallet balance statement.`,
           ``,
-          `Current balance:  ${bal}`,
-          `Balance valid until: ${expDate}`,
+          `Current balance:      ${bal}`,
+          `Dormant status date:  ${expDate}`,
           ``,
-          `Your balance remains active as long as you top up or use a session`,
-          `at least once every 2 years.`,
+          `Imotara Wallet no longer accepts new top-ups. Your balance simply sits untouched`,
+          `— it is never reduced, whether active or dormant — until you request a refund.`,
           ``,
-          `To use your balance, visit: ${WALLET_URL}`,
+          `To request a refund, visit: ${WALLET_URL}`,
           ``,
           `WALLET POLICY SUMMARY:`,
-          `• Balance valid for 2 years from last activity`,
-          `• You receive 6 email reminders before dormancy (at 180, 90, 30, 14, 7, 1 days)`,
-          `• After dormancy: 1-year grace period to request a full refund`,
+          `• Balance is never reduced by inactivity, active or dormant`,
+          `• Marked "dormant" as a record-keeping status 2 years after last activity`,
+          `• You receive 6 email reminders before that date (at 180, 90, 30, 14, 7, 1 days)`,
+          `• Refundable at any time, and for 1 year after dormancy specifically`,
           `• Full policy: ${TERMS_URL}`,
           footer(),
         ].join("\n"),
@@ -306,29 +291,4 @@ export async function sendWalletNotification({
   if (!result.sent) {
     console.error(`[wallet/mailer] failed to send ${type} to ${email}:`, result.error);
   }
-}
-
-// Record consent for wallet terms at the point of top-up.
-export async function recordWalletConsent({
-  userId,
-  amount,
-  razorpayOrderId,
-  ipAddress,
-  userAgent,
-}: {
-  userId:          string;
-  amount:          number;
-  razorpayOrderId: string;
-  ipAddress?:      string;
-  userAgent?:      string;
-}): Promise<void> {
-  const supabase = getSupabaseAdmin();
-  await supabase.from("imotara_wallet_consents").insert({
-    user_id:           userId,
-    terms_version:     "v1.0",
-    top_up_amount:     amount,
-    razorpay_order_id: razorpayOrderId,
-    ip_address:        ipAddress ?? null,
-    user_agent:        userAgent ?? null,
-  });
 }

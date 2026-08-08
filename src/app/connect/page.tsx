@@ -4,7 +4,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import {
   Users, MessageCircle, Wallet, LayoutDashboard,
@@ -921,8 +921,8 @@ function WalletTab() {
         </h3>
         <p className="text-xs text-zinc-400 leading-relaxed">
           Imotara Wallet no longer accepts new top-ups. To pay for a session, purchase minutes directly with a
-          companion from their profile or during a session — that balance is shown under
-          &quot;Pre-purchased Session Minutes&quot; above.
+          companion when you tap &quot;Talk Now,&quot; or add more during an active session if your balance runs
+          low — that balance is shown under &quot;Pre-purchased Session Minutes&quot; above.
         </p>
         {walletBalance > 0 && (
           <p className="mt-3 text-xs text-zinc-500 leading-relaxed">
@@ -1994,7 +1994,6 @@ const VALID_TABS: Tab[] = ["browse", "sessions", "wallet", "dashboard"];
 
 export default function ConnectPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [mounted, setMounted]           = useState(false);
   const [activeTab, setActiveTab]       = useState<Tab>("browse");
   const [isConsultant, setIsConsultant] = useState(false);

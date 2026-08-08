@@ -35,16 +35,16 @@ export default function WalletTermsPage() {
 
       <Section title="2. Validity & Inactivity Policy">
         <p>
-          Your wallet balance remains active as long as you perform at least one of the following
-          within any 24-month (2-year) period:
+          Your wallet balance is preserved regardless of activity — it is never reduced or forfeited
+          due to inactivity. As a record-keeping matter, a balance with no top-up or session activity
+          for 24 months (2 years) is marked <strong className="text-zinc-200">dormant</strong>. This is
+          a status label only, not a loss of funds.
         </p>
-        <ul className="mt-2 list-disc list-inside space-y-1 text-zinc-400">
-          <li>Top up any amount to your wallet</li>
-          <li>Book or complete a session with a companion</li>
-        </ul>
         <p className="mt-2">
-          The 2-year inactivity clock resets to zero every time you perform any of the above actions.
-          There is no minimum top-up amount required to reset the clock.
+          Imotara Wallet no longer accepts new top-ups, and Connect sessions are paid for using a
+          separate, per-companion prepaid balance rather than this wallet — so there is no action you
+          can take today to reset this clock. It runs from whenever your balance last saw top-up or
+          session activity, before top-ups were retired.
         </p>
       </Section>
 
@@ -87,17 +87,18 @@ export default function WalletTermsPage() {
 
       <Section title="4. Dormancy">
         <p>
-          If your balance remains unused for 2 years and you have not responded to the six reminder
-          emails, your wallet will be marked <strong className="text-zinc-200">dormant</strong>.
+          If your balance remains unused for 2 years, your wallet will be marked{" "}
+          <strong className="text-zinc-200">dormant</strong>.
         </p>
         <p className="mt-2">
           <strong className="text-zinc-200">Important:</strong> Dormancy does NOT mean your money is
-          lost. Your balance is fully preserved in our system. A dormant wallet simply means the
-          balance can no longer be used for sessions until either:
+          lost. Your balance is fully preserved in our system, unreduced. A dormant wallet simply
+          means the balance is on record as inactive. Since Imotara Wallet no longer accepts new
+          top-ups, a dormant balance cannot be reactivated by topping up — the only way to recover its
+          value is:
         </p>
         <ul className="mt-2 list-disc list-inside space-y-1 text-zinc-400">
-          <li>You reactivate it with a new top-up, or</li>
-          <li>You request a cash refund (see Section 5)</li>
+          <li>Request a cash refund (see Section 5)</li>
         </ul>
         <p className="mt-2">
           A dormancy confirmation email is sent on the day your balance goes dormant, confirming
@@ -135,9 +136,10 @@ export default function WalletTermsPage() {
 
       <Section title="6. Consent">
         <p>
-          By topping up your Imotara Wallet, you confirm that you have read and accepted these
-          Wallet Terms. Your acceptance is recorded with a timestamp, the amount you topped up,
-          and your device information, and is stored securely in our system as an audit record.
+          When Imotara Wallet accepted top-ups, each top-up recorded your acceptance of these Wallet
+          Terms with a timestamp, the amount, and your device information, stored securely as an audit
+          record. Imotara Wallet no longer accepts new top-ups, so this step no longer applies to new
+          activity — it remains on file for historical top-ups made before that change.
         </p>
       </Section>
 

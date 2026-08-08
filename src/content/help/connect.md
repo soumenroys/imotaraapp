@@ -23,9 +23,9 @@ Connect is available on every plan; find it at **imotara.com/connect** or the Co
 
 ## Paying for sessions: minutes with a companion
 
-Sessions are started from prepaid minutes purchased **for that specific companion** — from a companion's profile, choose how many minutes you'd like (1 to 1,000), and pay through checkout. The price is simply their per-minute rate × minutes.
+Sessions are started from prepaid minutes purchased **for that specific companion** — tap "Talk Now" and, if you don't have enough balance with them yet, you'll be prompted to choose how many minutes you'd like (1 to 1,000) and pay through checkout. The price is simply their per-minute rate × minutes.
 
-You need at least 1 minute of balance with a companion to start a session with them.
+You need at least 1 minute of balance with a companion to start a session with them. If your balance runs low mid-session, the same recharge option opens right there so you don't have to leave the conversation.
 
 If you have an older **Imotara Wallet** balance from before, it no longer accepts new top-ups and can't be used to pay for sessions — see **Refunds of unused balance** below to get it back.
 

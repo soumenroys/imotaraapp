@@ -1,6 +1,6 @@
 # Imotara — Database & Backend Reference
 
-*Operations and engineering reference for the Imotara web backend: Supabase Postgres, the hand-applied migration workflow, the full table catalog, the key SECURITY DEFINER RPCs and triggers, the RLS model, the complete `/api/**` route map, all scheduled cron jobs, and the environment-variable reference. Current as of v1.2.11.*
+*Operations and engineering reference for the Imotara web backend: Supabase Postgres, the hand-applied migration workflow, the full table catalog, the key SECURITY DEFINER RPCs and triggers, the RLS model, the complete `/api/**` route map, all scheduled cron jobs, and the environment-variable reference. Current as of v1.2.12.*
 
 ---
 

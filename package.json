@@ -1,7 +1,7 @@
 {
   "name": "imotaraapp",
-  "version": "1.2.10",
-  "buildNumber": "110",
+  "version": "1.2.11",
+  "buildNumber": "111",
   "private": true,
   "scripts": {
     "dev": "next dev",

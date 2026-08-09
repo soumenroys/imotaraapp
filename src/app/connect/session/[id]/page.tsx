@@ -85,6 +85,9 @@ function formatDuration(secs: number): string {
 
 const DISCLAIMER = "Peer wellness support only — not a substitute for professional mental health care.";
 
+// All 22 languages Imotara supports (see src/content/help/languages-and-voice.md) —
+// this list previously had only 16, silently missing Odia, Russian, Chinese,
+// Japanese, Hebrew, and Indonesian as in-session translate targets.
 const CHAT_LANGUAGES = [
   { code: "en", label: "English",    flag: "🇬🇧" },
   { code: "hi", label: "Hindi",      flag: "🇮🇳" },
@@ -96,12 +99,18 @@ const CHAT_LANGUAGES = [
   { code: "pa", label: "Punjabi",    flag: "🇮🇳" },
   { code: "kn", label: "Kannada",    flag: "🇮🇳" },
   { code: "ml", label: "Malayalam",  flag: "🇮🇳" },
+  { code: "or", label: "Odia",       flag: "🇮🇳" },
   { code: "ur", label: "Urdu",       flag: "🇵🇰" },
   { code: "ar", label: "Arabic",     flag: "🇸🇦" },
+  { code: "he", label: "Hebrew",     flag: "🇮🇱" },
+  { code: "ru", label: "Russian",    flag: "🇷🇺" },
+  { code: "zh", label: "Chinese",    flag: "🇨🇳" },
+  { code: "ja", label: "Japanese",   flag: "🇯🇵" },
   { code: "es", label: "Spanish",    flag: "🇪🇸" },
   { code: "fr", label: "French",     flag: "🇫🇷" },
   { code: "de", label: "German",     flag: "🇩🇪" },
   { code: "pt", label: "Portuguese", flag: "🇵🇹" },
+  { code: "id", label: "Indonesian", flag: "🇮🇩" },
 ] as const;
 type LangCode = typeof CHAT_LANGUAGES[number]["code"];
 
@@ -581,8 +590,11 @@ export default function SessionChatPage() {
 
   return (
     <div className="flex h-[calc(100dvh-64px)] flex-col">
-      {/* Header */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-white/8 bg-zinc-900/80 px-4 py-3 backdrop-blur-md">
+      {/* Header — relative z-20 so the language-picker dropdown (an absolutely
+          positioned descendant) stacks above the session metrics panel below,
+          which is a later DOM sibling with its own backdrop-blur stacking
+          context and would otherwise paint over the top of the dropdown. */}
+      <div className="relative z-20 flex shrink-0 items-center gap-3 border-b border-white/8 bg-zinc-900/80 px-4 py-3 backdrop-blur-md">
         <button
           onClick={() => router.push("/connect")}
           className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 transition"

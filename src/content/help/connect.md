@@ -60,6 +60,8 @@ You can have one open session at a time. Cancel a pending request whenever you l
 ### Translation option (+10%)
 If you and your companion prefer different languages, you can turn on **live translation** when starting the session. Messages are translated in real time both ways. This adds a **10% surcharge** to the per-minute rate, applied at session creation so there are no surprises.
 
+Once a session has translation set up, either you or the companion can also turn it **on or off mid-session** using the translate toggle in the chat header — a confirmation shows the new rate before you commit, and both of you get a notice when it changes. The rate change takes effect from the next billing minute, not retroactively, and messages already sent keep showing their translation even after you turn it off. You can toggle it back on at any time.
+
 ## Ending a session and leaving a review
 
 1. Either you or the companion can end the session at any time with the end control — you're only billed for minutes used.

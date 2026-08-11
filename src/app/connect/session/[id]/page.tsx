@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import EmergencyModal from "@/components/connect/EmergencyModal";
 import RechargeModal from "@/components/connect/RechargeModal";
+import TranslationToggleModal from "@/components/connect/TranslationToggleModal";
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,6 +41,7 @@ interface SessionData {
   amount_charged: number | null;
   currency_code: string;
   rate_per_min: number | null;
+  base_rate_per_min: number | null;
   user_timezone: string;
   consultant_timezone: string;
   translation_enabled: boolean;
@@ -139,6 +141,9 @@ export default function SessionChatPage() {
   const [sendError, setSendError]   = useState<string | null>(null);
   const [tickPaused, setTickPaused] = useState(false);
   const [showRecharge, setShowRecharge] = useState(false);
+  const [showTranslateToggle, setShowTranslateToggle] = useState(false);
+  const [translateNotice, setTranslateNotice] = useState<string | null>(null);
+  const translationEnabledRef              = useRef<boolean | null>(null);
   // Dual-panel state
   const [totalCreditedMin, setTotalCreditedMin] = useState<number | null>(null);
   const [elapsedSecs, setElapsedSecs]           = useState(0);
@@ -180,6 +185,13 @@ export default function SessionChatPage() {
     if (authLoaded && !myUserId) router.replace("/connect");
   }, [authLoaded, myUserId, router]);
 
+  // Mirrors session.translation_enabled into a ref so the Realtime handler below
+  // (whose effect only depends on [sessionId], per its exhaustive-deps disable) can
+  // compare old vs. new without a stale closure over `session`.
+  useEffect(() => {
+    translationEnabledRef.current = session?.translation_enabled ?? null;
+  }, [session?.translation_enabled]);
+
   // ── Close lang picker on outside click ────────────────────────────────────
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -199,7 +211,7 @@ export default function SessionChatPage() {
       .from("connect_sessions")
       .select(
         "id, user_id, consultant_id, status, minutes_used, rating, review_submitted_at, " +
-        "started_at, amount_charged, currency_code, rate_per_min, " +
+        "started_at, amount_charged, currency_code, rate_per_min, base_rate_per_min, " +
         "user_timezone, consultant_timezone, " +
         "translation_enabled, user_lang, consultant_lang, " +
         "connect_consultants(display_name, photo_url, gender, rate_per_min)"
@@ -271,6 +283,21 @@ export default function SessionChatPage() {
         { event: "UPDATE", schema: "public", table: "connect_sessions", filter: `id=eq.${sessionId}` },
         (payload) => {
           const updated = payload.new as Partial<SessionData>;
+          // Detect a translation toggle BEFORE merging — compares against the ref
+          // (not `session`, which is stale in this effect's closure) so both parties,
+          // including whoever just confirmed the toggle, see the transient notice.
+          if (
+            updated.translation_enabled !== undefined &&
+            translationEnabledRef.current !== null &&
+            updated.translation_enabled !== translationEnabledRef.current
+          ) {
+            setTranslateNotice(
+              updated.translation_enabled
+                ? "Auto-translation was turned on for this session"
+                : "Auto-translation was turned off for this session"
+            );
+            setTimeout(() => setTranslateNotice(null), 4000);
+          }
           setSession((prev) => prev ? { ...prev, ...updated } : prev);
           // Consultant side: recompute remaining from server-authoritative minutes_used.
           // (User side: remaining is updated directly by tick responses.)
@@ -402,6 +429,21 @@ export default function SessionChatPage() {
   function handleRechargeSuccess() {
     setShowRecharge(false);
     fetchBalance();
+  }
+
+  // Called when TranslationToggleModal completes successfully. Applies the change
+  // optimistically (immediate feedback for the confirming party — same pattern as
+  // updateStatus's optimistic setSession for complete/userEnd) and shows the notice
+  // right away. The Realtime handler above independently notifies the OTHER party;
+  // by the time its echo arrives here, translationEnabledRef is already in sync
+  // (via the ref-mirror effect), so it won't fire a duplicate notice for this party.
+  function handleTranslateToggleSuccess(enabled: boolean, ratePerMin: number) {
+    setShowTranslateToggle(false);
+    setSession((prev) => prev ? { ...prev, translation_enabled: enabled, rate_per_min: ratePerMin } : prev);
+    setTranslateNotice(
+      enabled ? "Auto-translation turned on for this session" : "Auto-translation turned off for this session"
+    );
+    setTimeout(() => setTranslateNotice(null), 4000);
   }
 
   useEffect(() => {
@@ -679,6 +721,25 @@ export default function SessionChatPage() {
           )}
         </div>}
 
+        {/* Mid-session auto-translation toggle — only for sessions that opted in
+            at booking (base_rate_per_min set). Either party may toggle, reversibly. */}
+        {isActive && session.base_rate_per_min != null && (
+          <button
+            onClick={() => setShowTranslateToggle(true)}
+            className={`shrink-0 flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition ${
+              session.translation_enabled
+                ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                : "bg-white/5 text-zinc-400 hover:bg-white/10"
+            }`}
+            title={session.translation_enabled ? "Turn off auto-translation" : "Turn on auto-translation"}
+          >
+            <Globe size={13} />
+            <span className="hidden sm:inline">
+              {session.translation_enabled ? "Auto-translate: On" : "Auto-translate: Off"}
+            </span>
+          </button>
+        )}
+
         {/* Emergency button */}
         <button
           onClick={() => setShowEmergency(true)}
@@ -793,6 +854,14 @@ export default function SessionChatPage() {
               ✓ Reviewed{session.rating ? ` · ${session.rating}/5` : ""}
             </span>
           )}
+        </div>
+      )}
+
+      {/* Transient auto-translation toggle notice — shown to both parties */}
+      {translateNotice && (
+        <div className="shrink-0 flex items-center justify-center gap-1.5 border-b border-blue-500/20 bg-blue-500/10 px-4 py-1.5 text-[10px] text-blue-300 text-center">
+          <Globe size={10} />
+          {translateNotice}
         </div>
       )}
 
@@ -994,6 +1063,20 @@ export default function SessionChatPage() {
           razorpayKeyId={RAZORPAY_KEY_ID}
           onSuccess={handleRechargeSuccess}
           onClose={() => setShowRecharge(false)}
+        />
+      )}
+
+      {/* Mid-session auto-translation toggle modal */}
+      {showTranslateToggle && session.base_rate_per_min != null && (
+        <TranslationToggleModal
+          sessionId={session.id}
+          targetEnabled={!session.translation_enabled}
+          baseRate={Number(session.base_rate_per_min)}
+          currentRate={rate}
+          currencyCode={session.currency_code}
+          isPayer={isMine}
+          onSuccess={handleTranslateToggleSuccess}
+          onClose={() => setShowTranslateToggle(false)}
         />
       )}
 

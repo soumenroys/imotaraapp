@@ -2023,7 +2023,7 @@ const FEATURES: Record<string, Feature[]> = {
       icon: "🌐",
       title: "Multilingual Sessions (Auto-Translation)",
       short: "Talk to a companion who speaks a different language — auto-translation bridges the gap.",
-      long: "If you and your companion speak different languages, you can opt in to session-level auto-translation at booking. Every message is translated server-side before delivery — you see the translated text as the primary message, with the original shown below it. Translation adds a small 1–3 second delay per message and a +10% per-minute surcharge. Machine translation is used — emotional nuance may occasionally be lost. Both instant and scheduled sessions support this.",
+      long: "If you and your companion speak different languages, you can opt in to session-level auto-translation at booking. Every message is translated server-side before delivery — you see the translated text as the primary message, with the original shown below it. Translation adds a small 1–3 second delay per message and a +10% per-minute surcharge. Machine translation is used — emotional nuance may occasionally be lost. Both instant and scheduled sessions support this. Once it's set up for a session, either person can also turn it on or off mid-session from the chat header — reversibly, any number of times, with a confirmation showing the new rate first.",
       steps: [
         "When booking, your language is pre-filled from your Imotara profile.",
         "The companion's preferred language is shown alongside yours.",
@@ -2031,8 +2031,11 @@ const FEATURES: Record<string, Feature[]> = {
         "Check the box (scheduled) or tap 'Yes, enable' (instant) to opt in.",
         "A blue banner confirms translation is active during the session.",
         "Each message bubble shows the translated text first, original below.",
+        "Mid-session, tap the translate toggle in the chat header to turn it on/off.",
+        "Confirm the rate change — it applies from the next billing minute, not retroactively.",
+        "Messages already sent keep showing their translation even after you turn it off.",
       ],
-      tip: "Translation is entirely optional — if you prefer English-only, simply skip the opt-in. Same-language sessions have zero overhead.",
+      tip: "Translation is entirely optional — if you prefer English-only, simply skip the opt-in. Same-language sessions have zero overhead. Changed your mind mid-session? Either person can toggle it on or off from the chat header at any time.",
     },
     {
       icon: "💰",

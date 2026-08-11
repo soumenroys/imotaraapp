@@ -76,6 +76,98 @@ const TRANSITIONS: Record<Action, { from: string[]; to: string; consultantOnly?:
   userEnd:  { from: ["active"],   to: "completed", userOnly: true },
 };
 
+// Mid-session auto-translation toggle. Reversible, either participant may call it.
+// Only available on sessions where translation was chosen at booking (base_rate_per_min
+// is set) — a session that never opted in has no captured user_lang/consultant_lang to
+// translate between, and re-deriving those live is a different, larger feature.
+//
+// The rate is ALWAYS recomputed from base_rate_per_min, never from the current
+// rate_per_min, in both directions — this guarantees the rate can only ever land on
+// exactly one of two fixed values no matter how many times it's toggled, with no
+// compounding rounding drift across repeated on/off cycles.
+async function handleToggleTranslation(callerId: string, sessionId: string, body: unknown) {
+  const enabled = (body as { enabled?: unknown })?.enabled;
+  if (typeof enabled !== "boolean") {
+    return NextResponse.json({ ok: false, error: "enabled must be a boolean" }, { status: 400 });
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  const { data: session } = await supabase
+    .from("connect_sessions")
+    .select("id, user_id, consultant_id, status, translation_enabled, rate_per_min, base_rate_per_min")
+    .eq("id", sessionId)
+    .single();
+
+  if (!session) {
+    return NextResponse.json({ ok: false, error: "Session not found" }, { status: 404 });
+  }
+
+  const { data: consultant } = await supabase
+    .from("connect_consultants")
+    .select("user_id")
+    .eq("id", session.consultant_id)
+    .single();
+
+  const isConsultant = consultant?.user_id === callerId;
+  const isUser       = session.user_id === callerId;
+  if (!isConsultant && !isUser) {
+    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+  }
+
+  if (session.status !== "active") {
+    return NextResponse.json(
+      { ok: false, error: `Cannot change translation on a session in status "${session.status}"` },
+      { status: 409 }
+    );
+  }
+
+  if (session.base_rate_per_min == null) {
+    return NextResponse.json(
+      { ok: false, error: "Translation was not set up for this session at booking — it can't be toggled." },
+      { status: 400 }
+    );
+  }
+
+  // Idempotent no-op against double-taps / stale UI — not an error.
+  if (enabled === session.translation_enabled) {
+    return NextResponse.json({
+      ok: true,
+      translation_enabled: session.translation_enabled,
+      rate_per_min: session.rate_per_min,
+    });
+  }
+
+  const baseRate = Number(session.base_rate_per_min);
+  const newRate  = enabled ? +(baseRate * 1.10).toFixed(4) : baseRate;
+
+  // Atomic guard: only succeeds if translation_enabled is still what we just read — the
+  // loser of a concurrent double-toggle (e.g. both parties tapping at once) gets 0 rows
+  // and a clean 409, and should let the winner's Realtime update reconcile its own UI
+  // rather than retry blindly. Mirrors the .eq("status", session.status) pattern used
+  // by the accept/decline/complete/cancel actions above.
+  const { data: updatedRows, error } = await supabase
+    .from("connect_sessions")
+    .update({ translation_enabled: enabled, rate_per_min: newRate })
+    .eq("id", sessionId)
+    .eq("status", "active")
+    .eq("translation_enabled", session.translation_enabled)
+    .select("id");
+
+  if (error) {
+    console.error("[sessions/toggle_translation] update failed:", error.message, "session:", sessionId);
+    return NextResponse.json({ ok: false, error: "Could not update translation setting" }, { status: 500 });
+  }
+  if (!updatedRows || updatedRows.length === 0) {
+    return NextResponse.json(
+      { ok: false, error: "Translation setting changed — please try again" },
+      { status: 409 }
+    );
+  }
+
+  return NextResponse.json({ ok: true, translation_enabled: enabled, rate_per_min: newRate });
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -87,9 +179,18 @@ export async function PATCH(
   }
 
   const body = await req.json().catch(() => null);
+
+  // toggle_translation is handled as its own isolated path, separate from the
+  // status-transition actions below (accept/decline/complete/cancel/userEnd) —
+  // it doesn't change session status, so it doesn't fit the TRANSITIONS map.
+  // Either participant may call it, reversibly, any number of times while active.
+  if (body?.action === "toggle_translation") {
+    return handleToggleTranslation(user.id, id, body);
+  }
+
   const action: Action | undefined = body?.action;
   if (!action || !VALID_ACTIONS.includes(action)) {
-    return NextResponse.json({ ok: false, error: "action must be one of: " + VALID_ACTIONS.join(", ") }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "action must be one of: " + VALID_ACTIONS.join(", ") + ", toggle_translation" }, { status: 400 });
   }
 
   const supabase = getSupabaseAdmin();

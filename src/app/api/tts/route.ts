@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     const voice   = resolveVoice(lang, gender);
     const locale  = AZURE_LOCALE[lang] ?? "en-US";
     const style   = resolveStyle(lang, gender, emotion);
-    const prosody = style ? undefined : resolveProsody(lang, emotion);
+    const prosody = style ? undefined : resolveProsody(lang, gender, emotion);
 
     // Three cases: a named mstts:express-as style (languages with a real
     // Azure StyleList — see EMOTION_STYLE_MAP in voices.ts), a conservative

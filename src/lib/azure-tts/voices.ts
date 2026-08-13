@@ -131,11 +131,21 @@ const EMOTION_STYLE_MAP: Record<string, Partial<Record<CanonicalEmotion, string>
 
 /** Return the named emotional style for a voice, or undefined if this language
  *  has no real Azure style support (use resolveProsody instead) or no emotion
- *  was detected. `gender` isn't consulted — every EMOTION_STYLE_MAP language's
- *  male/female voice pair was deliberately chosen to share the same StyleList. */
+ *  was detected. `gender` is consulted only for Japanese — every OTHER
+ *  EMOTION_STYLE_MAP language's male/female voice pair was deliberately
+ *  chosen to share the same StyleList, but Japanese kept its pre-existing,
+ *  non-upgraded voices, and those two have asymmetric real support: Nanami
+ *  (female) has "cheerful", Keita (male) has zero styles at all (confirmed
+ *  2026-08-13). Requesting "cheerful" for Keita anyway is exactly the class
+ *  of silent no-op Azure bug 2.1f already found and fixed once — caught
+ *  again here via the live 22x2x9 sweep (all 7 emotions came back
+ *  byte-identical to plain for ja/male, unlike every other style language,
+ *  which is what a genuinely-ignored style parameter looks like empirically;
+ *  a pure-function unit test alone can't catch this since it only checks
+ *  code against its own assumptions, not Azure's real per-voice catalog). */
 export function resolveStyle(lang: string, gender: string | undefined, emotion?: string): string | undefined {
-    void gender;
     if (!emotion) return undefined;
+    if (lang === "ja" && gender === "male") return undefined;
     const map = EMOTION_STYLE_MAP[lang];
     if (!map) return undefined;
     return map[emotion.toLowerCase() as CanonicalEmotion];
@@ -159,9 +169,18 @@ const PROSODY_FALLBACK_LANGS = new Set([
  * real emotion was actually detected, never unconditionally. Same
  * calm-not-mirrored philosophy as resolveStyle: sadness/anger/fear/disgust
  * all get the same gentle slow-down, not a distinct "sound angry" register.
+ *
+ * Also covers ja/male (Keita) as a one-off case, alongside the 13 languages
+ * with zero style support anywhere — Keita has real style capability in
+ * neither vocabulary sense (see resolveStyle's Japanese carve-out above), so
+ * without this it would get zero emotional inflection at all while Nanami
+ * (ja/female) gets a real style. `gender` is otherwise unused: every
+ * PROSODY_FALLBACK_LANGS entry has no style-capable voice for either gender.
  */
-export function resolveProsody(lang: string, emotion?: string): { rate: string; pitch: string } | undefined {
-    if (!emotion || !PROSODY_FALLBACK_LANGS.has(lang)) return undefined;
+export function resolveProsody(lang: string, gender: string | undefined, emotion?: string): { rate: string; pitch: string } | undefined {
+    if (!emotion) return undefined;
+    const isProsodyLang = PROSODY_FALLBACK_LANGS.has(lang) || (lang === "ja" && gender === "male");
+    if (!isProsodyLang) return undefined;
     const e = emotion.toLowerCase();
     if (e === "sadness" || e === "anger" || e === "fear" || e === "disgust") {
         return { rate: "-6%", pitch: "-2%" };

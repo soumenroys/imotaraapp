@@ -25,8 +25,12 @@ function detectLangFromScript(text: string): string {
 }
 
 /** Roman-script hint detection for transliterated Indian languages.
- *  Used as fallback when script detection returns "en" (Latin input). */
-function detectLangFromRomanHints(text: string): string {
+ *  Used as fallback when script detection returns "en" (Latin input).
+ *  Exported for reuse by the TTS language-resolution path (chat/page.tsx
+ *  resolveTTSLang) — Hinglish/transliterated replies were previously handed
+ *  to Azure with no source-language detection beyond raw script, misrouting
+ *  them to the wrong voice or garbling pronunciation. */
+export function detectLangFromRomanHints(text: string): string {
     if (!text) return "en";
     const t = text;
     const scores: Record<string, number> = {};

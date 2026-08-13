@@ -46,6 +46,7 @@ import type { AnalysisResult } from "@/types/analysis";
 import { runLocalAnalysis } from "@/lib/imotara/runLocalAnalysis";
 import { runAnalysisWithConsent } from "@/lib/imotara/runAnalysisWithConsent";
 import { runRespondWithConsent } from "@/lib/imotara/runRespondWithConsent";
+import { detectLangFromRomanHints } from "@/lib/imotara/respondRemote";
 import { saveSample } from "@/lib/imotara/history";
 import type { Emotion } from "@/types/history";
 import { getUserScopeId as getSharedScopeId } from "@/lib/imotara/userScope";
@@ -5073,9 +5074,16 @@ function stripMarkdown(text: string): string {
     .trim();
 }
 
+// Marathi shares Devanagari with Hindi (no character is Marathi-exclusive) \u2014
+// only common function words distinguish it. Urdu shares the Arabic block
+// with Arabic but adds a handful of extension letters Arabic doesn't use.
+// Same hint patterns already proven correct on mobile (mobileTTS.ts).
+const MARATHI_HINT = /\u0906\u0939\u0947|\u0928\u093E\u0939\u0940|\u092E\u093E\u091D[\u0947\u093E]|\u0924\u0941\u091D[\u0947\u093E]|\u0939\u094B\u0924[\u0947\u0940]|\u092E\u0940 |\u0924\u0941\u092E\u094D\u0939\u0940/;
+const URDU_HINT    = /[\u0679\u0688\u0691\u06BA\u06D2]/;
+
 function detectScriptLang(text: string): string | null {
   if (/[\u0590-\u05FF]/.test(text)) return "he-IL";   // Hebrew
-  if (/[\u0900-\u097F]/.test(text)) return "hi-IN";   // Devanagari (Hindi/Marathi)
+  if (/[\u0900-\u097F]/.test(text)) return MARATHI_HINT.test(text) ? "mr-IN" : "hi-IN"; // Devanagari
   if (/[\u0980-\u09FF]/.test(text)) return "bn-IN";   // Bengali
   if (/[\u0B80-\u0BFF]/.test(text)) return "ta-IN";   // Tamil
   if (/[\u0C00-\u0C7F]/.test(text)) return "te-IN";   // Telugu
@@ -5084,7 +5092,7 @@ function detectScriptLang(text: string): string | null {
   if (/[\u0C80-\u0CFF]/.test(text)) return "kn-IN";   // Kannada
   if (/[\u0D00-\u0D7F]/.test(text)) return "ml-IN";   // Malayalam
   if (/[\u0B00-\u0B7F]/.test(text)) return "or-IN";   // Odia
-  if (/[\u0600-\u06FF]/.test(text)) return "ar-SA";   // Arabic
+  if (/[\u0600-\u06FF]/.test(text)) return URDU_HINT.test(text) ? "ur-PK" : "ar-SA"; // Arabic/Urdu
   if (/[\u4E00-\u9FFF]/.test(text)) return "zh-CN";   // Chinese
   if (/[\u3040-\u30FF]/.test(text)) return "ja-JP";   // Japanese
   if (/[\uAC00-\uD7AF]/.test(text)) return "ko-KR";   // Korean
@@ -5095,7 +5103,13 @@ function resolveTTSLang(text: string): string {
   // 1. Unicode script detection (highest confidence for non-Latin text)
   const fromScript = detectScriptLang(text);
   if (fromScript) return fromScript;
-  // 2. Fall back to the user's saved preferredLang in their profile
+  // 2. Roman-script hint detection (Hinglish/transliterated Indic replies) —
+  // shared with the reply-generation pipeline's own detector so a romanized
+  // reply gets the matching-language voice instead of always falling through
+  // to the static profile setting (which is frequently stale/unset).
+  const fromRomanHints = detectLangFromRomanHints(text);
+  if (fromRomanHints !== "en" && LANG_TO_BCP47[fromRomanHints]) return LANG_TO_BCP47[fromRomanHints];
+  // 3. Fall back to the user's saved preferredLang in their profile
   try {
     const raw = localStorage.getItem("imotara.profile.v1");
     if (raw) {

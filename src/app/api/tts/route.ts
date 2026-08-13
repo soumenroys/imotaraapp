@@ -75,14 +75,17 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    let body: { text?: string; lang?: string; gender?: string };
+    let body: { text?: string; lang?: string; gender?: string; emotion?: string };
     try {
         body = await req.json();
     } catch {
         return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { text, lang = "en", gender = "neutral" } = body;
+    // emotion (optional): the user's detected emotional state — see
+    // resolveStyle in voices.ts for how this shapes the reply's delivery
+    // style, and why it's not a 1:1 mirror of the emotion itself.
+    const { text, lang = "en", gender = "neutral", emotion } = body;
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
         return NextResponse.json({ error: "text is required" }, { status: 400 });
@@ -109,19 +112,20 @@ export async function POST(req: NextRequest) {
 
     const voice  = resolveVoice(lang, gender);
     const locale = AZURE_LOCALE[lang] ?? "en-US";
-    const style  = resolveStyle(lang, gender);
+    const style  = resolveStyle(lang, gender, emotion);
 
     // Use mstts:express-as for voices that support emotional styles (currently
     // en/zh/ja/fr/de/pt/es — see AZURE_VOICE_STYLES). For Indian-language,
-    // Arabic, and Russian voices, no express-as style exists yet, so a plain
-    // <prosody> pass adds a lighter-weight warmth/pacing pass instead of
-    // sending completely flat, unadorned text — a slightly slower rate reads
-    // as more considered and less clipped/rushed than default-rate neutral
-    // synthesis, without any voice-specific style support required.
+    // Arabic, and Russian voices, no express-as style exists yet — send plain
+    // text with no <prosody> rate/pitch transform. A standard Neural voice's
+    // default, unstyled delivery already sounds natural; forcing a manual
+    // rate/pitch adjustment on top of it (previously -8%/+1%) fought the
+    // model's own learned prosody and read as the wrong tone/accent, not a
+    // warmer one — removed rather than tuned further.
     const escapedText = escapeXml(text.trim());
     const bodyXml = style
         ? `<mstts:express-as style="${style}" styledegree="1.4">${escapedText}</mstts:express-as>`
-        : `<prosody rate="-8%" pitch="+1%">${escapedText}</prosody>`;
+        : escapedText;
 
     const msttsNs = style ? ` xmlns:mstts="http://www.w3.org/2001/mstts"` : "";
 

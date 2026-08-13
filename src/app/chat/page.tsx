@@ -2373,24 +2373,31 @@ export default function ChatPage() {
     try {
       let debugEmotion: string | undefined;
       let debugEmotionSource: DebugEmotionSource = "unknown";
-      let summary: any = {};
 
-      try {
-        const res = (await runAnalysisWithConsent(
-          msgsForAnalysis,
-          10,
-        )) as AnalysisResult | null;
-        summary = res?.summary ?? {};
-
-        const derived = deriveEmotionFromSummaryAndText(
-          summary,
-          msgsForAnalysis,
-        );
-        debugEmotion = derived.emotion;
-        debugEmotionSource = derived.source;
-      } catch (err) {
-        console.error("[imotara] reply analysis failed:", err);
-      }
+      // Kick off analysis in parallel with the reply request below instead of
+      // awaiting it first — its result is only needed after the reply
+      // resolves (as metadata on the assistant message), never sent to
+      // /api/chat-reply itself, so serializing it ahead of the much slower
+      // LLM call was pure added latency for no benefit. Awaited just before
+      // its result is first used, further down. On the local-fallback path
+      // (cloud reply unavailable), this result is never awaited at all —
+      // that path derives its own emotion synchronously from the user text.
+      const analysisPromise = (async (): Promise<{ emotion: string | undefined; source: DebugEmotionSource }> => {
+        try {
+          const res = (await runAnalysisWithConsent(
+            msgsForAnalysis,
+            10,
+          )) as AnalysisResult | null;
+          const derived = deriveEmotionFromSummaryAndText(
+            res?.summary ?? {},
+            msgsForAnalysis,
+          );
+          return { emotion: derived.emotion, source: derived.source };
+        } catch (err) {
+          console.error("[imotara] reply analysis failed:", err);
+          return { emotion: undefined, source: "unknown" };
+        }
+      })();
       let aiReply: string | null = null;
       let aiMetaFrom: string | null = null;
       let reflectionSeed: ReflectionSeed | undefined;
@@ -2461,7 +2468,12 @@ export default function ChatPage() {
               };
             })(),
           );
-          setStreamingReply("");
+          // Do NOT clear streamingReply here — it still holds the fully-streamed
+          // text, and clearing it now (before the real message is committed
+          // below) makes the bubble flash empty and fall back to the bouncing-
+          // dots animation for no reason. It's cleared right before setThreads
+          // commits the real message (same tick, batched, zero visible gap) on
+          // the success path, or explicitly below on the fallback path.
 
           const text = (resp?.message ?? "").toString().trim();
           if (text) {
@@ -2477,6 +2489,13 @@ export default function ChatPage() {
             analysisSource = ((resp as any)?.meta?.analysisSource ??
               (resp as any)?.response?.meta?.analysisSource ??
               null) as "local" | "cloud" | null;
+
+            // The reply stream has already finished by this point, so the
+            // parallel analysis call (kicked off before it) is almost always
+            // already resolved — this await adds effectively zero wait.
+            const analysisResult = await analysisPromise;
+            debugEmotion = analysisResult.emotion;
+            debugEmotionSource = analysisResult.source;
 
             respEmotionLabel = (resp as any)?.meta?.emotionLabel ?? debugEmotion ?? "neutral";
             respEmotionIntensity = (resp as any)?.meta?.emotion?.intensity ?? 0;
@@ -2524,15 +2543,15 @@ export default function ChatPage() {
         // If user pressed Undo — discard reply silently
         if (abortCtrl?.signal.aborted) return;
 
-        // UX-5: pacing delay on heavy emotions — typing indicator stays visible during wait
-        const HEAVY_EMOTIONS = new Set(["sad", "sadness", "grief", "anxious", "anxiety", "fear", "overwhelmed", "hopeless", "lonely", "anger", "frustrated", "hurt", "depressed", "depression", "lost", "empty"]);
-        if (debugEmotion && HEAVY_EMOTIONS.has(debugEmotion.toLowerCase())) {
-          await new Promise<void>((resolve) => setTimeout(resolve, 1500));
-        }
-
-        // Second abort check (after pacing delay)
-        if (abortCtrl?.signal.aborted) return;
-
+        // Previously there was an artificial 1.5s pacing delay here for heavy
+        // emotions, paired with clearing streamingReply right after the stream
+        // finished (see the comment above) — the combination made the reply
+        // visibly vanish and get replaced by bouncing dots for 1.5s before
+        // reappearing. Streaming itself already provides pacing (the reply
+        // arrives gradually, not all at once), so the delay is removed rather
+        // than reworked. The streamed text simply becomes the committed
+        // message in place, with no gap between the two state updates.
+        setStreamingReply("");
         setThreads((prev) =>
           prev.map((t) =>
             t.id === threadId
@@ -2673,6 +2692,12 @@ export default function ChatPage() {
         (fallbackReply && fallbackReply.trim()) ||
         "I hear you. I may not have the perfect words yet, but I’m here to stay with you and keep listening.";
 
+      // Reaching this fallback path means the cloud reply is being replaced by
+      // a different reply source (local template) — any partial text left
+      // over from a stream that didn't produce a usable final message (e.g.
+      // empty response, no exception thrown) should not linger in the bubble.
+      setStreamingReply("");
+
       const assistantMsg: Message = {
         id: uid(),
         role: "assistant",
@@ -2684,11 +2709,8 @@ export default function ChatPage() {
         replySource: "fallback",
       };
 
-      // UX-5: pacing delay on heavy emotions (fallback path)
-      const HEAVY_EMOTIONS_FB = new Set(["sad", "sadness", "grief", "anxious", "anxiety", "fear", "overwhelmed", "hopeless", "lonely", "anger", "frustrated", "hurt", "depressed", "depression", "lost", "empty"]);
-      if (debugEmotion && HEAVY_EMOTIONS_FB.has(debugEmotion.toLowerCase())) {
-        await new Promise<void>((resolve) => setTimeout(resolve, 1500));
-      }
+      // Pacing delay removed — see the identical note on the cloud-reply
+      // success path above.
 
       const extraMessages: Message[] = [];
       if (cloudQuotaHit && !quotaCardShown) {

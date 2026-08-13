@@ -64,7 +64,7 @@ No UI (web or mobile) calls this anymore — the steps below describe backend ca
 
 ### A8. In-session extras
 - **Chat:** `GET/POST /api/connect/sessions/[id]/messages` (Realtime `connect_messages`; inserts require `status='active'`).
-- **Translate:** `POST /api/connect/translate` `{ text, targetLang, sourceLang? }` — auth-gated (prevents open-proxy abuse), **rate-limited 60 requests / 60s per user**, backed by MyMemory (free) or Google Cloud Translation if a key is set.
+- **Translate:** `POST /api/connect/translate` `{ text, targetLang, sourceLang? }` — auth-gated (prevents open-proxy abuse), **rate-limited 60 requests / 60s per user**. As of 2026-08-13, **Google Cloud Translation is the primary engine** (`GOOGLE_TRANSLATE_API_KEY` provisioned in production) for much higher quality than the old default; **MyMemory (free) is a fallback only**, used if the Google key is ever missing or rate-limited. Known residual limitation: romanized/transliterated non-Hindi Indic input (e.g. romanized Tamil, Urdu, Bengali) can still translate to a coherent-but-wrong English meaning — an LLM-based follow-up path is a flagged future improvement, not yet built.
 - **Balance check:** `GET /api/connect/sessions/[id]/balance`.
 
 ### A9. End the session

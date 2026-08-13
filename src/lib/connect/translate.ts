@@ -1,36 +1,53 @@
 // Shared translation utility — used by both /api/connect/translate (client-initiated)
 // and /api/connect/sessions/[id]/messages (server-side auto-translation).
 
+import { detectLangFromRomanHints } from "@/lib/imotara/respondRemote";
+
 const GOOGLE_API_KEY = process.env.GOOGLE_TRANSLATE_API_KEY ?? "";
 
-// Detect the dominant script from Unicode code point ranges.
-// Covers all 16 languages supported by Imotara Connect.
+// Marathi shares Devanagari with Hindi (no character is Marathi-exclusive —
+// only common function words distinguish it); Urdu shares the Arabic block
+// with Arabic but adds extension letters Arabic doesn't use. Same hint
+// patterns already proven correct on web (chat/page.tsx detectScriptLang)
+// and mobile (mobileTTS.ts) — mirrored here rather than imported since
+// those live in very different layers (client component / RN module).
+const MARATHI_HINT = /आहे|नाही|माझ[ेा]|तुझ[ेा]|होत[ेी]|मी |तुम्ही/;
+const URDU_HINT    = /[ٹڈڑںے]/;
+
+// Detect the dominant script from Unicode code point ranges, with a
+// Roman-hint word-list fallback (detectLangFromRomanHints, already proven
+// for TTS voice routing) for transliterated Indic text typed in pure Latin
+// script — previously any Latin input, real English or romanized Hindi
+// alike, fell into the same bucket and was misdetected as English. Also
+// fixes: Marathi was previously indistinguishable from Hindi (no dedicated
+// check), and Odia/Hebrew/Russian/Chinese/Japanese had no script range at
+// all (the old comment claimed "16 languages" but only explicitly handled
+// 11) — all 22 Imotara Connect languages (LANG_OPTIONS in
+// connect/session/new/page.tsx) are covered now.
 export function detectScript(text: string): string {
-  const counts: Record<string, number> = {};
-  for (const char of text) {
-    const cp = char.codePointAt(0) ?? 0;
-    if      (cp >= 0x0900 && cp <= 0x097F) counts.hi = (counts.hi ?? 0) + 1;
-    else if (cp >= 0x0980 && cp <= 0x09FF) counts.bn = (counts.bn ?? 0) + 1;
-    else if (cp >= 0x0A00 && cp <= 0x0A7F) counts.pa = (counts.pa ?? 0) + 1;
-    else if (cp >= 0x0A80 && cp <= 0x0AFF) counts.gu = (counts.gu ?? 0) + 1;
-    else if (cp >= 0x0B80 && cp <= 0x0BFF) counts.ta = (counts.ta ?? 0) + 1;
-    else if (cp >= 0x0C00 && cp <= 0x0C7F) counts.te = (counts.te ?? 0) + 1;
-    else if (cp >= 0x0C80 && cp <= 0x0CFF) counts.kn = (counts.kn ?? 0) + 1;
-    else if (cp >= 0x0D00 && cp <= 0x0D7F) counts.ml = (counts.ml ?? 0) + 1;
-    // Arabic block: distinguish Urdu-specific chars first, then Arabic
-    else if (cp >= 0x0600 && cp <= 0x06FF) {
-      // Urdu-specific: ے ی ں ڈ ڑ — codepoints 0x06CC,0x06CC,0x06BA,0x0688,0x0691
-      if (cp === 0x06BA || cp === 0x06CC || cp === 0x0688 || cp === 0x0691 || cp === 0x06C1 || cp === 0x06BE) {
-        counts.ur = (counts.ur ?? 0) + 1;
-      } else {
-        counts.ar = (counts.ar ?? 0) + 1;
-      }
-    }
-    // Latin letters only (A-Z, a-z) — excludes @ and ASCII punctuation
-    else if ((cp >= 0x0041 && cp <= 0x005A) || (cp >= 0x0061 && cp <= 0x007A)) counts.en = (counts.en ?? 0) + 1;
-  }
-  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-  return top ? top[0] : "en";
+  if (!text) return "en";
+  if (MARATHI_HINT.test(text)) return "mr";
+  if (/[ऀ-ॿ]/.test(text)) return "hi";  // Devanagari — Hindi (default when not Marathi)
+  if (/[ঀ-৿]/.test(text)) return "bn";  // Bengali
+  if (/[਀-੿]/.test(text)) return "pa";  // Gurmukhi (Punjabi)
+  if (/[઀-૿]/.test(text)) return "gu";  // Gujarati
+  if (/[଀-୿]/.test(text)) return "or";  // Odia
+  if (/[஀-௿]/.test(text)) return "ta";  // Tamil
+  if (/[ఀ-౿]/.test(text)) return "te";  // Telugu
+  if (/[ಀ-೿]/.test(text)) return "kn";  // Kannada
+  if (/[ഀ-ൿ]/.test(text)) return "ml";  // Malayalam
+  if (URDU_HINT.test(text)) return "ur";
+  if (/[؀-ۿ]/.test(text)) return "ar";  // Arabic (default when not Urdu)
+  if (/[֐-׿]/.test(text)) return "he";  // Hebrew
+  if (/[Ѐ-ӿ]/.test(text)) return "ru";  // Cyrillic
+  if (/[぀-ヿ]/.test(text)) return "ja";  // Hiragana/Katakana (checked before CJK)
+  if (/[一-鿿]/.test(text)) return "zh";  // CJK
+  // Pure Latin script — could be real English/Spanish/French/German/
+  // Portuguese/Indonesian, or romanized/transliterated Indic text (a very
+  // common typing style in this user base). The word-hint detector catches
+  // the Indic case; anything it doesn't recognize genuinely is Latin-script
+  // text, so falling through to "en" there is correct, not a bug.
+  return detectLangFromRomanHints(text);
 }
 
 // Translate text to targetLang. Returns translated string or null on failure.

@@ -59,8 +59,18 @@ async function myMemoryTranslate(text: string, targetLang: string, sourceLang: s
   const timer = setTimeout(() => ctrl.abort(), 10_000);
   const res  = await fetch(url, { headers: { "User-Agent": "Imotara/1.0" }, signal: ctrl.signal }).finally(() => clearTimeout(timer));
   const data = await res.json();
+  // MyMemory returns HTTP 200 even when the free-tier daily quota is exhausted — the
+  // warning text lands in translatedText instead of an error status. quotaFinished is
+  // the reliable machine-readable signal; the string checks below are a redundant
+  // backstop in case that field is ever absent from a response.
+  if (data?.quotaFinished) return null;
   const translated: string = data?.responseData?.translatedText ?? "";
-  if (!translated || translated.toUpperCase().includes("INVALID") || translated.toUpperCase().includes("QUERY LENGTH")) {
+  if (
+    !translated ||
+    translated.toUpperCase().includes("INVALID") ||
+    translated.toUpperCase().includes("QUERY LENGTH") ||
+    translated.toUpperCase().includes("MYMEMORY WARNING")
+  ) {
     return null;
   }
   return translated;

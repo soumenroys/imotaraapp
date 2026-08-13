@@ -5308,6 +5308,12 @@ async function playChunkedTTS(
   }
 
   const chunks = splitIntoSpeechChunks(clean);
+  // How many chunks fully finished playing before any failure — the
+  // speechSynthesis fallback below must only speak what's LEFT, not the
+  // whole message again. Only incremented after playBlob resolves, so a
+  // chunk whose playback itself errors is correctly treated as unheard and
+  // included in the fallback range, not skipped.
+  let playedChunks = 0;
 
   try {
     let nextFetch: Promise<Blob> | null = fetchChunk(chunks[0]);
@@ -5318,6 +5324,7 @@ async function playChunkedTTS(
       nextFetch = i + 1 < chunks.length ? fetchChunk(chunks[i + 1]) : null;
       if (i === 0) onStart?.();
       await playBlob(blob);
+      playedChunks = i + 1;
     }
     onDone?.();
   } catch (err) {
@@ -5326,9 +5333,15 @@ async function playChunkedTTS(
     if (err instanceof DOMException && err.name === "AbortError") return;
 
     if (typeof window === "undefined" || !window.speechSynthesis) { onDone?.(); return; }
+    // Previously always spoke `clean` (the full message) here, so a failure
+    // partway through a multi-chunk reply made the fallback repeat
+    // already-heard content from the very start — the message would sound
+    // like it "finished" via Azure then started over via the browser voice.
+    // Speak only the chunks that never successfully played instead.
+    const remainingText = chunks.slice(playedChunks).join(" ").trim() || clean;
     await new Promise<void>((resolve) => {
       const synth = window.speechSynthesis;
-      const utt   = new SpeechSynthesisUtterance(clean);
+      const utt   = new SpeechSynthesisUtterance(remainingText);
       utt.lang    = bcp47;
       try {
         const pitch = parseFloat(localStorage.getItem("imotara.tts.pitch.v1") ?? "1.0");

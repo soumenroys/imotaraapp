@@ -1,5 +1,9 @@
 // src/app/api/tts/route.ts
-// Azure Neural TTS endpoint — streams audio/mpeg back to the client.
+// Azure Neural TTS endpoint — synthesizes the full request text, then returns
+// one complete audio/mpeg response (buffered server-side via arrayBuffer(),
+// not streamed). Callers wanting to start playback before a long reply
+// finishes synthesizing should chunk the text into multiple requests
+// themselves and pipeline them (see mobileTTS.ts's speakMessage()).
 // Web: called only when the browser lacks a native voice for the selected language.
 // Mobile: speakMessage() (chat-reply playback) always calls this route first,
 // for every language including English, then falls back to native on-device

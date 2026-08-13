@@ -5032,44 +5032,10 @@ const LANG_TO_BCP47: Record<string, string> = {
 // Detect the dominant script from Unicode ranges — covers all Indic + CJK
 /** Called by hands-free mode after a reply arrives — speaks without any UI state. */
 async function autoSpeakText(text: string): Promise<void> {
-  const bcp47 = resolveTTSLang(text);
-  const lang = bcp47.split("-")[0];
-  const gender = getTTSGenderPref();
-  try {
-    const res = await fetch("/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: stripMarkdown(text), lang, gender }),
-    });
-    if (!res.ok) throw new Error("tts");
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    try {
-      const rate = parseFloat(localStorage.getItem("imotara.tts.rate.v1") ?? "0.95");
-      audio.playbackRate = isFinite(rate) ? rate : 0.95;
-    } catch { audio.playbackRate = 0.95; }
-    audio.onended = () => URL.revokeObjectURL(url);
-    audio.onerror = () => URL.revokeObjectURL(url);
-    await audio.play();
-  } catch {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    const synth = window.speechSynthesis;
-    const utt = new SpeechSynthesisUtterance(stripMarkdown(text));
-    utt.lang = bcp47;
-    try {
-      const rate = parseFloat(localStorage.getItem("imotara.tts.rate.v1") ?? "0.95");
-      const pitch = parseFloat(localStorage.getItem("imotara.tts.pitch.v1") ?? "1.0");
-      utt.rate = isFinite(rate) ? rate : 0.95;
-      utt.pitch = isFinite(pitch) ? pitch : 1.0;
-    } catch { utt.rate = 0.95; utt.pitch = 1.0; }
-    const voice = pickVoice(synth, bcp47, gender);
-    if (voice) utt.voice = voice;
-    const stopKeepAlive = keepSpeechSynthesisAlive(synth);
-    utt.onend   = stopKeepAlive;
-    utt.onerror = stopKeepAlive;
-    synth.speak(utt);
-  }
+  const abort = new AbortController();
+  await new Promise<void>((resolve) => {
+    void playChunkedTTS(text, { signal: abort.signal, onDone: resolve });
+  });
 }
 
 // Chrome/Safari can silently pause/stop a long SpeechSynthesisUtterance
@@ -5212,6 +5178,144 @@ function getTTSGenderPref(): string {
   }
 }
 
+/**
+ * Splits text into sentence-sized chunks so playChunkedTTS can pipeline
+ * fetch+playback: the first chunk is capped small so speech starts as soon
+ * as Azure returns the first sentence, instead of waiting for the whole
+ * reply to synthesize. Mirrors mobile's identical splitIntoSpeechChunks
+ * (mobileTTS.ts) — same terminators, same limits. A short reply naturally
+ * produces just one chunk.
+ */
+function splitIntoSpeechChunks(text: string, firstMax = 110, restMax = 240): string[] {
+  const sentences = text.match(/[^.!?।۔؟。！？]+[.!?।۔؟。！？]*\s*/g) ?? [text];
+  const chunks: string[] = [];
+  let current = "";
+  for (const sentence of sentences) {
+    const limit = chunks.length === 0 ? firstMax : restMax;
+    if (current && current.length + sentence.length > limit) {
+      chunks.push(current.trim());
+      current = sentence;
+    } else {
+      current += sentence;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks.length > 0 ? chunks : [text];
+}
+
+function getTTSRate(): number {
+  try {
+    const r = parseFloat(localStorage.getItem("imotara.tts.rate.v1") ?? "0.95");
+    return isFinite(r) ? r : 0.95;
+  } catch {
+    return 0.95;
+  }
+}
+
+/**
+ * Plays `text` via chunked, pipelined requests to /api/tts — ports mobile's
+ * speakMessage() chunking pattern (mobileTTS.ts) to web: fetch chunk N+1
+ * while chunk N plays, so speech starts as soon as the first (small) chunk
+ * is ready instead of waiting for the entire reply to synthesize. Falls back
+ * to the browser's speechSynthesis (full, unchunked text) if any chunk fetch
+ * fails. Shared by doSpeak() (per-message speaker icon) and autoSpeakText()
+ * (hands-free) so both platforms — and both web call sites — use one
+ * implementation instead of three independent ones.
+ */
+async function playChunkedTTS(
+  text: string,
+  opts: {
+    signal: AbortSignal;
+    // Fires once, the moment the first chunk actually begins playing (or the
+    // speechSynthesis fallback starts) — distinct from the network+synthesis
+    // wait beforehand, so callers can show a "preparing" state during that
+    // wait instead of a misleading "now speaking" state that shows before
+    // any sound plays.
+    onStart?: () => void;
+    onDone?: () => void;
+  },
+): Promise<void> {
+  const { signal, onStart, onDone } = opts;
+  const bcp47  = resolveTTSLang(text);
+  const lang   = bcp47.split("-")[0];
+  const gender = getTTSGenderPref();
+  const clean  = stripMarkdown(text);
+  const rate   = getTTSRate();
+
+  async function fetchChunk(chunkText: string): Promise<Blob> {
+    const res = await fetch("/api/tts", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ text: chunkText, lang, gender }),
+      signal,
+    });
+    if (!res.ok) throw new Error(`TTS ${res.status}`);
+    return res.blob();
+  }
+
+  function playBlob(blob: Blob): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      if (signal.aborted) { reject(new DOMException("aborted", "AbortError")); return; }
+      const url   = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.playbackRate = rate;
+      const onAbort = () => { audio.pause(); settle(new DOMException("aborted", "AbortError")); };
+      const settle = (err?: Error) => {
+        URL.revokeObjectURL(url);
+        signal.removeEventListener("abort", onAbort);
+        if (err) reject(err); else resolve();
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+      audio.onended = () => settle();
+      audio.onerror = () => settle(new Error("audio playback failed"));
+      audio.play().catch((err) => settle(err));
+    });
+  }
+
+  const chunks = splitIntoSpeechChunks(clean);
+
+  try {
+    let nextFetch: Promise<Blob> | null = fetchChunk(chunks[0]);
+    for (let i = 0; i < chunks.length; i++) {
+      if (signal.aborted) throw new DOMException("aborted", "AbortError");
+      const blob = await nextFetch!;
+      if (signal.aborted) throw new DOMException("aborted", "AbortError");
+      nextFetch = i + 1 < chunks.length ? fetchChunk(chunks[i + 1]) : null;
+      if (i === 0) onStart?.();
+      await playBlob(blob);
+    }
+    onDone?.();
+  } catch (err) {
+    // User-initiated stop — don't fall back, don't fire onDone (caller's
+    // own stop handler already reset its state).
+    if (err instanceof DOMException && err.name === "AbortError") return;
+
+    if (typeof window === "undefined" || !window.speechSynthesis) { onDone?.(); return; }
+    await new Promise<void>((resolve) => {
+      const synth = window.speechSynthesis;
+      const utt   = new SpeechSynthesisUtterance(clean);
+      utt.lang    = bcp47;
+      try {
+        const pitch = parseFloat(localStorage.getItem("imotara.tts.pitch.v1") ?? "1.0");
+        utt.rate  = rate;
+        utt.pitch = isFinite(pitch) ? pitch : 1.0;
+      } catch { utt.rate = rate; utt.pitch = 1.0; }
+      const voice = pickVoice(synth, bcp47, gender);
+      if (voice) utt.voice = voice;
+
+      const stopKeepAlive = keepSpeechSynthesisAlive(synth);
+      const onAbort = () => synth.cancel(); // triggers utt.onerror below, which finishes
+      const finish  = () => { stopKeepAlive(); signal.removeEventListener("abort", onAbort); resolve(); };
+      signal.addEventListener("abort", onAbort, { once: true });
+      utt.onend   = finish;
+      utt.onerror = finish;
+      onStart?.();
+      synth.speak(utt);
+    });
+    onDone?.();
+  }
+}
+
 function Bubble({
   id,
   role,
@@ -5273,83 +5377,38 @@ function Bubble({
   }
 
   // ── TTS ───────────────────────────────────────────────────────────
-  const [speaking, setSpeaking] = useState(false);
-  const ttsAudioRef      = useRef<HTMLAudioElement | null>(null);
-  const ttsAbortRef      = useRef<AbortController | null>(null);
-  const ttsKeepAliveRef  = useRef<(() => void) | null>(null);
+  // `preparing` covers the network+synthesis wait for the first chunk;
+  // `speaking` only turns on once audio (or the speechSynthesis fallback)
+  // actually starts — see playChunkedTTS's onStart doc comment.
+  const [preparing, setPreparing] = useState(false);
+  const [speaking, setSpeaking]   = useState(false);
+  const ttsAbortRef = useRef<AbortController | null>(null);
 
   async function doSpeak() {
-    const bcp47  = resolveTTSLang(content);
-    const lang   = bcp47.split("-")[0]; // "hi-IN" → "hi" for the API
-    const gender = getTTSGenderPref();
-
-    // Cancel any previous in-flight request.
+    // Cancel any previous in-flight request/playback for this bubble.
     ttsAbortRef.current?.abort();
     const abort = new AbortController();
     ttsAbortRef.current = abort;
 
-    setSpeaking(true);
-    try {
-      const res = await fetch("/api/tts", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ text: stripMarkdown(content), lang, gender }),
-        signal:  abort.signal,
-      });
-      if (!res.ok) throw new Error(`TTS ${res.status}`);
-      const blob = await res.blob();
-      // Bail if stop was called while awaiting the response.
-      if (abort.signal.aborted) { setSpeaking(false); return; }
-      const url  = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      try {
-        const savedRate = parseFloat(localStorage.getItem("imotara.tts.rate.v1") ?? "0.95");
-        audio.playbackRate = isFinite(savedRate) ? savedRate : 0.95;
-      } catch { audio.playbackRate = 0.95; }
-      ttsAudioRef.current = audio;
-      const cleanup = () => { URL.revokeObjectURL(url); ttsAudioRef.current = null; setSpeaking(false); };
-      audio.onended = cleanup;
-      audio.onerror = cleanup;
-      await audio.play();
-    } catch (err) {
-      // User-initiated abort — don't fall back to speech synthesis.
-      if (err instanceof DOMException && err.name === "AbortError") {
+    setPreparing(true);
+    setSpeaking(false);
+    await playChunkedTTS(content, {
+      signal: abort.signal,
+      onStart: () => { setPreparing(false); setSpeaking(true); },
+      onDone: () => {
+        setPreparing(false);
         setSpeaking(false);
-        return;
-      }
-      // Azure unavailable — fall back to browser speech
-      setSpeaking(false);
-      if (typeof window === "undefined" || !window.speechSynthesis) return;
-      const synth = window.speechSynthesis;
-      const utt   = new SpeechSynthesisUtterance(stripMarkdown(content));
-      utt.lang    = bcp47;
-      try {
-        const savedRate  = parseFloat(localStorage.getItem("imotara.tts.rate.v1")  ?? "0.95");
-        const savedPitch = parseFloat(localStorage.getItem("imotara.tts.pitch.v1") ?? "1.0");
-        utt.rate  = isFinite(savedRate)  ? savedRate  : 0.95;
-        utt.pitch = isFinite(savedPitch) ? savedPitch : 1.0;
-      } catch { utt.rate = 0.95; utt.pitch = 1.0; }
-      const voice = pickVoice(synth, bcp47, gender);
-      if (voice) utt.voice = voice;
-      setSpeaking(true);
-      ttsKeepAliveRef.current = keepSpeechSynthesisAlive(synth);
-      const stopFallback = () => { ttsKeepAliveRef.current?.(); ttsKeepAliveRef.current = null; setSpeaking(false); };
-      utt.onend   = stopFallback;
-      utt.onerror = stopFallback;
-      synth.speak(utt);
-    }
+        if (ttsAbortRef.current === abort) ttsAbortRef.current = null;
+      },
+    });
   }
 
   function toggleSpeak() {
     if (typeof window === "undefined") return;
-    if (speaking) {
+    if (preparing || speaking) {
       ttsAbortRef.current?.abort();
       ttsAbortRef.current = null;
-      ttsAudioRef.current?.pause();
-      ttsAudioRef.current = null;
-      ttsKeepAliveRef.current?.();
-      ttsKeepAliveRef.current = null;
-      window.speechSynthesis?.cancel();
+      setPreparing(false);
       setSpeaking(false);
       return;
     }
@@ -5575,12 +5634,18 @@ function Bubble({
               <button
                 type="button"
                 onClick={toggleSpeak}
-                title={speaking ? "Stop reading" : "Read aloud"}
+                title={preparing ? "Preparing voice…" : speaking ? "Stop reading" : "Read aloud"}
                 className={`rounded-full p-1 transition hover:scale-110 ${
-                  speaking ? "text-sky-400 animate-pulse" : "text-zinc-600 hover:text-sky-300"
-                }`}
+                  preparing || speaking ? "text-sky-400" : "text-zinc-600 hover:text-sky-300"
+                } ${speaking ? "animate-pulse" : ""}`}
               >
-                {speaking ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                {preparing ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                ) : speaking ? (
+                  <VolumeX className="h-3.5 w-3.5" />
+                ) : (
+                  <Volume2 className="h-3.5 w-3.5" />
+                )}
               </button>
             )}
 

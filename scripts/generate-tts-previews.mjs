@@ -41,9 +41,16 @@ if (!AZURE_KEY) {
 
 // ── Voice map ────────────────────────────────────────────────────────────────
 
+// 2026-08-14: hi/zh/es/fr/pt/ru/de now match src/lib/azure-tts/voices.ts's
+// AZURE_VOICES exactly (the MAI-Voice-2 upgrade — see that file's comment)
+// — these preview files are stale relative to what actual chat replies now
+// sound like until this script is re-run and the regenerated MP3s are
+// redeployed. `en` deliberately still uses en-IN (not voices.ts's en-US) —
+// that divergence predates this change and is intentional for this preview's
+// target audience, not something this update touches.
 const VOICES = {
     en: { male: "en-IN-PrabhatNeural",   female: "en-IN-NeerjaNeural"      },
-    hi: { male: "hi-IN-MadhurNeural",   female: "hi-IN-SwaraNeural"       },
+    hi: { male: "hi-IN-Dhruv:MAI-Voice-2",  female: "hi-IN-Kavya:MAI-Voice-2"  },
     mr: { male: "mr-IN-ManoharNeural",  female: "mr-IN-AarohiNeural"      },
     bn: { male: "bn-IN-BashkarNeural",  female: "bn-IN-TanishaaNeural"    },
     ta: { male: "ta-IN-ValluvarNeural", female: "ta-IN-PallaviNeural"     },
@@ -54,15 +61,15 @@ const VOICES = {
     ml: { male: "ml-IN-MidhunNeural",   female: "ml-IN-SobhanaNeural"     },
     or: { male: "or-IN-SukantNeural",   female: "or-IN-SubhasiniNeural"   },
     ur: { male: "ur-PK-AsadNeural",     female: "ur-PK-UzmaNeural"        },
-    zh: { male: "zh-CN-YunxiNeural",    female: "zh-CN-XiaoxiaoNeural"    },
-    es: { male: "es-ES-AlvaroNeural",   female: "es-ES-ElviraNeural"      },
+    zh: { male: "zh-CN-Bo:MAI-Voice-2",     female: "zh-CN-Mei:MAI-Voice-2"    },
+    es: { male: "es-MX-Alejo:MAI-Voice-2",  female: "es-MX-Valeria:MAI-Voice-2" },
     ar: { male: "ar-SA-HamedNeural",    female: "ar-SA-ZariyahNeural"     },
-    fr: { male: "fr-FR-HenriNeural",    female: "fr-FR-DeniseNeural"      },
-    pt: { male: "pt-BR-AntonioNeural",  female: "pt-BR-FranciscaNeural"   },
-    ru: { male: "ru-RU-DmitryNeural",   female: "ru-RU-SvetlanaNeural"    },
+    fr: { male: "fr-FR-Marc:MAI-Voice-2",   female: "fr-FR-Soleil:MAI-Voice-2" },
+    pt: { male: "pt-BR-Caio:MAI-Voice-2",   female: "pt-BR-Luana:MAI-Voice-2" },
+    ru: { male: "ru-RU-Lev:MAI-Voice-2",    female: "ru-RU-Masha:MAI-Voice-2" },
     id: { male: "id-ID-ArdiNeural",     female: "id-ID-GadisNeural"       },
     he: { male: "he-IL-AvriNeural",     female: "he-IL-HilaNeural"        },
-    de: { male: "de-DE-ConradNeural",   female: "de-DE-KatjaNeural"       },
+    de: { male: "de-DE-Klaus:MAI-Voice-2",  female: "de-DE-Mia:MAI-Voice-2"    },
     ja: { male: "ja-JP-KeitaNeural",    female: "ja-JP-NanamiNeural"      },
 };
 
@@ -70,7 +77,7 @@ const LOCALE = {
     en:"en-IN",
     hi:"hi-IN", mr:"mr-IN", bn:"bn-IN", ta:"ta-IN", te:"te-IN",
     gu:"gu-IN", pa:"pa-IN", kn:"kn-IN", ml:"ml-IN", or:"or-IN",
-    ur:"ur-PK", zh:"zh-CN", es:"es-ES", ar:"ar-SA", fr:"fr-FR",
+    ur:"ur-PK", zh:"zh-CN", es:"es-MX", ar:"ar-SA", fr:"fr-FR",
     pt:"pt-BR", ru:"ru-RU", id:"id-ID", he:"he-IL", de:"de-DE", ja:"ja-JP",
 };
 

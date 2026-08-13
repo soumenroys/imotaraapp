@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getAzureConfig } from "@/lib/azure-tts/regionRouter";
-import { resolveVoice, resolveStyle, AZURE_LOCALE } from "@/lib/azure-tts/voices";
+import { resolveVoice, resolveStyle, resolveProsody, AZURE_LOCALE } from "@/lib/azure-tts/voices";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
@@ -114,21 +114,26 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: message }, { status: 503 });
     }
 
-    const voice  = resolveVoice(lang, gender);
-    const locale = AZURE_LOCALE[lang] ?? "en-US";
-    const style  = resolveStyle(lang, gender, emotion);
+    const voice   = resolveVoice(lang, gender);
+    const locale  = AZURE_LOCALE[lang] ?? "en-US";
+    const style   = resolveStyle(lang, gender, emotion);
+    const prosody = style ? undefined : resolveProsody(lang, emotion);
 
-    // Use mstts:express-as for voices that support emotional styles (currently
-    // en/zh/ja/fr/de/pt/es — see AZURE_VOICE_STYLES). For Indian-language,
-    // Arabic, and Russian voices, no express-as style exists yet — send plain
-    // text with no <prosody> rate/pitch transform. A standard Neural voice's
-    // default, unstyled delivery already sounds natural; forcing a manual
-    // rate/pitch adjustment on top of it (previously -8%/+1%) fought the
-    // model's own learned prosody and read as the wrong tone/accent, not a
-    // warmer one — removed rather than tuned further.
+    // Three cases: a named mstts:express-as style (languages with a real
+    // Azure StyleList — see EMOTION_STYLE_MAP in voices.ts), a conservative
+    // <prosody> rate/pitch nudge (languages with no style-capable voice at
+    // all — see resolveProsody), or plain text (no emotion detected, or a
+    // manual "read aloud" tap that never sends one). A standard Neural
+    // voice's default, unstyled delivery already sounds natural — the
+    // now-removed blanket -8%/+1% wrapper (2026-08-13) fought the model's
+    // own learned prosody and read as the wrong tone, not a warmer one;
+    // resolveProsody's much smaller deltas only ever apply when a real
+    // emotion was actually detected, never unconditionally.
     const escapedText = escapeXml(text.trim());
     const bodyXml = style
         ? `<mstts:express-as style="${style}" styledegree="1.4">${escapedText}</mstts:express-as>`
+        : prosody
+        ? `<prosody rate="${prosody.rate}" pitch="${prosody.pitch}">${escapedText}</prosody>`
         : escapedText;
 
     const msttsNs = style ? ` xmlns:mstts="http://www.w3.org/2001/mstts"` : "";

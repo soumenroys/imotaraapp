@@ -2569,7 +2569,7 @@ export default function ChatPage() {
           meta: { replySource: assistantMsg.replySource ?? "fallback" },
         });
 
-        if (handsfreeRef.current || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void autoSpeakText(assistantMsg.content);
+        if (handsfreeRef.current || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void autoSpeakText(assistantMsg.content, mapDebugEmotionForTTS(assistantMsg.debugEmotion));
 
         void logAssistantMessageToHistory(assistantMsg, respEmotionLabel, respEmotionIntensity);
 
@@ -2741,7 +2741,7 @@ export default function ChatPage() {
         meta: { replySource: assistantMsg.replySource ?? "fallback" },
       });
 
-      if (handsfreeRef.current || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void autoSpeakText(assistantMsg.content);
+      if (handsfreeRef.current || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void autoSpeakText(assistantMsg.content, mapDebugEmotionForTTS(assistantMsg.debugEmotion));
 
       void logAssistantMessageToHistory(assistantMsg, debugEmotion ?? "neutral", 0);
 
@@ -5030,12 +5030,41 @@ const LANG_TO_BCP47: Record<string, string> = {
 };
 
 // Detect the dominant script from Unicode ranges — covers all Indic + CJK
-/** Called by hands-free mode after a reply arrives — speaks without any UI state. */
-async function autoSpeakText(text: string): Promise<void> {
+/**
+ * Called by hands-free mode after a reply arrives — speaks without any UI
+ * state. `emotion`, if passed, should already be normalized to the canonical
+ * Emotion vocabulary via mapDebugEmotionForTTS() — this function forwards it
+ * as-is, it does not normalize.
+ */
+async function autoSpeakText(text: string, emotion?: string): Promise<void> {
   const abort = new AbortController();
   await new Promise<void>((resolve) => {
-    void playChunkedTTS(text, { signal: abort.signal, onDone: resolve });
+    void playChunkedTTS(text, { signal: abort.signal, onDone: resolve, emotion });
   });
+}
+
+// Normalizes this file's own local debug-emotion labels (from
+// deriveEmotionFromSummaryAndText/deriveEmotionFromUserText — "sad",
+// "stressed", "anxious", "angry", "happy", "lonely", "confused", "neutral",
+// or an arbitrary raw analysis string) to the canonical 8-value Emotion
+// vocabulary (src/types/history.ts) that voices.ts's EN_EMOTION_STYLE
+// actually keys on. Without this, e.g. "stressed"/"happy" would silently
+// miss that lookup and fall through to the default style — the same class of
+// silent bug 2.1f found and fixed for the style config itself, and the same
+// fix mobile's mapUserEmotionForTTS() applies for its own local vocabulary.
+// Unrecognized values are passed through unchanged (safe no-op) rather than
+// discarded.
+function mapDebugEmotionForTTS(local?: string): string | undefined {
+  if (!local) return undefined;
+  const p = local.trim().toLowerCase();
+  if (p === "sad") return "sadness";
+  if (p === "stressed" || p === "anxious") return "fear";
+  if (p === "angry") return "anger";
+  if (p === "happy") return "joy";
+  if (p === "lonely") return "sadness";
+  if (p === "neutral") return "neutral";
+  if (p === "confused") return undefined; // no reasonable canonical match — default style
+  return local;
 }
 
 // Chrome/Safari can silently pause/stop a long SpeechSynthesisUtterance
@@ -5233,9 +5262,15 @@ async function playChunkedTTS(
     // any sound plays.
     onStart?: () => void;
     onDone?: () => void;
+    // The USER's detected emotional state, already normalized to the
+    // canonical 8-value Emotion vocabulary (src/types/history.ts) that
+    // voices.ts's EN_EMOTION_STYLE keys on — see mapDebugEmotionForTTS()
+    // below. Forwarded to /api/tts for English-only emotion-aware style
+    // selection; harmless no-op for other languages.
+    emotion?: string;
   },
 ): Promise<void> {
-  const { signal, onStart, onDone } = opts;
+  const { signal, onStart, onDone, emotion } = opts;
   const bcp47  = resolveTTSLang(text);
   const lang   = bcp47.split("-")[0];
   const gender = getTTSGenderPref();
@@ -5246,7 +5281,7 @@ async function playChunkedTTS(
     const res = await fetch("/api/tts", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ text: chunkText, lang, gender }),
+      body:    JSON.stringify({ text: chunkText, lang, gender, ...(emotion ? { emotion } : {}) }),
       signal,
     });
     if (!res.ok) throw new Error(`TTS ${res.status}`);

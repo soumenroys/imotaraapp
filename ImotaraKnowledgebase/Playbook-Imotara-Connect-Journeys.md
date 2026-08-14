@@ -70,6 +70,8 @@ No UI (web or mobile) calls this anymore — the steps below describe backend ca
   3. **MyMemory** (free) — final fallback only, used if the Google key is ever missing or rate-limited.
 
   This closes the "known residual limitation" that used to be documented here — romanized non-Hindi Indic input is no longer expected to silently mistranslate.
+
+  **`sourceLang` reliability (fixed 2026-08-14):** both client call sites in `connect/session/[id]/page.tsx` (auto-translate-on-view when a viewer picks a chat language, and the manual per-message translate picker) now always supply an explicit `sourceLang` — the message sender's own declared `user_lang`/`consultant_lang` from the session record, looked up via `getSenderLang()`. Previously neither call site sent it, so the server fell back to `detectScript()`'s content-based guessing for every manual/on-view translation — measured at a ~15% false-positive rate on plain English text (e.g. the word "have" collides with a Gujarati hint), which could tag a perfectly good English message with the wrong source language. This is what makes the LLM routing above (tier 1) trustworthy in practice: it depends on an accurate `sourceLang`, which is now always session-derived, never guessed. `detectScript()` still exists as the fallback for the rare case `sourceLang` is genuinely unknown.
 - **Balance check:** `GET /api/connect/sessions/[id]/balance`.
 
 ### A9. End the session

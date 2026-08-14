@@ -192,6 +192,41 @@ export default function SessionChatPage() {
     translationEnabledRef.current = session?.translation_enabled ?? null;
   }, [session?.translation_enabled]);
 
+  // Mirrors the session's participant IDs + declared languages, same
+  // stale-closure reason as translationEnabledRef above. Lets getSenderLang()
+  // below look up a message sender's own declared session language (chosen
+  // at booking) as a reliable sourceLang for translation, instead of
+  // guessing it from message content via detectScript() — that has a
+  // measured ~15% false-positive rate on plain English text (one trigger:
+  // the word "have" collides with a Gujarati hint), which would occasionally
+  // send a perfectly good English/other-language message through translation
+  // tagged with the wrong source language. See
+  // [[voice_reply_quality_project_plan_2026_08_12]]'s romanized-Indic
+  // translation work for the full writeup.
+  const sessionLangRef = useRef<{
+    userId: string; consultantId: string; userLang: string | null; consultantLang: string | null;
+  } | null>(null);
+  useEffect(() => {
+    sessionLangRef.current = session
+      ? {
+          userId: session.user_id, consultantId: session.consultant_id,
+          userLang: session.user_lang, consultantLang: session.consultant_lang,
+        }
+      : null;
+  }, [session?.user_id, session?.consultant_id, session?.user_lang, session?.consultant_lang]);
+
+  // Falls back to undefined (server-side "auto"/detectScript) only if
+  // session data somehow isn't loaded yet or senderId matches neither known
+  // participant — shouldn't happen in practice, since messages only render
+  // once the session has loaded.
+  function getSenderLang(senderId: string): string | undefined {
+    const s = sessionLangRef.current;
+    if (!s) return undefined;
+    if (senderId === s.userId) return s.userLang ?? undefined;
+    if (senderId === s.consultantId) return s.consultantLang ?? undefined;
+    return undefined;
+  }
+
   // ── Close lang picker on outside click ────────────────────────────────────
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -268,7 +303,7 @@ export default function SessionChatPage() {
             fetch("/api/connect/translate", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: msg.content, targetLang: lang }),
+              body: JSON.stringify({ text: msg.content, targetLang: lang, sourceLang: getSenderLang(msg.sender_id) }),
               credentials: "include",
             }).then((r) => r.json()).then((d) => {
               if (d.ok && d.translatedText && d.translatedText.trim() !== msg.content.trim()) {
@@ -548,7 +583,7 @@ export default function SessionChatPage() {
   }
 
   // ── Translation ────────────────────────────────────────────────────────────
-  async function translateMessage(msgId: string, text: string, lang: LangCode) {
+  async function translateMessage(msgId: string, text: string, lang: LangCode, senderId: string) {
     const key = `${msgId}::${lang}`;
     if (translations.has(key) || translating.has(msgId)) return;
     setTranslating((prev) => { const s = new Set(prev); s.add(msgId); return s; });
@@ -556,7 +591,7 @@ export default function SessionChatPage() {
       const res = await fetch("/api/connect/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, targetLang: lang }),
+        body: JSON.stringify({ text, targetLang: lang, sourceLang: getSenderLang(senderId) }),
         credentials: "include",
       });
       const d = await res.json();
@@ -572,7 +607,7 @@ export default function SessionChatPage() {
   function translateAll(lang: LangCode, msgs: Message[]) {
     msgs.forEach((m) => {
       if (!translations.has(`${m.id}::${lang}`)) {
-        translateMessage(m.id, m.content, lang);
+        translateMessage(m.id, m.content, lang, m.sender_id);
       }
     });
   }

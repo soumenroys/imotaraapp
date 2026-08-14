@@ -15,6 +15,7 @@ import {
   sendConsultantEarningsEmail,
   sendPlatformRevenueEmail,
 } from "@/lib/connect/mailer";
+import { creditConsultantDurably } from "@/lib/connect/creditConsultant";
 
 export async function POST(
   req: NextRequest,
@@ -310,7 +311,7 @@ async function creditConsultant(
   consultantId: string,
   minutesUsed: number,
   lockedRatePerMin: number,
-  sessionId?: string
+  sessionId: string,
 ) {
   const { data: consultant } = await supabase
     .from("connect_consultants")
@@ -323,48 +324,27 @@ async function creditConsultant(
   // Use the rate locked at session creation, not the consultant's current rate.
   const sessionEarnings = Number(minutesUsed) * Number(lockedRatePerMin) * 0.80;
 
-  const { error: walletErr } = await supabase
-    .from("connect_wallet")
-    .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
-  if (walletErr) {
-    console.error("[tick/creditConsultant] CRITICAL: wallet upsert failed — earnings not credited:", walletErr.message, "consultant user_id:", consultant.user_id);
-    // Still clear is_busy so the consultant is not permanently locked out of new sessions.
-    // The orphan cron cannot recover this because the session is already status=completed.
-    await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
-    return;
-  }
-
-  const { error: earningsErr } = await supabase.rpc("increment_wallet_earnings", {
-    p_user_id: consultant.user_id,
-    p_amount:  sessionEarnings,
+  // Durable credit: writes an earnings-ledger row before attempting anything,
+  // so a transient failure here (wallet upsert or the earnings RPC) no
+  // longer silently, permanently loses the consultant's earnings — the
+  // settlement cron (connect-settle-earnings) retries any unsettled ledger
+  // row indefinitely until it succeeds. Previously this was a bare
+  // console.error with no recovery path — see [[code_review_audit_2026_08_14]].
+  // Writes consultant_credited on the session row and increments
+  // sessions_completed internally on success; nothing more to do for those
+  // here regardless of outcome.
+  await creditConsultantDurably({
+    supabase,
+    sessionId,
+    consultantId: consultant.id,
+    consultantUserId: consultant.user_id,
+    earnings: sessionEarnings,
+    logTag: "[tick/creditConsultant]",
   });
-  if (earningsErr) {
-    console.error("[tick/creditConsultant] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "consultantId:", consultantId, "— consultant_credited NOT written");
-  }
 
-  // After earnings RPC: audit write, sessions_completed increment, and is_busy clear
-  // are all independent — run them in parallel to reduce tick response time.
-  await Promise.all([
-    // Audit: only written when earnings succeeded (prevents false record if wallet RPC failed)
-    earningsErr
-      ? Promise.resolve()
-      : sessionId
-        ? supabase
-            .from("connect_sessions")
-            .update({ consultant_credited: +sessionEarnings.toFixed(4) })
-            .eq("id", sessionId)
-            .then(({ error: acErr }) => {
-              if (acErr) console.error("[tick/creditConsultant] consultant_credited write failed:", acErr.message, "session:", sessionId);
-            })
-        : Promise.resolve(),
-
-    // Increment sessions_completed counter (atomic RPC — do NOT fall back to read-modify-write)
-    supabase.rpc("increment_sessions_completed", { p_consultant_id: consultant.id })
-      .then(({ error: scErr }) => {
-        if (scErr) console.error("[tick/creditConsultant] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", scErr.message, "consultantId:", consultantId);
-      }),
-
-    // Clear is_busy so the consultant can accept new sessions
-    supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id),
-  ]);
+  // Clear is_busy so the consultant can accept new sessions, regardless of
+  // whether the credit attempt above succeeded — a failed credit will be
+  // retried by the settlement cron; the consultant shouldn't also be locked
+  // out of new work while that's pending.
+  await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
 }

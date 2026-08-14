@@ -13,6 +13,10 @@
       "schedule": "*/10 * * * *"
     },
     {
+      "path": "/api/cron/connect-settle-earnings",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/api/cron/wallet-reminders",
       "schedule": "30 2 * * *"
     },

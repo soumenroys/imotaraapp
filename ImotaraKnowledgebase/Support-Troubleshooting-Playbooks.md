@@ -122,6 +122,7 @@
 2. **OpenAI outage** → automatic **Gemini fallback** (still cloud, near-normal quality).
 3. Both cloud routes failed/timed out → local engine.
 4. No API key configured (`meta.from:"disabled"`).
+5. **Per-IP rate limit hit (added 2026-08-14)** → a flat `429` with no `meta` field at all — different shape from the other causes below, easy to miss if you're only checking `meta.from`.
 
 **Diagnosis steps:**
 1. **Ask what "canned" looks like.** The offline engine uses a fixed Three-Part Framework and native-wisdom fragments — repetitive openers, no nuance/sarcasm handling. That signature = local fallback fired.
@@ -143,11 +144,13 @@
    If `count >= 20`, tier is `free`/expired, and `token_balance = 0` → they're on local fallback. Purchased token packs decrement one-by-one first.
 4. **Outage check (Gemini path).** If `meta.from:"fallback"`, OpenAI errored. A throttled red-alert email (subject **"🔴 ALERT: OpenAI API unavailable — Gemini fallback active"**, ≤1 per 5 min per instance) goes to `info@imotara.com`. In Vercel logs search `[imotara][aiClient] OpenAI error HTTP` or `[imotara][aiClient] fetch exception`. Confirm https://status.openai.com.
 5. **Disabled/error.** `meta.from:"disabled"` → `OPENAI_API_KEY` missing in Vercel env. `error` with `GEMINI_API_KEY not set` → both keys absent.
+6. **Rate-limited, not quota-exceeded.** If the response has **no `meta` field at all** and is a bare `429 { error: "Too many requests. Please slow down." }`, that's the shared per-IP limit (`checkPersistentIpRateLimit()`, `src/lib/imotara/ipRateLimit.ts`, `ip_rate_limits` table) — **30 requests/minute per IP** on both `/api/respond` and `/api/chat-reply`, checked *before* quota/auth. This is unrelated to the user's own daily quota and can affect signed-in users on a busy shared IP.
 
 **Resolution:**
 - Quota → buy a token pack or upgrade; or wait for UTC midnight reset. (Enforcement is **fail-open** — DB errors never block, so a "no replies at all" symptom is *not* the quota system.)
 - Gemini fallback → nothing to fix client-side; monitor until OpenAI recovers. Reassure that replies still work.
 - Disabled/error → ops must set `OPENAI_API_KEY` (and `GEMINI_API_KEY` for DR) in Vercel Production env.
+- Rate-limited → wait ~1 minute and retry; not an account issue. Only worth investigating further if it's reproducible for one user in isolation (unusual — most real usage is well under 30/min).
 
 **Escalate when…** `meta.from:"error"` (both providers down), or quota query shows `count < 20` yet the user still gets local replies (possible auth/identity mismatch — the quota only counts verified users; a forged/unsigned bearer never satisfies the verified-identity gate).
 
@@ -166,7 +169,7 @@
 6. Text over the 8,000-char hard cap → `400`.
 
 **Diagnosis steps:**
-1. **Signed in or guest?** `/api/tts` gives signed-in accounts **unlimited** Azure TTS. Anonymous identities are capped at **15/day**; on exceed the route returns `429 { error:"Daily voice limit reached. Sign in for unlimited voice.", code:"quota_exceeded" }`. Verify:
+1. **Signed in or guest?** `/api/tts` gives signed-in accounts **unlimited** Azure TTS with no *daily* cap. Anonymous identities are capped at **15/day**; on exceed the route returns `429 { error:"Daily voice limit reached. Sign in for unlimited voice.", code:"quota_exceeded" }`. **As of 2026-08-14, this is separate from a second, per-IP limit that applies to every caller regardless of sign-in status** — see step 4a below; don't confuse the two 429 shapes. Verify the daily cap:
    ```sql
    select count(*) from usage_events
    where user_id = '<uuid>' and event_type = 'tts'
@@ -174,6 +177,7 @@
    ```
 2. **Silent on a specific language, especially Samsung/Android:** `mobileTTS.ts` `playNativeFallback` calls `hasNativeVoice(lang)`; if false it fires `onUnavailable()` (the "install the language's TTS voice in device settings" toast) instead of silently producing nothing. Some Android engines (Samsung's) yield **no sound and no error** when the voice isn't installed — the toast is the signal. Fix: device Settings → install the language TTS voice / switch TTS engine to Google.
 3. **Wrong gender:** Chat read-aloud routes through **Azure Neural TTS** precisely because native `expo-speech` ignores gender. Voice follows the **companion gender** setting via `voices.ts`. If gender is wrong, either the request fell back to native (Azure failed — check step 4) or the companion gender setting is wrong. Nonbinary/other/prefer-not intentionally map to the neutral (female) voice.
+4a. **Shared/per-IP rate limit (added 2026-08-14):** every caller — signed-in or anonymous — also shares a **40 requests/minute per IP** limit, checked *before* auth/quota, via `checkPersistentIpRateLimit()` (`src/lib/imotara/ipRateLimit.ts`, Postgres-backed via the `ip_rate_limits` table, so it's a real shared cap across every server instance, not an approximation). On exceed: `429 { error: "Too many requests. Please slow down." }` — no `code` field, and note the message text differs from the daily-cap 429 above. A signed-in user CAN legitimately see this (e.g. a busy shared office/NAT IP, or many rapid requests) — this is expected behavior, not an auth bug; see the escalation note below.
 4. **`/api/tts` server errors (Vercel logs, tag `[tts]`):**
    - `503` "Azure not configured" → `[tts] config error` (region/key env missing).
    - `502` "TTS service unavailable" → `[tts] Azure fetch failed` (network to Azure).
@@ -184,7 +188,7 @@
 
 **Resolution:** sign in (removes 15/day cap); install device voice / switch TTS engine (Samsung); ops fix Azure `region/key` env if `[tts]` shows 502/503 for all users; correct companion gender in Settings.
 
-**Escalate when…** `[tts]` logs show 502/503 across many users (Azure outage/key rotation) or `429` for a **signed-in** user (quota should never apply to real accounts — indicates the request was treated as anonymous, an auth bug).
+**Escalate when…** `[tts]` logs show 502/503 across many users (Azure outage/key rotation), or a **signed-in** user gets the *daily-cap* 429 (`code:"quota_exceeded"`, "Daily voice limit reached") — that quota should never apply to real accounts, indicating the request was treated as anonymous, an auth bug. **Do NOT escalate** a signed-in user getting the *rate-limit* 429 ("Too many requests. Please slow down.", no `code` field) as an auth bug — that one is expected to apply to everyone; only escalate it if it's happening to many distinct legitimate users at once (suggests the limit is miscalibrated, not a bug).
 
 ---
 
@@ -413,6 +417,7 @@
 2. **Orphaned active session** (client crashed) — auto-completed by the 10-min cron.
 3. Consultant push token missing.
 4. Recharge/topup verify lagged.
+5. **Consultant says they weren't paid for a session** — the earnings credit hasn't settled yet, see diagnosis step 5 below. As of 2026-08-14 this is normally self-healing within one 10-min cycle, not a manual-correction case.
 
 **Diagnosis steps:**
 1. **"I can't recharge — it says one is pending":** the `uq_connect_recharges_user_consultant_pending` unique index blocks a new recharge for the same user+consultant while a `pending` row exists. Razorpay auto-expires orders after 15 min, but if `payment.failed` isn't delivered the row stays `pending`. The cron `/api/cron/connect-recharge-expiry` (**every 30 min**, `"*/30 * * * *"`) flips `pending → failed` after **30 minutes**. Check:
@@ -428,10 +433,19 @@
    ```
 3. **Consultant not getting session pushes:** push uses `auth.users.user_metadata.expo_connect_push_token` via `exp.host/--/api/v2/push/send`. A null token → no notifications; the consultant must have registered it (`/api/connect/user/push-token`).
 4. **Refund status:** requests go through `/api/connect/wallet/refund-request`; check the wallet/refund tables and admin refunds view (`/api/admin/connect/refunds`).
+5. **Consultant not paid for a session (added 2026-08-14):** every session completion writes a `connect_earnings_ledger` row *before* attempting the actual wallet credit — check its status first, this is now the source of truth for "did this consultant get paid," not just `connect_sessions.consultant_credited`:
+   ```sql
+   select session_id, status, amount, attempts, last_error, created_at, settled_at
+   from connect_earnings_ledger where session_id='<session uuid>';
+   ```
+   - **No row at all:** the session hasn't completed yet, or completed through a path from before this fix shipped — check `connect_sessions.status`/`consultant_credited` directly instead.
+   - **`status = 'settled'`:** the consultant WAS paid — `connect_wallet.earned_amount` for their `user_id` was incremented and `settled_at` shows when. If the consultant still says they weren't paid, the issue is elsewhere (wrong expectation of amount, wallet UI not refreshed, etc.), not a missed credit.
+   - **`status = 'pending'`, `attempts = 0`:** hasn't been picked up by the retry cron yet — `/api/cron/connect-settle-earnings` runs every 10 minutes; check back after the next cycle.
+   - **`status = 'pending'`, `attempts ≥ 1`:** at least one retry has failed — read `last_error` for the actual DB error. Still expected to keep retrying automatically every cycle; only escalate per the rule below.
 
-**Resolution:** wait for the relevant cron (or an admin fires it — Runbook 13); confirm consultant push-token registration; for a genuinely stuck orphan past 15 min that the cron didn't catch, check the cron ran.
+**Resolution:** wait for the relevant cron (or an admin fires it — Runbook 13); confirm consultant push-token registration; for a genuinely stuck orphan past 15 min that the cron didn't catch, check the cron ran; for an unpaid consultant, check `connect_earnings_ledger` per step 5 above before assuming anything is actually wrong.
 
-**Escalate when…** `[connect-orphans]` logs show **CRITICAL** (wallet upsert / `increment_wallet_earnings` / `increment_sessions_completed` failed — earnings/session-count discrepancy needing manual correction), or a recharge stayed `pending` well beyond 30 min (cron not firing).
+**Escalate when…** a `connect_earnings_ledger` row stays `status='pending'` across **several** settlement-cron cycles (i.e. `attempts` climbing over multiple 10-min windows with no settlement) — that indicates the underlying issue isn't transient (or the cron itself isn't running, check Runbook 13) and needs a human to look at `last_error`. A single failed attempt is expected and self-healing, **not** an escalation on its own — this replaces the old rule of escalating on any `[connect-orphans]` CRITICAL log for `increment_wallet_earnings`, which is no longer the right signal now that failures are durably retried instead of silently lost. `increment_sessions_completed` failures are unrelated to money (just the completed-sessions counter) and still warrant a look if logged CRITICAL, since that counter has no retry mechanism of its own. A recharge staying `pending` well beyond 30 min (cron not firing) is still an escalation as before.
 
 ---
 

@@ -18,6 +18,16 @@ import { getLicenseMode } from "@/lib/imotara/license";
 import { resolveUserTier } from "@/lib/imotara/org";
 import { callImotaraAI, streamImotaraAI } from "@/lib/imotara/aiClient";
 import type { ImotaraAIResponse } from "@/lib/imotara/aiClient";
+import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
+
+// This route had no rate limiting of any kind before — see
+// code_review_audit_2026_08_14 (P0-2). 30 requests/minute per IP is
+// generous for real human typing+reading cadence (even accounting for
+// several real users sharing one IP behind NAT/corporate networks), while
+// still meaningfully capping a script hammering the endpoint. Persistent
+// (DB-backed), not the in-memory limiter — this route calls real OpenAI
+// tokens per request, so a limiter that resets on cold start isn't enough.
+const RATE_LIMIT_PER_MIN = 30;
 import { formatImotaraReply } from "@/lib/imotara/response/responseFormatter";
 import { getCulturalEmotionWord } from "@/lib/ai/cultural/culturalEmotionVocab";
 
@@ -178,6 +188,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const ip = getClientIp(req);
+    if (!(await checkPersistentIpRateLimit("chat-reply", ip, RATE_LIMIT_PER_MIN, 60))) {
+      return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
+    }
+
     const body = (await req.json()) as ChatReplyRequest | null;
 
     // ── Mythology repetition prevention ────────────────────────────────────────
@@ -347,9 +362,14 @@ export async function POST(req: Request) {
     }
 
     const allowMemory = body?.allowMemory !== false;
-    const provisionalUserId = allowMemory
-      ? extractSubFromBearer(req.headers.get("Authorization"))
-      : "";
+    // Always extracted, regardless of allowMemory — auth verification and quota
+    // enforcement below must never depend on this flag. allowMemory is a privacy
+    // preference ("don't personalize this reply from my saved memory"), not an
+    // access-control setting, and it must not be able to gate either. It previously
+    // gated the entire auth+quota block by accident, which made
+    // {"allowMemory": false} an unlimited-free-replies bypass — see
+    // [[code_review_audit_2026_08_14]].
+    const provisionalUserId = extractSubFromBearer(req.headers.get("Authorization"));
 
     // Check if the client already sent the preferred name in a system message.
     // Mobile always sends: { role: "system", content: "The user's preferred name is: ..." }
@@ -371,118 +391,123 @@ export async function POST(req: Request) {
 
     type QuotaInfo = { licRow: { tier: string; expires_at: string | null; token_balance: number | null } | null; usageCount: number };
 
-    if (allowMemory) {
-      const [authResult, memResult, quotaResult] = await Promise.allSettled([
-        // ── auth verification (network call, ~100-300ms) ─────────────────────
-        // Bearer token first (mobile never sends cookies — matches the
-        // pattern already used correctly in history/route.ts, chat/messages,
-        // connect/auth.ts). Falling back to cookie-only auth here would leave
-        // authedUserId permanently "" for every mobile request, which would
-        // make the verified-identity check below unsatisfiable for mobile
-        // traffic and silently disable quota enforcement there, not just
-        // close the spoofing hole.
-        (async () => {
-          const authHeader = req.headers.get("Authorization") ?? "";
-          const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-          if (bearerToken) {
-            const { data } = await getSupabaseAdmin().auth.getUser(bearerToken);
-            if (data?.user?.id) return data.user.id;
-          }
-          try {
-            const supabaseUser = await getSupabaseUserServerClient();
-            const { data } = await supabaseUser.auth.getUser();
-            return data?.user?.id ?? "";
-          } catch {
-            return "";
-          }
-        })(),
+    // Auth verification + quota data fetch ALWAYS run in parallel — these are
+    // billing/access-control concerns and must never be skippable by a
+    // client-supplied flag. Only the memory-fetch branch below still checks
+    // allowMemory, since that's the one thing this flag is actually meant to
+    // control.
+    const [authResult, memResult, quotaResult] = await Promise.allSettled([
+      // ── auth verification (network call, ~100-300ms) ─────────────────────
+      // Bearer token first (mobile never sends cookies — matches the
+      // pattern already used correctly in history/route.ts, chat/messages,
+      // connect/auth.ts). Falling back to cookie-only auth here would leave
+      // authedUserId permanently "" for every mobile request, which would
+      // make the verified-identity check below unsatisfiable for mobile
+      // traffic and silently disable quota enforcement there, not just
+      // close the spoofing hole.
+      (async () => {
+        const authHeader = req.headers.get("Authorization") ?? "";
+        const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+        if (bearerToken) {
+          const { data } = await getSupabaseAdmin().auth.getUser(bearerToken);
+          if (data?.user?.id) return data.user.id;
+        }
+        try {
+          const supabaseUser = await getSupabaseUserServerClient();
+          const { data } = await supabaseUser.auth.getUser();
+          return data?.user?.id ?? "";
+        } catch {
+          return "";
+        }
+      })(),
 
-        // ── memory fetch (skipped when name already in payload) ───────────────
-        // Read-only, speculative — keyed on the UNVERIFIED provisionalUserId
-        // purely so it can run in parallel with the slower auth verification
-        // call above. Its result is only ever applied below once authedUserId
-        // is confirmed to match — never trust it on its own.
-        (async (): Promise<string> => {
-          if (nameFromPayload || !provisionalUserId) return "";
-          const memories = await fetchUserMemories(
-            getSupabaseAdmin() as any,
-            provisionalUserId,
-            5, // only need preferred_name — fetch fewer rows
-          );
-          const raw = Array.isArray(memories)
-            ? (memories.find((m: any) => m?.key === "preferred_name")?.value ?? "")
-            : "";
-          return typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
-        })(),
+      // ── memory fetch (skipped when name already in payload, or when the
+      // caller opted out via allowMemory) ───────────────────────────────────
+      // Read-only, speculative — keyed on the UNVERIFIED provisionalUserId
+      // purely so it can run in parallel with the slower auth verification
+      // call above. Its result is only ever applied below once authedUserId
+      // is confirmed to match — never trust it on its own.
+      (async (): Promise<string> => {
+        if (!allowMemory || nameFromPayload || !provisionalUserId) return "";
+        const memories = await fetchUserMemories(
+          getSupabaseAdmin() as any,
+          provisionalUserId,
+          5, // only need preferred_name — fetch fewer rows
+        );
+        const raw = Array.isArray(memories)
+          ? (memories.find((m: any) => m?.key === "preferred_name")?.value ?? "")
+          : "";
+        return typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
+      })(),
 
-        // ── quota data fetch (READ ONLY — no writes, no decisions here) ────────
-        // Same speculative-parallel reasoning as the memory fetch above: this
-        // only gathers data keyed on provisionalUserId. The actual quota
-        // decision and the token_balance decrement happen further below,
-        // gated on the signature-verified authedUserId — never on this.
-        (async (): Promise<QuotaInfo> => {
-          if (!provisionalUserId) return { licRow: null, usageCount: 0 };
-          const quotaAdmin = getSupabaseAdmin();
-          const { data: licRow } = await quotaAdmin
-            .from("licenses")
-            .select("tier, expires_at, token_balance")
-            .eq("user_id", provisionalUserId)
-            .maybeSingle();
+      // ── quota data fetch (READ ONLY — no writes, no decisions here) ────────
+      // Same speculative-parallel reasoning as the memory fetch above: this
+      // only gathers data keyed on provisionalUserId. The actual quota
+      // decision and the token_balance decrement happen further below,
+      // gated on the signature-verified authedUserId — never on this, and
+      // never on allowMemory.
+      (async (): Promise<QuotaInfo> => {
+        if (!provisionalUserId) return { licRow: null, usageCount: 0 };
+        const quotaAdmin = getSupabaseAdmin();
+        const { data: licRow } = await quotaAdmin
+          .from("licenses")
+          .select("tier, expires_at, token_balance")
+          .eq("user_id", provisionalUserId)
+          .maybeSingle();
 
-          const isFree = !licRow || licRow.tier === "free";
-          const trialActive = licRow?.expires_at
-            ? new Date(licRow.expires_at) > new Date()
-            : false;
-          if (!isFree || trialActive) return { licRow, usageCount: 0 };
+        const isFree = !licRow || licRow.tier === "free";
+        const trialActive = licRow?.expires_at
+          ? new Date(licRow.expires_at) > new Date()
+          : false;
+        if (!isFree || trialActive) return { licRow, usageCount: 0 };
 
-          const todayStart = new Date();
-          todayStart.setUTCHours(0, 0, 0, 0);
-          const { count } = await quotaAdmin
-            .from("usage_events")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", provisionalUserId)
-            .gte("created_at", todayStart.toISOString());
+        const todayStart = new Date();
+        todayStart.setUTCHours(0, 0, 0, 0);
+        const { count } = await quotaAdmin
+          .from("usage_events")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", provisionalUserId)
+          .gte("created_at", todayStart.toISOString());
 
-          return { licRow, usageCount: count ?? 0 };
-        })(),
-      ]);
+        return { licRow, usageCount: count ?? 0 };
+      })(),
+    ]);
 
-      if (authResult.status === "fulfilled") authedUserId = authResult.value;
+    if (authResult.status === "fulfilled") authedUserId = authResult.value;
 
-      // A forged/unsigned bearer token decodes to a `provisionalUserId` guess
-      // but never passes real signature verification, so authedUserId stays
-      // "". Only apply anything keyed on the unverified guess once it's been
-      // confirmed to match the verified identity — this is the only line
-      // standing between "speculative perf optimization" and "attacker sets
-      // sub to a victim's id and we trust it."
-      const verified = !!authedUserId && authedUserId === provisionalUserId;
+    // A forged/unsigned bearer token decodes to a `provisionalUserId` guess
+    // but never passes real signature verification, so authedUserId stays
+    // "". Only apply anything keyed on the unverified guess once it's been
+    // confirmed to match the verified identity — this is the only line
+    // standing between "speculative perf optimization" and "attacker sets
+    // sub to a victim's id and we trust it."
+    const verified = !!authedUserId && authedUserId === provisionalUserId;
 
-      if (verified) {
-        if (memResult.status === "fulfilled" && memResult.value) preferredName = memResult.value;
+    if (verified) {
+      if (allowMemory && memResult.status === "fulfilled" && memResult.value) preferredName = memResult.value;
 
-        if (quotaResult.status === "fulfilled") {
-          const { licRow, usageCount } = quotaResult.value;
-          const isFree = !licRow || licRow.tier === "free";
-          const trialActive = licRow?.expires_at
-            ? new Date(licRow.expires_at) > new Date()
-            : false;
+      if (quotaResult.status === "fulfilled") {
+        const { licRow, usageCount } = quotaResult.value;
+        const isFree = !licRow || licRow.tier === "free";
+        const trialActive = licRow?.expires_at
+          ? new Date(licRow.expires_at) > new Date()
+          : false;
 
-          if (isFree && !trialActive && usageCount >= 20) {
-            const tokenBalance = licRow?.token_balance ?? 0;
-            if (tokenBalance > 0) {
-              await getSupabaseAdmin()
-                .from("licenses")
-                .update({ token_balance: tokenBalance - 1 })
-                .eq("user_id", authedUserId)
-                .gt("token_balance", 0);
-            } else {
-              const quotaRes = NextResponse.json(
-                { text: "", meta: { from: "quota_exceeded", reason: "daily_limit", used: usageCount, limit: 20 } },
-                { status: 200 },
-              );
-              quotaRes.headers.set("Cache-Control", "no-store");
-              return quotaRes;
-            }
+        if (isFree && !trialActive && usageCount >= 20) {
+          const tokenBalance = licRow?.token_balance ?? 0;
+          if (tokenBalance > 0) {
+            await getSupabaseAdmin()
+              .from("licenses")
+              .update({ token_balance: tokenBalance - 1 })
+              .eq("user_id", authedUserId)
+              .gt("token_balance", 0);
+          } else {
+            const quotaRes = NextResponse.json(
+              { text: "", meta: { from: "quota_exceeded", reason: "daily_limit", used: usageCount, limit: 20 } },
+              { status: 200 },
+            );
+            quotaRes.headers.set("Cache-Control", "no-store");
+            return quotaRes;
           }
         }
       }

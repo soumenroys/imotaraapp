@@ -9,6 +9,7 @@ export const preferredRegion = ["sin1"];
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
+import { creditConsultantDurably } from "@/lib/connect/creditConsultant";
 
 export async function GET(req: NextRequest) {
   const user = await getConnectUser(req);
@@ -76,55 +77,33 @@ export async function GET(req: NextRequest) {
         const freshMinutes = Number(wonRows[0].minutes_used ?? stale.minutes_used);
 
         // Credit consultant for minutes already consumed before client disconnected.
-        // Mirrors the 80/20 split in sessions/[id]/route.ts and orphan cron:
-        // attempt wallet ops FIRST, write consultant_credited ONLY on success.
         if (freshMinutes > 0 && Number(stale.rate_per_min) > 0) {
           const lockedRate      = Number(stale.rate_per_min);
           const sessionEarnings = freshMinutes * lockedRate * 0.80;
           const amountCharged   = freshMinutes * lockedRate;
 
-          const { error: walletErr } = await supabase.from("connect_wallet")
-            .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
-
-          if (walletErr) {
-            console.error("[stale-complete] CRITICAL: wallet upsert failed — earnings not credited:", walletErr.message, "session:", stale.id);
-            await supabase.from("connect_sessions")
-              .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
-              .eq("id", stale.id)
-              .or("amount_charged.is.null,amount_charged.eq.0");
-            continue;
-          }
-
-          const { error: rpcErr } = await supabase.rpc("increment_wallet_earnings", {
-            p_user_id: consultant.user_id,
-            p_amount:  sessionEarnings,
-          });
-
-          if (rpcErr) {
-            console.error("[stale-complete] CRITICAL: increment_wallet_earnings failed:", rpcErr.message, "session:", stale.id, "— consultant_credited NOT written");
-            await supabase.from("connect_sessions")
-              .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
-              .eq("id", stale.id)
-              .or("amount_charged.is.null,amount_charged.eq.0");
-            continue;
-          }
-
-          // Both wallet ops succeeded — write all three receipt columns.
+          // The user owes this regardless of whether the consultant-credit
+          // step below succeeds — write it unconditionally, first.
           await supabase.from("connect_sessions")
-            .update({
-              amount_charged:      amountCharged,
-              platform_fee:        +(amountCharged * 0.20).toFixed(4),
-              consultant_credited: +sessionEarnings.toFixed(4),
-            })
+            .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
             .eq("id", stale.id)
-            .or("amount_charged.is.null,amount_charged.eq.0,consultant_credited.is.null");
+            .or("amount_charged.is.null,amount_charged.eq.0");
 
-          const { error: rpcScErr } = await supabase.rpc("increment_sessions_completed", { p_consultant_id: stale.consultant_id });
-          if (rpcScErr) {
-            // Do NOT fall back to read-modify-write — concurrent runs would each read the same
-            // stale value and produce a lost update. Log CRITICAL for manual correction.
-            console.error("[stale-complete] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", rpcScErr.message, "session:", stale.id, "consultant:", stale.consultant_id);
-          }
+          // Durable credit — see [[code_review_audit_2026_08_14]]. Writes a
+          // ledger row before attempting the wallet upsert + earnings RPC, so
+          // a transient failure no longer silently, permanently loses the
+          // consultant's earnings — the settlement cron
+          // (connect-settle-earnings) retries any unsettled row indefinitely.
+          // Writes consultant_credited + increments sessions_completed
+          // internally on success.
+          await creditConsultantDurably({
+            supabase,
+            sessionId: stale.id,
+            consultantId: stale.consultant_id,
+            consultantUserId: consultant.user_id,
+            earnings: sessionEarnings,
+            logTag: "[stale-complete]",
+          });
         }
       }
       // Only clear is_busy when no active sessions remain — guards against incorrectly

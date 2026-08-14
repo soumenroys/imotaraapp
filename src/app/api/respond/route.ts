@@ -28,6 +28,11 @@ import {
   ROMAN_OR_LANG_HINT_REGEX,
 } from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
+import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
+
+// See code_review_audit_2026_08_14 (P0-2) — this route had no rate limiting
+// of any kind before. Same limit/reasoning as chat-reply/route.ts.
+const RATE_LIMIT_PER_MIN = 30;
 
 export const maxDuration = 60;
 
@@ -805,6 +810,11 @@ function detectReplyIntent(message: string): "emotional" | "practical" {
 
 export async function POST(req: Request) {
   try {
+  const ip = getClientIp(req);
+  if (!(await checkPersistentIpRateLimit("respond", ip, RATE_LIMIT_PER_MIN, 60))) {
+    return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
+  }
+
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
   // QA request flag (accepts header or query param; "1" or "true")

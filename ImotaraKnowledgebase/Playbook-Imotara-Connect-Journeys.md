@@ -60,7 +60,7 @@ No UI (web or mobile) calls this anymore — the steps below describe backend ca
 5. **Path B (deduct drives remaining ≤ 0):** `minutes_used += 1`, `amount_charged = minutes_used × rate`, auto-complete + credit.
 6. **Path A (normal):** `minutes_used += 1`, `amount_charged` updated, `last_tick_at` set. Returns `remaining_minutes`.
 7. Every write uses an **optimistic lock**: `.eq('status','active').eq('minutes_used', <value read>)`. A concurrent tick that already incremented matches 0 rows → no double-charge, no double-credit.
-8. **On completion (`creditConsultant`):** upsert `connect_wallet` for the consultant → **`increment_wallet_earnings` RPC** credits **80% of `minutes_used × rate`** to `earned_amount` → write `consultant_credited` (only after the credit succeeds — no false audit record) → **`increment_sessions_completed` RPC** → **`is_busy=false`** → three fire-and-forget emails: user session statement, consultant earnings (shows the 80/20 split), and **platform revenue notice to Imotara**.
+8. **On completion (`creditConsultantDurably()`, `src/lib/connect/creditConsultant.ts`, added 2026-08-14):** writes a `connect_earnings_ledger` row for **80% of `minutes_used × rate`** FIRST, before attempting anything → upsert `connect_wallet` for the consultant → **`increment_wallet_earnings` RPC** credits `earned_amount` → on success: mark the ledger row `settled`, write `consultant_credited` (only after the credit succeeds — no false audit record) → **`increment_sessions_completed` RPC** → **`is_busy=false`** → three fire-and-forget emails: user session statement, consultant earnings (shows the 80/20 split), and **platform revenue notice to Imotara**. If the wallet upsert or earnings RPC fails, the ledger row stays `pending` (with `attempts`/`last_error` recorded) and `/api/cron/connect-settle-earnings` retries it every 10 minutes, indefinitely, until it settles — this replaced a previous console.error-only failure path that could silently, permanently lose a consultant's earnings for a session.
 
 ### A8. In-session extras
 - **Chat:** `GET/POST /api/connect/sessions/[id]/messages` (Realtime `connect_messages`; inserts require `status='active'`).
@@ -77,7 +77,7 @@ No UI (web or mobile) calls this anymore — the steps below describe backend ca
 ### A9. End the session
 - **User ends:** `PATCH /api/connect/sessions/[id]` `{ action: "userEnd" }` (user-only, `active → completed`).
 - **Consultant ends:** `{ action: "complete" }` (consultant-only, `active → completed`).
-- Either path credits the consultant using the **fresh `minutes_used` from the `RETURNING` clause** (a concurrent tick may have incremented it), writes `amount_charged`/`platform_fee`/`consultant_credited`, increments `sessions_completed`, clears `is_busy`, and fires the same three emails.
+- Either path writes `amount_charged`/`platform_fee` using the **fresh `minutes_used` from the `RETURNING` clause** (a concurrent tick may have incremented it), then credits the consultant via the same durable `creditConsultantDurably()` path described in A7 step 8 (ledger-first, retried by the settlement cron on failure) — writes `consultant_credited`, increments `sessions_completed`, clears `is_busy`, and fires the same three emails.
 - Pending sessions instead: user `{ action: "cancel" }` (`pending → cancelled`, pushes consultant) or consultant `{ action: "decline" }` (`pending → declined`, pushes user). Neither set `is_busy`, so neither clears it.
 
 ### A10. Session notes (consultant) & review (user)

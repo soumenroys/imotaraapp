@@ -2,7 +2,7 @@
 
 This Project is the knowledge base for **Imotara** — a privacy-first, emotion-aware AI companion for mental wellbeing ("An Immortal Friend for Your Emotions"), available on web (www.imotara.com), iOS, and Android. Ask any question about the product, code, operations, administration, or support in this Project and the answer should be findable in these docs.
 
-**Current release:** v1.3.0 (build 130) · **Repos:** `github.com/soumenroys/imotaraapp` (web + entire backend), `github.com/soumenroys/imotara-mobile` (Expo/RN app), `github.com/soumenroys/imotara` (legacy static concept/landing page — pre-product, historical only). · **Backend:** one Vercel deployment + one Supabase project shared by web and mobile. · **Contact:** info@imotara.com / soumenroys@gmail.com.
+**Current release:** v1.3.1 (build 131) · **Repos:** `github.com/soumenroys/imotaraapp` (web + entire backend), `github.com/soumenroys/imotara-mobile` (Expo/RN app), `github.com/soumenroys/imotara` (legacy static concept/landing page — pre-product, historical only). · **Backend:** one Vercel deployment + one Supabase project shared by web and mobile. · **Contact:** info@imotara.com / soumenroys@gmail.com.
 
 ## Reference docs (what things are and how they work)
 

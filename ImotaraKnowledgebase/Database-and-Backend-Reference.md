@@ -1,6 +1,6 @@
 # Imotara — Database & Backend Reference
 
-*Operations and engineering reference for the Imotara web backend: Supabase Postgres, the hand-applied migration workflow, the full table catalog, the key SECURITY DEFINER RPCs and triggers, the RLS model, the complete `/api/**` route map, all scheduled cron jobs, and the environment-variable reference. Current as of v1.3.0.*
+*Operations and engineering reference for the Imotara web backend: Supabase Postgres, the hand-applied migration workflow, the full table catalog, the key SECURITY DEFINER RPCs and triggers, the RLS model, the complete `/api/**` route map, all scheduled cron jobs, and the environment-variable reference. Current as of v1.3.1.*
 
 ---
 
@@ -107,9 +107,13 @@ All these are `SECURITY DEFINER` with `set search_path = public`, and `EXECUTE` 
 ### Connect / wallet / billing RPCs
 - **`get_session_balance(user_id, consultant_id)`** — single-expression atomic balance read (kills the two-read TOCTOU window in billing).
 - **`credit_imotara_wallet(user_id, amount, currency)`** — atomic `INSERT … ON CONFLICT DO UPDATE SET balance += amount` (top-up race fix).
-- **`decrement_wallet_balance`**, **`increment_wallet_earnings`**, **`increment_pending_payout` / `decrement_pending_payout`** — atomic `+=`/`-=` money movements (prevent double-credit/double-payout).
+- **`decrement_wallet_balance`**, **`increment_wallet_earnings`**, **`increment_pending_payout` / `decrement_pending_payout`** — atomic `+=`/`-=` money movements (prevent double-credit/double-payout). `increment_wallet_earnings` is called from `creditConsultantDurably()` (`src/lib/connect/creditConsultant.ts`), not directly — a failure here no longer means a lost credit, see `connect_earnings_ledger` below.
 - **`increment_sessions_completed(consultant_id)`** — atomic counter.
+- **`increment_ledger_attempt(session_id, error)`** — atomic attempt-count/last-error bump on `connect_earnings_ledger`, used by the settlement cron's retry loop.
 - **`update_consultant_rating()`** — trigger fn recomputing `rating_avg`/`rating_count` on review.
+
+### `connect_earnings_ledger` table (added 2026-08-14)
+Durable record of consultant earnings owed per session, written *before* any credit attempt so a transient `increment_wallet_earnings` failure can't silently lose the money. Columns: `session_id` (unique, FK to `connect_sessions`), `consultant_id`, `consultant_user_id`, `amount`, `status` (`pending`/`settled`), `attempts`, `last_error`, `settled_at`. `/api/cron/connect-settle-earnings` (every 10 min) retries every `pending` row indefinitely until it settles. See `Playbook-Imotara-Connect-Journeys.md` for the full completion-flow writeup.
 
 ### Triggers
 - **`trg_release_licenses_on_org_delete`** (BEFORE DELETE on `organizations`) — because `licenses.org_id` is `ON DELETE SET NULL` (not CASCADE), deleting an org would otherwise leave ex-members holding an org-derived paid tier forever. This trigger resets all affected licenses to free in the same transaction, regardless of what deleted the org.

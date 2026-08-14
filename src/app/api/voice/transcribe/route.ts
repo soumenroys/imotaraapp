@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
+import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -19,7 +20,16 @@ const MAX_BYTES = 10 * 1024 * 1024;
 // create. Real signed-in accounts remain unlimited, unchanged.
 const ANONYMOUS_TRANSCRIBE_DAILY_LIMIT = 20;
 
+// Defense against one script minting many cheap anonymous identities from a
+// single IP — see code_review_audit_2026_08_14 (P0-2).
+const RATE_LIMIT_PER_MIN = 30;
+
 export async function POST(req: NextRequest) {
+    const ip = getClientIp(req);
+    if (!(await checkPersistentIpRateLimit("voice-transcribe", ip, RATE_LIMIT_PER_MIN, 60))) {
+        return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
+    }
+
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
         return NextResponse.json({ error: "STT not configured" }, { status: 503 });

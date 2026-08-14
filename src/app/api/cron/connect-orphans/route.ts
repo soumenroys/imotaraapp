@@ -8,6 +8,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { creditConsultantDurably } from "@/lib/connect/creditConsultant";
 
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
 
@@ -97,80 +98,35 @@ export async function GET(req: NextRequest) {
           const amountCharged = freshMinutes * rate;
           const earnings = amountCharged * 0.80;
 
-          // Attempt wallet credit FIRST. Only write consultant_credited to the session row
-          // after the wallet is actually incremented — writing it beforehand creates a false
-          // audit record if the wallet upsert or earnings RPC subsequently fails.
-          const { error: walletErr } = await supabase
-            .from("connect_wallet")
-            .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
-
-          if (walletErr) {
-            console.error("[connect-orphans] CRITICAL: wallet upsert failed — earnings not credited:", walletErr.message, "session:", session.id, "consultant user_id:", consultant.user_id);
-            // Write amount_charged + platform_fee but NOT consultant_credited (no credit happened).
-            await supabase.from("connect_sessions")
-              .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
-              .eq("id", session.id)
-              .or("amount_charged.is.null,amount_charged.eq.0");
-            await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
-            continue;
-          }
-
-          const { error: earningsErr } = await supabase.rpc("increment_wallet_earnings", {
-            p_user_id: consultant.user_id,
-            p_amount:  earnings,
-          });
-          if (earningsErr) {
-            // Earnings credit failed — clear is_busy so the consultant is not locked out,
-            // but do NOT increment sessions_completed. The discrepancy (session completed
-            // but no earnings + no count increment) surfaces clearly in the earnings dashboard.
-            console.error("[connect-orphans] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", session.id, "— skipping sessions_completed to keep discrepancy visible");
-            // Write without consultant_credited — earnings not actually credited.
-            await supabase.from("connect_sessions")
-              .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
-              .eq("id", session.id)
-              .or("amount_charged.is.null,amount_charged.eq.0");
-            await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", consultant.id);
-            // Still notify the user that their session was force-closed
-            void supabase.auth.admin.getUserById(session.user_id).then(({ data: uAuth }) => {
-              const pushToken = uAuth?.user?.user_metadata?.expo_connect_push_token as string | undefined;
-              if (!pushToken) return;
-              return fetch("https://exp.host/--/api/v2/push/send", {
-                method:  "POST",
-                headers: { "Content-Type": "application/json", Accept: "application/json" },
-                body: JSON.stringify({
-                  to:    pushToken,
-                  sound: "default",
-                  title: "Session Ended",
-                  body:  "Your session was closed due to inactivity.",
-                  data:  { session_id: session.id, type: "session_force_closed" },
-                }),
-              });
-            }).catch(() => {});
-            completed++;
-            continue;
-          }
-
-          // Both wallet operations succeeded — write all three receipt columns.
-          // Guard: skip if path-B/C already wrote consultant_credited (non-null); only
-          // fill in sessions where a path-A tick wrote amount_charged but not consultant_credited.
+          // The user owes this regardless of whether the consultant-credit
+          // step below succeeds — write it unconditionally, first.
           await supabase.from("connect_sessions")
-            .update({
-              amount_charged:      amountCharged,
-              platform_fee:        +(amountCharged * 0.20).toFixed(4),
-              consultant_credited: +earnings.toFixed(4),
-            })
+            .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
             .eq("id", session.id)
-            .or("amount_charged.is.null,amount_charged.eq.0,consultant_credited.is.null");
+            .or("amount_charged.is.null,amount_charged.eq.0");
 
-          const { error: scErr } = await supabase.rpc("increment_sessions_completed", {
-            p_consultant_id: consultant.id,
+          // Durable credit: writes an earnings-ledger row before attempting
+          // anything, so a transient wallet-upsert or earnings-RPC failure no
+          // longer silently, permanently loses the consultant's earnings —
+          // the settlement cron (connect-settle-earnings) retries any
+          // unsettled ledger row indefinitely until it succeeds. Writes
+          // consultant_credited + increments sessions_completed internally
+          // on success. Previously this branched into two separate,
+          // inconsistent failure paths (wallet-upsert failure skipped the
+          // force-close notification and the completed-count entirely;
+          // earnings-RPC failure notified and counted) — collapsing both
+          // into this one call also fixes that inconsistency: every orphan
+          // session now falls through uniformly to the notification +
+          // completed++ below, whether or not the credit settled.
+          // See [[code_review_audit_2026_08_14]].
+          await creditConsultantDurably({
+            supabase,
+            sessionId: session.id,
+            consultantId: consultant.id,
+            consultantUserId: consultant.user_id,
+            earnings,
+            logTag: "[connect-orphans]",
           });
-          if (scErr) {
-            // Do NOT fall back to read-modify-write — concurrent orphan runs would each
-            // read the same stale value and produce a lost update. Log CRITICAL so the
-            // discrepancy can be corrected manually from admin panel / Supabase dashboard.
-            console.error("[connect-orphans] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", scErr.message, "session:", session.id, "consultant:", consultant.id);
-          }
         }
 
         await supabase

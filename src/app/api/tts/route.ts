@@ -15,6 +15,7 @@ import { getAzureConfig } from "@/lib/azure-tts/regionRouter";
 import { resolveVoice, resolveStyle, resolveProsody, AZURE_LOCALE } from "@/lib/azure-tts/voices";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -29,8 +30,20 @@ export const maxDuration = 60;
 // the usage_events daily-quota pattern already used in chat-reply/route.ts.
 const ANONYMOUS_TTS_DAILY_LIMIT = 15;
 
+// This route already requires SOME identity (401 below) and caps anonymous
+// identities per-day, but had no defense against one script minting many
+// cheap anonymous identities from a single IP — see
+// code_review_audit_2026_08_14 (P0-2). Checked first, before any auth work,
+// so obviously-abusive traffic is rejected at the cheapest possible point.
+const RATE_LIMIT_PER_MIN = 40;
+
 export async function POST(req: NextRequest) {
     const tStart = Date.now();
+
+    const ip = getClientIp(req);
+    if (!(await checkPersistentIpRateLimit("tts", ip, RATE_LIMIT_PER_MIN, 60))) {
+        return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
+    }
 
     // Mobile always sends a Bearer token and never a Supabase session cookie,
     // so checking cookie auth first wasted a full round trip to Supabase Auth

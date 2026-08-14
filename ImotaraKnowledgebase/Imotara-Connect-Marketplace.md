@@ -1,6 +1,6 @@
 # Imotara Connect — Consultant Marketplace
 
-*Reference for Imotara Connect: the human-companion marketplace layered onto Imotara. Covers the user-side booking + per-minute wallet billing flow, the two wallet systems, consultant onboarding and earnings, session lifecycle and crons, moderation/admin, safety, and support answers. Grounded in `src/app/api/connect/**`, `src/lib/connect/**`, `src/lib/wallet/**`, `src/app/connect/**`, and the `connect_*` / `imotara_wallet_*` SQL. Current as of v1.3.0.*
+*Reference for Imotara Connect: the human-companion marketplace layered onto Imotara. Covers the user-side booking + per-minute wallet billing flow, the two wallet systems, consultant onboarding and earnings, session lifecycle and crons, moderation/admin, safety, and support answers. Grounded in `src/app/api/connect/**`, `src/lib/connect/**`, `src/lib/wallet/**`, `src/app/connect/**`, and the `connect_*` / `imotara_wallet_*` SQL. Current as of v1.3.1.*
 
 > **Status.** Connect ships as working code (37 numbered `connect_v*` migrations, live API routes, `/connect` pages, Realtime chat, Vercel crons) but was originally scoped as the v1.2 MVP and parts of the "full vision" remain aspirational. Sessions are **text chat** today (consultants may register interest in audio/video, but the billed session is text). Available on **all consumer tiers** — the only tier difference is session-history retention.
 
@@ -49,7 +49,7 @@ The client calls tick **every 60s** during an active session; the server is auth
 - Reads the **locked** `rate_per_min`; computes available balance atomically via `get_session_balance`.
 - If balance ≤ 0 → auto-completes the session (path C). Otherwise deducts 1 minute, updates `minutes_used`/`amount_charged`/`platform_fee`; if that hits zero → auto-completes (path B).
 - Every write uses an **optimistic lock** on `minutes_used` + `status='active'` so concurrent ticks can't double-charge or double-credit.
-- On completion it credits the consultant (`creditConsultant`): 80% of `minutes_used × rate` to `connect_wallet.earned_amount` via `increment_wallet_earnings`, increments `sessions_completed`, clears `is_busy`, and fires three emails (user statement, consultant earnings with the 80/20 split, platform revenue notice to Imotara).
+- On completion it credits the consultant durably (`creditConsultantDurably()`, `src/lib/connect/creditConsultant.ts`, added 2026-08-14): writes a `connect_earnings_ledger` row for 80% of `minutes_used × rate` *before* attempting anything, then upserts `connect_wallet` and calls `increment_wallet_earnings`. If that fails, the ledger row stays `pending` and `/api/cron/connect-settle-earnings` (every 10 min) retries it automatically until it settles — no manual correction needed for an ordinary transient failure. On settlement it increments `sessions_completed`, clears `is_busy`, and fires three emails (user statement, consultant earnings with the 80/20 split, platform revenue notice to Imotara).
 
 ### 2.5 In-session extras
 - **Messages**: `GET/POST /api/connect/sessions/[id]/messages` (Realtime-enabled `connect_messages`; inserts require the session to be `active`).

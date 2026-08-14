@@ -54,6 +54,7 @@ import { compatibilityGate } from "@/lib/ai/compat/compatibilityGate";
 import { createHash } from "crypto";
 import type { EmotionAnalysis } from "@/lib/ai/emotion/emotionTypes";
 import { normalizeEmotion } from "@/lib/ai/emotion/normalizeEmotion";
+import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
 import {
   BN_SAD_REGEX,
   BN_STRESS_REGEX,
@@ -143,7 +144,16 @@ type AnalyzeRequestBody = {
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+// See code_review_audit_2026_08_14 (P0-2) — this route had no rate limiting
+// of any kind before. Same limit/reasoning as chat-reply/route.ts.
+const RATE_LIMIT_PER_MIN = 30;
+
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  if (!(await checkPersistentIpRateLimit("analyze", ip, RATE_LIMIT_PER_MIN, 60))) {
+    return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
+  }
+
   const body = await req.json().catch(() => ({}) as any);
 
   const PROD = process.env.NODE_ENV === "production";

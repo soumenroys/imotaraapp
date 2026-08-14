@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
   useEffect,
   useMemo,
@@ -35,7 +36,14 @@ import {
   MoreVertical,
 } from "lucide-react";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
-import BreathingWidget from "@/components/imotara/BreathingWidget";
+import dynamic from "next/dynamic";
+
+// P2-22 (code_review_audit_2026_08_14): only ever rendered when the user
+// explicitly opens it (showBreathing toggle below) — never visible on
+// initial mount, so there's no reason for its code to be part of the
+// initial chat/page.tsx bundle. ssr:false since it's pure client interaction
+// (animation timers) with nothing meaningful to server-render.
+const BreathingWidget = dynamic(() => import("@/components/imotara/BreathingWidget"), { ssr: false });
 import MoodSummaryCard from "@/components/imotara/MoodSummaryCard";
 import type { AppMessage } from "@/lib/imotara/useAnalysis";
 import { syncHistory } from "@/lib/imotara/syncHistoryAdapter";
@@ -60,7 +68,6 @@ import useLicense from "@/hooks/useLicense";
 import { adaptReflectionTone } from "@/lib/imotara/reflectionTone";
 import { getReflectionSeedCard } from "@/lib/imotara/reflectionSeedContract";
 import type { ReflectionSeed } from "@/lib/ai/response/responseBlueprint";
-import { buildLocalReply } from "@/lib/ai/local/localReplyEngine";
 import {
   detectAndUpdateOpenLoops,
   loadOpenLoops,
@@ -1261,7 +1268,7 @@ export default function ChatPage() {
       const uGender = p?.user?.gender;
       const uAge = p?.user?.avatarAge;
       if ((uGender === "male" || uGender === "female") && typeof uAge === "number") {
-        setUserAvatarData({ src: `/avatars/${uGender}/${uAge}.png`, name: p?.user?.name?.trim() ?? "" });
+        setUserAvatarData({ src: `/avatars/${uGender}/${uAge}.webp`, name: p?.user?.name?.trim() ?? "" });
       } else {
         setUserAvatarData(null);
       }
@@ -1270,7 +1277,7 @@ export default function ChatPage() {
       const cGender = c?.gender;
       const cAge = c?.avatarAge;
       if (c?.enabled && (cGender === "male" || cGender === "female") && typeof cAge === "number") {
-        setCompAvatarData({ src: `/avatars/${cGender}/${cAge}.png`, name: c?.name?.trim() ?? "" });
+        setCompAvatarData({ src: `/avatars/${cGender}/${cAge}.webp`, name: c?.name?.trim() ?? "" });
       } else {
         setCompAvatarData(null);
       }
@@ -1725,7 +1732,7 @@ export default function ChatPage() {
       });
     }, delay);
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [activeThread, companionReactionsEnabled, mounted]);
 
   const EMOTION_GLOW_COLOR: Record<string, string> = {
@@ -2660,6 +2667,13 @@ export default function ChatPage() {
             })()
           : undefined;
 
+        // P2-22 (code_review_audit_2026_08_14): localReplyEngine.ts is ~5300
+        // lines — the single largest module this page pulled in, previously
+        // bundled into every page load even though it's only ever CALLED
+        // when the cloud path fails/is skipped, not on the common happy
+        // path. Dynamic import keeps it out of the initial chat/page.tsx
+        // chunk entirely.
+        const { buildLocalReply } = await import("@/lib/ai/local/localReplyEngine");
         const local = buildLocalReply(userText, localToneContext, {
           recentUserTexts,
           recentAssistantTexts,
@@ -3207,7 +3221,7 @@ export default function ChatPage() {
               className={`flex items-center gap-2.5 rounded-2xl border px-3 py-2 cursor-pointer transition duration-150 select-none ${avatarPlaying === "user" ? "border-sky-400/60 bg-sky-500/10 shadow-md" : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"}`}
             >
               <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-xl">
-                <img src={userAvatarData.src} alt={userAvatarData.name || "You"} className="h-full w-full object-cover" />
+                <Image src={userAvatarData.src} alt={userAvatarData.name || "You"} width={40} height={40} className="h-full w-full object-cover" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-zinc-200">{userAvatarData.name || "You"}</p>
@@ -3353,7 +3367,7 @@ export default function ChatPage() {
               className={`flex items-center gap-2.5 rounded-2xl border px-3 py-2 cursor-pointer transition duration-150 select-none ${avatarPlaying === "comp" ? "border-indigo-400/60 bg-indigo-500/10 shadow-md" : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"}`}
             >
               <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-xl">
-                <img src={compAvatarData.src} alt={compAvatarData.name || "Companion"} className="h-full w-full object-cover" />
+                <Image src={compAvatarData.src} alt={compAvatarData.name || "Companion"} width={40} height={40} className="h-full w-full object-cover" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-zinc-200">{compAvatarData.name || "Companion"}</p>
@@ -4019,10 +4033,10 @@ export default function ChatPage() {
                     <div className="im-quota-card w-full max-w-[82%] rounded-2xl border border-violet-500/25 bg-zinc-100 dark:bg-[#1e1028] p-4 shadow-lg">
                       <div className="mb-2 flex items-center gap-2">
                         <span aria-hidden="true">✨</span>
-                        <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200">I've used my 20 replies for today</span>
+                        <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200">I&apos;ve used my 20 replies for today</span>
                       </div>
                       <p className="mb-3 text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                        I'm still here. My responses now come from on-device mode — a little simpler, but present.
+                        I&apos;m still here. My responses now come from on-device mode — a little simpler, but present.
                       </p>
                       <a
                         href="/upgrade"
@@ -5554,7 +5568,7 @@ function Bubble({
       {/* UX-2 — companion avatar pinned to bot messages */}
       {!isUser && (
         avatarSrc
-          ? <img src={avatarSrc} alt="Companion" className="mt-1 h-6 w-6 shrink-0 rounded-full object-cover" />
+          ? <Image src={avatarSrc} alt="Companion" width={24} height={24} className="mt-1 h-6 w-6 shrink-0 rounded-full object-cover" />
           : <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-500/25 text-[9px] font-bold text-indigo-300">I</div>
       )}
       <div className={bubbleClass}>

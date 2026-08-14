@@ -6,25 +6,24 @@ The web app (`imotaraapp`, `github.com/soumenroys/imotaraapp`) is both the user-
 
 - **Next.js 16.1.6** (App Router) + **React 19.2** with the React Compiler enabled (`reactCompiler: true` in `next.config.ts`), **TypeScript 5.9 strict**.
 - **Tailwind CSS v4** (`@tailwindcss/postcss`), `class-variance-authority`, `tailwind-variants`, icons via `lucide-react` + Radix icons.
-- **Supabase (Postgres)** via `@supabase/ssr` + `@supabase/supabase-js`; auth via `next-auth` v4 + Supabase adapter. **Prisma 6 is installed but unused** — `prisma/schema.prisma` is an empty stub; the real schema lives in raw SQL under `docs/sql/` (see the Database & Backend Reference doc).
+- **Supabase (Postgres)** via `@supabase/ssr` + `@supabase/supabase-js`; auth is Supabase-native (`supabase.auth.getUser()`/cookie sessions) — `next-auth` and Prisma were both removed entirely (2026-08-14, P1 code_review_audit_2026_08_14): neither was ever actually used (zero imports, an empty Prisma stub with no models). The real schema lives in raw SQL under `docs/sql/` (see the Database & Backend Reference doc).
 - **AI:** OpenAI (`gpt-4.1-mini` via `IMOTARA_AI_MODEL`) with Gemini disaster-recovery fallback; **Azure Neural TTS**; **OpenAI Whisper** STT.
 - **Payments:** Razorpay (primary, India + intl) + Stripe; Apple IAP and Google Play verification for mobile purchases.
 - **Other:** `zustand` v5, `react-hook-form` + `zod` v4, `recharts` v3, `nodemailer`, `web-push` + VAPID, `otplib` + `qrcode` (admin 2FA), `date-fns`, Playwright (screenshot test).
 - **Hosting:** Vercel, deploy on push to `main`. `vercel.json` defines **9 cron jobs**. Security headers/CSP set in `next.config.ts` (Razorpay + Supabase allowed, X-Frame-Options DENY, HSTS).
 - **Middleware:** `src/proxy.ts` (Next 16's renamed middleware) — refreshes Supabase session cookies on every request and 404s dev/debug/`license-debug` routes in production.
-- **No GitHub Actions CI** — release gates are manual/scripted (see Release Runbook).
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): typecheck → lint (`eslint .`, added 2026-08-14) → KB-version-sync check → unit tests, on every push/PR. Does **not** run `next build` (needs real Supabase/Razorpay secrets and pings an external URL via `postbuild`) — that release gate is still manual/scripted (see Release Runbook).
 
 ## 2. Repo layout
 
 ```
 imotaraapp/
-├─ prisma/schema.prisma      # STUB — no models; docs/sql/ is the real schema
-├─ public/                   # icons, manifest, sw.js, sounds/, tts-preview/ (42 MP3s), avatars/
+├─ public/                   # icons, manifest, sw.js, sounds/, tts-preview/ (42 MP3s), avatars/ (WebP)
 ├─ scripts/                  # devRoutes.mjs, bump-version.mjs, ping-sitemap.mjs,
 │                            #   generate-tts-previews.mjs, ~15 generate-*-pdf.js marketing generators
 ├─ tests/imotara-ai/         # E2E AI eval harness: runner.ts, judge.ts, scenarios.<lang>.ts (22 langs)
 ├─ docs/                     # ARCHITECTURE.md, IMOTARA_OVERVIEW.md, LICENSING.md, CHANGELOG_v1.2.7.md,
-│  ├─ sql/                   #   68 raw SQL migration files (the actual DB schema)
+│  ├─ sql/                   #   78 raw SQL migration files (the actual DB schema — no ORM, no Prisma)
 │  └─ *.pdf / *.html         #   marketing/licensing/vision decks, test plans, audits
 └─ src/
    ├─ proxy.ts               # middleware
@@ -68,7 +67,7 @@ imotaraapp/
 
 ## 7. Environment variables
 
-From `.env.example`: Supabase (`NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`, `SUPABASE_URL/ANON_KEY/SERVICE_ROLE_KEY`), NextAuth (`NEXTAUTH_URL/SECRET`), `NEXT_PUBLIC_IMOTARA_API_BASE_URL`, AI (`OPENAI_API_KEY`, `IMOTARA_AI_MODEL`, `IMOTARA_OPENAI_BASE_URL`), licensing flags (`NEXT_PUBLIC_IMOTARA_LICENSE_MODE`, `LAUNCH_DATE`, `FREE_DAYS`), Razorpay (`RAZORPAY_KEY_ID/SECRET/WEBHOOK_SECRET`, `RAZORPAY_CONNECT_KEY_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`), VAPID push keys, `CRON_SECRET`, SMTP (`SMTP_HOST`, `ALERT_GMAIL_USER/APP_PASSWORD`, `CONNECT_PLATFORM_EMAIL`), admin (`ADMIN_SECRET`, `ADMIN_SECRET_DISABLED=true`).
+From `.env.example`: Supabase (`NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`, `SUPABASE_URL/ANON_KEY/SERVICE_ROLE_KEY`), `NEXT_PUBLIC_IMOTARA_API_BASE_URL`, AI (`OPENAI_API_KEY`, `IMOTARA_AI_MODEL`, `IMOTARA_OPENAI_BASE_URL`), licensing flags (`NEXT_PUBLIC_IMOTARA_LICENSE_MODE`, `LAUNCH_DATE`, `FREE_DAYS`), Razorpay (`RAZORPAY_KEY_ID/SECRET/WEBHOOK_SECRET`, `RAZORPAY_CONNECT_KEY_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`), VAPID push keys, `CRON_SECRET`, SMTP (`SMTP_HOST`, `ALERT_GMAIL_USER/APP_PASSWORD`, `CONNECT_PLATFORM_EMAIL`), admin (`ADMIN_SECRET`, `ADMIN_SECRET_DISABLED=true`), Sentry (`NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN`, all optional, added 2026-08-14).
 
 > **Known gap:** Azure TTS and Stripe key names are used in code but NOT listed in `.env.example` — check `src/lib/azure-tts/regionRouter.ts` and the Stripe client for exact names before touching those areas.
 
@@ -77,11 +76,11 @@ From `.env.example`: Supabase (`NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`, `SUPABASE_UR
 - **Vitest** unit tests in `src/__tests__/` with `src/__mocks__/`.
 - **AI eval harness** in `tests/imotara-ai/`: `runner.ts` (E2E driver), `judge.ts` (LLM-as-judge), `coherence-audit.ts`, per-language `scenarios.<lang>.ts` for all 22 languages — wired to ~90 npm scripts (`test:ai:e2e:<lang>[:mobile][:verbose]`).
 - Root `tests/*.mjs` (full-test-suite, language-reply, psychological-tools) — `full-test-suite.mjs` is a release gate.
-- `screenshot-test.js` (Playwright). No CI runs any of these automatically.
+- `screenshot-test.js` (Playwright, run manually). CI (`.github/workflows/ci.yml`) runs typecheck, lint, and Vitest unit tests on every push/PR — it does not run the AI eval harness, root `tests/*.mjs`, or the Playwright screenshot test.
 
 ## 9. Fragile areas / gotchas
 
-- **Migrations are unmanaged raw SQL** (68 files in `docs/sql/`, applied by hand, ordered by convention). Connect went through 37 hardening passes — its billing/RLS logic is intricate and race-prone. Prisma is a decoy.
+- **Migrations are unmanaged raw SQL** (78 files in `docs/sql/`, applied by hand, ordered by convention — no ORM). Connect went through 37+ hardening passes — its billing/RLS logic is intricate and race-prone.
 - **`runImotara.ts` is ~4,260 lines**; `/chat` and `/admin` pages are multi-thousand-line single files. Heavy to refactor; lots of inline language/regex heuristics.
 - **Licensing is dual-sourced:** client-side env-flag/launch-offer path (currently `off` = everything open) vs real server enforcement (20/day quota + org RPC tiers). Never trust the client gate for security; source of truth is `resolve_user_tier` + the `/api/chat-reply` quota.
 - **Language detection is acknowledged-imperfect** (Gujarati↔Bengali romanized confusion, Marathi↔Hindi Devanagari overlap).

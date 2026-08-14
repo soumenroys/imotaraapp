@@ -240,7 +240,7 @@ for (const [lang, meta] of Object.entries(LANGS)) {
     continue;
   }
 
-  let content = fs.readFileSync(filePath, "utf-8");
+  const content = fs.readFileSync(filePath, "utf-8");
 
   if (content.includes(`${lang}-style-comfort-01`)) {
     console.log(`✓  ${lang} — already patched, skipping`);

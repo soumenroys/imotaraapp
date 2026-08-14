@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
+
 export default function GlobalError({
     error,
     reset,
@@ -7,6 +10,14 @@ export default function GlobalError({
     error: Error & { digest?: string };
     reset: () => void;
 }) {
+    // P2-10 (code_review_audit_2026_08_14 finding F2): this boundary already
+    // caught segment-level errors but reported them nowhere at all — no
+    // console.error, no telemetry, nothing. captureException no-ops safely
+    // when Sentry was never initialized (no SENTRY_DSN configured).
+    useEffect(() => {
+        Sentry.captureException(error);
+    }, [error]);
+
     return (
         <div className="mx-auto flex min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center px-4 py-10 text-zinc-50">
             <div className="imotara-glass-card w-full rounded-2xl p-6 sm:p-8">

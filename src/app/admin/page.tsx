@@ -1267,7 +1267,7 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
             </button>
             <label className="flex w-full items-center gap-1.5 text-[10px] text-zinc-400">
               <input type="checkbox" checked={createInvite} onChange={(e) => setCreateInvite(e.target.checked)} disabled={adding} />
-              Create new account + email a password-set invite (for people who don't have an Imotara account yet)
+              Create new account + email a password-set invite (for people who don&apos;t have an Imotara account yet)
             </label>
             {addErr && <p className="w-full text-[10px] text-rose-400">{addErr}</p>}
             {addOk && <p className="w-full text-[10px] text-emerald-400">{addOk}</p>}
@@ -3399,7 +3399,7 @@ export default function AdminPage() {
       </div>
 
       {/* Tab bar — scrollable on mobile so all tabs fit */}
-      <div className="mb-6 overflow-x-auto">
+      <div className="mb-6 flex items-center gap-2 overflow-x-auto">
         <div className="flex min-w-max gap-1 rounded-xl border border-white/8 bg-white/5 p-1">
           {([
             ["comments",      "💬", "Comments"],
@@ -3420,6 +3420,14 @@ export default function AdminPage() {
             </button>
           ))}
         </div>
+
+        {myRole !== "connect_reviewer" && (
+          <a href="/admin/crisis-events"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-500/10 px-3 py-2.5 text-xs whitespace-nowrap text-rose-300 transition hover:border-rose-400/40 hover:bg-rose-500/15">
+            <span>🆘</span>
+            <span className="hidden sm:inline">Crisis Events</span>
+          </a>
+        )}
       </div>
 
       {/* Comments section */}

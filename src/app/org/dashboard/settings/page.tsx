@@ -285,7 +285,7 @@ export default function SettingsPage() {
                 <p className="mt-1 text-[11px] text-zinc-600">Paste a public URL to your logo (PNG/SVG, transparent background recommended)</p>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-zinc-400">Brand name <span className="text-zinc-600">(replaces "Imotara" in the dashboard header)</span></label>
+                <label className="mb-1 block text-xs font-medium text-zinc-400">Brand name <span className="text-zinc-600">(replaces &quot;Imotara&quot; in the dashboard header)</span></label>
                 <input value={brandName} onChange={(e) => setBrandName(e.target.value)}
                   placeholder="e.g. Acme Wellness"
                   className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50" />
@@ -551,7 +551,7 @@ function ReferralSection() {
         <p className="text-sm font-medium text-zinc-300">Referral Codes (Revenue Sharing)</p>
         <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">Commission tracking coming soon</span>
       </div>
-      <p className="text-xs text-zinc-500">Reserve a referral code now for your beneficiaries. Automatic commission tracking (10% of first-year revenue when someone upgrades using your code) is on our roadmap and not yet active — usage/earnings below won't accrue until it ships.</p>
+      <p className="text-xs text-zinc-500">Reserve a referral code now for your beneficiaries. Automatic commission tracking (10% of first-year revenue when someone upgrades using your code) is on our roadmap and not yet active — usage/earnings below won&apos;t accrue until it ships.</p>
       <form onSubmit={handleGenerate} className="flex gap-2">
         <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Code label (optional)" className="flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50" />
         <button type="submit" disabled={saving} className="rounded-xl bg-emerald-500/80 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50">{saving ? "…" : "Generate"}</button>

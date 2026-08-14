@@ -16,6 +16,7 @@ import {
   sendPlatformRevenueEmail,
 } from "@/lib/connect/mailer";
 import { creditConsultantDurably } from "@/lib/connect/creditConsultant";
+import { splitSessionEarnings, type MoneySplit } from "@/lib/connect/money";
 
 export async function POST(
   req: NextRequest,
@@ -104,7 +105,7 @@ export async function POST(
         `(wall-clock elapsed ${wallClockMin}min) session:`, sessionId,
       );
     }
-    const pathCAmount = +(billableMin * ratePerMin).toFixed(4);
+    const split = splitSessionEarnings(billableMin, ratePerMin);
     const { data: completedRows, error: pathCErr } = await supabase
       .from("connect_sessions")
       .update({
@@ -112,8 +113,8 @@ export async function POST(
         ended_at:       now,
         last_tick_at:   now,
         minutes_used:   ticksMinutes,
-        amount_charged: pathCAmount,
-        platform_fee:   +(pathCAmount * 0.20).toFixed(4),
+        amount_charged: split.amountCharged,
+        platform_fee:   split.platformFee,
       })
       .eq("id", sessionId)
       .eq("status", "active")
@@ -125,19 +126,18 @@ export async function POST(
     }
 
     if (completedRows && completedRows.length > 0) {
-      await creditConsultant(supabase, session.consultant_id, billableMin, ratePerMin, sessionId);
+      await creditConsultant(supabase, session.consultant_id, split.consultantCredited, sessionId);
       void sendCompletionEmails(supabase, {
         sessionId,
         userId:        session.user_id,
         consultantId:  session.consultant_id,
         minutesUsed:   billableMin,
-        // Same pathCAmount used for the DB write above — previously this
+        // Same split used for the DB write above — previously this
         // recomputed an unrounded raw float independently, so the email could
         // show a long floating-point amount even on the path whose DB write
         // was rounded.
-        amountCharged: pathCAmount,
+        split,
         currency:      session.currency_code ?? "INR",
-        ratePerMin,
       }).catch((e) => console.error("[tick] completion email error:", e));
     }
 
@@ -165,15 +165,15 @@ export async function POST(
         `(wall-clock elapsed ${wallClockMin}min) session:`, sessionId,
       );
     }
-    const newAmountCharged = +(billableMin * ratePerMin).toFixed(4);
+    const split = splitSessionEarnings(billableMin, ratePerMin);
     const { data: completedRows, error: pathBErr } = await supabase
       .from("connect_sessions")
       .update({
         status:         "completed",
         ended_at:       now,
         minutes_used:   newMinutesUsed,
-        amount_charged: newAmountCharged,
-        platform_fee:   +(newAmountCharged * 0.20).toFixed(4),
+        amount_charged: split.amountCharged,
+        platform_fee:   split.platformFee,
         last_tick_at:   now,
       })
       .eq("id", sessionId)
@@ -186,15 +186,14 @@ export async function POST(
     }
 
     if (completedRows && completedRows.length > 0) {
-      await creditConsultant(supabase, session.consultant_id, billableMin, ratePerMin, sessionId);
+      await creditConsultant(supabase, session.consultant_id, split.consultantCredited, sessionId);
       void sendCompletionEmails(supabase, {
         sessionId,
         userId:        session.user_id,
         consultantId:  session.consultant_id,
         minutesUsed:   billableMin,
-        amountCharged: newAmountCharged,
+        split,
         currency:      session.currency_code ?? "INR",
-        ratePerMin,
       }).catch((e) => console.error("[tick] completion email error:", e));
     }
 
@@ -204,7 +203,9 @@ export async function POST(
   // Ongoing (non-completing) tick — bill exactly what's ticked, no wall-clock cap.
   // Reconciliation only applies at completion (P1-5's stated scope); mid-session
   // the client still needs minutes_used to track its own remaining balance display.
-  const newAmountCharged = +(newMinutesUsed * ratePerMin).toFixed(4);
+  // platform_fee/consultant_credited aren't written here — only at completion —
+  // so only amountCharged from the split is needed on this path.
+  const { amountCharged: newAmountCharged } = splitSessionEarnings(newMinutesUsed, ratePerMin);
 
   // Optimistic lock: only write if minutes_used hasn't changed since we read it.
   // Also require status="active" so a concurrent PATCH complete cannot be overwritten.
@@ -241,15 +242,14 @@ async function sendCompletionEmails(
     userId:       string;
     consultantId: string;
     minutesUsed:  number;
-    amountCharged: number;
+    split:        MoneySplit;
     currency:     string;
-    ratePerMin:   number;
   }
 ) {
   try {
-    const totalCharged   = data.amountCharged;
-    const earnedAmount   = data.minutesUsed * data.ratePerMin * 0.80;
-    const platformFee    = data.minutesUsed * data.ratePerMin * 0.20;
+    const totalCharged   = data.split.amountCharged;
+    const earnedAmount   = data.split.consultantCredited;
+    const platformFee    = data.split.platformFee;
 
     // Fetch user email + most recent recharge invoice for reference
     const [{ data: authUser }, { data: invoiceRow }] = await Promise.all([
@@ -340,11 +340,12 @@ async function fetchConsultantRate(
 
 // sessionId: when provided, consultant_credited is written to the session row ONLY
 // after both wallet upsert and earnings RPC succeed — ensuring no false audit record.
+// earnings: computed by the caller via splitSessionEarnings() — see src/lib/connect/money.ts.
+// Not recomputed here so this is never a second, independently-drifting copy of the split.
 async function creditConsultant(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   consultantId: string,
-  minutesUsed: number,
-  lockedRatePerMin: number,
+  earnings: number,
   sessionId: string,
 ) {
   const { data: consultant } = await supabase
@@ -354,9 +355,6 @@ async function creditConsultant(
     .single();
 
   if (!consultant) return;
-
-  // Use the rate locked at session creation, not the consultant's current rate.
-  const sessionEarnings = Number(minutesUsed) * Number(lockedRatePerMin) * 0.80;
 
   // Durable credit: writes an earnings-ledger row before attempting anything,
   // so a transient failure here (wallet upsert or the earnings RPC) no
@@ -372,7 +370,7 @@ async function creditConsultant(
     sessionId,
     consultantId: consultant.id,
     consultantUserId: consultant.user_id,
-    earnings: sessionEarnings,
+    earnings,
     logTag: "[tick/creditConsultant]",
   });
 

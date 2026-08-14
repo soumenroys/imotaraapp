@@ -19,6 +19,8 @@ import { resolveUserTier } from "@/lib/imotara/org";
 import { callImotaraAI, streamImotaraAI } from "@/lib/imotara/aiClient";
 import type { ImotaraAIResponse } from "@/lib/imotara/aiClient";
 import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
+import { isRomanizedInput } from "@/lib/imotara/scriptDetection";
+import { CRISIS_HINT_REGEX, LONELY_WANTS_COMPANY_REGEX } from "@/lib/emotion/keywordMaps";
 
 // This route had no rate limiting of any kind before — see
 // code_review_audit_2026_08_14 (P0-2). 30 requests/minute per IP is
@@ -29,6 +31,7 @@ import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLim
 // tokens per request, so a limiter that resets on cold start isn't enough.
 const RATE_LIMIT_PER_MIN = 30;
 import { formatImotaraReply } from "@/lib/imotara/response/responseFormatter";
+import { isBadPlaceholderText } from "@/lib/imotara/response/badPlaceholderText";
 import { getCulturalEmotionWord } from "@/lib/ai/cultural/culturalEmotionVocab";
 
 import {
@@ -124,52 +127,44 @@ function detectEmotionalArc(
   return { depth: "light", emotionalTurnCount, userTurnCount };
 }
 
-/**
- * Returns true when the user's message is written in romanized/transliterated
- * script (Latin letters) for a non-Latin-native language (Indic, Cyrillic, RTL, CJK).
- * Used to inject a hard SCRIPT MIRROR instruction into the system prompt.
- */
-function isRomanizedInput(message: string, lang: string): boolean {
-  const nativeScriptLangs = ["bn", "hi", "mr", "ta", "te", "gu", "kn", "ml", "pa", "or", "ur", "ru", "ar", "he", "zh", "ja"];
-  if (!nativeScriptLangs.includes(lang)) return false;
-  const latinCount = (message.match(/[a-zA-Z]/g) ?? []).length;
-  const totalLetterCount = (message.match(/\p{L}/gu) ?? []).length;
-  if (!(totalLetterCount > 3 && latinCount / totalLetterCount > 0.65)) return false;
-  // Don't fire SCRIPT MIRROR on plain English. Three gates:
-  // Gate 1: structural/grammatical English words (contractions, connectives, determiners)
-  // that NEVER appear in romanized Indic/Semitic text.
-  const englishStructural = /\b(I'm|I've|I'll|I'd|don't|doesn't|didn't|can't|won't|isn't|aren't|wasn't|the|because|although|however|therefore|everything|something|nothing|anything)\b/g;
-  const englishHits = (message.match(englishStructural) ?? []).length;
-  // Gate 2: high density of common English words that never appear in romanized Indic/Semitic.
-  // Excludes borrowed words (feel, office, busy, school) that appear in Hinglish/Banglish.
-  const commonEnglish = /\b(have|been|know|talk|about|anyone|lately|still|need|would|could|should|when|what|where|into|from|there|their|they|them|this|that|these|those|then|your|very|more|some|only|here|work|life|going|doing|trying|getting|being|having|making|taking|coming|thinking|looking|seeing|finding|wondering|feeling|lately|worried|understand|myself|yourself|sometimes|always|never|already|together|another|without|through|before|after|every|other|might|really|quite|which|while|again|cannot|though|maybe)\b/g;
-  const commonEnglishHits = (message.match(commonEnglish) ?? []).length;
-  // Gate 3: Indic/Semitic grammar markers that NEVER appear in plain English sentences
-  const indicGrammar = /\b(hai|hain|hoon|hoga|hogi|tha|thi|raha|rahi|rahe|mein|toh|bhi|aur|nahi|nahin|ami|tumi|amar|tomar|ache|achhi|achhe|karo|bolo|kothay|kotha|jao|esho)\b/i;
-  const hasIndicGrammar = indicGrammar.test(message);
-  // Plain English: structural words OR common-word density — AND no Indic/Semitic grammar
-  if (englishHits >= 2 && !hasIndicGrammar) return false;
-  if (englishHits >= 1 && !hasIndicGrammar && /\b(I'm|don't|doesn't|didn't|can't|won't|isn't|aren't|wasn't)\b/i.test(message)) return false;
-  if (commonEnglishHits >= 3 && !hasIndicGrammar) return false;
-  return true;
-}
-
-function isBadPlaceholderText(s: string): boolean {
-  const t = (s ?? "").trim();
-  if (!t) return true;
-
-  // The exact string you reported + common variants
-  return (
-    t.includes("soft, placeholder reply") ||
-    t.includes("I tried to connect to Imotara's AI engine") ||
-    t.includes("but something went wrong")
-  );
-}
-
 // Node.js runtime — required for next/headers (used by getSupabaseUserServerClient for cookie auth).
 // Deploy to Singapore — closest Vercel region to Supabase ap-southeast-1 and Indian users.
 export const preferredRegion = ["sin1"];
 export const maxDuration = 60;
+
+// Metadata-only crisis-detection log (owner decision 2026-08-14: no message
+// text stored, dashboard-only visibility — see docs/sql/crisis_events_v1.sql
+// and /admin/crisis-events). Fire-and-forget: never awaited by the caller,
+// never allowed to affect the reply or its latency — a logging failure here
+// must not degrade the actual user-facing safety response.
+//
+// Deduped to one row per ~60min episode per user, not one row per
+// crisis-adjacent turn — otherwise a single ongoing conversation would
+// flood the dashboard with dozens of near-identical rows.
+function logCrisisEvent(userId: string, platform: "web" | "mobile", preferredLang: string): void {
+  if (!userId) return; // no authenticated user to attribute this to — skip rather than log a null-user row
+  void (async () => {
+    try {
+      const supabase = getSupabaseAdmin();
+      const { data: recent } = await supabase
+        .from("crisis_events")
+        .select("id")
+        .eq("user_id", userId)
+        .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
+        .limit(1)
+        .maybeSingle();
+      if (recent) return; // already logged this episode
+
+      await supabase.from("crisis_events").insert({
+        user_id: userId,
+        platform,
+        preferred_lang: preferredLang || null,
+      });
+    } catch (err) {
+      console.error("[chat-reply] logCrisisEvent failed:", err);
+    }
+  })();
+}
 
 export async function GET() {
   // Friendly response so opening in browser doesn't show 405
@@ -246,6 +241,41 @@ export async function POST(req: Request) {
         .reverse()
         .find((m) => m.role === "user")
         ?.content?.trim() ?? "";
+
+    // P2-24 (code_review_audit_2026_08_14): a flat 0.8 temperature applied
+    // uniformly to every reply, including ones responding to a crisis signal
+    // (suicidal ideation, self-harm, abuse — CRISIS_HINT_REGEX, the same
+    // multilingual detector the client-side safety banner uses), makes those
+    // replies less consistent than they should be — this is exactly the
+    // moment the model should stick closely to the TIER 1 crisis instructions
+    // already in the system prompt, not sample more freely. Checked across
+    // the recent window (not just the latest message) since a crisis signal
+    // 1-2 turns back still warrants a measured reply now.
+    const isCrisisAdjacent = recent
+      .filter((m) => m.role === "user")
+      .some((m) => CRISIS_HINT_REGEX.test(m.content));
+    const replyTemperature = isCrisisAdjacent ? 0.4 : 0.8;
+
+    // Deterministic trigger for the CONNECT REFERRAL RULE — live testing showed
+    // the LLM reliably ignores an in-prompt-only instruction to mention Connect
+    // (buried among thousands of lines of stronger, example-rich stylistic
+    // guidance), so this flag drives the "repeat near end for recall" reminder
+    // the same way scriptMirrorInstruction/contextAnchor already do below.
+    // LONELY_WANTS_COMPANY_REGEX covers all 22 Imotara-supported languages.
+    //
+    // Deliberately excludes isCrisisAdjacent turns: live testing showed that
+    // when both signals fire together ("no one to talk to" + "want to end it
+    // all"), the recall-boosted Connect reminder crowded out the professional/
+    // trusted-person crisis referral entirely — the reply mentioned ONLY
+    // Connect. Crisis safety must never be diluted by a product mention, so
+    // the reminder is suppressed outright whenever crisis language is present
+    // in the same window, leaving the TIER 1 crisis instruction as the sole
+    // referral.
+    const isLonelyOrWantsCompany =
+      !isCrisisAdjacent &&
+      recent
+        .filter((m) => m.role === "user")
+        .some((m) => LONELY_WANTS_COMPANY_REGEX.test(m.content));
 
     // Normalize message for detection
     const normalizedMsg = lastUserMsg
@@ -391,12 +421,59 @@ export async function POST(req: Request) {
 
     type QuotaInfo = { licRow: { tier: string; expires_at: string | null; token_balance: number | null } | null; usageCount: number };
 
+    // Shared by both the speculative (provisionalUserId) and the verified-fallback
+    // (authedUserId) fetch below — see the `verified` branch further down for why
+    // a second, non-speculative fetch is sometimes required.
+    async function fetchQuotaInfo(
+      quotaAdmin: ReturnType<typeof getSupabaseAdmin>,
+      userId: string,
+    ): Promise<QuotaInfo> {
+      const { data: licRow } = await quotaAdmin
+        .from("licenses")
+        .select("tier, expires_at, token_balance")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      const isFree = !licRow || licRow.tier === "free";
+      const trialActive = licRow?.expires_at
+        ? new Date(licRow.expires_at) > new Date()
+        : false;
+      if (!isFree || trialActive) return { licRow, usageCount: 0 };
+
+      const todayStart = new Date();
+      todayStart.setUTCHours(0, 0, 0, 0);
+      const { count } = await quotaAdmin
+        .from("usage_events")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .gte("created_at", todayStart.toISOString());
+
+      return { licRow, usageCount: count ?? 0 };
+    }
+
+    async function fetchPreferredNameFor(userId: string): Promise<string> {
+      const memories = await fetchUserMemories(getSupabaseAdmin() as any, userId, 5);
+      const raw = Array.isArray(memories)
+        ? (memories.find((m: any) => m?.key === "preferred_name")?.value ?? "")
+        : "";
+      return typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
+    }
+
     // Auth verification + quota data fetch ALWAYS run in parallel — these are
     // billing/access-control concerns and must never be skippable by a
     // client-supplied flag. Only the memory-fetch branch below still checks
     // allowMemory, since that's the one thing this flag is actually meant to
     // control.
-    const [authResult, memResult, quotaResult] = await Promise.allSettled([
+    // Speculative-parallel like memory/quota below: only fetched when tier
+    // enforcement is even active, keyed on the unverified provisionalUserId
+    // purely so it runs alongside auth verification instead of after it.
+    // Previously this was a fully separate `await resolveUserTier(...)` AFTER
+    // this whole batch resolved — an extra sequential DB round-trip on the
+    // hot chat-reply path for every enforce-mode request. Consumed below only
+    // once `verified` is confirmed — same rule as memory/quota.
+    const enforceModeActive = getLicenseMode() === "enforce";
+
+    const [authResult, memResult, quotaResult, tierResult] = await Promise.allSettled([
       // ── auth verification (network call, ~100-300ms) ─────────────────────
       // Bearer token first (mobile never sends cookies — matches the
       // pattern already used correctly in history/route.ts, chat/messages,
@@ -429,15 +506,7 @@ export async function POST(req: Request) {
       // is confirmed to match — never trust it on its own.
       (async (): Promise<string> => {
         if (!allowMemory || nameFromPayload || !provisionalUserId) return "";
-        const memories = await fetchUserMemories(
-          getSupabaseAdmin() as any,
-          provisionalUserId,
-          5, // only need preferred_name — fetch fewer rows
-        );
-        const raw = Array.isArray(memories)
-          ? (memories.find((m: any) => m?.key === "preferred_name")?.value ?? "")
-          : "";
-        return typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
+        return fetchPreferredNameFor(provisionalUserId);
       })(),
 
       // ── quota data fetch (READ ONLY — no writes, no decisions here) ────────
@@ -448,28 +517,13 @@ export async function POST(req: Request) {
       // never on allowMemory.
       (async (): Promise<QuotaInfo> => {
         if (!provisionalUserId) return { licRow: null, usageCount: 0 };
-        const quotaAdmin = getSupabaseAdmin();
-        const { data: licRow } = await quotaAdmin
-          .from("licenses")
-          .select("tier, expires_at, token_balance")
-          .eq("user_id", provisionalUserId)
-          .maybeSingle();
+        return fetchQuotaInfo(getSupabaseAdmin(), provisionalUserId);
+      })(),
 
-        const isFree = !licRow || licRow.tier === "free";
-        const trialActive = licRow?.expires_at
-          ? new Date(licRow.expires_at) > new Date()
-          : false;
-        if (!isFree || trialActive) return { licRow, usageCount: 0 };
-
-        const todayStart = new Date();
-        todayStart.setUTCHours(0, 0, 0, 0);
-        const { count } = await quotaAdmin
-          .from("usage_events")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", provisionalUserId)
-          .gte("created_at", todayStart.toISOString());
-
-        return { licRow, usageCount: count ?? 0 };
+      // ── tier resolution (only when enforcement is active) ──────────────────
+      (async () => {
+        if (!enforceModeActive || !provisionalUserId) return null;
+        return resolveUserTier(provisionalUserId);
       })(),
     ]);
 
@@ -477,17 +531,48 @@ export async function POST(req: Request) {
 
     // A forged/unsigned bearer token decodes to a `provisionalUserId` guess
     // but never passes real signature verification, so authedUserId stays
-    // "". Only apply anything keyed on the unverified guess once it's been
-    // confirmed to match the verified identity — this is the only line
-    // standing between "speculative perf optimization" and "attacker sets
-    // sub to a victim's id and we trust it."
+    // "". `verified` confirms the SPECULATIVE fetches above (keyed on
+    // provisionalUserId) were fetched for the actual authenticated user —
+    // without this, an attacker sending a forged Bearer token with
+    // `sub: <victim>` alongside their OWN valid cookie session could get
+    // the victim's speculatively-fetched memory/quota data applied to
+    // their own real, authenticated request.
     const verified = !!authedUserId && authedUserId === provisionalUserId;
 
-    if (verified) {
-      if (allowMemory && memResult.status === "fulfilled" && memResult.value) preferredName = memResult.value;
+    // CRITICAL FIX (found while implementing an unrelated perf change,
+    // 2026-08-14 — see [[code_review_audit_2026_08_14]]): the web app
+    // authenticates purely via cookies and NEVER sends a Bearer header
+    // (see respondRemote.ts) — so provisionalUserId is always "" for real
+    // web traffic, `verified` can never be true, and everything below was
+    // silently skipped for every real signed-in web user: no quota
+    // enforcement, no tier constraints, no memory personalization. Not a
+    // spoofing hole — an unconditional bypass, live in production. A cookie
+    // session's authedUserId is independently, cryptographically verified
+    // by supabaseUser.auth.getUser() (same as the bearer path) — it's
+    // already just as trustworthy as authedUserId always is; it just can't
+    // reuse the provisionalUserId-keyed speculative fetches, since those
+    // were never fetched for it. Fix: whenever real auth succeeded
+    // (authedUserId truthy) but the speculative fetches can't be reused
+    // (!verified), redo them once, keyed on the real authedUserId, instead
+    // of skipping outright. The bearer/mobile path (verified === true)
+    // keeps its original zero-extra-round-trip behavior unchanged.
+    if (authedUserId) {
+      const quotaAdmin = getSupabaseAdmin();
 
-      if (quotaResult.status === "fulfilled") {
-        const { licRow, usageCount } = quotaResult.value;
+      if (allowMemory) {
+        if (verified) {
+          if (memResult.status === "fulfilled" && memResult.value) preferredName = memResult.value;
+        } else if (!nameFromPayload) {
+          preferredName = await fetchPreferredNameFor(authedUserId).catch(() => preferredName);
+        }
+      }
+
+      const quotaInfo: QuotaInfo | null = verified
+        ? (quotaResult.status === "fulfilled" ? quotaResult.value : null)
+        : await fetchQuotaInfo(quotaAdmin, authedUserId).catch(() => null);
+
+      if (quotaInfo) {
+        const { licRow, usageCount } = quotaInfo;
         const isFree = !licRow || licRow.tier === "free";
         const trialActive = licRow?.expires_at
           ? new Date(licRow.expires_at) > new Date()
@@ -496,7 +581,7 @@ export async function POST(req: Request) {
         if (isFree && !trialActive && usageCount >= 20) {
           const tokenBalance = licRow?.token_balance ?? 0;
           if (tokenBalance > 0) {
-            await getSupabaseAdmin()
+            await quotaAdmin
               .from("licenses")
               .update({ token_balance: tokenBalance - 1 })
               .eq("user_id", authedUserId)
@@ -527,26 +612,29 @@ export async function POST(req: Request) {
 
     // ── Phase 3: Tier-based reply constraints (enforce mode only) ────────────
     // In off/log mode these constraints are never applied (soft launch preserved).
+    // tierResult was fetched speculatively in the parallel batch above, keyed
+    // on provisionalUserId. Same cookie-session gap as memory/quota above: a
+    // real authedUserId that isn't `verified` (no bearer token — the web
+    // app's cookie-only sessions) still deserves a fresh, correctly-keyed
+    // lookup rather than being silently skipped.
     let tierResponseConstraint = ""; // injected into system prompt when active
-    if (getLicenseMode() === "enforce" && authedUserId) {
-      try {
-        const tierResult = await resolveUserTier(authedUserId);
-        const effectiveTier = tierResult.ok ? tierResult.data.effectiveTier : "free";
+    if (enforceModeActive && authedUserId) {
+      const resolved = verified
+        ? (tierResult.status === "fulfilled" ? tierResult.value : null)
+        : await resolveUserTier(authedUserId).catch(() => null);
+      const effectiveTier = resolved?.ok ? resolved.data.effectiveTier : "free";
 
-        if (effectiveTier === "free") {
-          // Free: cap response length to ~3 sentences; suppress premium personas
-          tierResponseConstraint =
-            "RESPONSE LENGTH: Keep your reply concise — ideally 2–3 sentences. " +
-            "Do not use extended storytelling, mythology, or multi-paragraph reflections.\n";
+      if (effectiveTier === "free") {
+        // Free: cap response length to ~3 sentences; suppress premium personas
+        tierResponseConstraint =
+          "RESPONSE LENGTH: Keep your reply concise — ideally 2–3 sentences. " +
+          "Do not use extended storytelling, mythology, or multi-paragraph reflections.\n";
 
-          // Override premium tone to default if free user requests one
-          const premiumTones = new Set(["coach", "mentor", "calm_companion"]);
-          if (body?.tone && premiumTones.has(body.tone)) {
-            body.tone = "close_friend"; // downgrade to default tone
-          }
+        // Override premium tone to default if free user requests one
+        const premiumTones = new Set(["coach", "mentor", "calm_companion"]);
+        if (body?.tone && premiumTones.has(body.tone)) {
+          body.tone = "close_friend"; // downgrade to default tone
         }
-      } catch {
-        // Fail open — don't block reply on tier error
       }
     }
 
@@ -621,6 +709,27 @@ export async function POST(req: Request) {
         ].join("\n")
       : "";
 
+    // P2-21 (code_review_audit_2026_08_14): gates the large therapeutic-
+    // technique reference sections (MATURE PSYCHOLOGICAL AWARENESS mega-block,
+    // motivational wisdom-source reference, counsellor guidance mode, intent
+    // detection, mythology/quotes instructions) so they're only sent on
+    // requests where the model was ever told it could use them —
+    // casualChatRule above ALREADY instructs "No deep reflections. No
+    // mythology. No quotes" for light/casual turns, so this doesn't change
+    // what the model is allowed to do, only stops sending ~1,900 lines of
+    // reference material it was already told to ignore.
+    //
+    // CRITICAL SAFETY OVERRIDE: isLightCasual is a crude word-count heuristic
+    // (≤5 words, no EMOTIONAL_SIGNAL_RE match) that does NOT include crisis
+    // vocabulary — a first message like "I want to die" is 4 words and
+    // trips no EMOTIONAL_SIGNAL_RE match, so isLightCasual alone would
+    // evaluate true for it. The mega-block contains the actual crisis-
+    // adjacent tools (S1 DBT distress tolerance, S6 grounding, W4
+    // dissociation, Z6 harm reduction) — isCrisisAdjacent must always force
+    // this true regardless of the casual heuristic, or a crisis message
+    // could silently lose access to those tools.
+    const includeExtendedTherapeuticGuidance = !isLightCasual || isCrisisAdjacent;
+
     // Language instruction: tell GPT to mirror the user's current message language.
     // This overrides conversation history so switching from Bengali to Hindi mid-chat works.
     const langInstructionMap: Record<string, string> = {
@@ -647,6 +756,11 @@ export async function POST(req: Request) {
       id: "The user is writing in Indonesian. Mirror their exact register — Indonesian uses Latin script. CRITICAL: Do NOT insert English phrases mid-reply unless the user used them. FORMALITY: Use informal 'kamu' for close friends and teens; use formal 'Anda' or respectful 'Bapak/Ibu' for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
     };
     const resolvedLang = typeof body?.lang === "string" ? body.lang.slice(0, 5).split("-")[0] : "";
+
+    if (isCrisisAdjacent) {
+      const isMobile = (req.headers.get("Authorization") ?? "").startsWith("Bearer ");
+      logCrisisEvent(authedUserId, isMobile ? "mobile" : "web", resolvedLang);
+    }
 
     // P2: Cultural Emotion Vocabulary — pre-select a candidate word (1 in 8 emotional turns).
     // Seed from user turn count so it stays stable within a turn but varies across turns.
@@ -1111,7 +1225,7 @@ export async function POST(req: Request) {
       `You are ${effectiveCompanionName} — a warm, perceptive companion who listens deeply AND guides thoughtfully. You combine the honesty of a trusted friend, the wisdom of a mentor, and the gentle direction of a good counsellor. When someone shares a struggle, you first hear them fully — then you help them find clarity or a way forward, even if it is just one small step or a fresh perspective. You do not withhold help behind endless reflection. When the user asks a general knowledge or factual question, answer it naturally and helpfully as a knowledgeable friend — clear, brief, warm — without forcing emotional framing. Only return to emotional presence if they steer there.`,
       "Do NOT sound generic. Never repeat the same opener style across turns — 'I'm with you / I'm here / I hear you' should not appear more than once per conversation. Instead open with something that reflects what the user specifically said: name the emotion, reference the situation, or mirror their energy.",
       "EMPATHY VARIETY RULE: Avoid overusing weight and burden metaphors ('that sounds heavy', 'you're carrying a lot', 'that's a lot to sit with'). Vary your empathy language — use specific, human, direct observations instead: 'That kind of hurt doesn't just go away on its own', 'I'd feel that way too', 'That's genuinely unfair', 'That sounds like it came out of nowhere'.",
-      [
+      includeExtendedTherapeuticGuidance ? [
         "INTENT DETECTION — READ THIS CAREFULLY EVERY TURN (applies to ALL languages):",
         "Detect what the user actually needs right now before responding.",
         "",
@@ -1168,15 +1282,16 @@ export async function POST(req: Request) {
         "▸ FACTUAL QUESTION: Answer it helpfully, naturally, briefly.",
         "▸ CASUAL CHAT: Light and natural. No heavy emotional processing.",
         "CRITICAL: This applies in EVERY language. Never misread a stuck, recurring, or overwhelmed user as someone who just wants to vent. When someone keeps sharing the same pain across multiple turns — they need more than presence. They need help.",
-      ].join("\n"),
+      ].join("\n") : "",
       "If the user already gave context, do NOT ask vague questions like 'what's on your mind' or 'what's going on' — continue the same thread.",
       "QUESTION RULE: Do NOT end every reply with a question. A real friend sometimes just listens and reflects without asking anything. Only ask a question when it genuinely opens something new — not as a default closer. Maximum one question per reply, and skip it entirely if the user is sharing something tender.",
       "VENTING RULE: If the user is venting for the FIRST 1–2 turns, respond with pure presence — 'You don't have to figure this out right now' / 'You're allowed to feel all of this.' No advice yet. BUT: if they are still in the same pain after 3+ turns without resolution — pure presence is no longer enough. Gently shift: validate briefly, then offer one insight or perspective. A companion who only listens and never helps is not truly helping.",
       "SYMPTOM MIRRORING: When the user describes specific physical sensations or behaviors — chest tightness, insomnia, not eating, fatigue, headache, trembling, shallow breath — NAME those specific details back. Do NOT respond with a generic 'anxiety is hard' or 'this happens to many people'. Say back the exact thing they described: 'सीने की वो बेचैनी...' / 'नींद न आना और खाना भी नहीं — ये सब एक साथ बहुत भारी होता है'.",
       "OPENER RULE: Never start with 'Got it', 'Absolutely', 'Of course', or similar filler acknowledgements. Respond directly to what the user said.",
-      "No medical, diagnostic, or crisis instructions. If serious risk appears, encourage reaching out to trusted people/local services.",
+      "No medical, diagnostic, or crisis instructions. If serious risk appears, encourage reaching out to trusted people and local professional crisis services — always lead with that.",
+      "CONNECT REFERRAL RULE: If the user explicitly says (in ANY language) that they are lonely, have no one to talk to, or wish they had someone real/human to talk to — you MUST, in that same reply, name 'Imotara Connect' as a place to talk to a real person one-on-one, e.g. 'you can also talk to a real person through Imotara Connect if you want company.' Say this plainly, alongside your own presence, not as a replacement for it. This is peer support only — NEVER call a Connect companion a therapist, counsellor, doctor, or any kind of licensed/medical professional. EXCEPTION: if the user has also expressed thoughts of suicide, self-harm, or ending their life anywhere in this conversation, do NOT mention Connect — the trusted-person/professional-crisis-service referral above must be the ONLY referral in your reply.",
       "",
-      [
+      includeExtendedTherapeuticGuidance ? [
         "MOTIVATIONAL GUIDANCE — WISDOM SOURCES FOR ADVICE AND ENCOURAGEMENT (ALL LANGUAGES):",
         "When the user needs advice, is stuck, feels hopeless, or asks what to do — draw naturally from these sources. ALWAYS deliver in the user's language. Always tie back to their specific situation — the story serves the advice, not the other way around.",
         "",
@@ -1275,9 +1390,9 @@ export async function POST(req: Request) {
         "HOW TO USE: Weave one element naturally in the user's language — 'Something from the Gita comes to mind...' / 'There is a Japanese saying...' / 'Rumi wrote something that feels true here...' / 'The Quran speaks to this...' Keep it 2–3 sentences: the essence + direct connection to their situation. The story serves the advice — it is not decoration.",
         "WHEN TO USE: When user asks for guidance, is stuck, facing a decision, feeling hopeless, or needs to be reminded of their own strength. Across ALL 22 supported languages.",
         "CRITICAL — ACCURACY: Only use facts and quotes you are certain are real. Never invent or misattribute. If unsure of exact wording, describe the concept or story instead.",
-      ].join("\n"),
+      ].join("\n") : "",
       "",
-      [
+      includeExtendedTherapeuticGuidance ? [
         "COUNSELLOR / THERAPEUTIC GUIDANCE MODE — HOW TO ACTUALLY HELP:",
         "This is not a fixed mode you switch into — it is how you naturally respond when someone needs more than listening.",
         "Activate these techniques whenever the user is stuck, overwhelmed, repeating a struggle, or facing a decision — in any language, adapted to their tone and companion settings.",
@@ -1357,7 +1472,7 @@ export async function POST(req: Request) {
         "  calm_companion: 'Something gentle occurs to me, if you want to hear it...'",
         "  coach: 'Here's what I see, and here's the move I'd make:'",
         "  mentor: 'There is something from [wisdom tradition] that speaks directly to this...'",
-      ].join("\n"),
+      ].join("\n") : "",
       [
         "HOW A DEEPLY PRESENT HUMAN BEING NATURALLY BEHAVES — carry these as instincts, not rules:",
         "Your companion tone setting (close_friend / calm_companion / coach / mentor) defines your entire voice.",
@@ -1629,7 +1744,7 @@ export async function POST(req: Request) {
         "  • Mythology, quotes, humor, and continuation encouragement are all TOOLS — not obligations. Use one per reply at most, and only when it genuinely fits.",
       ].join("\n"),
       "",
-      [
+      includeExtendedTherapeuticGuidance ? [
         "MATURE PSYCHOLOGICAL AWARENESS — WHAT A SEASONED COUNSELLOR NATURALLY NOTICES:",
         "These are not techniques to deploy. They are how a wise, experienced person naturally perceives a conversation.",
         "Use ONE of these per reply, at most — never combine several. And only when it genuinely arises.",
@@ -3290,7 +3405,7 @@ export async function POST(req: Request) {
         "If using any of these would make the reply feel clinical, scripted, or like an AI exercise — skip it. Just be present.",
         "A real friend, mentor, coach, or calm companion never sounds like they're following a protocol.",
         "The companion tone setting is always the final authority on voice, warmth, directness, and pacing.",
-      ].join("\n"),
+      ].join("\n") : "",
       "",
       tierResponseConstraint, // Phase 3: enforce-mode tier constraint (empty string in off/log mode)
       langInstruction,
@@ -3304,7 +3419,7 @@ export async function POST(req: Request) {
       casualChatRule,
       lengthInstruction,
       isLightCasual ? "" : "IMPORTANT: Your reply MUST reference at least one concrete detail from the conversation — this includes earlier turns, not just the most recent message. If the user shared something specific (a name, an event, a relationship, a feeling) in any prior turn, weave it into your reply to show you remember.",
-      [
+      includeExtendedTherapeuticGuidance ? [
         "MYTHOLOGY AND WISDOM STORIES (use generously — they make replies memorable, warm, and deeply human):",
         "STANDARD EMOTIONAL USE: Include mythology when both conditions are met:",
         `  1. The user has shared ${mythArcText}.`,
@@ -3336,9 +3451,9 @@ export async function POST(req: Request) {
         ...(uniqueMyths.length > 0
           ? [`MYTHOLOGY ALREADY USED IN THIS SESSION (do NOT repeat these): ${uniqueMyths.join(", ")}`]
           : []),
-      ].join("\n"),
+      ].join("\n") : "",
       "",
-      [
+      includeExtendedTherapeuticGuidance ? [
         "FAMOUS QUOTES (optional, context-aware):",
         "Separately from mythology, you may also occasionally share a well-known quote from a philosopher, poet, scientist, spiritual figure, or thinker when it genuinely resonates with what the user is going through.",
         "Sources span all cultures and eras: Marcus Aurelius, Rumi, Seneca, Gandhi, Buddha, Tagore, Vivekananda, Maya Angelou, Einstein, Thich Nhat Hanh, Camus, Nietzsche, Tolstoy, Gibran, and others worldwide.",
@@ -3349,7 +3464,7 @@ export async function POST(req: Request) {
         "NEVER USE when: the user is in crisis, light casual chat, greetings, direct factual questions, or when the user simply mentions their language/culture/ethnicity — a user saying 'I'm Bengali' or 'I speak Tamil' is NOT an invitation to quote Tagore or Thiruvalluvar.",
         "ACCURACY: Only use quotes you are certain are real, correctly worded, and correctly attributed. If uncertain, paraphrase the idea in your own words instead — do NOT invent a quote and attach a famous name to it.",
         "TONE: Like a friend who genuinely remembers a line — not a quotation database. Keep it short and connected to what they said.",
-      ].join(" "),
+      ].join(" ") : "",
       "",
       ...(culturalWordCandidate ? [
         [
@@ -3377,6 +3492,12 @@ export async function POST(req: Request) {
       "",
       scriptMirrorInstruction, // LAST: repeat at end for highest LLM recall
       contextAnchor, // repeat context anchor near end for maximum recall
+      isLonelyOrWantsCompany
+        ? "REMINDER — CONNECT REFERRAL RULE (repeated near end for recall): The user said they're lonely / have no one to talk to / wish they had someone real to talk to. You MUST name 'Imotara Connect' in this reply as a place to talk to a real person one-on-one — peer support only, never call it therapy or a licensed professional."
+        : "",
+      isCrisisAdjacent
+        ? "REMINDER — CRISIS SAFETY (repeated near end for recall): The user has expressed thoughts of suicide, self-harm, or ending their life. Do NOT mention Imotara Connect anywhere in this reply, in any language. Your only referral must be to a trusted person and/or local professional crisis services."
+        : "",
       "Now write Imotara's next reply — warm, specific to what the user said, and feels like a natural continuation. CRITICAL: Always finish your last sentence completely — never end mid-sentence or mid-word.",
     ]
       .filter(Boolean)
@@ -3466,7 +3587,7 @@ export async function POST(req: Request) {
             for await (const token of streamImotaraAI("Reply now.", {
               system: streamSystem,
               maxTokens: streamMaxTokens,
-              temperature: 0.8,
+              temperature: replyTemperature,
             })) {
               controller.enqueue(
                 encoder.encode(`data: ${JSON.stringify({ t: token })}\n\n`),
@@ -3490,7 +3611,7 @@ export async function POST(req: Request) {
     const ai: ImotaraAIResponse = await callImotaraAI("Reply now.", {
       system: romanizedPrompt ?? prompt,
       maxTokens: romanizedPrompt ? Math.min(maxTokens, resolvedLang === "bn" ? 320 : 280) : maxTokens,
-      temperature: 0.8,
+      temperature: replyTemperature,
       noQuestions: isClosureIntent,
     });
 

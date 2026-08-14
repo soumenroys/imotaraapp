@@ -166,12 +166,12 @@ function PolicySection() {
       <Table
         headers={["Tier","Price (India)","Daily AI Replies","History","Key features"]}
         rows={[
-          [<Tag color="zinc">Free</Tag>,"₹0","20 replies/day","7 days","Basic chat, local storage, 1 companion tone"],
-          [<Tag color="sky">Plus</Tag>,"₹99/mo · ₹699/yr","Unlimited","90 days","Cloud sync, CSV export, Azure Neural TTS, all companion tones"],
-          [<Tag color="indigo">Pro</Tag>,"₹149/mo · ₹1299/yr","Unlimited","Unlimited","All Plus + emotional insights, growth arc, companion letters"],
-          [<Tag color="violet">Family</Tag>,"Custom","Unlimited","Unlimited","Up to 6 profiles, child-safe mode, parent dashboard"],
-          [<Tag color="emerald">EDU</Tag>,"Custom (50% off)","Unlimited","Unlimited","Org dashboard, anonymised analytics, LMS/iframe embed"],
-          [<Tag color="amber">Enterprise</Tag>,"Custom (NGO 60% off)","Unlimited","Unlimited","Full org suite, API keys, custom branding, SSO/SAML"],
+          [<Tag key="free" color="zinc">Free</Tag>,"₹0","20 replies/day","7 days","Basic chat, local storage, 1 companion tone"],
+          [<Tag key="plus" color="sky">Plus</Tag>,"₹99/mo · ₹699/yr","Unlimited","90 days","Cloud sync, CSV export, Azure Neural TTS, all companion tones"],
+          [<Tag key="pro" color="indigo">Pro</Tag>,"₹149/mo · ₹1299/yr","Unlimited","Unlimited","All Plus + emotional insights, growth arc, companion letters"],
+          [<Tag key="family" color="violet">Family</Tag>,"Custom","Unlimited","Unlimited","Up to 6 profiles, child-safe mode, parent dashboard"],
+          [<Tag key="edu" color="emerald">EDU</Tag>,"Custom (50% off)","Unlimited","Unlimited","Org dashboard, anonymised analytics, LMS/iframe embed"],
+          [<Tag key="enterprise" color="amber">Enterprise</Tag>,"Custom (NGO 60% off)","Unlimited","Unlimited","Full org suite, API keys, custom branding, SSO/SAML"],
         ]}
       />
 
@@ -342,7 +342,7 @@ function SuperAdminSection() {
         <p>A text field appears asking for your email address.</p>
       </Step>
       <Step n={2} title="Enter your email and click Send reset link">
-        <p>You will see: <em className="text-zinc-300">"If that email exists, a reset link has been sent"</em> — the message is the same whether the email is registered or not (to prevent enumeration attacks). Check your inbox.</p>
+        <p>You will see: <em className="text-zinc-300">&quot;If that email exists, a reset link has been sent&quot;</em> — the message is the same whether the email is registered or not (to prevent enumeration attacks). Check your inbox.</p>
         <Screen title="admin — Forgot password" caption="Enter your admin email. The reset link is valid for 15 minutes.">
           <div className="flex justify-center bg-[#0d0d10] py-8">
             <div className="w-72 space-y-3 px-4">
@@ -400,9 +400,9 @@ function SuperAdminSection() {
                   <span className="col-span-2">Organisation</span><span>Members</span><span>Pool</span><span>Status</span>
                 </div>
                 {[
-                  ["Acme Wellness Pvt Ltd","ngo","34","50 / 70",<Tag color="emerald">active</Tag>],
-                  ["Sunrise Academy","edu","51","70 / 80",<Tag color="emerald">active</Tag>],
-                  ["TechCorp India","commercial","2","0 / 0",<Tag color="amber">pending</Tag>],
+                  ["Acme Wellness Pvt Ltd","ngo","34","50 / 70",<Tag key="acme" color="emerald">active</Tag>],
+                  ["Sunrise Academy","edu","51","70 / 80",<Tag key="sunrise" color="emerald">active</Tag>],
+                  ["TechCorp India","commercial","2","0 / 0",<Tag key="techcorp" color="amber">pending</Tag>],
                 ].map(([name,type,mem,pool,status]) => (
                   <div key={name as string} className="grid grid-cols-5 gap-2 border-t border-white/5 px-3 py-2.5 items-center">
                     <div className="col-span-2"><span className="text-zinc-200">{name as string}</span> <Tag color="zinc">{type as string}</Tag></div>
@@ -597,7 +597,7 @@ function SuperAdminSection() {
         <p>Options: <Tag color="amber">owner</Tag> · <Tag color="indigo">admin</Tag> · <Tag color="zinc">member</Tag>. Changes take effect immediately.</p>
       </Step>
       <Step n={3} title="Override a member's license tier using the License tier dropdown">
-        <p>Select any tier from the dropdown. Options: <em>Org default</em> (no override) · Plus · Pro · EDU · Enterprise · Free. The override is recorded and shows in the Licenses tab as <em>"manual override"</em>.</p>
+        <p>Select any tier from the dropdown. Options: <em>Org default</em> (no override) · Plus · Pro · EDU · Enterprise · Free. The override is recorded and shows in the Licenses tab as <em>&quot;manual override&quot;</em>.</p>
       </Step>
 
       <Divider />
@@ -661,7 +661,7 @@ function SuperAdminSection() {
         <div className="mt-3 rounded-xl border border-white/8 bg-white/3 p-3 text-xs text-zinc-400 space-y-1.5">
           <p><strong className="text-zinc-200">Tier</strong> — The license tier members get when assigned from this pool (plus / pro / enterprise / edu).</p>
           <p><strong className="text-zinc-200">Quantity</strong> — How many individual licenses to issue. Each assignment uses 1 license; withdrawing returns it.</p>
-          <p><strong className="text-zinc-200">Label</strong> — Internal name (e.g. "Annual Pro Batch 2026"). Shown to org admins when they assign from the pool.</p>
+          <p><strong className="text-zinc-200">Label</strong> — Internal name (e.g. &quot;Annual Pro Batch 2026&quot;). Shown to org admins when they assign from the pool.</p>
           <p><strong className="text-zinc-200">Expires</strong> — When the pool expires. Leave blank for no expiry. Expired pools cannot be assigned from.</p>
         </div>
       </Step>
@@ -764,7 +764,7 @@ function SuperAdminSection() {
         <p>Works with Google Authenticator, Authy, 1Password, Bitwarden, or any standard TOTP app. Alternatively, enter the secret manually.</p>
       </Step>
       <Step n={4} title='Enter the 6-digit code from your app and click "Verify & enable"'>
-        <p>If the code is correct, 2FA is activated and 8 single-use backup codes are shown. <strong className="text-zinc-200">Save these backup codes somewhere safe</strong> — they're shown only once and let you recover access if you lose your phone.</p>
+        <p>If the code is correct, 2FA is activated and 8 single-use backup codes are shown. <strong className="text-zinc-200">Save these backup codes somewhere safe</strong> — they&apos;re shown only once and let you recover access if you lose your phone.</p>
       </Step>
 
       <H3>Disabling 2FA</H3>
@@ -970,9 +970,9 @@ function OrgAdminSection() {
       <Table
         headers={["Role","Can do"]}
         rows={[
-          [<Tag color="amber">owner</Tag>,"Everything (1 per org). Can transfer ownership."],
-          [<Tag color="indigo">admin</Tag>,"Invite/remove members, manage licenses, pools, analytics, settings. Cannot transfer ownership."],
-          [<Tag color="zinc">member</Tag>,"Access Imotara with org license. Can see the org name in their Settings. No dashboard access."],
+          [<Tag key="owner" color="amber">owner</Tag>,"Everything (1 per org). Can transfer ownership."],
+          [<Tag key="admin" color="indigo">admin</Tag>,"Invite/remove members, manage licenses, pools, analytics, settings. Cannot transfer ownership."],
+          [<Tag key="member" color="zinc">member</Tag>,"Access Imotara with org license. Can see the org name in their Settings. No dashboard access."],
         ]}
       />
 
@@ -1017,7 +1017,7 @@ function OrgAdminSection() {
       </Screen>
 
       <Step n={1} title="To change a member's tier — use the Select member + New tier dropdowns → click Change tier">
-        <p>Effect is immediate. The member sees the new tier on their next app reload. The <em>Source</em> column updates to <em>"manual override"</em>.</p>
+        <p>Effect is immediate. The member sees the new tier on their next app reload. The <em>Source</em> column updates to <em>&quot;manual override&quot;</em>.</p>
       </Step>
       <Step n={2} title="To remove a member's license — select them → click Withdraw license">
         <p>The override or pool assignment is removed. The member falls back to the next tier in the priority chain (org default → personal → free).</p>

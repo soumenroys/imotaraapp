@@ -2,7 +2,7 @@
 // src/app/org/invite/[token]/page.tsx
 // Public invite acceptance page — user clicks link from email, signs in if needed, joins org.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import SsoIcon from "@/components/imotara/SsoIcon";
@@ -28,7 +28,30 @@ export default function InviteAcceptPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // 1. Load invite details + check auth state
+  // 1. Accept invite — called automatically on a matching sign-in, or via
+  // the manual "Join" button as a fallback (e.g. retry after a transient error).
+  // Declared before the effect below (and wrapped in useCallback) so its
+  // identity is stable across renders and the effect can safely depend on it —
+  // previously this was a plain function declared AFTER the effect that
+  // called it; hoisting made it work at runtime, but React Compiler couldn't
+  // reason about it (react-hooks/immutability) since it's redefined fresh
+  // every render with no stable identity to track.
+  const acceptInvite = useCallback(async () => {
+    setStep("accepting");
+    const r = await fetch(`/api/org/invite/${token}`, { method: "POST", credentials: "same-origin" });
+    const j = await r.json();
+    if (!r.ok) {
+      if (r.status === 401 || j.error === "unauthenticated") {
+        setUserEmail(null);
+        setStep("signin_required");
+        return;
+      }
+      setErrorMsg(j.error ?? "Failed to join."); setStep("error"); return;
+    }
+    setStep("accepted");
+  }, [token]);
+
+  // 2. Load invite details + check auth state
   useEffect(() => {
     async function load() {
       const [inviteRes, authRes] = await Promise.all([
@@ -70,24 +93,7 @@ export default function InviteAcceptPage() {
       }
     }
     void load();
-  }, [token]);
-
-  // 2. Accept invite — called automatically on a matching sign-in, or via
-  // the manual "Join" button as a fallback (e.g. retry after a transient error).
-  async function acceptInvite() {
-    setStep("accepting");
-    const r = await fetch(`/api/org/invite/${token}`, { method: "POST", credentials: "same-origin" });
-    const j = await r.json();
-    if (!r.ok) {
-      if (r.status === 401 || j.error === "unauthenticated") {
-        setUserEmail(null);
-        setStep("signin_required");
-        return;
-      }
-      setErrorMsg(j.error ?? "Failed to join."); setStep("error"); return;
-    }
-    setStep("accepted");
-  }
+  }, [token, acceptInvite]);
 
   if (step === "loading") {
     return (

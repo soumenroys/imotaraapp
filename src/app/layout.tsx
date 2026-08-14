@@ -11,6 +11,7 @@ import OnboardingTour from "@/components/imotara/OnboardingTour";
 import OfflineIndicator from "@/components/imotara/OfflineIndicator";
 import PWAInstallPrompt from "@/components/imotara/PWAInstallPrompt";
 import AppearanceInit from "@/components/imotara/AppearanceInit";
+import RtlInit from "@/components/imotara/RtlInit";
 import PageTransition from "@/components/imotara/PageTransition";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -359,6 +360,7 @@ export default function RootLayout({
         {/* local-storage notice overlays */}
         <LocalDataNotice />
         <AppearanceInit />
+        <RtlInit />
         <FirstVisitBanner />
         <OnboardingTour />
         <OfflineIndicator />

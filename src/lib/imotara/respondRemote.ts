@@ -1,5 +1,6 @@
 // src/lib/imotara/respondRemote.ts
 import type { ImotaraResponse } from "@/lib/ai/response/responseBlueprint";
+import { isBadPlaceholderText } from "@/lib/imotara/response/badPlaceholderText";
 
 /** Script-based language detection — handles native scripts via Unicode ranges.
  *  Urdu-specific chars are checked before the generic Arabic block to avoid misclassification. */
@@ -273,7 +274,18 @@ export async function respondRemote(input: {
                 }
             }
 
-            if (fullText.trim()) {
+            // P2-20 (code_review_audit_2026_08_14): the non-streaming JSON path
+            // (chat-reply/route.ts) has always rejected known-bad placeholder
+            // strings and fallen back gracefully — streaming had no equivalent
+            // check at all, even though it's the PRIMARY path. Same detector,
+            // shared with the server (badPlaceholderText.ts), applied here to
+            // the fully-accumulated text once streaming completes. Known
+            // limitation: onChunk above already rendered tokens live as they
+            // arrived, so a caught placeholder was still visible transiently —
+            // this fixes what gets returned/stored/remembered as the reply,
+            // not the brief on-screen flash, which streaming's whole
+            // progressive-render design makes unavoidable to prevent outright.
+            if (fullText.trim() && !isBadPlaceholderText(fullText)) {
                 return {
                     message: fullText,
                     followUp: "",

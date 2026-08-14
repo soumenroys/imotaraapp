@@ -131,7 +131,7 @@ export default function CareersPage() {
 
           <p className="mx-auto mt-4 max-w-xl leading-6 text-zinc-300 sm:text-base">
             Imotara was born from the quiet worry of two mothers who wanted the
-            world to feel a little kinder. We're growing — and we're looking for
+            world to feel a little kinder. We&apos;re growing — and we&apos;re looking for
             a voice that carries that same warmth into every word we publish.
           </p>
 
@@ -145,9 +145,9 @@ export default function CareersPage() {
         {/* ── Why this role matters ─────────────────────────────────── */}
         <Section label="The Role" title="Digital Content Creator" soft={false}>
           <p>
-            Content at Imotara isn't marketing — it's an act of care. Every
+            Content at Imotara isn&apos;t marketing — it&apos;s an act of care. Every
             article we publish, every caption we write, every video we release
-            is a quiet signal to someone navigating a hard day: <em>you're not
+            is a quiet signal to someone navigating a hard day: <em>you&apos;re not
             alone, and this space is safe</em>.
           </p>
           <p className="mt-3">
@@ -158,7 +158,7 @@ export default function CareersPage() {
             that moves people without manipulating them.
           </p>
           <p className="mt-3">
-            If that sounds like you, we'd love to hear from you.
+            If that sounds like you, we&apos;d love to hear from you.
           </p>
         </Section>
 
@@ -231,10 +231,10 @@ export default function CareersPage() {
           <Section label="Bonus" title="You'll Shine If..." soft>
             <ul className="list-disc space-y-2 pl-5">
               <li>You have a background, training, or deep personal familiarity with mental health, emotional wellness, or mindfulness.</li>
-              <li>You've built or grown an audience — a blog, channel, newsletter, or social account — driven by authentic storytelling.</li>
+              <li>You&apos;ve built or grown an audience — a blog, channel, newsletter, or social account — driven by authentic storytelling.</li>
               <li>You know Canva, CapCut, Premiere, DaVinci Resolve, or any creative tool well enough to move fast without waiting for a designer.</li>
               <li>You speak another language fluently — Imotara serves users across cultures, and that sensitivity matters here.</li>
-              <li>You care about privacy and technology ethics. You'll be speaking for a product built around those values.</li>
+              <li>You care about privacy and technology ethics. You&apos;ll be speaking for a product built around those values.</li>
             </ul>
           </Section>
         </div>

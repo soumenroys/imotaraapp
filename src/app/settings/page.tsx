@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
 import { useAppearance, type Accent, type FontSize, type ColorMode } from "@/hooks/useAppearance";
@@ -344,10 +345,12 @@ function AvatarSlider({
                 <div className="flex items-center gap-3">
                     <div className="flex-shrink-0 flex flex-col items-center gap-1">
                         <div className="h-16 w-16 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
-                            <img
+                            <Image
                                 key={`${gender}-${AVATAR_AGES[safeIdx]}`}
-                                src={`/avatars/${gender}/${AVATAR_AGES[safeIdx]}.png`}
+                                src={`/avatars/${gender}/${AVATAR_AGES[safeIdx]}.webp`}
                                 alt={`${gender} age ${AVATAR_AGES[safeIdx]}`}
+                                width={64}
+                                height={64}
                                 className="h-full w-full object-cover"
                             />
                         </div>
@@ -553,7 +556,7 @@ function ToneAndContextTile() {
             }).catch(() => {}); // best-effort
         }, 3000);
         return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, [loaded, sbEmail, userName, preferredLang, userGender, responseStyle, compEnabled, compName, compRel, compGender]);
 
     // GAP-12: persist teen mode
@@ -1306,7 +1309,7 @@ export default function SettingsPage() {
                 if (legacyRaw) setLetterArchive([JSON.parse(legacyRaw)]);
             }
         } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, []);
 
     const updateLetterInState = useCallback((id: string, patch: Partial<LetterEntry>) => {
@@ -2886,7 +2889,7 @@ export default function SettingsPage() {
                                     <>🏢 License assigned by <span className="font-medium text-zinc-200">{lic.org.orgName}</span> (custom tier)</>
                                 )}
                                 {lic.license.source === "pool_assignment" && lic.org && (
-                                    <>🎫 License from <span className="font-medium text-zinc-200">{lic.org.orgName}</span>'s license pool</>
+                                    <>🎫 License from <span className="font-medium text-zinc-200">{lic.org.orgName}</span>&apos;s license pool</>
                                 )}
                             </div>
                         )}

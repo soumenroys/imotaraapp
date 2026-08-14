@@ -105,7 +105,7 @@ function BannerVoice() {
     <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-rose-900/30 to-orange-900/20 border border-rose-500/20 p-6 flex gap-6 items-center">
       <div className="flex-1 hidden sm:block">
         <p className="text-xs font-semibold text-rose-400 uppercase tracking-widest mb-2">Voice & Audio</p>
-        <p className="text-zinc-200 text-sm leading-relaxed">Speak instead of typing — Imotara transcribes your voice in any of 22 languages. Hear replies read aloud in your companion's voice.</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Speak instead of typing — Imotara transcribes your voice in any of 22 languages. Hear replies read aloud in your companion&apos;s voice.</p>
         <div className="mt-4 flex items-end gap-0.5 h-10">
           {[2,4,7,5,9,6,3,8,5,4,7,3,6,8,4,7,5,3,6,8].map((h,i) => (
             <div key={i} className="w-1.5 rounded-full bg-rose-400/60 animate-pulse" style={{ height: `${h*4}px`, animationDelay: `${i*80}ms` }} />
@@ -300,7 +300,7 @@ function BannerGrow() {
                 <div key={i} className={`w-2 h-2 rounded-full ${i < 4 ? "bg-green-400" : "bg-zinc-700"}`} />
               ))}
             </div>
-            <p className="text-[8px] text-zinc-400 mt-1.5 italic">"What made you feel alive this week?"</p>
+            <p className="text-[8px] text-zinc-400 mt-1.5 italic">&quot;What made you feel alive this week?&quot;</p>
             <button className="mt-1.5 w-full rounded-md bg-green-600/30 border border-green-500/30 py-1 text-[8px] text-green-300">Mark today done ✓</button>
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-sky-900/30 border border-sky-400/20 p-2">
@@ -373,7 +373,7 @@ function BannerPrivacy() {
     <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-slate-900/60 to-zinc-900/40 border border-zinc-600/30 p-6 flex gap-6 items-center">
       <div className="flex-1 hidden sm:block">
         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Privacy & Safety</p>
-        <p className="text-zinc-200 text-sm leading-relaxed">Full control over your data — choose what's analysed, what's synced, what's exported, and what's deleted. No data is ever sold.</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Full control over your data — choose what&apos;s analysed, what&apos;s synced, what&apos;s exported, and what&apos;s deleted. No data is ever sold.</p>
         <div className="mt-3 space-y-1">
           {["🔒 Local-first by default", "☁ Account backup is opt-in", "📤 Export in 3 formats", "🗑 Delete anytime"].map(f => (
             <p key={f} className="text-[11px] text-zinc-400">{f}</p>
@@ -536,7 +536,7 @@ function BannerLanguages() {
           </div>
           <div className="bg-zinc-800 rounded-lg p-2">
             <p className="text-[7px] text-zinc-500 mb-1">User message</p>
-            <p className="text-[8px] text-zinc-200">"मुझे आज बहुत अच्छा लग रहा है"</p>
+            <p className="text-[8px] text-zinc-200">&quot;मुझे आज बहुत अच्छा लग रहा है&quot;</p>
             <p className="text-[7px] text-zinc-500 mt-1">→ Reply in Hindi with female voice</p>
           </div>
           <div className="grid grid-cols-3 gap-1">
@@ -2415,7 +2415,7 @@ export default function TutorialPage() {
         <p className="text-2xl mb-3">💙</p>
         <h3 className="text-lg font-bold text-zinc-100 mb-2">Ready to begin?</h3>
         <p className="text-zinc-400 text-sm mb-5 max-w-sm mx-auto">
-          Imotara is always here — no appointments, no waiting. Just open Chat and say whatever's on your mind.
+          Imotara is always here — no appointments, no waiting. Just open Chat and say whatever&apos;s on your mind.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <Link href="/chat" className="rounded-xl bg-indigo-600 hover:bg-indigo-500 transition px-5 py-2.5 text-sm font-semibold text-white">

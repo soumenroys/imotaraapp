@@ -6,7 +6,7 @@
 
 ## 1. Supabase setup & the migration workflow
 
-Imotara runs on **Supabase Postgres**. There is no Prisma-managed schema in production — `prisma/schema.prisma` is effectively empty; all tables are created by **68 hand-written SQL files in `docs/sql/`**, applied manually in the Supabase SQL Editor with the service-role (superuser) connection.
+Imotara runs on **Supabase Postgres**. Prisma was removed from the project entirely (2026-08-14, P1 code_review_audit_2026_08_14 — it was an unused stub with zero models, never the real schema) — all tables are created by **78 hand-written SQL files in `docs/sql/`**, applied manually in the Supabase SQL Editor with the service-role (superuser) connection.
 
 ### How migrations are ordered
 
@@ -77,6 +77,7 @@ There is no migration runner. Ordering is **by naming convention and documented 
 | `connect_favorites` | User bookmarks a consultant | `user_id`, `consultant_id` |
 | `connect_session_notes` | Consultant's private per-session notes | `session_id`, `consultant_user_id`, `content` |
 | `user_bans` | User ban records (`connect_v11`) | `user_id`, ban metadata |
+| `crisis_events` | Metadata-only crisis-detection log (`crisis_events_v1`, added 2026-08-14) — **no message text stored**, service-role-only RLS (`USING (false)`), viewable at `/admin/crisis-events` | `user_id`, `platform` (web/mobile), `preferred_lang`, `created_at`. Written by `/api/chat-reply` when `CRISIS_HINT_REGEX` fires, deduped to one row per ~60min episode per user. |
 | `app_settings` | KV store; holds `exchange_rates` (updated daily by cron) | `key` (PK), `value` (jsonb) |
 
 ### Wallet (unified INR wallet — distinct from `connect_wallet`)
@@ -220,7 +221,7 @@ From `.env.example` plus vars discovered in code that are **not** in the example
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
 
 ### App / auth / licensing
-`NEXTAUTH_URL`, `NEXTAUTH_SECRET` (NextAuth is legacy/superseded by Supabase Auth), `NEXT_PUBLIC_IMOTARA_API_BASE_URL`, `NEXT_PUBLIC_IMOTARA_ANALYSIS`, `NEXT_PUBLIC_IMOTARA_VERSION`, `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_IMOTARA_LICENSE_MODE` (`off`), `NEXT_PUBLIC_IMOTARA_LAUNCH_DATE`, `NEXT_PUBLIC_IMOTARA_FREE_DAYS` (120), `NEXT_PUBLIC_IMOTARA_LICENSE_TIER` (QA override).
+`NEXT_PUBLIC_IMOTARA_API_BASE_URL`, `NEXT_PUBLIC_IMOTARA_ANALYSIS`, `NEXT_PUBLIC_IMOTARA_VERSION`, `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_IMOTARA_LICENSE_MODE` (`off`), `NEXT_PUBLIC_IMOTARA_LAUNCH_DATE`, `NEXT_PUBLIC_IMOTARA_FREE_DAYS` (120), `NEXT_PUBLIC_IMOTARA_LICENSE_TIER` (QA override).
 
 ### AI
 `OPENAI_API_KEY`, `IMOTARA_AI_MODEL` (`gpt-4.1-mini`), `IMOTARA_OPENAI_BASE_URL`. Gemini fallback is REST-based (key referenced in AI client). 

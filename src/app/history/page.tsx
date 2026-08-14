@@ -1,7 +1,7 @@
 // src/app/history/page.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MessageSquare, Download, Clock, Search, X as XIcon, MoreVertical } from "lucide-react";
 import EmotionHistory from "@/components/imotara/EmotionHistory";
@@ -241,13 +241,20 @@ const DOT_STYLE: Record<string, { color: string; emoji: string; label: string }>
 };
 
 function SevenDayDots() {
-  const days = useMemo(() => {
+  // Was useMemo(..., []) — reading localStorage (external, mutable) inside a
+  // memo with an empty dep array is a render-time side effect disguised as a
+  // pure computation: React Compiler correctly refuses to optimize it, and
+  // more importantly it meant this display could never refresh after mount
+  // even when history changed elsewhere. useState+useEffect matches the
+  // identical, already-correct pattern used by MoodLineChart30 above.
+  const [days, setDays] = useState<{ dateKey: string; dominant: string | null; count: number; label: string; isToday: boolean }[]>([]);
+  useEffect(() => {
     try {
       const raw = localStorage.getItem("imotara:history:v1");
-      if (!raw) return [];
+      if (!raw) { setDays([]); return; }
       const all = JSON.parse(raw) as any[];
-      if (!Array.isArray(all)) return [];
-      return Array.from({ length: 7 }, (_, i) => {
+      if (!Array.isArray(all)) { setDays([]); return; }
+      setDays(Array.from({ length: 7 }, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() - (6 - i));
         const dateKey = d.toISOString().slice(0, 10);
@@ -258,8 +265,8 @@ function SevenDayDots() {
         for (const r of recs as any[]) freq[r.emotion] = (freq[r.emotion] ?? 0) + 1;
         const dominant = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
         return { dateKey, dominant, count: recs.length, label: d.toLocaleDateString("en", { weekday: "short" }), isToday: i === 6 };
-      });
-    } catch { return []; }
+      }));
+    } catch { setDays([]); }
   }, []);
 
   if (days.length === 0) return null;
@@ -722,7 +729,7 @@ export default function HistoryPage() {
               {/* Tip text + mini legend + guidance hint */}
               <div className="space-y-1 px-1">
                 <p className="text-[11px] text-zinc-400">
-                  Tip: Use "Export JSON" to download a backup of your emotion
+                  Tip: Use &quot;Export JSON&quot; to download a backup of your emotion
                   history. You can keep this file or import it into your own
                   tools later.
                 </p>

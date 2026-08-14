@@ -401,7 +401,21 @@ Behavior (`POST .../members` with `action: "resend_password_link"`, super-admin 
 
 ---
 
-## 15. Security note: the ADMIN_SECRET legacy fallback
+## 15. Crisis Events dashboard (added 2026-08-14)
+
+**Where:** `/admin` -> the red **🆘 Crisis Events** button next to the tab bar, or directly at `/admin/crisis-events`.
+
+**What it shows:** a chronological, metadata-only list of detected crisis-adjacent messages (suicidal ideation, self-harm, abuse language) — when, which user (by email), which platform (web/mobile), and which language. **The actual message text is never stored or shown** — this was a deliberate scope decision to minimize stored sensitive data. One row is logged per ~60-minute episode per user, not per message, so an ongoing conversation doesn't flood the list.
+
+**What it does NOT do:** no real-time alert is sent anywhere (dashboard-only by design) — check it periodically rather than expecting a notification. It's read-only; there's no action to take from this page itself (follow up with the user directly if needed).
+
+**Role note:** owner and admin can view it; **connect_reviewer cannot** (the link doesn't even render for that role, and the API 401s if called directly) — this is general user-safety data, not scoped to Connect.
+
+**Backend:** `GET /api/admin/crisis-events`, table `crisis_events` (`docs/sql/crisis_events_v1.sql`), written by `/api/chat-reply` whenever `CRISIS_HINT_REGEX` fires (see the AI & TTS doc for detection details).
+
+---
+
+## 16. Security note: the ADMIN_SECRET legacy fallback
 
 There is a legacy authentication path: a single shared secret sent as `Authorization: Bearer <ADMIN_SECRET>`. When accepted, it authenticates as a synthetic **owner** ("Admin (legacy key)").
 

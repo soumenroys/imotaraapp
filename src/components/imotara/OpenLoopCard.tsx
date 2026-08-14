@@ -33,7 +33,7 @@ export default function OpenLoopCard({ loop, onExplore, onDefer, onDismiss }: Pr
 
       {/* Prompt */}
       <p className="mb-2.5 text-sm leading-snug text-zinc-300">
-        I've noticed <span className="font-semibold text-zinc-200">{loop.themeName}</span> has come up across{" "}
+        I&apos;ve noticed <span className="font-semibold text-zinc-200">{loop.themeName}</span> has come up across{" "}
         {loop.threadCount} conversations. Want to sit with it together?
       </p>
 

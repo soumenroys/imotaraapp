@@ -176,8 +176,8 @@ export default function CareersApplyForm() {
           Application received — thank you, {name.split(" ")[0]}!
         </h3>
         <p className="mx-auto mt-2 max-w-sm text-xs leading-6 text-zinc-400">
-          We've sent a confirmation to <span className="text-zinc-300">{email}</span>.
-          We'll be in touch if your profile is a great fit. We read every application personally.
+          We&apos;ve sent a confirmation to <span className="text-zinc-300">{email}</span>.
+          We&apos;ll be in touch if your profile is a great fit. We read every application personally.
         </p>
       </div>
     );

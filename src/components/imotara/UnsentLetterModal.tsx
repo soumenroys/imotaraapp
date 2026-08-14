@@ -70,7 +70,7 @@ export default function UnsentLetterModal({ visible, onStart, onCancel }: Props)
           </button>
         </div>
         <p className="mb-5 text-xs leading-relaxed text-zinc-500">
-          Write to someone you can't or won't send to. Imotara will respond in their voice.{" "}
+          Write to someone you can&apos;t or won&apos;t send to. Imotara will respond in their voice.{" "}
           Stored locally — never synced unless you choose to.
         </p>
 

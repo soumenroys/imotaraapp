@@ -369,7 +369,7 @@ export default function SessionChatPage() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [sessionId]);
 
   // ── Session balance (remaining minutes + total credited) ───────────────────

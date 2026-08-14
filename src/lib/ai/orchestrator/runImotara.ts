@@ -27,7 +27,50 @@ import {
   ROMAN_TA_LANG_HINT_REGEX,
   ROMAN_TE_LANG_HINT_REGEX,
   CRISIS_HINT_REGEX,
+  BN_SAD_REGEX, BN_STRESS_REGEX, BN_FEAR_REGEX,
+  HI_SAD_REGEX, HI_STRESS_REGEX, HI_FEAR_REGEX,
+  KN_SAD_REGEX, KN_STRESS_REGEX, KN_FEAR_REGEX,
+  ML_SAD_REGEX, ML_STRESS_REGEX, ML_FEAR_REGEX,
+  PA_SAD_REGEX, PA_STRESS_REGEX, PA_FEAR_REGEX,
+  OR_SAD_REGEX, OR_STRESS_REGEX, OR_FEAR_REGEX,
+  MR_SAD_REGEX, MR_STRESS_REGEX, MR_FEAR_REGEX,
+  GU_SAD_REGEX, GU_STRESS_REGEX, GU_FEAR_REGEX,
+  TA_SAD_REGEX, TA_STRESS_REGEX, TA_FEAR_REGEX,
+  JP_SAD_REGEX, JP_STRESS_REGEX, JP_FEAR_REGEX,
+  HE_SAD_REGEX, HE_STRESS_REGEX, HE_FEAR_REGEX,
+  AR_SAD_REGEX, AR_STRESS_REGEX, AR_FEAR_REGEX,
+  DE_SAD_REGEX, DE_STRESS_REGEX, DE_FEAR_REGEX,
 } from "@/lib/emotion/keywordMaps";
+
+// Emotional-vulnerability signal across the 13 non-English languages
+// keywordMaps.ts has coverage for (P2-19, code_review_audit_2026_08_14):
+// SAD + STRESS + FEAR all map to the "supportive" tone below, matching how
+// their closest English equivalents (sad/lonely, overwhelmed, scared/afraid)
+// are already classified in this function. keywordMaps.ts has no work/study-
+// specific detection for these languages, so there's no equivalent signal to
+// route into "coach" — only the general-distress one.
+const MULTILINGUAL_SUPPORTIVE_REGEXES = [
+  BN_SAD_REGEX, BN_STRESS_REGEX, BN_FEAR_REGEX,
+  HI_SAD_REGEX, HI_STRESS_REGEX, HI_FEAR_REGEX,
+  KN_SAD_REGEX, KN_STRESS_REGEX, KN_FEAR_REGEX,
+  ML_SAD_REGEX, ML_STRESS_REGEX, ML_FEAR_REGEX,
+  PA_SAD_REGEX, PA_STRESS_REGEX, PA_FEAR_REGEX,
+  OR_SAD_REGEX, OR_STRESS_REGEX, OR_FEAR_REGEX,
+  MR_SAD_REGEX, MR_STRESS_REGEX, MR_FEAR_REGEX,
+  GU_SAD_REGEX, GU_STRESS_REGEX, GU_FEAR_REGEX,
+  TA_SAD_REGEX, TA_STRESS_REGEX, TA_FEAR_REGEX,
+  JP_SAD_REGEX, JP_STRESS_REGEX, JP_FEAR_REGEX,
+  HE_SAD_REGEX, HE_STRESS_REGEX, HE_FEAR_REGEX,
+  AR_SAD_REGEX, AR_STRESS_REGEX, AR_FEAR_REGEX,
+  DE_SAD_REGEX, DE_STRESS_REGEX, DE_FEAR_REGEX,
+];
+
+function hasMultilingualSupportiveSignal(text: string): boolean {
+  return MULTILINGUAL_SUPPORTIVE_REGEXES.some((re) => {
+    re.lastIndex = 0; // defensive, matches isConfusedText's convention
+    return re.test(text);
+  });
+}
 
 type SessionContext = {
   persona?: {
@@ -181,6 +224,17 @@ function inferBlueprintTone(userMessage: string): ResponseTone {
     s.includes("meaningless") ||
     s.includes("hopeless")
   ) {
+    return "supportive";
+  }
+
+  // Non-English emotional distress (sadness/anxiety/fear) → supportive.
+  // Checked after the "practical" bodily-needs branch above (same ordering
+  // rationale as that branch's own comment: a bodily-needs signal should win
+  // over a general distress one). English coverage for this same concept
+  // already lives in the two branches above; this closes the gap for the 13
+  // other languages keywordMaps.ts has SAD/STRESS/FEAR regexes for — those
+  // users previously always fell through to the generic "calm" default.
+  if (hasMultilingualSupportiveSignal(s)) {
     return "supportive";
   }
 

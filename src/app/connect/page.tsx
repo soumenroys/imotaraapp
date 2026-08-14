@@ -670,7 +670,7 @@ function SessionsTab() {
 
 // ── Wallet Tab ────────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 interface WalletTx {
   id: string;
   type: "topup" | "deduction" | "refund" | "session" | "dormancy_marked";
@@ -2008,7 +2008,7 @@ export default function ConnectPage() {
       .then((r) => r.json())
       .then((d) => { if (d.ok) setIsConsultant(true); })
       .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   if (!mounted) return null;

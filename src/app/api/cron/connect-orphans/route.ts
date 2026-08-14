@@ -9,6 +9,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { creditConsultantDurably } from "@/lib/connect/creditConsultant";
+import { splitSessionEarnings } from "@/lib/connect/money";
 
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
 
@@ -109,13 +110,12 @@ export async function GET(req: NextRequest) {
               `(wall-clock elapsed ${wallClockMin}min) session:`, session.id,
             );
           }
-          const amountCharged = +(billableMin * rate).toFixed(4);
-          const earnings = +(amountCharged * 0.80).toFixed(4);
+          const split = splitSessionEarnings(billableMin, rate);
 
           // The user owes this regardless of whether the consultant-credit
           // step below succeeds — write it unconditionally, first.
           await supabase.from("connect_sessions")
-            .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
+            .update({ amount_charged: split.amountCharged, platform_fee: split.platformFee })
             .eq("id", session.id)
             .or("amount_charged.is.null,amount_charged.eq.0");
 
@@ -138,7 +138,7 @@ export async function GET(req: NextRequest) {
             sessionId: session.id,
             consultantId: consultant.id,
             consultantUserId: consultant.user_id,
-            earnings,
+            earnings: split.consultantCredited,
             logTag: "[connect-orphans]",
           });
         }

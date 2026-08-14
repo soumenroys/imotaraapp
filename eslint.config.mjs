@@ -30,6 +30,18 @@ const eslintConfig = defineConfig([
       "react-hooks/purity": "warn",
     },
   },
+  // P2-11 (code_review_audit_2026_08_14): standalone CommonJS scripts, not
+  // part of the app bundle or TypeScript build — package.json has no
+  // "type": "module", and these are invoked directly via `node scripts/x.js`.
+  // Converting require() to import here would break them at runtime, not
+  // just satisfy a lint rule, so the rule is scoped out for this directory
+  // instead of "fixed" in a way that's actually a regression.
+  {
+    files: ["scripts/**/*.js", "screenshot-test.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

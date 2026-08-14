@@ -1,4 +1,4 @@
-# CI for imotaraapp: typecheck + KB version-sync + unit tests on every push/PR.
+# CI for imotaraapp: typecheck + lint + KB version-sync + unit tests on every push/PR.
 # Mirrors imotara-mobile's ci.yml. The KB version-sync check exists because the
 # ImotaraKnowledgebase/*.md "Current release" headers drifted out of sync with
 # package.json twice in the same day (2026-08-08) with nothing catching it.
@@ -34,6 +34,16 @@ jobs:
 
       - name: Typecheck (tsc --noEmit)
         run: npm run typecheck
+
+      - name: Lint (eslint)
+        # P2-11 (code_review_audit_2026_08_14): the repo had 102 real lint
+        # errors with no CI gate catching them. All 102 are now fixed — this
+        # only needs to catch NEW errors from here on. Warnings don't fail
+        # the process (ESLint's exit code only reflects errors unless
+        # --max-warnings is set), so the existing 619 pre-existing warnings
+        # (tracked as a separate type-safety initiative, see eslint.config.mjs)
+        # don't block this.
+        run: npx eslint .
 
       - name: KB version sync (ImotaraKnowledgebase/*.md vs package.json)
         run: npm run check:kb-version

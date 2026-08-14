@@ -58,6 +58,25 @@ export type ImotaraAIResponse = {
 let _lastAlertAt = 0;
 const ALERT_COOLDOWN_MS = 5 * 60 * 1000;
 
+// ─── Timeout budget (P2-23, code_review_audit_2026_08_14) ────────────────────
+// Previously OpenAI's own 15s default plus a FRESH 15s Gemini fallback could
+// total up to 30s server-side — well past every client's own abort (web: 20s
+// overall + 20s stream-stall in respondRemote.ts; mobile: 20-25s in
+// fetchWithTimeout.ts). By the time either response arrived past that point,
+// the client had already given up and shown its own fallback, so the
+// OpenAI/Gemini compute (and its cost) was spent for nothing the user ever
+// saw. TOTAL_REPLY_BUDGET_MS is the combined ceiling for one reply attempt —
+// comfortably under the shortest client timeout — and the Gemini fallback is
+// given whatever's actually LEFT of that budget (not a fresh fixed window),
+// floored at MIN_GEMINI_TIMEOUT_MS so it always gets a real chance even if
+// OpenAI consumed nearly the whole budget before failing.
+const TOTAL_REPLY_BUDGET_MS = 14_000;
+const MIN_GEMINI_TIMEOUT_MS = 3_000;
+
+function remainingBudgetMs(elapsedMs: number): number {
+  return Math.max(MIN_GEMINI_TIMEOUT_MS, TOTAL_REPLY_BUDGET_MS - elapsedMs);
+}
+
 /**
  * Minimal type for OpenAI's Chat Completions API response.
  */
@@ -147,7 +166,8 @@ export async function callImotaraAI(
 
   // Optional timeout support: if the request hangs or is very slow,
   // we abort and fall back with the same style of message.
-  const abortMs = options.abortMs ?? 15_000; // 15s default
+  const abortMs = options.abortMs ?? TOTAL_REPLY_BUDGET_MS;
+  const tStart = Date.now();
   const controller = new AbortController();
   const timeoutId =
     abortMs > 0
@@ -191,7 +211,7 @@ export async function callImotaraAI(
       );
       const openaiReason = `HTTP ${response.status}: ${errText.slice(0, 200)}`;
       void sendOutageAlert(openaiReason);
-      return callGeminiAI(prompt, options);
+      return callGeminiAI(prompt, { ...options, abortMs: remainingBudgetMs(Date.now() - tStart) });
     }
 
     const data = (await response.json()) as OpenAIChatResult;
@@ -232,7 +252,7 @@ export async function callImotaraAI(
     const reason = err?.message || "Unknown network or runtime error";
     console.error("[imotara][aiClient] fetch exception:", reason);
     void sendOutageAlert(reason);
-    return callGeminiAI(prompt, options);
+    return callGeminiAI(prompt, { ...options, abortMs: remainingBudgetMs(Date.now() - tStart) });
   }
 }
 
@@ -271,7 +291,10 @@ async function callGeminiAI(
   const systemPrompt = options.system ?? "You are Imotara — an emotion-aware, privacy-first companion. Be warm, concise, and human.";
   const temperature = typeof options.temperature === "number" ? options.temperature : 0.7;
   const maxTokens = options.maxTokens ?? 350;
-  const abortMs = options.abortMs ?? 15_000;
+  // Called only as callImotaraAI's fallback, which always passes an explicit
+  // remaining-budget abortMs — this default only matters for a hypothetical
+  // standalone call, so it stays at the same overall budget ceiling.
+  const abortMs = options.abortMs ?? TOTAL_REPLY_BUDGET_MS;
 
   const controller = new AbortController();
   const timeoutId = abortMs > 0 ? setTimeout(() => controller.abort(), abortMs) : undefined;
@@ -391,7 +414,9 @@ async function* streamGeminiAI(
   const systemPrompt = options.system ?? "You are Imotara — a warm, caring emotional companion. Be concise and human.";
   const temperature = typeof options.temperature === "number" ? options.temperature : 0.7;
   const maxTokens = options.maxTokens ?? 350;
-  const abortMs = options.abortMs ?? 15_000;
+  // Called only as streamImotaraAI's fallback, which always passes an
+  // explicit remaining-budget abortMs — see callGeminiAI's identical comment.
+  const abortMs = options.abortMs ?? TOTAL_REPLY_BUDGET_MS;
   const controller = new AbortController();
   const timeoutId = abortMs > 0 ? setTimeout(() => controller.abort(), abortMs) : undefined;
 
@@ -475,7 +500,8 @@ export async function* streamImotaraAI(
   const systemPrompt = options.system ?? "You are Imotara — a warm, caring emotional companion. Be concise and human.";
   const temperature = typeof options.temperature === "number" ? options.temperature : 0.7;
   const maxTokens = options.maxTokens ?? 350;
-  const abortMs = options.abortMs ?? 15_000;
+  const abortMs = options.abortMs ?? TOTAL_REPLY_BUDGET_MS;
+  const tStart = Date.now();
   const controller = new AbortController();
   const timeoutId = abortMs > 0 ? setTimeout(() => controller.abort(), abortMs) : undefined;
 
@@ -519,7 +545,7 @@ export async function* streamImotaraAI(
     if (!response.ok || !response.body) {
       console.error(`[imotara][aiClient] stream HTTP ${response.status} or missing body`);
       void sendOutageAlert(`Streaming HTTP ${response.status}`);
-      yield* streamGeminiAI(prompt, options);
+      yield* streamGeminiAI(prompt, { ...options, abortMs: remainingBudgetMs(Date.now() - tStart) });
       return;
     }
 
@@ -564,7 +590,7 @@ export async function* streamImotaraAI(
     if (!yieldedAny) {
       console.error("[imotara][aiClient] stream fetch exception:", err?.message || err);
       void sendOutageAlert(err?.message || "Streaming network error");
-      yield* streamGeminiAI(prompt, options);
+      yield* streamGeminiAI(prompt, { ...options, abortMs: remainingBudgetMs(Date.now() - tStart) });
     } else {
       console.error("[imotara][aiClient] stream stalled/aborted after partial output:", err?.message || err);
     }

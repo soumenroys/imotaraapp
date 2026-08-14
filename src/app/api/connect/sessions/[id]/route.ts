@@ -10,6 +10,8 @@ export const maxDuration = 30;
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
+import { splitSessionEarnings } from "@/lib/connect/money";
+import { creditConsultantDurably } from "@/lib/connect/creditConsultant";
 import {
   sendSessionSummaryEmail,
   sendConsultantEarningsEmail,
@@ -377,63 +379,45 @@ export async function PATCH(
   // (a concurrent tick may have incremented it between our read and this write).
   const freshMinutes = Number(updatedRows?.[0]?.minutes_used ?? session.minutes_used);
   if ((action === "complete" || action === "userEnd") && consultant && freshMinutes > 0) {
-    const lockedRate     = Number(session.rate_per_min) > 0 ? Number(session.rate_per_min) : Number(consultant.rate_per_min);
-    const amountCharged   = freshMinutes * lockedRate;
-    const sessionEarnings = amountCharged * 0.80;
+    const lockedRate = Number(session.rate_per_min) > 0 ? Number(session.rate_per_min) : Number(consultant.rate_per_min);
+    const split = splitSessionEarnings(freshMinutes, lockedRate);
 
-    const { error: walletErr } = await supabase
-      .from("connect_wallet")
-      .upsert({ user_id: consultant.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
-    if (walletErr) {
-      console.error("[sessions/complete] CRITICAL: wallet upsert failed — earnings not credited:", walletErr.message, "session:", id, "consultant user_id:", consultant.user_id);
-      // Write billing amounts but NOT consultant_credited — the earnings were never actually
-      // credited. A non-zero consultant_credited with no corresponding wallet entry would be
-      // a false audit record. The discrepancy surfaces in the earnings dashboard logs.
-      await supabase.from("connect_sessions")
-        .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
-        .eq("id", id).eq("status", "completed");
-    } else {
-      // Atomic increment — avoids read-modify-write race condition on concurrent completes
-      const { error: earningsErr } = await supabase.rpc("increment_wallet_earnings", {
-        p_user_id: consultant.user_id,
-        p_amount:  sessionEarnings,
-      });
-      if (earningsErr) {
-        console.error("[sessions/complete] CRITICAL: increment_wallet_earnings failed:", earningsErr.message, "session:", id);
-        // Wallet upsert succeeded but earnings increment failed — write amount_charged
-        // without consultant_credited so the audit record reflects no actual credit.
-        await supabase.from("connect_sessions")
-          .update({ amount_charged: amountCharged, platform_fee: +(amountCharged * 0.20).toFixed(4) })
-          .eq("id", id).eq("status", "completed");
-      } else {
-        // Write consultant_credited only after the wallet was successfully incremented —
-        // this is the authoritative audit record of what was actually paid to the consultant.
-        const { error: acErr } = await supabase.from("connect_sessions")
-          .update({
-            amount_charged:      amountCharged,
-            platform_fee:        +(amountCharged * 0.20).toFixed(4),
-            consultant_credited: +sessionEarnings.toFixed(4),
-          })
-          .eq("id", id)
-          .eq("status", "completed");
-        if (acErr) console.error("[sessions/complete] amount_charged update failed:", acErr.message, "session:", id);
-      }
-    }
+    // The user owes this regardless of whether the consultant-credit step
+    // below succeeds — write it unconditionally, first. This is the manual
+    // "End Session" path (the most common way a session completes) — found
+    // in the 2026-08-14 pre-release review to still be using raw, unrounded
+    // amount_charged/platform_fee math (the exact P1-4 float bug) instead of
+    // the shared money.ts split every other completion path already uses.
+    await supabase.from("connect_sessions")
+      .update({ amount_charged: split.amountCharged, platform_fee: split.platformFee })
+      .eq("id", id)
+      .eq("status", "completed");
 
-    const { error: scErr } = await supabase.rpc("increment_sessions_completed", {
-      p_consultant_id: consultant.id,
+    // Durable credit — see [[code_review_audit_2026_08_14]]. Writes a ledger
+    // row before attempting the wallet upsert + earnings RPC, so a transient
+    // failure no longer silently, permanently loses the consultant's
+    // earnings — the settlement cron (connect-settle-earnings) retries any
+    // unsettled row indefinitely. Writes consultant_credited + increments
+    // sessions_completed internally on success. This route was found in the
+    // same review to still have its own inline log-and-give-up version of
+    // this exact pattern, with no retry path — the bug the earlier
+    // fb4e001 commit ("make consultant payouts durable") intended to close
+    // everywhere but missed on this specific, very common route.
+    await creditConsultantDurably({
+      supabase,
+      sessionId: id,
+      consultantId: consultant.id,
+      consultantUserId: consultant.user_id,
+      earnings: split.consultantCredited,
+      logTag: "[sessions/complete]",
     });
-    if (scErr) {
-      // Do NOT fall back to read-modify-write — the stale value from the pre-request
-      // SELECT would produce a lost update under concurrent completions. The RPC is
-      // atomic and has been deployed since v15. Log CRITICAL for manual correction.
-      console.error("[sessions/complete] CRITICAL: increment_sessions_completed RPC failed — sessions_completed NOT incremented. Manual correction needed. Error:", scErr.message, "session:", id);
-    }
 
     const currency        = session.currency_code ?? "INR";
     const consultantName  = consultant.display_name ?? "Companion";
     const minutesUsed     = freshMinutes;
-    const platformFee     = amountCharged * 0.20;
+    const amountCharged   = split.amountCharged;
+    const platformFee     = split.platformFee;
+    const sessionEarnings = split.consultantCredited;
 
     // Fire-and-forget: session statement (user), earnings (consultant), revenue (Imotara)
     Promise.all([

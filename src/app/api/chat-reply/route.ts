@@ -3552,6 +3552,19 @@ export async function POST(req: Request) {
           `You MUST reply in the same way — write ${romanizedLangName} words using English/Roman letters. ${romanizedExample}`,
           `DO NOT reply in English. DO NOT use any ${romanizedLangName} native script Unicode characters (no Cyrillic, no Arabic, no Hebrew script, no Devanagari, no Bengali script, no native script). Write ${romanizedLangName} language spelled out with English alphabet letters ONLY.`,
           `IMPORTANT: Even if you see native ${romanizedLangName} script in the conversation history, YOUR reply must ALWAYS use romanized Latin letters — never native script.`,
+          // Ported from the main `prompt` array — this shorter, romanized-input
+          // prompt REPLACES `prompt` entirely (never merged, see streamSystem/
+          // system below), so without this the whole TIER 1 crisis-safety
+          // framework and the CONNECT REFERRAL RULE were silently absent for
+          // romanized-script input. Found in the 2026-08-14 pre-release
+          // review: a romanized-Hindi crisis+loneliness message got a warm
+          // reply with zero crisis-safety redirection. Kept minimal here to
+          // match this prompt's own "1-2 sentences" constraint — full TIER 1
+          // framework detail isn't needed, just the core referral behavior.
+          "No medical, diagnostic, or crisis instructions. If serious risk appears, encourage reaching out to trusted people and local professional crisis services — always lead with that, even in a short reply.",
+          isLonelyOrWantsCompany
+            ? "If the user is lonely / has no one to talk to / wishes they had someone real to talk to, you MUST name 'Imotara Connect' as a place to talk to a real person one-on-one — peer support only, never call it therapy or a licensed professional."
+            : "",
           companionPersonaHint || "Be warm and empathetic.",
           langAgeOverride,
           emotionHint,
@@ -3566,6 +3579,14 @@ export async function POST(req: Request) {
           isClosureIntent || isLightCasual ? "" : "If the user asks 'what would you say' or 'how should I say it', give them real, specific words they could actually use — tailored to their exact situation, not generic advice.",
           conversationText ? `\nConversation so far:\n${conversationText}` : "",
           "Keep it 1-2 sentences. Be human, warm, not generic. Always finish your last sentence completely.",
+          // Repeated near the end for recall — same technique used in the
+          // main prompt (scriptMirrorInstruction/contextAnchor), needed
+          // because a buried instruction alone proved unreliable in testing.
+          isCrisisAdjacent
+            ? "REMINDER — CRISIS SAFETY: The user has expressed thoughts of suicide, self-harm, or ending their life. Do NOT mention Imotara Connect anywhere in this reply, in any language. Your only referral must be to a trusted person and/or local professional crisis services."
+            : isLonelyOrWantsCompany
+              ? "REMINDER: Name 'Imotara Connect' in this reply as a place to talk to a real person one-on-one — peer support only, never therapy or a licensed professional."
+              : "",
         ].filter(Boolean).join("\n")
       : null;
 

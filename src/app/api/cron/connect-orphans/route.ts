@@ -95,8 +95,22 @@ export async function GET(req: NextRequest) {
           : Number(consultant.rate_per_min);
 
         if (rate > 0) {
-          const amountCharged = freshMinutes * rate;
-          const earnings = amountCharged * 0.80;
+          // Wall-clock reconciliation (P1-5, same rationale as tick/route.ts
+          // pathB/pathC): cap billed minutes to what could plausibly have
+          // elapsed since started_at, so a client that ticked right at the
+          // 55s floor before crashing can't leave an over-billed orphan.
+          const wallClockMin = session.started_at
+            ? Math.ceil((Date.now() - new Date(session.started_at as string).getTime()) / 60_000)
+            : freshMinutes;
+          const billableMin = Math.min(freshMinutes, Math.max(wallClockMin, 0));
+          if (billableMin !== freshMinutes) {
+            console.warn(
+              `[connect-orphans] wall-clock reconciliation: capped billed minutes ${freshMinutes} -> ${billableMin} ` +
+              `(wall-clock elapsed ${wallClockMin}min) session:`, session.id,
+            );
+          }
+          const amountCharged = +(billableMin * rate).toFixed(4);
+          const earnings = +(amountCharged * 0.80).toFixed(4);
 
           // The user owes this regardless of whether the consultant-credit
           // step below succeeds — write it unconditionally, first.

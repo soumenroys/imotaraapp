@@ -68,7 +68,7 @@ There is no migration runner. Ordering is **by naming convention and documented 
 | Table | Purpose | Key columns |
 |---|---|---|
 | `connect_consultants` | Consultant profiles | `user_id`, `display_name`, `gender`, `photo_url`, `bio`, `expertise_tags[]`, `languages[]`, `rate_per_min`, `currency_code`, `status` (pending/approved/suspended/rejected), `is_online`, `is_busy`, `rating_avg`, `sessions_completed`, `availability_windows` (jsonb), `role_category`, `preferred_lang` |
-| `connect_sessions` | Text-chat sessions + per-minute billing state | `user_id`, `consultant_id`, `type` (instant/scheduled), `status`, `rate_per_min` (locked at creation), `minutes_used`, `amount_charged`, `platform_fee`, `last_tick_at`, `scheduled_at`, `translation_enabled`, `rating`, `review_text` |
+| `connect_sessions` | Text-chat sessions + per-minute billing state | `user_id`, `consultant_id`, `type` (instant/scheduled), `status`, `rate_per_min` (locked at creation), `minutes_used`, `amount_charged` (`NUMERIC(12,4)` as of 2026-08-14, matching `platform_fee`/`consultant_credited` — was `NUMERIC(12,2)`, a real precision mismatch, not just app-level float noise), `platform_fee`, `last_tick_at`, `scheduled_at`, `translation_enabled`, `rating`, `review_text` |
 | `connect_messages` | Chat messages (Supabase Realtime-enabled) | `session_id`, `sender_id`, `content` (≤2000) |
 | `connect_wallet` | Per-user pre-paid balance **and** per-consultant earnings (one row covers both) | `user_id` (PK), `balance_amount`, `earned_amount`, `pending_payout` |
 | `connect_recharges` | Consultant-specific recharge payment records | `user_id`, `consultant_id`, `razorpay_order_id`, `amount`, `minutes_credited`, `platform_fee`, `consultant_credit`, `status` |
@@ -103,6 +103,7 @@ All these are `SECURITY DEFINER` with `set search_path = public`, and `EXECUTE` 
 - **`check_org_seat_available(org_id)`** — boolean pre-check (seats free + active + not expired).
 - **`tier_rank(text)`** — immutable ordering helper (`free`0…`enterprise`5).
 - **`get_org_members`, `get_org_usage_stats`, `admin_search_orgs`, `admin_search_users_with_licenses`, `get_org_member_stats`, `get_org_license_inventory`** — dashboard/admin read helpers. `get_org_usage_stats` returns **aggregate-only** data (active users, event counts, a rough avg-session-mins proxy) — never individual rows.
+- **`grant_license_atomic(user_id, is_subscription, tier, days, tokens, source)`** (added 2026-08-14) — `grantLicense()`'s (`src/lib/imotara/grantLicense.ts`) entire read-compute-write for subscription tier/expiry stacking and token-pack `token_balance` increments, done as a single `INSERT … ON CONFLICT (user_id) DO UPDATE` whose `SET` expressions reference the table's own pre-conflict column values (`licenses.token_balance`, `licenses.expires_at`, `licenses.tier`) — atomic per-row, no explicit locking needed. Replaces a JS-level read-then-write that could lose or double an increment under two concurrent webhook deliveries for the same user (Razorpay retries payment.captured/order.paid; `payment_licenses`'s dedup only protects the same `payment_id`, not two different in-flight requests racing before either commits).
 
 ### Connect / wallet / billing RPCs
 - **`get_session_balance(user_id, consultant_id)`** — single-expression atomic balance read (kills the two-read TOCTOU window in billing).

@@ -376,17 +376,16 @@ async function sendOutageAlert(reason: string): Promise<void> {
 }
 
 /**
- * Streaming version of callImotaraAI.
- * Yields text tokens as they arrive from the model (stream: true).
- * Used by /api/chat-reply?stream=1 for low-latency progressive rendering.
- * The caller is responsible for building the final string from yielded chunks.
+ * Streaming Gemini fallback — mirrors callGeminiAI but yields tokens as they
+ * arrive via Gemini's SSE streaming endpoint. Used by streamImotaraAI when
+ * the OpenAI stream fails before any token has been yielded.
  */
-export async function* streamImotaraAI(
+async function* streamGeminiAI(
   prompt: string,
   options: CallImotaraAIOptions = {},
 ): AsyncGenerator<string, void, unknown> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.IMOTARA_AI_MODEL || "gpt-4.1-mini";
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = "gemini-2.0-flash";
   if (!apiKey) return;
 
   const systemPrompt = options.system ?? "You are Imotara — a warm, caring emotional companion. Be concise and human.";
@@ -396,25 +395,16 @@ export async function* streamImotaraAI(
   const controller = new AbortController();
   const timeoutId = abortMs > 0 ? setTimeout(() => controller.abort(), abortMs) : undefined;
 
-  const baseUrl = getOpenAIBaseUrl();
-  const endpoint = `${baseUrl}/v1/chat/completions`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
   try {
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: prompt },
-        ],
-        max_tokens: maxTokens,
-        temperature,
-        stream: true,
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: maxTokens, temperature },
       }),
       signal: controller.signal,
     });
@@ -438,17 +428,145 @@ export async function* streamImotaraAI(
         const trimmed = line.trim();
         if (!trimmed.startsWith("data: ")) continue;
         const data = trimmed.slice(6);
-        if (data === "[DONE]") return;
+        try {
+          const parsed = JSON.parse(data) as GeminiResult;
+          const token = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (token) yield token;
+        } catch { /* skip malformed SSE chunks */ }
+      }
+    }
+  } catch (err) {
+    if (timeoutId) clearTimeout(timeoutId);
+    console.error("[imotara][gemini] stream fetch exception:", err);
+  }
+}
+
+/**
+ * Streaming version of callImotaraAI.
+ * Yields text tokens as they arrive from the model (stream: true).
+ * Used by /api/chat-reply?stream=1 for low-latency progressive rendering.
+ * The caller is responsible for building the final string from yielded chunks.
+ *
+ * Resilience (P1-6, code_review_audit_2026_08_14 finding C1): previously this
+ * function had none of callImotaraAI's disaster-recovery — an HTTP error or
+ * empty body silently ended the stream with zero output and no alert, and
+ * streaming is the PRIMARY path on both platforms (client tries stream first,
+ * only falling back to non-streaming callImotaraAI if the stream throws or
+ * yields no text at all). Now: an outright connection failure (HTTP error,
+ * missing body, or a network exception before any token has streamed) fires
+ * the same outage alert as callImotaraAI and falls back to a Gemini stream.
+ * A mid-stream stall (tokens already flowing, then it goes silent) is NOT
+ * spliced with a second model's output — that would read as an incoherent,
+ * mixed-voice reply — it's simply aborted via a server-side stall guard,
+ * matching the (bounded, not infinite) behavior the client's own 20s
+ * stall-retry logic already assumed was happening.
+ */
+export async function* streamImotaraAI(
+  prompt: string,
+  options: CallImotaraAIOptions = {},
+): AsyncGenerator<string, void, unknown> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  const model = process.env.IMOTARA_AI_MODEL || "gpt-4.1-mini";
+  if (!apiKey) {
+    yield* streamGeminiAI(prompt, options);
+    return;
+  }
+
+  const systemPrompt = options.system ?? "You are Imotara — a warm, caring emotional companion. Be concise and human.";
+  const temperature = typeof options.temperature === "number" ? options.temperature : 0.7;
+  const maxTokens = options.maxTokens ?? 350;
+  const abortMs = options.abortMs ?? 15_000;
+  const controller = new AbortController();
+  const timeoutId = abortMs > 0 ? setTimeout(() => controller.abort(), abortMs) : undefined;
+
+  const baseUrl = getOpenAIBaseUrl();
+  const endpoint = `${baseUrl}/v1/chat/completions`;
+
+  let yieldedAny = false;
+  // Server-side stall guard: reset on every chunk read from the body. The
+  // outer timeoutId above only covers time-to-first-byte (it's cleared the
+  // instant headers arrive) — previously nothing bounded the body itself
+  // once the connection was established, so a stream that stalled mid-body
+  // had no server-side abort at all.
+  let stallTimer: ReturnType<typeof setTimeout> | undefined;
+  const armStallGuard = () => {
+    if (stallTimer) clearTimeout(stallTimer);
+    if (abortMs > 0) stallTimer = setTimeout(() => controller.abort(), abortMs);
+  };
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: maxTokens,
+        temperature,
+        stream: true,
+      }),
+      signal: controller.signal,
+    });
+
+    if (timeoutId) clearTimeout(timeoutId);
+
+    if (!response.ok || !response.body) {
+      console.error(`[imotara][aiClient] stream HTTP ${response.status} or missing body`);
+      void sendOutageAlert(`Streaming HTTP ${response.status}`);
+      yield* streamGeminiAI(prompt, options);
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    armStallGuard();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      armStallGuard();
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data: ")) continue;
+        const data = trimmed.slice(6);
+        if (data === "[DONE]") {
+          if (stallTimer) clearTimeout(stallTimer);
+          return;
+        }
         try {
           const parsed = JSON.parse(data) as {
             choices?: { delta?: { content?: string | null } }[];
           };
           const token = parsed.choices?.[0]?.delta?.content;
-          if (token) yield token;
+          if (token) {
+            yieldedAny = true;
+            yield token;
+          }
         } catch { /* skip malformed SSE chunks */ }
       }
     }
-  } catch {
+    if (stallTimer) clearTimeout(stallTimer);
+  } catch (err: any) {
     if (timeoutId) clearTimeout(timeoutId);
+    if (stallTimer) clearTimeout(stallTimer);
+    if (!yieldedAny) {
+      console.error("[imotara][aiClient] stream fetch exception:", err?.message || err);
+      void sendOutageAlert(err?.message || "Streaming network error");
+      yield* streamGeminiAI(prompt, options);
+    } else {
+      console.error("[imotara][aiClient] stream stalled/aborted after partial output:", err?.message || err);
+    }
   }
 }

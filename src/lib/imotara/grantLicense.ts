@@ -33,15 +33,19 @@ export type GrantResult =
     | { ok: true;  tier: string; tokenBalance: number; expiresAt: string | null }
     | { ok: false; error: string };
 
-// Tier rank — higher number = higher tier. Never write a lower tier over a higher one.
-const TIER_RANK: Record<string, number> = { free: 0, plus: 1, pro: 2, family: 3, edu: 4, enterprise: 5 };
-
 /**
  * Upgrade or top-up a user's license row.
  * - Subscriptions: extends expiry (stacks on active subscription, resets if expired).
  *   Never downgrades tier — a Pro user who buys Plus keeps Pro tier with stacked expiry.
  * - Token packs: increments token_balance without touching tier/expiry
  * Caller must pass the admin (service-role) client.
+ *
+ * The read-compute-write is done atomically in a single SQL statement via the
+ * grant_license_atomic RPC (docs/sql/connect_v42_grant_license_atomic.sql), not
+ * in JS — two concurrent webhook deliveries for the same user (e.g. a Razorpay
+ * retry racing the original delivery before either commits) previously raced
+ * on a JS-level read-then-write and could lose or double an increment.
+ * See [[code_review_audit_2026_08_14]] (finding A8).
  */
 export async function grantLicense(
     userId: string,
@@ -51,60 +55,25 @@ export async function grantLicense(
 ): Promise<GrantResult> {
     try {
         const product = PRODUCT_CATALOG[productId];
+        const isSubscription = product.type === "subscription";
 
-        const { data: existing } = await admin
-            .from("licenses")
-            .select("tier, status, expires_at, token_balance")
-            .eq("user_id", userId)
-            .maybeSingle();
+        const { data, error } = await admin.rpc("grant_license_atomic", {
+            p_user_id: userId,
+            p_is_subscription: isSubscription,
+            p_tier: isSubscription ? product.tier : "free",
+            p_days: isSubscription ? product.days : 0,
+            p_tokens: isSubscription ? 0 : product.tokens,
+            p_source: source,
+        }).single<{ out_tier: string; out_token_balance: number; out_expires_at: string | null }>();
 
-        if (product.type === "subscription") {
-            const now       = Date.now();
-            const expMs     = existing?.expires_at ? new Date(existing.expires_at).getTime() : 0;
-            const baseMs    = expMs > now ? expMs : now; // stack renewals when still active
-            const newExpiry = new Date(baseMs + product.days * 86_400_000).toISOString();
-            const balance   = existing?.token_balance ?? 0;
+        if (error || !data) throw new Error(`grant_license_atomic failed: ${error?.message ?? "no data"}`);
 
-            // Never downgrade: if the user already holds a higher tier, keep it.
-            const currentRank = TIER_RANK[existing?.tier ?? "free"] ?? 0;
-            const newRank     = TIER_RANK[product.tier] ?? 0;
-            const tierToWrite = newRank >= currentRank ? product.tier : (existing!.tier);
-
-            if (existing) {
-                const { error } = await admin.from("licenses")
-                    .update({ tier: tierToWrite, status: "valid", expires_at: newExpiry, source, updated_at: new Date().toISOString() })
-                    .eq("user_id", userId);
-                if (error) throw new Error(`licenses update failed: ${error.message}`);
-            } else {
-                const { error } = await admin.from("licenses").insert({
-                    user_id: userId, tier: product.tier, status: "valid",
-                    expires_at: newExpiry, token_balance: 0, source,
-                });
-                if (error) throw new Error(`licenses insert failed: ${error.message}`);
-            }
-
-            return { ok: true, tier: tierToWrite, tokenBalance: balance, expiresAt: newExpiry };
-        } else {
-            // Token pack — increment balance only; leave tier/expiry untouched
-            const balance    = (existing?.token_balance ?? 0) + product.tokens;
-            const tier       = existing?.tier ?? "free";
-            const expiresAt  = existing?.expires_at ?? null;
-
-            if (existing) {
-                const { error } = await admin.from("licenses")
-                    .update({ token_balance: balance, updated_at: new Date().toISOString() })
-                    .eq("user_id", userId);
-                if (error) throw new Error(`licenses update failed: ${error.message}`);
-            } else {
-                const { error } = await admin.from("licenses").insert({
-                    user_id: userId, tier: "free", status: "valid",
-                    token_balance: balance, source,
-                });
-                if (error) throw new Error(`licenses insert failed: ${error.message}`);
-            }
-
-            return { ok: true, tier, tokenBalance: balance, expiresAt };
-        }
+        return {
+            ok: true,
+            tier: data.out_tier,
+            tokenBalance: data.out_token_balance,
+            expiresAt: data.out_expires_at,
+        };
     } catch (err) {
         console.error("[grantLicense] error:", err);
         return { ok: false, error: String(err) };

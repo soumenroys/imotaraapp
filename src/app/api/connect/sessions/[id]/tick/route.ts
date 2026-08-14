@@ -31,7 +31,7 @@ export async function POST(
 
   const { data: session } = await supabase
     .from("connect_sessions")
-    .select("id, user_id, consultant_id, status, minutes_used, amount_charged, currency_code, rate_per_min, last_tick_at")
+    .select("id, user_id, consultant_id, status, minutes_used, amount_charged, currency_code, rate_per_min, last_tick_at, started_at")
     .eq("id", sessionId)
     .single();
 
@@ -86,20 +86,38 @@ export async function POST(
     // consultant_credited is intentionally NOT written here — it is written inside
     // creditConsultant() ONLY after the wallet is actually credited, to prevent a
     // false audit record if wallet upsert or earnings RPC subsequently fails.
-    const pathCAmount      = Number(session.minutes_used) * ratePerMin;
+    //
+    // Wall-clock reconciliation (P1-5): the only ceiling on tick frequency is a
+    // floor (>= 55s apart) — a client ticking right at that floor accrues minutes
+    // faster than real time (60/55 ≈ 9% over a long session). Billed minutes are
+    // capped to what could plausibly have elapsed since started_at, so a client
+    // (or attacker) that ticks aggressively can't over-bill past wall-clock reality.
+    // minutes_used itself is left untouched — it's the raw tick count, not the bill.
+    const ticksMinutes  = Number(session.minutes_used);
+    const wallClockMin  = session.started_at
+      ? Math.ceil((Date.parse(now) - Date.parse(session.started_at as string)) / 60_000)
+      : ticksMinutes;
+    const billableMin   = Math.min(ticksMinutes, Math.max(wallClockMin, 0));
+    if (billableMin !== ticksMinutes) {
+      console.warn(
+        `[tick/pathC] wall-clock reconciliation: capped billed minutes ${ticksMinutes} -> ${billableMin} ` +
+        `(wall-clock elapsed ${wallClockMin}min) session:`, sessionId,
+      );
+    }
+    const pathCAmount = +(billableMin * ratePerMin).toFixed(4);
     const { data: completedRows, error: pathCErr } = await supabase
       .from("connect_sessions")
       .update({
         status:         "completed",
         ended_at:       now,
         last_tick_at:   now,
-        minutes_used:   Number(session.minutes_used),
-        amount_charged: +pathCAmount.toFixed(4),
+        minutes_used:   ticksMinutes,
+        amount_charged: pathCAmount,
         platform_fee:   +(pathCAmount * 0.20).toFixed(4),
       })
       .eq("id", sessionId)
       .eq("status", "active")
-      .eq("minutes_used", Number(session.minutes_used))
+      .eq("minutes_used", ticksMinutes)
       .select("id");
     if (pathCErr) {
       console.error("[tick/pathC] update error:", pathCErr.message, "session:", sessionId);
@@ -107,17 +125,17 @@ export async function POST(
     }
 
     if (completedRows && completedRows.length > 0) {
-      await creditConsultant(supabase, session.consultant_id, session.minutes_used, ratePerMin, sessionId);
+      await creditConsultant(supabase, session.consultant_id, billableMin, ratePerMin, sessionId);
       void sendCompletionEmails(supabase, {
         sessionId,
         userId:        session.user_id,
         consultantId:  session.consultant_id,
-        minutesUsed:   Number(session.minutes_used),
-        // Use computed value rather than the DB field — session.amount_charged was read
-        // at request start; a concurrent tick may have written a larger value since then.
-        // The optimistic lock guarantees minutes_used hasn't changed, so the computed
-        // amount is authoritative and consistent with what creditConsultant credits.
-        amountCharged: Number(session.minutes_used) * ratePerMin,
+        minutesUsed:   billableMin,
+        // Same pathCAmount used for the DB write above — previously this
+        // recomputed an unrounded raw float independently, so the email could
+        // show a long floating-point amount even on the path whose DB write
+        // was rounded.
+        amountCharged: pathCAmount,
         currency:      session.currency_code ?? "INR",
         ratePerMin,
       }).catch((e) => console.error("[tick] completion email error:", e));
@@ -128,7 +146,6 @@ export async function POST(
 
   // Deduct 1 minute
   const newMinutesUsed   = Number(session.minutes_used) + 1;
-  const newAmountCharged = newMinutesUsed * ratePerMin;
   const remaining        = balanceBefore - 1;
 
   // Auto-complete when balance hits zero.
@@ -137,6 +154,18 @@ export async function POST(
   // consultant_credited is intentionally NOT written here — written inside
   // creditConsultant() ONLY after wallet is actually credited.
   if (remaining <= 0) {
+    // Wall-clock reconciliation (P1-5) — see pathC's identical comment above.
+    const wallClockMin = session.started_at
+      ? Math.ceil((Date.parse(now) - Date.parse(session.started_at as string)) / 60_000)
+      : newMinutesUsed;
+    const billableMin  = Math.min(newMinutesUsed, Math.max(wallClockMin, 0));
+    if (billableMin !== newMinutesUsed) {
+      console.warn(
+        `[tick/pathB] wall-clock reconciliation: capped billed minutes ${newMinutesUsed} -> ${billableMin} ` +
+        `(wall-clock elapsed ${wallClockMin}min) session:`, sessionId,
+      );
+    }
+    const newAmountCharged = +(billableMin * ratePerMin).toFixed(4);
     const { data: completedRows, error: pathBErr } = await supabase
       .from("connect_sessions")
       .update({
@@ -157,12 +186,12 @@ export async function POST(
     }
 
     if (completedRows && completedRows.length > 0) {
-      await creditConsultant(supabase, session.consultant_id, newMinutesUsed, ratePerMin, sessionId);
+      await creditConsultant(supabase, session.consultant_id, billableMin, ratePerMin, sessionId);
       void sendCompletionEmails(supabase, {
         sessionId,
         userId:        session.user_id,
         consultantId:  session.consultant_id,
-        minutesUsed:   newMinutesUsed,
+        minutesUsed:   billableMin,
         amountCharged: newAmountCharged,
         currency:      session.currency_code ?? "INR",
         ratePerMin,
@@ -171,6 +200,11 @@ export async function POST(
 
     return NextResponse.json({ ok: true, status: "completed", remaining_minutes: 0 });
   }
+
+  // Ongoing (non-completing) tick — bill exactly what's ticked, no wall-clock cap.
+  // Reconciliation only applies at completion (P1-5's stated scope); mid-session
+  // the client still needs minutes_used to track its own remaining balance display.
+  const newAmountCharged = +(newMinutesUsed * ratePerMin).toFixed(4);
 
   // Optimistic lock: only write if minutes_used hasn't changed since we read it.
   // Also require status="active" so a concurrent PATCH complete cannot be overwritten.

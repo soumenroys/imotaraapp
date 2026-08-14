@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     // tick yet) must NOT be killed — the actual meeting may not start for hours.
     const { data: staleSessions } = await supabase
       .from("connect_sessions")
-      .select("id, user_id, consultant_id, minutes_used, rate_per_min, amount_charged, translation_enabled, user_lang, consultant_lang, currency_code")
+      .select("id, user_id, consultant_id, minutes_used, rate_per_min, amount_charged, translation_enabled, user_lang, consultant_lang, currency_code, started_at")
       .eq("consultant_id", consultant.id)
       .eq("status", "active")
       .or(`last_tick_at.lt.${fiveMinutesAgo},and(last_tick_at.is.null,started_at.lt.${fiveMinutesAgo},type.eq.instant)`);
@@ -78,9 +78,25 @@ export async function GET(req: NextRequest) {
 
         // Credit consultant for minutes already consumed before client disconnected.
         if (freshMinutes > 0 && Number(stale.rate_per_min) > 0) {
-          const lockedRate      = Number(stale.rate_per_min);
-          const sessionEarnings = freshMinutes * lockedRate * 0.80;
-          const amountCharged   = freshMinutes * lockedRate;
+          const lockedRate = Number(stale.rate_per_min);
+
+          // Wall-clock reconciliation (P1-5, same rationale as tick/route.ts
+          // pathB/pathC): cap billed minutes to what could plausibly have
+          // elapsed since started_at, so a client that ticked right at the
+          // 55s floor before disconnecting can't leave an over-billed session.
+          const wallClockMin = stale.started_at
+            ? Math.ceil((Date.now() - new Date(stale.started_at as string).getTime()) / 60_000)
+            : freshMinutes;
+          const billableMin = Math.min(freshMinutes, Math.max(wallClockMin, 0));
+          if (billableMin !== freshMinutes) {
+            console.warn(
+              `[stale-complete] wall-clock reconciliation: capped billed minutes ${freshMinutes} -> ${billableMin} ` +
+              `(wall-clock elapsed ${wallClockMin}min) session:`, stale.id,
+            );
+          }
+
+          const sessionEarnings = +(billableMin * lockedRate * 0.80).toFixed(4);
+          const amountCharged   = +(billableMin * lockedRate).toFixed(4);
 
           // The user owes this regardless of whether the consultant-credit
           // step below succeeds — write it unconditionally, first.

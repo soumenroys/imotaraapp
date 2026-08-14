@@ -64,7 +64,12 @@ No UI (web or mobile) calls this anymore — the steps below describe backend ca
 
 ### A8. In-session extras
 - **Chat:** `GET/POST /api/connect/sessions/[id]/messages` (Realtime `connect_messages`; inserts require `status='active'`).
-- **Translate:** `POST /api/connect/translate` `{ text, targetLang, sourceLang? }` — auth-gated (prevents open-proxy abuse), **rate-limited 60 requests / 60s per user**. As of 2026-08-13, **Google Cloud Translation is the primary engine** (`GOOGLE_TRANSLATE_API_KEY` provisioned in production) for much higher quality than the old default; **MyMemory (free) is a fallback only**, used if the Google key is ever missing or rate-limited. Known residual limitation: romanized/transliterated non-Hindi Indic input (e.g. romanized Tamil, Urdu, Bengali) can still translate to a coherent-but-wrong English meaning — an LLM-based follow-up path is a flagged future improvement, not yet built.
+- **Translate:** `POST /api/connect/translate` `{ text, targetLang, sourceLang? }` — auth-gated (prevents open-proxy abuse), **rate-limited 60 requests / 60s per user**. Three-tier engine selection in `translateText()` (`src/lib/connect/translate.ts`), evaluated in order:
+  1. **LLM translation** (`gpt-4.1-mini` via `OPENAI_API_KEY`) — used ONLY when `sourceLang` is one of the 9 languages confirmed to translate poorly through Google when romanized (Marathi, Bengali, Tamil, Telugu, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu — Hindi excluded, it already works well via Google) AND the text contains no native script for that language (i.e. is genuinely romanized/Latin-script). Added 2026-08-14 after a 37-case evaluation showed Google translating essentially none of these correctly (often not translating at all, or dropping content in code-switched messages) vs. the LLM getting effectively all of them right, across both translation directions, code-switched text, and paragraph-length messages. Hardened against prompt injection — the source text is always treated as content to translate, never as instructions, even if it contains phrases that look like commands.
+  2. **Google Cloud Translation** (`GOOGLE_TRANSLATE_API_KEY`, since 2026-08-13) — primary engine for everything else, and the fallback if the LLM call fails, errors, times out, or returns an empty/non-translation (e.g. echoing the input back unchanged).
+  3. **MyMemory** (free) — final fallback only, used if the Google key is ever missing or rate-limited.
+
+  This closes the "known residual limitation" that used to be documented here — romanized non-Hindi Indic input is no longer expected to silently mistranslate.
 - **Balance check:** `GET /api/connect/sessions/[id]/balance`.
 
 ### A9. End the session

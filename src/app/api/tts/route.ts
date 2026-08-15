@@ -149,9 +149,20 @@ export async function POST(req: NextRequest) {
         ? `<prosody rate="${prosody.rate}" pitch="${prosody.pitch}">${escapedText}</prosody>`
         : escapedText;
 
-    const msttsNs = style ? ` xmlns:mstts="http://www.w3.org/2001/mstts"` : "";
-
-    const ssml = `<speak version="1.0" xml:lang="${locale}" xmlns="http://www.w3.org/2001/10/synthesis"${msttsNs}><voice name="${voice}">${bodyXml}</voice></speak>`;
+    // Reply audio is synthesized one sentence-chunk at a time (see
+    // splitIntoSpeechChunks / playChunkedTTS-style pipelined playback on both
+    // platforms) — Azure Neural voices pad every clip with leading/trailing
+    // silence by default, and how much varies a lot by voice: measured
+    // ~0.85-0.87s trailing silence for bn-IN-TanishaaNeural alone (confirmed
+    // via ffmpeg silencedetect), versus ~0.15-0.3s for most other tested
+    // voices. Stacked once per chunk, this produced an audible pause between
+    // every sentence — reported by a user, "very prominent in Bengali" but
+    // present in every language tested (2026-08-15 investigation). These
+    // mstts:silence tags ask Azure to omit that padding at the source rather
+    // than trying to trim it client-side after the fact; live-verified
+    // across bn/hi/en/ta/ja with ffprobe — every voice shed 0.3-1.0s per
+    // clip with no distortion.
+    const ssml = `<speak version="1.0" xml:lang="${locale}" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts"><voice name="${voice}"><mstts:silence type="Leading-exact" value="0ms"/><mstts:silence type="Tailing-exact" value="0ms"/>${bodyXml}</voice></speak>`;
 
     const azureUrl = `https://${azureConfig.region}.tts.speech.microsoft.com/cognitiveservices/v1`;
 

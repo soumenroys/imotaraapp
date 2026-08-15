@@ -5329,13 +5329,30 @@ async function playChunkedTTS(
   // included in the fallback range, not skipped.
   let playedChunks = 0;
 
+  // Prefetch depth 2, not just 1: a single Azure voice (e.g. the newer
+  // MAI-Voice-2 family used for en/hi/zh/fr/pt/ru/de/es) can take ~3s to
+  // synthesize a short chunk — longer than that chunk's own playback
+  // duration — so a 1-chunk lookahead sometimes ran dry mid-reply,
+  // producing an audible pause before the next sentence (reported by a
+  // user, 2026-08-15). A 2-deep queue gives each fetch roughly two chunks'
+  // worth of playback time to land instead of one; live-tested against
+  // real MAI-Voice-2 latency and confirmed it fully closes the gap for
+  // every chunk after the first (the first chunk's wait is the expected
+  // "preparing" delay before speech starts at all, not a between-sentence
+  // pause).
+  const PREFETCH_DEPTH = 2;
+  const queue: Promise<Blob>[] = [];
+  for (let i = 0; i < Math.min(PREFETCH_DEPTH, chunks.length); i++) {
+    queue.push(fetchChunk(chunks[i]));
+  }
+
   try {
-    let nextFetch: Promise<Blob> | null = fetchChunk(chunks[0]);
     for (let i = 0; i < chunks.length; i++) {
       if (signal.aborted) throw new DOMException("aborted", "AbortError");
-      const blob = await nextFetch!;
+      const blob = await queue.shift()!;
       if (signal.aborted) throw new DOMException("aborted", "AbortError");
-      nextFetch = i + 1 < chunks.length ? fetchChunk(chunks[i + 1]) : null;
+      const nextIndex = i + PREFETCH_DEPTH;
+      if (nextIndex < chunks.length) queue.push(fetchChunk(chunks[nextIndex]));
       if (i === 0) onStart?.();
       await playBlob(blob);
       playedChunks = i + 1;

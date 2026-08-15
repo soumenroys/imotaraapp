@@ -2281,12 +2281,12 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   // let it pass through for emotional / conversational turns.
   // Keep formatter structure for greeting / return / practical flows,
   // where deterministic shaping is still useful.
-  const rawSentenceCount = (insight.match(/[.!?؟؟।۔]/g) ?? []).length;
+  const rawSentenceCount = (insight.match(/[.!?؟؟।۔。！]/g) ?? []).length;
 
   const modelReplyLooksComplete =
     insight &&
     insight.length > 15 &&
-    /[.!?؟؟।۔]$/.test(insight.trim());
+    /[.!?؟؟।۔。！]$/.test(insight.trim());
 
   const modelReplyLooksNaturallyConversational =
     insight &&
@@ -2325,7 +2325,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
         if (acc.length === 0) return [cur];
         const prev = acc[acc.length - 1] ?? "";
         const normL = (s: string) =>
-          s.trim().toLowerCase().replace(/[.!?؟？…।۔\s]+$/g, "");
+          s.trim().toLowerCase().replace(/[.!?؟？…।۔。！\s]+$/g, "");
         if (normL(prev) === normL(cur) && normL(cur).length > 0) return acc;
         return [...acc, cur];
       }, [])
@@ -2337,9 +2337,26 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     const _endPunct =
       lang === "ur"
         ? "۔"
-        : ["hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa", "or"].includes(lang)
+        // Danda (।) is only correct for Hindi/Bengali/Punjabi/Odia — confirmed
+        // against this file's own native-language reactionBank() content
+        // (2026-08-14 TTS punctuation-reading bug investigation): Marathi,
+        // Gujarati, Tamil, Telugu, Kannada, and Malayalam entries all use a
+        // plain period natively, even Marathi despite sharing Devanagari
+        // script with Hindi. The previous over-broad list forced danda onto
+        // all ten languages here, and Azure's TTS voices for the languages
+        // that don't natively use danda would sometimes vocalize it literally
+        // instead of treating it as a silent pause.
+        : ["hi", "bn", "pa", "or"].includes(lang)
           ? "।"
-          : ".";
+          // Japanese/Chinese use the full-width ideographic full stop (。),
+          // not a Latin period — confirmed against this file's own ja/zh
+          // reactionBank() content, and live-reproduced: without this, a
+          // reply would end "...部分。." (native terminator + stray Latin
+          // period), found in the same 2026-08-14 investigation as the
+          // danda fix above.
+          : ["ja", "zh"].includes(lang)
+            ? "。"
+            : ".";
     const _qRe = /[?؟？]/g;
     let _qSeen = 0;
     cleaned = cleaned.replace(_qRe, (m) => {
@@ -2371,17 +2388,23 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   const endPunct =
     lang === "ur"
       ? "۔"
-      : ["hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa", "or"].includes(lang)
+      // Danda (।) is only correct for Hindi/Bengali/Punjabi/Odia — see the
+      // matching comment above on _endPunct for the full explanation.
+      : ["hi", "bn", "pa", "or"].includes(lang)
         ? "।"
-        : ".";
+        // Japanese/Chinese use 。, not a Latin period — see the matching
+        // comment above on _endPunct.
+        : ["ja", "zh"].includes(lang)
+          ? "。"
+          : ".";
 
-  const sentenceEndRe = /[.!?؟？।۔]/g;
+  const sentenceEndRe = /[.!?؟？।۔。！]/g;
   const questionRe = /[?؟？]/g;
 
   const ensureEndsLikeSentence = (s: string): string => {
     const t = (s ?? "").trim();
     if (!t) return "";
-    if (/[.!?…؟？।۔]$/.test(t)) return t;
+    if (/[.!?…؟？।۔。！]$/.test(t)) return t;
     return `${t}${endPunct}`;
   };
 
@@ -2402,7 +2425,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     // Split on common sentence endings (including Indic/Urdu punctuations).
     // Keep it simple and robust; we re-add punctuation via ensureEndsLikeSentence.
     return t
-      .split(/[.!?؟？।۔]+/g)
+      .split(/[.!?؟？।۔。！]+/g)
       .map((x) => x.trim())
       .filter(Boolean);
   };
@@ -2568,7 +2591,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
         .replace(/\s+/g, " ")
         .trim()
         .toLowerCase()
-        .replace(/[\s\.!?؟？""…]+$/g, "");
+        .replace(/[\s\.!?؟？""…।۔。！]+$/g, "");
 
     const sents = splitIntoSentences(phase2Raw);
     if (sents.length >= 2) {
@@ -2607,7 +2630,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
       .trim()
       .toLowerCase()
       // ignore trailing punctuation differences
-      .replace(/[\s\.!?؟؟…]+$/g, "");
+      .replace(/[\s\.!?؟؟…।۔。！]+$/g, "");
 
   const phase3Norm = normForDedupe(phase3);
   const lastPhase2SentenceNorm = normForDedupe(
@@ -2628,7 +2651,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
       .replace(/\s+/g, " ")
       .trim()
       .toLowerCase()
-      .replace(/[\s\.!?؟؟…]+$/g, "");
+      .replace(/[\s\.!?؟؟…।۔。！]+$/g, "");
 
   out = out
     .split("\n")

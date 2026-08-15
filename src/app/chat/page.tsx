@@ -5112,6 +5112,13 @@ function stripMarkdown(text: string): string {
 const MARATHI_HINT = /\u0906\u0939\u0947|\u0928\u093E\u0939\u0940|\u092E\u093E\u091D[\u0947\u093E]|\u0924\u0941\u091D[\u0947\u093E]|\u0939\u094B\u0924[\u0947\u0940]|\u092E\u0940 |\u0924\u0941\u092E\u094D\u0939\u0940/;
 const URDU_HINT    = /[\u0679\u0688\u0691\u06BA\u06D2]/;
 
+// Mirrors TTS_TRANSLITERATION_LANGS in src/lib/azure-tts/transliterate.ts \u2014
+// see that file for the full 2026-08-15 root-cause writeup. Kept in sync
+// manually (server list is the source of truth; this is only used as a
+// cheap client-side pre-check to skip the network call entirely for every
+// language that doesn't need it).
+const TTS_TRANSLITERATION_LANGS = new Set(["bn", "gu", "te", "kn", "ml", "ur", "or"]);
+
 function detectScriptLang(text: string): string | null {
   if (/[\u0590-\u05FF]/.test(text)) return "he-IL";   // Hebrew
   if (/[\u0900-\u097F]/.test(text)) return MARATHI_HINT.test(text) ? "mr-IN" : "hi-IN"; // Devanagari
@@ -5288,8 +5295,35 @@ async function playChunkedTTS(
   const bcp47  = resolveTTSLang(text);
   const lang   = bcp47.split("-")[0];
   const gender = getTTSGenderPref();
-  const clean  = stripMarkdown(text);
+  let   clean  = stripMarkdown(text);
   const rate   = getTTSRate();
+
+  // Romanized-Indic-input TTS pronunciation fix (2026-08-15) — see
+  // src/lib/azure-tts/transliterate.ts for the full root-cause writeup.
+  // Confirmed via a Whisper STT round-trip on real Azure output that these
+  // 7 languages specifically produce badly garbled pronunciation when fed
+  // Latin-script text as-is, while hi/ta/mr/pa already sound correct
+  // untouched — deliberately scoped to only the 7 that need it, zero risk
+  // to the languages already working. Runs ONCE here, before chunking, not
+  // per chunk — the existing "preparing" state (shown before onStart)
+  // already covers this one upfront call. Fails open on any error: `clean`
+  // just stays as the original romanized text, exactly today's behavior.
+  if (TTS_TRANSLITERATION_LANGS.has(lang) && !detectScriptLang(clean)) {
+    try {
+      const res = await fetch("/api/tts/transliterate", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ text: clean, lang }),
+        signal,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.transliterated && typeof data.text === "string") clean = data.text;
+      }
+    } catch {
+      // Network error, abort, etc. — keep the original romanized `clean`.
+    }
+  }
 
   async function fetchChunk(chunkText: string): Promise<Blob> {
     const res = await fetch("/api/tts", {

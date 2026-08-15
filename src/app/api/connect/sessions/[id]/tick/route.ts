@@ -54,12 +54,14 @@ export async function POST(
     }
   }
 
-  // Use locked rate from session (falls back to consultant if migration not yet applied)
-  const ratePerMin = Number(session.rate_per_min) > 0
+  // Use locked rate from session (falls back to consultant if migration not yet applied).
+  // rate_per_min = 0 is a legitimate free-session rate, not a missing one — only fall
+  // back to fetchConsultantRate when the session row itself has no rate at all.
+  const ratePerMin = session.rate_per_min != null
     ? Number(session.rate_per_min)
     : await fetchConsultantRate(supabase, session.consultant_id);
 
-  if (ratePerMin <= 0) {
+  if (ratePerMin < 0 || Number.isNaN(ratePerMin)) {
     console.error("[tick] session has no valid rate:", sessionId, "rate:", ratePerMin, "— aborting tick");
     return NextResponse.json({ ok: false, error: "session_rate_invalid" }, { status: 422 });
   }

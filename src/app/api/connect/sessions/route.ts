@@ -270,8 +270,10 @@ export async function POST(req: NextRequest) {
   const userLang       = typeof body.user_lang === "string" && SUPPORTED_LANGS.includes(body.user_lang) ? body.user_lang : "en";
   const consultantLang = typeof consultant.preferred_lang === "string" ? consultant.preferred_lang : "en";
   const translationEnabled = body.translation_requested === true && userLang !== consultantLang;
-  const baseRate = Number(consultant.rate_per_min ?? 0);
-  if (baseRate <= 0) {
+  // rate_per_min = 0 is a deliberate, valid "this companion is free" value — only
+  // reject a negative/missing rate, not a legitimate free one.
+  const baseRate = Number(consultant.rate_per_min ?? -1);
+  if (baseRate < 0) {
     return NextResponse.json({ ok: false, error: "Consultant rate unavailable. Please try again." }, { status: 409 });
   }
   const effectiveRate  = translationEnabled ? +((baseRate * 1.10).toFixed(4)) : baseRate;

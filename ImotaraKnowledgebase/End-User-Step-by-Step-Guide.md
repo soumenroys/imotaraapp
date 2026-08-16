@@ -4,6 +4,8 @@
 
 *Escalation / support email: **info@imotara.com** (marketing collateral also shows soumenroys@gmail.com).*
 
+*Note on Settings navigation (added 2026-08-16): on web, every Settings section is individually collapsible and tapping its title expands/collapses it — only **Sign in**, **Tone & Context Preferences**, and **Your plan** are open by default; every other section (Chat behaviour, Appearance, Companion insights, Companion memory, History management, Tips & tours, Network, Data & privacy, Delete account, etc.) starts collapsed. So wherever this guide says "Settings → [Section] → [control]", read that as "expand [Section] in Settings, then find [control]". Mobile still groups several of these under a single **Advanced** accordion — where the two differ, this guide calls it out explicitly.*
+
 ---
 
 ## 1. Getting started
@@ -154,7 +156,7 @@ Language is decided in this priority order: an explicit in-chat switch request >
 ## 7. Companion Letter, Growth Arc, Year in Review, Future & Unsent Letters
 
 ### 7a. Companion's Letter
-1. Letters are generated automatically on a cadence and delivered to you. Set how often: **Settings → Companion insights → Companion letter — every [7/14/30/60] days** (a **Pro+** feature; open the **Advanced** section on web).
+1. Letters are generated automatically on a cadence and delivered to you. Set how often: **Settings → Companion insights → Companion letter — every [7/14/30/60] days** (a **Pro+** feature; on web, expand the **Companion insights** section directly — every Settings section is individually collapsible; on mobile, open the **Advanced** section first).
 2. Read past letters in **Settings → Companion insights → 💌 Letters from Imotara**. Expand a letter, then use **🔊 Listen** (becomes **⏹ Stop**), **React** (pick an emoji), or **Write reply / Edit reply** → **Save reply**.
 3. **On mobile** letters also surface as a **Companion Letter card** with a **Listen** button.
 
@@ -179,7 +181,7 @@ Language is decided in this priority order: an explicit in-chat switch request >
 
 ## 8. Companion memory (view / edit / delete)
 
-1. Go to **Settings → Companion memory** (open the **Advanced** section on web).
+1. Go to **Settings → Companion memory** (on web, expand the **Companion memory** section directly; on mobile, open the **Advanced** section first).
 2. **View:** each remembered fact shows its value plus its type, key, and a confidence %. If empty you'll see "No memories yet — Imotara will pick up facts as you chat."
 3. **Refresh** the list with the **Refresh** button.
 4. **Delete one fact:** tap **Forget** on that row (accessibility label "Forget this memory").

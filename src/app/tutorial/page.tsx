@@ -685,7 +685,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Step 3: Choose your preferred language from 22 options.",
         "Tap 'Start' — you land on the Chat screen, ready to go.",
       ],
-      tip: "To redo onboarding later: Settings → Advanced → Tips & tours → Restart onboarding.",
+      tip: "To redo onboarding later: Settings → expand 'Tips & tours' → Restart onboarding.",
     },
     {
       icon: "💬",
@@ -922,9 +922,9 @@ const FEATURES: Record<string, Feature[]> = {
       icon: "⏱",
       title: "Voice Recording Duration Limit",
       short: "Set how long a single voice recording can be — from 30 seconds to 5 minutes.",
-      long: "By default, voice recordings stop at 60 seconds. You can change this in Settings → Advanced → Voice settings. Shorter limits use less data; longer limits let you speak more freely without interruption.",
+      long: "By default, voice recordings stop at 60 seconds. You can change this in Settings, inside the 'Appearance' section. Shorter limits use less data; longer limits let you speak more freely without interruption.",
       steps: [
-        "Go to Settings → Advanced (expand the Advanced section).",
+        "Go to Settings and expand 'Appearance'.",
         "Find 'Voice max duration'.",
         "Drag the slider or tap to set: 30s, 60s, 2 min, 3 min, or 5 min.",
         "Changes take effect immediately on the next recording.",
@@ -936,7 +936,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Choose whether voice recording uses cloud transcription (more accurate) or stays on-device (more private).",
       long: "By default, voice recordings are sent to Imotara's servers for high-quality transcription. If privacy is a priority, you can switch to on-device transcription (uses your device's built-in speech recognition, which is less accurate but never leaves your phone).",
       steps: [
-        "Go to Settings → Advanced → Voice settings.",
+        "Go to Settings → expand 'Appearance' → scroll to the voice/recording settings.",
         "Find 'Cloud transcription'.",
         "Toggle off to use on-device transcription only.",
         "Toggle on (default) to use cloud Whisper transcription.",
@@ -949,7 +949,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Enable a confirmation step so you can review and edit transcribed text before sending.",
       long: "By default, after transcription the text goes into the input box and you must manually press Send. You can also enable 'Auto-send on transcription' which sends immediately. Or enable 'Confirm before send' which shows a review modal. Toggle these in Settings.",
       steps: [
-        "Go to Settings → Advanced → Voice settings.",
+        "Go to Settings → expand 'Appearance' → scroll to the voice/recording settings.",
         "Find 'Confirm before send'.",
         "Toggle on: after transcription, a modal shows the text for review before sending.",
         "Toggle off (default): text goes into the input box; you send manually.",
@@ -1394,7 +1394,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "An Weekly emotional capsule — your top themes, patterns, and a personalised insight.",
       long: "The Mindset Capsule analyses your recent conversations and generates a weekly insight: what emotional topics you discussed most, any patterns or contradictions it noticed, and one personalised reflection to sit with. Find it in Grow → Mindset Analysis.",
       steps: [
-        "Open Grow → Mindset Analysis (web) or Settings → Advanced → Mindset Analysis (web).",
+        "Open Grow → Mindset Analysis, or Settings → expand 'Mindset Analysis'.",
         "View your current capsule — it updates weekly.",
         "Toggle which time periods to include: Today, Last 7 days, Last 30 days, All time.",
         "Tap 'Generate' to refresh the capsule.",
@@ -1419,7 +1419,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Generate a shareable emotional snapshot of your week to share with family members.",
       long: "The Family Snapshot creates a privacy-safe visual summary of your emotional week — showing trends and general mood without exposing conversation content. Share the link with a trusted family member so they understand how you've been feeling without needing to ask.",
       steps: [
-        "Go to Settings → Advanced → Family Snapshot.",
+        "Go to Settings → expand 'Family Snapshot'.",
         "Tap 'Generate snapshot'.",
         "A unique link is created.",
         "Share the link with the family member of your choice.",
@@ -1694,7 +1694,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Permanently remove all your data from Imotara's servers — cannot be undone.",
       long: "This deletes everything associated with your account from Imotara's cloud: conversations, emotion history, memories, profile. Your local device data is not affected. This is permanent and cannot be undone — use with care.",
       steps: [
-        "Go to Settings → Advanced → Data & privacy.",
+        "Go to Settings → expand 'Data & privacy'.",
         "Find 'Delete all cloud data'.",
         "Read the warning carefully.",
         "Tap 'Delete' and confirm.",
@@ -1708,7 +1708,7 @@ const FEATURES: Record<string, Feature[]> = {
       long: "Account deletion removes everything: your Google-linked account, all cloud data, purchases, and profile. Local data on each device must be cleared separately. This action is irreversible — subscriptions are not automatically cancelled, so cancel from your App Store / Play Store settings first.",
       steps: [
         "Cancel any active subscriptions first (App Store / Play Store settings).",
-        "Go to Settings → Advanced → Delete account.",
+        "Go to Settings → expand 'Delete account'.",
         "Read the warning.",
         "Tap 'Delete account' and confirm.",
         "You're signed out and your account is queued for deletion.",
@@ -1738,7 +1738,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "A visual 'emotional fingerprint' showing how your conversation patterns differ from day to day.",
       long: "The Companion Insights panel shows an abstract visualisation of your emotional fingerprint — how your pattern of expressed emotions looks at a glance. Toggle 'Show fingerprint' to include or hide this visualisation in your Trends view.",
       steps: [
-        "Go to Settings → Advanced → Companion insights.",
+        "Go to Settings → expand 'Companion insights'.",
         "Toggle 'Show fingerprint' on.",
         "Open Trends — look for the fingerprint visualisation.",
       ],
@@ -1750,7 +1750,7 @@ const FEATURES: Record<string, Feature[]> = {
       long: "As you chat, Imotara's memory engine detects personal facts: your name (if different from your profile name), your job, key relationships (partner, friends, family), and significant life events. These are stored privately and used to personalise future replies to make replies feel more personal.",
       steps: [
         "Companion memory is automatic — just chat naturally.",
-        "To see what's stored: Settings → Advanced → Companion memory.",
+        "To see what's stored: Settings → expand 'Companion memory'.",
         "Review the list of remembered facts.",
         "Tap the trash icon next to any fact to delete it.",
         "Toggle 'Companion memory capture' off to stop new facts being remembered.",
@@ -1762,7 +1762,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Set how many personal facts your companion can remember — from 5 to 20 items.",
       long: "By default, Imotara stores up to 12 memory items. You can increase this to 20 for richer personalization, or reduce to 5 for a lighter footprint. When the limit is reached, the oldest items are replaced by newer ones.",
       steps: [
-        "Go to Settings → Advanced → Companion memory.",
+        "Go to Settings → expand 'Companion memory'.",
         "Find 'Max memory items'.",
         "Drag the slider or enter a number: 5 to 20.",
       ],
@@ -1773,7 +1773,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Set automatic deletion of old conversations after a set number of days.",
       long: "You can configure Imotara to automatically delete conversations older than a certain number of days — 30, 60, 90, or 180 days. This helps manage storage without manually cleaning up. Note: auto-delete applies to both local and cloud history.",
       steps: [
-        "Go to Settings → Advanced → History management.",
+        "Go to Settings → expand 'History management'.",
         "Find 'Auto-delete old conversations'.",
         "Set the threshold: 30, 60, 90, or 180 days.",
         "Toggle the setting on.",
@@ -1786,7 +1786,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Set automatic deletion of reflection journal entries after a set period.",
       long: "If you use the Reflect/Journal feature, you can auto-delete entries after a set time. This is useful if you journal for cathartic release but don't want entries accumulating indefinitely.",
       steps: [
-        "Go to Settings → Advanced → History management.",
+        "Go to Settings → expand 'History management'.",
         "Find 'Journal auto-delete'.",
         "Set the period: 7, 14, 30, or 90 days.",
       ],
@@ -1797,7 +1797,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Configure API timeout, retry behaviour, and offline detection thresholds.",
       long: "Advanced users can tweak network settings: API timeout (how long Imotara waits before falling back to on-device replies — default 20 seconds), retry count, and the offline detection interval. Only change these if you're on a slow or unreliable connection.",
       steps: [
-        "Go to Settings → Advanced → Network.",
+        "Go to Settings → expand 'Network'.",
         "Find 'API timeout' — drag slider to set (10s–60s).",
         "Find 'Offline detection interval'.",
         "Tap 'Reset to defaults' to restore original values.",
@@ -1809,7 +1809,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Reset the discovery tips that appear the first time you visit each screen.",
       long: "First-visit tips are small informational banners that appear when you first use a feature. If you dismissed them too quickly, you can reset them here to see them again. You can also reset the welcome tip that appears on your first Chat session.",
       steps: [
-        "Go to Settings → Advanced → Tips & tours.",
+        "Go to Settings → expand 'Tips & tours'.",
         "Tap 'Reset discovery cards' to see feature tips again.",
         "Tap 'Reset welcome tip' to see the first-chat greeting again.",
       ],
@@ -1820,7 +1820,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Redo the 3-step onboarding flow — your data and settings are not affected.",
       long: "If you want to reconfigure your companion from scratch (new name, different relationship tone, different language), restarting onboarding is the quickest way. It doesn't delete any history or settings — it just re-walks you through the setup steps.",
       steps: [
-        "Go to Settings → Advanced → Tips & tours.",
+        "Go to Settings → expand 'Tips & tours'.",
         "Tap 'Restart onboarding'.",
         "Confirm in the prompt.",
         "The onboarding modal opens on your next Chat visit.",
@@ -1843,11 +1843,10 @@ const FEATURES: Record<string, Feature[]> = {
       icon: "📱",
       title: "App Version & Build Info",
       short: "See which version and build number of Imotara you're running.",
-      long: "The current version and build number appear at the bottom of the Settings page (Advanced section). This is useful when reporting bugs or checking if you're on the latest release.",
+      long: "The current version and build number appear in the footer at the bottom of any page on the web app (not specific to Settings). This is useful when reporting bugs or checking if you're on the latest release.",
       steps: [
-        "Go to Settings → Advanced.",
-        "Scroll to the bottom.",
-        "The version (e.g., v1.1.11) and build (e.g., build 99) are displayed.",
+        "Scroll to the bottom of any page.",
+        "The version and build (e.g., v1.3.2 (132)) are displayed in the footer.",
       ],
     },
   ],

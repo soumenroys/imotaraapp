@@ -942,6 +942,7 @@ export default function ChatPage() {
   type DiscoveryCardId = "trends" | "companion" | "offline" | "unsent_letter" | "connect_translation";
   const DISCOVERY_CARD_ORDER: DiscoveryCardId[] = ["trends", "companion", "offline", "unsent_letter", "connect_translation"];
   const DISCOVERY_CARDS_KEY = "imotara.onboarding.discovery.v1";
+  const DISCOVERY_CARDS_ENABLED_KEY = "imotara.onboarding.discovery.enabled.v1";
   const [discoveryCard, setDiscoveryCard] = useState<DiscoveryCardId | null>(null);
   const discoveryShownRef = useRef(false);
 
@@ -1806,6 +1807,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!mounted || userMessageCount < 3 || discoveryShownRef.current || discoveryCard) return;
     try {
+      if (localStorage.getItem(DISCOVERY_CARDS_ENABLED_KEY) === "0") return;
       const dismissed: DiscoveryCardId[] = JSON.parse(localStorage.getItem(DISCOVERY_CARDS_KEY) ?? "[]");
       const next = DISCOVERY_CARD_ORDER.find((id) => !dismissed.includes(id)) ?? null;
       if (next) {

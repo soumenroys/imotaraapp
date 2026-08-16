@@ -389,10 +389,60 @@ function TinyBadge({ children }: { children: React.ReactNode }) {
     );
 }
 
+// ── Per-section collapse/expand (used by every settings card) ─────────────────
+// Persists per section in sessionStorage, matching the mechanism the old
+// single "Advanced" accordion used (imotara.settings.advanced.v1).
+function useSectionOpen(id: string, defaultOpen: boolean) {
+    const key = `imotara.settings.section.${id}.v1`;
+    const [open, setOpen] = useState<boolean>(() => {
+        try {
+            const v = sessionStorage.getItem(key);
+            return v === null ? defaultOpen : v === "true";
+        } catch { return defaultOpen; }
+    });
+    const toggle = () => setOpen((prev) => {
+        const next = !prev;
+        try { sessionStorage.setItem(key, String(next)); } catch { /* ignore */ }
+        return next;
+    });
+    return [open, toggle] as const;
+}
+
+function SectionToggleHeader({
+    title,
+    open,
+    onToggle,
+    titleClassName,
+}: {
+    title: React.ReactNode;
+    open: boolean;
+    onToggle: () => void;
+    titleClassName?: string;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            className="flex w-full items-center justify-between gap-2 text-left"
+            aria-expanded={open}
+        >
+            <h2 className={titleClassName ?? "text-sm font-semibold text-zinc-50 sm:text-base"}>{title}</h2>
+            <svg
+                className={`h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+                viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            >
+                <polyline points="2,4 6,8 10,4" />
+            </svg>
+        </button>
+    );
+}
+
 function ToneAndContextTile() {
     const [loaded, setLoaded] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: "auto" | "manual" | "error" | "reset" } | null>(null);
     const [compVoiceInfo, setCompVoiceInfo] = useState<{ text: string; missing: boolean } | null>(null);
+    // Defaults OPEN — this is one of the 3 sections exempt from collapse-by-default.
+    const [toneOpen, toggleToneOpen] = useSectionOpen("tone-context", true);
 
     // Personal info
     const [userName, setUserName] = useState("");
@@ -626,15 +676,20 @@ function ToneAndContextTile() {
     return (
         <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                            Tone &amp; Context Preferences
-                        </h2>
-                        <TinyBadge>optional</TinyBadge>
-                        <TinyBadge>local-only</TinyBadge>
-                    </div>
+                <div className="min-w-0 flex-1">
+                    <SectionToggleHeader
+                        title={
+                            <span className="inline-flex flex-wrap items-center gap-2">
+                                Tone &amp; Context Preferences
+                                <TinyBadge>optional</TinyBadge>
+                                <TinyBadge>local-only</TinyBadge>
+                            </span>
+                        }
+                        open={toneOpen}
+                        onToggle={toggleToneOpen}
+                    />
 
+                    {toneOpen && (<>
                     <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
                         This helps Imotara adjust communication tone based on your context and the kind of companion voice you prefer.
                     </p>
@@ -642,8 +697,10 @@ function ToneAndContextTile() {
                     <p className="mt-2 text-[11px] text-zinc-500">
                         Imotara does not replace human relationships. These settings only guide how reflections are written.
                     </p>
+                    </>)}
                 </div>
 
+                {toneOpen && (
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
@@ -660,7 +717,10 @@ function ToneAndContextTile() {
                         Save
                     </button>
                 </div>
+                )}
             </div>
+
+            {toneOpen && (<>
 
             {toast && (
                 <div className={[
@@ -1049,6 +1109,8 @@ function ToneAndContextTile() {
             </div>
 
             <p className="mt-3 text-[11px] text-zinc-500">Stored only in this browser. Reset clears it.</p>
+
+            </>)}
         </section>
     );
 }
@@ -1098,6 +1160,7 @@ function DataDashboard({ getStorageSummary }: { getStorageSummary: () => { histo
     const [clearing, setClearing] = useState(false);
     const [clearDays, setClearDays] = useState<30 | 60 | 90>(30);
     const [clearMsg, setClearMsg] = useState<string | null>(null);
+    const [dataOpen, toggleDataOpen] = useSectionOpen("data-on-device", false);
 
     useEffect(() => { setSummary(getStorageSummary()); }, [getStorageSummary]);
 
@@ -1120,7 +1183,8 @@ function DataDashboard({ getStorageSummary }: { getStorageSummary: () => { histo
 
     return (
         <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-            <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Data on this device</h2>
+            <SectionToggleHeader title="Data on this device" open={dataOpen} onToggle={toggleDataOpen} />
+            {dataOpen && (<>
             <p className="mt-1 text-xs leading-6 text-zinc-400">A quick summary of what Imotara stores locally in your browser.</p>
 
             {summary && (
@@ -1171,6 +1235,7 @@ function DataDashboard({ getStorageSummary }: { getStorageSummary: () => { histo
                 </div>
                 {clearMsg && <p className="mt-1.5 text-[11px] text-emerald-400">{clearMsg}</p>}
             </div>
+            </>)}
         </section>
     );
 }
@@ -2044,6 +2109,17 @@ export default function SettingsPage() {
         setDiscoveryResetMsg("Discovery cards reset — they will reappear next time you open Chat.");
     }
 
+    // ─── O-1b: Feature discovery cards visibility ────────────────────────────
+    const DISCOVERY_ENABLED_KEY = "imotara.onboarding.discovery.enabled.v1";
+    const [showDiscoveryCards, setShowDiscoveryCards] = useState(true);
+    useEffect(() => {
+        try { setShowDiscoveryCards(localStorage.getItem(DISCOVERY_ENABLED_KEY) !== "0"); } catch { /* ignore */ }
+    }, []);
+    function handleDiscoveryCardsToggle(val: boolean) {
+        setShowDiscoveryCards(val);
+        try { localStorage.setItem(DISCOVERY_ENABLED_KEY, val ? "1" : "0"); } catch { /* ignore */ }
+    }
+
     // ─── O-2: Restart onboarding ─────────────────────────────────────────────
     const ONBOARDING_DONE_KEY = "imotara.onboarding.done.v1";
     const [onboardingResetMsg, setOnboardingResetMsg] = useState<string | null>(null);
@@ -2444,17 +2520,35 @@ export default function SettingsPage() {
         try { localStorage.setItem(FINGERPRINT_SHOW_KEY, val ? "1" : "0"); } catch { /* ignore */ }
     }
 
-    // ─── Advanced accordion ───────────────────────────────────────────────────
-    const [advancedOpen, setAdvancedOpen] = useState<boolean>(() => {
-        try { return sessionStorage.getItem("imotara.settings.advanced.v1") === "true"; } catch { return false; }
-    });
-    function toggleAdvanced() {
-        setAdvancedOpen((prev) => {
-            const next = !prev;
-            try { sessionStorage.setItem("imotara.settings.advanced.v1", String(next)); } catch { /* ignore */ }
-            return next;
-        });
-    }
+    // ─── Per-section collapse/expand ─────────────────────────────────────────
+    // Every card on this page is individually collapsible (see useSectionOpen /
+    // SectionToggleHeader near the top of this file). All default closed except
+    // Sign in, Tone & Context Preferences (see ToneAndContextTile), and Your plan.
+    const [signInOpen, toggleSignInOpen] = useSectionOpen("sign-in", true);
+    const [planOpen, togglePlanOpen] = useSectionOpen("your-plan", true);
+    const [familyProfilesOpen, toggleFamilyProfilesOpen] = useSectionOpen("family-profiles", false);
+    const [donateOpen, toggleDonateOpen] = useSectionOpen("donate", false);
+    const [donationsOpen, toggleDonationsOpen] = useSectionOpen("your-donations", false);
+    const [browserNotifOpen, toggleBrowserNotifOpen] = useSectionOpen("browser-notifications", false);
+    const [chatBehaviourOpen, toggleChatBehaviourOpen] = useSectionOpen("chat-behaviour", false);
+    const [growWellbeingOpen, toggleGrowWellbeingOpen] = useSectionOpen("grow-wellbeing", false);
+    const [mindsetOpen, toggleMindsetOpen] = useSectionOpen("mindset-analysis", false);
+    const [appearanceOpen, toggleAppearanceOpen] = useSectionOpen("appearance", false);
+    const [emotionModeOpen, toggleEmotionModeOpen] = useSectionOpen("emotion-analysis-mode", false);
+    const [safetyOpen, toggleSafetyOpen] = useSectionOpen("safety-crisis", false);
+    const [localDataOpen, toggleLocalDataOpen] = useSectionOpen("local-data-controls", false);
+    const [exportDataOpen, toggleExportDataOpen] = useSectionOpen("export-data", false);
+    const [remoteSyncOpen, toggleRemoteSyncOpen] = useSectionOpen("remote-history-sync", false);
+    const [deviceSyncOpen, toggleDeviceSyncOpen] = useSectionOpen("device-sync", false);
+    const [companionInsightsOpen, toggleCompanionInsightsOpen] = useSectionOpen("companion-insights", false);
+    const [historyMgmtOpen, toggleHistoryMgmtOpen] = useSectionOpen("history-management", false);
+    const [tipsToursOpen, toggleTipsToursOpen] = useSectionOpen("tips-tours", false);
+    const [companionMemoryOpen, toggleCompanionMemoryOpen] = useSectionOpen("companion-memory", false);
+    const [familySnapshotOpen, toggleFamilySnapshotOpen] = useSectionOpen("family-snapshot", false);
+    const [howToUseOpen, toggleHowToUseOpen] = useSectionOpen("how-to-use-imotara", false);
+    const [networkOpen, toggleNetworkOpen] = useSectionOpen("network", false);
+    const [dataPrivacyOpen, toggleDataPrivacyOpen] = useSectionOpen("data-privacy", false);
+    const [deleteAccountOpen, toggleDeleteAccountOpen] = useSectionOpen("delete-account", false);
 
     // ─── Delete Account ──────────────────────────────────────────────────────
     const [deletingAccount, setDeletingAccount] = useState(false);
@@ -2776,7 +2870,8 @@ export default function SettingsPage() {
                                 <SsoIcon className="h-6 w-6 text-white" />
                             </div>
                             <div className="flex-1">
-                                <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Sign in</h2>
+                                <SectionToggleHeader title="Sign in" open={signInOpen} onToggle={toggleSignInOpen} />
+                                {signInOpen && (<>
                                 <p className="mt-1 text-xs leading-5 text-zinc-400">
                                     Sign in to sync your history across devices, manage your plan, or access an organisation account.
                                 </p>
@@ -2797,6 +2892,7 @@ export default function SettingsPage() {
                                         or sign in with email &amp; password
                                     </Link>
                                 </div>
+                                </>)}
                             </div>
                         </div>
                     </section>
@@ -2820,7 +2916,10 @@ export default function SettingsPage() {
                 {/* Licensing — your plan card */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                        <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Your plan</h2>
+                        <div className="min-w-0 flex-1">
+                            <SectionToggleHeader title="Your plan" open={planOpen} onToggle={togglePlanOpen} />
+                        </div>
+                        {planOpen && (
                         <button
                             type="button"
                             onClick={refreshLicenseStatus}
@@ -2829,7 +2928,10 @@ export default function SettingsPage() {
                         >
                             {licLoading ? "Refreshing…" : "Refresh"}
                         </button>
+                        )}
                     </div>
+
+                    {planOpen && (<>
 
                     {/* Launch offer banner */}
                     {mounted && (() => {
@@ -2967,12 +3069,15 @@ export default function SettingsPage() {
                     {lic?.error && (
                         <p className="mt-3 text-[11px] text-rose-200/90">{lic.error}</p>
                     )}
+
+                    </>)}
                 </section>
 
                 {/* Multi-profile — gated: Family plan */}
                 {multiProfileGate.allowed && (
                     <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                        <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Family Profiles</h2>
+                        <SectionToggleHeader title="Family Profiles" open={familyProfilesOpen} onToggle={toggleFamilyProfilesOpen} />
+                        {familyProfilesOpen && (<>
                         <p className="mt-1 text-xs leading-5 text-zinc-400">
                             Manage separate profiles for each family member. Each profile keeps its own settings, companion, and reflection history.
                         </p>
@@ -2980,15 +3085,18 @@ export default function SettingsPage() {
                             <p className="font-medium text-zinc-300">Coming soon</p>
                             <p>Full profile switcher is being built. You&apos;ll be able to create up to 6 profiles — each with its own companion and history.</p>
                         </div>
+                        </>)}
                     </section>
                 )}
                 {multiProfileGate.nudge && !multiProfileGate.allowed && (
                     <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5 opacity-60">
-                        <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Family Profiles</h2>
+                        <SectionToggleHeader title="Family Profiles" open={familyProfilesOpen} onToggle={toggleFamilyProfilesOpen} />
+                        {familyProfilesOpen && (<>
                         <p className="mt-1 text-xs leading-5 text-zinc-400">{multiProfileGate.reason ?? "Upgrade to the Family plan to create separate profiles for each family member."}</p>
                         <Link href="/upgrade" className="mt-2 inline-flex items-center gap-1 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20">
                             Upgrade to Family →
                         </Link>
+                        </>)}
                     </section>
                 )}
 
@@ -2997,9 +3105,8 @@ export default function SettingsPage() {
 
                 {/* Donations (web) */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                        Support Imotara (Donate)
-                    </h2>
+                    <SectionToggleHeader title="Support Imotara (Donate)" open={donateOpen} onToggle={toggleDonateOpen} />
+                    {donateOpen && (<>
                     <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
                         Imotara is privacy-first and non-commercial. Donations help keep it
                         running and improving. (UPI preferred)
@@ -3027,21 +3134,23 @@ export default function SettingsPage() {
                     <p className="mt-3 text-[11px] text-zinc-500">
                         Note: Final confirmation is recorded via secure server webhook after payment.
                     </p>
+                    </>)}
                 </section>
 
                 {/* Recent donations — always shown, sourced from localStorage + server */}
                 {mounted && (
                     <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                         <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                                <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                                    Your Donations
-                                </h2>
+                            <div className="min-w-0 flex-1">
+                                <SectionToggleHeader title="Your Donations" open={donationsOpen} onToggle={toggleDonationsOpen} />
+                                {donationsOpen && (
                                 <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
                                     Receipts are saved on this device immediately. Server records sync when you&apos;re signed in.
                                 </p>
+                                )}
                             </div>
 
+                            {donationsOpen && (
                             <button
                                 type="button"
                                 onClick={refreshDonations}
@@ -3050,8 +3159,10 @@ export default function SettingsPage() {
                             >
                                 {donLoading ? "Refreshing…" : "Refresh"}
                             </button>
+                            )}
                         </div>
 
+                        {donationsOpen && (<>
                         {donations.length === 0 && (
                             <p className="mt-3 text-[11px] text-zinc-500">
                                 No donations yet on this device.
@@ -3097,6 +3208,7 @@ export default function SettingsPage() {
                                 ))}
                             </div>
                         )}
+                        </>)}
                     </section>
                 )}
 
@@ -3109,7 +3221,8 @@ export default function SettingsPage() {
                 {/* Browser push notifications */}
                 {mounted && "Notification" in window && "PushManager" in window && (
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Browser notifications</h2>
+                    <SectionToggleHeader title="Browser notifications" open={browserNotifOpen} onToggle={toggleBrowserNotifOpen} />
+                    {browserNotifOpen && (<>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">
                         Get a gentle daily reminder to check in, even when the tab is closed.
                     </p>
@@ -3174,12 +3287,14 @@ export default function SettingsPage() {
                         </div>
                     </div>
                     )}
+                    </>)}
                 </section>
                 )}
 
                 {/* ── Chat behaviour preferences ──────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Chat behaviour</h2>
+                    <SectionToggleHeader title="Chat behaviour" open={chatBehaviourOpen} onToggle={toggleChatBehaviourOpen} />
+                    {chatBehaviourOpen && (<>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">Control what appears in your chat window.</p>
 
                     {/* Hands-free mode */}
@@ -3563,11 +3678,13 @@ export default function SettingsPage() {
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${ttsAutoRead ? "translate-x-4" : "translate-x-0"}`} />
                         </button>
                     </div>
+                    </>)}
                 </section>
 
                 {/* ── Grow & Wellbeing ─────────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Grow &amp; Wellbeing</h2>
+                    <SectionToggleHeader title="Grow & Wellbeing" open={growWellbeingOpen} onToggle={toggleGrowWellbeingOpen} />
+                    {growWellbeingOpen && (<>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">
                         Control which wellbeing features and widgets appear across the app.
                     </p>
@@ -3693,11 +3810,13 @@ export default function SettingsPage() {
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${fingerprintShow ? "translate-x-4" : "translate-x-0"}`} />
                         </button>
                     </div>
+                    </>)}
                 </section>
 
                 {/* ── Mindset Analysis Toggles ─────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Mindset Analysis</h2>
+                    <SectionToggleHeader title="Mindset Analysis" open={mindsetOpen} onToggle={toggleMindsetOpen} />
+                    {mindsetOpen && (<>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">
                         Choose which time windows appear as psychological summaries on your History page.
                     </p>
@@ -3723,11 +3842,13 @@ export default function SettingsPage() {
                             </button>
                         </div>
                     ))}
+                    </>)}
                 </section>
 
                 {/* ── Appearance ─────────────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Appearance</h2>
+                    <SectionToggleHeader title="Appearance" open={appearanceOpen} onToggle={toggleAppearanceOpen} />
+                    {appearanceOpen && (<>
                     <p className="mt-1 text-xs leading-6 text-zinc-400">Accent colour and text size — saved on this device.</p>
 
                     {/* Accent picker */}
@@ -3993,6 +4114,7 @@ export default function SettingsPage() {
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${voiceConfirm ? "translate-x-4" : "translate-x-0"}`} />
                         </button>
                     </div>
+                    </>)}
                 </section>
 
                 {/* ── Group 4: Privacy & safety ────────────────────────── */}
@@ -4003,9 +4125,8 @@ export default function SettingsPage() {
 
                 {/* Analysis mode overview */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                        Emotion analysis mode
-                    </h2>
+                    <SectionToggleHeader title="Emotion analysis mode" open={emotionModeOpen} onToggle={toggleEmotionModeOpen} />
+                    {emotionModeOpen && (<>
                     <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
                         This mode is shared between Chat, History, and Settings and is stored only in
                         this browser.
@@ -4044,11 +4165,13 @@ export default function SettingsPage() {
                             View Emotion History
                         </Link>
                     </div>
+                    </>)}
                 </section>
 
                 {/* ── Safety settings ──────────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Safety &amp; crisis resources</h2>
+                    <SectionToggleHeader title="Safety & crisis resources" open={safetyOpen} onToggle={toggleSafetyOpen} />
+                    {safetyOpen && (<>
 
                     {/* A-3: Auto-routing transparency */}
                     <p className="mt-1 text-xs leading-5 text-zinc-400">
@@ -4114,13 +4237,13 @@ export default function SettingsPage() {
                         </div>
                         <p className="mt-1 text-[11px] text-zinc-500">Sensitive surfaces resources at earliest signs; Conservative only for clear distress.</p>
                     </div>
+                    </>)}
                 </section>
 
                 {/* Local data controls */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                        Local data controls
-                    </h2>
+                    <SectionToggleHeader title="Local data controls" open={localDataOpen} onToggle={toggleLocalDataOpen} />
+                    {localDataOpen && (<>
                     <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
                         These actions affect only this browser on this device. They do not
                         touch any future cloud backups or accounts.
@@ -4176,11 +4299,13 @@ export default function SettingsPage() {
                     </div>
 
                     {status && <p className="mt-3 text-[11px] text-zinc-400">{status}</p>}
+                    </>)}
                 </section>
 
                 {/* ── Export Data (JSON) ──────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Export data</h2>
+                    <SectionToggleHeader title="Export data" open={exportDataOpen} onToggle={toggleExportDataOpen} />
+                    {exportDataOpen && (<>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">
                         Download all your local chat history as a JSON file. This only includes messages stored on this device.
                     </p>
@@ -4192,11 +4317,13 @@ export default function SettingsPage() {
                     >
                         {exportBusy ? "Preparing…" : "Download JSON"}
                     </button>
+                    </>)}
                 </section>
 
                 {/* ── Remote History Sync ─────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Remote history sync</h2>
+                    <SectionToggleHeader title="Remote history sync" open={remoteSyncOpen} onToggle={toggleRemoteSyncOpen} />
+                    {remoteSyncOpen && (<>
                     {sbEmail && (
                         <p className="mt-1 text-[11px] text-emerald-400">Signed in as {sbEmail}</p>
                     )}
@@ -4228,13 +4355,13 @@ export default function SettingsPage() {
                         </p>
                     )}
                     {syncMsg && <p className="mt-2 text-[11px] text-zinc-400">{syncMsg}</p>}
+                    </>)}
                 </section>
 
                 {/* Cross-device continuity (optional) */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">
-                        Sync with another device (optional)
-                    </h2>
+                    <SectionToggleHeader title="Sync with another device (optional)" open={deviceSyncOpen} onToggle={toggleDeviceSyncOpen} />
+                    {deviceSyncOpen && (<>
                     <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
                         If you enter the same Link Key on both Web and Mobile, your remote chat history
                         will appear on both. Treat this key like a private password.
@@ -4282,30 +4409,22 @@ export default function SettingsPage() {
                     <p className="mt-3 text-[11px] text-zinc-500">
                         Tip: Use a short memorable phrase (no spaces) and set the same value on mobile later.
                     </p>
+                    </>)}
                 </section>
 
                 {/* ── Group 5: Advanced ────────────────────────────────── */}
-                <button
-                    type="button"
-                    onClick={toggleAdvanced}
-                    className="flex w-full items-center gap-2"
-                    aria-expanded={advancedOpen}
-                >
+                {/* The old single "Advanced" umbrella accordion has been dismantled —
+                    every section below is now individually collapsible, same as the
+                    rest of the page (see useSectionOpen / SectionToggleHeader). */}
+                <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 shrink-0">Advanced</span>
                     <div className="flex-1 h-px bg-white/10" />
-                    <svg
-                        className={`h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform duration-200 ${advancedOpen ? "rotate-180" : ""}`}
-                        viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    >
-                        <polyline points="2,4 6,8 10,4" />
-                    </svg>
-                </button>
-
-                {advancedOpen && (<>
+                </div>
 
                 {/* ── Companion insights ───────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Companion insights</h2>
+                    <SectionToggleHeader title="Companion insights" open={companionInsightsOpen} onToggle={toggleCompanionInsightsOpen} />
+                    {companionInsightsOpen && (<>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">Control how often Imotara generates your emotional arc, companion letter, and open-loop prompts.</p>
 
                     {/* G-1: Emotional arc cadence — gated: Pro+ (GROWTH_ARC) */}
@@ -4553,11 +4672,13 @@ export default function SettingsPage() {
                             </div>
                         </div>
                     </div>
+                    </>)}
                 </section>
 
                 {/* ── History management ───────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">History management</h2>
+                    <SectionToggleHeader title="History management" open={historyMgmtOpen} onToggle={toggleHistoryMgmtOpen} />
+                    {historyMgmtOpen && (<>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">Auto-delete emotion history older than a chosen threshold to manage storage.</p>
 
                     {/* M-2: Auto-cleanup */}
@@ -4583,26 +4704,42 @@ export default function SettingsPage() {
                             <p className="mt-2 text-[11px] text-zinc-500">Records older than {autoCleanupDays} days will be removed when you open this page.</p>
                         )}
                     </div>
+                    </>)}
                 </section>
 
                 {/* ── Tips, tours & notices ────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Tips &amp; tours</h2>
+                    <SectionToggleHeader title="Tips & tours" open={tipsToursOpen} onToggle={toggleTipsToursOpen} />
+                    {tipsToursOpen && (<>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">Reset in-app tips and feature discovery cards.</p>
                     <div className="mt-4 space-y-3">
-                        {/* O-1: Discovery reset */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
-                            <div>
-                                <p className="text-xs font-medium text-zinc-200">Feature discovery cards</p>
-                                <p className="mt-0.5 text-[11px] text-zinc-500">Cards that introduce Trends, Offline mode, Companion, and more</p>
+                        {/* O-1: Discovery reset + O-1b: visibility toggle */}
+                        <div className="rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-xs font-medium text-zinc-200">Feature discovery cards</p>
+                                    <p className="mt-0.5 text-[11px] text-zinc-500">Cards that introduce Trends, Offline mode, Companion, and more</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={showDiscoveryCards}
+                                    onClick={() => handleDiscoveryCardsToggle(!showDiscoveryCards)}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${showDiscoveryCards ? "bg-sky-500" : "bg-zinc-600"}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${showDiscoveryCards ? "translate-x-4" : "translate-x-0"}`} />
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                onClick={handleDiscoveryReset}
-                                className="rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 transition hover:bg-white/10"
-                            >
-                                Reset
-                            </button>
+                            <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/8 pt-3">
+                                <p className="text-[11px] text-zinc-500">Already dismissed a card? Reset to see them again.</p>
+                                <button
+                                    type="button"
+                                    onClick={handleDiscoveryReset}
+                                    className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 transition hover:bg-white/10"
+                                >
+                                    Reset
+                                </button>
+                            </div>
                         </div>
                         {discoveryResetMsg && <p className="text-[11px] text-sky-400">{discoveryResetMsg}</p>}
 
@@ -4638,6 +4775,7 @@ export default function SettingsPage() {
                         </div>
                         {onboardingResetMsg && <p className="text-[11px] text-sky-400">{onboardingResetMsg}</p>}
                     </div>
+                    </>)}
                 </section>
 
                 {/* ── Data dashboard ──────────────────────────────────── */}
@@ -4661,12 +4799,15 @@ export default function SettingsPage() {
                 {/* ── Companion memory viewer ──────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                     <div className="flex items-center justify-between gap-3">
-                        <div>
-                            <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Companion memory</h2>
+                        <div className="min-w-0 flex-1">
+                            <SectionToggleHeader title="Companion memory" open={companionMemoryOpen} onToggle={toggleCompanionMemoryOpen} />
+                            {companionMemoryOpen && (
                             <p className="mt-0.5 text-xs text-zinc-500">
                                 Things Imotara has learned about you — used to personalise responses.
                             </p>
+                            )}
                         </div>
+                        {companionMemoryOpen && (
                         <button
                             type="button"
                             onClick={loadMemories}
@@ -4675,8 +4816,10 @@ export default function SettingsPage() {
                         >
                             {memoriesLoading ? "Loading…" : "Refresh"}
                         </button>
+                        )}
                     </div>
 
+                    {companionMemoryOpen && (<>
                     {memories.length === 0 && !memoriesLoading && (
                         <p className="mt-3 text-xs text-zinc-500 italic">
                             No memories yet — Imotara will pick up facts as you chat.
@@ -4723,16 +4866,20 @@ export default function SettingsPage() {
                             ))}
                         </div>
                     </div>
+                    </>)}
                 </section>
 
                 {/* NF-3: Family Emotional Snapshot */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
                     <div className="mb-3">
-                        <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Family Snapshot</h2>
+                        <SectionToggleHeader title="Family Snapshot" open={familySnapshotOpen} onToggle={toggleFamilySnapshotOpen} />
+                        {familySnapshotOpen && (
                         <p className="mt-1 text-xs text-zinc-400">
                             Share a private link showing your week&apos;s emotional tone. No account needed — it&apos;s encoded in the link.
                         </p>
+                        )}
                     </div>
+                    {familySnapshotOpen && (<>
                     <button
                         type="button"
                         onClick={generateFamilySnapshot}
@@ -4765,14 +4912,24 @@ export default function SettingsPage() {
                             <p className="text-[10px] text-zinc-600">This link encodes your data locally — nothing is sent to a server.</p>
                         </div>
                     )}
+                    </>)}
                 </section>
 
                 {/* B-5: How It Works — prominent card (mirrors mobile HowItWorksModal) */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <div className="flex items-center gap-2 mb-3">
-                        <span className="text-base">ℹ️</span>
-                        <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">How to use Imotara</h2>
+                    <div className="mb-3">
+                        <SectionToggleHeader
+                            title={
+                                <span className="inline-flex items-center gap-2">
+                                    <span className="text-base">ℹ️</span>
+                                    How to use Imotara
+                                </span>
+                            }
+                            open={howToUseOpen}
+                            onToggle={toggleHowToUseOpen}
+                        />
                     </div>
+                    {howToUseOpen && (<>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {([
                             { icon: "💬", title: "Just talk", body: "Share what's on your mind — worries, stress, or how your day went. No right way to start. Imotara listens without judgement." },
@@ -4809,11 +4966,13 @@ export default function SettingsPage() {
                             Terms
                         </Link>
                     </div>
+                    </>)}
                 </section>
 
                 {/* ── Network ──────────────────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Network</h2>
+                    <SectionToggleHeader title="Network" open={networkOpen} onToggle={toggleNetworkOpen} />
+                    {networkOpen && (<>
                     <p className="mt-1 text-xs text-zinc-400">Fine-tune how Imotara communicates with its backend.</p>
 
                     {/* M-3: Status poll interval */}
@@ -4843,11 +5002,13 @@ export default function SettingsPage() {
                             ))}
                         </div>
                     </div>
+                    </>)}
                 </section>
 
                 {/* Data & privacy copy */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-zinc-50 sm:text-base">Data &amp; privacy</h2>
+                    <SectionToggleHeader title="Data & privacy" open={dataPrivacyOpen} onToggle={toggleDataPrivacyOpen} />
+                    {dataPrivacyOpen && (<>
                     <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
                         Imotara is designed as a quiet, local-first experiment. Most data is
                         stored only in this browser unless you explicitly allow remote
@@ -4861,13 +5022,13 @@ export default function SettingsPage() {
                         <Link href="/terms" className="underline underline-offset-2 hover:text-zinc-300">Terms</Link>{" "}
                         pages.
                     </p>
+                    </>)}
                 </section>
-
-                </>)}
 
                 {/* ── Delete Account ───────────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl border border-rose-500/15 px-4 py-4 sm:px-5 sm:py-5">
-                    <h2 className="text-sm font-semibold text-rose-300 sm:text-base">Delete account</h2>
+                    <SectionToggleHeader title="Delete account" open={deleteAccountOpen} onToggle={toggleDeleteAccountOpen} titleClassName="text-sm font-semibold text-rose-300 sm:text-base" />
+                    {deleteAccountOpen && (<>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">
                         {sbEmail
                             ? "Permanently delete your Imotara account and all associated cloud data — conversations, memories, and settings. This cannot be undone."
@@ -4884,6 +5045,7 @@ export default function SettingsPage() {
                     {deleteAccountMsg && (
                         <p className={`mt-2 text-[11px] ${deleteAccountMsg.startsWith("Could not") ? "text-rose-400" : "text-zinc-400"}`}>{deleteAccountMsg}</p>
                     )}
+                    </>)}
                 </section>
 
                 {/* Version footer intentionally removed (global footer already shows version) */}

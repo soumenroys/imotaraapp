@@ -5,7 +5,8 @@
 //
 // Disaster-recovery: if OpenAI is unavailable (HTTP error or network failure),
 // callImotaraAI automatically retries via Gemini and fires a red-alert email
-// to info@imotara.com (requires GEMINI_API_KEY + ALERT_GMAIL_USER + ALERT_GMAIL_APP_PASSWORD env vars).
+// to info@imotara.com (requires GEMINI_API_KEY + ALERT_GMAIL_USER + ALERT_GMAIL_APP_PASSWORD env
+// vars — despite the names, those two are Hostinger SMTP credentials, not Gmail ones).
 
 "use server";
 
@@ -516,7 +517,7 @@ async function callGeminiAI(
 // ─── Outage alert email ───────────────────────────────────────────────────────
 
 /**
- * Fires a red-alert email to info@imotara.com via Gmail SMTP.
+ * Fires a red-alert email to info@imotara.com via Hostinger SMTP.
  * Requires ALERT_GMAIL_USER and ALERT_GMAIL_APP_PASSWORD env vars.
  * Enforces a 5-minute cooldown per alert kind per server instance.
  *
@@ -557,8 +558,19 @@ async function sendOutageAlert(
   const isTotal = kind === "total_outage";
 
   try {
+    // Hostinger SMTP — NOT Gmail. ALERT_GMAIL_USER is a misleading name: it
+    // holds publisher@imotara.com, a Hostinger mailbox, and every other mailer
+    // in this codebase (connect/mailer.ts, wallet/mailer.ts, all the org and
+    // admin routes) already sends through smtp.hostinger.com:465 with exactly
+    // these two vars. This function alone used `service: "gmail"`, so Google
+    // rejected the non-Google account with `535 Username and Password not
+    // accepted` on every single attempt — meaning the outage alert had never
+    // once been delivered since it was written. Verified 2026-08-22: the same
+    // credentials fail on Gmail transport and authenticate on Hostinger.
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: process.env.SMTP_HOST ?? "smtp.hostinger.com",
+      port: 465,
+      secure: true,
       auth: { user, pass },
     });
 

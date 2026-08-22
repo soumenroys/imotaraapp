@@ -944,10 +944,21 @@ export async function POST(req: Request) {
     (baseCtx as any)?.toneContext ??
     undefined) as unknown;
 
-  // ✅ /api/respond is the authoritative cloud reply route.
-  // But the badge should reflect whether this request ran in a degraded fallback-like state.
-  // Start as cloud, then downgrade meta only if critical remote dependencies fail.
-  let analysisSource: "cloud" | "local" = "cloud";
+  // ✅ /api/respond is the TEMPLATE reply route, not a cloud/LLM one.
+  //
+  // It is reached only as respondRemote.ts's fallback after /api/chat-reply
+  // (the real OpenAI path) returned nothing usable. Its reply comes from
+  // runImotara — a fully deterministic template engine that never calls an
+  // LLM — so the honest badge value is always "local".
+  //
+  // Previously this started at "cloud" and downgraded ONLY when the memory
+  // fetch threw, which meant an OpenAI outage produced canned template
+  // replies still stamped "cloud" in the UI. That is exactly what masked the
+  // 2026-08-22 credit-exhaustion outage: every reply was a hard-coded string,
+  // and the badge insisted it came from the cloud. Reporting "local"
+  // unconditionally makes degradation visible in-product and re-enables the
+  // client's Retry button, which gates on replySource === "fallback".
+  const analysisSource: "cloud" | "local" = "local";
 
   // ✅ Baby Step 11.7 — memory relevance guard (inject ONLY if relevant)
   // Prefer user-scoped Supabase (RLS) when cookies exist; fall back to service role.
@@ -1087,9 +1098,10 @@ export async function POST(req: Request) {
     pinnedRecall = [];
     pinnedRecallRelevant = false;
 
-    // Memory/persistence dependency failed, so report this response as degraded.
-    // This changes only the returned meta badge source, not the reply generation pipeline.
-    analysisSource = "local";
+    // No analysisSource downgrade here any more — this route already reports
+    // "local" unconditionally (see the declaration above). A memory-fetch
+    // failure only means this reply loses personalization, which the qa
+    // debug entry below already records.
 
     if (qa) {
       pinnedRecallDebugTop = [

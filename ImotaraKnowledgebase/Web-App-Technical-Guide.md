@@ -23,7 +23,7 @@ imotaraapp/
 │                            #   generate-tts-previews.mjs, ~15 generate-*-pdf.js marketing generators
 ├─ tests/imotara-ai/         # E2E AI eval harness: runner.ts, judge.ts, scenarios.<lang>.ts (22 langs)
 ├─ docs/                     # ARCHITECTURE.md, IMOTARA_OVERVIEW.md, LICENSING.md, CHANGELOG_v1.2.7.md,
-│  ├─ sql/                   #   78 raw SQL migration files (the actual DB schema — no ORM, no Prisma)
+│  ├─ sql/                   #   79 raw SQL migration files (the actual DB schema — no ORM, no Prisma)
 │  └─ *.pdf / *.html         #   marketing/licensing/vision decks, test plans, audits
 └─ src/
    ├─ proxy.ts               # middleware
@@ -85,7 +85,7 @@ From `.env.example`: Supabase (`NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`, `SUPABASE_UR
 - **Licensing is dual-sourced:** client-side env-flag/launch-offer path (currently `off` = everything open) vs real server enforcement (20/day quota + org RPC tiers). Never trust the client gate for security; source of truth is `resolve_user_tier` + the `/api/chat-reply` quota.
 - **Language detection is acknowledged-imperfect** (Gujarati↔Bengali romanized confusion, Marathi↔Hindi Devanagari overlap).
 - **Auth is bifurcated** (Supabase user auth vs bespoke scrypt/2FA super-admin) — don't conflate.
-- Repo root also carries mobile config (`app.json`, `eas.json`) used by the shared bump-version script, plus marketing PDF generators — the actual mobile app is the separate `imotara-mobile` repo.
+- Repo root carries the shared release tooling (`scripts/bump-version.mjs` writes BOTH repos' version fields) plus the marketing PDF generators — the actual mobile app, and the only real `app.json` / `eas.json`, live in the separate `imotara-mobile` repo.
 
 ## 10. Recent development themes (v1.2.7)
 

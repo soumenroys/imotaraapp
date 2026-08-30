@@ -1,6 +1,25 @@
 @import "tailwindcss";
 
 /* -------------------------------------------------- */
+/* 🎚️ dark: follows OUR theme, not the OS             */
+/* -------------------------------------------------- */
+/* Tailwind v4 defaults the `dark:` variant to
+   @media (prefers-color-scheme: dark), i.e. the operating system. Imotara's
+   own appearance setting instead writes data-theme on <html>, so the two
+   disagreed: ~300 dark: utilities followed the OS while the light-mode rules
+   further down tried to overrule them with !important. A user on an OS set to
+   dark who chose Light in Settings got a patchwork.
+
+   This binds dark: to our own attribute. Note it keys off "not light" rather
+   than "is dark", which is deliberate — three cases depend on it:
+     • server render, before AppearanceInit stamps the attribute → dark,
+       matching the dark-first default (no light flash for dark users)
+     • /admin and /admin/crisis-events *remove* data-theme on purpose so the
+       admin UI always renders dark → still dark under this rule
+     • data-theme="light" is the only opt-out, which is exactly the intent */
+@custom-variant dark (&:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *));
+
+/* -------------------------------------------------- */
 /* 🌌 Aurora Calm – Global Theme (Dark-first, fixed)  */
 /* -------------------------------------------------- */
 

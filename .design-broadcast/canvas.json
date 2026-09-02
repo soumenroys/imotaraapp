@@ -1,0 +1,116 @@
+{
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "The flow"
+    },
+    {
+      "id": "page-2",
+      "name": "Sending & inbox placement"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "page": "page-1",
+      "x": 0,
+      "y": 0,
+      "w": 1000,
+      "h": 800,
+      "title": "1 \u00b7 Broadcast list"
+    },
+    {
+      "file": "Recipients.dc.html",
+      "page": "page-1",
+      "x": 1100,
+      "y": 0,
+      "w": 1000,
+      "h": 1330,
+      "title": "2 \u00b7 Recipients \u2014 provenance, validation, duplicates"
+    },
+    {
+      "file": "Compose.dc.html",
+      "page": "page-1",
+      "x": 2200,
+      "y": 0,
+      "w": 1000,
+      "h": 1420,
+      "title": "3 \u00b7 Compose \u2014 type, formatting, placement meter"
+    },
+    {
+      "file": "Review.dc.html",
+      "page": "page-1",
+      "x": 3300,
+      "y": 0,
+      "w": 1000,
+      "h": 1000,
+      "title": "4 \u00b7 Review & send"
+    },
+    {
+      "file": "Results.dc.html",
+      "page": "page-1",
+      "x": 4400,
+      "y": 0,
+      "w": 1000,
+      "h": 880,
+      "title": "5 \u00b7 Sending live"
+    },
+    {
+      "file": "History.dc.html",
+      "page": "page-1",
+      "x": 5500,
+      "y": 0,
+      "w": 1060,
+      "h": 1040,
+      "title": "6 \u00b7 History & sent report"
+    },
+    {
+      "file": "SenderSetup.dc.html",
+      "page": "page-2",
+      "x": 0,
+      "y": 0,
+      "w": 1060,
+      "h": 900,
+      "title": "7 \u00b7 Sending status \u2014 live, verified"
+    },
+    {
+      "file": "InboxPlacement.dc.html",
+      "page": "page-2",
+      "x": 1160,
+      "y": 0,
+      "w": 1060,
+      "h": 1040,
+      "title": "8 \u00b7 Primary vs Promotions \u2014 what you can actually control"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "primary-answer",
+      "x": 2280,
+      "y": 0,
+      "page": "page-2",
+      "w": 440,
+      "text": "CAN IT GO TO PRIMARY?\n\nShort answer: not by configuration, and not reliably for a true broadcast. But there IS one lever, and one design change that helps.\n\nWHAT DOESN'T WORK\nThere is no header or setting that forces Primary. And the obvious idea \u2014 strip the unsubscribe and Feedback-ID headers so it looks less bulky \u2014 is actively harmful: Gmail requires them above ~5,000/day, and their absence raises spam-folder risk. Trading Promotions for Spam is a bad deal.\n\nTHE DESIGN CHANGE (screen 3)\nA message-type switch. \"Broadcast\" carries the unsubscribe machinery and lands in Promotions. \"Operational notice\" \u2014 seat renewals, account changes, things a recipient needs regardless of preference \u2014 is genuinely transactional, carries no unsubscribe, and lands in Primary far more often. The mode is recorded on every send, because dressing marketing up as operational is what gets domains blocked.\n\nTHE REAL LEVER\nGmail's tab choice is PER RECIPIENT. If someone replies, stars it, or drags it to Primary, their future mail from suchismita.sen@imotara.com goes to Primary from then on. Asking once, plainly, in the first send is the single most effective thing available \u2014 and it costs one sentence.\n\nHONEST CEILING\nA genuine broadcast to thousands will mostly sit in Promotions however it is written. That is the inbox, people read it there, and today's test proved it is not spam."
+    },
+    {
+      "id": "whats-new",
+      "x": 6660,
+      "y": 0,
+      "page": "page-1",
+      "w": 420,
+      "text": "REVISED THIS ROUND\n\nScreen 3 \u2014 Compose\n\u00b7 Message-type switch (Broadcast / Operational notice) at the top, because it changes both the headers and the likely inbox tab\n\u00b7 \"Likely inbox tab\" meter showing what is pushing the message toward Promotions and what is pulling it toward Primary\n\u00b7 Formatting reality kept: fonts limited to stacks that survive Outlook and Gmail, GIF warning for Outlook, Video inserts a poster + link\n\nScreen 7 \u2014 Sending status\nNow shows the REAL live configuration rather than a how-to: domain verified, SPF/DKIM/DMARC all PASS at Gmail, delivered in 1 second, and the four-week warm-up with week 1 in progress. The send screen refuses anything above the week's ceiling.\n\nScreen 8 \u2014 NEW\nThe full Primary vs Promotions answer.\n\nUnchanged: screens 1, 2, 4, 5, 6."
+    },
+    {
+      "id": "consent-note",
+      "page": "page-1",
+      "x": 6660,
+      "y": 560,
+      "w": 420,
+      "text": "CONSENT \u2014 BUILT INTO THE FLOW\n\nYour list comes from people who approached you. That is a legitimate basis \u2014 but GDPR asks you to DEMONSTRATE consent, not merely hold it.\n\nSo screen 2 requires provenance before any address can be added:\n\n\u00b7 Source \u2014 one of eight channels\n\u00b7 Free-text detail (\"NGO wellbeing day, Salt Lake \u2014 stall sign-up sheet\")\n\u00b7 Date collected\n\u00b7 Admin who added it\n\nAll four are stored per address, shown on the chip, and in the audit export.\n\nNOTE THE WORDING. Every option names something THE PERSON DID \u2014 \"Emailed us\", \"Filled in the form on imotara.com\", \"Messaged or commented on our social media\". Not \"Website\" or \"Social media\", which quietly stretch to cover an address you found rather than were given. The label is the control; a vague one becomes a laundering route.\n\nSecond benefit, not legal: warm contacts complain far less, which protects the domain reputation you are about to spend four weeks warming \u2014 and they are far likelier to reply or star, the one thing that actually moves a sender into Gmail's Primary tab."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-1"
+  }
+}

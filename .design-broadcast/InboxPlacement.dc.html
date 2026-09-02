@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; background: #130e17; }
+    a { color: #a5b4fc; text-decoration: none; }
+    a:hover { color: #c7d2fe; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="background: #130e17; min-height: 1000px; padding: 24px 32px 40px;">
+
+  <div style="margin-bottom: 20px;">
+    <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: #71717a;">Design note · answering "can it go to Primary?"</p>
+    <h1 style="margin: 3px 0 0; font-size: 18px; font-weight: 600; color: #f4f4f5;">Primary vs Promotions — what's actually in your control</h1>
+  </div>
+
+  <!-- verdict -->
+  <div style="border-left: 2px solid #6366f1; background: rgba(99,102,241,0.07); border-radius: 0 10px 10px 0; padding: 15px 18px; margin-bottom: 18px; max-width: 900px;">
+    <p style="margin: 0 0 9px; font-size: 13px; line-height: 1.7; color: #d4d4d8;">Gmail's tab choice is made <strong style="color: #f4f4f5;">per recipient</strong>, not per message. Two people can receive the identical email and see it in different tabs, because Gmail weighs that person's own history with the sender.</p>
+    <p style="margin: 0; font-size: 13px; line-height: 1.7; color: #a1a1aa;">So there is no server-side setting that forces Primary. But the mode you send in genuinely changes the odds — and one lever moves it far more than the rest.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+
+    <!-- broadcast mode -->
+    <div style="border-radius: 12px; border: 1px solid rgba(245,158,11,0.22); background: rgba(245,158,11,0.05); overflow: hidden;">
+      <div style="padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #f4f4f5;">Broadcast</p>
+          <span style="border-radius: 999px; border: 1px solid rgba(245,158,11,0.30); background: rgba(245,158,11,0.12); padding: 3px 9px; font-size: 10px; font-weight: 600; color: #fcd34d;">→ Promotions</span>
+        </div>
+        <p style="margin: 5px 0 0; font-size: 11px; color: #a1a1aa;">Newsletters, product news, anything the recipient could reasonably opt out of.</p>
+      </div>
+      <div style="padding: 14px 16px;">
+        <p style="margin: 0 0 9px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Carries, by law and by policy</p>
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; gap: 8px;"><span style="color: #fcd34d; font-size: 11px; flex-shrink: 0;">•</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;"><code style="color: #d4d4d8; font-size: 10px;">List-Unsubscribe</code> + one-click header</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #fcd34d; font-size: 11px; flex-shrink: 0;">•</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;"><code style="color: #d4d4d8; font-size: 10px;">Feedback-ID</code> — added by the sending platform</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #fcd34d; font-size: 11px; flex-shrink: 0;">•</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Visible unsubscribe footer</span></div>
+        </div>
+        <p style="margin: 12px 0 0; padding-top: 11px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11px; line-height: 1.6; color: #71717a;">Those three are exactly what Gmail reads as "bulk". <span style="color: #fda4af;">Removing them to chase Primary trades a Promotions placement for a real spam-folder risk</span> — and above ~5,000/day Gmail requires them outright.</p>
+      </div>
+    </div>
+
+    <!-- operational mode -->
+    <div style="border-radius: 12px; border: 1px solid rgba(16,185,129,0.25); background: rgba(16,185,129,0.05); overflow: hidden;">
+      <div style="padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #f4f4f5;">Operational notice</p>
+          <span style="border-radius: 999px; border: 1px solid rgba(16,185,129,0.30); background: rgba(16,185,129,0.12); padding: 3px 9px; font-size: 10px; font-weight: 600; color: #6ee7b7;">→ Primary, usually</span>
+        </div>
+        <p style="margin: 5px 0 0; font-size: 11px; color: #a1a1aa;">Seat renewals, account changes, session details — things the recipient needs whether or not they want news.</p>
+      </div>
+      <div style="padding: 14px 16px;">
+        <p style="margin: 0 0 9px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Sent as transactional</p>
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; gap: 8px;"><span style="color: #6ee7b7; font-size: 11px; flex-shrink: 0;">•</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">No unsubscribe — this mail isn't optional</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #6ee7b7; font-size: 11px; flex-shrink: 0;">•</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Plain, letter-shaped: no hero image, no buttons</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #6ee7b7; font-size: 11px; flex-shrink: 0;">•</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Addressed to the person by name, one link at most</span></div>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; padding-top: 11px; border-top: 1px solid rgba(255,255,255,0.06);">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fda4af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 1px; flex-shrink: 0;"><path d="M12 9v4M12 17v.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+          <p style="margin: 0; font-size: 11px; line-height: 1.6; color: #a1a1aa;">Dressing marketing up as operational is what gets domains blocked. The mode is <span style="color: #d4d4d8;">recorded on every send</span> and shown in the history report.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- the real lever -->
+  <div style="border-radius: 12px; border: 1px solid rgba(99,102,241,0.25); background: rgba(99,102,241,0.06); padding: 16px 18px; margin-bottom: 16px;">
+    <div style="display: flex; align-items: center; gap: 9px; margin-bottom: 10px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9L6.7 19.6l1.1-6L3.4 9.4l6-.8Z"/></svg>
+      <p style="margin: 0; font-size: 14px; font-weight: 600; color: #f4f4f5;">The one lever that actually moves people to Primary</p>
+    </div>
+    <p style="margin: 0 0 12px; font-size: 12px; line-height: 1.7; color: #a1a1aa; max-width: 780px;">Recipient behaviour beats every header. If someone <strong style="color: #d4d4d8;">replies</strong>, <strong style="color: #d4d4d8;">stars</strong> the message, drags it to Primary, or adds the sender to their contacts, Gmail learns — and future mail from <code style="color: #d4d4d8; font-size: 11px;">suchismita.sen@imotara.com</code> goes to that person's Primary tab from then on.</p>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+      <div style="border-radius: 9px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 12px 13px;">
+        <p style="margin: 0 0 5px; font-size: 11px; font-weight: 600; color: #e4e4e7;">Ask once, in the first send</p>
+        <p style="margin: 0; font-size: 10.5px; line-height: 1.6; color: #71717a;">One plain line — "reply with a word, or drag this to your main inbox, and future notes will land there." It works, and it only needs saying once.</p>
+      </div>
+      <div style="border-radius: 9px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 12px 13px;">
+        <p style="margin: 0 0 5px; font-size: 11px; font-weight: 600; color: #e4e4e7;">Make replies possible</p>
+        <p style="margin: 0; font-size: 10.5px; line-height: 1.6; color: #71717a;">Send from a real monitored mailbox, never no-reply@. You already do — replies reach Suchismita directly.</p>
+      </div>
+      <div style="border-radius: 9px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 12px 13px;">
+        <p style="margin: 0 0 5px; font-size: 11px; font-weight: 600; color: #e4e4e7;">Stay consistent</p>
+        <p style="margin: 0; font-size: 10.5px; line-height: 1.6; color: #71717a;">Same From address every time. Reputation and per-recipient learning both attach to the address, so rotating senders throws it away.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- content factors -->
+  <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); overflow: hidden;">
+    <div style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Content signals — worth a little, not a lot</p>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0;">
+      <div style="padding: 14px 16px; border-right: 1px solid rgba(255,255,255,0.06);">
+        <p style="margin: 0 0 10px; font-size: 11px; font-weight: 600; color: #6ee7b7;">Pushes toward Primary</p>
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; gap: 8px;"><span style="color: #6ee7b7; font-size: 11px;">↑</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Mostly text, few or no images</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #6ee7b7; font-size: 11px;">↑</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">One link, not eight</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #6ee7b7; font-size: 11px;">↑</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">The recipient's own name in the greeting</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #6ee7b7; font-size: 11px;">↑</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">A subject that reads like a person wrote it</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #6ee7b7; font-size: 11px;">↑</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Single-column, letter-like layout</span></div>
+        </div>
+      </div>
+      <div style="padding: 14px 16px;">
+        <p style="margin: 0 0 10px; font-size: 11px; font-weight: 600; color: #fcd34d;">Pushes toward Promotions</p>
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; gap: 8px;"><span style="color: #fcd34d; font-size: 11px;">↓</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Hero images and big call-to-action buttons</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #fcd34d; font-size: 11px;">↓</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Multi-column or card layouts</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #fcd34d; font-size: 11px;">↓</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Offer language — free, save, limited, exclusive</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #fcd34d; font-size: 11px;">↓</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Many recipients in one run</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #fcd34d; font-size: 11px;">↓</span><span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Tracking pixels — which Imotara doesn't use anyway</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+      <p style="margin: 0; font-size: 11px; line-height: 1.65; color: #71717a;">Being straight about the ceiling: a genuine broadcast to thousands will mostly sit in Promotions no matter how it is written, and that is <span style="color: #a1a1aa;">fine</span> — it is the inbox, people read it there, and it is not spam. The composer scores these signals so the choice is visible, not so the number can be gamed.</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

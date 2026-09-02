@@ -1,0 +1,152 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; background: #130e17; }
+    a { color: #a5b4fc; text-decoration: none; }
+    a:hover { color: #c7d2fe; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="background: #130e17; min-height: 880px; padding: 24px 32px 40px;">
+
+  <div style="margin-bottom: 20px;">
+    <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: #71717a;">First time opening Broadcast</p>
+    <h1 style="margin: 3px 0 0; font-size: 18px; font-weight: 600; color: #f4f4f5;">Connect your mailbox — one time, self-service</h1>
+    <p style="margin: 5px 0 0; font-size: 11px; color: #71717a;">Three states of one modal. No developer involvement, no environment variables, no support ticket.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+
+    <!-- ── STATE 1: intro ── -->
+    <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); overflow: hidden;">
+      <div style="padding: 7px 14px; background: rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #71717a;">State 1 — why</span>
+      </div>
+      <div style="padding: 18px;">
+        <div style="width: 40px; height: 40px; border-radius: 11px; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25); display: flex; align-items: center; justify-content: center; margin-bottom: 13px;">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
+        </div>
+        <h2 style="margin: 0 0 8px; font-size: 15px; font-weight: 600; color: #f4f4f5;">Send as yourself</h2>
+        <p style="margin: 0 0 14px; font-size: 12px; line-height: 1.7; color: #a1a1aa;">Broadcasts go out from your own address, so replies come back to you and recipients see a person rather than a system account.</p>
+
+        <div style="border-radius: 9px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 12px; margin-bottom: 13px;">
+          <p style="margin: 0 0 9px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #52525b;">What you'll need</p>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: flex-start; gap: 8px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+              <span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">The password for your <span style="color: #d4d4d8;">@imotara.com</span> mailbox</span>
+            </div>
+            <div style="display: flex; align-items: flex-start; gap: 8px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+              <span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">About a minute</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: flex-start; gap: 8px; border-radius: 9px; border: 1px solid rgba(99,102,241,0.20); background: rgba(99,102,241,0.06); padding: 11px 12px; margin-bottom: 14px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 1px; flex-shrink: 0;"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <p style="margin: 0; font-size: 10px; line-height: 1.6; color: #a1a1aa;">Stored encrypted, never shown again, and only ever used to send mail you compose here. Remove it any time.</p>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid rgba(99,102,241,0.30); background: rgba(99,102,241,0.10); padding: 10px; font-size: 12px; font-weight: 600; color: #a5b4fc;">Connect my mailbox</div>
+        <p style="margin: 9px 0 0; text-align: center; font-size: 11px; color: #52525b;">Not now</p>
+      </div>
+    </div>
+
+    <!-- ── STATE 2: credentials ── -->
+    <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); overflow: hidden;">
+      <div style="padding: 7px 14px; background: rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #71717a;">State 2 — credentials</span>
+      </div>
+      <div style="padding: 18px;">
+
+        <p style="margin: 0 0 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Your address</p>
+        <div style="display: flex; align-items: center; gap: 9px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); padding: 9px 12px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#52525b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span style="font-size: 12px; color: #a1a1aa;">suchismita.sen@imotara.com</span>
+        </div>
+        <p style="margin: 6px 0 14px; font-size: 10px; line-height: 1.6; color: #52525b;">Locked to your admin login. You cannot connect a mailbox that isn't yours, so nobody can send under someone else's name.</p>
+
+        <p style="margin: 0 0 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Mailbox password</p>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 9px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.40); background: #18181b; padding: 9px 12px;">
+          <span style="font-size: 13px; letter-spacing: 0.18em; color: #d4d4d8;">••••••••••••</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+        </div>
+        <p style="margin: 6px 0 14px; font-size: 10px; line-height: 1.6; color: #52525b;">The same password you'd use in a mail app. Imotara never displays it again after this step.</p>
+
+        <div style="border-radius: 9px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); overflow: hidden; margin-bottom: 15px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px;">
+            <div>
+              <p style="margin: 0; font-size: 11px; color: #a1a1aa;">Server settings</p>
+              <p style="margin: 2px 0 0; font-size: 10px; color: #52525b;">Detected from imotara.com</p>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#52525b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <div style="padding: 0 12px 11px; display: flex; gap: 8px;">
+            <span style="border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 4px 9px; font-size: 10px; color: #71717a; font-family: ui-monospace, Menlo, monospace;">smtp.hostinger.com</span>
+            <span style="border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 4px 9px; font-size: 10px; color: #71717a; font-family: ui-monospace, Menlo, monospace;">465 · SSL</span>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid rgba(99,102,241,0.30); background: rgba(99,102,241,0.10); padding: 10px; font-size: 12px; font-weight: 600; color: #a5b4fc;">Verify and save</div>
+      </div>
+    </div>
+
+    <!-- ── STATE 3: verifying ── -->
+    <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); overflow: hidden;">
+      <div style="padding: 7px 14px; background: rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #71717a;">State 3 — verifying</span>
+      </div>
+      <div style="padding: 18px;">
+        <h2 style="margin: 0 0 4px; font-size: 15px; font-weight: 600; color: #f4f4f5;">Checking it really works</h2>
+        <p style="margin: 0 0 15px; font-size: 11px; line-height: 1.65; color: #71717a;">Nothing is saved until every check passes — so a wrong password fails here, not in front of 49 people.</p>
+
+        <div style="display: flex; flex-direction: column; gap: 11px; margin-bottom: 15px;">
+          <div style="display: flex; align-items: flex-start; gap: 9px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 1px; flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+            <div><p style="margin: 0; font-size: 12px; color: #e4e4e7;">Reached the mail server</p><p style="margin: 2px 0 0; font-size: 10px; color: #52525b;">smtp.hostinger.com:465</p></div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 9px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 1px; flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+            <div><p style="margin: 0; font-size: 12px; color: #e4e4e7;">Signed in as you</p><p style="margin: 2px 0 0; font-size: 10px; color: #52525b;">Password accepted</p></div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 9px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 1px; flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+            <div><p style="margin: 0; font-size: 12px; color: #e4e4e7;">Sent a test to yourself</p><p style="margin: 2px 0 0; font-size: 10px; color: #52525b;">Check your inbox to confirm it arrived</p></div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 9px;">
+            <div style="width: 14px; height: 14px; border-radius: 999px; border: 2px solid rgba(99,102,241,0.30); border-top-color: #a5b4fc; margin-top: 1px; flex-shrink: 0;"></div>
+            <div><p style="margin: 0; font-size: 12px; color: #a5b4fc;">Checking your domain's mail records</p><p style="margin: 2px 0 0; font-size: 10px; color: #52525b;">SPF and DKIM for imotara.com</p></div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 9px; opacity: 0.45;">
+            <div style="width: 14px; height: 14px; border-radius: 999px; border: 1.5px solid rgba(255,255,255,0.15); margin-top: 1px; flex-shrink: 0;"></div>
+            <div><p style="margin: 0; font-size: 12px; color: #71717a;">Save the connection</p></div>
+          </div>
+        </div>
+
+        <!-- failure variant -->
+        <div style="border-radius: 9px; border: 1px solid rgba(244,63,94,0.25); background: rgba(244,63,94,0.06); padding: 12px;">
+          <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fda4af" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            <p style="margin: 0; font-size: 11px; font-weight: 600; color: #fda4af;">If sign-in fails</p>
+          </div>
+          <p style="margin: 0 0 8px; font-size: 11px; line-height: 1.6; color: #a1a1aa;">The password was rejected by the mail server. Nothing was saved.</p>
+          <p style="margin: 0; font-size: 10px; line-height: 1.6; color: #71717a;">Most often the mailbox password was changed in Hostinger. Try the password you use in your mail app — <span style="color: #a1a1aa;">not</span> your Imotara admin password.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

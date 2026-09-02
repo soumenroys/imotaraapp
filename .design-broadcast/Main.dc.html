@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; background: #130e17; }
+    a { color: #a5b4fc; text-decoration: none; }
+    a:hover { color: #c7d2fe; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="background: #130e17; min-height: 720px; padding: 24px 32px 40px;">
+
+  <!-- header -->
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="width: 32px; height: 32px; border-radius: 12px; background: linear-gradient(140deg, #6366f1, #0ea5e9); display: flex; align-items: center; justify-content: center;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0-8-8c0 1.4.36 2.7 1 3.85L4 20l4.15-1c1.15.64 2.45 1 3.85 1Z"/></svg>
+      </div>
+      <div>
+        <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: #71717a;">Imotara · Admin</p>
+        <h1 style="margin: 2px 0 0; font-size: 18px; font-weight: 600; color: #f4f4f5;">Broadcast</h1>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 6px; border-radius: 999px; border: 1px solid rgba(245,158,11,0.30); background: rgba(245,158,11,0.10); padding: 5px 10px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l4 3 5-6 5 6 4-3v10H3z"/></svg>
+        <span style="font-size: 11px; font-weight: 500; color: #fcd34d;">owner</span>
+      </div>
+      <div style="border-radius: 999px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.05); padding: 6px 12px; font-size: 12px; color: #a1a1aa;">suchismita.sen@imotara.com</div>
+      <div style="border-radius: 999px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.05); padding: 6px 12px; font-size: 12px; color: #71717a;">Sign out</div>
+    </div>
+  </div>
+
+  <!-- tab bar -->
+  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 24px;">
+    <div style="display: flex; gap: 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.05); padding: 4px;">
+      <div style="display: flex; align-items: center; gap: 6px; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #71717a;"><span>💬</span><span>Comments</span></div>
+      <div style="display: flex; align-items: center; gap: 6px; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #71717a;"><span>🔑</span><span>Licenses</span></div>
+      <div style="display: flex; align-items: center; gap: 6px; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #71717a;"><span>🏢</span><span>Orgs</span></div>
+      <div style="display: flex; align-items: center; gap: 6px; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #71717a;"><span>🤝</span><span>Connect</span></div>
+      <div style="display: flex; align-items: center; gap: 6px; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #71717a;"><span>👑</span><span>Admins</span></div>
+      <div style="display: flex; align-items: center; gap: 6px; border-radius: 8px; background: rgba(255,255,255,0.10); padding: 8px 12px; font-size: 12px; font-weight: 600; color: #f4f4f5;"><span>📣</span><span>Broadcast</span></div>
+      <div style="display: flex; align-items: center; gap: 6px; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #71717a;"><span>📊</span><span>Dashboard</span></div>
+    </div>
+  </div>
+
+  <!-- owner gate note -->
+  <div style="display: flex; align-items: flex-start; gap: 10px; border-radius: 12px; border: 1px solid rgba(245,158,11,0.20); background: rgba(245,158,11,0.06); padding: 12px 14px; margin-bottom: 20px;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 1px; flex-shrink: 0;"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+    <p style="margin: 0; font-size: 11px; line-height: 1.6; color: #a1a1aa;">Broadcast is restricted to the <span style="color: #fcd34d; font-weight: 500;">owner</span> role. Admins and Connect reviewers do not see this tab. Every send is written to the activity log with the sending admin's identity.</p>
+  </div>
+
+  <!-- action row -->
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px;">
+    <div style="display: flex; align-items: baseline; gap: 10px;">
+      <h2 style="margin: 0; font-size: 14px; font-weight: 600; color: #e4e4e7;">Your broadcasts</h2>
+      <span style="font-size: 11px; color: #52525b;">4 saved · 2 sent</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: #18181b; padding: 6px 12px; font-size: 12px; color: #a1a1aa;">Recipient lists</div>
+      <div style="display: flex; align-items: center; gap: 6px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.30); background: rgba(99,102,241,0.10); padding: 6px 12px; font-size: 12px; font-weight: 500; color: #a5b4fc;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        New broadcast
+      </div>
+    </div>
+  </div>
+
+  <!-- table -->
+  <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); overflow: hidden;">
+    <div style="display: grid; grid-template-columns: 3fr 1.2fr 1.1fr 1.3fr 0.6fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <span style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #52525b;">Subject</span>
+      <span style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #52525b;">Recipients</span>
+      <span style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #52525b;">Status</span>
+      <span style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #52525b;">Last activity</span>
+      <span></span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 3fr 1.2fr 1.1fr 1.3fr 0.6fr; gap: 12px; align-items: center; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+      <div>
+        <p style="margin: 0; font-size: 13px; color: #e4e4e7;">A quieter August — what's new in Imotara</p>
+        <p style="margin: 3px 0 0; font-size: 10px; color: #52525b;">Sent by suchismita.sen@imotara.com</p>
+      </div>
+      <span style="font-size: 12px; color: #a1a1aa;">248</span>
+      <div><span style="border-radius: 999px; border: 1px solid rgba(16,185,129,0.25); background: rgba(16,185,129,0.10); padding: 3px 9px; font-size: 10px; font-weight: 500; color: #6ee7b7;">Sent</span></div>
+      <span style="font-size: 11px; color: #71717a;">28 Aug, 09:12</span>
+      <span style="font-size: 12px; color: #52525b; text-align: right;">···</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 3fr 1.2fr 1.1fr 1.3fr 0.6fr; gap: 12px; align-items: center; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+      <div>
+        <p style="margin: 0; font-size: 13px; color: #e4e4e7;">Welcome to Connect — your first session</p>
+        <p style="margin: 3px 0 0; font-size: 10px; color: #52525b;">Draft · last edited by you</p>
+      </div>
+      <span style="font-size: 12px; color: #a1a1aa;">36</span>
+      <div><span style="border-radius: 999px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.05); padding: 3px 9px; font-size: 10px; font-weight: 500; color: #a1a1aa;">Draft</span></div>
+      <span style="font-size: 11px; color: #71717a;">Today, 08:40</span>
+      <span style="font-size: 12px; color: #52525b; text-align: right;">···</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 3fr 1.2fr 1.1fr 1.3fr 0.6fr; gap: 12px; align-items: center; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+      <div>
+        <p style="margin: 0; font-size: 13px; color: #e4e4e7;">Child Care — seat renewal reminder</p>
+        <p style="margin: 3px 0 0; font-size: 10px; color: #52525b;">Partially sent · 3 addresses failed</p>
+      </div>
+      <span style="font-size: 12px; color: #a1a1aa;">52</span>
+      <div><span style="border-radius: 999px; border: 1px solid rgba(245,158,11,0.25); background: rgba(245,158,11,0.10); padding: 3px 9px; font-size: 10px; font-weight: 500; color: #fcd34d;">49 of 52</span></div>
+      <span style="font-size: 11px; color: #71717a;">22 Aug, 16:30</span>
+      <span style="font-size: 12px; color: #52525b; text-align: right;">···</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 3fr 1.2fr 1.1fr 1.3fr 0.6fr; gap: 12px; align-items: center; padding: 13px 16px;">
+      <div>
+        <p style="margin: 0; font-size: 13px; color: #e4e4e7;">Notes on the new reflection tools</p>
+        <p style="margin: 3px 0 0; font-size: 10px; color: #52525b;">Draft · no recipients yet</p>
+      </div>
+      <span style="font-size: 12px; color: #52525b;">—</span>
+      <div><span style="border-radius: 999px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.05); padding: 3px 9px; font-size: 10px; font-weight: 500; color: #a1a1aa;">Draft</span></div>
+      <span style="font-size: 11px; color: #71717a;">19 Aug, 11:05</span>
+      <span style="font-size: 12px; color: #52525b; text-align: right;">···</span>
+    </div>
+  </div>
+
+  <p style="margin: 14px 0 0; font-size: 10px; color: #52525b;">Broadcasts are drafts until you send them. A sent broadcast is locked and kept as a record — duplicate it to send a revised version.</p>
+
+</div>
+</x-dc>
+</body>
+</html>

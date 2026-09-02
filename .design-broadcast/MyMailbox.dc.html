@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; background: #130e17; }
+    a { color: #a5b4fc; text-decoration: none; }
+    a:hover { color: #c7d2fe; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="background: #130e17; min-height: 700px; padding: 24px 32px 40px;">
+
+  <div style="margin-bottom: 18px;">
+    <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: #71717a;">Admins &rsaquo; My mailbox</p>
+    <h1 style="margin: 3px 0 0; font-size: 18px; font-weight: 600; color: #f4f4f5;">Managing it afterwards</h1>
+    <p style="margin: 5px 0 0; font-size: 11px; color: #71717a;">Lives under the existing 👑 Admins tab, so it's findable without going through Broadcast.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px;">
+
+    <!-- connected -->
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 16px;">
+        <p style="margin: 0 0 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Your sending mailbox</p>
+
+        <div style="display: flex; align-items: center; gap: 12px; border-radius: 10px; border: 1px solid rgba(16,185,129,0.25); background: rgba(16,185,129,0.07); padding: 13px 14px; margin-bottom: 12px;">
+          <div style="width: 34px; height: 34px; border-radius: 999px; background: rgba(16,185,129,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <p style="margin: 0; font-size: 13px; font-weight: 500; color: #e4e4e7;">suchismita.sen@imotara.com</p>
+            <p style="margin: 2px 0 0; font-size: 11px; color: #6ee7b7;">Connected · last verified today, 08:31</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 13px;">
+          <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 9px 11px;">
+            <p style="margin: 0; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #52525b;">SPF</p>
+            <p style="margin: 3px 0 0; font-size: 11px; font-weight: 500; color: #6ee7b7;">Pass</p>
+          </div>
+          <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 9px 11px;">
+            <p style="margin: 0; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #52525b;">DKIM</p>
+            <p style="margin: 3px 0 0; font-size: 11px; font-weight: 500; color: #6ee7b7;">Aligned</p>
+          </div>
+          <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 9px 11px;">
+            <p style="margin: 0; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #52525b;">Sent this month</p>
+            <p style="margin: 3px 0 0; font-size: 11px; font-weight: 500; color: #a1a1aa; font-variant-numeric: tabular-nums;">248</p>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: #18181b; padding: 8px 12px; font-size: 12px; color: #a1a1aa;">Re-verify now</div>
+          <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: #18181b; padding: 8px 12px; font-size: 12px; color: #a1a1aa;">Update password</div>
+          <div style="border-radius: 8px; border: 1px solid rgba(244,63,94,0.30); background: rgba(244,63,94,0.08); padding: 8px 12px; font-size: 12px; color: #fda4af;">Disconnect</div>
+        </div>
+      </div>
+
+      <!-- expired state -->
+      <div style="border-radius: 12px; border: 1px solid rgba(245,158,11,0.22); background: rgba(245,158,11,0.05); padding: 15px 16px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+          <p style="margin: 0; font-size: 11px; font-weight: 600; color: #fcd34d;">When the password stops working</p>
+        </div>
+        <p style="margin: 0 0 11px; font-size: 11px; line-height: 1.65; color: #a1a1aa;">If the mailbox password is changed in Hostinger, the next send fails at authentication. Imotara catches that on the first message, stops the run before the rest go out, and marks the connection here.</p>
+        <div style="display: flex; align-items: center; gap: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 10px 12px;">
+          <div style="flex: 1;">
+            <p style="margin: 0; font-size: 11px; color: #a1a1aa;">suchismita.sen@imotara.com</p>
+            <p style="margin: 2px 0 0; font-size: 10px; color: #fcd34d;">Password no longer accepted</p>
+          </div>
+          <div style="border-radius: 7px; border: 1px solid rgba(245,158,11,0.30); background: rgba(245,158,11,0.10); padding: 6px 11px; font-size: 11px; font-weight: 500; color: #fcd34d;">Reconnect</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- other admins + policy -->
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); overflow: hidden;">
+        <div style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+          <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Owners and their mailboxes</p>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+          <div>
+            <p style="margin: 0; font-size: 12px; color: #e4e4e7;">Suchismita Sen</p>
+            <p style="margin: 2px 0 0; font-size: 10px; color: #52525b;">suchismita.sen@imotara.com</p>
+          </div>
+          <span style="border-radius: 999px; border: 1px solid rgba(16,185,129,0.25); background: rgba(16,185,129,0.10); padding: 3px 9px; font-size: 10px; font-weight: 500; color: #6ee7b7;">Connected</span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px;">
+          <div>
+            <p style="margin: 0; font-size: 12px; color: #e4e4e7;">Soumen Roy</p>
+            <p style="margin: 2px 0 0; font-size: 10px; color: #52525b;">soumenroys@gmail.com</p>
+          </div>
+          <span style="border-radius: 999px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.05); padding: 3px 9px; font-size: 10px; font-weight: 500; color: #a1a1aa;">Not connected</span>
+        </div>
+        <div style="padding: 11px 16px; border-top: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+          <p style="margin: 0; font-size: 10px; line-height: 1.6; color: #71717a;">You can see whether other owners have connected, but never their credentials — and you cannot connect a mailbox on their behalf.</p>
+        </div>
+      </div>
+
+      <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 15px 16px;">
+        <p style="margin: 0 0 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">How the password is held</p>
+        <div style="display: flex; flex-direction: column; gap: 9px;">
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+            <span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Encrypted at rest with a key held outside the database</span>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+            <span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Decrypted only server-side, only while a send is running</span>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+            <span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Never returned to the browser, not even to you</span>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+            <span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;">Deleted outright when you disconnect</span>
+          </div>
+        </div>
+        <p style="margin: 11px 0 0; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 10px; line-height: 1.6; color: #52525b;">Worth being clear-eyed: this is a real mailbox password sitting in your database. That's the cost of mail genuinely coming from you rather than from a shared account.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

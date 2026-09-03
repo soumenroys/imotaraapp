@@ -217,18 +217,18 @@ describe("alignment and image width", () => {
 });
 
 describe("the unsubscribe footer", () => {
-  it("carries a working link and a postal address", async () => {
+  it("carries a working unsubscribe link and names the sender", async () => {
     const { footerHtml, footerText } = await import("@/lib/broadcast/markup");
     const html = footerHtml("https://x.test/u?t=abc");
     expect(html).toContain('href="https://x.test/u?t=abc"');
     expect(html).toContain("Unsubscribe");
-    // Both are required of commercial mail, and their absence is what filters
-    // look for — so they are asserted rather than left to inspection.
-    expect(html).toContain("Imotara, Kolkata, India");
+    // The unsubscribe link is the part that must never go missing: without a
+    // working one, the next person who wants out presses "Report spam".
+    expect(html).toContain("Imotara");
 
     const text = footerText("https://x.test/u?t=abc");
     expect(text).toContain("Unsubscribe: https://x.test/u?t=abc");
-    expect(text).toContain("Imotara, Kolkata, India");
+    expect(text).toContain("Imotara");
   });
 
   it("no longer explains why the message arrived", async () => {

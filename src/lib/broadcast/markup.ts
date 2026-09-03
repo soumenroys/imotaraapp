@@ -342,21 +342,23 @@ export function renderText(src: string): string {
  * because only the sender can mint a per-recipient token; the preview passes
  * a dead one.
  *
- * What remains here is what has to: a working unsubscribe link and a postal
- * address. Both are required of commercial mail, and their absence is also
- * what filters look for.
+ * The postal address was removed at the owner's request on 2026-09-04. Worth
+ * knowing if this is ever revisited: CAN-SPAM requires a physical address in
+ * commercial mail and applies to any message reaching a US recipient, and
+ * filters look for one too. Restoring it is a one-line change here, and here
+ * only — which is the reason this lives in a single place.
  */
 export function footerHtml(unsubscribeHref: string): string {
   return (
     `<div style="margin-top:28px;padding-top:14px;border-top:1px solid #eef2f7;` +
     `font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.6;color:#94a3b8">` +
     `<a href="${unsubscribeHref}" style="color:#4f46e5">Unsubscribe</a>` +
-    ` &middot; Imotara, Kolkata, India</div>`
+    ` &middot; Imotara</div>`
   );
 }
 
 export function footerText(unsubscribeHref: string): string {
-  return `\n\n—\nUnsubscribe: ${unsubscribeHref}\nImotara, Kolkata, India`;
+  return `\n\n—\nUnsubscribe: ${unsubscribeHref}\nImotara`;
 }
 
 /**

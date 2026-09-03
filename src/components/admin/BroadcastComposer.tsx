@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 import { renderHtml, emailDocument, FONTS, SIZES } from "@/lib/broadcast/markup";
+import { checkImageUrl } from "@/lib/broadcast/imageUrl";
 import type { ListRow } from "./BroadcastLists";
 
 export type Draft = {
@@ -106,6 +107,7 @@ export default function BroadcastComposer({
   const [imgAlign, setImgAlign] = useState("left");
   const [imgBusy, setImgBusy] = useState(false);
   const [imgError, setImgError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   const locked = Boolean(draft.status && draft.status !== "draft");
 
@@ -236,7 +238,7 @@ export default function BroadcastComposer({
     edit(src.slice(0, a) + pad + block + "\n\n" + src.slice(a), a + pad.length + block.length);
   }
 
-  async function upload(file: File) {
+  async function upload(file: File, insertNow = false) {
     setImgBusy(true); setImgError(null);
     try {
       const fd = new FormData();
@@ -245,10 +247,37 @@ export default function BroadcastComposer({
       const res = await fetch("/api/admin/broadcast/upload", adminFetchOpts(token, { method: "POST", body: fd }));
       const j = await res.json().catch(() => ({}));
       if (!res.ok) { setImgError([j.error, j.hint, j.allowed].filter(Boolean).join(" — ")); return; }
-      setImgUrl(j.url);
       if (j.warning) setImgError(j.warning);
+      // Dropped or pasted images go straight into the message at the cursor —
+      // the file was already chosen, so asking for a second confirmation would
+      // only be a step that can be forgotten.
+      if (insertNow) { insertImage(j.url, file.name.replace(/\.[^.]+$/, ""), null, "left"); setImgOpen(false); }
+      else { setImgUrl(j.url); setImgOpen(true); }
     } catch { setImgError("Upload failed."); }
     finally { setImgBusy(false); }
+  }
+
+  function firstImage(list: FileList | null | undefined): File | null {
+    if (!list) return null;
+    for (const f of Array.from(list)) if (f.type.startsWith("image/")) return f;
+    return null;
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const f = firstImage(e.dataTransfer?.files);
+    if (f && !locked) void upload(f, true);
+  }
+
+  // Paste is how an image copied from anywhere — a Drive preview, a web page,
+  // a screenshot — actually gets into a message. The clipboard carries the
+  // bytes, so this works regardless of where the picture came from.
+  function onPaste(e: React.ClipboardEvent) {
+    const f = firstImage(e.clipboardData?.files);
+    if (!f || locked) return;
+    e.preventDefault();
+    void upload(f, true);
   }
 
   // ── Preview ───────────────────────────────────────────────────────────────
@@ -408,13 +437,16 @@ export default function BroadcastComposer({
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }}
                       />
                     </label>
-                    <span className="text-[10px] text-zinc-600">or paste the address of an image already online</span>
+                    <span className="text-[10px] text-zinc-600">
+                      or drag one onto the message, paste a copied image, or give the
+                      address of one already online
+                    </span>
                   </div>
 
                   <input
                     value={imgUrl}
                     onChange={(e) => { setImgUrl(e.target.value); setImgError(null); }}
-                    placeholder="https://…"
+                    placeholder="https://…  (a direct image link, not a Drive share link)"
                     className="mt-2 w-full rounded-md border border-white/10 bg-zinc-900 px-2.5 py-1.5 font-mono text-[11px] text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-indigo-500/40"
                   />
 
@@ -447,14 +479,22 @@ export default function BroadcastComposer({
 
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-[10px] leading-relaxed text-zinc-600">
-                      Most people see images blocked until they choose to load them, so the
-                      description is not optional in practice — it is what half your readers
-                      get instead of the picture.
+                      A file you choose, drag or paste is copied to our own storage, so it
+                      keeps working after you move or delete the original. Most people see
+                      images blocked until they choose to load them, so the description is
+                      not optional in practice — it is what half your readers get instead
+                      of the picture.
                     </p>
                     <button
                       onClick={() => {
-                        insertImage(imgUrl.trim(), imgAlt.trim(), imgWidth ? parseInt(imgWidth, 10) : null, imgAlign);
-                        setImgOpen(false); setImgUrl(""); setImgAlt(""); setImgWidth(""); setImgError(null);
+                        // A share link from Drive or OneDrive is not an image
+                        // and would reach every recipient as a broken picture.
+                        // Caught here, where it can still be fixed.
+                        const v = checkImageUrl(imgUrl);
+                        if (!v.ok) { setImgError(`${v.reason} ${v.fix}`); return; }
+                        insertImage(v.url, imgAlt.trim(), imgWidth ? parseInt(imgWidth, 10) : null, imgAlign);
+                        setImgOpen(false); setImgUrl(""); setImgAlt(""); setImgWidth("");
+                        setImgError(v.note ?? null);
                       }}
                       disabled={!imgUrl.trim() || locked}
                       className="shrink-0 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1.5 text-[11px] font-medium text-indigo-300 transition hover:bg-indigo-500/20 disabled:opacity-40"
@@ -467,11 +507,22 @@ export default function BroadcastComposer({
               ref={box}
               value={draft.body_source}
               onChange={(e) => set("body_source", e.target.value)}
+              onPaste={onPaste}
+              onDrop={onDrop}
+              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
               disabled={locked}
               rows={18}
               placeholder={"# A short, plain headline\n\nWrite the way you would to one person.\n\n- what it does\n- who it is for\n\n[[See Imotara]](https://imotara.com)"}
-              className="w-full resize-y bg-zinc-900 px-3 py-3 font-mono text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 disabled:opacity-50"
+              className={`w-full resize-y px-3 py-3 font-mono text-xs leading-relaxed text-zinc-200 outline-none transition placeholder:text-zinc-600 disabled:opacity-50 ${
+                dragging ? "bg-indigo-500/10 ring-1 ring-inset ring-indigo-400/40" : "bg-zinc-900"
+              }`}
             />
+            {(dragging || imgBusy) && (
+              <p className="border-t border-white/6 bg-indigo-500/8 px-3 py-1.5 text-[10px] text-indigo-300">
+                {imgBusy ? "Uploading the image…" : "Drop the image to put it in the message"}
+              </p>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/6 px-3 py-2">
               <p className="text-[10px] leading-relaxed text-zinc-600">
                 Fonts are the families already installed on the machines people read

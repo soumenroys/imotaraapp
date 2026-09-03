@@ -314,6 +314,54 @@ end $$;
 alter table broadcasts add column if not exists from_name text;
 
 
+-- ── 9. HISTORY SUMMARY ───────────────────────────────────────────────────────
+--
+-- Per-broadcast tallies in ONE round trip. The alternative is a count query
+-- per broadcast per status — 200 broadcasts x 7 statuses is 1,400 queries to
+-- render one screen — or fetching every send row to count in JavaScript, which
+-- gets slower for the life of the product.
+--
+-- security definer + a locked-down search_path, matching the pattern used by
+-- the rate-limit functions: callers reach this through service_role from an
+-- admin route, and the tables themselves stay default-deny under RLS.
+
+create or replace function broadcast_history_summary()
+returns table (
+  broadcast_id  uuid,
+  queued        bigint,
+  sent          bigint,
+  delivered     bigint,
+  bounced       bigint,
+  complained    bigint,
+  skipped       bigint,
+  failed        bigint,
+  attempted     bigint
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    s.broadcast_id,
+    count(*) filter (where s.status = 'queued')     as queued,
+    count(*) filter (where s.status = 'sent')       as sent,
+    count(*) filter (where s.status = 'delivered')  as delivered,
+    count(*) filter (where s.status = 'bounced')    as bounced,
+    count(*) filter (where s.status = 'complained') as complained,
+    count(*) filter (where s.status = 'skipped')    as skipped,
+    count(*) filter (where s.status = 'failed')     as failed,
+    -- attempted excludes 'skipped': those were never sent, so counting them
+    -- would understate the delivery rate against messages actually attempted.
+    count(*) filter (where s.status <> 'skipped')   as attempted
+  from broadcast_sends s
+  group by s.broadcast_id;
+$$;
+
+revoke all on function broadcast_history_summary() from public, anon, authenticated;
+grant execute on function broadcast_history_summary() to service_role;
+
+
 -- ── Verification ─────────────────────────────────────────────────────────────
 -- Run this after the migration. It must return EXACTLY 6 rows, every one
 -- showing rls_enabled = true and policy_count = 0 — that combination is what

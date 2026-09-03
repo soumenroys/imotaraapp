@@ -109,8 +109,9 @@ export default function BroadcastLists({
           </button>
         </div>
         <p className="mt-1.5 text-[10px] text-zinc-600">
-          Named for the moment it was created. Type over it if the list has a
-          better name — two lists cannot share one, and the check ignores case.
+          Named for the moment it was created — the digits lead so the lists
+          sort in the order you made them. Type over it if the list deserves a
+          better name; two cannot share one, and the check ignores case.
         </p>
       </div>
 

@@ -1,0 +1,206 @@
+"use client";
+
+// src/components/admin/BroadcastStatus.tsx
+// A run in progress, and the record of one that finished (BC-21, BC-23).
+//
+// One component for both, because they are the same question asked at
+// different times: what happened to each of these messages? While the cron is
+// draining, the answer changes on its own, so this polls. Once it stops
+// moving, it stops polling — a results page that keeps hitting the database
+// forever is how a background tab becomes a load problem.
+
+import { useCallback, useEffect, useState } from "react";
+import { adminFetchOpts } from "@/lib/imotara/adminFetch";
+
+type Tallies = Record<string, number>;
+type Broadcast = {
+  id: string; subject: string; status: string; message_type: string;
+  from_email: string; from_name: string | null;
+  created_at: string; started_at: string | null; finished_at: string | null;
+};
+
+const CARDS: { key: string; label: string; tone: string; hint: string }[] = [
+  { key: "queued",     label: "Waiting",    tone: "text-zinc-300",    hint: "not sent yet — the daily ceiling releases these in batches" },
+  { key: "sent",       label: "Sent",       tone: "text-indigo-300",  hint: "accepted by Resend; delivery is confirmed separately" },
+  { key: "delivered",  label: "Delivered",  tone: "text-emerald-400", hint: "the receiving server accepted it" },
+  { key: "bounced",    label: "Bounced",    tone: "text-amber-400",   hint: "rejected — a hard bounce also suppresses the address" },
+  { key: "complained", label: "Complaints", tone: "text-rose-400",    hint: "marked as spam; the address is suppressed" },
+  { key: "failed",     label: "Failed",     tone: "text-rose-300",    hint: "could not be handed over after retries" },
+  { key: "skipped",    label: "Skipped",    tone: "text-zinc-500",    hint: "suppressed before sending — never attempted" },
+];
+
+function when(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString(undefined, {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+export default function BroadcastStatus({
+  token, id, onBack, onDuplicate,
+}: {
+  token: string; id: string; onBack: () => void; onDuplicate: (newId: string) => void;
+}) {
+  const [b, setB] = useState<Broadcast | null>(null);
+  const [t, setT] = useState<Tallies>({});
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/broadcast/broadcasts/${id}`, adminFetchOpts(token));
+      if (!res.ok) { setError(`Could not load this broadcast (HTTP ${res.status}).`); return; }
+      const j = await res.json();
+      setB(j.broadcast); setT(j.tallies ?? {});
+    } catch { setError("Network error."); }
+  }, [token, id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (b?.status !== "sending") return;
+    const iv = setInterval(() => { void load(); }, 8_000);
+    return () => clearInterval(iv);
+  }, [b?.status, load]);
+
+  async function resume() {
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch(`/api/admin/broadcast/broadcasts/${id}/send`, adminFetchOpts(token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }));
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(j.error ?? `Could not resume (HTTP ${res.status}).`); return; }
+      await load();
+    } catch { setError("Network error."); }
+    finally { setBusy(false); }
+  }
+
+  async function duplicate() {
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch(`/api/admin/broadcast/broadcasts/${id}/duplicate`, adminFetchOpts(token, { method: "POST" }));
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(j.error ?? `Could not duplicate (HTTP ${res.status}).`); return; }
+      onDuplicate(j.broadcast.id);
+    } catch { setError("Network error."); }
+    finally { setBusy(false); }
+  }
+
+  if (!b) {
+    return (
+      <div>
+        <button onClick={onBack} className="mb-4 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-400">← All broadcasts</button>
+        <div className="rounded-xl border border-white/8 bg-white/3 p-6 text-sm text-zinc-500">
+          {error ?? "Loading…"}
+        </div>
+      </div>
+    );
+  }
+
+  const attempted = ["sent", "delivered", "bounced", "complained", "failed"]
+    .reduce((n, k) => n + (t[k] ?? 0), 0);
+  const total = attempted + (t.queued ?? 0);
+  const pct = total > 0 ? Math.round((attempted / total) * 100) : 0;
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <button
+          onClick={onBack}
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-400 transition hover:text-zinc-200"
+        >← All broadcasts</button>
+
+        <div className="flex flex-wrap gap-2">
+          {/* A plain link, not a fetch: the export is a file download and the
+              session cookie rides along on its own. Only owners reach this
+              screen, and the route checks again anyway. */}
+          <a
+            href={`/api/admin/broadcast/broadcasts/${id}/export`}
+            className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 transition hover:text-zinc-200"
+          >Download the audit CSV</a>
+          <button
+            onClick={() => void duplicate()}
+            disabled={busy}
+            className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 transition hover:text-zinc-200 disabled:opacity-40"
+          >Duplicate</button>
+        </div>
+      </div>
+
+      <h2 className="text-sm font-semibold text-zinc-100">{b.subject}</h2>
+      <p className="mt-1 text-[11px] text-zinc-500">
+        From {b.from_name ? `${b.from_name} <${b.from_email}>` : b.from_email}
+        {b.message_type === "operational" && " · operational notice"}
+      </p>
+
+      {b.status === "sending" && (
+        <div className="mt-4 rounded-xl border border-indigo-400/25 bg-indigo-500/8 p-4">
+          <div className="mb-2 flex items-baseline justify-between">
+            <p className="text-xs font-semibold text-indigo-200">Sending</p>
+            <p className="text-[11px] tabular-nums text-indigo-300">{attempted} of {total}</p>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div className="h-full rounded-full bg-indigo-400 transition-all duration-700" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="mt-2 text-[10px] leading-relaxed text-zinc-500">
+            Batches go out every minute, up to the daily ceiling. You can close
+            this page — it continues without you. Numbers refresh on their own.
+          </p>
+        </div>
+      )}
+
+      {b.status === "paused" && (
+        <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-500/8 p-4">
+          <p className="text-xs font-semibold text-amber-200">Paused after a send error</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-amber-100/80">
+            Something stopped the run outright — usually an expired API key or an
+            unverified domain, not a bad address. The queue is intact and nobody
+            will be mailed twice. Fix the cause, then resume; it picks up exactly
+            where it stopped.
+          </p>
+          <button
+            onClick={() => void resume()}
+            disabled={busy}
+            className="mt-2.5 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-40"
+          >{busy ? "Resuming…" : "Resume sending"}</button>
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-4 rounded-xl border border-rose-400/25 bg-rose-500/8 px-4 py-3 text-xs text-rose-300">{error}</div>
+      )}
+
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {CARDS.filter((c) => (t[c.key] ?? 0) > 0 || c.key === "delivered").map((c) => (
+          <div key={c.key} title={c.hint} className="rounded-xl border border-white/8 bg-white/3 px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{c.label}</p>
+            <p className={`mt-1 text-lg font-semibold tabular-nums ${c.tone}`}>{t[c.key] ?? 0}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-xl border border-white/8 bg-white/3">
+        {[
+          ["Created", when(b.created_at)],
+          ["Started", when(b.started_at)],
+          ["Finished", when(b.finished_at)],
+          ["Status", b.status],
+        ].map(([k, v]) => (
+          <div key={k} className="flex items-baseline justify-between border-b border-white/5 px-4 py-2.5 last:border-b-0">
+            <span className="text-[11px] text-zinc-500">{k}</span>
+            <span className="text-[11px] text-zinc-300">{v}</span>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-3 text-[10px] leading-relaxed text-zinc-600">
+        Delivered and bounced counts arrive from Resend after sending, through
+        the delivery webhook — a message can sit at &ldquo;sent&rdquo; for a
+        minute or two before it moves. The CSV carries one row per recipient,
+        with the reason for anything that did not arrive.
+      </p>
+    </div>
+  );
+}

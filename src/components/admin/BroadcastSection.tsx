@@ -12,13 +12,16 @@ import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 import BroadcastLists, { type ListRow } from "./BroadcastLists";
 import BroadcastRecipients from "./BroadcastRecipients";
 import BroadcastComposer, { type Draft } from "./BroadcastComposer";
+import BroadcastReview from "./BroadcastReview";
+import BroadcastStatus from "./BroadcastStatus";
 
 type View =
   | { name: "list" }
   | { name: "lists" }
   | { name: "recipients"; list: ListRow }
   | { name: "compose"; draft: Draft }
-  | { name: "detail"; id: string };
+  | { name: "review"; id: string }
+  | { name: "status"; id: string };
 
 type Tallies = {
   queued: number; sent: number; delivered: number; bounced: number;
@@ -120,9 +123,10 @@ export default function BroadcastSection({ token }: { token: string }) {
       const res = await fetch(`/api/admin/broadcast/broadcasts/${id}`, adminFetchOpts(token));
       if (!res.ok) { setError(`Could not open that broadcast (HTTP ${res.status}).`); return; }
       const b = (await res.json()).broadcast;
-      // A sent broadcast opens in the composer too — read-only, with the
-      // reason shown. Hiding it would mean the only way to see what was
-      // actually sent is the database.
+      // A draft opens where it can still be changed; anything else opens on
+      // its record, because for a broadcast that has gone out the only useful
+      // question left is what happened to each message.
+      if (b.status !== "draft") { setView({ name: "status", id: b.id }); return; }
       setView({ name: "compose", draft: {
         id: b.id, subject: b.subject ?? "", body_source: b.body_source ?? "",
         message_type: b.message_type, list_id: b.list_id,
@@ -181,25 +185,32 @@ export default function BroadcastSection({ token }: { token: string }) {
         initial={view.draft}
         lists={lists}
         onSaved={() => { void load(); }}
-        onReview={(id) => setView({ name: "detail", id })}
+        onReview={(id) => setView({ name: "review", id })}
         onBack={() => { void load(); setView({ name: "list" }); }}
       />
     );
   }
 
-  if (view.name === "detail") {
+  if (view.name === "review") {
     return (
-      <div>
-        <button
-          onClick={() => setView({ name: "list" })}
-          className="mb-4 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-400 transition hover:text-zinc-200"
-        >
-          ← All broadcasts
-        </button>
-        <div className="rounded-xl border border-white/8 bg-white/3 p-6 text-sm text-zinc-400">
-          Detail view for <span className="font-mono text-zinc-300">{view.id}</span> is not built yet.
-        </div>
-      </div>
+      <BroadcastReview
+        token={token}
+        id={view.id}
+        onBack={() => { void load(); setView({ name: "list" }); }}
+        onEdit={() => { void open(view.id); }}
+        onSent={() => { void load(); setView({ name: "status", id: view.id }); }}
+      />
+    );
+  }
+
+  if (view.name === "status") {
+    return (
+      <BroadcastStatus
+        token={token}
+        id={view.id}
+        onBack={() => { void load(); setView({ name: "list" }); }}
+        onDuplicate={(newId) => { void load(); void open(newId); }}
+      />
     );
   }
 

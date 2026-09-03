@@ -9,8 +9,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
+import BroadcastLists, { type ListRow } from "./BroadcastLists";
+import BroadcastRecipients from "./BroadcastRecipients";
 
-type View = { name: "list" } | { name: "detail"; id: string };
+type View =
+  | { name: "list" }
+  | { name: "lists" }
+  | { name: "recipients"; list: ListRow }
+  | { name: "detail"; id: string };
 
 type Tallies = {
   queued: number; sent: number; delivered: number; bounced: number;
@@ -94,6 +100,44 @@ export default function BroadcastSection({ token }: { token: string }) {
     return () => clearInterval(t);
   }, [rows, load]);
 
+  // Two things live under this tab: the broadcasts themselves, and the
+  // recipient lists they are sent to. A list has to exist before a broadcast
+  // can go anywhere, so both are reachable from here rather than the lists
+  // being buried inside the compose flow.
+  const subnav = (
+    <div className="mb-5 flex gap-1 rounded-xl border border-white/8 bg-white/5 p-1">
+      {([["list", "Broadcasts"], ["lists", "Recipient lists"]] as const).map(([k, label]) => (
+        <button
+          key={k}
+          onClick={() => setView(k === "list" ? { name: "list" } : { name: "lists" })}
+          className={`rounded-lg px-3 py-1.5 text-xs transition ${
+            view.name === k || (k === "lists" && view.name === "recipients")
+              ? "bg-white/10 font-semibold text-zinc-100"
+              : "text-zinc-500 hover:text-zinc-300"
+          }`}
+        >{label}</button>
+      ))}
+    </div>
+  );
+
+  if (view.name === "lists") {
+    return (
+      <div>
+        {subnav}
+        <BroadcastLists token={token} onOpen={(l) => setView({ name: "recipients", list: l })} />
+      </div>
+    );
+  }
+
+  if (view.name === "recipients") {
+    return (
+      <div>
+        {subnav}
+        <BroadcastRecipients token={token} list={view.list} onBack={() => setView({ name: "lists" })} />
+      </div>
+    );
+  }
+
   if (view.name === "detail") {
     return (
       <div>
@@ -112,6 +156,8 @@ export default function BroadcastSection({ token }: { token: string }) {
 
   return (
     <div>
+      {subnav}
+
       {/* Summary strip */}
       {summary && summary.broadcasts > 0 && (
         <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3">
@@ -172,6 +218,12 @@ export default function BroadcastSection({ token }: { token: string }) {
             domain&apos;s reputation is not damaged — password resets and
             session notices share it.
           </p>
+          <button
+            onClick={() => setView({ name: "lists" })}
+            className="mt-4 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20"
+          >
+            Start by building a recipient list
+          </button>
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-white/8 bg-white/3">

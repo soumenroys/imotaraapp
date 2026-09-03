@@ -105,6 +105,7 @@ export default function BroadcastRecipients({
   }
 
   const typed = mode === "rows" ? composeRows(rows) : raw;
+  const readyCount = typed ? typed.split("\n").filter(Boolean).length : 0;
 
   async function post(dryRun: boolean) {
     if (!typed.trim() || busy) return;
@@ -226,6 +227,12 @@ export default function BroadcastRecipients({
           <div className="space-y-1.5">
             {rows.map((r, i) => (
               <div key={i} className="flex flex-wrap items-center gap-1.5">
+                {/* Position in the list, so the count is readable without
+                    counting. Numbered by row rather than by completeness —
+                    a number that skips empty rows jumps around as you type. */}
+                <span className="w-6 shrink-0 text-right font-mono text-[10px] tabular-nums text-zinc-600">
+                  {i + 1}.
+                </span>
                 <input
                   value={r.local}
                   onChange={(e) => setRow(i, { local: cleanLocalPart(e.target.value) })}
@@ -280,10 +287,24 @@ export default function BroadcastRecipients({
               </div>
             ))}
 
-            <button
-              onClick={() => addRow(rows.length - 1)}
-              className="mt-1 rounded-lg border border-white/10 bg-zinc-900 px-2.5 py-1.5 text-[11px] text-zinc-400 transition hover:text-zinc-200"
-            >+ Another address</button>
+            <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+              <button
+                onClick={() => addRow(rows.length - 1)}
+                className="rounded-lg border border-white/10 bg-zinc-900 px-2.5 py-1.5 text-[11px] text-zinc-400 transition hover:text-zinc-200"
+              >+ Another address</button>
+
+              {/* Complete rows, not row count: a half-typed line is not an
+                  address yet, and this number is the one that decides whether
+                  the send fits inside today's warm-up ceiling. */}
+              <span className="text-[11px] tabular-nums text-zinc-500">
+                {readyCount === 0
+                  ? "No complete addresses yet"
+                  : `${readyCount} address${readyCount === 1 ? "" : "es"} ready`}
+                {rows.length > readyCount && (
+                  <span className="text-zinc-600"> · {rows.length - readyCount} row{rows.length - readyCount === 1 ? "" : "s"} incomplete</span>
+                )}
+              </span>
+            </div>
           </div>
         ) : (
           <textarea

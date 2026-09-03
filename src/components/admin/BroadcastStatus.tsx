@@ -14,6 +14,16 @@ import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 
 type Tallies = Record<string, number>;
 
+type Timing = {
+  counted: number; capped: boolean;
+  firstSentAt: string | null; lastSentAt: string | null;
+  sendWindowSeconds: number | null;
+  medianSecondsToSend: number | null;
+  medianSecondsToDeliver: number | null;
+  slowestSecondsToDeliver: number | null;
+  deliveryConfirmed: number;
+};
+
 type Send = {
   id: string; email: string; status: string;
   skip_reason: string | null; error: string | null; resend_id: string | null;
@@ -34,6 +44,21 @@ const CARDS: { key: string; label: string; tone: string; hint: string }[] = [
   { key: "failed",     label: "Failed",     tone: "text-rose-300",    hint: "could not be handed over after retries" },
   { key: "skipped",    label: "Skipped",    tone: "text-zinc-500",    hint: "suppressed before sending — never attempted" },
 ];
+
+/** Human duration. Seconds below a minute, because that is the resolution
+ *  that matters here — a send either happens straight away or it does not. */
+function dur(secs: number | null): string {
+  if (secs === null) return "—";
+  if (secs < 1) return "under a second";
+  if (secs < 60) return `${Math.round(secs)}s`;
+  if (secs < 3600) return `${Math.round(secs / 60)} min`;
+  const h = Math.floor(secs / 3600);
+  return `${h}h ${Math.round((secs % 3600) / 60)}m`;
+}
+
+function gap(a: string | null, b: string | null): number | null {
+  return a && b ? (new Date(b).getTime() - new Date(a).getTime()) / 1000 : null;
+}
 
 function when(iso: string | null): string {
   if (!iso) return "—";
@@ -59,6 +84,7 @@ export default function BroadcastStatus({
   const [pages, setPages] = useState(0);
   const [totalRows, setTotalRows] = useState(0);
   const [loadingRows, setLoadingRows] = useState(true);
+  const [timing, setTiming] = useState<Timing | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -81,6 +107,7 @@ export default function BroadcastStatus({
       if (!res.ok) return;
       const j = await res.json();
       setSends(j.sends ?? []); setPages(j.pages ?? 0); setTotalRows(j.total ?? 0);
+      setTiming(j.timing ?? null);
     } catch { /* the tallies above still tell the story; no second banner */ }
     finally { setLoadingRows(false); }
   }, [token, id, page, filter, q]);
@@ -224,6 +251,49 @@ export default function BroadcastStatus({
         ))}
       </div>
 
+      {/* ── How long each step took ─────────────────────────────────────── */}
+      {timing && timing.firstSentAt && (
+        <div className="mt-4 rounded-xl border border-white/8 bg-white/3 p-4">
+          <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            How long it took
+          </p>
+          <div className="grid gap-3 sm:grid-cols-4">
+            {[
+              { l: "First message out", v: when(timing.firstSentAt) },
+              { l: "Last message out", v: when(timing.lastSentAt) },
+              { l: "Whole run", v: dur(timing.sendWindowSeconds) },
+              { l: "Queued → handed over", v: dur(timing.medianSecondsToSend) },
+            ].map((x) => (
+              <div key={x.l}>
+                <p className="text-[10px] uppercase tracking-widest text-zinc-600">{x.l}</p>
+                <p className="mt-0.5 text-xs text-zinc-200">{x.v}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 grid gap-3 border-t border-white/6 pt-3 sm:grid-cols-3">
+            {[
+              { l: "Handed over → delivered", v: dur(timing.medianSecondsToDeliver) },
+              { l: "Slowest delivery", v: dur(timing.slowestSecondsToDeliver) },
+              { l: "Deliveries confirmed", v: `${timing.deliveryConfirmed} of ${timing.counted}` },
+            ].map((x) => (
+              <div key={x.l}>
+                <p className="text-[10px] uppercase tracking-widest text-zinc-600">{x.l}</p>
+                <p className="mt-0.5 text-xs text-zinc-200">{x.v}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-2.5 text-[10px] leading-relaxed text-zinc-600">
+            Middle values, not averages — one message held behind a rate limit
+            drags an average away from anything typical. &ldquo;Handed over&rdquo;
+            is when Resend accepted it; &ldquo;delivered&rdquo; is when the
+            receiving server did, which is the only one that means it arrived.
+            {timing.capped && " Measured over the first 5000 recipients."}
+          </p>
+        </div>
+      )}
+
       {/* ── Every recipient ─────────────────────────────────────────────── */}
       <div className="mt-4 overflow-hidden rounded-xl border border-white/8 bg-white/3">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/6 px-4 py-2.5">
@@ -273,8 +343,20 @@ export default function BroadcastStatus({
                   : "border-indigo-400/25 bg-indigo-500/10 text-indigo-300"
               }`}>{r.status}</span>
             </span>
-            <span className="text-[10px] text-zinc-500">
+            <span className="text-[10px] leading-relaxed text-zinc-500">
               {when(r.delivered_at ?? r.sent_at ?? r.created_at)}
+              {(() => {
+                const a = gap(r.created_at, r.sent_at);
+                const b = gap(r.sent_at, r.delivered_at);
+                if (a === null && b === null) return null;
+                return (
+                  <span className="block text-zinc-600">
+                    {a !== null && `out in ${dur(a)}`}
+                    {a !== null && b !== null && " · "}
+                    {b !== null && `delivered ${dur(b)} later`}
+                  </span>
+                );
+              })()}
             </span>
             {/* The reason, verbatim. A bounce message is written by the
                 receiving mail server and is the only thing that says whether

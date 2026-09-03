@@ -11,7 +11,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { enqueueBroadcast, previewEnqueue } from "@/lib/broadcast/enqueue";
 import { getBudget } from "@/lib/broadcast/warmup";
 import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
-import { isResendConfigured } from "@/lib/broadcast/resendClient";
+import { isResendConfigured, canSendFrom, sendingDomain } from "@/lib/broadcast/resendClient";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const { data: b } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_html, body_text, message_type, status, list_id")
+    .select("id, subject, body_html, body_text, message_type, status, list_id, from_email")
     .eq("id", id)
     .maybeSingle();
 
@@ -65,6 +65,14 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!b.subject?.trim()) blockers.push("The subject is empty");
   if (!b.body_html?.trim() && !b.body_text?.trim()) blockers.push("The message body is empty");
   if (!isResendConfigured()) blockers.push("Sending is not configured (RESEND_API_KEY)");
+  // Caught here as well as in the preview: the preview is advisory, and this
+  // is the last point at which the failure is still cheap. Past it, the whole
+  // queue is built and the first batch fails fatally.
+  if (!canSendFrom(b.from_email)) {
+    blockers.push(
+      `${b.from_email} is not on the verified sending domain (${sendingDomain()})`,
+    );
+  }
   if (b.message_type === "broadcast" && !isUnsubscribeConfigured()) {
     blockers.push("Unsubscribe signing is not configured");
   }

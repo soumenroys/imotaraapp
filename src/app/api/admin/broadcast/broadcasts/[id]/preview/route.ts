@@ -10,7 +10,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { previewEnqueue } from "@/lib/broadcast/enqueue";
 import { getBudget } from "@/lib/broadcast/warmup";
 import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
-import { isResendConfigured } from "@/lib/broadcast/resendClient";
+import { isResendConfigured, canSendFrom, sendingDomain } from "@/lib/broadcast/resendClient";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -40,6 +40,13 @@ export async function GET(req: NextRequest, { params }: Params) {
     blockers.push(`This broadcast is ${b.status}`);
   }
   if (!isResendConfigured()) blockers.push("Sending is not configured (RESEND_API_KEY)");
+  if (!canSendFrom(b.from_email)) {
+    blockers.push(
+      `This draft would be sent from ${b.from_email}, which is not on the verified ` +
+      `sending domain (${sendingDomain()}). Resend would refuse it. Create the draft ` +
+      `while signed in with your @${sendingDomain()} admin account.`,
+    );
+  }
   if (b.message_type === "broadcast" && !isUnsubscribeConfigured()) {
     blockers.push("Unsubscribe signing is not configured — a broadcast cannot go out without it");
   }

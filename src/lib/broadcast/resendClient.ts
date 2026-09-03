@@ -24,6 +24,27 @@ function resend(): Resend | null {
   return client;
 }
 
+/**
+ * The domain Resend has verified for us.
+ *
+ * Mail can only be sent from an address on a verified domain. This matters
+ * because from_email is snapshotted from whichever owner created the draft,
+ * and not every owner's login is on the company domain — an owner signed in
+ * with a personal Gmail address would compose a whole broadcast, press send,
+ * and only then have it rejected and the run paused with an error naming a
+ * Resend code rather than the actual problem.
+ */
+export function sendingDomain(): string {
+  return (process.env.RESEND_EMAIL_DOMAIN?.trim() || "imotara.com").toLowerCase();
+}
+
+/** Can this address actually send? Empty string means "no address at all". */
+export function canSendFrom(email: string | null | undefined): boolean {
+  const e = (email ?? "").trim().toLowerCase();
+  const domain = sendingDomain();
+  return e.endsWith(`@${domain}`) || e.endsWith(`.${domain}`);
+}
+
 export function isResendConfigured(): boolean {
   return API_KEY.length > 0;
 }

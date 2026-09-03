@@ -14,10 +14,12 @@ import BroadcastRecipients from "./BroadcastRecipients";
 import BroadcastComposer, { type Draft } from "./BroadcastComposer";
 import BroadcastReview from "./BroadcastReview";
 import BroadcastStatus from "./BroadcastStatus";
+import BroadcastHealth from "./BroadcastHealth";
 
 type View =
   | { name: "list" }
   | { name: "lists" }
+  | { name: "health" }
   | { name: "recipients"; list: ListRow }
   | { name: "compose"; draft: Draft }
   | { name: "review"; id: string }
@@ -146,19 +148,29 @@ export default function BroadcastSection({ token }: { token: string }) {
   // being buried inside the compose flow.
   const subnav = (
     <div className="mb-5 flex gap-1 rounded-xl border border-white/8 bg-white/5 p-1">
-      {([["list", "Broadcasts"], ["lists", "Recipient lists"]] as const).map(([k, label]) => (
+      {([
+        [{ name: "list" }, "Broadcasts"],
+        [{ name: "lists" }, "Recipient lists"],
+        [{ name: "health" }, "Sending status"],
+      ] as [View, string][]).map(([target, label]) => {
+        const k = target.name;
+        return (
         <button
           key={k}
-          onClick={() => setView(k === "list" ? { name: "list" } : { name: "lists" })}
+          onClick={() => setView(target)}
           className={`rounded-lg px-3 py-1.5 text-xs transition ${
             view.name === k || (k === "lists" && view.name === "recipients")
               ? "bg-white/10 font-semibold text-zinc-100"
               : "text-zinc-500 hover:text-zinc-300"
           }`}
         >{label}</button>
-      ))}
+      );})}
     </div>
   );
+
+  if (view.name === "health") {
+    return <div>{subnav}<BroadcastHealth token={token} /></div>;
+  }
 
   if (view.name === "lists") {
     return (

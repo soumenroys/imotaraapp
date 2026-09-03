@@ -131,3 +131,87 @@ describe("emailDocument", () => {
     expect(emailDocument("<p>x</p>")).toContain("<p>x</p>");
   });
 });
+
+// ── The wider formatting vocabulary ───────────────────────────────────────
+// Colour and font are the two values an admin supplies that land inside a
+// style attribute, so these are the tests that matter most in this file.
+
+describe("colour, font, size", () => {
+  it("renders a colour, a font and a size", () => {
+    expect(renderHtml("{{c=#c0392b|red}}")).toContain('<span style="color:#c0392b">red</span>');
+    expect(renderHtml("{{f=georgia|x}}")).toContain("font-family:Georgia,serif");
+    expect(renderHtml("{{s=large|x}}")).toContain("font-size:18px");
+  });
+
+  it("drops an unrecognised value but keeps the words", () => {
+    // `red;background:url(...)` would turn every message into a beacon. The
+    // payload here is short enough to match the span pattern, so this proves
+    // safeColor rejects it rather than the length limit doing the work.
+    const html = renderHtml("{{c=red;background:red|hello}}");
+    expect(html).not.toContain("<span");
+    expect(html).not.toContain("background:red");
+    expect(html).toContain("hello");
+  });
+
+  it("refuses a font that is not on the list", () => {
+    const html = renderHtml("{{f=Comic Sans MS|x}}");
+    expect(html).not.toContain("Comic");
+    expect(html).toContain("x");
+  });
+
+  it("nests, innermost first", () => {
+    const html = renderHtml("{{s=huge|{{c=blue|big and blue}}}}");
+    expect(html).toContain("font-size:24px");
+    expect(html).toContain("color:blue");
+    expect(html).toContain("big and blue");
+  });
+
+  it("cannot break out of the style attribute", () => {
+    const html = renderHtml('{{c=#fff" onmouseover="alert(1)|x}}');
+    expect(html).not.toContain("onmouseover");
+  });
+});
+
+describe("underline and strike", () => {
+  it("renders both", () => {
+    expect(renderHtml("__under__ and ~~gone~~")).toContain("<u>under</u>");
+    expect(renderHtml("__under__ and ~~gone~~")).toContain("<s>gone</s>");
+  });
+
+  it("drops the markers in plain text", () => {
+    expect(renderText("__under__ and ~~gone~~")).toBe("under and gone");
+  });
+});
+
+describe("alignment and image width", () => {
+  it("aligns a paragraph", () => {
+    expect(renderHtml(":center: hello")).toContain("text-align:center");
+  });
+
+  it("does not align the paragraph above it", () => {
+    const html = renderHtml("plain\n:center: centred");
+    const [first, second] = html.split("\n");
+    expect(first).not.toContain("text-align");
+    expect(second).toContain("text-align:center");
+  });
+
+  it("sets an image width as an attribute as well as a style", () => {
+    // Outlook ignores max-width and prints the image at natural size.
+    const html = renderHtml("![x](https://i.test/a.png){width=320,align=center}");
+    expect(html).toContain('width="320"');
+    expect(html).toContain("width:320px");
+    expect(html).toContain("margin-left:auto");
+  });
+
+  it("ignores a width outside the container", () => {
+    expect(renderHtml("![x](https://i.test/a.png){width=9999}")).not.toContain("9999");
+  });
+
+  it("ignores an alignment that is not one of the three", () => {
+    expect(renderHtml("![x](https://i.test/a.png){align=justify}")).not.toContain("justify");
+  });
+
+  it("keeps the alignment marker out of the visible text", () => {
+    expect(renderText(":right: hello")).toBe("hello");
+  });
+});

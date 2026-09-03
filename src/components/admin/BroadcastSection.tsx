@@ -11,11 +11,13 @@ import { useCallback, useEffect, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 import BroadcastLists, { type ListRow } from "./BroadcastLists";
 import BroadcastRecipients from "./BroadcastRecipients";
+import BroadcastComposer, { type Draft } from "./BroadcastComposer";
 
 type View =
   | { name: "list" }
   | { name: "lists" }
   | { name: "recipients"; list: ListRow }
+  | { name: "compose"; draft: Draft }
   | { name: "detail"; id: string };
 
 type Tallies = {
@@ -63,6 +65,7 @@ export default function BroadcastSection({ token }: { token: string }) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lists, setLists] = useState<ListRow[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -91,6 +94,18 @@ export default function BroadcastSection({ token }: { token: string }) {
 
   useEffect(() => { void load(); }, [load]);
 
+  // The composer needs the recipient lists to offer a destination. Loaded here
+  // rather than inside the composer so opening a draft does not stall on a
+  // second round trip before anything can be typed.
+  const loadLists = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/broadcast/lists", adminFetchOpts(token));
+      if (res.ok) setLists((await res.json()).lists ?? []);
+    } catch { /* the composer shows an empty selector; not worth an error banner */ }
+  }, [token]);
+
+  useEffect(() => { void loadLists(); }, [loadLists]);
+
   // A run in flight changes on its own as the cron drains it, so poll while
   // one is active — and stop as soon as nothing is moving, rather than
   // polling this screen forever in the background.
@@ -99,6 +114,27 @@ export default function BroadcastSection({ token }: { token: string }) {
     const t = setInterval(() => { void load(); }, 10_000);
     return () => clearInterval(t);
   }, [rows, load]);
+
+  async function open(id: string) {
+    try {
+      const res = await fetch(`/api/admin/broadcast/broadcasts/${id}`, adminFetchOpts(token));
+      if (!res.ok) { setError(`Could not open that broadcast (HTTP ${res.status}).`); return; }
+      const b = (await res.json()).broadcast;
+      // A sent broadcast opens in the composer too — read-only, with the
+      // reason shown. Hiding it would mean the only way to see what was
+      // actually sent is the database.
+      setView({ name: "compose", draft: {
+        id: b.id, subject: b.subject ?? "", body_source: b.body_source ?? "",
+        message_type: b.message_type, list_id: b.list_id,
+        status: b.status, from_email: b.from_email, from_name: b.from_name,
+      } });
+    } catch { setError("Network error."); }
+  }
+
+  const blank: Draft = {
+    id: null, subject: "", body_source: "",
+    message_type: "broadcast", list_id: null, status: "draft",
+  };
 
   // Two things live under this tab: the broadcasts themselves, and the
   // recipient lists they are sent to. A list has to exist before a broadcast
@@ -135,6 +171,19 @@ export default function BroadcastSection({ token }: { token: string }) {
         {subnav}
         <BroadcastRecipients token={token} list={view.list} onBack={() => setView({ name: "lists" })} />
       </div>
+    );
+  }
+
+  if (view.name === "compose") {
+    return (
+      <BroadcastComposer
+        token={token}
+        initial={view.draft}
+        lists={lists}
+        onSaved={() => { void load(); }}
+        onReview={(id) => setView({ name: "detail", id })}
+        onBack={() => { void load(); setView({ name: "list" }); }}
+      />
     );
   }
 
@@ -194,6 +243,12 @@ export default function BroadcastSection({ token }: { token: string }) {
           >
             Refresh
           </button>
+          <button
+            onClick={() => setView({ name: "compose", draft: blank })}
+            className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20"
+          >
+            New broadcast
+          </button>
         </div>
       </div>
 
@@ -218,12 +273,20 @@ export default function BroadcastSection({ token }: { token: string }) {
             domain&apos;s reputation is not damaged — password resets and
             session notices share it.
           </p>
-          <button
-            onClick={() => setView({ name: "lists" })}
-            className="mt-4 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20"
-          >
-            Start by building a recipient list
-          </button>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <button
+              onClick={() => setView({ name: "lists" })}
+              className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 transition hover:text-zinc-100"
+            >
+              Build a recipient list
+            </button>
+            <button
+              onClick={() => setView({ name: "compose", draft: blank })}
+              className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20"
+            >
+              Write a broadcast
+            </button>
+          </div>
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-white/8 bg-white/3">
@@ -239,7 +302,7 @@ export default function BroadcastSection({ token }: { token: string }) {
             return (
               <button
                 key={r.id}
-                onClick={() => setView({ name: "detail", id: r.id })}
+                onClick={() => void open(r.id)}
                 className="grid w-full grid-cols-1 gap-2 border-b border-white/5 px-4 py-3 text-left transition last:border-b-0 hover:bg-white/4 sm:grid-cols-[3fr_1fr_1.1fr_1.4fr] sm:gap-3"
               >
                 <div className="min-w-0">

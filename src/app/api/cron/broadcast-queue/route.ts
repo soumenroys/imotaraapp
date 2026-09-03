@@ -20,6 +20,7 @@ import {
   unsubscribeHeaders, unsubscribeFooterHtml, unsubscribeFooterText,
   isUnsubscribeConfigured,
 } from "@/lib/broadcast/unsubscribe";
+import { emailDocument } from "@/lib/broadcast/markup";
 
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
 
@@ -138,9 +139,15 @@ export async function GET(req: NextRequest) {
     from: sender,
     to: r.email,
     subject: broadcast.subject,
-    html: broadcast.body_html +
-      (broadcast.message_type === "broadcast"
-        ? unsubscribeFooterHtml(r.email, broadcast.id) : ""),
+    // emailDocument puts the footer INSIDE the body's container. Concatenating
+    // the two left the footer full-bleed and misaligned under the card, and —
+    // worse — meant the composer's preview was showing something the recipient
+    // would never actually see.
+    html: emailDocument(
+      broadcast.body_html,
+      broadcast.message_type === "broadcast"
+        ? unsubscribeFooterHtml(r.email, broadcast.id) : "",
+    ),
     text: broadcast.body_text +
       (broadcast.message_type === "broadcast"
         ? unsubscribeFooterText(r.email, broadcast.id) : ""),

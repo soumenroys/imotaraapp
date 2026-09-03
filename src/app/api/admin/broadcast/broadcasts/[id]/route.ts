@@ -14,10 +14,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { renderHtml, renderText } from "@/lib/broadcast/markup";
 
 type Params = { params: Promise<{ id: string }> };
 
 const MAX_SUBJECT = 200;
+const MAX_SOURCE = 100_000;
 
 export async function GET(req: NextRequest, { params }: Params) {
   const auth = await requireOwner(req);
@@ -28,7 +30,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const { data: broadcast, error } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_html, body_text, message_type, status, from_email, from_name, list_id, created_at, started_at, finished_at")
+    .select("id, subject, body_source, body_html, body_text, message_type, status, from_email, from_name, list_id, created_at, started_at, finished_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -60,7 +62,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   let body: {
-    subject?: unknown; body_html?: unknown; body_text?: unknown;
+    subject?: unknown; body_source?: unknown;
     message_type?: unknown; list_id?: unknown;
   };
   try { body = await req.json(); }
@@ -95,8 +97,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     patch.subject = subject;
   }
-  if (typeof body.body_html === "string") patch.body_html = body.body_html;
-  if (typeof body.body_text === "string") patch.body_text = body.body_text;
+  // Source in, rendered output derived here — see the note in POST. The three
+  // columns are written together so body_html can never describe a version of
+  // the message the admin did not write.
+  if (typeof body.body_source === "string") {
+    if (body.body_source.length > MAX_SOURCE) {
+      return NextResponse.json({ error: "That message is too long" }, { status: 413 });
+    }
+    patch.body_source = body.body_source;
+    patch.body_html = renderHtml(body.body_source);
+    patch.body_text = renderText(body.body_source);
+  }
   if (body.message_type === "broadcast" || body.message_type === "operational") {
     patch.message_type = body.message_type;
   }
@@ -112,7 +123,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .eq("id", id)
     .eq("status", "draft")   // re-checked in the WHERE: the status could have
                              // changed between the read above and this write
-    .select("id, subject, body_html, body_text, message_type, status, from_email, from_name, list_id, created_at")
+    .select("id, subject, body_source, body_html, body_text, message_type, status, from_email, from_name, list_id, created_at")
     .maybeSingle();
 
   if (error) {

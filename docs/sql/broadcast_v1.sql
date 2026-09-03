@@ -385,3 +385,26 @@ grant execute on function broadcast_history_summary() to service_role;
 --    order by c.relname;
 --
 -- Verified 2026-09-03 against production: 6 tables, all true / 0.
+
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 10. The composer's source text                                     (BC-19)
+-- ────────────────────────────────────────────────────────────────────────────
+-- body_html and body_text are RENDERED OUTPUT. Both are generated on the
+-- server from this column by src/lib/broadcast/markup.ts, and neither is ever
+-- accepted from a client — which is what stops a crafted request putting
+-- arbitrary HTML into mail signed by our domain.
+--
+-- The column exists because output cannot be edited back into input. Without
+-- it, reopening a draft would mean parsing our own HTML to guess what the
+-- admin originally typed, and every save would degrade the message a little
+-- more.
+
+alter table broadcasts add column if not exists body_source text;
+
+-- Existing drafts (there are none in production at the time of writing, but
+-- this keeps the migration honest if run late) get their plain-text version as
+-- a starting point rather than an empty editor.
+update broadcasts
+   set body_source = coalesce(body_text, '')
+ where body_source is null;

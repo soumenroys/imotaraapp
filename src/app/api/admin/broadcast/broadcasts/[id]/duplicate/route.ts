@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const { data: src, error } = await supabase
     .from("broadcasts")
-    .select("subject, body_html, body_text, message_type, list_id")
+    .select("subject, body_source, body_html, body_text, message_type, list_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -38,6 +38,10 @@ export async function POST(req: NextRequest, { params }: Params) {
     .from("broadcasts")
     .insert({
       subject: `${src.subject} (copy)`.slice(0, 200),
+      // Source travels with the copy — a duplicate that carried only the
+      // rendered output would open in an empty editor and lose the message on
+      // the first save.
+      body_source: src.body_source,
       body_html: src.body_html,
       body_text: src.body_text,
       message_type: src.message_type,

@@ -7,8 +7,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { renderHtml, renderText } from "@/lib/broadcast/markup";
 
 const MAX_SUBJECT = 200;
+const MAX_SOURCE = 100_000;   // ~30 printed pages; a paste bigger than this is a mistake
 
 export async function GET(req: NextRequest) {
   const auth = await requireOwner(req);
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.response;
 
   let body: {
-    subject?: unknown; body_html?: unknown; body_text?: unknown;
+    subject?: unknown; body_source?: unknown;
     message_type?: unknown; list_id?: unknown;
   };
   try { body = await req.json(); }
@@ -50,6 +52,16 @@ export async function POST(req: NextRequest) {
 
   const messageType = body.message_type === "operational" ? "operational" : "broadcast";
 
+  // The client sends SOURCE only. body_html and body_text are rendered here,
+  // from a whitelist, and are never accepted from a request — otherwise the
+  // composer's escaping would be a suggestion rather than a rule, and anyone
+  // able to reach this route could put arbitrary HTML into mail signed by our
+  // domain.
+  const source = typeof body.body_source === "string" ? body.body_source : "";
+  if (source.length > MAX_SOURCE) {
+    return NextResponse.json({ error: "That message is too long" }, { status: 413 });
+  }
+
   // from_email and from_name are SNAPSHOTTED from the signed-in owner, never
   // supplied by the client. Letting a request choose its own From would make
   // "who sent this" a claim rather than a fact, and the history report exists
@@ -58,8 +70,9 @@ export async function POST(req: NextRequest) {
     .from("broadcasts")
     .insert({
       subject,
-      body_html: typeof body.body_html === "string" ? body.body_html : "",
-      body_text: typeof body.body_text === "string" ? body.body_text : "",
+      body_source: source,
+      body_html: renderHtml(source),
+      body_text: renderText(source),
       message_type: messageType,
       list_id: typeof body.list_id === "string" ? body.list_id : null,
       from_email: auth.admin.email.toLowerCase(),
@@ -67,7 +80,7 @@ export async function POST(req: NextRequest) {
       created_by: auth.admin.id,
       status: "draft",
     })
-    .select("id, subject, message_type, status, from_email, from_name, list_id, created_at")
+    .select("id, subject, body_source, message_type, status, from_email, from_name, list_id, created_at")
     .single();
 
   if (error) {

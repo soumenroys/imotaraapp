@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; background: #130e17; }
+    a { color: #a5b4fc; text-decoration: none; }
+    a:hover { color: #c7d2fe; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="background: #130e17; min-height: 800px; padding: 24px 32px 40px;">
+
+  <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px;">
+    <div>
+      <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: #71717a;">Broadcast · Sending</p>
+      <h1 style="margin: 3px 0 0; font-size: 18px; font-weight: 600; color: #f4f4f5;">A quieter August — what's new in Imotara</h1>
+      <p style="margin: 5px 0 0; font-size: 11px; color: #71717a;">From suchismita.sen@imotara.com · started 09:12</p>
+    </div>
+    <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: #18181b; padding: 7px 12px; font-size: 12px; color: #a1a1aa;">Pause sending</div>
+  </div>
+
+  <!-- progress -->
+  <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 16px; margin-bottom: 14px;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px;">
+      <div style="display: flex; align-items: baseline; gap: 9px;">
+        <span style="font-size: 22px; font-weight: 600; color: #f4f4f5; font-variant-numeric: tabular-nums;">41</span>
+        <span style="font-size: 12px; color: #71717a;">of 49 delivered</span>
+      </div>
+      <span style="font-size: 11px; color: #71717a;">~24 seconds remaining</span>
+    </div>
+    <div style="height: 7px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; display: flex;">
+      <div style="width: 78%; background: #34d399;"></div>
+      <div style="width: 6%; background: #f43f5e;"></div>
+      <div style="width: 16%; background: rgba(255,255,255,0.10);"></div>
+    </div>
+    <div style="display: flex; gap: 18px; margin-top: 11px;">
+      <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 7px; height: 7px; border-radius: 999px; background: #34d399;"></span><span style="font-size: 11px; color: #a1a1aa;">Delivered 41</span></div>
+      <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 7px; height: 7px; border-radius: 999px; background: #f43f5e;"></span><span style="font-size: 11px; color: #a1a1aa;">Failed 3</span></div>
+      <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 7px; height: 7px; border-radius: 999px; background: rgba(255,255,255,0.20);"></span><span style="font-size: 11px; color: #a1a1aa;">Queued 5</span></div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px;">
+
+    <!-- failures -->
+    <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); overflow: hidden;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <div style="display: flex; align-items: baseline; gap: 8px;">
+          <p style="margin: 0; font-size: 13px; font-weight: 600; color: #e4e4e7;">Needs attention</p>
+          <span style="font-size: 11px; color: #52525b;">3 addresses</span>
+        </div>
+        <div style="border-radius: 7px; border: 1px solid rgba(99,102,241,0.30); background: rgba(99,102,241,0.10); padding: 5px 10px; font-size: 11px; font-weight: 500; color: #a5b4fc;">Retry the 2 temporary</div>
+      </div>
+
+      <div style="display: flex; align-items: flex-start; gap: 11px; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <span style="width: 7px; height: 7px; border-radius: 999px; background: #f43f5e; margin-top: 5px; flex-shrink: 0;"></span>
+        <div style="flex: 1;">
+          <p style="margin: 0; font-size: 12px; color: #e4e4e7;">n.chatterjee@childcare.org</p>
+          <p style="margin: 3px 0 0; font-size: 11px; color: #fda4af;">Mailbox does not exist — permanent</p>
+          <p style="margin: 3px 0 0; font-size: 10px; color: #52525b;">Added to the suppression list. Future broadcasts will skip it.</p>
+        </div>
+        <span style="font-size: 10px; color: #52525b; flex-shrink: 0;">550 5.1.1</span>
+      </div>
+
+      <div style="display: flex; align-items: flex-start; gap: 11px; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <span style="width: 7px; height: 7px; border-radius: 999px; background: #f59e0b; margin-top: 5px; flex-shrink: 0;"></span>
+        <div style="flex: 1;">
+          <p style="margin: 0; font-size: 12px; color: #e4e4e7;">t.ghosh@childcare.org</p>
+          <p style="margin: 3px 0 0; font-size: 11px; color: #fcd34d;">Mailbox full — temporary</p>
+          <p style="margin: 3px 0 0; font-size: 10px; color: #52525b;">Safe to retry. Not suppressed.</p>
+        </div>
+        <span style="font-size: 10px; color: #52525b; flex-shrink: 0;">452 4.2.2</span>
+      </div>
+
+      <div style="display: flex; align-items: flex-start; gap: 11px; padding: 13px 16px;">
+        <span style="width: 7px; height: 7px; border-radius: 999px; background: #f59e0b; margin-top: 5px; flex-shrink: 0;"></span>
+        <div style="flex: 1;">
+          <p style="margin: 0; font-size: 12px; color: #e4e4e7;">v.pillai@childcare.org</p>
+          <p style="margin: 3px 0 0; font-size: 11px; color: #fcd34d;">Greylisted by the receiving server — temporary</p>
+          <p style="margin: 3px 0 0; font-size: 10px; color: #52525b;">Usually succeeds on a second attempt a few minutes later.</p>
+        </div>
+        <span style="font-size: 10px; color: #52525b; flex-shrink: 0;">451 4.7.1</span>
+      </div>
+    </div>
+
+    <!-- side -->
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 16px;">
+        <p style="margin: 0 0 11px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Rate limiting</p>
+        <p style="margin: 0 0 10px; font-size: 11px; line-height: 1.65; color: #a1a1aa;">Sending at 20 per minute to stay inside Hostinger's hourly cap. Larger lists keep going in the background — you can close this tab.</p>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
+          <span style="font-size: 11px; color: #71717a;">Used this hour</span>
+          <span style="font-size: 12px; color: #a1a1aa; font-variant-numeric: tabular-nums;">44 / 300</span>
+        </div>
+      </div>
+
+      <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 16px;">
+        <p style="margin: 0 0 11px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">After it finishes</p>
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: #18181b; padding: 9px 11px; font-size: 12px; color: #a1a1aa;">Download the delivery report</div>
+          <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: #18181b; padding: 9px 11px; font-size: 12px; color: #a1a1aa;">Duplicate as a new draft</div>
+          <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: #18181b; padding: 9px 11px; font-size: 12px; color: #a1a1aa;">View in activity log</div>
+        </div>
+      </div>
+
+      <p style="margin: 0; font-size: 10px; line-height: 1.7; color: #52525b;">Open and click tracking are deliberately not offered. Imotara's audience is health-adjacent, and per-recipient tracking pixels would sit badly against the privacy promise on the settings screen.</p>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

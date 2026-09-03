@@ -1,0 +1,274 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; background: #130e17; }
+    a { color: #a5b4fc; text-decoration: none; }
+    a:hover { color: #c7d2fe; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="background: #130e17; min-height: 1080px; padding: 24px 32px 40px;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px;">
+    <div>
+      <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: #71717a;">Broadcast · Step 2 of 3</p>
+      <h1 style="margin: 3px 0 0; font-size: 18px; font-weight: 600; color: #f4f4f5;">Compose the message</h1>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 11px; color: #52525b;">Saved 12 seconds ago</span>
+      <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: #18181b; padding: 7px 12px; font-size: 12px; color: #a1a1aa;">Send test to myself</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+
+    <!-- editor -->
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+
+      <!-- message type — drives headers AND likely inbox tab -->
+      <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 16px;">
+        <p style="margin: 0 0 9px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Message type</p>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+          <div style="border-radius: 9px; border: 1px solid rgba(245,158,11,0.35); background: rgba(245,158,11,0.10); padding: 11px 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
+              <span style="font-size: 12px; font-weight: 600; color: #fcd34d;">Broadcast</span>
+              <span style="font-size: 9px; font-weight: 600; color: #fcd34d; opacity: 0.75;">→ PROMOTIONS</span>
+            </div>
+            <p style="margin: 0; font-size: 10px; line-height: 1.55; color: #a1a1aa;">News and announcements. Adds the unsubscribe link and one-click header.</p>
+          </div>
+          <div style="border-radius: 9px; border: 1px solid rgba(255,255,255,0.08); padding: 11px 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
+              <span style="font-size: 12px; font-weight: 600; color: #a1a1aa;">Operational notice</span>
+              <span style="font-size: 9px; font-weight: 600; color: #71717a;">→ PRIMARY</span>
+            </div>
+            <p style="margin: 0; font-size: 10px; line-height: 1.55; color: #71717a;">Renewals, account changes. No unsubscribe — this mail isn't optional.</p>
+          </div>
+        </div>
+        <p style="margin: 9px 0 0; font-size: 10px; line-height: 1.55; color: #52525b;">The mode is recorded on every send and shown in the history report. Sending marketing as operational is what gets a domain blocked.</p>
+      </div>
+
+      <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 16px;">
+        <p style="margin: 0 0 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Subject</p>
+        <div style="border-radius: 8px; border: 1px solid rgba(99,102,241,0.40); background: #18181b; padding: 9px 12px;">
+          <span style="font-size: 13px; color: #e4e4e7;">A quieter August — what's new in Imotara</span>
+        </div>
+        <p style="margin: 7px 0 0; font-size: 10px; color: #52525b;">41 characters · shows in full on most phones</p>
+      </div>
+
+      <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); overflow: hidden;">
+
+        <!-- toolbar row 1: type -->
+        <div style="display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+          <div style="display: flex; align-items: center; gap: 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.10); background: #18181b; padding: 5px 9px;">
+            <span style="font-size: 11px; color: #d4d4d8;">Helvetica / Arial</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#52525b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.10); background: #18181b; padding: 5px 9px;">
+            <span style="font-size: 11px; color: #d4d4d8;">16 px</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#52525b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <div style="width: 1px; height: 18px; background: rgba(255,255,255,0.08); margin: 0 3px;"></div>
+          <div style="display: flex; align-items: center; justify-content: center; width: 27px; height: 27px; border-radius: 6px; background: rgba(255,255,255,0.06);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d4d4d8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h7a4 4 0 0 1 0 8H6zM6 12h8a4 4 0 0 1 0 8H6z"/></svg></div>
+          <div style="display: flex; align-items: center; justify-content: center; width: 27px; height: 27px; border-radius: 6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2" stroke-linecap="round"><path d="M19 4h-9M14 20H5M15 4 9 20"/></svg></div>
+          <div style="display: flex; align-items: center; justify-content: center; width: 27px; height: 27px; border-radius: 6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2" stroke-linecap="round"><path d="M6 4v6a6 6 0 0 0 12 0V4M4 21h16"/></svg></div>
+          <div style="display: flex; align-items: center; justify-content: center; width: 27px; height: 27px; border-radius: 6px;"><span style="width: 13px; height: 13px; border-radius: 3px; background: linear-gradient(135deg,#6366f1,#f43f5e);"></span></div>
+          <div style="width: 1px; height: 18px; background: rgba(255,255,255,0.08); margin: 0 3px;"></div>
+          <div style="display: flex; align-items: center; justify-content: center; width: 27px; height: 27px; border-radius: 6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></div>
+          <div style="display: flex; align-items: center; justify-content: center; width: 27px; height: 27px; border-radius: 6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></div>
+        </div>
+
+        <!-- toolbar row 2: blocks -->
+        <div style="display: flex; align-items: center; gap: 5px; padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+          <span style="font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #52525b; margin-right: 3px;">Insert</span>
+          <div style="display: flex; align-items: center; gap: 5px; border-radius: 6px; border: 1px solid rgba(99,102,241,0.30); background: rgba(99,102,241,0.10); padding: 5px 9px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            <span style="font-size: 11px; color: #a5b4fc;">Image</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.10); padding: 5px 9px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9.5v5l4-2.5z"/></svg>
+            <span style="font-size: 11px; color: #a1a1aa;">GIF</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.10); padding: 5px 9px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10 8 6 4-6 4z"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+            <span style="font-size: 11px; color: #a1a1aa;">Video</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.10); padding: 5px 9px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="3"/></svg>
+            <span style="font-size: 11px; color: #a1a1aa;">Button</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.10); padding: 5px 9px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2" stroke-linecap="round"><path d="M4 12h16"/></svg>
+            <span style="font-size: 11px; color: #a1a1aa;">Divider</span>
+          </div>
+        </div>
+
+        <!-- body -->
+        <div style="padding: 15px 16px; min-height: 300px;">
+          <p style="margin: 0 0 11px; font-size: 13px; line-height: 1.75; color: #e4e4e7;">Hello,</p>
+          <p style="margin: 0 0 11px; font-size: 13px; line-height: 1.75; color: #e4e4e7;">We've spent this month making Imotara <strong style="color: #f4f4f5;">quieter rather than louder</strong> — fewer prompts on the chat screen, a calmer light mode, and reflections that wait until you ask.</p>
+
+          <!-- GIF block with the Outlook caveat -->
+          <div style="border-radius: 8px; border: 1px solid rgba(245,158,11,0.30); background: rgba(245,158,11,0.05); padding: 8px; margin: 0 0 11px;">
+            <div style="height: 92px; border-radius: 5px; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #0c4a6e 100%); display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: rgba(255,255,255,0.4);">breathing-anim.gif</span>
+            </div>
+            <div style="display: flex; align-items: flex-start; gap: 6px; margin-top: 7px; padding: 0 2px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+              <p style="margin: 0; font-size: 10px; line-height: 1.55; color: #a1a1aa;">Outlook on Windows shows only the <span style="color: #fcd34d;">first frame</span>. Make frame 1 readable on its own.</p>
+            </div>
+          </div>
+
+          <!-- video block -->
+          <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.02); padding: 8px; margin: 0 0 11px;">
+            <div style="position: relative; height: 92px; border-radius: 5px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); display: flex; align-items: center; justify-content: center;">
+              <div style="width: 34px; height: 34px; border-radius: 999px; background: rgba(255,255,255,0.92); display: flex; align-items: center; justify-content: center;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="#0f172a"><path d="m9 7 9 5-9 5z"/></svg>
+              </div>
+            </div>
+            <p style="margin: 7px 0 0; padding: 0 2px; font-size: 10px; line-height: 1.55; color: #71717a;">Email clients can't play video. This inserts a <span style="color: #a1a1aa;">poster image with a play badge</span> that opens the video in the browser — the approach every mail platform uses.</p>
+          </div>
+
+          <p style="margin: 0; font-size: 13px; line-height: 1.75; color: #e4e4e7;">Warmly,<br>Suchismita<span style="color: #52525b;">|</span></p>
+        </div>
+      </div>
+
+      <!-- what actually renders -->
+      <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 15px 16px;">
+        <p style="margin: 0 0 11px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">What survives in real inboxes</p>
+        <div style="display: flex; flex-direction: column; gap: 9px;">
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+            <span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;"><span style="color: #d4d4d8;">Bold, italic, colour, size, alignment, lists, links, buttons, dividers</span> — everywhere</span>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+            <span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;"><span style="color: #d4d4d8;">Inline PNG / JPG</span> — though many clients hide images until the reader allows them, so alt text matters</span>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+            <span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;"><span style="color: #d4d4d8;">Animated GIF</span> — animates in most clients, first frame only in Outlook for Windows</span>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+            <span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;"><span style="color: #d4d4d8;">Custom web fonts</span> — Outlook, Gmail's app and Yahoo strip them, so the picker offers only stacks that render everywhere</span>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fda4af" stroke-width="2.2" stroke-linecap="round" style="margin-top: 2px; flex-shrink: 0;"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            <span style="font-size: 11px; line-height: 1.55; color: #a1a1aa;"><span style="color: #d4d4d8;">Playable video</span> — no mainstream client supports it; the Video button inserts a poster that links out instead</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- preview -->
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+
+      <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); overflow: hidden;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+          <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Live preview</p>
+          <div style="display: flex; gap: 3px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); padding: 3px;">
+            <span style="border-radius: 5px; background: rgba(255,255,255,0.10); padding: 3px 8px; font-size: 10px; font-weight: 600; color: #e4e4e7;">Desktop</span>
+            <span style="border-radius: 5px; padding: 3px 8px; font-size: 10px; color: #71717a;">Phone</span>
+            <span style="border-radius: 5px; padding: 3px 8px; font-size: 10px; color: #71717a;">Outlook</span>
+            <span style="border-radius: 5px; padding: 3px 8px; font-size: 10px; color: #71717a;">Images off</span>
+            <span style="border-radius: 5px; padding: 3px 8px; font-size: 10px; color: #71717a;">Plain text</span>
+          </div>
+        </div>
+
+        <div style="background: #f8fafc; padding: 16px;">
+          <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden;">
+            <div style="padding: 11px 16px; border-bottom: 1px solid #eef2f7;">
+              <p style="margin: 0; font-size: 12px; font-weight: 600; color: #0f172a;">A quieter August — what's new in Imotara</p>
+              <p style="margin: 3px 0 0; font-size: 10px; color: #64748b;">Suchismita Sen &lt;suchismita.sen@imotara.com&gt;</p>
+            </div>
+            <div style="padding: 16px;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 13px;">
+                <div style="width: 22px; height: 22px; border-radius: 7px; background: linear-gradient(140deg, #6366f1, #0ea5e9);"></div>
+                <span style="font-size: 12px; font-weight: 600; color: #1e293b;">Imotara</span>
+              </div>
+              <p style="margin: 0 0 9px; font-size: 11px; line-height: 1.7; color: #334155;">Hello,</p>
+              <p style="margin: 0 0 11px; font-size: 11px; line-height: 1.7; color: #334155;">We've spent this month making Imotara <strong style="color: #0f172a;">quieter rather than louder</strong> — fewer prompts on the chat screen, a calmer light mode, and reflections that wait until you ask.</p>
+              <div style="height: 82px; border-radius: 6px; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #0c4a6e 100%); margin: 0 0 10px;"></div>
+              <div style="position: relative; height: 82px; border-radius: 6px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); margin: 0 0 12px; display: flex; align-items: center; justify-content: center;">
+                <div style="width: 30px; height: 30px; border-radius: 999px; background: rgba(255,255,255,0.92); display: flex; align-items: center; justify-content: center;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="#0f172a"><path d="m9 7 9 5-9 5z"/></svg>
+                </div>
+              </div>
+              <p style="margin: 0 0 13px; font-size: 11px; line-height: 1.7; color: #334155;">Warmly,<br>Suchismita</p>
+              <div style="border-top: 1px solid #eef2f7; padding-top: 11px;">
+                <p style="margin: 0; font-size: 9px; line-height: 1.6; color: #94a3b8;">You're receiving this because you have an Imotara account.<br><span style="color: #4f46e5; text-decoration: underline;">Unsubscribe</span> · Imotara, Kolkata, India</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- inbox placement meter -->
+      <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 14px 16px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px;">
+          <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Likely inbox tab</p>
+          <span style="border-radius: 999px; border: 1px solid rgba(245,158,11,0.30); background: rgba(245,158,11,0.12); padding: 3px 9px; font-size: 10px; font-weight: 600; color: #fcd34d;">Promotions</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 9px; margin-bottom: 11px;">
+          <span style="font-size: 10px; color: #52525b; width: 62px; flex-shrink: 0;">Promotions</span>
+          <div style="flex: 1; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; display: flex;">
+            <div style="width: 74%; background: #f59e0b;"></div>
+          </div>
+          <span style="font-size: 10px; color: #52525b; width: 44px; text-align: right; flex-shrink: 0;">Primary</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 7px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
+          <div style="display: flex; gap: 8px;"><span style="color: #fcd34d; font-size: 11px; flex-shrink: 0;">↓</span><span style="font-size: 11px; line-height: 1.5; color: #a1a1aa;">Unsubscribe header — required for a broadcast, keep it</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #fcd34d; font-size: 11px; flex-shrink: 0;">↓</span><span style="font-size: 11px; line-height: 1.5; color: #a1a1aa;">2 images against 128 words — trim one, or write more</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #6ee7b7; font-size: 11px; flex-shrink: 0;">↑</span><span style="font-size: 11px; line-height: 1.5; color: #a1a1aa;">Greeting uses the recipient's first name</span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: #6ee7b7; font-size: 11px; flex-shrink: 0;">↑</span><span style="font-size: 11px; line-height: 1.5; color: #a1a1aa;">Single column, one link, replies go to a real mailbox</span></div>
+        </div>
+        <p style="margin: 11px 0 0; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 10px; line-height: 1.6; color: #52525b;">Promotions is the inbox, not spam, and is where a broadcast belongs. What genuinely moves a person to Primary is <span style="color: #71717a;">their own reply or star</span> — so consider asking, once, in your first send.</p>
+      </div>
+
+      <div style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); padding: 14px 16px;">
+        <p style="margin: 0 0 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #71717a;">Before you send</p>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+            <span style="font-size: 11px; color: #a1a1aa;">Unsubscribe link and one-click header present</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m20 6-11 11-5-5"/></svg>
+            <span style="font-size: 11px; color: #a1a1aa;">Plain-text alternative generated automatically</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+            <span style="font-size: 11px; color: #a1a1aa;">2 images have no alt text — readers with images off see nothing</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+            <span style="font-size: 11px; color: #a1a1aa;">Total 640 KB — Gmail clips above 102 KB of HTML; images are fine but keep the markup lean</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <div style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: #18181b; padding: 8px 14px; font-size: 12px; color: #a1a1aa;">Back</div>
+        <div style="display: flex; align-items: center; gap: 6px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.30); background: rgba(99,102,241,0.10); padding: 8px 14px; font-size: 12px; font-weight: 500; color: #a5b4fc;">
+          Review &amp; send
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

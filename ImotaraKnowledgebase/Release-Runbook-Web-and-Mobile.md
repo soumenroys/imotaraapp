@@ -1,6 +1,6 @@
 # Imotara — Release Runbook (Web + Mobile)
 
-Operational source-of-truth for shipping Imotara. **Web** = `imotaraapp` (Next.js on Vercel, `www.imotara.com`). **Mobile** = `imotara-mobile` (Expo/EAS, iOS + Android). Both share Supabase project `rfsbvbqtiesswnplslln`. Current release: **v1.3.1 / build 131**. Grounded in the repos' own release docs and scripts (`RELEASE_COMMANDS.md`, `RELEASE_GO_NO_GO.md`, `WEBHOOK_PROD_CHECK.md`, `scripts/bump-version.mjs`, `eas.json`) — do not improvise steps.
+Operational source-of-truth for shipping Imotara. **Web** = `imotaraapp` (Next.js on Vercel, `www.imotara.com`). **Mobile** = `imotara-mobile` (Expo/EAS, iOS + Android). Both share Supabase project `rfsbvbqtiesswnplslln`. Current release: **v1.3.2 / build 132**. Grounded in the repos' own release docs and scripts (`RELEASE_COMMANDS.md`, `RELEASE_GO_NO_GO.md`, `WEBHOOK_PROD_CHECK.md`, `scripts/bump-version.mjs`, `eas.json`) — do not improvise steps.
 
 ---
 
@@ -79,6 +79,8 @@ Per migration:
 3. Run the verification query for that step before proceeding.
 
 For v1.2.7, three migrations were applied this way: `api_key_rate_limit.sql`, `fix_pool_release_on_member_removal.sql`, `org_owner_race_lockdown.sql`.
+
+For the broadcast feature (2026-09-03/04), `broadcast_v1.sql` was applied in one pass: sections 1–9 on 2026-09-03 (six tables, RLS enabled with zero policies, email-format CHECK constraints, `from_name`, and the `broadcast_history_summary()` RPC) and section 10 on 2026-09-04 (`broadcasts.body_source`). The file is idempotent — every statement is `if not exists` or guarded — so re-running it is safe. It has **no storage step**: the public `broadcast-images` bucket is created on demand by the upload route.
 
 **Risks:** entirely manual and out-of-band from the code deploy — nothing enforces that DB schema matches the deployed app. Wrong run order breaks dependencies; it's easy to forget a file or run against the wrong project. Rollback is manual reverse-order `DROP ... CASCADE` (destructive). **Apply migrations before the web deploy that depends on them** (Part D).
 

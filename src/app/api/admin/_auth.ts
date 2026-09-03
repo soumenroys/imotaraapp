@@ -109,6 +109,51 @@ export async function requireSuperAdmin(req: NextRequest): Promise<SuperAdminRes
 }
 
 /**
+ * Owner-only guard (BC-10). Used by every /api/admin/broadcast/* route.
+ *
+ * Stricter than requireSuperAdmin in two ways, both deliberate:
+ *
+ *  1. role must be exactly 'owner'. Broadcast can mail thousands of people
+ *     under a named person's address; 'admin' and 'connect_reviewer' do not
+ *     get that.
+ *
+ *  2. The legacy ADMIN_SECRET bearer path is REJECTED, even though it reports
+ *     role 'owner'. That path returns a synthetic identity (id "legacy",
+ *     email "admin@imotara.com") which is not a row in super_admins — so
+ *     broadcasts.created_by, a FK to super_admins(id), could not be satisfied
+ *     by it, and from_email would be an address that may not even exist. It
+ *     would fail at the database with a confusing FK violation; failing here
+ *     with a clear reason is better. Emergency key access is for recovery,
+ *     not for sending mail as somebody.
+ */
+export async function requireOwner(req: NextRequest): Promise<SuperAdminResult> {
+  const result = await requireSuperAdmin(req);
+  if (!result.ok) return result;
+
+  if (result.admin.id === "legacy") {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Broadcast requires a real admin session, not the emergency key" },
+        { status: 403 },
+      ),
+    };
+  }
+
+  if (result.admin.role !== "owner") {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Owner role required" },
+        { status: 403 },
+      ),
+    };
+  }
+
+  return result;
+}
+
+/**
  * Like adminAuthorized but also allows connect_reviewer role.
  * Use this on all /api/admin/connect/* routes.
  */

@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/connect-recharge-expiry",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/broadcast-queue",
+      "schedule": "* * * * *"
     }
   ]
 }

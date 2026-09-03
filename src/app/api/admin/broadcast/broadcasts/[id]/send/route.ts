@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
 
-  let body: { confirmCount?: unknown; acceptMultiDay?: unknown };
+  let body: { confirmCount?: unknown; acceptMultiDay?: unknown; scheduledAt?: unknown };
   try { body = await req.json(); }
   catch { body = {}; }
 
@@ -140,9 +140,18 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Could not build the send queue" }, { status: 500 });
   }
 
+  // A time in the future parks the run as 'scheduled'; the cron promotes it
+  // the first tick after that time passes. The queue is built either way, so
+  // what goes out is the recipient list as it stood when you pressed the
+  // button — not as it might be edited between now and then.
+  const when = typeof body.scheduledAt === "string" ? new Date(body.scheduledAt) : null;
+  const scheduled = when && !Number.isNaN(when.getTime()) && when.getTime() > Date.now() + 30_000;
+
   const { error: sErr } = await supabase
     .from("broadcasts")
-    .update({ status: "sending", started_at: new Date().toISOString() })
+    .update(scheduled
+      ? { status: "scheduled", scheduled_at: when!.toISOString() }
+      : { status: "sending", started_at: new Date().toISOString() })
     .eq("id", id)
     .eq("status", "draft");
 
@@ -156,8 +165,11 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   return NextResponse.json({
     ok: true,
+    scheduled: scheduled ? when!.toISOString() : null,
     enqueued,
     budget: { week: budget.week, cap: budget.cap, remainingToday: budget.remaining },
-    note: "Sending starts within a minute and continues in the background.",
+    note: scheduled
+      ? "Queued. It goes out at the time you chose."
+      : "Sending starts within a minute and continues in the background.",
   }, { status: 200 });
 }

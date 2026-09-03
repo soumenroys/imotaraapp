@@ -14,6 +14,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
 import { EMAIL_RE } from "@/lib/broadcast/parseRecipients";
+import { notifyOwner } from "@/lib/broadcast/notify";
+import { confirmUrl, isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
+import { sendBatch, isResendConfigured } from "@/lib/broadcast/resendClient";
+import { availableIdentities } from "@/lib/broadcast/identities";
 
 export const runtime = "nodejs";
 
@@ -88,6 +92,69 @@ export async function POST(req: NextRequest) {
     console.error("[interest] insert:", error.message);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
+
+  // ── Confirm the address actually belongs to whoever typed it (G7) ────────
+  // A form submission proves someone typed an address, not that they own it.
+  // Until the link in this email is clicked the address is a claim, and the
+  // admin panel says so. Nothing is ever mailed to an unconfirmed address
+  // except this one message.
+  //
+  // The 24-hour guard is the abuse control: without it, submitting a stranger's
+  // address repeatedly would turn this form into a way to mail them.
+  const dayAgo = new Date(Date.now() - 24 * 3600_000).toISOString();
+  const { data: recentlyMailed } = await supabase
+    .from("broadcast_interest_submissions")
+    .select("id")
+    .eq("email", email)
+    .not("confirmation_sent_at", "is", null)
+    .gte("confirmation_sent_at", dayAgo)
+    .limit(1)
+    .maybeSingle();
+
+  if (!recentlyMailed && isResendConfigured() && isUnsubscribeConfigured()) {
+    const identities = await availableIdentities(supabase);
+    const identity = identities[0];
+    if (identity) {
+      const link = confirmUrl(email);
+      const sender = identity.name ? `"${identity.name}" <${identity.email}>` : identity.email;
+      await sendBatch([{
+        from: sender,
+        to: email,
+        subject: "Please confirm your email address",
+        // Operational by nature: it carries no marketing and cannot be
+        // unsubscribed from, because it exists to establish consent.
+        html:
+          `<div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937">` +
+          `<p>Someone — we hope you — asked to hear from Imotara at this address.</p>` +
+          `<p>Confirm it and we will occasionally write about the app. ` +
+          `Every email after this has a one-click unsubscribe link.</p>` +
+          `<p><a href="${link}" style="display:inline-block;padding:11px 22px;background:#4f46e5;` +
+          `color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Yes, confirm</a></p>` +
+          `<p style="font-size:12px;color:#94a3b8">If this was not you, ignore this email — ` +
+          `nothing happens unless the button is pressed, and we will not write again.</p></div>`,
+        text:
+          `Someone — we hope you — asked to hear from Imotara at this address.\n\n` +
+          `Confirm: ${link}\n\n` +
+          `If this was not you, ignore this email. Nothing happens unless you press the link.`,
+        replyTo: identity.email,
+      }]).catch(() => undefined);
+
+      await supabase
+        .from("broadcast_interest_submissions")
+        .update({ confirmation_sent_at: new Date().toISOString() })
+        .eq("email", email)
+        .is("confirmed_at", null);
+    }
+  }
+
+  // Told to a person, because a submission that nobody sees is consent
+  // collected and wasted. Never allowed to fail the visitor's request.
+  void notifyOwner("Someone asked to hear from Imotara", [
+    `${name ?? "Someone"} <${email}> filled in the form at imotara.com/updates.`,
+    message ? `\nThey wrote: ${message}` : "",
+    `\nThey still have to confirm the address before it can be used.`,
+    `Review it under Broadcast -> Requests.`,
+  ]);
 
   // Deliberately NOT clearing any suppression this address may carry.
   //

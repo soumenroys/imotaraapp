@@ -47,6 +47,7 @@ export default function BroadcastReview({
   const [typed, setTyped] = useState("");
   const [acceptMultiDay, setAccept] = useState(false);
   const [sending, setSending] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -68,7 +69,11 @@ export default function BroadcastReview({
       const res = await fetch(`/api/admin/broadcast/broadcasts/${id}/send`, adminFetchOpts(token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmCount: p.counts.queued, acceptMultiDay }),
+        body: JSON.stringify({
+          confirmCount: p.counts.queued,
+          acceptMultiDay,
+          scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+        }),
       }));
       const j = await res.json().catch(() => ({}));
 
@@ -229,7 +234,7 @@ export default function BroadcastReview({
             }
             className="rounded-lg border border-emerald-500/30 bg-emerald-500/12 px-4 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-40"
           >
-            {sending ? "Starting…" : `Send to ${counts.queued} people`}
+            {sending ? "Starting…" : scheduledAt ? `Schedule for ${counts.queued} people` : `Send to ${counts.queued} people`}
           </button>
         </div>
         {!confirmed && (
@@ -237,8 +242,33 @@ export default function BroadcastReview({
             The button stays locked until the box reads {counts.queued}.
           </p>
         )}
+        <div className="mt-3 border-t border-white/6 pt-3">
+          <label className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              Send later
+            </span>
+            <input
+              type="datetime-local"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+              className="rounded-lg border border-white/10 bg-zinc-900 px-2.5 py-1.5 text-[11px] text-zinc-200 outline-none focus:border-indigo-500/40"
+            />
+            {scheduledAt && (
+              <button
+                onClick={() => setScheduledAt("")}
+                className="text-[10px] text-zinc-500 underline"
+              >send now instead</button>
+            )}
+          </label>
+          <p className="mt-1 text-[10px] leading-relaxed text-zinc-600">
+            {scheduledAt
+              ? "The recipient list is fixed now, not at that time — what goes out is who is on it today."
+              : "Leave empty to start immediately."}
+          </p>
+        </div>
+
         <p className="mt-2 text-[10px] leading-relaxed text-zinc-600">
-          There is no undo. Sending starts within a minute and continues in the
+          There is no undo, though a run can be stopped part-way from its own page. Sending starts within a minute and continues in the
           background — you do not need to keep this page open.
         </p>
       </div>

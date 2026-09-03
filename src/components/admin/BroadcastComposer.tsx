@@ -108,6 +108,7 @@ export default function BroadcastComposer({
   const [imgBusy, setImgBusy] = useState(false);
   const [imgError, setImgError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [testState, setTestState] = useState<string | null>(null);
 
   const locked = Boolean(draft.status && draft.status !== "draft");
 
@@ -281,6 +282,22 @@ export default function BroadcastComposer({
     void upload(f, true);
   }
 
+  /** Send this draft to one address now, bypassing the queue. */
+  async function sendTest() {
+    const id = draft.id ?? (await persist(draft));
+    if (!id) { setTestState("Save it first — add a subject."); return; }
+    setTestState("Sending…");
+    try {
+      const res = await fetch(`/api/admin/broadcast/broadcasts/${id}/test`, adminFetchOpts(token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }));
+      const j = await res.json().catch(() => ({}));
+      setTestState(res.ok ? `Sent to ${j.to} — check your inbox` : (j.error ?? "That did not work"));
+    } catch { setTestState("Network error."); }
+  }
+
   // ── Preview ───────────────────────────────────────────────────────────────
   const preview = useMemo(() => emailDocument(
     renderHtml(draft.body_source),
@@ -309,6 +326,14 @@ export default function BroadcastComposer({
               : save.kind === "error" ? <span className="text-rose-300">{save.msg}</span>
               : draft.id ? "Draft" : "Not saved yet"}
           </span>
+          {/* No preview reproduces what Gmail does to a message. This is the
+              only way to see the real thing before strangers do. */}
+          <button
+            onClick={() => void sendTest()}
+            disabled={locked || !draft.subject.trim() || !draft.body_source.trim()}
+            title="Send this to your own address now"
+            className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 transition hover:text-zinc-100 disabled:opacity-40"
+          >Send me a test</button>
           <button
             onClick={() => { void persist(draft).then((id) => id && onReview(id)); }}
             disabled={!canReview || locked}
@@ -322,6 +347,15 @@ export default function BroadcastComposer({
           >Review &amp; send →</button>
         </div>
       </div>
+
+      {testState && (
+        <div className="mb-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-zinc-300">
+          {testState}
+          <span className="ml-2 text-[10px] text-zinc-600">
+            Test messages are marked [TEST] in the subject and do not count towards today&apos;s allowance.
+          </span>
+        </div>
+      )}
 
       {locked && (
         <div className="mb-3 rounded-xl border border-amber-400/25 bg-amber-500/8 px-4 py-3 text-xs text-amber-200">
@@ -526,7 +560,9 @@ export default function BroadcastComposer({
             )}
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/6 px-3 py-2">
               <p className="text-[10px] leading-relaxed text-zinc-600">
-                Fonts are the families already installed on the machines people read
+                Write <span className="font-mono text-zinc-400">{"{{name|there}}"}</span> to
+                greet people by name, with a fallback for the many addresses that
+                have none. Fonts are the families already installed on the machines people read
                 mail on — a web font would not load in Gmail or Outlook. Video does not
                 play in Gmail either; a GIF does, added as an image.
               </p>

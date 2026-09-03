@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const q = supabase
     .from("broadcast_interest_submissions")
-    .select("id, email, name, message, ip, status, created_at")
+    .select("id, email, name, message, ip, status, created_at, confirmed_at")
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -60,7 +60,7 @@ export async function PATCH(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const { data: sub } = await supabase
     .from("broadcast_interest_submissions")
-    .select("id, email, created_at, ip, status")
+    .select("id, email, created_at, ip, status, confirmed_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -69,6 +69,16 @@ export async function PATCH(req: NextRequest) {
   if (body.action === "ignore") {
     await supabase.from("broadcast_interest_submissions").update({ status: "ignored" }).eq("id", id);
     return NextResponse.json({ ok: true, status: "ignored" }, { status: 200 });
+  }
+
+  // An unconfirmed address is a claim that someone typed it, not evidence that
+  // they own it. Adding it to a list would put the whole list's provenance in
+  // doubt, so it is refused rather than warned about.
+  if (body.action === "add" && !sub.confirmed_at) {
+    return NextResponse.json({
+      error: "They have not confirmed this address yet",
+      hint: "A confirmation email was sent when they submitted the form. Until they press the link, we only know somebody typed the address.",
+    }, { status: 409 });
   }
 
   if (body.action !== "add") {

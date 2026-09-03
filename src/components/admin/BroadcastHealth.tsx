@@ -25,6 +25,8 @@ type Health = {
   suppressedTotal: number;
   queuedNow: number;
   lastSentAt: string | null;
+  inFlight: { id: string; subject: string; startedAt: string | null } | null;
+  stalled: boolean;
 };
 
 const CHECKS: {
@@ -74,6 +76,19 @@ export default function BroadcastHealth({ token }: { token: string }) {
 
   return (
     <div className="space-y-4">
+      {h.stalled && (
+        <div className="rounded-xl border border-rose-400/30 bg-rose-500/8 p-4">
+          <p className="text-xs font-semibold text-rose-200">A send has stopped moving</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-rose-100/80">
+            &ldquo;{h.inFlight?.subject}&rdquo; is still marked as sending and {h.queuedNow} message
+            {h.queuedNow === 1 ? " is" : "s are"} waiting, but nothing has gone out for over
+            fifteen minutes. That is longer than the every-minute schedule or any ordinary rate
+            limit, so something is wrong rather than slow — most often the cron not running, or
+            Resend refusing every attempt. Open the broadcast to see the reason on the failing rows.
+          </p>
+        </div>
+      )}
+
       {/* ── Today's ceiling ───────────────────────────────────────────── */}
       <div className="rounded-xl border border-white/8 bg-white/3 p-4">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">

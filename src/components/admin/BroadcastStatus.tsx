@@ -76,6 +76,7 @@ export default function BroadcastStatus({
   const [t, setT] = useState<Tallies>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmStop, setConfirmStop] = useState(false);
 
   const [sends, setSends] = useState<Send[]>([]);
   const [filter, setFilter] = useState("");
@@ -123,6 +124,21 @@ export default function BroadcastStatus({
     const iv = setInterval(() => { void load(); void loadSends(); }, 8_000);
     return () => clearInterval(iv);
   }, [b?.status, load, loadSends]);
+
+  async function stop(discardQueued: boolean) {
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch(`/api/admin/broadcast/broadcasts/${id}/stop`, adminFetchOpts(token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ discardQueued }),
+      }));
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(j.error ?? `Could not stop it (HTTP ${res.status}).`); return; }
+      await load(); await loadSends();
+    } catch { setError("Network error."); }
+    finally { setBusy(false); setConfirmStop(false); }
+  }
 
   async function resume() {
     setBusy(true); setError(null);
@@ -209,6 +225,38 @@ export default function BroadcastStatus({
             Batches go out every minute, up to the daily ceiling. You can close
             this page — it continues without you. Numbers refresh on their own.
           </p>
+
+          {/* Messages already handed to Resend are genuinely gone. Everything
+              still queued is not, and that is the difference between a mistake
+              and an unrecoverable one. */}
+          {confirmStop ? (
+            <div className="mt-3 rounded-lg border border-amber-400/25 bg-amber-500/8 p-2.5">
+              <p className="text-[11px] text-amber-200">
+                Anything already sent cannot be recalled. What is still waiting can be.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => void stop(false)}
+                  disabled={busy}
+                  className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-40"
+                >Pause — I will resume it</button>
+                <button
+                  onClick={() => void stop(true)}
+                  disabled={busy}
+                  className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-[11px] text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-40"
+                >Stop for good — do not send the rest</button>
+                <button
+                  onClick={() => setConfirmStop(false)}
+                  className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-zinc-400"
+                >Keep sending</button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmStop(true)}
+              className="mt-3 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
+            >Stop this send</button>
+          )}
         </div>
       )}
 

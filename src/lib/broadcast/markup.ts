@@ -334,6 +334,38 @@ export function renderText(src: string): string {
 }
 
 /**
+ * Merge tags: {{name}} and {{email}}, with a fallback after a pipe.
+ *
+ *   Hi {{name|there}},
+ *
+ * The fallback is not decoration. Most addresses arrive without a name, and a
+ * message that opens "Hi ," on half its recipients is worse than one that
+ * never tried. Substitution happens AFTER the HTML is rendered, on the
+ * finished string, and the value is escaped — a recipient's own name is
+ * attacker-controlled data as far as this is concerned.
+ */
+const RE_MERGE = /\{\{(name|email)(?:\|([^}]*))?\}\}/g;
+
+export function mergeFields(
+  content: string,
+  fields: { name?: string | null; email: string },
+  escapeValues: boolean,
+): string {
+  return content.replace(RE_MERGE, (_whole, key: string, fallback = "") => {
+    const raw = key === "name" ? (fields.name ?? "").trim() : fields.email;
+    const value = raw || fallback;
+    return escapeValues ? esc(value) : value;
+  });
+}
+
+/** Does this message personalise anything? Used to decide whether the sender
+ *  needs to look up recipient names at all. */
+export function usesMergeFields(content: string): boolean {
+  RE_MERGE.lastIndex = 0;
+  return RE_MERGE.test(content);
+}
+
+/**
  * The unsubscribe footer, defined once.
  *
  * It lived in two places — the sender and the composer's preview — which is

@@ -427,3 +427,56 @@ update broadcasts
 alter table broadcasts add column if not exists reply_to text;
 
 update broadcasts set reply_to = from_email where reply_to is null;
+
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 12. Closing the gap audit                              (G1, G3, G6, G7)
+-- ────────────────────────────────────────────────────────────────────────────
+-- One migration for four gaps found on 2026-09-04. Idempotent like the rest.
+
+-- G3 — a transient failure used to leave a row 'queued' forever, retried on
+-- every cron tick with nothing counting the attempts. A run could sit in
+-- 'sending' indefinitely and the only symptom was a number nobody watched.
+alter table broadcast_sends add column if not exists attempts integer not null default 0;
+
+-- G6 — send later. Null means send as soon as the queue is drained, which is
+-- the behaviour everything had before this column existed.
+alter table broadcasts add column if not exists scheduled_at timestamptz;
+
+create index if not exists broadcasts_scheduled_idx
+  on broadcasts (scheduled_at)
+  where status = 'scheduled';
+
+-- 'scheduled' has to be a real status rather than a draft with a date on it:
+-- a draft can still be edited, and a message that is already committed to go
+-- out at a time must not be.
+do $
+declare c text;
+begin
+  select conname into c
+    from pg_constraint
+   where conrelid = 'broadcasts'::regclass
+     and contype = 'c'
+     and pg_get_constraintdef(oid) ilike '%status%';
+
+  if c is not null then
+    execute format('alter table broadcasts drop constraint %I', c);
+  end if;
+
+  alter table broadcasts add constraint broadcasts_status_check
+    check (status in ('draft','scheduled','sending','sent','failed','paused'));
+end $;
+
+-- G7 — confirmed opt-in. A form submission proves someone typed an address,
+-- not that they own it. Until this is set, the address has only been claimed.
+alter table broadcast_interest_submissions
+  add column if not exists confirmed_at timestamptz;
+
+alter table broadcast_interest_submissions
+  add column if not exists confirmation_sent_at timestamptz;
+
+-- Existing submissions predate confirmation and are grandfathered rather than
+-- silently treated as unconfirmed, which would misrepresent them in the panel.
+update broadcast_interest_submissions
+   set confirmed_at = created_at
+ where confirmed_at is null;

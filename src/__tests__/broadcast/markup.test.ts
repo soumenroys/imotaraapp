@@ -237,3 +237,44 @@ describe("the unsubscribe footer", () => {
     expect(footerText("#")).not.toContain("You are receiving this");
   });
 });
+
+describe("merge fields", () => {
+  it("substitutes a name and an email", async () => {
+    const { mergeFields } = await import("@/lib/broadcast/markup");
+    expect(mergeFields("Hi {{name}} ({{email}})", { name: "Priya", email: "p@x.test" }, true))
+      .toBe("Hi Priya (p@x.test)");
+  });
+
+  it("uses the fallback when there is no name", async () => {
+    // Most addresses arrive without one; "Hi ," would be worse than not trying.
+    const { mergeFields } = await import("@/lib/broadcast/markup");
+    expect(mergeFields("Hi {{name|there}},", { name: "", email: "p@x.test" }, true)).toBe("Hi there,");
+    expect(mergeFields("Hi {{name|there}},", { name: null, email: "p@x.test" }, true)).toBe("Hi there,");
+  });
+
+  it("leaves an empty fallback empty rather than printing the tag", async () => {
+    const { mergeFields } = await import("@/lib/broadcast/markup");
+    expect(mergeFields("[{{name}}]", { name: null, email: "p@x.test" }, true)).toBe("[]");
+  });
+
+  it("escapes the value in HTML — a recipient's name is untrusted data", async () => {
+    const { mergeFields } = await import("@/lib/broadcast/markup");
+    const out = mergeFields("Hi {{name}}", { name: '<img src=x onerror=alert(1)>', email: "p@x.test" }, true);
+    expect(out).not.toContain("<img");
+    expect(out).toContain("&lt;img");
+  });
+
+  it("does not escape in the plain-text part", async () => {
+    const { mergeFields } = await import("@/lib/broadcast/markup");
+    expect(mergeFields("Hi {{name}}", { name: "A & B", email: "p@x.test" }, false)).toBe("Hi A & B");
+  });
+
+  it("detects whether a message personalises anything", async () => {
+    const { usesMergeFields } = await import("@/lib/broadcast/markup");
+    expect(usesMergeFields("Hi {{name|there}}")).toBe(true);
+    expect(usesMergeFields("Hi there")).toBe(false);
+    // The regex is global; a stale lastIndex would make the second call lie.
+    expect(usesMergeFields("Hi {{name}}")).toBe(true);
+    expect(usesMergeFields("Hi {{name}}")).toBe(true);
+  });
+});

@@ -20,6 +20,7 @@ export const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 export type ParsedAddress = {
   original: string;   // exactly what was pasted, for echoing back in errors
   email: string;      // normalised: trimmed, unwrapped, lowercased
+  name?: string;      // "Priya N <priya@x>" — kept, so a message can greet them
 };
 
 export type InvalidAddress = {
@@ -69,6 +70,19 @@ export function suggestDomain(bad: string, knownDomains: Iterable<string>): stri
     if (d !== partial && d.startsWith(partial + ".")) return `${local}@${d}`;
   }
   return undefined;
+}
+
+/**
+ * The name in "Priya N <priya.n@childcare.org>".
+ *
+ * It used to be thrown away with the angle brackets, which left the database
+ * with a name column nothing ever wrote — a schema implying a feature that did
+ * not exist. Kept now, so a broadcast can say "Hi Priya" and mean it.
+ */
+export function displayName(input: string): string {
+  const m = /^\s*(.+?)\s*<[^>]+>\s*$/.exec(input);
+  if (!m) return "";
+  return m[1].replace(/^["']|["']$/g, "").trim().slice(0, 80);
 }
 
 export function validate(input: string, knownDomains: Iterable<string> = []):
@@ -174,7 +188,7 @@ export function classify(
       continue;
     }
 
-    buckets.toAdd.push({ original: part, email });
+    buckets.toAdd.push({ original: part, email, name: displayName(part) });
   }
 
   return buckets;

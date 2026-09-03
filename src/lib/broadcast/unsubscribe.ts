@@ -70,6 +70,29 @@ export function verifyUnsubscribeToken(
 }
 
 /** The link a PERSON clicks: a page that asks before doing anything. */
+/**
+ * A confirmation token for the public form (G7).
+ *
+ * The same signing scheme as unsubscribe, with a different second field so a
+ * token minted for one purpose cannot be replayed as the other — an
+ * unsubscribe link must never be able to confirm a subscription.
+ */
+export function makeConfirmToken(email: string): string {
+  return makeUnsubscribeToken(email, "confirm-interest");
+}
+
+export function verifyConfirmToken(token: string): string | null {
+  const claim = verifyUnsubscribeToken(token);
+  return claim && claim.broadcastId === "confirm-interest" ? claim.email : null;
+}
+
+export function confirmUrl(email: string): string {
+  // The API route, not the page: it verifies the token, records the
+  // confirmation and then redirects to the page with a result. Pointing the
+  // email at the page would give a page that cannot confirm anything.
+  return `${SITE}/api/interest/confirm?t=${makeConfirmToken(email)}`;
+}
+
 export function unsubscribeUrl(email: string, broadcastId: string): string {
   return `${SITE}/unsubscribe?t=${makeUnsubscribeToken(email, broadcastId)}`;
 }

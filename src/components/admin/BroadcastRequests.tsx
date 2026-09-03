@@ -16,6 +16,7 @@ import type { ListRow } from "./BroadcastLists";
 type Submission = {
   id: string; email: string; name: string | null; message: string | null;
   ip: string | null; status: string; created_at: string; suppressed: boolean;
+  confirmed_at: string | null;
 };
 
 export default function BroadcastRequests({ token, lists }: { token: string; lists: ListRow[] }) {
@@ -111,6 +112,13 @@ export default function BroadcastRequests({ token, lists }: { token: string; lis
                       &ldquo;{r.message}&rdquo;
                     </p>
                   )}
+                  {!r.confirmed_at && (
+                    <p className="mt-1.5 text-[10px] leading-relaxed text-amber-300">
+                      Not confirmed yet. A confirmation email went out when they submitted the
+                      form; until they press the link we only know somebody typed this address,
+                      not that it is theirs. They cannot be added to a list until then.
+                    </p>
+                  )}
                   {r.suppressed && (
                     <p className="mt-1.5 text-[10px] leading-relaxed text-amber-300">
                       This address is on the suppression list — they previously
@@ -125,8 +133,11 @@ export default function BroadcastRequests({ token, lists }: { token: string; lis
                   <div className="flex shrink-0 gap-1.5">
                     <button
                       onClick={() => void act(r.id, "add")}
-                      disabled={!listId || busy === r.id}
-                      title={listId ? undefined : "Choose a list first"}
+                      disabled={!listId || busy === r.id || !r.confirmed_at}
+                      title={
+                        !r.confirmed_at ? "They have not confirmed this address yet"
+                          : listId ? undefined : "Choose a list first"
+                      }
                       className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-[11px] font-medium text-indigo-300 transition hover:bg-indigo-500/20 disabled:opacity-40"
                     >Add to list</button>
                     <button

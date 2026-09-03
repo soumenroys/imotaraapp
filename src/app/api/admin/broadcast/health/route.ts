@@ -37,6 +37,17 @@ export async function GET(req: NextRequest) {
     suppressions[r] = count ?? 0;
   }
 
+  // A run that has stopped moving without failing (G3). Nothing marks this
+  // state, so it is derived: something is 'sending', work is waiting, and
+  // nothing has actually gone out for a while.
+  const { data: inFlight } = await supabase
+    .from("broadcasts")
+    .select("id, subject, started_at")
+    .eq("status", "sending")
+    .order("started_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
   const { data: last } = await supabase
     .from("broadcast_sends")
     .select("sent_at")
@@ -76,5 +87,12 @@ export async function GET(req: NextRequest) {
     suppressedTotal: reasons.reduce((n, r) => n + suppressions[r], 0),
     queuedNow: waiting ?? 0,
     lastSentAt: last?.sent_at ?? null,
+    inFlight: inFlight ? { id: inFlight.id, subject: inFlight.subject, startedAt: inFlight.started_at } : null,
+    // Fifteen minutes is well past the every-minute cron and any ordinary
+    // rate-limit pause, so it means something is wrong rather than slow.
+    stalled: Boolean(
+      inFlight && (waiting ?? 0) > 0 &&
+      (!last?.sent_at || Date.now() - new Date(last.sent_at as string).getTime() > 15 * 60_000),
+    ),
   }, { status: 200 });
 }

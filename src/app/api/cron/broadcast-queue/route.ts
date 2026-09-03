@@ -20,7 +20,8 @@ import {
   unsubscribeHeaders, unsubscribeFooterHtml, unsubscribeFooterText,
   isUnsubscribeConfigured,
 } from "@/lib/broadcast/unsubscribe";
-import { emailDocument } from "@/lib/broadcast/markup";
+import { emailDocument, mergeFields, usesMergeFields } from "@/lib/broadcast/markup";
+import { notifyOwner } from "@/lib/broadcast/notify";
 
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
 
@@ -29,6 +30,7 @@ type BroadcastRow = {
   subject: string;
   body_html: string;
   reply_to: string | null;
+  list_id: string | null;
   body_text: string;
   message_type: "broadcast" | "operational";
   from_email: string;
@@ -64,6 +66,16 @@ export async function GET(req: NextRequest) {
 
   const supabase = getSupabaseAdmin();
 
+  // ── 0. Anything due? ───────────────────────────────────────────────────────
+  // A scheduled broadcast becomes a sending one the first tick after its time
+  // passes. Done as a single conditional UPDATE rather than a read-then-write
+  // so two overlapping ticks cannot both promote it.
+  await supabase
+    .from("broadcasts")
+    .update({ status: "sending", started_at: new Date().toISOString() })
+    .eq("status", "scheduled")
+    .lte("scheduled_at", new Date().toISOString());
+
   // ── 1. Is anything sending? ────────────────────────────────────────────────
   // This runs every minute forever, and almost every run has nothing to do.
   // So the idle path is ONE query: ask for a sending broadcast and leave.
@@ -75,7 +87,7 @@ export async function GET(req: NextRequest) {
   // caused it, rather than whichever run happened to be interleaved.
   const { data: broadcast, error: bErr } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_html, body_text, message_type, from_email, from_name, reply_to, status")
+    .select("id, subject, body_html, body_text, message_type, from_email, from_name, reply_to, list_id, status")
     .eq("status", "sending")
     .order("started_at", { ascending: true, nullsFirst: false })
     .limit(1)
@@ -104,6 +116,10 @@ export async function GET(req: NextRequest) {
   if (broadcast.message_type === "broadcast" && !isUnsubscribeConfigured()) {
     await supabase.from("broadcasts").update({ status: "paused" }).eq("id", broadcast.id);
     console.error("[broadcast-queue] no unsubscribe secret — paused", broadcast.id);
+    await notifyOwner(`Broadcast paused: ${broadcast.subject}`, [
+      `No unsubscribe signing secret is configured, so this broadcast cannot`,
+      `legally or safely go out. Set BROADCAST_UNSUBSCRIBE_SECRET and resume.`,
+    ]);
     return NextResponse.json(
       { ok: false, error: "Unsubscribe signing not configured; broadcast paused" },
       { status: 500 },
@@ -114,7 +130,7 @@ export async function GET(req: NextRequest) {
   const take = Math.min(budget.remaining, MAX_BATCH);
   const { data: rows, error: rErr } = await supabase
     .from("broadcast_sends")
-    .select("id, email")
+    .select("id, email, attempts")
     .eq("broadcast_id", broadcast.id)
     .eq("status", "queued")
     .order("queued_at", { ascending: true })
@@ -134,22 +150,42 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, drained: 0, completed: broadcast.id });
   }
 
+  // Recipient names, only when the message actually uses them. Looked up in
+  // one query for the batch rather than per message, and only for the hundred
+  // addresses in hand.
+  const personalised =
+    usesMergeFields(broadcast.body_html) ||
+    usesMergeFields(broadcast.subject) ||
+    usesMergeFields(broadcast.body_text ?? "");
+
+  const names = new Map<string, string>();
+  if (personalised && broadcast.list_id) {
+    const { data: people } = await supabase
+      .from("broadcast_recipients")
+      .select("email, name")
+      .eq("list_id", broadcast.list_id)
+      .in("email", rows.map((r) => r.email));
+    for (const p of people ?? []) {
+      if (p.name) names.set(p.email as string, p.name as string);
+    }
+  }
+
   // ── 4. Build ───────────────────────────────────────────────────────────────
   const sender = fromHeader(broadcast);
   const messages: BroadcastMessage[] = rows.map((r) => ({
     from: sender,
     to: r.email,
-    subject: broadcast.subject,
+    subject: mergeFields(broadcast.subject, { name: names.get(r.email), email: r.email }, false),
     // emailDocument puts the footer INSIDE the body's container. Concatenating
     // the two left the footer full-bleed and misaligned under the card, and —
     // worse — meant the composer's preview was showing something the recipient
     // would never actually see.
     html: emailDocument(
-      broadcast.body_html,
+      mergeFields(broadcast.body_html, { name: names.get(r.email), email: r.email }, true),
       broadcast.message_type === "broadcast"
         ? unsubscribeFooterHtml(r.email, broadcast.id) : "",
     ),
-    text: broadcast.body_text +
+    text: mergeFields(broadcast.body_text, { name: names.get(r.email), email: r.email }, false) +
       (broadcast.message_type === "broadcast"
         ? unsubscribeFooterText(r.email, broadcast.id) : ""),
     // Answers go to the person who wrote it, which is not always the address
@@ -167,9 +203,35 @@ export async function GET(req: NextRequest) {
   const now = new Date().toISOString();
   let sent = 0, failed = 0, retry = 0, fatal = false, fatalMsg = "";
 
+  // A transient fault used to leave a row queued forever, retried on every
+  // tick with nothing counting. Twenty-five attempts is roughly a day of
+  // minute-by-minute retries: long enough to ride out a rate limit or an
+  // outage, short enough that a permanently broken address stops holding the
+  // run open and shows up as a failure someone can read.
+  const MAX_ATTEMPTS = 25;
+  let gaveUp = 0;
+
+  const keepQueued = async (rowId: string, attempts: number, why: string) => {
+    const next = (attempts ?? 0) + 1;
+    if (next >= MAX_ATTEMPTS) {
+      await supabase.from("broadcast_sends")
+        .update({ status: "failed", attempts: next, error: `gave up after ${next} attempts — ${why}` })
+        .eq("id", rowId);
+      gaveUp++;
+      return;
+    }
+    await supabase.from("broadcast_sends")
+      .update({ attempts: next, error: why })
+      .eq("id", rowId);
+    retry++;
+  };
+
   for (const row of rows) {
     const o = byEmail.get(row.email);
-    if (!o) { retry++; continue; }        // no outcome: leave queued
+    // No outcome at all — the batch call itself did not account for this
+    // address. Counted as an attempt like any other, or a silent failure
+    // would retry unbounded.
+    if (!o) { await keepQueued(row.id, row.attempts, "no outcome returned"); continue; }
 
     if (o.ok) {
       await supabase.from("broadcast_sends")
@@ -193,11 +255,8 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    // transient — leave queued, record why for visibility
-    await supabase.from("broadcast_sends")
-      .update({ error: `${o.code}: ${o.message}` })
-      .eq("id", row.id);
-    retry++;
+    // transient — leave queued, count the attempt, record why
+    await keepQueued(row.id, row.attempts, `${o.code}: ${o.message}`);
   }
 
   // ── 7. A fatal fault pauses the run ────────────────────────────────────────
@@ -207,6 +266,20 @@ export async function GET(req: NextRequest) {
   if (fatal) {
     await supabase.from("broadcasts").update({ status: "paused" }).eq("id", broadcast.id);
     console.error("[broadcast-queue] fatal, paused", broadcast.id, fatalMsg);
+
+    // A paused run is invisible until someone opens the panel, and the reason
+    // it paused is usually something only a person can fix.
+    await notifyOwner(`Broadcast paused: ${broadcast.subject}`, [
+      `The run stopped after a fatal send error and is waiting for you.`,
+      ``,
+      `Subject: ${broadcast.subject}`,
+      `Error:   ${fatalMsg}`,
+      `Sent before it stopped: ${sent}`,
+      ``,
+      `Usually an expired API key or an unverified domain — not a bad address.`,
+      `The queue is intact and nobody will be mailed twice. Fix the cause, then`,
+      `resume from the broadcast's page.`,
+    ]);
     return NextResponse.json(
       { ok: false, error: "Paused after a fatal send error", detail: fatalMsg,
         broadcastId: broadcast.id, sent, failed },
@@ -217,7 +290,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     broadcastId: broadcast.id,
-    sent, failed, retry,
+    sent, failed, retry, gaveUp,
     week: budget.week, cap: budget.cap,
     sentToday: budget.sentToday + sent,
     remaining: Math.max(0, budget.remaining - sent),

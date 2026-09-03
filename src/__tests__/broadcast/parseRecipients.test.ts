@@ -163,3 +163,26 @@ describe("validate — messages an admin can act on", () => {
     expect((validate("a@bcom") as { reason: string }).reason).toMatch(/no domain ending/i);
   });
 });
+
+describe("displayName", () => {
+  it("keeps the name from an angle-bracket address", async () => {
+    const { displayName } = await import("@/lib/broadcast/parseRecipients");
+    expect(displayName("Priya N <priya.n@childcare.org>")).toBe("Priya N");
+  });
+
+  it("strips the quotes some clients add", async () => {
+    const { displayName } = await import("@/lib/broadcast/parseRecipients");
+    expect(displayName('"Priya N" <priya.n@childcare.org>')).toBe("Priya N");
+  });
+
+  it("returns nothing for a bare address", async () => {
+    const { displayName } = await import("@/lib/broadcast/parseRecipients");
+    expect(displayName("priya.n@childcare.org")).toBe("");
+  });
+
+  it("is carried into the addable bucket", async () => {
+    const { classify } = await import("@/lib/broadcast/parseRecipients");
+    const b = classify("Priya N <priya.n@childcare.org>", new Map(), new Map());
+    expect(b.toAdd[0]).toMatchObject({ email: "priya.n@childcare.org", name: "Priya N" });
+  });
+});

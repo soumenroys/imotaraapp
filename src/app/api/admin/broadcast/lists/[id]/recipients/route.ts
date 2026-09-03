@@ -139,6 +139,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const rows = buckets.toAdd.map((a) => ({
       list_id: listId,
       email: a.email,
+      name: a.name || null,
       source,
       source_detail: sourceDetail,
       collected_at: collectedAt,

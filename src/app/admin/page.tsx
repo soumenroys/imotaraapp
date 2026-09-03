@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import { adminFetchOpts } from "@/lib/imotara/adminFetch";
+import BroadcastSection from "@/components/admin/BroadcastSection";
 import Link from "next/link";
 import { useState, useEffect, useCallback, useTransition } from "react";
 import type { LicenseTier } from "@/types/license";
@@ -87,20 +89,8 @@ interface DetailResponse {
 
 const SESSION_KEY = "imotara_admin_token";
 
-/** Returns fetch options with correct auth.
- *  Session-based login → use cookie (credentials:same-origin, no Bearer).
- *  Legacy secret key → send as Authorization Bearer header. */
-function adminFetchOpts(token: string, extra?: RequestInit): RequestInit {
-  const isSession = token.startsWith("session:");
-  return {
-    credentials: "same-origin",
-    ...extra,
-    headers: {
-      ...(isSession ? {} : { Authorization: `Bearer ${token}` }),
-      ...(extra?.headers ?? {}),
-    },
-  };
-}
+// adminFetchOpts now lives in @/lib/imotara/adminFetch so components in
+// other files share one auth rule. Imported at the top of this file.
 
 function timeAgo(iso: string | null): string {
   if (!iso) return "—";
@@ -3288,7 +3278,7 @@ function ConnectSection({ token }: { token: string }) {
 // Main AdminPage
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Section = "comments" | "licenses" | "organizations" | "superadmins" | "stats" | "connect";
+type Section = "comments" | "licenses" | "organizations" | "superadmins" | "stats" | "connect" | "broadcast";
 
 export default function AdminPage() {
   const [token, setToken]     = useState<string | null>(null);
@@ -3381,7 +3371,7 @@ export default function AdminPage() {
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">Imotara · Admin</p>
             <h1 className="text-lg font-semibold text-zinc-100">
-              {section === "comments" ? "Blog Comments" : section === "licenses" ? "License Management" : section === "organizations" ? "Organizations" : section === "superadmins" ? "Super Admins" : section === "connect" ? "Connect" : "Dashboard"}
+              {section === "comments" ? "Blog Comments" : section === "licenses" ? "License Management" : section === "organizations" ? "Organizations" : section === "superadmins" ? "Super Admins" : section === "connect" ? "Connect" : section === "broadcast" ? "Broadcast" : "Dashboard"}
             </h1>
           </div>
         </div>
@@ -3407,9 +3397,18 @@ export default function AdminPage() {
             ["organizations", "🏢", "Orgs"],
             ["connect",       "🤝", "Connect"],
             ["superadmins",   "👑", "Admins"],
+            ["broadcast",     "📣", "Broadcast"],
             ["stats",         "📊", "Dashboard"],
           ] as const)
-            .filter(([key]) => myRole !== "connect_reviewer" || key === "connect" || key === "comments")
+            // Two independent rules, written out rather than bolted together:
+            // broadcast is owner-only, and connect_reviewer sees only its two
+            // tabs. Hiding a tab is convenience — every route behind it
+            // enforces the same rule server-side.
+            .filter(([key]) => {
+              if (key === "broadcast") return myRole === "owner";
+              if (myRole === "connect_reviewer") return key === "connect" || key === "comments";
+              return true;
+            })
             .map(([key, icon, label]) => (
             <button key={key} onClick={() => setSection(key)}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs whitespace-nowrap transition ${
@@ -3498,6 +3497,7 @@ export default function AdminPage() {
       {section === "organizations" && <OrganizationsSection token={token} myRole={myRole} />}
       {section === "connect"       && <ConnectSection       token={token} />}
       {section === "superadmins"   && <SuperAdminsSection   token={token} />}
+      {section === "broadcast"     && <BroadcastSection     token={token} />}
       {section === "stats"         && <StatsSection         token={token} />}
     </main>
   );

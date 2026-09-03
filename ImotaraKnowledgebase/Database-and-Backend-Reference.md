@@ -123,15 +123,17 @@ Six tables behind the owner-only **Broadcast** tab. All six have RLS **enabled w
 - **`broadcast_lists`** — a named recipient list. Unique on `lower(name)`.
 - **`broadcast_recipients`** — one address on one list, with its consent provenance: `source` (an 8-value CHECK — `event`, `meeting`, `email`, `whatsapp`, `social`, `website_form`, `phone`, `app_signup`; there is deliberately **no** `found_online`), `source_detail`, `collected_at`, `added_by`. Unique on `(list_id, email)`.
 - **`broadcast_suppressions`** — `email` is the PRIMARY KEY; `reason` is `unsubscribed`/`hard_bounce`/`complaint`. Checked before every send. Nothing in the product clears a row here automatically, including a new form submission from the same address.
-- **`broadcasts`** — the message. `body_source` is the composer's markup and is the **only** body field a client may write; `body_html`/`body_text` are rendered from it server-side by `src/lib/broadcast/markup.ts`. `from_email`/`from_name` are snapshotted from the signed-in owner. A broadcast that has left `draft` is immutable — duplicate to revise.
-- **`broadcast_sends`** — one row per recipient per broadcast: `queued`/`sent`/`delivered`/`bounced`/`complained`/`skipped`/`failed`, `resend_id`, `error`, `skip_reason`. Every count in the product is derived from this table, never from a stored counter.
-- **`broadcast_interest_submissions`** — public form submissions from `/updates`, with `ip`, `user_agent` and `status` (`new`/`added_to_list`/`ignored`).
+- **`broadcasts`** — the message. `body_source` is the composer's markup and is the **only** body field a client may write; `body_html`/`body_text` are rendered from it server-side by `src/lib/broadcast/markup.ts`. `from_email`/`from_name` are snapshotted from a **nominated sending identity** (see below), `reply_to` from the admin who wrote it, `scheduled_at` for a future send. Status is `draft`/`scheduled`/`sending`/`sent`/`failed`/`paused`. A broadcast that has left `draft` is immutable — duplicate to revise.
+- **`broadcast_sends`** — one row per recipient per broadcast: `queued`/`sent`/`delivered`/`bounced`/`complained`/`skipped`/`failed`, `resend_id`, `error`, `skip_reason`, `attempts`. Every count in the product is derived from this table, never from a stored counter. A transient failure increments `attempts` and the row is failed after 25, so a broken address cannot hold a run open forever.
+- **`broadcast_interest_submissions`** — public form submissions from `/updates`, with `ip`, `user_agent`, `status` (`new`/`added_to_list`/`ignored`), `confirmation_sent_at` and `confirmed_at`. **An unconfirmed address cannot be added to a list** — the API refuses it, because a submission proves someone typed an address, not that they own it.
 
 All four email columns carry a format CHECK constraint as well as `email = lower(email)`, so a malformed address cannot enter the database even through a route that forgot to validate.
 
 **RPC:** `broadcast_history_summary()` — aggregate tallies for the history screen; `execute` revoked from `public`/`anon`/`authenticated`, granted to `service_role` only.
 
 **Storage:** a public bucket **`broadcast-images`** (created 2026-09-04) holds composer image uploads. It is created on demand by the upload route, so there is no dashboard step.
+
+**Sending identities** live in `app_settings` under the key **`broadcast_identities`** as `{ identities: [{ name, email }] }`. Name and address are stored together — sourcing them separately is what produced mail reading "one person's name &lt;another person's address&gt;". Every address is re-validated against the verified domain **on read**, not trusted because it was written once. `BROADCAST_FROM_EMAIL` is the fallback for a fresh install.
 
 ### Triggers
 - **`trg_release_licenses_on_org_delete`** (BEFORE DELETE on `organizations`) — because `licenses.org_id` is `ON DELETE SET NULL` (not CASCADE), deleting an org would otherwise leave ex-members holding an org-derived paid tier forever. This trigger resets all affected licenses to free in the same transaction, regardless of what deleted the org.
@@ -192,11 +194,12 @@ Grouped by area; one line each.
 - `POST /api/admin/users/[userId]/ban`, `/recovery-link` — real Supabase ban / one-time recovery sign-in link.
 - `GET/POST /api/admin/comments`, `/[id]`, `GET /api/admin/dashboard`.
 - `/api/admin/connect/*` — see Connect doc (pending, approve, docs, consultants, active-sessions, earnings, payouts, refunds).
-- `/api/admin/broadcast/*` (added 2026-09-03, **owner role only** via `requireOwner()`) — `lists`, `lists/[id]`, `lists/[id]/recipients`, `broadcasts`, `broadcasts/[id]`, `broadcasts/[id]/{duplicate,preview,send,export}`, `history`, `health`, `interest`, `upload`. `requireOwner()` also **rejects the legacy `ADMIN_SECRET` bearer path**: it yields a synthetic identity that is not a row in `super_admins`, so `created_by` could never be satisfied.
+- `/api/admin/broadcast/*` (added 2026-09-03/04, **owner role only** via `requireOwner()`) — `lists`, `lists/[id]`, `lists/[id]/recipients`, `broadcasts`, `broadcasts/[id]`, `broadcasts/[id]/{duplicate,preview,send,stop,test,sends,export}`, `history`, `health`, `identities`, `interest`, `upload`. `stop` halts a run (pause, or discard the remainder as skipped); `test` sends one copy immediately outside the queue; `sends` is the recipient-level report with run timing. `requireOwner()` also **rejects the legacy `ADMIN_SECRET` bearer path**: it yields a synthetic identity that is not a row in `super_admins`, so `created_by` could never be satisfied.
 
 ### Public (broadcast-related, unauthenticated)
 - `POST /api/interest` — the `/updates` opt-in form. Honeypot field `website`, persistent IP rate limit (5/hour, bucket `broadcast-interest`), server-side consent check.
-- `POST /api/unsubscribe?t=<token>` — RFC 8058 one-click; this is the URL in the `List-Unsubscribe` header. `GET` performs nothing and redirects to the `/unsubscribe` page.
+- `POST /api/unsubscribe?t=<token>` — RFC 8058 one-click; this is the URL in the `List-Unsubscribe` header. `GET` performs nothing and redirects to the `/unsubscribe` page. Suppressing also drops anything already queued for that address.
+- `GET /api/interest/confirm?t=<token>` — the link in the confirmation email. Confirms and redirects to `/updates/confirm`. The token is bound to a different context from an unsubscribe token, so neither can be replayed as the other.
 
 ### Org (self-serve dashboard; `org/_auth.ts`)
 - `POST /api/org/new`, `GET /api/org/invite/[token]`, `POST /api/org/join-by-domain`.
@@ -228,7 +231,7 @@ Every cron route is gated by **`CRON_SECRET`**. Most check `Authorization: Beare
 | `/api/cron/wallet-expiry-notice` | `0 3 * * *` (daily) | Sends a 30-day advance expiry warning to active wallets, sets `expiry_notified_at`. |
 | ~~`/api/cron/wallet-forfeit`~~ | — | **Descheduled 2026-07-18, route file deleted 2026-07-19** (was `0 4 * * *`). Used to attempt zeroing expired balances to `status='forfeited'`, conflicting with the v3 "never zero / dormant" policy — see §1. No longer in `vercel.json` and no longer in the codebase at all; the cron table now has 8 entries, not 9. |
 | `/api/cron/connect-scheduled` | `0 * * * *` (hourly) | Auto-cancels pending scheduled sessions whose `scheduled_at` passed >2h ago; notifies the user via push. |
-| `/api/cron/broadcast-queue` | `* * * * *` (every minute) | Drains the broadcast send queue in batches of up to 100 through Resend, within the warm-up ceiling. The idle path is a single query. A fatal error (revoked key, unverified domain) **pauses** the broadcast and leaves the queue intact; transient errors leave rows `queued` to retry. |
+| `/api/cron/broadcast-queue` | `* * * * *` (every minute) | Promotes any `scheduled` broadcast whose time has passed, then drains the send queue in batches of up to 100 through Resend, within the warm-up ceiling. Substitutes `{{name}}`/`{{email}}` per recipient. The idle path is a single query. A fatal error (revoked key, unverified domain) **pauses** the broadcast, leaves the queue intact and **emails the owner over SMTP** — deliberately not through Resend, since the failure being reported is usually Resend itself. Transient errors increment `attempts` and give up at 25. |
 | `/api/cron/connect-recharge-expiry` | `*/30 * * * *` (every 30 min) | Marks abandoned `connect_recharges` (`pending` >30 min) as `failed`, clearing the partial-unique-index that would otherwise block new recharges for that user+consultant pair. |
 
 ---
@@ -262,6 +265,8 @@ Azure Speech is **multi-region**, selected by the caller's country. `regionRoute
 - **`RESEND_WEBHOOK_SECRET`** — verifies Resend's delivery callbacks. Without it sending still works, but every message stays at `sent` and delivered/bounced/complaint counts read zero whatever actually happens. The **Sending status** tab says so explicitly.
 - **`BROADCAST_UNSUBSCRIBE_SECRET`** — HMAC key for unsubscribe tokens; falls back to `NEXTAUTH_SECRET`. A broadcast will not send without one.
 - **`BROADCAST_DAILY_CAP`** — optional override of the warm-up ceiling. Set to `0` to halt all sending.
+- **`BROADCAST_FROM_EMAIL`** — fallback sending identity for a fresh install; accepts `hello@imotara.com` or `Imotara <hello@imotara.com>`, comma-separated for several. Superseded by whatever is configured in the panel.
+- **`BROADCAST_ALERT_EMAIL`** — where "your run paused" and "someone filled in the form" go. Defaults to `ALERT_GMAIL_USER`; sent over SMTP, not Resend.
 
 ### Push, email, cron, admin
 - Web Push: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`.

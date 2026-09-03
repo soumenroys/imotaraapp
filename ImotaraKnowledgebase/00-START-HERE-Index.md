@@ -14,7 +14,7 @@ This Project is the knowledge base for **Imotara** — a privacy-first, emotion-
 | **AI, TTS & Language Systems** | How replies are generated (orchestrator, models, fallbacks), language/emotion detection, TTS/STT, safety systems, quotas |
 | **Licensing, Tiers & Payments** | Tier matrix, feature gating, soft-launch state, effective-tier resolution, payment rails overview |
 | **Database & Backend Reference** | Supabase schema (all tables), RPCs & triggers, RLS, full API route catalog, cron jobs, env var reference, migration process |
-| **Imotara Admin Guide (Super-Admin)** | Operator reference: superadmin roles/creation, 2FA, password resets, bans, licenses, NGO verification, org oversight, comment moderation |
+| **Imotara Admin Guide (Super-Admin)** | Operator reference: superadmin roles/creation, 2FA, password resets, bans, licenses, NGO verification, org oversight, comment moderation, **broadcast email (§16, owner-only)** |
 | **Organization Owner & Admin How-Tos** | Org owner/admin reference: create an org, invites, domain auto-join, seats & pools, cohorts, analytics, API keys, org deletion — with honest "Coming soon" flags |
 | **Imotara Connect (Consultant Marketplace)** | Connect reference: marketplace model, wallet architecture, consultant lifecycle, moderation, safety rules |
 | **Release Runbook (Web + Mobile)** | Shipping a release end-to-end: version bump, Vercel deploy, manual SQL migrations, webhook checks, EAS builds, store submission, OTA rules, rollback |
@@ -32,6 +32,8 @@ This Project is the knowledge base for **Imotara** — a privacy-first, emotion-
 
 ## Quick answers to the most common questions
 
+- **"How do we email our users / send a newsletter?"** → Admin Guide §16: the owner-only 📣 Broadcast tab. Recipient lists with recorded consent, a composer that renders from a whitelist, warm-up-limited sending, one-click unsubscribe, and a recipient-level report. Only people who approached Imotara may be mailed — harvested lists are not permitted.
+- **"Someone wants to stop receiving our emails"** → every broadcast has a one-click unsubscribe that takes effect immediately, including for messages already queued. Never remove an address from the suppression list to let them back in.
 - **"How do I create a superadmin?"** → Admin Guide §2: `POST /api/admin/auth/seed` (works only while `super_admins` is empty); afterwards owners create admins from `/admin` → Admins tab.
 - **"How do I create an NGO, its admin, and add users?"** → Playbook — Organizations & NGOs End-to-End, Scenarios 1–3 (the full chain with every step).
 - **"Why did a free user stop getting AI replies?"** → 20 cloud replies/day server quota; the app falls back to local replies (Troubleshooting runbook 3).

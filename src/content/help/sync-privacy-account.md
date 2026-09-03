@@ -89,6 +89,8 @@ Imotara sends two different kinds of email, and they behave differently on purpo
 ### Sign up for updates
 Go to **imotara.com/updates**, enter your address and tick the consent box. You can say what you would like to hear about; we keep that in mind.
 
+We then email you once to check the address is really yours, with a single link to press. Nothing else is sent until you press it — so if someone types your address by mistake, or on purpose, you simply ignore that email and never hear from us again. It is the only message an unconfirmed address ever receives, and we send at most one a day.
+
 ### Stop receiving updates
 Every update email has an **Unsubscribe** link at the bottom, and most email apps also show an unsubscribe button next to our name at the top. Either one works immediately — including for anything already queued to go out. You do not need to sign in, reply, or explain yourself.
 
@@ -98,6 +100,11 @@ Unsubscribing from updates does **not** close your account or stop essential mes
 
 ### What we store, and who sends it
 For updates we store your address, how we came to have it, and when. Where you signed up through the form, we also keep the time and the connection it came from — that is our evidence that you actually consented, and it exists to protect you as much as us. Our email provider, **Resend**, delivers the message on our behalf. Your address is never sold, rented or shared with anyone else.
+
+If you gave us your name, an email may greet you by it. If we do not have your name, it simply says something neutral instead.
+
+### Once you unsubscribe
+It takes effect immediately, including for any message already queued to go out. We keep a record that your address opted out — that record is what stops you being added back by a later import, so it exists for your benefit. Filling in the form again does not undo it: someone at our end has to look at that and decide, precisely because anybody could type your address into a form.
 
 ## A note on guest data
 

@@ -40,11 +40,12 @@ imotaraapp/
 ## 3. Routing map (pages)
 
 - **Marketing/SEO:** `/`, `/about`, `/ai-emotional-support`, `/ai-mental-wellness`, `/mood-tracker-app`, localized `/bn` `/hi` `/ta`, `/blog` + `/blog/[slug]`, `/careers`, `/privacy`, `/terms`, `robots.ts`, `sitemap.ts`, `rss.xml`.
+- **Email opt-in (added 2026-09-04):** `/updates` (public consent form, linked from the site footer), `/updates/confirm` (result of the confirmation link), `/unsubscribe` (the page a recipient lands on; the machine one-click endpoint is `POST /api/unsubscribe`). The last two are `noindex` — an indexed unsubscribe URL is a magnet for crawlers pressing buttons.
 - **Core app:** `/chat` (the big one, ~4,000 lines), `/history`, `/feel`, `/grow`, `/reflect`, `/profile`, `/settings`, `/tutorial`, `/guide`, `/family/view`.
 - **Commerce:** `/donate`, `/pricing/corporate`, `/upgrade`.
 - **Org:** `/org/new`, `/org/join/[slug]`, `/org/invite/[token]`, `/org/dashboard/{overview,members,teams,pool,licenses,analytics,audit,settings}`.
 - **Connect:** `/connect`, `/connect/register`, `/connect/session/new`, `/connect/session/[id]`, `/connect/wallet-terms`, `/connect/age-restricted`.
-- **Admin:** `/admin` (single large role-aware page, ~3,300 lines) + `/admin/guide`.
+- **Admin:** `/admin` (single large role-aware page, ~3,300 lines) + `/admin/guide` + `/admin/crisis-events`. The 📣 **Broadcast** tab inside `/admin` is `owner`-only and is the email broadcasting system — see §16 of the Admin Guide.
 - **QA-only (pruned from prod builds):** `/dev/*`, `/license-debug`.
 
 ## 4. Auth model (two separate systems — don't conflate)

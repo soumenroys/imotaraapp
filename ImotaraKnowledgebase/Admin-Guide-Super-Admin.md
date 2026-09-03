@@ -415,47 +415,171 @@ Behavior (`POST .../members` with `action: "resend_password_link"`, super-admin 
 
 ---
 
-## 16. Broadcast email (added 2026-09-03) — **owner only**
+## 16. Broadcast email (added 2026-09-03/04) — **owner only**
 
-**Where:** `/admin` -> the **📣 Broadcast** tab. It is the only tab restricted to the `owner` role. Every route behind it calls `requireOwner()`, so the hidden tab is convenience and the server is the rule. `requireOwner()` additionally **refuses the legacy `ADMIN_SECRET` bearer path** (see §17): that path returns a synthetic identity which is not a row in `super_admins`, so it could never satisfy `created_by`.
+**Where:** `/admin` → the **📣 Broadcast** tab. It is the only tab restricted to the `owner` role. Every route behind it calls `requireOwner()`, so the hidden tab is convenience and the server is the rule. `requireOwner()` also **refuses the legacy `ADMIN_SECRET` bearer path** (§17): that path returns a synthetic identity which is not a row in `super_admins`, so it could never satisfy `created_by`.
 
-The tab has four screens:
+The tab has four screens: **Broadcasts**, **Recipient lists**, **Requests**, **Sending status**.
 
-**Broadcasts** — every message, with delivered/bounced/complaint tallies. Sent broadcasts are permanent and cannot be edited or deleted; the record has to keep saying what people actually received. Duplicate one to send a revised version.
+---
 
-**Recipient lists** — create a list, then paste addresses into it. Pasting is a two-step: **Check** is a real dry run against the database and reports five buckets — new, already on this list, repeated in the paste, unsubscribed/bounced, and not a valid address (with a suggested correction). Nothing is written until you confirm. **Adding requires provenance**: a source (one of eight, all describing something the *person* did — there is deliberately no "found online"), a free-text detail, and a collection date. The API rejects a write missing any of the three. Removing an address with the **×** removes list membership only and never touches suppression: opting out is the recipient's decision, not the admin's.
+### 16.1 Who a broadcast is sent as
 
-**Requests** — people who filled in the public form at `www.imotara.com/updates`. Adding someone from here copies their provenance across (source `website_form`, the real submission date, the IP the consent came from) rather than retyping it. An address already suppressed is flagged, and adding it clears nothing — anyone can type anyone's address into a form.
+Set on **Sending status → Sent as**. Each entry is a **name and an address together** — "Imotara" and `suchismita.sen@imotara.com` — and they are edited as one thing.
 
-**Sending status** — can we send at all, and how much today. Reads the live environment and the send table, never a stored flag. Watch the **Delivery reporting** line: without `RESEND_WEBHOOK_SECRET`, mail still goes out but every message stays at `sent`, so delivered/bounced/complaint counts read zero whatever actually happens.
+That pairing is deliberate. Before it existed, the name came from whoever was signed in and the address from configuration, which produced mail reading *"Soumen Roy &lt;suchismita.sen@imotara.com&gt;"* — one person's name beside another person's address, which a recipient reasonably reads as that person owning the address.
 
-### Writing and sending
+Rules:
 
-The composer stores a small markup, not HTML. Bold, italic, underline, strike, colour, font, size, alignment, headings, lists, quotes, buttons, links and images are all available, and all of them are rendered to email HTML server-side from a whitelist. Colour and font values are *checked*, not escaped — escaping would happily pass `red;background:url(http://tracker/p.gif)` into a style attribute. The client sends `body_source` only; `body_html`/`body_text` are never accepted from a request.
+- An address must be on the **verified sending domain** (`imotara.com`). Resend refuses anything else, so the panel refuses it too rather than letting it fail at send time.
+- The **first entry** is what new drafts use. The picker only appears in the composer when there is genuinely more than one.
+- **Replies always go to the admin who wrote the broadcast**, whatever address carried it. So an owner whose login is a personal Gmail address can still send, under the company address, and still hears the answers.
+- Stored in `app_settings` under the key `broadcast_identities`, so changing the sender takes effect immediately — no redeploy. `BROADCAST_FROM_EMAIL` is the fallback for a fresh install and accepts either `hello@imotara.com` or `Imotara <hello@imotara.com>`.
+- Names have quotes and backslashes stripped: either would break out of the display-name quoting and let a configured value forge a second address in the header.
 
-Images can be uploaded, dragged onto the message, pasted from the clipboard, or given as a URL. Uploads go to the public `broadcast-images` bucket. **Google Drive, OneDrive, SharePoint, iCloud and Google Photos share links are refused** — they point at a viewer page, not an image, and would arrive as a broken picture. Dropbox links are repaired automatically. The composer measures the rendered message against Gmail's ~102KB clipping limit and warns before the unsubscribe link is what gets hidden.
+**Two owners, one domain.** `soumenroys@gmail.com` is an owner but is not on `imotara.com`. They can still compose and send — the message goes out as the configured identity, and replies come back to their Gmail.
 
-**Review & send** shows the arithmetic: who is on the list, who is skipped and why, how many will receive it, and — when the queue exceeds today's warm-up ceiling — how many days it will take, which must be acknowledged. Confirmation is typing the recipient count. If the list changed while the screen was open, the send is refused and the number is reloaded.
+---
 
-Pressing send does **not** send. It builds the queue and flips the status; `/api/cron/broadcast-queue` drains it every minute, up to 100 per batch. So sending survives a crash, a closed laptop, and a run larger than a function timeout.
+### 16.2 Recipient lists
 
-### Warm-up, and why it exists
+**Broadcast → Recipient lists.** A new list is named for the moment it was created — `202609042345 (04 Sep 26 23 45)` — with the digits first so sorting by name sorts by when it was made. Type over it if the list deserves a better name; two lists cannot share one, and the check ignores case.
 
-Per-day ceilings ramp by week from the first real send: **100, then 500, then 2000, then 50,000**. The week and the day's usage are derived from `broadcast_sends`, never from a counter column. `BROADCAST_DAILY_CAP` overrides the schedule; setting it to `0` halts all sending.
+Addresses go in two ways:
 
-The ceiling is not bureaucracy. A new sending domain that suddenly emits thousands of messages is filtered as a spammer, and **this domain also carries password resets and session notices** — burning it costs far more than a slow campaign.
+- **Type them in** — one per row: local part, `@`, domain from a list of nine common ones (with *another domain…* for the rest). A new row inherits the domain above it, Enter starts the next address, and only characters an address may contain are accepted as you type. Rows are numbered and a running count shows how many are complete.
+- **Paste a list** — one per line or comma-separated. `Priya N <priya.n@childcare.org>` is understood, and **the name is kept** for personalisation.
 
-### Unsubscribing
+**Nothing is written until you press Check, then Add.** Check is a real dry run against the database and reports five buckets:
 
-Every broadcast carries a `List-Unsubscribe` header pointing at `POST /api/unsubscribe` (RFC 8058 one-click) and a visible footer link to the `/unsubscribe` page. Both suppress the address immediately and drop anything already queued for it. Operational messages carry neither — a policy change is not optional, and claiming otherwise would be a lie.
+| Bucket | Meaning |
+|---|---|
+| new | will be added |
+| already on this list | skipped |
+| repeated in what you pasted | counted once |
+| unsubscribed or bounced | **cannot** be added |
+| not a valid address | with a suggested correction where one is obvious |
+
+**Provenance is mandatory.** A source (one of eight, all describing something the *person* did — there is deliberately no "found online"), a free-text detail, and a collection date. The API rejects a write missing any of the three, so the disabled button is convenience and the server is the rule. Changing the source chip rewrites the description until you type your own words, which stops the record saying "Communication from Social Media" beside a source of "event".
+
+The **×** beside an address removes list membership only. It never touches suppression: opting out is the recipient's decision, not the admin's.
+
+---
+
+### 16.3 Writing the message
+
+The composer stores a **markup**, not HTML. Available: headings, bold, italic, underline, strikethrough, colour, font family, size, alignment, bullet lists, quotes, dividers, buttons, links and images.
+
+All of it is rendered to email HTML **server-side from a whitelist**. The client sends `body_source` only; `body_html` and `body_text` are never accepted from a request. Colour and font values are *checked* against a list rather than escaped — escaping alone would happily pass `red;background:url(http://tracker/p.gif)` into a style attribute and turn every message into someone else's tracking beacon.
+
+**Personalisation:** `{{name|there}}` and `{{email}}`. The fallback after the pipe matters — most addresses arrive without a name, and "Hi ," on half your recipients is worse than not trying. Values are HTML-escaped at send time, because a recipient's own name is untrusted data.
+
+**Images** can be uploaded, dragged onto the message, pasted from the clipboard, or given as a URL. Uploads go to the public `broadcast-images` bucket. **Google Drive, OneDrive, SharePoint, iCloud and Google Photos share links are refused** — they point at a viewer page, not an image, and would arrive as a broken picture. Dropbox links are repaired automatically.
+
+Fonts are the families already installed on the machines people read mail on; a web font would not load in Gmail or Outlook. Video does not play in Gmail — a GIF does, added as an image.
+
+The composer measures the rendered message against **Gmail's ~102KB clipping limit** and warns before the unsubscribe link becomes the part that gets hidden.
+
+**Send me a test** puts the real message in your own inbox immediately, bypassing the queue, with `[TEST]` prefixed to the subject. Use it. No preview reproduces what Gmail actually does to a message. Tests do not pass through the send record and so do not count against the daily allowance; they are capped at 30 a day.
+
+**Message type** is either a **broadcast** (carries the unsubscribe link and header — anything promotional) or an **operational notice** (no unsubscribe — a policy change, an outage; something a recipient cannot opt out of). Sending promotion as operational is what gets a domain blocked, and this domain also carries password resets.
+
+---
+
+### 16.4 Review, schedule and send
+
+The review screen shows arithmetic you can check: who is on the list, who is skipped and why, how many will receive it, and — when the queue is larger than today's warm-up ceiling — roughly how many days it will take, which must be acknowledged before the button unlocks.
+
+**Confirmation is typing the recipient count**, not a word like SEND. Typing "412" requires having read the number. If the list changed while the screen was open, the send is refused and the screen reloads with the new figure rather than letting the old one be retyped.
+
+**Send later** takes a date and time. The queue is built when you press the button, so what goes out is the list as it stood then, not as it might be edited in between. The run sits as `scheduled` and the cron promotes it the first tick after its time passes.
+
+Pressing send does **not** send. It builds the queue and flips the status; `/api/cron/broadcast-queue` drains it every minute, up to 100 messages a batch. Sending therefore survives a crash, a closed laptop, and a run larger than a function timeout.
+
+---
+
+### 16.5 Stopping a run
+
+On a sending broadcast: **Stop this send**, then choose.
+
+- **Pause** — the queue is kept and you can resume from the same page.
+- **Stop for good** — the remaining queued messages are marked *skipped*, not deleted, because the record has to keep saying those people were meant to receive it.
+
+Anything already handed to Resend is genuinely gone and cannot be recalled. Everything still queued can be, and that is the difference between a mistake and an unrecoverable one.
+
+A run also **pauses itself** on a fatal error — an expired API key, an unverified domain. The queue stays intact, nobody is mailed twice, and **you are emailed about it**.
+
+---
+
+### 16.6 Reports
+
+Three depths, all under the Broadcast tab (never the Dashboard tab, which `admin` and `connect_reviewer` can also see — recipient lists are personal data with consent records attached).
+
+1. **Across all broadcasts** — the strip at the top of the Broadcasts tab. Delivered shows "—" rather than "0%" when nothing has been attempted, because those mean opposite things.
+2. **One broadcast** — click any row: per-status tallies, the timeline, resume/stop, and the CSV.
+3. **Every recipient** — the list under those tallies. Address, status, when, and what happened, with the bounce message **verbatim as the receiving mail server wrote it** — that text is the only thing distinguishing a permanently dead address from one refused today. **Press any tally to filter to it**; search matches any part of an address; failed statuses sort first.
+
+**How long it took** shows first and last message out, the whole window, queued → handed over, handed over → delivered, and the slowest delivery. These are *middle* values, not averages: one message held behind a rate limit drags a mean away from anything typical.
+
+Two words are kept distinct throughout, and conflating them is how a report ends up claiming mail arrived when it did not. **Handed over** = Resend accepted it. **Delivered** = the receiving server accepted it. Only the second means it arrived, and it exists only because the delivery webhook is wired up.
+
+The **CSV** carries the same rows plus the consent record for each address. That is the version to keep if anyone asks you to justify a send.
+
+---
+
+### 16.7 The public form and confirmed opt-in
+
+**www.imotara.com/updates**, linked from the site footer. Submissions appear under **Broadcast → Requests**.
+
+A form submission proves someone *typed* an address, not that they own it. So a **confirmation email** goes out, and until the person presses the link the address is only a claim:
+
+- an unconfirmed address **cannot be added to a list** — the API refuses it, not just the button;
+- at most **one confirmation per address per day**, which is what stops the form being used to mail a stranger repeatedly;
+- an address already on the suppression list is **flagged, never silently cleared** — anyone can type anyone's address, so a stranger must not be able to put a person back on a list they left.
+
+Adding someone from Requests copies their provenance across — source `website_form`, the real submission date, the IP the consent came from — rather than retyping it, so it cannot be transcribed wrong. **You are emailed when a submission arrives.**
+
+---
+
+### 16.8 Warm-up, and why the ceiling exists
+
+Per-day ceilings ramp by week from the first real send: **100 → 500 → 2000 → 50,000**. The week and the day's usage are derived from `broadcast_sends`, never from a stored counter — a counter that drifts always drifts in the direction that lets too much out.
+
+`BROADCAST_DAILY_CAP` overrides the schedule; setting it to **0 halts all sending**.
+
+This is not bureaucracy. A new sending domain that suddenly emits thousands of messages is filtered as a spammer, and **this domain also carries password resets and session notices**. Burning it costs far more than a slow campaign.
+
+---
+
+### 16.9 Unsubscribing
+
+Every broadcast carries a `List-Unsubscribe` header pointing at `POST /api/unsubscribe` (RFC 8058 one-click) and a visible footer link. Both suppress immediately **and drop anything already queued for that address**. Operational messages carry neither.
+
+The footer reads **Unsubscribe · Imotara**. The postal address was removed at the owner's request on 2026-09-04; a note in `src/lib/broadcast/markup.ts` records that CAN-SPAM requires a physical address in commercial mail reaching US recipients, and restoring it is a one-line change there.
 
 **Never remove someone from the suppression list to "let them back in".** A working unsubscribe is the reason a recipient presses it instead of "Report spam", and one spam report costs more reputation than a hundred unsubscribes.
 
-### Consent policy
+---
 
-Only people who approached Imotara may be mailed: an event, a meeting, an email, WhatsApp, social media, the website form, a phone call, or an app signup. **Harvested or scraped lists are not permitted**, which is why the source enum has no value for them. If asked to mail a bought or scraped list, refuse.
+### 16.10 Watch these
 
-**SQL:** `docs/sql/broadcast_v1.sql` (10 sections, all applied to production 2026-09-03/04). **Env:** `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `BROADCAST_UNSUBSCRIBE_SECRET`, optional `BROADCAST_DAILY_CAP`.
+**Sending status** answers two questions: can we send at all, and how much today. Everything on it is read live — the environment for the secrets, `broadcast_sends` for the usage — never a stored flag.
+
+- **Delivery reporting** — without `RESEND_WEBHOOK_SECRET`, mail still sends but every message stays at "sent", so delivered, bounced and complaint all read zero whatever actually happens. The report then looks healthy while describing nothing.
+- **A send has stopped moving** — something is marked sending, work is waiting, and nothing has gone out for fifteen minutes. That is longer than the every-minute schedule or any ordinary rate limit, so it means the cron is not running or Resend is refusing every attempt.
+- **Spam reports** — mailbox providers judge a sender on complaint rate and the threshold is around 0.1%. A climbing number is the content's fault, not the infrastructure's.
+
+---
+
+### 16.11 Consent policy
+
+Only people who approached Imotara may be mailed: an event, a meeting, an email, WhatsApp, social media, the website form, a phone call, or an app signup. **Harvested, scraped or bought lists are not permitted**, which is why the source list has no value for them. If asked to mail one, refuse.
+
+---
+
+**Files:** `docs/sql/broadcast_v1.sql` (12 sections, all applied to production). Routes under `src/app/api/admin/broadcast/`, public ones at `/api/interest`, `/api/interest/confirm`, `/api/unsubscribe`, `/api/webhooks/resend`. UI in `src/components/admin/Broadcast*.tsx`. Rendering and merge fields in `src/lib/broadcast/markup.ts`.
+
+**Environment:** `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `BROADCAST_UNSUBSCRIBE_SECRET`, `BROADCAST_FROM_EMAIL` (fallback identity), optional `BROADCAST_DAILY_CAP`, optional `BROADCAST_ALERT_EMAIL` (defaults to `ALERT_GMAIL_USER`).
 
 ---
 

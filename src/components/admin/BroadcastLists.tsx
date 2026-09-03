@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
+import { defaultListName } from "@/lib/broadcast/listName";
 
 export type ListRow = {
   id: string;
@@ -25,6 +26,10 @@ export default function BroadcastLists({
   const [lists, setLists] = useState<ListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Filled in on mount rather than in the initial state: this component is
+  // server-rendered first, and a clock-derived value would differ between the
+  // server's render and the browser's, which React reports as a hydration
+  // mismatch.
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -41,6 +46,8 @@ export default function BroadcastLists({
 
   useEffect(() => { void load(); }, [load]);
 
+  useEffect(() => { setNewName(defaultListName()); }, []);
+
   async function create() {
     const name = newName.trim();
     if (!name || busy) return;
@@ -55,7 +62,9 @@ export default function BroadcastLists({
       // 409 means the name collides — the schema's unique index is on
       // lower(name), so "Staff" and "staff" are the same list.
       if (!res.ok) { setError(j.error ?? `Could not create the list (HTTP ${res.status}).`); return; }
-      setNewName("");
+      // A fresh timestamp, not a cleared box — the next list is usually
+      // created moments later and would otherwise reuse a stale minute.
+      setNewName(defaultListName());
       await load();
     } catch { setError("Network error."); }
     finally { setBusy(false); }
@@ -88,6 +97,7 @@ export default function BroadcastLists({
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") void create(); }}
             placeholder="e.g. Child Care — all staff"
+            onFocus={(e) => e.target.select()}
             className="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-indigo-500/40"
           />
           <button
@@ -98,6 +108,10 @@ export default function BroadcastLists({
             Create list
           </button>
         </div>
+        <p className="mt-1.5 text-[10px] text-zinc-600">
+          Named for the moment it was created. Type over it if the list has a
+          better name — two lists cannot share one, and the check ignores case.
+        </p>
       </div>
 
       {error && (

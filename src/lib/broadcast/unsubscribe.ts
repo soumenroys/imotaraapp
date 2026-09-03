@@ -68,8 +68,21 @@ export function verifyUnsubscribeToken(
   return { email: body.slice(0, idx), broadcastId: body.slice(idx + 1) };
 }
 
+/** The link a PERSON clicks: a page that asks before doing anything. */
 export function unsubscribeUrl(email: string, broadcastId: string): string {
   return `${SITE}/unsubscribe?t=${makeUnsubscribeToken(email, broadcastId)}`;
+}
+
+/**
+ * The URL a MAIL PROVIDER posts to for RFC 8058 one-click.
+ *
+ * It has to be the API route, not the page: Gmail sends a POST and a page
+ * route answers 405, at which point Gmail stops showing the unsubscribe button
+ * for this sender — and the next person who wants out presses "Report spam"
+ * instead, which costs far more reputation.
+ */
+export function unsubscribePostUrl(email: string, broadcastId: string): string {
+  return `${SITE}/api/unsubscribe?t=${makeUnsubscribeToken(email, broadcastId)}`;
 }
 
 /**
@@ -91,7 +104,7 @@ export function unsubscribeHeaders(
   if (messageType !== "broadcast") return undefined;
   if (!SECRET) return undefined;
   return {
-    "List-Unsubscribe": `<${unsubscribeUrl(email, broadcastId)}>`,
+    "List-Unsubscribe": `<${unsubscribePostUrl(email, broadcastId)}>`,
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
   };
 }

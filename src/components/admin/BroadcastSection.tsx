@@ -15,11 +15,13 @@ import BroadcastComposer, { type Draft } from "./BroadcastComposer";
 import BroadcastReview from "./BroadcastReview";
 import BroadcastStatus from "./BroadcastStatus";
 import BroadcastHealth from "./BroadcastHealth";
+import BroadcastRequests from "./BroadcastRequests";
 
 type View =
   | { name: "list" }
   | { name: "lists" }
   | { name: "health" }
+  | { name: "requests" }
   | { name: "recipients"; list: ListRow }
   | { name: "compose"; draft: Draft }
   | { name: "review"; id: string }
@@ -151,6 +153,7 @@ export default function BroadcastSection({ token }: { token: string }) {
       {([
         [{ name: "list" }, "Broadcasts"],
         [{ name: "lists" }, "Recipient lists"],
+        [{ name: "requests" }, "Requests"],
         [{ name: "health" }, "Sending status"],
       ] as [View, string][]).map(([target, label]) => {
         const k = target.name;
@@ -167,6 +170,10 @@ export default function BroadcastSection({ token }: { token: string }) {
       );})}
     </div>
   );
+
+  if (view.name === "requests") {
+    return <div>{subnav}<BroadcastRequests token={token} lists={lists} /></div>;
+  }
 
   if (view.name === "health") {
     return <div>{subnav}<BroadcastHealth token={token} /></div>;

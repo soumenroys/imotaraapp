@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { renderHtml, renderText } from "@/lib/broadcast/markup";
-import { sendingIdentities } from "@/lib/broadcast/resendClient";
+import { availableIdentities, findIdentity } from "@/lib/broadcast/identities";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -118,13 +118,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   // only to one of the nominated identities — the same rule as creation, so
   // the edit path cannot be used to get around it.
   if (typeof body.from_email === "string") {
-    const wanted = body.from_email.trim().toLowerCase();
-    if (!sendingIdentities(auth.admin.email).includes(wanted)) {
+    const allowed = await availableIdentities(supabase, auth.admin.email, auth.admin.name);
+    const chosen = findIdentity(allowed, body.from_email);
+    if (!chosen) {
       return NextResponse.json(
         { error: "That is not an address this platform can send from" }, { status: 400 },
       );
     }
-    patch.from_email = wanted;
+    patch.from_email = chosen.email;
+    patch.from_name = chosen.name || null;
   }
 
   // from_name, reply_to and created_by are absent by design — a later edit must

@@ -89,7 +89,7 @@ export default function BroadcastComposer({
   token: string;
   initial: Draft;
   lists: ListRow[];
-  identities: string[];
+  identities: { name: string; email: string }[];
   onSaved: (id: string) => void;
   onReview: (id: string) => void;
   onBack: () => void;
@@ -629,21 +629,27 @@ export default function BroadcastComposer({
                 <label className="flex flex-wrap items-center gap-2">
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">From</span>
                   <select
-                    value={draft.from_email ?? identities[0]}
+                    value={draft.from_email ?? identities[0]?.email}
                     onChange={(e) => set("from_email", e.target.value)}
                     disabled={locked}
                     className="min-w-0 flex-1 rounded-md border border-white/10 bg-zinc-900 px-2 py-1.5 font-mono text-[11px] text-zinc-200 outline-none focus:border-indigo-500/40 disabled:opacity-50"
                   >
-                    {identities.map((e) => <option key={e} value={e}>{e}</option>)}
+                    {identities.map((i) => (
+                      <option key={i.email} value={i.email}>
+                        {i.name ? `${i.name} <${i.email}>` : i.email}
+                      </option>
+                    ))}
                   </select>
                 </label>
               ) : (
                 <p className="text-[10px] leading-relaxed text-zinc-600">
-                  From {draft.from_name ? `${draft.from_name} <${draft.from_email ?? identities[0]}>` : draft.from_email ?? identities[0] ?? "your admin address"}.
+                  From {draft.from_name
+                    ? `${draft.from_name} <${draft.from_email ?? identities[0]?.email ?? ""}>`
+                    : draft.from_email ?? identities[0]?.email ?? "no address configured"}.
                 </p>
               )}
               <p className="mt-1 text-[10px] leading-relaxed text-zinc-600">
-                {draft.reply_to && draft.reply_to !== (draft.from_email ?? identities[0]) && (
+                {draft.reply_to && draft.reply_to !== (draft.from_email ?? identities[0]?.email) && (
                   <>Replies go to <span className="text-zinc-400">{draft.reply_to}</span>. </>
                 )}
                 {draft.message_type === "broadcast" && "The unsubscribe line is added automatically — each recipient gets their own link."}

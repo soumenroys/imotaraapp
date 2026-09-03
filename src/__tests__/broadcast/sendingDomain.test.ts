@@ -46,49 +46,47 @@ describe("canSendFrom", () => {
   });
 });
 
-describe("sendingIdentities", () => {
-  const original = process.env.BROADCAST_FROM_EMAIL;
-  afterEach(() => {
-    if (original === undefined) delete process.env.BROADCAST_FROM_EMAIL;
-    else process.env.BROADCAST_FROM_EMAIL = original;
+describe("parseIdentities", () => {
+  it("keeps a display name with its address", async () => {
+    const { parseIdentities } = await import("@/lib/broadcast/resendClient");
+    expect(parseIdentities("Imotara <hello@imotara.com>"))
+      .toEqual([{ name: "Imotara", email: "hello@imotara.com" }]);
   });
 
-  it("offers the admin's own address when it is on the domain", async () => {
-    delete process.env.BROADCAST_FROM_EMAIL;
-    const { sendingIdentities } = await import("@/lib/broadcast/resendClient");
-    expect(sendingIdentities("suchismita.sen@imotara.com")).toEqual(["suchismita.sen@imotara.com"]);
+  it("accepts a bare address with no name", async () => {
+    const { parseIdentities } = await import("@/lib/broadcast/resendClient");
+    expect(parseIdentities("hello@imotara.com"))
+      .toEqual([{ name: "", email: "hello@imotara.com" }]);
   });
 
-  it("offers nothing when the login is off-domain and none is configured", async () => {
-    delete process.env.BROADCAST_FROM_EMAIL;
-    const { sendingIdentities } = await import("@/lib/broadcast/resendClient");
-    // This is the state that makes the whole feature inert, so it must be
-    // an empty list the UI can react to, never a silent fallback.
-    expect(sendingIdentities("soumenroys@gmail.com")).toEqual([]);
+  it("reads a comma-separated list", async () => {
+    const { parseIdentities } = await import("@/lib/broadcast/resendClient");
+    expect(parseIdentities("Imotara <hello@imotara.com>, news@imotara.com"))
+      .toHaveLength(2);
   });
 
-  it("falls back to the configured address for an off-domain login", async () => {
-    process.env.BROADCAST_FROM_EMAIL = "hello@imotara.com";
-    const { sendingIdentities } = await import("@/lib/broadcast/resendClient");
-    expect(sendingIdentities("soumenroys@gmail.com")).toEqual(["hello@imotara.com"]);
+  it("drops anything off the verified domain", async () => {
+    const { parseIdentities } = await import("@/lib/broadcast/resendClient");
+    expect(parseIdentities("Someone <someone@gmail.com>, hello@imotara.com"))
+      .toEqual([{ name: "", email: "hello@imotara.com" }]);
   });
 
-  it("puts the admin's own address first, then the configured ones", async () => {
-    process.env.BROADCAST_FROM_EMAIL = "hello@imotara.com, news@imotara.com";
-    const { sendingIdentities } = await import("@/lib/broadcast/resendClient");
-    expect(sendingIdentities("suchismita.sen@imotara.com"))
-      .toEqual(["suchismita.sen@imotara.com", "hello@imotara.com", "news@imotara.com"]);
-  });
-
-  it("drops a configured address that is not on the verified domain", async () => {
-    process.env.BROADCAST_FROM_EMAIL = "someone@gmail.com, hello@imotara.com";
-    const { sendingIdentities } = await import("@/lib/broadcast/resendClient");
-    expect(sendingIdentities(null)).toEqual(["hello@imotara.com"]);
+  it("strips quotes and backslashes from the name", async () => {
+    // They would break out of the quoting the sender applies to the display
+    // name, letting a configured value forge a second address in the header.
+    const { parseIdentities } = await import("@/lib/broadcast/resendClient");
+    const [id] = parseIdentities('"Im\\otara" <hello@imotara.com>');
+    expect(id.name).toBe("Imotara");
   });
 
   it("does not repeat an address listed twice", async () => {
-    process.env.BROADCAST_FROM_EMAIL = "hello@imotara.com";
-    const { sendingIdentities } = await import("@/lib/broadcast/resendClient");
-    expect(sendingIdentities("hello@imotara.com")).toEqual(["hello@imotara.com"]);
+    const { parseIdentities } = await import("@/lib/broadcast/resendClient");
+    expect(parseIdentities("A <hello@imotara.com>, B <hello@imotara.com>")).toHaveLength(1);
+  });
+
+  it("returns nothing for an empty setting", async () => {
+    const { parseIdentities } = await import("@/lib/broadcast/resendClient");
+    expect(parseIdentities("")).toEqual([]);
+    expect(parseIdentities("   ,  ")).toEqual([]);
   });
 });

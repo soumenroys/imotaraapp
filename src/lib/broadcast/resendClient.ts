@@ -45,26 +45,41 @@ export function canSendFrom(email: string | null | undefined): boolean {
   return e.endsWith(`@${domain}`) || e.endsWith(`.${domain}`);
 }
 
-/**
- * Addresses a broadcast may be sent from, most preferred first.
- *
- * Two rules, and the second one is the point of this function. An address must
- * be on the verified domain — Resend refuses anything else. And it must be one
- * this platform has actually nominated: either the signed-in admin's own login,
- * or an address the platform owner listed in BROADCAST_FROM_EMAIL. Free choice
- * of any address on the domain would let one admin send as a colleague, which
- * is not a power a compose box should quietly hand out.
- */
-export function sendingIdentities(adminEmail?: string | null): string[] {
-  const out: string[] = [];
-  const own = (adminEmail ?? "").trim().toLowerCase();
-  if (own && canSendFrom(own)) out.push(own);
+export type Identity = { name: string; email: string };
 
-  for (const raw of (process.env.BROADCAST_FROM_EMAIL ?? "").split(",")) {
-    const e = raw.trim().toLowerCase();
-    if (e && canSendFrom(e) && !out.includes(e)) out.push(e);
+/**
+ * Parse "Imotara <hello@imotara.com>, news@imotara.com" into identities.
+ *
+ * A display name belongs WITH its address, not separately. Keeping them apart
+ * is how mail ends up reading "Soumen Roy <suchismita.sen@imotara.com>" — a
+ * person's name beside somebody else's address, which a recipient reasonably
+ * reads as that person owning the address.
+ */
+export function parseIdentities(raw: string): Identity[] {
+  const out: Identity[] = [];
+  for (const part of (raw ?? "").split(",")) {
+    const chunk = part.trim();
+    if (!chunk) continue;
+
+    const angled = /^(.*?)<([^>]+)>$/.exec(chunk);
+    const email = (angled ? angled[2] : chunk).trim().toLowerCase();
+    // Quotes and backslashes would break out of the display-name quoting the
+    // sender applies, so they are stripped rather than escaped.
+    const name = (angled ? angled[1] : "").trim().replace(/^["']|["']$/g, "").replace(/["\\]/g, "");
+
+    if (!canSendFrom(email)) continue;
+    if (out.some((i) => i.email === email)) continue;
+    out.push({ name, email });
   }
   return out;
+}
+
+/**
+ * Identities configured through the environment, as a fallback for when none
+ * have been set up in the panel yet.
+ */
+export function envIdentities(): Identity[] {
+  return parseIdentities(process.env.BROADCAST_FROM_EMAIL ?? "");
 }
 
 export function isResendConfigured(): boolean {

@@ -10,7 +10,8 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { previewEnqueue } from "@/lib/broadcast/enqueue";
 import { getBudget } from "@/lib/broadcast/warmup";
 import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
-import { isResendConfigured, canSendFrom, sendingDomain, sendingIdentities } from "@/lib/broadcast/resendClient";
+import { isResendConfigured, canSendFrom, sendingDomain } from "@/lib/broadcast/resendClient";
+import { availableIdentities } from "@/lib/broadcast/identities";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -41,13 +42,13 @@ export async function GET(req: NextRequest, { params }: Params) {
   }
   if (!isResendConfigured()) blockers.push("Sending is not configured (RESEND_API_KEY)");
   if (!canSendFrom(b.from_email)) {
-    const allowed = sendingIdentities(auth.admin.email);
+    const allowed = await availableIdentities(supabase, auth.admin.email, auth.admin.name);
     blockers.push(
       allowed.length > 0
         ? `This draft would be sent from ${b.from_email}, which is not on the verified ` +
-          `sending domain (${sendingDomain()}). Change the From address to ${allowed[0]}.`
+          `sending domain (${sendingDomain()}). Change the From address to ${allowed[0].email}.`
         : `Nothing on this platform can send yet: ${b.from_email} is not on the verified ` +
-          `domain (${sendingDomain()}), and BROADCAST_FROM_EMAIL names no address that is.`,
+          `domain (${sendingDomain()}), and no sending identity is configured.`,
     );
   }
   if (b.message_type === "broadcast" && !isUnsubscribeConfigured()) {

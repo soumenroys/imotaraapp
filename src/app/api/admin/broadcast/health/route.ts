@@ -13,7 +13,8 @@ import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getBudget } from "@/lib/broadcast/warmup";
 import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
-import { isResendConfigured, sendingIdentities, sendingDomain } from "@/lib/broadcast/resendClient";
+import { isResendConfigured, sendingDomain } from "@/lib/broadcast/resendClient";
+import { availableIdentities } from "@/lib/broadcast/identities";
 
 export async function GET(req: NextRequest) {
   const auth = await requireOwner(req);
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
     // What this admin can actually send as. Empty means their login is off the
     // verified domain and no fallback is configured — the one state where the
     // whole feature is inert for them, and it needs saying out loud.
-    identities: sendingIdentities(auth.admin.email),
+    identities: await availableIdentities(supabase, auth.admin.email, auth.admin.name),
     sendingDomain: sendingDomain(),
     configured: {
       // The API key's presence, not its validity — proving validity would mean

@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { renderHtml, renderText } from "@/lib/broadcast/markup";
-import { sendingIdentities } from "@/lib/broadcast/resendClient";
+import { availableIdentities, findIdentity } from "@/lib/broadcast/identities";
 
 const MAX_SUBJECT = 200;
 const MAX_SOURCE = 100_000;   // ~30 printed pages; a paste bigger than this is a mistake
@@ -70,19 +70,19 @@ export async function POST(req: NextRequest) {
   //
   // reply_to is the admin's real address regardless of domain, so an owner
   // signed in with a personal address still receives the answers.
-  const allowed = sendingIdentities(auth.admin.email);
+  const supabase = getSupabaseAdmin();
+  const allowed = await availableIdentities(supabase, auth.admin.email, auth.admin.name);
   const asked = typeof body.from_email === "string" ? body.from_email.trim().toLowerCase() : "";
-  const from = asked && allowed.includes(asked) ? asked : allowed[0];
+  const from = (asked && findIdentity(allowed, asked)) || allowed[0] || null;
 
   if (!from) {
     return NextResponse.json({
       error: "No address is available to send from",
       hint: `Your login (${auth.admin.email}) is not on the verified sending domain, ` +
-            `and BROADCAST_FROM_EMAIL is not set to one that is.`,
-      allowed,
+            `and no sending identity has been configured. Set one on the Sending status tab.`,
     }, { status: 400 });
   }
-  const { data, error } = await getSupabaseAdmin()
+  const { data, error } = await supabase
     .from("broadcasts")
     .insert({
       subject,
@@ -91,8 +91,10 @@ export async function POST(req: NextRequest) {
       body_text: renderText(source),
       message_type: messageType,
       list_id: typeof body.list_id === "string" ? body.list_id : null,
-      from_email: from,
-      from_name: auth.admin.name,
+      // Name and address travel together — the display name comes from the
+      // identity, never from whichever admin happened to be signed in.
+      from_email: from.email,
+      from_name: from.name || null,
       reply_to: auth.admin.email.toLowerCase(),
       created_by: auth.admin.id,
       status: "draft",

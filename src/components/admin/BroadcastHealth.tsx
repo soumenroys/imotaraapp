@@ -10,10 +10,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
+import BroadcastIdentities from "./BroadcastIdentities";
+
+type Identity = { name: string; email: string };
 
 type Health = {
   sender: { email: string; name: string | null };
-  identities: string[];
+  identities: Identity[];
   sendingDomain: string;
   configured: { resend: boolean; unsubscribe: boolean; webhook: boolean };
   budget: { week: number; cap: number; sentToday: number; remaining: number };
@@ -131,7 +134,9 @@ export default function BroadcastHealth({ token }: { token: string }) {
           <p className="text-[11px] text-zinc-400">
             You can send as{" "}
             {(h.identities ?? []).length > 0 ? (
-              <span className="font-mono text-zinc-200">{(h.identities ?? []).join(", ")}</span>
+              <span className="font-mono text-zinc-200">
+                {(h.identities ?? []).map((i) => (i.name ? `${i.name} <${i.email}>` : i.email)).join(", ")}
+              </span>
             ) : (
               <span className="text-rose-300">nothing</span>
             )}
@@ -145,13 +150,14 @@ export default function BroadcastHealth({ token }: { token: string }) {
           </p>
           {(h.identities ?? []).length === 0 && (
             <p className="mt-2 rounded-lg border border-rose-400/25 bg-rose-500/8 px-2.5 py-1.5 text-[11px] leading-relaxed text-rose-300">
-              Nothing can be sent from this account. Your login is not on {h.sendingDomain},
-              and BROADCAST_FROM_EMAIL names no address that is. Set it to a real
-              mailbox on {h.sendingDomain} and redeploy.
+              Nothing can be sent from this account. Your login is not on {h.sendingDomain}
+              and no sending address is configured — add one below.
             </p>
           )}
         </div>
       </div>
+
+      <BroadcastIdentities token={token} />
 
       {/* ── Suppressions and queue ────────────────────────────────────── */}
       <div className="grid gap-2 sm:grid-cols-4">

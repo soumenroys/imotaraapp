@@ -73,7 +73,7 @@ export default function BroadcastSection({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lists, setLists] = useState<ListRow[]>([]);
-  const [identities, setIdentities] = useState<string[]>([]);
+  const [identities, setIdentities] = useState<{ name: string; email: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);

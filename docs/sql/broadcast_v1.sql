@@ -450,22 +450,25 @@ create index if not exists broadcasts_scheduled_idx
 -- 'scheduled' has to be a real status rather than a draft with a date on it:
 -- a draft can still be edited, and a message that is already committed to go
 -- out at a time must not be.
-do $
-declare c text;
+do $$
+declare c record;
 begin
-  select conname into c
-    from pg_constraint
-   where conrelid = 'broadcasts'::regclass
-     and contype = 'c'
-     and pg_get_constraintdef(oid) ilike '%status%';
-
-  if c is not null then
-    execute format('alter table broadcasts drop constraint %I', c);
-  end if;
+  -- Every check constraint mentioning status, not just the first: if an
+  -- earlier run left two behind, dropping one and adding another would fail
+  -- on the one still standing.
+  for c in
+    select conname
+      from pg_constraint
+     where conrelid = 'broadcasts'::regclass
+       and contype = 'c'
+       and pg_get_constraintdef(oid) ilike '%status%'
+  loop
+    execute format('alter table broadcasts drop constraint %I', c.conname);
+  end loop;
 
   alter table broadcasts add constraint broadcasts_status_check
     check (status in ('draft','scheduled','sending','sent','failed','paused'));
-end $;
+end $$;
 
 -- G7 — confirmed opt-in. A form submission proves someone typed an address,
 -- not that they own it. Until this is set, the address has only been claimed.

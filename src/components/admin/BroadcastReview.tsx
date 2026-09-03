@@ -214,17 +214,29 @@ export default function BroadcastReview({
             onChange={(e) => setTyped(e.target.value)}
             disabled={!p.canSend}
             inputMode="numeric"
-            placeholder={String(counts.queued)}
+            autoFocus
+            aria-label={`Type ${counts.queued} to confirm`}
             className="w-28 rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-center font-mono text-sm text-zinc-100 outline-none focus:border-indigo-500/40 disabled:opacity-40"
           />
           <button
             onClick={() => void send()}
             disabled={!ready}
+            title={
+              !p.canSend ? "Something above still needs fixing"
+                : !confirmed ? `Type ${counts.queued} in the box first`
+                : multiDay && !acceptMultiDay ? "Tick the box above to accept the multi-day send"
+                : undefined
+            }
             className="rounded-lg border border-emerald-500/30 bg-emerald-500/12 px-4 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-40"
           >
             {sending ? "Starting…" : `Send to ${counts.queued} people`}
           </button>
         </div>
+        {!confirmed && (
+          <p className="mt-2 text-[10px] text-amber-300/80">
+            The button stays locked until the box reads {counts.queued}.
+          </p>
+        )}
         <p className="mt-2 text-[10px] leading-relaxed text-zinc-600">
           There is no undo. Sending starts within a minute and continues in the
           background — you do not need to keep this page open.

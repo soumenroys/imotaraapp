@@ -30,8 +30,24 @@ type BroadcastRow = {
   body_text: string;
   message_type: "broadcast" | "operational";
   from_email: string;
+  from_name: string | null;
   status: string;
 };
+
+/**
+ * "Suchismita Sen <suchismita.sen@imotara.com>" rather than the bare address.
+ * Recipients see the name, which is the entire premise of the feature — the
+ * mail comes from a person, not a system. Falls back to the bare address for
+ * a broadcast created before from_name existed.
+ *
+ * A name containing " or \ would break the quoted display-name syntax, so
+ * those are stripped rather than escaped: an admin's name legitimately
+ * containing them is far less likely than a malformed From header.
+ */
+function fromHeader(b: BroadcastRow): string {
+  const name = b.from_name?.trim().replace(/["\\]/g, "");
+  return name ? `"${name}" <${b.from_email}>` : b.from_email;
+}
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -57,7 +73,7 @@ export async function GET(req: NextRequest) {
   // caused it, rather than whichever run happened to be interleaved.
   const { data: broadcast, error: bErr } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_html, body_text, message_type, from_email, status")
+    .select("id, subject, body_html, body_text, message_type, from_email, from_name, status")
     .eq("status", "sending")
     .order("started_at", { ascending: true, nullsFirst: false })
     .limit(1)
@@ -117,8 +133,9 @@ export async function GET(req: NextRequest) {
   }
 
   // ── 4. Build ───────────────────────────────────────────────────────────────
+  const sender = fromHeader(broadcast);
   const messages: BroadcastMessage[] = rows.map((r) => ({
-    from: broadcast.from_email,
+    from: sender,
     to: r.email,
     subject: broadcast.subject,
     html: broadcast.body_html +

@@ -297,6 +297,23 @@ begin
 end $$;
 
 
+-- ── 8. SENDER DISPLAY NAME ───────────────────────────────────────────────────
+--
+-- from_email is a bare address, enforced by the format constraint above. Sent
+-- alone, recipients see "suchismita.sen@imotara.com" rather than
+-- "Suchismita Sen" — and the entire premise of this feature is that a
+-- broadcast comes from a person, not a system.
+--
+-- Snapshotted for the same reason as from_email: joining super_admins at send
+-- time would make the historical record change if the admin is later renamed
+-- or removed, and the record is meant to say who sent it AT THE TIME.
+--
+-- Nullable, because a broadcast created before this column existed has no
+-- name to recover; the send path falls back to the bare address.
+
+alter table broadcasts add column if not exists from_name text;
+
+
 -- ── Verification ─────────────────────────────────────────────────────────────
 -- Run this after the migration. It must return EXACTLY 6 rows, every one
 -- showing rls_enabled = true and policy_count = 0 — that combination is what

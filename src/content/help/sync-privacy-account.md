@@ -78,6 +78,27 @@ Deletion is available on every plan, including Free, and removes your cloud-stor
 3. Local data on your devices is cleared separately (see "Clear local data" above) or by uninstalling the app.
 4. **This cannot be undone.** If you hit any trouble completing a deletion or data request in-app, email **info@imotara.com** and we'll take care of it.
 
+## Emails from Imotara
+
+Imotara sends two different kinds of email, and they behave differently on purpose.
+
+**Essential messages** — a password reset, a sign-in link, a change to the terms, a receipt. These are part of having an account and cannot be turned off, because you need them.
+
+**Updates and offers** — occasional news about the app. We only send these to people who asked for them: you filled in the form at **imotara.com/updates**, met us at an event, wrote to us, or told us in person that you wanted to hear from us. We do not buy or scrape address lists.
+
+### Sign up for updates
+Go to **imotara.com/updates**, enter your address and tick the consent box. You can say what you would like to hear about; we keep that in mind.
+
+### Stop receiving updates
+Every update email has an **Unsubscribe** link at the bottom, and most email apps also show an unsubscribe button next to our name at the top. Either one works immediately — including for anything already queued to go out. You do not need to sign in, reply, or explain yourself.
+
+If the link does not work — some email programs break long links across two lines — write to **suchismita.sen@imotara.com** and we will remove you by hand. We will not ask you why.
+
+Unsubscribing from updates does **not** close your account or stop essential messages.
+
+### What we store, and who sends it
+For updates we store your address, how we came to have it, and when. Where you signed up through the form, we also keep the time and the connection it came from — that is our evidence that you actually consented, and it exists to protect you as much as us. Our email provider, **Resend**, delivers the message on our behalf. Your address is never sold, rented or shared with anyone else.
+
 ## A note on guest data
 
 If you use Imotara without signing in, your data exists only on that device. Reinstalling the app or clearing browser storage removes it permanently — there is no way for us to recover it, because we never had it. If your history matters to you, sign in so it's backed up.

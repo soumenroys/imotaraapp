@@ -17,7 +17,7 @@ Key facts (from `src/app/api/admin/_auth.ts` and `src/lib/imotara/adminCrypto.ts
 - Passwords are hashed with **scrypt** (never stored in plain text).
 - A successful login issues a session stored as an **httpOnly cookie** named `imotara_admin_session`.
 - **Sessions last 8 hours** (`SESSION_TTL_MS = 8 hours`), then require re-login.
-- Every admin API route checks the session cookie first. There is also a legacy `ADMIN_SECRET` Bearer-token fallback (see §15).
+- Every admin API route checks the session cookie first. There is also a legacy `ADMIN_SECRET` Bearer-token fallback (see §17).
 
 ### 1.1 Roles and exactly what each can/cannot do
 
@@ -154,7 +154,7 @@ When 2FA is enabled, login is completed by verifying the TOTP code against the p
 
 ### 6.1 Log in
 1. Go to `/admin`.
-2. The login card has two tabs: **Email / Password** (preferred, your personal account) and **Secret key** (legacy emergency fallback, see §15).
+2. The login card has two tabs: **Email / Password** (preferred, your personal account) and **Secret key** (legacy emergency fallback, see §17).
 3. Enter credentials and submit (`POST /api/admin/auth/login`). A session cookie is set for **8 hours**.
 
 ### 6.2 See your active sessions
@@ -415,7 +415,51 @@ Behavior (`POST .../members` with `action: "resend_password_link"`, super-admin 
 
 ---
 
-## 16. Security note: the ADMIN_SECRET legacy fallback
+## 16. Broadcast email (added 2026-09-03) — **owner only**
+
+**Where:** `/admin` -> the **📣 Broadcast** tab. It is the only tab restricted to the `owner` role. Every route behind it calls `requireOwner()`, so the hidden tab is convenience and the server is the rule. `requireOwner()` additionally **refuses the legacy `ADMIN_SECRET` bearer path** (see §17): that path returns a synthetic identity which is not a row in `super_admins`, so it could never satisfy `created_by`.
+
+The tab has four screens:
+
+**Broadcasts** — every message, with delivered/bounced/complaint tallies. Sent broadcasts are permanent and cannot be edited or deleted; the record has to keep saying what people actually received. Duplicate one to send a revised version.
+
+**Recipient lists** — create a list, then paste addresses into it. Pasting is a two-step: **Check** is a real dry run against the database and reports five buckets — new, already on this list, repeated in the paste, unsubscribed/bounced, and not a valid address (with a suggested correction). Nothing is written until you confirm. **Adding requires provenance**: a source (one of eight, all describing something the *person* did — there is deliberately no "found online"), a free-text detail, and a collection date. The API rejects a write missing any of the three. Removing an address with the **×** removes list membership only and never touches suppression: opting out is the recipient's decision, not the admin's.
+
+**Requests** — people who filled in the public form at `www.imotara.com/updates`. Adding someone from here copies their provenance across (source `website_form`, the real submission date, the IP the consent came from) rather than retyping it. An address already suppressed is flagged, and adding it clears nothing — anyone can type anyone's address into a form.
+
+**Sending status** — can we send at all, and how much today. Reads the live environment and the send table, never a stored flag. Watch the **Delivery reporting** line: without `RESEND_WEBHOOK_SECRET`, mail still goes out but every message stays at `sent`, so delivered/bounced/complaint counts read zero whatever actually happens.
+
+### Writing and sending
+
+The composer stores a small markup, not HTML. Bold, italic, underline, strike, colour, font, size, alignment, headings, lists, quotes, buttons, links and images are all available, and all of them are rendered to email HTML server-side from a whitelist. Colour and font values are *checked*, not escaped — escaping would happily pass `red;background:url(http://tracker/p.gif)` into a style attribute. The client sends `body_source` only; `body_html`/`body_text` are never accepted from a request.
+
+Images can be uploaded, dragged onto the message, pasted from the clipboard, or given as a URL. Uploads go to the public `broadcast-images` bucket. **Google Drive, OneDrive, SharePoint, iCloud and Google Photos share links are refused** — they point at a viewer page, not an image, and would arrive as a broken picture. Dropbox links are repaired automatically. The composer measures the rendered message against Gmail's ~102KB clipping limit and warns before the unsubscribe link is what gets hidden.
+
+**Review & send** shows the arithmetic: who is on the list, who is skipped and why, how many will receive it, and — when the queue exceeds today's warm-up ceiling — how many days it will take, which must be acknowledged. Confirmation is typing the recipient count. If the list changed while the screen was open, the send is refused and the number is reloaded.
+
+Pressing send does **not** send. It builds the queue and flips the status; `/api/cron/broadcast-queue` drains it every minute, up to 100 per batch. So sending survives a crash, a closed laptop, and a run larger than a function timeout.
+
+### Warm-up, and why it exists
+
+Per-day ceilings ramp by week from the first real send: **100, then 500, then 2000, then 50,000**. The week and the day's usage are derived from `broadcast_sends`, never from a counter column. `BROADCAST_DAILY_CAP` overrides the schedule; setting it to `0` halts all sending.
+
+The ceiling is not bureaucracy. A new sending domain that suddenly emits thousands of messages is filtered as a spammer, and **this domain also carries password resets and session notices** — burning it costs far more than a slow campaign.
+
+### Unsubscribing
+
+Every broadcast carries a `List-Unsubscribe` header pointing at `POST /api/unsubscribe` (RFC 8058 one-click) and a visible footer link to the `/unsubscribe` page. Both suppress the address immediately and drop anything already queued for it. Operational messages carry neither — a policy change is not optional, and claiming otherwise would be a lie.
+
+**Never remove someone from the suppression list to "let them back in".** A working unsubscribe is the reason a recipient presses it instead of "Report spam", and one spam report costs more reputation than a hundred unsubscribes.
+
+### Consent policy
+
+Only people who approached Imotara may be mailed: an event, a meeting, an email, WhatsApp, social media, the website form, a phone call, or an app signup. **Harvested or scraped lists are not permitted**, which is why the source enum has no value for them. If asked to mail a bought or scraped list, refuse.
+
+**SQL:** `docs/sql/broadcast_v1.sql` (10 sections, all applied to production 2026-09-03/04). **Env:** `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `BROADCAST_UNSUBSCRIBE_SECRET`, optional `BROADCAST_DAILY_CAP`.
+
+---
+
+## 17. Security note: the ADMIN_SECRET legacy fallback
 
 There is a legacy authentication path: a single shared secret sent as `Authorization: Bearer <ADMIN_SECRET>`. When accepted, it authenticates as a synthetic **owner** ("Admin (legacy key)").
 

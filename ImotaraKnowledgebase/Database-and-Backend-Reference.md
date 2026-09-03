@@ -1,6 +1,6 @@
 # Imotara — Database & Backend Reference
 
-*Operations and engineering reference for the Imotara web backend: Supabase Postgres, the hand-applied migration workflow, the full table catalog, the key SECURITY DEFINER RPCs and triggers, the RLS model, the complete `/api/**` route map, all scheduled cron jobs, and the environment-variable reference. Current as of v1.3.1.*
+*Operations and engineering reference for the Imotara web backend: Supabase Postgres, the hand-applied migration workflow, the full table catalog, the key SECURITY DEFINER RPCs and triggers, the RLS model, the complete `/api/**` route map, all scheduled cron jobs, and the environment-variable reference. Current as of v1.3.2.*
 
 ---
 
@@ -117,6 +117,22 @@ All these are `SECURITY DEFINER` with `set search_path = public`, and `EXECUTE` 
 ### `connect_earnings_ledger` table (added 2026-08-14)
 Durable record of consultant earnings owed per session, written *before* any credit attempt so a transient `increment_wallet_earnings` failure can't silently lose the money. Columns: `session_id` (unique, FK to `connect_sessions`), `consultant_id`, `consultant_user_id`, `amount`, `status` (`pending`/`settled`), `attempts`, `last_error`, `settled_at`. `/api/cron/connect-settle-earnings` (every 10 min) retries every `pending` row indefinitely until it settles. See `Playbook-Imotara-Connect-Journeys.md` for the full completion-flow writeup.
 
+### Broadcast tables (added 2026-09-03, `docs/sql/broadcast_v1.sql`)
+Six tables behind the owner-only **Broadcast** tab. All six have RLS **enabled with zero policies** — the service-role lockdown pattern, so `anon`/`authenticated` get default-deny and only server routes reach them.
+
+- **`broadcast_lists`** — a named recipient list. Unique on `lower(name)`.
+- **`broadcast_recipients`** — one address on one list, with its consent provenance: `source` (an 8-value CHECK — `event`, `meeting`, `email`, `whatsapp`, `social`, `website_form`, `phone`, `app_signup`; there is deliberately **no** `found_online`), `source_detail`, `collected_at`, `added_by`. Unique on `(list_id, email)`.
+- **`broadcast_suppressions`** — `email` is the PRIMARY KEY; `reason` is `unsubscribed`/`hard_bounce`/`complaint`. Checked before every send. Nothing in the product clears a row here automatically, including a new form submission from the same address.
+- **`broadcasts`** — the message. `body_source` is the composer's markup and is the **only** body field a client may write; `body_html`/`body_text` are rendered from it server-side by `src/lib/broadcast/markup.ts`. `from_email`/`from_name` are snapshotted from the signed-in owner. A broadcast that has left `draft` is immutable — duplicate to revise.
+- **`broadcast_sends`** — one row per recipient per broadcast: `queued`/`sent`/`delivered`/`bounced`/`complained`/`skipped`/`failed`, `resend_id`, `error`, `skip_reason`. Every count in the product is derived from this table, never from a stored counter.
+- **`broadcast_interest_submissions`** — public form submissions from `/updates`, with `ip`, `user_agent` and `status` (`new`/`added_to_list`/`ignored`).
+
+All four email columns carry a format CHECK constraint as well as `email = lower(email)`, so a malformed address cannot enter the database even through a route that forgot to validate.
+
+**RPC:** `broadcast_history_summary()` — aggregate tallies for the history screen; `execute` revoked from `public`/`anon`/`authenticated`, granted to `service_role` only.
+
+**Storage:** a public bucket **`broadcast-images`** (created 2026-09-04) holds composer image uploads. It is created on demand by the upload route, so there is no dashboard step.
+
 ### Triggers
 - **`trg_release_licenses_on_org_delete`** (BEFORE DELETE on `organizations`) — because `licenses.org_id` is `ON DELETE SET NULL` (not CASCADE), deleting an org would otherwise leave ex-members holding an org-derived paid tier forever. This trigger resets all affected licenses to free in the same transaction, regardless of what deleted the org.
 - **License-pool release on member removal** — folded into `revoke_org_license` (above) so pool capacity is never permanently leaked when someone leaves.
@@ -176,6 +192,11 @@ Grouped by area; one line each.
 - `POST /api/admin/users/[userId]/ban`, `/recovery-link` — real Supabase ban / one-time recovery sign-in link.
 - `GET/POST /api/admin/comments`, `/[id]`, `GET /api/admin/dashboard`.
 - `/api/admin/connect/*` — see Connect doc (pending, approve, docs, consultants, active-sessions, earnings, payouts, refunds).
+- `/api/admin/broadcast/*` (added 2026-09-03, **owner role only** via `requireOwner()`) — `lists`, `lists/[id]`, `lists/[id]/recipients`, `broadcasts`, `broadcasts/[id]`, `broadcasts/[id]/{duplicate,preview,send,export}`, `history`, `health`, `interest`, `upload`. `requireOwner()` also **rejects the legacy `ADMIN_SECRET` bearer path**: it yields a synthetic identity that is not a row in `super_admins`, so `created_by` could never be satisfied.
+
+### Public (broadcast-related, unauthenticated)
+- `POST /api/interest` — the `/updates` opt-in form. Honeypot field `website`, persistent IP rate limit (5/hour, bucket `broadcast-interest`), server-side consent check.
+- `POST /api/unsubscribe?t=<token>` — RFC 8058 one-click; this is the URL in the `List-Unsubscribe` header. `GET` performs nothing and redirects to the `/unsubscribe` page.
 
 ### Org (self-serve dashboard; `org/_auth.ts`)
 - `POST /api/org/new`, `GET /api/org/invite/[token]`, `POST /api/org/join-by-domain`.
@@ -193,7 +214,7 @@ Grouped by area; one line each.
 
 ---
 
-## 6. Cron jobs (8 from `vercel.json` — was 9 before `wallet-forfeit` was removed 2026-07-18)
+## 6. Cron jobs (9 from `vercel.json`; was 8 before `broadcast-queue` was added 2026-09-03, and 9 before `wallet-forfeit` was removed 2026-07-18)
 
 Every cron route is gated by **`CRON_SECRET`**. Most check `Authorization: Bearer <CRON_SECRET>` (Vercel Cron sends this); `exchange-rates` reads `x-cron-secret` header or `?secret=`. If `CRON_SECRET` is unset or mismatched → 401.
 
@@ -207,6 +228,7 @@ Every cron route is gated by **`CRON_SECRET`**. Most check `Authorization: Beare
 | `/api/cron/wallet-expiry-notice` | `0 3 * * *` (daily) | Sends a 30-day advance expiry warning to active wallets, sets `expiry_notified_at`. |
 | ~~`/api/cron/wallet-forfeit`~~ | — | **Descheduled 2026-07-18, route file deleted 2026-07-19** (was `0 4 * * *`). Used to attempt zeroing expired balances to `status='forfeited'`, conflicting with the v3 "never zero / dormant" policy — see §1. No longer in `vercel.json` and no longer in the codebase at all; the cron table now has 8 entries, not 9. |
 | `/api/cron/connect-scheduled` | `0 * * * *` (hourly) | Auto-cancels pending scheduled sessions whose `scheduled_at` passed >2h ago; notifies the user via push. |
+| `/api/cron/broadcast-queue` | `* * * * *` (every minute) | Drains the broadcast send queue in batches of up to 100 through Resend, within the warm-up ceiling. The idle path is a single query. A fatal error (revoked key, unverified domain) **pauses** the broadcast and leaves the queue intact; transient errors leave rows `queued` to retry. |
 | `/api/cron/connect-recharge-expiry` | `*/30 * * * *` (every 30 min) | Marks abandoned `connect_recharges` (`pending` >30 min) as `failed`, clearing the partial-unique-index that would otherwise block new recharges for that user+consultant pair. |
 
 ---
@@ -234,6 +256,12 @@ From `.env.example` plus vars discovered in code that are **not** in the example
 
 ### Voice / TTS ⚠ (not in `.env.example`)
 Azure Speech is **multi-region**, selected by the caller's country. `regionRouter.ts` reads **`AZURE_SPEECH_KEY_<SUFFIX>`** and **`AZURE_SPEECH_REGION_<SUFFIX>`** per region suffix (with an India-region default). The TTS route calls `https://<region>.tts.speech.microsoft.com/...` with `Ocp-Apim-Subscription-Key`.
+
+### Broadcast email (added 2026-09-03)
+- **`RESEND_API_KEY`** — required to send anything.
+- **`RESEND_WEBHOOK_SECRET`** — verifies Resend's delivery callbacks. Without it sending still works, but every message stays at `sent` and delivered/bounced/complaint counts read zero whatever actually happens. The **Sending status** tab says so explicitly.
+- **`BROADCAST_UNSUBSCRIBE_SECRET`** — HMAC key for unsubscribe tokens; falls back to `NEXTAUTH_SECRET`. A broadcast will not send without one.
+- **`BROADCAST_DAILY_CAP`** — optional override of the warm-up ceiling. Set to `0` to halt all sending.
 
 ### Push, email, cron, admin
 - Web Push: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`.

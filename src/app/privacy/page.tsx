@@ -233,8 +233,41 @@ export default function PrivacyPage() {
               Depending on your jurisdiction, we process information to provide the
               service, based on user consent (for optional features), performance of the
               service, legitimate interests in security and reliability, and compliance
-              with legal obligations where applicable. You may withdraw consent for
-              optional cloud features at any time.
+              with legal obligations where applicable. Marketing email is sent on the basis
+              of <strong>consent</strong> alone. You may withdraw consent for optional cloud
+              features, or for marketing email, at any time.
+            </p>
+          </section>
+
+          {/* Email we send you */}
+          <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
+            <h2 className="text-xl font-medium text-zinc-50">Email We Send You</h2>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              We send two kinds of email, and they are governed differently.
+            </p>
+            <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
+              <li>
+                <strong>Essential messages</strong> — password resets, sign-in links, receipts, and
+                notices about changes to the service. These are part of providing the service and
+                cannot be opted out of while you hold an account.
+              </li>
+              <li>
+                <strong>Updates and offers</strong> — occasional news about Imotara, sent{" "}
+                <strong>only with your consent</strong>. We do not buy, rent or scrape address lists.
+              </li>
+            </ul>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              For updates we store your email address, how we came to have it, and when. Where you
+              signed up through the form at <strong>/updates</strong>, we also record the time and the
+              IP address the submission came from — that is our record that consent was actually given,
+              and we keep it for as long as we hold the address, plus a short period afterwards as
+              evidence that we stopped when asked.
+            </p>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              Every update email carries a one-click unsubscribe link, and most email apps also offer
+              an unsubscribe button beside our name. Either takes effect immediately, including for
+              messages already queued. You do not need to sign in or give a reason. Withdrawing consent
+              for updates does not affect your account or essential messages.
             </p>
           </section>
 
@@ -297,6 +330,11 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Response generation</strong>: <strong>OpenAI (openai.com)</strong> may process the text of your message to generate a reply when cloud mode is enabled. Only your message text is sent — no account info, name, or device data is attached.
+              </li>
+              <li>
+                <strong>Email delivery</strong>: <strong>Resend (resend.com)</strong> delivers the email we
+                send you — account messages such as password resets, and, if you asked for them, occasional
+                updates about Imotara. Only your email address and the message itself are shared.
               </li>
               <li>
                 <strong>Hosting</strong>: our hosting providers deliver the web experience and APIs.

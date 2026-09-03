@@ -12,6 +12,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 import type { ListRow } from "./BroadcastLists";
+import {
+  COMMON_DOMAINS, SOURCE_DETAIL, cleanLocalPart, cleanDomain,
+  composeRows, type Row,
+} from "@/lib/broadcast/entry";
 
 // Kept in step with the CHECK constraint in broadcast_v1.sql. Every label
 // names something the PERSON did — there is deliberately no "found online".
@@ -50,9 +54,16 @@ export default function BroadcastRecipients({
   const [error, setError] = useState<string | null>(null);
 
   const [raw, setRaw] = useState("");
-  const [source, setSource] = useState("");
-  const [detail, setDetail] = useState("");
+  // Social media is the usual source here, so it is chosen for you — but a
+  // default that is wrong is worse than none, so changing the chip rewrites
+  // the description too, right up until you type your own words.
+  const [source, setSource] = useState("social");
+  const [detail, setDetail] = useState(SOURCE_DETAIL.social);
+  const [detailEdited, setDetailEdited] = useState(false);
   const [collected, setCollected] = useState(today());
+
+  const [mode, setMode] = useState<"rows" | "paste">("rows");
+  const [rows, setRows] = useState<Row[]>([{ local: "", domain: "gmail.com", custom: "" }]);
 
   const [buckets, setBuckets] = useState<Buckets | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,15 +83,38 @@ export default function BroadcastRecipients({
 
   useEffect(() => { void load(); }, [load]);
 
+  function chooseSource(v: string) {
+    setSource(v);
+    if (!detailEdited) setDetail(SOURCE_DETAIL[v] ?? "");
+  }
+
+  function setRow(i: number, patch: Partial<Row>) {
+    setRows((rs) => rs.map((r, n) => (n === i ? { ...r, ...patch } : r)));
+    setBuckets(null); setAdded(null);
+  }
+
+  function addRow(after: number) {
+    // A new row inherits the domain above it: entering twenty gmail addresses
+    // should not mean choosing gmail twenty times.
+    setRows((rs) => {
+      const prev = rs[after] ?? rs[rs.length - 1];
+      const next = [...rs];
+      next.splice(after + 1, 0, { local: "", domain: prev?.domain ?? "gmail.com", custom: prev?.custom ?? "" });
+      return next;
+    });
+  }
+
+  const typed = mode === "rows" ? composeRows(rows) : raw;
+
   async function post(dryRun: boolean) {
-    if (!raw.trim() || busy) return;
+    if (!typed.trim() || busy) return;
     setBusy(true); setError(null); setAdded(null);
     try {
       const res = await fetch(`/api/admin/broadcast/lists/${list.id}/recipients`, adminFetchOpts(token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          raw, dryRun,
+          raw: typed, dryRun,
           source, source_detail: detail, collected_at: collected,
         }),
       }));
@@ -90,6 +124,7 @@ export default function BroadcastRecipients({
       if (!dryRun) {
         setAdded(j.added ?? 0);
         setRaw("");
+        setRows([{ local: "", domain: rows[0]?.domain ?? "gmail.com", custom: rows[0]?.custom ?? "" }]);
         await load();
       }
     } catch { setError("Network error."); }
@@ -137,7 +172,7 @@ export default function BroadcastRecipients({
           {SOURCES.map((s) => (
             <button
               key={s.value}
-              onClick={() => setSource(s.value)}
+              onClick={() => chooseSource(s.value)}
               className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
                 source === s.value
                   ? "border-indigo-400/50 bg-indigo-500/20 font-medium text-indigo-200"
@@ -150,7 +185,7 @@ export default function BroadcastRecipients({
         <div className="grid gap-2 sm:grid-cols-[1.6fr_1fr]">
           <input
             value={detail}
-            onChange={(e) => setDetail(e.target.value)}
+            onChange={(e) => { setDetail(e.target.value); setDetailEdited(true); }}
             placeholder="e.g. NGO wellbeing day, Salt Lake — stall sign-up sheet"
             className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-indigo-500/40"
           />
@@ -170,29 +205,111 @@ export default function BroadcastRecipients({
         </p>
       </div>
 
-      {/* ── Paste ──────────────────────────────────────────────────────── */}
+      {/* ── Addresses ──────────────────────────────────────────────────── */}
       <div className="mb-3 rounded-xl border border-white/8 bg-white/3 p-4">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Addresses</p>
-        <textarea
-          value={raw}
-          onChange={(e) => { setRaw(e.target.value); setBuckets(null); setAdded(null); }}
-          rows={5}
-          placeholder={"One per line, or separated by commas.\npriya.n@childcare.org\nPriya N <priya.n@childcare.org>"}
-          className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 font-mono text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-indigo-500/40"
-        />
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Addresses</p>
+          <div className="flex gap-1 rounded-lg border border-white/10 bg-zinc-900 p-0.5">
+            {([["rows", "Type them in"], ["paste", "Paste a list"]] as const).map(([m, label]) => (
+              <button
+                key={m}
+                onClick={() => { setMode(m); setBuckets(null); setAdded(null); }}
+                className={`rounded-md px-2.5 py-1 text-[11px] transition ${
+                  mode === m ? "bg-white/10 font-medium text-zinc-200" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >{label}</button>
+            ))}
+          </div>
+        </div>
+
+        {mode === "rows" ? (
+          <div className="space-y-1.5">
+            {rows.map((r, i) => (
+              <div key={i} className="flex flex-wrap items-center gap-1.5">
+                <input
+                  value={r.local}
+                  onChange={(e) => setRow(i, { local: cleanLocalPart(e.target.value) })}
+                  onKeyDown={(e) => {
+                    // Enter moves to the next address rather than submitting —
+                    // this is a list being typed, not a form being finished.
+                    if (e.key === "Enter") { e.preventDefault(); addRow(i); }
+                  }}
+                  placeholder="name.surname"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-right font-mono text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-indigo-500/40"
+                />
+                <span className="font-mono text-xs text-zinc-500">@</span>
+
+                {r.domain === "__custom__" ? (
+                  <input
+                    value={r.custom}
+                    onChange={(e) => setRow(i, { custom: cleanDomain(e.target.value) })}
+                    placeholder="childcare.org"
+                    autoFocus
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="w-44 rounded-lg border border-indigo-500/30 bg-zinc-900 px-3 py-2 font-mono text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-indigo-500/40"
+                  />
+                ) : (
+                  <select
+                    value={r.domain}
+                    onChange={(e) => setRow(i, { domain: e.target.value, custom: "" })}
+                    className="w-44 rounded-lg border border-white/10 bg-zinc-900 px-2 py-2 font-mono text-xs text-zinc-300 outline-none focus:border-indigo-500/40"
+                  >
+                    {COMMON_DOMAINS.map((d) => <option key={d} value={d}>{d}</option>)}
+                    <option value="__custom__">another domain…</option>
+                  </select>
+                )}
+
+                {r.domain === "__custom__" && (
+                  <button
+                    onClick={() => setRow(i, { domain: "gmail.com", custom: "" })}
+                    title="Back to the list"
+                    className="rounded-md border border-white/10 px-2 py-1.5 text-[10px] text-zinc-500 transition hover:text-zinc-300"
+                  >list</button>
+                )}
+
+                <button
+                  onClick={() => setRows((rs) => (rs.length === 1
+                    ? [{ local: "", domain: r.domain, custom: r.custom }]
+                    : rs.filter((_, n) => n !== i)))}
+                  title="Remove this row"
+                  className="rounded-md border border-white/10 px-2 py-1.5 text-[10px] leading-none text-zinc-600 transition hover:text-rose-300"
+                >×</button>
+              </div>
+            ))}
+
+            <button
+              onClick={() => addRow(rows.length - 1)}
+              className="mt-1 rounded-lg border border-white/10 bg-zinc-900 px-2.5 py-1.5 text-[11px] text-zinc-400 transition hover:text-zinc-200"
+            >+ Another address</button>
+          </div>
+        ) : (
+          <textarea
+            value={raw}
+            onChange={(e) => { setRaw(e.target.value); setBuckets(null); setAdded(null); }}
+            rows={5}
+            placeholder={"One per line, or separated by commas.\npriya.n@childcare.org\nPriya N <priya.n@childcare.org>"}
+            className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 font-mono text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-indigo-500/40"
+          />
+        )}
+
+        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[10px] text-zinc-600">
-            Nothing is added until you confirm. Checking never stores anything.
+            {mode === "rows"
+              ? "Only characters an address may contain are accepted. Enter starts the next one."
+              : "Nothing is added until you confirm. Checking never stores anything."}
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => void post(true)}
-              disabled={!raw.trim() || busy}
+              disabled={!typed.trim() || busy}
               className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 transition hover:text-zinc-100 disabled:opacity-40"
             >{busy ? "Checking…" : "Check"}</button>
             <button
               onClick={() => void post(false)}
-              disabled={!raw.trim() || busy || !provenanceComplete || !buckets || buckets.toAdd.length === 0}
+              disabled={!typed.trim() || busy || !provenanceComplete || !buckets || buckets.toAdd.length === 0}
               title={!provenanceComplete ? "Record where these came from first" : undefined}
               className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20 disabled:opacity-40"
             >

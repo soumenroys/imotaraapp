@@ -1602,6 +1602,19 @@ const FEATURES: Record<string, Feature[]> = {
   // ─ Settings: Privacy ───────────────────────────────────────────────────────
   privacy: [
     {
+      icon: "✉️",
+      title: "Emails from Imotara",
+      short: "Account emails always arrive; updates and offers only if you asked for them — and stop the moment you say so.",
+      long: "Imotara sends two kinds of email. Essential messages — password resets, sign-in links, changes to the terms — are part of having an account and cannot be switched off, because you need them. Updates and offers are different: we only send those to people who asked, through the form at imotara.com/updates or by telling us in person. We never buy or scrape address lists. Every update email carries a one-click unsubscribe link, and it takes effect immediately, including for anything already queued.",
+      steps: [
+        "To start receiving updates: go to imotara.com/updates, enter your address and tick the consent box.",
+        "To stop: open any update email and use the Unsubscribe link at the bottom — or the unsubscribe button your email app shows beside our name.",
+        "You do not need to sign in, reply, or give a reason.",
+        "If a link is broken across two lines by your email program, write to suchismita.sen@imotara.com and we will remove you by hand.",
+        "Unsubscribing from updates does not close your account or stop essential messages.",
+      ],
+    },
+    {
       icon: "🔬",
       title: "Analysis Consent",
       short: "Grant or revoke permission for Imotara to analyse your messages for emotional content.",

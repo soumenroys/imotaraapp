@@ -228,6 +228,75 @@ alter table broadcast_interest_submissions enable row level security;
 -- API reads. anon/authenticated get default-deny.
 
 
+-- ── 7. EMAIL FORMAT — enforced by the database, not by a code path ───────────
+--
+-- The lower() checks above guarantee normalisation but not shape: 'broken@invalid'
+-- and 'deepa@childcare' both pass them, and Resend rejects both at send time.
+--
+-- Validating in the admin API only protects addresses that arrive THROUGH the
+-- admin API. A direct edit in the Supabase table editor, a future CSV importer,
+-- or a backfill script would all bypass it. Putting the rule here means a
+-- malformed address cannot be stored by any route, so the "malformed reaches
+-- the send queue" case genuinely cannot arise.
+--
+-- The pattern is deliberately pragmatic rather than RFC 5322 complete: no
+-- whitespace, exactly one @, and a dot in the domain. A full RFC regex is
+-- famously unreadable AND rejects some legitimately deliverable addresses.
+-- This rejects every malformed example we have seen while permitting
+-- everything real, including a+tag@sub.domain.co.uk.
+--
+-- NOTE: this is what still catches *malformed*. It cannot catch an address
+-- that is well-formed but does not exist — nobody@gmail.com passes here and
+-- always will. That failure surfaces later as a bounce, via the webhook, and
+-- is why broadcast_sends distinguishes 'failed' from 'bounced'.
+
+do $$
+declare
+  t text;
+  tables text[] := array[
+    'broadcast_recipients',
+    'broadcast_suppressions',
+    'broadcast_interest_submissions'
+  ];
+begin
+  foreach t in array tables loop
+    if not exists (
+      select 1 from pg_constraint
+       where conname = t || '_email_format_chk'
+    ) then
+      execute format(
+        'alter table %I add constraint %I check (email ~ %L)',
+        t, t || '_email_format_chk',
+        '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'
+      );
+    end if;
+  end loop;
+
+  -- broadcasts.from_email is the sending admin's own address; same rule.
+  if not exists (
+    select 1 from pg_constraint where conname = 'broadcasts_from_email_format_chk'
+  ) then
+    execute format(
+      'alter table broadcasts add constraint %I check (from_email ~ %L)',
+      'broadcasts_from_email_format_chk',
+      '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'
+    );
+  end if;
+
+  -- broadcast_sends.email is copied from a recipient row that already passed,
+  -- but the send record outlives the recipient, so constrain it too.
+  if not exists (
+    select 1 from pg_constraint where conname = 'broadcast_sends_email_format_chk'
+  ) then
+    execute format(
+      'alter table broadcast_sends add constraint %I check (email ~ %L)',
+      'broadcast_sends_email_format_chk',
+      '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'
+    );
+  end if;
+end $$;
+
+
 -- ── Verification ─────────────────────────────────────────────────────────────
 -- Run this after the migration. It must return EXACTLY 6 rows, every one
 -- showing rls_enabled = true and policy_count = 0 — that combination is what

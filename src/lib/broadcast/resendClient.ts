@@ -144,17 +144,21 @@ export async function sendOne(m: BroadcastMessage): Promise<SendOutcome> {
 // malformed address rejects all 100 — unusable for a drain over a list nobody
 // has hand-checked.
 //
-// Mapping results back to inputs needs care. Permissive returns `data` (ids)
-// and `errors` ({index, message}), and the natural reading is that `data`
-// holds the successes in input order while `errors[].index` points at the
-// failures. That reading has NOT been verified against a real partial-failure
-// response, and getting it wrong would write a Resend id onto the wrong
-// recipient's row — which would then silently mis-route every webhook for both
-// of them.
+// VERIFIED 2026-09-03 against the live API. A batch of 3 with index 1
+// malformed returned:
 //
-// So it is guarded: if the counts do not reconcile, the whole batch is
-// reported transient and retried individually. Worst case that is slower.
-// The alternative worst case is corrupt data that looks fine.
+//   data.data   → 2 ids, the successes IN INPUT ORDER (indices 0 and 2)
+//   data.errors → [{ index: 1, message: "Invalid `to` field. …" }]
+//
+// So ids map to the non-failed inputs in order, and errors[].index points at
+// the failures. The reconciliation guard below is kept anyway: getting this
+// wrong would write a Resend id onto the wrong recipient's row and silently
+// mis-route every subsequent webhook for both of them, so a count mismatch
+// downgrades the batch to individual retry rather than trusting the mapping.
+//
+// The same response also reported `ratelimit-policy: 10;w=1` — ten requests
+// per second. At 100 messages per request that ceiling is nowhere near
+// binding for the cron in BC-05.
 
 export async function sendBatch(messages: BroadcastMessage[]): Promise<SendOutcome[]> {
   if (messages.length === 0) return [];

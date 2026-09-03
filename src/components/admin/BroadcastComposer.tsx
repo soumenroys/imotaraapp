@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
-import { renderHtml, emailDocument, FONTS, SIZES } from "@/lib/broadcast/markup";
+import { renderHtml, emailDocument, footerHtml, FONTS, SIZES } from "@/lib/broadcast/markup";
 import { checkImageUrl } from "@/lib/broadcast/imageUrl";
 import type { ListRow } from "./BroadcastLists";
 
@@ -79,11 +79,9 @@ const FONT_LABELS: Record<string, string> = {
 // the part that must never be hidden.
 const GMAIL_CLIP_BYTES = 102_000;
 
-const FOOTER_PREVIEW =
-  `<div style="margin-top:28px;padding-top:14px;border-top:1px solid #eef2f7;` +
-  `font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.6;color:#94a3b8">` +
-  `You are receiving this because you gave us your address. ` +
-  `<a href="#" style="color:#4f46e5">Unsubscribe</a> &middot; Imotara, Kolkata, India</div>`;
+// The real footer with a dead link, rather than a copy of it — a second copy
+// is how a preview starts describing an email nobody receives.
+const FOOTER_PREVIEW = footerHtml("#");
 
 export default function BroadcastComposer({
   token, initial, lists, identities, onSaved, onReview, onBack,

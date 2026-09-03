@@ -334,6 +334,32 @@ export function renderText(src: string): string {
 }
 
 /**
+ * The unsubscribe footer, defined once.
+ *
+ * It lived in two places — the sender and the composer's preview — which is
+ * exactly the arrangement where a change lands in one copy and the preview
+ * starts quietly describing an email nobody receives. The link is passed in
+ * because only the sender can mint a per-recipient token; the preview passes
+ * a dead one.
+ *
+ * What remains here is what has to: a working unsubscribe link and a postal
+ * address. Both are required of commercial mail, and their absence is also
+ * what filters look for.
+ */
+export function footerHtml(unsubscribeHref: string): string {
+  return (
+    `<div style="margin-top:28px;padding-top:14px;border-top:1px solid #eef2f7;` +
+    `font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.6;color:#94a3b8">` +
+    `<a href="${unsubscribeHref}" style="color:#4f46e5">Unsubscribe</a>` +
+    ` &middot; Imotara, Kolkata, India</div>`
+  );
+}
+
+export function footerText(unsubscribeHref: string): string {
+  return `\n\n—\nUnsubscribe: ${unsubscribeHref}\nImotara, Kolkata, India`;
+}
+
+/**
  * The finished document: body and unsubscribe footer inside one container.
  *
  * The cron used to concatenate `body_html + footer`, which put the footer

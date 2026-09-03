@@ -13,6 +13,7 @@
 
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { footerHtml, footerText } from "@/lib/broadcast/markup";
 
 // A dedicated secret is preferable. NEXTAUTH_SECRET is accepted as a fallback
 // so this works without new configuration; both are already server-only.
@@ -111,19 +112,9 @@ export function unsubscribeHeaders(
 
 /** Visible footer. Required alongside the header, not instead of it. */
 export function unsubscribeFooterHtml(email: string, broadcastId: string): string {
-  return (
-    `<div style="margin-top:28px;padding-top:14px;border-top:1px solid #eef2f7;` +
-    `font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.6;color:#94a3b8">` +
-    `You are receiving this because you gave us your address. ` +
-    `<a href="${unsubscribeUrl(email, broadcastId)}" style="color:#4f46e5">Unsubscribe</a>` +
-    ` &middot; Imotara, Kolkata, India</div>`
-  );
+  return footerHtml(unsubscribeUrl(email, broadcastId));
 }
 
 export function unsubscribeFooterText(email: string, broadcastId: string): string {
-  return (
-    `\n\n—\nYou are receiving this because you gave us your address.\n` +
-    `Unsubscribe: ${unsubscribeUrl(email, broadcastId)}\n` +
-    `Imotara, Kolkata, India`
-  );
+  return footerText(unsubscribeUrl(email, broadcastId));
 }

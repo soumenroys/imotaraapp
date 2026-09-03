@@ -215,3 +215,25 @@ describe("alignment and image width", () => {
     expect(renderText(":right: hello")).toBe("hello");
   });
 });
+
+describe("the unsubscribe footer", () => {
+  it("carries a working link and a postal address", async () => {
+    const { footerHtml, footerText } = await import("@/lib/broadcast/markup");
+    const html = footerHtml("https://x.test/u?t=abc");
+    expect(html).toContain('href="https://x.test/u?t=abc"');
+    expect(html).toContain("Unsubscribe");
+    // Both are required of commercial mail, and their absence is what filters
+    // look for — so they are asserted rather than left to inspection.
+    expect(html).toContain("Imotara, Kolkata, India");
+
+    const text = footerText("https://x.test/u?t=abc");
+    expect(text).toContain("Unsubscribe: https://x.test/u?t=abc");
+    expect(text).toContain("Imotara, Kolkata, India");
+  });
+
+  it("no longer explains why the message arrived", async () => {
+    const { footerHtml, footerText } = await import("@/lib/broadcast/markup");
+    expect(footerHtml("#")).not.toContain("You are receiving this");
+    expect(footerText("#")).not.toContain("You are receiving this");
+  });
+});

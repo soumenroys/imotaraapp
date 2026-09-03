@@ -28,6 +28,7 @@ type BroadcastRow = {
   id: string;
   subject: string;
   body_html: string;
+  reply_to: string | null;
   body_text: string;
   message_type: "broadcast" | "operational";
   from_email: string;
@@ -74,7 +75,7 @@ export async function GET(req: NextRequest) {
   // caused it, rather than whichever run happened to be interleaved.
   const { data: broadcast, error: bErr } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_html, body_text, message_type, from_email, from_name, status")
+    .select("id, subject, body_html, body_text, message_type, from_email, from_name, reply_to, status")
     .eq("status", "sending")
     .order("started_at", { ascending: true, nullsFirst: false })
     .limit(1)
@@ -151,7 +152,10 @@ export async function GET(req: NextRequest) {
     text: broadcast.body_text +
       (broadcast.message_type === "broadcast"
         ? unsubscribeFooterText(r.email, broadcast.id) : ""),
-    replyTo: broadcast.from_email,
+    // Answers go to the person who wrote it, which is not always the address
+    // it was sent from — an owner signed in with a personal address sends
+    // under the company one and still receives the replies.
+    replyTo: broadcast.reply_to ?? broadcast.from_email,
     headers: unsubscribeHeaders(broadcast.message_type, r.email, broadcast.id),
   }));
 

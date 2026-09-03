@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { renderHtml, renderText } from "@/lib/broadcast/markup";
+import { sendingIdentities } from "@/lib/broadcast/resendClient";
 
 const MAX_SUBJECT = 200;
 const MAX_SOURCE = 100_000;   // ~30 printed pages; a paste bigger than this is a mistake
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.response;
 
   let body: {
-    subject?: unknown; body_source?: unknown;
+    subject?: unknown; body_source?: unknown; from_email?: unknown;
     message_type?: unknown; list_id?: unknown;
   };
   try { body = await req.json(); }
@@ -62,10 +63,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "That message is too long" }, { status: 413 });
   }
 
-  // from_email and from_name are SNAPSHOTTED from the signed-in owner, never
-  // supplied by the client. Letting a request choose its own From would make
-  // "who sent this" a claim rather than a fact, and the history report exists
-  // precisely to answer that question.
+  // The From address must be one this platform nominated — the admin's own
+  // login when it is on the verified domain, or an address the platform owner
+  // listed in BROADCAST_FROM_EMAIL. A request cannot invent one: that is what
+  // keeps "who sent this" a fact rather than a claim.
+  //
+  // reply_to is the admin's real address regardless of domain, so an owner
+  // signed in with a personal address still receives the answers.
+  const allowed = sendingIdentities(auth.admin.email);
+  const asked = typeof body.from_email === "string" ? body.from_email.trim().toLowerCase() : "";
+  const from = asked && allowed.includes(asked) ? asked : allowed[0];
+
+  if (!from) {
+    return NextResponse.json({
+      error: "No address is available to send from",
+      hint: `Your login (${auth.admin.email}) is not on the verified sending domain, ` +
+            `and BROADCAST_FROM_EMAIL is not set to one that is.`,
+      allowed,
+    }, { status: 400 });
+  }
   const { data, error } = await getSupabaseAdmin()
     .from("broadcasts")
     .insert({
@@ -75,12 +91,13 @@ export async function POST(req: NextRequest) {
       body_text: renderText(source),
       message_type: messageType,
       list_id: typeof body.list_id === "string" ? body.list_id : null,
-      from_email: auth.admin.email.toLowerCase(),
+      from_email: from,
       from_name: auth.admin.name,
+      reply_to: auth.admin.email.toLowerCase(),
       created_by: auth.admin.id,
       status: "draft",
     })
-    .select("id, subject, body_source, message_type, status, from_email, from_name, list_id, created_at")
+    .select("id, subject, body_source, message_type, status, from_email, from_name, reply_to, list_id, created_at")
     .single();
 
   if (error) {

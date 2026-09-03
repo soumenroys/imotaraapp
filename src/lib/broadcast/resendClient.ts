@@ -45,6 +45,28 @@ export function canSendFrom(email: string | null | undefined): boolean {
   return e.endsWith(`@${domain}`) || e.endsWith(`.${domain}`);
 }
 
+/**
+ * Addresses a broadcast may be sent from, most preferred first.
+ *
+ * Two rules, and the second one is the point of this function. An address must
+ * be on the verified domain — Resend refuses anything else. And it must be one
+ * this platform has actually nominated: either the signed-in admin's own login,
+ * or an address the platform owner listed in BROADCAST_FROM_EMAIL. Free choice
+ * of any address on the domain would let one admin send as a colleague, which
+ * is not a power a compose box should quietly hand out.
+ */
+export function sendingIdentities(adminEmail?: string | null): string[] {
+  const out: string[] = [];
+  const own = (adminEmail ?? "").trim().toLowerCase();
+  if (own && canSendFrom(own)) out.push(own);
+
+  for (const raw of (process.env.BROADCAST_FROM_EMAIL ?? "").split(",")) {
+    const e = raw.trim().toLowerCase();
+    if (e && canSendFrom(e) && !out.includes(e)) out.push(e);
+  }
+  return out;
+}
+
 export function isResendConfigured(): boolean {
   return API_KEY.length > 0;
 }

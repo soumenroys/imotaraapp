@@ -73,6 +73,7 @@ export default function BroadcastSection({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lists, setLists] = useState<ListRow[]>([]);
+  const [identities, setIdentities] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -109,6 +110,13 @@ export default function BroadcastSection({ token }: { token: string }) {
       const res = await fetch("/api/admin/broadcast/lists", adminFetchOpts(token));
       if (res.ok) setLists((await res.json()).lists ?? []);
     } catch { /* the composer shows an empty selector; not worth an error banner */ }
+
+    // Which addresses this admin may send as. The composer needs them before
+    // the first save, because the From address is fixed at creation.
+    try {
+      const res = await fetch("/api/admin/broadcast/health", adminFetchOpts(token));
+      if (res.ok) setIdentities((await res.json()).identities ?? []);
+    } catch { /* the composer falls back to showing the stored address */ }
   }, [token]);
 
   useEffect(() => { void loadLists(); }, [loadLists]);
@@ -135,6 +143,7 @@ export default function BroadcastSection({ token }: { token: string }) {
         id: b.id, subject: b.subject ?? "", body_source: b.body_source ?? "",
         message_type: b.message_type, list_id: b.list_id,
         status: b.status, from_email: b.from_email, from_name: b.from_name,
+        reply_to: b.reply_to,
       } });
     } catch { setError("Network error."); }
   }
@@ -203,6 +212,7 @@ export default function BroadcastSection({ token }: { token: string }) {
         token={token}
         initial={view.draft}
         lists={lists}
+        identities={identities}
         onSaved={() => { void load(); }}
         onReview={(id) => setView({ name: "review", id })}
         onBack={() => { void load(); setView({ name: "list" }); }}

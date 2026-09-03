@@ -10,7 +10,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { previewEnqueue } from "@/lib/broadcast/enqueue";
 import { getBudget } from "@/lib/broadcast/warmup";
 import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
-import { isResendConfigured, canSendFrom, sendingDomain } from "@/lib/broadcast/resendClient";
+import { isResendConfigured, canSendFrom, sendingDomain, sendingIdentities } from "@/lib/broadcast/resendClient";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const { data: b } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_html, body_text, message_type, status, from_email, from_name, list_id")
+    .select("id, subject, body_html, body_text, message_type, status, from_email, from_name, reply_to, list_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -41,10 +41,13 @@ export async function GET(req: NextRequest, { params }: Params) {
   }
   if (!isResendConfigured()) blockers.push("Sending is not configured (RESEND_API_KEY)");
   if (!canSendFrom(b.from_email)) {
+    const allowed = sendingIdentities(auth.admin.email);
     blockers.push(
-      `This draft would be sent from ${b.from_email}, which is not on the verified ` +
-      `sending domain (${sendingDomain()}). Resend would refuse it. Create the draft ` +
-      `while signed in with your @${sendingDomain()} admin account.`,
+      allowed.length > 0
+        ? `This draft would be sent from ${b.from_email}, which is not on the verified ` +
+          `sending domain (${sendingDomain()}). Change the From address to ${allowed[0]}.`
+        : `Nothing on this platform can send yet: ${b.from_email} is not on the verified ` +
+          `domain (${sendingDomain()}), and BROADCAST_FROM_EMAIL names no address that is.`,
     );
   }
   if (b.message_type === "broadcast" && !isUnsubscribeConfigured()) {
@@ -68,6 +71,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       id: b.id, subject: b.subject, status: b.status,
       messageType: b.message_type,
       from: b.from_name ? `${b.from_name} <${b.from_email}>` : b.from_email,
+      replyTo: b.reply_to ?? b.from_email,
     },
     counts,
     budget,

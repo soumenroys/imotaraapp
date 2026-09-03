@@ -408,3 +408,22 @@ alter table broadcasts add column if not exists body_source text;
 update broadcasts
    set body_source = coalesce(body_text, '')
  where body_source is null;
+
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 11. Reply-To                                                       (BC-34)
+-- ────────────────────────────────────────────────────────────────────────────
+-- from_email is the address the message is SENT from, and it has to be on the
+-- domain Resend verified. reply_to is where an answer should go, and it does
+-- not: it is the admin who actually wrote the broadcast, whatever their login
+-- happens to be.
+--
+-- Separating them is what lets an owner whose login is a personal address send
+-- a broadcast at all — the company address carries it, their own address
+-- receives the replies, and created_by still records who wrote it. Snapshotted
+-- like from_email rather than joined at send time, so the record survives that
+-- admin later being renamed or removed.
+
+alter table broadcasts add column if not exists reply_to text;
+
+update broadcasts set reply_to = from_email where reply_to is null;

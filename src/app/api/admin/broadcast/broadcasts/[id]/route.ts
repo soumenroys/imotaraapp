@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { renderHtml, renderText } from "@/lib/broadcast/markup";
+import { sendingIdentities } from "@/lib/broadcast/resendClient";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const { data: broadcast, error } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_source, body_html, body_text, message_type, status, from_email, from_name, list_id, created_at, started_at, finished_at")
+    .select("id, subject, body_source, body_html, body_text, message_type, status, from_email, from_name, reply_to, list_id, created_at, started_at, finished_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -62,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   let body: {
-    subject?: unknown; body_source?: unknown;
+    subject?: unknown; body_source?: unknown; from_email?: unknown;
     message_type?: unknown; list_id?: unknown;
   };
   try { body = await req.json(); }
@@ -113,9 +114,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
   if (typeof body.list_id === "string" || body.list_id === null) patch.list_id = body.list_id;
 
-  // from_email, from_name and created_by are absent by design — the sender is
-  // whoever created the draft, and a later edit must not quietly reassign
-  // authorship of a message.
+  // The From address may be changed while the broadcast is still a draft, but
+  // only to one of the nominated identities — the same rule as creation, so
+  // the edit path cannot be used to get around it.
+  if (typeof body.from_email === "string") {
+    const wanted = body.from_email.trim().toLowerCase();
+    if (!sendingIdentities(auth.admin.email).includes(wanted)) {
+      return NextResponse.json(
+        { error: "That is not an address this platform can send from" }, { status: 400 },
+      );
+    }
+    patch.from_email = wanted;
+  }
+
+  // from_name, reply_to and created_by are absent by design — a later edit must
+  // not quietly reassign authorship of a message.
 
   const { data, error } = await supabase
     .from("broadcasts")
@@ -123,7 +136,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .eq("id", id)
     .eq("status", "draft")   // re-checked in the WHERE: the status could have
                              // changed between the read above and this write
-    .select("id, subject, body_source, body_html, body_text, message_type, status, from_email, from_name, list_id, created_at")
+    .select("id, subject, body_source, body_html, body_text, message_type, status, from_email, from_name, reply_to, list_id, created_at")
     .maybeSingle();
 
   if (error) {

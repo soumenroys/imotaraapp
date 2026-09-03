@@ -27,6 +27,7 @@ export type Draft = {
   status?: string;
   from_email?: string;
   from_name?: string | null;
+  reply_to?: string | null;
 };
 
 type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "saved"; at: number } | { kind: "error"; msg: string };
@@ -85,11 +86,12 @@ const FOOTER_PREVIEW =
   `<a href="#" style="color:#4f46e5">Unsubscribe</a> &middot; Imotara, Kolkata, India</div>`;
 
 export default function BroadcastComposer({
-  token, initial, lists, onSaved, onReview, onBack,
+  token, initial, lists, identities, onSaved, onReview, onBack,
 }: {
   token: string;
   initial: Draft;
   lists: ListRow[];
+  identities: string[];
   onSaved: (id: string) => void;
   onReview: (id: string) => void;
   onBack: () => void;
@@ -125,6 +127,7 @@ export default function BroadcastComposer({
       body_source: d.body_source,
       message_type: d.message_type,
       list_id: d.list_id,
+      ...(d.from_email ? { from_email: d.from_email } : {}),
     };
     try {
       const res = await fetch(
@@ -623,10 +626,37 @@ export default function BroadcastComposer({
                 style={{ width: wide ? "100%" : 380 }}
               />
             </div>
-            <p className="border-t border-white/6 px-3 py-2 text-[10px] leading-relaxed text-zinc-600">
-              From {draft.from_name ? `${draft.from_name} <${draft.from_email}>` : draft.from_email ?? "your admin address"}.
-              {draft.message_type === "broadcast" && " The unsubscribe line is added automatically — each recipient gets their own link."}
-            </p>
+            <div className="border-t border-white/6 px-3 py-2">
+              {identities.length > 1 ? (
+                <label className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">From</span>
+                  <select
+                    value={draft.from_email ?? identities[0]}
+                    onChange={(e) => set("from_email", e.target.value)}
+                    disabled={locked}
+                    className="min-w-0 flex-1 rounded-md border border-white/10 bg-zinc-900 px-2 py-1.5 font-mono text-[11px] text-zinc-200 outline-none focus:border-indigo-500/40 disabled:opacity-50"
+                  >
+                    {identities.map((e) => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                </label>
+              ) : (
+                <p className="text-[10px] leading-relaxed text-zinc-600">
+                  From {draft.from_name ? `${draft.from_name} <${draft.from_email ?? identities[0]}>` : draft.from_email ?? identities[0] ?? "your admin address"}.
+                </p>
+              )}
+              <p className="mt-1 text-[10px] leading-relaxed text-zinc-600">
+                {draft.reply_to && draft.reply_to !== (draft.from_email ?? identities[0]) && (
+                  <>Replies go to <span className="text-zinc-400">{draft.reply_to}</span>. </>
+                )}
+                {draft.message_type === "broadcast" && "The unsubscribe line is added automatically — each recipient gets their own link."}
+              </p>
+              {identities.length === 0 && (
+                <p className="mt-1.5 rounded-md border border-rose-400/25 bg-rose-500/8 px-2 py-1.5 text-[10px] leading-relaxed text-rose-300">
+                  Your login is not on the verified sending domain and no fallback address is
+                  configured, so this draft cannot be sent by anyone. See Sending status.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>

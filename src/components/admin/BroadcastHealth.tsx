@@ -13,6 +13,8 @@ import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 
 type Health = {
   sender: { email: string; name: string | null };
+  identities: string[];
+  sendingDomain: string;
   configured: { resend: boolean; unsubscribe: boolean; webhook: boolean };
   budget: { week: number; cap: number; sentToday: number; remaining: number };
   capOverride: string | null;
@@ -127,16 +129,27 @@ export default function BroadcastHealth({ token }: { token: string }) {
         })}
         <div className="border-t border-white/6 px-4 py-3">
           <p className="text-[11px] text-zinc-400">
-            Broadcasts are sent as{" "}
-            <span className="text-zinc-200">
-              {h.sender.name ? `${h.sender.name} <${h.sender.email}>` : h.sender.email}
-            </span>
+            You can send as{" "}
+            {(h.identities ?? []).length > 0 ? (
+              <span className="font-mono text-zinc-200">{(h.identities ?? []).join(", ")}</span>
+            ) : (
+              <span className="text-rose-300">nothing</span>
+            )}
           </p>
           <p className="mt-1 text-[10px] leading-relaxed text-zinc-600">
-            Taken from your admin account when a draft is created, never from
-            the request — so &ldquo;who sent this&rdquo; stays a fact rather
-            than a claim.
+            Mail can only leave from the verified domain ({h.sendingDomain}). Your
+            login is <span className="text-zinc-400">{h.sender.email}</span>, and
+            replies to anything you send come back to it whichever address carries
+            the message — so an owner whose login is a personal address can still
+            send, and still hears the answers.
           </p>
+          {(h.identities ?? []).length === 0 && (
+            <p className="mt-2 rounded-lg border border-rose-400/25 bg-rose-500/8 px-2.5 py-1.5 text-[11px] leading-relaxed text-rose-300">
+              Nothing can be sent from this account. Your login is not on {h.sendingDomain},
+              and BROADCAST_FROM_EMAIL names no address that is. Set it to a real
+              mailbox on {h.sendingDomain} and redeploy.
+            </p>
+          )}
         </div>
       </div>
 

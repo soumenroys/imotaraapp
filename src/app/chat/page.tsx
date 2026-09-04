@@ -540,6 +540,17 @@ const CRISIS_BANNER_BY_LANG: Record<string, { tier2: string; tier1: string; link
   ar: { tier2: "يبدو أنك تمر بشيء صعب جداً الآن...", tier1: "يبدو أن الأمور تبدو صعبة جداً الآن...", link: "الدعم المجاني متاح على مدار الساعة" },
   de: { tier2: "Es klingt, als würdest du gerade etwas sehr Schweres durchmachen...", tier1: "Es klingt, als wäre gerade alles sehr schwer...", link: "kostenlose Krisenunterstützung ist rund um die Uhr verfügbar" },
   ja: { tier2: "今、とても辛いことを経験されているようです...", tier1: "今、物事がとても辛く感じられているようです...", link: "24時間無料のサポートが利用できます" },
+  // Added 2026-09-04 alongside UX-01. These seven shipped in the language
+  // picker but fell through to English here — the same failure the mobile
+  // crisis card had: recognised in your language, then helped in one you may
+  // not read. Urdu counts twice, being one of the three RTL languages.
+  ur: { tier2: "لگتا ہے آپ اس وقت کسی بہت بھاری چیز سے گزر رہے ہیں۔ آپ کو اس کا سامنا اکیلے نہیں کرنا —", tier1: "لگتا ہے ابھی سب کچھ بہت مشکل لگ رہا ہے۔ میں سن رہا ہوں۔ اگر کبھی یہ بہت زیادہ لگے،", link: "مفت مدد 24/7 دستیاب ہے" },
+  es: { tier2: "Parece que estás pasando por algo muy difícil en este momento. No tienes que enfrentarlo solo —", tier1: "Parece que ahora mismo todo se siente muy difícil. Te escucho. Si en algún momento es demasiado,", link: "hay ayuda gratuita disponible las 24 horas" },
+  fr: { tier2: "On dirait que tu traverses quelque chose de très lourd en ce moment. Tu n'as pas à l'affronter seul —", tier1: "On dirait que tout est très difficile en ce moment. Je t'écoute. Si jamais c'est trop,", link: "une aide gratuite est disponible 24h/24" },
+  pt: { tier2: "Parece que você está passando por algo muito pesado agora. Você não precisa enfrentar isso sozinho —", tier1: "Parece que tudo está muito difícil agora. Estou aqui, ouvindo. Se em algum momento for demais,", link: "há ajuda gratuita disponível 24 horas por dia" },
+  ru: { tier2: "Кажется, вы переживаете что-то очень тяжёлое прямо сейчас. Вам не нужно справляться с этим в одиночку —", tier1: "Кажется, сейчас всё очень трудно. Я слушаю. Если станет невыносимо,", link: "бесплатная помощь доступна круглосуточно" },
+  zh: { tier2: "听起来你现在正经历一些非常沉重的事情。你不必独自面对 —", tier1: "听起来现在一切都很艰难。我在听。如果什么时候觉得撑不住了，", link: "24 小时免费援助随时都在" },
+  id: { tier2: "Sepertinya kamu sedang melewati sesuatu yang sangat berat sekarang. Kamu tidak harus menghadapinya sendirian —", tier1: "Sepertinya semuanya terasa sangat berat sekarang. Aku mendengarkan. Kalau sewaktu-waktu terasa terlalu berat,", link: "bantuan gratis tersedia 24/7" },
 };
 
 // #11: Composer sentiment seeds — quick-tap mood hint chips

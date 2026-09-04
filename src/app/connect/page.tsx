@@ -3,6 +3,7 @@
 // Tabs: Browse | My Sessions | Wallet | Dashboard (if consultant)
 "use client";
 
+import { CONNECT_LANGUAGES } from "@/lib/connect/languages";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
@@ -160,7 +161,7 @@ function BrowseTab() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [filter, setFilter] = useState({ gender: "", online: false, tag: "", category: "" });
+  const [filter, setFilter] = useState({ gender: "", online: false, tag: "", category: "", lang: "" });
   const [sort, setSort] = useState<"rating" | "price_asc" | "price_desc" | "sessions">("rating");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [favLoading, setFavLoading] = useState<string | null>(null);
@@ -183,6 +184,7 @@ function BrowseTab() {
     if (filter.gender)   params.set("gender", filter.gender);
     if (filter.online)   params.set("online", "true");
     if (filter.category) params.set("category", filter.category);
+    if (filter.lang)     params.set("lang", filter.lang);
     params.set("page", String(pageNum));
     try {
       const fetchFavs = pageNum === 1
@@ -206,7 +208,7 @@ function BrowseTab() {
     } finally {
       if (pageNum === 1) setLoading(false); else setLoadingMore(false);
     }
-  }, [filter.gender, filter.online, filter.category]);
+  }, [filter.gender, filter.online, filter.category, filter.lang]);
 
   useEffect(() => { fetchConsultants(1); }, [fetchConsultants]);
 
@@ -354,6 +356,15 @@ function BrowseTab() {
         >
           <option value="">All specialties</option>
           {EXPERTISE_TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+
+        <select
+          value={filter.lang}
+          onChange={(e) => setFilter((f) => ({ ...f, lang: e.target.value }))}
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-300 outline-none focus:border-violet-500"
+        >
+          <option value="">Any language</option>
+          {CONNECT_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
 
         <select

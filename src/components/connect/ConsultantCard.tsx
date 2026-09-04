@@ -1,6 +1,7 @@
 // src/components/connect/ConsultantCard.tsx
 "use client";
 
+import { languageLabel } from "@/lib/connect/languages";
 import { useState } from "react";
 import { Star, Globe, CircleDot, MessageCircle, Mic, Video, Heart, X, Loader2, Clock } from "lucide-react";
 
@@ -15,13 +16,6 @@ const ROLE_CATEGORY_LABELS: Record<string, string> = {
   grandmother:        "👵 Grandmother",
   yoga_instructor:    "🧘 Yoga Instructor",
   fitness_companion:  "💪 Fitness Companion",
-};
-
-const LANGUAGE_MAP: Record<string, string> = {
-  en: "English", hi: "Hindi",    bn: "Bengali",    mr: "Marathi",
-  ta: "Tamil",   te: "Telugu",   gu: "Gujarati",   pa: "Punjabi",
-  kn: "Kannada", ml: "Malayalam",ur: "Urdu",       ar: "Arabic",
-  es: "Spanish", fr: "French",   de: "German",     pt: "Portuguese",
 };
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -77,7 +71,7 @@ export default function ConsultantCard({
 }: Props) {
   const [showProfile, setShowProfile] = useState(false);
   const sym = CURRENCY_SYMBOLS[consultant.currency_code] ?? consultant.currency_code;
-  const langNames = consultant.languages.map((c) => LANGUAGE_MAP[c] ?? c);
+  const langNames = consultant.languages.map(languageLabel);
 
   return (
     <>

@@ -14,19 +14,25 @@ import { describe, it, expect } from "vitest";
 import * as KM from "@/lib/emotion/keywordMaps";
 
 function sampleFor(re: RegExp): string {
+  // Patterns start in a few shapes: /(a|b)/, /\b(a|b)\b/i, /(?:a|b)/.
+  // Peel those off before taking the first alternative, or the "sample" comes
+  // back as literal regex syntax and the language looks broken when it is not.
   return re.source
-    .replace(/^[/(]+/, "")
+    .replace(/^\/+/, "")
+    .replace(/^\\b/, "")
+    .replace(/^\(\?:?/, "")
+    .replace(/^\(/, "")
+    .replace(/^\\b/, "")
     .split("|")[0]
+    .replace(/\\b$/, "")
     .replace(/[()\\^$?*+\[\]{}]/g, "")
-    .replace(/\bb\b/g, "")
     .trim();
 }
 
-// Defined but deliberately not wired into the shared sad path — see UX-38.
-// Measured 2026-09-05: the Japanese pattern reads 4 of 6 neutral sentences as
-// sadness (bare うつ and 一人 match inside ordinary words) and German matches
-// "Ich gehe allein einkaufen". Listed so the exclusion stays a decision.
-const DELIBERATELY_UNWIRED_SAD = new Set(["JP", "HE", "AR", "DE"]);
+// UX-38 is done: all four are wired. Arabic and Hebrew went in unchanged;
+// Japanese and German were tightened first. Nothing is deliberately unwired
+// any more, which is what makes the sweep below cover every language.
+const DELIBERATELY_UNWIRED_SAD = new Set<string>([]);
 
 function langsWith(suffix: string): string[] {
   return Object.keys(KM)
@@ -95,6 +101,27 @@ describe("UX-41 — Telugu", () => {
       expect(KM.isStressText(s)).toBe(false);
       expect(KM.isConfusedText(s)).toBe(false);
     });
+  }
+});
+
+describe("UX-38 — the four late arrivals do not misread ordinary speech", () => {
+  const NEUTRAL: Array<[string, string]> = [
+    ["ja", "今日はいい天気ですね"], ["ja", "一人暮らしを始めました"],
+    ["ja", "一人で買い物に行きます"], ["ja", "写真をうつす"],
+    ["ja", "うつくしい景色でした"],
+    ["de", "Das Wetter ist heute schön"], ["de", "Ich gehe allein einkaufen"],
+    ["ar", "الطقس جميل اليوم"], ["he", "מזג האוויר נעים היום"],
+  ];
+  for (const [lang, text] of NEUTRAL) {
+    it(`${lang}: ${text}`, () => expect(KM.isSadText(text)).toBe(false));
+  }
+  const SAD: Array<[string, string]> = [
+    ["ja", "悲しいです"], ["ja", "一人ぼっちで寂しい"],
+    ["de", "Ich bin traurig"], ["de", "Ich fühle mich einsam"],
+    ["ar", "أنا حزين"], ["he", "אני עצוב"],
+  ];
+  for (const [lang, text] of SAD) {
+    it(`${lang} still detected: ${text}`, () => expect(KM.isSadText(text)).toBe(true));
   }
 });
 

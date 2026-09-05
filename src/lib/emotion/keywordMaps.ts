@@ -226,7 +226,7 @@ export const MR_CONFUSED_REGEX =
 
 // Japanese emotion hints
 export const JP_SAD_REGEX =
-  /(悲しい|悲しみ|泣く|泣いて|孤独|一人|寂しい|寂しみ|落ち込む|落ち込んでいる|絶望|絶望的|うつ|憂鬱)/;
+  /(悲しい|悲しみ|泣く|泣いて|孤独|一人ぼっち|ひとりぼっち|寂しい|寂しみ|落ち込む|落ち込んでいる|絶望|絶望的|憂鬱|鬱だ|鬱です)/;
 
 export const JP_STRESS_REGEX =
   /(ストレス|疲れた|疲労|焦る|焦り|不安|心配|緊張|プレッシャー|余裕がない|追い詰められる|しんどい|つらい)/;
@@ -274,7 +274,7 @@ export const AR_CONFUSED_REGEX =
 
 // German emotion hints
 export const DE_SAD_REGEX =
-  /\b(traurig|ich weine|allein|einsam|deprimiert|niedergeschlagen|hoffnungslos|unglücklich)\b/i;
+  /\b(traurig|ich weine|so allein|ganz allein|allein und|fühle mich allein|einsam|deprimiert|niedergeschlagen|hoffnungslos|unglücklich)\b/i;
 
 export const DE_STRESS_REGEX =
   /\b(gestresst|Stress|überfordert|nervös|angespannt|erschöpft|ich schaffe das nicht)\b/i;
@@ -391,6 +391,12 @@ export function debugDetectEmotion(text: string): DebugEmotion | null {
 const SAD_REGEXES = [
   HI_SAD_REGEX, BN_SAD_REGEX, TA_SAD_REGEX, TE_SAD_REGEX, GU_SAD_REGEX,
   KN_SAD_REGEX, ML_SAD_REGEX, PA_SAD_REGEX, OR_SAD_REGEX, MR_SAD_REGEX,
+  // UX-38. Held back until their patterns had been looked at. Arabic and
+  // Hebrew measured clean and went in unchanged; Japanese and German were
+  // tightened first — bare うつ matched inside うつくしい ("beautiful"), 一人
+  // inside 一人暮らし ("living alone", a neutral fact), and "allein" matched
+  // "Ich gehe allein einkaufen".
+  AR_SAD_REGEX, HE_SAD_REGEX, JP_SAD_REGEX, DE_SAD_REGEX,
 ];
 
 const STRESS_REGEXES = [

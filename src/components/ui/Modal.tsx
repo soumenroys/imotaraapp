@@ -35,13 +35,19 @@ export type ModalProps = {
   closeOnEscape?: boolean;
   closeOnBackdrop?: boolean;
   className?: string;
+  /**
+   * Layout for the backdrop. Replaces the default rather than adding to it:
+   * Tailwind resolves duplicate utilities by stylesheet order, not by their
+   * order in the string, so shipping `items-center` and letting callers append
+   * `items-start` produces a layout that is correct only by luck.
+   */
   backdropClassName?: string;
 };
 
 export default function Modal({
   open, onClose, children, label, labelledBy,
   closeOnEscape = true, closeOnBackdrop = true,
-  className = "", backdropClassName = "",
+  className = "", backdropClassName = "flex items-center justify-center p-4",
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const returnFocusTo = useRef<HTMLElement | null>(null);
@@ -132,7 +138,7 @@ export default function Modal({
   return createPortal(
     <div
       data-modal-root=""
-      className={`fixed inset-0 z-[100] flex items-center justify-center p-4 ${backdropClassName}`}
+      className={`fixed inset-0 z-[100] ${backdropClassName}`}
       onMouseDown={(e) => { if (closeOnBackdrop && e.target === e.currentTarget) onClose(); }}
       onKeyDown={onKeyDown}
     >

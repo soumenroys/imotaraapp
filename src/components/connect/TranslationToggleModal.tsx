@@ -4,6 +4,7 @@
 "use client";
 
 import { useState } from "react";
+import Modal from "@/components/ui/Modal";
 import { X, Globe, Loader2 } from "lucide-react";
 
 interface Props {
@@ -56,18 +57,22 @@ export default function TranslationToggleModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      onClick={loading ? undefined : onClose}
+    <Modal
+      open
+      onClose={onClose}
+      labelledBy="translation-modal-title"
+      // It already refused a backdrop click while a request was in flight.
+      // Escape had no handler at all, so it gets the same condition.
+      closeOnEscape={!loading}
+      closeOnBackdrop={!loading}
+      backdropClassName="flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="imotara-glass-card w-full max-w-sm rounded-2xl p-6 shadow-2xl"
     >
-      <div
-        className="imotara-glass-card w-full max-w-sm rounded-2xl p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div>
         <div className="mb-5 flex items-start justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-400">Auto-Translation</p>
-            <h2 className="mt-1 text-lg font-semibold text-zinc-50">
+            <h2 id="translation-modal-title" className="mt-1 text-lg font-semibold text-zinc-50">
               {targetEnabled ? "Turn On Auto-Translation" : "Turn Off Auto-Translation"}
             </h2>
           </div>
@@ -121,6 +126,6 @@ export default function TranslationToggleModal({
           {loading ? "Updating…" : targetEnabled ? "Turn On" : "Turn Off"}
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Modal from "@/components/ui/Modal";
 import { Check, GitPullRequest, Layers, X } from "lucide-react";
 import type { ConflictList, HistoryConflict } from "@/types/sync";
 import {
@@ -98,15 +99,18 @@ export default function ConflictReviewModal({ open, onClose }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center">
-      {/* backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      {/* modal */}
-      <div className="relative z-[61] w-[min(960px,92vw)] max-h-[86vh] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 p-0 shadow-2xl">
+    <Modal
+      open
+      onClose={onClose}
+      labelledBy="conflict-modal-title"
+      backdropClassName="flex items-center justify-center bg-black/50"
+      className="relative w-[min(960px,92vw)] max-h-[86vh] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 p-0 shadow-2xl"
+    >
+      <div>
         <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
           <div className="flex items-center gap-2">
             <GitPullRequest className="h-5 w-5 text-zinc-300" />
-            <h2 className="text-base font-semibold text-zinc-100">Resolve Sync Conflicts</h2>
+            <h2 id="conflict-modal-title" className="text-base font-semibold text-zinc-100">Resolve Sync Conflicts</h2>
             <span className="ml-2 rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">
               {remaining} pending
             </span>
@@ -193,7 +197,7 @@ export default function ConflictReviewModal({ open, onClose }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }
 

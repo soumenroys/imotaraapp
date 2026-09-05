@@ -5,6 +5,7 @@
 "use client";
 
 import { useState } from "react";
+import Modal from "@/components/ui/Modal";
 import { X, Pencil } from "lucide-react";
 
 export type UnsentLetterSetup = {
@@ -56,16 +57,22 @@ export default function UnsentLetterModal({ visible, onStart, onCancel }: Props)
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center"
-      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    <Modal
+      open
+      onClose={onCancel}
+      labelledBy="unsent-letter-title"
+      // Carried across exactly: this is a bottom sheet on a phone and centred
+      // from sm up. The wrapper supplies no layout of its own, so what is here
+      // is the whole truth.
+      backdropClassName="flex items-end justify-center bg-black/60 sm:items-center"
+      className="w-full max-w-lg rounded-t-2xl border border-white/10 bg-[#130e17] p-6 sm:rounded-2xl"
     >
-      <div className="w-full max-w-lg rounded-t-2xl border border-white/10 bg-[#130e17] p-6 sm:rounded-2xl">
+      <div>
         {/* Header */}
         <div className="mb-4 flex items-center gap-2">
           <Pencil className="h-4 w-4 text-violet-400" />
-          <h2 className="text-base font-semibold text-zinc-100">Write an unsent letter</h2>
-          <button onClick={onCancel} className="ml-auto text-zinc-500 hover:text-zinc-300 transition">
+          <h2 id="unsent-letter-title" className="text-base font-semibold text-zinc-100">Write an unsent letter</h2>
+          <button onClick={onCancel} aria-label="Close" className="ml-auto text-zinc-500 hover:text-zinc-300 transition">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -126,6 +133,6 @@ export default function UnsentLetterModal({ visible, onStart, onCancel }: Props)
           Begin writing
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }

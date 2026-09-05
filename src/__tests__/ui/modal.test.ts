@@ -15,6 +15,9 @@ const MIGRATED = [
   "src/components/imotara/GlobalSearch.tsx",
   "src/components/connect/EmergencyModal.tsx",
   "src/components/connect/RechargeModal.tsx",
+  "src/components/imotara/UnsentLetterModal.tsx",
+  "src/components/imotara/ConflictReviewModal.tsx",
+  "src/components/connect/TranslationToggleModal.tsx",
 ];
 
 describe("the wrapper does what a dialog owes its user", () => {
@@ -65,6 +68,28 @@ describe("migrated overlays use it", () => {
       expect(read(file)).not.toMatch(/className="fixed inset-0[^"]*"\s*\n\s*onClick=/);
     });
   }
+
+  it("the wrapper supplies no layout of its own", () => {
+    // It used to hardcode `items-center justify-center p-4` on the backdrop,
+    // so GlobalSearch — which needs top alignment — carried BOTH items-center
+    // and items-start. Tailwind resolves that by stylesheet order, not by the
+    // order in the string, so it rendered correctly only by luck.
+    const src = read("src/components/ui/Modal.tsx");
+    expect(src).toMatch(/backdropClassName = "flex items-center justify-center p-4"/);
+    expect(src).not.toMatch(/fixed inset-0 z-\[100\] flex items-center/);
+  });
+
+  it("the bottom sheet is still a bottom sheet on a phone", () => {
+    // UnsentLetterModal is items-end on mobile and centred from sm up. That
+    // layout lives entirely in its own backdropClassName now.
+    const s = read("src/components/imotara/UnsentLetterModal.tsx");
+    expect(s).toMatch(/items-end justify-center bg-black\/60 sm:items-center/);
+  });
+
+  it("the translation modal refuses to close mid-request", () => {
+    const s = read("src/components/connect/TranslationToggleModal.tsx");
+    expect(s).toMatch(/closeOnEscape=\{!loading\}/);
+  });
 
   it("the payment modal still refuses to close mid-payment", () => {
     // It already guarded the backdrop while loading; Escape had no handler at

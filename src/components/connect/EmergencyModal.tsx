@@ -30,7 +30,7 @@ export default function EmergencyModal({ countryCode = "IN", onClose }: Props) {
       open
       onClose={onClose}
       labelledBy="emergency-modal-title"
-      backdropClassName="bg-black/60 backdrop-blur-sm"
+      backdropClassName="flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       className="imotara-glass-card w-full max-w-sm rounded-2xl p-6 shadow-2xl"
     >
       <div>

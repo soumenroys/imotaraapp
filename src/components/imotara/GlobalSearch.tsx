@@ -173,7 +173,7 @@ export default function GlobalSearch({ onClose }: { onClose: () => void }) {
       open
       onClose={onClose}
       label="Search"
-      backdropClassName="items-start justify-center px-4 pt-[10vh] bg-black/60 backdrop-blur-sm"
+      backdropClassName="flex items-start justify-center px-4 pt-[10vh] bg-black/60 backdrop-blur-sm"
       className="relative z-10 w-full max-w-lg animate-fade-in overflow-hidden rounded-2xl border border-white/15 bg-zinc-950/95 shadow-2xl backdrop-blur-xl"
     >
       <div>

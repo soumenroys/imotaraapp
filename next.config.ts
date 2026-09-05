@@ -3,8 +3,23 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const CSP = [
   "default-src 'self'",
-  // Next.js injects inline hydration scripts; Razorpay checkout.js loaded dynamically
-  "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com",
+  // Next.js injects inline hydration scripts; Razorpay checkout.js loaded dynamically.
+  //
+  // cdn.razorpay.com is here because checkout.js itself pulls
+  // /static/cx/razorpay-risk-detection/bundle.js from it. Without that host the
+  // browser blocked the script on every page carrying checkout — /upgrade,
+  // /settings and /pricing/corporate — so Razorpay's own fraud and risk
+  // detection has never run on this site. Confirmed against production before
+  // changing anything: the violation fires there too.
+  //
+  // One named host belonging to a vendor whose checkout we already trust, and
+  // whose iframe is already in frame-src. Leaving it blocked was not the safer
+  // option: it silently disabled the payment provider's fraud checks.
+  //
+  // lumberjack.razorpay.com is deliberately NOT added to connect-src. That one
+  // is Razorpay's analytics, not fraud protection — no user benefit that would
+  // justify sending data to a third party from a privacy-first app.
+  "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdn.razorpay.com",
   // Tailwind + Next.js inject inline styles
   "style-src 'self' 'unsafe-inline'",
   // Supabase REST + realtime WebSocket (browser-side auth/subscribe calls)

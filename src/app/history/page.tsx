@@ -11,7 +11,6 @@ import OnThisDay from "@/components/imotara/OnThisDay";
 import EmotionRadarChart from "@/components/imotara/EmotionRadarChart";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { getHistory } from "@/lib/imotara/history";
-import TopBar from "@/components/imotara/TopBar";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
 import useFeatureGate from "@/hooks/useFeatureGate";
 import {
@@ -573,8 +572,6 @@ export default function HistoryPage() {
         <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
       )}
       {/* Global app top bar with nav + sync chip + conflicts */}
-      <TopBar title="Emotion History" showSyncChip showConflictsButton />
-
       <main className="mx-auto flex h-[calc(100vh-0px)] w-full max-w-7xl px-3 pb-6 pt-4 text-zinc-100 sm:px-4">
         <div className="flex flex-1 flex-col">
           {/* ---------------------------------------------------- */}
@@ -599,9 +596,9 @@ export default function HistoryPage() {
                   </div>
 
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-zinc-50">
+                    <h1 className="truncate text-sm font-semibold text-zinc-50">
                       Emotion History
-                    </p>
+                    </h1>
                     <p className="text-xs text-zinc-400">
                       Timeline of how your conversations felt over time.
                     </p>

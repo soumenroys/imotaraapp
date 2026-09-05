@@ -58,7 +58,6 @@ import { detectLangFromRomanHints } from "@/lib/imotara/respondRemote";
 import { saveSample } from "@/lib/imotara/history";
 import type { Emotion } from "@/types/history";
 import { getUserScopeId as getSharedScopeId } from "@/lib/imotara/userScope";
-import TopBar from "@/components/imotara/TopBar";
 import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
 import ReplyOriginBadge from "@/components/imotara/ReplyOriginBadge";
 import { getChatToneCopy } from "@/lib/imotara/chatTone";
@@ -3194,9 +3193,10 @@ export default function ChatPage() {
       {chatToast && (
         <Toast message={chatToast.message} type={chatToast.type} onDismiss={() => setChatToast(null)} />
       )}
-      <div className="mx-auto w-full max-w-7xl pt-3">
-        <TopBar title="Chat" showSyncChip showConflictsButton />
-      </div>
+      {/* The page had no heading element at all — TopBar rendered a <span>.
+          Visually hidden because the design communicates context through the
+          highlighted nav item, but a screen reader still needs an h1. */}
+      <h1 className="sr-only">Chat</h1>
 
       {!isOnline && (
         <div className="mx-auto w-full max-w-7xl">

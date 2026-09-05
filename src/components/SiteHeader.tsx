@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
 import GlobalSearch from "@/components/imotara/GlobalSearch";
+import { APP_ROUTES } from "@/lib/appRoutes";
 
 // Primary nav — always visible on desktop (daily actions only)
 const PRIMARY_LINKS = [
@@ -53,6 +54,7 @@ const INACTIVE_LINK_CLASS =
 
 export default function SiteHeader() {
   const pathname = usePathname();
+  const onAppRoute = APP_ROUTES.some((r) => (pathname ?? "") === r || (pathname ?? "").startsWith(`${r}/`));
   const [mounted, setMounted] = useState(false);
   // Desktop ··· dropdown — separate from mobile
   const [moreOpen, setMoreOpen] = useState(false);
@@ -279,6 +281,16 @@ export default function SiteHeader() {
                 {mounted ? (isMac ? "⌘K" : "Ctrl K") : ""}
               </span>
             </button>
+
+            {/* Conflicts — was TopBar's, and the only thing it had that this
+                header did not. ConflictReviewButton was already imported here
+                and never rendered; it renders on app routes, where a sync
+                conflict is something you can actually act on. */}
+            {onAppRoute && (
+              <div className="hidden sm:block h-7">
+                <ConflictReviewButton />
+              </div>
+            )}
 
             {/* Sign out — desktop only, visible when signed in */}
             {mounted && user && (

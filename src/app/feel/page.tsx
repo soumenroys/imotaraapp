@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import TopBar from "@/components/imotara/TopBar";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
 import { hapticTap, hapticSuccess } from "@/lib/imotara/haptic";
 
@@ -127,7 +126,6 @@ export default function FeelPage() {
       {toast && <Toast message={toast.message} type={toast.type} duration={5000} onDismiss={() => setToast(null)} />}
 
       <div className="mx-auto w-full max-w-7xl px-3 pt-3 sm:px-4">
-        <TopBar title="Feel" />
       </div>
 
       <main className="mx-auto max-w-lg space-y-5 px-4 py-6 sm:px-6">

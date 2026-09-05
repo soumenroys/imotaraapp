@@ -1,6 +1,5 @@
 import Link from "next/link";
 import PrivacyActionsPanel from "@/components/imotara/PrivacyActionsPanel";
-import TopBar from "@/components/imotara/TopBar";
 import packageJson from "../../../package.json";
 
 export const metadata = {
@@ -17,12 +16,6 @@ const BUILD_LABEL = _build ? `${_version} (${_build})` : _version;
 export default function PrivacyPage() {
   return (
     <>
-      <TopBar
-        title="Privacy Policy"
-        showSyncChip={false}
-        showConflictsButton={false}
-      />
-
       <main
         className="mx-auto w-full max-w-5xl px-4 py-16 text-zinc-50 sm:px-6"
         aria-labelledby="privacy-title"

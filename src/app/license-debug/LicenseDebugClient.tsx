@@ -1,7 +1,6 @@
 "use client";
 
 import useLicense from "@/hooks/useLicense";
-import TopBar from "@/components/imotara/TopBar";
 import LicenseBadge from "@/components/imotara/LicenseBadge";
 
 export default function LicenseDebugClient() {
@@ -9,8 +8,6 @@ export default function LicenseDebugClient() {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-[#130e17] via-[#1a1020] to-[#130e17] text-slate-100">
-            <TopBar title="License Debug" showSyncChip={false} showConflictsButton={false} />
-
             <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 pb-16 pt-20">
                 <section className="rounded-2xl border border-slate-800/60 bg-slate-900/60 p-6 shadow-lg shadow-black/40 backdrop-blur">
                     <h1 className="text-xl font-semibold tracking-tight text-slate-50">

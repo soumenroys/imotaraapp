@@ -3,6 +3,7 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import SiteHeader from "@/components/SiteHeader";
+import MobileTabBar from "@/components/imotara/MobileTabBar";
 import SiteFooter from "@/components/SiteFooter";
 import LocalDataNotice from "@/components/imotara/LocalDataNotice";
 import FirstVisitBanner from "@/components/imotara/FirstVisitBanner";
@@ -352,6 +353,7 @@ export default function RootLayout({
         className={`${inter.className} flex min-h-screen flex-col overflow-x-hidden pb-24 text-zinc-900 dark:text-zinc-100`}
       >
         <SiteHeader />
+        <MobileTabBar />
 
         <main id="main-content" className="mx-auto w-full max-w-5xl flex-1 px-4 py-4 pb-8 sm:px-6 sm:py-10">
           <PageTransition>{children}</PageTransition>

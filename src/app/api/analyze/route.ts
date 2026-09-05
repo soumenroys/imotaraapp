@@ -66,6 +66,10 @@ import {
   HI_FEAR_REGEX,
   TA_SAD_REGEX,
   TA_STRESS_REGEX,
+  TE_SAD_REGEX,
+  TE_STRESS_REGEX,
+  TE_ANGER_REGEX,
+  TE_FEAR_REGEX,
   TA_ANGER_REGEX,
   TA_FEAR_REGEX,
   GU_SAD_REGEX,
@@ -449,6 +453,15 @@ export async function POST(req: Request) {
       if (TA_ANGER_REGEX.test(raw))
         return { emotion: asEmotion("anger"), intensity: 0.65 };
       if (TA_FEAR_REGEX.test(raw))
+        return { emotion: asEmotion("fear"), intensity: 0.65 };
+
+      if (TE_SAD_REGEX.test(raw))
+        return { emotion: asEmotion("sadness"), intensity: 0.65 };
+      if (TE_STRESS_REGEX.test(raw))
+        return { emotion: asEmotion("anxiety"), intensity: 0.65 };
+      if (TE_ANGER_REGEX.test(raw))
+        return { emotion: asEmotion("anger"), intensity: 0.65 };
+      if (TE_FEAR_REGEX.test(raw))
         return { emotion: asEmotion("fear"), intensity: 0.65 };
 
       if (GU_SAD_REGEX.test(raw))

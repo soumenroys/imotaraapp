@@ -8,6 +8,9 @@ import {
     ROMAN_TE_LANG_HINT_REGEX,
     TA_SAD_REGEX,
     TA_STRESS_REGEX,
+    TE_SAD_REGEX,
+    TE_STRESS_REGEX,
+    TE_ANGER_REGEX,
 } from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { buildNativeWisdom } from "@/lib/ai/local/nativeWisdomEngine";
@@ -546,9 +549,11 @@ function detectSignal(text: string, lang: LocalLanguage): "sad" | "anxious" | "a
     }
 
     if (lang === "te") {
-        if (/(kashtam|baadha|bharam|chaala bhaaranga|edustunna|baadha ga undi)/.test(t)) return "sad";
-        if (/(pressure|stress|tension|bayam|bhayam|chaala pressure|manasu veganga)/.test(t)) return "anxious";
-        if (/(kopam|frustrating|annoyed|irritated|mad)/.test(t)) return "angry";
+        // Telugu script as well as romanised, the way the Tamil branch does it.
+        // Romanised-only meant a Telugu speaker writing Telugu got nothing.
+        if (TE_SAD_REGEX.test(raw) || /(kashtam|baadha|bharam|chaala bhaaranga|edustunna|baadha ga undi)/.test(t)) return "sad";
+        if (TE_STRESS_REGEX.test(raw) || /(pressure|stress|tension|bayam|bhayam|chaala pressure|manasu veganga)/.test(t)) return "anxious";
+        if (TE_ANGER_REGEX.test(raw) || /(kopam|frustrating|annoyed|irritated|mad)/.test(t)) return "angry";
         if (/(tired|drained|burnt|alasata|chaala tired|aayasam)/.test(t)) return "tired";
         return "okay";
     }

@@ -89,18 +89,12 @@ import {
 import { deriveResponseToneFromToneContext, buildEmotionMemorySummary } from "@/lib/imotara/promptProfile";
 import {
   debugDetectEmotion,
-  BN_SAD_REGEX, BN_STRESS_REGEX, BN_ANGER_REGEX,
-  HI_STRESS_REGEX,
-  TA_SAD_REGEX, TA_STRESS_REGEX,
-  GU_SAD_REGEX, GU_STRESS_REGEX,
-  KN_SAD_REGEX, KN_STRESS_REGEX,
-  ML_SAD_REGEX, ML_STRESS_REGEX,
-  PA_SAD_REGEX, PA_STRESS_REGEX,
-  OR_SAD_REGEX, OR_STRESS_REGEX,
-  MR_SAD_REGEX, MR_STRESS_REGEX,
+  BN_ANGER_REGEX,
   GRATITUDE_REGEX,
   CONFUSED_EN_REGEX,
   isConfusedText,
+  isSadText,
+  isStressText,
 } from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { detectCountryCode } from "@/lib/safety/detectCountry";
@@ -590,12 +584,10 @@ function getLocalMoodHint(text: string): string | null {
   if (isConfusedText(raw) || CONFUSED_EN_REGEX.test(lower) ||
       /\b(stuck|lost|confused|don't know|dont know|no idea|numb|not sure what to do)\b/.test(lower))
     return "You sound a bit stuck or unsure. It's okay to take time to untangle things.";
-  if (BN_SAD_REGEX.test(raw) || TA_SAD_REGEX.test(raw) || GU_SAD_REGEX.test(raw) || KN_SAD_REGEX.test(raw) ||
-      ML_SAD_REGEX.test(raw) || PA_SAD_REGEX.test(raw) || OR_SAD_REGEX.test(raw) || MR_SAD_REGEX.test(raw) ||
+  if (isSadText(raw) ||
       /\b(sad|down|lonely|tired|upset|hurt|empty|depressed|blue|cry|crying|hopeless)\b/.test(lower))
     return "You seem a bit low. It's okay to feel this way — Imotara is here with you.";
-  if (HI_STRESS_REGEX.test(raw) || BN_STRESS_REGEX.test(raw) || TA_STRESS_REGEX.test(raw) || GU_STRESS_REGEX.test(raw) ||
-      KN_STRESS_REGEX.test(raw) || ML_STRESS_REGEX.test(raw) || PA_STRESS_REGEX.test(raw) || MR_STRESS_REGEX.test(raw) ||
+  if (isStressText(raw) ||
       /\b(worry|worried|anxious|scared|panic|nervous|stressed|overwhelmed|afraid|fear)\b/.test(lower))
     return "It sounds like something is making you feel tense or worried.";
   if (BN_ANGER_REGEX.test(raw) || /\b(angry|mad|frustrated|annoyed|irritated|furious|rage|hate)\b/.test(lower))

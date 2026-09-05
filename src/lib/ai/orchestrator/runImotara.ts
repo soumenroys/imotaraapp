@@ -36,13 +36,14 @@ import {
   MR_SAD_REGEX, MR_STRESS_REGEX, MR_FEAR_REGEX,
   GU_SAD_REGEX, GU_STRESS_REGEX, GU_FEAR_REGEX,
   TA_SAD_REGEX, TA_STRESS_REGEX, TA_FEAR_REGEX,
+  TE_SAD_REGEX, TE_STRESS_REGEX, TE_FEAR_REGEX,
   JP_SAD_REGEX, JP_STRESS_REGEX, JP_FEAR_REGEX,
   HE_SAD_REGEX, HE_STRESS_REGEX, HE_FEAR_REGEX,
   AR_SAD_REGEX, AR_STRESS_REGEX, AR_FEAR_REGEX,
   DE_SAD_REGEX, DE_STRESS_REGEX, DE_FEAR_REGEX,
 } from "@/lib/emotion/keywordMaps";
 
-// Emotional-vulnerability signal across the 13 non-English languages
+// Emotional-vulnerability signal across the 14 non-English languages
 // keywordMaps.ts has coverage for (P2-19, code_review_audit_2026_08_14):
 // SAD + STRESS + FEAR all map to the "supportive" tone below, matching how
 // their closest English equivalents (sad/lonely, overwhelmed, scared/afraid)
@@ -59,6 +60,7 @@ const MULTILINGUAL_SUPPORTIVE_REGEXES = [
   MR_SAD_REGEX, MR_STRESS_REGEX, MR_FEAR_REGEX,
   GU_SAD_REGEX, GU_STRESS_REGEX, GU_FEAR_REGEX,
   TA_SAD_REGEX, TA_STRESS_REGEX, TA_FEAR_REGEX,
+  TE_SAD_REGEX, TE_STRESS_REGEX, TE_FEAR_REGEX,
   JP_SAD_REGEX, JP_STRESS_REGEX, JP_FEAR_REGEX,
   HE_SAD_REGEX, HE_STRESS_REGEX, HE_FEAR_REGEX,
   AR_SAD_REGEX, AR_STRESS_REGEX, AR_FEAR_REGEX,

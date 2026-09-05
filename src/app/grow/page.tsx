@@ -1961,6 +1961,7 @@ export default function GrowPage() {
             onChange={(e) => setResponse(e.target.value)}
             onKeyDown={onReflectionKeyDown}
             rows={5}
+            aria-label="Your reflection"
             placeholder="Write what comes to mind — there's no wrong answer…"
             className="w-full resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-white/25 focus:ring-1 focus:ring-white/10"
           />

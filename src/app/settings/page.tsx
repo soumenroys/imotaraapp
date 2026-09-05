@@ -367,6 +367,12 @@ function AvatarSlider({
                             max={9}
                             value={safeIdx}
                             onChange={(e) => onChange(AVATAR_AGES[parseInt(e.target.value)])}
+                            /* This control is rendered twice (one per companion
+                               gender), so it gets a name rather than an id —
+                               two elements cannot share one. aria-valuetext
+                               makes it read the age band, not "3 of 9". */
+                            aria-label={name ? `${name} age` : "Companion age"}
+                            aria-valuetext={AVATAR_AGE_LABEL[AVATAR_AGES[safeIdx]]}
                             className="w-full accent-emerald-400"
                         />
                         <span className="text-[11px] text-zinc-400 text-center">{AVATAR_AGE_LABEL[AVATAR_AGES[safeIdx]]}</span>

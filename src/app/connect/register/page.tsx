@@ -580,8 +580,8 @@ export default function RegisterConsultantPage() {
 
             {/* Display name */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">Display Name *</label>
-              <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your name or alias"
+              <label htmlFor="reg-display-name" className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">Display Name *</label>
+              <input id="reg-display-name" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your name or alias"
                 className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
             </div>
 
@@ -635,17 +635,21 @@ export default function RegisterConsultantPage() {
 
             {/* Contact email */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">Contact Email *</label>
-              <input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)}
+              <label htmlFor="reg-contact-email" className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">Contact Email *</label>
+              <input id="reg-contact-email" type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)}
                 placeholder="your@email.com — for Imotara admin use only, not shown to users"
                 className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
             </div>
 
             {/* Contact phone */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">Contact Phone *</label>
+              <label htmlFor="reg-contact-phone" className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">Contact Phone *</label>
               <div className="flex gap-2">
+                {/* The visible label names the phone number itself; the country
+                    selector beside it is a separate control and needs its own
+                    name, or it announces as an unlabelled combo box. */}
                 <select
+                  aria-label="Country calling code"
                   value={countryCode}
                   onChange={e => setCountryCode(e.target.value)}
                   className="w-36 shrink-0 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-violet-500"
@@ -657,6 +661,7 @@ export default function RegisterConsultantPage() {
                   ))}
                 </select>
                 <input
+                  id="reg-contact-phone"
                   type="tel"
                   value={contactPhone}
                   onChange={e => setContactPhone(e.target.value)}
@@ -668,10 +673,10 @@ export default function RegisterConsultantPage() {
 
             {/* Website */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">
+              <label htmlFor="reg-website" className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">
                 Website <span className="text-zinc-600 normal-case">(optional)</span>
               </label>
-              <input type="url" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)}
+              <input id="reg-website" type="url" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)}
                 placeholder="https://yourwebsite.com"
                 className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
             </div>
@@ -685,6 +690,7 @@ export default function RegisterConsultantPage() {
                 {socialLinks.map((link, i) => (
                   <div key={i} className="flex gap-2">
                     <input type="url" value={link} onChange={e => updateSocialLink(i, e.target.value)}
+                      aria-label={`Social media link ${i + 1}`}
                       placeholder="https://instagram.com/you  or  linkedin.com/in/you"
                       className="flex-1 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
                     {socialLinks.length > 1 && (

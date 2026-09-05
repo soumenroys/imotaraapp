@@ -366,10 +366,19 @@ export default function RootLayout({
 
           Deliberately tiny and dependency-free: it blocks the first paint, so
           every byte here is a byte before anything appears.
+
+          It also resolves the three-way appearance preference (UX-20). An
+          unset preference means "system" for a NEW visitor and "dark" for a
+          returning one — someone who has been reading a dark site should not
+          arrive one day to find it light because their OS was always light and
+          they never touched the setting. That decision is made once and
+          written to localStorage so it cannot change under them later. The
+          logic here mirrors src/lib/theme/themePref.ts, which is the tested
+          copy; this one is inlined because it has to run before paint.
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var d=document.documentElement,g=function(k,f){var v=localStorage.getItem(k);return v||f};d.setAttribute("data-theme",g("imotara.theme.v1","dark"));d.setAttribute("data-accent",g("imotara.accent.v1","indigo"));d.setAttribute("data-fontsize",g("imotara.fontsize.v1","md"))}catch(e){}})();`,
+            __html: `(function(){try{var d=document.documentElement,s=localStorage,g=function(k,f){var v=s.getItem(k);return v||f},t=s.getItem("imotara.theme.v1");if(t!=="light"&&t!=="dark"&&t!=="system"){var e=false;for(var i=0;i<s.length;i++){var k=s.key(i);if(k&&k.indexOf("imotara.")===0){e=true;break}}t=e?"dark":"system";s.setItem("imotara.theme.v1",t)}var m=t==="system"?((window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark"):t;d.setAttribute("data-theme",m);d.setAttribute("data-theme-pref",t);d.setAttribute("data-accent",g("imotara.accent.v1","indigo"));d.setAttribute("data-fontsize",g("imotara.fontsize.v1","md"))}catch(e){}})();`,
           }}
         />
       </head>

@@ -11,6 +11,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
+import { resolveColorMode, initialThemePref } from "@/lib/theme/themePref";
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
 const LAYOUT = read("src/app/layout.tsx");
@@ -32,9 +33,20 @@ describe("the theme is applied before first paint", () => {
   });
 
   it("it uses the same defaults as AppearanceInit", () => {
-    for (const def of ['"dark"', '"indigo"', '"md"']) {
+    for (const def of ['"indigo"', '"md"']) {
       expect(LAYOUT).toContain(def);
       expect(INIT).toContain(def);
+    }
+  });
+
+  it("both copies resolve the three-way preference, not just read a mode", () => {
+    // UX-20. If either one treated the stored value as a colour mode it would
+    // stamp the literal string "system" onto data-theme, and the page would go
+    // dark for everyone following a light OS.
+    for (const [name, src] of [["layout", LAYOUT], ["AppearanceInit", INIT]] as const) {
+      expect(src, `${name} does not consult the OS preference`)
+        .toContain("prefers-color-scheme: light");
+      expect(src, `${name} does not handle the "system" value`).toContain("system");
     }
   });
 
@@ -58,8 +70,26 @@ describe("the theme is applied before first paint", () => {
     expect(LAYOUT).toMatch(/AppearanceInit/);
   });
 
-  it("the default is still dark — this fix must not change what people see", () => {
-    // Defaulting to the OS preference is UX-20, a separate product decision.
-    expect(INIT).toMatch(/THEME_KEY\)\s*\|\|\s*"dark"/);
+  it("a returning visitor still gets dark — UX-20 must not change what they see", () => {
+    // UX-20 made "system" the default, but only for someone arriving fresh.
+    // Anyone who has used Imotara before keeps the dark they already had, so
+    // the site does not turn light under them because their OS always was.
+    expect(initialThemePref([])).toBe("system");
+    expect(initialThemePref(["imotara.accent.v1"])).toBe("dark");
+    expect(initialThemePref(["someotherapp.k"])).toBe("system");
+  });
+
+  it("an unreadable OS preference resolves to dark, not light", () => {
+    expect(resolveColorMode("system", false)).toBe("dark");
+    expect(resolveColorMode("system", true)).toBe("light");
+    expect(resolveColorMode("dark", true)).toBe("dark");
+    expect(resolveColorMode("light", false)).toBe("light");
+  });
+
+  it("the inline script writes the decision down so it cannot change later", () => {
+    // Deciding "system vs dark" on every load would let the answer flip the
+    // first time a returning visitor clears one unrelated key.
+    const script = /dangerouslySetInnerHTML=\{\{\s*__html: `([^`]+)`/.exec(LAYOUT)?.[1] ?? "";
+    expect(script).toMatch(/setItem\("imotara\.theme\.v1"/);
   });
 });

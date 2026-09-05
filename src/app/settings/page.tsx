@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
-import { useAppearance, type Accent, type FontSize, type ColorMode } from "@/hooks/useAppearance";
+import { useAppearance, type Accent, type FontSize } from "@/hooks/useAppearance";
 import EmotionalFingerprint from "@/components/imotara/EmotionalFingerprint";
 import useFeatureGate from "@/hooks/useFeatureGate";
 import SsoIcon from "@/components/imotara/SsoIcon";
@@ -1283,7 +1283,7 @@ function getStorageSummary() {
 
 export default function SettingsPage() {
     const { mode } = useAnalysisConsent();
-    const { accent, setAccent, fontSize, setFontSize, colorMode, setColorMode } = useAppearance();
+    const { accent, setAccent, fontSize, setFontSize, colorMode, themePref, setThemePref } = useAppearance();
 
     // ── Supabase session (nullable — local-only users have no session) ─────────
     const [sbEmail, setSbEmail] = useState<string | null>(null);
@@ -3911,26 +3911,42 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
-                    {/* Color mode */}
+                    {/* Color mode — three-way, defaulting to the device (UX-20) */}
                     <div className="mt-4">
                         <p className="mb-2 text-xs font-medium text-zinc-400">Color mode</p>
-                        <div className="flex flex-wrap gap-2">
-                            {(["dark", "light"] as ColorMode[]).map((m) => (
+                        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Color mode">
+                            {([
+                                { key: "system", label: "System", icon: "💻" },
+                                { key: "light",  label: "Light",  icon: "☀️" },
+                                { key: "dark",   label: "Dark",   icon: "🌙" },
+                            ] as const).map((o) => (
                                 <button
-                                    key={m}
+                                    key={o.key}
                                     type="button"
-                                    onClick={() => setColorMode(m)}
+                                    role="radio"
+                                    aria-checked={themePref === o.key}
+                                    aria-label={
+                                        o.key === "system"
+                                            ? "Color mode: match my device"
+                                            : `Color mode: always ${o.label.toLowerCase()}`
+                                    }
+                                    onClick={() => setThemePref(o.key)}
                                     className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors ${
-                                        colorMode === m
+                                        themePref === o.key
                                             ? "border-sky-400/60 bg-sky-500/12 text-sky-200"
                                             : "border-white/15 bg-white/4 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
                                     }`}
                                 >
-                                    <span aria-hidden>{m === "dark" ? "🌙" : "☀️"}</span>
-                                    {m === "dark" ? "Dark" : "Light"}
+                                    <span aria-hidden>{o.icon}</span>
+                                    {o.label}
                                 </button>
                             ))}
                         </div>
+                        <p className="mt-2 text-[11px] text-zinc-500">
+                            {themePref === "system"
+                                ? `Following your device — currently ${colorMode}`
+                                : `Always ${themePref}`}
+                        </p>
                     </div>
 
                     {/* H-1: Haptic intensity */}

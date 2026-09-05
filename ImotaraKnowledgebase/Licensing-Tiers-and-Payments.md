@@ -1,6 +1,6 @@
 # Imotara — Licensing, Tiers & Payments
 
-*Source-of-truth reference for the Imotara web platform (`imotaraapp`, Next.js 16 + Supabase). Covers consumer license tiers, how feature gating actually works today, effective-tier resolution for organisation members, every payment rail, manual license grants, cancellation/invoicing, and the most common support answers. Grounded in the code as of v1.3.2 (build 132).*
+*Source-of-truth reference for the Imotara web platform (`imotaraapp`, Next.js 16 + Supabase). Covers consumer license tiers, how feature gating actually works today, effective-tier resolution for organisation members, every payment rail, manual license grants, cancellation/invoicing, and the most common support answers. Grounded in the code as of v1.3.3 (build 133).*
 
 > **Read this first — the soft-launch reality.** Imotara is in a soft-launch state. The licensing *matrix* is fully designed but almost nothing is enforced in the UI yet. The single hard server-side rule that is always active is the **20 cloud replies/day quota for Free users** in `/api/chat-reply`. Everything else (Plus/Pro/Family/EDU/Enterprise feature gates) is defined in code but gated behind `NEXT_PUBLIC_IMOTARA_LICENSE_MODE`, which ships as `off`. Where a capability is aspirational or de-scoped, this doc says so.
 

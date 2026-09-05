@@ -407,7 +407,7 @@ function BrowseTab() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16">
+        <div className="flex min-h-[50vh] items-center justify-center py-16">
           <Loader2 className="animate-spin text-violet-400" size={24} />
         </div>
       ) : displayed.length === 0 ? (
@@ -814,7 +814,15 @@ function WalletTab() {
   }
 
   if (isLoggedIn === null || loading) {
-    return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-violet-400" size={24} /></div>;
+    // min-h reserves roughly the height the loaded page will take. Without it
+    // this spinner is ~138px tall, the footer paints just below the fold, and
+    // the moment the real content arrives everything is shoved down — measured
+    // at CLS 0.88 on production, which is squarely "poor" (UX-26 follow-up).
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center py-16">
+        <Loader2 className="animate-spin text-violet-400" size={24} />
+      </div>
+    );
   }
 
   if (!isLoggedIn) {
@@ -2031,7 +2039,16 @@ export default function ConnectPage() {
    
   }, []);
 
-  if (!mounted) return null;
+  // Returning null here meant the server sent no page content at all: the
+  // footer painted directly under the header, and the instant this mounted the
+  // whole page appeared and shoved it down. Measured at CLS 0.88 on production
+  // — "poor" starts at 0.25.
+  //
+  // The guard itself stays. It is here because the first render reads the tab
+  // out of window.location.search, and rendering that on the server would be a
+  // hydration mismatch. A placeholder of roughly the right height costs nothing,
+  // renders identically on both sides, and keeps the footer where it belongs.
+  if (!mounted) return <div className="min-h-[80vh]" aria-hidden />;
 
   const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode }> = [
     { key: "browse",   label: "Browse",      icon: <Users size={15} />         },

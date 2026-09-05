@@ -2,6 +2,7 @@
 "use client";
 
 import { X, Phone, Globe } from "lucide-react";
+import Modal from "@/components/ui/Modal";
 
 const CRISIS_LINES: Record<string, Array<{ name: string; number?: string; url?: string }>> = {
   IN: [
@@ -25,21 +26,22 @@ export default function EmergencyModal({ countryCode = "IN", onClose }: Props) {
   const lines = CRISIS_LINES[countryCode] ?? CRISIS_LINES["IN"];
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      onClick={onClose}
+    <Modal
+      open
+      onClose={onClose}
+      labelledBy="emergency-modal-title"
+      backdropClassName="bg-black/60 backdrop-blur-sm"
+      className="imotara-glass-card w-full max-w-sm rounded-2xl p-6 shadow-2xl"
     >
-      <div
-        className="imotara-glass-card w-full max-w-sm rounded-2xl p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div>
         <div className="mb-4 flex items-start justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-rose-400">Emergency Support</p>
-            <h2 className="mt-1 text-lg font-semibold text-zinc-50">Crisis Helplines</h2>
+            <h2 id="emergency-modal-title" className="mt-1 text-lg font-semibold text-zinc-50">Crisis Helplines</h2>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200 transition"
           >
             <X size={16} />
@@ -89,6 +91,6 @@ export default function EmergencyModal({ countryCode = "IN", onClose }: Props) {
           This is not a substitute for emergency services. Call 112 / 911 for life-threatening emergencies.
         </p>
       </div>
-    </div>
+    </Modal>
   );
 }

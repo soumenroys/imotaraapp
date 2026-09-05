@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import Modal from "@/components/ui/Modal";
 import { useRouter } from "next/navigation";
 
 type ResultKind = "chat" | "history" | "reflection" | "checkin" | "letter";
@@ -168,23 +169,20 @@ export default function GlobalSearch({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[10vh]"
-      onClick={onClose}
+    <Modal
+      open
+      onClose={onClose}
+      label="Search"
+      backdropClassName="items-start justify-center px-4 pt-[10vh] bg-black/60 backdrop-blur-sm"
+      className="relative z-10 w-full max-w-lg animate-fade-in overflow-hidden rounded-2xl border border-white/15 bg-zinc-950/95 shadow-2xl backdrop-blur-xl"
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" aria-hidden />
-
-      {/* Panel */}
-      <div
-        className="relative z-10 w-full max-w-lg animate-fade-in overflow-hidden rounded-2xl border border-white/15 bg-zinc-950/95 shadow-2xl backdrop-blur-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div>
         {/* Search input */}
         <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
           <span className="text-zinc-500" aria-hidden>🔍</span>
           <input
             ref={inputRef}
+            data-autofocus
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -250,6 +248,6 @@ export default function GlobalSearch({ onClose }: { onClose: () => void }) {
           <span><kbd className="font-mono">Esc</kbd> close</span>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

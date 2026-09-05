@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import Modal from "@/components/ui/Modal";
 import { X, Clock, CreditCard, Loader2 } from "lucide-react";
 
 interface Consultant {
@@ -126,23 +127,29 @@ export default function RechargeModal({ consultant, razorpayKeyId, onSuccess, on
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      onClick={loading ? undefined : onClose}
+    <Modal
+      open
+      onClose={onClose}
+      labelledBy="recharge-modal-title"
+      // A payment is in flight: a stray Escape or a mis-click outside must not
+      // abandon it half-done. The existing code already refused the backdrop
+      // while loading; Escape had no handler at all, so it is covered now too.
+      closeOnEscape={!loading}
+      closeOnBackdrop={!loading}
+      backdropClassName="bg-black/60 backdrop-blur-sm"
+      className="imotara-glass-card w-full max-w-sm rounded-2xl p-6 shadow-2xl"
     >
-      <div
-        className="imotara-glass-card w-full max-w-sm rounded-2xl p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div>
         <div className="mb-5 flex items-start justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">Recharge</p>
-            <h2 className="mt-1 text-lg font-semibold text-zinc-50">Add Session Time</h2>
+            <h2 id="recharge-modal-title" className="mt-1 text-lg font-semibold text-zinc-50">Add Session Time</h2>
             <p className="mt-0.5 text-sm text-zinc-400">{consultant.display_name}</p>
           </div>
           <button
             onClick={onClose}
             disabled={loading}
+            aria-label="Close"
             className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <X size={16} />
@@ -227,6 +234,6 @@ export default function RechargeModal({ consultant, razorpayKeyId, onSuccess, on
           {loading ? "Processing…" : isFree ? `Get ${selectedMinutes} min free` : `Pay ${sym}${total.toFixed(2)}`}
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }

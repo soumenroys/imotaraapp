@@ -63,6 +63,21 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  async redirects() {
+    return [
+      // /reflect and /grow were the same screen — app/reflect/page.tsx was a
+      // component whose entire body was redirect("/grow") (UX-24).
+      //
+      // The route file is gone, but the redirect is NOT. Deleting it outright
+      // would 404 anyone still holding the link, and a redirect is exactly the
+      // thing you leave behind when a URL moves. Here it is also cheaper: it
+      // resolves at the edge instead of booting a React page to call
+      // redirect(), and 308 tells a browser or crawler it is permanent, which
+      // rendering a component never did.
+      { source: "/reflect", destination: "/grow", permanent: true },
+    ];
+  },
 };
 
 // P2-10 (code_review_audit_2026_08_14 finding F2): env-gated exactly like

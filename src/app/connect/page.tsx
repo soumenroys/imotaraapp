@@ -4,6 +4,7 @@
 "use client";
 
 import { CONNECT_LANGUAGES } from "@/lib/connect/languages";
+import Modal from "@/components/ui/Modal";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
@@ -127,7 +128,9 @@ const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "S
 
 // ── Browse Tab ────────────────────────────────────────────────────────────────
 
-function SignInModal({ onClose, redirectTo }: { onClose: () => void; redirectTo: string }) {
+// Exported so the dev harness can open it: it is otherwise unreachable
+// locally, needing a signed-out visitor AND a consultant to book.
+export function SignInModal({ onClose, redirectTo }: { onClose: () => void; redirectTo: string }) {
   async function signInWithGoogle() {
     await supabaseBrowser.auth.signInWithOAuth({
       provider: "google",
@@ -135,10 +138,16 @@ function SignInModal({ onClose, redirectTo }: { onClose: () => void; redirectTo:
     });
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="imotara-glass-card w-full max-w-sm rounded-2xl p-7 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <Modal
+      open
+      onClose={onClose}
+      labelledBy="signin-modal-title"
+      backdropClassName="flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="imotara-glass-card w-full max-w-sm rounded-2xl p-7 text-center shadow-2xl"
+    >
+      <div>
         <div className="mb-4 text-4xl">🔒</div>
-        <h2 className="mb-2 text-lg font-bold text-zinc-50">Sign in to continue</h2>
+        <h2 id="signin-modal-title" className="mb-2 text-lg font-bold text-zinc-50">Sign in to continue</h2>
         <p className="mb-6 text-sm text-zinc-400">You need to be signed in to book a session or apply as a companion.</p>
         <button
           onClick={signInWithGoogle}
@@ -149,7 +158,7 @@ function SignInModal({ onClose, redirectTo }: { onClose: () => void; redirectTo:
         </button>
         <button onClick={onClose} className="mt-3 w-full text-xs text-zinc-600 hover:text-zinc-400 transition">Cancel</button>
       </div>
-    </div>
+    </Modal>
   );
 }
 

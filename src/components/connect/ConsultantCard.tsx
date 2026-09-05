@@ -2,6 +2,7 @@
 "use client";
 
 import { languageLabel } from "@/lib/connect/languages";
+import Modal from "@/components/ui/Modal";
 import { useState } from "react";
 import { Star, Globe, CircleDot, MessageCircle, Mic, Video, Heart, X, Loader2, Clock } from "lucide-react";
 
@@ -229,14 +230,14 @@ export default function ConsultantCard({
 
       {/* ── Profile modal ── */}
       {showProfile && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          onClick={() => setShowProfile(false)}
+        <Modal
+          open
+          onClose={() => setShowProfile(false)}
+          label={`${consultant.display_name} — profile`}
+          backdropClassName="flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          className="imotara-glass-card w-full max-w-md rounded-2xl p-6 shadow-2xl overflow-y-auto max-h-[90vh]"
         >
-          <div
-            className="imotara-glass-card w-full max-w-md rounded-2xl p-6 shadow-2xl overflow-y-auto max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div>
             {/* Modal header */}
             <div className="flex items-start gap-4 mb-5">
               <div className="relative shrink-0">
@@ -388,7 +389,7 @@ export default function ConsultantCard({
               Imotara Connect provides peer wellness companionship only. Companions are not licensed therapists or medical professionals.
             </p>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );

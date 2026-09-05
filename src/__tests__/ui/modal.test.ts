@@ -18,6 +18,8 @@ const MIGRATED = [
   "src/components/imotara/UnsentLetterModal.tsx",
   "src/components/imotara/ConflictReviewModal.tsx",
   "src/components/connect/TranslationToggleModal.tsx",
+  "src/components/connect/ConsultantCard.tsx",
+  "src/app/connect/page.tsx",
 ];
 
 describe("the wrapper does what a dialog owes its user", () => {

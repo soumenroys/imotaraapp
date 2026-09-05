@@ -17,8 +17,10 @@ import UnsentLetterModal from "@/components/imotara/UnsentLetterModal";
 import ConflictReviewModal from "@/components/imotara/ConflictReviewModal";
 import TranslationToggleModal from "@/components/connect/TranslationToggleModal";
 import EmergencyModal from "@/components/connect/EmergencyModal";
+import ConsultantCard from "@/components/connect/ConsultantCard";
+import { SignInModal } from "@/app/connect/page";
 
-type Which = "unsentLetter" | "conflicts" | "translation" | "emergency" | null;
+type Which = "unsentLetter" | "conflicts" | "translation" | "emergency" | "signIn" | "profile" | null;
 
 export default function ModalPreviewPage() {
   const [open, setOpen] = useState<Which>(null);
@@ -38,6 +40,8 @@ export default function ModalPreviewPage() {
           ["conflicts", "Sync conflicts"],
           ["translation", "Translation toggle"],
           ["emergency", "Crisis helplines"],
+          ["signIn", "Sign-in prompt"],
+          ["profile", "Companion profile"],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -67,6 +71,30 @@ export default function ModalPreviewPage() {
         />
       )}
       {open === "emergency" && <EmergencyModal countryCode="IN" onClose={close} />}
+      {open === "signIn" && <SignInModal onClose={close} redirectTo="/connect" />}
+
+      {/* The profile dialog lives inside the card, so the card is rendered and
+          its own trigger is clicked — the same path a visitor takes. */}
+      {open === "profile" && (
+        <ConsultantCard
+          consultant={{
+            id: "dev-1", display_name: "Dev Companion", gender: "female",
+            photo_url: null, bio: "A stub companion for the modal harness.",
+            expertise_tags: ["Loneliness"], languages: ["en", "hi"],
+            role_category: "wellness_companion", session_types: ["chat"],
+            rate_per_min: 0, currency_code: "INR", rate_per_min_inr: 0,
+            availability_note: null, availability_windows: [],
+            is_online: true, is_busy: false,
+            rating_avg: 4.8, rating_count: 12, sessions_completed: 30,
+            preferred_lang: "en",
+          } as never}
+          isFavorite={false}
+          favLoading={false}
+          onToggleFavorite={() => {}}
+          onTalkNow={() => {}}
+          onRequestMeeting={() => {}}
+        />
+      )}
     </main>
   );
 }

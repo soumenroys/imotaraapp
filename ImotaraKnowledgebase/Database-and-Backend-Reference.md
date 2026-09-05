@@ -171,7 +171,11 @@ Grouped by area; one line each.
 ### Account / data
 - `POST /api/account/delete`, `POST /api/delete-remote` — account/data deletion.
 - `POST /api/export` — GDPR data export (JSON/CSV). `POST /api/profile/sync` — profile prefs.
-- `POST /api/careers/apply`, `GET/POST /api/blog/comments` — misc site.
+- `GET/POST /api/blog/comments` — misc site.
+- ~~`POST /api/careers/apply`~~ — **removed 2026-09-05.** Its form was replaced
+  by a mailto "Apply Now" button in `0602a87`, leaving a public,
+  unauthenticated endpoint that accepted 10 MB uploads and emailed them, with
+  no UI behind it. Applications now go to info@imotara.com by email.
 
 ### License & payments
 - `GET /api/license/status` — effective tier resolution.

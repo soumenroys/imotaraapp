@@ -64,7 +64,7 @@ imotaraapp/
 
 ## 6. API surface (summary — full catalog in Database & Backend Reference)
 
-~130 route handlers under `src/app/api/`. Areas: AI (`respond`, `chat-reply`, `analyze`, `mindset-analysis`), TTS/STT (`tts`, `voice/transcribe`), sync (`history`, `chat/messages`, `memory`, `profile/sync`, `export`, `delete-remote`, `account/delete`), licensing/payments (`license/*`, `payments/*`, `subscription/cancel`, `invoice/*`), org (`org/*` incl. the large `org/dashboard/*` set and public `v1/org/*` API-key API), admin (`admin/*`), Connect (`connect/*`), wallet, cron (9 jobs, `CRON_SECRET` Bearer-gated), plus `health`, `pulse`, `social-proof`, `blog/comments`, `careers/apply`, `settings-search`, `push/subscribe`.
+~130 route handlers under `src/app/api/`. Areas: AI (`respond`, `chat-reply`, `analyze`, `mindset-analysis`), TTS/STT (`tts`, `voice/transcribe`), sync (`history`, `chat/messages`, `memory`, `profile/sync`, `export`, `delete-remote`, `account/delete`), licensing/payments (`license/*`, `payments/*`, `subscription/cancel`, `invoice/*`), org (`org/*` incl. the large `org/dashboard/*` set and public `v1/org/*` API-key API), admin (`admin/*`), Connect (`connect/*`), wallet, cron (9 jobs, `CRON_SECRET` Bearer-gated), plus `health`, `pulse`, `social-proof`, `blog/comments`, `settings-search`, `push/subscribe`.
 
 ## 7. Environment variables
 

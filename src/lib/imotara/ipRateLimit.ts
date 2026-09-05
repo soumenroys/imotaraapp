@@ -2,7 +2,7 @@
 // Two rate-limiting mechanisms, pick based on what the route is protecting:
 //
 // 1. checkIpRateLimit() — simple in-memory fixed-window limiter for public,
-//    low-cost POST routes (careers/apply, blog/comments). Best-effort only:
+//    low-cost POST routes (blog/comments, interest). Best-effort only:
 //    resets on cold start and isn't shared across Vercel's multiple warm
 //    serverless instances, so the effective limit is limit × (warm instance
 //    count), not a precise per-IP cap. Fine for spam/abuse-blunting on cheap

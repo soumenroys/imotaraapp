@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import Modal from "@/components/ui/Modal";
 import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -963,20 +964,21 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
       s ? (s.length > 60 ? `${s.slice(0, 60)}…` : s) : "(no message)";
 
     return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        role="dialog"
-        aria-modal="true"
+      <Modal
+        open
+        onClose={onClose}
+        labelledBy="conflict-dialog-title"
+        // It already declared role="dialog" and aria-modal, which is more than
+        // most of them had — but nothing enforced it: focus never entered, Tab
+        // walked out to the page behind, and Escape did nothing. The wrapper is
+        // what makes the two attributes true. Backdrop-click already closed it,
+        // so that behaviour is unchanged.
+        backdropClassName="flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+        className="w-full max-w-lg"
       >
-        {/* backdrop */}
-        <div
-          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-          onClick={onClose}
-        />
-
         {/* panel */}
         <div className="relative z-10 w-full max-w-lg rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-2xl backdrop-blur-md">
-          <h3 className="text-base font-semibold text-zinc-50">
+          <h3 id="conflict-dialog-title" className="text-base font-semibold text-zinc-50">
             Server updates available
           </h3>
           <p className="mt-2 text-sm text-zinc-300">
@@ -1120,7 +1122,7 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
             </div>
           </div>
         </div>
-      </div>
+      </Modal>
     );
   }
 

@@ -13,6 +13,7 @@ import {
 import EmergencyModal from "@/components/connect/EmergencyModal";
 import RechargeModal from "@/components/connect/RechargeModal";
 import TranslationToggleModal from "@/components/connect/TranslationToggleModal";
+import Modal from "@/components/ui/Modal";
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -1117,10 +1118,23 @@ export default function SessionChatPage() {
 
       {/* Review modal */}
       {showReview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="imotara-glass-card w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+        <Modal
+          open
+          onClose={() => setShowReview(false)}
+          labelledBy="review-modal-title"
+          // Today this closes only via the X — the backdrop has no handler. A
+          // mis-click outside must not silently discard a written review, so
+          // backdrop-close stays off rather than being switched on by the
+          // migration. Escape is new and is what a dialog is expected to do,
+          // but not while the review is mid-submit.
+          closeOnBackdrop={false}
+          closeOnEscape={!submittingReview}
+          backdropClassName="flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          className="imotara-glass-card w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+        >
+          <div>
             <div className="mb-4 flex items-start justify-between">
-              <h2 className="text-lg font-semibold text-zinc-50">How was the session?</h2>
+              <h2 id="review-modal-title" className="text-lg font-semibold text-zinc-50">How was the session?</h2>
               <button onClick={() => setShowReview(false)} className="p-1.5 text-zinc-400 hover:text-zinc-200">
                 <X size={16} />
               </button>
@@ -1139,6 +1153,7 @@ export default function SessionChatPage() {
             <textarea
               value={reviewText}
               onChange={(e) => setReviewText(e.target.value)}
+              aria-label="Your review (optional)"
               placeholder="Optional: share your experience (max 200 chars)"
               maxLength={200}
               rows={3}
@@ -1154,7 +1169,7 @@ export default function SessionChatPage() {
               {submittingReview ? "Submitting…" : "Submit Review"}
             </button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

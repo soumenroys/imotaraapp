@@ -6,6 +6,7 @@ import { Download, Pencil, Check, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import Toast, { type ToastType } from "@/components/imotara/Toast";
 import SkeletonLoader from "@/components/imotara/SkeletonLoader";
+import Modal from "@/components/ui/Modal";
 import useFeatureGate from "@/hooks/useFeatureGate";
 
 // ── Storage ──────────────────────────────────────────────────────────────────
@@ -1389,14 +1390,16 @@ function JournalSection({ dominantEmotion }: { dominantEmotion?: string }) {
 
       {/* Expanded entry overlay */}
       {expandedEntry && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
-          onClick={() => setExpandedEntry(null)}
+        <Modal
+          open
+          onClose={() => setExpandedEntry(null)}
+          label="Reflection entry"
+          // It already closed on a backdrop click, so that behaviour is kept.
+          // What it never had was a role, a name, a focus trap or Escape.
+          backdropClassName="flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
+          className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl"
         >
-          <div
-            className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div>
             <p className="mb-1 text-[10px] text-zinc-500">
               {new Date(expandedEntry.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
             </p>
@@ -1412,7 +1415,7 @@ function JournalSection({ dominantEmotion }: { dominantEmotion?: string }) {
               Close
             </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Recurring themes */}

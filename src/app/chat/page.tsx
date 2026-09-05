@@ -1909,6 +1909,48 @@ export default function ChatPage() {
     return null;
   }, [showReturnGreeting, returnGreetingShow, showDailyCheckin, dailyCheckinShow, showTrialBanner, license.expiresAt, sessionGreeting, milestoneLoop, milestoneShow, weeklyRecap, weeklyRecapDismissed, weeklyRecapSettingEnabled, collectivePulse, pulseDismissed, collectivePulseShow, growNudgeDismissed, activeThread?.messages, analyzing]);
 
+  /**
+   * One card above the composer, at most (UX-22).
+   *
+   * `activeTier2Banner` above already makes eight banners compete for a single
+   * slot. Eight further things rendered with no mutual exclusion at all, so
+   * they stacked — and the person who triggered the most of them was the
+   * engaged returning user, the one you least want to bury.
+   *
+   * Budget agreed with the owner: one tier-2 banner PLUS at most one card.
+   * Order is crisis first, then time-sensitive, then evergreen.
+   *
+   * Four things sit OUTSIDE this budget on purpose:
+   *   · the crisis banner — always shown, never suppressed, not counted;
+   *   · the undo toast and the voice-transcript confirm — direct responses to
+   *     something the person just did, so hiding them would break the action
+   *     rather than tidy the screen;
+   *   · the sentiment seed chips — an input aid shown only when the composer
+   *     is empty, not a card competing for attention;
+   *   · the breathing widget — it only appears when explicitly opened.
+   *
+   * Losers are not marked as seen, so nothing here consumes a card's one
+   * chance: they simply reappear in a later session. Mood glimpse is the
+   * exception by design, being about the message just sent — its state is
+   * session-scoped, so it lapses rather than queues.
+   */
+  const activeCard = useMemo((): "toneReflection" | "moodGlimpse" | "openLoop" | "companionInsight" | "discovery" | null => {
+    const userMsgCount = activeThread?.messages.filter((m) => m.role === "user").length ?? 0;
+
+    // Time-sensitive: about what was just said, or a thread left hanging.
+    if (!analyzing && !sessionToneCardDismissed && toneReflectionShow
+        && analysis?.summary?.headline && userMsgCount >= 3) return "toneReflection";
+    if (moodGlimpseEnabled && !moodGlimpseDismissedSession && latestMoodHint) return "moodGlimpse";
+    if (activeOpenLoop) return "openLoop";
+
+    // Evergreen: true today, equally true next week.
+    if (companionInsight) return "companionInsight";
+    if (discoveryCard) return "discovery";
+    return null;
+  }, [analyzing, sessionToneCardDismissed, toneReflectionShow, analysis?.summary?.headline,
+      activeThread?.messages, moodGlimpseEnabled, moodGlimpseDismissedSession, latestMoodHint,
+      activeOpenLoop, companionInsight, discoveryCard]);
+
   // analysis side-effect (AnalysisResult stays on analysis pipeline)
   useEffect(() => {
     if (!mounted) return;
@@ -4139,11 +4181,7 @@ export default function ChatPage() {
           </div>{/* end emotion-ambient wrapper */}
 
           {/* L-2: Post-session tone reflection card — shown when ≥3 user messages + analysis ready */}
-          {!analyzing &&
-            !sessionToneCardDismissed &&
-            toneReflectionShow &&
-            analysis?.summary?.headline &&
-            (activeThread?.messages.filter((m) => m.role === "user").length ?? 0) >= 3 && (() => {
+          {activeCard === "toneReflection" && analysis?.summary?.headline && (() => {
               const EMOTION_EMOJI_MAP: Record<string, string> = {
                 joy: "😄", happiness: "😄", gratitude: "🙏", hopeful: "💚",
                 sadness: "💙", sad: "💙", grief: "💜", loss: "💜",
@@ -4199,7 +4237,7 @@ export default function ChatPage() {
           }
 
           {/* Mood glimpse — local emotion hint from latest user message */}
-          {moodGlimpseEnabled && !moodGlimpseDismissedSession && latestMoodHint && (
+          {activeCard === "moodGlimpse" && latestMoodHint && (
             <div className="mx-auto mb-1 max-w-3xl rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 backdrop-blur-md">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Mood glimpse</p>
@@ -4358,7 +4396,7 @@ export default function ChatPage() {
           {/* COMPOSER */}
           <div className="border-t border-white/10 px-3 pb-1 pt-1 sm:px-4">
             {/* P3/P5 — Companion Insight Card */}
-            {companionInsight && (
+            {activeCard === "companionInsight" && companionInsight && (
               <div className="mx-auto max-w-3xl">
                 <CompanionInsightCard
                   variant={companionInsight.variant}
@@ -4370,7 +4408,7 @@ export default function ChatPage() {
             )}
 
             {/* P1 — Open Loop Card */}
-            {activeOpenLoop && (
+            {activeCard === "openLoop" && activeOpenLoop && (
               <div className="mx-auto max-w-3xl">
                 <OpenLoopCard
                   loop={activeOpenLoop}
@@ -4395,7 +4433,7 @@ export default function ChatPage() {
             )}
 
             {/* Feature discovery card — one per session, after 3+ user messages */}
-            {discoveryCard && (
+            {activeCard === "discovery" && discoveryCard && (
               <div className="mx-auto mb-2 max-w-3xl flex items-center gap-3 rounded-xl border border-indigo-500/20 bg-indigo-500/8 px-3.5 py-2 text-xs text-indigo-200/80">
                 <span className="shrink-0 text-base">
                   {discoveryCard === "trends" ? "📊" : discoveryCard === "companion" ? "✨" : discoveryCard === "unsent_letter" ? "✉️" : discoveryCard === "connect_translation" ? "🌐" : "📡"}

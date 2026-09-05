@@ -308,10 +308,10 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
         {/* Email + password login */}
         {!resetToken && loginMode === "email" && !showForgot && (
           <form onSubmit={handleEmailSubmit} className="space-y-3">
-            <input type="email" placeholder="admin@imotara.com" value={email} onChange={(e) => { setEmail(e.target.value); setEmailError(""); }} autoFocus required className={inputCls} />
+            <input type="email" aria-label="Admin email" placeholder="admin@imotara.com" value={email} onChange={(e) => { setEmail(e.target.value); setEmailError(""); }} autoFocus required className={inputCls} />
             <div className="relative">
-              <input type={showEmailPwd ? "text" : "password"} placeholder="Password" value={emailPwd} onChange={(e) => { setEmailPwd(e.target.value); setEmailError(""); }} required className={inputCls} />
-              <button type="button" onClick={() => setShowEmailPwd((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"><EyeIcon open={showEmailPwd} /></button>
+              <input type={showEmailPwd ? "text" : "password"} aria-label="Password" placeholder="Password" value={emailPwd} onChange={(e) => { setEmailPwd(e.target.value); setEmailError(""); }} required className={inputCls} />
+              <button type="button" onClick={() => setShowEmailPwd((v) => !v)} aria-label={showEmailPwd ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"><EyeIcon open={showEmailPwd} /></button>
             </div>
             {emailError && <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{emailError}</p>}
             <button type="submit" disabled={emailPending} className="w-full rounded-xl bg-indigo-600/80 py-3 text-sm font-semibold text-white transition hover:bg-indigo-600 disabled:opacity-60">

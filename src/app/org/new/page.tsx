@@ -176,10 +176,11 @@ export default function OrgNewPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Org name */}
         <div>
-          <label className="block text-sm font-medium text-zinc-200 mb-1.5">
+          <label htmlFor="org-name" className="block text-sm font-medium text-zinc-200 mb-1.5">
             Organisation name <span className="text-rose-400">*</span>
           </label>
           <input
+            id="org-name"
             required
             value={orgName}
             onChange={(e) => setOrgName(e.target.value)}
@@ -191,14 +192,20 @@ export default function OrgNewPage() {
 
         {/* Org type */}
         <div>
-          <label className="block text-sm font-medium text-zinc-200 mb-2">
+          {/* These are custom buttons, not a form control, so <label> was the
+              wrong element — it named nothing. As a radio group the visible
+              heading names the group and each option reports whether it is the
+              chosen one. */}
+          <span id="org-type-label" className="block text-sm font-medium text-zinc-200 mb-2">
             Organisation type <span className="text-rose-400">*</span>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
+          </span>
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-labelledby="org-type-label">
             {TYPE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
+                role="radio"
+                aria-checked={billingType === opt.value}
                 onClick={() => setBillingType(opt.value)}
                 className={`flex items-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                   billingType === opt.value
@@ -218,11 +225,12 @@ export default function OrgNewPage() {
 
         {/* Contact email */}
         <div>
-          <label className="block text-sm font-medium text-zinc-200 mb-1.5">
+          <label htmlFor="org-contact-email" className="block text-sm font-medium text-zinc-200 mb-1.5">
             Billing / contact email
             <span className="ml-1.5 text-[11px] font-normal text-zinc-500">(if different from your account email)</span>
           </label>
           <input
+            id="org-contact-email"
             type="email"
             value={contactEmail}
             onChange={(e) => setContactEmail(e.target.value)}
@@ -233,11 +241,12 @@ export default function OrgNewPage() {
 
         {/* Description */}
         <div>
-          <label className="block text-sm font-medium text-zinc-200 mb-1.5">
+          <label htmlFor="org-description" className="block text-sm font-medium text-zinc-200 mb-1.5">
             Brief description
             <span className="ml-1.5 text-[11px] font-normal text-zinc-500">(optional — helps us tailor your setup)</span>
           </label>
           <textarea
+            id="org-description"
             rows={3}
             value={description}
             onChange={(e) => setDescription(e.target.value)}

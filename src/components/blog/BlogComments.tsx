@@ -114,6 +114,7 @@ export default function BlogComments({ slug }: { slug: string }) {
 
           <input
             type="text"
+            aria-label="Your name"
             placeholder="Your name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -123,6 +124,7 @@ export default function BlogComments({ slug }: { slug: string }) {
           />
 
           <textarea
+            aria-label="Your comment"
             placeholder="Share your thoughts or suggestions…"
             value={message}
             onChange={(e) => setMessage(e.target.value)}

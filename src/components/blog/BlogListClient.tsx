@@ -112,10 +112,14 @@ function QuickCommentForm({ posts }: { posts: BlogPost[] }) {
     <form onSubmit={handleSubmit} className="space-y-3">
       {posts.length > 1 && (
         <div>
-          <label className="mb-1.5 block text-[10px] uppercase tracking-[0.15em] text-zinc-600">
+          {/* htmlFor rather than aria-label: an aria-label would override the
+              visible "Commenting on" text, so the screen reader would announce
+              something the sighted user cannot see. */}
+          <label htmlFor="blog-comment-post" className="mb-1.5 block text-[10px] uppercase tracking-[0.15em] text-zinc-600">
             Commenting on
           </label>
           <select
+            id="blog-comment-post"
             value={selectedSlug}
             onChange={(e) => setSelectedSlug(e.target.value)}
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-300 outline-none transition focus:border-white/20"
@@ -130,12 +134,12 @@ function QuickCommentForm({ posts }: { posts: BlogPost[] }) {
       )}
       <div className="grid gap-3 sm:grid-cols-2">
         <input
-          type="text" placeholder="Your name" value={name}
+          type="text" aria-label="Your name" placeholder="Your name" value={name}
           onChange={(e) => setName(e.target.value)} maxLength={80} required
           className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-zinc-200 placeholder-zinc-600 outline-none transition focus:border-white/20 focus:bg-white/8"
         />
         <input
-          type="text" placeholder="Share your thought…" value={message}
+          type="text" aria-label="Your comment" placeholder="Share your thought…" value={message}
           onChange={(e) => setMessage(e.target.value)} maxLength={300} required
           className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-zinc-200 placeholder-zinc-600 outline-none transition focus:border-white/20 focus:bg-white/8"
         />

@@ -783,7 +783,7 @@ function ToneAndContextTile() {
                                 </select>
                             </label>
 
-                            <div className="flex min-w-0 flex-1 flex-col gap-1">
+                            <label className="flex min-w-0 flex-1 flex-col gap-1">
                                 <span className="text-xs text-zinc-300">Gender</span>
                                 <select
                                     value={userGender}
@@ -799,7 +799,7 @@ function ToneAndContextTile() {
                                     <option value="nonbinary">Non-binary</option>
                                     <option value="other">Other</option>
                                 </select>
-                            </div>
+                            </label>
                         </div>
 
                         <AvatarSlider
@@ -954,7 +954,7 @@ function ToneAndContextTile() {
                                     </select>
                                 </label>
 
-                                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                                <label className="flex min-w-0 flex-1 flex-col gap-1">
                                     <span className="text-xs text-zinc-300">Gender</span>
                                     <select
                                         value={compGender}
@@ -982,7 +982,7 @@ function ToneAndContextTile() {
                                             {compVoiceInfo.text}
                                         </span>
                                     )}
-                                </div>
+                                </label>
                             </div>
 
                             <AvatarSlider

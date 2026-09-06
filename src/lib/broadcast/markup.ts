@@ -374,23 +374,45 @@ export function usesMergeFields(content: string): boolean {
  * because only the sender can mint a per-recipient token; the preview passes
  * a dead one.
  *
- * The postal address was removed at the owner's request on 2026-09-04. Worth
- * knowing if this is ever revisited: CAN-SPAM requires a physical address in
- * commercial mail and applies to any message reaching a US recipient, and
- * filters look for one too. Restoring it is a one-line change here, and here
- * only — which is the reason this lives in a single place.
+ * The postal address was removed at the owner's request on 2026-09-04, then
+ * made restorable on 2026-09-06 when the owner asked for the best possible
+ * inbox placement. It is now driven by BROADCAST_POSTAL_ADDRESS rather than
+ * hardcoded, so turning it back on is a config change and the address itself
+ * never lives in the repo.
+ *
+ * Why it matters: CAN-SPAM requires a physical address in commercial mail and
+ * applies to any message reaching a US recipient — which the senior-living
+ * outreach list is entirely made of — and spam filters treat its absence as a
+ * bulk-mail signal. Unset, the footer renders exactly as it did before, so
+ * leaving it off changes nothing.
  */
+/**
+ * The sender's postal address, or "" when not configured.
+ *
+ * Read through a function rather than a module constant so a test can set the
+ * variable without the module having already captured its value at import.
+ */
+export function postalAddress(): string {
+  return (process.env.BROADCAST_POSTAL_ADDRESS ?? "").trim();
+}
+
 export function footerHtml(unsubscribeHref: string): string {
+  const addr = postalAddress();
   return (
     `<div style="margin-top:28px;padding-top:14px;border-top:1px solid #eef2f7;` +
     `font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.6;color:#94a3b8">` +
     `<a href="${unsubscribeHref}" style="color:#4f46e5">Unsubscribe</a>` +
-    ` &middot; Imotara</div>`
+    ` &middot; Imotara` +
+    // Escaped, not interpolated raw: this is operator-supplied config and the
+    // rest of this file is careful never to put unchecked text into markup.
+    (addr ? `<div style="margin-top:6px">${esc(addr)}</div>` : "") +
+    `</div>`
   );
 }
 
 export function footerText(unsubscribeHref: string): string {
-  return `\n\n—\nUnsubscribe: ${unsubscribeHref}\nImotara`;
+  const addr = postalAddress();
+  return `\n\n—\nUnsubscribe: ${unsubscribeHref}\nImotara${addr ? `\n${addr}` : ""}`;
 }
 
 /**

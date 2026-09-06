@@ -30,6 +30,7 @@ const SETTINGS_LIST = [
   { id: "tts_speed", title: "TTS speed & pitch", description: "Adjust how fast and high the companion's voice reads messages" },
   { id: "voice_input", title: "Voice input", description: "Use microphone to speak messages instead of typing" },
   { id: "voice_quality", title: "Voice recording quality", description: "Set microphone recording quality" },
+  { id: "chat_relationship_backdrop", title: "Colour the chat by relationship", description: "Give the chat message area a background colour matching the companion relationship — friend, mentor, coach and the rest each get their own" },
   { id: "voice_auto_send", title: "Send voice notes automatically", description: "Send a voice transcription as soon as it is ready, instead of putting it in the composer to edit first" },
   { id: "hands_free", title: "Hands-free mode", description: "Automatically start voice input and play responses" },
   { id: "memory_capture", title: "Auto-capture memories", description: "Automatically remember things you share about yourself" },

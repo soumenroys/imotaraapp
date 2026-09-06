@@ -5,6 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
+import { OPEN_SECTION_EVENT } from "@/data/settingsSections";
+import SettingsSearch from "@/components/imotara/SettingsSearch";
 import { useAppearance, type Accent, type FontSize } from "@/hooks/useAppearance";
 import EmotionalFingerprint from "@/components/imotara/EmotionalFingerprint";
 import useFeatureGate from "@/hooks/useFeatureGate";
@@ -411,6 +413,26 @@ function useSectionOpen(id: string, defaultOpen: boolean) {
         try { sessionStorage.setItem(key, String(next)); } catch { /* ignore */ }
         return next;
     });
+
+    // Settings search needs to open a specific section, and every section owns
+    // its own state through this hook. Listening here means one change covers
+    // all 27 rather than threading a setter through 27 call sites.
+    //
+    // Only ever opens, never closes: a search result should not collapse
+    // something the person had already opened for themselves.
+    useEffect(() => {
+        const onOpen = (e: Event) => {
+            if ((e as CustomEvent<string>).detail !== id) return;
+            setOpen((prev) => {
+                if (prev) return prev;
+                try { sessionStorage.setItem(key, "true"); } catch { /* ignore */ }
+                return true;
+            });
+        };
+        window.addEventListener(OPEN_SECTION_EVENT, onOpen);
+        return () => window.removeEventListener(OPEN_SECTION_EVENT, onOpen);
+    }, [id, key]);
+
     return [open, toggle] as const;
 }
 
@@ -2864,6 +2886,13 @@ export default function SettingsPage() {
                         Imotara stores data on this device.
                     </p>
                 </header>
+
+                {/* Find-a-setting. 27 sections, 24 collapsed by default, so
+                    Ctrl-F cannot reach most of this page — the text is not in
+                    the DOM until a section is open. Sits directly under the
+                    header because that is where someone looks first when they
+                    already know what they came for. */}
+                <SettingsSearch />
 
                 {/* Signed-out sign-in prompt — surfaced right up top so it's visible
                     without scrolling past every local-preference section below. The

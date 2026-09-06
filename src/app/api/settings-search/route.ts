@@ -30,6 +30,7 @@ const SETTINGS_LIST = [
   { id: "tts_speed", title: "TTS speed & pitch", description: "Adjust how fast and high the companion's voice reads messages" },
   { id: "voice_input", title: "Voice input", description: "Use microphone to speak messages instead of typing" },
   { id: "voice_quality", title: "Voice recording quality", description: "Set microphone recording quality" },
+  { id: "voice_auto_send", title: "Send voice notes automatically", description: "Send a voice transcription as soon as it is ready, instead of putting it in the composer to edit first" },
   { id: "hands_free", title: "Hands-free mode", description: "Automatically start voice input and play responses" },
   { id: "memory_capture", title: "Auto-capture memories", description: "Automatically remember things you share about yourself" },
   { id: "memory_max", title: "Memory capacity", description: "Maximum number of personal memories stored" },
@@ -52,6 +53,7 @@ const SETTINGS_LIST = [
   { id: "on_this_day", title: "On this day", description: "Show a memory or reflection from the same day in previous months" },
   { id: "emotional_fingerprint", title: "Emotional fingerprint", description: "Visual chart showing your unique emotional patterns" },
   { id: "teen_mode", title: "Teen insights mode", description: "Age-appropriate responses for users aged 13-17" },
+  { id: "org_membership", title: "Organization membership", description: "See which organization, NGO, school, or company manages your plan and your role there" },
 ].map((s) => `${s.id}: ${s.title} — ${s.description}`).join("\n");
 
 const SYSTEM = `You are a settings finder for the Imotara emotional wellness app.

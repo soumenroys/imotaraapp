@@ -338,24 +338,43 @@ export function renderText(src: string): string {
  *
  *   Hi {{name|there}},
  *
- * The fallback is not decoration. Most addresses arrive without a name, and a
- * message that opens "Hi ," on half its recipients is worse than one that
- * never tried. Substitution happens AFTER the HTML is rendered, on the
+ * The fallback is optional now. `{{name|there}}` still substitutes "there",
+ * but `{{name}}` with nothing stored collapses to nothing AND takes one
+ * preceding space with it, so `Hello {{name}},` reads "Hello Jane," for
+ * someone named and "Hello," for someone not. That is what makes a bare
+ * `{{name}}` safe to use: the old warning was that a message opening "Hi ,"
+ * on half its recipients is worse than one that never tried, and this is the
+ * fix for it rather than a reason to avoid the empty case. Substitution happens AFTER the HTML is rendered, on the
  * finished string, and the value is escaped — a recipient's own name is
  * attacker-controlled data as far as this is concerned.
  */
-const RE_MERGE = /\{\{(name|email)(?:\|([^}]*))?\}\}/g;
+// The leading ` ?` is deliberate. With an empty fallback, `Hello {{name}},`
+// would otherwise render as "Hello ," for anyone without a name — a stranded
+// space in front of the comma, which reads as broken rather than as plain.
+// The space is captured, then put back only when there is a value, so the same
+// template gives "Hello Jane," with a name and "Hello," without one.
+const RE_MERGE = /( ?)\{\{(name|email)(?:\|([^}]*))?\}\}( ?)/g;
 
 export function mergeFields(
   content: string,
   fields: { name?: string | null; email: string },
   escapeValues: boolean,
 ): string {
-  return content.replace(RE_MERGE, (_whole, key: string, fallback = "") => {
-    const raw = key === "name" ? (fields.name ?? "").trim() : fields.email;
-    const value = raw || fallback;
-    return escapeValues ? esc(value) : value;
-  });
+  return content.replace(
+    RE_MERGE,
+    (_whole, lead: string, key: string, fallback = "", trail: string) => {
+      const raw = key === "name" ? (fields.name ?? "").trim() : fields.email;
+      const value = raw || fallback;
+
+      // Put back exactly the spacing that was there when there is something to
+      // show. When there is not, drop the field AND one of its spaces, keeping
+      // a single space only if the field sat between two words — so
+      // "Hello {{name}}," gives "Hello," and "Hello {{name}} welcome" gives
+      // "Hello welcome" rather than a double gap.
+      if (!value) return lead && trail ? " " : "";
+      return lead + (escapeValues ? esc(value) : value) + trail;
+    },
+  );
 }
 
 /** Does this message personalise anything? Used to decide whether the sender

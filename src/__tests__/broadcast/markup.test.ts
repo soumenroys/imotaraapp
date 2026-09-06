@@ -278,3 +278,50 @@ describe("merge fields", () => {
     expect(usesMergeFields("Hi {{name}}")).toBe(true);
   });
 });
+
+// An optional name, added 2026-09-06 on the owner's request: show it when we
+// have one, and greet with a plain "Hello," when we do not — rather than
+// inventing a stand-in like "there".
+describe("{{name}} with nothing stored collapses cleanly", () => {
+  const at = (name: string | null) => ({ name, email: "p@x.test" });
+
+  it("greets by name when there is one", async () => {
+    const { mergeFields } = await import("@/lib/broadcast/markup");
+    expect(mergeFields("Hello {{name}},", at("Jane Whitfield"), true)).toBe("Hello Jane Whitfield,");
+  });
+
+  it("leaves no stranded space before the comma when there is not", async () => {
+    const { mergeFields } = await import("@/lib/broadcast/markup");
+    expect(mergeFields("Hello {{name}},", at(null), true)).toBe("Hello,");
+    expect(mergeFields("Hello {{name}},", at(""), true)).toBe("Hello,");
+    expect(mergeFields("Hello {{name}},", at("   "), true)).toBe("Hello,");
+  });
+
+  it("does not eat a space that was not there to begin with", async () => {
+    const { mergeFields } = await import("@/lib/broadcast/markup");
+    expect(mergeFields("[{{name}}]", at(null), true)).toBe("[]");
+    expect(mergeFields("[{{name}}]", at("Jane"), true)).toBe("[Jane]");
+  });
+
+  it("still honours an explicit fallback, which keeps its space", async () => {
+    const { mergeFields } = await import("@/lib/broadcast/markup");
+    expect(mergeFields("Hello {{name|there}},", at(null), true)).toBe("Hello there,");
+  });
+
+  it("works the same in a subject line", async () => {
+    const { mergeFields } = await import("@/lib/broadcast/markup");
+    expect(mergeFields("{{name}} — a quick note", at("Raj"), false)).toBe("Raj — a quick note");
+    expect(mergeFields("{{name}} — a quick note", at(null), false)).toBe("— a quick note");
+  });
+
+  it("email never collapses, because it is always present", async () => {
+    const { mergeFields } = await import("@/lib/broadcast/markup");
+    expect(mergeFields("Sent to {{email}}", at(null), false)).toBe("Sent to p@x.test");
+  });
+
+  it("still escapes a name that contains markup", async () => {
+    const { mergeFields } = await import("@/lib/broadcast/markup");
+    expect(mergeFields("Hello {{name}},", { name: "<b>x</b>", email: "p@x.test" }, true))
+      .toBe("Hello &lt;b&gt;x&lt;/b&gt;,");
+  });
+});

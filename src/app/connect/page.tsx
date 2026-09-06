@@ -340,7 +340,7 @@ function BrowseTab() {
             >
               <span>{rc.icon}</span>
               <span>{rc.label}</span>
-              {rc.phase > 1 && <span className="ml-0.5 text-[10px] text-zinc-600">Soon</span>}
+              {rc.phase > 1 && <span className="ms-0.5 text-[10px] text-zinc-600">Soon</span>}
             </button>
           ))}
         </div>
@@ -617,7 +617,7 @@ function SessionsTab() {
           >
             <button
               onClick={() => router.push(`/connect/session/${s.id}`)}
-              className="flex flex-1 items-center gap-4 text-left min-w-0"
+              className="flex flex-1 items-center gap-4 text-start min-w-0"
             >
               <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-violet-500/20 flex items-center justify-center text-lg">
                 {consultant?.photo_url
@@ -864,7 +864,7 @@ function WalletTab() {
           <p className="text-sm text-rose-400">Could not load wallet data.</p>
           <button
             onClick={() => { setFetchError(false); fetchBalance().catch(() => setFetchError(true)); }}
-            className="ml-4 rounded-lg bg-rose-500/20 px-3 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-500/30 transition"
+            className="ms-4 rounded-lg bg-rose-500/20 px-3 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-500/30 transition"
           >
             Retry
           </button>
@@ -929,7 +929,7 @@ function WalletTab() {
                     <p className="truncate text-sm font-medium text-zinc-100">{sw.display_name}</p>
                     <p className="text-xs text-zinc-500">{swSym} balance</p>
                   </div>
-                  <div className="shrink-0 text-right">
+                  <div className="shrink-0 text-end">
                     <p className="text-sm font-semibold text-violet-300">{sw.balance_minutes} min</p>
                     <p className="text-[10px] text-zinc-600">remaining</p>
                   </div>
@@ -1049,7 +1049,7 @@ function WalletTab() {
       <div className="imotara-glass-card rounded-2xl overflow-hidden">
         <button
           onClick={loadHistory}
-          className="flex w-full items-center justify-between p-5 text-left hover:bg-white/5 transition"
+          className="flex w-full items-center justify-between p-5 text-start hover:bg-white/5 transition"
         >
           <span className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
             <History size={14} className="text-violet-400" />
@@ -1144,7 +1144,7 @@ function AvailabilityEditor({
           />
           <button
             onClick={() => removeWindow(i)}
-            className="ml-auto rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1.5 text-[10px] text-rose-400 hover:bg-rose-500/20"
+            className="ms-auto rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1.5 text-[10px] text-rose-400 hover:bg-rose-500/20"
           >
             Remove
           </button>
@@ -1549,7 +1549,7 @@ function DashboardTab() {
         >
           <Bell size={15} className="shrink-0 animate-pulse" />
           <span className="font-semibold">New session request received!</span>
-          <span className="ml-auto text-xs opacity-60">tap to dismiss</span>
+          <span className="ms-auto text-xs opacity-60">tap to dismiss</span>
         </div>
       )}
 
@@ -1588,7 +1588,7 @@ function DashboardTab() {
       <div className="imotara-glass-card rounded-2xl overflow-hidden">
         <button
           onClick={() => { setEditingAvail((v) => !v); setAvailWindows(profile.availability_windows ?? []); }}
-          className="flex w-full items-center justify-between p-5 text-left hover:bg-white/3 transition"
+          className="flex w-full items-center justify-between p-5 text-start hover:bg-white/3 transition"
         >
           <span className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
             <Calendar size={14} className="text-violet-400" />
@@ -1624,7 +1624,7 @@ function DashboardTab() {
       <div className="imotara-glass-card rounded-2xl overflow-hidden">
         <button
           onClick={() => { setEditingRate((v) => !v); setNewRate(String(profile.rate_per_min ?? "")); setRateMsg(null); }}
-          className="flex w-full items-center justify-between p-5 text-left hover:bg-white/3 transition"
+          className="flex w-full items-center justify-between p-5 text-start hover:bg-white/3 transition"
         >
           <span className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
             <span className="text-violet-400 font-bold text-base">₹</span>
@@ -1897,7 +1897,7 @@ function DashboardTab() {
       <div className="imotara-glass-card rounded-2xl overflow-hidden">
         <button
           onClick={loadHistory}
-          className="flex w-full items-center justify-between p-5 text-left hover:bg-white/3 transition"
+          className="flex w-full items-center justify-between p-5 text-start hover:bg-white/3 transition"
         >
           <span className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
             <History size={14} className="text-violet-400" />
@@ -1938,7 +1938,7 @@ function DashboardTab() {
                             const rate = s.rate_per_min ?? earnings?.rate_per_min;
                             const earned = rate ? rate * (s.minutes_used ?? 0) * 0.80 : null;
                             return earned ? (
-                              <span className="ml-1.5 font-medium text-emerald-400">
+                              <span className="ms-1.5 font-medium text-emerald-400">
                                 · {sym}{earned.toFixed(2)} earned
                               </span>
                             ) : null;

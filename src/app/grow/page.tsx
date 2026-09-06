@@ -135,7 +135,7 @@ function FutureLetterSection({ showToast }: { showToast: (msg: string, type?: an
               type="button"
               onClick={saveLetter}
               disabled={!body.trim()}
-              className="ml-auto rounded-full bg-gradient-to-r from-indigo-500 to-sky-400 px-4 py-1.5 text-xs font-medium text-black shadow transition hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="ms-auto rounded-full bg-gradient-to-r from-indigo-500 to-sky-400 px-4 py-1.5 text-xs font-medium text-black shadow transition hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Seal letter
             </button>
@@ -1540,7 +1540,7 @@ function ChallengeSection() {
             {isComplete ? "Challenge complete 🎉" : `Day ${currentDay + 1} of 30`}
           </p>
         </div>
-        <div className="flex items-center gap-2 mr-8">
+        <div className="flex items-center gap-2 me-8">
           <span className="text-xs text-zinc-500">{totalDone}/30</span>
           <button
             type="button"
@@ -1834,7 +1834,7 @@ export default function GrowPage() {
               </div>
             ))}
             {arc.dominantEmotion && (
-              <span className="ml-2 text-[11px] text-zinc-400">
+              <span className="ms-2 text-[11px] text-zinc-400">
                 mostly {emotionLabel(arc.dominantEmotion)}
               </span>
             )}
@@ -1892,7 +1892,7 @@ export default function GrowPage() {
       {/* First-time nudge — shown when no emotion history yet */}
       {!arc.weekEmotions.some(Boolean) && entries.length === 0 && (
         <div className="rounded-2xl border border-indigo-400/15 bg-indigo-500/5 px-4 py-3 text-[11px] text-zinc-400">
-          <span className="mr-1">💬</span>
+          <span className="me-1">💬</span>
           Chat with Imotara first — your reflection prompts will be personalised to how you&apos;ve been feeling.{" "}
           <a href="/chat" className="text-indigo-400/80 underline underline-offset-2 hover:text-indigo-300 transition">
             Start a chat →
@@ -1904,7 +1904,7 @@ export default function GrowPage() {
       {challengeShow && (
         <div className="relative">
           <ChallengeSection />
-          <div className="absolute right-3 top-3 z-10">
+          <div className="absolute end-3 top-3 z-10">
             <button
               type="button"
               aria-label="Challenge options"
@@ -1914,10 +1914,10 @@ export default function GrowPage() {
               <MoreVertical className="h-3.5 w-3.5" />
             </button>
             {openGrowMenu === "challenge" && (
-              <div className="absolute right-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl">
-                <button type="button" onClick={() => setOpenGrowMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                <button type="button" onClick={() => { try { localStorage.setItem("imotara.challenge.show.v1", "0"); } catch {} setChallengeShow(false); setOpenGrowMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
-                <a href="/settings" className="block w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
+              <div className="absolute end-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl">
+                <button type="button" onClick={() => setOpenGrowMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                <button type="button" onClick={() => { try { localStorage.setItem("imotara.challenge.show.v1", "0"); } catch {} setChallengeShow(false); setOpenGrowMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
+                <a href="/settings" className="block w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
               </div>
             )}
           </div>
@@ -1951,7 +1951,7 @@ export default function GrowPage() {
           <button
             type="button"
             onClick={handleTryAnother}
-            className="ml-3 text-[11px] underline underline-offset-2 opacity-70 hover:opacity-100"
+            className="ms-3 text-[11px] underline underline-offset-2 opacity-70 hover:opacity-100"
           >
             Try a different prompt anyway
           </button>
@@ -2025,7 +2025,7 @@ export default function GrowPage() {
       {journalShow && (
         <div className="relative">
           <JournalSection dominantEmotion={arc.dominantEmotion ?? undefined} />
-          <div className="absolute right-3 top-3 z-10">
+          <div className="absolute end-3 top-3 z-10">
             <button
               type="button"
               aria-label="Journal options"
@@ -2035,10 +2035,10 @@ export default function GrowPage() {
               <MoreVertical className="h-3.5 w-3.5" />
             </button>
             {openGrowMenu === "journal" && (
-              <div className="absolute right-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl">
-                <button type="button" onClick={() => setOpenGrowMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                <button type="button" onClick={() => { try { localStorage.setItem("imotara.journal.show.v1", "0"); } catch {} setJournalShow(false); setOpenGrowMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
-                <a href="/settings" className="block w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
+              <div className="absolute end-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl">
+                <button type="button" onClick={() => setOpenGrowMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                <button type="button" onClick={() => { try { localStorage.setItem("imotara.journal.show.v1", "0"); } catch {} setJournalShow(false); setOpenGrowMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
+                <a href="/settings" className="block w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
               </div>
             )}
           </div>

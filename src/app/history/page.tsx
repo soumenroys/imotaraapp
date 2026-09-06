@@ -671,7 +671,7 @@ export default function HistoryPage() {
                       <Download className="h-3 w-3" aria-hidden="true" />
                       <span>{exporting ? "Exporting…" : "Export JSON"}</span>
                       {exportGate.nudge && !exportGate.loading && (
-                        <span className="ml-0.5 rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-300">Pro</span>
+                        <span className="ms-0.5 rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-300">Pro</span>
                       )}
                     </button>
                   ) : (
@@ -682,7 +682,7 @@ export default function HistoryPage() {
                     >
                       <Download className="h-3 w-3" aria-hidden="true" />
                       <span>Export JSON</span>
-                      <span className="ml-0.5 rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-300">Pro</span>
+                      <span className="ms-0.5 rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-300">Pro</span>
                     </Link>
                   )}
 
@@ -709,7 +709,7 @@ export default function HistoryPage() {
               {!historyDaysGate.loading && isFinite(historyDays) && (
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/20 bg-amber-500/8 px-3 py-2">
                   <p className="text-[11px] text-amber-200/80">
-                    <Clock className="mr-1 inline h-3 w-3" aria-hidden="true" />
+                    <Clock className="me-1 inline h-3 w-3" aria-hidden="true" />
                     Your plan shows the last{" "}
                     <strong>{historyDays} days</strong> of history.{" "}
                     {historyDays === 7 ? "Upgrade to Plus for 90 days or Pro for unlimited." : "Upgrade to Pro for unlimited history."}
@@ -893,7 +893,7 @@ export default function HistoryPage() {
                           <button
                             type="button"
                             onClick={() => handleCapsuleToggle(key)}
-                            className="flex flex-1 min-w-0 items-center justify-between gap-3 pl-4 py-3 text-left"
+                            className="flex flex-1 min-w-0 items-center justify-between gap-3 ps-4 py-3 text-start"
                           >
                             <div className="flex min-w-0 items-center gap-2.5">
                               <span className="text-base" aria-hidden="true">{icon}</span>
@@ -908,17 +908,17 @@ export default function HistoryPage() {
                                 )}
                               </div>
                             </div>
-                            <span className={`shrink-0 text-sm text-zinc-400 transition-transform duration-200 mr-1 ${isExpanded ? "rotate-180" : ""}`}>▾</span>
+                            <span className={`shrink-0 text-sm text-zinc-400 transition-transform duration-200 me-1 ${isExpanded ? "rotate-180" : ""}`}>▾</span>
                           </button>
-                          <div className="relative pr-3">
+                          <div className="relative pe-3">
                             <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === key ? null : key); }} className="text-zinc-400 hover:text-zinc-200 transition p-0.5" aria-label="More options">
                               <MoreVertical className="h-4 w-4" />
                             </button>
                             {openCapsuleMenu === key && (
-                              <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                                <button type="button" onClick={() => { const next = { ...mindsetPrefs, [key]: false }; setMindsetPrefs(next); try { localStorage.setItem(MINDSET_PREFS_KEY, JSON.stringify(next)); window.dispatchEvent(new CustomEvent("imotara:mindsetPrefsChanged")); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                                <button type="button" onClick={() => { setMindsetDismissedSession(prev => new Set([...prev, key])); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                                <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                              <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                                <button type="button" onClick={() => { const next = { ...mindsetPrefs, [key]: false }; setMindsetPrefs(next); try { localStorage.setItem(MINDSET_PREFS_KEY, JSON.stringify(next)); window.dispatchEvent(new CustomEvent("imotara:mindsetPrefsChanged")); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                                <button type="button" onClick={() => { setMindsetDismissedSession(prev => new Set([...prev, key])); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                                <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                               </div>
                             )}
                           </div>
@@ -944,7 +944,7 @@ export default function HistoryPage() {
                                       <div className="flex-1 overflow-hidden rounded-full bg-white/8 h-1.5">
                                         <div className="h-full rounded-full bg-violet-500/60" style={{ width: `${pct}%` }} />
                                       </div>
-                                      <span className="w-6 shrink-0 text-right text-zinc-500">{count}</span>
+                                      <span className="w-6 shrink-0 text-end text-zinc-500">{count}</span>
                                     </div>
                                   );
                                 })}
@@ -1026,7 +1026,7 @@ export default function HistoryPage() {
               {!loading && otdShow && (
                 <div className="relative">
                   <OnThisDay />
-                  <div className="absolute right-3 top-3 z-10">
+                  <div className="absolute end-3 top-3 z-10">
                     <button
                       type="button"
                       aria-label="On This Day options"
@@ -1036,10 +1036,10 @@ export default function HistoryPage() {
                       <MoreVertical className="h-4 w-4" />
                     </button>
                     {openCapsuleMenu === "otd" && (
-                      <div className="absolute right-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl im-dropdown-menu">
-                        <button type="button" onClick={() => { setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                        <button type="button" onClick={() => { try { localStorage.setItem("imotara.history.otd.show.v1", "0"); } catch {} setOtdShow(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
-                        <a href="/settings" className="block w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
+                      <div className="absolute end-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl im-dropdown-menu">
+                        <button type="button" onClick={() => { setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                        <button type="button" onClick={() => { try { localStorage.setItem("imotara.history.otd.show.v1", "0"); } catch {} setOtdShow(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
+                        <a href="/settings" className="block w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
                       </div>
                     )}
                   </div>

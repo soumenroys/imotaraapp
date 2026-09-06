@@ -170,7 +170,7 @@ export default function SiteHeader() {
 
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-zinc-900 focus:rounded"
+        className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-zinc-900 focus:rounded"
       >
         Skip to main content
       </a>
@@ -228,7 +228,7 @@ export default function SiteHeader() {
               </button>
 
               {moreOpen && (
-                <div className="absolute right-0 top-full mt-1.5 min-w-[160px] rounded-2xl border border-zinc-200 bg-white py-1.5 shadow-lg dark:border-zinc-700/60 dark:bg-zinc-900/90">
+                <div className="absolute end-0 top-full mt-1.5 min-w-[160px] rounded-2xl border border-zinc-200 bg-white py-1.5 shadow-lg dark:border-zinc-700/60 dark:bg-zinc-900/90">
                   {moreLinks.map((item, idx) => {
                     if (item.kind === "group") {
                       return (
@@ -240,7 +240,7 @@ export default function SiteHeader() {
                             const active = pathname.startsWith(child.href);
                             return (
                               <Link key={child.href} href={child.href}
-                                className={`block pl-7 pr-4 py-1.5 text-xs transition-colors ${
+                                className={`block ps-7 pe-4 py-1.5 text-xs transition-colors ${
                                   active ? "font-semibold text-zinc-900 dark:text-zinc-50"
                                          : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
                                 }`}>
@@ -347,7 +347,7 @@ export default function SiteHeader() {
                         const active = pathname.startsWith(child.href);
                         return (
                           <Link key={child.href} href={child.href} onClick={() => setMobileOpen(false)}
-                            className={`rounded-xl py-2 pl-7 pr-3 text-sm transition-colors ${
+                            className={`rounded-xl py-2 ps-7 pe-3 text-sm transition-colors ${
                               active ? "bg-zinc-900/10 font-semibold text-zinc-900 dark:bg-white/10 dark:text-zinc-50"
                                      : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/5"
                             }`}>
@@ -376,7 +376,7 @@ export default function SiteHeader() {
                   <button
                     type="button"
                     onClick={() => { setMobileOpen(false); handleSignOut(); }}
-                    className="w-full rounded-xl px-3 py-2 text-left text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/5"
+                    className="w-full rounded-xl px-3 py-2 text-start text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/5"
                   >
                     Sign out
                   </button>

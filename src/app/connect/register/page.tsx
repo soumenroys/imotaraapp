@@ -164,7 +164,7 @@ function ReviewRow({ label, value, ok }: { label: string; value: string; ok?: bo
   return (
     <div className="flex items-start justify-between gap-3">
       <span className="shrink-0 text-[11px] text-zinc-500">{label}</span>
-      <span className={`text-right text-xs break-all ${ok === false ? "text-rose-400" : "text-zinc-300"}`}>{value || "—"}</span>
+      <span className={`text-end text-xs break-all ${ok === false ? "text-rose-400" : "text-zinc-300"}`}>{value || "—"}</span>
     </div>
   );
 }
@@ -602,7 +602,7 @@ export default function RegisterConsultantPage() {
             <div>
               <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-zinc-500">
                 Role Category *
-                <span className="ml-2 normal-case font-normal text-zinc-600">— defines the relationship type you will offer</span>
+                <span className="ms-2 normal-case font-normal text-zinc-600">— defines the relationship type you will offer</span>
               </label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {ROLE_CATEGORIES.map((rc) => {
@@ -614,7 +614,7 @@ export default function RegisterConsultantPage() {
                       type="button"
                       disabled={locked}
                       onClick={() => !locked && setRoleCategory(rc.key)}
-                      className={`relative flex flex-col items-start gap-0.5 rounded-xl border p-3 text-left transition
+                      className={`relative flex flex-col items-start gap-0.5 rounded-xl border p-3 text-start transition
                         ${active ? "border-violet-500 bg-violet-500/15" : locked ? "border-white/5 opacity-50 cursor-not-allowed" : "border-white/10 hover:border-white/20 cursor-pointer"}`}
                     >
                       <div className="flex items-center gap-1.5">
@@ -623,7 +623,7 @@ export default function RegisterConsultantPage() {
                       </div>
                       <p className="text-[10px] text-zinc-500 leading-tight">{rc.desc}</p>
                       {locked && (
-                        <span className="absolute right-2 top-2 rounded-full bg-zinc-700/60 px-1.5 py-0.5 text-[9px] text-zinc-500">
+                        <span className="absolute end-2 top-2 rounded-full bg-zinc-700/60 px-1.5 py-0.5 text-[9px] text-zinc-500">
                           Phase {rc.phase}
                         </span>
                       )}
@@ -803,7 +803,7 @@ export default function RegisterConsultantPage() {
                     <button key={opt.key} type="button"
                       disabled={locked}
                       onClick={() => !locked && setSessionTypes(p => p.includes(opt.key) ? p.filter(x => x !== opt.key) : [...p, opt.key])}
-                      className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+                      className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-start transition ${
                         locked
                           ? "cursor-not-allowed border-white/5 bg-white/2 text-zinc-600 opacity-50"
                           : active
@@ -815,7 +815,7 @@ export default function RegisterConsultantPage() {
                         <p className="text-sm font-semibold">{opt.label}{locked ? " · Coming soon" : ""}</p>
                         <p className="text-[11px] text-zinc-500">{opt.desc}</p>
                       </div>
-                      {active && <span className="ml-auto shrink-0 text-violet-400">✓</span>}
+                      {active && <span className="ms-auto shrink-0 text-violet-400">✓</span>}
                     </button>
                   );
                 })}
@@ -1058,7 +1058,7 @@ export default function RegisterConsultantPage() {
                   { key:"bank_int",label:"🏦 Wire / SWIFT",      sub:"International" },
                 ] as const).map(opt => (
                   <button key={opt.key} type="button" onClick={() => setPayoutMethod(opt.key)}
-                    className={`rounded-xl border p-3 text-left transition ${payoutMethod === opt.key ? "border-violet-500 bg-violet-500/15" : "border-white/10 hover:border-white/20"}`}>
+                    className={`rounded-xl border p-3 text-start transition ${payoutMethod === opt.key ? "border-violet-500 bg-violet-500/15" : "border-white/10 hover:border-white/20"}`}>
                     <p className={`text-sm font-medium ${payoutMethod === opt.key ? "text-violet-300" : "text-zinc-300"}`}>{opt.label}</p>
                     <p className="text-[11px] text-zinc-500">{opt.sub}</p>
                   </button>
@@ -1087,7 +1087,7 @@ export default function RegisterConsultantPage() {
                     <strong>Important:</strong> A <strong>PayPal Business</strong> account is required to receive payments.
                     Personal PayPal accounts may have receiving limits or restrictions in some countries.
                     <a href="https://www.paypal.com/in/webapps/mpp/account-selection" target="_blank" rel="noreferrer"
-                      className="ml-1 underline underline-offset-2 hover:text-amber-200">Upgrade to Business →</a>
+                      className="ms-1 underline underline-offset-2 hover:text-amber-200">Upgrade to Business →</a>
                   </div>
                 </div>
               )}

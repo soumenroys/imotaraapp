@@ -429,7 +429,7 @@ function SectionToggleHeader({
         <button
             type="button"
             onClick={onToggle}
-            className="flex w-full items-center justify-between gap-2 text-left"
+            className="flex w-full items-center justify-between gap-2 text-start"
             aria-expanded={open}
         >
             <h2 className={titleClassName ?? "text-sm font-semibold text-zinc-50 sm:text-base"}>{title}</h2>
@@ -759,7 +759,7 @@ function ToneAndContextTile() {
                                 className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-white/20"
                             />
                             {(userNameFocused || userName.length > USER_NAME_MAX * 0.8) && (
-                                <p className="text-right text-xs text-zinc-500">{userName.length}/{USER_NAME_MAX}</p>
+                                <p className="text-end text-xs text-zinc-500">{userName.length}/{USER_NAME_MAX}</p>
                             )}
                         </label>
 
@@ -929,7 +929,7 @@ function ToneAndContextTile() {
                                     className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-white/20"
                                 />
                                 {(compNameFocused || compName.length > COMP_NAME_MAX * 0.8) && (
-                                    <p className="text-right text-xs text-zinc-500">{compName.length}/{COMP_NAME_MAX}</p>
+                                    <p className="text-end text-xs text-zinc-500">{compName.length}/{COMP_NAME_MAX}</p>
                                 )}
                             </label>
 
@@ -1087,7 +1087,7 @@ function ToneAndContextTile() {
                     role="switch"
                     aria-checked={teenMode}
                     onClick={() => setTeenMode((v) => !v)}
-                    className={`relative ml-4 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${teenMode ? "bg-sky-500" : "bg-zinc-600"}`}
+                    className={`relative ms-4 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${teenMode ? "bg-sky-500" : "bg-zinc-600"}`}
                 >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${teenMode ? "translate-x-4" : "translate-x-0"}`} />
                 </button>
@@ -1108,7 +1108,7 @@ function ToneAndContextTile() {
                     aria-checked={childSafeMode}
                     disabled={!childSafeModeGate.allowed}
                     onClick={() => childSafeModeGate.allowed && setChildSafeMode((v) => !v)}
-                    className={`relative ml-4 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${childSafeMode && childSafeModeGate.allowed ? "bg-emerald-500" : "bg-zinc-600"} disabled:cursor-not-allowed`}
+                    className={`relative ms-4 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${childSafeMode && childSafeModeGate.allowed ? "bg-emerald-500" : "bg-zinc-600"} disabled:cursor-not-allowed`}
                 >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${childSafeMode && childSafeModeGate.allowed ? "translate-x-4" : "translate-x-0"}`} />
                 </button>
@@ -3888,7 +3888,7 @@ export default function SettingsPage() {
                                     >
                                         <span className="h-3 w-3 rounded-full shrink-0" style={swatchStyle} />
                                         {o.label}
-                                        {active && <span className="ml-0.5 text-[10px] opacity-60">✓</span>}
+                                        {active && <span className="ms-0.5 text-[10px] opacity-60">✓</span>}
                                     </button>
                                 );
                             })}
@@ -4543,7 +4543,7 @@ export default function SettingsPage() {
                                         <button
                                             type="button"
                                             onClick={() => setExpandedLetterId(isOpen ? null : letter.id)}
-                                            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/5 transition"
+                                            className="w-full flex items-center justify-between px-4 py-3 text-start hover:bg-white/5 transition"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <span className="text-lg">💌</span>
@@ -4811,7 +4811,7 @@ export default function SettingsPage() {
                             type="button"
                             onClick={() => handleFingerprintShowToggle(false)}
                             title="Hide emotional fingerprint"
-                            className="absolute right-3 top-3 rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-[10px] text-zinc-400 transition hover:bg-white/10 hover:text-zinc-200"
+                            className="absolute end-3 top-3 rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-[10px] text-zinc-400 transition hover:bg-white/10 hover:text-zinc-200"
                         >
                             Hide
                         </button>
@@ -5166,7 +5166,7 @@ function PaymentHistoryPanel() {
                                     <p className="text-xs font-medium text-zinc-200 truncate">{inv.description}</p>
                                     <p className="text-[10px] text-zinc-500">{new Date(inv.issued_at).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })} · {GATEWAY[inv.payment_gateway] ?? inv.payment_gateway}</p>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0 ml-2">
+                                <div className="flex items-center gap-2 shrink-0 ms-2">
                                     <span className="text-xs font-semibold text-zinc-200">{formatAmt(inv.amount_paise, inv.currency)}</span>
                                     <a href={`/api/invoice/${inv.id}?download=1`} target="_blank" rel="noopener noreferrer"
                                         className="rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-400 hover:text-zinc-200 transition">

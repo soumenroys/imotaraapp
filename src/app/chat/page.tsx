@@ -3254,7 +3254,7 @@ export default function ChatPage() {
             </div>
           )}
 
-          <div className="flex-1 space-y-1 overflow-auto pr-1">
+          <div className="flex-1 space-y-1 overflow-auto pe-1">
             {!mounted ? (
               <div className="space-y-1.5" suppressHydrationWarning aria-label="Loading conversations">
                 {[...Array(4)].map((_, i) => (
@@ -3288,7 +3288,7 @@ export default function ChatPage() {
                         if (renamingId !== t.id) setActiveId(t.id);
                       }
                     }}
-                    className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isActive
+                    className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-start transition ${isActive
                       ? "bg-white/10 shadow-md"
                       : "hover:bg-white/5 hover:-translate-y-0.5 hover:shadow-sm duration-150"
                       }`}
@@ -3344,7 +3344,7 @@ export default function ChatPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="ml-2 hidden shrink-0 items-center gap-0.5 group-hover:flex">
+                    <div className="ms-2 hidden shrink-0 items-center gap-0.5 group-hover:flex">
                       <button
                         className="rounded-lg p-1 text-zinc-400 hover:bg-white/10 transition duration-150"
                         onClick={(e) => {
@@ -3730,7 +3730,7 @@ export default function ChatPage() {
             {mounted && activeTier2Banner === "dailyCheckin" && (
               <div className="mx-auto mb-4 max-w-3xl">
                 <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-sky-400/20 bg-sky-900/10 px-4 py-3">
-                  <span className="mr-1 shrink-0 text-xs font-medium text-sky-300/80">How are you right now?</span>
+                  <span className="me-1 shrink-0 text-xs font-medium text-sky-300/80">How are you right now?</span>
                   {[
                     { emoji: "😔", label: "Heavy" }, { emoji: "😟", label: "Unsettled" }, { emoji: "😶", label: "Somewhere here" },
                     { emoji: "🌱", label: "Okay" }, { emoji: "🙂", label: "Good" }, { emoji: "✨", label: "Bright" },
@@ -3744,7 +3744,7 @@ export default function ChatPage() {
                       <span>{emoji}</span><span>{label}</span>
                     </button>
                   ))}
-                  <div className="relative ml-auto">
+                  <div className="relative ms-auto">
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "dailyCheckin" ? null : "dailyCheckin"); }}
@@ -3754,10 +3754,10 @@ export default function ChatPage() {
                       <MoreVertical className="h-3.5 w-3.5" />
                     </button>
                     {openCapsuleMenu === "dailyCheckin" && (
-                      <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                        <button type="button" onClick={() => { setDailyCheckinShow(false); try { localStorage.setItem("imotara.daily.checkin.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                        <button type="button" onClick={() => { try { localStorage.setItem(DAILY_CHECKIN_KEY, new Date().toISOString().slice(0, 10)); } catch {} setShowDailyCheckin(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                        <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                      <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" onClick={() => { setDailyCheckinShow(false); try { localStorage.setItem("imotara.daily.checkin.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                        <button type="button" onClick={() => { try { localStorage.setItem(DAILY_CHECKIN_KEY, new Date().toISOString().slice(0, 10)); } catch {} setShowDailyCheckin(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                        <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                       </div>
                     )}
                   </div>
@@ -3786,7 +3786,7 @@ export default function ChatPage() {
                 {!remoteAllowed && (
                   <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-zinc-400">
                     <span>
-                      <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-zinc-500 align-middle" />
+                      <span className="me-1.5 inline-block h-1.5 w-1.5 rounded-full bg-zinc-500 align-middle" />
                       On-device mode — replies use local templates.
                     </span>
                     <button
@@ -3839,7 +3839,7 @@ export default function ChatPage() {
                             // keep it tiny: no auto-send, just helps start writing
                             setTimeout(() => composerRef.current?.focus(), 0);
                           }}
-                          className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-left text-[12px] text-zinc-100 shadow-sm transition hover:bg-white/10 hover:brightness-110"
+                          className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-start text-[12px] text-zinc-100 shadow-sm transition hover:bg-white/10 hover:brightness-110"
                           title="Add to composer"
                         >
                           {p}
@@ -3889,10 +3889,10 @@ export default function ChatPage() {
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
                       {openCapsuleMenu === "returnGreeting" && (
-                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" onClick={() => { setReturnGreetingShow(false); try { localStorage.setItem("imotara.return.greeting.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                          <button type="button" onClick={() => { setShowReturnGreeting(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                        <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" onClick={() => { setReturnGreetingShow(false); try { localStorage.setItem("imotara.return.greeting.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                          <button type="button" onClick={() => { setShowReturnGreeting(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                         </div>
                       )}
                     </div>
@@ -3955,10 +3955,10 @@ export default function ChatPage() {
                           <MoreVertical className="h-3.5 w-3.5" />
                         </button>
                         {openCapsuleMenu === "trialCountdown" && (
-                          <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                            <button type="button" onClick={() => { setShowTrialBanner(false); try { localStorage.setItem("imotara.trial.banner.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                            <button type="button" onClick={() => { setShowTrialBanner(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                            <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                          <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                            <button type="button" onClick={() => { setShowTrialBanner(false); try { localStorage.setItem("imotara.trial.banner.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                            <button type="button" onClick={() => { setShowTrialBanner(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                            <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                           </div>
                         )}
                       </div>
@@ -3975,15 +3975,15 @@ export default function ChatPage() {
                         The theme of <span className="text-emerald-200 italic">{milestoneLoop.themeName}</span> that kept returning — it looks like you found some resolution. That&apos;s real growth.
                       </p>
                     </div>
-                    <div className="relative ml-1 self-start">
+                    <div className="relative ms-1 self-start">
                       <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "milestone" ? null : "milestone"); }} className="text-zinc-600 hover:text-zinc-400 transition p-0.5" aria-label="More options">
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
                       {openCapsuleMenu === "milestone" && (
-                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" onClick={() => { setMilestoneShow(false); try { localStorage.setItem("imotara.milestone.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                          <button type="button" onClick={() => { setMilestoneLoop(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                        <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" onClick={() => { setMilestoneShow(false); try { localStorage.setItem("imotara.milestone.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                          <button type="button" onClick={() => { setMilestoneLoop(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                         </div>
                       )}
                     </div>
@@ -3998,15 +3998,15 @@ export default function ChatPage() {
                         <span className="text-indigo-300 font-medium">{collectivePulse.heavyPercent}% of people</span> are carrying something heavy today. You&apos;re not alone.
                       </p>
                     </div>
-                    <div className="relative ml-1 self-start">
+                    <div className="relative ms-1 self-start">
                       <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "collectivePulse" ? null : "collectivePulse"); }} className="text-zinc-600 hover:text-zinc-400 transition p-0.5" aria-label="More options">
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
                       {openCapsuleMenu === "collectivePulse" && (
-                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" onClick={() => { setCollectivePulseShow(false); try { localStorage.setItem("imotara.collective.pulse.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                          <button type="button" onClick={() => { setPulseDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                        <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" onClick={() => { setCollectivePulseShow(false); try { localStorage.setItem("imotara.collective.pulse.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                          <button type="button" onClick={() => { setPulseDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                         </div>
                       )}
                     </div>
@@ -4029,10 +4029,10 @@ export default function ChatPage() {
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
                       {openCapsuleMenu === "sessionGreeting" && (
-                        <div className="absolute left-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl im-dropdown-menu">
-                          <button type="button" onClick={() => { setSessionGreeting(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                          <button type="button" onClick={() => { try { localStorage.setItem("imotara.session.greeting.show.v1", "0"); } catch {} setSessionGreeting(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
-                          <a href="/settings" className="block w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
+                        <div className="absolute start-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl im-dropdown-menu">
+                          <button type="button" onClick={() => { setSessionGreeting(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                          <button type="button" onClick={() => { try { localStorage.setItem("imotara.session.greeting.show.v1", "0"); } catch {} setSessionGreeting(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
+                          <a href="/settings" className="block w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
                         </div>
                       )}
                     </div>
@@ -4118,12 +4118,12 @@ export default function ChatPage() {
 
                 {/* #9: Typing indicator — shows while Imotara is composing a reply */}
                 {analyzing && !pendingUndo && (
-                  <div className="flex justify-start pl-1">
+                  <div className="flex justify-start ps-1">
                     <div className="im-inline-card rounded-2xl border border-indigo-400/30 bg-gradient-to-br from-slate-900/80 to-indigo-950/80 px-4 py-3 text-sm backdrop-blur-md max-w-[80%]">
                       {streamingReply ? (
                         <span className="text-zinc-200 leading-relaxed whitespace-pre-wrap">
                           {streamingReply}
-                          <span className="inline-block w-0.5 h-3.5 ml-0.5 bg-indigo-400 animate-pulse align-middle" />
+                          <span className="inline-block w-0.5 h-3.5 ms-0.5 bg-indigo-400 animate-pulse align-middle" />
                         </span>
                       ) : (() => {
                         const tSpeed = typeof localStorage !== "undefined" ? (localStorage.getItem("imotara.typing.speed.v1") ?? "normal") : "normal";
@@ -4169,10 +4169,10 @@ export default function ChatPage() {
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
                       {openCapsuleMenu === "toneReflection" && (
-                        <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" onClick={() => { setToneReflectionShow(false); try { localStorage.setItem("imotara.tone.reflection.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                          <button type="button" onClick={() => { setSessionToneCardDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                        <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" onClick={() => { setToneReflectionShow(false); try { localStorage.setItem("imotara.tone.reflection.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                          <button type="button" onClick={() => { setSessionToneCardDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                          <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                         </div>
                       )}
                     </div>
@@ -4186,7 +4186,7 @@ export default function ChatPage() {
                     <p className="mt-0.5 text-[11px] text-zinc-500">{analysis.summary.details}</p>
                   )}
                   {reflectionSeed && (
-                    <p className="mt-2 text-[11px] text-indigo-300/80 italic border-l-2 border-indigo-400/30 pl-2">{reflectionSeed}</p>
+                    <p className="mt-2 text-[11px] text-indigo-300/80 italic border-s-2 border-indigo-400/30 ps-2">{reflectionSeed}</p>
                   )}
                   <div className="mt-2 flex items-center gap-3">
                     <a href="/grow" className="text-[11px] text-indigo-400/80 underline underline-offset-2 hover:text-indigo-300 transition">
@@ -4211,10 +4211,10 @@ export default function ChatPage() {
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>
                   {openCapsuleMenu === "moodGlimpse" && (
-                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" onClick={() => { setMoodGlimpseEnabled(false); try { localStorage.setItem(MOOD_GLIMPSE_KEY, "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                      <button type="button" onClick={() => { setMoodGlimpseDismissedSession(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                    <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => { setMoodGlimpseEnabled(false); try { localStorage.setItem(MOOD_GLIMPSE_KEY, "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                      <button type="button" onClick={() => { setMoodGlimpseDismissedSession(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                     </div>
                   )}
                 </div>
@@ -4236,10 +4236,10 @@ export default function ChatPage() {
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>
                   {openCapsuleMenu === "weeklyRecap" && (
-                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" onClick={() => { setWeeklyRecapSettingEnabled(false); try { localStorage.setItem("imotara.weekly.recap.enabled.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                      <button type="button" onClick={() => { setWeeklyRecapDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                    <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => { setWeeklyRecapSettingEnabled(false); try { localStorage.setItem("imotara.weekly.recap.enabled.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                      <button type="button" onClick={() => { setWeeklyRecapDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                     </div>
                   )}
                 </div>
@@ -4260,10 +4260,10 @@ export default function ChatPage() {
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>
                   {openCapsuleMenu === "growNudge" && (
-                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" onClick={() => { setGrowNudgeDismissed(true); try { localStorage.setItem("imotara.grow.nudge.perm.v1", "1"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                      <button type="button" onClick={() => { setGrowNudgeDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                    <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => { setGrowNudgeDismissed(true); try { localStorage.setItem("imotara.grow.nudge.perm.v1", "1"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                      <button type="button" onClick={() => { setGrowNudgeDismissed(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                     </div>
                   )}
                 </div>
@@ -4346,10 +4346,10 @@ export default function ChatPage() {
                       <MoreVertical className="h-3.5 w-3.5" />
                     </button>
                     {openCapsuleMenu === "messageUndo" && (
-                      <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                        <button type="button" onClick={() => { setUndoSettingEnabled(false); try { localStorage.setItem("imotara.undo.enabled.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                        <button type="button" onClick={() => { setPendingUndo(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                        <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                      <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" onClick={() => { setUndoSettingEnabled(false); try { localStorage.setItem("imotara.undo.enabled.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                        <button type="button" onClick={() => { setPendingUndo(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                        <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                       </div>
                     )}
                   </div>
@@ -4413,7 +4413,7 @@ export default function ChatPage() {
                     <a
                       href={discoveryCard === "trends" ? "/history" : "/settings"}
                       onClick={dismissDiscoveryCard}
-                      className="ml-1 font-semibold text-indigo-300 underline underline-offset-2 hover:text-indigo-200 transition"
+                      className="ms-1 font-semibold text-indigo-300 underline underline-offset-2 hover:text-indigo-200 transition"
                     >
                       {discoveryCard === "trends" ? "History & Trends →" : "Settings →"}
                     </a>
@@ -4422,7 +4422,7 @@ export default function ChatPage() {
                     <button
                       type="button"
                       onClick={() => { dismissDiscoveryCard(); setUnsentLetterModalOpen(true); }}
-                      className="ml-1 font-semibold text-indigo-300 underline underline-offset-2 hover:text-indigo-200 transition"
+                      className="ms-1 font-semibold text-indigo-300 underline underline-offset-2 hover:text-indigo-200 transition"
                     >
                       Try it →
                     </button>
@@ -4431,7 +4431,7 @@ export default function ChatPage() {
                     <a
                       href="/connect"
                       onClick={dismissDiscoveryCard}
-                      className="ml-1 font-semibold text-indigo-300 underline underline-offset-2 hover:text-indigo-200 transition"
+                      className="ms-1 font-semibold text-indigo-300 underline underline-offset-2 hover:text-indigo-200 transition"
                     >
                       Explore Connect →
                     </a>
@@ -4467,15 +4467,15 @@ export default function ChatPage() {
                     {seed}
                   </button>
                 ))}
-                <div className="relative ml-auto">
+                <div className="relative ms-auto">
                   <button type="button" onClick={(e) => { e.stopPropagation(); setOpenCapsuleMenu(p => p === "sentimentChips" ? null : "sentimentChips"); }} className="text-zinc-600 hover:text-zinc-400 transition p-0.5" aria-label="More options">
                     <MoreVertical className="h-3 w-3" />
                   </button>
                   {openCapsuleMenu === "sentimentChips" && (
-                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" onClick={() => { setSentimentChipsEnabled(false); try { localStorage.setItem("imotara.sentiment.chips.enabled.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                      <button type="button" onClick={() => { setSentimentChipsDismissedSession(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                    <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => { setSentimentChipsEnabled(false); try { localStorage.setItem("imotara.sentiment.chips.enabled.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                      <button type="button" onClick={() => { setSentimentChipsDismissedSession(true); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                     </div>
                   )}
                 </div>
@@ -4510,10 +4510,10 @@ export default function ChatPage() {
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>
                   {openCapsuleMenu === "unsentHint" && (
-                    <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" onClick={() => { setUnsentHintShow(false); try { localStorage.setItem("imotara.unsent.hint.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
-                      <button type="button" onClick={() => { setShowUnsentHint(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
-                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
+                    <div className="absolute end-0 top-full z-50 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl im-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => { setUnsentHintShow(false); try { localStorage.setItem("imotara.unsent.hint.show.v1", "0"); } catch {} setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-rose-400 hover:bg-white/5 transition">Dismiss forever</button>
+                      <button type="button" onClick={() => { setShowUnsentHint(false); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
+                      <button type="button" onClick={() => setOpenCapsuleMenu(null)} className="w-full px-3 py-2 text-start text-xs text-zinc-400 hover:bg-white/5 transition">Cancel</button>
                     </div>
                   )}
                 </div>
@@ -5555,7 +5555,7 @@ function Bubble({
     "border border-indigo-400/40",
     "backdrop-blur-md",
     "shadow-[0_18px_40px_rgba(15,23,42,0.9)]",
-    "before:absolute before:-left-1.5 before:top-2 before:bottom-2 before:w-[3px]",
+    "before:absolute before:-start-1.5 before:top-2 before:bottom-2 before:w-[3px]",
     "before:rounded-full",
     "before:bg-gradient-to-b",
     "before:from-indigo-400/90 before:via-sky-400/85 before:to-emerald-400/90",
@@ -5675,7 +5675,7 @@ function Bubble({
           {!isUser && meta?.compatibility ? (
             <span
               className={[
-                "ml-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px]",
+                "ms-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px]",
                 meta.compatibility.ok === true
                   ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"
                   : "border-rose-400/40 bg-rose-400/10 text-rose-100",
@@ -5744,14 +5744,14 @@ function Bubble({
               </button>
             ))}
             {reaction && (
-              <span className="ml-1 text-[10px] text-zinc-500">you reacted</span>
+              <span className="ms-1 text-[10px] text-zinc-500">you reacted</span>
             )}
             {/* Copy */}
             <button
               type="button"
               onClick={copyMessage}
               title="Copy message"
-              className={`ml-auto rounded-full p-1 transition hover:scale-110 ${
+              className={`ms-auto rounded-full p-1 transition hover:scale-110 ${
                 copied ? "text-emerald-400" : "text-zinc-600 hover:text-zinc-300"
               }`}
             >
@@ -5799,7 +5799,7 @@ function Bubble({
                 type="button"
                 onClick={onRetry}
                 title="Retry with cloud"
-                className="ml-1 rounded-full border border-amber-400/30 bg-amber-500/8 px-2 py-0.5 text-[10px] font-semibold text-amber-300 transition hover:bg-amber-500/15"
+                className="ms-1 rounded-full border border-amber-400/30 bg-amber-500/8 px-2 py-0.5 text-[10px] font-semibold text-amber-300 transition hover:bg-amber-500/15"
               >
                 ↺ Retry
               </button>
@@ -5872,7 +5872,7 @@ function SoftEnforcementNotes({ meta }: { meta: any }) {
 
   if (!all.length) {
     return (
-      <details className="ml-2 inline-block align-middle">
+      <details className="ms-2 inline-block align-middle">
         <summary className="cursor-pointer select-none text-[11px] text-zinc-400">
           QA notes
         </summary>
@@ -5884,7 +5884,7 @@ function SoftEnforcementNotes({ meta }: { meta: any }) {
   }
 
   return (
-    <details className="ml-2 inline-block align-middle">
+    <details className="ms-2 inline-block align-middle">
       <summary className="cursor-pointer select-none text-[11px] text-amber-200/80">
         QA notes
       </summary>

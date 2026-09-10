@@ -37,6 +37,71 @@ const ANONYMOUS_TTS_DAILY_LIMIT = 15;
 // so obviously-abusive traffic is rejected at the cheapest possible point.
 const RATE_LIMIT_PER_MIN = 40;
 
+/**
+ * The `sub` and `is_anonymous` claims, read WITHOUT verifying the signature.
+ *
+ * ⚠️ READ THIS BEFORE USING THE RETURN VALUE FOR ANYTHING.
+ *
+ * These claims are attacker-controlled until getUser() has verified the token.
+ * They exist here for exactly one purpose: to let the read-only quota COUNT
+ * start early, alongside the auth round trip, instead of after it. That count
+ * is thrown away unless verified auth comes back with the same user id.
+ *
+ * They must never decide anything. Imotara has already had one incident of
+ * precisely this shape — chat-reply trusted an unverified `sub` to decrement a
+ * paid token balance (see the token-drain fix, web ebe5cb8). The distinction
+ * that makes this safe is narrow and worth stating: that code ACTED on the
+ * claim; this only lets a read begin, and discards it on any mismatch.
+ */
+function unverifiedClaims(token: string): { sub: string | null; isAnonymous: boolean } {
+    try {
+        const payload = JSON.parse(
+            Buffer.from(token.split(".")[1], "base64url").toString("utf8"),
+        );
+        return {
+            sub: typeof payload?.sub === "string" ? payload.sub : null,
+            isAnonymous: payload?.is_anonymous === true,
+        };
+    } catch {
+        return { sub: null, isAnonymous: false };
+    }
+}
+
+/**
+ * THE DISCARD RULE, as a function so it can be tested rather than merely read.
+ *
+ * A count fetched speculatively from an unverified `sub` may be used only when
+ * verified auth produced that exact same user id. Anything else — no
+ * speculative result, no claim, a different user, a cookie-auth request —
+ * means it is discarded and the count is fetched for the user we actually
+ * authenticated.
+ *
+ * Exported for ttsSpeculativeQuota.test.ts. If this ever returns true for a
+ * mismatch, one user's quota is read for another.
+ */
+export function canUseSpeculativeCount(
+    claimedSub: string | null,
+    verifiedUserId: string,
+    speculative: number | null,
+): boolean {
+    if (speculative === null) return false;
+    if (!claimedSub) return false;
+    return claimedSub === verifiedUserId;
+}
+
+/** Today's TTS event count for a user. Read-only. */
+async function ttsCountToday(userId: string): Promise<number> {
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const { count } = await getSupabaseAdmin()
+        .from("usage_events")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("event_type", "tts")
+        .gte("created_at", todayStart.toISOString());
+    return count ?? 0;
+}
+
 // Bearer lookups are NOT cached, deliberately.
 //
 // Caching them was tried and measured on 2026-09-10: brand-new token 0.447s,
@@ -79,6 +144,17 @@ export async function POST(req: NextRequest) {
         return user ?? null;
     };
 
+    // Start the quota count early, from the UNVERIFIED sub claim. It is a
+    // read; nothing is decided by it here. Below, it is used only if verified
+    // auth returns that same user id — otherwise it is discarded and the real
+    // query runs. See unverifiedClaims' doc comment for why that distinction
+    // matters on this particular codebase.
+    const claimed = bearerToken ? unverifiedClaims(bearerToken) : { sub: null, isAnonymous: false };
+    const speculativeQuota =
+        claimed.sub && claimed.isAnonymous
+            ? ttsCountToday(claimed.sub).catch(() => null)
+            : Promise.resolve(null);
+
     const [withinRateLimit, bearerUser] = await Promise.all([
         checkPersistentIpRateLimit("tts", ip, RATE_LIMIT_PER_MIN, 60),
         lookupBearer(),
@@ -103,17 +179,17 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     if (user.is_anonymous) {
-        const quotaAdmin = getSupabaseAdmin();
-        const todayStart = new Date();
-        todayStart.setUTCHours(0, 0, 0, 0);
-        const { count } = await quotaAdmin
-            .from("usage_events")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", user.id)
-            .eq("event_type", "tts")
-            .gte("created_at", todayStart.toISOString());
+        // THE DISCARD RULE. The speculative count is usable only when verified
+        // auth produced the very same user id the unverified claim named. Any
+        // mismatch — a forged or swapped token, a cookie-auth request, a failed
+        // speculative query — and it is thrown away and the count is fetched
+        // for the user we actually authenticated.
+        const speculative = await speculativeQuota;
+        const count = canUseSpeculativeCount(claimed.sub, user.id, speculative)
+            ? (speculative as number)
+            : await ttsCountToday(user.id);
 
-        if ((count ?? 0) >= ANONYMOUS_TTS_DAILY_LIMIT) {
+        if (count >= ANONYMOUS_TTS_DAILY_LIMIT) {
             return NextResponse.json(
                 { error: "Daily voice limit reached. Sign in for unlimited voice.", code: "quota_exceeded" },
                 { status: 429 },

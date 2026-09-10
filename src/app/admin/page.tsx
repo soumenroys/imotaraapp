@@ -2578,20 +2578,32 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch]           = useState("");
   const [users, setUsers]             = useState<UserLicense[]>([]);
+  const [page, setPage]               = useState(0);
+  const [total, setTotal]             = useState<number | null>(null);
+  // Guests are hidden by default: the mobile app signs people in anonymously,
+  // so auth.users fills with rows that carry no email and cannot be licensed.
+  // Leaving them in means the page you are looking at is mostly noise.
+  const [hideGuests, setHideGuests]   = useState(true);
+  const [filterUnavailable, setFilterUnavailable] = useState(false);
+  const PAGE_SIZE = 20;
   const [history, setHistory]         = useState<HistoryEntry[]>([]);
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState("");
 
-  const fetchUsers = useCallback(async (q: string) => {
+  const fetchUsers = useCallback(async (q: string, p: number, hide: boolean) => {
     setLoading(true); setError("");
     try {
-      const params = new URLSearchParams({ limit: "20" });
+      const params = new URLSearchParams({ limit: String(PAGE_SIZE), page: String(p) });
       if (q) params.set("search", q);
+      if (hide) params.set("excludeAnonymous", "1");
       const res = await fetch(`/api/admin/licenses?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) { setError("Failed to load users."); return; }
-      setUsers((await res.json()).users ?? []);
+      const json = await res.json();
+      setUsers(json.users ?? []);
+      setTotal(typeof json.total === "number" ? json.total : null);
+      setFilterUnavailable(!!json.filterUnavailable);
     } catch { setError("Network error."); }
     finally { setLoading(false); }
   }, [token]);
@@ -2608,10 +2620,15 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
     finally { setLoading(false); }
   }, [token]);
 
+  // Any change to what is being asked for puts you back on the first page —
+  // otherwise narrowing a search while on page 4 lands on an empty screen that
+  // looks like "no results".
+  useEffect(() => { setPage(0); }, [search, hideGuests, licTab]);
+
   useEffect(() => {
-    if (licTab === "users") fetchUsers(search);
+    if (licTab === "users") fetchUsers(search, page, hideGuests);
     else fetchHistory();
-  }, [licTab, search, fetchUsers, fetchHistory]);
+  }, [licTab, search, page, hideGuests, fetchUsers, fetchHistory]);
 
   return (
     <div>
@@ -2658,6 +2675,23 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
             )}
           </form>
 
+          {/* Guest accounts. Anonymous sign-in is the mobile app's default, so
+              these rows grow without bound and cannot be licensed — hidden by
+              default, but never silently: the toggle says which way it is. */}
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-500">
+              <input type="checkbox" checked={hideGuests}
+                onChange={(e) => setHideGuests(e.target.checked)}
+                className="h-3.5 w-3.5 cursor-pointer accent-indigo-500" />
+              Hide guest accounts
+            </label>
+            {filterUnavailable && (
+              <span className="text-[10px] text-amber-500/80">
+                Guest filter needs the admin_v4 migration — showing everyone
+              </span>
+            )}
+          </div>
+
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-white/5" />)}
@@ -2673,12 +2707,35 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
             <div className="space-y-3">
               {users.map((u) => (
                 <UserLicenseRow key={u.user_id} user={u} token={token} myRole={myRole}
-                  onUpdated={() => fetchUsers(search)} />
+                  onUpdated={() => fetchUsers(search, page, hideGuests)} />
               ))}
-              <p className="text-center text-[10px] text-zinc-700">
-                {users.length} result{users.length !== 1 ? "s" : ""}
-                {search ? ` for "${search}"` : " (most recently updated)"}
-              </p>
+              {/* Pager. `total` comes from count(*) OVER () and is absent on
+                  the pre-migration fallback path, so "Next" falls back to
+                  "did this page come back full?". */}
+              <div className="flex items-center justify-between gap-3 pt-1">
+                <button type="button" disabled={page === 0 || loading}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-zinc-400 transition enabled:hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-30">
+                  ← Previous
+                </button>
+
+                <p className="text-center text-[10px] text-zinc-600">
+                  {total !== null
+                    ? `${total === 0 ? 0 : page * PAGE_SIZE + 1}–${page * PAGE_SIZE + users.length} of ${total}`
+                    : `${users.length} on this page`}
+                  {search ? ` for "${search}"` : " · most recently updated"}
+                  {hideGuests && !filterUnavailable ? " · guests hidden" : ""}
+                </p>
+
+                <button type="button"
+                  disabled={loading || (total !== null
+                    ? (page + 1) * PAGE_SIZE >= total
+                    : users.length < PAGE_SIZE)}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-zinc-400 transition enabled:hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-30">
+                  Next →
+                </button>
+              </div>
             </div>
           )}
         </>

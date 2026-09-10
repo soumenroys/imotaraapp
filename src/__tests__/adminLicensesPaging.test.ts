@@ -76,16 +76,39 @@ describe("guests are filtered in the query, not after it", () => {
         expect(sql).not.toMatch(/u\.email\s+is\s+null/i);
     });
 
-    it("the SQL keeps the old three-argument call working", () => {
+    it("the SQL declares all four arguments with defaults", () => {
         expect(sql).toMatch(/exclude_anonymous boolean default false/);
         expect(sql).toMatch(/search_email\s+text\s+default null/);
         expect(sql).toMatch(/page_offset\s+integer default 0/);
         expect(sql).toMatch(/page_limit\s+integer default 20/);
     });
 
+    it("the SQL drops the superseded three-argument version", () => {
+        // `create or replace` does NOT replace a function whose argument list
+        // differs — it adds an overload. Leaving the old one behind made a bare
+        // `revoke execute on function <name>` ambiguous and the migration failed
+        // in production with:
+        //   ERROR: 42725: function name "..." is not unique
+        expect(sql).toMatch(
+            /drop function if exists admin_search_users_with_licenses\(text, integer, integer\);/);
+    });
+
+    it("every grant and revoke names its argument list", () => {
+        // A bare function name is ambiguous the moment more than one overload
+        // exists — which is the error above. Qualifying them is what prevents a
+        // repeat if a fifth argument is ever added.
+        for (const verb of ["revoke", "grant"]) {
+            const re = new RegExp(
+                verb + "\\s+execute on function admin_search_users_with_licenses\\(text, integer, integer, boolean\\)");
+            expect(sql).toMatch(re);
+        }
+        // and none of them may be left unqualified
+        expect(sql).not.toMatch(/(revoke|grant)\s+execute on function admin_search_users_with_licenses\s+(from|to)/);
+    });
+
     it("the SQL still restricts execution to service_role", () => {
-        expect(sql).toMatch(/revoke execute on function admin_search_users_with_licenses from public, anon, authenticated;/);
-        expect(sql).toMatch(/grant\s+execute on function admin_search_users_with_licenses to service_role;/);
+        expect(sql).toMatch(/from public, anon, authenticated;/);
+        expect(sql).toMatch(/to service_role;/);
     });
 });
 

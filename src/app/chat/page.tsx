@@ -3214,9 +3214,14 @@ export default function ChatPage() {
         </div>
       )}
 
-      <div className="mx-auto flex h-[calc(100dvh-200px)] w-full max-w-7xl overflow-hidden py-3 text-zinc-100 sm:h-[calc(100vh-200px)] sm:py-4">
+      {/* Fill the screen, minus the sticky header (h-14 = 3.5rem in SiteHeader).
+          This used to subtract a hardcoded 200px, which on a 1366x768 laptop
+          spent 26% of the display before a single message rendered — the
+          conversation got 452px of 768. dvh, not vh, so mobile browser chrome
+          collapsing does not leave a gap. */}
+      <div className="mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-7xl overflow-hidden text-zinc-100">
         {/* Sidebar */}
-        <aside className="hidden w-64 flex-col gap-3 p-4 sm:flex md:w-72 imotara-glass-card">
+        <aside className="hidden w-56 flex-col gap-3 p-3 sm:flex md:w-60 xl:w-72 xl:p-4 imotara-glass-card">
           <div className="mb-1 flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
               Conversations

@@ -23,15 +23,30 @@
 -- already trust that column, and a real user who happens to have no email
 -- must not be misfiled as a guest.
 --
--- BACKWARD COMPATIBILITY
+-- REPLACING THE OLD FUNCTION — read this, it bit once already
 --
--- exclude_anonymous defaults to false, so any caller using the old three-arg
--- signature behaves exactly as before. The two added output columns are
--- additive; the single caller (src/app/api/admin/licenses/route.ts) selects by
--- name. That route also falls back to the old argument list if this migration
--- has not been run yet, so deploying the code first degrades the filter
--- rather than breaking the screen — but run this FIRST and the fallback never
--- has to be used.
+-- `create or replace function` only replaces a function with the SAME argument
+-- list. This one takes four arguments where admin_v3 took three, so Postgres
+-- does NOT replace it — it creates a second overload under the same name. Two
+-- overloads then make an unqualified `revoke execute on function
+-- admin_search_users_with_licenses` ambiguous:
+--
+--     ERROR: 42725: function name "admin_search_users_with_licenses" is not unique
+--
+-- and worse, leaves two functions a call could resolve to. So the old
+-- three-argument version is dropped explicitly, and every grant/revoke names
+-- its argument list.
+--
+-- Order is deliberate: create the new one FIRST, then drop the old. If the
+-- create fails, the old function is still there and the admin screen still
+-- works. Both statements are idempotent, so re-running this file is safe —
+-- including on a database where a previous attempt already created the
+-- four-argument version.
+--
+-- The route calls this with four named arguments and falls back to the old
+-- three-argument list if the migration has not been run, so deploying the code
+-- first degrades the guest filter rather than breaking the screen. Once this
+-- has run, the fallback is dead code that never fires.
 --
 -- total_count is count(*) OVER (), i.e. the size of the filtered set before
 -- OFFSET/LIMIT. It is repeated on every row; that is the normal cost of
@@ -89,9 +104,17 @@ as $$
   limit  page_limit;
 $$;
 
--- Permissions unchanged from admin_v3 — service_role only.
-revoke execute on function admin_search_users_with_licenses from public, anon, authenticated;
-grant  execute on function admin_search_users_with_licenses to service_role;
+-- Remove the superseded three-argument version, or it lingers as a second
+-- overload. `if exists` so this is safe on a fresh database that never had it.
+drop function if exists admin_search_users_with_licenses(text, integer, integer);
+
+-- Permissions unchanged from admin_v3 — service_role only. The argument list is
+-- spelled out because a bare function name is ambiguous whenever more than one
+-- overload exists, which is exactly the error this file used to produce.
+revoke execute on function admin_search_users_with_licenses(text, integer, integer, boolean)
+  from public, anon, authenticated;
+grant  execute on function admin_search_users_with_licenses(text, integer, integer, boolean)
+  to service_role;
 
 -- Sanity checks (safe to run, read-only):
 --   select count(*) from auth.users;

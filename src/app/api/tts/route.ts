@@ -10,7 +10,7 @@
 // TTS only if this request fails — so English does reach this route on mobile.
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type User } from "@supabase/supabase-js";
 import { getAzureConfig } from "@/lib/azure-tts/regionRouter";
 import { resolveVoice, resolveStyle, resolveProsody, AZURE_LOCALE } from "@/lib/azure-tts/voices";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
@@ -37,32 +37,61 @@ const ANONYMOUS_TTS_DAILY_LIMIT = 15;
 // so obviously-abusive traffic is rejected at the cheapest possible point.
 const RATE_LIMIT_PER_MIN = 40;
 
+// Bearer lookups are NOT cached, deliberately.
+//
+// Caching them was tried and measured on 2026-09-10: brand-new token 0.447s,
+// same token again 0.429s — identical within noise. The reason is that the
+// rate-limit check now runs alongside getUser (see POST below) and takes about
+// the same time, so the auth call is entirely hidden behind it. Caching
+// something that costs nothing saves nothing, and it would have bought a
+// window where a revoked token still worked.
+//
+// Worth revisiting only if that changes: if Supabase Auth gets slower, or the
+// rate-limit check gets faster, the auth cost stops being hidden and a cache
+// starts to pay for itself.
+
 export async function POST(req: NextRequest) {
     const tStart = Date.now();
 
     const ip = getClientIp(req);
-    if (!(await checkPersistentIpRateLimit("tts", ip, RATE_LIMIT_PER_MIN, 60))) {
-        return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
-    }
 
+    // The rate limit and the bearer lookup do not depend on each other, and
+    // each is a network round trip. Run them together: awaiting them in
+    // sequence made every chunk of every reply wait for the sum rather than
+    // the slower of the two.
+    //
     // Mobile always sends a Bearer token and never a Supabase session cookie,
     // so checking cookie auth first wasted a full round trip to Supabase Auth
     // (getUser() re-validates against the server every call, unlike
     // getSession()) that was guaranteed to fail on every mobile request.
     // Check Bearer first when present; only fall back to cookie auth (web) otherwise.
-    let user = null;
     const authHeader = req.headers.get("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-        const token = authHeader.slice(7);
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+    const lookupBearer = async (): Promise<User | null> => {
+        if (!bearerToken) return null;
         const anon = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
             { auth: { persistSession: false, autoRefreshToken: false } },
         );
-        const { data: { user: bearerUser } } = await anon.auth.getUser(token);
-        user = bearerUser;
+        const { data: { user } } = await anon.auth.getUser(bearerToken);
+        return user ?? null;
+    };
+
+    const [withinRateLimit, bearerUser] = await Promise.all([
+        checkPersistentIpRateLimit("tts", ip, RATE_LIMIT_PER_MIN, 60),
+        lookupBearer(),
+    ]);
+
+    // Still checked first, and still on every request — running the lookup
+    // alongside it does not mean an over-limit caller gets served.
+    if (!withinRateLimit) {
+        return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
     }
-    console.log(`[tts] bearer auth done at +${Date.now() - tStart}ms user=${!!user}`);
+
+    let user: User | null = bearerUser;
+    console.log(`[tts] rate-limit + bearer auth done at +${Date.now() - tStart}ms user=${!!user}`);
 
     if (!user) {
         const supabase = await supabaseUserServer();
@@ -91,6 +120,8 @@ export async function POST(req: NextRequest) {
             );
         }
     }
+
+    console.log(`[tts] quota check done at +${Date.now() - tStart}ms anon=${!!user.is_anonymous}`);
 
     let body: { text?: string; lang?: string; gender?: string; emotion?: string };
     try {

@@ -98,7 +98,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "website_url must be a valid https:// URL" }, { status: 400 });
     }
   }
-  const VALID_SESSION_TYPES = ["chat", "audio", "video"];
+  // Audio and video are phase 3. Both registration UIs disable them and label
+  // them "Coming soon" (connect/register/page.tsx, ConnectScreen.tsx), and the
+  // booking screen refuses them outright (connect/session/new/page.tsx), so a
+  // companion carrying them advertises a modality nobody can book.
+  //
+  // The server used to accept them anyway, which is how a companion ends up in
+  // that state despite the UI: validation here was laxer than the client's.
+  // When phase 3 ships, move these into VALID_SESSION_TYPES and the UIs unlock
+  // themselves from the same `phase` field.
+  const VALID_SESSION_TYPES = ["chat"];
+  const NOT_YET_BOOKABLE_SESSION_TYPES = ["audio", "video"];
+  // Reject rather than silently drop: a companion who believed they were
+  // signing up to offer video should be told it is not available yet, not have
+  // it quietly removed from their profile.
+  if (Array.isArray(session_types)) {
+    const notYet = session_types.filter((t: string) => NOT_YET_BOOKABLE_SESSION_TYPES.includes(t));
+    if (notYet.length > 0) {
+      return NextResponse.json(
+        { ok: false, error: `${notYet.join(" and ")} sessions are not available yet — they are coming in a later phase.` },
+        { status: 400 },
+      );
+    }
+  }
+
   const normalizedSessionTypes = Array.isArray(session_types)
     ? session_types.filter((t: string) => VALID_SESSION_TYPES.includes(t))
     : ["chat"];

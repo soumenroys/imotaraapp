@@ -3275,7 +3275,13 @@ export default function ChatPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-zinc-200">{userAvatarData.name || "You"}</p>
-                <p className="text-[10px] text-zinc-500">You</p>
+                {/* "You" under a name clarifies whose avatar this is. Under the
+                    fallback title it just said "You" twice. Kept short because
+                    the sidebar is 224px between sm and md, which leaves this
+                    line 98px — "Tap to hear your voice" truncated there. */}
+                <p className="truncate text-[10px] text-zinc-500">
+                  {userAvatarData.name ? "You" : "Your voice"}
+                </p>
               </div>
               {avatarPlaying === "user"
                 ? <Volume2 className="h-3.5 w-3.5 flex-shrink-0 text-sky-400 animate-pulse" />

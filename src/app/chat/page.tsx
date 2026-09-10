@@ -3238,8 +3238,13 @@ export default function ChatPage() {
           This used to subtract a hardcoded 200px, which on a 1366x768 laptop
           spent 26% of the display before a single message rendered — the
           conversation got 452px of 768. dvh, not vh, so mobile browser chrome
-          collapsing does not leave a gap. */}
-      <div className="mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-7xl overflow-hidden text-zinc-100">
+          collapsing does not leave a gap.
+
+          The -1px is SiteHeader's border-b. Without it the page is exactly one
+          pixel too tall (56 header + 1 border + 712 shell = 769 on a 768
+          viewport) and the browser shows a scrollbar for that single pixel,
+          which is the whole thing this height is trying to avoid. */}
+      <div className="mx-auto flex h-[calc(100dvh-3.5rem-1px)] w-full max-w-7xl overflow-hidden text-zinc-100">
         {/* Sidebar */}
         <aside className={`${sidebarOpen ? "hidden sm:flex" : "hidden"} w-56 flex-col gap-3 p-3 md:w-60 xl:w-72 xl:p-4 imotara-glass-card`}>
           <div className="mb-1 flex items-center justify-between">

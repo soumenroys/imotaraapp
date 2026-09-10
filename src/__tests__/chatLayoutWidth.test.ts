@@ -22,7 +22,9 @@ const root = fs.readFileSync(
 
 describe("the chat gets the whole screen", () => {
     it("height comes from the header's real size, not a magic number", () => {
-        expect(page).toMatch(/h-\[calc\(100dvh-3\.5rem\)\]/);
+        // -1px is SiteHeader's border-b; without it the page overflows by
+        // exactly one pixel and shows a scrollbar for nothing.
+        expect(page).toMatch(/h-\[calc\(100dvh-3\.5rem-1px\)\]/);
         expect(page).not.toMatch(/100vh-200px|100dvh-200px/);
     });
 
@@ -77,5 +79,43 @@ describe("the sidebar can give its width back", () => {
     it("is announced properly rather than being a mystery icon", () => {
         expect(page).toMatch(/aria-expanded=\{sidebarOpen\}/);
         expect(page).toMatch(/aria-label=\{sidebarOpen \? "Hide conversation list" : "Show conversation list"\}/);
+    });
+});
+
+describe("the chat ends at the bottom of the window", () => {
+    const slot = fs.readFileSync(
+        path.join(__dirname, "..", "components", "SiteFooterSlot.tsx"), "utf8");
+    const css = fs.readFileSync(
+        path.join(__dirname, "..", "app", "globals.css"), "utf8");
+
+    it("the footer is skipped on /chat and kept everywhere else", () => {
+        expect(slot).toMatch(/const APP_SCREENS = \["\/chat"\]/);
+        expect(slot).toMatch(/if \(appScreen\) return null;/);
+        expect(slot).toMatch(/return <>\{children\}<\/>;/);
+    });
+
+    it("matches sub-routes but not merely similar ones", () => {
+        // "/chatter" must not count as the chat screen.
+        const fn = slot.slice(slot.indexOf("function isAppScreen"));
+        expect(fn).toMatch(/pathname === p \|\| pathname\.startsWith\(p \+ "\/"\)/);
+    });
+
+    it("takes the footer as children, so SiteFooter stays server-rendered", () => {
+        const root = fs.readFileSync(path.join(__dirname, "..", "app", "layout.tsx"), "utf8");
+        expect(root).toMatch(/<SiteFooterSlot>[\s\S]*<SiteFooter \/>[\s\S]*<\/SiteFooterSlot>/);
+        expect(slot).not.toMatch(/import SiteFooter/);
+    });
+
+    it("clears the tab-bar padding only where the tab bar does not exist", () => {
+        // MobileTabBar is sm:hidden, so pb-24 reserves room for nothing at
+        // 640px+. Below that it is real and must stay.
+        expect(css).toMatch(/@media \(min-width: 640px\) \{[\s\S]*?body\.app-screen \{[\s\S]*?padding-bottom: 0;/);
+        const tabbar = fs.readFileSync(
+            path.join(__dirname, "..", "components", "imotara", "MobileTabBar.tsx"), "utf8");
+        expect(tabbar).toMatch(/sm:hidden/);
+    });
+
+    it("removes the body class again when leaving the route", () => {
+        expect(slot).toMatch(/return \(\) => document\.body\.classList\.remove\(cls\);/);
     });
 });

@@ -670,3 +670,16 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+
+/* Full-height app routes (currently /chat), toggled by SiteFooterSlot.
+   body's pb-24 reserves room for MobileTabBar, which is `sm:hidden` — so from
+   640px up it reserves space for a bar that is not rendered. On a document
+   that scrolls anyway it is harmless; on a screen meant to end at the fold it
+   is 96px of scroll for nothing. Left in place below 640px, where the tab bar
+   is real and content must clear it. */
+@media (min-width: 640px) {
+  body.app-screen {
+    padding-bottom: 0;
+  }
+}

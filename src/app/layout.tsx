@@ -5,6 +5,7 @@ import type { Metadata, Viewport } from "next";
 import SiteHeader from "@/components/SiteHeader";
 import MobileTabBar from "@/components/imotara/MobileTabBar";
 import SiteFooter from "@/components/SiteFooter";
+import SiteFooterSlot from "@/components/SiteFooterSlot";
 import LocalDataNotice from "@/components/imotara/LocalDataNotice";
 import FirstVisitBanner from "@/components/imotara/FirstVisitBanner";
 import ServiceWorkerRegistration from "@/components/imotara/ServiceWorkerRegistration";
@@ -403,7 +404,11 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
 
         <JsonLd />
-        <SiteFooter />
+        {/* Hidden on full-height app routes (/chat) — see SiteFooterSlot.
+            Passed as children so SiteFooter stays a server component. */}
+        <SiteFooterSlot>
+          <SiteFooter />
+        </SiteFooterSlot>
       </body>
     </html>
   );

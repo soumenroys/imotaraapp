@@ -1179,6 +1179,26 @@ export default function ChatPage() {
   const [showReturnGreeting, setShowReturnGreeting] = useState(false);
 
   // Search
+  // Sidebar takes 288px to list, typically, two conversations. Collapsing hands
+  // that width to the conversation — which is the whole point of the screen —
+  // and the choice is remembered, because re-collapsing it every visit would be
+  // its own annoyance.
+  const SIDEBAR_KEY = "imotara.chat.sidebarOpen.v1";
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(SIDEBAR_KEY);
+      if (v === "0") setSidebarOpen(false);
+    } catch { /* private mode — keep the default */ }
+  }, []);
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((open) => {
+      const next = !open;
+      try { localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }, []);
+
   const [showSearch, setShowSearch] = useState(false);
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -3221,7 +3241,7 @@ export default function ChatPage() {
           collapsing does not leave a gap. */}
       <div className="mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-7xl overflow-hidden text-zinc-100">
         {/* Sidebar */}
-        <aside className="hidden w-56 flex-col gap-3 p-3 sm:flex md:w-60 xl:w-72 xl:p-4 imotara-glass-card">
+        <aside className={`${sidebarOpen ? "hidden sm:flex" : "hidden"} w-56 flex-col gap-3 p-3 md:w-60 xl:w-72 xl:p-4 imotara-glass-card`}>
           <div className="mb-1 flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
               Conversations
@@ -3437,6 +3457,22 @@ export default function ChatPage() {
 
               {/* ── LEVEL 0: always-visible slim bar ── */}
               <div className="flex items-center gap-2">
+                {/* Sidebar toggle — desktop only; below sm the sidebar is
+                    already hidden and conversations live behind the tab bar. */}
+                <button
+                  type="button"
+                  onClick={toggleSidebar}
+                  aria-expanded={sidebarOpen}
+                  aria-label={sidebarOpen ? "Hide conversation list" : "Show conversation list"}
+                  title={sidebarOpen ? "Hide conversation list" : "Show conversation list"}
+                  className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-white/10 hover:text-zinc-200 sm:flex"
+                >
+                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <rect x="1.5" y="2.5" width="13" height="11" rx="2" />
+                    <line x1="6" y1="2.5" x2="6" y2="13.5" />
+                    {!sidebarOpen && <line x1="9" y1="8" x2="12.5" y2="8" />}
+                  </svg>
+                </button>
                 {/* Status dot — shows current analysis mode at a glance */}
                 <div
                   className={`h-2 w-2 shrink-0 rounded-full ${mode === "allow-remote" ? "bg-emerald-400" : mode === "auto" ? "bg-violet-400" : "bg-zinc-500"}`}

@@ -20,7 +20,7 @@ import {
   unsubscribeHeaders, unsubscribeFooterHtml, unsubscribeFooterText,
   isUnsubscribeConfigured,
 } from "@/lib/broadcast/unsubscribe";
-import { emailDocument, mergeFields, usesMergeFields } from "@/lib/broadcast/markup";
+import { emailDocument, headerHtml, headerText, mergeFields, usesMergeFields } from "@/lib/broadcast/markup";
 import { notifyOwner } from "@/lib/broadcast/notify";
 
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
@@ -32,6 +32,9 @@ type BroadcastRow = {
   reply_to: string | null;
   list_id: string | null;
   body_text: string;
+  // Optional masthead line (owner request 2026-09-12). Nullable: every draft
+  // written before the column existed renders with the logo and name only.
+  header_text: string | null;
   message_type: "broadcast" | "operational";
   from_email: string;
   from_name: string | null;
@@ -87,7 +90,7 @@ export async function GET(req: NextRequest) {
   // caused it, rather than whichever run happened to be interleaved.
   const { data: broadcast, error: bErr } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_html, body_text, message_type, from_email, from_name, reply_to, list_id, status")
+    .select("id, subject, body_html, body_text, header_text, message_type, from_email, from_name, reply_to, list_id, status")
     .eq("status", "sending")
     .order("started_at", { ascending: true, nullsFirst: false })
     .limit(1)
@@ -184,8 +187,10 @@ export async function GET(req: NextRequest) {
       mergeFields(broadcast.body_html, { name: names.get(r.email), email: r.email }, true),
       broadcast.message_type === "broadcast"
         ? unsubscribeFooterHtml(r.email, broadcast.id) : "",
+      headerHtml(broadcast.header_text ?? ""),
     ),
-    text: mergeFields(broadcast.body_text, { name: names.get(r.email), email: r.email }, false) +
+    text: headerText(broadcast.header_text ?? "") +
+      mergeFields(broadcast.body_text, { name: names.get(r.email), email: r.email }, false) +
       (broadcast.message_type === "broadcast"
         ? unsubscribeFooterText(r.email, broadcast.id) : ""),
     // Answers go to the person who wrote it, which is not always the address

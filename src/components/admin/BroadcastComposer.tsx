@@ -14,13 +14,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
-import { renderHtml, emailDocument, footerHtml, FONTS, SIZES } from "@/lib/broadcast/markup";
+import { renderHtml, emailDocument, footerHtml, headerHtml, FONTS, SIZES } from "@/lib/broadcast/markup";
 import { checkImageUrl } from "@/lib/broadcast/imageUrl";
 import type { ListRow } from "./BroadcastLists";
 
 export type Draft = {
   id: string | null;
   subject: string;
+  /** Optional line in the email masthead, under the Imotara mark. */
+  header_text?: string | null;
   body_source: string;
   message_type: "broadcast" | "operational";
   list_id: string | null;
@@ -302,7 +304,10 @@ export default function BroadcastComposer({
   const preview = useMemo(() => emailDocument(
     renderHtml(draft.body_source),
     draft.message_type === "broadcast" ? FOOTER_PREVIEW : "",
-  ), [draft.body_source, draft.message_type]);
+    // The real header, not a copy of it — same reasoning as FOOTER_PREVIEW.
+    // A preview that omits the masthead is a preview of an email nobody gets.
+    headerHtml(draft.header_text ?? ""),
+  ), [draft.body_source, draft.message_type, draft.header_text]);
 
   // Measured on the rendered document, not the source: what Gmail clips is
   // the HTML it receives.
@@ -380,6 +385,24 @@ export default function BroadcastComposer({
             />
             <p className="mt-1.5 text-[10px] text-zinc-600">
               {draft.subject.length}/200 · shown in the inbox before anything else
+            </p>
+
+            {/* Masthead line (owner request, 2026-09-12). Optional: left empty
+                the header still renders the Imotara mark and name, which is
+                what every draft written before this field did. */}
+            <label className="mb-1.5 mt-3 block text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              Header line <span className="font-normal normal-case tracking-normal text-zinc-600">· optional</span>
+            </label>
+            <input
+              value={draft.header_text ?? ""}
+              onChange={(e) => set("header_text", e.target.value)}
+              disabled={locked}
+              maxLength={200}
+              placeholder="e.g. A note for our partner organisations"
+              className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-indigo-500/40 disabled:opacity-50"
+            />
+            <p className="mt-1.5 text-[10px] text-zinc-600">
+              Appears under the logo at the top. Leave blank for the logo alone.
             </p>
           </div>
 

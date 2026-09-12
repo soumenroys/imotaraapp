@@ -415,23 +415,95 @@ export function postalAddress(): string {
   return (process.env.BROADCAST_POSTAL_ADDRESS ?? "").trim();
 }
 
+/**
+ * Absolute origin for anything a mail client has to fetch or follow.
+ *
+ * Mirrors unsubscribe.ts rather than importing it, to keep markup rendering
+ * free of the signing module. Relative URLs are useless in email — there is no
+ * page for them to be relative to.
+ */
+export function siteBase(): string {
+  return (process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") || "https://www.imotara.com");
+}
+
+/** Where the apps live. Same URLs the site's structured data already uses. */
+export const PLAY_URL = "https://play.google.com/store/apps/details?id=com.imotara.imotara";
+export const APPSTORE_URL = "https://apps.apple.com/in/app/imotara/id6756697569";
+
+/**
+ * The masthead: the Imotara mark, the name, and an optional line of operator
+ * text (owner request, 2026-09-12).
+ *
+ * ⚠️ The brand is in TEXT as well as the image, deliberately. Most clients
+ * block remote images by default, so a header that carries the brand only in
+ * a logo renders as an empty box for the majority of readers. The image is an
+ * enhancement; the text is the content.
+ *
+ * One small image is all this adds. Three QR codes were also requested for the
+ * footer and were NOT added — see footerHtml.
+ */
+export function headerHtml(text = ""): string {
+  const line = text.trim();
+  return (
+    `<div style="margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid #eef2f7">` +
+    `<img src="${siteBase()}/icon-192.png" alt="Imotara" width="36" height="36" ` +
+    `style="width:36px;height:36px;border:0;border-radius:8px;vertical-align:middle;display:inline-block">` +
+    `<span style="margin-left:10px;font-family:Helvetica,Arial,sans-serif;font-size:16px;` +
+    `font-weight:700;color:#1e293b;vertical-align:middle">Imotara</span>` +
+    (line
+      ? `<div style="margin-top:10px;font-family:Helvetica,Arial,sans-serif;font-size:13px;` +
+        `line-height:1.5;color:#475569">${esc(line)}</div>`
+      : "") +
+    `</div>`
+  );
+}
+
+/** Plain-text counterpart, so the two parts of the message cannot drift. */
+export function headerText(text = ""): string {
+  const line = text.trim();
+  return `Imotara${line ? `\n${line}` : ""}\n\n`;
+}
+
 export function footerHtml(unsubscribeHref: string): string {
   const addr = postalAddress();
   return (
     `<div style="margin-top:28px;padding-top:14px;border-top:1px solid #eef2f7;` +
     `font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.6;color:#94a3b8">` +
+    // Text links, NOT the three QR images the owner asked for.
+    //
+    // The owner's overriding requirement was "must not be marked as spam, and
+    // preferably Primary rather than Promotions", and they delegated the
+    // choice. Multiple images plus app-store badges is the textbook
+    // Promotions-tab signature, and a QR code is close to useless to a mobile
+    // reader anyway — you cannot scan a code with the device displaying it.
+    // The QR images belong on a landing page a desktop reader can scan from.
+    `<a href="${PLAY_URL}" style="color:#4f46e5">Get it on Google Play</a>` +
+    ` &middot; <a href="${APPSTORE_URL}" style="color:#4f46e5">Download on the App Store</a>` +
+    ` &middot; <a href="${siteBase()}" style="color:#4f46e5">imotara.com</a>` +
+    `<div style="margin-top:6px">` +
     `<a href="${unsubscribeHref}" style="color:#4f46e5">Unsubscribe</a>` +
     ` &middot; Imotara` +
+    `</div>` +
     // Escaped, not interpolated raw: this is operator-supplied config and the
     // rest of this file is careful never to put unchecked text into markup.
-    (addr ? `<div style="margin-top:6px">${esc(addr)}</div>` : "") +
+    // data-im marks this block so a test can assert "no address" structurally
+    // instead of proxying it through a style string — the previous guard was
+    // `not.toContain("margin-top:6px")`, which broke the moment unrelated
+    // footer markup happened to use the same margin.
+    (addr ? `<div data-im="postal-address" style="margin-top:6px">${esc(addr)}</div>` : "") +
     `</div>`
   );
 }
 
 export function footerText(unsubscribeHref: string): string {
   const addr = postalAddress();
-  return `\n\n—\nUnsubscribe: ${unsubscribeHref}\nImotara${addr ? `\n${addr}` : ""}`;
+  return (
+    `\n\n—\n` +
+    `Google Play: ${PLAY_URL}\n` +
+    `App Store: ${APPSTORE_URL}\n` +
+    `Web: ${siteBase()}\n` +
+    `Unsubscribe: ${unsubscribeHref}\nImotara${addr ? `\n${addr}` : ""}`
+  );
 }
 
 /**
@@ -441,12 +513,15 @@ export function footerText(unsubscribeHref: string): string {
  * outside the body's container — full-bleed and misaligned. Assembling both
  * here keeps the preview and the sent mail literally the same function.
  */
-export function emailDocument(bodyHtml: string, footerHtml = ""): string {
+export function emailDocument(bodyHtml: string, footerHtml = "", headerHtml = ""): string {
   return (
     `<div style="margin:0;padding:24px 16px;background:#f6f7f9">` +
     `<div style="max-width:560px;margin:0 auto;padding:28px 26px;background:#ffffff;` +
     `border-radius:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">` +
-    bodyHtml + footerHtml +
+    // Header is a THIRD parameter rather than the first, so every existing
+    // call site stays valid and a caller that has not been updated simply
+    // renders no header instead of silently reordering the document.
+    headerHtml + bodyHtml + footerHtml +
     `</div></div>`
   );
 }

@@ -16,7 +16,7 @@ import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
 import { sendBatch, isResendConfigured } from "@/lib/broadcast/resendClient";
-import { emailDocument, footerHtml, footerText } from "@/lib/broadcast/markup";
+import { emailDocument, footerHtml, footerText, headerHtml, headerText } from "@/lib/broadcast/markup";
 import { EMAIL_RE } from "@/lib/broadcast/parseRecipients";
 
 type Params = { params: Promise<{ id: string }> };
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const supabase = getSupabaseAdmin();
   const { data: b } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_html, body_text, message_type, from_email, from_name, reply_to")
+    .select("id, subject, body_html, body_text, header_text, message_type, from_email, from_name, reply_to")
     .eq("id", id)
     .maybeSingle();
 
@@ -80,8 +80,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     // Marked in the subject so a test can never be mistaken for the real
     // thing, by the sender or by anyone the sender forwards it to.
     subject: `[TEST] ${b.subject}`,
-    html: emailDocument(b.body_html as string, footer),
-    text: `${b.body_text ?? ""}${footerT}`,
+    html: emailDocument(b.body_html as string, footer, headerHtml((b.header_text as string) ?? "")),
+    text: `${headerText((b.header_text as string) ?? "")}${b.body_text ?? ""}${footerT}`,
     replyTo: (b.reply_to ?? b.from_email) as string,
   }]);
 

@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const { data: broadcast, error } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_source, body_html, body_text, message_type, status, from_email, from_name, reply_to, list_id, created_at, started_at, finished_at")
+    .select("id, subject, body_source, body_html, body_text, header_text, message_type, status, from_email, from_name, reply_to, list_id, created_at, started_at, finished_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -63,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   let body: {
-    subject?: unknown; body_source?: unknown; from_email?: unknown;
+    subject?: unknown; body_source?: unknown; header_text?: unknown; from_email?: unknown;
     message_type?: unknown; list_id?: unknown;
   };
   try { body = await req.json(); }
@@ -101,6 +101,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   // Source in, rendered output derived here — see the note in POST. The three
   // columns are written together so body_html can never describe a version of
   // the message the admin did not write.
+  // One optional line for the masthead. Trimmed, length-capped, and stored
+  // as NULL when blank so "no header" is one state in the database rather
+  // than two ("" and null) that render the same.
+  if (typeof body.header_text === "string") {
+    const h = body.header_text.trim().slice(0, 200);
+    patch.header_text = h || null;
+  }
+
   if (typeof body.body_source === "string") {
     if (body.body_source.length > MAX_SOURCE) {
       return NextResponse.json({ error: "That message is too long" }, { status: 413 });
@@ -138,7 +146,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .eq("id", id)
     .eq("status", "draft")   // re-checked in the WHERE: the status could have
                              // changed between the read above and this write
-    .select("id, subject, body_source, body_html, body_text, message_type, status, from_email, from_name, reply_to, list_id, created_at")
+    .select("id, subject, body_source, body_html, body_text, header_text, message_type, status, from_email, from_name, reply_to, list_id, created_at")
     .maybeSingle();
 
   if (error) {

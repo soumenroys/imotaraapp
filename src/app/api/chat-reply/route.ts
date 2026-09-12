@@ -3591,7 +3591,10 @@ export async function POST(req: Request) {
       : null;
 
     // ── Streaming path: forward tokens directly to client via SSE ────────────
-    // Activated when client sends ?stream=1 (web only; mobile uses JSON path).
+    // Activated when client sends ?stream=1 — BOTH web (respondRemote.ts:233)
+    // and mobile (aiClient.ts:447) do. This comment used to say "web only;
+    // mobile uses JSON path", which was wrong: mobile has both, and streams
+    // first, falling back to the JSON path only on failure.
     // Skips formatImotaraReply post-processing — the rich system prompt handles
     // humanization directly. All script-safety rules are in the system prompt.
     const requestUrl = new URL(req.url);

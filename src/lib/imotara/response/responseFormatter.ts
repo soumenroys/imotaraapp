@@ -95,6 +95,46 @@ export function nativeScriptTerminator(lang: string, text: string): string {
   return ".";
 }
 
+/** Languages whose reaction/bridge banks in this file are in native script. */
+const NATIVE_BANK_LANGS = new Set([
+  "hi", "mr", "bn", "pa", "or", "gu", "ta", "te", "kn", "ml", "ur", "ar",
+  "ja", "zh", "he", "ru",
+]);
+
+function hasNativeBank(lang: string): boolean {
+  return NATIVE_BANK_LANGS.has(lang);
+}
+
+/**
+ * Is the model's reply written in Latin letters rather than the language's
+ * own script?
+ *
+ * A single character of the language's own script is enough to say "native",
+ * which is what makes borrowed English words safe: Indic replies routinely
+ * carry words like "steady" or "manageable", and those replies still test as
+ * native because the surrounding text is not Latin.
+ *
+ * (An earlier version also required >= 10 Latin characters "so a stray
+ * English word does not count as romanized". That guard was redundant — the
+ * script test above already covers it — and the length floor at the call site
+ * covers very short bodies. Removed rather than left sitting there implying a
+ * protection it was not providing.)
+ */
+function isRomanizedBody(raw: string, lang: string): boolean {
+  const re = SCRIPT_OF_BODY[lang];
+  if (!re) return false;
+  return !re.test(raw);
+}
+
+const SCRIPT_OF_BODY: Record<string, RegExp> = {
+  hi: /[\u0900-\u097F]/, mr: /[\u0900-\u097F]/, bn: /[\u0980-\u09FF]/,
+  pa: /[\u0A00-\u0A7F]/, or: /[\u0B00-\u0B7F]/, gu: /[\u0A80-\u0AFF]/,
+  ta: /[\u0B80-\u0BFF]/, te: /[\u0C00-\u0C7F]/, kn: /[\u0C80-\u0CFF]/,
+  ml: /[\u0D00-\u0D7F]/, ur: /[\u0600-\u06FF]/, ar: /[\u0600-\u06FF]/,
+  ja: /[\u3040-\u30FF\u4E00-\u9FFF]/, zh: /[\u4E00-\u9FFF]/,
+  he: /[\u0590-\u05FF]/, ru: /[\u0400-\u04FF]/,
+};
+
 function normalizeLang(lang?: string): string {
   const l = (lang ?? "").trim().toLowerCase();
   if (!l) return "en";
@@ -2196,6 +2236,35 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   // ✅ RETURN MODE (user came back after pause)
   // Prefer the model's natural wording if it already produced a real return reply.
   // Fall back only if raw is empty/useless.
+  // ── Romanized body: do not wrap it in native-script furniture ────────────
+  //
+  // The reaction and bridge banks below are written in each language's own
+  // script. The model's body, though, follows whatever script the person
+  // wrote in — and most Indic users type romanized. Assembling the two gave
+  // replies like:
+  //
+  //   "সত্যি। ami bujhte parchi eta tomar jonno khub kothin hocche ekhon."
+  //   "हम्म… main samajh sakta hoon ki yeh tumhare liye mushkil hai."
+  //
+  // Two scripts in one message, which is exactly what the system prompts
+  // forbid the model from doing. Same class as the offline reply engine fixed
+  // in mobile 08a3de1.
+  //
+  // The honest fix would be romanized twins of all ~147 native phrases. Not
+  // worth it here: the streaming path skips this formatter entirely and BOTH
+  // clients stream, so this only runs on the non-streaming fallback and
+  // /api/respond. So the native furniture is omitted instead and the model's
+  // own words are returned, properly terminated. A plainer reply beats a
+  // reply in two scripts.
+  //
+  // Native-script bodies are untouched — they keep the full three phases.
+  if (hasNativeBank(lang) && isRomanizedBody(input.raw ?? "", lang)) {
+    const body = stripRoboticMarkers(input.raw ?? "").trim();
+    if (body.length >= 12) {
+      return /[.!?…]$/.test(body) ? body : `${body}.`;
+    }
+  }
+
   if (input.mode === "return") {
     const returnRaw = stripRoboticMarkers(input.raw ?? "").trim();
 

@@ -111,3 +111,76 @@ describe("the assembled reply terminates each piece by its own script", () => {
         expect(out).not.toMatch(/[A-Za-z]\s*۔/);
     });
 });
+
+/**
+ * One reply, one script.
+ *
+ * The reaction and bridge banks in the formatter are written in each
+ * language's own script, but the model's body follows whatever script the
+ * person wrote in. Assembling the two produced replies in two scripts at
+ * once — the same fault fixed in the offline engine (mobile 08a3de1):
+ *
+ *   "সত্যি। ami bujhte parchi eta tomar jonno khub kothin hocche ekhon."
+ *   "हम्म… main samajh sakta hoon ki yeh tumhare liye mushkil hai."
+ *
+ * Romanized bodies now skip the native furniture and return the model's own
+ * words. Native-script bodies keep the full three phases.
+ */
+describe("a reply is never assembled from two scripts", () => {
+    const mixed = (s: string) =>
+        /[ঀ-৿ऀ-ॿ؀-ۿ஀-௿ఀ-౿઀-૿਀-੿ಀ-೿ഀ-ൿ]/.test(s) && /[A-Za-z]{3}/.test(s);
+
+    it.each([
+        ["bn", "ami bujhte parchi eta tomar jonno khub kothin hocche ekhon"],
+        ["hi", "main samajh sakta hoon ki yeh tumhare liye abhi bahut mushkil hai"],
+        ["ur", "main samajh sakta hoon ke yeh tumhare liye abhi bohot mushkil hai"],
+        ["ta", "enakku puriyudhu idhu unakku ippo romba kashtama irukku"],
+        ["mr", "mala samajhte ki he tumchyasathi khup kathin aahe aata"],
+    ])("%s romanized body comes back in one script", async (lang, raw) => {
+        const { formatImotaraReply } = await import("@/lib/imotara/response/responseFormatter");
+        const out = formatImotaraReply({ raw, lang, userMessage: "help" } as never);
+        expect(mixed(out)).toBe(false);
+        // and the model's own words survive
+        expect(out).toContain(raw.slice(0, 25));
+    });
+
+    it.each([
+        ["bn", "আমি বুঝতে পারছি এটা তোমার জন্য খুব কঠিন হচ্ছে এখন"],
+        ["hi", "मैं समझ सकता हूँ कि यह तुम्हारे लिए अभी बहुत मुश्किल है"],
+    ])("%s native body keeps its full shape", async (lang, raw) => {
+        const { formatImotaraReply } = await import("@/lib/imotara/response/responseFormatter");
+        const out = formatImotaraReply({ raw, lang, userMessage: "help" } as never);
+        expect(mixed(out)).toBe(false);
+        // Native replies must still get the reaction/bridge phases. Checking
+        // for the phase separator, not just "longer" — suppression appends a
+        // terminator and so also makes it one character longer.
+        expect(out).toContain("\n");
+        expect(out.length).toBeGreaterThan(raw.length + 20);
+    });
+
+    it("a native body carrying a few English words is still treated as native", async () => {
+        // Indic replies routinely borrow English words ("steady", "manageable").
+        // Without a floor on Latin characters, such a reply would be mistaken
+        // for romanized and lose its phases.
+        const { formatImotaraReply } = await import("@/lib/imotara/response/responseFormatter");
+        const raw = "मैं समझ सकता हूँ कि यह अभी बहुत overwhelming और difficult लग रहा है";
+        const out = formatImotaraReply({ raw, lang: "hi", userMessage: "help" } as never);
+        expect(out).toContain("\n");
+        expect(out.length).toBeGreaterThan(raw.length + 20);
+    });
+
+    it("English is unaffected and keeps its three phases", async () => {
+        const { formatImotaraReply } = await import("@/lib/imotara/response/responseFormatter");
+        const raw = "I can tell this is really hard for you right now";
+        const out = formatImotaraReply({ raw, lang: "en", userMessage: "help" } as never);
+        expect(out.length).toBeGreaterThan(raw.length);
+    });
+
+    it("a short romanized body is not swallowed", async () => {
+        // Below the length floor the normal pipeline still runs, so the reply
+        // is never left empty.
+        const { formatImotaraReply } = await import("@/lib/imotara/response/responseFormatter");
+        const out = formatImotaraReply({ raw: "accha", lang: "hi", userMessage: "help" } as never);
+        expect(out.trim().length).toBeGreaterThan(0);
+    });
+});

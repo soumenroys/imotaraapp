@@ -163,12 +163,44 @@ export function isSoundEventAnnotation(text: string): boolean {
     return ANNOTATION_MARKUP.test(t) || hasParentheticalSoundEvent(t) || isBareSoundEvent(t);
 }
 
+/**
+ * Content-free words Whisper emits from noise, as the entire transcription.
+ *
+ * Found in production on 2026-09-13 by running hands-free on room noise
+ * against the deployed route: annotations had stopped getting through, but
+ * "the" was auto-sent and the companion replied to it earnestly. Same shape as
+ * the "you" / "bye" entry in HALLUCINATION_PATTERNS above, so it is
+ * generalised here rather than bolted on as a third one-off.
+ *
+ * Function words ONLY. A single word is often all someone can manage here —
+ * "tired", "numb", "no", "why" — so this list must contain nothing a person
+ * could possibly mean on its own. Interjections ("hmm", "oh", "well") are
+ * deliberately absent: they carry feeling, and feeling is the point.
+ */
+const CONTENT_FREE_WORDS = new Set([
+    "the", "a", "an",
+    "and", "but", "or", "nor", "so", "yet",
+    "of", "to", "in", "on", "at", "for", "with", "from", "by", "as",
+    "into", "onto", "upon", "than", "then",
+    "is", "was", "are", "were", "be", "been", "am",
+    "that", "this", "these", "those", "it", "its",
+    "you", "bye",
+]);
+
+/** Exported for tests: is the whole utterance nothing but function words? */
+export function isContentFree(text: string): boolean {
+    const words = text.toLowerCase().split(/[^a-z']+/).filter(Boolean);
+    if (words.length === 0 || words.length > 2) return false;
+    return words.every((w) => CONTENT_FREE_WORDS.has(w));
+}
+
 /** Exported for tests: does this look like something Whisper made up? */
 export function isLikelyHallucination(text: string): boolean {
     const t = text.trim();
     if (!t) return false;
     if (HALLUCINATION_PATTERNS.some((re) => re.test(t))) return true;
     if (isSoundEventAnnotation(t)) return true;
+    if (isContentFree(t)) return true;
     return isDegenerateRepetition(t);
 }
 

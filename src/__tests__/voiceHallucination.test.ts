@@ -105,6 +105,32 @@ describe("sound-event annotations — a SECOND failure mode, found 2026-09-13", 
     });
 });
 
+describe("bare function words — found in production 2026-09-13, after deploying", () => {
+    /**
+     * Caught by running hands-free on room noise against the DEPLOYED route.
+     * No annotation got through any more, but this did, and was auto-sent:
+     *
+     *     "the"     -> the companion replied "You left me hanging there with
+     *                  'the...' - a classic suspense move, Soumen!"
+     *
+     * Not boilerplate, not an annotation, not repetition. It is the same shape
+     * as the "you" / "bye" entry already in HALLUCINATION_PATTERNS — Whisper
+     * emitting a single content-free word from noise — so it is generalised
+     * here rather than added as a third one-off.
+     *
+     * ONLY function words. A one-word answer is common and precious in this
+     * app ("tired", "numb", "no"), so the list holds nothing anybody could
+     * mean on its own.
+     */
+    const NOISE = [
+        "the", "The.", "  the  ", "a", "an", "and", "of", "to", "but",
+        "and the", "of the", "it is", "that is",
+    ];
+    it.each(NOISE)("rejects: %s", (text) => {
+        expect(isLikelyHallucination(text)).toBe(true);
+    });
+});
+
 describe("but annotation-shaped words inside REAL sentences must survive", () => {
     /**
      * The whole point of the rule above is that the MARKUP is the signal, not

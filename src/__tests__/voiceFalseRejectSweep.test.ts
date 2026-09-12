@@ -21,6 +21,11 @@ const CORPUS = [
   "silence", "music", "breathing", "noise", "wind", "rain",
   "yes", "no", "okay", "maybe", "sometimes", "nothing", "everything",
   "tired", "lonely", "scared", "angry", "fine", "numb", "better",
+  // One word is often all someone can manage. None of these may ever be
+  // mistaken for the content-free noise words above.
+  "exhausted", "overwhelmed", "hurt", "lost", "empty", "afraid", "ashamed",
+  "hopeful", "calm", "grateful", "stuck", "alone", "sad", "happy", "scared",
+  "why", "how", "when", "who", "hmm", "oh", "ah", "um", "well",
   // parentheticals that are real speech
   "(I think so)",
   "He said (and I quote) that it was fine",

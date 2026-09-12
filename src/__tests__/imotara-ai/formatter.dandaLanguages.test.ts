@@ -36,13 +36,37 @@ const DANDA = "।";
 const RAW_MULTIPLE_QUESTIONS = "How are you feeling? What happened? Have you tried talking to someone?";
 
 const DANDA_LANGUAGES = ["hi", "bn", "pa", "or"];
+
+/**
+ * UPDATED 2026-09-12. These cases used to pass RAW_MULTIPLE_QUESTIONS — which
+ * is ENGLISH — with lang: "hi" and assert a danda came back. That worked only
+ * because the terminator was chosen from the language label alone.
+ *
+ * It is now chosen from the script the text is actually written in, because
+ * the product mirrors whatever script the person writes in and most Indic
+ * users type romanized: a Bengali reply in Latin letters was being closed
+ * with a danda ("...kothin hocche ekhon।") and Urdu with "۔".
+ *
+ * So the fixture has to be in the language's own script for the danda
+ * question to arise at all. The intent of these tests is unchanged — danda
+ * belongs to hi/bn/pa/or and not to mr/gu/ta/te/kn/ml — and
+ * punctuationByScript.test.ts covers the romanized side.
+ */
+const NATIVE_RAW: Record<string, string> = {
+    hi: "तुम कैसा महसूस कर रहे हो? क्या हुआ? क्या तुमने किसी से बात की?",
+    bn: "তুমি কেমন বোধ করছ? কী হয়েছে? তুমি কি কারও সাথে কথা বলেছ?",
+    pa: "ਤੂੰ ਕਿਵੇਂ ਮਹਿਸੂਸ ਕਰ ਰਿਹਾ ਹੈਂ? ਕੀ ਹੋਇਆ? ਕੀ ਤੂੰ ਕਿਸੇ ਨਾਲ ਗੱਲ ਕੀਤੀ?",
+    or: "ତୁମେ କେମିତି ଅନୁଭବ କରୁଛ? କଣ ହେଲା? ତୁମେ କାହା ସହ କଥା ହେଇଛ?",
+    ja: "今どんな気持ちですか？何があったのですか？誰かに話しましたか？",
+    zh: "你现在感觉怎么样？发生了什么？你和别人谈过吗？",
+};
 const PERIOD_LANGUAGES = ["mr", "gu", "ta", "te", "kn", "ml"];
 
 describe("formatImotaraReply — danda (।) only applies to languages that actually use it", () => {
   for (const lang of DANDA_LANGUAGES) {
     it(`uses danda for ${lang}`, () => {
       const out = formatImotaraReply({
-        raw: RAW_MULTIPLE_QUESTIONS,
+        raw: NATIVE_RAW[lang] ?? RAW_MULTIPLE_QUESTIONS,
         lang,
         tone: "close_friend",
         seed: `test-danda-${lang}`,
@@ -96,7 +120,10 @@ describe("formatImotaraReply — Japanese/Chinese use 。, never a stray Latin p
 
     it(`${lang} uses 。 as its sentence terminator, not a Latin period`, () => {
       const out = formatImotaraReply({
-        raw: RAW_MULTIPLE_QUESTIONS,
+        // Native script, for the same reason as the danda cases above: the
+        // terminator now follows the script of the text, so English input
+        // would correctly come back with a Latin period.
+        raw: NATIVE_RAW[lang] ?? RAW_MULTIPLE_QUESTIONS,
         lang,
         tone: "close_friend",
         seed: `test-cjk-period-${lang}`,

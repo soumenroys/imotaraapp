@@ -65,6 +65,36 @@ function hash32(s: string): number {
   return h >>> 0;
 }
 
+/** Non-Latin script ranges for the languages that have their own terminator. */
+const SCRIPT_OF: Record<string, RegExp> = {
+  hi: /[\u0900-\u097F]/, mr: /[\u0900-\u097F]/,
+  bn: /[\u0980-\u09FF]/, pa: /[\u0A00-\u0A7F]/,
+  or: /[\u0B00-\u0B7F]/, ur: /[\u0600-\u06FF]/,
+  ja: /[\u3040-\u30FF\u4E00-\u9FFF]/, zh: /[\u4E00-\u9FFF]/,
+};
+
+/**
+ * Which sentence terminator this reply should end with.
+ *
+ * Keyed on the script the TEXT is in, not on the language label. A reply
+ * written in Latin letters takes a period whatever language it is — writing
+ * "hai।" or "hoon۔" is simply wrong, and Azure's voices have been heard
+ * reading such marks aloud (see formatter.dandaLanguages.test.ts).
+ *
+ * Danda is correct only for Hindi/Bengali/Punjabi/Odia: Marathi, Gujarati,
+ * Tamil, Telugu, Kannada and Malayalam use a plain period natively even
+ * though Marathi shares Devanagari with Hindi.
+ */
+export function nativeScriptTerminator(lang: string, text: string): string {
+  const re = SCRIPT_OF[lang];
+  // Romanized (or any reply with no character of its own script) -> period.
+  if (!re || !re.test(text)) return ".";
+  if (lang === "ur") return "۔";
+  if (["hi", "bn", "pa", "or"].includes(lang)) return "।";
+  if (["ja", "zh"].includes(lang)) return "。";
+  return ".";
+}
+
 function normalizeLang(lang?: string): string {
   const l = (lang ?? "").trim().toLowerCase();
   if (!l) return "en";
@@ -2334,29 +2364,10 @@ export function formatImotaraReply(input: FormatReplyInput): string {
       .trim();
 
     // Limit to 1 question mark
-    const _endPunct =
-      lang === "ur"
-        ? "۔"
-        // Danda (।) is only correct for Hindi/Bengali/Punjabi/Odia — confirmed
-        // against this file's own native-language reactionBank() content
-        // (2026-08-14 TTS punctuation-reading bug investigation): Marathi,
-        // Gujarati, Tamil, Telugu, Kannada, and Malayalam entries all use a
-        // plain period natively, even Marathi despite sharing Devanagari
-        // script with Hindi. The previous over-broad list forced danda onto
-        // all ten languages here, and Azure's TTS voices for the languages
-        // that don't natively use danda would sometimes vocalize it literally
-        // instead of treating it as a silent pause.
-        : ["hi", "bn", "pa", "or"].includes(lang)
-          ? "।"
-          // Japanese/Chinese use the full-width ideographic full stop (。),
-          // not a Latin period — confirmed against this file's own ja/zh
-          // reactionBank() content, and live-reproduced: without this, a
-          // reply would end "...部分。." (native terminator + stray Latin
-          // period), found in the same 2026-08-14 investigation as the
-          // danda fix above.
-          : ["ja", "zh"].includes(lang)
-            ? "。"
-            : ".";
+    // Script-aware, like the main endPunct below: `cleaned` may be romanized
+    // even when `lang` is an Indic language, and a danda on Latin text is
+    // simply wrong. See nativeScriptTerminator.
+    const _endPunct = nativeScriptTerminator(lang, cleaned);
     const _qRe = /[?؟？]/g;
     let _qSeen = 0;
     cleaned = cleaned.replace(_qRe, (m) => {
@@ -2385,18 +2396,26 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   // 2) At least 3 sentences total (min 3 sentence-ending punctuations)
   // 3) Max 1 question across the whole message
 
-  const endPunct =
-    lang === "ur"
-      ? "۔"
-      // Danda (।) is only correct for Hindi/Bengali/Punjabi/Odia — see the
-      // matching comment above on _endPunct for the full explanation.
-      : ["hi", "bn", "pa", "or"].includes(lang)
-        ? "।"
-        // Japanese/Chinese use 。, not a Latin period — see the matching
-        // comment above on _endPunct.
-        : ["ja", "zh"].includes(lang)
-          ? "。"
-          : ".";
+  // The terminator follows the SCRIPT THE REPLY IS ACTUALLY IN, not the
+  // language it is nominally in.
+  //
+  // These used to be chosen from `lang` alone, which assumes language implies
+  // script. It does not: the product deliberately mirrors whatever script the
+  // person wrote in, and most Indic users type romanized. So a Bengali reply
+  // in Latin letters was being terminated with a danda —
+  // "ami bujhte parchi eta tomar jonno khub kothin hocche ekhon।" — and Urdu
+  // in Latin letters got "۔". Reproduced directly against this formatter
+  // 2026-09-12.
+  //
+  // Native script still gets its native terminator; only the romanized case
+  // changes, and it changes to the plain period it should always have had.
+  // Every terminator below is derived PER STRING from the script that string
+  // is written in — see nativeScriptTerminator. There is deliberately no
+  // single reply-wide terminator any more: a reply is assembled from several
+  // pieces which are NOT always in the same script (the reaction and bridge
+  // banks are native script, the model body is often romanized), and one
+  // shared terminator put a Latin period on a Bengali word while still
+  // ending the message with a danda.
 
   const sentenceEndRe = /[.!?؟？।۔。！]/g;
   const questionRe = /[?؟？]/g;
@@ -2405,14 +2424,17 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     const t = (s ?? "").trim();
     if (!t) return "";
     if (/[.!?…؟？।۔。！]$/.test(t)) return t;
-    return `${t}${endPunct}`;
+    return `${t}${nativeScriptTerminator(lang, t)}`;
   };
 
   const limitToOneQuestion = (s: string): string => {
     let seen = 0;
+    // Terminator from the string being edited, not the reply as a whole —
+    // this runs on native-script and romanized phases alike.
+    const punct = nativeScriptTerminator(lang, s ?? "");
     return (s ?? "").replace(questionRe, (m) => {
       seen += 1;
-      return seen <= 1 ? m : endPunct;
+      return seen <= 1 ? m : punct;
     });
   };
 
@@ -2442,12 +2464,12 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     let phase2Raw = String(insight ?? "").trim();
 
     // Remove any questions entirely in closure mode.
-    phase2Raw = phase2Raw.replace(questionRe, endPunct);
+    phase2Raw = phase2Raw.replace(questionRe, nativeScriptTerminator(lang, phase2Raw));
 
     // Keep it short: at most 2 sentences for the insight.
     const sents = splitIntoSentences(phase2Raw);
     const shortInsight =
-      sents.length > 0 ? sents.slice(0, 2).join(`${endPunct} `) : phase2Raw;
+      sents.length > 0 ? sents.slice(0, 2).join(`${nativeScriptTerminator(lang, phase2Raw)} `) : phase2Raw;
 
     const phase2 = ensureEndsLikeSentence(shortInsight);
 
@@ -2571,7 +2593,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   const sentences = splitIntoSentences(phase2Raw);
   if (sentences.length >= 2) {
     const tail = sentences[sentences.length - 1].trim();
-    const head = sentences.slice(0, -1).join(`${endPunct} `).trim();
+    const head = sentences.slice(0, -1).join(`${nativeScriptTerminator(lang, phase2Raw)} `).trim();
 
     // Only steal the model tail if:
     // - it looks like a bridge/hand-off
@@ -2605,7 +2627,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
       });
 
       if (uniq.length > 0 && uniq.length !== sents.length) {
-        phase2Raw = uniq.join(`${endPunct} `).trim();
+        phase2Raw = uniq.join(`${nativeScriptTerminator(lang, uniq.join(" "))} `).trim();
       }
     }
   }
@@ -2618,7 +2640,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
     phase3 = limitToOneQuestion(phase3);
     // If insight already had the 1 allowed question, we must remove all questions from phase3.
     if ((phase2Raw.match(questionRe) ?? []).length > 0) {
-      phase3 = (phase3 ?? "").replace(questionRe, endPunct);
+      phase3 = (phase3 ?? "").replace(questionRe, nativeScriptTerminator(lang, phase3 ?? ""));
     }
   }
 
@@ -2744,7 +2766,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
 
     // Phase 2: soften any questions into statements for low-signal turns
     const phase2Presence = ensureEndsLikeSentence(
-      String(phase2).replace(questionRe, endPunct).replace(/\s+/g, " ").trim()
+      String(phase2).replace(questionRe, nativeScriptTerminator(lang, String(phase2))).replace(/\s+/g, " ").trim()
     );
 
     const bank = statementBridgeBankWithSoftMix(lang, tone, userMsg);
@@ -2778,7 +2800,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
 
     // If the user didn't ask a question, we should not introduce one here.
     if (!userAskedQ) {
-      out = out.replace(questionRe, endPunct);
+      out = out.replace(questionRe, nativeScriptTerminator(lang, out));
     }
 
     // Global clamp: max 1 question

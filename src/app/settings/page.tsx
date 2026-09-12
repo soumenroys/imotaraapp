@@ -476,7 +476,13 @@ function ToneAndContextTile() {
     const [userName, setUserName] = useState("");
     const [userAge, setUserAge] = useState<AgeRange>("prefer_not");
     const [userGender, setUserGender] = useState<Gender>("prefer_not");
-    const [preferredLang, setPreferredLang] = useState<SupportedLang | "auto">("en");
+    // "auto" is the default: reply in whatever language the person writes in.
+    // It was "en", which made the picker show English as chosen for people who
+    // had never touched it — and on mobile that stored "en" outranked
+    // detection, so writing in Bengali got an English reply
+    // (device-verified 2026-09-11). Saving "auto" stores undefined, which
+    // statedPreference() reads as "not stated".
+    const [preferredLang, setPreferredLang] = useState<SupportedLang | "auto">("auto");
     const [responseStyle, setResponseStyle] = useState<ResponseStyle | "auto">("auto"); // #16
 
     // Expected companion details (tone guidance)
@@ -850,7 +856,9 @@ function ToneAndContextTile() {
                                 onChange={(e) => setPreferredLang(e.target.value as SupportedLang | "auto")}
                                 className={[
                                     "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20",
-                                    selectActiveClass(preferredLang !== "en"),
+                                    // Highlight when a language was actually chosen —
+                                    // "auto" is the default, not a choice.
+                                    selectActiveClass(preferredLang !== "auto"),
                                 ].join(" ")}
                             >
                                 <option value="auto">Auto-detect</option>

@@ -1,5 +1,6 @@
 // src/lib/imotara/respondRemote.ts
 import type { ImotaraResponse } from "@/lib/ai/response/responseBlueprint";
+import { statedPreference } from "./statedPreference";
 import { isBadPlaceholderText } from "@/lib/imotara/response/badPlaceholderText";
 
 /** Script-based language detection — handles native scripts via Unicode ranges.
@@ -166,9 +167,17 @@ export async function respondRemote(input: {
     const tone = relationship ? (toneMap[relationship] ?? undefined) : undefined;
 
     // ── AI path: try /api/chat-reply (OpenAI) first ──────────────────────────
-    // Lang priority: explicit switch request > profile preference > script/Roman detection > "en"
-    // Profile preference wins over script detection so that a user who changed their setting
-    // to English gets English replies even when they type in Bengali/Hindi script.
+    // Lang priority: explicit switch request > profile preference > detection > "en"
+    //
+    // A REAL preference still outranks detection: someone who deliberately set
+    // Bengali gets Bengali even when they write a line of English. What must
+    // NOT outrank detection is the DEFAULT — preferredLang defaulted to "en"
+    // and was persisted for everybody, so for any user who never opened the
+    // picker the profile said "en", detection never ran, and writing in
+    // Bengali got an English reply. Verified on a device 2026-09-11.
+    //
+    // "auto" and a missing value both mean "not stated" and fall through to
+    // detection. Mirrors statedPreference() in the mobile aiClient.
     // Explicit mid-conversation overrides (e.g. "reply in Hindi") still take top priority.
     const explicitLang = detectExplicitLangRequest(input.message);
     const detectedLang = detectLangFromMessage(input.message);
@@ -183,7 +192,8 @@ export async function respondRemote(input: {
         const tc = c.toneContext as { user?: { preferredLang?: string } } | undefined;
         return tc?.user?.preferredLang ?? undefined;
     })();
-    const lang = explicitLang || profileLang || (detectedLang !== "en" ? detectedLang : "en");
+    const statedLang = statedPreference(profileLang);
+    const lang = explicitLang || statedLang || (detectedLang !== "en" ? detectedLang : "en");
 
     // Gender: read from toneContext if provided
     const ctxTone = ctx.toneContext as { user?: { gender?: string }; companion?: { gender?: string } } | undefined;

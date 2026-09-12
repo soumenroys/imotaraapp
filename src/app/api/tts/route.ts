@@ -1,7 +1,7 @@
 // src/app/api/tts/route.ts
 // Azure Neural TTS endpoint — synthesizes the full request text, then returns
-// one complete audio/mpeg response (buffered server-side via arrayBuffer(),
-// not streamed). Callers wanting to start playback before a long reply
+// one complete audio/mpeg response, STREAMED from Azure rather than buffered
+// here (see the note above the return). Callers wanting to start playback before a long reply
 // finishes synthesizing should chunk the text into multiple requests
 // themselves and pipeline them (see mobileTTS.ts's speakMessage()).
 // Web: called only when the browser lacks a native voice for the selected language.
@@ -297,12 +297,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "TTS synthesis failed" }, { status: 502 });
     }
 
-    const audioBuffer = await azureRes.arrayBuffer();
-    console.log(`[tts] total done at +${Date.now() - tStart}ms bytes=${audioBuffer.byteLength}`);
-
     // Fire-and-forget usage tracking — only for anonymous identities, since
     // that's the only tier this route quota-gates. Mirrors chat-reply's
-    // post-success usage_events insert.
+    // post-success usage_events insert. Runs BEFORE the response is returned
+    // now that the body streams: there is no post-download moment to hook.
     if (user.is_anonymous) {
         void Promise.resolve(
             getSupabaseAdmin().from("usage_events").insert({
@@ -312,7 +310,33 @@ export async function POST(req: NextRequest) {
         ).catch(() => {});
     }
 
-    return new NextResponse(audioBuffer, {
+    // STREAM Azure's body straight through instead of buffering it here.
+    //
+    // This used to be `await azureRes.arrayBuffer()`, which made the audio
+    // cross the network twice in series: Azure -> this function, and only then
+    // this function -> the caller. Measured against production 2026-09-12,
+    // one English chunk:
+    //
+    //   rate-limit + bearer auth   713ms
+    //   quota check                 +40ms
+    //   Azure synthesis           3,106ms
+    //   Azure -> Vercel download    928ms   <- this leg, removed
+    //   total                     4,787ms
+    //
+    // The caller still buffers (mobileTTS does res.arrayBuffer() before
+    // Audio.Sound.createAsync), so this does NOT let playback start early —
+    // what it removes is the serialisation: bytes now reach the caller as
+    // Azure produces them rather than after this function has the last one.
+    //
+    // Trade-off accepted: an Azure failure PART WAY through the body now
+    // arrives as truncated audio rather than a 502, because the status line is
+    // already sent. Azure sets its status before any body, so the common
+    // failures (401, 429, bad SSML) are still caught above by azureRes.ok.
+    //
+    // No Content-Length is set, so this goes out chunked. That is fine for
+    // every current caller — all of them read the whole body before playing.
+    console.log(`[tts] streaming response at +${Date.now() - tStart}ms`);
+    return new NextResponse(azureRes.body, {
         status:  200,
         headers: {
             "Content-Type":  "audio/mpeg",

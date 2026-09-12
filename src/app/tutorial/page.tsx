@@ -1860,7 +1860,7 @@ const FEATURES: Record<string, Feature[]> = {
       long: "The current version and build number appear in the footer at the bottom of any page on the web app (not specific to Settings). This is useful when reporting bugs or checking if you're on the latest release.",
       steps: [
         "Scroll to the bottom of any page.",
-        "The version and build (e.g., v1.3.2 (132)) are displayed in the footer.",
+        "The version and build (e.g., v1.4.0 (140)) are displayed in the footer.",
       ],
     },
   ],

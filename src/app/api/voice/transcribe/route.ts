@@ -24,6 +24,80 @@ const ANONYMOUS_TRANSCRIBE_DAILY_LIMIT = 20;
 // single IP — see code_review_audit_2026_08_14 (P0-2).
 const RATE_LIMIT_PER_MIN = 30;
 
+/**
+ * Whisper invents speech when it hears none.
+ *
+ * Fed a silent or noisy recording it does not return "" — it returns fluent,
+ * confident sentences lifted from its training data, overwhelmingly YouTube
+ * outro boilerplate. Observed on a real phone 2026-09-12, three recordings of
+ * a quiet room in a row:
+ *
+ *   "If you liked it, give it a thumbs up. If you have any questions or
+ *    suggestions, feel free to comment below . ... ....."
+ *   "This is a video of a cat that was trapped by a dog. It's a dog. It's a dog…"
+ *   "Okay. Okay. Okay."
+ *
+ * Each landed in the message box, and with "send voice notes automatically"
+ * switched on it would have been sent to the companion as the person's own
+ * words. For an app someone talks to about how they feel, putting invented
+ * sentences in their mouth and then replying to them warmly is the worst
+ * failure this route has.
+ *
+ * TWO INDEPENDENT CHECKS, deliberately biased towards letting speech through.
+ * A false reject means someone spoke and the app ignored them, which is its own
+ * small betrayal — so each check only fires on strong evidence.
+ */
+
+/** Phrases Whisper emits from silence. None is plausible in this app. */
+const HALLUCINATION_PATTERNS: RegExp[] = [
+    /thanks? (?:for|you for) watching/i,
+    /(?:don'?t forget to |please )?(?:like,? )?(?:and )?subscribe/i,
+    /(?:give it a |leave a )?thumbs? up/i,
+    /comment (?:below|down below)/i,
+    /(?:see|catch) you (?:in the )?next (?:video|time)/i,
+    /this is a video of/i,
+    /(?:copyright|transcription|subtitles?) (?:by|©)/i,
+    /amara\.org/i,
+    /^(?:you|bye|thank you)[.!\s]*$/i,
+];
+
+/** A single short word or phrase repeated — "It's a dog. It's a dog. It's a dog." */
+function isDegenerateRepetition(text: string): boolean {
+    const parts = text.split(/[.!?]+/).map((p) => p.trim().toLowerCase()).filter(Boolean);
+    if (parts.length < 3) return false;
+    const unique = new Set(parts);
+    // Three or more sentences, and at most a third of them distinct.
+    return unique.size <= Math.max(1, Math.floor(parts.length / 3));
+}
+
+/** Exported for tests: does this look like something Whisper made up? */
+export function isLikelyHallucination(text: string): boolean {
+    const t = text.trim();
+    if (!t) return false;
+    if (HALLUCINATION_PATTERNS.some((re) => re.test(t))) return true;
+    return isDegenerateRepetition(t);
+}
+
+type WhisperSegment = { no_speech_prob?: number; avg_logprob?: number };
+
+/**
+ * Exported for tests: did Whisper itself think there was no speech?
+ *
+ * Both conditions must hold, on EVERY segment — OpenAI's own decoder uses the
+ * same pairing, because no_speech_prob alone is noisy on quiet speech. A
+ * recording where any segment looks like real speech is kept whole.
+ */
+export function hasNoSpeech(segments: WhisperSegment[] | undefined): boolean {
+    if (!segments || segments.length === 0) return false; // no data — never reject
+    return segments.every(
+        (seg) =>
+            typeof seg.no_speech_prob === "number" &&
+            typeof seg.avg_logprob === "number" &&
+            seg.no_speech_prob > 0.6 &&
+            seg.avg_logprob < -0.4,
+    );
+}
+
 export async function POST(req: NextRequest) {
     const ip = getClientIp(req);
     if (!(await checkPersistentIpRateLimit("voice-transcribe", ip, RATE_LIMIT_PER_MIN, 60))) {
@@ -108,6 +182,12 @@ export async function POST(req: NextRequest) {
     // overridden at record time to avoid THREE_GPP which Whisper does not accept.
     whisperForm.append("file", file, "voice.m4a");
     whisperForm.append("model", "whisper-1");
+    // verbose_json carries per-segment no_speech_prob and avg_logprob. Plain
+    // text does not, which is why this route could not tell a real sentence
+    // from one Whisper invented out of silence — see rejectHallucination below.
+    // The `.text` field is present in both formats, so nothing downstream
+    // changes.
+    whisperForm.append("response_format", "verbose_json");
     if (lang && typeof lang === "string") {
         const code = lang.split("-")[0];
         if (WHISPER_LANGS.has(code)) {
@@ -161,5 +241,14 @@ export async function POST(req: NextRequest) {
         ).catch(() => {});
     }
 
-    return NextResponse.json({ text: (json?.text ?? "").trim() });
+    const rawText = (json?.text ?? "").trim();
+
+    // Returning "" routes the client to its existing "didn't catch that" path
+    // (useVoiceInput's onNoSpeech), so nothing new has to be handled on mobile.
+    if (rawText && (hasNoSpeech(json?.segments) || isLikelyHallucination(rawText))) {
+        console.warn("[voice/transcribe] discarded likely hallucination:", rawText.slice(0, 120));
+        return NextResponse.json({ text: "", discarded: "no_speech" });
+    }
+
+    return NextResponse.json({ text: rawText });
 }

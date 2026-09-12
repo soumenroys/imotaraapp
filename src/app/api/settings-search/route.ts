@@ -55,6 +55,28 @@ const SETTINGS_LIST = [
   { id: "emotional_fingerprint", title: "Emotional fingerprint", description: "Visual chart showing your unique emotional patterns" },
   { id: "teen_mode", title: "Teen insights mode", description: "Age-appropriate responses for users aged 13-17" },
   { id: "org_membership", title: "Organization membership", description: "See which organization, NGO, school, or company manages your plan and your role there" },
+  // Added 2026-09-12 — these existed on the mobile Settings screen but were in
+  // neither list, so AI search could never name them. Kept in step with
+  // imotara-mobile/src/data/settingsCatalog.ts; settingsCatalogServerSync.test.ts
+  // fails if the two drift apart again.
+  { id: "chat_timestamps", title: "Show message timestamps", description: "Show or hide the time printed under each chat message" },
+  { id: "notif_sound", title: "Reminder sound", description: "Play a sound when the inactivity reminder notification fires" },
+  { id: "notif_badge", title: "App icon badge", description: "Show a number badge on the app icon" },
+  { id: "voice_cloud_transcription", title: "Online transcription", description: "Send voice recordings to the server to be turned into text; off means no voice input at all, as there is no on-device speech recognition" },
+  { id: "voice_confirm", title: "Ask before using voice text", description: "Confirm transcribed speech before it goes into the message box" },
+  { id: "reduced_motion", title: "Reduced motion", description: "Reduce animations and movement across the app" },
+  { id: "grow_nudge_hide", title: "Hide Grow nudge", description: "Permanently hide the Grow feature suggestion in chat" },
+  { id: "sentiment_chips", title: "Sentiment seed chips", description: "Show quick-tap mood hints above the message box" },
+  { id: "weekly_recap", title: "Weekly mood recap", description: "Show a summary of how the week has felt" },
+  { id: "message_undo", title: "Message undo", description: "A few seconds to take a message back after sending" },
+  { id: "daily_checkin", title: "Daily check-in", description: "Show the once-a-day check-in prompt in chat" },
+  { id: "collective_pulse", title: "Collective pulse", description: "Show the anonymous card about how others are feeling today" },
+  { id: "tone_reflection", title: "Tone reflection card", description: "Show the card reflecting the tone of a finished conversation" },
+  { id: "return_greeting", title: "Return greeting", description: "Greet the user on returning after time away" },
+  { id: "milestone_celebration", title: "Milestone celebration", description: "Celebrate working through something long-carried" },
+  { id: "unsent_letter_hint", title: "Unsent Letter hint", description: "Suggest an unsent letter when a difficult relationship comes up" },
+  { id: "trial_banner", title: "Trial countdown banner", description: "Show the banner counting down days left in the trial" },
+  { id: "history_search_exact", title: "Exact history search", description: "Match the exact phrase when searching history instead of individual words" },
 ].map((s) => `${s.id}: ${s.title} — ${s.description}`).join("\n");
 
 const SYSTEM = `You are a settings finder for the Imotara emotional wellness app.

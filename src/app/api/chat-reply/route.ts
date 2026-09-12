@@ -3552,6 +3552,17 @@ export async function POST(req: Request) {
           `You MUST reply in the same way — write ${romanizedLangName} words using English/Roman letters. ${romanizedExample}`,
           `DO NOT reply in English. DO NOT use any ${romanizedLangName} native script Unicode characters (no Cyrillic, no Arabic, no Hebrew script, no Devanagari, no Bengali script, no native script). Write ${romanizedLangName} language spelled out with English alphabet letters ONLY.`,
           `IMPORTANT: Even if you see native ${romanizedLangName} script in the conversation history, YOUR reply must ALWAYS use romanized Latin letters — never native script.`,
+          // Punctuation and spacing, addressed explicitly because the script
+          // rules above did not cover them. Two things were seen in real
+          // replies: a native mark slipping in (the danda U+0964 especially),
+          // and words run together where one had been — "ami tomar shathe
+          // achitomar oi ekta kotha", observed on a device 2026-09-12.
+          //
+          // The route strips non-ASCII from romanized replies, and that strip
+          // now leaves a space behind rather than deleting the character, so a
+          // leak no longer glues words. This line attacks the same thing at
+          // source: better the model not emit the mark at all.
+          "PUNCTUATION: use plain ASCII only — full stop, comma, question mark, apostrophe. Never a danda (।), never a curly quote, em-dash or ellipsis character. Always put a space between words and after every punctuation mark; never run two words together.",
           // Ported from the main `prompt` array — this shorter, romanized-input
           // prompt REPLACES `prompt` entirely (never merged, see streamSystem/
           // system below), so without this the whole TIER 1 crisis-safety
@@ -3687,9 +3698,18 @@ export async function POST(req: Request) {
       // Bypass Three-Part formatter (its bridge/reaction banks are native-script).
       // Hard-strip ALL non-ASCII characters — romanized Indic should only contain ASCII.
       // This catches Bengali chars, dandas (U+0964), diacritics, and any other script leaks.
+      //
+      // Strip to a SPACE, not to nothing. Deleting the character outright
+      // glues the words on either side of it whenever the model writes a
+      // non-ASCII mark without surrounding spaces — "achi।tomar" became
+      // "achitomar", and an em-dash or ellipsis does the same. Replacing with
+      // a space and then collapsing keeps the word boundary; the final pass
+      // pulls punctuation back against the word it belongs to so this does
+      // not leave "achi ." behind.
       const stripped = candidate
-        .replace(/[^\x00-\x7F]/g, "")
+        .replace(/[^\x00-\x7F]/g, " ")
         .replace(/\s+/g, " ")
+        .replace(/\s+([.,!?;:])/g, "$1")
         .trim();
       // Never fall back to original (which may contain native script). Use safe romanized phrase.
       finalText = stripped.length >= 10 ? stripped : (ROMANIZED_SAFE_REPLIES[resolvedLang] ?? "ami achi tomar sathe.");

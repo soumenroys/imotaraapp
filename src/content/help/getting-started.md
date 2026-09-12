@@ -81,7 +81,7 @@ Sometimes the kindest thing is to just breathe for a minute.
    - **Box Breathing** — Inhale 4 / Hold 4 / Exhale 4 / Hold 4
    - **4-7-8 Calm** — Inhale 4 / Hold 7 / Exhale 8
    - **Simple Breath** — Inhale 4 / Exhale 6
-3. **On mobile**, you can also pick a background sound: **Silent, Bowl, Rain, Ocean**.
+3. **On mobile**, you can also pick a background sound: **Silent, Bell, Rain, Ocean**.
 4. Set your default pattern in **Settings → Grow & Wellbeing → Default breathing pattern** (web) or the matching **Default breathing pattern** picker (mobile).
 
 The breathing screen also opens automatically if Imotara senses you're in real distress, alongside crisis helplines for your country.

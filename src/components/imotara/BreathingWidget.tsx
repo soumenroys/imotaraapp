@@ -38,7 +38,9 @@ type MusicTrack = "none" | "bowl" | "rain" | "ocean";
 
 const MUSIC_OPTIONS: { id: MusicTrack; label: string; emoji: string }[] = [
   { id: "none",  label: "Silent", emoji: "🔇" },
-  { id: "bowl",  label: "Bowl",   emoji: "🔔" },
+  // Label only — the id is the asset URL (`/sounds/${track}.mp3`). See the
+  // matching note in mobile's BreathingModal.tsx.
+  { id: "bowl",  label: "Bell",   emoji: "🔔" },
   { id: "rain",  label: "Rain",   emoji: "🌧" },
   { id: "ocean", label: "Ocean",  emoji: "🌊" },
 ];

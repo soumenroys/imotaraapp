@@ -1013,12 +1013,12 @@ const FEATURES: Record<string, Feature[]> = {
     {
       icon: "🌬",
       title: "Breathing Exercise with Ambient Sound",
-      short: "A guided breathing exercise with Rain, Ocean, or Singing Bowl sound — accessible from chat.",
-      long: "The breathing exercise uses the 4-7-8 technique (inhale 4 sec, hold 7 sec, exhale 8 sec). It runs full-screen with a pulsing visual guide and optional ambient sound. Choose from Rain, Ocean waves, or a Singing Bowl. Great for anxiety or to reset mid-conversation.",
+      short: "A guided breathing exercise with Rain, Ocean, or Bell sound — accessible from chat.",
+      long: "The breathing exercise uses the 4-7-8 technique (inhale 4 sec, hold 7 sec, exhale 8 sec). It runs full-screen with a pulsing visual guide and optional ambient sound. Choose from Rain, Ocean waves, or a Bell. Great for anxiety or to reset mid-conversation.",
       steps: [
         "Tap the + or ··· icon in the Chat header.",
         "Select 'Breathing exercise'.",
-        "Choose your ambient sound: Rain, Ocean, or Singing Bowl.",
+        "Choose your ambient sound: Rain, Ocean, or Bell.",
         "Follow the expanding circle — in, hold, out.",
         "Tap 'Done' to return to your conversation.",
       ],

@@ -39,7 +39,28 @@ export function cleanDomain(input: string): string {
   return input.toLowerCase().replace(/[^a-z0-9.\-]/g, "");
 }
 
-export type Row = { local: string; domain: string; custom: string };
+export type Row = { local: string; domain: string; custom: string; name?: string };
+
+/**
+ * Clean a recipient's display name so it cannot corrupt the address list.
+ *
+ * The name ends up inside `Name <addr@example.com>`, and that text is later
+ * re-parsed by parseRecipients, which splits on newline, comma AND semicolon
+ * and finds the address by looking for the LAST `<...>`. So a name containing
+ * any of those characters does not merely look wrong — it splits one recipient
+ * into two, or moves where the address is thought to end.
+ *
+ * Stripped rather than rejected: the admin is typing someone's name, and
+ * refusing "Priya, R." with a validation error teaches nothing useful. 80
+ * characters to match what displayName() keeps on the way back in.
+ */
+export function cleanName(raw: string): string {
+  return raw
+    .replace(/[\n\r,;<>"']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
 
 export function rowDomain(r: Row): string {
   return (r.domain === "__custom__" ? r.custom : r.domain).trim();
@@ -48,9 +69,13 @@ export function rowDomain(r: Row): string {
 /** The rows that are complete enough to be worth sending to the API. */
 export function composeRows(rows: Row[]): string {
   return rows
-    .map((r) => ({ local: r.local.trim(), domain: rowDomain(r) }))
+    .map((r) => ({ local: r.local.trim(), domain: rowDomain(r), name: cleanName(r.name ?? "") }))
     .filter((r) => r.local && r.domain)
-    .map((r) => `${r.local}@${r.domain}`)
+    // With a name, emit the "Name <addr>" form the rest of the pipeline
+    // already understands (parseRecipients.displayName reads it back out).
+    // Without one, emit exactly what this function always emitted, so a list
+    // typed the old way is byte-identical.
+    .map((r) => (r.name ? `${r.name} <${r.local}@${r.domain}>` : `${r.local}@${r.domain}`))
     .join("\n");
 }
 

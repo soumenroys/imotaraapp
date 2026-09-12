@@ -14,7 +14,7 @@ import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 import type { ListRow } from "./BroadcastLists";
 import {
   COMMON_DOMAINS, SOURCE_DETAIL, cleanLocalPart, cleanDomain,
-  composeRows, type Row,
+  composeRows, cleanName, type Row,
 } from "@/lib/broadcast/entry";
 
 // Kept in step with the CHECK constraint in broadcast_v1.sql. Every label
@@ -233,6 +233,23 @@ export default function BroadcastRecipients({
                 <span className="w-6 shrink-0 text-right font-mono text-[10px] tabular-nums text-zinc-600">
                   {i + 1}.
                 </span>
+                {/* Optional display name.
+                    The bulk textarea has always accepted "Priya N <priya@x>",
+                    but this row form could not express a name at all — it is
+                    two fields, local-part and domain, so the angle-bracket
+                    form had nowhere to go and the local-part field strips the
+                    characters it would need. Hence a field of its own.
+                    Empty is normal: the message falls back to its default
+                    greeting, exactly as before this field existed. */}
+                <input
+                  value={r.name ?? ""}
+                  onChange={(e) => setRow(i, { name: cleanName(e.target.value) })}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addRow(i); } }}
+                  placeholder="Name (optional)"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="w-36 shrink-0 rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-indigo-500/40"
+                />
                 <input
                   value={r.local}
                   onChange={(e) => setRow(i, { local: cleanLocalPart(e.target.value) })}

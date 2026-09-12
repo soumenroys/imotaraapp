@@ -70,11 +70,105 @@ function isDegenerateRepetition(text: string): boolean {
     return unique.size <= Math.max(1, Math.floor(parts.length / 3));
 }
 
+/**
+ * Whisper ANNOTATING non-speech audio — a second failure mode, found on the
+ * same phone a day later (2026-09-13). Hands-free, quiet room, auto-sent:
+ *
+ *     "**Scary music starts playing** keep an eye out.."
+ *     "Wheeze"
+ *
+ * Neither is boilerplate and neither repeats, so both checks above let them
+ * straight through. This is not Whisper inventing a sentence; it is Whisper
+ * truthfully describing the room and the transport handing that to the
+ * companion as something the person said.
+ *
+ * The signal is the MARKUP, not the vocabulary. Someone speaking into a
+ * microphone cannot produce an asterisk, a square bracket or a musical note —
+ * those characters only ever come from Whisper marking audio it heard and did
+ * not treat as speech. So their presence condemns the whole transcription,
+ * trailing residue included: the residue came out of the same decode of the
+ * same non-speech audio, which is exactly how "keep an eye out.." arrived.
+ *
+ * Anything talking ABOUT music, coughing or sighing is left alone — this app
+ * exists for those sentences.
+ */
+const ANNOTATION_MARKUP = /\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]*\]|[\u266a\u266b\u266c\u2669]/;
+
+/**
+ * Involuntary sounds Whisper labels. Deliberately narrow: every word here is
+ * one nobody offers as their entire reply to "how are you feeling?".
+ *
+ * "silence", "breathing", "music" and "noise" are NOT here on purpose — each
+ * is a plausible one-word answer in this app, and the bracket rule already
+ * catches them in their annotated forms.
+ */
+const SOUND_EVENT_WORDS = new Set([
+    "wheeze", "wheezes", "wheezing",
+    "cough", "coughs", "coughing",
+    "sneeze", "sneezes", "sneezing",
+    "sniffle", "sniffles", "sniffling",
+    "gasp", "gasps", "gasping",
+    "grunt", "grunts", "groan", "groans",
+    "chuckle", "chuckles", "chuckling",
+    "laughter", "applause", "clapping",
+    "clattering", "rustling", "creaking", "squeaking",
+    "static", "beeping", "buzzing", "humming", "ticking", "whirring", "rumbling",
+    "snoring", "whimper", "whimpers", "gurgling", "clanging", "footsteps",
+    "inaudible", "unintelligible",
+]);
+
+/**
+ * A wider vocabulary, safe ONLY inside brackets.
+ *
+ * "(sighs)", "(wind blowing)" and "(soft music)" cannot be speech, but the
+ * bare words sigh, wind and music can all be someone's whole answer here — so
+ * these are trusted only when the brackets have already told us the span is an
+ * annotation. The narrow set above is the one allowed to stand on its own.
+ */
+const BRACKETED_SOUND_WORDS = new Set([
+    ...SOUND_EVENT_WORDS,
+    "sigh", "sighs", "sighing", "exhales", "inhales", "breathing", "breathes",
+    "silence", "music", "noise", "wind", "blowing", "rain", "thunder",
+    "laughing", "laughs", "crying", "sobbing", "sniffing", "whispering",
+    "indistinct", "chatter", "mumbling", "beep", "bell", "ringing",
+    "door", "engine", "traffic", "birds", "barking", "playing", "creaks",
+]);
+
+/**
+ * Round brackets are the one ambiguous delimiter — Whisper does use them for
+ * real parenthetical speech ("he said (and I quote) ..."), so they only count
+ * as an annotation when what they hold is short AND names a sound.
+ */
+function hasParentheticalSoundEvent(text: string): boolean {
+    for (const m of text.matchAll(/\(([^)]*)\)/g)) {
+        const words = m[1].toLowerCase().split(/[^a-z]+/).filter(Boolean);
+        if (words.length && words.length <= 4 && words.some((w) => BRACKETED_SOUND_WORDS.has(w))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** The whole utterance is nothing but a sound label — "Wheeze", "Coughing". */
+function isBareSoundEvent(text: string): boolean {
+    const words = text.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+    if (words.length === 0 || words.length > 2) return false;
+    return words.every((w) => SOUND_EVENT_WORDS.has(w));
+}
+
+/** Exported for tests: is this Whisper describing audio rather than speech? */
+export function isSoundEventAnnotation(text: string): boolean {
+    const t = text.trim();
+    if (!t) return false;
+    return ANNOTATION_MARKUP.test(t) || hasParentheticalSoundEvent(t) || isBareSoundEvent(t);
+}
+
 /** Exported for tests: does this look like something Whisper made up? */
 export function isLikelyHallucination(text: string): boolean {
     const t = text.trim();
     if (!t) return false;
     if (HALLUCINATION_PATTERNS.some((re) => re.test(t))) return true;
+    if (isSoundEventAnnotation(t)) return true;
     return isDegenerateRepetition(t);
 }
 

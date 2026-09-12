@@ -60,6 +60,76 @@ describe("REAL speech must survive — a false reject silences someone", () => {
     });
 });
 
+describe("sound-event annotations — a SECOND failure mode, found 2026-09-13", () => {
+    /**
+     * Captured on the same A27, hands-free, quiet room, 03:35-03:37. These
+     * were auto-sent to the companion as the person's own words:
+     *
+     *     "**Scary music starts playing** keep an eye out.."
+     *     "Wheeze"
+     *
+     * Neither is YouTube boilerplate and neither repeats, so the original two
+     * checks let both straight through. This is Whisper ANNOTATING non-speech
+     * audio rather than inventing a sentence — a different thing, and in this
+     * app a worse one, because the annotation is a truthful description of the
+     * room delivered as something the person said.
+     *
+     * The signal is strong and cheap: a person speaking into a microphone
+     * cannot produce an asterisk, a square bracket or a musical note. Those
+     * characters only ever come from Whisper marking audio it heard but did
+     * not treat as speech — so their presence condemns the whole
+     * transcription, residue included, because the residue came out of the
+     * same decode of the same non-speech audio.
+     */
+    const ANNOTATIONS = [
+        "**Scary music starts playing** keep an eye out..",  // observed
+        "Wheeze",                                            // observed
+        "[Music]",
+        "[MUSIC PLAYING]",
+        "[BLANK_AUDIO]",
+        "[Applause]",
+        "[silence]",
+        "(upbeat music)",
+        "(wind blowing)",
+        "(sighs)",
+        "(inaudible)",
+        "*laughs*",
+        "**Door creaks**",
+        "\u266a\u266a\u266a",
+        "\u266a upbeat music playing \u266a",
+        "Coughing",
+        "[Music] I don't know what to say",  // residue is not trustworthy either
+    ];
+    it.each(ANNOTATIONS)("rejects: %s", (text) => {
+        expect(isLikelyHallucination(text)).toBe(true);
+    });
+});
+
+describe("but annotation-shaped words inside REAL sentences must survive", () => {
+    /**
+     * The whole point of the rule above is that the MARKUP is the signal, not
+     * the vocabulary. Someone talking about music, coughing or sighing is
+     * talking, and this app exists for exactly those sentences.
+     */
+    const REAL = [
+        "Music helps me relax when I feel low",
+        "I have been coughing all week and it is wearing me down",
+        "I let out a sigh and felt a bit better",
+        "There was applause and I still felt alone",
+        "I just need some silence today",
+        "silence",                              // a plausible one-word answer here
+        "breathing",                            // ditto
+        "music",                                // ditto
+        "I keep thinking about the wind",
+        "(I think so)",                         // real parenthetical speech
+        "He said (and I quote) that it was fine",
+        "My chest feels tight when I laugh",
+    ];
+    it.each(REAL)("keeps: %s", (text) => {
+        expect(isLikelyHallucination(text)).toBe(false);
+    });
+});
+
 describe("hasNoSpeech — only on strong, unanimous evidence", () => {
     it("rejects when every segment says silence with low confidence", () => {
         expect(hasNoSpeech([

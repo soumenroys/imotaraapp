@@ -1,6 +1,36 @@
 // src/lib/azure-tts/regionRouter.ts
-// Maps Vercel's x-vercel-ip-country header to the nearest Azure Speech region.
-// Vercel injects this header automatically on every request — no extra setup needed.
+// Picks which of the four Azure Speech resources to synthesize with.
+//
+// WHICH DISTANCE ACTUALLY COSTS TIME
+//
+// This used to choose the region nearest the USER, from x-vercel-ip-country.
+// That is the wrong end of the wire: the request to Azure is made by the
+// FUNCTION, not the browser, and the function does not run next to the user.
+// Measured against production 2026-09-12 — `x-vercel-id: bom1::iad1::…`, so a
+// request from India entered at Mumbai and executed in Washington DC, then
+// called Azure centralindia. The audio crossed the Pacific twice:
+//
+//   Azure centralindia -> iad1 (long) -> user in India (long)
+//
+// The leg to the user is fixed by where the function runs. The only leg this
+// file controls is Azure -> function, so it now picks the Azure region nearest
+// the FUNCTION:
+//
+//   Azure eastus -> iad1 (short) -> user in India (long)
+//
+// The same rule stays correct if compute ever moves: run the function in bom1
+// and this picks centralindia by itself, which is the fully-local case.
+//
+// SAFE TO DO THIS — checked, not assumed (2026-09-12). Every one of the 44
+// configured voices exists in East US, including all sixteen MAI-Voice-2
+// voices that en/hi/zh/es/fr/pt/ru/de depend on, and all nine style-using
+// languages have every style they request. Re-run that check before adding a
+// voice: a voice missing in the serving region fails synthesis outright.
+//
+// This is a LATENCY decision, confirmed with the owner 2026-09-12 — the split
+// was never about keeping a user's text inside their own jurisdiction. If that
+// ever changes, this file is where the change belongs, and country routing is
+// still right there below.
 
 const REGION_COUNTRIES: Record<string, string[]> = {
     IN: [ // centralindia — India, South Asia, Middle East, SE Asia
@@ -43,7 +73,28 @@ export interface AzureConfig {
     region: string;
 }
 
+/**
+ * Vercel compute region -> nearest Azure Speech resource.
+ * Only the regions this project could plausibly run in are listed; anything
+ * unknown falls through to country routing rather than guessing.
+ */
+const VERCEL_REGION_TO_SUFFIX: Record<string, string> = {
+    // Americas -> eastus
+    iad1: "US", cle1: "US", pdx1: "US", sfo1: "US", gru1: "US",
+    // Europe + Africa -> northeurope
+    arn1: "EU", cdg1: "EU", dub1: "EU", fra1: "EU", lhr1: "EU", cpt1: "EU",
+    // India -> centralindia
+    bom1: "IN",
+    // Asia-Pacific -> japaneast
+    hnd1: "AP", icn1: "AP", kix1: "AP", sin1: "AP", syd1: "AP", hkg1: "AP",
+};
+
 export function getAzureConfig(countryCode: string | null): AzureConfig {
+    // Where this code is running, which is where the Azure call originates.
+    // Unset off-Vercel (local dev, tests) — country routing covers that.
+    const suffixForRegion = VERCEL_REGION_TO_SUFFIX[process.env.VERCEL_REGION ?? ""];
+    if (suffixForRegion) return buildConfig(suffixForRegion);
+
     const code = (countryCode ?? "").toUpperCase();
     for (const [suffix, countries] of Object.entries(REGION_COUNTRIES)) {
         if (countries.includes(code)) {

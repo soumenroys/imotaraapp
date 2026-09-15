@@ -2615,7 +2615,7 @@ export default function ChatPage() {
           meta: { replySource: assistantMsg.replySource ?? "fallback" },
         });
 
-        if (handsfreeRef.current || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void autoSpeakText(assistantMsg.content, mapDebugEmotionForTTS(assistantMsg.debugEmotion));
+        if (handsfreeRef.current || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void speakReplyWithMicShut(assistantMsg.content, mapDebugEmotionForTTS(assistantMsg.debugEmotion));
 
         void logAssistantMessageToHistory(assistantMsg, respEmotionLabel, respEmotionIntensity);
 
@@ -2794,7 +2794,7 @@ export default function ChatPage() {
         meta: { replySource: assistantMsg.replySource ?? "fallback" },
       });
 
-      if (handsfreeRef.current || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void autoSpeakText(assistantMsg.content, mapDebugEmotionForTTS(assistantMsg.debugEmotion));
+      if (handsfreeRef.current || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void speakReplyWithMicShut(assistantMsg.content, mapDebugEmotionForTTS(assistantMsg.debugEmotion));
 
       void logAssistantMessageToHistory(assistantMsg, debugEmotion ?? "neutral", 0);
 
@@ -2984,6 +2984,58 @@ export default function ChatPage() {
   }
 
   const voiceAutoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // True while a reply is being spoken aloud.
+  //
+  // The web had no equivalent of this and it cost us the bug the owner
+  // reported on 2026-09-15: with hands-free on, `rec.continuous` holds the
+  // microphone open, Chrome's silence timeout re-opens it automatically, and
+  // anything heard is auto-sent — so Imotara heard its own reply through the
+  // speakers, sent it as the person's words, and answered it. Forever, until
+  // the durSecs cap ended the session.
+  //
+  // Mobile has never had this because it holds exactly this invariant: the
+  // microphone is not listening while the app is talking. Measured on a real
+  // A27 (2026-09-13): play=1 rec=0 for the whole of playback.
+  const speakingRef = useRef(false);
+
+  // Set by toggleVoice for the live session: restarts recognition AND re-arms
+  // the durSecs cap with the remaining time. Held in a ref because the speech
+  // wrapper below runs outside toggleVoice and cannot see its locals.
+  const restartSessionRef = useRef<(() => void) | null>(null);
+
+  /**
+   * Speak a reply with the microphone SHUT, then hand it back in hands-free.
+   *
+   * This is the whole fix. autoSpeakText only plays audio — it has no idea a
+   * recogniser exists (it is module-level and cannot reach one), so the guard
+   * has to live here, at the call site, where the refs are.
+   */
+  const speakReplyWithMicShut = async (text: string, emotion?: string) => {
+    const rec = recognitionRef.current;
+    speakingRef.current = true;
+    try {
+      // onend will fire for this; its restart guard checks speakingRef and so
+      // leaves the session alone until we are done talking.
+      if (rec) { try { rec.stop(); } catch { /* already stopped */ } }
+      await autoSpeakText(text, emotion);
+    } finally {
+      // In a finally so a TTS failure cannot wedge the microphone shut and
+      // silently end hands-free.
+      speakingRef.current = false;
+      // Resume only if this is still the live session and hands-free is still
+      // on — an explicit stop (toggleVoice nulls the ref) must win.
+      //
+      // Deliberately NOT resumed for a manual (non-hands-free) session: if
+      // someone tapped the mic and a reply began speaking over them, that
+      // session was feeding our own voice into their draft box. Stopping it is
+      // the fix; silently restarting a mic the person opened by hand, without
+      // them asking, is not something this should do on its own.
+      if (rec && recognitionRef.current === rec && handsfreeRef.current) {
+        restartSessionRef.current?.();
+      }
+    }
+  };
   const [pendingVoiceTranscript, setPendingVoiceTranscript] = useState<string | null>(null);
 
   function toggleVoice() {
@@ -3035,6 +3087,12 @@ export default function ChatPage() {
       // In continuous mode the ResultList grows — e.resultIndex points to the
       // newly-finalized utterance. Using [0] would re-send the first utterance
       // on every subsequent speak in handsfree mode.
+      // Nothing the microphone picks up while WE are talking may be treated as
+      // the person's words. speakReplyWithMicShut already shuts the mic, so
+      // this should never fire — it is the second layer, so that a regression
+      // in either guard above degrades to "a turn is dropped" rather than to
+      // "the app starts conversing with itself and storing it as the user's".
+      if (speakingRef.current) return;
       const transcript: string = e.results[e.resultIndex]?.[0]?.transcript ?? "";
       if (!transcript.trim()) return;
       resultReceivedThisSession = true;
@@ -3072,42 +3130,57 @@ export default function ChatPage() {
       }
       // "aborted" is intentional (user clicked stop) — no toast needed
     };
+    // Restart recognition AND re-arm the durSecs cap with the time REMAINING.
+    //
+    // Extracted because two paths now need it: Chrome's silence timeout
+    // (rec.onend, below) and the resume after a spoken reply
+    // (speakReplyWithMicShut). Sharing one function is what keeps BUG-10A
+    // fixed on both — using durSecs * 1000 on every restart let the timer be
+    // cleared and reset indefinitely, so the limit never fired.
+    const restartRecognitionSession = () => {
+      try {
+        rec.start();
+        // setIsListening stays true — no visual flicker
+        if (isFinite(durSecs) && durSecs > 0) {
+          const elapsed = Date.now() - sessionStartMs;
+          const remaining = durSecs * 1000 - elapsed;
+          if (remaining > 0) {
+            voiceAutoStopTimerRef.current = setTimeout(() => {
+              // Null ref before stop() so onend's restart guard evaluates false.
+              recognitionRef.current = null;
+              rec.stop();
+              voiceAutoStopTimerRef.current = null;
+              setChatToast({ message: `Voice session ended after ${durSecs}s. Tap the mic to continue.`, type: "info" });
+            }, remaining);
+          } else {
+            // Session has already overrun — stop immediately without re-starting.
+            recognitionRef.current = null;
+            rec.stop();
+            setChatToast({ message: `Voice session ended after ${durSecs}s. Tap the mic to continue.`, type: "info" });
+          }
+        }
+      } catch {
+        setIsListening(false);
+        recognitionRef.current = null;
+      }
+    };
+    restartSessionRef.current = restartRecognitionSession;
+
     rec.onend = () => {
       if (voiceAutoStopTimerRef.current) { clearTimeout(voiceAutoStopTimerRef.current); voiceAutoStopTimerRef.current = null; }
       // In handsfree continuous mode Chrome silently ends the session after a
       // silence period (~7s). If the user didn't explicitly stop (recognitionRef
       // still points to this rec object) restart silently so the session
       // continues without requiring a manual mic tap.
-      if (handsfreeRef.current && recognitionRef.current === rec) {
-        try {
-          rec.start();
-          // setIsListening stays true — no visual flicker
-          // Re-arm the auto-stop timer using the REMAINING time from session start
-          // so rapid Chrome silence-restart cycles cannot perpetually defer the limit.
-          // (BUG-10A: using durSecs * 1000 on every restart allowed the timer to be
-          // cleared and reset indefinitely, making the durSecs limit never fire.)
-          if (isFinite(durSecs) && durSecs > 0) {
-            const elapsed = Date.now() - sessionStartMs;
-            const remaining = durSecs * 1000 - elapsed;
-            if (remaining > 0) {
-              voiceAutoStopTimerRef.current = setTimeout(() => {
-                // Null ref before stop() so onend's restart guard evaluates false.
-                recognitionRef.current = null;
-                rec.stop();
-                voiceAutoStopTimerRef.current = null;
-                setChatToast({ message: `Voice session ended after ${durSecs}s. Tap the mic to continue.`, type: "info" });
-              }, remaining);
-            } else {
-              // Session has already overrun — stop immediately without re-starting.
-              recognitionRef.current = null;
-              rec.stop();
-              setChatToast({ message: `Voice session ended after ${durSecs}s. Tap the mic to continue.`, type: "info" });
-            }
-          }
-        } catch {
-          setIsListening(false);
-          recognitionRef.current = null;
-        }
+      //
+      // ⚠️ NOT while we are speaking. speakReplyWithMicShut stops the recogniser
+      // on purpose before a reply is read aloud, and this handler fires for
+      // that stop too. Restarting here would re-open the microphone into our
+      // own voice — the echo loop. The wrapper restarts it when speech ends.
+      if (handsfreeRef.current && recognitionRef.current === rec && !speakingRef.current) {
+        restartRecognitionSession();
+      } else if (speakingRef.current) {
+        // Deliberately idle: the mic is shut because we are talking.
       } else {
         setIsListening(false);
         // BUG-11B / BUG-12A: only clear confirm banner when no result was received

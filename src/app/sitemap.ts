@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getAllPosts } from "@/lib/blog";
+import { AUDIENCE_PAGES } from "@/data/audiencePages";
 
 const base = (() => {
   const explicit = (process.env.NEXT_PUBLIC_SITE_URL || "").trim();
@@ -11,6 +12,16 @@ const base = (() => {
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
   const posts = getAllPosts();
+
+  // The audience landing pages. Enumerated from the data so a new audience is
+  // indexed the moment it is added, rather than waiting for someone to
+  // remember this file.
+  const audienceEntries: MetadataRoute.Sitemap = Object.keys(AUDIENCE_PAGES).map((slug) => ({
+    url: `${base}/for/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly",
+    priority: 0.9,
+  }));
 
   const blogPostEntries: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${base}/blog/${post.slug}`,
@@ -37,6 +48,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/hi`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
     { url: `${base}/bn`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
     { url: `${base}/ta`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+
+    // ── Who it's for: the audience landing pages ────────────────────────────
+    { url: `${base}/for`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+    ...audienceEntries,
 
     // ── Blog hub + all individual posts ─────────────────────────────────────
     { url: `${base}/blog`, lastModified: now, changeFrequency: "weekly", priority: 0.95 },

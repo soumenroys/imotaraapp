@@ -8,6 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
+import { resolvePlatform } from "@/lib/imotara/clientPlatform";
 
 // Same shape as /api/tts and /api/voice/transcribe — this route had no auth
 // and no rate limit at all, calling the paid LLM on every request. Real
@@ -139,6 +140,7 @@ export async function POST(req: NextRequest) {
         getSupabaseAdmin().from("usage_events").insert({
           user_id:    user.id,
           event_type: "settings_search",
+          platform:   resolvePlatform(req),
         })
       ).catch(() => {});
     }

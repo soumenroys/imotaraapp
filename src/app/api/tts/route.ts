@@ -16,6 +16,7 @@ import { resolveVoice, resolveStyle, resolveProsody, AZURE_LOCALE } from "@/lib/
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
+import { resolvePlatform } from "@/lib/imotara/clientPlatform";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -306,6 +307,7 @@ export async function POST(req: NextRequest) {
             getSupabaseAdmin().from("usage_events").insert({
                 user_id:    user.id,
                 event_type: "tts",
+                platform:   resolvePlatform(req),
             })
         ).catch(() => {});
     }

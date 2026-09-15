@@ -39,6 +39,7 @@ import {
   getSupabaseUserServerClient,
 } from "@/lib/supabaseServer";
 import { fetchUserMemories } from "@/lib/memory/fetchUserMemories";
+import { resolvePlatform } from "@/lib/imotara/clientPlatform";
 
 type ChatReplyRequest = {
   user?: { id?: string; name?: string };
@@ -606,6 +607,7 @@ export async function POST(req: Request) {
           user_id:    authedUserId,
           event_type: "chat_reply",
           emotion:    emotion?.toLowerCase() ?? null,
+          platform:   resolvePlatform(req),
         })
       ).catch(() => {});
     }

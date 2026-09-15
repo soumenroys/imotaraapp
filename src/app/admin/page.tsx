@@ -3478,6 +3478,14 @@ export default function AdminPage() {
         </div>
 
         {myRole !== "connect_reviewer" && (
+          <a href="/admin/analytics"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-2.5 text-xs whitespace-nowrap text-indigo-300 transition hover:border-indigo-400/40 hover:bg-indigo-500/15">
+            <span>📈</span>
+            <span className="hidden sm:inline">Activity</span>
+          </a>
+        )}
+
+        {myRole !== "connect_reviewer" && (
           <a href="/admin/crisis-events"
             className="flex shrink-0 items-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-500/10 px-3 py-2.5 text-xs whitespace-nowrap text-rose-300 transition hover:border-rose-400/40 hover:bg-rose-500/15">
             <span>🆘</span>

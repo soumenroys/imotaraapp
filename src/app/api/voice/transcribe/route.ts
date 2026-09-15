@@ -8,6 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
+import { resolvePlatform } from "@/lib/imotara/clientPlatform";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -363,6 +364,7 @@ export async function POST(req: NextRequest) {
             getSupabaseAdmin().from("usage_events").insert({
                 user_id:    user.id,
                 event_type: "voice_transcribe",
+                platform:   resolvePlatform(req),
             })
         ).catch(() => {});
     }

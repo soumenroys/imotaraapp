@@ -89,6 +89,23 @@ describe("pricing is defined once, and agrees with the systems of record", () =>
     it("every page links onward to the full plan comparison", () => {
         expect(read("src/app/for/[audience]/page.tsx")).toMatch(/href="\/upgrade"/);
     });
+
+    it("the cost is readable on a phone without scrolling sideways", () => {
+        // Found in the Android emulator 2026-09-15: a three-column table in an
+        // overflow-x-auto container put the COST column off-screen, reachable
+        // only by a horizontal scroll nobody discovers — worst on the Seniors
+        // page. Phones now get stacked blocks; the table starts at sm.
+        // Comments stripped first — the file's own explanation NAMES the
+        // classes it no longer uses, and a not.toMatch would match the prose
+        // rather than the markup.
+        const src = read("src/app/for/[audience]/page.tsx")
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/^[ \t]*\/\/.*$/gm, "");
+        expect(src).toMatch(/sm:hidden/);        // stacked list, phones only
+        expect(src).toMatch(/hidden sm:block/);  // the table, sm and up
+        expect(src).not.toMatch(/overflow-x-auto/);
+        expect(src).not.toMatch(/min-w-\[34rem\]/);
+    });
 });
 
 describe("claims we can actually stand behind", () => {

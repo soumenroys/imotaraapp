@@ -164,10 +164,27 @@ export default async function AudienceLandingPage({
         {/* Plans */}
         <section className="imotara-glass-soft rounded-2xl px-6 py-6 sm:px-8">
           <h2 className="text-lg font-semibold text-zinc-100">What it costs</h2>
-          {/* A table on a phone needs its own scroll container, or the whole
-              page scrolls sideways. */}
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[34rem] border-collapse text-left text-sm">
+          {/* ⚠️ A three-column pricing table does not fit a phone.
+              Found in the Android emulator on 2026-09-15: inside an
+              overflow-x-auto container the COST column — the entire point of
+              the table — sat off-screen, reachable only by a sideways scroll
+              nobody discovers. Worst of all on the Seniors page, whose readers
+              are the least likely to go looking for it.
+              So: stacked blocks on a phone, a real table from sm up. */}
+          <ul className="mt-4 space-y-3 sm:hidden">
+            {page.plans.map((row) => (
+              <li key={row.name} className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <span className="text-sm font-semibold text-sky-300">{row.name}</span>
+                  <span className="text-sm font-medium text-zinc-100">{row.cost}</span>
+                </div>
+                <p className="mt-1.5 text-sm leading-6 text-zinc-300">{row.who}</p>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-4 hidden sm:block">
+            <table className="w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-white/15">
                   <th scope="col" className="py-2 pr-4 font-semibold text-zinc-200">Plan</th>

@@ -16,7 +16,7 @@ import { resolvePlatform } from "@/lib/imotara/clientPlatform";
 const ANONYMOUS_SEARCH_DAILY_LIMIT = 30;
 
 const SETTINGS_LIST = [
-  { id: "companion_name", title: "Companion name", description: "Change the name of your AI companion" },
+  { id: "companion_name", title: "Companion name", description: "Change what your companion is called" },
   { id: "companion_relationship", title: "Relationship style", description: "Set companion tone — close friend, calm companion, coach, or mentor" },
   { id: "companion_gender", title: "Companion gender", description: "Choose the gender tone of your companion" },
   { id: "companion_age", title: "Companion age tone", description: "Set whether the companion speaks with a younger, peer, or elder tone" },
@@ -47,7 +47,7 @@ const SETTINGS_LIST = [
   { id: "clear_history", title: "Clear history", description: "Delete all local conversation history" },
   { id: "delete_account", title: "Delete account", description: "Permanently delete Imotara account and data" },
   { id: "upgrade_plan", title: "Upgrade plan", description: "Upgrade to Plus or Pro for unlimited replies and advanced features" },
-  { id: "token_credits", title: "Token credits", description: "Buy additional AI reply tokens" },
+  { id: "token_credits", title: "Token credits", description: "Buy extra reply tokens" },
   { id: "sign_in", title: "Sign in / Sign out", description: "Sign in with Google or Apple, or sign out" },
   { id: "donate", title: "Donate to Imotara", description: "Support development with a one-time donation" },
   { id: "app_version", title: "App version", description: "View current app version and build number" },

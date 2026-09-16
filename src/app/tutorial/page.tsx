@@ -718,7 +718,7 @@ const FEATURES: Record<string, Feature[]> = {
     {
       icon: "🆘",
       title: "Get Help Anytime",
-      short: "A free AI support assistant at imotara.com/help answers questions from our real documentation — no account needed.",
+      short: "A free Help assistant at imotara.com/help answers questions from our real documentation — no account needed.",
       long: "Stuck on something, or just want to know how a feature works before you try it? The Help assistant at imotara.com/help answers in plain language, grounded only in Imotara's actual support documentation — it won't make things up. No sign-in required, and it's rate-limited to keep it fast and available for everyone.",
       steps: [
         "Go to imotara.com/help, or tap 'Help' in the site footer/nav.",

@@ -6,20 +6,20 @@ const SITE_URL = "https://www.imotara.com";
 export const metadata: Metadata = {
   title: "About — Imotara",
   description:
-    "What Imotara is, why it exists, and the principles behind an emotion-aware, privacy-first companion. No ads, no surveillance — just a quiet AI friend.",
+    "What Imotara is, why it exists, and the principles behind an emotion-aware, privacy-first companion. No ads, no surveillance — just somewhere quiet to think out loud.",
   alternates: { canonical: `${SITE_URL}/about` },
   openGraph: {
     type: "website",
     url: `${SITE_URL}/about`,
     siteName: "Imotara",
-    title: "About Imotara — A Quiet, Privacy-First AI Companion",
+    title: "About Imotara — A Quiet, Privacy-First Companion",
     description:
       "What Imotara is, why it exists, and the principles behind an emotion-aware, privacy-first companion. No ads, no surveillance.",
     images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "Imotara" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "About Imotara — A Quiet, Privacy-First AI Companion",
+    title: "About Imotara — A Quiet, Privacy-First Companion",
     description: "What Imotara is, why it exists, and the principles behind an emotion-aware, privacy-first companion.",
     images: [`${SITE_URL}/og-image.png`],
   },

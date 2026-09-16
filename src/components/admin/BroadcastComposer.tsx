@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 import { renderHtml, emailDocument, footerHtml, headerHtml, FONTS, SIZES } from "@/lib/broadcast/markup";
 import { checkImageUrl } from "@/lib/broadcast/imageUrl";
+import { AUDIENCE_PAGES, type AudiencePage } from "@/data/audiencePages";
 import type { ListRow } from "./BroadcastLists";
 
 export type Draft = {
@@ -101,6 +102,18 @@ export default function BroadcastComposer({
   const [wide, setWide] = useState(true);
   const box = useRef<HTMLTextAreaElement>(null);
   const dirty = useRef(false);
+
+  // Linking a page, rather than attaching a file.
+  //
+  // A PDF attachment was asked for on 2026-09-15 and deliberately dropped in
+  // favour of this. The reasoning is already in
+  // api/admin/broadcast/upload/route.ts, which routed IMAGES around
+  // attachments for the same reason: base64 inlining pushes the HTML past
+  // Gmail's ~102KB clipping threshold — taking the unsubscribe link with it —
+  // and "CID attachments are what filters expect from malware". A link also
+  // gets three things an attachment never can: it can be corrected after the
+  // mail has gone out, it can be measured, and Google can index it.
+  const [pageOpen, setPageOpen] = useState(false);
 
   const [imgOpen, setImgOpen] = useState(false);
   const [imgUrl, setImgUrl] = useState("");
@@ -238,6 +251,21 @@ export default function BroadcastComposer({
     const src = draft.body_source;
     const attrs = [width ? `width=${width}` : "", a2 !== "left" ? `align=${a2}` : ""].filter(Boolean).join(",");
     const block = `![${alt || "image"}](${url})${attrs ? `{${attrs}}` : ""}`;
+    const pad = a === 0 || src.slice(0, a).endsWith("\n\n") ? "" : "\n\n";
+    edit(src.slice(0, a) + pad + block + "\n\n" + src.slice(a), a + pad.length + block.length);
+  }
+
+  /**
+   * Insert a link to one of the live /for/* pages.
+   *
+   * Uses the SAME `[[label]](url)` block the Button tool writes, so this adds
+   * no new markup for the renderer to learn and nothing new to go stale.
+   */
+  function insertPageLink(page: AudiencePage) {
+    const el = box.current;
+    const a = el && !locked ? el.selectionStart : draft.body_source.length;
+    const src = draft.body_source;
+    const block = `[[Read more — ${page.label}]](https://www.imotara.com/for/${page.slug})`;
     const pad = a === 0 || src.slice(0, a).endsWith("\n\n") ? "" : "\n\n";
     edit(src.slice(0, a) + pad + block + "\n\n" + src.slice(a), a + pad.length + block.length);
   }
@@ -479,7 +507,40 @@ export default function BroadcastComposer({
                             : "border-white/10 bg-zinc-900 text-zinc-400 hover:text-zinc-100"
                   }`}
                 >🖼 Image</button>
+                <button
+                  onClick={() => { setPageOpen((v) => !v); setImgOpen(false); }}
+                  disabled={locked}
+                  title="Link a page on imotara.com instead of attaching a file"
+                  className={`h-7 rounded-md border px-2 text-[11px] transition disabled:opacity-40 ${
+                    pageOpen ? "border-indigo-400/40 bg-indigo-500/10 text-indigo-300"
+                             : "border-white/10 bg-zinc-900 text-zinc-400 hover:text-zinc-100"
+                  }`}
+                >🔗 Link a page</button>
               </div>
+
+              {/* The ten /for/* pages, straight from the data that builds them,
+                  so this list can never drift from what is actually live. */}
+              {pageOpen && (
+                <div className="rounded-lg border border-white/10 bg-zinc-950/50 p-2.5 space-y-2">
+                  <p className="text-[10px] leading-relaxed text-zinc-500">
+                    Adds a button linking to a page on imotara.com. Prefer this to
+                    attaching a file: a link can be corrected after the message has
+                    gone out, you can see who opened it, and it does not carry the
+                    spam risk an attachment does.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(Object.values(AUDIENCE_PAGES) as AudiencePage[]).map((page) => (
+                      <button
+                        key={page.slug}
+                        onClick={() => { insertPageLink(page); setPageOpen(false); }}
+                        disabled={locked}
+                        title={`/for/${page.slug}`}
+                        className="rounded-md border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1.5 text-[11px] font-medium text-indigo-300 transition hover:bg-indigo-500/20 disabled:opacity-40"
+                      >{page.label}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Image: upload a file, or point at one that is already online */}
               {imgOpen && (

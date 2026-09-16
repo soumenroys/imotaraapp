@@ -88,6 +88,19 @@ describe("the tag", () => {
         expect(GA).toMatch(/anonymize_ip: true/);
     });
 
+    it("🔴 queues page_view into dataLayer instead of bailing when gtag is absent", () => {
+        // THE BUG THIS EXISTS FOR (2026-09-16): the first version did
+        //     if (typeof window.gtag !== "function") return;
+        // The effect runs after hydration, ga-init is `afterInteractive`, so
+        // gtag was usually undefined on first mount — it returned early and
+        // NEVER ran again, because no dependency changes when gtag loads.
+        // With send_page_view:false, that meant ZERO page views were ever sent
+        // and GA reported "Data collection isn't active".
+        expect(GA).not.toMatch(/if \(typeof window\.gtag !== "function"\) return;/);
+        expect(GA).toMatch(/w\.dataLayer = w\.dataLayer \|\| \[\];/);
+        expect(GA).toMatch(/w\.dataLayer!\.push\(arguments\)/);
+    });
+
     it("⚠️ drives its own page views, exactly once", () => {
         // send_page_view false + a manual event, because GA's SPA detection is
         // unreliable on the App Router. The web stream also has Enhanced

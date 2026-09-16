@@ -40,9 +40,29 @@ function PageViews({ measurementId }: { measurementId: string }) {
     const searchParams = useSearchParams();
 
     useEffect(() => {
-        if (typeof window.gtag !== "function") return;
+        // 🔴 DO NOT "optimise" this back to `if (typeof window.gtag !== "function") return;`
+        //
+        // That was the original code and it sent NOTHING, ever. This effect runs
+        // after hydration, but the ga-init script below is `afterInteractive`,
+        // so on first mount window.gtag is usually still undefined — the effect
+        // returned early and never ran again, because none of its dependencies
+        // change when gtag finally loads. With send_page_view:false stopping
+        // gtag.js from sending its own pageview, the result was zero page_view
+        // events and a "Data collection isn't active" warning in the GA console.
+        //
+        // gtag is only ever `function gtag(){dataLayer.push(arguments)}`, so
+        // queueing into dataLayer works whether or not gtag.js has arrived —
+        // it drains the queue on load. Recreate that shim if it is missing.
+        const w = window;
+        w.dataLayer = w.dataLayer || [];
+        if (typeof w.gtag !== "function") {
+            w.gtag = function gtag() {
+                // eslint-disable-next-line prefer-rest-params
+                w.dataLayer!.push(arguments);
+            };
+        }
         const qs = searchParams?.toString();
-        window.gtag("event", "page_view", {
+        w.gtag("event", "page_view", {
             page_path: qs ? `${pathname}?${qs}` : pathname,
             send_to: measurementId,
         });

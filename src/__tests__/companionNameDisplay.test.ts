@@ -13,6 +13,7 @@ import path from "path";
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
 const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 const CHAT = strip(read("src/app/chat/page.tsx"));
+const SETTINGS = strip(read("src/app/settings/page.tsx"));
 const REPLY = strip(read("src/app/api/chat-reply/route.ts"));
 
 describe("chat page: companion-voice strings follow the chosen name", () => {
@@ -61,5 +62,25 @@ describe("chat-reply prompt: the model is told ONE name, consistently", () => {
     it("⚠️ brand references in the prompt are UNCHANGED", () => {
         expect(REPLY).toMatch(/Imotara is an Indian product/);
         expect(REPLY).toMatch(/'Imotara Connect'/);
+    });
+});
+
+describe("settings page: the hands-free description names the companion", () => {
+    // The mobile half of this lives in imotara-mobile's SettingsScreen; this is
+    // the one web string of the same family. Settings is where the person just
+    // renamed the companion, so it is the worst place to still say "Imotara".
+    it("uses the chosen name", () => {
+        expect(SETTINGS).toMatch(
+            /Speak → \{companionDisplayName \|\| "Imotara"\} types, replies, and reads aloud/,
+        );
+    });
+
+    it("⚠️ reads the SAVED profile, gated on enabled+name, like the chat header", () => {
+        // ToneAndContextTile owns the editable fields but is a sibling
+        // component — its compName/compEnabled are NOT in scope here, which a
+        // source-matching test cannot see. (It didn't: tsc caught it.)
+        expect(SETTINGS).toMatch(/c\?\.enabled && c\.name\?\.trim\(\) \? c\.name\.trim\(\) : null/);
+        expect(SETTINGS).toMatch(/window\.addEventListener\("imotara:profile-updated", handler\)/);
+        expect(SETTINGS).toMatch(/window\.removeEventListener\("imotara:profile-updated", handler\)/);
     });
 });

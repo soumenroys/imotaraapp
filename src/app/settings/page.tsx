@@ -1321,6 +1321,25 @@ export default function SettingsPage() {
     const { mode } = useAnalysisConsent();
     const { accent, setAccent, fontSize, setFontSize, colorMode, themePref, setThemePref } = useAppearance();
 
+    // The companion's chosen name, for the few strings on this page where the
+    // COMPANION is the subject. ToneAndContextTile owns the editable fields but
+    // is a SIBLING component, so its compName/compEnabled are not in scope here
+    // — this reads the saved profile with this file's own helpers and follows
+    // the same "imotara:profile-updated" event the chat header uses, so editing
+    // the name in the tile above updates the label below without a reload.
+    // ⚠️ Brand strings ("Imotara Connect", the page title) are NOT this.
+    const [companionDisplayName, setCompanionDisplayName] = useState<string | null>(null);
+    useEffect(() => {
+        const sync = (p: ImotaraProfileV1 | null) => {
+            const c = p?.companion;
+            setCompanionDisplayName(c?.enabled && c.name?.trim() ? c.name.trim() : null);
+        };
+        sync(safeParseProfile(localStorage.getItem(PROFILE_STORAGE_KEY)));
+        const handler = (e: Event) => sync((e as CustomEvent).detail as ImotaraProfileV1 | null);
+        window.addEventListener("imotara:profile-updated", handler);
+        return () => window.removeEventListener("imotara:profile-updated", handler);
+    }, []);
+
     // ── Supabase session (nullable — local-only users have no session) ─────────
     const [sbEmail, setSbEmail] = useState<string | null>(null);
     const [signingOut, setSigningOut] = useState(false);
@@ -3344,7 +3363,7 @@ export default function SettingsPage() {
                     <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-violet-500/20 bg-sky-500/8 px-3 py-3">
                         <div>
                             <p className="text-xs font-medium text-zinc-200">Hands-free conversation</p>
-                            <p className="mt-0.5 text-[11px] text-zinc-500">Speak → Imotara types, replies, and reads aloud — no tapping needed</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Speak → {companionDisplayName || "Imotara"} types, replies, and reads aloud — no tapping needed</p>
                         </div>
                         <button
                             type="button"

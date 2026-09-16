@@ -14,6 +14,8 @@ import OfflineIndicator from "@/components/imotara/OfflineIndicator";
 import PWAInstallPrompt from "@/components/imotara/PWAInstallPrompt";
 import AppearanceInit from "@/components/imotara/AppearanceInit";
 import RtlInit from "@/components/imotara/RtlInit";
+import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
+import AnalyticsConsentBanner from "@/components/analytics/AnalyticsConsentBanner";
 import PageTransition from "@/components/imotara/PageTransition";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -402,6 +404,10 @@ export default function RootLayout({
         <OfflineIndicator />
         <PWAInstallPrompt />
         <ServiceWorkerRegistration />
+        {/* Both render nothing unless NEXT_PUBLIC_GA_MEASUREMENT_ID is set, and
+            the tag itself loads only after the visitor actively consents. */}
+        <AnalyticsConsentBanner />
+        <GoogleAnalytics />
 
         <JsonLd />
         {/* Hidden on full-height app routes (/chat) — see SiteFooterSlot.

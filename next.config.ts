@@ -19,11 +19,21 @@ const CSP = [
   // lumberjack.razorpay.com is deliberately NOT added to connect-src. That one
   // is Razorpay's analytics, not fraud protection — no user benefit that would
   // justify sending data to a third party from a privacy-first app.
-  "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdn.razorpay.com",
+  // www.googletagmanager.com serves the GA4 gtag.js loader. It is only ever
+  // requested after the visitor grants consent (see components/analytics), but
+  // the CSP has to permit it up front or the browser blocks the script SILENTLY
+  // — GA would look installed and simply never report.
+  "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdn.razorpay.com https://www.googletagmanager.com",
   // Tailwind + Next.js inject inline styles
   "style-src 'self' 'unsafe-inline'",
   // Supabase REST + realtime WebSocket (browser-side auth/subscribe calls)
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  // GA4 posts measurement hits to google-analytics.com and the regional
+  // *.analytics.google.com endpoints; googletagmanager.com is also contacted for
+  // config. Advertising hosts are deliberately NOT here — the tag runs with
+  // ad_storage denied and google signals off, matching the privacy policy's
+  // "no ad-tech" line, and the same reasoning that keeps lumberjack.razorpay.com
+  // out of this list.
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self'",
   "media-src 'self' blob:",

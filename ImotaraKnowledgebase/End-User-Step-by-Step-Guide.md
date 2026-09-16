@@ -38,7 +38,7 @@ The companion settings live in one place.
 Steps:
 1. In the left card (**Personal info** on web), set your own **Name (optional)**, **Age range**, **Gender**, and **Preferred language**. These only shape wording; they are not shared.
 2. Turn on the companion: **On web** flip the **Expected companion tone** switch to on ("Turn on to set preferred companion characteristics"). **On mobile** the companion fields are in the **Your companion** section.
-3. Set **Companion name (optional)** — e.g. a placeholder like "A calm friend voice".
+3. Set **Companion name (optional)** — e.g. a placeholder like "A calm friend voice". The name is used wherever the companion speaks or is named: the chat header, the companion's own prompts and cards, screen-reader labels, and the **daily check-in / inactivity notifications**. If the daily reminder is already switched on, renaming re-issues it so the next one greets the user by the new name. (The 🔊 voice preview speaks a custom name in **English only**; other languages play a pre-recorded sample that still says "Imotara".)
 4. Set the companion's **Age range** and **Gender**. Gender is important because it drives the read-aloud voice (see procedure 5). Options: **Prefer not to say / Female / Male / Non-binary / Other**.
 5. Set **Relationship vibe**: **Mentor, Elder, Friend, Coach, Sibling (younger/peer vibe), Junior buddy (younger vibe), Parent-like (tone only), Partner-like (tone only)**, or **Prefer not to specify**. This changes warmth and framing only — it is tone guidance, not identity simulation.
 6. Set **Response style**: **Let Imotara decide, Comfort me — be present & warm, Help me reflect — ask gentle questions, Motivate me — be encouraging & energetic,** or **Give advice — practical next steps**. A one-line example of the chosen style appears beneath the picker. You can always override it in conversation.
@@ -53,6 +53,7 @@ Steps:
 1. Open **Chat**.
 2. Type in the message box at the bottom (**On web** placeholder area; **On mobile** the composer) and press Enter / the send arrow.
 3. **On web:** start a fresh conversation with the **New conversation** button (top of the thread list); rename or delete threads from the thread list (**Rename**, **Delete thread**).
+4. **On mobile (v1.4.1+):** **long-press any empty space** in the conversation — the background around the bubbles, not a bubble — to open the **⋯ overflow menu** (**Breathing exercise**, **Unsent letter**, **Clear chat**) without reaching the top bar. Long-pressing a message bubble is unchanged.
 
 ### 3b. Voice input (microphone)
 1. Tap the **microphone** button in the composer. **On web** the tooltip reads **Speak your message** (or **Speak — will send automatically** in hands-free mode); while active it shows **Stop listening**.
@@ -60,6 +61,7 @@ Steps:
 3. Speak clearly. Recording auto-stops at your **Max recording duration** setting (procedure 5). Tap the mic again to stop early.
 4. **On web**, common toasts: **"No microphone found. Please connect one and try again."**; **"No speech detected — try speaking closer to your microphone."**; and, if the language isn't supported for voice, **"Voice input isn't available in your current language. Try switching to English in Settings."**
 5. If **Confirm before sending** is on (procedure 5), review/edit the transcript before it sends.
+6. **Noise rejection in hands-free (mobile, v1.4.1+).** In hands-free mode only, Imotara measures what the microphone is picking up instead of assuming it is speech. A turn that never rises above the noise floor is dropped after **~10s** and never uploaded; a turn with steady sound but no speech-like variation (fan, engine, TV next door) stops after **~20s**; turns that look like speech run to the full **Max recording duration**. On Android the mic is opened through the device's speech-recognition audio path, so the OS noise suppression used by dictation applies. The gate **fails open** — when uncertain it lets the audio through — and **never applies to ordinary tap-to-record input**, which is always sent.
 
 ### 3c. Listen to a reply (read-aloud / TTS)
 1. Hover or tap a companion message to reveal its action row.
@@ -114,10 +116,14 @@ Language is decided in this priority order: an explicit in-chat switch request >
 2. **On mobile:** **Settings** has **Voice speed** and **Voice pitch** controls (grouped as **Voice speed & pitch**).
 
 ### 5c. Recording / transcription options
-1. **Max recording duration** — how long the mic records before auto-stopping (**Settings → Appearance → Max recording duration** on web; **Settings → Voice input → Max recording duration** on mobile).
-2. **Recording quality** — **High** / **Low** (web).
-3. **Cloud transcription** — toggle "Send audio to server for higher-accuracy speech recognition" (web).
-4. **Confirm before sending** — review the transcript before it is sent (web).
+On mobile all four live together under **Settings → Experience → Voice input**.
+
+1. **Max recording duration** — how long the mic records before auto-stopping (**Settings → Appearance → Max recording duration** on web; **Settings → Experience → Voice input** on mobile, where the choices are **30s / 1 min / 2 min / 5 min**, default 1 min).
+2. **Recording quality** — **High** / **Low**. Present on **both** platforms.
+3. **Cloud transcription / Online transcription** — ⚠️ **the two platforms behave differently.** On **web** ("Cloud transcription": *"Send audio to server for higher-accuracy speech recognition"*) turning it off falls back to the **browser's own** `SpeechRecognition` — less accurate, but the audio stays on the machine. On **mobile** ("Online transcription") there is **no on-device alternative**: turning it off **disables the microphone entirely**, and the setting says so. Never advise a mobile user to switch it off for privacy — advise them to stop using voice input, which is what it actually does.
+4. **Confirm before sending** — review the transcript before it is sent. Present on **both** platforms (mobile pairs it with an auto-send toggle).
+
+**Audio retention:** the transcription endpoint stores **no audio** — it writes only a `usage_events` row for quota accounting. On mobile the temporary local recording is swept after **1 hour** (exports after 24h) by the startup cache sweeper.
 
 ### 5d. Fix "no voice available" on Android
 1. If read-aloud is silent on Android you'll see the toast: **"Voice not available for this language on your device. Either install this language in your mobile or login into Imotara account from Settings"**.
@@ -215,7 +221,9 @@ Language is decided in this priority order: an explicit in-chat switch request >
 
 ### 10a. Daily check-in reminder at a chosen time
 1. **On web:** **Settings → Browser notifications → Enable notifications** (allow the browser prompt). Then set **Preferred reminder time** (a time picker) — "Daily check-in reminder fires around this time".
-2. **On mobile:** **Settings → Daily check-in reminder** — flip the switch on (allow the OS permission), then set the time with the **Hour** and **Minute** steppers (minutes step by 15). Optionally enable **Play sound** and **Show badge**.
+2. **On mobile:** **Settings → Experience → Daily check-in reminder** — flip the switch on (allow the OS permission), then set the time with the **Hour** and **Minute** steppers (minutes step by 15). Optionally enable **Play sound** and **Show badge**. The notification is titled in the **companion's name** ("Maya is here for you 💙"), and renaming the companion re-issues it.
+   - ⏱ **Delivery is intentionally inexact.** Android schedules this as an inexact alarm with roughly an **8-minute window**, so a 17:00 reminder can legitimately arrive at 17:07. That is not a fault, and the app does not request exact-alarm permission (Android 14+ restricts it).
+   - ⚠️ **Android release builds before v1.4.1 could not schedule this at all** — the toggle failed and misreported it as a permission problem. Fixed in v1.4.1; if a user on an older build reports "Permission needed" with notifications already allowed, the fix is to update the app.
 
 ### 10b. Inactivity nudge
 1. **On web:** in the same **Browser notifications** card, choose **Remind me if I haven't visited in**: **24 h / 48 h / 72 h / 7 days**.
@@ -223,7 +231,7 @@ Language is decided in this priority order: an explicit in-chat switch request >
 
 ### 10c. Disable notifications
 1. **On web:** **Settings → Browser notifications → Disable notifications**. (If the browser itself blocked them, you'll see "Notifications blocked by your browser. Allow them in your browser's site settings, then reload.")
-2. **On mobile:** flip the **Daily check-in reminder** switch off.
+2. **On mobile:** flip the **Daily check-in reminder** switch off. From **v1.4.1** this also cancels any **inactivity nudge already queued** — before that, a "we miss you" notification scheduled during an earlier chat could still fire up to 48h after the user had turned reminders off.
 
 ---
 

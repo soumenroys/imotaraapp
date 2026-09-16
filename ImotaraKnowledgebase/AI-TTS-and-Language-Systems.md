@@ -81,6 +81,24 @@ Once decided, a **strict language directive** is injected ("Reply ONLY in Bengal
 
 Mobile voice input forwards recorded audio (m4a, max 10 MB) to **OpenAI Whisper (`whisper-1`)** and returns `{ text }`. It sends an ISO-639-1 language hint when the code is in Whisper's supported set; unsupported codes (notably **Odia, "or"**) are omitted so Whisper auto-detects instead of erroring. The route requires auth, and **anonymous identities are capped at 20 transcriptions/day.** A 55s timeout stays under Vercel's 60s limit; `insufficient_quota` from Whisper surfaces as a clean "voice unavailable" signal.
 
+### Hallucination guards (2026-09-16) — three independent layers
+
+Whisper invents fluent text from silence and room noise ("Thank you for watching!", "Wheeze", stray YouTube-isms). Three separate mechanisms now stop that, and they are deliberately independent — each catches a class the others miss:
+
+1. **Spelling hint, without the echo hazard.** The request carries `prompt` so the app's own name is transcribed correctly. ⚠️ **Whisper echoes its prompt back as the transcript when the audio is silent**, so the prompt is deliberately **one word** (`WHISPER_PROMPT = "Imotara"`) and `isPromptEcho()` discards a transcript that is exactly the prompt. `whisperPromptFor(companionName)` substitutes a **renamed companion's** name — but only when it is a single word of ≤40 characters, otherwise it falls back to the default, for the same echo reason.
+2. **Confidence gate.** The call uses `response_format: "verbose_json"` and drops the result when a segment pairs **`no_speech_prob > 0.6` with `avg_logprob < -0.4`**. The pairing matters: `no_speech_prob` alone is noisy on genuinely quiet speech and would discard real input.
+3. **Client-side voice-activity gate (mobile, hands-free only).** The app never uploads at all if it did not hear speech — see below.
+
+### Client-side voice-activity gate (`src/lib/voiceActivity.ts`, mobile)
+
+Runs on expo-av metering samples (dBFS, ~200 ms apart) during **hands-free turns only**. Speech is identified by **dynamic range** — the 90th minus the 10th percentile of the samples must be **≥ 8 dB** — because speech alternates between loud and quiet while fans, engines and traffic sit at a near-constant level. Three-tier give-up: **nothing audible for 10s** → stop, no upload; **audible but not speech-like for 20s** → stop and upload anyway (a deliberate hedge); **speech detected** → run to the 60s cap or a silence-stop.
+
+⚠️ **Two dB thresholds are required, not one:** `AUDIBLE_DB_FLOOR` (−50, "the mic is picking something up") and `SILENCE_DB_THRESHOLD` (−35, "loud enough to arm silence-stop"). Collapsing them into a single constant leaves a band in which nothing can end a turn. The gate **fails open** and never applies to tap-to-record input.
+
+### Android capture path
+
+Android records through **`MediaRecorder.AudioSource.VOICE_RECOGNITION`** (the source the OS's own dictation uses: device noise suppression, no AGC pumping room noise up between words) rather than the raw mic. This needs a patched `expo-av` (`patches/expo-av+16.0.8.patch`) **plus** `expo.autolinking.buildFromSource: ["expo-av"]` in the mobile `package.json` — without that flag Expo consumes a **prebuilt Maven artifact** and the patch has no effect whatsoever while every build stays green. Verify on hardware with `adb shell dumpsys audio | grep "rec start"` and read the `src:` field.
+
 ## Safety systems
 
 - **Adult-content guard** (`adultContentGuard.ts`) — conservative, word-boundary-anchored explicit-content patterns across 18 language banks. It deliberately does **not** block medical/health, puberty education, or romantic-emotion topics. On a hit, it returns a warm, non-shaming refusal, with a stricter minor-oriented variant for users aged under-13 / 13–17.

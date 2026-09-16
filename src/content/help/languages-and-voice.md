@@ -56,12 +56,29 @@ If you leave language on **Auto-detect** and type in a native script (or common 
 1. Tap the **microphone** button in the composer. On web the tooltip reads **Speak your message** (or **Speak — will send automatically** in hands-free mode); while active it shows **Stop listening**.
 2. The first time, allow microphone access when your browser or phone asks. If you blocked it earlier on web, you'll see **"Microphone access denied — allow it in your browser settings."**
 3. Speak clearly. Recording stops automatically at your **Max recording duration** setting — tap the mic again to stop early.
-4. If **Confirm before sending** is on (web), you can review and edit the transcript before it sends.
+4. If **Confirm before sending** is on, you can review and edit the transcript before it sends. (Available on both web and mobile.)
 
 ### Voice input settings
-- **Max recording duration** — how long the mic records before auto-stopping (**Settings → Appearance** on web; **Settings → Voice input** on mobile).
-- **Recording quality** — High / Low (web).
-- **Confirm before sending** — review the transcript before it's sent (web).
+Both platforms have these — on mobile they live together under **Settings → Experience → Voice input**.
+
+- **Max recording duration** — how long the mic records before auto-stopping. On mobile: **30s, 1 min, 2 min or 5 min** (default 1 min).
+- **Recording quality** — High / Low. Low uses less data, which helps on a slow or metered connection.
+- **Confirm before sending** — review and edit the transcript before it's sent.
+- **Hands-free conversation** (mobile) — you speak, Imotara replies and reads it aloud, and the microphone reopens by itself for your next turn. No tapping at all.
+- **Cloud / Online transcription** — ⚠️ this one works differently on each platform. On **web**, switching "Cloud transcription" off falls back to your browser's own speech recognition: less accurate, but the audio stays on your computer. On **mobile** there is no on-device alternative — switching "Online transcription" off simply **turns the microphone off**. If you're turning it off on a phone for privacy, what you're really doing is disabling voice input.
+
+**What happens to your recording:** it's turned into text and then discarded. Nothing is stored on our side but a count for your daily limit, and on mobile the temporary copy on your phone is cleaned up within the hour.
+
+### Hands-free and background noise
+
+In hands-free mode — and only there — Imotara checks that it actually heard speech before sending anything, so a noisy room doesn't become words you never said.
+
+- Silence for about **10 seconds** → the turn is dropped and nothing is uploaded.
+- Steady noise with no speech for about **20 seconds** (a fan, traffic, a TV next door) → recording stops.
+- Speech carries on to your full recording limit as normal.
+- On Android the microphone is opened through the same audio path your phone's own dictation uses, so its noise suppression applies.
+
+The check is deliberately forgiving — when it isn't sure, it lets the audio through, because losing a real sentence is worse than transcribing a noisy one. When you tap the microphone and record yourself, nothing is filtered: what you record is always sent.
 
 ### Common voice-input messages (web)
 - **"No microphone found. Please connect one and try again."** — check your mic is plugged in and selected.

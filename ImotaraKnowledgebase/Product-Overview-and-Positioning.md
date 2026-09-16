@@ -46,7 +46,7 @@ The "About" page tells the origin story: Imotara was conceived not in a boardroo
 
 Imotara's companion is something the user shapes to feel like whoever they need. In Settings, a user configures:
 
-- **Companion name** — defaults to "Imotara," but can be anything.
+- **Companion name** — defaults to "Imotara," but can be anything. Since **v1.4.1** the chosen name is used wherever the companion speaks or is named, not only inside replies: the mobile chat header, companion-authored prompts and cards (unsent letter, grief space, trial and offline cards), per-message screen-reader labels, and the **daily check-in and inactivity notifications**. Renaming re-issues an already-scheduled check-in reminder so it greets the user by the new name. "Imotara" remains the **product** name — brand strings ("Support Imotara", "Imotara Connect", "built in India") are deliberately left alone.
 - **Companion gender** — female, male, nonbinary, other, or prefer-not-to-say. This also determines the voice used for read-aloud.
 - **Companion age range** — influences vocabulary and register.
 - **Relationship vibe** — how the companion relates to the user. Options: **Friend, Mentor, Elder, Coach, Sibling, Junior buddy, Parent-like, Partner-like.**

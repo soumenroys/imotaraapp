@@ -51,6 +51,22 @@ If replies suddenly feel shorter and more templated, you've most likely reached 
 3. **On Android**, if you see "Voice not available for this language on your device": either install that language's text-to-speech voice in your phone's settings (**Settings → System → Languages → Text-to-speech output → install voice data** — on some phones, switching the speech engine to Google's helps), or simply **sign in to Imotara** so read-aloud uses cloud voices.
 4. **Wrong gender or accent?** The voice follows your **companion Gender** and language settings — adjust them in Settings and use **Preview voice** to check.
 
+## "My voice wasn't sent" (hands-free)
+
+In hands-free mode Imotara checks whether it actually heard speech before sending anything. That's deliberate — it stops a noisy room being turned into words you never said.
+
+1. **Silence for about 10 seconds** → the turn is dropped and nothing is uploaded at all.
+2. **Steady background noise with no speech for about 20 seconds** — a fan, traffic, a TV in the next room → recording stops.
+3. **If you tapped the microphone to stop**, Imotara won't reopen it. Tapping stop means stop.
+4. **If you left the app and came back**, hands-free waits, paused, with a banner — it won't quietly take the microphone back. Tap the banner or the mic to carry on.
+5. Try speaking a little sooner after the mic opens, or move away from a constant noise source.
+
+This filtering applies to **hands-free only**. When you tap the microphone and record yourself, whatever you record is always sent.
+
+## "It typed something I never said"
+
+Speech recognition can invent fluent-sounding text from silence or noise. Imotara now discards low-confidence results, and in hands-free mode won't upload audio that doesn't contain speech in the first place. If this still happens to you on version 1.4.1 or later, please email **info@imotara.com** with the exact text and the language — that one's worth us seeing.
+
 ## "It replies in the wrong language"
 
 1. **Ask explicitly in chat** — "reply in Gujarati", "switch to Tamil". An explicit request always wins.
@@ -64,6 +80,19 @@ If replies suddenly feel shorter and more templated, you've most likely reached 
 2. **Check the time you set** for the daily reminder.
 3. **Using the app regularly? Then no nudges is normal.** The inactivity nudge only fires after you've been away (for example 48 hours of silence) — active users intentionally don't get nudged. That's a feature, not a fault.
 4. Web push and mobile reminders are independent — enable each one where you want it.
+5. **A few minutes late is normal.** On Android the daily reminder is scheduled with a small delivery window, so a 17:00 reminder can arrive at around 17:07. Your phone batches it with other alarms to save battery.
+
+**On Android: "Permission needed" even though notifications are allowed**
+
+This was a real bug in versions **before 1.4.1** — the reminder genuinely couldn't be scheduled, and the app wrongly blamed permissions. No amount of changing device settings fixed it. **Update the app to 1.4.1 or later** and the switch works. From 1.4.1 the message is also trustworthy: it only says "Permission needed" when permission really is the problem.
+
+**"It greets me by my companion's old name"**
+
+Renaming your companion now re-issues the reminder, so the next one uses the new name. On an older version, switch the reminder off and on again after renaming.
+
+**"I turned reminders off but still got one"**
+
+Fixed in 1.4.1 — turning the reminder off now also cancels any "we miss you" nudge already waiting. Before that, one could still arrive up to 48 hours later.
 
 ## "The app crashed"
 

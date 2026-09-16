@@ -26,6 +26,8 @@
 | "Connect wallet/session broken" | 12 |
 | "Is the platform down?" | 13 |
 | "The app crashed" | 14 |
+| "My voice wasn't sent / it typed words I never said" | 15 |
+| "Reminder says 'Permission needed' but notifications are allowed" | 10 (step 0 — Android below v1.4.1) |
 
 ---
 
@@ -352,6 +354,22 @@
 3. User is **active** (the daily nudge cron intentionally skips active users).
 4. Cooldown window not elapsed.
 5. Expo module unavailable (Expo Go dev builds).
+6. 🔴 **Android app older than v1.4.1** — the reminder could never be scheduled at all (see step 0 below).
+7. Not actually missing: the reminder is an **inexact** alarm and can arrive up to ~8 minutes late.
+
+**Step 0 — the one that wasted an hour, check it first on Android.**
+In **every Android release build before v1.4.1**, enabling "Daily check-in reminder" failed outright and the app blamed permissions: the user sees **"Permission needed — please allow notifications in your device settings"** even though `POST_NOTIFICATIONS` is granted, and no amount of permission fiddling helps. Root cause was R8 stripping `expo-notifications`' reflective `Serializable` hooks, so persisting the scheduled request threw `NotSerializableException: org.json.JSONObject`. Confirm with:
+
+```
+adb logcat -d | grep -A3 "NOTIFICATION_EVENT failed"
+```
+
+**Resolution: update to v1.4.1 or later.** There is no workaround on an older build. From v1.4.1 the alert also stops guessing — it says "Couldn't set the reminder" for a genuine failure and reserves "Permission needed" (and the Open Settings button) for an actual permission refusal, so the wording is now a reliable signal.
+
+**Other v1.4.1 behaviour worth knowing before escalating:**
+- ⏱ **"It arrived late."** Expo's DAILY trigger is delivered as an **inexact** alarm with roughly an **8-minute window** — a 17:00 reminder legitimately arriving at 17:07 is correct behaviour, not a bug. The app does not request `SCHEDULE_EXACT_ALARM` and should not (Android 14+ restricts it). Verify with `adb shell dumpsys alarm | grep -A2 NOTIFICATION_EVENT` and read `origWhen=` and `window=`.
+- 📛 **"It greets me by my companion's old name."** Fixed in v1.4.1: the title is baked in at schedule time, so before that a rename did not reach an already-scheduled reminder. Renaming now re-issues it. On an older build, toggling the reminder off and on re-schedules with the current name.
+- 🔕 **"I turned reminders off and still got one two days later."** Fixed in v1.4.1: switching the reminder off now also cancels a queued **inactivity nudge**. Before that the nudge survived and fired up to 48h later.
 
 **Diagnosis steps:**
 1. **Mobile (Expo Notifications).** Reminders use `expo-notifications` (`checkInReminder.ts`). Permission gate: `requestNotificationPermission()` → returns false if not `granted`; scheduling silently no-ops without it. The daily check-in is a `DAILY` trigger (default **20:00 local**); the inactivity nudge is a one-shot `TIME_INTERVAL` after **48h** of silence (`DEFAULT_INACTIVITY_HOURS`). In Expo Go the native module isn't linked (`getNotifications()` returns null) → nothing schedules; needs a dev/store build.
@@ -490,6 +508,42 @@
 **Resolution:** have the user Restart (recovers most transient render errors) and **send the crash report**; if reproducible, capture version/platform/OTA-vs-store and file it. For the config-error screen, ops must set `EXPO_PUBLIC_IMOTARA_API_BASE_URL` in the EAS/Expo build env and re-release.
 
 **Escalate when…** multiple users on the **same version/OS** hit the boundary (systemic regression — likely a bad OTA or release), or the config-error screen appears in a production build (release misconfiguration).
+
+---
+
+## Runbook 15 — "Voice input: my words weren't sent, or it transcribed noise"
+
+**Symptom:** A hands-free turn produced nothing; or a message appeared containing words the user never said ("Thank you for watching!", a stray phrase, a single odd word).
+
+**This runbook is about speech-to-**text**.** For read-aloud being silent or wrong, use Runbook 4.
+
+**First: which mode?** The protections below apply to **hands-free only**. Ordinary tap-to-record voice input is **never** filtered — whatever is recorded is always uploaded and sent.
+
+**"Nothing was sent" (hands-free) — usually working as designed (v1.4.1+):**
+1. **Nothing audible for ~10s** → the turn is dropped and **never uploaded**. Intended: it saves the user a transcription charge for a silent room.
+2. **Audible but not speech-like for ~20s** (fan, engine, TV next door) → recording stops and **is** uploaded — a deliberate hedge, so a quietly-spoken sentence still gets its chance.
+3. Speech is identified by **dynamic range ≥ 8 dB** across the turn's metering samples, because speech alternates loud/quiet while machine noise is near-constant. It **fails open**: when uncertain it lets audio through.
+4. **User ended the turn themselves** → Imotara deliberately does **not** reopen the microphone. Tapping stop means stop.
+5. **User left the app and came back** → hands-free is left **paused**, showing a banner, rather than silently grabbing the mic. They must tap the banner or the mic.
+
+So "it stopped listening and sent nothing" after a silent or noisy stretch is **correct behaviour**. Confirm the user was in hands-free and that the room was quiet or noisy as described before treating it as a fault.
+
+**"It transcribed something I never said" — three guards, all v1.4.1+ (see the AI/TTS doc for detail):**
+1. The transcription prompt is **one word**, and a transcript that is exactly the prompt is discarded — Whisper echoes its prompt back when the audio is silent.
+2. Low-confidence segments are dropped (`no_speech_prob > 0.6` **paired with** `avg_logprob < -0.4`).
+3. On mobile hands-free, audio without speech is never uploaded at all.
+
+If a hallucination still reaches a real user on v1.4.1+, that is worth capturing: ask for the exact text, the language, the platform, and whether hands-free was on.
+
+**Diagnosis on a device you hold (Android):**
+```
+adb shell dumpsys audio | grep "rec start\|rec stop"    # timestamped turn boundaries; src: should read VOICE_RECOGNITION
+```
+`src:MIC` instead of `src:VOICE_RECOGNITION` means the build lost the expo-av patch — a release-engineering fault, not a user one.
+
+**Resolution:** explain the give-up behaviour; suggest speaking a little sooner after the mic opens, or moving away from a constant noise source; for repeated drops of genuine speech, collect platform + language + a description of the room and escalate — the thresholds are **chosen, not yet measured against real traces**.
+
+**Escalate when…** genuine speech is being dropped repeatedly (the fail-open bias should make that rare), or hallucinated text appears on v1.4.1+ despite all three guards.
 
 ---
 

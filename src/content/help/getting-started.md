@@ -49,7 +49,7 @@ Your companion is yours to shape — a name, a vibe, a way of speaking that feel
 **Steps:**
 1. First, set your own details (they only shape wording and are never shared): your **Name (optional)**, **Age range**, **Gender**, and **Preferred language**.
 2. Turn on the companion settings — on web, flip the **Expected companion tone** switch on.
-3. Set a **Companion name (optional)** — anything that feels right.
+3. Set a **Companion name (optional)** — anything that feels right. The name is used everywhere your companion speaks or is named: the chat header, its own prompts and cards, and your daily check-in reminder. If you already have that reminder switched on, renaming re-issues it, so tomorrow's greets you by the new name. ("Imotara" stays the name of the app itself.)
 4. Set the companion's **Age range** and **Gender**. Gender matters because it also chooses the read-aloud voice. Options: **Prefer not to say / Female / Male / Non-binary / Other**.
 5. Pick a **Relationship vibe**: **Mentor, Elder, Friend, Coach, Sibling (younger/peer vibe), Junior buddy (younger vibe), Parent-like (tone only), Partner-like (tone only)**, or **Prefer not to specify**. This changes warmth and framing only — it's tone guidance, not identity simulation.
 6. Pick a **Response style**: **Let Imotara decide, Comfort me — be present & warm, Help me reflect — ask gentle questions, Motivate me — be encouraging & energetic,** or **Give advice — practical next steps**. A one-line example of the chosen style appears under the picker, and you can always override it in conversation ("just listen today").

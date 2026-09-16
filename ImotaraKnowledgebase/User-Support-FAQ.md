@@ -72,12 +72,17 @@
 **A:** Voice follows your **companion gender** setting (male/female; nonbinary/other/prefer-not use a neutral voice) and your selected language's regional voice. Set the companion gender and language in Settings. (Native device TTS ignores gender, which is exactly why Imotara routes chat read-aloud through Azure — including English on mobile.)
 
 **Q: Voice input didn't transcribe my speech.**
-**A:** Voice input uses OpenAI Whisper and needs internet. Speak clearly; recordings are capped at ~60s / 10 MB. Note that **Odia is not supported by Whisper**, so Odia speech may auto-detect as another language — typing is more reliable there.
+**A:** Voice input uses OpenAI Whisper and needs internet. Speak clearly; recordings are capped at ~60s / 10 MB. Note that **Odia is not supported by Whisper**, so Odia speech may auto-detect as another language — typing is more reliable there. **In hands-free mode (v1.4.1+)** a turn is also dropped on purpose if Imotara didn't hear speech — ~10s of silence means nothing is uploaded at all, and ~20s of steady non-speech noise ends the turn. That filtering never applies to ordinary tap-to-record input.
+
+**Q: A message appeared with words I never said.**
+**A:** Speech recognition can invent fluent text from silence or room noise. Three guards now prevent it (v1.4.1+): a one-word transcription hint whose echo is discarded, a low-confidence filter, and — in hands-free — not uploading non-speech audio at all. If it still happens, capture the exact text, language and platform and pass it on.
 
 ## Notifications
 
 **Q: How do check-in reminders work?**
 **A:** You can enable a **daily check-in reminder** at a time you choose (mobile uses local push via Expo Notifications; web uses Web Push + a service worker). Mobile also sends an **inactivity nudge** after ~48 hours of silence. Custom notification schedules and weekly insight digests are higher-tier features. All notification types can be toggled in Settings.
+
+Three things worth knowing (all v1.4.1+): the reminder is titled in the **companion's name**, and renaming re-issues it; switching the reminder **off also cancels a queued inactivity nudge**; and on Android delivery is **inexact by design** — a 17:00 reminder can arrive around 17:07. ⚠️ On Android builds **older than v1.4.1** the reminder could not be scheduled at all and the app misreported it as "Permission needed" — the fix is to update.
 
 ## Organization members
 

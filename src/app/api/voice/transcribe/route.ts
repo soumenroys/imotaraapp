@@ -202,7 +202,44 @@ export function isLikelyHallucination(text: string): boolean {
     if (HALLUCINATION_PATTERNS.some((re) => re.test(t))) return true;
     if (isSoundEventAnnotation(t)) return true;
     if (isContentFree(t)) return true;
+    if (isPromptEcho(t)) return true;
     return isDegenerateRepetition(t);
+}
+
+/**
+ * A vocabulary hint for Whisper, so it stops writing the app's own name wrong.
+ *
+ * Found on a real iPad, 2026-09-16: the owner said "Hi Imotara, not feeling
+ * well today" and it was transcribed "Hi **Emotara**, not feeling well today".
+ * Whisper has never heard of the product, so it spells it phonetically, and
+ * the mangled version is then saved into the person's own history.
+ *
+ * ⚠️ This parameter is NOT free. Whisper is known to EMIT THE PROMPT VERBATIM
+ * when the audio contains no speech — the prompt is prepended to the decoder's
+ * context, so on silence the most likely continuation is the prompt itself.
+ * For most apps that is a curiosity; for this one it would manufacture exactly
+ * the failure we spent this whole session removing: words in someone's history
+ * that nobody said. Hence `isPromptEcho` below, and hence a prompt of one word
+ * rather than a chatty sentence — the smaller the prompt, the smaller the
+ * surface it can leak.
+ */
+export const WHISPER_PROMPT = "Imotara";
+
+const normalizeForEcho = (s: string) =>
+    s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+/**
+ * Exported for tests: is this transcript just our own prompt handed back?
+ *
+ * Deliberately an EXACT match after normalisation, not a substring test. A
+ * real sentence that happens to contain the app's name ("Imotara, I feel
+ * awful") must survive; only a transcript that is *nothing but* the hint is
+ * rejected. The cost is that someone saying the single word "Imotara" and
+ * nothing else loses it — an acceptable trade for a one-word utterance that
+ * carries no feeling to record.
+ */
+export function isPromptEcho(text: string): boolean {
+    return normalizeForEcho(text) === normalizeForEcho(WHISPER_PROMPT);
 }
 
 type WhisperSegment = { no_speech_prob?: number; avg_logprob?: number };
@@ -315,6 +352,9 @@ export async function POST(req: NextRequest) {
     // The `.text` field is present in both formats, so nothing downstream
     // changes.
     whisperForm.append("response_format", "verbose_json");
+    // Spelling hint — see WHISPER_PROMPT. Guarded by isPromptEcho, because
+    // Whisper echoes its prompt back when it hears no speech.
+    whisperForm.append("prompt", WHISPER_PROMPT);
     if (lang && typeof lang === "string") {
         const code = lang.split("-")[0];
         if (WHISPER_LANGS.has(code)) {

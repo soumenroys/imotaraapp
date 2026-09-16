@@ -10,7 +10,9 @@
  * quiet, short, or non-English utterance must survive.
  */
 import { describe, it, expect } from "vitest";
-import { isLikelyHallucination, hasNoSpeech } from "@/app/api/voice/transcribe/route";
+import { isLikelyHallucination, hasNoSpeech, isPromptEcho, WHISPER_PROMPT } from "@/app/api/voice/transcribe/route";
+import fs from "fs";
+import path from "path";
 
 describe("the actual hallucinations captured on the phone", () => {
     const REAL = [
@@ -198,5 +200,62 @@ describe("the route asks for the data it needs", () => {
         expect(src).toContain('whisperForm.append("response_format", "verbose_json")');
         // and actually consults the segments
         expect(src).toMatch(/hasNoSpeech\(json\?\.segments\)/);
+    });
+});
+
+// ── The Whisper spelling hint, and the hazard it introduces ────────────────
+
+describe("the app's own name is spelled right", () => {
+    it("a prompt is sent to Whisper, and it is the product name", () => {
+        // Found on a real iPad 2026-09-16: "Hi Imotara, not feeling well
+        // today" came back as "Hi Emotara...". Whisper has never heard of the
+        // product, so it spells it phonetically into the person's history.
+        expect(WHISPER_PROMPT).toBe("Imotara");
+        const route = fs.readFileSync(
+            path.join(process.cwd(), "src/app/api/voice/transcribe/route.ts"), "utf8");
+        expect(route).toMatch(/whisperForm\.append\("prompt", WHISPER_PROMPT\)/);
+    });
+
+    it("the prompt is ONE word — the smaller the hint, the less it can leak", () => {
+        // ⚠️ Whisper emits its prompt verbatim when it hears no speech: the
+        // prompt sits in the decoder's context, so on silence the likeliest
+        // continuation is the prompt itself. A chatty multi-sentence hint
+        // would manufacture whole invented messages.
+        expect(WHISPER_PROMPT.trim().split(/\s+/)).toHaveLength(1);
+    });
+});
+
+describe("a prompt echoed back is not a message", () => {
+    it("the bare prompt is rejected", () => {
+        expect(isPromptEcho("Imotara")).toBe(true);
+        expect(isLikelyHallucination("Imotara")).toBe(true);
+    });
+
+    it("case and punctuation do not smuggle it through", () => {
+        for (const v of ["imotara", "IMOTARA", " Imotara. ", "Imotara!", "  imotara  "]) {
+            expect(isPromptEcho(v)).toBe(true);
+        }
+    });
+
+    it("⚠️ a REAL sentence containing the name still survives", () => {
+        // The reason this is an exact match and not a substring test. Getting
+        // this wrong would silently delete genuine messages addressed to the
+        // app by name — which is how people actually talk to it.
+        for (const real of [
+            "Imotara, I feel awful today",
+            "Hi Imotara, not feeling well today.",
+            "I told Imotara everything",
+            "thank you Imotara",
+        ]) {
+            expect(isPromptEcho(real)).toBe(false);
+            expect(isLikelyHallucination(real)).toBe(false);
+        }
+    });
+
+    it("does not reject other single words", () => {
+        // The guard must be about OUR prompt, not about short messages.
+        for (const w of ["tired", "exhausted", "lonely"]) {
+            expect(isPromptEcho(w)).toBe(false);
+        }
     });
 });

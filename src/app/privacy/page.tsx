@@ -91,15 +91,16 @@ export default function PrivacyPage() {
                 inside Imotara.
               </li>
               <li>
-                <strong>Website analytics, only if you say yes</strong>: this website can
-                use Google Analytics to understand how people find and move around the
-                site. It is switched off until you choose “Allow”, and choosing “No
-                thanks” means it is never loaded at all. It runs with advertising
-                features and Google Signals disabled, so it is used for measurement and
-                never for advertising or profiling. It never sees your conversations,
-                your journal, or anything you write to your companion — those are not on
-                the pages it measures. The Imotara mobile apps contain no analytics SDK
-                of any kind.
+                <strong>Website analytics</strong>: this website uses Google Analytics to
+                understand how people find and move around the site — which pages are
+                visited and which channels bring people here. It runs with advertising
+                features, ad personalisation and Google Signals all disabled, and IP
+                addresses anonymised, so it is used for measurement and never for
+                advertising or profiling. It never sees your conversations, your journal,
+                or anything you write to your companion — that content is never sent to
+                it. You can block it with any browser privacy setting or content blocker,
+                and the site works exactly the same if you do. The Imotara mobile apps
+                contain no analytics SDK of any kind.
               </li>
               <li>
                 <strong>No sale of personal data</strong>.

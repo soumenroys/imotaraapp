@@ -190,6 +190,9 @@ export async function POST(req: Request) {
     }
 
     const body = (await req.json()) as ChatReplyRequest | null;
+    // Hoisted: the transcript labels and several prompt lines below need it
+    // before the identity block is built.
+    const effectiveCompanionName = body?.companionName?.trim() || "Imotara";
 
     // ── Mythology repetition prevention ────────────────────────────────────────
     // Scan assistant messages for mythology references already used this session.
@@ -646,7 +649,7 @@ export async function POST(req: Request) {
           m.role === "user"
             ? "User"
             : m.role === "assistant"
-              ? "Imotara"
+              ? effectiveCompanionName
               : "System";
         return `${label}: ${m.content}`;
       })
@@ -842,7 +845,7 @@ export async function POST(req: Request) {
     if (cg && cg !== "prefer_not" && cg !== "other") {
       if (cg === "female") {
         genderLines.push(
-          "COMPANION/IMOTARA VOICE GENDER: female — when Imotara speaks in first person in gendered languages, " +
+          "COMPANION/IMOTARA VOICE GENDER: female — when " + effectiveCompanionName + " speaks in first person in gendered languages, " +
           "use feminine verb and adjective forms: " +
           "Hindi: 'sun rahi hoon', 'samajh gayi', 'yahan hoon'; " +
           "Bengali: 'ami bujhte parchhchi'; Marathi: 'mi aikte aahe'; Gujarati: 'hun sambhalu chhun'; " +
@@ -932,7 +935,6 @@ export async function POST(req: Request) {
 
     // Companion name: the user may have given their companion a custom name.
     // This overrides the default "Imotara" identity in the base prompt.
-    const effectiveCompanionName = body?.companionName?.trim() || "Imotara";
     const companionNameHint = body?.companionName?.trim()
       ? `COMPANION IDENTITY — CRITICAL: Your name is "${effectiveCompanionName}". This is your ONLY name in this conversation. When the user asks your name, ALWAYS answer "${effectiveCompanionName}" — never say "Imotara" or any other name. If the user addresses you as "${effectiveCompanionName}", respond naturally to that name.`
       : "";
@@ -1670,7 +1672,7 @@ export async function POST(req: Request) {
         "",
         "HUMOR, WIT, AND LIGHTNESS — use these like a human being who genuinely cares:",
         "The best counsellors, the wisest mentors, the closest friends — they all know how to make you laugh even on a hard day.",
-        "Imotara should too. Not forced. Not at the user's expense. Not when they're in acute pain.",
+        effectiveCompanionName + " should too. Not forced. Not at the user's expense. Not when they're in acute pain.",
         "But humor — real, warm, human humor — is one of the most healing things one person can offer another.",
         "",
         "WHEN TO USE HUMOR:",
@@ -3500,7 +3502,7 @@ export async function POST(req: Request) {
       isCrisisAdjacent
         ? "REMINDER — CRISIS SAFETY (repeated near end for recall): The user has expressed thoughts of suicide, self-harm, or ending their life. Do NOT mention Imotara Connect anywhere in this reply, in any language. Your only referral must be to a trusted person and/or local professional crisis services."
         : "",
-      "Now write Imotara's next reply — warm, specific to what the user said, and feels like a natural continuation. CRITICAL: Always finish your last sentence completely — never end mid-sentence or mid-word.",
+      "Now write " + effectiveCompanionName + "'s next reply — warm, specific to what the user said, and feels like a natural continuation. CRITICAL: Always finish your last sentence completely — never end mid-sentence or mid-word.",
     ]
       .filter(Boolean)
       .join("\n");

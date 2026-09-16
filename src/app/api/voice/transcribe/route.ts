@@ -196,13 +196,13 @@ export function isContentFree(text: string): boolean {
 }
 
 /** Exported for tests: does this look like something Whisper made up? */
-export function isLikelyHallucination(text: string): boolean {
+export function isLikelyHallucination(text: string, prompt: string = WHISPER_PROMPT): boolean {
     const t = text.trim();
     if (!t) return false;
     if (HALLUCINATION_PATTERNS.some((re) => re.test(t))) return true;
     if (isSoundEventAnnotation(t)) return true;
     if (isContentFree(t)) return true;
-    if (isPromptEcho(t)) return true;
+    if (isPromptEcho(t, prompt)) return true;
     return isDegenerateRepetition(t);
 }
 
@@ -238,8 +238,20 @@ const normalizeForEcho = (s: string) =>
  * nothing else loses it — an acceptable trade for a one-word utterance that
  * carries no feeling to record.
  */
-export function isPromptEcho(text: string): boolean {
-    return normalizeForEcho(text) === normalizeForEcho(WHISPER_PROMPT);
+export function isPromptEcho(text: string, prompt: string = WHISPER_PROMPT): boolean {
+    return normalizeForEcho(text) === normalizeForEcho(prompt);
+}
+
+/**
+ * The hint Whisper actually receives. A renamed companion ("Maya") must be
+ * hinted as "Maya" — hinting "Imotara" would actively mis-hear the one word
+ * the person is most likely to say to it. Found while wiring the companion
+ * name through the UI, 2026-09-16.
+ */
+export function whisperPromptFor(companionName: unknown): string {
+    const n = typeof companionName === "string" ? companionName.trim() : "";
+    // Keep it to one word for the same echo-hazard reason as WHISPER_PROMPT.
+    return n && n.length <= 40 && !/\s/.test(n) ? n : WHISPER_PROMPT;
 }
 
 type WhisperSegment = { no_speech_prob?: number; avg_logprob?: number };
@@ -331,6 +343,9 @@ export async function POST(req: NextRequest) {
 
     // Optional language hint (BCP-47 or ISO-639-1) — helps Whisper accuracy
     const lang = formData.get("lang");
+    // The companion's chosen name, so the spelling hint matches what the
+    // person will actually say. Optional; defaults to the product name.
+    const whisperPrompt = whisperPromptFor(formData.get("companionName"));
 
     // Whisper supported language codes (ISO-639-1). Sending an unsupported code
     // causes a 400 from Whisper — omitting the param lets Whisper auto-detect instead.
@@ -354,7 +369,7 @@ export async function POST(req: NextRequest) {
     whisperForm.append("response_format", "verbose_json");
     // Spelling hint — see WHISPER_PROMPT. Guarded by isPromptEcho, because
     // Whisper echoes its prompt back when it hears no speech.
-    whisperForm.append("prompt", WHISPER_PROMPT);
+    whisperForm.append("prompt", whisperPrompt);
     if (lang && typeof lang === "string") {
         const code = lang.split("-")[0];
         if (WHISPER_LANGS.has(code)) {
@@ -413,7 +428,7 @@ export async function POST(req: NextRequest) {
 
     // Returning "" routes the client to its existing "didn't catch that" path
     // (useVoiceInput's onNoSpeech), so nothing new has to be handled on mobile.
-    if (rawText && (hasNoSpeech(json?.segments) || isLikelyHallucination(rawText))) {
+    if (rawText && (hasNoSpeech(json?.segments) || isLikelyHallucination(rawText, whisperPrompt))) {
         console.warn("[voice/transcribe] discarded likely hallucination:", rawText.slice(0, 120));
         return NextResponse.json({ text: "", discarded: "no_speech" });
     }

@@ -10,7 +10,7 @@
  * quiet, short, or non-English utterance must survive.
  */
 import { describe, it, expect } from "vitest";
-import { isLikelyHallucination, hasNoSpeech, isPromptEcho, WHISPER_PROMPT } from "@/app/api/voice/transcribe/route";
+import { isLikelyHallucination, hasNoSpeech, isPromptEcho, WHISPER_PROMPT, whisperPromptFor } from "@/app/api/voice/transcribe/route";
 import fs from "fs";
 import path from "path";
 
@@ -213,7 +213,9 @@ describe("the app's own name is spelled right", () => {
         expect(WHISPER_PROMPT).toBe("Imotara");
         const route = fs.readFileSync(
             path.join(process.cwd(), "src/app/api/voice/transcribe/route.ts"), "utf8");
-        expect(route).toMatch(/whisperForm\.append\("prompt", WHISPER_PROMPT\)/);
+        // The hint is per-request now (whisperPromptFor), defaulting to the
+        // product name — see "a renamed companion is hinted by ITS name".
+        expect(route).toMatch(/whisperForm\.append\("prompt", whisperPrompt\)/);
     });
 
     it("the prompt is ONE word — the smaller the hint, the less it can leak", () => {
@@ -257,5 +259,39 @@ describe("a prompt echoed back is not a message", () => {
         for (const w of ["tired", "exhausted", "lonely"]) {
             expect(isPromptEcho(w)).toBe(false);
         }
+    });
+});
+
+describe("a renamed companion is hinted by ITS name", () => {
+    it("the hint follows the companion's name", () => {
+        // Hinting "Imotara" to someone who talks to "Maya" actively mis-hears
+        // the one word they are most likely to say to it.
+        expect(whisperPromptFor("Maya")).toBe("Maya");
+        expect(whisperPromptFor("  Maya ")).toBe("Maya");
+    });
+
+    it("falls back to the product name when there is none", () => {
+        expect(whisperPromptFor(undefined)).toBe("Imotara");
+        expect(whisperPromptFor(null)).toBe("Imotara");
+        expect(whisperPromptFor("")).toBe("Imotara");
+    });
+
+    it("refuses a multi-word or absurd name — the echo hazard scales with prompt length", () => {
+        expect(whisperPromptFor("My dear friend")).toBe("Imotara");
+        expect(whisperPromptFor("x".repeat(80))).toBe("Imotara");
+    });
+
+    it("the echo guard follows the hint, not the product name", () => {
+        expect(isPromptEcho("Maya", "Maya")).toBe(true);
+        expect(isLikelyHallucination("Maya", "Maya")).toBe(true);
+        // and a real sentence to Maya still survives
+        expect(isLikelyHallucination("Maya, I feel awful today", "Maya")).toBe(false);
+    });
+
+    it("the route passes the effective hint to BOTH Whisper and the guard", () => {
+        const route = fs.readFileSync(path.join(process.cwd(), "src/app/api/voice/transcribe/route.ts"), "utf8");
+        expect(route).toMatch(/whisperForm\.append\("prompt", whisperPrompt\)/);
+        expect(route).toMatch(/isLikelyHallucination\([a-zA-Z_.]+, whisperPrompt\)/);
+        expect(route).toMatch(/whisperPromptFor\(formData\.get\("companionName"\)\)/);
     });
 });

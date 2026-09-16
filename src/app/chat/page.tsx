@@ -539,7 +539,7 @@ const SENTIMENT_SEEDS_BY_LANG: Record<string, [string, string, string]> = {
 };
 
 // Mood glimpse — local emotion hint from latest user message text
-function getLocalMoodHint(text: string): string | null {
+function getLocalMoodHint(text: string, companionName = "Imotara"): string | null {
   const raw = String(text ?? "");
   const lower = raw.toLowerCase();
 
@@ -559,7 +559,7 @@ function getLocalMoodHint(text: string): string | null {
     return "You sound a bit stuck or unsure. It's okay to take time to untangle things.";
   if (isSadText(raw) ||
       /\b(sad|down|lonely|tired|upset|hurt|empty|depressed|blue|cry|crying|hopeless)\b/.test(lower))
-    return "You seem a bit low. It's okay to feel this way — Imotara is here with you.";
+    return `You seem a bit low. It's okay to feel this way — ${companionName} is here with you.`;
   if (isStressText(raw) ||
       /\b(worry|worried|anxious|scared|panic|nervous|stressed|overwhelmed|afraid|fear)\b/.test(lower))
     return "It sounds like something is making you feel tense or worried.";
@@ -569,7 +569,7 @@ function getLocalMoodHint(text: string): string | null {
       /\b(hope|hopeful|excited|looking forward|grateful|thankful|relieved|better|good mood|feeling good|happy|joyful|cheerful)\b/.test(lower))
     return "I can sense a little bit of light or hope in what you're saying.";
 
-  if (emojiSignals.sad) return "You seem a bit low. It's okay to feel this way — Imotara is here with you.";
+  if (emojiSignals.sad) return `You seem a bit low. It's okay to feel this way — ${companionName} is here with you.`;
   if (emojiSignals.anxious) return "It sounds like something is making you feel tense or worried.";
   if (emojiSignals.angry) return "It sounds like something has really upset or frustrated you.";
   if (emojiSignals.stuck) return "You sound a bit stuck or unsure. It's okay to take time to untangle things.";
@@ -1696,7 +1696,7 @@ export default function ChatPage() {
 
   const latestMoodHint = useMemo(() => {
     if (!latestUserMessage) return null;
-    return getLocalMoodHint(latestUserMessage.content);
+    return getLocalMoodHint(latestUserMessage.content, companionDisplayName || "Imotara");
   }, [latestUserMessage]);
 
   // ── Companion auto-reactions — fires when new bot messages arrive ────────────
@@ -4029,7 +4029,7 @@ export default function ChatPage() {
                   <div className="mb-3 flex items-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/8 px-3 py-2 text-xs text-violet-300">
                     <Pencil className="h-3.5 w-3.5 shrink-0" />
                     <span className="flex-1">
-                      Writing to <span className="font-semibold">{unsentLetterSetup.recipientName}</span> — Imotara will respond in their voice.
+                      Writing to <span className="font-semibold">{unsentLetterSetup.recipientName}</span> — {companionDisplayName || "Imotara"} will respond in their voice.
                     </span>
                     <button
                       onClick={() => setUnsentLetterSetup(null)}
@@ -4045,7 +4045,7 @@ export default function ChatPage() {
                   <div className="mb-3 flex items-center gap-2 rounded-xl border border-rose-500/25 bg-rose-500/8 px-3 py-2 text-xs text-rose-300">
                     <Heart className="h-3.5 w-3.5 shrink-0" />
                     <span className="flex-1">
-                      Grief &amp; Loss space — Imotara will hold this with you, without rushing.
+                      Grief &amp; Loss space — {companionDisplayName || "Imotara"} will hold this with you, without rushing.
                     </span>
                     <button
                       onClick={() => setGriefMode(false)}
@@ -4069,7 +4069,7 @@ export default function ChatPage() {
                           {daysLeft === 1 ? "Last day of your free trial" : `${daysLeft} days left in your free trial`}
                         </p>
                         <p className="mt-0.5 text-xs text-zinc-400">
-                          After your trial, Imotara continues to work — with on-device replies.{" "}
+                          After your trial, {companionDisplayName || "Imotara"} continues to work — with on-device replies.{" "}
                           <a href="/upgrade" className="text-amber-300 underline underline-offset-2 hover:text-amber-200">
                             Explore plans →
                           </a>
@@ -4531,7 +4531,7 @@ export default function ChatPage() {
                 <span className="flex-1 leading-snug">
                   {discoveryCard === "trends" && "Your mood over time — see your emotional patterns in"}
                   {discoveryCard === "companion" && "Make Imotara yours — personalize your companion's name and tone in"}
-                  {discoveryCard === "offline" && "Always here, even offline — Imotara replies without internet using local mode."}
+                  {discoveryCard === "offline" && `Always here, even offline — ${companionDisplayName || "Imotara"} replies without internet using local mode.`}
                   {discoveryCard === "unsent_letter" && "Write to someone you can't reach — the Unsent Letter space is here for you."}
                   {discoveryCard === "connect_translation" && "Talk to a companion in your language — Connect now supports auto-translation between you and your counsellor."}
                   {(discoveryCard === "trends" || discoveryCard === "companion") && (
@@ -4613,7 +4613,7 @@ export default function ChatPage() {
             )}
             {showFirstTimeTip && !showUnsentHint && (
               <p className="mx-auto mb-2 max-w-3xl text-center text-[11px] italic text-zinc-500">
-                Just talk — Imotara listens without judgment.
+                Just talk — {companionDisplayName || "Imotara"} listens without judgment.
               </p>
             )}
             {/* UX-3 — contextual unsent-letter hint */}
@@ -4711,7 +4711,7 @@ export default function ChatPage() {
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={onKeyDown}
                   placeholder={composerPlaceholder}
-                  aria-label="Message Imotara"
+                  aria-label={`Message ${companionDisplayName || "Imotara"}`}
                   suppressHydrationWarning
                   rows={1}
                   className="max-h-[200px] flex-1 resize-none rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-indigo-400/70 focus:ring-1 focus:ring-indigo-500/60"
@@ -5951,7 +5951,7 @@ function Bubble({
               {reaction && (
                 <span
                   className="rounded-full border border-white/10 bg-white/8 px-2 py-0.5 text-base leading-none"
-                  title="Imotara reacted"
+                  title={`${companionDisplayName || "Imotara"} reacted`}
                 >
                   {reaction}
                 </span>

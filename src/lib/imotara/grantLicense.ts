@@ -5,27 +5,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ── Product catalog ────────────────────────────────────────────────────────────
+// Moved to ./pricing so client pages can read prices without importing this
+// module. Re-exported so the eight server call sites keep working unchanged.
 
-type SubscriptionDef = { type: "subscription"; tier: "plus" | "pro"; days: number; paise: number };
-type TokenPackDef   = { type: "token_pack"; tokens: number; paise: number };
-type ProductDef     = SubscriptionDef | TokenPackDef;
+import { PRODUCT_CATALOG, type LicenseProductId } from "./pricing";
 
-export const PRODUCT_CATALOG: Record<string, ProductDef> = {
-    plus_monthly:  { type: "subscription", tier: "plus", days: 31,   paise: 9_900   },
-    plus_annual:   { type: "subscription", tier: "plus", days: 366,  paise: 69_900  },
-    pro_monthly:   { type: "subscription", tier: "pro",  days: 31,   paise: 14_900  },
-    pro_annual:    { type: "subscription", tier: "pro",  days: 366,  paise: 129_900 },
-    tokens_100:    { type: "token_pack",   tokens: 100,  paise: 4_900   },
-    tokens_250:    { type: "token_pack",   tokens: 250,  paise: 9_900   },
-    tokens_600:    { type: "token_pack",   tokens: 600,  paise: 19_900  },
-    tokens_1800:   { type: "token_pack",   tokens: 1800, paise: 49_900  },
-} as const;
-
-export type LicenseProductId = keyof typeof PRODUCT_CATALOG;
-
-export function isValidProductId(id: string): id is LicenseProductId {
-    return id in PRODUCT_CATALOG;
-}
+export {
+    PRODUCT_CATALOG,
+    isValidProductId,
+    paiseFor,
+    inr,
+    type LicenseProductId,
+} from "./pricing";
 
 // ── Grant ──────────────────────────────────────────────────────────────────────
 

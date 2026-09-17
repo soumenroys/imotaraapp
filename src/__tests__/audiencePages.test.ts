@@ -13,6 +13,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
+import { paiseFor, inr } from "@/lib/imotara/pricing";
 import {
     AUDIENCE_PAGES,
     CONSUMER_PLANS,
@@ -74,16 +75,18 @@ describe("pricing is defined once, and agrees with the systems of record", () =>
     });
 
     it("the prices match PRODUCT_CATALOG (paise), the system of record", () => {
-        const catalog = read("src/lib/imotara/grantLicense.ts");
-        expect(catalog).toMatch(/plus_monthly:\s*\{[^}]*paise:\s*9_900/);
-        expect(catalog).toMatch(/plus_annual:\s*\{[^}]*paise:\s*69_900/);
-        expect(catalog).toMatch(/pro_monthly:\s*\{[^}]*paise:\s*14_900/);
-        expect(catalog).toMatch(/pro_annual:\s*\{[^}]*paise:\s*129_900/);
-
+        // This used to regex grantLicense.ts as TEXT, which broke the moment the
+        // catalog moved to lib/imotara/pricing.ts — a false failure about a real
+        // refactor. Reading the values instead means the test follows the data.
+        // The exact amounts are pinned once, in pricingCatalog.test.ts.
         const plus = CONSUMER_PLANS.find((r) => r.name === "Plus")!;
         const pro = CONSUMER_PLANS.find((r) => r.name === "Pro")!;
-        expect(plus.cost).toBe("₹99 / month or ₹699 / year");
-        expect(pro.cost).toBe("₹149 / month or ₹1,299 / year");
+        expect(plus.cost).toBe(
+            `${inr(paiseFor("plus_monthly"))} / month or ${inr(paiseFor("plus_annual"))} / year`,
+        );
+        expect(pro.cost).toBe(
+            `${inr(paiseFor("pro_monthly"))} / month or ${inr(paiseFor("pro_annual"))} / year`,
+        );
     });
 
     it("every page links onward to the full plan comparison", () => {

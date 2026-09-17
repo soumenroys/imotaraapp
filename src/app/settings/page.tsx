@@ -11,7 +11,7 @@ import { useAppearance, type Accent, type FontSize } from "@/hooks/useAppearance
 import EmotionalFingerprint from "@/components/imotara/EmotionalFingerprint";
 import useFeatureGate from "@/hooks/useFeatureGate";
 import SsoIcon from "@/components/imotara/SsoIcon";
-import { prettyTier } from "@/types/license";
+import { normaliseTier, prettyTier } from "@/types/license";
 
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 
@@ -2891,6 +2891,15 @@ export default function SettingsPage() {
     // Was a hand-written if-chain duplicating LicenseBadge's map, which had
     // drifted ("EDU" vs "Education"). prettyTier keeps the premium/education
     // aliases this chain tolerated.
+    // `tier` drives BEHAVIOUR, `tierLabel` is for display only.
+    //
+    // 🔴 These used to be one value. Every branch below compared the LABEL
+    // (`tierLabel === "Pro"`) — which silently breaks the moment the public
+    // name changes, and Stage C renames the paid tier to "Imotara Plus".
+    // prettyTier(x) === "Pro" and normaliseTier(x) === "pro" are exactly
+    // equivalent (same alias map, same fallback), so this swap changes nothing
+    // today and stops the rename changing anything tomorrow.
+    const tier      = useMemo(() => normaliseTier(lic?.tier), [lic?.tier]);
     const tierLabel = useMemo(() => prettyTier(lic?.tier), [lic?.tier]);
 
     return (
@@ -3024,9 +3033,9 @@ export default function SettingsPage() {
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                                 <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${
-                                    tierLabel === "Pro"    ? "bg-indigo-500/25 text-indigo-300 border border-indigo-400/30" :
-                                    tierLabel === "Plus"   ? "bg-sky-500/25 text-sky-300 border border-sky-400/30" :
-                                    tierLabel === "Family" ? "bg-emerald-500/25 text-emerald-300 border border-emerald-400/30" :
+                                    tier === "pro"       ? "bg-indigo-500/25 text-indigo-300 border border-indigo-400/30" :
+                                    tier === "plus"      ? "bg-sky-500/25 text-sky-300 border border-sky-400/30" :
+                                    tier === "family"    ? "bg-emerald-500/25 text-emerald-300 border border-emerald-400/30" :
                                     "bg-zinc-500/25 text-zinc-300 border border-zinc-400/20"
                                 }`}>
                                     {tierLabel}
@@ -3056,18 +3065,18 @@ export default function SettingsPage() {
 
                         {/* Feature bullets for current tier */}
                         <ul className="mt-3 space-y-1">
-                            {(tierLabel === "Pro" ? [
+                            {(tier === "pro" ? [
                                 "Unlimited replies",
                                 "Unlimited history",
                                 "Emotion insights (radar & heatmap)",
                                 "Data export (JSON)",
                                 "Account backup",
-                            ] : tierLabel === "Plus" ? [
+                            ] : tier === "plus" ? [
                                 "Unlimited replies",
                                 "90-day cloud history",
                                 "Account backup",
                                 "Companion mode",
-                            ] : tierLabel === "Family" ? [
+                            ] : tier === "family" ? [
                                 "Unlimited history",
                                 "Account backup",
                                 "Multi-profile support",
@@ -3086,7 +3095,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* CTA */}
-                    {tierLabel === "Free" && (
+                    {tier === "free" && (
                         <div className="mt-4">
                             <p className="mb-2 text-xs text-zinc-400">
                                 Remove the daily reply limit, extend history to 90 days or unlimited, and unlock insights.
@@ -3099,7 +3108,7 @@ export default function SettingsPage() {
                             </Link>
                         </div>
                     )}
-                    {tierLabel === "Plus" && (
+                    {tier === "plus" && (
                         <div className="mt-4 flex flex-wrap items-center gap-3">
                             <Link
                                 href="/upgrade"
@@ -3110,7 +3119,7 @@ export default function SettingsPage() {
                             <span className="text-[11px] text-zinc-500">Adds unlimited history + insights</span>
                         </div>
                     )}
-                    {(tierLabel === "Pro" || tierLabel === "Family") && (
+                    {(tier === "pro" || tier === "family") && (
                         <p className="mt-3 text-xs text-zinc-500">
                             Need to manage your subscription?{" "}
                             <Link href="/upgrade" className="text-zinc-300 underline underline-offset-2 hover:text-zinc-100 transition">
@@ -3120,7 +3129,7 @@ export default function SettingsPage() {
                     )}
 
                     {/* Cancel subscription — shown for paid personal tiers only (not org plans) */}
-                    {tierLabel !== "Free" && tierLabel !== "Enterprise" && !lic?.org && (
+                    {tier !== "free" && tier !== "enterprise" && !lic?.org && (
                         <CancelSubscriptionPanel tierLabel={tierLabel} />
                     )}
 

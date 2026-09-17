@@ -104,8 +104,12 @@ const TIER_ALIASES: Record<string, LicenseTier> = { premium: "pro", education: "
  * does (`tierLabel === "Pro" ? … : tierLabel === "Plus" ? …`) and that coupling
  * breaks silently the moment the label is renamed. Compare tiers, not labels.
  */
-export function prettyTier(tier: unknown): string {
+export function normaliseTier(tier: unknown): LicenseTier {
     const raw = String(tier ?? "free").toLowerCase();
     const key = TIER_ALIASES[raw] ?? raw;
-    return isLicenseTier(key) ? TIER_LABELS[key] : "Free";
+    return isLicenseTier(key) ? key : "free";
+}
+
+export function prettyTier(tier: unknown): string {
+    return TIER_LABELS[normaliseTier(tier)];
 }

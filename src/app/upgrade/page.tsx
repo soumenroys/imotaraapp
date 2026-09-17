@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Check, X as XIcon } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import useLicense from "@/hooks/useLicense";
+import { paiseFor, inr } from "@/lib/imotara/pricing";
 
 const PENDING_KEY = "imotara_pending_purchase";
 type PendingPurchase = { productId: string; description: string };
@@ -39,8 +40,8 @@ const SUBSCRIPTION_PLANS = [
         name: "Plus",
         monthlyId: "plus_monthly",
         annualId:  "plus_annual",
-        monthlyPaise: 9_900,
-        annualPaise:  69_900,
+        monthlyPaise: paiseFor("plus_monthly"),
+        annualPaise:  paiseFor("plus_annual"),
         features: ["Unlimited replies", "90-day cloud history", "Companion personas", "Azure Neural TTS", "Data export", "Connect history — 90 days", "Priority support"],
         cta: "Subscribe",
         accent: "sky",
@@ -50,20 +51,22 @@ const SUBSCRIPTION_PLANS = [
         name: "Pro",
         monthlyId: "pro_monthly",
         annualId:  "pro_annual",
-        monthlyPaise: 14_900,
-        annualPaise:  129_900,
+        monthlyPaise: paiseFor("pro_monthly"),
+        annualPaise:  paiseFor("pro_annual"),
         features: ["Everything in Plus", "Unlimited history", "Emotion trends & mood graphs", "Companion letters", "Growth arc tracking", "Unlimited Connect history"],
         cta: "Subscribe",
         accent: "indigo",
     },
 ] as const;
 
-const TOKEN_PACKS = [
-    { id: "tokens_100",  paise: 4_900,  tokens: 100,  label: "₹49",  desc: "100 message credits" },
-    { id: "tokens_250",  paise: 9_900,  tokens: 250,  label: "₹99",  desc: "250 message credits" },
-    { id: "tokens_600",  paise: 19_900, tokens: 600,  label: "₹199", desc: "600 message credits" },
-    { id: "tokens_1800", paise: 49_900, tokens: 1800, label: "₹499", desc: "1800 message credits" },
-] as const;
+// Prices and labels both come from the catalog — a pack can no longer advertise
+// one amount and charge another.
+const TOKEN_PACKS = ([
+    { id: "tokens_100",  tokens: 100,  desc: "100 message credits" },
+    { id: "tokens_250",  tokens: 250,  desc: "250 message credits" },
+    { id: "tokens_600",  tokens: 600,  desc: "600 message credits" },
+    { id: "tokens_1800", tokens: 1800, desc: "1800 message credits" },
+] as const).map((p) => ({ ...p, paise: paiseFor(p.id), label: inr(paiseFor(p.id)) }));
 
 // ── Razorpay script loader ────────────────────────────────────────────────────
 

@@ -111,9 +111,14 @@ describe("TIER_ORDER is the only tier list", () => {
         expect(prettyTier("edu")).toBe("Education");
         // Mobile spellings reaching the web — settings/page.tsx tolerated these
         // before the refactor and must continue to.
-        expect(prettyTier("premium")).toBe("Pro");
+        // 🔗 Since L10 the merged tier reads "Plus" whichever id it arrives as —
+        // `pro`, the mobile spelling `premium`, or the legacy `plus`. They are
+        // one plan, so one label; "Pro" would name a plan we no longer sell.
+        expect(prettyTier("pro")).toBe("Plus");
+        expect(prettyTier("plus")).toBe("Plus");
+        expect(prettyTier("premium")).toBe("Plus");
+        expect(prettyTier("PRO")).toBe("Plus");
         expect(prettyTier("education")).toBe("Education");
-        expect(prettyTier("PRO")).toBe("Pro");
         expect(prettyTier(null)).toBe("Free");
         expect(prettyTier("nonsense")).toBe("Free");
     });

@@ -86,7 +86,7 @@ In plain terms:
 
 - **Org default plan:** every member automatically gets your org's plan just by being a member — nothing for them to activate. (Your org's plan and seat count are set by Imotara at activation; to change them, contact **info@imotara.com**.)
 - **Per-member override:** in **Org dashboard → Members**, you can give one person a different plan than the org default (say, one higher-tier seat inside your org). Clearing the override returns them to the default.
-- **License pools:** a pool is a batch of licenses of a specific plan that Imotara issues to your org (e.g. "50 Pro licenses"). Your admins then hand out individual licenses from the pool on the **Org dashboard → Pool** page, and can withdraw them again. When a member leaves, their pool license is freed up automatically.
+- **License pools:** a pool is a batch of licenses of a specific plan that Imotara issues to your org (e.g. "50 Imotara Plus licenses"). Your admins then hand out individual licenses from the pool on the **Org dashboard → Pool** page, and can withdraw them again. When a member leaves, their pool license is freed up automatically.
 - **Checking someone's plan:** the **Org dashboard → Licenses** page shows seat counts (purchased / used / available), each member's effective plan, and recent activity.
 
 ## Cohorts / Teams

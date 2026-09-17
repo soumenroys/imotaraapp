@@ -21,8 +21,7 @@ Your History is a calm timeline of emotional moments from your conversations and
 
 ### How long history is kept (by plan)
 - **Free:** the last **7 days**.
-- **Plus:** the last **90 days**.
-- **Pro:** **unlimited**.
+- **Imotara Plus:** **unlimited**.
 
 A gentle banner offers an upgrade when your plan caps your visible history. (During the current launch offer, everything is unlocked for everyone — see the Plans & Payments article.)
 
@@ -34,7 +33,7 @@ A gentle banner offers an upgrade when your plan caps your visible history. (Dur
    - A **weekly mood recap** and weekly emotion-frequency bars.
    - A **30-day mood line chart** and an emotion radar chart.
 2. A small notification badge on the Trends tab clears when you open it. You can turn discovery tips on or off with **Settings → Feature tips**.
-3. **On web**, the equivalent charts (emotion radar, 12-week mood heatmap) live on the **Grow** page. Emotion insights are a **Pro** feature, shown as a preview on lower plans.
+3. **On web**, the equivalent charts (emotion radar, 12-week mood heatmap) live on the **Grow** page. Emotion insights come with **Imotara Plus**, shown as a preview on Free.
 
 ## Grow — reflections and journaling
 
@@ -52,14 +51,14 @@ A gentle banner offers an upgrade when your plan caps your visible history. (Dur
 
 Every so often, your companion writes you a letter reflecting on your journey together.
 
-1. Letters are generated automatically on a schedule you choose: **Settings → Companion insights → Companion letter — every [7/14/30/60] days** (a **Pro** feature; on web, open the **Advanced** section).
+1. Letters are generated automatically on a schedule you choose: **Settings → Companion insights → Companion letter — every [7/14/30/60] days** (comes with **Imotara Plus**; on web, open the **Advanced** section).
 2. Read past letters in **Settings → Companion insights → 💌 Letters from Imotara**. Expand a letter, then use **🔊 Listen** (becomes **⏹ Stop**), **React** with an emoji, or **Write reply / Edit reply** → **Save reply**.
 3. **On mobile**, letters also surface as a **Companion Letter card** with a **Listen** button.
 4. Letters need an account and an internet connection to generate.
 
 ## Growth Arc (Emotional Arc)
 
-1. This is a narrative summary of your emotional journey, written on a schedule: **Settings → Companion insights → Emotional arc — every [7/14/30/60] days** (a **Pro** feature).
+1. This is a narrative summary of your emotional journey, written on a schedule: **Settings → Companion insights → Emotional arc — every [7/14/30/60] days** (comes with **Imotara Plus**).
 2. It reads like a gentle story of where you've been and how you've grown — not a report card.
 
 ## Year in Review

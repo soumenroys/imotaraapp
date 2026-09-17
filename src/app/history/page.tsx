@@ -532,12 +532,12 @@ export default function HistoryPage() {
 
   async function handleExport() {
     if (!exportGate.allowed) {
-      setToast({ message: exportGate.reason ?? "Export is available on Pro. Upgrade at /upgrade.", type: "error" });
+      setToast({ message: exportGate.reason ?? "Export is available with Imotara Plus. Upgrade at /upgrade.", type: "error" });
       return;
     }
     // In log mode, show a soft nudge toast but still allow the export
     if (exportGate.nudge) {
-      setToast({ message: "Export is a Pro feature. Upgrade at /upgrade for unlimited exports." });
+      setToast({ message: "Export comes with Imotara Plus. Upgrade at /upgrade for unlimited exports." });
     }
     try {
       setExporting(true);
@@ -658,7 +658,7 @@ export default function HistoryPage() {
                     <span>Search</span>
                   </button>
 
-                  {/* Export — gated on Pro */}
+                  {/* Export — gated on Imotara Plus */}
                   {exportGate.allowed || exportGate.nudge ? (
                     <button
                       type="button"
@@ -671,7 +671,7 @@ export default function HistoryPage() {
                       <Download className="h-3 w-3" aria-hidden="true" />
                       <span>{exporting ? "Exporting…" : "Export JSON"}</span>
                       {exportGate.nudge && !exportGate.loading && (
-                        <span className="ms-0.5 rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-300">Pro</span>
+                        <span className="ms-0.5 rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-300">Plus</span>
                       )}
                     </button>
                   ) : (
@@ -682,7 +682,7 @@ export default function HistoryPage() {
                     >
                       <Download className="h-3 w-3" aria-hidden="true" />
                       <span>Export JSON</span>
-                      <span className="ms-0.5 rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-300">Pro</span>
+                      <span className="ms-0.5 rounded-full bg-indigo-500/25 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-300">Plus</span>
                     </Link>
                   )}
 

@@ -13,9 +13,8 @@ The plans below describe what each tier includes once regular pricing applies �
 | Plan | Price | What you get |
 |---|---|---|
 | **Free** | ₹0 | Full chat with 20 cloud replies/day (unlimited on-device replies), mood check-ins, 7-day history, cloud sync, breathing exercises, all 22 languages |
-| **Plus** | ₹99/month (₹699/year) | Everything in Free, plus unlimited cloud replies, 90-day history, voice speed & pitch controls, data export, richer search |
-| **Pro** | ₹149/month (₹1,299/year) | Everything in Plus, plus unlimited history, emotion trends & mood graphs, Companion Letters, Growth Arc tracking, unlimited Connect history |
-| **Family** | Contact us | Pro-level features for up to 6 profiles, child-safe mode, parental controls |
+| **Imotara Plus** | ₹149/month (₹1,299/year) | Everything in Free, plus unlimited cloud replies, unlimited history, voice speed & pitch controls, data export, richer search, emotion trends & mood graphs, Companion Letters, Growth Arc tracking, unlimited Connect history |
+| **Family** | Contact us | Everything in Imotara Plus for up to 6 profiles, child-safe mode, parental controls |
 | **EDU** | Per-seat, for institutions | For schools and universities — admin dashboard, classrooms/cohorts, aggregate wellbeing analytics |
 | **Enterprise** | Per-seat, for organizations | For companies, NGOs, and government — admin dashboard, teams, branding, and more |
 
@@ -24,7 +23,7 @@ Family, EDU, and Enterprise are set up as organization accounts rather than self
 ## Buying a plan on the web (Razorpay)
 
 1. Go to **imotara.com/upgrade** (or **Settings → Your plan → View plans & upgrade →**).
-2. Pick **Plus** or **Pro** and press **Subscribe**.
+2. Pick **Imotara Plus** and press **Subscribe**.
 3. Complete payment in the **Razorpay** checkout window (cards, UPI, and more).
 4. Your plan activates right after the payment verifies. It can take a few seconds — if it doesn't show immediately, press **Refresh** on the **Your plan** card.
 

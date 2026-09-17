@@ -60,7 +60,7 @@ On mobile, Imotara keeps working with no internet: an on-device reply engine ans
 
 ## Export your data
 
-1. **On web:** **Settings → Export data → Download JSON** downloads your local chat history. A fuller export lives on the **History** page via **Export JSON** (the complete emotion history export is a **Pro** feature).
+1. **On web:** **Settings → Export data → Download JSON** downloads your local chat history. A fuller export lives on the **History** page via **Export JSON** (the complete emotion history export comes with **Imotara Plus**).
 2. **On mobile:** **Settings → Privacy & safety** offers **Export JSON**, **Export CSV**, and **Export Journal** — each opens your phone's share sheet.
 3. A complete, machine-readable copy of all data held about your account is available to everyone on request — if you can't get what you need in-app, email **info@imotara.com**.
 

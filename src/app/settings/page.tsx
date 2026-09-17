@@ -4519,7 +4519,7 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-2 mb-1">
                             <p className="text-xs font-medium text-zinc-400">Emotional arc — every</p>
                             {growthArcGate.nudge && (
-                                <Link href="/upgrade" className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/25 transition">Pro+</Link>
+                                <Link href="/upgrade" className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/25 transition">Plus</Link>
                             )}
                         </div>
                         <p className="mb-2 text-[11px] text-zinc-500">How many days between narrative summaries of your emotional journey</p>
@@ -4556,7 +4556,7 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-2 mb-1">
                             <p className="text-xs font-medium text-zinc-400">Companion letter — every</p>
                             {companionLetterGate.nudge && (
-                                <Link href="/upgrade" className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/25 transition">Pro+</Link>
+                                <Link href="/upgrade" className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-500/25 transition">Plus</Link>
                             )}
                         </div>
                         <p className="mb-2 text-[11px] text-zinc-500">How many days between personal letters from your companion</p>

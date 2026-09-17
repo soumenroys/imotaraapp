@@ -451,7 +451,7 @@ function SuperAdminSection() {
 
       <H3>Manually changing a user&apos;s plan or tokens</H3>
       <Step n={1} title="Expand a user row and use the tier dropdown or token top-up form">
-        <p>Change the tier directly (e.g. Free → Pro for a comp account), or add tokens via the token top-up input. Changes take effect immediately and are logged in Action History.</p>
+        <p>Change the tier directly (e.g. Free → Imotara Plus for a comp account), or add tokens via the token top-up input. Changes take effect immediately and are logged in Action History.</p>
       </Step>
 
       <Tip>For banning a user, see <strong>Part 7 — User Bans</strong> below — it uses the same 🔑 Licenses → User Licenses flow.</Tip>
@@ -576,7 +576,7 @@ function SuperAdminSection() {
               {[
                 ["ceo@acmewellness.in","owner","Enterprise (org default)"],
                 ["hr@acmewellness.in","admin","Enterprise (org default)"],
-                ["riya@acmewellness.in","member","Pro (manual override)"],
+                ["riya@acmewellness.in","member","Imotara Plus (manual override)"],
                 ["dev@acmewellness.in","member","Enterprise (org default)"],
               ].map(([email,role,tier]) => (
                 <div key={email} className="grid grid-cols-4 gap-3 border-t border-white/5 px-3 py-2.5 items-center">
@@ -630,7 +630,7 @@ function SuperAdminSection() {
               </div>
               <div>
                 <div className="text-[9px] text-zinc-500 mb-0.5">Pool label</div>
-                <div className="rounded border border-white/10 bg-black/20 px-2 py-1.5 text-[10px] text-zinc-300">Annual Pro Batch — 2026</div>
+                <div className="rounded border border-white/10 bg-black/20 px-2 py-1.5 text-[10px] text-zinc-300">Annual Plus Batch — 2026</div>
               </div>
               <div className="rounded-lg bg-amber-500/80 py-1.5 text-center text-[10px] font-semibold text-white">Issue pool</div>
             </div>
@@ -638,7 +638,7 @@ function SuperAdminSection() {
             <div className="space-y-2">
               <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-600">Active pools</p>
               {[
-                ["Annual Pro Batch — 2026","pro",20,50],
+                ["Annual Plus Batch — 2026","pro",20,50],
                 ["EDU Plus Pack","plus",0,30],
               ].map(([label,tier,assigned,total]) => (
                 <div key={label as string} className="rounded-xl border border-white/8 bg-white/3 p-3">
@@ -991,13 +991,13 @@ function OrgAdminSection() {
               </div>
               {[
                 ["ceo@acmewellness.in","Enterprise","org default","●●●●●●●●●●"],
-                ["hr@acmewellness.in","Pro","manual override","●●●●●○○○○○"],
+                ["hr@acmewellness.in","Imotara Plus","manual override","●●●●●○○○○○"],
                 ["riya@acmewellness.in","Enterprise","pool assignment","●●●○○○○○○○"],
                 ["dev@acmewellness.in","Free","no org license","○○○○○○○○○○"],
               ].map(([email,tier,source,dots]) => (
                 <div key={email} className="grid grid-cols-5 gap-2 border-t border-white/5 px-3 py-2.5 items-center">
                   <span className="col-span-2 text-zinc-300 font-mono text-[9px] truncate">{email}</span>
-                  <Tag color={tier === "Enterprise" ? "amber" : tier === "Pro" ? "indigo" : tier === "Free" ? "zinc" : "sky"}>{tier}</Tag>
+                  <Tag color={tier === "Enterprise" ? "amber" : tier === "Imotara Plus" ? "indigo" : tier === "Free" ? "zinc" : "sky"}>{tier}</Tag>
                   <span className="text-zinc-600 text-[9px]">{source}</span>
                   <div className="flex items-center gap-1">
                     <span className="font-mono text-[8px] text-zinc-500 tracking-tighter">{dots}</span>
@@ -1043,7 +1043,7 @@ function OrgAdminSection() {
               ))}
             </div>
             {/* Pool cards */}
-            {[["Annual Pro Batch — 2026","pro",20,50],["EDU Plus Pack","plus",0,30]].map(([label,tier,assigned,total]) => (
+            {[["Annual Plus Batch — 2026","pro",20,50],["EDU Plus Pack","plus",0,30]].map(([label,tier,assigned,total]) => (
               <div key={label as string} className="rounded-xl border border-white/8 bg-white/3 p-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -1069,8 +1069,8 @@ function OrgAdminSection() {
                 <span>Member</span><span>Pool</span><span>Assigned</span><span>Actions</span>
               </div>
               {[
-                ["riya@acmewellness.in","Annual Pro Batch — 2026","2 Feb 2026"],
-                ["dev@acmewellness.in","Annual Pro Batch — 2026","5 Feb 2026"],
+                ["riya@acmewellness.in","Annual Plus Batch — 2026","2 Feb 2026"],
+                ["dev@acmewellness.in","Annual Plus Batch — 2026","5 Feb 2026"],
               ].map(([email,pool,date]) => (
                 <div key={email} className="grid grid-cols-4 gap-2 border-t border-white/5 px-3 py-2.5 items-center">
                   <span className="text-zinc-300 font-mono truncate">{email}</span>
@@ -1204,7 +1204,7 @@ function FaqSection() {
     },
     {
       q: "Can an org member have a higher tier than the org? (e.g. org is Enterprise but member bought personal Pro)",
-      a: "Yes. The priority chain means personal Pro would only apply if it's higher than Enterprise — which it's not. Enterprise wins. The member keeps Enterprise. When they leave the org, they fall back to their personal Pro license. The system always gives the user the highest tier they're entitled to.",
+      a: "Yes. The priority chain means a personal Imotara Plus licence would only apply if it's higher than Enterprise — which it's not. Enterprise wins. The member keeps Enterprise. When they leave the org, they fall back to their personal Pro license. The system always gives the user the highest tier they're entitled to.",
     },
     {
       q: "What's the difference between the Licenses tab and the Pool tab in the org dashboard?",

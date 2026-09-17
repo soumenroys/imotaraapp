@@ -1866,12 +1866,12 @@ export default function GrowPage() {
       {/* Quick emotion check-in */}
       <WebFeelSection onCheckin={handleCheckin} />
 
-      {/* Emotion analytics — gated on Pro (TRENDS_INSIGHTS) */}
+      {/* Emotion analytics — gated on Imotara Plus (TRENDS_INSIGHTS) */}
       {insightsGate.nudge && !insightsGate.loading && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-indigo-400/20 bg-indigo-500/8 px-3 py-2.5">
           <p className="text-[11px] text-indigo-200/80">
             Emotion insights (radar + heatmap) are a{" "}
-            <span className="font-semibold text-indigo-300">Pro</span> feature.{" "}
+            <span className="font-semibold text-indigo-300">Imotara Plus</span> feature.{" "}
             You&apos;re seeing a preview — upgrade to keep full access.
           </p>
           <Link

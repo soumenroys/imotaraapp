@@ -84,8 +84,13 @@ export function byTier<T>(map: Record<LicenseTier, T>, tier: unknown, fallback: 
  */
 export const TIER_LABELS: Record<LicenseTier, string> = {
     free:       "Free",
+    // 🔗 `plus` and `pro` both read "Plus" — they ARE the same plan since L10.
+    // A grandfathered subscriber on the legacy `plus` id and someone who bought
+    // today on `pro` are both on Imotara Plus; showing either of them "Pro"
+    // would name a plan that no longer exists. In-app the brand prefix is
+    // redundant, so the label is "Plus"; prose and marketing say "Imotara Plus".
     plus:       "Plus",
-    pro:        "Pro",
+    pro:        "Plus",
     family:     "Family",
     edu:        "Education",
     enterprise: "Enterprise",

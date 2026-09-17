@@ -16,7 +16,7 @@ export type ServerGateResult =
 
 // History retention days per tier (must mirror featureGates.ts HISTORY_DAYS)
 export const HISTORY_RETENTION_DAYS: Record<string, number> = {
-  free: 7, plus: 90, pro: Infinity, family: Infinity, edu: Infinity, enterprise: Infinity,
+  free: 7, plus: Infinity, pro: Infinity, family: Infinity, edu: Infinity, enterprise: Infinity,
 };
 
 /**

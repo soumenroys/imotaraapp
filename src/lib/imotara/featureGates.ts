@@ -28,12 +28,40 @@ export type FeatureGateResult =
 // History days per tier — matches upgrade page copy
 const HISTORY_DAYS: Record<LicenseTier, number> = {
     free:       7,
-    plus:       90,
+    plus:       Infinity,  // was 90 — merged into the paid tier (L10)
     pro:        Infinity,
     family:     Infinity,
     edu:        Infinity,
     enterprise: Infinity,
 };
+
+/**
+ * 🔗 THE MERGED PAID CONSUMER TIER (L10).
+ *
+ * Plus and Pro are one tier now. Publicly it is **"Imotara Plus"**; internally
+ * the id stays `pro` and the SKUs stay `pro_*`, so the grandfather backfill and
+ * all existing licence rows remain valid and no store price-change consent flow
+ * is triggered.
+ *
+ * `plus` survives only as the LEGACY id — the one remaining ₹99 subscriber and
+ * anyone else grandfathered onto it. They keep their old price and get the same
+ * features as everyone else on the merged tier, which is what "merged" means.
+ *
+ * ⚠️ Both tiers read from this one array rather than listing their own keys.
+ * Two lists that happen to agree is exactly the drift that made Family licences
+ * unissuable (see TIER_ORDER); tierMergeIsComplete.test.ts pins the equality.
+ */
+const MERGED_PAID_FEATURES: readonly FeatureKey[] = [
+    "CLOUD_SYNC",
+    "HISTORY_UNLIMITED",
+    "TRENDS_INSIGHTS",
+    "EXPORT_DATA",
+    "TTS_ADVANCED",
+    "SEARCH_MODE",
+    "REPLY_CADENCE",
+    "COMPANION_LETTER", // Monthly AI-written letter
+    "GROWTH_ARC",       // Long-term emotional growth arc narrative
+];
 
 // Per-tier feature sets — only list what each tier unlocks
 const TIER_FEATURES: Record<LicenseTier, Set<FeatureKey>> = {
@@ -41,26 +69,10 @@ const TIER_FEATURES: Record<LicenseTier, Set<FeatureKey>> = {
         "CLOUD_SYNC",
         // Server enforces 20 replies/day quota. History capped at 7 days.
     ]),
-    plus: new Set<FeatureKey>([
-        "CLOUD_SYNC",
-        "EXPORT_DATA",
-        "TTS_ADVANCED",  // Azure Neural TTS, voice selection, rate/pitch control
-        "SEARCH_MODE",   // Exact / semantic history search toggle
-        "REPLY_CADENCE", // Arc & companion-letter cadence pickers
-        // 90-day history; HISTORY_UNLIMITED intentionally absent.
-        // TRENDS_INSIGHTS / COMPANION_LETTER / GROWTH_ARC available on Pro and above.
-    ]),
-    pro: new Set<FeatureKey>([
-        "CLOUD_SYNC",
-        "HISTORY_UNLIMITED",
-        "TRENDS_INSIGHTS",
-        "EXPORT_DATA",
-        "TTS_ADVANCED",
-        "SEARCH_MODE",
-        "REPLY_CADENCE",
-        "COMPANION_LETTER", // Monthly AI-written letter
-        "GROWTH_ARC",       // Long-term emotional growth arc narrative
-    ]),
+    // Legacy id for grandfathered subscribers — same features, older price.
+    plus: new Set<FeatureKey>(MERGED_PAID_FEATURES),
+    // The merged tier. Sold as "Imotara Plus".
+    pro: new Set<FeatureKey>(MERGED_PAID_FEATURES),
     family: new Set<FeatureKey>([
         "CLOUD_SYNC",
         "HISTORY_UNLIMITED",

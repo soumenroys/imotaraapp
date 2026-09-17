@@ -3072,8 +3072,11 @@ export default function SettingsPage() {
                                 "Data export (JSON)",
                                 "Account backup",
                             ] : tier === "plus" ? [
+                                // Legacy Plus subscribers get the merged tier's
+                                // features at their old price (L10) — history is
+                                // unlimited for them now, not 90 days.
                                 "Unlimited replies",
-                                "90-day cloud history",
+                                "Unlimited cloud history",
                                 "Account backup",
                                 "Companion mode",
                             ] : tier === "family" ? [
@@ -3098,7 +3101,7 @@ export default function SettingsPage() {
                     {tier === "free" && (
                         <div className="mt-4">
                             <p className="mb-2 text-xs text-zinc-400">
-                                Remove the daily reply limit, extend history to 90 days or unlimited, and unlock insights.
+                                Remove the daily reply limit, unlock unlimited history, and see your insights.
                             </p>
                             <Link
                                 href="/upgrade"

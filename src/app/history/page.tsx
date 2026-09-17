@@ -712,7 +712,11 @@ export default function HistoryPage() {
                     <Clock className="me-1 inline h-3 w-3" aria-hidden="true" />
                     Your plan shows the last{" "}
                     <strong>{historyDays} days</strong> of history.{" "}
-                    {historyDays === 7 ? "Upgrade to Plus for 90 days or Pro for unlimited." : "Upgrade to Pro for unlimited history."}
+                    {/* After the Plus/Pro merge (L10) only Free has a finite
+                        limit, so this notice reaches free users only and the
+                        old "Plus for 90 days or Pro for unlimited" split no
+                        longer describes anything that exists. */}
+                    Upgrade to Plus for unlimited history.
                   </p>
                   <Link
                     href="/upgrade"

@@ -33,8 +33,7 @@ interface MemberLicense {
 
 const TIER_COLORS: Record<LicenseTier, string> = {
   free:       "text-zinc-400 bg-zinc-500/10",
-  plus:       "text-sky-300 bg-sky-500/15",
-  pro:        "text-indigo-300 bg-indigo-500/15",
+  plus:       "text-indigo-300 bg-indigo-500/15",
   family:     "text-violet-300 bg-violet-500/15",
   edu:        "text-teal-300 bg-teal-500/15",
   enterprise: "text-orange-300 bg-orange-500/15",

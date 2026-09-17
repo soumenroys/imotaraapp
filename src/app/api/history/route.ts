@@ -5,7 +5,7 @@ import type { EmotionRecord } from "@/types/history";
 import { getLicenseMode } from "@/lib/imotara/license";
 import { resolveUserTier } from "@/lib/imotara/org";
 import { historyRetentionCutoff } from "@/lib/imotara/serverGate";
-import type { LicenseTier } from "@/types/license";
+import { normaliseTier, LicenseTier } from "@/types/license";
 import {
   getAllRecords,
   getRecordsSince,
@@ -278,7 +278,7 @@ export async function GET(request: Request) {
     try {
       // scope is the user ID for authenticated users — use it to resolve tier
       const tierResult = await resolveUserTier(scope);
-      const tier = (tierResult.ok ? tierResult.data.effectiveTier : "free") as LicenseTier;
+      const tier = normaliseTier(tierResult.ok ? tierResult.data.effectiveTier : "free");
       const cutoff = historyRetentionCutoff(tier);
       if (cutoff !== null) {
         const cutoffMs = cutoff.getTime();

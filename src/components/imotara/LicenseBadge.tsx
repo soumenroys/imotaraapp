@@ -24,13 +24,11 @@ export default function LicenseBadge({ showMode = false }: LicenseBadgeProps) {
             ? "bg-orange-500/20 text-orange-200 ring-orange-400/50"
             : license.tier === "edu"
                 ? "bg-teal-500/20 text-teal-200 ring-teal-400/50"
-                : license.tier === "pro"
+                : license.tier === "plus"
                     ? "bg-indigo-500/20 text-indigo-200 ring-indigo-400/50"
-                    : license.tier === "plus"
-                        ? "bg-emerald-500/15 text-emerald-200 ring-emerald-400/40"
-                        : license.tier === "family"
-                            ? "bg-violet-500/15 text-violet-200 ring-violet-400/40"
-                            : "bg-slate-800/80 text-slate-300 ring-slate-600/60";
+                    : license.tier === "family"
+                        ? "bg-violet-500/15 text-violet-200 ring-violet-400/40"
+                        : "bg-slate-800/80 text-slate-300 ring-slate-600/60";
 
     return (
         <div

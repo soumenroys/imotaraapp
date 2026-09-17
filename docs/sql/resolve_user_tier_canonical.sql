@@ -34,6 +34,31 @@
 -- should also fall through is a separate question, and needs a look at live
 -- data before anyone answers it.
 
+-- ── tier_rank: `pro` must rank WITH `plus`, not above it ─────────────────────
+-- Plus and Pro merged (L10) and `plus` is the canonical id (2026-09-17). The
+-- rank function still knew 'pro' as a separate, HIGHER tier, so a stray 'pro'
+-- would out-rank a real 'plus' in resolve_user_tier's priority chain. No rows
+-- carry 'pro' today — the rename was a zero-row migration — but an in-flight
+-- webhook could still write one, and this makes that harmless.
+
+create or replace function tier_rank(t text)
+returns integer
+language sql
+immutable
+parallel safe
+as $$
+  select case t
+    when 'free'       then 0
+    when 'plus'       then 1
+    when 'pro'        then 1   -- legacy alias for 'plus'
+    when 'premium'    then 1   -- the mobile spelling, same tier
+    when 'family'     then 3
+    when 'edu'        then 4
+    when 'enterprise' then 5
+    else 0
+  end;
+$$;
+
 create or replace function resolve_user_tier(p_user_id uuid)
 returns table (
   effective_tier    text,

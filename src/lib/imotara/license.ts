@@ -38,7 +38,7 @@ function normalizeMode(mode: string): LicenseMode {
 // ── Launch offer ─────────────────────────────────────────────────────────────
 //
 // Set NEXT_PUBLIC_IMOTARA_LAUNCH_DATE to the ISO date of public launch
-// (e.g. "2026-03-14"). All users will receive a "pro" trial for
+// (e.g. "2026-03-14"). All users will receive a "plus" trial for
 // NEXT_PUBLIC_IMOTARA_FREE_DAYS days (default: 90) from that date.
 //
 // After the period expires the app falls back to the normal tier logic.
@@ -66,19 +66,19 @@ export function isWithinLaunchOffer(): boolean {
  * Returns the current license status for the requesting context.
  *
  * Priority:
- *  1. Launch offer active → "pro" trial (everyone gets full access)
+ *  1. Launch offer active → "plus" trial (everyone gets full access)
  *  2. QA override via NEXT_PUBLIC_IMOTARA_LICENSE_TIER env var
  *  3. Default → "free"
  */
 export function getCurrentLicenseStatus(): LicenseStatus {
     const mode = getLicenseMode();
 
-    // 1) Launch offer — all users get "pro" for the trial period
+    // 1) Launch offer — all users get "plus" for the trial period
     if (isWithinLaunchOffer()) {
         const endsAt = getLaunchOfferEndsAt();
         return {
             status: "trial",
-            tier: "pro",
+            tier: "plus",
             mode,
             source: "internal",
             expiresAt: endsAt?.toISOString() ?? null,
@@ -102,7 +102,7 @@ export function getCurrentLicenseStatus(): LicenseStatus {
 function normalizeTier(t: string): LicenseTier {
     const v = String(t || "").toLowerCase();
     if (v === "plus") return "plus";
-    if (v === "pro") return "pro";
+    if (v === "pro" || v === "premium") return "plus";  // legacy ids → canonical
     if (v === "family") return "family";
     if (v === "edu") return "edu";
     if (v === "enterprise") return "enterprise";

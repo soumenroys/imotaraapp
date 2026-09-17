@@ -2,7 +2,7 @@
 // Web feature gate system — mirrors mobile src/licensing/featureGates.ts
 // Uses web tier names (lowercase) from src/types/license.ts
 
-import type { LicenseTier } from "@/types/license";
+import { normaliseTier, type LicenseTier } from "@/types/license";
 
 export type FeatureKey =
     | "CLOUD_SYNC"
@@ -29,7 +29,6 @@ export type FeatureGateResult =
 const HISTORY_DAYS: Record<LicenseTier, number> = {
     free:       7,
     plus:       Infinity,  // was 90 — merged into the paid tier (L10)
-    pro:        Infinity,
     family:     Infinity,
     edu:        Infinity,
     enterprise: Infinity,
@@ -69,10 +68,9 @@ const TIER_FEATURES: Record<LicenseTier, Set<FeatureKey>> = {
         "CLOUD_SYNC",
         // Server enforces 20 replies/day quota. History capped at 7 days.
     ]),
-    // Legacy id for grandfathered subscribers — same features, older price.
+    // The one paid consumer tier. Sold as "Imotara Plus". Subscribers on the
+    // retired plus_* SKUs are on this same tier at their old price.
     plus: new Set<FeatureKey>(MERGED_PAID_FEATURES),
-    // The merged tier. Sold as "Imotara Plus".
-    pro: new Set<FeatureKey>(MERGED_PAID_FEATURES),
     family: new Set<FeatureKey>([
         "CLOUD_SYNC",
         "HISTORY_UNLIMITED",
@@ -120,9 +118,13 @@ const TIER_FEATURES: Record<LicenseTier, Set<FeatureKey>> = {
  */
 export function gate(
     feature: FeatureKey,
-    tier: LicenseTier | undefined | null,
+    tier: LicenseTier | string | undefined | null,
 ): FeatureGateResult {
-    const t: LicenseTier = tier ?? "free";
+    // 🔴 normaliseTier, not `tier ?? "free"`. Tier values arrive here from the
+    // database and from API responses as plain strings, and a legacy `pro` or
+    // the mobile spelling `premium` would fall through `TIER_FEATURES[t]` into
+    // `?? false` — silently granting NOTHING to a paying subscriber.
+    const t: LicenseTier = normaliseTier(tier);
 
     // Parameterized gate: history day limit
     if (feature === "HISTORY_DAYS_LIMIT") {

@@ -36,11 +36,14 @@ const SUBSCRIPTION_PLANS = [
         accent: "zinc",
     },
     {
-        // 🔗 The one paid consumer plan (L10). Publicly "Imotara Plus"; the
-        // SKUs stay pro_* because plus_monthly/plus_annual are retired — the
-        // one remaining ₹99 subscriber keeps billing on theirs until they
-        // cancel, but nobody new can buy it.
-        id: "pro",
+        // 🔗 The one paid consumer plan. `id` must equal the TIER id, because
+        // `isCurrent` compares it against the user's resolved tier — with
+        // id:"pro" against tier "plus", a paying subscriber was shown a
+        // Subscribe button for the plan they already had.
+        //
+        // The SKUs still say pro_* because store product IDs are immutable and
+        // plus_monthly/plus_annual are retired for new purchases.
+        id: "plus",
         name: "Imotara Plus",
         monthlyId: "pro_monthly",
         annualId:  "pro_annual",
@@ -346,9 +349,8 @@ export default function UpgradePage() {
                     const paise      = annual ? plan.annualPaise : plan.monthlyPaise;
                     const isBusy     = !!productId && busy === productId;
                     // One paid plan now, so "the highlighted card" and "the
-                    // paid card" are the same thing. isPlus is gone with the
-                    // second tier.
-                    const isPaid     = plan.id === "pro";
+                    // paid card" are the same thing.
+                    const isPaid     = plan.id === "plus";
 
                     return (
                         <div

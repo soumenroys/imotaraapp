@@ -5,6 +5,7 @@ import { getCurrentLicenseStatus } from "@/lib/imotara/license";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { resolveUserTier } from "@/lib/imotara/org";
+import { normaliseTier } from "@/types/license";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -72,7 +73,11 @@ export async function GET(req: Request) {
             const t = tierResult.data;
             // Enforce expiry client-side as an extra safety check
             const isExpired = t.expiresAt != null && new Date(t.expiresAt).getTime() < Date.now();
-            effectiveTier   = isExpired ? "free" : (t.effectiveTier as import("@/types/license").LicenseTier);
+            // normaliseTier so a legacy `pro` row (or the mobile spelling)
+            // reaches every client as the canonical `plus`. This endpoint is
+            // what BOTH the web app and the mobile app read and cache, so it is
+            // the single place that decides what a user sees their plan called.
+            effectiveTier   = isExpired ? "free" : normaliseTier(t.effectiveTier);
             effectiveStatus = isExpired ? "expired" : t.status;
             effectiveExpiry = isExpired ? null : (t.expiresAt ?? null);
             effectiveTokens = t.tokenBalance;

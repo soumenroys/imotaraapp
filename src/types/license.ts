@@ -16,8 +16,15 @@
  *
  * Derive from this. Never re-type the list; `tierListsDeriveFromOrder.test.ts`
  * fails the build if you do.
+ *
+ * 🔗 `pro` IS NOT HERE ANY MORE. Plus and Pro merged (L10) and `plus` is the
+ * canonical id for the one paid consumer tier, matching the name users see.
+ * `pro` and the mobile spelling `premium` are accepted as LEGACY ALIASES that
+ * normalise to `plus` — see TIER_ALIASES. Nothing is stored as `pro`: the
+ * database had zero `pro` rows when this was done, which is why it could be
+ * done at all.
  */
-export const TIER_ORDER = ["free", "plus", "pro", "family", "edu", "enterprise"] as const;
+export const TIER_ORDER = ["free", "plus", "family", "edu", "enterprise"] as const;
 
 export type LicenseTier = (typeof TIER_ORDER)[number];
 
@@ -84,13 +91,9 @@ export function byTier<T>(map: Record<LicenseTier, T>, tier: unknown, fallback: 
  */
 export const TIER_LABELS: Record<LicenseTier, string> = {
     free:       "Free",
-    // 🔗 `plus` and `pro` both read "Plus" — they ARE the same plan since L10.
-    // A grandfathered subscriber on the legacy `plus` id and someone who bought
-    // today on `pro` are both on Imotara Plus; showing either of them "Pro"
-    // would name a plan that no longer exists. In-app the brand prefix is
-    // redundant, so the label is "Plus"; prose and marketing say "Imotara Plus".
+    // The one paid consumer tier. In-app the brand prefix is redundant, so the
+    // label is "Plus"; prose and marketing say "Imotara Plus".
     plus:       "Plus",
-    pro:        "Plus",
     family:     "Family",
     edu:        "Education",
     enterprise: "Enterprise",
@@ -100,7 +103,15 @@ export const TIER_LABELS: Record<LicenseTier, string> = {
  * Mobile spellings that reach the web as tier strings. The settings page
  * already tolerated these; keeping them here preserves that exactly.
  */
-const TIER_ALIASES: Record<string, LicenseTier> = { premium: "pro", education: "edu" };
+const TIER_ALIASES: Record<string, LicenseTier> = {
+    // 🔗 Legacy ids that must keep resolving. `pro` was the internal id for the
+    // paid tier before it was renamed to match its public name; `premium` is
+    // what the mobile app calls the same thing and what sits in AsyncStorage on
+    // installed devices. Both mean "plus" and must never fall through to free.
+    pro:       "plus",
+    premium:   "plus",
+    education: "edu",
+};
 
 /**
  * Display label for a tier. Unknown or missing values read "Free".

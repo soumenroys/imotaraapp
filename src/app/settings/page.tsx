@@ -3033,8 +3033,7 @@ export default function SettingsPage() {
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                                 <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${
-                                    tier === "pro"       ? "bg-indigo-500/25 text-indigo-300 border border-indigo-400/30" :
-                                    tier === "plus"      ? "bg-sky-500/25 text-sky-300 border border-sky-400/30" :
+                                    tier === "plus"      ? "bg-indigo-500/25 text-indigo-300 border border-indigo-400/30" :
                                     tier === "family"    ? "bg-emerald-500/25 text-emerald-300 border border-emerald-400/30" :
                                     "bg-zinc-500/25 text-zinc-300 border border-zinc-400/20"
                                 }`}>
@@ -3065,20 +3064,15 @@ export default function SettingsPage() {
 
                         {/* Feature bullets for current tier */}
                         <ul className="mt-3 space-y-1">
-                            {(tier === "pro" ? [
+                            {(tier === "plus" ? [
+                                // One paid tier. Grandfathered subscribers on the
+                                // old price see this same list — same plan (L10).
                                 "Unlimited replies",
                                 "Unlimited history",
                                 "Emotion insights (radar & heatmap)",
+                                "Companion letters & growth arc",
                                 "Data export (JSON)",
                                 "Account backup",
-                            ] : tier === "plus" ? [
-                                // Legacy Plus subscribers get the merged tier's
-                                // features at their old price (L10) — history is
-                                // unlimited for them now, not 90 days.
-                                "Unlimited replies",
-                                "Unlimited cloud history",
-                                "Account backup",
-                                "Companion mode",
                             ] : tier === "family" ? [
                                 "Unlimited history",
                                 "Account backup",
@@ -3111,18 +3105,7 @@ export default function SettingsPage() {
                             </Link>
                         </div>
                     )}
-                    {tier === "plus" && (
-                        <div className="mt-4 flex flex-wrap items-center gap-3">
-                            <Link
-                                href="/upgrade"
-                                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-4 py-2 text-sm font-semibold text-indigo-200 transition hover:bg-indigo-500/25"
-                            >
-                                Upgrade to Plus →
-                            </Link>
-                            <span className="text-[11px] text-zinc-500">Adds unlimited history + insights</span>
-                        </div>
-                    )}
-                    {(tier === "pro" || tier === "family") && (
+                    {(tier === "plus" || tier === "family") && (
                         <p className="mt-3 text-xs text-zinc-500">
                             Need to manage your subscription?{" "}
                             <Link href="/upgrade" className="text-zinc-300 underline underline-offset-2 hover:text-zinc-100 transition">

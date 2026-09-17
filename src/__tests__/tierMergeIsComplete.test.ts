@@ -16,8 +16,11 @@
  * and its tierMergeIsComplete.test.ts pins the same nine keys. Change both.
  */
 import { describe, it, expect } from "vitest";
+import fs from "fs";
+import path from "path";
 import { gate, type FeatureKey } from "@/lib/imotara/featureGates";
-import { TIER_ORDER } from "@/types/license";
+import { TIER_ORDER, normaliseTier, prettyTier } from "@/types/license";
+import { PRODUCT_CATALOG } from "@/lib/imotara/pricing";
 
 /** The merged paid tier's features. Duplicated in the mobile test on purpose. */
 const MERGED = [
@@ -33,10 +36,16 @@ const ALL_KEYS: FeatureKey[] = [
 ];
 
 describe("the Plus/Pro merge", () => {
-    it("🔴 plus and pro grant exactly the same features", () => {
-        const onPlus = ALL_KEYS.filter((k) => gate(k, "plus").enabled);
-        const onPro  = ALL_KEYS.filter((k) => gate(k, "pro").enabled);
-        expect(onPlus).toEqual(onPro);
+    it("🔴 the legacy ids grant exactly what `plus` grants", () => {
+        // `pro` and `premium` are no longer tiers — they are aliases. A stale
+        // value from the database, an in-flight webhook or a phone's cache must
+        // land on the paid tier, never fall through to free.
+        const on = (t: string) => ALL_KEYS.filter((k) => gate(k, t).enabled);
+        expect(on("pro")).toEqual(on("plus"));
+        expect(on("premium")).toEqual(on("plus"));
+        expect(on("PRO")).toEqual(on("plus"));
+        // …and that is not vacuously true because everything is free:
+        expect(on("plus").length).toBeGreaterThan(on("free").length);
     });
 
     it("🔴 the four keys Pro used to hold alone are on plus now", () => {
@@ -46,23 +55,24 @@ describe("the Plus/Pro merge", () => {
     });
 
     it("the merged tier grants every key it should, and no more", () => {
-        for (const k of MERGED) expect(gate(k, "pro").enabled, `${k} missing`).toBe(true);
+        for (const k of MERGED) expect(gate(k, "plus").enabled, `${k} missing`).toBe(true);
         // Institutional keys stay out of the consumer tier.
         for (const k of ["MULTI_PROFILE", "CHILD_SAFE_MODE", "ADMIN_DASHBOARD"] as const) {
-            expect(gate(k, "pro").enabled, `${k} leaked into the consumer tier`).toBe(false);
+            expect(gate(k, "plus").enabled, `${k} leaked into the consumer tier`).toBe(false);
         }
     });
 
     it("🔴 history is unlimited on plus, and still capped on free", () => {
         // history/page.tsx reads these params on the `off` path too, so this is
         // live behaviour today — not something waiting on enforce mode.
-        const days = (t: "free" | "plus" | "pro") => {
+        const days = (t: string) => {
             const r = gate("HISTORY_DAYS_LIMIT", t);
             return r.enabled ? (r.params?.days as number) : -1;
         };
         expect(days("free")).toBe(7);
         expect(days("plus")).toBe(Infinity);
-        expect(days("pro")).toBe(Infinity);
+        expect(days("pro")).toBe(Infinity);   // legacy alias
+        expect(days("premium")).toBe(Infinity);
     });
 
     it("free is untouched by the merge", () => {
@@ -71,16 +81,42 @@ describe("the Plus/Pro merge", () => {
         expect(onFree.sort()).toEqual(["CLOUD_SYNC", "HISTORY_DAYS_LIMIT"]);
     });
 
-    it("🔴 L11 — `plus` must NOT be deleted, merged though it is", () => {
-        // The temptation after a merge is to delete the redundant tier. Do not.
-        //   · the licences table has rows carrying tier='plus'
-        //   · one subscriber is live on plus_monthly at ₹99, grandfathered
-        //   · the mobile app has "PLUS" written into AsyncStorage on devices
-        // Deleting it would resolve all of them to `free` — a paying customer
-        // silently losing everything they pay for.
-        expect([...TIER_ORDER]).toContain("plus");
-        expect(gate("HISTORY_UNLIMITED", "plus").enabled).toBe(true);
-        // And `pro` stays the internal id even though the public name is "Plus".
-        expect([...TIER_ORDER]).toContain("pro");
+    it("🔴 `plus` is the canonical id, and `pro` is no longer a tier", () => {
+        // The rename (2026-09-17) made the internal id match the public name.
+        // It was a ZERO-ROW migration: the database had no `pro` rows at all.
+        expect([...TIER_ORDER]).toEqual(["free", "plus", "family", "edu", "enterprise"]);
+        expect([...TIER_ORDER]).not.toContain("pro");
+        // But `pro` must still RESOLVE, forever — webhooks, caches and any row
+        // written before the rename.
+        expect(normaliseTier("pro")).toBe("plus");
+        expect(prettyTier("pro")).toBe("Plus");
+    });
+
+    it("🔴 every subscription SKU grants the paid tier", () => {
+        // The money path. pro_* is what is on sale; plus_* is retired but one
+        // Apple subscriber still bills on it and must keep their features.
+        for (const id of ["pro_monthly", "pro_annual", "plus_monthly", "plus_annual"] as const) {
+            const def = PRODUCT_CATALOG[id];
+            expect(def.type).toBe("subscription");
+            expect((def as { tier: string }).tier, `${id} grants the wrong tier`).toBe("plus");
+        }
+    });
+
+    it("🔴 every /upgrade plan card's id IS a real tier id", () => {
+        // The upgrade page decides "is this your current plan?" with
+        // `currentTier === plan.id`. After the rename the card still said
+        // id:"pro" while the resolved tier was "plus", so a paying subscriber
+        // saw no "Current plan" badge and was offered a Subscribe button for
+        // the plan they were already paying for. Nothing failed — the strings
+        // simply stopped matching.
+        const upgrade = fs.readFileSync(
+            path.join(__dirname, "..", "app", "upgrade", "page.tsx"), "utf8",
+        );
+        const block = upgrade.slice(0, upgrade.indexOf("const TOKEN_PACKS"));
+        const ids = Array.from(block.matchAll(/^\s{8}id:\s*"([a-z_]+)",/gm)).map((m) => m[1]);
+        expect(ids.length).toBeGreaterThan(0);
+        for (const id of ids) {
+            expect(TIER_ORDER as readonly string[], `plan card id "${id}" is not a tier`).toContain(id);
+        }
     });
 });

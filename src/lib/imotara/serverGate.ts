@@ -8,7 +8,7 @@ import { getLicenseMode } from "@/lib/imotara/license";
 import { gate, type FeatureKey } from "@/lib/imotara/featureGates";
 import { resolveUserTier } from "@/lib/imotara/org";
 import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
-import { TIER_RANK, isLicenseTier, type LicenseTier } from "@/types/license";
+import { TIER_RANK, isLicenseTier, normaliseTier, type LicenseTier } from "@/types/license";
 
 export type ServerGateResult =
   | { ok: true;  tier: LicenseTier; userId: string | null }
@@ -16,7 +16,7 @@ export type ServerGateResult =
 
 // History retention days per tier (must mirror featureGates.ts HISTORY_DAYS)
 export const HISTORY_RETENTION_DAYS: Record<string, number> = {
-  free: 7, plus: Infinity, pro: Infinity, family: Infinity, edu: Infinity, enterprise: Infinity,
+  free: 7, plus: Infinity, family: Infinity, edu: Infinity, enterprise: Infinity,
 };
 
 /**
@@ -47,7 +47,9 @@ export async function resolveRequestTier(req: NextRequest): Promise<{
   if (!userId) return { userId: null, tier: "free" };
 
   const tierResult = await resolveUserTier(userId);
-  const tier = (tierResult.ok ? tierResult.data.effectiveTier : "free") as LicenseTier;
+  // normaliseTier, not a cast: the RPC returns a plain string and a legacy
+  // `pro` cast to LicenseTier would type-check and then gate nothing.
+  const tier = normaliseTier(tierResult.ok ? tierResult.data.effectiveTier : "free");
   return { userId, tier };
 }
 

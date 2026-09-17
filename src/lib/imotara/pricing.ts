@@ -19,15 +19,23 @@
 // console without shipping a matching PLAN_DEFS and Android shows one price
 // while Play charges another.
 
-type SubscriptionDef = { type: "subscription"; tier: "plus" | "pro"; days: number; paise: number };
+// 🔗 Every subscription grants `plus` — the one paid consumer tier. The SKU ids
+// still say plus_/pro_ because store product IDs are immutable once a product
+// exists, and pro_* has (or will have) live subscribers. The id a customer
+// never sees is not worth risking their subscription over.
+type SubscriptionDef = { type: "subscription"; tier: "plus"; days: number; paise: number };
 type TokenPackDef    = { type: "token_pack"; tokens: number; paise: number };
 type ProductDef      = SubscriptionDef | TokenPackDef;
 
 export const PRODUCT_CATALOG = {
+    // 🔴 RETIRED for new purchases (L12) — deactivated in both consoles, never
+    // deleted: one Apple subscriber still bills on plus_monthly. They grant the
+    // same tier as the current SKUs, at their old price.
     plus_monthly:  { type: "subscription", tier: "plus", days: 31,   paise: 9_900   },
     plus_annual:   { type: "subscription", tier: "plus", days: 366,  paise: 69_900  },
-    pro_monthly:   { type: "subscription", tier: "pro",  days: 31,   paise: 14_900  },
-    pro_annual:    { type: "subscription", tier: "pro",  days: 366,  paise: 129_900 },
+    // The SKUs on sale. Display name in both stores: "Imotara Plus".
+    pro_monthly:   { type: "subscription", tier: "plus", days: 31,   paise: 14_900  },
+    pro_annual:    { type: "subscription", tier: "plus", days: 366,  paise: 129_900 },
     tokens_100:    { type: "token_pack",   tokens: 100,  paise: 4_900   },
     tokens_250:    { type: "token_pack",   tokens: 250,  paise: 9_900   },
     tokens_600:    { type: "token_pack",   tokens: 600,  paise: 19_900  },

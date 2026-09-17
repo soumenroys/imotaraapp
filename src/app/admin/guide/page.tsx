@@ -638,13 +638,13 @@ function SuperAdminSection() {
             <div className="space-y-2">
               <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-600">Active pools</p>
               {[
-                ["Annual Plus Batch — 2026","pro",20,50],
-                ["EDU Plus Pack","plus",0,30],
+                ["Annual Plus Batch — 2026","plus",20,50],
+                ["EDU Seat Pack","edu",0,30],
               ].map(([label,tier,assigned,total]) => (
                 <div key={label as string} className="rounded-xl border border-white/8 bg-white/3 p-3">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Tag color={tier === "pro" ? "indigo" : "sky"}>{tier as string}</Tag>
+                      <Tag color={tier === "plus" ? "indigo" : "sky"}>{tier as string}</Tag>
                       <span className="text-[10px] text-zinc-300">{label as string}</span>
                     </div>
                     <span className="text-[9px] text-zinc-500">{assigned as number}/{total as number} assigned · {(total as number) - (assigned as number)} free</span>
@@ -1043,11 +1043,11 @@ function OrgAdminSection() {
               ))}
             </div>
             {/* Pool cards */}
-            {[["Annual Plus Batch — 2026","pro",20,50],["EDU Plus Pack","plus",0,30]].map(([label,tier,assigned,total]) => (
+            {[["Annual Plus Batch — 2026","plus",20,50],["EDU Seat Pack","edu",0,30]].map(([label,tier,assigned,total]) => (
               <div key={label as string} className="rounded-xl border border-white/8 bg-white/3 p-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <Tag color={tier === "pro" ? "indigo" : "sky"}>{tier as string}</Tag>
+                    <Tag color={tier === "plus" ? "indigo" : "sky"}>{tier as string}</Tag>
                     <span className="text-[10px] text-zinc-300 font-medium">{label as string}</span>
                   </div>
                   <span className="text-[9px] text-zinc-500">{assigned as number} of {total as number} assigned · {(total as number) - (assigned as number)} free</span>

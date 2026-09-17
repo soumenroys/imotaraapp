@@ -65,8 +65,21 @@ describe("TIER_ORDER is the only tier list", () => {
 
     it("carries every tier the product actually sells", () => {
         // family is the one that went missing; enterprise/edu are sold too.
-        expect([...TIER_ORDER]).toEqual(["free", "plus", "pro", "family", "edu", "enterprise"]);
+        // `pro` was removed 2026-09-17 when `plus` became the canonical id for
+        // the one paid consumer tier — a zero-row migration, because the
+        // database had never held a single `pro` row.
+        expect([...TIER_ORDER]).toEqual(["free", "plus", "family", "edu", "enterprise"]);
         expect(TIER_ORDER).toContain("family");
+    });
+
+    it("🔴 the retired ids still resolve — they must never reach `free`", () => {
+        // A webhook in flight, a cached phone value, a row written before the
+        // rename. Any of these landing on `free` means a paying subscriber
+        // silently loses everything.
+        expect(isLicenseTier("pro")).toBe(false);          // not a tier…
+        expect(prettyTier("pro")).toBe("Plus");            // …but it resolves
+        expect(prettyTier("premium")).toBe("Plus");
+        expect(prettyTier("PRO")).toBe("Plus");
     });
 
     it("TIER_RANK is derived, so it cannot drift from TIER_ORDER", () => {

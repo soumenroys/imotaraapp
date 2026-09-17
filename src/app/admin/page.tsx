@@ -116,8 +116,8 @@ function fmtInr(paise: number): string {
 }
 
 function tierBadge(tier: string | null) {
-  if (tier === "pro")         return "text-indigo-300 bg-indigo-500/15 ring-1 ring-indigo-500/20";
-  if (tier === "plus")        return "text-sky-300 bg-sky-500/15 ring-1 ring-sky-500/20";
+  // One paid consumer tier; it keeps the indigo the paid tier always had.
+  if (tier === "plus" || tier === "pro") return "text-indigo-300 bg-indigo-500/15 ring-1 ring-indigo-500/20";
   if (tier === "family")      return "text-violet-300 bg-violet-500/15 ring-1 ring-violet-500/20";
   if (tier === "edu")         return "text-teal-300 bg-teal-500/15 ring-1 ring-teal-500/20";
   if (tier === "enterprise")  return "text-orange-300 bg-orange-500/15 ring-1 ring-orange-500/20";
@@ -2455,7 +2455,7 @@ function StatsSection({ token }: { token: string }) {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const TIER_COLOR: Record<LicenseTier,string> = { free:"text-zinc-400", plus:"text-sky-300", pro:"text-indigo-300", family:"text-violet-300", edu:"text-teal-300", enterprise:"text-orange-300" };
+  const TIER_COLOR: Record<LicenseTier,string> = { free:"text-zinc-400", plus:"text-indigo-300", family:"text-violet-300", edu:"text-teal-300", enterprise:"text-orange-300" };
 
   if (loading) return <div className="space-y-3">{[1,2,3].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl bg-white/5" />)}</div>;
   if (error)   return <p className="text-sm text-rose-400">{error}</p>;

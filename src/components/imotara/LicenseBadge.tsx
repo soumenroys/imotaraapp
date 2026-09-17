@@ -2,6 +2,7 @@
 "use client";
 
 import useLicense from "@/hooks/useLicense";
+import { prettyTier } from "@/types/license";
 
 type LicenseBadgeProps = {
     showMode?: boolean; // whether to show "off/log/enforce" for debugging
@@ -9,15 +10,6 @@ type LicenseBadgeProps = {
 
 export default function LicenseBadge({ showMode = false }: LicenseBadgeProps) {
     const license = useLicense();
-
-    const tierLabel: Record<string, string> = {
-        free:       "Free",
-        plus:       "Plus",
-        pro:        "Pro",
-        family:     "Family",
-        edu:        "EDU",
-        enterprise: "Enterprise",
-    };
 
     const statusLabel: Record<string, string> = {
         valid:   "Active",
@@ -45,7 +37,7 @@ export default function LicenseBadge({ showMode = false }: LicenseBadgeProps) {
             className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ring-1 ${accentClass}`}
         >
             <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            <span>{tierLabel[license.tier] ?? license.tier}</span>
+            <span>{prettyTier(license.tier)}</span>
             <span className="text-slate-400/90">
                 {statusLabel[license.status] ?? license.status}
             </span>

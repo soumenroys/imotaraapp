@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuthorized } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { TIER_ORDER, isLicenseTier } from "@/types/license";
 
 type Params = { params: Promise<{ orgId: string }> };
 
@@ -35,9 +36,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "tier and quantity (≥1) required" }, { status: 400 });
   }
 
-  const VALID_TIERS = ["free","plus","pro","edu","enterprise"];
-  if (!VALID_TIERS.includes(body.tier)) {
-    return NextResponse.json({ error: `tier must be one of: ${VALID_TIERS.join(", ")}` }, { status: 400 });
+  // 🔴 This list used to be hand-written WITHOUT "family", so issuing a Family
+  // pool was rejected 400 — a tier the product sells, unreachable via its own
+  // admin panel. Derived from TIER_ORDER now so it cannot drift again.
+  if (!isLicenseTier(body.tier)) {
+    return NextResponse.json({ error: `tier must be one of: ${TIER_ORDER.join(", ")}` }, { status: 400 });
   }
 
   const { data, error } = await getSupabaseAdmin()

@@ -9,6 +9,7 @@ import nodemailer from "nodemailer";
 import { requireOrgAdmin, requireOrgMember } from "@/app/api/org/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getOrgMembers, checkOrgSeatAvailable, revokeOrgLicense } from "@/lib/imotara/org";
+import { isLicenseTier } from "@/types/license";
 
 // ── GET — list members ────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
@@ -149,8 +150,8 @@ export async function PATCH(req: NextRequest) {
 
   // Per-member license tier override
   if (body.overrideTier !== undefined) {
-    const VALID = ["free","plus","pro","family","edu","enterprise",null];
-    if (!VALID.includes(body.overrideTier)) {
+    // null clears the override; anything else must be a real tier.
+    if (body.overrideTier !== null && !isLicenseTier(body.overrideTier)) {
       return NextResponse.json({ error: "invalid overrideTier value" }, { status: 400 });
     }
     updatePayload.override_tier = body.overrideTier ?? null;

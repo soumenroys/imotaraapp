@@ -5,7 +5,10 @@
 // - No enforcement yet; only returns a structured snapshot.
 
 export type LicenseMode = "off" | "log" | "enforce";
-export type LicenseTier = "free" | "plus" | "pro" | "family" | "edu" | "enterprise";
+// Re-exported, not re-declared: the list lives in @/types/license (TIER_ORDER).
+// This used to be a second hand-typed copy of the same union.
+import type { LicenseTier } from "@/types/license";
+export type { LicenseTier };
 export type LicenseStatusCode = "valid" | "invalid" | "expired" | "trial";
 
 export type LicenseStatus = {

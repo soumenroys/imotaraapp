@@ -3,6 +3,7 @@
 // Corporate/NGO admin: manage license pool — assign, withdraw, reassign licenses.
 
 import { useEffect, useState, useCallback } from "react";
+import { byTier, type LicenseTier } from "@/types/license";
 
 interface Pool {
   id: string; tier: string;
@@ -15,9 +16,12 @@ interface Assignment {
 }
 interface OrgMember { userId: string; email: string; role: string }
 
-const TIER_COLORS: Record<string,string> = {
-  free: "text-zinc-400 bg-zinc-500/10", plus: "text-sky-300 bg-sky-500/15",
-  pro: "text-indigo-300 bg-indigo-500/15", edu: "text-teal-300 bg-teal-500/15",
+const TIER_COLORS: Record<LicenseTier, string> = {
+  free:       "text-zinc-400 bg-zinc-500/10",
+  plus:       "text-sky-300 bg-sky-500/15",
+  pro:        "text-indigo-300 bg-indigo-500/15",
+  family:     "text-violet-300 bg-violet-500/15",
+  edu:        "text-teal-300 bg-teal-500/15",
   enterprise: "text-orange-300 bg-orange-500/15",
 };
 
@@ -153,7 +157,7 @@ export default function PoolPage() {
               <div key={p.id} className="rounded-2xl border border-white/8 bg-white/4 px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <div>
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize mr-2 ${TIER_COLORS[p.tier] ?? "text-zinc-400 bg-zinc-500/10"}`}>{p.tier}</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize mr-2 ${byTier(TIER_COLORS, p.tier, "text-zinc-400 bg-zinc-500/10")}`}>{p.tier}</span>
                     <span className="text-sm text-zinc-200">{p.label ?? "License pool"}</span>
                   </div>
                   <span className={`text-xs font-medium ${avail === 0 ? "text-rose-400" : "text-emerald-400"}`}>
@@ -214,7 +218,7 @@ export default function PoolPage() {
                   <tr key={a.id} className="border-b border-white/5 hover:bg-white/3">
                     <td className="px-4 py-3 text-zinc-200 truncate max-w-[180px]">{a.email}</td>
                     <td className="px-4 py-3">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${TIER_COLORS[a.tier] ?? "text-zinc-400 bg-zinc-500/10"}`}>{a.tier}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${byTier(TIER_COLORS, a.tier, "text-zinc-400 bg-zinc-500/10")}`}>{a.tier}</span>
                     </td>
                     <td className="px-4 py-3 text-zinc-500 hidden sm:table-cell">{timeAgo(a.assigned_at)}</td>
                     <td className="px-4 py-3">

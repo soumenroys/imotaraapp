@@ -7,6 +7,7 @@
 //   - Withdraw license (remove member) or change license tier per user
 
 import { useEffect, useState, useCallback } from "react";
+import { TIER_ORDER, byTier, type LicenseTier } from "@/types/license";
 
 interface OrgInventory {
   tier:           string;
@@ -30,7 +31,7 @@ interface MemberLicense {
   licenseStatus:  string;
 }
 
-const TIER_COLORS: Record<string, string> = {
+const TIER_COLORS: Record<LicenseTier, string> = {
   free:       "text-zinc-400 bg-zinc-500/10",
   plus:       "text-sky-300 bg-sky-500/15",
   pro:        "text-indigo-300 bg-indigo-500/15",
@@ -39,7 +40,8 @@ const TIER_COLORS: Record<string, string> = {
   enterprise: "text-orange-300 bg-orange-500/15",
 };
 
-const TIER_LABELS = ["free","plus","pro","edu","enterprise"];
+// Derived — this list used to omit "family". See TIER_ORDER.
+const TIER_LABELS: readonly string[] = TIER_ORDER;
 
 function timeAgo(iso: string | null): string {
   if (!iso) return "never";
@@ -173,7 +175,7 @@ export default function LicensesPage() {
               <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-500">By tier</p>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(inventory.tierBreakdown).map(([tier, count]) => (
-                  <div key={tier} className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${TIER_COLORS[tier] ?? "text-zinc-400 bg-zinc-500/10"}`}>
+                  <div key={tier} className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${byTier(TIER_COLORS, tier, "text-zinc-400 bg-zinc-500/10")}`}>
                     <span className="capitalize">{tier}</span>
                     <span className="opacity-70">·</span>
                     <span>{count} user{count !== 1 ? "s" : ""}</span>
@@ -242,7 +244,7 @@ export default function LicensesPage() {
                   </td>
                   <td className="px-4 py-3">
                     {m.role === "owner" ? (
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${TIER_COLORS[m.effectiveTier] ?? "text-zinc-400 bg-zinc-500/10"}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${byTier(TIER_COLORS, m.effectiveTier, "text-zinc-400 bg-zinc-500/10")}`}>
                         {m.effectiveTier} {m.overrideTier ? "(override)" : "(org default)"}
                       </span>
                     ) : (

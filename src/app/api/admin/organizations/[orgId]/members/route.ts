@@ -14,6 +14,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { revokeOrgLicense, assignOrgLicense, releasePriorOrgMembership, provisionOrgMember } from "@/lib/imotara/org";
 import { sendOrgInviteEmail } from "@/lib/connect/mailer";
 import { checkIpRateLimit } from "@/lib/imotara/ipRateLimit";
+import { isLicenseTier } from "@/types/license";
 
 type Params = { params: Promise<{ orgId: string }> };
 
@@ -155,8 +156,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   // Per-member license tier override
   if (body.overrideTier !== undefined) {
-    const VALID = ["free","plus","pro","family","edu","enterprise",null];
-    if (!VALID.includes(body.overrideTier)) {
+    // null clears the override; anything else must be a real tier.
+    if (body.overrideTier !== null && !isLicenseTier(body.overrideTier)) {
       return NextResponse.json({ error: "invalid overrideTier" }, { status: 400 });
     }
     memberUpdate.override_tier = body.overrideTier ?? null;

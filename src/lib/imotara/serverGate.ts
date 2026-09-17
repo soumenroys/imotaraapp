@@ -8,16 +8,11 @@ import { getLicenseMode } from "@/lib/imotara/license";
 import { gate, type FeatureKey } from "@/lib/imotara/featureGates";
 import { resolveUserTier } from "@/lib/imotara/org";
 import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
-import type { LicenseTier } from "@/types/license";
+import { TIER_RANK, isLicenseTier, type LicenseTier } from "@/types/license";
 
 export type ServerGateResult =
   | { ok: true;  tier: LicenseTier; userId: string | null }
   | { ok: false; response: NextResponse };
-
-// Tier rank for ordering comparisons
-const TIER_RANK: Record<string, number> = {
-  free: 0, plus: 1, pro: 2, family: 3, edu: 4, enterprise: 5,
-};
 
 // History retention days per tier (must mirror featureGates.ts HISTORY_DAYS)
 export const HISTORY_RETENTION_DAYS: Record<string, number> = {
@@ -105,5 +100,7 @@ export function historyRetentionCutoff(tier: LicenseTier): Date | null {
  * Returns true if tierA is at least as high as tierB in the licensing hierarchy.
  */
 export function tierAtLeast(tierA: string, tierB: string): boolean {
-  return (TIER_RANK[tierA] ?? 0) >= (TIER_RANK[tierB] ?? 0);
+  // Unknown tiers rank 0, exactly as the previous `?? 0` did.
+  const rank = (t: string) => (isLicenseTier(t) ? TIER_RANK[t] : 0);
+  return rank(tierA) >= rank(tierB);
 }

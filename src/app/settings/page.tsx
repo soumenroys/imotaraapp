@@ -11,6 +11,7 @@ import { useAppearance, type Accent, type FontSize } from "@/hooks/useAppearance
 import EmotionalFingerprint from "@/components/imotara/EmotionalFingerprint";
 import useFeatureGate from "@/hooks/useFeatureGate";
 import SsoIcon from "@/components/imotara/SsoIcon";
+import { prettyTier } from "@/types/license";
 
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 
@@ -2887,15 +2888,10 @@ export default function SettingsPage() {
         }
     }
 
-    const tierLabel = useMemo(() => {
-        const t = (lic?.tier || "free").toLowerCase();
-        if (t === "pro"      || t === "premium")    return "Pro";
-        if (t === "plus")                           return "Plus";
-        if (t === "family")                         return "Family";
-        if (t === "edu"      || t === "education")  return "Education";
-        if (t === "enterprise")                     return "Enterprise";
-        return "Free";
-    }, [lic?.tier]);
+    // Was a hand-written if-chain duplicating LicenseBadge's map, which had
+    // drifted ("EDU" vs "Education"). prettyTier keeps the premium/education
+    // aliases this chain tolerated.
+    const tierLabel = useMemo(() => prettyTier(lic?.tier), [lic?.tier]);
 
     return (
         <main className="mx-auto w-full max-w-5xl px-4 py-10 text-zinc-50 sm:px-6">

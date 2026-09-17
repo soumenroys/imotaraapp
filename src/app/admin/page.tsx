@@ -5,7 +5,7 @@ import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 import BroadcastSection from "@/components/admin/BroadcastSection";
 import Link from "next/link";
 import { useState, useEffect, useCallback, useTransition } from "react";
-import type { LicenseTier } from "@/types/license";
+import { TIER_ORDER, byTier, type LicenseTier } from "@/types/license";
 import EyeIcon from "@/components/imotara/EyeIcon";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -771,7 +771,7 @@ function UserLicenseRow({
           <div>
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">Plan tier</p>
             <div className="flex flex-wrap gap-2">
-              {(["free", "plus", "pro", "family", "edu", "enterprise"] as LicenseTier[]).map((t) => (
+              {TIER_ORDER.map((t) => (
                 <button key={t} type="button"
                   onClick={() => setForm((f) => ({ ...f, tier: t }))}
                   className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase transition ${
@@ -1231,7 +1231,8 @@ function OrgMembersPanel({ orgId, token }: { orgId: string; token: string }) {
     } finally { setAdding(false); }
   }
 
-  const TIERS = ["free","plus","pro","edu","enterprise"];
+  // Derived — this list used to omit "family", so Family could not be set here.
+  const TIERS: readonly string[] = TIER_ORDER;
 
   return (
     <div className="border-t border-white/8 pt-3">
@@ -1611,7 +1612,7 @@ function OrgPoolsPanel({ orgId, token }: { orgId: string; token: string }) {
             <p className="text-xs font-medium text-amber-300">Issue license pool to this org</p>
             <div className="flex flex-wrap gap-2">
               <select value={tier} onChange={(e) => setTier(e.target.value)} className={inCls}>
-                {["free","plus","pro","edu","enterprise"].map((t) => <option key={t} value={t}>{t}</option>)}
+                {TIER_ORDER.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
               <input type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} placeholder="Qty" className={`${inCls} w-20`} />
               <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label (optional)" className={`${inCls} flex-1`} />
@@ -2454,7 +2455,7 @@ function StatsSection({ token }: { token: string }) {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const TIER_COLOR: Record<string,string> = { free:"text-zinc-400", plus:"text-sky-300", pro:"text-indigo-300", edu:"text-teal-300", enterprise:"text-orange-300" };
+  const TIER_COLOR: Record<LicenseTier,string> = { free:"text-zinc-400", plus:"text-sky-300", pro:"text-indigo-300", family:"text-violet-300", edu:"text-teal-300", enterprise:"text-orange-300" };
 
   if (loading) return <div className="space-y-3">{[1,2,3].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl bg-white/5" />)}</div>;
   if (error)   return <p className="text-sm text-rose-400">{error}</p>;
@@ -2488,7 +2489,7 @@ function StatsSection({ token }: { token: string }) {
             return (
               <div key={tier}>
                 <div className="mb-1 flex justify-between text-xs">
-                  <span className={`font-medium capitalize ${TIER_COLOR[tier] ?? "text-zinc-300"}`}>{tier}</span>
+                  <span className={`font-medium capitalize ${byTier(TIER_COLOR, tier, "text-zinc-300")}`}>{tier}</span>
                   <span className="text-zinc-500">{data.assigned} / {data.issued} assigned ({data.issued - data.assigned} free)</span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
@@ -2523,7 +2524,7 @@ function StatsSection({ token }: { token: string }) {
                 </td>
                 <td className="px-4 py-2.5">
                   <span className="capitalize text-zinc-400">{org.billingType}</span>
-                  <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${TIER_COLOR[org.tier] ?? "text-zinc-400"} bg-white/8`}>{org.tier}</span>
+                  <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${byTier(TIER_COLOR, org.tier, "text-zinc-400")} bg-white/8`}>{org.tier}</span>
                 </td>
                 <td className="px-4 py-2.5 text-right text-zinc-300">{org.seatsUsed}/{org.seatsPurchased}</td>
                 <td className="px-4 py-2.5 text-right text-zinc-400 hidden sm:table-cell">{org.memberCount}</td>

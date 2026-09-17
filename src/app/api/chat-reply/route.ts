@@ -14,8 +14,6 @@
 //   Same as ImotaraAIResponse from aiClient: { text, meta }
 
 import { NextResponse } from "next/server";
-import { getLicenseMode } from "@/lib/imotara/license";
-import { resolveUserTier } from "@/lib/imotara/org";
 import { callImotaraAI, streamImotaraAI } from "@/lib/imotara/aiClient";
 import type { ImotaraAIResponse } from "@/lib/imotara/aiClient";
 import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
@@ -468,16 +466,11 @@ export async function POST(req: Request) {
     // client-supplied flag. Only the memory-fetch branch below still checks
     // allowMemory, since that's the one thing this flag is actually meant to
     // control.
-    // Speculative-parallel like memory/quota below: only fetched when tier
-    // enforcement is even active, keyed on the unverified provisionalUserId
-    // purely so it runs alongside auth verification instead of after it.
-    // Previously this was a fully separate `await resolveUserTier(...)` AFTER
-    // this whole batch resolved — an extra sequential DB round-trip on the
-    // hot chat-reply path for every enforce-mode request. Consumed below only
-    // once `verified` is confirmed — same rule as memory/quota.
-    const enforceModeActive = getLicenseMode() === "enforce";
+    // (The speculative resolveUserTier() that used to run here fed the
+    // tier-based reply constraint and nothing else. Both are gone, so enforce
+    // mode no longer costs the reply path a tier lookup at all.)
 
-    const [authResult, memResult, quotaResult, tierResult] = await Promise.allSettled([
+    const [authResult, memResult, quotaResult] = await Promise.allSettled([
       // ── auth verification (network call, ~100-300ms) ─────────────────────
       // Bearer token first (mobile never sends cookies — matches the
       // pattern already used correctly in history/route.ts, chat/messages,
@@ -524,11 +517,6 @@ export async function POST(req: Request) {
         return fetchQuotaInfo(getSupabaseAdmin(), provisionalUserId);
       })(),
 
-      // ── tier resolution (only when enforcement is active) ──────────────────
-      (async () => {
-        if (!enforceModeActive || !provisionalUserId) return null;
-        return resolveUserTier(provisionalUserId);
-      })(),
     ]);
 
     if (authResult.status === "fulfilled") authedUserId = authResult.value;
@@ -615,33 +603,26 @@ export async function POST(req: Request) {
       ).catch(() => {});
     }
 
-    // ── Phase 3: Tier-based reply constraints (enforce mode only) ────────────
-    // In off/log mode these constraints are never applied (soft launch preserved).
-    // tierResult was fetched speculatively in the parallel batch above, keyed
-    // on provisionalUserId. Same cookie-session gap as memory/quota above: a
-    // real authedUserId that isn't `verified` (no bearer token — the web
-    // app's cookie-only sessions) still deserves a fresh, correctly-keyed
-    // lookup rather than being silently skipped.
-    let tierResponseConstraint = ""; // injected into system prompt when active
-    if (enforceModeActive && authedUserId) {
-      const resolved = verified
-        ? (tierResult.status === "fulfilled" ? tierResult.value : null)
-        : await resolveUserTier(authedUserId).catch(() => null);
-      const effectiveTier = resolved?.ok ? resolved.data.effectiveTier : "free";
-
-      if (effectiveTier === "free") {
-        // Free: cap response length to ~3 sentences; suppress premium personas
-        tierResponseConstraint =
-          "RESPONSE LENGTH: Keep your reply concise — ideally 2–3 sentences. " +
-          "Do not use extended storytelling, mythology, or multi-paragraph reflections.\n";
-
-        // Override premium tone to default if free user requests one
-        const premiumTones = new Set(["coach", "mentor", "calm_companion"]);
-        if (body?.tone && premiumTones.has(body.tone)) {
-          body.tone = "close_friend"; // downgrade to default tone
-        }
-      }
-    }
+    // 🔴 REMOVED 2026-09-17 — owner decision, verbatim: "chat reply quality
+    // should be exactly same for any licensing tier. whatever the license type
+    // is, may be free, maybe plus".
+    //
+    // What used to live here: when enforce mode was on and the tier resolved to
+    // `free`, the route appended "RESPONSE LENGTH: Keep your reply concise —
+    // ideally 2–3 sentences. Do not use extended storytelling, mythology, or
+    // multi-paragraph reflections." to the SYSTEM PROMPT, and silently rewrote
+    // the user's chosen tone — coach, mentor and calm_companion all became
+    // close_friend.
+    //
+    // It was inert only because LICENSE_MODE is "off". Flipping enforce would
+    // have shortened every free user's replies and taken away the companion
+    // they picked, without a line of code changing.
+    //
+    // ⚠️ DO NOT REINTRODUCE THIS, in any form — not a shorter cap, not a
+    // "soft" hint, not a tone nudge. Tier may decide HOW MANY enhanced replies
+    // someone gets (that is the quota, below, and it falls back to a local
+    // reply rather than a worse one). It must never decide how GOOD one is.
+    // replyQualityIsTierBlind.test.ts fails the build if it comes back.
 
     let conversationText = recent
       .map((m) => {
@@ -3411,7 +3392,8 @@ export async function POST(req: Request) {
         "The companion tone setting is always the final authority on voice, warmth, directness, and pacing.",
       ].join("\n") : "",
       "",
-      tierResponseConstraint, // Phase 3: enforce-mode tier constraint (empty string in off/log mode)
+      "", // was the tier reply constraint — kept as an empty slot so the
+          // assembled prompt is byte-identical to before its removal
       langInstruction,
       genderInstruction,
       langAgeOverride,

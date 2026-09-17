@@ -37,7 +37,10 @@ describe("every audience page is complete", () => {
         expect(p.intro.length).toBeGreaterThanOrEqual(2);
         expect(p.cards).toHaveLength(4);
         expect(p.moments.length).toBeGreaterThanOrEqual(4);
-        expect(p.plans.length).toBeGreaterThanOrEqual(3);
+        // 2 since the Plus/Pro merge (L10): Free + Imotara Plus. Institutional
+        // pages carry more. The point of the floor is that a page never ships
+        // with an empty or one-row plan table, not that there are three tiers.
+        expect(p.plans.length).toBeGreaterThanOrEqual(2);
         expect(p.pullQuote.length).toBeGreaterThanOrEqual(2);
         expect(p.closing.body.length).toBeGreaterThan(50);
     });
@@ -65,13 +68,16 @@ describe("pricing is defined once, and agrees with the systems of record", () =>
         for (const p of consumer) expect(p.plans).toBe(CONSUMER_PLANS);
     });
 
-    it("Seniors deliberately swaps Pro for Connect — and says so honestly", () => {
+    it("Seniors add Connect alongside the paid plan", () => {
         const seniors = AUDIENCE_PAGES.seniors;
         expect(seniors.plans).toBe(SENIOR_PLANS);
-        expect(seniors.plans.map((r) => r.name)).toEqual(["Free", "Plus", "Talk to a person"]);
-        // A simplification is fine; hiding a tier is not. The note must point
-        // at the full comparison.
-        expect(seniors.plansNote).toMatch(/Pro plan/);
+        expect(seniors.plans.map((r) => r.name)).toEqual(["Free", "Imotara Plus", "Talk to a person"]);
+        // This used to swap Pro OUT for Connect, so the note had to promise the
+        // reader a tier they could not see. Since the merge there is only one
+        // paid plan and nothing is hidden — but the page must still point at
+        // the full comparison rather than imply this table is all there is.
+        expect(seniors.plansNote).toMatch(/\/upgrade|see all/i);
+        expect(seniors.plansNote).not.toMatch(/\bPro plan\b/);
     });
 
     it("the prices match PRODUCT_CATALOG (paise), the system of record", () => {
@@ -79,14 +85,13 @@ describe("pricing is defined once, and agrees with the systems of record", () =>
         // catalog moved to lib/imotara/pricing.ts — a false failure about a real
         // refactor. Reading the values instead means the test follows the data.
         // The exact amounts are pinned once, in pricingCatalog.test.ts.
-        const plus = CONSUMER_PLANS.find((r) => r.name === "Plus")!;
-        const pro = CONSUMER_PLANS.find((r) => r.name === "Pro")!;
-        expect(plus.cost).toBe(
-            `${inr(paiseFor("plus_monthly"))} / month or ${inr(paiseFor("plus_annual"))} / year`,
-        );
-        expect(pro.cost).toBe(
+        // One paid row since the merge, priced at the pro_* SKUs.
+        const paid = CONSUMER_PLANS.find((r) => r.name === "Imotara Plus")!;
+        expect(paid.cost).toBe(
             `${inr(paiseFor("pro_monthly"))} / month or ${inr(paiseFor("pro_annual"))} / year`,
         );
+        // The retired plus_* price must not still be advertised anywhere here.
+        expect(CONSUMER_PLANS.some((r) => r.cost.includes(inr(paiseFor("plus_monthly"))))).toBe(false);
     });
 
     it("every page links onward to the full plan comparison", () => {

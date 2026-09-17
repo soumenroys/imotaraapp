@@ -3017,7 +3017,7 @@ export default function SettingsPage() {
                                         Launch offer — everything free for everyone
                                     </p>
                                     <p className="mt-0.5 text-xs text-emerald-300/80">
-                                        All Pro features are available at no cost until{" "}
+                                        All Imotara Plus features are available at no cost until{" "}
                                         <span className="font-medium">
                                             {endsAt.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
                                         </span>.
@@ -3117,7 +3117,7 @@ export default function SettingsPage() {
                                 href="/upgrade"
                                 className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-4 py-2 text-sm font-semibold text-indigo-200 transition hover:bg-indigo-500/25"
                             >
-                                Upgrade to Pro →
+                                Upgrade to Plus →
                             </Link>
                             <span className="text-[11px] text-zinc-500">Adds unlimited history + insights</span>
                         </div>
@@ -4513,7 +4513,7 @@ export default function SettingsPage() {
                     {companionInsightsOpen && (<>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">Control how often Imotara generates your emotional arc, companion letter, and open-loop prompts.</p>
 
-                    {/* G-1: Emotional arc cadence — gated: Pro+ (GROWTH_ARC) */}
+                    {/* G-1: Emotional arc cadence — gated: Imotara Plus (GROWTH_ARC) */}
                     {growthArcGate.allowed ? (
                     <div className="mt-4">
                         <div className="flex items-center gap-2 mb-1">
@@ -4550,7 +4550,7 @@ export default function SettingsPage() {
                     </div>
                     )}
 
-                    {/* G-2: Companion letter cadence — gated: Pro+ (COMPANION_LETTER) */}
+                    {/* G-2: Companion letter cadence — gated: Imotara Plus (COMPANION_LETTER) */}
                     {companionLetterGate.allowed ? (
                     <div className="mt-4">
                         <div className="flex items-center gap-2 mb-1">

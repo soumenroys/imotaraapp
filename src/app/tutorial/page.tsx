@@ -194,7 +194,7 @@ function BannerHistory() {
         <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-2">History</p>
         <p className="text-zinc-200 text-sm leading-relaxed">Every conversation is saved and tagged with the emotion detected. Browse, search, and continue any past conversation.</p>
         <div className="mt-3 flex gap-3">
-          {[{ label: "Free", val: "7 days" }, { label: "Plus", val: "90 days" }, { label: "Pro", val: "Unlimited" }].map(t => (
+          {[{ label: "Free", val: "7 days" }, { label: "Plus", val: "Unlimited" }].map(t => (
             <div key={t.label} className="text-center">
               <p className="text-xs font-bold text-zinc-200">{t.val}</p>
               <p className="text-[10px] text-zinc-500">{t.label}</p>
@@ -260,7 +260,7 @@ function BannerTrends() {
           </svg>
           <div className="flex items-center justify-between mt-1 border-t border-zinc-800 pt-1.5">
             <span className="text-[8px] text-zinc-500">🔥 4 day streak</span>
-            <span className="text-[8px] text-indigo-400">★ Pro insight →</span>
+            <span className="text-[8px] text-indigo-400">★ Plus insight →</span>
           </div>
           <div className="mt-1.5 space-y-1">
             {emotions.slice(0,3).map(e => (
@@ -457,9 +457,9 @@ function BannerPlans() {
     <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-violet-900/40 to-indigo-900/30 border border-violet-500/20 p-6 flex gap-6 items-center">
       <div className="flex-1 hidden sm:block">
         <p className="text-xs font-semibold text-violet-400 uppercase tracking-widest mb-2">Plans & Upgrade</p>
-        <p className="text-zinc-200 text-sm leading-relaxed">Free is genuinely free. Plus and Pro add cloud features. Token packs extend your daily limit. Enterprise is available for organisations.</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Free is genuinely free. Imotara Plus adds the cloud features. Token packs extend your daily limit. Enterprise is available for organisations.</p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-          {[["Free","₹0","20 replies/day"],["Plus","₹99/mo","Unlimited"],["Pro","₹149/mo","+ Insights"],["Enterprise","Custom","Admin + Teams + SSO"]].map(([t,p,f]) => (
+          {[["Free","₹0","20 replies/day"],["Plus","₹149/mo","Unlimited + insights"],["Enterprise","Custom","Admin + Teams + SSO"]].map(([t,p,f]) => (
             <div key={t} className="rounded-lg bg-white/5 border border-white/8 px-2 py-1.5">
               <p className="font-semibold text-zinc-200 text-[10px]">{t}</p>
               <p className="text-indigo-300 text-[10px] font-bold">{p}</p>
@@ -477,8 +477,7 @@ function BannerPlans() {
             ))}
           </div>
           {[
-            { name: "Plus", price: "₹99/mo", color: "border-sky-400/30 bg-sky-500/5", badge: "" },
-            { name: "Pro", price: "₹149/mo", color: "border-indigo-400/40 bg-indigo-500/10", badge: "Best" },
+            { name: "Imotara Plus", price: "₹149/mo", color: "border-indigo-400/40 bg-indigo-500/10", badge: "Best" },
           ].map(p => (
             <div key={p.name} className={`rounded-xl border p-2 ${p.color}`}>
               <div className="flex justify-between items-center">
@@ -637,10 +636,12 @@ const CATEGORIES = [
 // "limited" means the feature exists but with restrictions on that tier
 type TierValue = boolean | "limited";
 
+// 🔗 THREE tiers, not four. Plus and Pro merged into one paid consumer tier
+// (L10) sold as "Imotara Plus"; `pro` was removed from this shape rather than
+// left as a dead column that would quietly go stale.
 interface TierAvail {
   free:  TierValue | string;   // string for display like "7 days" or "20/day"
-  plus:  TierValue | string;
-  pro:   TierValue | string;
+  plus:  TierValue | string;   // the merged paid tier — publicly "Imotara Plus"
   ent:   TierValue | string;   // Enterprise covers Family/EDU institutional features
   note?: string;               // extra clarification shown below badges
 }
@@ -884,7 +885,7 @@ const FEATURES: Record<string, Feature[]> = {
         "With the toggle on, each reply shows a small icon: a phone (on-device) or cloud (online).",
       ],
       tip: "On-device replies are always unlimited and private on all plans — online replies have richer context but use your daily quota.",
-      tiers: { free: "20 enhanced/day", plus: "Unlimited", pro: "Unlimited", ent: "Unlimited", note: "On-device replies are always unlimited on all plans." },
+      tiers: { free: "20 enhanced/day", plus: "Unlimited", ent: "Unlimited", note: "On-device replies are always unlimited on all plans." },
     },
     {
       icon: "🔍",
@@ -930,7 +931,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Edit if needed, then tap Send.",
       ],
       tip: "Works in all 22 languages. If you code-switch (mix languages), Whisper usually handles it correctly.",
-      tiers: { free: true, plus: true, pro: true, ent: true },
+      tiers: { free: true, plus: true, ent: true },
     },
     {
       icon: "🤲",
@@ -1012,7 +1013,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Tap again to pause; tap again to resume.",
         "To customize: Settings → Experience → Voice & audio.",
       ],
-      tiers: { free: "Basic (device)", plus: "Azure Neural", pro: "Azure Neural", ent: "Azure Neural", note: "Free uses device built-in voice. Plus+ unlocks Azure Neural with gender-matched voices." },
+      tiers: { free: "Basic (device)", plus: "Azure Neural", ent: "Azure Neural", note: "Free uses device built-in voice. Plus+ unlocks Azure Neural with gender-matched voices." },
     },
     {
       icon: "▶️",
@@ -1030,14 +1031,14 @@ const FEATURES: Record<string, Feature[]> = {
       icon: "🎚️",
       title: "TTS Speed & Pitch Control",
       short: "Adjust how fast and how high-pitched your companion's voice sounds.",
-      long: "Available on Plus and above. In Settings you can set the TTS speaking rate (0.5× slow to 1.5× fast) and pitch adjustment. Lower pitch creates a calmer, deeper voice; higher pitch is lighter and more energetic. These apply to all TTS playback.",
+      long: "Available with Imotara Plus. In Settings you can set the TTS speaking rate (0.5× slow to 1.5× fast) and pitch adjustment. Lower pitch creates a calmer, deeper voice; higher pitch is lighter and more energetic. These apply to all TTS playback.",
       steps: [
         "Go to Settings → Experience → Voice & audio.",
         "Find 'Speaking rate' slider — drag left to slow down, right to speed up.",
         "Find 'Pitch' slider — drag left for deeper, right for higher.",
         "Tap 'Preview voice' to hear a sample with your settings.",
       ],
-      tiers: { free: false, plus: true, pro: true, ent: true },
+      tiers: { free: false, plus: true, ent: true },
       badge: "Plus+ required for customization",
     },
     {
@@ -1052,7 +1053,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Tap 'Use this voice' to confirm.",
         "All future TTS playback uses the selected voice.",
       ],
-      tiers: { free: false, plus: true, pro: true, ent: true },
+      tiers: { free: false, plus: true, ent: true },
       badge: "Plus+ required",
     },
     {
@@ -1160,7 +1161,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Select Short, Medium, or Long.",
         "Tap Save.",
       ],
-      tiers: { free: false, plus: true, pro: true, ent: true },
+      tiers: { free: false, plus: true, ent: true },
     },
     {
       icon: "👁",
@@ -1195,14 +1196,14 @@ const FEATURES: Record<string, Feature[]> = {
       icon: "📜",
       title: "Viewing Conversation History",
       short: "The History tab shows all past conversations, organised by date with emotion tags.",
-      long: "Open the History tab (clock icon) to see all your conversations. Each entry shows a preview, date, and the dominant emotion icon. Tap any entry to read the full conversation. Your retention period depends on your plan: Free (7 days), Plus (90 days), Pro (unlimited).",
+      long: "Open the History tab (clock icon) to see all your conversations. Each entry shows a preview, date, and the dominant emotion icon. Tap any entry to read the full conversation. Your retention period depends on your plan: Free (7 days), Imotara Plus (unlimited).",
       steps: [
         "Tap the History tab (🕐 icon) at the bottom of the screen.",
         "Browse conversations — newest at the top.",
         "Tap any entry to open and read it.",
         "Scroll to the bottom of an open conversation to continue it.",
       ],
-      tiers: { free: "7 days", plus: "90 days", pro: "Unlimited", ent: "Unlimited" },
+      tiers: { free: "7 days", plus: "Unlimited", ent: "Unlimited" },
     },
     {
       icon: "🔍",
@@ -1216,7 +1217,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Matching messages appear with highlights.",
         "Toggle 'Semantic' (Plus+) to find meaning-based matches.",
       ],
-      tiers: { free: "Keyword only", plus: "Keyword + Semantic", pro: "Keyword + Semantic", ent: "Keyword + Semantic" },
+      tiers: { free: "Keyword only", plus: "Keyword + Semantic", ent: "Keyword + Semantic" },
       badge: "Semantic search on Plus+",
     },
     {
@@ -1296,8 +1297,8 @@ const FEATURES: Record<string, Feature[]> = {
         "Look at which emotions have the largest segments.",
         "Hover (web) or tap (mobile) an axis to see the count for that emotion.",
       ],
-      tiers: { free: false, plus: false, pro: true, ent: true },
-      badge: "Pro unlocks weekly comparison",
+      tiers: { free: false, plus: true, ent: true },
+      badge: "Plus unlocks weekly comparison",
     },
     {
       icon: "📅",
@@ -1334,8 +1335,8 @@ const FEATURES: Record<string, Feature[]> = {
         "Read the narrative summary.",
         "Tap 'Reflect on this' to journal about the week.",
       ],
-      tiers: { free: false, plus: false, pro: true, ent: true },
-      badge: "Pro+ for full weekly digest",
+      tiers: { free: false, plus: true, ent: true },
+      badge: "Plus for the full weekly digest",
     },
     {
       icon: "📈",
@@ -1348,8 +1349,8 @@ const FEATURES: Record<string, Feature[]> = {
         "Hover/tap any point to see the date and emotion.",
         "Look for patterns — recurring dips or peaks.",
       ],
-      tiers: { free: false, plus: false, pro: true, ent: true },
-      badge: "Pro feature",
+      tiers: { free: false, plus: true, ent: true },
+      badge: "Imotara Plus",
     },
     {
       icon: "📆",
@@ -1366,33 +1367,33 @@ const FEATURES: Record<string, Feature[]> = {
     },
     {
       icon: "💌",
-      title: "Companion Letter (Pro)",
+      title: "Companion Letter (Imotara Plus)",
       short: "Once a month, your companion writes you a personal letter reflecting on your emotional journey.",
-      long: "Available on Pro and above. At the end of each calendar month, Imotara generates a personal letter from your companion — written in first person, referencing specific things you talked about, and offering a gentle reflection on the month's emotional arc. Find it in Trends.",
+      long: "Available with Imotara Plus. At the end of each calendar month, Imotara generates a personal letter from your companion — written in first person, referencing specific things you talked about, and offering a gentle reflection on the month's emotional arc. Find it in Trends.",
       steps: [
-        "Upgrade to Pro from Settings → Plan & support.",
+        "Upgrade to Imotara Plus from Settings → Plan & support.",
         "Enable cloud sync (required for letter generation).",
         "Wait until the end of the calendar month.",
         "Open Trends → scroll to 'Companion Letter'.",
         "Read your monthly letter.",
       ],
-      tiers: { free: false, plus: false, pro: true, ent: true },
-      badge: "Pro feature",
+      tiers: { free: false, plus: true, ent: true },
+      badge: "Imotara Plus",
     },
     {
       icon: "🌱",
-      title: "Growth Arc Narrative (Pro)",
+      title: "Growth Arc Narrative (Imotara Plus)",
       short: "A long-term emotional narrative that tracks how you evolve across multiple months.",
       long: "The Growth Arc is Imotara's deepest insight feature — an ongoing narrative that reads your emotional history across months and tells the story of your emotional evolution. It notices when patterns shift (e.g., loneliness replaced by connection), when you've grown, and what emotional themes keep recurring.",
       steps: [
-        "Upgrade to Pro.",
+        "Upgrade to Imotara Plus.",
         "Enable cloud sync.",
         "After 1-2 months of conversations, open Trends.",
         "Scroll to 'Growth Arc'.",
         "Read the narrative — it updates monthly.",
       ],
-      tiers: { free: false, plus: false, pro: true, ent: true },
-      badge: "Pro feature",
+      tiers: { free: false, plus: true, ent: true },
+      badge: "Imotara Plus",
     },
   ],
 
@@ -1597,15 +1598,15 @@ const FEATURES: Record<string, Feature[]> = {
       icon: "📖",
       title: "Grow Cadence Controls",
       short: "Set how often your companion sends letters and how the arc updates.",
-      long: "Available on Pro and above. Control the frequency of companion letters and the arc narrative update cycle — 7, 14, 30, or 60 days for each, set independently. More frequent updates mean shorter, more focused reflections; less frequent means broader, deeper summaries.",
+      long: "Available with Imotara Plus. Control the frequency of companion letters and the arc narrative update cycle — 7, 14, 30, or 60 days for each, set independently. More frequent updates mean shorter, more focused reflections; less frequent means broader, deeper summaries.",
       steps: [
         "Go to Settings → Experience → Chat behaviour.",
         "Find 'Companion letter cadence'.",
         "Select 7, 14, 30, or 60 days.",
         "Find 'Growth arc cadence' — also 7, 14, 30, or 60 days.",
       ],
-      tiers: { free: false, plus: false, pro: true, ent: true },
-      badge: "Pro+ required",
+      tiers: { free: false, plus: true, ent: true },
+      badge: "Imotara Plus required",
     },
     {
       icon: "🔎",
@@ -1617,7 +1618,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Find 'Search mode'.",
         "Select Keyword or Semantic.",
       ],
-      tiers: { free: "Keyword only", plus: "Keyword + Semantic", pro: "Keyword + Semantic", ent: "Keyword + Semantic" },
+      tiers: { free: "Keyword only", plus: "Keyword + Semantic", ent: "Keyword + Semantic" },
       badge: "Semantic search on Plus+",
     },
     {
@@ -1708,7 +1709,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Tap 'Export'.",
         "The file downloads to your device.",
       ],
-      tiers: { free: false, plus: true, pro: true, ent: true, note: "Also unavailable on Family tier (shared-device privacy boundary)." },
+      tiers: { free: false, plus: true, ent: true, note: "Also unavailable on Family tier (shared-device privacy boundary)." },
       badge: "Plus+ required",
     },
     {
@@ -1786,7 +1787,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Toggle it on.",
         "All Imotara replies now use age-appropriate content filtering.",
       ],
-      tiers: { free: false, plus: false, pro: false, ent: true, note: "Requires Family, EDU, or Enterprise plan." },
+      tiers: { free: false, plus: false, ent: true, note: "Requires Family, EDU, or Enterprise plan." },
       badge: "Family/EDU/Enterprise",
     },
   ],
@@ -1926,34 +1927,22 @@ const FEATURES: Record<string, Feature[]> = {
         "Your history is accessible for 7 days on Free.",
       ],
       tip: "The daily limit resets at midnight in your local timezone — not 24 hours from first use.",
-      tiers: { free: true, plus: false, pro: false, ent: false, note: "This section describes what the Free plan includes." },
+      tiers: { free: true, plus: false, ent: false, note: "This section describes what the Free plan includes." },
     },
     {
       icon: "☁️",
-      title: "Plus Plan (₹99/mo or ₹699/yr)",
-      short: "Unlimited cloud replies, 90-day history, advanced TTS, semantic search, data export, and more.",
-      long: "Plus removes the daily reply limit, extends history to 90 days, adds data export (JSON/CSV/PDF), advanced TTS (voice selection, speed/pitch), semantic history search, reply cadence controls, custom notification schedule, and session duration stats.",
+      title: "Imotara Plus (₹149/mo or ₹1,299/yr)",
+      short: "One paid plan with everything: unlimited replies and history, insights, advanced voice, search, export, companion letter and growth arc.",
+      long: "Imotara Plus is the single paid plan. It removes the daily reply limit and keeps your history for as long as you want it, and it adds data export (JSON/CSV/PDF), advanced TTS (voice selection, speed and pitch), semantic history search, reply cadence controls, a custom notification schedule, session duration stats, emotion trends charts, conversation insights, weekly emotional summaries and digest notifications, the monthly companion letter, and the long-term growth arc narrative. There is no second paid tier to choose between — everything is included.",
       steps: [
         "Go to Settings → Plan & support → View plans & upgrade.",
-        "Select the Plus plan.",
-        "Toggle Monthly / Annual (Annual saves ~25%).",
+        "Select Imotara Plus.",
+        "Toggle Monthly / Annual (Annual saves ~27%).",
         "Complete payment via Razorpay (web/Android) or Apple IAP (iOS).",
         "Features unlock immediately.",
       ],
-      tiers: { free: false, plus: true, pro: false, ent: false, note: "This section describes the Plus plan features." },
-    },
-    {
-      icon: "⭐",
-      title: "Pro Plan (₹149/mo or ₹1,299/yr)",
-      short: "Everything in Plus, plus unlimited history, emotion insights, companion letter, and growth arc.",
-      long: "Pro adds everything in Plus plus: unlimited conversation history, emotion trends charts (radar, 30-day trend), conversation insights, weekly emotional summaries, weekly insight digest notifications, monthly companion letter, and the long-term growth arc narrative.",
-      steps: [
-        "Go to Settings → Plan & support → View plans & upgrade.",
-        "Select the Pro plan.",
-        "Complete payment.",
-        "Pro features (charts, companion letter, growth arc) unlock immediately.",
-      ],
-      tiers: { free: false, plus: false, pro: true, ent: false, note: "This section describes the Pro plan features." },
+      tip: "If you subscribed before the plans merged you keep your original price, and you get the full feature set at it — nothing to do.",
+      tiers: { free: false, plus: true, ent: false, note: "This section describes the Imotara Plus plan." },
     },
     {
       icon: "🪙",
@@ -1980,7 +1969,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Once active, go to Settings → Family Profiles to create profiles for each family member.",
         "Enable Child-safe Mode for any profile that belongs to a younger user.",
       ],
-      tiers: { free: false, plus: false, pro: false, ent: true, note: "Family plan is a sub-tier of Enterprise. Contact info@imotara.com for pricing." },
+      tiers: { free: false, plus: false, ent: true, note: "Family plan is a sub-tier of Enterprise. Contact info@imotara.com for pricing." },
     },
     {
       icon: "🏢",
@@ -1996,7 +1985,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Once active, access your org dashboard and invite members via email or CSV.",
         "NGOs/EDU: the discount is applied automatically at checkout — no code needed.",
       ],
-      tiers: { free: false, plus: false, pro: false, ent: true, note: "NGO 60% off · EDU 50% off · self-serve at imotara.com/pricing/corporate" },
+      tiers: { free: false, plus: false, ent: true, note: "NGO 60% off · EDU 50% off · self-serve at imotara.com/pricing/corporate" },
     },
     {
       icon: "🔄",
@@ -2174,7 +2163,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Tap the speaker icon on a reply.",
         "You'll hear the reply in a voice matched to that language.",
       ],
-      tiers: { free: "Basic (device voice)", plus: "Azure Neural voices", pro: "Azure Neural voices", ent: "Azure Neural voices", note: "Free uses device built-in voice. Plus+ unlocks language-matched Azure Neural voices." },
+      tiers: { free: "Basic (device voice)", plus: "Azure Neural voices", ent: "Azure Neural voices", note: "Free uses device built-in voice. Plus+ unlocks language-matched Azure Neural voices." },
     },
     {
       icon: "📖",
@@ -2206,8 +2195,7 @@ const FEATURES: Record<string, Feature[]> = {
 
 const TIER_DEFS = [
   { key: "free",  label: "Free",  color: "bg-zinc-500/20 text-zinc-300 border-zinc-500/30" },
-  { key: "plus",  label: "Plus",  color: "bg-sky-500/20  text-sky-300  border-sky-400/30" },
-  { key: "pro",   label: "Pro",   color: "bg-indigo-500/20 text-indigo-300 border-indigo-400/30" },
+  { key: "plus",  label: "Plus",  color: "bg-indigo-500/20 text-indigo-300 border-indigo-400/30" },
   { key: "ent",   label: "Ent",   color: "bg-violet-500/20 text-violet-300 border-violet-400/30" },
 ] as const;
 
@@ -2222,7 +2210,7 @@ function TierBadges({ tiers }: { tiers?: TierAvail }) {
   return (
     <span className="inline-flex items-center gap-1 flex-wrap">
       {TIER_DEFS.map(({ key, label, color }) => {
-        const val = tiers[key as "free" | "plus" | "pro" | "ent"];
+        const val = tiers[key as "free" | "plus" | "ent"];
         const included  = val === true;
         const limited   = val === "limited";
         const excluded  = val === false;
@@ -2260,7 +2248,7 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
   const [open, setOpen] = useState(false);
   const hasRestriction = feature.tiers &&
     (feature.tiers.free === false || typeof feature.tiers.free === "string" ||
-     feature.tiers.plus === false || feature.tiers.pro === false);
+     feature.tiers.plus === false || feature.tiers.ent === false);
 
   return (
     <div className={`rounded-2xl border overflow-hidden ${hasRestriction ? "border-white/10" : "border-white/8"} bg-white/[0.025]`}>
@@ -2318,7 +2306,7 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
               </div>
               <div className="grid grid-cols-4 divide-x divide-white/5">
                 {TIER_DEFS.map(({ key, label, color }) => {
-                  const val = feature.tiers![key as "free" | "plus" | "pro" | "ent"];
+                  const val = feature.tiers![key as "free" | "plus" | "ent"];
                   const excluded = val === false;
                   const custom   = typeof val === "string" && val !== "limited";
                   return (

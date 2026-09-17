@@ -16,6 +16,10 @@
  *
  * ⚠️ If you add a row here, add it because the FEATURE shipped — not to make
  * the test pass.
+ *
+ * 📐 Three columns since the Plus/Pro merge (L10): free · plus · ent. The
+ * merged paid tier took Pro's column, so anything that was Pro-only is now
+ * simply "Plus".
  */
 import { describe, it, expect } from "vitest";
 import fs from "fs";
@@ -65,10 +69,12 @@ describe("the comparison table covers what the app actually does", () => {
         const i = TABLE.toLowerCase().indexOf("crisis resources");
         expect(i).toBeGreaterThan(-1);
         const row = TABLE.slice(i, i + 400);
+        // Three columns since the Plus/Pro merge (L10) — free, plus, ent.
         expect(row).toMatch(/free:\s*true/);
         expect(row).toMatch(/plus:\s*true/);
-        expect(row).toMatch(/pro:\s*true/);
         expect(row).toMatch(/ent:\s*true/);
+        // And it must not have quietly grown a paid-only column back.
+        expect(row).not.toMatch(/pro:/);
     });
 
     it("⚠️ the free column is not empty theatre", () => {

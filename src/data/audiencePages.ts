@@ -77,8 +77,10 @@ export interface AudiencePage {
 
 // ── Pricing, in ONE place ──────────────────────────────────────────────────
 // Verified against PRODUCT_CATALOG (paise) and /upgrade's PLANS on 2026-09-15.
-//   plus_monthly  9_900   -> ₹99      plus_annual   69_900  -> ₹699
 //   pro_monthly  14_900   -> ₹149     pro_annual   129_900  -> ₹1,299
+// plus_monthly/plus_annual are RETIRED (L10/L12) — the tiers merged into one
+// paid plan sold as "Imotara Plus". Existing plus_* subscribers keep billing at
+// their old price; nobody new can buy it, so it is not advertised here.
 // Free is "20 cloud replies/day" + unlimited ON-DEVICE replies — the PDFs
 // compressed that to "twenty conversations a day", which undersells the
 // offline companion. Said properly here.
@@ -90,14 +92,8 @@ const FREE_ROW: PlanRow = {
 };
 
 const PLUS_ROW: PlanRow = {
-    name: "Plus",
-    who: "Unlimited replies, 90-day history, companion personas, natural neural voice.",
-    cost: "₹99 / month or ₹699 / year",
-};
-
-const PRO_ROW: PlanRow = {
-    name: "Pro",
-    who: "Everything in Plus, plus unlimited history, emotion trends, companion letters.",
+    name: "Imotara Plus",
+    who: "Unlimited replies and unlimited history, companion personas, natural neural voice, emotion trends and companion letters. One paid plan, everything in it.",
     cost: "₹149 / month or ₹1,299 / year",
 };
 
@@ -107,16 +103,18 @@ const CONNECT_ROW: PlanRow = {
     cost: "From a small prepaid wallet",
 };
 
-export const CONSUMER_PLANS: PlanRow[] = [FREE_ROW, PLUS_ROW, PRO_ROW];
+export const CONSUMER_PLANS: PlanRow[] = [FREE_ROW, PLUS_ROW];
 
 /**
- * Seniors deliberately swap Pro for Connect.
+ * Seniors add Connect alongside the paid plan.
  *
- * The owner's Seniors sheet did this and it is good segmentation, not an
- * oversight: a verified human to talk to matters far more to someone living
- * alone than "deeper features and priority support". Judgement call taken
- * 2026-09-15 — KEEP the simplification, but never hide a tier, so the page
- * carries an honest line linking to the full comparison at /upgrade.
+ * Originally this swapped Pro OUT for Connect — good segmentation: a verified
+ * human to talk to matters far more to someone living alone than "deeper
+ * features". The caveat then was "never hide a tier", so the page carried a
+ * line pointing at the full comparison.
+ *
+ * Since the merge (L10) there is only one paid plan, so nothing is being left
+ * out any more and the caveat is moot. Connect is simply an additional row.
  */
 export const SENIOR_PLANS: PlanRow[] = [FREE_ROW, PLUS_ROW, CONNECT_ROW];
 
@@ -348,7 +346,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     plans: SENIOR_PLANS,
     plansNote:
-      "Free is not a trial, and nothing is charged unless you choose it. Any paid plan is easy to stop, and a family member can help set it up. There is also a Pro plan with deeper features — see all plans for the full comparison.",
+      "Free is not a trial, and nothing is charged unless you choose it. Any paid plan is easy to stop, and a family member can help set it up. See all plans for the full comparison.",
     closing: {
       title: "If you are reading this for a parent or grandparent",
       body: "Imotara was started by two mothers in Kolkata who wanted a judgement-free space for feelings. It speaks slowly and patiently to elders in their own language, and their conversations remain private to them. Installing it takes a few minutes — choose their language, give the companion a friendly name, and show them the microphone button once. It may be one of the kindest things you do this year.",

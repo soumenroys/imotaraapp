@@ -36,24 +36,22 @@ const SUBSCRIPTION_PLANS = [
         accent: "zinc",
     },
     {
-        id: "plus",
-        name: "Plus",
-        monthlyId: "plus_monthly",
-        annualId:  "plus_annual",
-        monthlyPaise: paiseFor("plus_monthly"),
-        annualPaise:  paiseFor("plus_annual"),
-        features: ["Unlimited replies", "90-day cloud history", "Companion personas", "Azure Neural TTS", "Data export", "Connect history — 90 days", "Priority support"],
-        cta: "Subscribe",
-        accent: "sky",
-    },
-    {
+        // 🔗 The one paid consumer plan (L10). Publicly "Imotara Plus"; the
+        // SKUs stay pro_* because plus_monthly/plus_annual are retired — the
+        // one remaining ₹99 subscriber keeps billing on theirs until they
+        // cancel, but nobody new can buy it.
         id: "pro",
-        name: "Pro",
+        name: "Imotara Plus",
         monthlyId: "pro_monthly",
         annualId:  "pro_annual",
         monthlyPaise: paiseFor("pro_monthly"),
         annualPaise:  paiseFor("pro_annual"),
-        features: ["Everything in Plus", "Unlimited history", "Emotion trends & mood graphs", "Companion letters", "Growth arc tracking", "Unlimited Connect history"],
+        features: [
+            "Unlimited replies", "Unlimited cloud history", "Companion personas",
+            "Azure Neural TTS", "Semantic history search", "Data export",
+            "Emotion trends & mood graphs", "Companion letters", "Growth arc tracking",
+            "Unlimited Connect history", "Priority support",
+        ],
         cta: "Subscribe",
         accent: "indigo",
     },
@@ -105,10 +103,9 @@ function Cell({ value }: { value: boolean | string }) {
     return <span className="text-zinc-300 text-xs font-medium">{value}</span>;
 }
 
-function CompareRow({ label, desc, free, plus, pro, ent }: {
+function CompareRow({ label, desc, free, plus, ent }: {
     label: string; desc: string;
-    free: boolean | string; plus: boolean | string;
-    pro: boolean | string;  ent: boolean | string;
+    free: boolean | string; plus: boolean | string; ent: boolean | string;
 }) {
     return (
         <tr className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
@@ -118,7 +115,6 @@ function CompareRow({ label, desc, free, plus, pro, ent }: {
             </td>
             <td className="py-3 px-3 text-center"><Cell value={free} /></td>
             <td className="py-3 px-3 text-center"><Cell value={plus} /></td>
-            <td className="py-3 px-3 text-center"><Cell value={pro} /></td>
             <td className="py-3 px-3 text-center"><Cell value={ent} /></td>
         </tr>
     );
@@ -342,27 +338,27 @@ export default function UpgradePage() {
             </div>
 
             {/* Subscription cards */}
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
                 {SUBSCRIPTION_PLANS.map((plan) => {
                     const isFree     = plan.id === "free";
                     const isCurrent  = currentTier === plan.id || (currentTier === "free" && isFree);
                     const productId  = isFree ? null : (annual ? plan.annualId : plan.monthlyId) as string;
                     const paise      = annual ? plan.annualPaise : plan.monthlyPaise;
                     const isBusy     = !!productId && busy === productId;
-                    const isPlus     = plan.id === "plus";
-                    const isPro      = plan.id === "pro";
+                    // One paid plan now, so "the highlighted card" and "the
+                    // paid card" are the same thing. isPlus is gone with the
+                    // second tier.
+                    const isPaid     = plan.id === "pro";
 
                     return (
                         <div
                             key={plan.id}
-                            className={`relative flex flex-col rounded-2xl border p-5 ${isPro
+                            className={`relative flex flex-col rounded-2xl border p-5 ${isPaid
                                 ? "border-indigo-400/30 bg-indigo-500/10"
-                                : isPlus
-                                    ? "border-sky-400/25 bg-sky-500/8"
-                                    : "border-white/10 bg-white/5"
+                                : "border-white/10 bg-white/5"
                             }`}
                         >
-                            {isPro && (
+                            {isPaid && (
                                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-indigo-500 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
                                     Best value
                                 </span>
@@ -405,7 +401,7 @@ export default function UpgradePage() {
                                         type="button"
                                         disabled={!!busy || !rzReady}
                                         onClick={() => checkout(productId!, `Imotara ${plan.name} ${annual ? "Annual" : "Monthly"}`)}
-                                        className={`w-full rounded-xl py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${isPro
+                                        className={`w-full rounded-xl py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${isPaid
                                             ? "bg-indigo-600 hover:bg-indigo-500 text-white"
                                             : "bg-sky-600 hover:bg-sky-500 text-white"
                                         }`}
@@ -432,7 +428,7 @@ export default function UpgradePage() {
                         </p>
                         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm text-zinc-300">
                             {[
-                                "Everything in Pro",
+                                "Everything in Imotara Plus",
                                 "Admin dashboard & analytics",
                                 "Multi-profile management",
                                 "Child-safe mode",
@@ -479,8 +475,7 @@ export default function UpgradePage() {
                             <tr className="border-b border-white/10 bg-white/5">
                                 <th className="py-3 px-4 text-left font-medium text-zinc-400 w-[40%]">Feature</th>
                                 <th className="py-3 px-3 text-center font-medium text-zinc-400">Free</th>
-                                <th className="py-3 px-3 text-center font-medium text-sky-400">Plus</th>
-                                <th className="py-3 px-3 text-center font-medium text-indigo-400">Pro</th>
+                                <th className="py-3 px-3 text-center font-medium text-indigo-400">Imotara Plus</th>
                                 <th className="py-3 px-3 text-center font-medium text-violet-400">Enterprise</th>
                             </tr>
                         </thead>
@@ -495,97 +490,97 @@ export default function UpgradePage() {
                                 {
                                     label: "Cloud replies / day",
                                     desc: "Cloud replies backed by memory and history",
-                                    free: "20/day", plus: "Unlimited", pro: "Unlimited", ent: "Unlimited",
+                                    free: "20/day", plus: "Unlimited", ent: "Unlimited",
                                 },
                                 {
                                     label: "On-device replies",
                                     desc: "On-device replies — always free, no login needed",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Quick-start feeling chips",
                                     desc: "Tap a mood to begin when words are hard to find",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Emotion tags on messages",
                                     desc: "Each message is tagged with the emotion detected in it",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Bookmark & react to messages",
                                     desc: "Keep the replies that mattered; react with 20 emoji",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Retry a reply",
                                     desc: "Ask again for a different response to the same message",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Long-press for the ⋯ menu",
                                     desc: "Hold any blank part of the chat to reach the menu one-handed (mobile)",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Account backup",
                                     desc: "History and settings synced across all your devices",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Cross-device sync",
                                     desc: "Seamlessly switch between phone, tablet, and web with full history",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Companion mode / personas",
                                     desc: "Themed companion personalities — Coach, Listener, Challenger, and more",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Response length control",
                                     desc: "Switch between short, medium, and detailed response modes",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Companion tone selection",
                                     desc: "Choose the mood of your companion — Warm, Direct, Playful, and more",
-                                    free: "1 tone", plus: "All tones", pro: "All tones", ent: "All tones",
+                                    free: "1 tone", plus: "All tones", ent: "All tones",
                                 },
                                 {
                                     label: "Name your companion",
                                     desc: "Choose the name it goes by — used everywhere it speaks",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Grief space & unsent letter",
                                     desc: "Write to someone you cannot reach, at your own pace",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Guided breathing with ambient sound",
                                     desc: "Paced breathing exercises for anxious moments",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Collective pulse",
                                     desc: "An anonymous snapshot of how the community is feeling",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Token top-up packs",
                                     desc: "Buy one-time credit packs to extend reply capacity beyond the daily limit",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "User emoji reactions",
                                     desc: "React to any message with 20 emoji across 4 groups — love, encouragement, empathy, nature",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Companion emoji reactions",
                                     desc: "Companion auto-reacts to your messages with mood-matched emoji (~50% probability, 1–2 s delay); toggle in Settings",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                             ].map((row) => <CompareRow key={row.label} {...row} />)}
 
@@ -599,32 +594,32 @@ export default function UpgradePage() {
                                 {
                                     label: "Conversation history",
                                     desc: "How far back your cloud history is kept",
-                                    free: "7 days", plus: "90 days", pro: "Unlimited", ent: "Unlimited",
+                                    free: "7 days", plus: "Unlimited", ent: "Unlimited",
                                 },
                                 {
                                     label: "History search across dates",
                                     desc: "Search messages older than the current session",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Data export (JSON / CSV)",
                                     desc: "Download your full conversation archive in machine-readable formats",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Export as PDF",
                                     desc: "Render your conversation history as a formatted PDF document",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "GDPR data request",
                                     desc: "Download all personal data held about your account",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Data deletion request",
                                     desc: "Request permanent deletion of all your data from Imotara servers",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                             ].map((row) => <CompareRow key={row.label} {...row} />)}
 
@@ -638,47 +633,47 @@ export default function UpgradePage() {
                                 {
                                     label: "Text-to-speech (TTS)",
                                     desc: "Companion replies read aloud using a natural voice",
-                                    free: "Basic", plus: true, pro: true, ent: true,
+                                    free: "Basic", plus: true, ent: true,
                                 },
                                 {
                                     label: "Voice input (speech-to-text)",
                                     desc: "Speak your message instead of typing — transcribed before sending",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Hands-free conversation",
                                     desc: "Speak, listen and reply without touching the screen (mobile)",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Noise rejection in hands-free",
                                     desc: "Room noise is discarded instead of becoming words you never said",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Advanced TTS — voice & speed",
                                     desc: "Choose from multiple neural voices; adjust speaking rate and pitch",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Azure Neural TTS",
                                     desc: "High-quality cloud-rendered speech via Azure Cognitive Services",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Language-matched TTS voices",
                                     desc: "TTS voices automatically matched to your selected app language",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Offline TTS fallback",
                                     desc: "Uses your device's built-in TTS engine when offline",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Semantic history search",
                                     desc: "Toggle between keyword and meaning-based history search",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                             ].map((row) => <CompareRow key={row.label} {...row} />)}
 
@@ -692,62 +687,62 @@ export default function UpgradePage() {
                                 {
                                     label: "Reply cadence",
                                     desc: "Control how often your companion responds and sends letters",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Streak tracking",
                                     desc: "Counts consecutive days you engaged with the app",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Session duration stats",
                                     desc: "See how long each conversation session lasted",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Emotion trends & mood graphs",
                                     desc: "Weekly and monthly charts of emotional states over time",
-                                    free: false, plus: false, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Conversation insights",
                                     desc: "Per-conversation annotations — topics, emotional tone, key moments",
-                                    free: false, plus: false, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Weekly emotional summary",
                                     desc: "Auto-generated narrative of the week's emotional themes",
-                                    free: false, plus: false, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Companion letter",
                                     desc: "Monthly companion letter reflecting on your journey and growth",
-                                    free: false, plus: false, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Letter archive",
                                     desc: "Browse and re-read all past companion letters (up to 24 saved — never overwritten)",
-                                    free: false, plus: false, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Letter read-aloud",
                                     desc: "Listen to any companion letter read aloud in your companion's voice",
-                                    free: false, plus: false, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Letter emoji reactions",
                                     desc: "React to any companion letter with a mood-relevant emoji — stored persistently",
-                                    free: false, plus: false, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Letter personal reply",
                                     desc: "Write and save a personal reply to any companion letter — stored with the letter",
-                                    free: false, plus: false, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Growth arc",
                                     desc: "Long-term emotional growth narrative tracking how you evolve over months",
-                                    free: false, plus: false, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                             ].map((row) => <CompareRow key={row.label} {...row} />)}
 
@@ -761,27 +756,27 @@ export default function UpgradePage() {
                                 {
                                     label: "Daily check-in reminder",
                                     desc: "Push notification reminding you to open the app at a chosen time",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Streak notifications",
                                     desc: "Alert when you are at risk of breaking a streak",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Milestone celebrations",
                                     desc: "In-app celebration when you hit streaks, insights, or growth milestones",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Custom notification schedule",
                                     desc: "Set specific days and times for reminders instead of a single daily slot",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Weekly insight digest",
                                     desc: "Weekly push notification summarising your emotional highlights",
-                                    free: false, plus: false, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                             ].map((row) => <CompareRow key={row.label} {...row} />)}
 
@@ -795,27 +790,27 @@ export default function UpgradePage() {
                                 {
                                     label: "Encrypted cloud storage",
                                     desc: "All cloud data encrypted at rest (AES-256) and in transit (TLS 1.3)",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Local-only / offline mode",
                                     desc: "Disable cloud sync entirely and keep all data on-device",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Crisis resources",
                                     desc: "Country-specific helplines surfaced when they are needed — never gated",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Session token management",
                                     desc: "View and revoke active login sessions from account security settings",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Audit logs",
                                     desc: "Immutable logs of admin actions, profile changes, and data access events",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                             ].map((row) => <CompareRow key={row.label} {...row} />)}
 
@@ -829,52 +824,52 @@ export default function UpgradePage() {
                                 {
                                     label: "Multi-profile",
                                     desc: "Manage multiple user profiles under one account",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "Child-safe mode",
                                     desc: "Content filtering for younger or vulnerable users; blocks sensitive topics",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "Admin dashboard",
                                     desc: "Org-wide usage analytics, seat management, and policy controls",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "User management",
                                     desc: "Add, remove, suspend, or reassign users within your organisation",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "Bulk user provisioning",
                                     desc: "Import users via CSV or SCIM; set default tier and permissions at scale",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "SSO / SAML",
                                     desc: "Single sign-on via Okta, Google Workspace, Azure AD, or any SAML provider",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "Data residency",
                                     desc: "Choose which geographic region stores your organisation's data",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "API access",
                                     desc: "Programmatic access to conversation summaries and analytics via REST API",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "Custom integrations",
                                     desc: "Bespoke webhooks, HR system connectors, or custom integrations",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "Institution branding",
                                     desc: "Replace Imotara's logo and colours with your organisation's brand assets",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                             ].map((row) => <CompareRow key={row.label} {...row} />)}
 
@@ -888,47 +883,47 @@ export default function UpgradePage() {
                                 {
                                     label: "Browse wellness companions",
                                     desc: "Discover and explore verified human wellness companions, therapists, and counsellors",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Book & start sessions",
                                     desc: "Start a real-time chat session with a human companion — billed per minute, pay as you go",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Prepaid session minutes",
                                     desc: "Recharge minutes directly with each companion, pay per minute during the session",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Multilingual session translation",
                                     desc: "Opt-in auto-translation at booking — each message is translated server-side so you and your companion can speak different languages. +10% per-minute surcharge when enabled.",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Scheduled sessions",
                                     desc: "Request a future session at a specific date and time with your preferred companion",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Session notes & ratings",
                                     desc: "Add private notes after a session and leave a star rating to help others find the right companion",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Favourite companions",
                                     desc: "Save companions you connect with so you can find them quickly next time",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Connect session history",
                                     desc: "Access your full Connect session transcript history — retention follows your subscription plan",
-                                    free: "7 days", plus: "90 days", pro: "Unlimited", ent: "Unlimited",
+                                    free: "7 days", plus: "Unlimited", ent: "Unlimited",
                                 },
                                 {
                                     label: "Register as a companion",
                                     desc: "Apply to become a verified wellness companion or counsellor on Imotara Connect",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                             ].map((row) => <CompareRow key={row.label} {...row} />)}
 
@@ -942,32 +937,32 @@ export default function UpgradePage() {
                                 {
                                     label: "Community docs & FAQ",
                                     desc: "Access to public help centre, guides, and community forum",
-                                    free: true, plus: true, pro: true, ent: true,
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Email support",
                                     desc: "Submit support tickets via email with a response SLA",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Priority support queue",
                                     desc: "Tickets routed to a faster queue with shorter response times",
-                                    free: false, plus: true, pro: true, ent: true,
+                                    free: false, plus: true, ent: true,
                                 },
                                 {
                                     label: "Dedicated account manager",
                                     desc: "Named contact for onboarding, renewals, and escalations",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "SLA guarantee",
                                     desc: "Contractual uptime and response-time commitments",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "Onboarding assistance",
                                     desc: "Guided setup session with the Imotara team for your org deployment",
-                                    free: false, plus: false, pro: false, ent: true,
+                                    free: false, plus: false, ent: true,
                                 },
                             ].map((row) => <CompareRow key={row.label} {...row} />)}
                         </tbody>

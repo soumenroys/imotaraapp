@@ -250,7 +250,7 @@ export default function OrgNewPage() {
             rows={3}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. 200-person company, need Pro tier for HR team. Or: NGO supporting 500 rural students in West Bengal."
+            placeholder="e.g. 200-person company, need Imotara Plus for the HR team. Or: NGO supporting 500 rural students in West Bengal."
             maxLength={500}
             className="w-full resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-indigo-400/60 focus:ring-1 focus:ring-indigo-500/40"
           />

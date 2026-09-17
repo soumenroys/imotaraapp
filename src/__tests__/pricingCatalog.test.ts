@@ -71,23 +71,32 @@ describe("the price list", () => {
         expect(upgrade).not.toMatch(/(monthly|annual)Paise:\s*[1-9]/);
     });
 
-    it("🔴 the tutorial page advertises the prices we actually charge", () => {
+    it("🔴 the tutorial advertises the merged plan's price, and only that", () => {
         // tutorial/page.tsx writes prices as prose ("₹149/mo"). Prose is fine;
-        // a WRONG number is not. This is the guard that catches a Stage C
-        // reprice that updates the catalog and forgets the tutorial.
+        // a WRONG number is not. This catches a reprice that updates the
+        // catalog and forgets the tutorial.
         const tutorial = read("src/app/tutorial/page.tsx");
-        const plusMo = inr(paiseFor("plus_monthly"));   // ₹99
-        const proMo  = inr(paiseFor("pro_monthly"));    // ₹149
-        const proYr  = inr(paiseFor("pro_annual"));     // ₹1,299
-        expect(tutorial).toContain(`${plusMo}/mo`);
-        expect(tutorial).toContain(`${proMo}/mo`);
+        const mergedMo = inr(paiseFor("pro_monthly"));   // ₹149 — "Imotara Plus"
+        const mergedYr = inr(paiseFor("pro_annual"));    // ₹1,299
+        expect(tutorial).toContain(`${mergedMo}/mo`);
         // The annual figure appears with and without the thousands comma.
-        expect(tutorial.includes(proYr) || tutorial.includes(proYr.replace(",", ""))).toBe(true);
+        expect(tutorial.includes(mergedYr) || tutorial.includes(mergedYr.replace(",", ""))).toBe(true);
+
+        // 🔴 And it must NOT still advertise the retired plus_* price. ₹99 on
+        // its own is fine — that is the tokens_250 pack — so the needle is the
+        // "/mo" that makes it a plan price.
+        const retiredMo = inr(paiseFor("plus_monthly")); // ₹99
+        expect(tutorial).not.toContain(`${retiredMo}/mo`);
+        expect(tutorial).not.toMatch(/\bPro [Pp]lan\b/);
     });
 
-    it("🔴 the admin guide quotes the same prices support will be asked about", () => {
+    it("🔴 the admin guide quotes the price support will be asked about", () => {
+        // Support reads this table to answer "what do I get for what?". After
+        // the merge it is one paid consumer row, not two.
         const guide = read("src/app/admin/guide/page.tsx");
-        expect(guide).toContain(inr(paiseFor("plus_monthly")));
         expect(guide).toContain(inr(paiseFor("pro_monthly")));
+        expect(guide).toContain(inr(paiseFor("pro_annual")));
+        // The retired plan must not still be quoted as a current price.
+        expect(guide).not.toContain(`${inr(paiseFor("plus_monthly"))}/mo`);
     });
 });

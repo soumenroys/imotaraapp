@@ -167,8 +167,7 @@ function PolicySection() {
         headers={["Tier","Price (India)","Daily AI Replies","History","Key features"]}
         rows={[
           [<Tag key="free" color="zinc">Free</Tag>,"₹0","20 replies/day","7 days","Basic chat, local storage, 1 companion tone"],
-          [<Tag key="plus" color="sky">Plus</Tag>,"₹99/mo · ₹699/yr","Unlimited","90 days","Cloud sync, CSV export, Azure Neural TTS, all companion tones"],
-          [<Tag key="pro" color="indigo">Pro</Tag>,"₹149/mo · ₹1299/yr","Unlimited","Unlimited","All Plus + emotional insights, growth arc, companion letters"],
+          [<Tag key="pro" color="indigo">Imotara Plus</Tag>,"₹149/mo · ₹1,299/yr","Unlimited","Unlimited","Cloud sync, export, Azure Neural TTS, all tones, emotional insights, growth arc, companion letters"],
           [<Tag key="family" color="violet">Family</Tag>,"Custom","Unlimited","Unlimited","Up to 6 profiles, child-safe mode, parent dashboard"],
           [<Tag key="edu" color="emerald">EDU</Tag>,"Custom (50% off)","Unlimited","Unlimited","Org dashboard, anonymised analytics, LMS/iframe embed"],
           [<Tag key="enterprise" color="amber">Enterprise</Tag>,"Custom (NGO 60% off)","Unlimited","Unlimited","Full org suite, API keys, custom branding, SSO/SAML"],

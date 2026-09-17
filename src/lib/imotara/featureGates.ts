@@ -155,18 +155,18 @@ export function getParam<T = unknown>(
 
 function reasonFor(feature: FeatureKey, _tier: LicenseTier): string {
     switch (feature) {
-        case "CLOUD_SYNC":        return "Cloud sync is available on Plus and above.";
-        case "HISTORY_UNLIMITED": return "Unlimited history is available on Pro.";
-        case "TRENDS_INSIGHTS":   return "Emotion insights are available on Pro.";
-        case "EXPORT_DATA":       return "Data export is available on Plus and above.";
+        case "CLOUD_SYNC":        return "Cloud sync is available with Imotara Plus.";
+        case "HISTORY_UNLIMITED": return "Unlimited history is available with Imotara Plus.";
+        case "TRENDS_INSIGHTS":   return "Emotion insights are available with Imotara Plus.";
+        case "EXPORT_DATA":       return "Data export is available with Imotara Plus.";
         case "MULTI_PROFILE":     return "Multiple profiles are available with the Family plan.";
         case "CHILD_SAFE_MODE":   return "Child-safe mode is available on Family, EDU, and Enterprise plans.";
         case "ADMIN_DASHBOARD":   return "Admin tools are available on institutional plans.";
-        case "TTS_ADVANCED":      return "Advanced TTS voice selection and rate/pitch control are available on Plus and above.";
-        case "SEARCH_MODE":       return "Exact/semantic search mode is available on Plus and above.";
-        case "REPLY_CADENCE":     return "Cadence controls for arc and companion letter are available on Plus and above.";
-        case "COMPANION_LETTER":  return "Monthly companion letters are available on Pro and above.";
-        case "GROWTH_ARC":        return "Emotional growth arc narrative is available on Pro and above.";
+        case "TTS_ADVANCED":      return "Advanced TTS voice selection and rate/pitch control are available with Imotara Plus.";
+        case "SEARCH_MODE":       return "Exact/semantic search mode is available with Imotara Plus.";
+        case "REPLY_CADENCE":     return "Cadence controls for arc and companion letter are available with Imotara Plus.";
+        case "COMPANION_LETTER":  return "Monthly companion letters are available with Imotara Plus.";
+        case "GROWTH_ARC":        return "Emotional growth arc narrative is available with Imotara Plus.";
         default:                  return "This feature is not available on your current plan.";
     }
 }

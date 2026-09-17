@@ -677,7 +677,7 @@ export default function HistoryPage() {
                   ) : (
                     <Link
                       href="/upgrade"
-                      aria-label="Upgrade to Pro to export history"
+                      aria-label="Upgrade to Imotara Plus to export history"
                       className="inline-flex items-center gap-1 rounded-full border border-indigo-400/25 bg-indigo-500/10 px-2.5 py-1 text-[11px] text-indigo-300 shadow-sm transition hover:bg-indigo-500/20"
                     >
                       <Download className="h-3 w-3" aria-hidden="true" />

@@ -500,6 +500,31 @@ export default function UpgradePage() {
                                     free: true, plus: true, pro: true, ent: true,
                                 },
                                 {
+                                    label: "Quick-start feeling chips",
+                                    desc: "Tap a mood to begin when words are hard to find",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Emotion tags on messages",
+                                    desc: "Each message is tagged with the emotion detected in it",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Bookmark & react to messages",
+                                    desc: "Keep the replies that mattered; react with 20 emoji",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Retry a reply",
+                                    desc: "Ask again for a different response to the same message",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Long-press for the ⋯ menu",
+                                    desc: "Hold any blank part of the chat to reach the menu one-handed (mobile)",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
                                     label: "Account backup",
                                     desc: "History and settings synced across all your devices",
                                     free: true, plus: true, pro: true, ent: true,
@@ -523,6 +548,26 @@ export default function UpgradePage() {
                                     label: "Companion tone selection",
                                     desc: "Choose the mood of your companion — Warm, Direct, Playful, and more",
                                     free: "1 tone", plus: "All tones", pro: "All tones", ent: "All tones",
+                                },
+                                {
+                                    label: "Name your companion",
+                                    desc: "Choose the name it goes by — used everywhere it speaks",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Grief space & unsent letter",
+                                    desc: "Write to someone you cannot reach, at your own pace",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Guided breathing with ambient sound",
+                                    desc: "Paced breathing exercises for anxious moments",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Collective pulse",
+                                    desc: "An anonymous snapshot of how the community is feeling",
+                                    free: true, plus: true, pro: true, ent: true,
                                 },
                                 {
                                     label: "Token top-up packs",
@@ -595,6 +640,16 @@ export default function UpgradePage() {
                                 {
                                     label: "Voice input (speech-to-text)",
                                     desc: "Speak your message instead of typing — transcribed before sending",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Hands-free conversation",
+                                    desc: "Speak, listen and reply without touching the screen (mobile)",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Noise rejection in hands-free",
+                                    desc: "Room noise is discarded instead of becoming words you never said",
                                     free: true, plus: true, pro: true, ent: true,
                                 },
                                 {
@@ -742,6 +797,11 @@ export default function UpgradePage() {
                                 {
                                     label: "Local-only / offline mode",
                                     desc: "Disable cloud sync entirely and keep all data on-device",
+                                    free: true, plus: true, pro: true, ent: true,
+                                },
+                                {
+                                    label: "Crisis resources",
+                                    desc: "Country-specific helplines surfaced when they are needed — never gated",
                                     free: true, plus: true, pro: true, ent: true,
                                 },
                                 {

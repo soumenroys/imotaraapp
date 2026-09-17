@@ -46,7 +46,7 @@ const SETTINGS_LIST = [
   { id: "export_data", title: "Export data", description: "Export conversation history as JSON or CSV" },
   { id: "clear_history", title: "Clear history", description: "Delete all local conversation history" },
   { id: "delete_account", title: "Delete account", description: "Permanently delete Imotara account and data" },
-  { id: "upgrade_plan", title: "Upgrade plan", description: "Upgrade to Plus or Pro for unlimited replies and advanced features" },
+  { id: "upgrade_plan", title: "Upgrade plan", description: "Upgrade to Imotara Plus for unlimited replies and advanced features" },
   { id: "token_credits", title: "Token credits", description: "Buy extra reply tokens" },
   { id: "sign_in", title: "Sign in / Sign out", description: "Sign in with Google or Apple, or sign out" },
   { id: "donate", title: "Donate to Imotara", description: "Support development with a one-time donation" },

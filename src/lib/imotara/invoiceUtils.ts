@@ -19,12 +19,22 @@ export interface InvoiceData {
   periodEnd?:    string | null;
 }
 
-/** Product display names for invoice descriptions. */
+/**
+ * Product display names for invoice descriptions.
+ *
+ * 🔴 These reach a CUSTOMER, on a document they keep. pro_monthly/pro_annual
+ * said "Imotara Pro" — a plan that no longer exists — so someone paying for
+ * Imotara Plus would have received an invoice for something else entirely.
+ * All four subscription SKUs are the same plan; only the price differs.
+ *
+ * The SKU ids still say plus_/pro_ because store product IDs are immutable.
+ * Nothing a customer sees should repeat that accident.
+ */
 const PRODUCT_DESCRIPTIONS: Record<string, string> = {
   plus_monthly:  "Imotara Plus · Monthly subscription",
   plus_annual:   "Imotara Plus · Annual subscription",
-  pro_monthly:   "Imotara Pro · Monthly subscription",
-  pro_annual:    "Imotara Pro · Annual subscription",
+  pro_monthly:   "Imotara Plus · Monthly subscription",
+  pro_annual:    "Imotara Plus · Annual subscription",
   tokens_100:    "Imotara Token Pack · 100 tokens",
   tokens_250:    "Imotara Token Pack · 250 tokens",
   tokens_600:    "Imotara Token Pack · 600 tokens",

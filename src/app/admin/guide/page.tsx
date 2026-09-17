@@ -189,7 +189,7 @@ function PolicySection() {
       <p className="text-sm text-zinc-400 mb-4">When a user opens the app, the system checks these sources in order and uses the <strong className="text-zinc-200">highest-priority one that applies</strong>:</p>
       <div className="space-y-2">
         {[
-          { rank: "1", label: "Pool assignment", color: "amber", desc: "A specific license was assigned from a pool issued to their org (e.g. a Pro license from a 50-seat pool). Highest priority — overrides everything." },
+          { rank: "1", label: "Pool assignment", color: "amber", desc: "A specific license was assigned from a pool issued to their org (e.g. an Imotara Plus licence from a 50-seat pool). Highest priority — overrides everything." },
           { rank: "2", label: "Org tier override", color: "orange", desc: "A super-admin or org admin manually set a different tier for this specific member (e.g. a member of an EDU org gets Enterprise)." },
           { rank: "3", label: "Personal license", color: "sky", desc: "The user bought their own Razorpay/Apple/Google Play subscription independently of any org." },
           { rank: "4", label: "Org default tier", color: "indigo", desc: "The org's tier applies to all members who don't have a higher-priority source (e.g. all members of an Enterprise org get Enterprise)." },
@@ -596,7 +596,7 @@ function SuperAdminSection() {
         <p>Options: <Tag color="amber">owner</Tag> · <Tag color="indigo">admin</Tag> · <Tag color="zinc">member</Tag>. Changes take effect immediately.</p>
       </Step>
       <Step n={3} title="Override a member's license tier using the License tier dropdown">
-        <p>Select any tier from the dropdown. Options: <em>Org default</em> (no override) · Plus · Pro · EDU · Enterprise · Free. The override is recorded and shows in the Licenses tab as <em>&quot;manual override&quot;</em>.</p>
+        <p>Select any tier from the dropdown. Options: <em>Org default</em> (no override) · Plus · EDU · Enterprise · Free. The override is recorded and shows in the Licenses tab as <em>&quot;manual override&quot;</em>.</p>
       </Step>
 
       <Divider />
@@ -609,7 +609,7 @@ function SuperAdminSection() {
         <p>The pool panel opens below the member panel. It shows existing pools and an <strong className="text-zinc-300">Issue new pool</strong> form.</p>
       </Step>
       <Step n={2} title="Fill in the pool details and click Issue pool">
-        <Screen title="admin — 🏢 Organizations → [Org] → License pools" caption="Issue a pool of 50 Pro licenses with a label and optional expiry date. The bar shows assigned vs total.">
+        <Screen title="admin — 🏢 Organizations → [Org] → License pools" caption="Issue a pool of 50 Imotara Plus licences with a label and optional expiry date. The bar shows assigned vs total.">
           <div className="bg-[#0d0d10] p-4 space-y-4">
             {/* Issue form */}
             <div className="rounded-xl border border-amber-400/20 bg-amber-500/6 p-4 space-y-3">
@@ -660,7 +660,7 @@ function SuperAdminSection() {
         <div className="mt-3 rounded-xl border border-white/8 bg-white/3 p-3 text-xs text-zinc-400 space-y-1.5">
           <p><strong className="text-zinc-200">Tier</strong> — The license tier members get when assigned from this pool (plus / pro / enterprise / edu).</p>
           <p><strong className="text-zinc-200">Quantity</strong> — How many individual licenses to issue. Each assignment uses 1 license; withdrawing returns it.</p>
-          <p><strong className="text-zinc-200">Label</strong> — Internal name (e.g. &quot;Annual Pro Batch 2026&quot;). Shown to org admins when they assign from the pool.</p>
+          <p><strong className="text-zinc-200">Label</strong> — Internal name (e.g. &quot;Annual Plus Batch 2026&quot;). Shown to org admins when they assign from the pool.</p>
           <p><strong className="text-zinc-200">Expires</strong> — When the pool expires. Leave blank for no expiry. Expired pools cannot be assigned from.</p>
         </div>
       </Step>
@@ -1027,7 +1027,7 @@ function OrgAdminSection() {
 
       {/* ── POOL ── */}
       <H2 id="oa-pool">Part 4 — Pool Tab (Distribute License Pools)</H2>
-      <p className="text-sm text-zinc-400 mb-4">If Imotara has issued license pools to your org (e.g. 50 Pro licenses), you distribute them from here. Each assignment uses one license from the pool inventory.</p>
+      <p className="text-sm text-zinc-400 mb-4">If Imotara has issued license pools to your org (e.g. 50 Imotara Plus licences), you distribute them from here. Each assignment uses one license from the pool inventory.</p>
 
       <Screen title="org/dashboard/pool" caption="Pool overview showing total issued, assigned, and free. Below: assign to a member, view all assignments with reassign/withdraw actions.">
         <div className="flex bg-[#0d0d10] min-h-[280px]">
@@ -1203,8 +1203,8 @@ function FaqSection() {
       a: "Admin panel → 👑 Admins tab → find the locked admin (their row shows a 🔓 Unlock button) → click Unlock. The account is immediately accessible. If YOUR account is locked, contact another Owner-role admin to unlock it for you.",
     },
     {
-      q: "Can an org member have a higher tier than the org? (e.g. org is Enterprise but member bought personal Pro)",
-      a: "Yes. The priority chain means a personal Imotara Plus licence would only apply if it's higher than Enterprise — which it's not. Enterprise wins. The member keeps Enterprise. When they leave the org, they fall back to their personal Pro license. The system always gives the user the highest tier they're entitled to.",
+      q: "Can an org member have a higher tier than the org? (e.g. org is Enterprise but the member bought personal Imotara Plus)",
+      a: "Yes. The priority chain means a personal Imotara Plus licence would only apply if it's higher than Enterprise — which it's not. Enterprise wins. The member keeps Enterprise. When they leave the org, they fall back to their personal Imotara Plus licence. The system always gives the user the highest tier they're entitled to.",
     },
     {
       q: "What's the difference between the Licenses tab and the Pool tab in the org dashboard?",

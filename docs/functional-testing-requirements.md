@@ -40,11 +40,11 @@ The agency should create fresh test accounts for each test category. Use email/p
 |---|---|---|
 | Free user | tester+free@[agency].com | Test free tier limits |
 | Plus user | tester+plus@[agency].com | Test Plus features |
-| Pro user | tester+pro@[agency].com | Test Pro + export features |
+| Paid user | tester+plus@[agency].com | Test Imotara Plus + export features |
 | Fresh new user | tester+new@[agency].com | Test onboarding |
 | Admin | Provided by Imotara team | Test admin panel (web only) |
 
-> Imotara team will manually set tier for Plus/Pro test accounts before testing begins.
+> Imotara team will manually set tier for Imotara Plus test accounts before testing begins.
 
 ### 3.2 Devices Required (minimum)
 
@@ -627,16 +627,16 @@ All banners below appear at the top of the chat screen. Only one banner appears 
 **Steps:** Use an account with token pack credits → hit the daily quota → send a message  
 **Expected:** Token pack credits are consumed (server-side). User gets a cloud reply. Balance decreases by 1.
 
-#### TC-LIC-04 — Upgrade to Plus — Razorpay (Web, Android)
-**Steps:** As a Free user, tap Upgrade → select Plus plan (₹99/mo) → complete Razorpay payment flow with test card  
-**Expected:** Payment succeeds. License tier updates to Plus. Quota banner disappears.
+#### TC-LIC-04 — Upgrade to Imotara Plus — Razorpay (Web, Android)
+**Steps:** As a Free user, tap Upgrade → select Imotara Plus (₹149/mo) → complete Razorpay payment flow with test card  
+**Expected:** Payment succeeds. License tier updates. Quota banner disappears. Export and unlimited history become accessible.
 
-#### TC-LIC-05 — Upgrade to Pro — Razorpay (Web, Android)
-**Steps:** As a Free user, tap Upgrade → select Pro plan (₹149/mo) → complete payment  
-**Expected:** License upgrades to Pro. Export and unlimited history become accessible.
+#### TC-LIC-05 — Retired plus_* SKUs are NOT offered (Web, iOS, Android)
+**Steps:** Open the upgrade sheet on each platform and read every purchasable plan  
+**Expected:** Only `pro_monthly` / `pro_annual` appear. `plus_monthly` / `plus_annual` are retired and must never be offered as a new purchase — an existing subscriber on one still bills normally and a restore must still resolve it.
 
 #### TC-LIC-06 — Upgrade via Apple IAP (iOS)
-**Steps:** On iOS, tap Upgrade → select Plus or Pro → complete Apple IAP purchase  
+**Steps:** On iOS, tap Upgrade → select Imotara Plus → complete Apple IAP purchase  
 **Expected:** Payment processed via App Store. License upgrades. No double-charge with Razorpay.
 
 #### TC-LIC-07 — Launch Offer — 90-Day Free Plus (Web, iOS, Android)
@@ -649,13 +649,13 @@ All banners below appear at the top of the chat screen. Only one banner appears 
 
 #### TC-LIC-09 — Downgrade After Expiry (Web, iOS, Android)
 **Steps:** Use an account whose Plus subscription has expired  
-**Expected:** Tier reverts to Free. Pro/Plus features are no longer accessible. A friendly expiry notice may appear.
+**Expected:** Tier reverts to Free. Imotara Plus features are no longer accessible. A friendly expiry notice may appear.
 
-#### TC-LIC-10 — Feature Gates — Pro Only: Export (Web, iOS, Android)
+#### TC-LIC-10 — Feature Gates — Imotara Plus only: Export (Web, iOS, Android)
 **Steps:** As a Free or Plus user, attempt to export chat history  
 **Expected:** Export is blocked or gated with an upgrade prompt. Pro user can export without issue.
 
-#### TC-LIC-11 — Feature Gates — Pro Only: Unlimited History (Web)
+#### TC-LIC-11 — Feature Gates — Imotara Plus only: Unlimited History (Web)
 **Steps:** As a Free user on Web, check history older than 7 days  
 **Expected:** History older than 7 days is not visible or shows an upgrade prompt.
 
@@ -892,7 +892,7 @@ All banners below appear at the top of the chat screen. Only one banner appears 
 **Expected:** Detail panel shows: tier, status, expiry date, token balance, license history log.
 
 #### TC-ADMIN-07 — Change User Tier (Web)
-**Steps:** In user detail → change tier from Free to Pro → save  
+**Steps:** In user detail → change tier from Free to Imotara Plus → save  
 **Expected:** Tier updates immediately. Change is logged in the audit trail with: action=tier_change, before value, after value, timestamp.
 
 #### TC-ADMIN-08 — Extend License Expiry (Web)
@@ -916,7 +916,7 @@ All banners below appear at the top of the chat screen. Only one banner appears 
 **Expected:** User loses access to cloud features. Status shows "suspended" in both admin view and user's own plan view.
 
 #### TC-ADMIN-13 — Withdraw / Cancel a License (Web)
-**Steps:** Withdraw a user's Plus/Pro license  
+**Steps:** Withdraw a user's Imotara Plus license  
 **Expected:** User reverts to Free. Status logged as action=withdraw.
 
 ---
@@ -1146,12 +1146,12 @@ These checks confirm that the same feature works equivalently on all three platf
 **Expected:** The tier field change is ignored or rejected. Only name/contact email are editable by org admin.
 
 #### TC-ROLE-07 — Super-Admin Can Downgrade Org Tier — Effect Propagates to Members (Web + Mobile)
-**Steps:** Super-admin downgrades a Pro-tier org to EDU → check a member's account  
-**Expected:** The member's resolved tier changes to EDU. If they had a personal Pro license, the higher of the two tiers applies (personal license takes priority).
+**Steps:** Super-admin downgrades an Imotara Plus org to EDU → check a member's account  
+**Expected:** The member's resolved tier changes to EDU. If they had a personal Imotara Plus license, the higher of the two tiers applies (personal license takes priority).
 
 #### TC-ROLE-08 — Personal License Priority Over Org License (Web, iOS, Android)
-**Steps:** Use a test account that has a personal Pro license AND is a member of an EDU-tier org  
-**Expected:** User's effective tier is Pro (personal license wins). They retain all Pro features.
+**Steps:** Use a test account that has a personal Imotara Plus license AND is a member of an EDU-tier org  
+**Expected:** User's effective tier is Imotara Plus (personal license wins). They retain the full Imotara Plus feature set.
 
 #### TC-ROLE-09 — Org Member Removed — License Reverts Correctly (Web, iOS, Android)
 **Steps:** Remove an org member via the org admin dashboard → check the removed user's account immediately after  

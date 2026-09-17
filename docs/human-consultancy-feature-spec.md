@@ -203,7 +203,7 @@ Register as Consultant
 | Escrow release | Released to consultant 24h after session completion |
 | Refund policy | Full refund if consultant no-shows; partial if user cancels < 24h |
 | Free first session | Optional consultant setting: first 15 min free |
-| Subscription bundle | Users on Pro/Enterprise tier get discounted session credits |
+| Subscription bundle | Users on Imotara Plus / Enterprise get discounted session credits |
 | Gift sessions | User can gift a session credit to another Imotara user |
 | Invoice generation | Auto-invoice for users post-payment |
 | GST / Tax handling | Platform-level tax compliance per region |
@@ -239,7 +239,7 @@ Register as Consultant
 |-------------|----------------|
 | Free | Pay per session, no discount |
 | Plus | 5% discount on all sessions |
-| Pro | 2 free 30-min sessions/month included |
+| Imotara Plus | 2 free 30-min sessions/month included |
 | Family | 1 free session/month per family member (max 4) |
 | Enterprise/EDU | Bulk session credits available via org admin |
 
@@ -658,7 +658,7 @@ The current admin panel is **not sufficient** for the consultancy feature. The f
 
 ### Phase 6 — Growth & Optimisation (ongoing)
 - AI-powered recommendations ("Connect users who reflect on X often book Yoga instructors")
-- Subscription bundle integration (Pro/Enterprise credits)
+- Subscription bundle integration (Imotara Plus / Enterprise credits)
 - Featured listing system
 - Multi-language bio AI translation
 - Review fraud detection

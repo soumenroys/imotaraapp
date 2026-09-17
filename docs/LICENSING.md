@@ -11,8 +11,7 @@
 | Tier | Monthly | Annual | Annual Savings | Target |
 |------|---------|--------|----------------|--------|
 | **Free** | ₹0 | ₹0 | — | First-time users, casual use |
-| **Plus** | ₹99 | ₹699 | ~41% | Daily users who need history & export |
-| **Pro** | ₹149 | ₹1,299 | ~27% | Power users who want deep insights |
+| **Imotara Plus** | ₹149 | ₹1,299 | ~27% | Everyone who wants unlimited use and the full feature set |
 | **Family** | Custom | Custom | — | Shared household, up to 6 profiles |
 | **EDU** | Custom | Custom | — | Schools, colleges, counselling orgs |
 | **Enterprise** | Custom | Custom | — | Corporates, HR, mental-health platforms |
@@ -28,7 +27,7 @@ Token packs extend AI-reply capacity beyond the daily quota. Tokens never expire
 | Starter | ₹49 | 100 tokens | ₹0.49/token |
 | Standard | ₹99 | 250 tokens | ₹0.40/token |
 | Value | ₹199 | 600 tokens | ₹0.33/token |
-| Pro Pack | ₹499 | 1,800 tokens | ₹0.28/token |
+| Max Pack | ₹499 | 1,800 tokens | ₹0.28/token |
 
 ---
 
@@ -38,87 +37,87 @@ Legend: ✅ Included · ❌ Not included · `value` — specific limit or parame
 
 ### 1. Core Experience
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **Daily reply limit** | Max AI replies the user can send per calendar day before needing token top-up | 20/day | Unlimited | Unlimited | Unlimited | Unlimited | Unlimited |
-| **Companion tone selection** | Choose the personality/mood of the AI companion (e.g. Warm, Direct, Playful) | 1 tone | All tones | All tones | All tones | All tones | All tones |
-| **Response length control** | Switch between short, medium, and long AI response modes | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Conversation threading** | Replies grouped into sessions/threads for cleaner navigation | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Message search** | Full-text search across conversation history | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Offline mode** | Read previously loaded messages without a network connection | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Companion mode / personas** | Themed AI personalities beyond the default (e.g. Coach, Listener, Challenger) | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Token top-up purchases** | Buy one-time token packs to extend reply capacity | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **User emoji reactions** | React to any message with a set of 20 emoji across 4 groups (love, encouragement, empathy, nature) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Companion emoji reactions** | Companion auto-reacts to user messages with a mood-matched emoji (~50% probability, 1–2 s delay); toggle in settings | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **Daily reply limit** | Max AI replies the user can send per calendar day before needing token top-up | 20/day | Unlimited | Unlimited | Unlimited | Unlimited |
+| **Companion tone selection** | Choose the personality/mood of the AI companion (e.g. Warm, Direct, Playful) | 1 tone | All tones | All tones | All tones | All tones |
+| **Response length control** | Switch between short, medium, and long AI response modes | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Conversation threading** | Replies grouped into sessions/threads for cleaner navigation | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Message search** | Full-text search across conversation history | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Offline mode** | Read previously loaded messages without a network connection | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Companion mode / personas** | Themed AI personalities beyond the default (e.g. Coach, Listener, Challenger) | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Token top-up purchases** | Buy one-time token packs to extend reply capacity | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **User emoji reactions** | React to any message with a set of 20 emoji across 4 groups (love, encouragement, empathy, nature) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Companion emoji reactions** | Companion auto-reacts to user messages with a mood-matched emoji (~50% probability, 1–2 s delay); toggle in settings | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
 ### 2. Voice & Audio
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **Text-to-speech (TTS)** | AI replies read aloud by a synthetic voice | ✅ basic | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Voice input (STT)** | Speak your message instead of typing; transcribed before sending | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **TTS voice selection** | Choose from multiple Azure Neural TTS voices (male/female/neutral, regional accents) | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **TTS rate & pitch control** | Adjust speaking speed and pitch of the TTS voice | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Offline / native TTS fallback** | Uses device's built-in TTS engine when network is unavailable | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Azure Neural TTS (cloud)** | High-quality cloud-rendered speech via Azure Cognitive Services | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Language-specific voices** | TTS voices matched to the user's selected app language | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Haptic feedback on send** | Device vibrates when a message is sent (mobile only) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **Text-to-speech (TTS)** | AI replies read aloud by a synthetic voice | ✅ basic | ✅ | ✅ | ✅ | ✅ |
+| **Voice input (STT)** | Speak your message instead of typing; transcribed before sending | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **TTS voice selection** | Choose from multiple Azure Neural TTS voices (male/female/neutral, regional accents) | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **TTS rate & pitch control** | Adjust speaking speed and pitch of the TTS voice | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Offline / native TTS fallback** | Uses device's built-in TTS engine when network is unavailable | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Azure Neural TTS (cloud)** | High-quality cloud-rendered speech via Azure Cognitive Services | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Language-specific voices** | TTS voices matched to the user's selected app language | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Haptic feedback on send** | Device vibrates when a message is sent (mobile only) | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
 ### 3. History & Storage
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **History retention period** | How far back conversation history is accessible | 7 days | 90 days | Unlimited | Unlimited | Unlimited | Unlimited |
-| **Unlimited history** | All conversations stored indefinitely with no rolling cutoff | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| **Local storage** | Conversations stored on-device for fast, offline access | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **History search across dates** | Search messages older than the current session | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **History retention period** | How far back conversation history is accessible | 7 days | Unlimited | Unlimited | Unlimited | Unlimited |
+| **Unlimited history** | All conversations stored indefinitely with no rolling cutoff | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Local storage** | Conversations stored on-device for fast, offline access | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **History search across dates** | Search messages older than the current session | ❌ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
 ### 4. Cloud & Sync
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **Cloud sync** | Conversations backed up to cloud and synced across devices | ✅ (quota) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Cross-device sync** | Seamless switch between phone, tablet, and web app with full history | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Real-time sync** | Changes on one device appear on other devices within seconds | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Sync conflict resolution** | Automatic handling when the same conversation is edited on two devices | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **Cloud sync** | Conversations backed up to cloud and synced across devices | ✅ (quota) | ✅ | ✅ | ✅ | ✅ |
+| **Cross-device sync** | Seamless switch between phone, tablet, and web app with full history | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Real-time sync** | Changes on one device appear on other devices within seconds | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Sync conflict resolution** | Automatic handling when the same conversation is edited on two devices | ❌ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
 ### 5. Analytics & Insights
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **Emotion trends** | Chart of detected emotional states over time (joy, sadness, stress, calm, etc.) | ❌ | ❌ | ✅ | ✅ | ✅ (agg.) | ✅ |
-| **Mood graphs** | Visual weekly/monthly graphs of mood patterns derived from conversations | ❌ | ❌ | ✅ | ✅ | ✅ (agg.) | ✅ |
-| **Weekly emotional summary** | Auto-generated narrative summary of the week's emotional themes | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
-| **Monthly growth letter** | Personalised letter each month reflecting progress, patterns, and growth themes | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
-| **Companion letter archive** | All past companion letters saved and browsable (up to 24); never overwritten | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
-| **Letter read-aloud (TTS)** | Listen to any companion letter read aloud in the companion's voice | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
-| **Letter emoji reactions** | React to any companion letter with a mood-relevant emoji | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
-| **Letter personal reply** | Write and save a personal reply to any companion letter; stored with the letter | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
-| **Growth arc** | Long-term narrative arc tracking how the user's emotional expression evolves over months | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
-| **Conversation insights** | Per-conversation annotations: topics identified, emotional tone, key moments | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
-| **Streak tracking** | Counts consecutive days the user engaged with the app | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Session duration stats** | Shows how long each conversation session lasted | ❌ | ✅ | ✅ | ✅ | ✅ (agg.) | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **Emotion trends** | Chart of detected emotional states over time (joy, sadness, stress, calm, etc.) | ❌ | ✅ | ✅ | ✅ (agg.) | ✅ |
+| **Mood graphs** | Visual weekly/monthly graphs of mood patterns derived from conversations | ❌ | ✅ | ✅ | ✅ (agg.) | ✅ |
+| **Weekly emotional summary** | Auto-generated narrative summary of the week's emotional themes | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Monthly growth letter** | Personalised letter each month reflecting progress, patterns, and growth themes | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Companion letter archive** | All past companion letters saved and browsable (up to 24); never overwritten | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Letter read-aloud (TTS)** | Listen to any companion letter read aloud in the companion's voice | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Letter emoji reactions** | React to any companion letter with a mood-relevant emoji | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Letter personal reply** | Write and save a personal reply to any companion letter; stored with the letter | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Growth arc** | Long-term narrative arc tracking how the user's emotional expression evolves over months | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Conversation insights** | Per-conversation annotations: topics identified, emotional tone, key moments | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Streak tracking** | Counts consecutive days the user engaged with the app | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Session duration stats** | Shows how long each conversation session lasted | ❌ | ✅ | ✅ | ✅ (agg.) | ✅ |
 
 ---
 
 ### 6. Export & Data
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **Conversation export** | Download conversations to a file for personal archiving or sharing | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ |
-| **Export as PDF** | Render conversation history as a formatted PDF document | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ |
-| **Export as CSV / JSON** | Machine-readable export formats for personal data portability | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ |
-| **GDPR data request** | Download all personal data held about the account in a machine-readable package | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Data deletion request** | Request permanent deletion of all account data from Imotara servers | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Bulk export (admin)** | Export anonymised data for all users within an org via admin panel | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **Conversation export** | Download conversations to a file for personal archiving or sharing | ❌ | ✅ | ❌ | ❌ | ✅ |
+| **Export as PDF** | Render conversation history as a formatted PDF document | ❌ | ✅ | ❌ | ❌ | ✅ |
+| **Export as CSV / JSON** | Machine-readable export formats for personal data portability | ❌ | ✅ | ❌ | ❌ | ✅ |
+| **GDPR data request** | Download all personal data held about the account in a machine-readable package | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Data deletion request** | Request permanent deletion of all account data from Imotara servers | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Bulk export (admin)** | Export anonymised data for all users within an org via admin panel | ❌ | ❌ | ❌ | ✅ | ✅ |
 
 > **Note:** Family export is intentionally disabled — shared-device privacy boundary. EDU individual export is disabled; aggregated/anonymised export is available to admins only.
 
@@ -126,86 +125,86 @@ Legend: ✅ Included · ❌ Not included · `value` — specific limit or parame
 
 ### 7. Profiles & Family Safety
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **Multiple profiles** | Create and switch between distinct user profiles on one device/account | ❌ | ❌ | ❌ | ✅ (6) | ✅ | ✅ |
-| **Profile switching** | Quickly switch the active profile without logging out | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| **Child-safe mode** | Filters AI responses to age-appropriate language; blocks sensitive topics | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| **Parental controls** | Parent can review child profile activity, set daily limits, and approve tone changes | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| **Family usage dashboard** | See aggregated engagement metrics across all household profiles | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| **Profile-level privacy** | Each profile's history is isolated; other profiles cannot view it | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **Multiple profiles** | Create and switch between distinct user profiles on one device/account | ❌ | ❌ | ✅ (6) | ✅ | ✅ |
+| **Profile switching** | Quickly switch the active profile without logging out | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **Child-safe mode** | Filters AI responses to age-appropriate language; blocks sensitive topics | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **Parental controls** | Parent can review child profile activity, set daily limits, and approve tone changes | ❌ | ❌ | ✅ | ❌ | ❌ |
+| **Family usage dashboard** | See aggregated engagement metrics across all household profiles | ❌ | ❌ | ✅ | ❌ | ❌ |
+| **Profile-level privacy** | Each profile's history is isolated; other profiles cannot view it | ❌ | ❌ | ✅ | ✅ | ✅ |
 
 ---
 
 ### 8. Notifications & Habits
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **Daily check-in reminder** | Push notification reminding the user to open the app at a chosen time | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Custom notification schedule** | Set specific days and times for reminders rather than a single daily slot | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Streak notifications** | Alert when the user is at risk of breaking a streak | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Milestone celebrations** | In-app celebration when user hits streaks, first insight, or growth milestones | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Weekly insight digest** | Weekly push notification summarising the user's emotional highlights | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **Daily check-in reminder** | Push notification reminding the user to open the app at a chosen time | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Custom notification schedule** | Set specific days and times for reminders rather than a single daily slot | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Streak notifications** | Alert when the user is at risk of breaking a streak | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Milestone celebrations** | In-app celebration when user hits streaks, first insight, or growth milestones | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Weekly insight digest** | Weekly push notification summarising the user's emotional highlights | ❌ | ✅ | ✅ | ❌ | ✅ |
 
 ---
 
 ### 9. Customization & Accessibility
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **Light / dark / system theme** | Switch between light mode, dark mode, or follow device system setting | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Language selection** | Change the app language (UI and AI responses) from the supported language list | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Font size control** | Increase or decrease text size across the app for readability | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Haptic feedback toggle** | Enable or disable vibration feedback on interactions (mobile) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Custom app icon** | Choose from alternate app icons (mobile) | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| **Search mode selection** | Toggle between semantic/keyword search modes in history | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Cadence / reply pacing** | Set how quickly or slowly the AI types out replies (streaming speed) | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Institution branding** | Replace Imotara's logo/colours with the organisation's own brand assets | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Show sync status** | Toggle visibility of cloud sync badges on messages (default: hidden for privacy feel) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **Light / dark / system theme** | Switch between light mode, dark mode, or follow device system setting | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Language selection** | Change the app language (UI and AI responses) from the supported language list | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Font size control** | Increase or decrease text size across the app for readability | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Haptic feedback toggle** | Enable or disable vibration feedback on interactions (mobile) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Custom app icon** | Choose from alternate app icons (mobile) | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Search mode selection** | Toggle between semantic/keyword search modes in history | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Cadence / reply pacing** | Set how quickly or slowly the AI types out replies (streaming speed) | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Institution branding** | Replace Imotara's logo/colours with the organisation's own brand assets | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Show sync status** | Toggle visibility of cloud sync badges on messages (default: hidden for privacy feel) | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
 ### 10. Privacy & Security
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **Encrypted cloud storage** | All cloud-synced data encrypted at rest (AES-256) and in transit (TLS 1.3) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Local-only / offline mode** | Option to disable cloud sync entirely, keeping all data on-device only | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **AsyncStorage encryption** | Mobile local storage encrypted with device-level key (planned v1.0.11) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Data residency control** | Choose which geographic region stores the organisation's data | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Audit logs** | Immutable logs of admin actions, profile changes, and data access events | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Session token management** | View and revoke active sessions from account security settings | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **SSO / SAML integration** | Sign in via the organisation's identity provider (Okta, Google Workspace, Azure AD) | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **Encrypted cloud storage** | All cloud-synced data encrypted at rest (AES-256) and in transit (TLS 1.3) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Local-only / offline mode** | Option to disable cloud sync entirely, keeping all data on-device only | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **AsyncStorage encryption** | Mobile local storage encrypted with device-level key (planned v1.0.11) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Data residency control** | Choose which geographic region stores the organisation's data | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Audit logs** | Immutable logs of admin actions, profile changes, and data access events | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Session token management** | View and revoke active sessions from account security settings | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **SSO / SAML integration** | Sign in via the organisation's identity provider (Okta, Google Workspace, Azure AD) | ❌ | ❌ | ❌ | ✅ | ✅ |
 
 ---
 
 ### 11. Admin & Institutional
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **Admin dashboard** | Web panel for managing users, viewing usage stats, and setting org-level policies | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **User management** | Add, remove, suspend, or reassign users within the organisation | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Bulk user provisioning** | Import users via CSV or SCIM; set default tier and permissions en masse | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Org-level usage analytics** | Aggregate engagement metrics: DAU, streak rates, feature adoption, etc. | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Student / employee progress view** | Anonymised per-user progress indicators for counsellors or HR leads | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Classroom / cohort mode** | Group users into classes or teams; set shared companion tone policies | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| **LMS integration** | Embed Imotara within an LMS (Moodle, Canvas) via LTI or iframe | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| **API access** | Programmatic access to conversation summaries and analytics via REST API | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Custom integrations** | Bespoke webhooks, HR system connectors, or custom AI model tuning | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Team / department management** | Organise users into teams with separate policies and admins | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **Admin dashboard** | Web panel for managing users, viewing usage stats, and setting org-level policies | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **User management** | Add, remove, suspend, or reassign users within the organisation | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Bulk user provisioning** | Import users via CSV or SCIM; set default tier and permissions en masse | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Org-level usage analytics** | Aggregate engagement metrics: DAU, streak rates, feature adoption, etc. | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Student / employee progress view** | Anonymised per-user progress indicators for counsellors or HR leads | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Classroom / cohort mode** | Group users into classes or teams; set shared companion tone policies | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **LMS integration** | Embed Imotara within an LMS (Moodle, Canvas) via LTI or iframe | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **API access** | Programmatic access to conversation summaries and analytics via REST API | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Custom integrations** | Bespoke webhooks, HR system connectors, or custom AI model tuning | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Team / department management** | Organise users into teams with separate policies and admins | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ---
 
 ### 12. Support
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **Community / docs support** | Access to public help centre, FAQ, and community forum | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Email support** | Submit support tickets via email with a response SLA | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Priority support queue** | Support tickets routed to a faster queue with shorter response time | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Dedicated account manager** | Named contact for onboarding, renewals, and escalations | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **SLA guarantee** | Contractual uptime and response-time commitments | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **Onboarding assistance** | Guided setup session with Imotara team for org deployment | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **Community / docs support** | Access to public help centre, FAQ, and community forum | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Email support** | Submit support tickets via email with a response SLA | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Priority support queue** | Support tickets routed to a faster queue with shorter response time | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Dedicated account manager** | Named contact for onboarding, renewals, and escalations | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **SLA guarantee** | Contractual uptime and response-time commitments | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Onboarding assistance** | Guided setup session with Imotara team for org deployment | ❌ | ❌ | ❌ | ✅ | ✅ |
 
 ---
 
@@ -213,18 +212,18 @@ Legend: ✅ Included · ❌ Not included · `value` — specific limit or parame
 
 Imotara Connect is an integrated marketplace where users can have real-time text sessions with verified human wellness companions. Sessions are billed per minute from the user's prepaid Imotara Wallet. Connect is available on **all tiers** — the only tier-based difference is session history retention.
 
-| Feature | Description | Free | Plus | Pro | Family | EDU | Enterprise |
-|---------|-------------|------|------|-----|--------|-----|------------|
-| **Browse wellness companions** | Discover verified human companions by specialty, language, rating, and availability | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Book & start sessions** | Begin a live text session with any available companion; billed per minute from wallet | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Imotara Wallet** | Prepaid INR wallet — top up once, pay for sessions without per-session checkout friction | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Per-minute billing** | Session cost deducted at the companion's listed per-minute rate; auto-stops when balance runs low | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Real-time message translation** | Messages auto-translated between user and companion languages during a live session | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Scheduled sessions** | Book a future time slot; companion accepts and a calendar reminder is set | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Session notes & ratings** | Leave a private note and 1–5 star rating after each session ends | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Favourite companions** | Save companions as favourites for quick access and priority availability alerts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Connect session history** | Browse past sessions with transcript, notes, cost, and companion details | 7 days | 90 days | Unlimited | Unlimited | Unlimited | Unlimited |
-| **Register as a wellness companion** | Apply to become a verified companion; set rate, availability, languages, and specialty area | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Feature | Description | Free | Imotara Plus | Family | EDU | Enterprise |
+|---------|-------------|------|-----|--------|-----|------------|
+| **Browse wellness companions** | Discover verified human companions by specialty, language, rating, and availability | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Book & start sessions** | Begin a live text session with any available companion; billed per minute from wallet | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Imotara Wallet** | Prepaid INR wallet — top up once, pay for sessions without per-session checkout friction | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Per-minute billing** | Session cost deducted at the companion's listed per-minute rate; auto-stops when balance runs low | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Real-time message translation** | Messages auto-translated between user and companion languages during a live session | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Scheduled sessions** | Book a future time slot; companion accepts and a calendar reminder is set | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Session notes & ratings** | Leave a private note and 1–5 star rating after each session ends | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Favourite companions** | Save companions as favourites for quick access and priority availability alerts | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Connect session history** | Browse past sessions with transcript, notes, cost, and companion details | 7 days | Unlimited | Unlimited | Unlimited | Unlimited |
+| **Register as a wellness companion** | Apply to become a verified companion; set rate, availability, languages, and specialty area | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 > **Note:** Session history retention follows the same schedule as conversation history — the tier that unlocks unlimited chat history also unlocks unlimited Connect session history.
 
@@ -236,11 +235,10 @@ Why a user or org should move to the next tier:
 
 | Current Tier | Key Upgrade Trigger |
 |---|---|
-| **Free → Plus** | Hitting the 20/day reply cap · needing history beyond 7 days · wanting cross-device sync or data export · Connect session history beyond 7 days |
-| **Plus → Pro** | Wanting emotional insights, mood trends, weekly summaries, monthly letters, growth arc · unlimited Connect session history |
-| **Pro → Family** | Multiple household members sharing one app account · need for child-safe profiles |
-| **Pro → EDU** | Institution deploying for students/staff · need for admin panel, LMS, bulk provisioning |
-| **Pro → Enterprise** | Corporate deployment · API access · SSO · data residency · custom integrations |
+| **Free → Imotara Plus** | Hitting the 20/day reply cap · needing history beyond 7 days · wanting cross-device sync or data export · emotional insights, mood trends, weekly summaries, monthly letters, growth arc · unlimited Connect session history |
+| **Imotara Plus → Family** | Multiple household members sharing one app account · need for child-safe profiles |
+| **Imotara Plus → EDU** | Institution deploying for students/staff · need for admin panel, LMS, bulk provisioning |
+| **Imotara Plus → Enterprise** | Corporate deployment · API access · SSO · data residency · custom integrations |
 
 ---
 
@@ -283,7 +281,7 @@ Why a user or org should move to the next tier:
 | Phase | Action |
 |---|---|
 | **Now (soft launch)** | All features open; server quota (20/day) enforces Free limit |
-| **Phase 2** | Set `LICENSE_MODE=enforce`; Plus/Pro gates activate in UI |
+| **Phase 2** | Set `LICENSE_MODE=enforce`; Imotara Plus gates activate in UI |
 | **Phase 3** | Activate mobile gates; update `LAUNCH_CLOUD_SYNC_FREE_FOR_ALL=false` |
 | **Phase 4** | EDU/Enterprise gate enforcement via admin-assigned org tier |
 

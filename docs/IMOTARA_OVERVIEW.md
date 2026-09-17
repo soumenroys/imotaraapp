@@ -221,8 +221,7 @@ Language support covers:
 | Tier | Price | Cloud Messages | History | Notes |
 |------|-------|----------------|---------|-------|
 | Free | ₹0 | 20/day (midnight reset) | 7 days | Local always free |
-| Plus | ₹99/mo or ₹699/yr | Unlimited | 90 days | Advanced TTS, search, cadence controls |
-| Pro | ₹149/mo or ₹1,299/yr | Unlimited | Unlimited | Emotion insights, companion letter, growth arc |
+| Imotara Plus | ₹149/mo or ₹1,299/yr | Unlimited | Unlimited | Advanced TTS, search, cadence controls, emotion insights, companion letter, growth arc |
 | Family | Custom | Unlimited | Unlimited | Up to 6 profiles, child-safe mode |
 | EDU | Custom | Unlimited | Unlimited | Admin dashboard, institutional deployment |
 | Enterprise | Custom | Unlimited | Unlimited | SSO, data residency, API access, custom integrations |

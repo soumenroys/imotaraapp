@@ -17,6 +17,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { gate, type FeatureKey } from "@/lib/imotara/featureGates";
+import { TIER_ORDER } from "@/types/license";
 
 /** The merged paid tier's features. Duplicated in the mobile test on purpose. */
 const MERGED = [
@@ -68,5 +69,18 @@ describe("the Plus/Pro merge", () => {
         const onFree = ALL_KEYS.filter((k) => gate(k, "free").enabled);
         // CLOUD_SYNC plus the always-on day-limit gate. Nothing paid leaked down.
         expect(onFree.sort()).toEqual(["CLOUD_SYNC", "HISTORY_DAYS_LIMIT"]);
+    });
+
+    it("🔴 L11 — `plus` must NOT be deleted, merged though it is", () => {
+        // The temptation after a merge is to delete the redundant tier. Do not.
+        //   · the licences table has rows carrying tier='plus'
+        //   · one subscriber is live on plus_monthly at ₹99, grandfathered
+        //   · the mobile app has "PLUS" written into AsyncStorage on devices
+        // Deleting it would resolve all of them to `free` — a paying customer
+        // silently losing everything they pay for.
+        expect([...TIER_ORDER]).toContain("plus");
+        expect(gate("HISTORY_UNLIMITED", "plus").enabled).toBe(true);
+        // And `pro` stays the internal id even though the public name is "Plus".
+        expect([...TIER_ORDER]).toContain("pro");
     });
 });

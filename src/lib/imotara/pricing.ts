@@ -29,8 +29,17 @@ type ProductDef      = SubscriptionDef | TokenPackDef;
 
 export const PRODUCT_CATALOG = {
     // 🔴 RETIRED for new purchases (L12) — deactivated in both consoles, never
-    // deleted: one Apple subscriber still bills on plus_monthly. They grant the
-    // same tier as the current SKUs, at their old price.
+    // deleted. They grant the same tier as the current SKUs, at their old price.
+    //
+    // ✅ VERIFIED against `payment_licenses` 2026-09-18, and the subscriber is
+    // real: two Apple transactions from an `@privaterelay.appleid.com` address,
+    // which Apple issues only to a genuine Apple ID using Hide My Email. His
+    // licence was on a launch-offer row expiring 2026-10-13 — i.e. he would have
+    // silently lost Plus at the October cliff, having paid for it. Converted to
+    // permanent (`expires_at = null`) on 2026-09-18.
+    //
+    // ⇒ **Never delete these SKUs.** Deleting a store product with a live
+    // subscriber is how you break a paying customer's renewal.
     plus_monthly:  { type: "subscription", tier: "plus", days: 31,   paise: 9_900   },
     plus_annual:   { type: "subscription", tier: "plus", days: 366,  paise: 69_900  },
     // The SKUs on sale. Display name in both stores: "Imotara Plus".

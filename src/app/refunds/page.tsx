@@ -134,12 +134,12 @@ export default function RefundsPage() {
         <ul className="list-disc space-y-2 pl-6">
           <li>
             <strong className="text-zinc-200">Plus plans</strong> &mdash; full refund
-            if you ask within <strong className="text-zinc-100">7 days</strong> of
+            if you ask within <strong className="text-zinc-100">3 days</strong> of
             paying. No form, no reason required.
           </li>
           <li>
             <strong className="text-zinc-200">Token packs</strong> &mdash; full refund
-            within <strong className="text-zinc-100">7 days</strong>, provided none
+            within <strong className="text-zinc-100">3 days</strong>, provided none
             of the tokens have been spent. Once tokens are used they are consumed
             and cannot be returned.
           </li>
@@ -163,7 +163,7 @@ export default function RefundsPage() {
           </li>
         </ul>
         <p>
-          Outside the 7-day window we will still look at genuine cases &mdash; an
+          Outside the 3-day window we will still look at genuine cases &mdash; an
           accidental purchase, a plan bought twice, a feature that did not work
           for you. Write to us and say what happened.
         </p>

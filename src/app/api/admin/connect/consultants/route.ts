@@ -144,7 +144,7 @@ async function sendStatusChangeEmail(data: {
       `Your Imotara Connect companion account has been temporarily suspended by our moderation team.`,
       data.reason ? `Reason: ${data.reason}` : null,
       ``,
-      `If you believe this is a mistake, please reply to this email or contact support@imotara.com.`,
+      `If you believe this is a mistake, please reply to this email or contact info@imotara.com.`,
       ``,
       `— The Imotara Team`,
     ].filter((l) => l !== null).join("\n"),

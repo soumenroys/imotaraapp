@@ -8,7 +8,7 @@ const GMAIL_USER = process.env.ALERT_GMAIL_USER        ?? "";
 const GMAIL_PASS = process.env.ALERT_GMAIL_APP_PASSWORD ?? "";
 const TERMS_URL  = "https://imotara.com/connect/wallet-terms";
 const WALLET_URL = "https://imotara.com/connect?tab=wallet";
-const SUPPORT    = "support@imotara.com";
+const SUPPORT    = "info@imotara.com";
 
 export type NotificationType =
   | "180d_warning"

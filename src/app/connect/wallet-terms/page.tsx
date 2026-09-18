@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 const EFFECTIVE = "6 June 2026";
-const SUPPORT   = "support@imotara.com";
+const SUPPORT   = "info@imotara.com";
 
 export default function WalletTermsPage() {
   return (

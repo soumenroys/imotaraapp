@@ -2662,7 +2662,7 @@ export default function SettingsPage() {
                     setDeleteAccountMsg(
                         json?.detail
                             ? `Could not delete account: ${json.detail}`
-                            : "Could not delete account — please contact support at support@imotara.com"
+                            : "Could not delete account — please contact support at info@imotara.com"
                     );
                 }
             } else {

@@ -8,7 +8,7 @@ const SMTP_HOST      = process.env.SMTP_HOST                ?? "smtp.hostinger.c
 const FROM_USER      = process.env.ALERT_GMAIL_USER?.trim() ?? "";
 const FROM_PASS      = process.env.ALERT_GMAIL_APP_PASSWORD?.trim() ?? "";
 const FROM_LABEL     = `"Imotara Connect" <${FROM_USER}>`;
-const SUPPORT        = "support@imotara.com";
+const SUPPORT        = "info@imotara.com";
 const CONNECT_URL    = "https://imotara.com/connect";
 // Internal address that receives platform revenue notifications after every session.
 const PLATFORM_EMAIL = process.env.CONNECT_PLATFORM_EMAIL ?? "info@imotara.com";

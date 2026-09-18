@@ -877,7 +877,7 @@ function WalletTab() {
           <p className="mt-1 text-xs text-rose-400/80">
             Your balance is preserved, not lost — it was marked dormant after 2 years of inactivity.
             You have a 1-year grace period from that date to request a full refund —
-            email <strong>support@imotara.com</strong> with subject &quot;Wallet Refund Request&quot;.
+            email <strong>info@imotara.com</strong> with subject &quot;Wallet Refund Request&quot;.
           </p>
         </div>
       )}

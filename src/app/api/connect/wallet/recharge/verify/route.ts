@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
 
   if (updateError) {
     console.error("[connect/recharge/verify] mark failed:", updateError.message);
-    return NextResponse.json({ ok: false, error: "Verification failed. Please contact support@imotara.com." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Verification failed. Please contact info@imotara.com." }, { status: 500 });
   }
   if (!markedRows || markedRows.length === 0) {
     // Another concurrent request already completed this recharge

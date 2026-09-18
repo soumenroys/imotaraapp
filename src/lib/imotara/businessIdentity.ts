@@ -39,18 +39,20 @@ export const BUSINESS = {
         country:    "India",
     },
 
-    /** The mailbox that is actually monitored — Google, BillDesk and Razorpay all write here. */
+    // 🔑 ONE public address, deliberately. `support@` and `hello@` were both in
+    // published copy — 13 and 11 uses — and neither is known to be monitored.
+    // `info@` is: Google, BillDesk and Razorpay all write to it and we read it.
+    // Owner, 2026-09-18: "info@ everywhere". The sweep covered /terms, settings,
+    // the Connect wallet pages and every wallet/Connect mailer.
+    /** The one public mailbox. Support, billing, privacy, legal — all of it. */
     email: "info@imotara.com",
-
-    /** Public support alias. Appears in /terms and in Connect wallet mail. */
-    supportEmail: "support@imotara.com",
 
     /** E.164 for tel: links. */
     phone: "+917003969936",
     phoneDisplay: "+91 70039 69936",
 
-    /** ⚠️ OWNER TO CONFIRM — published as our answering hours. */
-    phoneHours: "Monday–Friday, 10:00–18:00 IST",
+    /** Answering hours, confirmed by the owner 2026-09-18. */
+    phoneHours: "Monday–Friday, 11:00–18:00 IST",
 
     /** What we commit to publicly for a first reply to support mail. */
     supportResponseTarget: "2 business days",

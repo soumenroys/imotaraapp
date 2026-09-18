@@ -160,10 +160,10 @@ export default function TermsPage() {
           </Link>{" "}
           or email{" "}
           <a
-            href="mailto:support@imotara.com"
+            href="mailto:info@imotara.com"
             className="underline decoration-indigo-300/70 underline-offset-4 hover:text-indigo-200"
           >
-            support@imotara.com
+            info@imotara.com
           </a>
           .
         </p>

@@ -13,7 +13,7 @@ import nodemailer from "nodemailer";
 const SMTP_HOST  = process.env.SMTP_HOST               ?? "smtp.hostinger.com";
 const GMAIL_USER = process.env.ALERT_GMAIL_USER         ?? "";
 const GMAIL_PASS = process.env.ALERT_GMAIL_APP_PASSWORD ?? "";
-const SUPPORT    = "support@imotara.com";
+const SUPPORT    = "info@imotara.com";
 const TERMS_URL  = "https://imotara.com/connect/wallet-terms";
 
 function genRef(): string {
@@ -51,14 +51,14 @@ export async function POST(req: NextRequest) {
   if (wallet.status === "dormant") {
     if (!wallet.dormant_at) {
       return NextResponse.json(
-        { ok: false, error: "This dormant balance cannot be refunded automatically. Please contact support@imotara.com." },
+        { ok: false, error: "This dormant balance cannot be refunded automatically. Please contact info@imotara.com." },
         { status: 400 }
       );
     }
     const gracePeriodEnd = new Date(new Date(wallet.dormant_at).getTime() + 365 * 86_400_000);
     if (new Date() > gracePeriodEnd) {
       return NextResponse.json(
-        { ok: false, error: "The 1-year grace period for this dormant balance has ended. Please contact support@imotara.com." },
+        { ok: false, error: "The 1-year grace period for this dormant balance has ended. Please contact info@imotara.com." },
         { status: 400 }
       );
     }

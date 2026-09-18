@@ -28,7 +28,7 @@ function buildNoticeEmail(email: string, balance: number, expiresAt: string): st
     ``,
     `Imotara Wallet no longer accepts new top-ups, so there's nothing you need to do to "keep it`,
     `active" — it already is safe. After dormancy, you'll still have a 1-year grace period to request`,
-    `a full refund by emailing support@imotara.com.`,
+    `a full refund by emailing info@imotara.com.`,
     ``,
     `If you'd like your money back now rather than waiting, you can request a refund anytime:`,
     `https://imotara.com/connect?tab=wallet`,

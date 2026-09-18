@@ -67,8 +67,10 @@ const NAV_LINKS = [
   { href: "/updates",  label: "Updates",  emoji: "✉️" },
   { href: "/upgrade",           label: "Plans",      emoji: "💎" },
   { href: "/pricing/corporate", label: "For Teams",  emoji: "🏢" },
+  { href: "/contact",  label: "Contact",  emoji: "✉️" },
   { href: "/privacy",  label: "Privacy",  emoji: "🔒" },
   { href: "/terms",    label: "Terms",    emoji: "📋" },
+  { href: "/refunds",  label: "Refunds",  emoji: "↩️" },
 ];
 
 // ─── Footer ───────────────────────────────────────────────────────────────────

@@ -153,7 +153,7 @@ export default function TermsPage() {
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           Questions about these terms?{" "}
           <Link
-            href="/connect"
+            href="/contact"
             className="underline decoration-emerald-300/70 underline-offset-4 hover:text-emerald-200"
           >
             Contact us

@@ -38,6 +38,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/donate`,  lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${base}/privacy`, lastModified: now, changeFrequency: "yearly",  priority: 0.5 },
     { url: `${base}/terms`,   lastModified: now, changeFrequency: "yearly",  priority: 0.5 },
+    { url: `${base}/contact`, lastModified: now, changeFrequency: "yearly",  priority: 0.5 },
+    { url: `${base}/refunds`, lastModified: now, changeFrequency: "yearly",  priority: 0.5 },
 
     // ── LLM / SEO landing pages ──────────────────────────────────────────────
     { url: `${base}/ai-emotional-support`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import packageJson from "../../package.json";
+import { BUSINESS } from "@/lib/imotara/businessIdentity";
 
 // ─── SVG icons ────────────────────────────────────────────────────────────────
 
@@ -229,6 +230,19 @@ export default function SiteFooter() {
         <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] text-zinc-600">
           <p className="flex items-center gap-1.5">
             © {year} Imotara. Made with <IconHeart /> for a calmer world.
+          </p>
+          {/* 🔴 The operating entity, on EVERY page — not decoration.
+              Payment aggregators verify that the website they are enabling
+              payments for visibly names the applicant company. BillDesk
+              rejected the Google Play PA-CB application on 2026-09-21 for
+              exactly this ("Web Application has a missing/incomplete legal
+              name of the Entity") when the name appeared on /contact alone. */}
+          <p className="w-full text-zinc-600 sm:w-auto">
+            Operated by{" "}
+            <span className="text-zinc-500">{BUSINESS.legalName}</span>
+            <span className="hidden sm:inline">
+              {" "}· {BUSINESS.address.city}, {BUSINESS.address.country}
+            </span>
           </p>
           <div className="flex items-center gap-3">
             <span className="text-zinc-500">Not a medical or crisis service.</span>

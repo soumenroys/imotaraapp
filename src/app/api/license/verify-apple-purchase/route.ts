@@ -93,6 +93,13 @@ async function verifyAppleTransaction(transactionId: string): Promise<{
     ok: boolean;
     appleProductId?: string;
     environment?: string;
+    /**
+     * The store's own expiry, ISO 8601, for auto-renewable subscriptions.
+     * 🔴 This payload always carried it and this function used to return only
+     * productId — so the grant fell back to the catalog's 31/366 days and a
+     * 7-day free trial would have granted a full month of Plus.
+     */
+    expiresAt?: string | null;
     error?: string;
 }> {
     const token = makeAppleJWT();
@@ -145,7 +152,20 @@ async function verifyAppleTransaction(transactionId: string): Promise<{
             return { ok: false, error: "Could not parse Apple transaction payload" };
         }
 
-        return { ok: true, appleProductId: String(txPayload.productId ?? ""), environment: env };
+        // `expiresDate` is milliseconds since the epoch, and is absent on
+        // consumables (token packs). Anything unparseable becomes null, which
+        // means "fall back to the catalog" — never a wrong date.
+        const rawExpiry = Number(txPayload.expiresDate ?? NaN);
+        const expiresAt = Number.isFinite(rawExpiry) && rawExpiry > 0
+            ? new Date(rawExpiry).toISOString()
+            : null;
+
+        return {
+            ok: true,
+            appleProductId: String(txPayload.productId ?? ""),
+            environment: env,
+            expiresAt,
+        };
     }
 
     return { ok: false, error: "Transaction not found in Apple production or sandbox" };
@@ -205,7 +225,20 @@ export async function POST(req: Request) {
             // "free", the previous grantLicense call must have failed after the payment
             // record was written. Re-run the grant now so the user's purchase is honoured.
             if (paymentTier !== "free" && currentTier === "free") {
-                const reGrant = await grantLicense(userId, productId as LicenseProductId, admin, "apple");
+                // This runs BEFORE the verification below, so ask Apple for the
+                // expiry here too — otherwise the recovery path reintroduces the
+                // catalog-days bug (a 7-day trial granted as 31 days) for exactly
+                // the users whose first grant already failed once.
+                //
+                // 🔑 A failure here does NOT block the grant. They have paid and
+                // the payment is recorded; Apple being unreachable must not cost
+                // them the purchase. Falling back to null restores the previous
+                // day-counting behaviour, which is the safe direction.
+                const reVerify = await verifyAppleTransaction(transactionId);
+                const reGrant = await grantLicense(
+                    userId, productId as LicenseProductId, admin, "apple",
+                    reVerify.ok ? reVerify.expiresAt : null,
+                );
                 if (!reGrant.ok) {
                     return NextResponse.json({ ok: false, error: reGrant.error }, { status: 500 });
                 }
@@ -284,7 +317,13 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: false, error: "Could not record transaction" }, { status: 500 });
         }
 
-        const result = await grantLicense(userId, productId as LicenseProductId, admin, "apple");
+        // 🔴 Apple's expiry wins over the catalog's day count — see
+        // docs/sql/grant_license_store_expiry.sql. Null (a token pack, or a
+        // payload without expiresDate) keeps the previous behaviour.
+        const result = await grantLicense(
+            userId, productId as LicenseProductId, admin, "apple",
+            verification.expiresAt,
+        );
         if (!result.ok) {
             return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
         }

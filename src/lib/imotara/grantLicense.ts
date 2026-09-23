@@ -31,6 +31,13 @@ export type GrantResult =
  * - Token packs: increments token_balance without touching tier/expiry
  * Caller must pass the admin (service-role) client.
  *
+ * 🔴 STORE SUBSCRIPTIONS MUST PASS `storeExpiresAt`. Apple and Play decide the
+ * real expiry, and an introductory offer makes it differ from the catalog's day
+ * count — a 7-day free trial used to grant 31 days of Plus because `product.days`
+ * was all this function looked at. Razorpay and Stripe have no store expiry,
+ * pass nothing, and keep counting days forward exactly as before.
+ * See docs/sql/grant_license_store_expiry.sql.
+ *
  * The read-compute-write is done atomically in a single SQL statement via the
  * grant_license_atomic RPC (docs/sql/connect_v42_grant_license_atomic.sql), not
  * in JS — two concurrent webhook deliveries for the same user (e.g. a Razorpay
@@ -43,6 +50,12 @@ export async function grantLicense(
     productId: LicenseProductId,
     admin: SupabaseClient,
     source: "apple" | "razorpay" | "webhook" | "stripe" | "google_play" = "razorpay",
+    /**
+     * The store's own expiry (ISO 8601), for Apple and Play only. When given it
+     * REPLACES the catalog's day count — though it can never shorten an expiry
+     * the user already holds; see the RPC. Omit it for gateway payments.
+     */
+    storeExpiresAt?: string | null,
 ): Promise<GrantResult> {
     try {
         const product = PRODUCT_CATALOG[productId];
@@ -55,6 +68,9 @@ export async function grantLicense(
             p_days: isSubscription ? product.days : 0,
             p_tokens: isSubscription ? 0 : product.tokens,
             p_source: source,
+            // NULL means "no store expiry — count p_days forward", which is the
+            // pre-existing behaviour and what every gateway rail wants.
+            p_expires_at: isSubscription ? (storeExpiresAt ?? null) : null,
         }).single<{ out_tier: string; out_token_balance: number; out_expires_at: string | null }>();
 
         if (error || !data) throw new Error(`grant_license_atomic failed: ${error?.message ?? "no data"}`);

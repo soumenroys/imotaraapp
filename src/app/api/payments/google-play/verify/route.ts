@@ -83,7 +83,14 @@ export async function POST(req: NextRequest) {
   }
 
   // Grant license
-  const result = await grantLicense(userId, productId as LicenseProductId, admin, "google_play");
+  // 🔴 Pass Play's OWN expiry, not the catalog's day count. verification
+  // already carries lineItems[0].expiryTime and this route used to discard it,
+  // so a 7-day free trial granted 31 days of Plus. One-time token packs have no
+  // expiry and ignore the argument.
+  const result = await grantLicense(
+    userId, productId as LicenseProductId, admin, "google_play",
+    isSubscription ? verification.expiresAt : null,
+  );
   if (!result.ok) {
     return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
   }

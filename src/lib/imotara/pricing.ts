@@ -28,23 +28,35 @@ type TokenPackDef    = { type: "token_pack"; tokens: number; paise: number };
 type ProductDef      = SubscriptionDef | TokenPackDef;
 
 export const PRODUCT_CATALOG = {
-    // 🔴 RETIRED for new purchases (L12) — deactivated in both consoles, never
-    // deleted. They grant the same tier as the current SKUs, at their old price.
+    // ✅ THE SKUs ON SALE. Display name in both stores: "Imotara Plus".
     //
-    // ✅ VERIFIED against `payment_licenses` 2026-09-18, and the subscriber is
-    // real: two Apple transactions from an `@privaterelay.appleid.com` address,
-    // which Apple issues only to a genuine Apple ID using Hide My Email. His
-    // licence was on a launch-offer row expiring 2026-10-13 — i.e. he would have
-    // silently lost Plus at the October cliff, having paid for it. Converted to
-    // permanent (`expires_at = null`) on 2026-09-18.
+    // 🔄 FLIPPED 2026-09-25. These used to be the RETIRED pair at ₹99/₹699,
+    // while `pro_*` was live. The flip was possible — and worth doing — because
+    // **nobody had ever purchased `pro_monthly` or `pro_annual`**: zero rows in
+    // `payment_licenses`, verified 2026-09-18. An empty name costs nothing to
+    // abandon, and `plus_*` is the name that matches what users are sold.
+    //
+    // 🔑 Play sells exactly these two ids (`plus_monthly`, `plus_annual`, bare,
+    // no bundle prefix). Apple sells the same suffixes, bundle-prefixed. The
+    // ids now agree with the label on all three platforms.
+    plus_monthly:  { type: "subscription", tier: "plus", days: 31,   paise: 14_900  },
+    plus_annual:   { type: "subscription", tier: "plus", days: 366,  paise: 129_900 },
+
+    // 🔴 RETIRED for new purchases (L12) — deactivate in both consoles, never
+    // delete. They grant the same tier at the same price; they are simply not
+    // offered. Kept so a stray in-flight purchase still resolves.
+    //
+    // ⚠️ `plus_monthly` carries ONE live paying Apple subscriber, grandfathered
+    // at the old ₹99. Apple bills him, not us — and there is no App Store Server
+    // Notifications handler, so his renewals never reach this backend at all.
+    // His licence was made permanent (`expires_at = null`) on 2026-09-18.
+    // ⇒ Raising `plus_monthly` here does NOT change what he pays.
     //
     // ⇒ **Never delete these SKUs.** Deleting a store product with a live
     // subscriber is how you break a paying customer's renewal.
-    plus_monthly:  { type: "subscription", tier: "plus", days: 31,   paise: 9_900   },
-    plus_annual:   { type: "subscription", tier: "plus", days: 366,  paise: 69_900  },
-    // The SKUs on sale. Display name in both stores: "Imotara Plus".
     pro_monthly:   { type: "subscription", tier: "plus", days: 31,   paise: 14_900  },
     pro_annual:    { type: "subscription", tier: "plus", days: 366,  paise: 129_900 },
+
     tokens_100:    { type: "token_pack",   tokens: 100,  paise: 4_900   },
     tokens_250:    { type: "token_pack",   tokens: 250,  paise: 9_900   },
     tokens_600:    { type: "token_pack",   tokens: 600,  paise: 19_900  },

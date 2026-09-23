@@ -85,13 +85,15 @@ describe("pricing is defined once, and agrees with the systems of record", () =>
         // catalog moved to lib/imotara/pricing.ts — a false failure about a real
         // refactor. Reading the values instead means the test follows the data.
         // The exact amounts are pinned once, in pricingCatalog.test.ts.
-        // One paid row since the merge, priced at the pro_* SKUs.
+        // One paid row since the merge, priced at the LIVE `plus_*` SKUs.
+        // (Those used to be `pro_*`; the pairs were flipped 2026-09-25.)
         const paid = CONSUMER_PLANS.find((r) => r.name === "Imotara Plus")!;
         expect(paid.cost).toBe(
-            `${inr(paiseFor("pro_monthly"))} / month or ${inr(paiseFor("pro_annual"))} / year`,
+            `${inr(paiseFor("plus_monthly"))} / month or ${inr(paiseFor("plus_annual"))} / year`,
         );
-        // The retired plus_* price must not still be advertised anywhere here.
-        expect(CONSUMER_PLANS.some((r) => r.cost.includes(inr(paiseFor("plus_monthly"))))).toBe(false);
+        // The PRE-MERGE annual price must not still be advertised. Literal: ₹699
+        // is no longer any SKU's price, so it cannot come from paiseFor.
+        expect(CONSUMER_PLANS.some((r) => r.cost.includes("₹699"))).toBe(false);
     });
 
     it("every page links onward to the full plan comparison", () => {

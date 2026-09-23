@@ -41,14 +41,16 @@ const SUBSCRIPTION_PLANS = [
         // id:"pro" against tier "plus", a paying subscriber was shown a
         // Subscribe button for the plan they already had.
         //
-        // The SKUs still say pro_* because store product IDs are immutable and
-        // plus_monthly/plus_annual are retired for new purchases.
+        // 🔄 The live SKUs are `plus_*` as of 2026-09-25. They used to be
+        // `pro_*`; the pairs were flipped because NOBODY had ever purchased
+        // `pro_monthly`/`pro_annual` (zero rows in payment_licenses), so the
+        // name could be corrected for free. `pro_*` is now the retired pair.
         id: "plus",
         name: "Imotara Plus",
-        monthlyId: "pro_monthly",
-        annualId:  "pro_annual",
-        monthlyPaise: paiseFor("pro_monthly"),
-        annualPaise:  paiseFor("pro_annual"),
+        monthlyId: "plus_monthly",
+        annualId:  "plus_annual",
+        monthlyPaise: paiseFor("plus_monthly"),
+        annualPaise:  paiseFor("plus_annual"),
         features: [
             "Unlimited replies", "Unlimited cloud history", "Companion personas",
             "Azure Neural TTS", "Semantic history search", "Data export",

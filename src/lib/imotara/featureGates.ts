@@ -116,6 +116,27 @@ const TIER_FEATURES: Record<LicenseTier, Set<FeatureKey>> = {
  * Central feature gate resolver.
  * Always call this rather than sprinkling `tier === ...` checks around the app.
  */
+/**
+ * What a tier actually grants, as data.
+ *
+ * 🔗 MIRRORS `featuresForTier` in imotara-mobile's `src/licensing/featureGates.ts`.
+ * It exists so both repos expose the SAME bypass-free accessor, which is what
+ * `tierFeatureParity.test.ts` — duplicated in both repos on purpose — asserts
+ * against. Two hand-maintained tier tables with nothing holding them together
+ * is exactly the drift that made Family licences unissuable (L1), and the
+ * label pin never covered the feature sets.
+ *
+ * Read-only: returns the live Set, so callers must not mutate it.
+ */
+export function featuresForTier(tier: LicenseTier): ReadonlySet<FeatureKey> {
+    return TIER_FEATURES[tier];
+}
+
+/** History-day cap for a tier. Infinity when unlimited. Mirrors mobile. */
+export function historyDaysForTier(tier: LicenseTier): number {
+    return TIER_FEATURES[tier].has("HISTORY_UNLIMITED") ? Infinity : (HISTORY_DAYS[tier] ?? 7);
+}
+
 export function gate(
     feature: FeatureKey,
     tier: LicenseTier | string | undefined | null,

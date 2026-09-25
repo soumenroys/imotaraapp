@@ -41,7 +41,29 @@ export function isLicenseTier(value: unknown): value is LicenseTier {
     return typeof value === "string" && (TIER_ORDER as readonly string[]).includes(value);
 }
 
-export type LicenseStatusCode = "valid" | "invalid" | "expired" | "trial";
+/**
+ * The status values a licence row may hold.
+ *
+ * 🔴 WHY THIS IS A RUNTIME ARRAY, NOT JUST A TYPE. It was a bare union, so it
+ * existed only at compile time and no request handler could check against it.
+ * `admin/licenses/[userId]` wrote `updates.status = status` straight from the
+ * body — any string at all — and the admin UI kept a THIRD private copy of the
+ * same four values. Same for `tier`: a typo like "Plus" or "premuim" landed in
+ * the column, `normaliseTier` mapped the unknown value to `free` on read, and a
+ * paying user was SILENTLY DOWNGRADED with no error anywhere.
+ *
+ * Verified against production 2026-09-25: the table holds only `trial` (67) and
+ * `valid` (11); `invalid` and `expired` are reachable from the admin UI's
+ * withdraw and expiry paths.
+ */
+export const LICENSE_STATUSES = ["valid", "invalid", "expired", "trial"] as const;
+
+export type LicenseStatusCode = (typeof LICENSE_STATUSES)[number];
+
+/** Narrowing guard for untrusted input, mirroring isLicenseTier. */
+export function isLicenseStatus(value: unknown): value is LicenseStatusCode {
+    return typeof value === "string" && (LICENSE_STATUSES as readonly string[]).includes(value);
+}
 
 export type LicenseSource = "manual" | "stripe" | "razorpay" | "promo" | "internal";
 

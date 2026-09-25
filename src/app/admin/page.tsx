@@ -5,7 +5,7 @@ import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 import BroadcastSection from "@/components/admin/BroadcastSection";
 import Link from "next/link";
 import { useState, useEffect, useCallback, useTransition } from "react";
-import { TIER_ORDER, byTier, type LicenseTier } from "@/types/license";
+import { TIER_ORDER, byTier, type LicenseTier, type LicenseStatusCode } from "@/types/license";
 import EyeIcon from "@/components/imotara/EyeIcon";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,7 +22,9 @@ interface Comment {
 }
 type CommentTab = "pending" | "approved" | "all";
 
-type LicenseStatus = "valid" | "invalid" | "expired" | "trial";
+// 🔗 Was a private fourth copy of the same union. Single-sourced with the API
+// and the guard, so a status added in one place cannot be missed in another.
+type LicenseStatus = LicenseStatusCode;
 
 interface UserLicense {
   user_id: string;

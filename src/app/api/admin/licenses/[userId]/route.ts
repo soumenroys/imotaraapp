@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { adminAuthorized } from "@/app/api/admin/_auth";
+import { isLicenseTier, isLicenseStatus, TIER_ORDER, LICENSE_STATUSES } from "@/types/license";
 
 type RouteContext = { params: Promise<{ userId: string }> };
 
@@ -61,6 +62,29 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
   const { userId } = await params;
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
+
+  // 🔴 VALIDATE BEFORE WRITING. This route used to put `tier` and `status`
+  // straight into the column with no check at all, while the ORG routes next
+  // door (organizations/[orgId]/pools, .../members, org/dashboard/members) all
+  // guard with isLicenseTier and return 400. This one was simply missed.
+  //
+  // The consequence was silent, which is what made it dangerous: a typo —
+  // "Plus", "PRO", "premuim" — wrote through, `normaliseTier` mapped the
+  // unknown value to `free` on read, and a PAYING USER WAS DOWNGRADED TO FREE.
+  // Nothing threw, and the admin saw their edit succeed.
+  //
+  // 🔑 Unknown-tier handling fails safe for the SYSTEM and unsafe for the USER.
+  // The only place to catch it is the write.
+  if (body.tier !== undefined && !isLicenseTier(body.tier)) {
+    return NextResponse.json(
+      { error: `tier must be one of: ${TIER_ORDER.join(", ")}` }, { status: 400 },
+    );
+  }
+  if (body.status !== undefined && !isLicenseStatus(body.status)) {
+    return NextResponse.json(
+      { error: `status must be one of: ${LICENSE_STATUSES.join(", ")}` }, { status: 400 },
+    );
+  }
 
   const {
     userEmail,

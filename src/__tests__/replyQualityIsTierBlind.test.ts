@@ -40,6 +40,22 @@ const REPLY_PATH = [
 const stripComments = (src: string) =>
     src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 
+/**
+ * Returns `src` with the body of `fnName` removed, by brace matching from its
+ * declaration. Used to assert on "everything except the quota".
+ */
+function withoutFunctionBody(src: string, fnName: string): string {
+    const start = src.indexOf(`function ${fnName}(`);
+    if (start === -1) throw new Error(`${fnName} not found — the guard would pass vacuously`);
+    const open = src.indexOf("{", start);
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+        if (src[i] === "{") depth++;
+        else if (src[i] === "}" && --depth === 0) return src.slice(0, start) + src.slice(i + 1);
+    }
+    throw new Error(`unbalanced braces in ${fnName}`);
+}
+
 describe("reply quality does not depend on the licence tier", () => {
     it("🔴 no reply-path file instructs the model to be briefer for anyone", () => {
         for (const f of REPLY_PATH) {
@@ -57,12 +73,34 @@ describe("reply quality does not depend on the licence tier", () => {
         }
     });
 
-    it("🔴 chat-reply does not resolve a tier at all any more", () => {
-        // It used to, purely to feed the constraint above. Nothing in building a
-        // reply should need to know what someone pays.
+    it("🔴 chat-reply learns the tier ONLY inside the quota, nowhere else", () => {
+        // ⚠️ NARROWED 2026-09-25, deliberately. This used to assert that
+        // `resolveUserTier` appeared NOWHERE in the file. That was right while
+        // the quota read `licenses.tier` straight from the table — but that read
+        // was itself a bug: the stored column still says `plus` after a licence
+        // expires, so a lapsed subscriber bypassed the cap forever (L28).
+        //
+        // Fixing it means the quota must resolve the tier properly. Banning the
+        // function name would have forced the fix to keep using the wrong
+        // source, which is the opposite of what this file is protecting.
+        //
+        // The RULE is unchanged and the teeth are the same: the tier may reach
+        // the QUOTA and nothing else. So the quota's own function is excised
+        // and the assertion runs on everything that is left — every line that
+        // builds a prompt, picks a tone, or shapes a reply.
         const code = stripComments(read("src/app/api/chat-reply/route.ts"));
-        expect(code).not.toMatch(/resolveUserTier/);
-        expect(code).not.toMatch(/effectiveTier/);
+        // Import lines are excluded: importing a symbol is not using it, and
+        // the quota's own import necessarily lives at the top of the file.
+        // What this guard cares about is CALL SITES.
+        const outsideQuota = withoutFunctionBody(code, "fetchQuotaInfo")
+            .replace(/^\s*import[\s\S]*?;$/gm, "");
+
+        // Sanity: the excision must actually have removed something, or this
+        // assertion silently passes on the whole file.
+        expect(outsideQuota.length).toBeLessThan(code.length);
+
+        expect(outsideQuota, "tier resolved outside the quota").not.toMatch(/resolveUserTier/);
+        expect(outsideQuota, "effective tier read outside the quota").not.toMatch(/effectiveTier/);
     });
 
     it("🔴 no reply-path file imports a feature gate", () => {

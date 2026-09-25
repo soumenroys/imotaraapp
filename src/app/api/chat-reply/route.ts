@@ -38,6 +38,7 @@ import {
 } from "@/lib/supabaseServer";
 import { fetchUserMemories } from "@/lib/memory/fetchUserMemories";
 import { resolvePlatform } from "@/lib/imotara/clientPlatform";
+import { resolveUserTier } from "@/lib/imotara/org";
 
 type ChatReplyRequest = {
   user?: { id?: string; name?: string };
@@ -430,14 +431,43 @@ export async function POST(req: Request) {
       quotaAdmin: ReturnType<typeof getSupabaseAdmin>,
       userId: string,
     ): Promise<QuotaInfo> {
-      const { data: licRow } = await quotaAdmin
-        .from("licenses")
-        .select("tier, expires_at, token_balance")
-        .eq("user_id", userId)
-        .maybeSingle();
+      // 🔴 RESOLVE the tier — do NOT read `licenses.tier` directly.
+      //
+      // This used to be a plain select, and `isFree` was `licRow.tier === "free"`.
+      // The stored column keeps saying `plus` (or `edu`, `family`) after a
+      // licence EXPIRES — expiry is computed, not written back — so an expired
+      // subscriber stayed `isFree === false` and **bypassed the 20/day cap
+      // forever**. Someone who stopped paying kept unlimited replies.
+      //
+      // `resolve_user_tier` is the canonical answer (docs/sql/resolve_user_tier_canonical.sql,
+      // deployed 2026-09-18 as L2): it returns `effective_tier = 'free'` for an
+      // expired personal licence, and it also resolves ORG membership and pools,
+      // which the raw column never did — an org seat with no personal row was
+      // being capped at 20/day despite holding an org tier.
+      //
+      // 💰 Cost: one RPC, where this was one select. A second query fires only
+      // for users who belong to an org. This is the hot reply path, so that
+      // parity matters — it is why the fix resolves the tier rather than adding
+      // a second call alongside the old one.
+      const resolved = await resolveUserTier(userId);
 
-      const isFree = !licRow || licRow.tier === "free";
-      const trialActive = licRow?.expires_at
+      // 🔑 FAIL OPEN, exactly as before. The old select's failure propagated to
+      // the caller's `.catch(() => null)`, and a null quotaInfo applies NO cap.
+      // Throttling a paying subscriber because an RPC hiccuped is far worse than
+      // letting one extra reply through.
+      if (!resolved.ok) throw new Error(`resolveUserTier failed: ${resolved.error}`);
+
+      const licRow = {
+        tier:          resolved.data.effectiveTier,
+        expires_at:    resolved.data.expiresAt,
+        token_balance: resolved.data.tokenBalance,
+      };
+
+      const isFree = licRow.tier === "free";
+      // A FREE tier with a future expiry is a launch-offer grant — uncapped by
+      // design. An expired PAID tier can never reach here as anything but
+      // 'free' now, and its expiry is in the past, so it is correctly capped.
+      const trialActive = licRow.expires_at
         ? new Date(licRow.expires_at) > new Date()
         : false;
       if (!isFree || trialActive) return { licRow, usageCount: 0 };
@@ -565,6 +595,10 @@ export async function POST(req: Request) {
 
       if (quotaInfo) {
         const { licRow, usageCount } = quotaInfo;
+        // 🔑 `licRow.tier` here is the RESOLVED effective tier from
+        // fetchQuotaInfo, never the raw `licenses.tier` column. An expired paid
+        // licence arrives as 'free' and is correctly capped; an org seat arrives
+        // as its org tier and is correctly exempt.
         const isFree = !licRow || licRow.tier === "free";
         const trialActive = licRow?.expires_at
           ? new Date(licRow.expires_at) > new Date()

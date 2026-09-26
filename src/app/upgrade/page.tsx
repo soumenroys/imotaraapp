@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, X as XIcon } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
-import useLicense from "@/hooks/useLicense";
+import useLicense, { refreshLicense } from "@/hooks/useLicense";
 import { paiseFor, inr } from "@/lib/imotara/pricing";
 
 const PENDING_KEY = "imotara_pending_purchase";
@@ -269,6 +269,10 @@ export default function UpgradePage() {
                         body: JSON.stringify({ paymentId, productId }),
                     }).then((r) => r.json()).catch(() => ({ ok: false }));
                     if (confirm?.ok) {
+                        // 🔴 Pull the new tier immediately. Without this the page
+                        // still reads "Current plan: Free" right after paying —
+                        // seen live on the first real payment, 2026-09-26.
+                        refreshLicense();
                         setStatus({ type: "success", msg: `Plan activated! You are now on ${confirm.tier?.toUpperCase() ?? "your new plan"}.` });
                     } else {
                         setStatus({ type: "success", msg: "Payment received. Your plan will activate within a minute." });

@@ -28,6 +28,32 @@ export type LicenseStatus = {
  *   (relevant when the user is signed in and has a real license record).
  * - Falls back gracefully on network error.
  */
+/**
+ * 🔴 WHY THIS EXISTS. The hook fetched /api/license/status ONCE on mount with
+ * `useEffect(..., [])` and never again. So after a successful payment the badge
+ * still read "Current plan: Free" until the user manually reloaded — proven live
+ * on 2026-09-26 with the first real Razorpay payment on the firm account.
+ *
+ * That is worse than cosmetic: someone who has just paid and still sees "Free"
+ * reasonably concludes it failed, and may pay a second time.
+ *
+ * `refreshLicense()` lets the checkout handler pull the new tier the moment the
+ * server confirms the grant. Any mounted useLicense() re-fetches.
+ */
+const licenseSubscribers = new Set<() => void>();
+
+/** Ask every mounted useLicense() to re-fetch. Safe to call from anywhere. */
+export function refreshLicense(): void {
+    licenseSubscribers.forEach((fn) => { try { fn(); } catch { /* never let one listener break the rest */ } });
+}
+
+/**
+ * Minimum gap between AUTOMATIC re-fetches (focus / tab-visible). Manual
+ * refreshLicense() calls ignore it — those follow a real event we caused.
+ * Without a floor, alt-tabbing would hammer the endpoint once per switch.
+ */
+const AUTO_REFETCH_MIN_MS = 30_000;
+
 export default function useLicense(): LicenseStatus {
     const base = getCurrentLicenseStatus();
 
@@ -74,7 +100,31 @@ export default function useLicense(): LicenseStatus {
         }
 
         void fetchLicense();
-        return () => { cancelled = true; };
+
+        // ── Re-fetch triggers ────────────────────────────────────────────────
+        // Manual: the checkout handler calls refreshLicense() once the server
+        // confirms the grant, so the badge updates without a reload.
+        licenseSubscribers.add(fetchLicense);
+
+        // Automatic: coming back to the tab. This is what makes a purchase made
+        // on ANOTHER device (phone app, second browser) show up here — without
+        // it, this tab would keep showing a stale tier until reloaded.
+        let lastAuto = Date.now();
+        const onMaybeVisible = () => {
+            if (document.visibilityState !== "visible") return;
+            if (Date.now() - lastAuto < AUTO_REFETCH_MIN_MS) return;
+            lastAuto = Date.now();
+            void fetchLicense();
+        };
+        document.addEventListener("visibilitychange", onMaybeVisible);
+        window.addEventListener("focus", onMaybeVisible);
+
+        return () => {
+            cancelled = true;
+            licenseSubscribers.delete(fetchLicense);
+            document.removeEventListener("visibilitychange", onMaybeVisible);
+            window.removeEventListener("focus", onMaybeVisible);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

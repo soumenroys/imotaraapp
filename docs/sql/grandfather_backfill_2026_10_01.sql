@@ -223,3 +223,65 @@ select count(*) as org_seats_lost_their_org
 from   public.licenses
 where  source = 'org' and org_id is null;
 -- Expect: 0.
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- ✅ RUN AND VERIFIED 2026-09-26, in the Supabase SQL Editor.
+--
+--   375 rows · all permanent · zero free.
+--     plus/grandfather 368 · plus/org 4 · plus/apple 1 · plus/razorpay 1 · family 1
+--   resolve_user_tier(): plus/personal/valid 371 · edu/org/active 3 · family 1
+--   all five zero-checks returned 0, including the anti-downgrade check.
+--
+-- 🔑 The 3 live edu users moved from tier_source 'personal' to 'org' — that is
+--    step 2c working: the Plus floor now sits UNDER the org tier.
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- STEP 5 — THE PRE-CUTOFF RE-RUN. Run once more just before 2026-10-01.
+-- ════════════════════════════════════════════════════════════════════════════
+--
+-- 🔴 WHY. The backfill ran on 09-26; the cutoff is 10-01. Anyone who signs up
+-- in between is a pre-cutoff account holder and the promise covers them, but
+-- the run above could not have seen them.
+--
+-- 🔴 WHY THIS IS NOT JUST "run step 2 again". Step 2a is `where tier='free'`
+-- with no date bound. Run it on 2026-10-02 and it grandfathers POST-cutoff
+-- signups too — permanently, and with no way to tell them apart afterwards.
+-- The window is the whole point, so the window is in the query.
+--
+-- These two are bounded by created_at, so they are safe to run at ANY time,
+-- before or after the cutoff, as many times as you like.
+
+begin;
+
+-- 5a. Pre-cutoff accounts that acquired a free row after the 09-26 run.
+update public.licenses
+set    tier       = 'plus',
+       status     = 'valid',
+       expires_at = null,
+       source     = 'grandfather',
+       notes      = coalesce(notes || ' · ', '') ||
+                    'grandfathered 2026-10-01 — permanent plus, pre-cutoff account (late sweep)',
+       updated_at = now()
+where  tier = 'free'
+  and  org_id is null
+  and  created_at < timestamptz '2026-10-01 00:00:00+00';
+
+-- 5b. Pre-cutoff accounts still with no licence row at all.
+insert into public.licenses (user_id, tier, status, expires_at, token_balance, source, notes, updated_at)
+select u.id, 'plus', 'valid', null, 0, 'grandfather',
+       'grandfathered 2026-10-01 — permanent plus, pre-cutoff account (late sweep)', now()
+from   auth.users u
+where  not exists (select 1 from public.licenses l where l.user_id = u.id)
+  and  u.created_at < timestamptz '2026-10-01 00:00:00+00';
+
+commit;
+
+-- Then re-run the STEP 4 checks. `still_free` may now be NON-zero and that is
+-- CORRECT — it counts post-cutoff signups, who are not grandfathered. Every
+-- other check must still be 0.
+--
+-- To see only the ones that should have been caught:
+--   select count(*) from public.licenses
+--   where tier = 'free' and org_id is null
+--     and created_at < timestamptz '2026-10-01 00:00:00+00';   -- must be 0

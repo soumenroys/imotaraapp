@@ -1297,7 +1297,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Look at which emotions have the largest segments.",
         "Hover (web) or tap (mobile) an axis to see the count for that emotion.",
       ],
-      tiers: { free: false, plus: true, ent: true },
+      tiers: { free: "Preview", plus: true, ent: true, note: "Free plans see a preview of these charts with an upgrade prompt \u2014 the data is not withheld." },
       badge: "Plus unlocks weekly comparison",
     },
     {
@@ -1335,7 +1335,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Read the narrative summary.",
         "Tap 'Reflect on this' to journal about the week.",
       ],
-      tiers: { free: false, plus: true, ent: true },
+      tiers: { free: "Preview", plus: true, ent: true, note: "Free plans see a preview of these charts with an upgrade prompt \u2014 the data is not withheld." },
       badge: "Plus for the full weekly digest",
     },
     {
@@ -1349,7 +1349,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Hover/tap any point to see the date and emotion.",
         "Look for patterns — recurring dips or peaks.",
       ],
-      tiers: { free: false, plus: true, ent: true },
+      tiers: { free: "Preview", plus: true, ent: true, note: "Free plans see a preview of these charts with an upgrade prompt \u2014 the data is not withheld." },
       badge: "Imotara Plus",
     },
     {

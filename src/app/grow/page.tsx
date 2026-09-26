@@ -1866,7 +1866,23 @@ export default function GrowPage() {
       {/* Quick emotion check-in */}
       <WebFeelSection onCheckin={handleCheckin} />
 
-      {/* Emotion analytics — gated on Imotara Plus (TRENDS_INSIGHTS) */}
+      {/* Emotion analytics — TRENDS_INSIGHTS.
+        *
+        * 🔴 THE `.allowed` CHECK IS DELIBERATELY ABSENT. Do not "fix" this.
+        *
+        * Every other feature gate in the product blocks with `.allowed`; this
+        * one shows a nudge and renders the charts anyway. That asymmetry looks
+        * like an oversight and was nearly corrected as one on 2026-09-26.
+        *
+        * It is a product decision (owner, 2026-09-26): free plans SEE the
+        * radar chart and heatmap with an upgrade prompt. The data is not
+        * withheld — the preview IS the upsell. Blocking it would remove the
+        * only reason a free user learns the feature exists.
+        *
+        * The tutorial matches: those cards read `free: "Preview"`, not
+        * `free: false`. `trendsInsightsIsPreviewNotBlocked.test.ts` pins both
+        * halves, so changing one without the other fails the build.
+        */}
       {insightsGate.nudge && !insightsGate.loading && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-indigo-400/20 bg-indigo-500/8 px-3 py-2.5">
           <p className="text-[11px] text-indigo-200/80">

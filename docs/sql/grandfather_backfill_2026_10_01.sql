@@ -39,7 +39,7 @@
 -- ⚠️ Anonymous / local-only users have no server identity and CANNOT be
 -- grandfathered. Accepted: local replies are free regardless.
 --
--- ── LIVE STATE AT DRAFTING (2026-09-26) ─────────────────────────────────────
+-- ── LIVE STATE — dry run CONFIRMED in the SQL Editor 2026-09-26 ─────────────
 --   auth.users ................ 375      (the 248 figure from 09-17 is stale)
 --   licence rows .............. 79   → 296 accounts have NO row
 --   tier=free ................. 72       0 of them carry an org_id
@@ -142,6 +142,29 @@ set    expires_at = null,
        updated_at = now()
 where  tier = 'family';                    -- expect 1 row
 
+-- 2e. The 2 paying `plus` rows → permanent.
+--     ✅ OWNER APPROVED 2026-09-26 ("proceed"). Was step 3, now folded in.
+--     Only the razorpay row is actually affected: the apple row is ALREADY
+--     NULL from the deliberate 2026-09-18 grant, so this makes the two
+--     consistent. Both are pre-cutoff account holders, so the promise covers
+--     them.
+--     ⚠️ Accepted trade-off: NULL lets a subscriber cancel and keep Plus. The
+--     one affected row is the owner's own ₹149 live test (2026-09-23).
+--     This is a ONE-TIME snapshot — new payers go through grant_license_atomic(),
+--     which always writes a real expiry. Nothing here changes that.
+--
+--     🔑 Provably cannot catch the rows the steps above just created: 2a and 2c
+--     set expires_at = NULL (failing `expires_at is not null`), and the edu
+--     rows keep source = 'org' (failing the source filter).
+update public.licenses
+set    expires_at = null,
+       notes      = coalesce(notes || ' · ', '') ||
+                    'grandfathered 2026-10-01 — pre-cutoff paid subscriber, expiry removed',
+       updated_at = now()
+where  tier = 'plus'
+  and  source in ('razorpay','apple','stripe')
+  and  expires_at is not null;             -- expect 1 row
+
 -- ── Check INSIDE the transaction ────────────────────────────────────────────
 select tier, status, source,
        count(*)                                   as rows,
@@ -154,35 +177,10 @@ commit;
 -- rollback;   -- ← use this instead if anything above looks wrong
 
 -- ════════════════════════════════════════════════════════════════════════════
--- STEP 3 — ⚠️ OWNER DECISION. The 2 paying `plus` rows. Run separately or skip.
+-- STEP 3 — (was the owner decision on the 2 paying rows) → DECIDED, now 2e.
 -- ════════════════════════════════════════════════════════════════════════════
---
--- Left out of step 2 on purpose, because it is a judgement call, not a fact:
---
---   razorpay · expires 2026-12-28 · the ₹149 live test paid on 2026-09-23
---   apple    · expires NULL       · ALREADY permanent by deliberate grant on
---                                   2026-09-18 ("was launch-offer")
---
--- FOR: both are pre-cutoff account holders, so the promise covers them; and
---      the Apple row already sets the precedent of NULL for exactly this.
--- AGAINST: NULL lets a subscriber cancel and keep Plus for ever. Only the
---      razorpay row is actually affected, and it is the owner's own test
---      account — so the downside is ~zero in practice.
---
--- This is a ONE-TIME snapshot: new payers after the cutoff go through
--- grant_license_atomic(), which always writes a real expiry. Nothing here
--- changes that.
---
--- Recommendation: RUN IT — consistency with the Apple row, cost of one row.
---
--- update public.licenses
--- set    expires_at = null,
---        notes      = coalesce(notes || ' · ', '') ||
---                     'grandfathered 2026-10-01 — pre-cutoff paid subscriber, expiry removed',
---        updated_at = now()
--- where  tier = 'plus'
---   and  source in ('razorpay','apple','stripe')
---   and  expires_at is not null;           -- expect 1 row
+-- Owner approved 2026-09-26. Moved into the transaction above as step 2e so the
+-- whole backfill commits or rolls back as one unit.
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- STEP 4 — VERIFY THE GRANT IS REAL. A row is not a grant.

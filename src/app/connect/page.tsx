@@ -713,26 +713,13 @@ interface SessionWallet {
 
 function WalletTab() {
   const [isLoggedIn, setIsLoggedIn]           = useState<boolean | null>(null); // null = loading
-  const [walletBalance, setWalletBalance]     = useState<number>(0);
   const [walletCurrency, setWalletCurrency]   = useState<string>("INR");
-  const [expiresAt, setExpiresAt]             = useState<string | null>(null);
-  const [daysUntilExpiry, setDaysUntilExpiry] = useState<number | null>(null);
-  const [walletStatus, setWalletStatus]       = useState<string>("active");
   const [sessionWallets, setSessionWallets]   = useState<SessionWallet[]>([]);
   const [loading, setLoading]                 = useState(true);
   const [transactions, setTransactions]       = useState<WalletTx[]>([]);
   const [showHistory, setShowHistory]         = useState(false);
   const [historyLoading, setHistoryLoading]   = useState(false);
   const [historyLoaded, setHistoryLoaded]     = useState(false);
-  // Refund request form
-  const [showRefund, setShowRefund]           = useState(false);
-  const [refundMethod, setRefundMethod]       = useState<"bank" | "upi">("upi");
-  const [refundUpi, setRefundUpi]             = useState("");
-  const [refundBank, setRefundBank]           = useState({ account_number: "", ifsc_code: "", account_holder: "", bank_name: "" });
-  const [refundReason, setRefundReason]       = useState("");
-  const [refundLoading, setRefundLoading]     = useState(false);
-  const [refundResult, setRefundResult]       = useState<{ ref: string; amount: number } | null>(null);
-  const [refundError, setRefundError]         = useState("");
   const [fetchError, setFetchError]           = useState(false);
 
   const sym = CURRENCY_SYMBOLS[walletCurrency] ?? walletCurrency;
@@ -743,11 +730,7 @@ function WalletTab() {
       .then((d) => {
         if (d.ok) {
           setFetchError(false);
-          setWalletBalance(Number(d.wallet_balance ?? 0));
           setWalletCurrency(d.wallet_currency ?? "INR");
-          setExpiresAt(d.expires_at ?? null);
-          setDaysUntilExpiry(d.days_until_expiry ?? null);
-          setWalletStatus(d.wallet_status ?? "active");
           setSessionWallets(d.wallets ?? []);
         } else {
           setFetchError(true);
@@ -773,31 +756,6 @@ function WalletTab() {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function handleRefundRequest() {
-    setRefundLoading(true);
-    setRefundError("");
-    try {
-      const body =
-        refundMethod === "upi"
-          ? { upi_id: refundUpi, reason: refundReason }
-          : { ...refundBank, reason: refundReason };
-      const res = await fetch("/api/connect/wallet/refund-request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        credentials: "include",
-      });
-      const d = await res.json();
-      if (!d.ok) throw new Error(d.error ?? "Request failed");
-      setRefundResult({ ref: d.reference_number, amount: d.amount });
-      setShowRefund(false);
-      fetchBalance();
-    } catch (err) {
-      setRefundError(err instanceof Error ? err.message : "Request failed");
-    } finally {
-      setRefundLoading(false);
-    }
-  }
 
   async function loadHistory() {
     if (showHistory) { setShowHistory(false); return; }
@@ -829,10 +787,10 @@ function WalletTab() {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center px-4">
         <div className="mb-4 text-5xl">🔒</div>
-        <h3 className="mb-2 text-lg font-semibold text-zinc-100">Sign in to use your Wallet</h3>
+        <h3 className="mb-2 text-lg font-semibold text-zinc-100">Sign in to see your session credits</h3>
         <p className="mb-6 max-w-xs text-sm text-zinc-400 leading-relaxed">
-          Sign in to view your Imotara Wallet balance or request a refund. To pay for a session, purchase
-          minutes directly with a companion instead.
+          Sign in to see the minutes you hold with each companion and your session history.
+          To pay for a session, purchase minutes directly with a companion.
         </p>
         <button
           onClick={async () => {
@@ -851,17 +809,12 @@ function WalletTab() {
   }
 
   // Expiry display helpers
-  const expiryDate = expiresAt
-    ? new Date(expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
-    : null;
-  const isExpiringSoon  = daysUntilExpiry !== null && daysUntilExpiry <= 30 && walletBalance > 0;
-  const isDormant       = walletStatus === "dormant";
 
   return (
     <div className="space-y-4">
       {fetchError && (
         <div className="flex items-center justify-between rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3">
-          <p className="text-sm text-rose-400">Could not load wallet data.</p>
+          <p className="text-sm text-rose-400">Could not load your session credits.</p>
           <button
             onClick={() => { setFetchError(false); fetchBalance().catch(() => setFetchError(true)); }}
             className="ms-4 rounded-lg bg-rose-500/20 px-3 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-500/30 transition"
@@ -870,44 +823,6 @@ function WalletTab() {
           </button>
         </div>
       )}
-      {/* ── Dormancy / expiry warning banner ── */}
-      {isDormant && (
-        <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-5 py-4">
-          <p className="text-sm font-semibold text-rose-300">Your wallet balance is dormant</p>
-          <p className="mt-1 text-xs text-rose-400/80">
-            Your balance is preserved, not lost — it was marked dormant after 2 years of inactivity.
-            You have a 1-year grace period from that date to request a full refund —
-            email <strong>info@imotara.com</strong> with subject &quot;Wallet Refund Request&quot;.
-          </p>
-        </div>
-      )}
-      {isExpiringSoon && !isDormant && (
-        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-5 py-4">
-          <p className="text-sm font-semibold text-amber-300">
-            Your wallet balance goes dormant in {daysUntilExpiry} day{daysUntilExpiry === 1 ? "" : "s"}
-          </p>
-          <p className="mt-1 text-xs text-amber-400/80">
-            On <strong>{expiryDate}</strong> it will be marked dormant after 2 years of inactivity —
-            this is just a status label, your balance is never reduced. If you&apos;d like a refund
-            now instead of waiting, you can request one anytime.
-          </p>
-        </div>
-      )}
-
-      {/* ── Balance card ── */}
-      <div className="imotara-glass-card rounded-2xl p-6 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Imotara Wallet Balance</p>
-        <p className={`text-5xl font-bold tracking-tight ${isDormant ? "text-zinc-600 line-through" : "text-violet-300"}`}>
-          {sym}{walletBalance.toFixed(2)}
-        </p>
-        <p className="mt-1 text-xs text-zinc-600">{walletCurrency} · Refundable, top-ups retired</p>
-        {expiryDate && !isDormant && walletBalance > 0 && (
-          <p className={`mt-2 text-xs ${isExpiringSoon ? "text-amber-400" : "text-zinc-600"}`}>
-            Balance valid until {expiryDate}
-          </p>
-        )}
-      </div>
-
       {/* ── Session Minutes per Companion ── */}
       {sessionWallets.length > 0 && (
         <div className="imotara-glass-card rounded-2xl p-5">
@@ -940,108 +855,6 @@ function WalletTab() {
           <p className="mt-3 text-[11px] text-zinc-600 leading-relaxed">
             These are pre-purchased minutes with specific companions. Minutes are deducted during active sessions.
           </p>
-        </div>
-      )}
-
-      {/* ── Wallet top-ups retired — pay per-companion instead ── */}
-      <div className="imotara-glass-card rounded-2xl p-5">
-        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-          <Clock size={14} className="text-violet-400" />
-          Paying for sessions
-        </h3>
-        <p className="text-xs text-zinc-400 leading-relaxed">
-          Imotara Wallet no longer accepts new top-ups. To pay for a session, purchase minutes directly with a
-          companion when you tap &quot;Talk Now,&quot; or add more during an active session if your balance runs
-          low — that balance is shown under &quot;Pre-purchased Session Minutes&quot; above.
-        </p>
-        {walletBalance > 0 && (
-          <p className="mt-3 text-xs text-zinc-500 leading-relaxed">
-            You still have an existing wallet balance below — you can request a refund for it any time.
-          </p>
-        )}
-      </div>
-
-      {/* ── Request Refund panel — shown for any positive balance, since top-ups are
-           retired and the API itself never required "dormant" status to accept a
-           refund request (that was only ever a frontend-side gate). ── */}
-      {walletBalance > 0 && (
-        <div className="imotara-glass-card rounded-2xl p-5 border border-amber-500/30">
-          <h3 className="mb-2 text-sm font-semibold text-amber-300">Request a Refund</h3>
-          <p className="mb-4 text-xs text-zinc-400 leading-relaxed">
-            Your wallet balance of <strong className="text-zinc-200">{sym}{walletBalance.toFixed(2)}</strong> can no
-            longer be spent from here — top-ups are retired. You can request a full refund below;
-            we will process it within 7 business days.
-          </p>
-
-          {refundResult && (
-            <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-              <p className="text-sm font-semibold text-emerald-300">Refund request submitted</p>
-              <p className="text-xs text-zinc-400 mt-1">Reference: <strong>{refundResult.ref}</strong></p>
-              <p className="text-xs text-zinc-400">Amount: {sym}{refundResult.amount.toFixed(2)} · Confirmation sent to your email.</p>
-            </div>
-          )}
-
-          {walletStatus === "refund_requested" ? (
-            <p className="text-sm text-zinc-400 italic">Your refund request is being processed. Check your email for updates.</p>
-          ) : !showRefund ? (
-            <button
-              onClick={() => setShowRefund(true)}
-              className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm font-medium text-amber-300 hover:bg-amber-500/20 transition"
-            >
-              Request Refund
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                {(["upi", "bank"] as const).map((m) => (
-                  <button key={m} onClick={() => setRefundMethod(m)}
-                    className={`flex-1 rounded-xl border py-2 text-sm transition ${refundMethod === m ? "border-violet-500 bg-violet-500/20 text-violet-300" : "border-white/10 text-zinc-400 hover:border-white/20"}`}>
-                    {m === "upi" ? "UPI" : "Bank Transfer"}
-                  </button>
-                ))}
-              </div>
-
-              {refundMethod === "upi" ? (
-                <input type="text" placeholder="UPI ID (e.g. name@upi)" value={refundUpi}
-                  onChange={(e) => setRefundUpi(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
-              ) : (
-                <div className="space-y-2">
-                  {[
-                    ["bank_name",       "Bank Name"],
-                    ["account_number",  "Account Number"],
-                    ["ifsc_code",       "IFSC Code"],
-                    ["account_holder",  "Account Holder Name"],
-                  ].map(([field, label]) => (
-                    <input key={field} type="text" placeholder={label}
-                      value={refundBank[field as keyof typeof refundBank]}
-                      onChange={(e) => setRefundBank((b) => ({ ...b, [field]: e.target.value }))}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
-                  ))}
-                </div>
-              )}
-
-              <input type="text" placeholder="Reason (optional)" value={refundReason}
-                onChange={(e) => setRefundReason(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500" />
-
-              {refundError && (
-                <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{refundError}</p>
-              )}
-
-              <div className="flex gap-2">
-                <button onClick={() => setShowRefund(false)}
-                  className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm text-zinc-400 hover:text-zinc-200 transition">
-                  Cancel
-                </button>
-                <button onClick={handleRefundRequest} disabled={refundLoading}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-600 py-2.5 text-sm font-semibold text-white hover:bg-amber-500 transition disabled:opacity-50">
-                  {refundLoading ? <Loader2 size={14} className="animate-spin" /> : null}
-                  Submit Refund Request
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -2053,7 +1866,7 @@ export default function ConnectPage() {
   const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode }> = [
     { key: "browse",   label: "Browse",      icon: <Users size={15} />         },
     { key: "sessions", label: "My Sessions", icon: <MessageCircle size={15} /> },
-    { key: "wallet",   label: "Wallet",      icon: <Wallet size={15} />        },
+    { key: "wallet",   label: "Credits",     icon: <Wallet size={15} />        },
     ...(isConsultant
       ? [{ key: "dashboard" as Tab, label: "Dashboard", icon: <LayoutDashboard size={15} /> }]
       : []),

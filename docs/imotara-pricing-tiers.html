@@ -126,7 +126,7 @@
     }
 
     /* ── PLAN CARDS ── */
-    .plans { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:14px; }
+    .plans { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
     .plan-card {
       border-radius:14px; padding:18px 16px 16px;
       border:1.5px solid var(--border);
@@ -299,7 +299,6 @@
     .matrix thead th:last-child  { border-radius:0 7px 0 0; }
     .matrix thead .th-free  { background:#546B8F; }
     .matrix thead .th-plus  { background:#2980C4; }
-    .matrix thead .th-pro   { background:linear-gradient(135deg,#C0446A,#2460A0); }
     .matrix tbody td { padding:5px 10px; border-bottom:1px solid var(--border); text-align:center; }
     .matrix tbody td:first-child { text-align:left; color:var(--slate); font-weight:500; }
     .matrix tbody tr:nth-child(even) td { background:var(--light); }
@@ -481,49 +480,22 @@
         <div class="plan-icon">⭐</div>
         <div class="plan-name">Plus</div>
         <div class="price-block">
-          <div class="price-monthly"><sup>₹</sup>99<sub>/month</sub></div>
-          <div class="price-annual">💚 Or ₹699/year — save ₹249</div>
-          <div class="price-ios">iOS: ₹99/month via App Store</div>
-        </div>
-        <div class="plan-tagline" style="margin-top:4px;">Unlimited support, every day</div>
-        <div class="plan-divider"></div>
-        <ul class="plan-features">
-          <li><span class="tk">✓</span> <strong>Unlimited</strong> AI cloud messages</li>
-          <li><span class="tk">✓</span> Offline AI fallback (mobile)</li>
-          <li><span class="tk">✓</span> Mood timeline · 30-day charts</li>
-          <li><span class="tk">✓</span> 90-day chat history</li>
-          <li><span class="tk">✓</span> Monthly companion letter</li>
-          <li><span class="tk">✓</span> Neural TTS (Indian voices)</li>
-          <li><span class="tk">✓</span> Cross-device sync</li>
-          <li><span class="tk">✓</span> Future letters · Daily reminders</li>
-          <li><span class="lk">○</span> <span style="color:#aaa;font-size:9px;">Unlimited full history</span></li>
-        </ul>
-        <span class="plan-cta cta-plus">Start Plus — ₹99/mo</span>
-      </div>
-
-      <!-- PRO -->
-      <div class="plan-card pro">
-        <div class="plan-icon">🔥</div>
-        <div class="plan-name">Pro</div>
-        <div class="price-block">
           <div class="price-monthly"><sup>₹</sup>149<sub>/month</sub></div>
-          <div class="price-annual" style="background:rgba(61,190,138,.15); color:#6FE8B5;">💚 Or ₹1,199/year — save ₹589</div>
-          <div class="price-ios">iOS annual: ₹1,299/year via App Store</div>
+          <div class="price-annual">💚 Or ₹1,299/year — save ₹489</div>
+          <div class="price-ios">iOS: ₹149/month · ₹1,299/year via App Store</div>
         </div>
-        <div class="plan-tagline" style="margin-top:4px;">Your complete wellness record</div>
+        <div class="plan-tagline" style="margin-top:4px;">Everything, unlimited</div>
         <div class="plan-divider"></div>
         <ul class="plan-features">
           <li><span class="tk">✓</span> <strong>Unlimited</strong> AI cloud messages</li>
-          <li><span class="tk">✓</span> Offline AI fallback (mobile)</li>
-          <li><span class="tk">✓</span> Mood timeline · Full history charts</li>
-          <li><span class="tk">✓</span> <strong>Unlimited</strong> chat history</li>
-          <li><span class="tk">✓</span> Monthly companion letter</li>
-          <li><span class="tk">✓</span> Neural TTS · Data export (JSON/CSV)</li>
+          <li><span class="tk">✓</span> <strong>Unlimited</strong> chat history &amp; search</li>
+          <li><span class="tk">✓</span> Full mood timeline &amp; trends</li>
+          <li><span class="tk">✓</span> Monthly companion letter · growth arc</li>
+          <li><span class="tk">✓</span> Neural TTS (Indian voices)</li>
+          <li><span class="tk">✓</span> Data export (JSON/CSV)</li>
           <li><span class="tk">✓</span> Cross-device sync + companion memory</li>
-          <li><span class="tk">✓</span> On This Day · Future letters</li>
-          <li><span class="tk">✓</span> Priority AI response speed</li>
         </ul>
-        <span class="plan-cta cta-pro">Go Pro — ₹149/mo</span>
+        <span class="plan-cta cta-plus">Start Plus — ₹149/mo</span>
       </div>
 
     </div>
@@ -535,12 +507,12 @@
     <!-- VALUE STRIP -->
     <div class="value-strip">
       <div class="vs-left">
-        <div class="vs-title">Why ₹99/month is the smartest spend for your mental health</div>
+        <div class="vs-title">Why ₹149/month is the smartest spend for your mental health</div>
         <div class="vs-sub">One therapy session in India costs ₹1,500–₹3,000. Imotara Plus gives you unlimited, 24/7 judgment-free support for less than a cup of coffee a week.</div>
       </div>
       <div class="vs-div"></div>
       <div class="vs-stats">
-        <div class="vs-stat"><div class="vs-num">₹99</div><div class="vs-lbl">Imotara Plus/mo</div></div>
+        <div class="vs-stat"><div class="vs-num">₹149</div><div class="vs-lbl">Imotara Plus/mo</div></div>
         <div class="vs-stat"><div class="vs-num">₹1,500+</div><div class="vs-lbl">1 therapy session</div></div>
         <div class="vs-stat"><div class="vs-num">5%</div><div class="vs-lbl">of therapy cost</div></div>
       </div>
@@ -680,7 +652,7 @@
         <div class="when-icon">📅</div>
         <div>
           <div class="when-title">Choose Plus / Pro if…</div>
-          <div class="when-body">You chat with Imotara daily, want companion letters, full history, and cross-device sync without worrying about limits. At 20+ messages per week, Plus at ₹99/mo gives you unlimited replies for the same money that buys just 250 tokens (barely 12 days of heavy use) — the better deal once you're chatting daily.</div>
+          <div class="when-body">You chat with Imotara daily, want companion letters, full history, and cross-device sync without worrying about limits. At 20+ messages per week, Plus at ₹149/mo gives you unlimited replies — for ₹50 more than a 250-token pack that runs out in barely 12 days of heavy use.</div>
         </div>
       </div>
     </div>
@@ -692,35 +664,34 @@
         <tr>
           <th>Feature</th>
           <th class="th-free">Free</th>
-          <th class="th-plus">Plus ₹99/mo</th>
-          <th class="th-pro">Pro ₹149/mo</th>
+          <th class="th-plus">Plus ₹149/mo</th>
         </tr>
       </thead>
       <tbody>
-        <tr class="cat-row"><td colspan="4">AI &amp; Messaging</td></tr>
-        <tr><td>AI cloud messages</td><td><span class="lim">20/day</span></td><td><span class="chk">✓ Unlimited</span></td><td><span class="chk">✓ Unlimited</span></td></tr>
-        <tr><td>Offline AI fallback (mobile, all 22 langs)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
-        <tr><td>Streaming replies (web)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
-        <tr><td>Voice input (speech → text)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
-        <tr><td>TTS — AI reads replies aloud</td><td><span class="lim">Basic</span></td><td><span class="chk">✓ Neural</span></td><td><span class="chk">✓ Neural</span></td></tr>
-        <tr><td>22 languages + gendered Indic grammar</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
-        <tr class="cat-row"><td colspan="4">Personalisation</td></tr>
-        <tr><td>Companion persona (name, tone, vibe)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
-        <tr><td>Companion memory (remembers facts)</td><td><span class="lim">Basic</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓ Full</span></td></tr>
-        <tr><td>Cultural content (mythology, wisdom)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
-        <tr class="cat-row"><td colspan="4">History &amp; Data</td></tr>
-        <tr><td>Chat history retention</td><td><span class="lim">7 days</span></td><td><span class="lim">90 days</span></td><td><span class="chk">✓ Unlimited</span></td></tr>
-        <tr><td>Conversation threads</td><td><span class="lim">3 threads</span></td><td><span class="chk">✓ Unlimited</span></td><td><span class="chk">✓ Unlimited</span></td></tr>
-        <tr><td>Data export (JSON / CSV)</td><td><span class="crs">—</span></td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td></tr>
-        <tr><td>Cross-device profile sync</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
-        <tr class="cat-row"><td colspan="4">Wellness Features</td></tr>
-        <tr><td>Mood check-in (8 emotions)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
-        <tr><td>Emotion timeline + charts</td><td><span class="lim">7 days</span></td><td><span class="chk">✓ 30 days</span></td><td><span class="chk">✓ Full</span></td></tr>
-        <tr><td>Monthly companion letter</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
-        <tr><td>Future letters (write to future self)</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
-        <tr><td>On This Day (past journal recall)</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
-        <tr><td>Daily streak + breathing modal (mobile)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
-        <tr><td>Token top-ups (add-on credits)</td><td><span class="chk">✓ Available</span></td><td><span class="chk">✓ Available</span></td><td><span class="chk">✓ Available</span></td></tr>
+        <tr class="cat-row"><td colspan="3">AI &amp; Messaging</td></tr>
+        <tr><td>AI cloud messages</td><td><span class="lim">20/day</span></td><td><span class="chk">✓ Unlimited</span></td></tr>
+        <tr><td>Offline AI fallback (mobile, all 22 langs)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Streaming replies (web)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Voice input (speech → text)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>TTS — AI reads replies aloud</td><td><span class="lim">Basic</span></td><td><span class="chk">✓ Neural</span></td></tr>
+        <tr><td>22 languages + gendered Indic grammar</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr class="cat-row"><td colspan="3">Personalisation</td></tr>
+        <tr><td>Companion persona (name, tone, vibe)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Companion memory (remembers facts)</td><td><span class="lim">Basic</span></td><td><span class="chk">✓ Full</span></td></tr>
+        <tr><td>Cultural content (mythology, wisdom)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr class="cat-row"><td colspan="3">History &amp; Data</td></tr>
+        <tr><td>Chat history retention</td><td><span class="lim">7 days</span></td><td><span class="chk">✓ Unlimited</span></td></tr>
+        <tr><td>Conversation threads</td><td><span class="lim">3 threads</span></td><td><span class="chk">✓ Unlimited</span></td></tr>
+        <tr><td>Data export (JSON / CSV)</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Cross-device profile sync</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td></tr>
+        <tr class="cat-row"><td colspan="3">Wellness Features</td></tr>
+        <tr><td>Mood check-in (8 emotions)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Emotion timeline + charts</td><td><span class="lim">7 days</span></td><td><span class="chk">✓ Full</span></td></tr>
+        <tr><td>Monthly companion letter</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Future letters (write to future self)</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>On This Day (past journal recall)</td><td><span class="crs">—</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Daily streak + breathing modal (mobile)</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td></tr>
+        <tr><td>Token top-ups (add-on credits)</td><td><span class="chk">✓ Available</span></td><td><span class="chk">✓ Available</span></td></tr>
       </tbody>
     </table>
 

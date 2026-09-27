@@ -6,6 +6,7 @@ import { supabaseUserServer } from "@/lib/supabase/userServer";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { resolveUserTier } from "@/lib/imotara/org";
 import { normaliseTier } from "@/types/license";
+import { isClientStale, minSupportedVersion } from "@/lib/imotara/clientVersion";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -99,6 +100,14 @@ export async function GET(req: Request) {
                     expiresAt:    effectiveExpiry,
                     tokenBalance: effectiveTokens,
                 },
+                // Advisory only, and absent unless IMOTARA_MIN_SUPPORTED_APP_VERSION
+                // is deliberately set. 1.4.4+ clients use it to steer users to
+                // an update before showing prices they cannot render correctly.
+                // Older clients simply ignore an unknown field — which is why
+                // this is additive rather than a new endpoint or a 4xx.
+                ...(minSupportedVersion()
+                    ? { client: { minSupportedVersion: minSupportedVersion(), updateRequired: isClientStale(req) } }
+                    : {}),
                 // org is null for personal/free users; populated for org members
                 org:  orgContext,
                 user: { id: userId, email: userEmail ?? null },

@@ -6,6 +6,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ConflictReviewButton from "@/components/imotara/ConflictReviewButton";
 import GlobalSearch from "@/components/imotara/GlobalSearch";
 import { APP_ROUTES } from "@/lib/appRoutes";
+import useLicense from "@/hooks/useLicense";
+import { prettyTier } from "@/types/license";
 
 // Primary nav — always visible on desktop (daily actions only)
 const PRIMARY_LINKS = [
@@ -65,6 +67,10 @@ export default function SiteHeader() {
 
   const [isMac, setIsMac] = useState(false);
   const [user, setUser] = useState<any>(null);
+  // 🔑 Same hook the rest of the app uses, so the header can never disagree
+  // with the plan card. It re-reads on auth change, tab focus and after a
+  // purchase — see lib/imotara/licenseRefresh.ts.
+  const license = useLicense();
   const [orgHref, setOrgHref] = useState<string | null>(null);
   const sbRef = useRef<any>(null);
 
@@ -268,8 +274,30 @@ export default function SiteHeader() {
             </div>}
           </nav>
 
-          {/* RIGHT: Search + sign-out + mobile hamburger */}
+          {/* RIGHT: plan + search + conflicts + sign in/out + mobile hamburger */}
           <div className="flex items-center gap-2">
+            {/* Current plan — desktop, left of the search box.
+                🔑 Reuses useLicense() and prettyTier() rather than mapping tiers
+                here. A second mapping is how "edu" once rendered as two
+                different words in two places.
+                ⚠️ Hidden until `loading` clears. The hook starts from the env
+                snapshot, which is `free`, so rendering early would flash "Free"
+                at a Plus subscriber — the exact thing that cost 2026-09-30. */}
+            {mounted && user && !license.loading && (
+              <Link
+                href="/settings"
+                aria-label={`Your plan: ${prettyTier(license.tier)}`}
+                title="Your plan"
+                className={`hidden sm:inline-flex items-center rounded-full border px-3 py-1.5 text-xs transition ${
+                  license.tier === "free"
+                    ? "border-white/10 bg-white/5 text-zinc-500 hover:bg-white/10 hover:text-zinc-300 dark:border-zinc-700/60"
+                    : "border-indigo-400/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 hover:text-indigo-200"
+                }`}
+              >
+                {prettyTier(license.tier)}
+              </Link>
+            )}
+
             <button
               type="button"
               onClick={() => setSearchOpen(true)}

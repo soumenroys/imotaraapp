@@ -55,3 +55,45 @@ describe("🔴 the header offers Sign in when signed out", () => {
         expect(drawer).toMatch(/onClick=\{\(\) => setMobileOpen\(false\)\}/);
     });
 });
+
+describe("🔑 the header shows the current plan, left of the search box", () => {
+    /**
+     * Requested 2026-10-01, right after the "always Free" bug was fixed — so the
+     * one thing this must never do is show the WRONG plan, even for a moment.
+     */
+    it("renders the plan capsule BEFORE the search button", () => {
+        const plan = SRC.indexOf("aria-label={`Your plan:");
+        const search = SRC.indexOf('aria-label="Search"');
+        expect(plan).toBeGreaterThan(-1);
+        expect(search).toBeGreaterThan(-1);
+        expect(plan).toBeLessThan(search);
+    });
+
+    it("🔴 is hidden while the licence is still loading", () => {
+        // useLicense starts from the env snapshot, which is `free`. Rendering
+        // before `loading` clears would flash "Free" at a Plus subscriber —
+        // precisely the thing that cost 2026-09-30.
+        expect(SRC).toMatch(/mounted && user && !license\.loading &&/);
+    });
+
+    it("🔑 reuses prettyTier — no second tier→label mapping in the header", () => {
+        // `edu` once rendered as two different words in two places because the
+        // map was duplicated. One mapping, one source of truth.
+        expect(SRC).toMatch(/prettyTier\(license\.tier\)/);
+        expect(SRC).toMatch(/import \{ prettyTier \} from "@\/types\/license"/);
+        expect(SRC).not.toMatch(/"Imotara Plus"|case "plus":/);
+    });
+
+    it("uses the same useLicense hook as the rest of the app", () => {
+        // So the header can never disagree with the Settings plan card.
+        expect(SRC).toMatch(/import useLicense from "@\/hooks\/useLicense"/);
+        expect(SRC).toMatch(/const license = useLicense\(\)/);
+    });
+
+    it("only shows when signed in", () => {
+        // "Free" next to a "Sign in" button would be noise — a signed-out
+        // visitor has no plan, they have no account.
+        const slot = SRC.slice(SRC.indexOf("Current plan — desktop"));
+        expect(slot.slice(0, 900)).toMatch(/mounted && user &&/);
+    });
+});

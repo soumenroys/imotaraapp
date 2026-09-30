@@ -72,9 +72,39 @@ describe("🔴 licence state must be reactive to AUTH, not fetched once", () => 
         // This is THE fix. Focus/visibility already existed and never fires for
         // a user who signs in and stays on the page.
         expect(REFRESH).toContain("onAuthStateChange");
-        for (const ev of ["SIGNED_IN", "SIGNED_OUT", "TOKEN_REFRESHED"]) {
-            expect(REFRESH).toContain(ev);
-        }
+    });
+
+    it("🔴 INITIAL_SESSION WITH a session must trigger a re-fetch", () => {
+        /**
+         * 🔴 SHIPPED BUG, caught in production 2026-09-30. The first version of
+         * this fix listed the events it cared about and deliberately EXCLUDED
+         * INITIAL_SESSION, reasoning that "the consumer has already fetched by
+         * then". That is precisely wrong for the case that matters.
+         *
+         * Signing in ends with auth/callback doing a FULL PAGE LOAD into the
+         * destination. On a fresh load Supabase fires INITIAL_SESSION, not
+         * SIGNED_IN — the sign-in happened on the previous page. The plan card
+         * fetched on mount, raced the cookie read, got "free", and nothing ever
+         * asked again. Only the manual Refresh link could fix it.
+         *
+         * 🔑 The discriminator must be the SESSION, not the event name. Skip
+         * ONLY INITIAL_SESSION with no session. A filter that names events
+         * reintroduces the bug the moment Supabase adds or renames one.
+         */
+        expect(REFRESH).toMatch(
+            /if\s*\(\s*event === "INITIAL_SESSION"\s*&&\s*!session\s*\)\s*return;/,
+        );
+        // The callback must receive the session to discriminate on it at all.
+        expect(REFRESH).toMatch(/onAuthStateChange\(\(event, session\)/);
+    });
+
+    it("🔑 SIGNED_OUT still notifies even though it carries no session", () => {
+        // The skip is scoped to INITIAL_SESSION on purpose. Broadening it to
+        // "any event without a session" would stop sign-out clearing the tier,
+        // leaving a signed-out browser showing the previous user's plan.
+        const guard = REFRESH.slice(REFRESH.indexOf('if (event === "INITIAL_SESSION"'));
+        expect(guard.slice(0, 120)).not.toMatch(/SIGNED_OUT/);
+        expect(guard.slice(0, 200)).toContain("notifyAll()");
     });
 
     it("auth events are NOT throttled", () => {
@@ -109,5 +139,41 @@ describe("🔴 licence state must be reactive to AUTH, not fetched once", () => 
         const idx = SETTINGS.indexOf("refreshLicenseStatus();");
         expect(idx).toBeGreaterThan(-1);
         expect(SETTINGS.slice(idx, idx + 1200)).toContain("onLicenseRefresh");
+    });
+});
+
+describe("🔴 Settings must react to SIGN-OUT too, not just sign-in", () => {
+    /**
+     * 🔴 WHY. After the httpOnly fix made signing in work again (2026-09-30),
+     * the next symptom appeared immediately: signing OUT left the page still
+     * showing "Signed in as …" and no sign-in capsule, until a manual reload.
+     *
+     * Same root cause one layer up — `getSession()` answers "who is signed in
+     * right now" ONCE, on mount, and nothing asks again.
+     *
+     * 🔑 Settings was the ONLY surface in the app without a subscription.
+     * /connect, SiteHeader, /upgrade, /auth/accept and /connect/register all
+     * already had one. This pins Settings to the same contract.
+     */
+    it("both session reads are paired with an auth subscription", () => {
+        // 3 getSession() calls: two on mount (must subscribe) and one inside
+        // the delete-account handler, which is a correct one-shot read at the
+        // moment of action.
+        const subs = (SETTINGS.match(/onAuthStateChange/g) ?? []).length;
+        expect(subs).toBeGreaterThanOrEqual(2);
+    });
+
+    it("the subscriptions are released on unmount", () => {
+        // Leaking one keeps setState firing into a dead component on every
+        // future auth event, for the life of the tab.
+        const releases = (SETTINGS.match(/sub\?\.unsubscribe\(\)/g) ?? []).length;
+        expect(releases).toBeGreaterThanOrEqual(2);
+    });
+
+    it("🔑 a SIGNED_OUT event must be able to CLEAR the email, not only set it", () => {
+        // `setSbEmail(s?.user?.email ?? null)` — the `?? null` is what clears
+        // it. Writing `if (s) setSbEmail(...)` would fix sign-in and leave
+        // sign-out exactly as broken as it was.
+        expect(SETTINGS).toMatch(/setSbEmail\(s\?\.user\?\.email \?\? null\)/);
     });
 });

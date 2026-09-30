@@ -100,19 +100,31 @@ function attach(): void {
             if (cancelled) return;
 
             const sb = createBrowserClient(url, key);
-            const { data } = sb.auth.onAuthStateChange((event) => {
-                // INITIAL_SESSION fires on every mount, including for signed-out
-                // visitors, and the consumer has already fetched once by then.
-                // The events below are the ones that mean "who you are has
-                // changed, so what you're entitled to may have changed too".
-                if (
-                    event === "SIGNED_IN" ||
-                    event === "SIGNED_OUT" ||
-                    event === "TOKEN_REFRESHED" ||
-                    event === "USER_UPDATED"
-                ) {
-                    notifyAll();
-                }
+            const { data } = sb.auth.onAuthStateChange((event, session) => {
+                // 🔴 INITIAL_SESSION MUST BE HANDLED. Excluding it was a real
+                // bug, shipped and caught in production on 2026-09-30.
+                //
+                // Signing in ends with `auth/callback` doing a FULL PAGE LOAD
+                // into the destination. On a fresh page load Supabase fires
+                // INITIAL_SESSION — not SIGNED_IN, because the sign-in happened
+                // on the PREVIOUS page. So the sequence was:
+                //
+                //   1. the page mounts and fetches   → races the cookie read
+                //                                    → server sees nobody → "free"
+                //   2. Supabase finishes reading the cookie
+                //      → fires INITIAL_SESSION *with a session*
+                //   3. we ignored it → nothing re-fetched → "Free" forever
+                //
+                // SIGNED_IN never fires again, which is why only the manual
+                // Refresh link could fix it. INITIAL_SESSION carrying a session
+                // is often the FIRST moment anyone could know who this is.
+                //
+                // The discriminator is the SESSION, not the event name: skip
+                // only INITIAL_SESSION with no session (an ordinary signed-out
+                // visitor, where re-fetching would tell us nothing new).
+                // SIGNED_OUT also carries no session and MUST still notify.
+                if (event === "INITIAL_SESSION" && !session) return;
+                notifyAll();
             });
 
             if (cancelled) { data.subscription.unsubscribe(); return; }

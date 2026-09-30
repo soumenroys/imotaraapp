@@ -517,8 +517,19 @@ function ToneAndContextTile() {
     const childSafeModeGate = useFeatureGate("CHILD_SAFE_MODE");
 
     // Auth state — used for cross-device profile sync
+    //
+    // 🔴 getSession() ALONE IS NOT ENOUGH. It answers "who is signed in right
+    // now" once, on mount, and nothing ever asks again — so after signing out
+    // this page still believed you were signed in until a manual reload. That
+    // is why the sign-in capsule did not come back on 2026-09-30.
+    //
+    // 🔑 Every other surface in this app already subscribes — /connect,
+    // SiteHeader, /upgrade, /auth/accept, /connect/register. Settings was the
+    // only one that did not.
     const [sbEmail, setSbEmail] = useState<string | null>(null);
     useEffect(() => {
+        let cancelled = false;
+        let sub: { unsubscribe: () => void } | null = null;
         (async () => {
             try {
                 const { createBrowserClient } = await import("@supabase/ssr");
@@ -527,9 +538,17 @@ function ToneAndContextTile() {
                     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
                 );
                 const { data: { session } } = await sb.auth.getSession();
-                setSbEmail(session?.user?.email ?? null);
+                if (!cancelled) setSbEmail(session?.user?.email ?? null);
+
+                // SIGNED_OUT clears it, SIGNED_IN fills it — no reload needed.
+                const { data } = sb.auth.onAuthStateChange((_event, s) => {
+                    setSbEmail(s?.user?.email ?? null);
+                });
+                if (cancelled) data.subscription.unsubscribe();
+                else sub = data.subscription;
             } catch { /* not signed in or env not set */ }
         })();
+        return () => { cancelled = true; sub?.unsubscribe(); };
     }, []);
 
     useEffect(() => {
@@ -1349,6 +1368,11 @@ export default function SettingsPage() {
     const [emailPasswordHref, setEmailPasswordHref] = useState("/login");
 
     useEffect(() => {
+        // 🔴 Same fix as the copy above: a one-shot getSession() left this tile
+        // showing "Signed in as …" after a sign-out, until the page was
+        // reloaded. Subscribe, don't sample once.
+        let cancelled = false;
+        let sub: { unsubscribe: () => void } | null = null;
         (async () => {
             try {
                 const { createBrowserClient } = await import("@supabase/ssr");
@@ -1357,13 +1381,21 @@ export default function SettingsPage() {
                     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
                 );
                 const { data: { session } } = await sb.auth.getSession();
-                setSbEmail(session?.user?.email ?? null);
+                if (!cancelled) setSbEmail(session?.user?.email ?? null);
+
+                const { data } = sb.auth.onAuthStateChange((_event, s) => {
+                    setSbEmail(s?.user?.email ?? null);
+                });
+                if (cancelled) data.subscription.unsubscribe();
+                else sub = data.subscription;
             } catch { /* not signed in or env not set */ }
         })();
 
         const rawRedirect = new URLSearchParams(window.location.search).get("redirect") ?? "";
         const target = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/settings";
         setEmailPasswordHref(`/login?redirect=${encodeURIComponent(target)}`);
+
+        return () => { cancelled = true; sub?.unsubscribe(); };
     }, []);
 
     async function handleSignIn() {

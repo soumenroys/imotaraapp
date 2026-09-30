@@ -307,10 +307,20 @@ export default function SiteHeader() {
                 🔑 Reuses useLicense() and prettyTier() rather than mapping tiers
                 here. A second mapping is how "edu" once rendered as two
                 different words in two places.
-                ⚠️ Hidden until `loading` clears. The hook starts from the env
-                snapshot, which is `free`, so rendering early would flash "Free"
-                at a Plus subscriber — the exact thing that cost 2026-09-30. */}
-            {mounted && user && !license.loading && (
+
+                🔴 SHOWN WHETHER OR NOT YOU ARE SIGNED IN. It was signed-in-only
+                at first, on the reasoning that "Free" beside a "Sign in" button
+                is noise. In practice the owner reported it twice as "the licence
+                type is not showing" — both times while signed out. A control
+                that silently vanishes reads as broken even when it is behaving.
+                And "Free" is ACCURATE for an anonymous visitor: the 20/day cloud
+                reply quota applies to them too.
+
+                ⚠️ Still hidden until `loading` clears. The store starts empty, so
+                rendering early would flash "Free" at a Plus subscriber — the
+                exact failure that cost 2026-09-30. Hidden-then-correct is fine;
+                wrong-then-corrected is not. */}
+            {mounted && !license.loading && (
               <Link
                 href="/settings"
                 aria-label={`Your plan: ${prettyTier(license.tier)}`}

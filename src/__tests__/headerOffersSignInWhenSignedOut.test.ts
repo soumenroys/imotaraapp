@@ -105,10 +105,18 @@ describe("🔑 the header shows the current plan, left of the search box", () =>
     });
 
     it("🔴 is hidden while the licence is still loading", () => {
-        // useLicense starts from the env snapshot, which is `free`. Rendering
-        // before `loading` clears would flash "Free" at a Plus subscriber —
-        // precisely the thing that cost 2026-09-30.
-        expect(SRC).toMatch(/mounted && user && !license\.loading &&/);
+        // The store starts empty. Rendering before `loading` clears would flash
+        // "Free" at a Plus subscriber — precisely what cost 2026-09-30.
+        // Hidden-then-correct is fine; wrong-then-corrected is not.
+        expect(CODE).toMatch(/mounted && !license\.loading &&/);
+    });
+
+    it("🔑 shows in BOTH states — signed in and signed out", () => {
+        // Was signed-in-only. Reported twice as "the licence type is not
+        // showing", both times while signed out: a control that silently
+        // vanishes reads as broken even when it is behaving. "Free" is accurate
+        // for an anonymous visitor — the 20/day quota applies to them too.
+        expect(CODE).not.toMatch(/mounted && user && !license\.loading/);
     });
 
     it("🔑 reuses prettyTier — no second tier→label mapping in the header", () => {
@@ -125,10 +133,5 @@ describe("🔑 the header shows the current plan, left of the search box", () =>
         expect(SRC).toMatch(/const license = useLicense\(\)/);
     });
 
-    it("only shows when signed in", () => {
-        // "Free" next to a "Sign in" button would be noise — a signed-out
-        // visitor has no plan, they have no account.
-        const slot = SRC.slice(SRC.indexOf("Current plan — desktop"));
-        expect(slot.slice(0, 900)).toMatch(/mounted && user &&/);
-    });
+
 });

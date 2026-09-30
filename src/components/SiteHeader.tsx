@@ -325,10 +325,20 @@ export default function SiteHeader() {
                 href="/settings"
                 aria-label={`Your plan: ${prettyTier(license.tier)}`}
                 title="Your plan"
-                className={`hidden sm:inline-flex items-center rounded-full border px-3 py-1.5 text-xs transition ${
+                // 🔑 The CHASSIS is identical to its neighbours (search,
+                // conflicts, sign-out) — same border, same surface, same
+                // padding. Only the TEXT colour marks a paid tier.
+                //
+                // It first gave paid tiers a filled indigo pill. On the dark
+                // /chat backdrop that read fine; on /history it looked like a
+                // button sitting ON the page rather than part of the header,
+                // because it was the only filled element in a row of outlines.
+                // A header badge should differ from its siblings by one
+                // property, not three.
+                className={`hidden sm:inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs transition hover:bg-white/10 dark:border-zinc-700/60 ${
                   license.tier === "free"
-                    ? "border-white/10 bg-white/5 text-zinc-500 hover:bg-white/10 hover:text-zinc-300 dark:border-zinc-700/60"
-                    : "border-indigo-400/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 hover:text-indigo-200"
+                    ? "text-zinc-500 hover:text-zinc-300"
+                    : "text-indigo-300 hover:text-indigo-200"
                 }`}
               >
                 {prettyTier(license.tier)}

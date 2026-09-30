@@ -21,9 +21,20 @@ const SRC = fs.readFileSync(
     "utf8",
 );
 
+/**
+ * ⚠️ Comment-stripped view. Several assertions below look for phrases that ALSO
+ * appear in the source's own explanatory comments — `prompt: "select_account"`
+ * most of all. Matching against raw SRC made that guard pass even with the
+ * option deleted from the code: it was matching the prose explaining why the
+ * option matters. Caught by mutation testing on 2026-10-01.
+ */
+const CODE = SRC.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+
 describe("🔴 the header offers Sign in when signed out", () => {
     it("renders both a Sign in and a Sign out control", () => {
-        expect(SRC).toMatch(/>\s*Sign in\s*</);
+        // Labels are ternaries now ("Signing in…" while the OAuth redirect is
+        // in flight), so match the strings rather than the JSX shape.
+        expect(SRC).toMatch(/"Sign in"/);
         expect(SRC).toMatch(/>\s*Sign out\s*</);
     });
 
@@ -34,10 +45,33 @@ describe("🔴 the header offers Sign in when signed out", () => {
         expect(SRC).not.toMatch(/\{mounted && user && \(\s*<button/);
     });
 
-    it("🔑 Sign in preserves where the user was", () => {
-        // Sending everyone to /chat regardless would lose the page they were on.
-        // /login already guards this param against open redirects.
-        expect(SRC).toMatch(/\/login\?redirect=\$\{encodeURIComponent\(pathname \?\? "\/chat"\)\}/);
+    it("🔴 Sign in uses Google OAuth — NOT the /login org form", () => {
+        /**
+         * 🔴 SHIPPED BUG, 2026-10-01. The header first linked to
+         * `/login?redirect=…`. That page is the ORGANISATION email+password
+         * form — its own heading reads "For organisation accounts set up by an
+         * Imotara admin". An ordinary user clicking Sign in in the header was
+         * shown a login they could not use, while the identical-looking button
+         * in Settings signed them in fine.
+         *
+         * The header must do what the Settings capsule's primary button does.
+         */
+        expect(CODE).toMatch(/signInWithOAuth/);
+        expect(CODE).toMatch(/provider: "google"/);
+        expect(CODE).not.toMatch(/href=\{`\/login\?redirect=/);
+    });
+
+    it("🔴 forces Google's account chooser", () => {
+        // Without prompt:"select_account" Google silently reuses whichever
+        // account is already active in the browser, signing someone into a
+        // different Imotara account with no visible choice. Already fixed once
+        // in settings/page.tsx — do not let the header reintroduce it.
+        expect(CODE).toMatch(/prompt: "select_account"/);
+    });
+
+    it("🔑 Sign in returns you to the page you were on", () => {
+        expect(CODE).toMatch(/\/auth\/callback\?redirectTo=\$\{encodeURIComponent\(target\)\}/);
+        expect(CODE).toMatch(/pathname \?\? "\/chat"/);
     });
 
     it("⚠️ both states stay behind `mounted` — no SSR flicker", () => {
@@ -51,8 +85,9 @@ describe("🔴 the header offers Sign in when signed out", () => {
         expect(drawer).toMatch(/mounted && \(/);
         expect(drawer).toMatch(/Sign out/);
         expect(drawer).toMatch(/Sign in/);
-        // Tapping a link must close the drawer, or it stays open over the page.
-        expect(drawer).toMatch(/onClick=\{\(\) => setMobileOpen\(false\)\}/);
+        // Tapping must close the drawer, or it stays open over the page while
+        // the OAuth redirect happens underneath it.
+        expect(drawer).toMatch(/setMobileOpen\(false\)/);
     });
 });
 

@@ -109,6 +109,33 @@ export default function SiteHeader() {
     return () => { cancelled = true; };
   }, [user]);
 
+  // 🔴 Mirrors settings/page.tsx's handleSignIn. The header first linked to
+  // /login — WRONG: that page is the organisation email+password form ("For
+  // organisation accounts set up by an Imotara admin"), not the way ordinary
+  // users sign in. Reported 2026-10-01: Settings worked, the header did not.
+  //
+  // 🔑 `prompt: "select_account"` is NOT optional. Without it Google silently
+  // reuses whichever Google account is already active in the browser, signing
+  // someone into a completely different Imotara account with no visible choice
+  // — a real bug that was fixed once already; do not "tidy" it away.
+  const [signingIn, setSigningIn] = useState(false);
+  const handleSignIn = useCallback(async () => {
+    if (signingIn) return;
+    setSigningIn(true);
+    try {
+      const sb = sbRef.current ?? (await import("@supabase/ssr")).createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      );
+      const target = (pathname ?? "/chat").startsWith("/") ? (pathname ?? "/chat") : "/chat";
+      const redirectTo = `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(target)}`;
+      await sb.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo, queryParams: { prompt: "select_account" } },
+      });
+    } catch { setSigningIn(false); }
+  }, [signingIn, pathname]);
+
   const handleSignOut = useCallback(async () => {
     if (sbRef.current) await sbRef.current.auth.signOut();
   }, []);
@@ -342,13 +369,15 @@ export default function SiteHeader() {
                 Sign out
               </button>
             ) : (
-              <Link
-                href={`/login?redirect=${encodeURIComponent(pathname ?? "/chat")}`}
+              <button
+                type="button"
+                onClick={handleSignIn}
+                disabled={signingIn}
                 aria-label="Sign in"
-                className="hidden sm:inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-500 transition hover:bg-white/10 hover:text-zinc-300 dark:border-zinc-700/60"
+                className="hidden sm:inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-500 transition hover:bg-white/10 hover:text-zinc-300 disabled:opacity-60 dark:border-zinc-700/60"
               >
-                Sign in
-              </Link>
+                {signingIn ? "Signing in…" : "Sign in"}
+              </button>
             ))}
 
             {/* Mobile hamburger — sm:hidden so only appears on small screens */}
@@ -430,13 +459,14 @@ export default function SiteHeader() {
                       Sign out
                     </button>
                   ) : (
-                    <Link
-                      href={`/login?redirect=${encodeURIComponent(pathname ?? "/chat")}`}
-                      onClick={() => setMobileOpen(false)}
-                      className="block w-full rounded-xl px-3 py-2 text-start text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/5"
+                    <button
+                      type="button"
+                      onClick={() => { setMobileOpen(false); handleSignIn(); }}
+                      disabled={signingIn}
+                      className="w-full rounded-xl px-3 py-2 text-start text-sm text-zinc-500 transition-colors hover:bg-zinc-100 disabled:opacity-60 dark:text-zinc-400 dark:hover:bg-white/5"
                     >
-                      Sign in
-                    </Link>
+                      {signingIn ? "Signing in…" : "Sign in"}
+                    </button>
                   )}
                 </>
               )}

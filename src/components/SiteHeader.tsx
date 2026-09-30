@@ -292,8 +292,19 @@ export default function SiteHeader() {
               </div>
             )}
 
-            {/* Sign out — desktop only, visible when signed in */}
-            {mounted && user && (
+            {/* Sign in / Sign out — desktop only, immediately right of the
+                conflict capsule.
+
+                🔑 This slot used to render ONLY when signed in, so a signed-out
+                visitor had no way into the app from the header at all — they had
+                to find the capsule buried in Settings. Both states now occupy the
+                same slot, so the header never silently loses a control.
+
+                ⚠️ Both are behind `mounted`. `user` is resolved client-side from
+                the Supabase session, so rendering either label during SSR would
+                guess wrong half the time and hydrate into a flicker — briefly
+                offering "Sign in" to someone who is already signed in. */}
+            {mounted && (user ? (
               <button
                 type="button"
                 onClick={handleSignOut}
@@ -302,7 +313,15 @@ export default function SiteHeader() {
               >
                 Sign out
               </button>
-            )}
+            ) : (
+              <Link
+                href={`/login?redirect=${encodeURIComponent(pathname ?? "/chat")}`}
+                aria-label="Sign in"
+                className="hidden sm:inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-500 transition hover:bg-white/10 hover:text-zinc-300 dark:border-zinc-700/60"
+              >
+                Sign in
+              </Link>
+            ))}
 
             {/* Mobile hamburger — sm:hidden so only appears on small screens */}
             <button
@@ -369,17 +388,28 @@ export default function SiteHeader() {
                   </Link>
                 );
               })}
-              {/* Sign out — mobile only, visible when signed in */}
-              {user && (
+              {/* Sign in / Sign out — mobile drawer. Mirrors the desktop slot:
+                  the drawer previously offered nothing to a signed-out visitor. */}
+              {mounted && (
                 <>
                   <div className="my-1 border-t border-white/10 dark:border-zinc-700/40" />
-                  <button
-                    type="button"
-                    onClick={() => { setMobileOpen(false); handleSignOut(); }}
-                    className="w-full rounded-xl px-3 py-2 text-start text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/5"
-                  >
-                    Sign out
-                  </button>
+                  {user ? (
+                    <button
+                      type="button"
+                      onClick={() => { setMobileOpen(false); handleSignOut(); }}
+                      className="w-full rounded-xl px-3 py-2 text-start text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/5"
+                    >
+                      Sign out
+                    </button>
+                  ) : (
+                    <Link
+                      href={`/login?redirect=${encodeURIComponent(pathname ?? "/chat")}`}
+                      onClick={() => setMobileOpen(false)}
+                      className="block w-full rounded-xl px-3 py-2 text-start text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/5"
+                    >
+                      Sign in
+                    </Link>
+                  )}
                 </>
               )}
             </nav>

@@ -177,3 +177,52 @@ describe("🔴 Settings must react to SIGN-OUT too, not just sign-in", () => {
         expect(SETTINGS).toMatch(/setSbEmail\(s\?\.user\?\.email \?\? null\)/);
     });
 });
+
+describe("🔴 the plan card must read the tier from where the API actually puts it", () => {
+    /**
+     * 🔴 THE REAL CAUSE of "Settings always says Free", found 2026-10-01 after
+     * two wrong fixes chasing sessions, cookies and re-fetch timing.
+     *
+     * settings/page.tsx did:   normaliseTier(lic?.tier)
+     * the API returns:         { ok, mode, license: { tier }, org, user }
+     *
+     * There is NO top-level `tier`. So it was always undefined, and
+     * normaliseTier(undefined) returns "free" by design. The card could not
+     * display anything but FREE, for any user, ever — invisible while
+     * enforcement was off, and on 2026-09-30 it showed a subscriber with three
+     * paid invoices the free plan.
+     *
+     * 🔑 It typechecked because LicenseStatusResponse declared a phantom
+     * `tier?: string` that the route never sends. The type described a
+     * response that did not exist, so the compiler blessed the wrong field.
+     * Deleting it is what turns this from a silent "free" into a build error.
+     *
+     * 🔑 useLicense.ts was always correct — it reads `json.license` first, so
+     * the badge, chat and feature gates showed the right tier throughout. Only
+     * this one surface lied, which is why it took so long to see.
+     */
+    it("reads lic.license.tier, never lic.tier", () => {
+        expect(SETTINGS).toMatch(/normaliseTier\(lic\?\.license\?\.tier\)/);
+        expect(SETTINGS).toMatch(/prettyTier\(lic\?\.license\?\.tier\)/);
+    });
+
+    it("🔴 never reads the top-level tier again", () => {
+        // The exact expression that caused it. Anchored so `lic?.license?.tier`
+        // does not match.
+        expect(SETTINGS).not.toMatch(/normaliseTier\(lic\?\.tier\)/);
+        expect(SETTINGS).not.toMatch(/prettyTier\(lic\?\.tier\)/);
+    });
+
+    it("🔑 the phantom top-level `tier` is gone from the response type", () => {
+        // This is the guard that makes the mistake a compile error rather than
+        // a silent fallback to free.
+        const type = SETTINGS.slice(
+            SETTINGS.indexOf("type LicenseStatusResponse = {"),
+            SETTINGS.indexOf("license?: {"),
+        );
+        expect(type).not.toMatch(/^\s*tier\?:/m);
+        // `mode` IS real — the route returns it at the top level. Removing it
+        // would be an over-correction.
+        expect(type).toMatch(/^\s*mode\?:/m);
+    });
+});

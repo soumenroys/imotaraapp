@@ -81,7 +81,9 @@ type DonationIntentResponse = {
 
 type LicenseStatusResponse = {
     ok?: boolean;
-    tier?: string;
+    // ⛔ NO top-level `tier`. /api/license/status returns it at `license.tier`.
+    // A phantom `tier?: string` here let `lic.tier` typecheck while always being
+    // undefined — see the comment at the tier useMemo below. `mode` IS real.
     mode?: string;
     message?: string;
     error?: string;
@@ -2951,8 +2953,21 @@ export default function SettingsPage() {
     // prettyTier(x) === "Pro" and normaliseTier(x) === "pro" are exactly
     // equivalent (same alias map, same fallback), so this swap changes nothing
     // today and stops the rename changing anything tomorrow.
-    const tier      = useMemo(() => normaliseTier(lic?.tier), [lic?.tier]);
-    const tierLabel = useMemo(() => prettyTier(lic?.tier), [lic?.tier]);
+    // 🔴 THE TIER LIVES AT `lic.license.tier`, NOT `lic.tier`.
+    //
+    // This read `lic?.tier` — a field /api/license/status has NEVER sent. The
+    // response is { ok, mode, license: { tier, ... }, org, user }. So it was
+    // always undefined, and normaliseTier(undefined) returns "free" by design.
+    //
+    // ⇒ This card could not display anything but FREE, for any user, ever.
+    // Invisible while enforcement was off; on 2026-09-30 it showed a subscriber
+    // with three paid invoices the free plan, and sent us chasing sessions,
+    // cookies and re-fetch timing for hours. The fetch was always correct.
+    //
+    // 🔑 `tier?: string` has been removed from LicenseStatusResponse so reading
+    // it again is a compile error rather than a silent "free".
+    const tier      = useMemo(() => normaliseTier(lic?.license?.tier), [lic?.license?.tier]);
+    const tierLabel = useMemo(() => prettyTier(lic?.license?.tier), [lic?.license?.tier]);
 
     return (
         <main className="mx-auto w-full max-w-5xl px-4 py-10 text-zinc-50 sm:px-6">

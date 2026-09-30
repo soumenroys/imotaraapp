@@ -61,8 +61,41 @@ export async function GET(req: Request) {
         }
 
         // Resolve effective tier — handles org license, personal license, and expiry.
-        // Falls back to free if the DB call fails (fail-open).
         const tierResult = await resolveUserTier(userId);
+
+        // 🔴 DO NOT REPORT `free` WHEN WE SIMPLY COULD NOT FIND OUT.
+        //
+        // This block used to fall through to `fallback.tier` (= "free") whenever
+        // resolveUserTier() failed, returning HTTP 200 with `ok: true` and no
+        // hint that anything had gone wrong. A comment above it called that
+        // "fail-open". It is the opposite: from the user's side, being told they
+        // are on Free is fail-CLOSED — they lose what they paid for. Under
+        // LICENSE_MODE=enforce a single database hiccup would downgrade a
+        // paying subscriber, silently, with no error anywhere.
+        //
+        // 🔑 Every client already handles a non-OK response correctly, by
+        // KEEPING what it last knew rather than downgrading:
+        //   - mobile  `SettingsContext.tsx`: `if (!statusRes.ok) return;`
+        //   - web     `useLicense.ts`: throws, catch preserves the previous tier
+        //   - web     `settings/page.tsx`: catch shows an error, not "Free"
+        // So telling the truth here is both safer and requires no client change.
+        //
+        // ⚠️ Only reached when the user IS identified. An anonymous caller is
+        // handled above and legitimately gets the free fallback.
+        if (!tierResult.ok) {
+            const res = NextResponse.json(
+                {
+                    ok: false,
+                    error: "tier_unresolved",
+                    detail: tierResult.error,
+                    mode: fallback.mode,
+                    user: { id: userId, email: userEmail },
+                },
+                { status: 503 },
+            );
+            res.headers.set("Cache-Control", "no-store");
+            return res;
+        }
 
         let effectiveTier:   string = fallback.tier;
         let effectiveStatus: string = "valid";

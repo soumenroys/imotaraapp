@@ -6,6 +6,7 @@ import {
     getCurrentLicenseStatus,
     type LicenseMode,
 } from "@/lib/imotara/license";
+import { onLicenseRefresh } from "@/lib/imotara/licenseRefresh";
 import type { LicenseTier, LicenseStatusCode } from "@/types/license";
 
 export type LicenseStatus = {
@@ -37,22 +38,14 @@ export type LicenseStatus = {
  * That is worse than cosmetic: someone who has just paid and still sees "Free"
  * reasonably concludes it failed, and may pay a second time.
  *
- * `refreshLicense()` lets the checkout handler pull the new tier the moment the
- * server confirms the grant. Any mounted useLicense() re-fetches.
+ * 🔑 2026-09-30: the re-fetch TRIGGERS moved out to `@/lib/imotara/licenseRefresh`.
+ * This hook had focus/visibility/manual but NOT auth-change, so a user who signed
+ * in on a slow OAuth round-trip and then stayed on the page kept seeing `free`
+ * forever. `settings/page.tsx` had its own copy with no triggers at all, and the
+ * two drifted. One owner of "when", many owners of "what". See that file for the
+ * full root cause.
  */
-const licenseSubscribers = new Set<() => void>();
-
-/** Ask every mounted useLicense() to re-fetch. Safe to call from anywhere. */
-export function refreshLicense(): void {
-    licenseSubscribers.forEach((fn) => { try { fn(); } catch { /* never let one listener break the rest */ } });
-}
-
-/**
- * Minimum gap between AUTOMATIC re-fetches (focus / tab-visible). Manual
- * refreshLicense() calls ignore it — those follow a real event we caused.
- * Without a floor, alt-tabbing would hammer the endpoint once per switch.
- */
-const AUTO_REFETCH_MIN_MS = 30_000;
+export { refreshLicense } from "@/lib/imotara/licenseRefresh";
 
 export default function useLicense(): LicenseStatus {
     const base = getCurrentLicenseStatus();
@@ -102,28 +95,18 @@ export default function useLicense(): LicenseStatus {
         void fetchLicense();
 
         // ── Re-fetch triggers ────────────────────────────────────────────────
-        // Manual: the checkout handler calls refreshLicense() once the server
-        // confirms the grant, so the badge updates without a reload.
-        licenseSubscribers.add(fetchLicense);
-
-        // Automatic: coming back to the tab. This is what makes a purchase made
-        // on ANOTHER device (phone app, second browser) show up here — without
-        // it, this tab would keep showing a stale tier until reloaded.
-        let lastAuto = Date.now();
-        const onMaybeVisible = () => {
-            if (document.visibilityState !== "visible") return;
-            if (Date.now() - lastAuto < AUTO_REFETCH_MIN_MS) return;
-            lastAuto = Date.now();
-            void fetchLicense();
-        };
-        document.addEventListener("visibilitychange", onMaybeVisible);
-        window.addEventListener("focus", onMaybeVisible);
+        // 🔑 ALL of them now live in one place: auth change (the one that was
+        // missing), tab focus/visibility, and the manual refreshLicense() the
+        // checkout handler fires once the server confirms a grant.
+        //
+        // Auth change is what rescues the sign-in race: the page mounts before
+        // the session exists, this fetch returns the anonymous `free`, and then
+        // SIGNED_IN arrives and we ask again with a real cookie.
+        const unsubscribe = onLicenseRefresh(() => { void fetchLicense(); });
 
         return () => {
             cancelled = true;
-            licenseSubscribers.delete(fetchLicense);
-            document.removeEventListener("visibilitychange", onMaybeVisible);
-            window.removeEventListener("focus", onMaybeVisible);
+            unsubscribe();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

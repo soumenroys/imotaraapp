@@ -22,18 +22,34 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 const strip = (src: string) =>
     src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 
+// 🔑 2026-09-30: the re-fetch TRIGGERS moved out of the hook into
+// `src/lib/imotara/licenseRefresh.ts`, because `settings/page.tsx` had its own
+// copy with NO triggers at all and the two drifted — costing a paying
+// subscriber their plan when enforcement was switched on. Every assertion below
+// is unchanged in intent; only the file it reads has moved to where the
+// behaviour now lives. See licenceNeverSilentlyDowngrades.test.ts.
+const TRIGGERS = "src/lib/imotara/licenseRefresh.ts";
+
 describe("the hook can be told to re-fetch", () => {
-    const hook = strip(read("src/hooks/useLicense.ts"));
+    const hook = strip(read(TRIGGERS));
 
     it("🔴 exports refreshLicense", () => {
         expect(hook).toMatch(/export function refreshLicense/);
+        // …and the hook must still re-export it, or every existing
+        // `import { refreshLicense } from "@/hooks/useLicense"` breaks.
+        expect(strip(read("src/hooks/useLicense.ts")))
+            .toMatch(/export \{ refreshLicense \} from "@\/lib\/imotara\/licenseRefresh"/);
     });
 
     it("🔴 a mounted hook subscribes, and unsubscribes on unmount", () => {
         // Subscribing without removing leaks a closure per mount and keeps
         // re-fetching for components that no longer exist.
-        expect(hook).toMatch(/licenseSubscribers\.add\(fetchLicense\)/);
-        expect(hook).toMatch(/licenseSubscribers\.delete\(fetchLicense\)/);
+        expect(hook).toMatch(/subscribers\.add\(fn\)/);
+        expect(hook).toMatch(/subscribers\.delete\(fn\)/);
+        // The hook must actually USE that contract and release it on unmount.
+        const h = strip(read("src/hooks/useLicense.ts"));
+        expect(h).toMatch(/const unsubscribe = onLicenseRefresh\(/);
+        expect(h).toMatch(/unsubscribe\(\)/);
     });
 
     it("one broken listener cannot break the others", () => {
@@ -42,7 +58,7 @@ describe("the hook can be told to re-fetch", () => {
 });
 
 describe("cross-device: returning to the tab re-checks", () => {
-    const hook = strip(read("src/hooks/useLicense.ts"));
+    const hook = strip(read(TRIGGERS));
 
     it("re-fetches when the tab becomes visible or regains focus", () => {
         // This is what surfaces a purchase made on ANOTHER device.

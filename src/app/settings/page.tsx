@@ -10,6 +10,7 @@ import SettingsSearch from "@/components/imotara/SettingsSearch";
 import { useAppearance, type Accent, type FontSize } from "@/hooks/useAppearance";
 import EmotionalFingerprint from "@/components/imotara/EmotionalFingerprint";
 import useFeatureGate from "@/hooks/useFeatureGate";
+import { onLicenseRefresh } from "@/lib/imotara/licenseRefresh";
 import SsoIcon from "@/components/imotara/SsoIcon";
 import { normaliseTier, prettyTier } from "@/types/license";
 
@@ -2754,8 +2755,25 @@ export default function SettingsPage() {
             if (raw) setLinkKey(raw);
         } catch { }
 
-        // Read-only licensing status on page load
+        // Read-only licensing status on page load.
+        //
+        // 🔴 THIS FETCH ALONE IS NOT ENOUGH, and assuming it was cost a paying
+        // subscriber their plan on 2026-09-30. On a slow OAuth round-trip
+        // `auth/callback` gives up after 10 s and navigates here anyway with
+        // `?auth_error=timeout` — so this runs BEFORE the session cookie exists,
+        // the server correctly answers "anonymous ⇒ free", and without the
+        // subscription below nothing would ever ask again. The card then reads
+        // FREE all session while /api/license/status says `plus`.
+        //
+        // 🔑 Payment history looked fine in that same session only because
+        // PaymentHistoryPanel fetches when you EXPAND it — later, once the
+        // cookie had landed. That asymmetry is the fingerprint of this bug.
         refreshLicenseStatus();
+
+        // Re-read whenever auth changes, the tab regains focus, or a purchase
+        // completes. Triggers are owned by @/lib/imotara/licenseRefresh so this
+        // page and useLicense() can never drift apart again.
+        const unsubscribeLicense = onLicenseRefresh(() => { void refreshLicenseStatus(); });
 
         // Handle Stripe payment success redirect (?stripe_success=1)
         if (typeof window !== "undefined") {
@@ -2782,6 +2800,8 @@ export default function SettingsPage() {
         refreshDonations();
         // Load companion memories (server-side; no-ops if not authenticated)
         loadMemories();
+
+        return () => { unsubscribeLicense(); };
     }, []);
 
     async function handleDonate(presetId: string, presetLabel: string) {

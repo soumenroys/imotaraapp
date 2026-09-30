@@ -28,11 +28,27 @@ export default function OrgDashboardLayout({ children }: { children: React.React
   const router   = useRouter();
   const [org, setOrg]       = useState<OrgInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  // Set when we could not determine org membership at all — distinct from
+  // "this user genuinely has no org", which redirects to /org/new.
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
         const r    = await fetch("/api/license/status", { credentials: "same-origin" });
+
+        // 🔴 "Could not find out" is NOT "you have no organisation".
+        //
+        // This read `json?.org` straight off an unchecked response and bounced
+        // the user to /org/new whenever it was absent. So a transient failure
+        // threw an org ADMIN out of their own dashboard and onto a page telling
+        // them to create an organisation they already have.
+        //
+        // Same class of bug as the one that showed a paying subscriber "Free"
+        // on 2026-09-30 (see lib/imotara/licenseRefresh.ts): an unknown answer
+        // being rendered as a negative one. Stop, surface it, do not redirect.
+        if (!r.ok) { setLoadError(true); setLoading(false); return; }
+
         const json = await r.json();
         const o    = json?.org;
 
@@ -74,6 +90,26 @@ export default function OrgDashboardLayout({ children }: { children: React.React
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-indigo-400" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="text-sm text-zinc-300">
+          We couldn&apos;t load your organisation just now.
+        </p>
+        <p className="text-xs text-zinc-500">
+          This is usually temporary. Your organisation and its licences are unaffected.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-1 rounded-lg border border-white/15 px-4 py-2 text-sm text-zinc-100 hover:bg-white/5"
+        >
+          Try again
+        </button>
       </div>
     );
   }

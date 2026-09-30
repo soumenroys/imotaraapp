@@ -33,7 +33,10 @@ import { describe, it, expect } from "vitest";
 import fs, { readFileSync } from "fs";
 import path from "path";
 
-const WEB_HOOK = path.join(__dirname, "..", "hooks", "useLicense.ts");
+// 🔑 2026-09-30: AUTO_REFETCH_MIN_MS moved out of useLicense.ts into the shared
+// trigger module, so Settings and the hook could stop drifting. The parity rule
+// is unchanged — only the file that owns the constant has moved.
+const WEB_HOOK = path.join(__dirname, "..", "lib", "imotara", "licenseRefresh.ts");
 const MOBILE_CTX = path.join(
     __dirname, "..", "..", "..", "imotara-mobile", "src", "state", "SettingsContext.tsx",
 );

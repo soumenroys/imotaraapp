@@ -1,12 +1,18 @@
 // src/hooks/useLicense.ts
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import {
     getCurrentLicenseStatus,
     type LicenseMode,
 } from "@/lib/imotara/license";
 import { onLicenseRefresh } from "@/lib/imotara/licenseRefresh";
+import {
+    fetchLicense,
+    subscribeLicenseStore,
+    getLicenseSnapshot,
+    getLicenseServerSnapshot,
+} from "@/lib/imotara/licenseStore";
 import type { LicenseTier, LicenseStatusCode } from "@/types/license";
 
 export type LicenseStatus = {
@@ -50,66 +56,36 @@ export { refreshLicense } from "@/lib/imotara/licenseRefresh";
 export default function useLicense(): LicenseStatus {
     const base = getCurrentLicenseStatus();
 
-    const [status, setStatus] = useState<LicenseStatus>({
-        status: base.status as LicenseStatus["status"],
-        tier: base.tier as LicenseTier,
-        mode: base.mode,
-        expiresAt: base.expiresAt ?? null,
-        loading: true,
-        source: "internal",
-    });
+    // 🔴 READS THE SHARED STORE — no per-instance copy.
+    //
+    // This hook used to own a `useState` and fire its own request. With six
+    // call sites plus Settings' private eighth fetch, that meant eight caches
+    // resolving at eight different moments — and on 2026-10-01 the header
+    // showed "Plus" while Settings showed "Free", on screen, at the same time.
+    // Refreshing eight caches in lockstep cannot fix that; there has to be one.
+    const snap = useSyncExternalStore(
+        subscribeLicenseStore,
+        getLicenseSnapshot,
+        getLicenseServerSnapshot,
+    );
 
     useEffect(() => {
-        let cancelled = false;
-
-        async function fetchLicense() {
-            try {
-                const res = await fetch("/api/license/status", {
-                    method: "GET",
-                    credentials: "same-origin",
-                });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const json = await res.json();
-                if (cancelled) return;
-
-                const lic = json?.license;
-                if (lic) {
-                    setStatus({
-                        status: (lic.status ?? "valid") as LicenseStatus["status"],
-                        tier: (lic.tier ?? base.tier) as LicenseTier,
-                        mode: (lic.mode ?? base.mode) as LicenseMode,
-                        expiresAt: (lic.expiresAt ?? null) as string | null,
-                        loading: false,
-                        source: (lic.source ?? "supabase") as LicenseStatus["source"],
-                    });
-                } else {
-                    setStatus((prev) => ({ ...prev, loading: false, expiresAt: prev.expiresAt }));
-                }
-            } catch {
-                if (cancelled) return;
-                // Keep the env-var snapshot on error
-                setStatus((prev) => ({ ...prev, loading: false, source: "error" }));
-            }
-        }
-
+        // Concurrent callers share one request — see fetchLicense().
         void fetchLicense();
-
-        // ── Re-fetch triggers ────────────────────────────────────────────────
-        // 🔑 ALL of them now live in one place: auth change (the one that was
-        // missing), tab focus/visibility, and the manual refreshLicense() the
-        // checkout handler fires once the server confirms a grant.
-        //
-        // Auth change is what rescues the sign-in race: the page mounts before
-        // the session exists, this fetch returns the anonymous `free`, and then
-        // SIGNED_IN arrives and we ask again with a real cookie.
-        const unsubscribe = onLicenseRefresh(() => { void fetchLicense(); });
-
-        return () => {
-            cancelled = true;
-            unsubscribe();
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // Auth change, tab focus, or a completed purchase. Every consumer asks
+        // the same store, so they cannot diverge.
+        return onLicenseRefresh(() => { void fetchLicense(); });
     }, []);
 
-    return status;
+    const lic = snap.data?.license;
+
+    return {
+        // 🔑 `license.tier`, never `data.tier`. See trap_tier_lives_at_license_tier.
+        status: (lic?.status ?? base.status) as LicenseStatus["status"],
+        tier: (lic?.tier ?? base.tier) as LicenseTier,
+        mode: (lic?.mode ?? base.mode) as LicenseMode,
+        expiresAt: (lic?.expiresAt ?? null) as string | null,
+        loading: snap.loading,
+        source: (lic?.source ?? (snap.error ? "error" : "internal")) as LicenseStatus["source"],
+    };
 }

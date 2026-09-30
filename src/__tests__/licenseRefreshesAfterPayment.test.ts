@@ -47,9 +47,12 @@ describe("the hook can be told to re-fetch", () => {
         expect(hook).toMatch(/subscribers\.add\(fn\)/);
         expect(hook).toMatch(/subscribers\.delete\(fn\)/);
         // The hook must actually USE that contract and release it on unmount.
+        // 🔑 `return onLicenseRefresh(...)` IS the cleanup — the effect returns
+        // the unsubscribe function directly, which is the same guarantee as
+        // assigning it to a variable and calling it. Pin the guarantee, not the
+        // spelling.
         const h = strip(read("src/hooks/useLicense.ts"));
-        expect(h).toMatch(/const unsubscribe = onLicenseRefresh\(/);
-        expect(h).toMatch(/unsubscribe\(\)/);
+        expect(h).toMatch(/return onLicenseRefresh\(/);
     });
 
     it("one broken listener cannot break the others", () => {

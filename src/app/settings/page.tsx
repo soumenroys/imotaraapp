@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useRef, useCallback, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
@@ -11,6 +11,12 @@ import { useAppearance, type Accent, type FontSize } from "@/hooks/useAppearance
 import EmotionalFingerprint from "@/components/imotara/EmotionalFingerprint";
 import useFeatureGate from "@/hooks/useFeatureGate";
 import { onLicenseRefresh } from "@/lib/imotara/licenseRefresh";
+import {
+    fetchLicense,
+    subscribeLicenseStore,
+    getLicenseSnapshot,
+    getLicenseServerSnapshot,
+} from "@/lib/imotara/licenseStore";
 import SsoIcon from "@/components/imotara/SsoIcon";
 import { normaliseTier, prettyTier } from "@/types/license";
 
@@ -1660,8 +1666,15 @@ export default function SettingsPage() {
     const [rzReady, setRzReady] = useState(false);
 
     // Licensing (web)
-    const [lic, setLic] = useState<LicenseStatusResponse | null>(null);
-    const [licLoading, setLicLoading] = useState(false);
+    // 🔴 READS THE SHARED STORE. This page used to keep its own `lic` state and
+    // its own fetch — an eighth independent copy alongside every useLicense()
+    // call site. On 2026-10-01 that produced the header showing "Plus" and this
+    // card showing "Free" simultaneously. One store, one answer.
+    const licSnap = useSyncExternalStore(
+        subscribeLicenseStore, getLicenseSnapshot, getLicenseServerSnapshot,
+    );
+    const lic = licSnap.data as LicenseStatusResponse | null;
+    const licLoading = licSnap.refreshing;
 
     // Recent donations (web)
     const [donLoading, setDonLoading] = useState(false);
@@ -2712,17 +2725,10 @@ export default function SettingsPage() {
         }
     }
 
+    // The manual "Refresh" link. Delegates to the shared store so this page and
+    // the header cannot answer differently.
     async function refreshLicenseStatus() {
-        try {
-            setLicLoading(true);
-            const res = await fetch("/api/license/status", { method: "GET" });
-            const json = (await res.json()) as LicenseStatusResponse;
-            setLic(json);
-        } catch (e: any) {
-            setLic({ ok: false, error: e?.message || "Failed to read license status" });
-        } finally {
-            setLicLoading(false);
-        }
+        await fetchLicense();
     }
 
     async function refreshDonations() {

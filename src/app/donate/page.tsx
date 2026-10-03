@@ -62,18 +62,46 @@ function loadRazorpayScript(): Promise<boolean> {
     });
 }
 
-const DONATION_PRESETS = [
-    { id: "inr_49", label: "₹49", amount: 4900 },
-    { id: "inr_99", label: "₹99", amount: 9900 },
-    { id: "inr_199", label: "₹199", amount: 19900 },
-    { id: "inr_499", label: "₹499", amount: 49900 },
-    { id: "inr_999", label: "₹999", amount: 99900 },
+/**
+ * 🔴 NOT the prices. These are the FALLBACK ladder (India / Band 3), shown only
+ * if /api/payments/donation-presets cannot be reached. The real amounts depend
+ * on the visitor's country and are fetched on mount.
+ *
+ * ⚠️ The server decides the charge regardless — donation-intent re-derives it
+ * from the edge geo header. These figures can never cause a wrong charge, only
+ * a briefly wrong label.
+ */
+const FALLBACK_PRESETS = [
+    { id: "t1", label: "₹49", amount: 4900 },
+    { id: "t2", label: "₹99", amount: 9900 },
+    { id: "t3", label: "₹199", amount: 19900 },
+    { id: "t4", label: "₹499", amount: 49900 },
+    { id: "t5", label: "₹999", amount: 99900 },
 ] as const;
+
+type Preset = { id: string; label: string; amount: number };
 
 export default function DonatePage() {
     const [rzReady, setRzReady] = useState(false);
+    // Starts on the fallback so the buttons are never empty, then corrects to the
+    // visitor's band. See FALLBACK_PRESETS.
+    const [presets, setPresets] = useState<Preset[]>(FALLBACK_PRESETS as unknown as Preset[]);
     const [donating, setDonating] = useState(false);
     const [status, setStatus] = useState<string | null>(null);
+
+    useEffect(() => {
+        let alive = true;
+        fetch("/api/payments/donation-presets", { cache: "no-store" })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => {
+                if (!alive || !d?.presets?.length) return;
+                setPresets(d.presets.map((p: { id: string; label: string; paise: number }) => ({
+                    id: p.id, label: p.label, amount: p.paise,
+                })));
+            })
+            .catch(() => { /* keep the fallback — the server still charges correctly */ });
+        return () => { alive = false; };
+    }, []);
 
     useEffect(() => {
         loadRazorpayScript()
@@ -182,7 +210,7 @@ export default function DonatePage() {
                 )}
 
                 <div className="mt-6 flex flex-wrap gap-3">
-                    {DONATION_PRESETS.map((p) => (
+                    {presets.map((p) => (
                         <button
                             key={p.id}
                             type="button"

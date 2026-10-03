@@ -458,6 +458,7 @@ function BannerPlans() {
       <div className="flex-1 hidden sm:block">
         <p className="text-xs font-semibold text-violet-400 uppercase tracking-widest mb-2">Plans & Upgrade</p>
         <p className="text-zinc-200 text-sm leading-relaxed">Free is genuinely free. Imotara Plus adds the cloud features. Token packs extend your daily limit. Enterprise is available for organisations.</p>
+        <p className="text-zinc-500 text-[11px] mt-1">Prices shown in ₹ (India). Your local price appears at checkout.</p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
           {[["Free","₹0","20 replies/day"],["Plus","₹149/mo","Unlimited + insights"],["Enterprise","Custom","Admin + Teams + SSO"]].map(([t,p,f]) => (
             <div key={t} className="rounded-lg bg-white/5 border border-white/8 px-2 py-1.5">
@@ -477,7 +478,7 @@ function BannerPlans() {
             ))}
           </div>
           {[
-            { name: "Imotara Plus", price: "₹149/mo", color: "border-indigo-400/40 bg-indigo-500/10", badge: "Best" },
+            { name: "Imotara Plus", price: "from ₹149/mo", color: "border-indigo-400/40 bg-indigo-500/10", badge: "Best" },
           ].map(p => (
             <div key={p.name} className={`rounded-xl border p-2 ${p.color}`}>
               <div className="flex justify-between items-center">
@@ -1931,7 +1932,7 @@ const FEATURES: Record<string, Feature[]> = {
     },
     {
       icon: "☁️",
-      title: "Imotara Plus (₹149/mo or ₹1,299/yr)",
+      title: "Imotara Plus (₹149/mo or ₹1,299/yr in India — your local price is shown at checkout)",
       short: "One paid plan with everything: unlimited replies and history, insights, advanced voice, search, export, companion letter and growth arc.",
       long: "Imotara Plus is the single paid plan. It removes the daily reply limit and keeps your history for as long as you want it, and it adds data export (JSON/CSV/PDF), advanced TTS (voice selection, speed and pitch), semantic history search, reply cadence controls, a custom notification schedule, session duration stats, emotion trends charts, conversation insights, weekly emotional summaries and digest notifications, the monthly companion letter, and the long-term growth arc narrative. There is no second paid tier to choose between — everything is included.",
       steps: [
@@ -1952,7 +1953,7 @@ const FEATURES: Record<string, Feature[]> = {
       steps: [
         "Go to Settings → Plan & support → View plans.",
         "Scroll to 'Top up with message credits'.",
-        "Choose a pack: 100 (₹49), 250 (₹99), 600 (₹199), or 1800 (₹499) credits.",
+        "Choose a pack: 100, 250, 600 or 1800 credits. Prices vary by country — the exact amount is shown before you pay.",
         "Complete payment.",
         "Credits are added to your account immediately.",
       ],
@@ -1965,7 +1966,7 @@ const FEATURES: Record<string, Feature[]> = {
       steps: [
         "Go to Settings → Plan & support → View plans & upgrade.",
         "Select the Family plan.",
-        "Complete payment via Razorpay.",
+        "Complete payment — on the web this goes through Razorpay; in the iOS and Android apps it is an in-app purchase through the App Store or Google Play.",
         "Once active, go to Settings → Family Profiles to create profiles for each family member.",
         "Enable Child-safe Mode for any profile that belongs to a younger user.",
       ],
@@ -2003,8 +2004,8 @@ const FEATURES: Record<string, Feature[]> = {
     {
       icon: "💸",
       title: "Supporting Imotara (Donations)",
-      short: "Optional one-time donations to support development — ₹49, ₹99, ₹199, ₹499, or ₹999.",
-      long: "If you love Imotara and want to support its development without a subscription, donations are available in Settings. They're entirely optional, never change your plan or features, and are processed securely via Razorpay. Donations appear in your 'Your Donations' history.",
+      short: "Optional one-time donations to support development — five preset amounts, priced for your country and shown before you pay.",
+      long: "If you love Imotara and want to support its development without a subscription, donations are available in Settings. They're entirely optional and never change your plan or features. On the web and Android they are processed via Razorpay; on iOS they go through the App Store. Donations appear in your 'Your Donations' history.",
       steps: [
         "Go to Settings → Plan & support → Support Imotara.",
         "Choose a preset amount.",

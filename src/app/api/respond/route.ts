@@ -1040,6 +1040,10 @@ export async function POST(req: Request) {
           .from("usage_events")
           .select("id", { count: "exact", head: true })
           .eq("user_id", authUserId)
+          // Same fix as chat-reply/route.ts — see the long note there. Without
+          // it, tts / voice_transcribe / settings_search rows were spending
+          // the user's advertised 20 cloud replies.
+          .eq("event_type", "chat_reply")
           .gte("created_at", todayStart.toISOString());
 
         if ((count ?? 0) >= 20) {

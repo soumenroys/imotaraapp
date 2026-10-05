@@ -479,6 +479,21 @@ export async function POST(req: Request) {
         .from("usage_events")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
+        // 🔴 WITHOUT THIS FILTER THE PROMISE WAS BROKEN. usage_events is
+        // written by four routes — chat_reply, tts, voice_transcribe and
+        // settings_search — and this counter took ALL of them. So the
+        // advertised "20 cloud AI replies per day" was really 20 EVENTS:
+        // listening to replies aloud or dictating a message silently spent
+        // the replies. Measured on production over 30 days, 360 of 782
+        // quota-consuming events (46%) were not chat replies, so a
+        // voice-heavy free user lost roughly half of what we promise on the
+        // pricing page, in the KB and in the JSON-LD served to Google.
+        //
+        // Per-feature counters are the intended design, not a new idea: tts
+        // (:101), voice/transcribe (:318) and settings-search (:121) each
+        // already filter to their own event_type. This counter was the only
+        // one that did not.
+        .eq("event_type", "chat_reply")
         .gte("created_at", todayStart.toISOString());
 
       return { licRow, usageCount: count ?? 0 };

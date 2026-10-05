@@ -64,3 +64,40 @@ describe("no false 'everything is free' claims", () => {
         expect(src).not.toMatch(/no paywalls|completely free/i);
     });
 });
+
+/**
+ * The help KB must not understate what can actually be bought.
+ *
+ * Found 2026-10-05: /api/payments/razorpay/corporate has had self-serve org
+ * checkout all along — ₹1,999/seat/yr commercial & govt, ₹999 EDU, ₹799 NGO —
+ * and the tutorial quoted exactly those numbers. The help centre still said
+ * "Contact us" and "Per-seat, for institutions" with no prices, sending org
+ * buyers to email for something they could have paid for in the product.
+ *
+ * ⚠️ These assertions are tied to PER_SEAT_PAISE in that route. If the prices
+ * change there, they must change here and in the KB — that is the point.
+ */
+describe("the help KB matches what org buyers can actually do", () => {
+    const KB = fs.readFileSync(
+        path.join(ROOT, "content/help/plans-and-payments.md"),
+        "utf8",
+    );
+    const ROUTE = fs.readFileSync(
+        path.join(ROOT, "app/api/payments/razorpay/corporate/route.ts"),
+        "utf8",
+    );
+
+    it("quotes the same per-seat prices the checkout actually charges", () => {
+        expect(ROUTE).toMatch(/commercial:\s*199_900/);
+        expect(ROUTE).toMatch(/edu:\s*99_900/);
+        expect(ROUTE).toMatch(/ngo:\s*79_900/);
+        expect(KB).toMatch(/₹1,999\/seat\/year/);
+        expect(KB).toMatch(/₹999\/seat\/year/);
+        expect(KB).toMatch(/₹799\/seat\/year/);
+    });
+
+    it("⛔ no longer sends org buyers to email for a self-serve purchase", () => {
+        expect(KB).not.toMatch(/rather than self-serve subscriptions/i);
+        expect(KB).toMatch(/self-serve/i);
+    });
+});

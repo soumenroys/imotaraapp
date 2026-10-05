@@ -17,10 +17,10 @@ Imotara Plus adds unlimited cloud replies, unlimited history and the deeper insi
 | **Free** | ₹0 | Full chat with 20 cloud replies/day (unlimited on-device replies), mood check-ins, 7-day history, cloud sync, breathing exercises, all 22 languages |
 | **Imotara Plus** | ₹149/month (₹1,299/year) | Everything in Free, plus unlimited cloud replies, unlimited history, voice speed & pitch controls, data export, richer search, emotion trends & mood graphs, Companion Letters, Growth Arc tracking, unlimited Connect history |
 | **Family** | Contact us | Everything in Imotara Plus for up to 6 profiles, child-safe mode, parental controls |
-| **EDU** | Per-seat, for institutions | For schools and universities — admin dashboard, classrooms/cohorts, aggregate wellbeing analytics |
-| **Enterprise** | Per-seat, for organizations | For companies, NGOs, and government — admin dashboard, teams, branding, and more |
+| **EDU** | **₹999/seat/year** | For schools and universities — admin dashboard, classrooms/cohorts, aggregate wellbeing analytics |
+| **Enterprise** | **₹1,999/seat/year** (**₹799** for NGOs) | For companies, NGOs, and government — admin dashboard, teams, branding, and more |
 
-Family, EDU, and Enterprise are set up as organization accounts rather than self-serve subscriptions — see our Organizations article, or write to **info@imotara.com** and we'll help you get started. NGOs and educational institutions get generously discounted per-seat pricing.
+EDU and Enterprise are **self-serve**: choose your organisation type and number of seats and pay by card or UPI, billed annually per seat. NGOs pay **₹799/seat/year** (60% off) and educational institutions **₹999/seat/year** (50% off). Family is set up as an organization account — see our Organizations article, or write to **info@imotara.com** and we'll help you get started.
 
 ## Buying a plan on the web (Razorpay)
 

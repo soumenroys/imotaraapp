@@ -162,6 +162,130 @@ const EN_AFRAID_RE =
 const EN_ANGRY_RE =
   /(\bangry\b|\bfurious\b|\bannoyed\b|\bfrustrated\b|\bfrustrating\b|\birritated\b|\benraged\b|\bresentful\b|\bpissed\b|fed up|\boutraged\b)/i;
 
+// ── The 7 languages keywordMaps does not cover ───────────────────────────────
+//
+// Imotara supports 22 languages (src/lib/connect/languages.ts). keywordMaps has
+// emotion maps for 14 of them, and this file adds English, giving 15. The
+// remaining 7 — Urdu, Russian, Chinese, Spanish, French, Portuguese, Indonesian
+// — had NO emotion detection at all, so for an NGO whose members write in them
+// the trend would have been uniformly "neutral": not a measurement, an absence.
+// Urdu matters most for an Indian NGO.
+//
+// ⛔ DELIBERATELY LOCAL TO THIS FILE, not added to keywordMaps.ts. Those maps
+// feed isSadText/isStressText and CRISIS_HINT_REGEX, which are consumed on the
+// REPLY path (mobile's emotion hint, crisis temperature). Adding languages
+// there would change replies — exactly what the 2026-10-05 ruling forbids.
+// Analytics-only detection belongs analytics-side.
+//
+// High-precision words only, and politeness is excluded from gratitude in every
+// language ("spasibo", "gracias", "merci", "obrigado", "terima kasih",
+// "shukriya", "谢谢" are sign-offs, not stated feeling).
+
+const X_SAD = [
+  /(اداس|غمگین|دکھ|افسردہ|رو رہا|رو رہی|تنہا)/,                                      // ur
+  /(грустно|грусть|печаль|плачу|одинок|депресс|тоска)/i,                              // ru
+  /(难过|悲伤|伤心|哭|孤独|抑郁|失落)/,                                                 // zh
+  /(\btriste\b|\btristeza\b|\bllorando\b|\bdeprimid[oa]\b|\bdestrozad[oa]\b)/i,       // es
+  /(\btriste\b|\btristesse\b|\bje pleure\b|\bdéprimé[e]?\b|\bchagrin\b)/i,            // fr
+  /(\btriste\b|\btristeza\b|\bchorando\b|\bdeprimid[oa]\b|\barrasad[oa]\b)/i,         // pt
+  /(\bsedih\b|\bkesedihan\b|\bmenangis\b|\bkesepian\b|\bdepresi\b)/i,                 // id
+];
+// 🔴 GAPS IN keywordMaps' OWN LANGUAGES, found by the 22-language matrix on
+// 2026-10-05. Each of these is a common way to say "I feel bad" that the
+// existing map misses:
+//   bn  "আমার মন খুব খারাপ" — the map needs `মন খারাপ` ADJACENT, so any
+//       intensifier between the two words defeats it.
+//   mr  "खूप वाईट वाटत आहे" — the ROMANISED `khup kharab vatat` is covered but
+//       the Devanagari form of the same phrase is not, and वाईट is absent.
+//   gu  "હું ખૂબ દુઃખી છું" — the Gujarati map has no દુઃખ root at all, though
+//       Hindi and Marathi both have दुःख.
+//   ml  "വളരെ സങ്കടമാണ്" — the map needs the exact form സങ്കടം; Malayalam
+//       agglutinates, so the inflected സങ്കടമാണ് never contains it.
+//
+// ⛔ Patched HERE and not in keywordMaps.ts on purpose: those maps feed the
+// REPLY path, so widening them changes replies and needs the full language ×
+// gender matrix first. Logged as a reply-path item; this keeps the NGO's
+// measurement honest in the meantime.
+const X_SAD_GAPS = [
+  /(মন.{0,6}খারাপ|দুঃখিত|মন.{0,6}ভাল(ো)?\s*নেই)/,   // bn
+  /(वाईट वाटत|दुःखी|खूप वाईट)/,                       // mr
+  /(દુઃખી|દુખી|દુઃખ)/,                                 // gu
+  /(സങ്കടമ|ദുഃഖമ|വിഷമമ)/,                             // ml
+];
+
+const X_STRESS = [
+  /(پریشان|تناؤ|دباؤ|تھک گیا|تھک گئی|برداشت نہیں)/,                                   // ur
+  /(стресс|устал|вымотан|перегру|не справляюсь|выгорани)/i,                            // ru
+  /(压力|好累|疲惫|受不了|崩溃|喘不过)/,                                                // zh
+  /(\bestresad[oa]\b|\bagobiad[oa]\b|\bagotad[oa]\b|no puedo más|\babrumad[oa]\b)/i,  // es
+  /(\bstressé[e]?\b|\bépuisé[e]?\b|\bdébordé[e]?\b|j'en peux plus|\bsurmené[e]?\b)/i, // fr
+  /(\bestressad[oa]\b|\besgotad[oa]\b|\bsobrecarregad[oa]\b|não aguento)/i,           // pt
+  /(\bstres\b|\bkelelahan\b|\bkewalahan\b|tidak tahan|\bcapek banget\b)/i,            // id
+];
+const X_ANGRY = [
+  /(غصہ|ناراض|طیش|برہم)/,                                                             // ur
+  /(злюсь|злой|бешу|раздраж|ярость|возмущ)/i,                                          // ru
+  /(生气|愤怒|气死|很烦|恼火)/,                                                         // zh
+  /(\benfadad[oa]\b|\benojad[oa]\b|\bfurios[oa]\b|\brabia\b|\bmolest[oa]\b)/i,        // es
+  /(en colère|\bfurieux\b|\bfurieuse\b|\bénervé[e]?\b|\bagacé[e]?\b)/i,               // fr
+  /(\birritad[oa]\b|\bfurios[oa]\b|com raiva|\bzangad[oa]\b)/i,                       // pt
+  /(\bmarah\b|\bkesal\b|\bjengkel\b|\bmurka\b)/i,                                      // id
+];
+const X_AFRAID = [
+  /(ڈر|خوف|خوفزدہ|دہشت)/,                                                             // ur
+  /(страх|боюсь|испуган|паник|ужас)/i,                                                 // ru
+  /(害怕|恐惧|好怕|恐慌)/,                                                              // zh
+  /(\bmiedo\b|\basustad[oa]\b|\btemor\b|\bpánico\b)/i,                                 // es
+  /(\bpeur\b|\beffrayé[e]?\b|\bterrifié[e]?\b|\bangoisse\b)/i,                        // fr
+  /(\bmedo\b|\bassustad[oa]\b|\bpânico\b|\breceio\b)/i,                                // pt
+  /(\btakut\b|\bketakutan\b|\bpanik\b)/i,                                              // id
+];
+const X_CONFUSED = [
+  /(الجھن|سمجھ نہیں|کیا کروں|پریشان کن)/,                                             // ur
+  /(запутал|не понимаю|потерян|растерян)/i,                                            // ru
+  /(困惑|不知道怎么办|迷茫|搞不懂)/,                                                     // zh
+  /(\bconfundid[oa]\b|no sé qué hacer|\bperdid[oa]\b)/i,                               // es
+  /(\bconfus[e]?\b|\bperdu[e]?\b|je ne sais pas quoi faire)/i,                        // fr
+  /(\bconfus[oa]\b|\bperdid[oa]\b|não sei o que fazer)/i,                              // pt
+  /(\bbingung\b|tidak tahu harus|\btersesat\b)/i,                                      // id
+];
+const X_JOY = [
+  /(خوش|خوشی|مسرت)/,                                                                   // ur
+  /(счастлив|рад\b|радост|весело)/i,                                                   // ru
+  /(开心|高兴|快乐|愉快)/,                                                               // zh
+  /(\bfeliz\b|\bcontent[oa]\b|\balegre\b|\balegría\b)/i,                               // es
+  /(\bheureux\b|\bheureuse\b|\bcontent[e]?\b|\bjoie\b|\bravi[e]?\b)/i,                // fr
+  /(\bfeliz\b|\balegre\b|\bcontente\b|\balegria\b)/i,                                  // pt
+  /(\bbahagia\b|\bsenang\b|\bgembira\b)/i,                                             // id
+];
+const X_HOPE = [
+  /(امید|آس)/,                                                                          // ur
+  /(надежд|надеюсь)/i,                                                                  // ru
+  /(期待|有希望)/,                                                                       // zh
+  /(\besperanza\b|\bilusión\b|\btengo esperanza\b)/i,                                   // es
+  /(\bespoir\b|\bj'espère\b)/i,                                                         // fr
+  /(\besperança\b|\btenho esperança\b)/i,                                               // pt
+  /(\bharapan\b|\bberharap\b)/i,                                                        // id
+];
+const X_CALM = [
+  /(سکون|پرسکون|اطمینان)/,                                                             // ur
+  /(спокой|умиротвор|расслаб)/i,                                                        // ru
+  /(平静|放松|心安)/,                                                                    // zh
+  /(\btranquil[oa]\b|\brelajad[oa]\b|en paz|\bsereno\b)/i,                              // es
+  /(\bcalme\b|\btranquille\b|\bapaisé[e]?\b|\bserein[e]?\b|\bdétendu[e]?\b)/i,        // fr
+  /(\btranquil[oa]\b|\brelaxad[oa]\b|em paz|\bseren[oa]\b)/i,                           // pt
+  /(\btenang\b|\bdamai\b|\brileks\b)/i,                                                 // id
+];
+const X_GRATEFUL = [
+  /(ممنون|مشکور|احسان مند)/,                                                           // ur  (NOT شکریہ)
+  /(благодар)/i,                                                                        // ru  (NOT спасибо)
+  /(感激|感恩)/,                                                                         // zh  (NOT 谢谢)
+  /(\bagradecid[oa]\b|\bagradecimiento\b)/i,                                            // es  (NOT gracias)
+  /(\breconnaissant[e]?\b|\bgratitude\b)/i,                                             // fr  (NOT merci)
+  /(\bgrat[oa]\b|\bgratidão\b)/i,                                                       // pt  (NOT obrigado)
+  /(\bbersyukur\b|\brasa syukur\b)/i,                                                   // id  (NOT terima kasih)
+];
+
 // ── Negation guard ───────────────────────────────────────────────────────────
 //
 // 🔴 THE TRAP THIS EXISTS FOR: "ami bhalo nei" / "I'm not happy" / "कोई उम्मीद
@@ -170,13 +294,22 @@ const EN_ANGRY_RE =
 // Negators are checked within a short window around the positive match, since
 // in most of these languages the negator trails the adjective.
 const NEGATORS =
-  /(\bnot\b|\bnever\b|\bno\b|n['’]t|\bhardly\b|\bnothing\b|\bnei\b|\bnai\b|\bnahi+n?\b|\bnahin\b|\bmat\b|नहीं|नही|ना|নেই|না|নাই|இல்ல|லேது|లేదు|ಇಲ್ಲ|ഇല്ല|નથી|ਨਹੀਂ|ନାହିଁ|ليس|لا|لم|לא|אין|\bnicht\b|\bkein\b|ない|ません)/i;
+  /(\bnot\b|\bnever\b|\bno\b|n['’]t|\bhardly\b|\bnothing\b|\bnei\b|\bnai\b|\bnahi+n?\b|\bnahin\b|\bmat\b|नहीं|नही|ना|নেই|না|নাই|இல்ல|லேது|లేదు|ಇಲ್ಲ|ഇല്ല|નથી|ਨਹੀਂ|ନାହିଁ|ليس|لا|لم|לא|אין|\bnicht\b|\bkein\b|ない|ません|نہیں|\bнет\b|\bне\b|никогда|ничего|不|没有|没|别|\bnunca\b|\bnada\b|não|\bpas\b|\bjamais\b|\brien\b|\baucun[e]?\b|\btidak\b|\btak\b|\bbukan\b|\bbelum\b)/i;
 
 function isNegated(text: string, match: RegExpMatchArray | null): boolean {
   if (!match || match.index === undefined) return false;
-  const start = Math.max(0, match.index - 24);
-  const end   = Math.min(text.length, match.index + match[0].length + 24);
+  // Chinese and Japanese are not space-separated, so 24 characters there spans
+  // whole sentences and would suppress a genuine positive because a negator
+  // appeared in an unrelated clause. Narrower when there is no whitespace.
+  const win   = /\s/.test(text) ? 24 : 8;
+  const start = Math.max(0, match.index - win);
+  const end   = Math.min(text.length, match.index + match[0].length + win);
   return NEGATORS.test(text.slice(start, end));
+}
+
+/** True when ANY of the patterns matches and is not negated. */
+function anyPositive(text: string, list: RegExp[]): boolean {
+  return list.some((re) => positiveMatch(text, re));
 }
 
 function positiveMatch(text: string, re: RegExp): boolean {
@@ -217,18 +350,24 @@ export function deriveAnalyticsEmotion(message: string): AnalyticsEmotion {
   if (LONELY_WANTS_COMPANY_REGEX.test(t)) return "lonely";
 
   // 2. Negative cascade — 15 languages, plus the English helpers.
-  if (EN_SAD_RE.test(t)     || anyOf(raw, SAD)      || anyOf(t, SAD)      || isSadText(raw))    return "sad";
-  if (EN_STRESS_RE.test(t)  || anyOf(raw, STRESSED) || anyOf(t, STRESSED) || isStressText(raw)) return "stressed";
-  if (EN_ANXIOUS_RE.test(t))                                                                    return "anxious";
-  if (EN_AFRAID_RE.test(t)  || anyOf(raw, AFRAID)   || anyOf(t, AFRAID))                        return "afraid";
-  if (EN_ANGRY_RE.test(t)   || anyOf(raw, ANGRY)    || anyOf(t, ANGRY))                         return "angry";
-  if (anyOf(raw, CONFUSED)  || anyOf(t, CONFUSED)   || isConfusedText(raw))                     return "confused";
+  if (EN_SAD_RE.test(t)    || anyOf(raw, SAD)      || anyOf(t, SAD)      || isSadText(raw)
+                           || anyOf(raw, X_SAD)      || anyOf(t, X_SAD)
+                           || anyOf(raw, X_SAD_GAPS) || anyOf(t, X_SAD_GAPS)) return "sad";
+  if (EN_STRESS_RE.test(t) || anyOf(raw, STRESSED) || anyOf(t, STRESSED) || isStressText(raw)
+                           || anyOf(raw, X_STRESS)   || anyOf(t, X_STRESS))   return "stressed";
+  if (EN_ANXIOUS_RE.test(t))                                                  return "anxious";
+  if (EN_AFRAID_RE.test(t) || anyOf(raw, AFRAID)   || anyOf(t, AFRAID)
+                           || anyOf(raw, X_AFRAID)  || anyOf(t, X_AFRAID))    return "afraid";
+  if (EN_ANGRY_RE.test(t)  || anyOf(raw, ANGRY)    || anyOf(t, ANGRY)
+                           || anyOf(raw, X_ANGRY)   || anyOf(t, X_ANGRY))     return "angry";
+  if (anyOf(raw, CONFUSED) || anyOf(t, CONFUSED)   || isConfusedText(raw)
+                           || anyOf(raw, X_CONFUSED)|| anyOf(t, X_CONFUSED))  return "confused";
 
   // 3. Positive states — only once no distress was found, and never negated.
-  if (positiveMatch(raw, STRONG_GRATITUDE_REGEX)) return "grateful";
-  if (positiveMatch(raw, POSITIVE_JOY_REGEX))  return "joy";
-  if (positiveMatch(raw, POSITIVE_HOPE_REGEX)) return "hopeful";
-  if (positiveMatch(raw, POSITIVE_CALM_REGEX)) return "calm";
+  if (anyPositive(raw, [STRONG_GRATITUDE_REGEX, ...X_GRATEFUL])) return "grateful";
+  if (anyPositive(raw, [POSITIVE_JOY_REGEX,  ...X_JOY]))         return "joy";
+  if (anyPositive(raw, [POSITIVE_HOPE_REGEX, ...X_HOPE]))        return "hopeful";
+  if (anyPositive(raw, [POSITIVE_CALM_REGEX, ...X_CALM]))        return "calm";
 
   // 4. Emoji-only messages, which carry real signal and no words.
   if (!/[a-z0-9ऀ-ॿঀ-৿଀-୿ఀ-౿ಀ-೿ഀ-ൿ਀-੿઀-૿஀-௿]/i.test(raw)) {

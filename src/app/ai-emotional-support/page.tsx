@@ -48,7 +48,7 @@ const faqs = [
   },
   {
     q: "Is Imotara free?",
-    a: "Yes. Imotara is completely free to use with no paywalls or required subscriptions.",
+    a: "Yes. Imotara is free to use and no subscription is required. A free account includes 20 cloud AI replies a day and your last 7 days of history; Imotara Plus adds unlimited replies and full history.",
   },
   {
     q: "Is my emotional data private?",
@@ -121,7 +121,7 @@ export default function AiEmotionalSupportPage() {
               ["Available anytime", "No appointments, no waiting rooms. Open Imotara whenever you need a quiet space — day or night."],
               ["22 languages supported", "Imotara understands and responds in English, Hindi, Bengali, Tamil, Spanish, French, Arabic, Japanese, and 14 more languages."],
               ["Local-first privacy", "Your words stay on your device by default. Cloud sync is optional and requires your consent."],
-              ["Free, no ads", "Imotara is completely free. No ads, no subscription required, no data selling."],
+              ["Free to use, no ads", "Imotara is free to use with no subscription required. No ads, no data selling. Imotara Plus is optional."],
             ].map(([title, desc]) => (
               <li key={title as string} className="flex gap-3">
                 <span className="mt-0.5 text-sky-400">✦</span>

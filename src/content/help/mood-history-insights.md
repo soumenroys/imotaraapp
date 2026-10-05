@@ -23,7 +23,7 @@ Your History is a calm timeline of emotional moments from your conversations and
 - **Free:** the last **7 days**.
 - **Imotara Plus:** **unlimited**.
 
-A gentle banner offers an upgrade when your plan caps your visible history. (During the current launch offer, everything is unlocked for everyone — see the Plans & Payments article.)
+A gentle banner offers an upgrade when your plan caps your visible history. (Plans & Payments has the details of what each plan includes.)
 
 ## Trends — charts, streaks, and patterns
 

@@ -48,7 +48,7 @@ const faqs = [
   },
   {
     q: "Is Imotara free?",
-    a: "Yes. All core features — chat, mood history, timeline, companion reflections, and mindfulness tools — are completely free. No subscription, no paywall.",
+    a: "Yes. Chat, mood history, timeline, companion reflections and mindfulness tools are all available free, and no subscription is required. A free account includes 20 cloud AI replies a day and your last 7 days of history; Imotara Plus adds unlimited replies, full history and deeper insights.",
   },
   {
     q: "Is Imotara safe and private?",

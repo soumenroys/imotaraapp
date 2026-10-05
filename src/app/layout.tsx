@@ -260,7 +260,7 @@ function JsonLd() {
         name: "Is Imotara free to use?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. Imotara is completely free. There are no paywalls, no required subscriptions, and no hidden costs.",
+          text: "Yes. Imotara is free to use and no subscription is required. A free account includes 20 cloud AI replies a day, your last 7 days of history, and unlimited on-device replies. Imotara Plus adds unlimited replies, full history and deeper insights.",
         },
       },
       {

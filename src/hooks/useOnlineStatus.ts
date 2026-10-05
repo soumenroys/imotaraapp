@@ -5,20 +5,29 @@
 
 import { useEffect, useState } from "react";
 
-// Primary probe endpoint: use our own server if available (more reliable than 3rd-party probes).
-// Fallback to Google connectivity check when needed.
-const PROBE_URL =
-  (typeof window !== "undefined" && window.location.origin
-    ? `${window.location.origin}/api/health`
-    : "") || "https://connectivitycheck.gstatic.com/generate_204";
-const PROBE_TIMEOUT_MS = 3000;
+// Our own endpoint, as a relative path. It only ever runs in an effect, so a
+// browser is guaranteed and the path resolves against the current origin.
+//
+// There used to be a `connectivitycheck.gstatic.com` fallback for when
+// window.location.origin was empty. It could not be reached from a browser,
+// and asking a third party whether WE are reachable answers the wrong
+// question — the same reason mobile dropped its gstatic probe on 2026-09-16.
+const PROBE_PATH = "/api/health";
+
+// ⚠️ 15s, not the 3s this used to be. A timeout lands in the catch below and
+// is read as OFFLINE, so on a genuinely slow connection every probe failed and
+// the person was told they were offline for as long as the network stayed
+// poor — worst for the people on the worst networks. Raising it only affects
+// black-hole networks; a refused connection or DNS failure still throws at
+// once. Mobile's online.ts carries the same value for the same reason.
+const PROBE_TIMEOUT_MS = 15_000;
 const PROBE_INTERVAL_MS = 15_000;
 
 async function probeOnline(): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
-    await fetch(PROBE_URL, { method: "HEAD", signal: controller.signal, cache: "no-store" });
+    await fetch(PROBE_PATH, { method: "HEAD", signal: controller.signal, cache: "no-store" });
     clearTimeout(timer);
     return true; // any HTTP response (even 5xx) means network is up; only thrown exceptions mean offline
   } catch {

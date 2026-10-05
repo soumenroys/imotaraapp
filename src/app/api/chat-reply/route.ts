@@ -19,6 +19,7 @@ import type { ImotaraAIResponse } from "@/lib/imotara/aiClient";
 import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
 import { isRomanizedInput } from "@/lib/imotara/scriptDetection";
 import { CRISIS_HINT_REGEX, LONELY_WANTS_COMPANY_REGEX } from "@/lib/emotion/keywordMaps";
+import { deriveAnalyticsEmotion } from "@/lib/emotion/analyticsEmotion";
 
 // This route had no rate limiting of any kind before — see
 // code_review_audit_2026_08_14 (P0-2). 30 requests/minute per IP is
@@ -626,12 +627,31 @@ export async function POST(req: Request) {
 
     // LIC-1: fire-and-forget usage event — only inserted when quota not exceeded
     // Emotion label stored for NGO/EDU aggregate analytics (anonymized — no personal data)
+    //
+    // ⛔ `analyticsEmotionLabel` is DELIBERATELY a different variable from
+    // `emotion` (the CLIENT's hint, which feeds emotionHint into the system
+    // prompt ~70 lines below). It must never be passed to emotionHint: doing so
+    // would silently turn an analytics change into a reply change. Owner ruling
+    // 2026-10-05 — "at any cost the reply quality ... should not be degraded.
+    // time is not critical, quality is." Guarded by
+    // src/__tests__/analyticsEmotionIsPromptBlind.test.ts.
+    //
+    // Derived SERVER-SIDE from the user's own message and NEVER from what the
+    // client sent, because the client hint is not comparable across platforms:
+    // web sends none at all, mobile sends one only on a keyword hit. Trusting it
+    // made the "mindset trend" partly a measure of which app someone used —
+    // measured 2026-10-05 at 27 labels across 422 chat replies (6.4%). One
+    // classifier, on the server, gives an NGO numbers it can actually compare.
     if (authedUserId) {
+      const analyticsEmotionLabel = deriveAnalyticsEmotion(lastUserMsg);
       void Promise.resolve(
         getSupabaseAdmin().from("usage_events").insert({
           user_id:    authedUserId,
           event_type: "chat_reply",
-          emotion:    emotion?.toLowerCase() ?? null,
+          // Always a canonical label, never "" — the old expression wrote the
+          // empty string whenever the client sent nothing, because `?.` and
+          // `??` both pass "" straight through.
+          emotion:    analyticsEmotionLabel,
           platform:   resolvePlatform(req),
         })
       ).catch(() => {});

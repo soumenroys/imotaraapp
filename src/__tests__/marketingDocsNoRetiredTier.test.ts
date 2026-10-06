@@ -166,6 +166,64 @@ describe("every cleaned doc has a generator to re-run", () => {
  * This test exists so the distinction is discoverable from the test suite
  * rather than from losing an edit.
  */
+/**
+ * 🔴 THE GUARD ABOVE HAS A BLIND SPOT, AND IT LOOKED LIKE COVERAGE.
+ *
+ * Everything above reads `docs/*.html`. Ten PDFs in `docs/` have NO html source
+ * and no generator — they were produced elsewhere and committed as artefacts.
+ * The suite therefore reported "no document uses the retired tier" while being
+ * structurally incapable of seeing six that do (found 2026-10-06:
+ * imotara-business-vision, LICENSING, functional-testing-requirements,
+ * connect-full-vision, imotara-design-document, human-consultancy-feature-spec).
+ *
+ * ⚖️ Those six are internal May–June records — a design document written in May
+ * correctly describes the tiers that existed in May, so rewriting them would be
+ * falsifying history, not fixing a bug. They are left alone deliberately.
+ *
+ * What is NOT acceptable is the silent gap. This pins the inventory: every PDF
+ * in docs/ must either have an html source (and so be covered above) or be on
+ * this list. A NEW uncovered PDF fails here, which is the case that matters —
+ * somebody adding a customer-facing document the tier guard cannot read.
+ */
+describe("every docs/ PDF is either covered by the guard, or knowingly exempt", () => {
+  /** Orphan artefacts: no .html, no generator. Internal/historical only. */
+  const KNOWN_ORPHAN_PDFS = [
+    "LICENSING",
+    "connect-full-vision",
+    "connect-mvp-plan",
+    "functional-testing-requirements",
+    "gdpr-compliance-audit",
+    "human-consultancy-feature-spec",
+    "imotara-business-vision",
+    "imotara-design-document",
+    "imotara-mind-wellness-guide",
+    "imotara-psychoanalytic-approach",
+  ];
+
+  const pdfStems = () =>
+    fs.readdirSync(DOCS).filter((f) => f.endsWith(".pdf")).map((f) => f.replace(/\.pdf$/, ""));
+
+  it("no NEW uncovered PDF has appeared", () => {
+    const uncovered = pdfStems().filter(
+      (stem) => !fs.existsSync(path.join(DOCS, `${stem}.html`)) && !KNOWN_ORPHAN_PDFS.includes(stem),
+    );
+    // If this fails: either give the document an .html source so the tier guard
+    // can read it, or add it here and say why it is exempt.
+    expect(uncovered).toEqual([]);
+  });
+
+  it("the orphan list has not grown, and is still accurate", () => {
+    const stillOrphan = KNOWN_ORPHAN_PDFS.filter(
+      (stem) =>
+        fs.existsSync(path.join(DOCS, `${stem}.pdf`)) &&
+        !fs.existsSync(path.join(DOCS, `${stem}.html`)),
+    );
+    // Shrinking is good news (someone gave one an html source) and should be a
+    // deliberate edit here, not a silently passing test.
+    expect(stillOrphan.sort()).toEqual([...KNOWN_ORPHAN_PDFS].sort());
+  });
+});
+
 describe("the two kinds of generator are known and distinguished", () => {
   const SCRIPTS = path.join(process.cwd(), "scripts");
 

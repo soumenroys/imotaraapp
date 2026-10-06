@@ -367,6 +367,9 @@ export default function SettingsPage() {
         <ContractsSection />
       )}
 
+      {/* Imotara Connect — org-only companions + the public marketplace switch */}
+      <ConnectCompanionsSection />
+
       {/* Danger zone */}
       <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 px-5 py-5">
         <p className="text-sm font-semibold text-rose-300">Danger zone</p>
@@ -885,3 +888,160 @@ function ContractsSection() {
   );
 }
 
+/**
+ * Imotara Connect visibility controls.
+ *
+ * Two related switches, deliberately in one place because they only make sense
+ * together: which companions are ours alone, and whether our members may also
+ * reach the public marketplace.
+ */
+function ConnectCompanionsSection() {
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
+  const [msg, setMsg]           = useState("");
+  const [allowPublic, setAllowPublic] = useState(true);
+  const [companions, setCompanions]   = useState<
+    { id: string; display_name: string; status: string; visibility: string }[]
+  >([]);
+  const [claimId, setClaimId] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      const [sRes, cRes] = await Promise.all([
+        fetch("/api/org/dashboard/settings", { credentials: "same-origin" }),
+        fetch("/api/org/dashboard/connect-companions", { credentials: "same-origin" }),
+      ]);
+      if (sRes.ok) {
+        const j = await sRes.json();
+        // Absent means never set, and the server treats that as allowed.
+        setAllowPublic(j.org?.org_settings?.connect_allow_public !== false);
+      }
+      if (cRes.ok) setCompanions((await cRes.json()).companions ?? []);
+    } catch { /* leave the defaults */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function toggleMarketplace(next: boolean) {
+    setSaving(true); setMsg("");
+    try {
+      const r = await fetch("/api/org/dashboard/settings", {
+        method: "PATCH", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectAllowPublic: next }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setMsg(j.error ?? "Could not save"); return; }
+      setAllowPublic(next);
+      setMsg("Saved");
+    } finally { setSaving(false); }
+  }
+
+  async function claim(e: React.FormEvent) {
+    e.preventDefault();
+    if (!claimId.trim()) return;
+    setSaving(true); setMsg("");
+    try {
+      const r = await fetch("/api/org/dashboard/connect-companions", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consultantId: claimId.trim() }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setMsg(j.error ?? "Could not add"); return; }
+      setClaimId(""); setMsg("Added"); void load();
+    } finally { setSaving(false); }
+  }
+
+  async function release(consultantId: string, name: string) {
+    if (!confirm(`Return ${name} to the public marketplace? Your members will still be able to reach them.`)) return;
+    setSaving(true); setMsg("");
+    try {
+      const r = await fetch("/api/org/dashboard/connect-companions", {
+        method: "DELETE", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consultantId }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setMsg(j.error ?? "Could not remove"); return; }
+      setMsg("Returned to the marketplace"); void load();
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/[0.02] px-5 py-5">
+      <p className="text-sm font-semibold text-zinc-200">Imotara Connect</p>
+      <p className="mt-1 text-xs text-zinc-500">
+        Who your members can talk to one-on-one. Companions are peer supporters, not clinicians.
+      </p>
+
+      {loading ? (
+        <p className="mt-3 text-xs text-zinc-600">Loading…</p>
+      ) : (
+        <>
+          <div className="mt-4 flex items-start justify-between gap-4 rounded-xl border border-white/8 bg-black/20 px-3 py-3">
+            <div>
+              <p className="text-sm text-zinc-300">Public marketplace</p>
+              <p className="mt-1 text-[11px] leading-5 text-zinc-500">
+                {allowPublic
+                  ? "Your members can book any approved Imotara companion, as well as your own."
+                  : "Your members can only book your organisation's own companions."}
+                {" "}Your own companions stay available either way.
+              </p>
+            </div>
+            <button type="button" disabled={saving}
+              onClick={() => toggleMarketplace(!allowPublic)}
+              className={`shrink-0 rounded-xl px-3 py-2 text-xs font-medium transition disabled:opacity-50 ${
+                allowPublic
+                  ? "border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
+                  : "border border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
+              }`}>
+              {allowPublic ? "Turn off" : "Turn on"}
+            </button>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs font-medium text-zinc-400">Your organisation&apos;s companions</p>
+            {companions.length === 0 ? (
+              <p className="mt-1 text-[11px] text-zinc-600">
+                None yet. A companion must first be a member of your organisation and have an approved
+                Imotara Connect profile — then add them by profile ID below.
+              </p>
+            ) : (
+              <ul className="mt-2 space-y-1">
+                {companions.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/20 px-3 py-2">
+                    <span className="text-sm text-zinc-300">
+                      {c.display_name}
+                      <span className="ml-2 text-[11px] text-zinc-600">{c.status}</span>
+                    </span>
+                    <button type="button" disabled={saving} onClick={() => release(c.id, c.display_name)}
+                      className="shrink-0 rounded-lg border border-white/10 px-2 py-1 text-[11px] text-zinc-400 transition hover:bg-white/10 disabled:opacity-50">
+                      Return to marketplace
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <form onSubmit={claim} className="mt-3 flex gap-2">
+              <input value={claimId} onChange={(e) => setClaimId(e.target.value)}
+                placeholder="Companion profile ID"
+                className="flex-1 rounded-xl border border-white/8 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20" />
+              <button type="submit" disabled={saving || !claimId.trim()}
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-300 transition hover:bg-white/10 disabled:opacity-50">
+                Add
+              </button>
+            </form>
+            <p className="mt-1 text-[11px] text-zinc-600">
+              You can only add companions who are members of your organisation.
+            </p>
+          </div>
+
+          {msg && <p className="mt-3 text-xs text-zinc-400">{msg}</p>}
+        </>
+      )}
+    </div>
+  );
+}

@@ -85,6 +85,43 @@ describe("🔴 an org admin cannot privatise somebody else's companion", () => {
   });
 });
 
+describe("the dashboard control tells the truth about what it does", () => {
+  const PAGE = () => read("src/app/org/dashboard/settings/page.tsx");
+
+  it("the section is actually rendered, not just defined", () => {
+    const s = PAGE();
+    expect(s).toMatch(/<ConnectCompanionsSection\s*\/>/);
+    expect(s).toMatch(/function ConnectCompanionsSection\(/);
+  });
+
+  it("🔑 promises what the server guarantees — own companions survive the switch", () => {
+    // org_allows_public_connect() and applyConsultantVisibility() both keep an
+    // org's own people visible when the marketplace is off. If the UI implied
+    // otherwise, an admin would reasonably fear leaving members with nobody.
+    expect(PAGE()).toMatch(/own companions stay available either way/i);
+  });
+
+  it("states the membership precondition, so the 403 is never a surprise", () => {
+    expect(PAGE()).toMatch(/only add companions who are members of your organisation/i);
+  });
+
+  it("🔴 does not present companions as clinicians", () => {
+    // The product is consistent everywhere else that Connect is peer support.
+    // A new admin-facing surface is exactly where that could quietly drift.
+    const s = PAGE();
+    const section = s.slice(s.indexOf("function ConnectCompanionsSection("));
+    expect(section).toMatch(/peer supporters, not clinicians/i);
+    expect(section).not.toMatch(/\b(therapist|doctor|clinical care|counsell?or)\b/i);
+  });
+
+  it("reads the switch as ON unless explicitly false, matching the server default", () => {
+    // The column starts as {} — absent must mean allowed, or every existing org
+    // would appear switched off.
+    const s = PAGE();
+    expect(s).toMatch(/connect_allow_public\s*!==\s*false/);
+  });
+});
+
 describe("the marketplace switch does not trash the rest of org_settings", () => {
   it("🔑 reads the current settings and MERGES", () => {
     // org_settings is shared with branding (logo, accent colour, brand name) and

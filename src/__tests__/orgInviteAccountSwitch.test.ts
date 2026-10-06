@@ -101,3 +101,52 @@ describe("the signed-out path that was already correct is untouched", () => {
     expect(occurrences).toBeGreaterThanOrEqual(2); // the sign-in link + switchAccount
   });
 });
+
+/**
+ * 🟠 DRY-RUN BUG #2 — the plan capsule was stale right after joining.
+ *
+ * Observed 2026-10-05 on the real onboarding path: the invite success screen
+ * said "Your account has been upgraded to the organisation plan" while the
+ * header capsule beside it still read **Free**. The server was correct
+ * throughout — /api/license/status already returned the org tier — and it
+ * resolved on reload. Only the client never re-asked.
+ *
+ * refreshLicense()'s own doc comment names this exact case ("a completed
+ * checkout, a redeemed key, AN ORG JOIN"), but nothing called it on join. The
+ * subscriber chain already existed: useLicense() subscribes, and SiteHeader
+ * reuses useLicense(). Only the emit was missing.
+ *
+ * 🔑 Same family as the payment badge bug of 2026-09-26, where someone who had
+ * just paid still saw "Free" and could reasonably conclude it had failed and
+ * pay again. A stale entitlement badge on the first screen a new member sees
+ * contradicts the success message printed next to it.
+ */
+describe("joining an org refreshes the licence without a reload", () => {
+  const PAGES = [
+    { label: "invite accept", file: "src/app/org/invite/[token]/page.tsx", success: 'setStep("accepted")' },
+    { label: "domain join",   file: "src/app/org/join/[slug]/page.tsx",    success: 'setStep("joined")' },
+  ];
+
+  it.each(PAGES)("$label emits refreshLicense on success", ({ file, success }) => {
+    const src = read(file);                  // comment-stripped by the helper
+    expect(src).toContain("refreshLicense()");
+    // It must fire on the SUCCESS path, not somewhere incidental.
+    const i = src.indexOf(success);
+    expect(i).toBeGreaterThan(-1);
+    expect(src.slice(Math.max(0, i - 200), i)).toContain("refreshLicense()");
+  });
+
+  it.each(PAGES)("$label imports it from the shared module", ({ file }) => {
+    // Not a local re-implementation — the throttle and auth handling live there.
+    expect(read(file)).toContain('from "@/lib/imotara/licenseRefresh"');
+  });
+
+  it("the subscriber chain still exists, or the emit is pointless", () => {
+    // ⚠️ NOT toContain("onLicenseRefresh") — "onLicenseRefreshDisabled"
+    // contains it, so renaming the subscription slipped straight through.
+    // Mutation-caught. Assert the import AND a real call.
+    const src = read("src/hooks/useLicense.ts");
+    expect(src).toMatch(/import\s*\{[^}]*\bonLicenseRefresh\b[^}]*\}\s*from\s*"@\/lib\/imotara\/licenseRefresh"/);
+    expect(src).toMatch(/\bonLicenseRefresh\s*\(/);
+  });
+});

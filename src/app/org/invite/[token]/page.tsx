@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { refreshLicense } from "@/lib/imotara/licenseRefresh";
 import SsoIcon from "@/components/imotara/SsoIcon";
 
 type Step = "loading" | "preview" | "signin_required" | "accepting" | "accepted" | "error";
@@ -80,6 +81,16 @@ export default function InviteAcceptPage() {
       }
       setErrorMsg(j.error ?? "Failed to join."); setStep("error"); return;
     }
+    // 🔑 Tell every licence reader that entitlement just changed, so the header
+    // capsule updates without a reload. refreshLicense()'s own doc comment
+    // names this exact case — "a completed checkout, a redeemed key, an org
+    // join" — but nothing called it on join, so the success screen said
+    // "your account has been upgraded to the organisation plan" while the
+    // capsule beside it still read Free. The server was right throughout; only
+    // the client never re-asked. Same family as the payment badge bug of
+    // 2026-09-26, where someone who had just paid saw "Free" and could
+    // reasonably conclude it had failed.
+    refreshLicense();
     setStep("accepted");
   }, [token]);
 

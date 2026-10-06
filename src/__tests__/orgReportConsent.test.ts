@@ -120,8 +120,19 @@ describe("the checkbox belongs to the member, not the admin", () => {
     expect(patch).not.toMatch(/body\.userId|params\.userId/);
   });
 
-  it("an anonymous identity cannot give consent", () => {
-    expect(CONSENT_API()).toContain("is_anonymous");
+  it("an anonymous identity cannot give consent — on BOTH auth paths", () => {
+    // The app signs guests in anonymously, so this is not hypothetical.
+    const s = CONSENT_API();
+    expect((s.match(/is_anonymous/g) ?? []).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("🔴 resolves a COOKIE session too, not Bearer only", () => {
+    // Written Bearer-only first, which would have made the Settings checkbox
+    // unauthenticatable on web — the session lives in a cookie there and no
+    // Authorization header is sent. Same order as org/_auth.ts resolveUserId.
+    const s = CONSENT_API();
+    expect(s).toContain("getSupabaseUserServerClient");
+    expect(s).toMatch(/authorization/i);
   });
 
   it("reports applicable:false for someone with no org membership", () => {
@@ -152,5 +163,33 @@ describe("the flag is scoped so it cannot outlive the membership", () => {
   it("contains no backfill that switches anyone OFF", () => {
     // That is the member's choice, not a migration's.
     expect(MIGRATION()).not.toMatch(/update org_members[\s\S]{0,120}report_consent\s*=\s*false/);
+  });
+});
+
+describe("🔴 the web Settings copy tells the truth about opting out", () => {
+  const SETTINGS = () =>
+    fs.readFileSync(path.join(process.cwd(), "src/app/settings/page.tsx"), "utf8");
+
+  it("shows the control only when the server says it applies", () => {
+    // A personal user must never see a control implying someone could be
+    // watching them.
+    expect(SETTINGS()).toMatch(/\{reportConsentApplicable\s*&&/);
+  });
+
+  it("says the admin will see nothing about them specifically", () => {
+    expect(SETTINGS()).toMatch(/no information about you\s*\n?\s*specifically/i);
+  });
+
+  it("says they are STILL counted in the aggregate", () => {
+    // The half people get wrong: opting out hides the person, not their data.
+    expect(SETTINGS()).toMatch(/still count towards/i);
+  });
+
+  it("reverts the toggle when the save fails", () => {
+    // Showing "off" while the server still holds "on" is the worst possible
+    // failure for a privacy control.
+    const s = SETTINGS();
+    const fn = s.slice(s.indexOf("const toggleReportConsent"));
+    expect(fn).toMatch(/if\s*\(!r\.ok\)\s*setReportConsent\(!next\)/);
   });
 });

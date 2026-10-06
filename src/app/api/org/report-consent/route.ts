@@ -12,15 +12,31 @@
 // can switch on for you is not consent.
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
 
-/** Resolve the caller from their bearer token. Returns null when signed out. */
+/**
+ * Resolve the caller: Bearer token first (mobile), then the cookie session
+ * (web) — the same order as org/_auth.ts's resolveUserId.
+ *
+ * 🔴 DO NOT REDUCE THIS TO BEARER-ONLY. It was written that way first, which
+ * would have made the Settings checkbox unauthenticatable on web, where the
+ * Supabase session lives in a cookie and no Authorization header is sent.
+ * Caught before the UI was built on top of it.
+ *
+ * ⛔ An anonymous identity is never a person who can give consent, on either
+ * path — the app signs guests in anonymously, and a guest has no org to
+ * consent to anyway.
+ */
 async function callerId(req: NextRequest): Promise<string | null> {
-  const authz = req.headers.get("authorization") ?? "";
-  const token = authz.startsWith("Bearer ") ? authz.slice(7) : null;
-  if (!token) return null;
-  const { data } = await getSupabaseAdmin().auth.getUser(token);
-  // ⛔ An anonymous identity is not a person who can give consent.
+  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  if (bearer) {
+    const { data } = await getSupabaseAdmin().auth.getUser(bearer);
+    if (data?.user?.is_anonymous) return null;
+    if (data?.user?.id) return data.user.id;
+  }
+
+  const supabase = await getSupabaseUserServerClient();
+  const { data } = await supabase.auth.getUser();
   if (data?.user?.is_anonymous) return null;
   return data?.user?.id ?? null;
 }

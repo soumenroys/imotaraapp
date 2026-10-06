@@ -2652,6 +2652,58 @@ export default function SettingsPage() {
     const [howToUseOpen, toggleHowToUseOpen] = useSectionOpen("how-to-use-imotara", false);
     const [networkOpen, toggleNetworkOpen] = useSectionOpen("network", false);
     const [dataPrivacyOpen, toggleDataPrivacyOpen] = useSectionOpen("data-privacy", false);
+
+    // ── Individual wellbeing reporting consent (org members only) ────────────
+    //
+    // The owner's spec: ONE checkbox, ON when the account is on an
+    // organisational licence and OFF otherwise. Switching it off means the org
+    // admin sees no user-specific data for this person — but they ARE still
+    // counted in the organisation's aggregate. Opting out is exclusion from
+    // identification, not from the numbers.
+    //
+    // `applicable` comes from the server, which is the only place that knows
+    // whether this user has an active EDU/NGO membership. Rendering nothing
+    // when it is false is deliberate: a personal user should never be shown a
+    // control implying someone could be watching them.
+    const [reportConsentApplicable, setReportConsentApplicable] = useState(false);
+    const [reportConsent, setReportConsent] = useState(false);
+    const [reportConsentOrg, setReportConsentOrg] = useState<string | null>(null);
+    const [reportConsentSaving, setReportConsentSaving] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const r = await fetch("/api/org/report-consent", { credentials: "include", cache: "no-store" });
+                if (!r.ok) return;
+                const j = await r.json();
+                if (cancelled) return;
+                setReportConsentApplicable(!!j.applicable);
+                setReportConsent(!!j.consent);
+                setReportConsentOrg(j.orgName ?? null);
+            } catch { /* not signed in, or no membership — leave it hidden */ }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    const toggleReportConsent = useCallback(async () => {
+        const next = !reportConsent;
+        setReportConsent(next);            // optimistic
+        setReportConsentSaving(true);
+        try {
+            const r = await fetch("/api/org/report-consent", {
+                method: "PATCH",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ consent: next }),
+            });
+            if (!r.ok) setReportConsent(!next);   // revert — never leave the UI
+        } catch {                                 // claiming a privacy choice
+            setReportConsent(!next);              // that was not saved
+        } finally {
+            setReportConsentSaving(false);
+        }
+    }, [reportConsent]);
     const [deleteAccountOpen, toggleDeleteAccountOpen] = useSectionOpen("delete-account", false);
 
     // ─── Delete Account ──────────────────────────────────────────────────────
@@ -5157,7 +5209,36 @@ export default function SettingsPage() {
                         analysis or sync.
                     </p>
 
-                    <p className="mt-3 text-[11px] text-zinc-500">
+{reportConsentApplicable && (
+                        <div className="mt-4 flex items-start justify-between rounded-xl border border-sky-500/20 bg-sky-500/6 px-4 py-3">
+                            <div className="min-w-0 pe-4">
+                                <p className="text-sm font-medium text-sky-200">Share my individual wellbeing trends</p>
+                                <p className="mt-0.5 text-[11px] text-zinc-400">
+                                    {reportConsentOrg ? `${reportConsentOrg}'s` : "Your organisation's"} admin can see your own
+                                    mood trends alongside other members.
+                                </p>
+                                <p className="mt-1 text-[11px] text-zinc-500">
+                                    Turn this off and they will see <strong className="text-zinc-400">no information about you
+                                    specifically</strong>. Your conversations still count towards the organisation&apos;s overall
+                                    figures, anonymously — so turning it off never makes you look absent.
+                                </p>
+                                <p className="mt-1 text-[11px] text-zinc-500">Imotara never shows anyone the contents of your conversations.</p>
+                            </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={reportConsent}
+                                aria-label="Share my individual wellbeing trends with my organisation"
+                                disabled={reportConsentSaving}
+                                onClick={toggleReportConsent}
+                                className={`relative ms-4 mt-1 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:opacity-60 ${reportConsent ? "bg-sky-500" : "bg-zinc-600"}`}
+                            >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${reportConsent ? "translate-x-4" : "translate-x-0"}`} />
+                            </button>
+                        </div>
+                    )}
+
+                    <p className="mt-3 text-xs text-zinc-500">
                         For full details, see our{" "}
                         <Link href="/privacy" className="underline underline-offset-2 hover:text-zinc-300">Privacy</Link>{" "}
                         and{" "}

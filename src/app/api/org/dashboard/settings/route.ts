@@ -1,6 +1,7 @@
 // src/app/api/org/dashboard/settings/route.ts
 // GET    /api/org/dashboard/settings — org settings (read)
-// PATCH  /api/org/dashboard/settings — update name only (tier/seats = Imotara admin only)
+// PATCH  /api/org/dashboard/settings — update name and/or the Connect marketplace
+//        switch (tier/seats = Imotara admin only)
 // DELETE /api/org/dashboard/settings — permanently delete the org. Owner only,
 //        not reachable by Imotara superadmin (org_audit_log cascades away on
 //        delete — superadmin deletion was deliberately never built because of
@@ -30,20 +31,51 @@ export async function PATCH(req: NextRequest) {
   const auth = await requireOrgAdmin(req);
   if (!auth.ok) return auth.response;
 
-  let body: { name?: string };
+  let body: { name?: string; connectAllowPublic?: boolean };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "invalid JSON" }, { status: 400 }); }
 
-  // Org admins can only update name — all other fields controlled by Imotara admin
-  if (!body.name?.trim()) {
+  const wantsName   = body.name !== undefined;
+  const wantsToggle = body.connectAllowPublic !== undefined;
+
+  // Org admins may change the name and the Connect marketplace switch. Everything
+  // else (tier, seats, status) stays with Imotara admin.
+  if (!wantsName && !wantsToggle) {
+    return NextResponse.json({ error: "nothing to update" }, { status: 400 });
+  }
+  if (wantsName && !body.name?.trim()) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
+  if (wantsToggle && typeof body.connectAllowPublic !== "boolean") {
+    return NextResponse.json({ error: "connectAllowPublic must be a boolean" }, { status: 400 });
+  }
 
-  const { data, error } = await getSupabaseAdmin()
+  const admin = getSupabaseAdmin();
+
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (wantsName) update.name = body.name!.trim();
+
+  if (wantsToggle) {
+    // ⚠️ org_settings is a SHARED jsonb blob — branding (logo, accent colour,
+    // brand name) and domain verification live in it too. Read and MERGE, never
+    // replace, or saving this switch would silently wipe the others.
+    const { data: current } = await admin
+      .from("organizations")
+      .select("org_settings")
+      .eq("id", auth.orgId)
+      .single();
+
+    update.org_settings = {
+      ...((current?.org_settings ?? {}) as Record<string, unknown>),
+      connect_allow_public: body.connectAllowPublic,
+    };
+  }
+
+  const { data, error } = await admin
     .from("organizations")
-    .update({ name: body.name.trim(), updated_at: new Date().toISOString() })
+    .update(update)
     .eq("id", auth.orgId)
-    .select("id, name")
+    .select("id, name, org_settings")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { TIER_ORDER, TIER_RANK, isLicenseTier, type LicenseTier } from "@/types/license";
 import { adminAuthorized, requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getOrgMembers } from "@/lib/imotara/org";
 import { sendOrgVerificationDecisionEmail } from "@/lib/connect/mailer";
@@ -88,7 +89,18 @@ export async function PATCH(
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.name            !== undefined) update.name            = body.name;
   if (body.billing_type    !== undefined) update.billing_type    = body.billing_type;
-  if (body.tier            !== undefined) update.tier            = body.tier;
+  if (body.tier            !== undefined) {
+    // 🔴 Unvalidated before: any string went straight into organizations.tier,
+    // and from there into every member's licence below. A typo ("enterprize")
+    // ranks as 0 — i.e. free — and would have quietly stripped a whole org.
+    if (!isLicenseTier(body.tier)) {
+      return NextResponse.json(
+        { error: `invalid tier "${body.tier}" — expected one of ${TIER_ORDER.join(", ")}` },
+        { status: 400 },
+      );
+    }
+    update.tier = body.tier;
+  }
   if (body.status          !== undefined) update.status          = body.status;
   if (body.seats_purchased !== undefined) update.seats_purchased = body.seats_purchased;
   if (body.expires_at      !== undefined) update.expires_at      = body.expires_at;
@@ -159,20 +171,68 @@ export async function PATCH(
       .eq("org_id", orgId)
       .eq("status", "active");
 
-    // Upsert a licenses row for each member — ensures resolve_user_tier works
+    // 🔴 A FLOOR, NEVER AN OVERWRITE — the same rule assign_org_license enforces
+    // in SQL ("Only upgrade tier via org, never downgrade a personal license").
+    //
+    // This route used to upsert every active member's licence wholesale with the
+    // org's tier, source and expiry. So an admin editing an org — or merely
+    // activating one — could overwrite a member's PERSONALLY PURCHASED Plus with
+    // a lower org tier, and replace their paid expiry date with the org's. The
+    // member paid; the edit was about the organisation.
+    //
+    // Members whose own licence already ranks at or above the org's keep their
+    // tier and expiry, and are only LINKED to the org. Members below it, and
+    // members with no licence at all, are raised to the org tier.
     if (members && members.length > 0) {
-      await admin.from("licenses").upsert(
-        members.map((m) => ({
-          user_id:    m.user_id,
-          tier:       newTier,
-          status:     "valid",
-          expires_at: data?.expires_at ?? null,
-          org_id:     orgId,
-          source:     "org",
-          updated_at: new Date().toISOString(),
-        })),
-        { onConflict: "user_id" }
-      );
+      const memberIds = members.map((m) => m.user_id);
+      const { data: existing } = await admin
+        .from("licenses")
+        .select("user_id, tier, expires_at")
+        .in("user_id", memberIds);
+
+      const current = new Map((existing ?? []).map((l) => [l.user_id as string, l]));
+      const orgRank = TIER_RANK[newTier as LicenseTier] ?? 0;
+      const now     = new Date().toISOString();
+
+      const raise: string[] = [];
+      const linkOnly: Array<{ id: string; tier: unknown; expires_at: unknown }> = [];
+      for (const id of memberIds) {
+        const cur = current.get(id);
+        const curRank = cur ? (TIER_RANK[cur.tier as LicenseTier] ?? 0) : -1;
+        if (orgRank > curRank) raise.push(id);
+        else linkOnly.push({ id, tier: cur!.tier, expires_at: cur!.expires_at });
+      }
+
+      if (raise.length > 0) {
+        await admin.from("licenses").upsert(
+          raise.map((id) => ({
+            user_id:    id,
+            tier:       newTier,
+            status:     "valid",
+            expires_at: data?.expires_at ?? null,
+            org_id:     orgId,
+            source:     "org",
+            updated_at: now,
+          })),
+          { onConflict: "user_id" }
+        );
+      }
+
+      // Linked, but their own tier and expiry are left exactly as they were.
+      if (linkOnly.length > 0) {
+        await admin.from("licenses").upsert(
+          linkOnly.map((l) => ({
+            user_id:    l.id,
+            tier:       l.tier,
+            status:     "valid",
+            expires_at: l.expires_at,
+            org_id:     orgId,
+            source:     "org",
+            updated_at: now,
+          })),
+          { onConflict: "user_id" }
+        );
+      }
     }
   }
 

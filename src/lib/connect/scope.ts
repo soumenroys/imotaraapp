@@ -21,6 +21,14 @@ import { getConnectUser } from "@/lib/connect/auth";
 export interface ConnectScope {
   /** Authenticated user, or null for anonymous browsing. */
   userId: string | null;
+  /** The user's email, carried for the same reason as userMetadata below. */
+  userEmail?: string;
+  /**
+   * The user's auth metadata, carried here so a route that needs both identity
+   * and org (e.g. the booking endpoint, which also runs the age gate) does not
+   * have to resolve the session twice on its hot path.
+   */
+  userMetadata?: Record<string, unknown>;
   /** The caller's active organisation, or null if they are not in one. */
   orgId: string | null;
   /** Their role in that org ('owner' | 'admin' | 'member'), or null. */
@@ -61,7 +69,7 @@ export async function getConnectScope(req: Request): Promise<ConnectScope> {
   // Could not read membership → treat as no org. This shows public-only, i.e.
   // strictly less than they might be entitled to, never another org's people.
   if (error || !data?.length) {
-    return { userId: user.id, orgId: null, orgRole: null, allowsPublic: true };
+    return { userId: user.id, userEmail: user.email, userMetadata: user.user_metadata, orgId: null, orgRole: null, allowsPublic: true };
   }
 
   const orgId = data[0].org_id as string;
@@ -74,6 +82,8 @@ export async function getConnectScope(req: Request): Promise<ConnectScope> {
 
   return {
     userId: user.id,
+    userEmail: user.email,
+    userMetadata: user.user_metadata,
     orgId,
     orgRole,
     allowsPublic: allowErr ? true : (allows as boolean) !== false,

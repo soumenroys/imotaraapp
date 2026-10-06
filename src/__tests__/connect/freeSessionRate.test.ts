@@ -82,11 +82,31 @@ function makeSessionsRequest(body: Record<string, unknown>) {
   }) as unknown as import("next/server").NextRequest;
 }
 
+/**
+ * getConnectScope() — added with Connect org scoping — reads org_members through
+ * the `supabaseServer` export, which these mocks did not provide. These tests
+ * are about rate handling, not organisations, so it resolves to "no org": the
+ * exact scope the route had before scoping existed. Nothing asserted below
+ * changes.
+ */
+const noOrgServer = {
+  from: () => {
+    const q: Record<string, unknown> = {};
+    const chain = () => q;
+    q.select = chain; q.eq = chain; q.order = chain;
+    q.limit = () => Promise.resolve({ data: [], error: null });
+    q.maybeSingle = () => Promise.resolve({ data: null, error: null });
+    return q;
+  },
+  rpc: () => Promise.resolve({ data: true, error: null }),
+};
+
 describe("POST /api/connect/sessions — free (rate=0) companion booking", () => {
   beforeEach(() => vi.resetModules());
 
   it("rate_per_min = 0 is accepted — session creation proceeds past the rate check", async () => {
     vi.doMock("@/lib/supabaseServer", () => ({
+      supabaseServer: noOrgServer,
       getSupabaseAdmin: () =>
         makeSupabaseMock(
           {
@@ -118,6 +138,7 @@ describe("POST /api/connect/sessions — free (rate=0) companion booking", () =>
 
   it("regression guard: a missing/null rate is still correctly rejected", async () => {
     vi.doMock("@/lib/supabaseServer", () => ({
+      supabaseServer: noOrgServer,
       getSupabaseAdmin: () =>
         makeSupabaseMock(
           {
@@ -158,6 +179,7 @@ describe("POST /api/connect/sessions/[id]/tick — free (rate=0) session billing
 
   it("session.rate_per_min = 0 is accepted — tick proceeds past the rate check", async () => {
     vi.doMock("@/lib/supabaseServer", () => ({
+      supabaseServer: noOrgServer,
       getSupabaseAdmin: () =>
         makeSupabaseMock(
           {
@@ -191,6 +213,7 @@ describe("POST /api/connect/sessions/[id]/tick — free (rate=0) session billing
 
   it("regression guard: a negative/corrupted stored rate is still correctly rejected", async () => {
     vi.doMock("@/lib/supabaseServer", () => ({
+      supabaseServer: noOrgServer,
       getSupabaseAdmin: () =>
         makeSupabaseMock({
           connect_sessions: [

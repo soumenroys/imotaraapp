@@ -251,6 +251,49 @@ describe("the marketplace route is actually wired to the seam", () => {
   });
 });
 
+describe("🔴 booking cannot be used to walk around the filters either", () => {
+  // Browse routes are not the only way to reach a companion. A booking is a
+  // direct POST carrying an id, so without the same predicate an org's private
+  // companion could be booked by anyone who guessed or kept that id.
+  const BOOK = (() => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    const path = require("path") as typeof import("path");
+    return fs
+      .readFileSync(path.join(process.cwd(), "src/app/api/connect/sessions/route.ts"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+  })();
+
+  it("the consultant lookup is visibility-filtered", () => {
+    expect(BOOK).toMatch(/applyConsultantVisibility\(\s*consultantQuery\s*,\s*scope\s*\)/);
+  });
+
+  it("…and filtered BEFORE the row is fetched", () => {
+    const filterAt = BOOK.indexOf("applyConsultantVisibility(");
+    const fetchAt  = BOOK.indexOf("consultantQuery.maybeSingle()");
+    expect(filterAt).toBeGreaterThan(-1);
+    expect(fetchAt).toBeGreaterThan(filterAt);
+  });
+
+  it("🔑 the session is STAMPED with the booker's org at creation", () => {
+    // Billing and audit must keep saying which org a session belonged to even
+    // after the member leaves, so it is stored, never re-derived.
+    expect(BOOK).toMatch(/org_id:\s*scope\.orgId/);
+  });
+
+  it("the stamp is on the INSERT, not a later update", () => {
+    const insertAt = BOOK.indexOf(".insert({");
+    const stampAt  = BOOK.search(/org_id:\s*scope\.orgId/);
+    expect(insertAt).toBeGreaterThan(-1);
+    expect(stampAt).toBeGreaterThan(insertAt);
+  });
+
+  it("booking resolves the scope rather than identity alone", () => {
+    expect(BOOK).toMatch(/const scope = await getConnectScope\(\s*req\s*\)/);
+  });
+});
+
 describe("🔴 the by-id route cannot be used to walk around the list filter", () => {
   // Hiding a consultant from the list is worthless if GET /consultants/<id>
   // still returns them — ids are enumerable.

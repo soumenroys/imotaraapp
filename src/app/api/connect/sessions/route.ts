@@ -8,6 +8,7 @@ export const maxDuration = 30;
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
+import { getConnectScope, applyConsultantVisibility } from "@/lib/connect/scope";
 import { sendSessionRequestEmail } from "@/lib/connect/mailer";
 
 export async function GET(req: NextRequest) {
@@ -39,10 +40,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await getConnectUser(req);
-  if (!user) {
+  // Scope, not just identity: booking needs the caller's org both to check the
+  // companion is visible to them and to stamp the session with it.
+  const scope = await getConnectScope(req);
+  if (!scope.userId) {
     return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
   }
+  const user = { id: scope.userId, email: scope.userEmail, user_metadata: scope.userMetadata };
 
   // Server-side age enforcement — rejects users who have explicitly confirmed they are under 18.
   if (user.user_metadata?.connect_age_restricted === true) {
@@ -144,13 +148,18 @@ export async function POST(req: NextRequest) {
     }, { status: 409 });
   }
 
-  // Verify consultant is approved
-  const { data: consultant } = await supabase
+  // Verify consultant is approved AND visible to this caller.
+  // 🔴 The visibility predicate belongs here, not only on the browse routes: a
+  // booking is a direct POST with an id, so without it an org's private
+  // companion could be booked by anyone who guessed or kept the id — walking
+  // straight around both the list filter and the by-id filter.
+  let consultantQuery = supabase
     .from("connect_consultants")
     .select("id, status, is_busy, is_online, currency_code, preferred_lang, rate_per_min")
     .eq("id", consultant_id)
-    .eq("status", "approved")
-    .single();
+    .eq("status", "approved");
+  consultantQuery = applyConsultantVisibility(consultantQuery, scope);
+  const { data: consultant } = await consultantQuery.maybeSingle();
 
   if (!consultant) {
     return NextResponse.json({ ok: false, error: "Consultant not found or not approved" }, { status: 404 });
@@ -283,6 +292,10 @@ export async function POST(req: NextRequest) {
     .insert({
       user_id:        user.id,
       consultant_id,
+      // ⚠️ A historical fact, stamped once. Billing, reporting and audit must
+      // keep saying which org this session belonged to even after the member
+      // leaves it — so this is never re-derived from their current membership.
+      org_id:         scope.orgId,
       type,
       status:         "pending",
       scheduled_note:         scheduled_note?.trim() ?? null,

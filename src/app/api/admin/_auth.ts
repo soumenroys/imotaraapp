@@ -97,7 +97,26 @@ export async function requireSuperAdmin(req: NextRequest): Promise<SuperAdminRes
     if (auth.length === expected.length && timingSafeEqual(Buffer.from(auth), Buffer.from(expected))) {
       return {
         ok:    true,
-        admin: { id: "legacy", email: "admin@imotara.com", name: "Admin (legacy key)", role: "owner" as const },
+        // 🔴 role "admin", NOT "owner". The emergency key used to report
+        // "owner", which meant anyone holding a shared environment variable
+        // could:
+        //   • DELETE any organisation — cascading its members and licences;
+        //   • MINT a new owner-role super-admin, i.e. turn possession of the
+        //     secret into permanent access that survives rotating the secret;
+        //   • unlock or modify existing super-admins.
+        // An emergency key is for getting back IN, not for granting itself a
+        // successor or destroying customer data. Those four routes gate on
+        // role === "owner" and now correctly refuse it.
+        //
+        // Ordinary admin routes are unaffected: adminAuthorized() and every
+        // requireSuperAdmin() caller without an explicit owner check still
+        // accept the key, so emergency read/repair access is intact.
+        //
+        // ⚠️ requireOwner() already rejected this identity outright (broadcast
+        // cannot send mail as a synthetic "legacy" user). This brings the rest
+        // of the owner-gated surface into line with that precedent rather than
+        // inventing a new rule.
+        admin: { id: "legacy", email: "admin@imotara.com", name: "Admin (legacy key)", role: "admin" as const },
       };
     }
   }

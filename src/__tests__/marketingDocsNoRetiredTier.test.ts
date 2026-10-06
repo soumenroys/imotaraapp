@@ -33,7 +33,12 @@ import path from "path";
 const DOCS = path.join(process.cwd(), "docs");
 
 /** A CSS selector or class token, not customer-visible copy. */
-const isCssToken = (line: string) => /\.[a-z-]*pro\b|--[a-z-]*pro\b/.test(line);
+const isCssToken = (line: string) =>
+  // A selector (.tier-pro), a custom property (--brand-pro), OR a class
+  // ATTRIBUTE VALUE (class="tier-badge tier-pro"). The last form has no
+  // leading dot and was missed, so a correctly-labelled "Plus" badge still
+  // tripped the check because of its class name.
+  /\.[a-z-]*pro\b|--[a-z-]*pro\b|class="[^"]*\bpro\b[^"]*"|[a-z]+-pro\b/.test(line);
 
 /** Customer-visible whole-word "Pro"/"pro" lines in a doc. */
 function visiblePro(file: string): string[] {
@@ -51,20 +56,33 @@ const CLEANED = [
   "imotara-ngo-admin-guide.html",
   "imotara-ngo-why-imotara.html",
   "imotara-corporate-licensing.html",
+  "imotara-user-licensing.html",
+  "imotara-product-one-pager.html",
+  "imotara-brand-voice.html",
+  "imotara-marketing-roadmap.html",
 ];
 
 /**
  * Not yet cleaned. ⚠️ This list may SHRINK but must never GROW — a new entry
  * means the retired tier was reintroduced somewhere.
  */
-const KNOWN_REMAINING = [
-  "imotara-appstore-links.html",
-  "imotara-brand-voice.html",
-  "imotara-marketing-roadmap.html",
-  "imotara-product-one-pager.html",
-  "imotara-target-audience-personas.html",
-  "imotara-user-licensing.html",
+/**
+ * ⛔ NOT a backlog — these two say "Pro" and are CORRECT.
+ *
+ * Checking contexts before replacing caught them: a blind find-and-replace
+ * across the docs would have produced "iPhone 15 Plus" and a persona called
+ * "Urban Plus". The retired TIER is gone from every document; what remains is
+ * ordinary English and a hardware name.
+ *
+ * ⚠️ So this list should stay EMPTY of tier references. If a doc ever appears
+ * here for a genuine tier use, that is a regression, not an addition.
+ */
+const LEGITIMATE_PRO = [
+  "imotara-appstore-links.html",        // "iPhone 15 Pro" — Apple's device name
+  "imotara-target-audience-personas.html", // "Urban Pro" — a persona, i.e. urban professional
 ];
+
+const KNOWN_REMAINING: string[] = [];
 
 describe("the cleaned documents no longer sell a retired tier", () => {
   it.each(CLEANED)("%s has no customer-visible 'Pro'", (file) => {
@@ -92,7 +110,9 @@ describe("the backlog of uncleaned documents only shrinks", () => {
   it("no NEW document has started using the retired tier", () => {
     const all = fs.readdirSync(DOCS).filter((f) => f.endsWith(".html"));
     const dirty = all.filter((f) => visiblePro(f).length > 0);
-    const unexpected = dirty.filter((f) => !KNOWN_REMAINING.includes(f));
+    const unexpected = dirty.filter(
+      (f) => !KNOWN_REMAINING.includes(f) && !LEGITIMATE_PRO.includes(f),
+    );
     expect(unexpected).toEqual([]);
   });
 
@@ -104,15 +124,74 @@ describe("the backlog of uncleaned documents only shrinks", () => {
   });
 });
 
-describe("every doc that has a generator keeps one", () => {
-  it("the cleaned docs each have a PDF generator to re-run", () => {
-    // The HTML is the source and the PDF does not update itself. If a
-    // generator disappears, the PDF silently goes stale forever.
-    const scripts = fs.readdirSync(path.join(process.cwd(), "scripts"));
-    for (const file of CLEANED) {
-      const slug = file.replace("imotara-", "").replace(".html", "");
-      const hit = scripts.some((s) => s.includes(slug.replace("pricing-tiers", "pricing")));
-      expect(hit, `no generator for ${file}`).toBe(true);
+describe("every cleaned doc has a generator to re-run", () => {
+  // ⚠️ An explicit map, not a slug heuristic. The filenames do not follow one
+  // rule — imotara-product-one-pager.html is built by generate-ONE-PAGER-pdf.js,
+  // with no "product-". A heuristic silently reported a missing generator for a
+  // document that has one.
+  const GENERATOR: Record<string, string> = {
+    "imotara-pricing-tiers.html":        "generate-pricing-pdf.js",
+    "imotara-ngo-licensing.html":        "generate-ngo-licensing-pdf.js",
+    "imotara-ngo-admin-guide.html":      "generate-ngo-admin-guide-pdf.js",
+    "imotara-ngo-why-imotara.html":      "generate-ngo-why-imotara-pdf.js",
+    "imotara-corporate-licensing.html":  "generate-corporate-licensing-pdf.js",
+    "imotara-user-licensing.html":       "generate-user-licensing-pdf.js",
+    "imotara-product-one-pager.html":    "generate-one-pager-pdf.js",
+    "imotara-brand-voice.html":          "generate-brand-voice-pdf.js",
+    "imotara-marketing-roadmap.html":    "generate-marketing-roadmap-pdf.js",
+  };
+
+  it.each(CLEANED)("%s has a known generator, and it exists", (file) => {
+    const gen = GENERATOR[file];
+    expect(gen, `no generator mapped for ${file}`).toBeTruthy();
+    expect(fs.existsSync(path.join(process.cwd(), "scripts", gen))).toBe(true);
+  });
+});
+
+/**
+ * 🔴 NOT EVERY DOC IS EDITED THE SAME WAY, AND GETTING THIS WRONG IS SILENT.
+ *
+ * The standing rule said "docs/*.html is the SOURCE; generate-*-pdf.js are
+ * Playwright HTML→PDF converters with no content". That is true for 12 of the
+ * 17 generators. FIVE of them BUILD the HTML and write it:
+ *
+ *     fs.writeFileSync(htmlPath, html, 'utf8')
+ *
+ * For those the SCRIPT is the source. Editing the HTML appears to work — the
+ * file changes, the edit is right there — and is then silently reverted the
+ * next time anyone regenerates. That happened on 2026-10-06: two documents were
+ * "fixed", regenerated, and came out unchanged, with the PDFs rebuilt from the
+ * ORIGINAL text.
+ *
+ * This test exists so the distinction is discoverable from the test suite
+ * rather than from losing an edit.
+ */
+describe("the two kinds of generator are known and distinguished", () => {
+  const SCRIPTS = path.join(process.cwd(), "scripts");
+
+  /** Does this generator WRITE the html (script is source) or only read it? */
+  const writesHtml = (file: string) =>
+    /writeFileSync\([^)]*(htmlPath|\.html)/.test(fs.readFileSync(path.join(SCRIPTS, file), "utf8"));
+
+  // Edit the SCRIPT for these. Editing docs/*.html is reverted on regeneration.
+  const SCRIPT_IS_SOURCE = [
+    "generate-appstore-pdf.js",
+    "generate-brand-voice-pdf.js",
+    "generate-competitor-pdf.js",
+    "generate-marketing-roadmap-pdf.js",
+    "generate-personas-pdf.js",
+  ];
+
+  it("the script-is-source list is accurate", () => {
+    for (const f of SCRIPT_IS_SOURCE) {
+      expect(writesHtml(f), `${f} no longer writes HTML — move it to converters`).toBe(true);
     }
+  });
+
+  it("no OTHER generator has quietly started writing HTML", () => {
+    const all = fs.readdirSync(SCRIPTS).filter((f) => /^generate-.*pdf.*\.js$/.test(f));
+    const surprises = all.filter((f) => writesHtml(f) && !SCRIPT_IS_SOURCE.includes(f));
+    // If this fails, someone's HTML edit is about to be silently reverted.
+    expect(surprises).toEqual([]);
   });
 });

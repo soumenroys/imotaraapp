@@ -634,7 +634,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
         <div class="compare-header wrong-header">✗ Wrong — pressuring, salesy</div>
         <div class="compare-body">
           <div class="compare-scenario">Instagram caption for a paid upgrade post</div>
-          <div class="compare-text">"Upgrade to Imotara Pro today and unlock ALL features! Don't miss out — ₹149/month only! Click the link in bio NOW to start your premium journey! 🚀🔥💥"</div>
+          <div class="compare-text">"Upgrade to Imotara Plus today and unlock ALL features! Don't miss out — ₹149/month only! Click the link in bio NOW to start your premium journey! 🚀🔥💥"</div>
           <div class="compare-why">⚠ High-pressure, exclamation overload, doesn't match the emotional brand at all</div>
         </div>
       </div>

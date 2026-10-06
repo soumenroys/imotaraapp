@@ -251,6 +251,38 @@ describe("the marketplace route is actually wired to the seam", () => {
   });
 });
 
+describe("🔴 the by-id route cannot be used to walk around the list filter", () => {
+  // Hiding a consultant from the list is worthless if GET /consultants/<id>
+  // still returns them — ids are enumerable.
+  const BY_ID = (() => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    const path = require("path") as typeof import("path");
+    return fs
+      .readFileSync(path.join(process.cwd(), "src/app/api/connect/consultants/[id]/route.ts"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+  })();
+
+  it("applies the same visibility predicate as the list", () => {
+    expect(BY_ID).toMatch(/applyConsultantVisibility\(\s*query\s*,\s*scope\s*\)/);
+  });
+
+  it("filters before the row is fetched", () => {
+    const filterAt = BY_ID.indexOf("applyConsultantVisibility(");
+    const fetchAt  = BY_ID.search(/await query\.maybeSingle\(\)/);
+    expect(filterAt).toBeGreaterThan(-1);
+    expect(fetchAt).toBeGreaterThan(filterAt);
+  });
+
+  it("🔑 answers the same 404 whether the consultant is missing or merely hidden", () => {
+    // A distinct error would confirm that an org's private companion exists.
+    const notFounds = BY_ID.match(/status:\s*404/g) ?? [];
+    expect(notFounds).toHaveLength(1);
+    expect(BY_ID).not.toMatch(/403/);
+  });
+});
+
 describe("…while the people who should have access keep it", () => {
   it("the member whose session it is", async () => {
     sessionRow = { id: "s1", user_id: "user-1", consultant_id: "c1", org_id: "ORG-A" };
@@ -269,11 +301,57 @@ describe("…while the people who should have access keep it", () => {
     expect(r.ok).toBe(true);
   });
 
-  it("an admin of the org the session WAS stamped with", async () => {
+  it("an admin of the org the session WAS stamped with — for METADATA", async () => {
     sessionRow = { id: "s1", user_id: "other", consultant_id: "c1", org_id: "ORG-A" };
     const r = await assertSessionAccess("s1", {
       userId: "admin-A", orgId: "ORG-A", orgRole: "admin", allowsPublic: true,
+    }, "metadata");
+    expect(r.ok).toBe(true);
+  });
+});
+
+// ── The hard boundary ────────────────────────────────────────────────────────
+
+describe("🔴 an org admin can never reach a member's conversation", () => {
+  /**
+   * help/organizations.md promises organisations, without qualification:
+   *   "You can never see any member's conversations. Not their words, not a
+   *    summary of their words, not a single message... That is a hard boundary
+   *    and there is no setting anywhere that unlocks it."
+   * Connect messages, notes and review text ARE member conversations.
+   */
+  const ownSessionOfSomeoneElse = { id: "s1", user_id: "member-x", consultant_id: "c1", org_id: "ORG-A" };
+
+  it("denied at 'contents' even for the owner of that very org", async () => {
+    sessionRow = ownSessionOfSomeoneElse;
+    const r = await assertSessionAccess("s1", {
+      userId: "owner-A", orgId: "ORG-A", orgRole: "owner", allowsPublic: true,
+    }, "contents");
+    expect(r.ok).toBe(false);
+  });
+
+  it("denied for an admin of that org too", async () => {
+    sessionRow = ownSessionOfSomeoneElse;
+    const r = await assertSessionAccess("s1", {
+      userId: "admin-A", orgId: "ORG-A", orgRole: "admin", allowsPublic: true,
+    }, "contents");
+    expect(r.ok).toBe(false);
+  });
+
+  it("🔑 the DEFAULT level is the strict one — a forgetful call site is safe", async () => {
+    // Omitting the argument must not quietly grant an admin someone's messages.
+    sessionRow = ownSessionOfSomeoneElse;
+    const r = await assertSessionAccess("s1", {
+      userId: "admin-A", orgId: "ORG-A", orgRole: "admin", allowsPublic: true,
     });
+    expect(r.ok).toBe(false);
+  });
+
+  it("but the participants still reach their own contents", async () => {
+    sessionRow = { id: "s1", user_id: "member-x", consultant_id: "c1", org_id: "ORG-A" };
+    const r = await assertSessionAccess("s1", {
+      userId: "member-x", orgId: "ORG-A", orgRole: "member", allowsPublic: true,
+    }, "contents");
     expect(r.ok).toBe(true);
   });
 

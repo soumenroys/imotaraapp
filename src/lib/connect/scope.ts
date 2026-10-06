@@ -119,15 +119,36 @@ export type SessionAccess =
   | { ok: false; status: 403 | 404 };
 
 /**
- * The ONE rule for touching a session — and anything hanging off it (messages,
- * notes, reviews, ticks, balance).
+ * What is being reached for. These are NOT the same question.
  *
- * Allowed: the member whose session it is, the consultant who took it, or an
- * owner/admin of the org the session was STAMPED with at creation.
+ * 🔴 "contents" is the hard boundary we promise organisations in
+ * help/organizations.md:
  *
- * ⚠️ Deliberately checks the session's stamped org_id, not the caller's current
- * org. A member who later leaves must not keep access, and an admin whose org
- * the session never belonged to must never gain it.
+ *     "You can never see any member's conversations. Not their words, not a
+ *      summary of their words, not a single message... That is a hard boundary
+ *      and there is no setting anywhere that unlocks it."
+ *
+ * Connect session messages, notes and review text ARE member conversations. So
+ * an org admin must never pass this guard for them, however senior they are.
+ * "metadata" — duration, status, amount — is what an org legitimately needs to
+ * be invoiced and to see that its seats are being used.
+ */
+export type SessionAccessLevel = "metadata" | "contents";
+
+/**
+ * The ONE rule for touching a session and anything hanging off it.
+ *
+ * - "contents" (the default): the member whose session it is, or the consultant
+ *   who took it. NOBODY else — org admins included.
+ * - "metadata": the above, plus an owner/admin of the org the session was
+ *   STAMPED with at creation.
+ *
+ * ⚠️ Defaults to the STRICTER level on purpose. A call site that forgets to say
+ * what it wants gets the safe answer, not the permissive one.
+ *
+ * ⚠️ Checks the session's stamped org_id, not the caller's current org. A member
+ * who later leaves must not keep access, and an admin whose org the session
+ * never belonged to must never gain it.
  *
  * Returns 404 rather than 403 for a session the caller may not see, so the API
  * does not confirm that someone else's session id exists.
@@ -135,6 +156,7 @@ export type SessionAccess =
 export async function assertSessionAccess(
   sessionId: string,
   scope: ConnectScope,
+  level: SessionAccessLevel = "contents",
 ): Promise<SessionAccess> {
   if (!scope.userId) return { ok: false, status: 403 };
 
@@ -162,7 +184,12 @@ export async function assertSessionAccess(
     return { ok: true, session };
   }
 
-  // An org admin may see sessions stamped with THEIR org — and only those.
+  // 🔴 An org admin may see that a session HAPPENED — never what was said in it.
+  // Contents stop here, whatever their role, because that is the boundary the
+  // organisations article calls absolute.
+  if (level === "contents") return { ok: false, status: 404 };
+
+  // Metadata only, and only for sessions stamped with THEIR org.
   if (
     session.org_id &&
     scope.orgId &&

@@ -1700,6 +1700,20 @@ const FEATURES: Record<string, Feature[]> = {
       ],
     },
     {
+      icon: "🔒",
+      title: "Share My Individual Wellbeing Trends",
+      short: "If your plan comes from an organisation, one switch controls whether your admin sees your own mood trends.",
+      long: "Only appears if your Imotara is paid for by an organisation — an employer, NGO or school. Nobody there can ever read your conversations; that never changes and there is no setting that unlocks it. This switch controls one thing: whether your admin sees YOUR mood trends alongside other members'. It is on by default on an organisation licence, and you can turn it off at any time without telling anyone. Turn it off and your admin sees nothing specific to you — but you are still counted in the organisation's overall figures, so switching it off never makes you look absent. In organisations with fewer than 10 active members, no individual breakdown is shown at all.",
+      steps: [
+        "Go to Settings → Data & privacy.",
+        "Find 'Share my individual wellbeing trends'.",
+        "Switch it off if you would rather not be shown individually.",
+        "Your conversations stay private either way, and your activity still counts towards your organisation's totals.",
+      ],
+      tiers: { free: false, plus: true, ent: true, note: "Organisation members only — it does not exist on a personal account." },
+      badge: "Organisation members",
+    },
+    {
       icon: "📤",
       title: "Export Data",
       short: "Download all your conversations and emotion history as JSON, CSV, or PDF.",

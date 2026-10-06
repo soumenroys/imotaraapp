@@ -9,6 +9,20 @@ How cross-device sync works, what Imotara stores (and pointedly does not collect
 - **No ads. No third-party tracking. No analytics on your emotional content. Your data is never sold.** There are no public profiles and no social feed.
 - Cloud data is encrypted in transit and at rest, and only you can access your own records.
 - You can export or delete your data at any time, on **every plan** — including Free.
+- If your plan comes from an **organisation** (your employer, NGO, school), there is **one extra switch** that belongs to you alone — see below.
+
+## If your plan comes from an organisation
+
+Someone whose Imotara is paid for by an organisation has one control that personal accounts do not. It is in **Settings → Data & privacy**, and it reads **"Share my individual wellbeing trends."**
+
+- **Nobody at your organisation can ever read your conversations.** Not your words, not a summary of them, not one message. That is true whatever this switch is set to, and there is no setting anywhere — yours or theirs — that unlocks it.
+- The switch controls one thing: whether your organisation's admin can see **your own mood trends** next to other members'.
+- It is **on by default** while you are on an organisation's licence. **You can turn it off at any time**, and you do not have to tell anyone.
+- **With it off, your admin sees nothing specific to you** — no trend, no mood, nothing with your name on it.
+- 🔑 **You are still counted in the organisation's overall figures.** Turning it off takes you out of being *identified*, not out of the *numbers* — so switching it off never makes you look absent, and nobody can tell you opted out by watching a total change.
+- In a small organisation (fewer than 10 active members) **no individual breakdown is shown at all**, because in a small group a "breakdown" identifies people.
+
+If you leave the organisation, the switch goes with it — a personal account is never individually visible to anyone.
 
 ## Cross-device sync
 

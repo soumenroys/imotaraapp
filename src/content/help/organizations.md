@@ -8,7 +8,7 @@ An organization (org) account lets an institution provide Imotara to its people 
 
 - A number of **seats** for your members.
 - An **org dashboard** on the web for managing members, licenses, teams, and settings.
-- **Aggregate-only wellbeing analytics** (more on the privacy promise below).
+- **Wellbeing analytics** — aggregate for everyone, plus individual trends for members who choose to share them (more on the privacy promise below).
 - Discounted per-seat pricing for **NGOs** and **educational institutions**.
 
 There are four organization types, chosen at creation: **Company**, **NGO / NPO**, **Educational**, and **Government**. Your org is attached to your personal Imotara account — there's no separate "org login."
@@ -100,8 +100,25 @@ Group your members — a class, a department, a beneficiary group — and set th
 
 ## Analytics — and the privacy promise to your members
 
-- **Org dashboard → Analytics** shows **aggregate** engagement only: active users, total activity, average session length, active days.
-- **You can never see any individual member's conversations, moods, or private data — by design.** This is a hard boundary, not a setting. Members are told the same thing, which is what makes org-provided Imotara feel safe to actually use.
+- **Org dashboard → Analytics** shows **aggregate** engagement: active users, total activity, average session length, active days, and the organisation's overall emotional trend.
+
+### 🔒 What you can never see — a hard boundary, not a setting
+
+- **You can never see any member's conversations.** Not their words, not a summary of their words, not a single message. Imotara shows nobody the contents of anyone's conversations — not you, not us, not another member. That is a hard boundary and there is no setting anywhere that unlocks it.
+
+### 👤 Individual wellbeing trends — only for members who choose to share
+
+Alongside the aggregate, admins can see **individual mood trends** for members who have agreed to share them. This is how it works, and it is worth explaining to your members in your own words:
+
+- **Every member gets a single switch** in **Settings → Data & privacy**: *"Share my individual wellbeing trends."*
+- It is **on by default while someone is on your organisation's licence**, and it does not exist at all for a personal account.
+- **A member can switch it off at any time**, without telling anyone.
+- **If they switch it off, you see nothing specific to them** — no trend, no mood, nothing attributable.
+- 🔑 **But they are still counted in your aggregate.** Opting out removes someone from *identification*, never from the *numbers*. Your organisation's totals stay complete and honest, and nobody can be singled out by watching a figure change when they opt out.
+- Your dashboard tells you how many of your members have shared — for example *"showing 12 of 20"* — so a partial picture never reads as the whole.
+- **Below 10 active members, no individual breakdown is shown at all.** In a small group, a "breakdown" identifies people, which would defeat the point of letting anyone opt out.
+
+**Why we built it this way.** An organisation paying for wellbeing support reasonably wants to know whether it is helping. A person using a mental-health app reasonably wants to know who can see what. Both can be true: the organisation gets real numbers, and no individual is ever identified against their wishes. Tell your members this plainly — org-provided Imotara only works if the people using it believe it.
 - **Org dashboard → Audit** keeps a record of org actions — invites, role changes, removals, plan changes — with who did what and when.
 
 ## What your members see

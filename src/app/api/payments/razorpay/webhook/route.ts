@@ -4,6 +4,7 @@ export const maxDuration = 30;
 
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import nodemailer from "nodemailer";
 import { logDonation } from "@/lib/donations/logDonation";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { grantLicense, isValidProductId, PRODUCT_CATALOG } from "@/lib/imotara/grantLicense";
@@ -114,6 +115,29 @@ export async function POST(req: Request) {
                             { onConflict: "user_id" }
                         );
                     }
+                    // 🔴 TELL A HUMAN. Activation is MANUAL by owner decision
+                    // (2026-10-06), and the org is created with
+                    // status:"pending" — so until somebody activates it from
+                    // /admin the customer has PAID and cannot add a single
+                    // member. Nothing was notifying anyone: the webhook only
+                    // wrote "Activate from /admin" into the org's own notes,
+                    // which nobody reads unless they are already looking.
+                    //
+                    // The self-serve org/new path has always alerted; this
+                    // path, where money actually changed hands, did not.
+                    //
+                    // ⛔ This does NOT auto-activate. It makes the manual step
+                    // reachable, which is what makes "manual" a process rather
+                    // than a silence.
+                    void sendActivationAlert({
+                        orgName:  `${orgLabel} — ${userEmail || userId}`,
+                        orgId:    org?.id ?? "(unknown)",
+                        orgType,
+                        seats,
+                        userEmail: userEmail || userId,
+                        paymentId: paymentEntity?.id ?? orderEntity?.id ?? "(none)",
+                    });
+
                     console.log("[razorpay/webhook] corporate org created:", slug, seats, "seats");
                 } else {
                     console.log("[razorpay/webhook] corporate org already exists:", existingOrg.name);
@@ -301,5 +325,48 @@ export async function POST(req: Request) {
             { ok: false, error: "Webhook handler error" },
             { status: 500 }
         );
+    }
+}
+
+/**
+ * Alert a human that a paid organisation is waiting to be activated.
+ *
+ * Activation is manual by owner decision (2026-10-06). Manual only works if
+ * somebody is told — otherwise a customer who has paid sits unable to add a
+ * single member until an admin happens to look at /admin.
+ *
+ * Never throws and never blocks the webhook: Razorpay retries on a non-200, and
+ * failing a payment webhook because SMTP was down would be far worse than a
+ * missed email.
+ */
+async function sendActivationAlert(data: {
+    orgName: string; orgId: string; orgType: string;
+    seats: number; userEmail: string; paymentId: string;
+}) {
+    const user = process.env.ALERT_GMAIL_USER?.trim();
+    const pass = process.env.ALERT_GMAIL_APP_PASSWORD?.trim();
+    if (!user || !pass) return;
+    try {
+        const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST ?? "smtp.hostinger.com", port: 465, secure: true,
+            auth: { user, pass },
+        });
+        await transporter.sendMail({
+            from:    `"Imotara Alerts" <${user}>`,
+            to:      "info@imotara.com",
+            subject: `[ACTION NEEDED] Paid org awaiting activation — ${data.orgName}`,
+            text:
+                `A corporate/NGO plan was PAID FOR and the organisation is sitting at status "pending".\n\n` +
+                `Until it is activated the customer cannot add a single member.\n\n` +
+                `  Organisation : ${data.orgName}\n` +
+                `  Org ID       : ${data.orgId}\n` +
+                `  Type         : ${data.orgType}\n` +
+                `  Seats        : ${data.seats}\n` +
+                `  Buyer        : ${data.userEmail}\n` +
+                `  Payment ref  : ${data.paymentId}\n\n` +
+                `Activate from /admin → Organizations.`,
+        });
+    } catch (err) {
+        console.error("[razorpay/webhook] activation alert failed:", err);
     }
 }

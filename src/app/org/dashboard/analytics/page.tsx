@@ -9,10 +9,36 @@ interface DailyStat { statDate: string; activeUsers: number; totalEvents: number
 interface EmotionTrend { emotion: string; count: number }
 interface AnalyticsData { orgName: string; days: number; summary: Summary; daily: DailyStat[]; emotionTrends: EmotionTrend[] }
 
+interface MemberTrend {
+  userId: string; email: string; conversations: number;
+  polarity: number | null;
+  topEmotions: { emotion: string; count: number; polarity: number }[];
+}
+interface MemberTrendsData {
+  available: boolean;
+  reason?: "below_threshold" | "no_consent";
+  minMembers: number;
+  activeMembers: number;
+  consentingMembers?: number;
+  optedOut?: number;
+  members: MemberTrend[];
+  message?: string;
+}
+
+// One colour per canonical label in src/lib/emotion/analyticsEmotion.ts.
+// ⚠️ afraid / grateful / hopeful / calm / neutral were missing — including all
+// three POSITIVE states — so they rendered colourless in the chart. Positives
+// only became reachable from text on 2026-10-05; this map had not caught up.
 const EMOTION_COLORS: Record<string, string> = {
+  // negative
   anxious: "bg-amber-400", sad: "bg-sky-400", stressed: "bg-rose-400",
   angry: "bg-red-500", lonely: "bg-violet-400", hopeless: "bg-zinc-400",
-  joy: "bg-emerald-400", confused: "bg-indigo-400",
+  confused: "bg-indigo-400", afraid: "bg-orange-400",
+  // positive
+  joy: "bg-emerald-400", grateful: "bg-teal-400", hopeful: "bg-lime-400",
+  calm: "bg-cyan-400",
+  // neither
+  neutral: "bg-zinc-500",
 };
 
 function StatCard({ label, value, unit }: { label: string; value: number | string; unit?: string }) {
@@ -29,6 +55,10 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState("");
   const [days, setDays]     = useState(30);
+  // Per-member trends live behind a SEPARATE endpoint on purpose — see the
+  // note at the top of api/org/dashboard/member-trends. Consent OFF removes
+  // someone from this list, never from the aggregate above.
+  const [members, setMembers] = useState<MemberTrendsData | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -41,6 +71,13 @@ export default function AnalyticsPage() {
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+
+    // Failure here must never blank the aggregate — it is an additional view,
+    // not a prerequisite for the page.
+    fetch(`/api/org/dashboard/member-trends?days=${days}`, { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setMembers)
+      .catch(() => setMembers(null));
   }, [days]);
 
   const maxEvents = data ? Math.max(...data.daily.map((d) => d.totalEvents), 1) : 1;
@@ -118,6 +155,68 @@ export default function AnalyticsPage() {
                   });
                 })()}
               </div>
+            </div>
+          )}
+
+          {/* ── Individual trends — consent-gated, threshold-gated ─────────────
+              🔑 A SEPARATE query from the aggregate above, deliberately. A
+              member who switched consent off disappears from THIS list and
+              stays in the aggregate. If the two were ever merged behind one
+              filter, every opt-out would shrink the organisation's totals and
+              be visible by arithmetic. */}
+          {members && (
+            <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-4">
+              <p className="mb-1 text-sm font-medium text-zinc-300">Individual trends</p>
+
+              {!members.available && members.reason === "below_threshold" ? (
+                <p className="py-6 text-center text-sm text-zinc-500">
+                  {members.message ??
+                    `Individual trends appear once this organisation has ${members.minMembers} or more active members.`}
+                </p>
+              ) : members.members.length === 0 ? (
+                <p className="py-6 text-center text-sm text-zinc-500">
+                  {members.message ?? "No member has consented to individual reporting."}
+                </p>
+              ) : (
+                <>
+                  {/* Stated plainly, so this never reads as "everyone". */}
+                  <p className="mb-3 text-[11px] text-zinc-500">
+                    Showing <strong className="text-zinc-400">{members.consentingMembers}</strong> of{" "}
+                    <strong className="text-zinc-400">{members.activeMembers}</strong> members who chose to share their
+                    individual trends.
+                    {!!members.optedOut && members.optedOut > 0 && (
+                      <> The other {members.optedOut} are counted in the aggregate above, but not shown here.</>
+                    )}
+                    {" "}Conversation contents are never shown.
+                  </p>
+
+                  <div className="space-y-2">
+                    {members.members.map((m) => {
+                      // -1..+1 → 0..100 for the bar. null = nothing to average.
+                      const pct = m.polarity === null ? null : Math.round(((m.polarity + 1) / 2) * 100);
+                      const tone =
+                        m.polarity === null ? "bg-zinc-600"
+                        : m.polarity > 0.15 ? "bg-emerald-400"
+                        : m.polarity < -0.15 ? "bg-rose-400"
+                        : "bg-amber-400";
+                      return (
+                        <div key={m.userId} className="flex items-center gap-3 rounded-xl border border-white/6 bg-white/3 px-3 py-2">
+                          <span className="w-44 shrink-0 truncate text-xs text-zinc-300" title={m.email}>{m.email}</span>
+                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/8">
+                            {pct !== null && <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} />}
+                          </div>
+                          <span className="w-24 shrink-0 text-right text-[11px] text-zinc-500">
+                            {m.conversations === 0 ? "no activity" : `${m.conversations} chats`}
+                          </span>
+                          <span className="hidden w-28 shrink-0 truncate text-right text-[11px] capitalize text-zinc-500 sm:block">
+                            {m.topEmotions[0]?.emotion ?? "—"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           )}
 

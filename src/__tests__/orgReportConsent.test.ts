@@ -193,3 +193,52 @@ describe("🔴 the web Settings copy tells the truth about opting out", () => {
     expect(fn).toMatch(/if\s*\(!r\.ok\)\s*setReportConsent\(!next\)/);
   });
 });
+
+describe("the admin dashboard shows individual trends honestly", () => {
+  const PAGE = () =>
+    fs.readFileSync(path.join(process.cwd(), "src/app/org/dashboard/analytics/page.tsx"), "utf8");
+
+  it("fetches member-trends from its OWN endpoint", () => {
+    expect(PAGE()).toContain("/api/org/dashboard/member-trends");
+  });
+
+  it("a member-trends failure never blanks the aggregate", () => {
+    // It is an additional view, not a prerequisite for the page.
+    // ⚠️ Anchor on the fetch CALL, not the first mention — the section's own
+    // comment names the endpoint too. Third time this trap has bitten today.
+    const s = PAGE();
+    const i = s.indexOf('fetch(`/api/org/dashboard/member-trends');
+    expect(i).toBeGreaterThan(-1);
+    expect(s.slice(i, i + 320)).toMatch(/catch\(\(\)\s*=>\s*setMembers\(null\)\)/);
+  });
+
+  it("states the consenting count against the total — never implies 'everyone'", () => {
+    // ⚠️ Assert the RENDERED expressions, not the mere presence of the word —
+    // both names also appear in the interface declaration, so `toContain`
+    // passed even when the ratio stopped being displayed. Mutation-caught.
+    const s = PAGE();
+    expect(s).toContain("{members.consentingMembers}");
+    expect(s).toContain("{members.activeMembers}");
+    expect(s).toMatch(/counted in the aggregate above, but not shown here/i);
+  });
+
+  it("explains the threshold instead of showing an empty chart", () => {
+    expect(PAGE()).toContain("below_threshold");
+  });
+
+  it("promises conversation contents are never shown", () => {
+    expect(PAGE()).toMatch(/Conversation contents are never shown/i);
+  });
+
+  it("🎨 every canonical emotion has a colour", () => {
+    // afraid / grateful / hopeful / calm / neutral were missing — including
+    // ALL THREE positives — so they rendered colourless once positives became
+    // reachable from text on 2026-10-05.
+    const page = PAGE();
+    const map = page.slice(page.indexOf("EMOTION_COLORS"), page.indexOf("function StatCard"));
+    for (const e of ["sad","stressed","anxious","angry","afraid","lonely","hopeless",
+                     "confused","joy","grateful","hopeful","calm","neutral"]) {
+      expect(map, `no colour for ${e}`).toContain(`${e}:`);
+    }
+  });
+});

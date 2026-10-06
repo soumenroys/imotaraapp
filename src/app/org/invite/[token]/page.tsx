@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import SsoIcon from "@/components/imotara/SsoIcon";
 
 type Step = "loading" | "preview" | "signin_required" | "accepting" | "accepted" | "error";
@@ -22,6 +22,38 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function InviteAcceptPage() {
   const { token } = useParams<{ token: string }>();
+  const router = useRouter();
+
+  // "Wrong account?" — sign OUT, then return to this page's normal sign-in
+  // route with the destination preserved.
+  //
+  // 🔴 WHY THIS IS A HANDLER AND NOT A <Link href="/settings">. It used to be
+  // exactly that link, and it was broken in two ways at once:
+  //   1. It dropped the destination, so after signing in the person never came
+  //      back to the invite — the link they had been emailed was simply lost.
+  //   2. It did not sign anyone OUT. Someone already signed in as the wrong
+  //      account landed on /settings still signed in as that account, with no
+  //      way to reach the Google account chooser. Clicking "sign in with a
+  //      different account" left you with the same account, every time.
+  // The signed-OUT path four lines above was always correct — it carries
+  // ?redirect= — so this now does the same thing, after a sign-out.
+  //
+  // Navigation happens even if signOut throws: being stuck on a page whose
+  // only escape hatch silently failed is worse than a redundant sign-in.
+  const switchAccount = useCallback(async () => {
+    try {
+      const { createBrowserClient } = await import("@supabase/ssr");
+      const sb = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      );
+      await sb.auth.signOut();
+    } catch {
+      // fall through — still send them to sign-in
+    }
+    router.replace(`/settings?redirect=/org/invite/${token}`);
+  }, [router, token]);
+
 
   const [step, setStep]         = useState<Step>("loading");
   const [invite, setInvite]     = useState<InviteInfo | null>(null);
@@ -223,7 +255,7 @@ export default function InviteAcceptPage() {
 
           <p className="mt-4 text-center text-xs text-zinc-600">
             Wrong account?{" "}
-            <Link href="/settings" className="underline hover:text-zinc-400">Sign in with a different account</Link>
+            <button type="button" onClick={switchAccount} className="underline hover:text-zinc-400">Sign in with a different account</button>
             {" "}or{" "}
             <Link href={`/login?redirect=/org/invite/${token}`} className="underline hover:text-zinc-400">use email &amp; password instead</Link>
           </p>

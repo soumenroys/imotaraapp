@@ -6,7 +6,7 @@ export const preferredRegion = ["sin1"];
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { getConnectUser } from "@/lib/connect/auth";
+import { getConnectScope, applyConsultantVisibility } from "@/lib/connect/scope";
 
 const MAX_PAGE_LIMIT = 50;
 const DEFAULT_LIMIT  = 20;
@@ -23,6 +23,13 @@ export async function GET(req: NextRequest) {
   const offset   = (page - 1) * limit;
 
   const supabase = getSupabaseAdmin();
+
+  // 🔴 Org scoping. Resolved BEFORE the query is built so the visibility filter
+  // is part of the same query as the count — a filter applied after the count
+  // would report totals for rows the caller may not see.
+  const scope = await getConnectScope(req);
+  const user = scope.userId ? { id: scope.userId } : null;
+
   let query = supabase
     .from("connect_consultants")
     .select(
@@ -42,9 +49,12 @@ export async function GET(req: NextRequest) {
   if (lang)            query = query.contains("languages", [lang]);
   if (category)        query = query.eq("role_category", category);
 
+  // Public marketplace, plus this caller's own organisation's companions.
+  // See src/lib/connect/scope.ts — the single visibility rule.
+  query = applyConsultantVisibility(query, scope);
+
   // If the caller is authenticated, filter out consultants who have blocked them
   // (before executing the main query, so the page count is also correct).
-  const user = await getConnectUser(req);
   if (user) {
     const { data: blockedBy, error: blockErr } = await supabase
       .from("connect_blocks")

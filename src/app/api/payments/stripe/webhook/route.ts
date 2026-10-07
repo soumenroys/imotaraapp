@@ -10,7 +10,8 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { grantLicense, isValidProductId } from "@/lib/imotara/grantLicense";
 import type { LicenseProductId } from "@/lib/imotara/grantLicense";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
-import { releasePriorOrgMembership } from "@/lib/imotara/org";
+import { isLicenseTier } from "@/types/license";
+import { releasePriorOrgMembership, orgTermExpiresAt, resolveOrgTier, grantOrgTierWithFloor } from "@/lib/imotara/org";
 
 export async function POST(req: NextRequest) {
   const body      = await req.text();
@@ -54,8 +55,10 @@ export async function POST(req: NextRequest) {
         if (pi.metadata?.purchase_type === "corporate" && userId) {
           const orgType   = pi.metadata.org_type  ?? "commercial";
           const seats     = parseInt(pi.metadata.seats ?? "10", 10);
-          const tierMap: Record<string, string> = { commercial:"enterprise", ngo:"enterprise", edu:"edu", govt:"enterprise" };
-          const tier      = tierMap[orgType] ?? "enterprise";
+          // 🔴 WAS a blanket map granting ENTERPRISE to commercial, ngo and govt
+          // alike regardless of seat count. Priced by SEATS now, matching
+          // tierForSeats on the order route.
+          const tier      = resolveOrgTier(orgType, seats);
           const authUser  = await admin.auth.admin.getUserById(userId);
           const userEmail = authUser.data?.user?.email ?? "unknown";
 
@@ -78,11 +81,19 @@ export async function POST(req: NextRequest) {
             name: `${orgType.charAt(0).toUpperCase() + orgType.slice(1)} Org — ${userEmail} (via Stripe)`,
             slug,
             billing_type: orgType,
-            tier,
-            status: "pending",
+            // 🔴 Priced by SEATS, matching tierForSeats on the order route — the
+            // webhooks used to grant enterprise to every org type regardless.
+            tier: isLicenseTier(tier) ? tier : resolveOrgTier(orgType, seats),
+            // ⚖️ Owner decision 2026-10-07: a paid org activates on payment.
+            // "pending" left check_org_seat_available false, so the buyer had
+            // ZERO seats and could not invite anyone.
+            status: "active",
+            // 🔴 The corporate plan is ANNUAL; activating with no expiry would
+            // sell a perpetual org for one year's money.
+            expires_at: orgTermExpiresAt(),
             seats_purchased: seats,
             owner_user_id: userId,
-            notes: `Stripe payment: ${pi.id} · ${seats} seats · Activate from /admin → Organizations`,
+            notes: `Stripe payment: ${pi.id} · ${seats} seats · auto-activated on payment`,
           }).select("id, name").single();
 
           if (org) {
@@ -90,7 +101,13 @@ export async function POST(req: NextRequest) {
             // releasePriorOrgMembership; same fix as the Razorpay webhook.
             await releasePriorOrgMembership(userId, org.id);
             await admin.from("org_members").insert({ org_id: org.id, user_id: userId, role: "owner", status: "active" });
-            await admin.from("licenses").upsert({ user_id: userId, tier: "free", status: "valid", org_id: org.id, source: "org", updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+            // 🔴 WAS tier:"free" — paid for an org plan, left on the free tier.
+            // Grants what was bought, never below what they already hold.
+            await grantOrgTierWithFloor({
+              userId, orgId: org.id,
+              tier: isLicenseTier(tier) ? tier : resolveOrgTier(orgType, seats),
+              expiresAt: orgTermExpiresAt(),
+            });
           }
 
           // Alert admin to activate
@@ -101,8 +118,8 @@ export async function POST(req: NextRequest) {
               .sendMail({
                 from: `"Imotara" <${smtpUser}>`,
                 to:   "info@imotara.com",
-                subject: `[Corporate Purchase] ${orgType} org, ${seats} seats — ACTIVATE NOW`,
-                text: `Stripe payment received.\n\nUser: ${userEmail}\nOrg type: ${orgType}\nSeats: ${seats}\nPayment: ${pi.id}\nAmount: ${(pi.amount_received/100).toFixed(2)} ${pi.currency?.toUpperCase()}\n\nActivate at /admin → Organizations → find "${slug}"`,
+                subject: `[Corporate Purchase] ${orgType} org, ${seats} seats — activated automatically`,
+                text: `Stripe payment received.\n\nUser: ${userEmail}\nOrg type: ${orgType}\nSeats: ${seats}\nPayment: ${pi.id}\nAmount: ${(pi.amount_received/100).toFixed(2)} ${pi.currency?.toUpperCase()}\n\nActivated automatically — review at /admin → Organizations → "${slug}" only if something looks wrong.`,
               }).catch(() => {});
           }
 

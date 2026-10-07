@@ -9,7 +9,8 @@ import { logDonation } from "@/lib/donations/logDonation";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { grantLicense, isValidProductId, PRODUCT_CATALOG } from "@/lib/imotara/grantLicense";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
-import { releasePriorOrgMembership } from "@/lib/imotara/org";
+import { isLicenseTier } from "@/types/license";
+import { releasePriorOrgMembership, orgTermExpiresAt, resolveOrgTier, grantOrgTierWithFloor } from "@/lib/imotara/org";
 
 const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || "";
 
@@ -79,8 +80,12 @@ export async function POST(req: Request) {
                 const tier     = String(notes?.tier ?? "plus");
                 const userEmail = String(notes?.userEmail ?? "");
 
-                const tierMap: Record<string, string> = { commercial:"enterprise", ngo:"enterprise", edu:"edu", govt:"enterprise" };
-                const grantedTier = tierMap[orgType] ?? tier;
+                // 🔴 WAS: a blanket map granting ENTERPRISE to commercial, ngo and govt
+                // alike, ignoring seat count — while the order was priced by
+                // tierForSeats (edu→edu, >=100→enterprise, else plus). A 10-seat
+                // org sold as Plus was granted Enterprise. Harmless while nothing
+                // activated automatically; a giveaway the moment it did.
+                const grantedTier = isLicenseTier(tier) ? tier : resolveOrgTier(orgType, seats);
 
                 const { data: existingOrg } = await getSupabaseAdmin()
                     .from("organizations")
@@ -96,10 +101,16 @@ export async function POST(req: Request) {
                         slug,
                         billing_type: orgType,
                         tier: grantedTier,
-                        status: "pending",
+                        // ⚖️ Owner decision 2026-10-07: a paid org activates on payment.
+                        // "pending" meant check_org_seat_available returned false, so the
+                        // buyer had ZERO seats and could not invite anyone.
+                        status: "active",
+                        // 🔴 The purchase is ANNUAL (/pricing/corporate: "₹1,999/seat/yr").
+                        // Activating without this sells a perpetual org for one year's money.
+                        expires_at: orgTermExpiresAt(),
                         seats_purchased: seats,
                         owner_user_id: userId,
-                        notes: `Razorpay payment: ${paymentEntity?.id ?? "?"} · ${seats} seats · Activate from /admin → Organizations`,
+                        notes: `Razorpay payment: ${paymentEntity?.id ?? "?"} · ${seats} seats · auto-activated on payment`,
                     }).select("id").single();
 
                     if (org) {
@@ -110,10 +121,12 @@ export async function POST(req: Request) {
                         // this fix (see releasePriorOrgMembership).
                         await releasePriorOrgMembership(userId, org.id);
                         await getSupabaseAdmin().from("org_members").insert({ org_id: org.id, user_id: userId, role: "owner", status: "active" });
-                        await getSupabaseAdmin().from("licenses").upsert(
-                            { user_id: userId, tier: "free", status: "valid", org_id: org.id, source: "org", updated_at: new Date().toISOString() },
-                            { onConflict: "user_id" }
-                        );
+                        // 🔴 WAS tier:"free" — they paid for an org plan and were left on
+                        // the free tier until a human noticed. Grants the purchased tier,
+                        // but never below what they already hold (2d9cdaa's floor).
+                        await grantOrgTierWithFloor({
+                            userId, orgId: org.id, tier: grantedTier, expiresAt: orgTermExpiresAt(),
+                        });
                     }
                     // 🔴 TELL A HUMAN. Activation is MANUAL by owner decision
                     // (2026-10-06), and the org is created with
@@ -354,17 +367,17 @@ async function sendActivationAlert(data: {
         await transporter.sendMail({
             from:    `"Imotara Alerts" <${user}>`,
             to:      "info@imotara.com",
-            subject: `[ACTION NEEDED] Paid org awaiting activation — ${data.orgName}`,
+            subject: `[Corporate Purchase] ${data.orgName} — activated automatically`,
             text:
-                `A corporate/NGO plan was PAID FOR and the organisation is sitting at status "pending".\n\n` +
-                `Until it is activated the customer cannot add a single member.\n\n` +
+                `A corporate/NGO plan was paid for. The organisation was ACTIVATED automatically\n` +
+                `and the buyer can use it now — this is a record, not a task.\n\n` +
                 `  Organisation : ${data.orgName}\n` +
                 `  Org ID       : ${data.orgId}\n` +
                 `  Type         : ${data.orgType}\n` +
                 `  Seats        : ${data.seats}\n` +
                 `  Buyer        : ${data.userEmail}\n` +
                 `  Payment ref  : ${data.paymentId}\n\n` +
-                `Activate from /admin → Organizations.`,
+                `Review at /admin → Organizations if anything looks wrong.`,
         });
     } catch (err) {
         console.error("[razorpay/webhook] activation alert failed:", err);

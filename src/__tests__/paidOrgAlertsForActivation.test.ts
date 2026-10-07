@@ -26,17 +26,24 @@ const strip = (s: string) =>
 
 const WEBHOOK = () => strip(read("src/app/api/payments/razorpay/webhook/route.ts"));
 
-describe("⛔ the decision is respected — payment does NOT activate", () => {
-  it("a purchased org is still created pending", () => {
-    expect(WEBHOOK()).toContain('status: "pending"');
+describe("⚖️ the decision REVERSED 2026-10-07 — payment now activates", () => {
+  /**
+   * The owner's words: *"anyone can purchase and auto-activate."* This guard
+   * used to assert the opposite and warned that a failure meant "auto-activation
+   * has been reintroduced against an explicit decision". That decision changed,
+   * so the guard changed with it — but only because the two things that made
+   * automation unsafe landed first: `7cf67c9` (a human is told) and `2d9cdaa`
+   * (activation cannot overwrite a member's own paid licence).
+   */
+  it("a purchased org is created active", () => {
+    expect(WEBHOOK()).toContain('status: "active"');
+    expect(WEBHOOK()).not.toContain('status: "pending"');
   });
 
-  it("nothing in the webhook flips an org to active", () => {
-    // If this ever fails, auto-activation has been reintroduced against an
-    // explicit decision.
+  it("🔑 and the buyer is granted the tier they paid for, not 'free'", () => {
     const s = WEBHOOK();
-    expect(s).not.toMatch(/status:\s*"active"[\s\S]{0,60}organizations/);
-    expect(s).not.toMatch(/organizations[\s\S]{0,200}update\([\s\S]{0,80}status:\s*"active"/);
+    expect(s).toMatch(/grantOrgTierWithFloor\(/);
+    expect(s).not.toMatch(/tier:\s*"free"[\s\S]{0,80}source:\s*"org"/);
   });
 });
 
@@ -54,10 +61,15 @@ describe("but a human is told, so 'manual' is a process and not a silence", () =
     }
   });
 
-  it("says plainly that the customer is blocked until it is done", () => {
+  it("says plainly that nothing is owed — it is a record, not a summons", () => {
+    // 🔑 It used to say "cannot add a single member" and "[ACTION NEEDED]".
+    // Both were true then and are false now; an alert that still said them would
+    // be lying to the human who reads it, and would send them to /admin to fix
+    // something already fixed. Removing the WAIT is not removing the RECORD.
     const src = read("src/app/api/payments/razorpay/webhook/route.ts");
-    expect(src).toMatch(/cannot add a single member/i);
-    expect(src).toMatch(/ACTION NEEDED/);
+    expect(src).not.toMatch(/cannot add a single member/i);
+    expect(src).not.toMatch(/ACTION NEEDED/);
+    expect(src).toMatch(/activated automatically/i);
   });
 });
 

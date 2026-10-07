@@ -128,14 +128,35 @@ describe("revoke_org_license stays idempotent", () => {
   });
 });
 
-describe("🟠 a paid org starts PENDING — it is not usable until activated by hand", () => {
-  it("the Razorpay corporate purchase creates the org as pending", () => {
-    // Recorded, not asserted as desirable: the customer has paid, and until a
-    // human activates the org from /admin they are on free AND cannot add
-    // members (assign_org_license rejects a non-active org). Relevant to any
-    // self-serve NGO or EDU sale.
-    const src = read("src/app/api/payments/razorpay/webhook/route.ts");
-    expect(src).toContain('status: "pending"');
-    expect(src).toMatch(/Activate from \/admin/);
+describe("✅ a paid org is ACTIVE on payment — reversed by owner decision 2026-10-07", () => {
+  /**
+   * ⚖️ This block used to record the opposite, and said so without endorsing it:
+   * "the customer has paid, and until a human activates the org from /admin they
+   * are on free AND cannot add members". The owner has now decided — *"anyone can
+   * purchase and auto-activate"* — and P3-4 implements it. The invariant is
+   * inverted rather than deleted, because the thing worth pinning is that the two
+   * payment paths agree with each other and with the decision of the day.
+   */
+  it("the Razorpay corporate purchase creates the org as active", () => {
+    // ⚠️ Strip comments first. The webhook still EXPLAINS the old behaviour in a
+    // comment ("wrote 'Activate from /admin' into the org's own notes"), and an
+    // assertion that reads the mention rather than the code fails on the prose.
+    // Third time this trap has been hit in this repo — hence the helper.
+    const src = read("src/app/api/payments/razorpay/webhook/route.ts")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    // ⚠️ Scope to the ORGANISATIONS insert. A bare toContain('status: "active"')
+    // also matches the org_members insert two lines below, so it stayed green
+    // with the organisation flipped back to pending — a guard with no teeth.
+    // Caught by mutating it, not by reading it.
+    const orgInsert = src.slice(src.indexOf('from("organizations").insert'));
+    expect(orgInsert.slice(0, 700)).toMatch(/status:\s*"active"/);
+    expect(orgInsert.slice(0, 700)).not.toMatch(/status:\s*"pending"/);
+    expect(src).not.toMatch(/Activate from \/admin/);
+  });
+
+  it("…and gives it the annual expiry the plan was sold with", () => {
+    // Without this the reversal would sell a perpetual org for one year's money.
+    expect(read("src/app/api/payments/razorpay/webhook/route.ts")).toMatch(/orgTermExpiresAt\(\)/);
   });
 });

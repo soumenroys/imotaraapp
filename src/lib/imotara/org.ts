@@ -475,3 +475,94 @@ export async function adminSearchOrgs(
     return { ok: false, error: String(err) };
   }
 }
+
+// ── Paid-org activation (P3-4) ───────────────────────────────────────────────
+//
+// ⚖️ Owner decision 2026-10-07: a self-serve purchase activates immediately.
+// Everything below exists because automating that exposed two things the manual
+// step had been quietly absorbing.
+
+/**
+ * When a purchased organisation's term ends.
+ *
+ * 🔴 The corporate purchase is ANNUAL and says so at the point of sale —
+ * /pricing/corporate prices "₹1,999/seat/yr" and the button reads "Pay … /yr".
+ * Both webhooks previously set NO expiry, because an admin typed one while
+ * activating. Automating activation without this would turn one year's payment
+ * into a perpetual organisation.
+ *
+ * Shared deliberately: two webhooks with two literals would eventually sell two
+ * different lengths of the same product.
+ */
+export function orgTermExpiresAt(from: Date = new Date()): string {
+  const d = new Date(from);
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString();
+}
+
+/**
+ * The tier a corporate purchase actually bought.
+ *
+ * 🔴 THE BUG THIS REPLACES. The webhooks carried
+ *   { commercial:"enterprise", ngo:"enterprise", edu:"edu", govt:"enterprise" }
+ * which ignores seat count — while the order was PRICED by tierForSeats in
+ * api/payments/razorpay/corporate: edu → edu, seats >= 100 → enterprise, else
+ * plus. A 10-seat commercial org sold as Plus would therefore have been granted
+ * Enterprise, including the institutional features that are never bypassed.
+ * Harmless while nothing activated automatically; a giveaway the moment it did.
+ *
+ * ⚠️ Keep this in step with tierForSeats on the order route. A test pins both.
+ */
+export function resolveOrgTier(orgType: string, seats: number): string {
+  if (orgType === "edu") return "edu";
+  return seats >= 100 ? "enterprise" : "plus";
+}
+
+/**
+ * Give the buyer the tier they paid for — without ever taking away more.
+ *
+ * 🔴 This is `2d9cdaa`'s rule, and the single reason auto-activation is safe.
+ * A buyer who already holds a personally purchased Plus with eight months left,
+ * and who then buys a 10-seat Plus org, must keep their own expiry rather than
+ * have it replaced by the organisation's. The SQL has always said so:
+ *
+ *   -- Only upgrade tier via org, never downgrade a personal license
+ *
+ * The old webhooks sidestepped the question by writing `tier:"free"` and
+ * leaving a human to fix it. There is no human now.
+ */
+export async function grantOrgTierWithFloor(args: {
+  userId: string;
+  orgId: string;
+  tier: string;
+  expiresAt: string | null;
+}): Promise<void> {
+  const { TIER_RANK } = await import("@/types/license");
+  const admin = getSupabaseAdmin();
+
+  const { data: cur } = await admin
+    .from("licenses")
+    .select("tier, expires_at")
+    .eq("user_id", args.userId)
+    .maybeSingle();
+
+  const orgRank = TIER_RANK[args.tier as keyof typeof TIER_RANK] ?? 0;
+  const curRank = cur ? (TIER_RANK[cur.tier as keyof typeof TIER_RANK] ?? 0) : -1;
+
+  // At or above the org tier: link them to the org, leave their purchase alone.
+  const row = orgRank > curRank
+    ? { tier: args.tier,  expires_at: args.expiresAt }
+    : { tier: cur!.tier,  expires_at: cur!.expires_at };
+
+  await admin.from("licenses").upsert(
+    {
+      user_id:    args.userId,
+      status:     "valid",
+      org_id:     args.orgId,
+      source:     "org",
+      updated_at: new Date().toISOString(),
+      ...row,
+    },
+    { onConflict: "user_id" },
+  );
+}

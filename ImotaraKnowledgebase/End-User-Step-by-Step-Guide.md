@@ -145,7 +145,7 @@ On mobile all four live together under **Settings → Experience → Voice input
 2. **Browse:** each entry is a moment from your conversations; open an entry to see detail or jump back to Chat.
 3. **Search — On web:** tap **Search**, then type in **"Search by emotion or message…"**. **On mobile:** tap the search toggle and type; you can also pick an emotion filter (default **all**).
 4. **Delete a single entry — On mobile:** swipe the row left to reveal the red **Delete** action and tap it. **On web:** manage entries from the History controls; bulk removal is under **Settings → Local data controls**.
-5. **Retention note:** Free shows the last 7 days, Plus 90 days, Pro unlimited — a banner offers an upgrade when your plan caps history.
+5. **Retention note:** Free shows the last 7 days; **Plus and above are unlimited** (`HISTORY_RETENTION_DAYS`: free 7, everything else `Infinity`) — a banner offers an upgrade when your plan caps history.
 
 ### 6c. Trends (mobile) / charts
 1. Open the **Trends** tab (mobile). It shows a **streak card** ("[N] days in a row", flame icon at 7+, spark at 3+), a **reflection journal streak**, a **weekly mood recap**, weekly emotion-frequency bars, a **30-day mood line chart**, and a radar chart.
@@ -259,7 +259,8 @@ On mobile all four live together under **Settings → Experience → Voice input
 
 ### 12a. Buy a plan on the web (Razorpay)
 1. Go to **/upgrade** (or **Settings → Your plan → View plans & upgrade →**).
-2. Pick a plan: **Plus** (₹99/mo, `plus_monthly`) or **Pro** (₹149/mo, `pro_monthly` — "Everything in Plus, Unlimited history, Emotion trends & mood graphs, Companion letters, Growth arc tracking, Unlimited Connect history"). Press **Subscribe**.
+2. Pick a plan: **Plus** — **₹149/mo** (`plus_monthly`) or **₹1,299/yr** (`plus_annual`), covering "unlimited AI chat, cloud sync & unlimited history", emotion trends, companion letters and growth-arc tracking. Press **Subscribe**.
+   ⚠️ There is **no separate Pro tier**. `TIER_ORDER` is free · plus · family · edu · enterprise. The `pro_monthly`/`pro_annual` product ids still exist as **legacy store SKUs** (store ids are permanent) and both resolve to `tier: "plus"` at the same price — they are not a plan anyone can choose.
 3. Complete payment in the Razorpay checkout window. Your license activates after the payment verifies (the webhook may lag a few seconds — press **Refresh** on the **Your plan** card if it doesn't show immediately).
 
 ### 12b. Buy a plan on Android

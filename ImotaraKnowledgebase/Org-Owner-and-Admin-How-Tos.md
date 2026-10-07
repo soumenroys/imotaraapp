@@ -44,7 +44,7 @@ Audience: org owners/admins and Imotara support (technical + user support). Ever
 **Effective tier priority** — when a member opens the app, the system picks the tier as follows (verified against `resolve_user_tier()` in `docs/sql/org_license_pools.sql`):
 1. **Pool assignment** (a specific license assigned from a pool) — highest, overrides everything.
 2. **Org tier override** (a tier manually set for that specific member) — beats everything except a pool assignment.
-3. **The HIGHER of the member's personal license vs your org's default tier**, compared by tier rank (`free < plus < pro < family < edu < enterprise`). So a personal Plus subscriber inside an Enterprise org resolves to **Enterprise** (org default wins), while a personal Pro subscriber inside a Plus-tier org keeps **Pro** (personal wins). Neither flatly outranks the other — the better one applies.
+3. **The HIGHER of the member's personal license vs your org's default tier**, compared by tier rank (`free < plus < family < edu < enterprise`). So a personal Plus subscriber inside an Enterprise org resolves to **Enterprise** (org default wins), while a personal Pro subscriber inside a Plus-tier org keeps **Pro** (personal wins). Neither flatly outranks the other — the better one applies.
 
 **Related API endpoints:** `GET /api/org/dashboard/license-inventory`, `GET|POST|DELETE /api/org/dashboard/pools`
 

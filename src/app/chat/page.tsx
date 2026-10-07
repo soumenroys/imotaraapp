@@ -90,7 +90,7 @@ import { deriveResponseToneFromToneContext, buildEmotionMemorySummary } from "@/
 import {
   debugDetectEmotion,
   BN_ANGER_REGEX,
-  GRATITUDE_REGEX,
+  detectPositiveText,
   CONFUSED_EN_REGEX,
   isConfusedText,
   isSadText,
@@ -565,8 +565,13 @@ function getLocalMoodHint(text: string, companionName = "Imotara"): string | nul
     return "It sounds like something is making you feel tense or worried.";
   if (BN_ANGER_REGEX.test(raw) || /\b(angry|mad|frustrated|annoyed|irritated|furious|rage|hate)\b/.test(lower))
     return "It sounds like something has really upset or frustrated you.";
-  if (GRATITUDE_REGEX.test(raw) ||
-      /\b(hope|hopeful|excited|looking forward|grateful|thankful|relieved|better|good mood|feeling good|happy|joyful|cheerful)\b/.test(lower))
+  // Positive states — multilingual, and never negated. This branch was English
+  // only outside gratitude, so খুশি / खुश / 开心 / feliz matched nothing, and
+  // "I'm not happy" landed here as light-and-hope. See detectPositiveText.
+  const positive = detectPositiveText(raw);
+  if (positive === "joy")
+    return "I can sense some joy or lightness in what you're sharing.";
+  if (positive)
     return "I can sense a little bit of light or hope in what you're saying.";
 
   if (emojiSignals.sad) return `You seem a bit low. It's okay to feel this way — ${companionName} is here with you.`;

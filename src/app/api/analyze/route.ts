@@ -113,7 +113,7 @@ import {
   JP_ANGER_REGEX,
   JP_FEAR_REGEX,
   CRISIS_HINT_REGEX,
-  GRATITUDE_REGEX,
+  detectPositiveText,
   isConfusedText,
 } from "@/lib/emotion/keywordMaps";
 
@@ -572,11 +572,16 @@ export async function POST(req: Request) {
       if (isConfusedText(raw))
         return { emotion: asEmotion("confused"), intensity: 0.55 };
 
-      if (GRATITUDE_REGEX.test(raw))
-        return { emotion: asEmotion("gratitude"), intensity: 0.7 };
-
-      if (/\b(happy|glad|excited|joy|relieved)\b/.test(t))
+      // 🔴 This used to be GRATITUDE_REGEX plus five ENGLISH words, with no
+      // negation guard — on the server path that PERSISTS the emotion record.
+      // So "I'm not happy" was stored as joy, and every non-English speaker's
+      // happiness was stored as neutral. detectPositiveText covers all 22
+      // supported languages and rejects negated positives.
+      const positive = detectPositiveText(raw);
+      if (positive === "joy")
         return { emotion: asEmotion("joy"), intensity: 0.55 };
+      if (positive)
+        return { emotion: asEmotion("gratitude"), intensity: 0.7 };
 
       return { emotion: asEmotion("neutral"), intensity: 0.25 };
     };

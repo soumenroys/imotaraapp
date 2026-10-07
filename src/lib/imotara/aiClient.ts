@@ -333,13 +333,49 @@ type GeminiAttempt =
  * retry logic — callGeminiAI owns both, so the retry path can distinguish
  * "this model is gone" (404) from "Gemini itself is unhealthy".
  */
+/**
+ * How much of the request we are willing to send.
+ *
+ * 🔴 WHY A MODE AND NOT A BOOLEAN. The retry used to be "the same request minus
+ * thinkingConfig", which bets on WHICH parameter the model rejects. Google's
+ * 2026-10-07 deprecation notice makes that bet lose: "requests that set
+ * thinking_budget will no longer be remapped and will return 400
+ * INVALID_ARGUMENT", and separately "requests that include temperature, top_p,
+ * and top_k will return an error". A retry that still carries `temperature`
+ * would 400 for the second reason immediately after 400-ing for the first, and
+ * the Gemini fallback would die into the local reply engine with no code change
+ * on our side — at Google's timing, because GEMINI_LAST_RESORT_MODEL is a
+ * rolling alias.
+ *
+ *   "fast"    — first attempt. temperature + thinkingBudget: 0. Fastest and
+ *               cleanest (measured 1.3s / 103 tokens on gemini-3.5-flash).
+ *   "minimal" — retry. maxOutputTokens ONLY. Carries nothing that a future
+ *               model can reject, so it survives deprecations we have not read
+ *               yet.
+ *
+ * ⚠️ maxOutputTokens STAYS in "minimal" on purpose. It is GEMINI_MIN_OUTPUT_TOKENS,
+ * the second of the two truncation guards — without it a thinking model spends
+ * the budget on thoughts and returns a fragment ("I am so incredibly sorry for
+ * the loss of"). Dropping it to be "more minimal" would reintroduce exactly the
+ * bug the ceiling exists to prevent.
+ *
+ * 🔑 WHY THIS CANNOT DEGRADE A REPLY. "minimal" runs ONLY after an attempt
+ * already returned 400 — a call that produced nothing. It can turn a failure
+ * into a reply; it cannot touch a successful one. And in both configurations we
+ * actually run it is free anyway: on gemini-3.5-flash (the production default,
+ * GEMINI_MODEL is unset) the fast attempt succeeds and the retry never fires;
+ * on 3.6-flash, where the fast attempt does 400, Google states sampling
+ * parameters have had no effect on output since that version.
+ */
+type GeminiAttemptMode = "fast" | "minimal";
+
 async function geminiAttempt(
   model: string,
   apiKey: string,
   prompt: string,
   options: CallImotaraAIOptions,
   abortMs: number,
-  disableThinking: boolean,
+  mode: GeminiAttemptMode,
 ): Promise<GeminiAttempt> {
   const systemPrompt = options.system ?? "You are Imotara — an emotion-aware, privacy-first companion. Be warm, concise, and human.";
   const temperature = typeof options.temperature === "number" ? options.temperature : 0.7;
@@ -359,8 +395,12 @@ async function geminiAttempt(
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           maxOutputTokens: maxTokens,
-          temperature,
-          ...(disableThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+          // ⚠️ "minimal" sends nothing a future model can reject — see
+          // GeminiAttemptMode. Only maxOutputTokens survives, because it is
+          // the truncation guard.
+          ...(mode === "fast"
+            ? { temperature, thinkingConfig: { thinkingBudget: 0 } }
+            : {}),
         },
       }),
       signal: controller.signal,
@@ -416,11 +456,11 @@ async function geminiTryModel(
 ): Promise<GeminiAttempt> {
   const tStart = Date.now();
 
-  const fast = await geminiAttempt(model, apiKey, prompt, options, abortMs, true);
+  const fast = await geminiAttempt(model, apiKey, prompt, options, abortMs, "fast");
   if (fast.ok || fast.status !== 400) return fast;
 
   console.error(
-    `[imotara][gemini] "${model}" rejected thinkingConfig (HTTP 400) — retrying with thinking enabled`,
+    `[imotara][gemini] "${model}" rejected the request (HTTP 400) — retrying minimal (maxOutputTokens only)`,
   );
   return geminiAttempt(
     model,
@@ -428,7 +468,7 @@ async function geminiTryModel(
     prompt,
     options,
     remainingBudgetMs(Date.now() - tStart),
-    false,
+    "minimal",
   );
 }
 
@@ -662,7 +702,7 @@ async function* streamGeminiModel(
   prompt: string,
   options: CallImotaraAIOptions,
   abortMs: number,
-  disableThinking: boolean,
+  mode: GeminiAttemptMode,
 ): AsyncGenerator<string, GeminiStreamOutcome, unknown> {
   const systemPrompt = options.system ?? "You are Imotara — a warm, caring emotional companion. Be concise and human.";
   const temperature = typeof options.temperature === "number" ? options.temperature : 0.7;
@@ -683,8 +723,12 @@ async function* streamGeminiModel(
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           maxOutputTokens: maxTokens,
-          temperature,
-          ...(disableThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+          // ⚠️ "minimal" sends nothing a future model can reject — see
+          // GeminiAttemptMode. Only maxOutputTokens survives, because it is
+          // the truncation guard.
+          ...(mode === "fast"
+            ? { temperature, thinkingConfig: { thinkingBudget: 0 } }
+            : {}),
         },
       }),
       signal: controller.signal,
@@ -762,11 +806,11 @@ async function* streamGeminiTryModel(
 ): AsyncGenerator<string, GeminiStreamOutcome, unknown> {
   const tStart = Date.now();
 
-  const fast = yield* streamGeminiModel(model, apiKey, prompt, options, abortMs, true);
+  const fast = yield* streamGeminiModel(model, apiKey, prompt, options, abortMs, "fast");
   if (fast.ok || fast.yieldedAny || fast.status !== 400) return fast;
 
   console.error(
-    `[imotara][gemini] "${model}" rejected thinkingConfig (HTTP 400) on the streaming path — retrying with thinking enabled`,
+    `[imotara][gemini] "${model}" rejected the request (HTTP 400) on the streaming path — retrying minimal (maxOutputTokens only)`,
   );
   return yield* streamGeminiModel(
     model,
@@ -774,7 +818,7 @@ async function* streamGeminiTryModel(
     prompt,
     options,
     remainingBudgetMs(Date.now() - tStart),
-    false,
+    "minimal",
   );
 }
 

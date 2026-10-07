@@ -10,6 +10,31 @@ const MOBILE_SOUNDS = path.join(MOBILE, "assets", "sounds");
 const TRACKS = ["rain", "ocean", "bowl"] as const;
 
 /**
+ * 🔴 THIS FILE READS THE SIBLING REPO, AND CI ONLY CHECKS OUT THIS ONE.
+ *
+ * Every mobile path below resolves to ../imotara-mobile, which exists on a
+ * developer's machine and does NOT exist on the runner. The cross-repo
+ * assertions therefore threw ENOENT in CI while passing locally — the test was
+ * green for everyone who could run it and red for the only thing that gates
+ * merges. It is one of ten web tests that read the mobile repo; the other nine
+ * already guard, this one asserted `existsSync(...) === true` and then read the
+ * file at describe-collection time, which crashes before any `it` can skip.
+ *
+ * Same loud-skip idiom as tierFeatureParity: the web half keeps running in CI,
+ * the cross-repo half announces that it did not.
+ */
+const MOBILE_PRESENT = fs.existsSync(MOBILE);
+const crossRepo = (what: string) => {
+    if (!MOBILE_PRESENT) {
+        console.warn(
+            `[breathingSounds] ⚠️ SKIPPED ${what}: ${MOBILE} is not checked out. ` +
+            "This guard only has teeth when both repos sit side by side.",
+        );
+    }
+    return MOBILE_PRESENT;
+};
+
+/**
  * The three breathing ambiences exist TWICE — web serves them from
  * public/sounds, mobile bundles assets/sounds — and that is exactly how they
  * drifted: 43eadd8 replaced the warbling rain loop in mobile on 2026-09-10 and
@@ -20,13 +45,16 @@ const TRACKS = ["rain", "ocean", "bowl"] as const;
  */
 describe("the same audio ships on both platforms", () => {
     it.each(TRACKS)("%s.mp3 is byte-identical on web and mobile", (track) => {
+        if (!crossRepo(`${track}.mp3 byte-compare`)) return;
         const web = fs.readFileSync(path.join(WEB_SOUNDS, `${track}.mp3`));
         const mob = fs.readFileSync(path.join(MOBILE_SOUNDS, `${track}.mp3`));
         expect(web.equals(mob)).toBe(true);
     });
 
-    it.each(TRACKS)("%s.mp3 exists on both sides at all", (track) => {
+    it.each(TRACKS)("%s.mp3 exists on web, and on mobile when it is checked out", (track) => {
+        // The web side runs everywhere — that half is not cross-repo.
         expect(fs.existsSync(path.join(WEB_SOUNDS, `${track}.mp3`))).toBe(true);
+        if (!crossRepo(`${track}.mp3 presence on mobile`)) return;
         expect(fs.existsSync(path.join(MOBILE_SOUNDS, `${track}.mp3`))).toBe(true);
     });
 });
@@ -37,6 +65,7 @@ describe("bundle size stays defensible", () => {
         // 96k (rain, ocean) and 128k (bell — the only tonal source, where MP3
         // artifacts are audible) they come to ~11.9 MB. This is a ceiling, not
         // a target: it exists so nobody drops 256 kbps masters back in.
+        if (!crossRepo("the mobile bundle-size floor/ceiling")) return;
         const total = TRACKS.reduce(
             (n, t) => n + fs.statSync(path.join(MOBILE_SOUNDS, `${t}.mp3`)).size,
             0
@@ -52,10 +81,13 @@ describe('the track is labelled "Bell", not "Bowl"', () => {
         path.join(WEB, "src", "components", "imotara", "BreathingWidget.tsx"),
         "utf8"
     );
-    const mobileModal = fs.readFileSync(
-        path.join(MOBILE, "src", "components", "imotara", "BreathingModal.tsx"),
-        "utf8"
-    );
+    // ⛔ Was a bare readFileSync here. It runs at describe-COLLECTION time, so it
+    // threw before any `it` could decide to skip — which is why this file alone
+    // failed CI while the other nine cross-repo tests passed.
+    const MODAL = path.join(MOBILE, "src", "components", "imotara", "BreathingModal.tsx");
+    const mobileModal = MOBILE_PRESENT && fs.existsSync(MODAL)
+        ? fs.readFileSync(MODAL, "utf8")
+        : null;
 
     it("web shows Bell", () => {
         expect(webWidget).toMatch(/label:\s*"Bell"/);
@@ -63,6 +95,7 @@ describe('the track is labelled "Bell", not "Bowl"', () => {
     });
 
     it("mobile shows Bell", () => {
+        if (!crossRepo("the mobile Bell label")) return;
         expect(mobileModal).toMatch(/label:\s*"Bell"/);
         expect(mobileModal).not.toMatch(/label:\s*"Bowl"/);
     });
@@ -72,8 +105,9 @@ describe('the track is labelled "Bell", not "Bowl"', () => {
         // user-visible gain. Nothing persists the selection, so there is also
         // no stored value that would need migrating.
         expect(webWidget).toMatch(/id:\s*"bowl"/);
-        expect(mobileModal).toMatch(/id:\s*"bowl"/);
         expect(webWidget).toMatch(/\/sounds\/\$\{track\}\.mp3/);
+        if (!crossRepo("the mobile 'bowl' id")) return;
+        expect(mobileModal).toMatch(/id:\s*"bowl"/);
     });
 
     it("user-facing docs say Bell too — tutorial and the help KB", () => {

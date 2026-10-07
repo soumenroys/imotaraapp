@@ -1,6 +1,6 @@
 # Imotara — Licensing, Tiers & Payments
 
-*Source-of-truth reference for the Imotara web platform (`imotaraapp`, Next.js 16 + Supabase). Covers consumer license tiers, how feature gating actually works today, effective-tier resolution for organisation members, every payment rail, manual license grants, cancellation/invoicing, and the most common support answers. Grounded in the code as of v1.3.3 (build 133).*
+*Source-of-truth reference for the Imotara web platform (`imotaraapp`, Next.js 16 + Supabase). Covers consumer license tiers, how feature gating actually works today, effective-tier resolution for organisation members, every payment rail, manual license grants, cancellation/invoicing, and the most common support answers. Grounded in the code as of v1.4.3 (build 143).*
 
 > **Read this first — the soft-launch reality.** Imotara is in a soft-launch state. The licensing *matrix* is fully designed but almost nothing is enforced in the UI yet. The single hard server-side rule that is always active is the **20 cloud replies/day quota for Free users** in `/api/chat-reply`. Everything else (Plus/Pro/Family/EDU/Enterprise feature gates) is defined in code but gated behind `NEXT_PUBLIC_IMOTARA_LICENSE_MODE`, which ships as `off`. Where a capability is aspirational or de-scoped, this doc says so.
 
@@ -26,8 +26,8 @@ Pricing is documented in `docs/LICENSING.md` and encoded in the product catalog 
 
 | Product ID (catalog key) | Type | Tier | Duration | Price (INR paise) | Price (₹) |
 |---|---|---|---|---|---|
-| `plus_monthly` | subscription | plus | 31 days | 9,900 | ₹99 |
-| `plus_annual` | subscription | plus | 366 days | 69,900 | ₹699 |
+| `plus_monthly` | subscription | plus | 31 days | 14,900 | ₹149 |
+| `plus_annual` | subscription | plus | 366 days | 129,900 | ₹1,299 |
 | `pro_monthly` | subscription | pro | 31 days | 14,900 | ₹149 |
 | `pro_annual` | subscription | pro | 366 days | 129,900 | ₹1,299 |
 | `tokens_100` | token pack | — | — | 4,900 | ₹49 (100 tokens) |

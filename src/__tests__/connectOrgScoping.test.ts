@@ -19,6 +19,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+// 🔴 These were inline `require("fs")`/`require("path")` calls inside three
+// IIFEs. Each carried ONE eslint-disable comment, which covers only the next
+// line — so the `fs` require was suppressed and the `path` require directly
+// below it was not. Three real lint errors, red in CI since 2026-10-06, while
+// typecheck and the test suite both stayed green. Static imports need no
+// suppression at all.
+import fs from "fs";
+import path from "path";
 
 // ── Supabase stub ────────────────────────────────────────────────────────────
 // A minimal chainable query builder: enough to record what the code asked for.
@@ -220,9 +228,6 @@ describe("🔴 cross-org session access is refused", () => {
 
 describe("the marketplace route is actually wired to the seam", () => {
   const SRC = (() => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const fs = require("fs") as typeof import("fs");
-    const path = require("path") as typeof import("path");
     return fs.readFileSync(
       path.join(process.cwd(), "src/app/api/connect/consultants/route.ts"),
       "utf8",
@@ -256,9 +261,6 @@ describe("🔴 booking cannot be used to walk around the filters either", () => 
   // direct POST carrying an id, so without the same predicate an org's private
   // companion could be booked by anyone who guessed or kept that id.
   const BOOK = (() => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const fs = require("fs") as typeof import("fs");
-    const path = require("path") as typeof import("path");
     return fs
       .readFileSync(path.join(process.cwd(), "src/app/api/connect/sessions/route.ts"), "utf8")
       .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -298,9 +300,6 @@ describe("🔴 the by-id route cannot be used to walk around the list filter", (
   // Hiding a consultant from the list is worthless if GET /consultants/<id>
   // still returns them — ids are enumerable.
   const BY_ID = (() => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const fs = require("fs") as typeof import("fs");
-    const path = require("path") as typeof import("path");
     return fs
       .readFileSync(path.join(process.cwd(), "src/app/api/connect/consultants/[id]/route.ts"), "utf8")
       .replace(/\/\*[\s\S]*?\*\//g, "")

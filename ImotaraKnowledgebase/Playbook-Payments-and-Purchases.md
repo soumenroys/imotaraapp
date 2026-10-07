@@ -5,8 +5,8 @@
 ## Product catalog (single source of truth: `grantLicense.ts` `PRODUCT_CATALOG`)
 | productId | type | tier / tokens | INR | paise | days |
 |---|---|---|---|---|---|
-| `plus_monthly` | subscription | plus | ₹99 | 9,900 | 31 |
-| `plus_annual` | subscription | plus | ₹699 | 69,900 | 366 |
+| `plus_monthly` | subscription | plus | ₹149 | 14,900 | 31 |
+| `plus_annual` | subscription | plus | ₹1,299 | 129,900 | 366 |
 | `pro_monthly` | subscription | pro | ₹149 | 14,900 | 31 |
 | `pro_annual` | subscription | pro | ₹1,299 | 129,900 | 366 |
 | `tokens_100` | token_pack | 100 | ₹49 | 4,900 | — |

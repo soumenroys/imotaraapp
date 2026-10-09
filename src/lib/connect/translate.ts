@@ -181,6 +181,64 @@ function openAIBaseUrl(): string {
 }
 
 /**
+ * 🔴 "IDENTICAL" IS NOT THE SAME AS "NOT TRANSLATED".
+ *
+ * Both providers below rejected any result equal to the input, on the strength
+ * of a real observation: models sometimes echo romanized Indic text back
+ * unchanged instead of translating it. That signature is genuine — but the
+ * test for it was far too broad, and it fired on perfectly good translations:
+ * "OK", "WhatsApp", a person's name, a number, a cognate. Each of those was
+ * declared an engine failure and pushed down the chain toward MyMemory, which
+ * this very file calls "confidently wrong". (U21 of the 2026-10-09 audit.)
+ *
+ * 🔑 A sharper test exists. For the 15 target languages that use a non-Latin
+ * script, a result containing NONE of that script was definitely not
+ * translated — whether or not it happens to equal the input. And for a
+ * Latin-script target, an identical result is usually legitimate, because
+ * that is exactly where names, loanwords and cognates survive translation.
+ *
+ * So: catch the echo failure MORE reliably for Indic/CJK/Semitic targets, and
+ * stop punishing the Latin-script cases that were never failures at all.
+ */
+const TARGET_SCRIPT: Record<string, RegExp> = {
+  // ⚠️ SPREAD, not retyped. NATIVE_SCRIPT_RANGES above already defines ten of
+  // these, and a second hand-written copy is precisely the two-copies drift
+  // that caused most of the language bugs found on 2026-10-09. Spreading means
+  // the shared ten CANNOT disagree.
+  //
+  // ⛔ NATIVE_SCRIPT_RANGES itself is deliberately NOT extended: it gates
+  // engine ROUTING via hasNativeScript(), so adding languages there would
+  // change which translator runs for them. That may well be an improvement,
+  // but it is a separate change with its own risk, not a side effect of this
+  // one.
+  ...NATIVE_SCRIPT_RANGES,
+  // The six this check needs that routing does not define.
+  hi: /[\u0900-\u097F]/,   // Devanagari — same block as mr
+  ar: /[\u0600-\u06FF]/,   // Arabic block — shared with ur
+  he: /[\u0590-\u05FF]/,
+  ru: /[\u0400-\u04FF]/,
+  zh: /[\u4E00-\u9FFF]/,
+  ja: /[\u3040-\u30FF\u4E00-\u9FFF]/,
+};
+
+/**
+ * Did the model actually produce text in the target language?
+ *
+ * Returns false only when we can be SURE it did not: the target uses a script
+ * the result does not contain a single character of. For Latin-script targets
+ * we cannot tell, so we say nothing and let the result stand.
+ */
+function looksTranslated(translated: string, text: string, targetLang: string): boolean {
+  const script = TARGET_SCRIPT[targetLang];
+  if (script) return script.test(translated);
+  // Latin-script target: an identical result is usually a name, a loanword or
+  // a cognate. ⚠️ Only reject it when there was enough text that a real
+  // translation would almost certainly have differed.
+  if (translated.toLowerCase() !== text.trim().toLowerCase()) return true;
+  return text.trim().split(/\s+/).length < 4;
+}
+
+/**
  * LLM-based translation for romanized Indic input Google mistranslates.
  * Deliberately NOT routed through aiClient.ts's callImotaraAI(): that
  * helper prepends a companion-persona system prompt (wrong for a pure
@@ -238,7 +296,7 @@ Rules:
     // during evaluation (echoing the romanized text back unchanged instead
     // of translating it) — treat it as a non-translation here too, whatever
     // the source, and fall back to the Google/MyMemory path.
-    if (translated.toLowerCase() === text.trim().toLowerCase()) return null;
+    if (!looksTranslated(translated, text, targetLang)) return null;
     return translated;
   } catch {
     return null;
@@ -295,7 +353,7 @@ Rules:
     const data = await res.json();
     const translated: string = data?.choices?.[0]?.message?.content?.trim() ?? "";
     if (!translated) return null;
-    if (translated.toLowerCase() === text.trim().toLowerCase()) return null;
+    if (!looksTranslated(translated, text, targetLang)) return null;
     return translated;
   } catch {
     return null;

@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 export const maxDuration = 60;
 
@@ -31,8 +32,23 @@ Output: Return ONLY valid JSON, no markdown, no extra text:
 
 export async function POST(req: Request) {
   try {
-    const supabase = await supabaseUserServer();
-    const { data: { user } } = await supabase.auth.getUser();
+    // 🔴 Accept Bearer token (mobile) OR cookie (web) — the same contract as
+    // api/license/status. This route was COOKIE-ONLY, and mobile authenticates
+    // with a Bearer token, so every mobile request 401'd. The client then read
+    // `data.analysis ?? ""` out of the error body and rendered it as an empty
+    // success, so "Psychological Insight" was 100% dead on mobile and said
+    // nothing about it. (U5 of the 2026-10-09 audit, verified 2026-10-10.)
+    let user: { id: string } | null = null;
+    const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+    if (bearer) {
+      const { data } = await getSupabaseAdmin().auth.getUser(bearer);
+      user = data?.user ? { id: data.user.id } : null;
+    }
+    if (!user) {
+      const supabase = await supabaseUserServer();
+      const { data } = await supabase.auth.getUser();
+      user = data?.user ? { id: data.user.id } : null;
+    }
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();

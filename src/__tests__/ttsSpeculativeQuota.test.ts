@@ -100,10 +100,27 @@ describe("the unverified claim never decides anything else", () => {
 
 describe("the checks that must still run every request", () => {
     it("the rate limit is not speculative and is checked before serving", () => {
-        expect(route).toMatch(/checkPersistentIpRateLimit\("tts", ip, RATE_LIMIT_PER_MIN, 60\)/);
+        // ⚠️ UPDATED when the limit was split (U14). The GUARANTEE is unchanged
+        // — a per-IP limit is still computed non-speculatively and still gates
+        // before anything is served. What changed is the constant's name:
+        // RATE_LIMIT_PER_MIN became IP_CEILING_PER_MIN when the strict 40 moved
+        // to anonymous traffic and a generous ceiling took its place pre-auth.
+        //
+        // 🔑 This failing on that commit was the suite doing its job. The fix
+        // is to re-point the assertion, NOT to loosen it.
+        expect(route).toMatch(/checkPersistentIpRateLimit\("tts", ip, IP_CEILING_PER_MIN, 60\)/);
         const gate = route.indexOf("if (!withinRateLimit)");
         expect(gate).toBeGreaterThan(-1);
         expect(gate).toBeLessThan(route.indexOf("if (user.is_anonymous)"));
+    });
+
+    it("…and anonymous traffic carries its OWN stricter per-IP limit", () => {
+        // Added with U14: the ceiling alone is not the guard. If this check
+        // disappeared, anonymous identity-minting would be rationed only by
+        // the generous ceiling, which is a real weakening.
+        expect(route).toMatch(/checkPersistentIpRateLimit\("tts-anon", ip, ANON_IP_RATE_LIMIT_PER_MIN, 60\)/);
+        const anon = route.indexOf('"tts-anon"');
+        expect(anon).toBeGreaterThan(route.indexOf("if (user.is_anonymous)"));
     });
 
     it("auth is still verified — the claim never substitutes for getUser", () => {

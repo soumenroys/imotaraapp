@@ -3684,7 +3684,25 @@ export async function POST(req: Request) {
     // Skips formatImotaraReply post-processing — the rich system prompt handles
     // humanization directly. All script-safety rules are in the system prompt.
     const requestUrl = new URL(req.url);
-    if (requestUrl.searchParams.get("stream") === "1") {
+    /**
+     * 🔴 CLOSURE TURNS DO NOT STREAM.
+     *
+     * `noQuestions` (aiClient.ts:392) works on WHOLE SENTENCES — it splits the
+     * reply and drops any sentence that is a question. That cannot run
+     * token-by-token: by the time you know a sentence was a question you have
+     * already sent it, and a stream cannot be retracted.
+     *
+     * So on a "goodbye / talk later" turn the streaming path was silently
+     * dropping the one guard that stops the companion asking another question
+     * as someone is trying to leave.
+     *
+     * The cost of not streaming here is close to zero: closure replies are
+     * capped at 80 tokens (baseMaxTokens above), so the whole reply arrives in
+     * roughly the time the first streamed token would have. We trade a
+     * perceptual gain nobody would notice for a guard that changes what the
+     * companion actually says.
+     */
+    if (requestUrl.searchParams.get("stream") === "1" && !isClosureIntent) {
       const streamSystem = romanizedPrompt ?? prompt;
       const streamMaxTokens = romanizedPrompt
         ? Math.min(maxTokens, resolvedLang === "bn" ? 320 : 280)
@@ -3700,8 +3718,35 @@ export async function POST(req: Request) {
               temperature: replyTemperature,
               clientBudgetMs: clientBudgetFrom(req),
             })) {
+              /**
+               * 🔴 THE ROMANIZED STRIP, ON THE PATH THAT ACTUALLY RUNS.
+               *
+               * The JSON path strips non-ASCII from romanized replies
+               * (`:3789`), and that strip's own comment records why:
+               *
+               *   "achi।tomar" became "achitomar" … observed on a device
+               *   2026-09-12
+               *
+               * ⚠️ That is a leak that happened WITH the prompt rules in force,
+               * which disproves this branch's old claim that "all script-safety
+               * rules are in the system prompt". The prompt reduces leaks; it
+               * does not stop them. The strip existed because it had to.
+               *
+               * It is character-level, so unlike noQuestions it works per
+               * token: each SSE token is a complete JS string. Replacing with a
+               * SPACE rather than deleting is the whole point — deleting glues
+               * the words on either side, which is the bug above.
+               *
+               * ⚠️ Deliberately NOT ported: the `\s+` collapse and the
+               * punctuation re-tuck. Both need to see across token boundaries,
+               * and getting them wrong would mangle text that is currently
+               * fine. A double space is cosmetic; a glued word is not.
+               */
+              const outToken = isRomanInput
+                ? token.replace(/[^\x00-\x7F]/g, " ")
+                : token;
               controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ t: token })}\n\n`),
+                encoder.encode(`data: ${JSON.stringify({ t: outToken })}\n\n`),
               );
             }
           } catch { /* stream ended or model error — client will use what arrived */ }

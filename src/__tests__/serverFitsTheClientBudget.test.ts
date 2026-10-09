@@ -115,13 +115,18 @@ describe("⚖️ the quality trade at a short budget — do not reverse this cas
     // FOUR hops, verified: 2 in callImotaraAI (HTTP error + fetch exception)
     // and the same 2 shapes in streamImotaraAI. Guarding 3 of 4 would leave
     // one path still burning a doomed Gemini call.
-    expect([...s.matchAll(/if \(!plan\.fallbackEnabled\)/g)].length).toBe(4);
+    // ⚠️ UPDATED: the condition gained `|| options.noFallback` (U19), so the
+    // bare form no longer appears. The GUARANTEE is unchanged and still four:
+    // every fallback site is guarded. ⛔ All FOUR must carry the new clause too
+    // — when only the two JSON sites had it, a streaming caller asking for no
+    // fallback was silently given one.
+    expect([...s.matchAll(/if \(!plan\.fallbackEnabled \|\| options\.noFallback\)/g)].length).toBe(4);
   });
 
   it("⚠️ skipping the fallback must NOT page anyone — it is a budget choice", () => {
     // sendOutageAlert wakes a human. A deliberate decision is not an incident.
     const s = read(AI);
-    const skips = s.split("if (!plan.fallbackEnabled)").slice(1);
+    const skips = s.split("if (!plan.fallbackEnabled || options.noFallback)").slice(1);
     expect(skips.length).toBe(4);
     for (const after of skips) {
       const block = after.slice(0, 400);

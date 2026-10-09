@@ -50,6 +50,22 @@ export type CallImotaraAIOptions = {
    * Omitted (older clients) ⇒ the previous fixed behaviour, unchanged.
    */
   clientBudgetMs?: number;
+
+  /**
+   * 🔴 Do not run the Gemini fallback for this call AT ALL.
+   *
+   * For callers that will THROW AWAY anything but an OpenAI answer. The daily
+   * quote in /api/respond is one: it keeps the result only when
+   * `meta.from === "openai"`, so when OpenAI failed, Gemini was still invoked
+   * — with a SIX-SECOND floor from remainingBudgetMs() — and its answer was
+   * then discarded unread. Paid work that could never be used, plus up to six
+   * seconds added to a response nobody was waiting on it for.
+   * (U19 of the 2026-10-09 audit.)
+   *
+   * ⚠️ Only for callers that genuinely discard non-OpenAI output. On the reply
+   * path the fallback is the thing standing between the person and a template.
+   */
+  noFallback?: boolean;
 };
 
 export type ImotaraAIResponse = {
@@ -372,7 +388,9 @@ export async function callImotaraAI(
   options: CallImotaraAIOptions = {},
 ): Promise<ImotaraAIResponse> {
   const plan = planBudget(options.clientBudgetMs);
-  if (plan.hedgeAfterMs === null) {
+  // ⚠️ A hedge is a second engine too. A caller that discards non-OpenAI
+  // output must not pay for one speculatively either.
+  if (plan.hedgeAfterMs === null || options.noFallback) {
     return callImotaraAIPrimary(prompt, options);
   }
 
@@ -508,7 +526,7 @@ async function callImotaraAIPrimary(
       );
       const openaiReason = `HTTP ${response.status}: ${errText.slice(0, 200)}`;
       void sendOutageAlert(openaiReason);
-      if (!plan.fallbackEnabled) {
+      if (!plan.fallbackEnabled || options.noFallback) {
         // Budget decision, not an outage: the client will not wait long enough
         // for a second engine, so attempting one would burn money on a reply
         // nobody receives. Logged, deliberately NOT alerted.
@@ -571,12 +589,14 @@ async function callImotaraAIPrimary(
     const reason = err?.message || "Unknown network or runtime error";
     console.error("[imotara][aiClient] fetch exception:", reason);
     void sendOutageAlert(reason);
-    if (!plan.fallbackEnabled) {
+    if (!plan.fallbackEnabled || options.noFallback) {
       console.warn(
-        "[imotara][aiClient] fallback skipped — client budget " +
-        `${options.clientBudgetMs}ms leaves no usable window`,
+        "[imotara][aiClient] fallback skipped — " +
+        (options.noFallback
+          ? "caller discards non-OpenAI output"
+          : `client budget ${options.clientBudgetMs}ms leaves no usable window`),
       );
-      return { text: "", meta: { usedModel: "", from: "disabled", reason: "client budget too short for a fallback" } };
+      return { text: "", meta: { usedModel: "", from: "disabled", reason: "fallback not useful to this caller" } };
     }
     return callGeminiAI(prompt, { ...options, abortMs: remainingBudgetMs(Date.now() - tStart) });
   }
@@ -1341,7 +1361,7 @@ async function* streamImotaraAIPrimary(
     if (!response.ok || !response.body) {
       console.error(`[imotara][aiClient] stream HTTP ${response.status} or missing body`);
       void sendOutageAlert(`Streaming HTTP ${response.status}`);
-      if (!plan.fallbackEnabled) {
+      if (!plan.fallbackEnabled || options.noFallback) {
         console.warn(
           "[imotara][aiClient] stream fallback skipped — client budget " +
           `${options.clientBudgetMs}ms leaves no usable window`,
@@ -1393,7 +1413,7 @@ async function* streamImotaraAIPrimary(
     if (!yieldedAny) {
       console.error("[imotara][aiClient] stream fetch exception:", err?.message || err);
       void sendOutageAlert(err?.message || "Streaming network error");
-      if (!plan.fallbackEnabled) {
+      if (!plan.fallbackEnabled || options.noFallback) {
         console.warn(
           "[imotara][aiClient] stream fallback skipped — client budget " +
           `${options.clientBudgetMs}ms leaves no usable window`,

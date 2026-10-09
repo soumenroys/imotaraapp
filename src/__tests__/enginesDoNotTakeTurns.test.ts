@@ -134,7 +134,13 @@ describe("🔑 the implementation really overlaps, and really prefers speed", ()
   const s = code(AI);
 
   it("both paths consult the hedge and delegate when there is none", () => {
-    expect([...s.matchAll(/if \(plan\.hedgeAfterMs === null\)/g)].length).toBe(2);
+    // ⚠️ UPDATED: the condition gained `|| options.noFallback` (U19), because
+    // a hedge is a second engine too and a caller that discards non-OpenAI
+    // output must not pay for one speculatively. Still two paths, still
+    // delegating when there is no hedge — the guarantee is unchanged.
+    expect([...s.matchAll(/if \(plan\.hedgeAfterMs === null \|\| options\.noFallback\)/g)].length)
+      .toBeGreaterThanOrEqual(1);
+    expect([...s.matchAll(/if \(plan\.hedgeAfterMs === null/g)].length).toBe(2);
     expect(s).toMatch(/return callImotaraAIPrimary\(prompt, options\);/);
     expect(s).toMatch(/yield\* streamImotaraAIPrimary\(prompt, options\);/);
   });

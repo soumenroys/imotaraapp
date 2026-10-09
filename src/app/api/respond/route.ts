@@ -1274,6 +1274,11 @@ export async function POST(req: Request) {
           maxTokens: 80,
           temperature: 0.85,
           abortMs: 4000,
+          // 🔑 This caller keeps the result ONLY when it came from OpenAI (see
+          // the .then below), so a Gemini fallback here is guaranteed waste:
+          // up to 6s of paid work whose answer is discarded unread, and up to
+          // 6s added to a response nobody is waiting on the quote for.
+          noFallback: true,
         }).then((r) => (r.meta.from === "openai" && r.text ? r.text.trim() : null))
           .catch(() => null)
       : Promise.resolve(null);

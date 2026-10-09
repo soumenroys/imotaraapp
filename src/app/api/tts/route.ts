@@ -332,13 +332,12 @@ export async function POST(req: NextRequest) {
     // than trying to trim it client-side after the fact; live-verified
     // across bn/hi/en/ta/ja with ffprobe — every voice shed 0.3-1.0s per
     // clip with no distortion.
-    const ssml = `<speak version="1.0" xml:lang="${locale}" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts"><voice name="${voice}"><mstts:silence type="Leading-exact" value="0ms"/><mstts:silence type="Tailing-exact" value="0ms"/>${bodyXml}</voice></speak>`;
+    const buildSsml = (inner: string) =>
+        `<speak version="1.0" xml:lang="${locale}" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts"><voice name="${voice}"><mstts:silence type="Leading-exact" value="0ms"/><mstts:silence type="Tailing-exact" value="0ms"/>${inner}</voice></speak>`;
 
     const azureUrl = `https://${azureConfig.region}.tts.speech.microsoft.com/cognitiveservices/v1`;
-
-    let azureRes: Response;
-    try {
-        azureRes = await fetch(azureUrl, {
+    const synthesize = (inner: string) =>
+        fetch(azureUrl, {
             method:  "POST",
             headers: {
                 "Ocp-Apim-Subscription-Key": azureConfig.key,
@@ -346,13 +345,51 @@ export async function POST(req: NextRequest) {
                 "X-Microsoft-OutputFormat":  "audio-24khz-48kbitrate-mono-mp3",
                 "User-Agent":                "ImotaraApp",
             },
-            body: ssml,
+            body: buildSsml(inner),
         });
+
+    let azureRes: Response;
+    try {
+        azureRes = await synthesize(bodyXml);
     } catch (err) {
         console.error("[tts] Azure fetch failed:", err);
         return NextResponse.json({ error: "TTS service unavailable" }, { status: 502 });
     }
     console.log(`[tts] azure fetch done at +${Date.now() - tStart}ms status=${azureRes.status} region=${azureConfig.region} textLen=${text.length}`);
+
+    // 🔴 ONE RETRY WITHOUT THE EMOTION WRAPPER BEFORE GIVING UP.
+    //
+    // The styled body is the fragile part of this request. `mstts:express-as`
+    // only accepts styles that the SPECIFIC voice supports, and Azure rejects
+    // the whole request — not just the style — when it does not. Azure also
+    // retires and renames voices periodically. Either way the old code went
+    // straight to 502 and the person dropped to their device's own voice for
+    // the rest of the reply, when the plain Azure voice would have worked.
+    // (U12 of the 2026-10-09 audit.)
+    //
+    // ⚠️ Severity is real but bounded: a 502 does NOT leave them silent,
+    // because both clients fall back to the device voice — verified tonight.
+    // This recovers the BETTER voice, it does not rescue a dead feature.
+    //
+    // ⛔ Only retried when there was a wrapper to drop. A plain request that
+    // failed will fail again, and retrying it would double the latency of
+    // every genuine outage for nothing.
+    if (!azureRes.ok && bodyXml !== escapedText) {
+        const firstErr = await azureRes.text().catch(() => "");
+        console.warn(
+            `[tts] Azure ${azureRes.status} with the emotion wrapper (voice=${voice} style=${style ?? "none"}) — ` +
+            `retrying plain: ${firstErr.slice(0, 200)}`,
+        );
+        try {
+            azureRes = await synthesize(escapedText);
+        } catch (err) {
+            console.error("[tts] Azure retry fetch failed:", err);
+            return NextResponse.json({ error: "TTS service unavailable" }, { status: 502 });
+        }
+        if (azureRes.ok) {
+            console.warn(`[tts] plain retry SUCCEEDED — the style "${style ?? ""}" is not valid for ${voice}`);
+        }
+    }
 
     if (!azureRes.ok) {
         const errText = await azureRes.text().catch(() => "");

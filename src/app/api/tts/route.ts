@@ -36,7 +36,32 @@ const ANONYMOUS_TTS_DAILY_LIMIT = 15;
 // cheap anonymous identities from a single IP — see
 // code_review_audit_2026_08_14 (P0-2). Checked first, before any auth work,
 // so obviously-abusive traffic is rejected at the cheapest possible point.
-const RATE_LIMIT_PER_MIN = 40;
+// 🔴 ONE SPOKEN REPLY IS NOT ONE REQUEST.
+//
+// /api/tts is called PER CHUNK, and /api/tts/transliterate shares this very
+// bucket, so a single reply legitimately costs 3–6 of the allowance. At 40/min
+// that is roughly 7–13 replies per minute — FOR THE WHOLE IP.
+//
+// ⚠️ And on carrier-grade NAT (most Indian mobile networks, school and office
+// networks) hundreds of unrelated people share one public IP. A paying user
+// could be denied voice because strangers on the same carrier used it first,
+// and the client surfaces that 429 as "Couldn't connect — using offline
+// reply", which blames the network for a quota decision. (U14 of the
+// 2026-10-09 audit.)
+//
+// 🔑 The limit's own comment says what it is FOR: "one script minting many
+// cheap anonymous identities from a single IP". A signed-in, non-anonymous
+// person is not that threat — they are already bounded by their account.
+// So apply the strict number where the threat actually is, and keep a
+// generous absolute ceiling as the cheap pre-auth DoS guard.
+//
+// ⛔ NOT simply "raise the number". That would weaken the guard for the
+// traffic it was written to stop.
+
+/** Pre-auth, cheapest possible rejection. Sized for shared NAT, not one user. */
+const IP_CEILING_PER_MIN = 300;
+/** The real guard, applied AFTER auth and only to anonymous identities. */
+const ANON_IP_RATE_LIMIT_PER_MIN = 40;
 
 /**
  * The `sub` and `is_anonymous` claims, read WITHOUT verifying the signature.
@@ -157,7 +182,7 @@ export async function POST(req: NextRequest) {
             : Promise.resolve(null);
 
     const [withinRateLimit, bearerUser] = await Promise.all([
-        checkPersistentIpRateLimit("tts", ip, RATE_LIMIT_PER_MIN, 60),
+        checkPersistentIpRateLimit("tts", ip, IP_CEILING_PER_MIN, 60),
         lookupBearer(),
     ]);
 
@@ -180,6 +205,14 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     if (user.is_anonymous) {
+        // 🔑 The strict per-IP limit lives HERE, where the threat is: an
+        // anonymous identity from this IP. A signed-in person never reaches
+        // this branch and so is no longer rationed by what strangers sharing
+        // their carrier NAT happen to be doing.
+        if (!(await checkPersistentIpRateLimit("tts-anon", ip, ANON_IP_RATE_LIMIT_PER_MIN, 60))) {
+            return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
+        }
+
         // THE DISCARD RULE. The speculative count is usable only when verified
         // auth produced the very same user id the unverified claim named. Any
         // mismatch — a forged or swapped token, a cookie-auth request, a failed

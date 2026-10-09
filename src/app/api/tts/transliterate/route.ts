@@ -16,11 +16,15 @@ import { needsTtsTransliteration, transliterateForTts } from "@/lib/azure-tts/tr
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const RATE_LIMIT_PER_MIN = 40;
+// ⚠️ Shares the "tts" bucket with /api/tts ON PURPOSE — they are two calls in
+// one spoken reply and should be budgeted together. But see /api/tts for why
+// 40 was far too low for that shared bucket: one reply costs 3–6 requests, and
+// carrier-grade NAT puts hundreds of unrelated people behind one IP.
+const IP_CEILING_PER_MIN = 300;
 
 export async function POST(req: NextRequest) {
     const ip = getClientIp(req);
-    if (!(await checkPersistentIpRateLimit("tts", ip, RATE_LIMIT_PER_MIN, 60))) {
+    if (!(await checkPersistentIpRateLimit("tts", ip, IP_CEILING_PER_MIN, 60))) {
         return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
     }
 

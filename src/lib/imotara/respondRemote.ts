@@ -37,16 +37,29 @@ export function detectLangFromRomanHints(text: string): string {
     if (!text) return "en";
     const t = text;
     const scores: Record<string, number> = {};
+    // 🔑 A one- or two-letter token is NOT evidence of a language.
+    //
+    // The rows carry real short words — `hu`/`mi`/`mu` ("I" in Gujarati,
+    // Marathi, Odia) — but two letters collide with English and with each
+    // other, so alone they prove nothing. ⚠️ They still COUNT; they just
+    // cannot make a language win on their own.
+    //
+    // Ported from mobile 2026-10-09, where it was measured: "Ho ho ho" matched
+    // hi=[Ho,ho,ho] and was answered in Hindi, and "Na, it is fine" matched
+    // only bn=[Na].
+    const substantive: Record<string, boolean> = {};
     const tally = (lang: string, re: RegExp) => {
         const m = t.match(new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g"));
-        if (m) scores[lang] = (scores[lang] || 0) + m.length;
+        if (!m) return;
+        scores[lang] = (scores[lang] || 0) + m.length;
+        if (m.some((hit) => hit.trim().length >= 3)) substantive[lang] = true;
     };
     // Hindi
     tally("hi", /\b(hai|haan|nahi|nahin|kya|kyun|kaise|aaj|kal|bhai|yaar|ghar|Thik|Tum|Aap|Hum|Woh|Yeh|Aur|Bas|Chal|Gaya|Raha|Chahiye|Abhi|Zyada|Maza|Maaf|Shukriya|mujhe|meri|tera|apna|sab|kuch|bahut|karo|karna|hoga)\b/i);
     // Bengali
     tally("bn", /\b(ami|tumi|apni|kemon|bhalo|achi|ekhon|korcho|lagche|hocche|korbo|kaaj|kaz|kajer|boddo|chap|onek|ektu|ki khobor|thik ache|kothay|keno|hobe|cholo|bondhu|bari|ghor|mon|jabo|ashbo|bolbo|bujhte)\b/i);
     // Marathi
-    tally("mr", /\b(kay|kaay|kasa|kashi|bara|baray|thik aahe|aata|mi|mee|tumhi|mala|tula|ghari|ithe|tithe|zhala|zala|chhan|khup|vatat|vatte|vallagche|dhur|nako|jevla|sang|yete|jaato)\b/i);
+    tally("mr", /\b(kay|kaay|kasa|kashi|bara|baray|thik aahe|aahe|ahe|theek nahi|baray nahi|aata|mi|mee|tumhi|mala|tula|ghari|ithe|tithe|zhala|zala|chhan|khup|vatat|vatte|vallagche|dhur|nako|jevla|sang|yete|jaato)\b/i);
     // Tamil
     tally("ta", /\b(enna|epdi|seri|sari|inga|anga|ippo|saptiya|veetla|amma|appa|nan|naan|unaku|romba|konjam|nalla|illa|sollu|pesu|venum|vendam|irukku|podhum)\b/i);
     // Telugu
@@ -67,13 +80,15 @@ export function detectLangFromRomanHints(text: string): string {
     // Punjabi
     tally("pa", /\b(ki|kida|kive|haanji|hanji|nahi|hun|tusi|main|mera|meri|sada|sadi|paji|veer|bhain|maa|papa|ghar|kithe|kithon|changa|vadhiya|roti|aaja)\b/i);
     // Kannada
-    tally("kn", /\b(yenu|enu|hegide|sari|chennagide|ivattu|naanu|neenu|nimge|nanage|amma|appa|bega|mane|illi|alli|yaake|hege|oota|neeru|tumba|bejar|ide|illa|saku|swalpa)\b/i);
+    tally("kn", /\b(yenu|enu|hegide|sari|chennagide|chennagilla|nanu|ivattu|naanu|neenu|nimge|nanage|amma|appa|bega|mane|illi|alli|yaake|hege|oota|neeru|tumba|bejar|ide|illa|saku|swalpa)\b/i);
     // Malayalam
     tally("ml", /\b(entha|enthaanu|engane|sheri|ippo|inni|njaan|njan|nee|ningal|enikku|ninakku|amma|achan|chetta|chechi|vellam|urakkam|ivide|avide)\b/i);
     // Odia
     tally("or", /\b(kana|kanha|kemiti|kemti|bhala|bhal|thik achhi|mu|tume|apana|mo|tora|ghar|bahare|ethi|sethi|aaji|kali|asuchi|jauchhi)\b/i);
 
-    const best = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
+    const best = Object.entries(scores)
+        .filter(([lang]) => substantive[lang])
+        .sort((a, b) => b[1] - a[1])[0];
     if (!best) return "en";
 
     /**

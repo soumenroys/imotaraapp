@@ -425,7 +425,14 @@ export default function HistoryPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: msgs, period: periodLabel }),
     })
-      .then((r) => r.json())
+      .then(async (r) => {
+        // ⛔ r.json() ran unconditionally, so a 502/500 body was read for
+        // `analysis` it does not have, and `?? ""` below turned the failure
+        // into an empty SUCCESS. An outage and "nothing to say about you"
+        // looked identical. Same defect as mobile's HistoryScreen.
+        if (!r.ok) throw new Error(`mindset-analysis HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => setCapsuleInsights((v) => ({ ...v, [key]: { analysis: data.analysis ?? "", advice: data.advice ?? "" } })))
       .catch(() => setCapsuleInsights((v) => ({ ...v, [key]: "error" })));
   };

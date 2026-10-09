@@ -75,10 +75,36 @@ export async function POST(req: Request) {
       system: PSYCH_SYSTEM,
       maxTokens: 600,
       temperature: 0.7,
+      // 🔴 This is NOT a chat turn and must not inherit the chat budget.
+      //
+      // Without abortMs this fell through to planBudget's default primary of
+      // 8s — the number chosen for a short conversational reply. Here it is
+      // 600 tokens of analysis over 60 messages, which routinely needs longer,
+      // so the call would abort, `result.text` came back empty, and the route
+      // returned 200 with an empty payload. The feature failed often and the
+      // failure was indistinguishable from "nothing to say about you".
+      // (U11 of the 2026-10-09 audit, verified 2026-10-10.)
+      //
+      // ⚠️ 10s, not more: both callers wait 20s, and remainingBudgetMs()
+      // guarantees the Gemini fallback its 6s floor regardless of elapsed
+      // time — so 10 + 6 + overhead still lands inside what the client waits.
+      abortMs: 10_000,
     });
 
     if (!result.text) {
-      return NextResponse.json({ analysis: "", advice: "" });
+      // ⛔ NOT 200. An AI failure is not an empty analysis. Returning
+      // `{analysis:"",advice:""}` with 200 made an outage look exactly like a
+      // person with nothing notable in their week — to the user AND to us,
+      // since nothing was logged either.
+      console.warn(
+        `[mindset-analysis] no text from the AI — from=${result.meta?.from} ` +
+        `model=${result.meta?.usedModel} reason=${result.meta?.reason ?? "none"} ` +
+        `messages=${sample.length}`,
+      );
+      return NextResponse.json(
+        { error: "analysis_unavailable", analysis: "", advice: "" },
+        { status: 502 },
+      );
     }
 
     // Parse JSON from AI response — handle both clean JSON and markdown-wrapped JSON
@@ -90,6 +116,14 @@ export async function POST(req: Request) {
       // If JSON parse fails, try to extract fields with regex
       const aMatch = result.text.match(/"analysis"\s*:\s*"((?:[^"\\]|\\.)*)"/);
       const vMatch = result.text.match(/"advice"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      // ⚠️ The regex rescue can also come up empty, and that used to be the
+      // THIRD way a failure became a blank success. Say so.
+      if (!aMatch && !vMatch) {
+        console.warn(
+          `[mindset-analysis] AI returned text that is neither JSON nor ` +
+          `regex-recoverable (${result.text.length} chars) — treating as unavailable`,
+        );
+      }
       parsed = {
         analysis: aMatch?.[1]?.replace(/\\n/g, "\n") ?? "",
         advice: vMatch?.[1]?.replace(/\\n/g, "\n") ?? "",

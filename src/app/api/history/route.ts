@@ -276,8 +276,33 @@ export async function GET(request: Request) {
   // Only enforces when LICENSE_MODE=enforce. Off/log mode: no cutoff applied.
   if (getLicenseMode() === "enforce") {
     try {
-      // scope is the user ID for authenticated users — use it to resolve tier
-      const tierResult = await resolveUserTier(scope);
+      /**
+       * 🔴 `scope` IS NOT ALWAYS A USER ID. The old comment here said it was,
+       * and that was true for paths 1 and 2 of getScopeFromRequest only.
+       * Path 3 is the anonymous fallback — a CLIENT-SUPPLIED device id for
+       * people with no account at all. Feeding that to resolve_user_tier()
+       * made Postgres throw:
+       *
+       *   [resolveUserTier] Error: invalid input syntax for type uuid:
+       *   "9c95oyeo5u-muz8zub2"      (14x on /api/history, 2026-10-08)
+       *
+       * ✅ The OUTCOME was already correct — resolveUserTier catches and
+       * returns { ok:false }, so the tier fell through to "free" and the
+       * 7-day cutoff was applied exactly as it should be. There was no
+       * licensing bypass here.
+       *
+       * ⚠️ The harm was the noise. Fourteen scary-looking uuid errors per
+       * morning is how a REAL error gets missed — and one was: the total AI
+       * outage the same night sat in the same error list.
+       *
+       * A device id can never hold a licence, so skip the round trip and say
+       * "free" directly. Same answer, no RPC, no false alarm.
+       */
+      const looksLikeUserId =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(scope);
+      const tierResult = looksLikeUserId
+        ? await resolveUserTier(scope)
+        : ({ ok: false, error: "anonymous device scope — no licence possible" } as const);
       const tier = normaliseTier(tierResult.ok ? tierResult.data.effectiveTier : "free");
       const cutoff = historyRetentionCutoff(tier);
       if (cutoff !== null) {

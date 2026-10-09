@@ -378,20 +378,28 @@ export async function POST(req: NextRequest) {
         // else: unsupported code — omit language and let Whisper auto-detect
     }
 
-    let whisperRes: Response;
-    try {
+    /**
+     * One attempt at Whisper. Factored out so an unsupported language code can
+     * be retried WITHOUT the hint instead of costing the user their recording.
+     */
+    async function callWhisper(form: FormData): Promise<Response> {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 55_000); // 55s — Vercel limit is 60s
         try {
-            whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+            return await fetch("https://api.openai.com/v1/audio/transcriptions", {
                 method: "POST",
                 headers: { Authorization: `Bearer ${apiKey}` },
-                body: whisperForm,
+                body: form,
                 signal: ctrl.signal,
             });
         } finally {
             clearTimeout(timer);
         }
+    }
+
+    let whisperRes: Response;
+    try {
+        whisperRes = await callWhisper(whisperForm);
     } catch (err) {
         console.error("[voice/transcribe] Whisper fetch failed:", err);
         return NextResponse.json({ error: "STT service unavailable" }, { status: 502 });
@@ -400,6 +408,61 @@ export async function POST(req: NextRequest) {
     if (!whisperRes.ok) {
         const errText = await whisperRes.text().catch(() => "");
         console.error(`[voice/transcribe] Whisper ${whisperRes.status}:`, errText);
+
+        /**
+         * 🔴 WHISPER REJECTED OUR LANGUAGE HINT — RETRY WITHOUT IT.
+         *
+         * Production, 2026-10-08T18:48:39Z, on `cb0ee7c`:
+         *   Whisper 400: {"error":{"message":"Language 'bn' is not supported.",
+         *   "code":"unsupported_language","param":"language"}}
+         *
+         * ⚠️ `bn` was in WHISPER_LANGS. The comment above it asserts "Whisper
+         * supports all five" — api.openai.com disagrees, and the live 400 wins.
+         *
+         * 🔑 But the whitelist being wrong is the SMALL half of this. The big
+         * half is what happened next: the route returned 502 and the user's
+         * recording was DISCARDED. Someone spoke Bengali into a companion that
+         * advertises 22 languages and got nothing back.
+         *
+         * So the durable fix is not to edit the list — it will drift again the
+         * next time OpenAI changes it, and Odia is already excluded. It is to
+         * make an unsupported hint NON-FATAL: drop the hint and let Whisper
+         * auto-detect. Accuracy on short Indic utterances is worse without the
+         * hint, which is why the hint exists — but a slightly worse
+         * transcription is enormously better than none.
+         *
+         * The console line below is deliberate: it is how we learn which codes
+         * OpenAI actually refuses, instead of encoding another guess.
+         */
+        if (whisperRes.status === 400 && whisperForm.has("language")) {
+            let unsupportedLang = false;
+            try {
+                const errJson = JSON.parse(errText);
+                unsupportedLang =
+                    errJson?.error?.code === "unsupported_language" ||
+                    errJson?.error?.param === "language";
+            } catch { /* not JSON — fall through */ }
+
+            if (unsupportedLang) {
+                const rejected = String(whisperForm.get("language") ?? "");
+                console.warn(
+                    `[voice/transcribe] Whisper rejected language "${rejected}" — ` +
+                    "retrying with auto-detect. Remove it from WHISPER_LANGS.",
+                );
+                whisperForm.delete("language");
+                try {
+                    whisperRes = await callWhisper(whisperForm);
+                } catch (err) {
+                    console.error("[voice/transcribe] Whisper retry failed:", err);
+                    return NextResponse.json({ error: "STT service unavailable" }, { status: 502 });
+                }
+            }
+        }
+    }
+
+    if (!whisperRes.ok) {
+        const errText = await whisperRes.text().catch(() => "");
+        console.error(`[voice/transcribe] Whisper ${whisperRes.status} (final):`, errText);
         // Detect quota exhaustion so the client can show a clearer message
         if (whisperRes.status === 429) {
             try {

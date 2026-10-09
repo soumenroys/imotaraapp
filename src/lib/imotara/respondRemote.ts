@@ -2,6 +2,7 @@
 import type { ImotaraResponse } from "@/lib/ai/response/responseBlueprint";
 import { statedPreference } from "./statedPreference";
 import { isBadPlaceholderText } from "@/lib/imotara/response/badPlaceholderText";
+import { englishSignal } from "./scriptDetection";
 
 /** Script-based language detection — handles native scripts via Unicode ranges.
  *  Urdu-specific chars are checked before the generic Arabic block to avoid misclassification. */
@@ -51,7 +52,12 @@ export function detectLangFromRomanHints(text: string): string {
     // Telugu
     tally("te", /\b(enti|ela|em|emi|ippudu|inka|avuna|kaadu|ledu|undhi|nenu|nuvvu|meeru|amma|nanna|baaga|chala|konchem|sare|parledu|enduku|ekkada)\b/i);
     // Gujarati
-    tally("gu", /\b(shu|kem|kem cho|majama|saru|saras|have|tame|hu|hun|mane|tane|aaje|kaal|ghar|su che|barabar|chalo|joie|nathi|che|lage che)\b/i);
+    tally("gu", /\b(shu|kem|kem cho|majama|saru|saras|tane|aaje|kaal|ghar|su che|barabar|chalo|joie|nathi|che|lage che)\b/i);
+    // ⚠️ have, tame, hu, hun, mane removed 2026-10-09 — they are common
+    // ENGLISH words, and one hint hit used to be proof of a language. "have"
+    // alone made "Do you have a minute?" Gujarati. The vetted list is
+    // emotion/keywordMaps.ts:54, which dropped exactly these and kept "hve";
+    // this row had drifted from it. Real Gujarati keeps che/shu/kem/nathi/…
     // Punjabi
     tally("pa", /\b(ki|kida|kive|haanji|hanji|nahi|hun|tusi|main|mera|meri|sada|sadi|paji|veer|bhain|maa|papa|ghar|kithe|kithon|changa|vadhiya|roti|aaja)\b/i);
     // Kannada
@@ -62,7 +68,43 @@ export function detectLangFromRomanHints(text: string): string {
     tally("or", /\b(kana|kanha|kemiti|kemti|bhala|bhal|thik achhi|mu|tume|apana|mo|tora|ghar|bahare|ethi|sethi|aaji|kali|asuchi|jauchhi)\b/i);
 
     const best = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
-    return best && best[1] >= 1 ? best[0] : "en";
+    if (!best) return "en";
+
+    /**
+     * 🔴 ENGLISH WINS WHEN IT LOOKS LIKE ENGLISH.
+     *
+     * One hint hit used to be proof of a language, and the Gujarati row above
+     * contains the English word **have**. So "I have no one to talk to" was
+     * Gujarati: Gujarati-script reply, Gujarati TTS voice. `main` did the same
+     * for Punjabi, `em` for Telugu, `sari` for Tamil and Kannada, `mo` for
+     * Odia. Two files in this repo (connect/translate.ts:75,
+     * connect/session/[id]/page.tsx:202) measure ~15% false positives on plain
+     * English and deliberately route around this function — while chat and web
+     * TTS still call it.
+     *
+     * ⛔ Raising the threshold to 2 was the obvious fix and is the wrong one.
+     * `tally` sums TOTAL matches, so "I have no one and I have nothing" already
+     * scores 2 — and "kem cho", a complete Gujarati greeting, scores 1. It
+     * would trade false positives for false negatives on exactly the short
+     * messages this product gets most.
+     *
+     * ⛔ Deleting the colliding words is also wrong: `have` means "now" in
+     * Gujarati, `main` is "I" in Punjabi. They are real words.
+     *
+     * ✅ So compare the two signals instead. English has to be at least as
+     * strong as the winning hint AND carry real weight — and `indicGrammar`
+     * vetoes it outright, which is what keeps "mera dil bhari hai" from being
+     * called English just because it is written in Latin letters.
+     *
+     * ⚠️ HONEST LIMIT: this does not rescue a sentence whose only English
+     * marker is the colliding word itself — "My main concern is money" has no
+     * other word in the English list and still reads as Punjabi. Narrower than
+     * before, not gone.
+     */
+    const english = englishSignal(t);
+    if (!english.vetoed && english.score >= 2 && english.score >= best[1]) return "en";
+
+    return best[1] >= 1 ? best[0] : "en";
 }
 
 /** Combined detection: script first, then Roman hints as fallback. */

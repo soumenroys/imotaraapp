@@ -237,7 +237,25 @@ type OpenAIChatResult = {
     message?: {
       content?: string | null;
     };
+    /**
+     * 🔴 "length" means the model was CUT OFF at maxTokens.
+     *
+     * This field was absent from the type until 2026-10-09, so truncation was
+     * structurally undetectable: a reply chopped mid-sentence looked identical
+     * to a finished one, and was stored, spoken aloud and remembered as-is.
+     * The only countermeasure was a prompt string ("Always finish your last
+     * sentence completely"), which is advice, not a guarantee.
+     *
+     * ⚠️ This matters most for Indic. Non-English gets maxTokens ×1.4
+     * (chat-reply/route.ts:3590) — but ROMANIZED input is then capped back to
+     * 280 (320 for bn), and romanized Latin is the most token-hungry form of
+     * all. So the case most likely to be truncated is the one nobody could
+     * measure. Logging it is what turns "are Indic replies being cut off?"
+     * from a guess into a number.
+     */
+    finish_reason?: string;
   }[];
+  usage?: { completion_tokens?: number };
 };
 
 /**
@@ -376,6 +394,18 @@ export async function callImotaraAI(
     }
 
     const data = (await response.json()) as OpenAIChatResult;
+
+    // Truncation is silent otherwise — see finish_reason on the type above.
+    // console.warn, not an alert: a clipped reply is a quality signal to count,
+    // not an incident to wake someone for.
+    const finishReason = data?.choices?.[0]?.finish_reason;
+    if (finishReason === "length") {
+      console.warn(
+        "[imotara][aiClient] reply TRUNCATED at maxTokens " +
+        `(maxTokens=${maxTokens}, completion_tokens=${data?.usage?.completion_tokens ?? "?"}, ` +
+        `model=${data?.model ?? "?"})`,
+      );
+    }
 
     const usedModel = data?.model || model;
     let text: string | undefined = data?.choices?.[0]?.message?.content?.trim();

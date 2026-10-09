@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type User } from "@supabase/supabase-js";
 import { getAzureConfig } from "@/lib/azure-tts/regionRouter";
-import { resolveVoice, resolveStyle, resolveProsody, AZURE_LOCALE } from "@/lib/azure-tts/voices";
+import { resolveVoice, resolveStyle, resolveProsody, AZURE_LOCALE, AZURE_VOICES } from "@/lib/azure-tts/voices";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
@@ -233,6 +233,35 @@ export async function POST(req: NextRequest) {
         const message = err instanceof Error ? err.message : "Azure not configured";
         console.error("[tts] config error:", message);
         return NextResponse.json({ error: message }, { status: 503 });
+    }
+
+    // 🔴 DO NOT READ ONE LANGUAGE ALOUD IN ANOTHER LANGUAGE'S VOICE.
+    //
+    // resolveVoice falls back to English for any unknown key
+    // (`AZURE_VOICES[lang] ?? AZURE_VOICES["en"]`), and AZURE_LOCALE does the
+    // same. So Korean — the obvious case, since `resolveTTSLang` really does
+    // return "ko-KR" for Hangul — came back as `en-US-Olivia` reading Hangul
+    // inside `xml:lang="en-US"`, and the route answered **200 with audio**.
+    //
+    // ⚠️ The 200 is the harmful part. Both clients fall back to their own
+    // device voice on a non-OK response, and a phone or browser very often
+    // HAS a Korean voice. By succeeding with gibberish we guaranteed the one
+    // outcome worse than failing. (U18 of the 2026-10-09 audit.)
+    //
+    // ✅ Safe for every supported language: all 22 are present in
+    // AZURE_VOICES (verified), so this can only fire for a language Imotara
+    // does not claim to support — exactly where the device voice is the best
+    // available answer.
+    const baseLang = String(lang).slice(0, 2).toLowerCase();
+    if (!(baseLang in AZURE_VOICES)) {
+        console.warn(
+            `[tts] no Azure voice for "${lang}" — refusing to read it in an English voice; ` +
+            "the client's device voice is the better answer",
+        );
+        return NextResponse.json(
+            { error: "unsupported_language", lang: String(lang) },
+            { status: 415 },
+        );
     }
 
     const voice   = resolveVoice(lang, gender);

@@ -3859,11 +3859,24 @@ export async function POST(req: Request) {
       { status: 200 },
     );
   } catch (err) {
-    const PROD = process.env.NODE_ENV === "production";
-    const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
-
-    if (SHOULD_LOG) {
-      console.warn("[/api/chat-reply] error:", String(err));
+    // 🔴 THIS USED TO BE SILENT IN PRODUCTION. The condition was:
+    //
+    //     const SHOULD_LOG = !PROD && process.env.NODE_ENV !== "test";
+    //
+    // …so the ONE environment where an unhandled error in the main reply path
+    // matters was the one environment that said nothing. The person got
+    // `text: ""`, every client fell back to a hard-coded template, and no
+    // trace existed anywhere. That is how the 2026-10-08 outage ran unnoticed
+    // until the owner reported it. (U4 of the 2026-10-09 audit.)
+    //
+    // Suppressing noise in TEST is reasonable. Suppressing it in production is
+    // the logic inverted.
+    //
+    // ⚠️ console.ERROR, not warn: this is an unhandled exception in the
+    // product's primary path, and it needs to appear under Vercel's error
+    // filter rather than be scrolled past with the ordinary warnings.
+    if (process.env.NODE_ENV !== "test") {
+      console.error("[/api/chat-reply] unhandled error — client will show a template:", String(err));
     }
 
     // Return a valid ImotaraAIResponse shape so the client can ignore it

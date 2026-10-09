@@ -1971,7 +1971,15 @@ export async function POST(req: Request) {
     },
     { status: 200 },
   );
-  } catch {
+  } catch (err) {
+    // 🔴 This did not even BIND the error — `} catch {` — so it logged nothing
+    // in ANY environment, production included. /api/respond is the template
+    // fallback: when it throws, the person has already lost the AI reply and
+    // now loses the fallback too, and there was no record that it happened.
+    // (U4 of the 2026-10-09 audit.)
+    if (process.env.NODE_ENV !== "test") {
+      console.error("[/api/respond] unhandled error — the fallback engine itself failed:", String(err));
+    }
     return NextResponse.json(
       { ok: false, message: "Something went wrong. Please try again." },
       { status: 500 },

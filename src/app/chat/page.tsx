@@ -5196,11 +5196,77 @@ const LANG_TO_BCP47: Record<string, string> = {
  * Emotion vocabulary via mapDebugEmotionForTTS() — this function forwards it
  * as-is, it does not normalize.
  */
+/**
+ * 🔴 WEB TTS HAD NO TIMEOUTS AT ALL — mobile has had both for months.
+ *
+ *   mobileTTS.ts   TRANSLITERATE_TIMEOUT_MS = 7_000
+ *                  CHUNK_FETCH_TIMEOUT_MS   = 20_000
+ *   chat/page.tsx  (nothing)
+ *
+ * So a hung /api/tts could leave web silent indefinitely with no fallback
+ * armed, while the same hang on mobile recovered in 20s. (U13 of the
+ * 2026-10-09 audit.) The numbers are mobile's deliberately — one behaviour
+ * across platforms, not two that drift.
+ *
+ * Gives each fetch its OWN controller, chained to the caller's signal so a
+ * real user stop still propagates, and reports whether OUR timer was what
+ * fired. Both properties matter:
+ *
+ *   · own controller → a slow chunk cannot poison every later chunk (mobile's U2)
+ *   · timedOut flag  → a timeout is not mistaken for a user stop (mobile's D2)
+ */
+const TRANSLITERATE_TIMEOUT_MS = 7_000;
+const CHUNK_FETCH_TIMEOUT_MS = 20_000;
+
+function armedSignal(parent: AbortSignal, ms: number): {
+  signal: AbortSignal;
+  disarm: () => void;
+  readonly timedOut: boolean;
+} {
+  const ctrl = new AbortController();
+  let timedOut = false;
+  const onParentAbort = () => ctrl.abort();
+  if (parent.aborted) ctrl.abort();
+  else parent.addEventListener("abort", onParentAbort, { once: true });
+  const timer = setTimeout(() => { timedOut = true; ctrl.abort(); }, ms);
+  return {
+    signal: ctrl.signal,
+    disarm: () => {
+      clearTimeout(timer);
+      parent.removeEventListener("abort", onParentAbort);
+    },
+    get timedOut() { return timedOut; },
+  };
+}
+
 async function autoSpeakText(text: string, emotion?: string): Promise<void> {
   const abort = new AbortController();
-  await new Promise<void>((resolve) => {
-    void playChunkedTTS(text, { signal: abort.signal, onDone: resolve, emotion });
-  });
+  // 🔴 THIS USED TO BE ABLE TO HANG FOREVER, WEDGING HANDS-FREE SHUT.
+  //
+  //   await new Promise<void>((resolve) => {
+  //     void playChunkedTTS(text, { signal: abort.signal, onDone: resolve });
+  //   });
+  //
+  // The promise's ONLY resolve path was `onDone`, and playChunkedTTS returns
+  // WITHOUT firing onDone on an AbortError. That needs no user action to
+  // happen: `audio.play()` rejects with AbortError whenever playback is
+  // interrupted. So the await never settled.
+  //
+  // ⚠️ And its caller's safety net could not help. speakReplyWithMicShut wraps
+  // this in try/finally precisely so "a TTS failure cannot wedge the
+  // microphone shut" — but a `finally` never runs if the awaited promise never
+  // settles. speakingRef stayed true, the recogniser's restart guard kept
+  // seeing it, and the mic never reopened. (U1 of the 2026-10-09 audit.)
+  //
+  // 🔑 playChunkedTTS is an async function that ALWAYS settles — it awaits
+  // every playBlob and its catch returns rather than rethrowing — so awaiting
+  // IT is both the accurate "speech finished" signal and one that cannot be
+  // skipped. onDone was never needed here; it was a second, weaker channel for
+  // the same event.
+  //
+  // ⛔ Deliberately NOT a timeout race: a long reply legitimately takes a long
+  // time to speak, and cutting it off would degrade the thing we are fixing.
+  await playChunkedTTS(text, { signal: abort.signal, emotion }).catch(() => {});
 }
 
 // Normalizes this file's own local debug-emotion labels (from
@@ -5455,12 +5521,13 @@ async function playChunkedTTS(
   // already covers this one upfront call. Fails open on any error: `clean`
   // just stays as the original romanized text, exactly today's behavior.
   if (TTS_TRANSLITERATION_LANGS.has(lang) && !detectScriptLang(clean)) {
+    const tl = armedSignal(signal, TRANSLITERATE_TIMEOUT_MS);
     try {
       const res = await fetch("/api/tts/transliterate", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ text: clean, lang }),
-        signal,
+        signal:  tl.signal,
       });
       if (res.ok) {
         const data = await res.json();
@@ -5468,18 +5535,36 @@ async function playChunkedTTS(
       }
     } catch {
       // Network error, abort, etc. — keep the original romanized `clean`.
+    } finally {
+      tl.disarm();
     }
   }
 
   async function fetchChunk(chunkText: string): Promise<Blob> {
-    const res = await fetch("/api/tts", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ text: chunkText, lang, gender, ...(emotion ? { emotion } : {}) }),
-      signal,
-    });
-    if (!res.ok) throw new Error(`TTS ${res.status}`);
-    return res.blob();
+    // ⚠️ Its OWN controller, not the shared `signal`. A per-fetch timer firing
+    // on the shared signal would poison every LATER chunk too — that is
+    // exactly mobile's U2, and web must not grow its own copy of it.
+    const a = armedSignal(signal, CHUNK_FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch("/api/tts", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ text: chunkText, lang, gender, ...(emotion ? { emotion } : {}) }),
+        signal:  a.signal,
+      });
+      if (!res.ok) throw new Error(`TTS ${res.status}`);
+      return await res.blob();
+    } catch (err) {
+      // 🔑 A TIMEOUT IS NOT A USER STOP. The catch in the chunk loop returns
+      // silently on AbortError, on the (correct) assumption that an abort
+      // means the person pressed stop. Our own timer firing would be misread
+      // as that and suppress the speechSynthesis fallback — mobile's D2,
+      // verbatim. Rethrow it as an ordinary failure so the fallback runs.
+      if (a.timedOut) throw new Error(`TTS chunk timed out after ${CHUNK_FETCH_TIMEOUT_MS}ms`);
+      throw err;
+    } finally {
+      a.disarm();
+    }
   }
 
   function playBlob(blob: Blob): Promise<void> {

@@ -23,6 +23,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { AZURE_VOICES, AZURE_LOCALE } from "@/lib/azure-tts/voices";
 import fs from "fs";
 import path from "path";
 
@@ -100,5 +101,58 @@ describe("🔴 U18 — no language is read aloud in another language's voice", (
     if (fs.existsSync(m)) {
       expect(fs.readFileSync(m, "utf8")).toMatch(/throw new Error\(`TTS API \$\{res\.status\}`\)/);
     }
+  });
+});
+
+/* ─────────── the 415 predicate, over every string a caller can send ───────────
+ *
+ * ⚠️ WRITTEN AFTER A FAILED VERIFICATION. I tried to prove this in production
+ * by curling /api/tts for all 22 languages; every one came back 401, because
+ * the route requires a Supabase user and my request carried no token — the
+ * auth gate (line ~180) sits well before this check (~256), so the test
+ * exercised nothing at all and the "all 22 regressed" table it printed was
+ * meaningless.
+ *
+ * An authenticated production call is not available without signing in. So
+ * instead: test the PREDICATE exhaustively, against the exact strings the
+ * callers actually produce. That is where the regression risk lives — a 415
+ * on a supported language would silence TTS for everyone who speaks it.
+ */
+
+/** The EXACT predicate from api/tts/route.ts. */
+const refuses = (lang: unknown) => !(String(lang).slice(0, 2).toLowerCase() in AZURE_VOICES);
+const SUPPORTED = "en hi bn mr ta te gu pa kn ml or ur ar he ru zh ja es fr de pt id".split(" ");
+
+describe("⚖️ the 415 cannot silence a language Imotara supports", () => {
+  it("never refuses a supported 2-letter code (what mobile sends)", () => {
+    for (const l of SUPPORTED) expect(refuses(l), l).toBe(false);
+  });
+
+  it("🔑 never refuses a supported BCP-47 tag (web sends hi-IN, not hi)", () => {
+    // The mistake this catches: comparing the raw "hi-IN" against a table
+    // keyed by "hi" would refuse EVERY language on the web client.
+    for (const l of SUPPORTED) {
+      const tag = AZURE_LOCALE[l];
+      expect(tag, `no AZURE_LOCALE for ${l}`).toBeTruthy();
+      expect(refuses(tag), `${l} -> ${tag}`).toBe(false);
+    }
+  });
+
+  it("…nor odd-but-valid casing and region variants", () => {
+    for (const l of ["HI", "Hi-IN", "en-GB", "pt-BR", "zh-TW", "ar-EG"]) {
+      expect(refuses(l), l).toBe(false);
+    }
+  });
+
+  it("🔴 DOES refuse Korean in every form — the whole point", () => {
+    for (const l of ["ko", "ko-KR", "KO-kr"]) expect(refuses(l), l).toBe(true);
+  });
+
+  it("…and other genuinely unsupported languages", () => {
+    for (const l of ["th", "vi", "tr", "pl", "sw"]) expect(refuses(l), l).toBe(true);
+  });
+
+  it("⚠️ degenerate input is refused, not read aloud in English", () => {
+    for (const l of ["", "x", undefined, null]) expect(refuses(l), String(l)).toBe(true);
   });
 });

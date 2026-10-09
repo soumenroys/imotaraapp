@@ -56,8 +56,15 @@ describe("🔴 the primary cannot consume the whole reply budget", () => {
     // only matter for a hypothetical standalone call. Fixing one and missing
     // the other would leave the streaming path — the one the WEB uses — broken,
     // and a single toMatch would not have noticed.
-    const primary = [...s.matchAll(/options\.abortMs \?\? PRIMARY_BUDGET_MS/g)];
+    // ⚠️ UPDATED 2026-10-09 when the client-budget planner landed. The two
+    // primaries no longer hardcode PRIMARY_BUDGET_MS — they take plan.primaryMs,
+    // which planBudget() CAPS at PRIMARY_BUDGET_MS. Same invariant, now sized to
+    // what the client will actually wait for. The count still matters: fixing one
+    // entry point and missing the other is the original bug.
+    const primary = [...s.matchAll(/options\.abortMs \?\? plan\.primaryMs/g)];
     expect(primary.length).toBe(2);
+    // and the cap is still real — the plan can never hand out more than designed
+    expect(s).toMatch(/Math\.min\(PRIMARY_BUDGET_MS, available - FALLBACK_RESERVE_MS\)/);
   });
 
   it("the two Gemini defaults are deliberately left at the full ceiling", () => {

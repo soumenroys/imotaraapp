@@ -54,7 +54,11 @@ describe("🔴 OpenAI is the PRIMARY provider and Gemini only the fallback", () 
     const s = read(AI);
     // no key → Gemini; HTTP error → Gemini; throw → Gemini. Never first.
     expect(s).toMatch(/if \(!apiKey\)[\s\S]{0,200}callGeminiAI\(/);
-    expect(s).toMatch(/!response\.ok[\s\S]{0,400}callGeminiAI\(/);
+    // ⚠️ Window widened 2026-10-09: the client-budget guard (`if
+    // (!plan.fallbackEnabled)`) now legitimately sits between the failure
+    // check and the hop. Still BOUNDED — an unbounded [\s\S]* would match a
+    // callGeminiAI anywhere in the file and assert nothing.
+    expect(s).toMatch(/!response\.ok[\s\S]{0,1200}callGeminiAI\(/);
   });
 
   it("the OpenAI endpoint is what callImotaraAI calls", () => {

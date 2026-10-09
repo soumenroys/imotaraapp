@@ -232,7 +232,13 @@ export async function respondRemote(input: {
         // ── Streaming path (web) ────────────────────────────────────────────────
         const aiRes = await fetch("/api/chat-reply?stream=1", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            // Tell the server how long we will actually wait, so it can size
+            // its own budget to fit. See planBudget() in aiClient.ts — the
+            // server used to ASSUME this and the assumption went stale.
+            headers: {
+                "Content-Type": "application/json",
+                "x-imotara-client-timeout-ms": String(apiTimeoutMs),
+            },
             body: chatReplyBody,
             signal: AbortSignal.timeout(apiTimeoutMs),
         });

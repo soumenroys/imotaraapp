@@ -43,6 +43,13 @@ export type CallImotaraAIOptions = {
    * Used for "pause / goodbye / talk later" closure states.
    */
   noQuestions?: boolean;
+
+  /**
+   * How long the CLIENT is prepared to wait, in ms, as the client itself
+   * reports it. See planBudget() for why the server needs to be told.
+   * Omitted (older clients) ⇒ the previous fixed behaviour, unchanged.
+   */
+  clientBudgetMs?: number;
 };
 
 export type ImotaraAIResponse = {
@@ -171,6 +178,57 @@ function remainingBudgetMs(elapsedMs: number): number {
 }
 
 /**
+ * 🔴 THE SERVER USED TO GUESS HOW LONG THE CLIENT WOULD WAIT. IT GUESSED WRONG.
+ *
+ * `TOTAL_REPLY_BUDGET_MS` was chosen to sit "comfortably under the shortest
+ * client timeout", documented as "web 20s, mobile 20-25s". That stopped being
+ * true: `fetchWithTimeout.ts` now defaults to **10s**, and 10 is the SMALLEST
+ * option offered on both platforms (`API_TIMEOUT_OPTIONS = [10, 20, 30, 60]`).
+ * A constant on one side of the wire describing the other side will drift
+ * again, so the client now simply says what it will tolerate.
+ *
+ * ⚖️ THE ONE REAL TRADE, AND WHY IT GOES THIS WAY.
+ * A 10s client leaves ~8.5s after overhead. That cannot hold both a generous
+ * primary and a usable fallback. Two options:
+ *
+ *   X  primary 8.5s, no fallback   → ~95% of replies from OpenAI, else template
+ *   Y  primary ~3s + fallback ~5.2s → more replies, but many from the WEAKER
+ *                                     model, and OpenAI guillotined at 3s
+ *
+ * **X is chosen.** Y buys reply COUNT by spending reply QUALITY, which is the
+ * one trade this project does not make.
+ *
+ * 🔑 And X loses ~nothing versus today: with an 8s primary, a 10s client needs
+ * Gemini to answer in under ~1.5s to land before the abort — below its measured
+ * 1.2-2.6s range. That fallback is ALREADY failing almost always. Under X the
+ * primary gets slightly longer (8.5s vs 8s, so slightly more real replies) and
+ * the template, when it comes, comes sooner. Same or better at every setting.
+ *
+ * ⚠️ Skipping the fallback is a budget decision, NOT an outage. It must not
+ * page anyone — see the call sites.
+ */
+const CLIENT_OVERHEAD_MS = 1_500;
+const MIN_PRIMARY_MS = 5_000;
+
+type BudgetPlan = { primaryMs: number; fallbackEnabled: boolean };
+
+function planBudget(clientBudgetMs?: number): BudgetPlan {
+  // No header: an older client, or a server-to-server call. Behave exactly as
+  // before rather than guessing — that is what got us here.
+  if (typeof clientBudgetMs !== "number" || !Number.isFinite(clientBudgetMs) || clientBudgetMs <= 0) {
+    return { primaryMs: PRIMARY_BUDGET_MS, fallbackEnabled: true };
+  }
+  const available = clientBudgetMs - CLIENT_OVERHEAD_MS;
+  if (available >= MIN_PRIMARY_MS + FALLBACK_RESERVE_MS) {
+    return {
+      primaryMs: Math.min(PRIMARY_BUDGET_MS, available - FALLBACK_RESERVE_MS),
+      fallbackEnabled: true,
+    };
+  }
+  return { primaryMs: Math.max(MIN_PRIMARY_MS, available), fallbackEnabled: false };
+}
+
+/**
  * Minimal type for OpenAI's Chat Completions API response.
  */
 type OpenAIChatResult = {
@@ -220,7 +278,9 @@ export async function callImotaraAI(
   // it. Both paths now behave the same: try Gemini, and alert.
   if (!apiKey) {
     void sendOutageAlert("OPENAI_API_KEY not set — falling back to Gemini", "openai_down");
-    return callGeminiAI(prompt, options);
+    // No OpenAI at all ⇒ Gemini is the PRIMARY here, not a fallback, so it
+    // gets the primary slice rather than a leftover.
+    return callGeminiAI(prompt, { ...options, abortMs: planBudget(options.clientBudgetMs).primaryMs });
   }
 
   const systemPrompt =
@@ -256,7 +316,8 @@ export async function callImotaraAI(
 
   // Optional timeout support: if the request hangs or is very slow,
   // we abort and fall back with the same style of message.
-  const abortMs = options.abortMs ?? PRIMARY_BUDGET_MS;
+  const plan = planBudget(options.clientBudgetMs);
+  const abortMs = options.abortMs ?? plan.primaryMs;
   const tStart = Date.now();
   const controller = new AbortController();
   const timeoutId =
@@ -301,6 +362,16 @@ export async function callImotaraAI(
       );
       const openaiReason = `HTTP ${response.status}: ${errText.slice(0, 200)}`;
       void sendOutageAlert(openaiReason);
+      if (!plan.fallbackEnabled) {
+        // Budget decision, not an outage: the client will not wait long enough
+        // for a second engine, so attempting one would burn money on a reply
+        // nobody receives. Logged, deliberately NOT alerted.
+        console.warn(
+          "[imotara][aiClient] fallback skipped — client budget " +
+          `${options.clientBudgetMs}ms leaves no usable window`,
+        );
+        return { text: "", meta: { usedModel: "", from: "disabled", reason: "client budget too short for a fallback" } };
+      }
       return callGeminiAI(prompt, { ...options, abortMs: remainingBudgetMs(Date.now() - tStart) });
     }
 
@@ -342,6 +413,13 @@ export async function callImotaraAI(
     const reason = err?.message || "Unknown network or runtime error";
     console.error("[imotara][aiClient] fetch exception:", reason);
     void sendOutageAlert(reason);
+    if (!plan.fallbackEnabled) {
+      console.warn(
+        "[imotara][aiClient] fallback skipped — client budget " +
+        `${options.clientBudgetMs}ms leaves no usable window`,
+      );
+      return { text: "", meta: { usedModel: "", from: "disabled", reason: "client budget too short for a fallback" } };
+    }
     return callGeminiAI(prompt, { ...options, abortMs: remainingBudgetMs(Date.now() - tStart) });
   }
 }
@@ -951,7 +1029,8 @@ export async function* streamImotaraAI(
   const systemPrompt = options.system ?? "You are Imotara — a warm, caring emotional companion. Be concise and human.";
   const temperature = typeof options.temperature === "number" ? options.temperature : 0.7;
   const maxTokens = options.maxTokens ?? 350;
-  const abortMs = options.abortMs ?? PRIMARY_BUDGET_MS;
+  const plan = planBudget(options.clientBudgetMs);
+  const abortMs = options.abortMs ?? plan.primaryMs;
   const tStart = Date.now();
   const controller = new AbortController();
   const timeoutId = abortMs > 0 ? setTimeout(() => controller.abort(), abortMs) : undefined;
@@ -996,6 +1075,13 @@ export async function* streamImotaraAI(
     if (!response.ok || !response.body) {
       console.error(`[imotara][aiClient] stream HTTP ${response.status} or missing body`);
       void sendOutageAlert(`Streaming HTTP ${response.status}`);
+      if (!plan.fallbackEnabled) {
+        console.warn(
+          "[imotara][aiClient] stream fallback skipped — client budget " +
+          `${options.clientBudgetMs}ms leaves no usable window`,
+        );
+        return;
+      }
       yield* streamGeminiAI(prompt, { ...options, abortMs: remainingBudgetMs(Date.now() - tStart) });
       return;
     }
@@ -1041,6 +1127,13 @@ export async function* streamImotaraAI(
     if (!yieldedAny) {
       console.error("[imotara][aiClient] stream fetch exception:", err?.message || err);
       void sendOutageAlert(err?.message || "Streaming network error");
+      if (!plan.fallbackEnabled) {
+        console.warn(
+          "[imotara][aiClient] stream fallback skipped — client budget " +
+          `${options.clientBudgetMs}ms leaves no usable window`,
+        );
+        return;
+      }
       yield* streamGeminiAI(prompt, { ...options, abortMs: remainingBudgetMs(Date.now() - tStart) });
     } else {
       console.error("[imotara][aiClient] stream stalled/aborted after partial output:", err?.message || err);

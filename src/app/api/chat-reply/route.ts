@@ -130,6 +130,26 @@ function detectEmotionalArc(
 
 // Node.js runtime — required for next/headers (used by getSupabaseUserServerClient for cookie auth).
 // Deploy to Singapore — closest Vercel region to Supabase ap-southeast-1 and Indian users.
+
+/**
+ * How long the CLIENT says it will wait, from the `x-imotara-client-timeout-ms`
+ * header. The server used to assume this ("comfortably under the shortest
+ * client timeout — web 20s, mobile 20-25s") and the assumption went stale:
+ * mobile now DEFAULTS to 10s and offers it as the smallest option. A constant
+ * on one side of the wire describing the other side will drift again, so the
+ * client states it and aiClient's planBudget() sizes itself to fit.
+ *
+ * ⚠️ Clamped. The header is attacker-controllable: an absurd value would let
+ * someone hold a function open, and a tiny one would guarantee template replies.
+ */
+function clientBudgetFrom(req: Request): number | undefined {
+  const raw = req.headers.get("x-imotara-client-timeout-ms");
+  if (!raw) return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.min(Math.max(n, 5_000), 120_000);
+}
+
 export const preferredRegion = ["sin1"];
 export const maxDuration = 60;
 
@@ -3678,6 +3698,7 @@ export async function POST(req: Request) {
               system: streamSystem,
               maxTokens: streamMaxTokens,
               temperature: replyTemperature,
+              clientBudgetMs: clientBudgetFrom(req),
             })) {
               controller.enqueue(
                 encoder.encode(`data: ${JSON.stringify({ t: token })}\n\n`),
@@ -3703,6 +3724,7 @@ export async function POST(req: Request) {
       maxTokens: romanizedPrompt ? Math.min(maxTokens, resolvedLang === "bn" ? 320 : 280) : maxTokens,
       temperature: replyTemperature,
       noQuestions: isClosureIntent,
+      clientBudgetMs: clientBudgetFrom(req),
     });
 
     // ✅ ROOT-CAUSE FIX:

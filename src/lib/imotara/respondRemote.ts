@@ -195,6 +195,48 @@ function detectExplicitLangRequest(text: string): string | null {
     return null;
 }
 
+/**
+ * Below this, a salvaged fragment is not worth showing — fall through to the
+ * template instead.
+ *
+ * ⚠️ 8, AND THE NUMBER IS MEASURED, NOT GUESSED. A character floor is
+ * inherently biased against native scripts, because they say the same thing in
+ * far fewer characters. Measured on real short replies:
+ *
+ *     "আমি আছি।"               8   ← a complete Bengali reply
+ *     "I hear you."           11
+ *     "मैं यहीं हूँ।"            13
+ *     "Naan irukken."         13
+ *     "Ami achi tomar sathe." 21
+ *     "Hi." / "Ok."            3   ← the fragments worth rejecting
+ *
+ * 🔑 My first attempt used 25. That looked conservative and would have thrown
+ * away EVERY one of the native-script replies above — a reply-quality fix that
+ * silently did nothing for the languages it most needed to serve. The test
+ * caught it.
+ */
+const MIN_SALVAGEABLE_REPLY_CHARS = 8;
+
+/**
+ * Cuts text back to its last COMPLETE sentence.
+ *
+ * ⚠️ Includes `।` (Devanagari danda) and the full-width CJK stops — without
+ * them Hindi, Bengali, Marathi, Chinese and Japanese replies would never find
+ * a boundary, and a feature meant to protect reply quality would silently do
+ * nothing for exactly the languages this product serves most.
+ */
+function trimToLastSentence(text: string): string {
+  const t = text.trim();
+  if (!t) return "";
+  let cut = -1;
+  for (const ch of [".", "!", "?", "\u0964", "\u3002", "\uFF01", "\uFF1F"]) {
+    cut = Math.max(cut, t.lastIndexOf(ch));
+  }
+  // No terminator at all — a single unfinished clause. Not worth salvaging.
+  if (cut < 0) return "";
+  return t.slice(0, cut + 1).trim();
+}
+
 export async function respondRemote(input: {
     message: string;
     context?: unknown;
@@ -301,6 +343,11 @@ export async function respondRemote(input: {
     const _timeoutRaw = typeof window !== "undefined" ? parseInt(window.localStorage.getItem("imotara.api.timeout.v1") ?? "20", 10) : 20;
     const apiTimeoutMs = isFinite(_timeoutRaw) && _timeoutRaw > 0 ? _timeoutRaw * 1000 : 20_000;
 
+    // 🔴 Hoisted out of the try so the catch can SEE what already arrived.
+    // A stall after most of a good reply used to throw it away and start again
+    // against the template engine — and the person had already WATCHED those
+    // tokens render. (U9 of the 2026-10-09 audit.)
+    let fullText = "";
     try {
         // ── Streaming path (web) ────────────────────────────────────────────────
         const aiRes = await fetch("/api/chat-reply?stream=1", {
@@ -320,7 +367,6 @@ export async function respondRemote(input: {
             const reader = aiRes.body.getReader();
             const decoder = new TextDecoder();
             let buffer = "";
-            let fullText = "";
             let done = false;
 
             while (!done) {
@@ -386,8 +432,33 @@ export async function respondRemote(input: {
                 };
             }
         }
-    } catch {
-        // Streaming path unavailable — fall through to template path below
+    } catch (err) {
+        // ⛔ This was an EMPTY catch — no log in any environment. A stalled or
+        // failed stream silently became a template reply and nothing recorded
+        // that it had happened.
+        console.warn(
+            `[imotara][respondRemote] streaming failed after ${fullText.length} chars:`,
+            String((err as { message?: string } | null)?.message ?? err),
+        );
+
+        // 🔑 KEEP A REAL PARTIAL REPLY RATHER THAN REPLACING IT WITH A TEMPLATE.
+        //
+        // onChunk already rendered these tokens, so the person has READ them.
+        // Discarding them to show a canned line is worse twice over: it is
+        // lower quality, and it visibly rewrites what they were just reading.
+        //
+        // ⚠️ Trimmed to the last complete sentence, so what survives is a
+        // finished thought rather than a line cut mid-word. If that leaves too
+        // little to be worth keeping, fall through to the template as before.
+        const salvaged = trimToLastSentence(fullText);
+        if (salvaged.length >= MIN_SALVAGEABLE_REPLY_CHARS && !isBadPlaceholderText(salvaged)) {
+            console.warn(`[imotara][respondRemote] salvaged ${salvaged.length} chars of the streamed reply`);
+            return {
+                message: salvaged,
+                followUp: "",
+                meta: { styleContract: "1.0", blueprint: "1.0", analysisSource: "cloud" } as any,
+            };
+        }
     }
 
     // ── Template fallback: /api/respond (runImotara, works offline) ───────────

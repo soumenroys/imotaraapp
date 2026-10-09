@@ -52,12 +52,18 @@ export function detectLangFromRomanHints(text: string): string {
     // Telugu
     tally("te", /\b(enti|ela|em|emi|ippudu|inka|avuna|kaadu|ledu|undhi|nenu|nuvvu|meeru|amma|nanna|baaga|chala|konchem|sare|parledu|enduku|ekkada)\b/i);
     // Gujarati
-    tally("gu", /\b(shu|kem|kem cho|majama|saru|saras|tane|aaje|kaal|ghar|su che|barabar|chalo|joie|nathi|che|lage che)\b/i);
-    // ⚠️ have, tame, hu, hun, mane removed 2026-10-09 — they are common
-    // ENGLISH words, and one hint hit used to be proof of a language. "have"
-    // alone made "Do you have a minute?" Gujarati. The vetted list is
-    // emotion/keywordMaps.ts:54, which dropped exactly these and kept "hve";
-    // this row had drifted from it. Real Gujarati keeps che/shu/kem/nathi/…
+    tally("gu", /\b(shu|kem|kem cho|majama|saru|saras|tame|hu|tane|mane|aaje|kaal|ghar|su che|barabar|chalo|joie|nathi|che|lage che|hun)\b/i);
+    // ⚠️ ONLY `have` removed 2026-10-09. It is an English auxiliary verb, and
+    // one hint hit used to be proof of a language, so it alone made "Do you
+    // have a minute?" Gujarati.
+    //
+    // ⛔ I first copied the whole vetted removal set from
+    // emotion/keywordMaps.ts:54 (have|tame|hu|hun|mane|su|thai) and that was
+    // WRONG HERE: that list is three times longer, so it can lose four markers
+    // and still have plenty. THIS row is short, and stripping them dropped
+    // genuine Gujarati below the English signal — "mane work ma problem che,
+    // really thodu stress" came out ENGLISH. Caught by running the function on
+    // code-mixed sentences, which is the normal register for these speakers.
     // Punjabi
     tally("pa", /\b(ki|kida|kive|haanji|hanji|nahi|hun|tusi|main|mera|meri|sada|sadi|paji|veer|bhain|maa|papa|ghar|kithe|kithon|changa|vadhiya|roti|aaja)\b/i);
     // Kannada
@@ -102,7 +108,17 @@ export function detectLangFromRomanHints(text: string): string {
      * before, not gone.
      */
     const english = englishSignal(t);
-    if (!english.vetoed && english.score >= 2 && english.score >= best[1]) return "en";
+    // ⚠️ STRICTLY greater, not >=. A tie must go to the Indic hint.
+    //
+    // With >= this regressed real code-mixed Gujarati: "mane work ma problem
+    // che, really thodu stress" scored gu=2 (che, thodu) and English=2 (work,
+    // really) and came out ENGLISH. The indicGrammar veto only carries Hindi
+    // and Bengali markers, so gu/ta/te/kn/ml/or/pa have no protection — and
+    // code-mixing is the normal register for exactly those speakers.
+    //
+    // English now has to actually WIN, not merely draw. Caught by running the
+    // function on code-mixed sentences rather than reasoning about it.
+    if (!english.vetoed && english.score >= 2 && english.score > best[1]) return "en";
 
     return best[1] >= 1 ? best[0] : "en";
 }

@@ -83,6 +83,26 @@ describe("🔴 …and genuine romanized Indic is NOT collateral damage", () => {
     expect(detectLangFromRomanHints(sentence)).toBe(want);
   });
 
+  it.each([
+    ["mane work ma problem che, really thodu stress", "gu"],
+    ["naan romba tired, work la problem", "ta"],
+    ["enakku really kashtama irukku today", "ta"],
+    ["hun khub tired chhu aaje work ma", "gu"],
+    ["aaj main office nahi gaya, really tired hoon", "hi"],
+    ["ami office jabo na aaj, feeling very tired", "bn"],
+  ])("\u26a0\ufe0f code-mixed: %s stays %s", (sentence, want) => {
+    // \U0001f534 THE REGRESSION THIS FIX ORIGINALLY CAUSED. Code-mixing is the
+    // NORMAL register for these speakers \u2014 English nouns inside Indic grammar.
+    // The first version of the guard fired on a TIE and stole the first of
+    // these for English. Two things fix it: the comparison is now strictly
+    // greater, and the Gujarati row kept its real markers.
+    //
+    // \u26a0\ufe0f gu/ta/te/kn/ml/or/pa have NO indicGrammar veto \u2014 that list carries
+    // only Hindi and Bengali markers \u2014 so these are the cases with no safety
+    // net. They are the ones to check before touching this guard again.
+    expect(detectLangFromRomanHints(sentence)).toBe(want);
+  });
+
   it("🔑 indicGrammar vetoes the English signal outright", () => {
     // Code-mixed text is Latin-script but not English. The veto is what makes
     // the whole comparison safe.
@@ -94,15 +114,21 @@ describe("the fix is where I say it is", () => {
   it("the comparison guard exists and respects the veto", () => {
     const s = code("src/lib/imotara/respondRemote.ts");
     expect(s).toMatch(/const english = englishSignal\(t\);/);
-    expect(s).toMatch(/!english\.vetoed && english\.score >= 2 && english\.score >= best\[1\]/);
+    // strictly greater: a TIE must go to the Indic hint, or code-mixing is stolen
+    expect(s).toMatch(/!english\.vetoed && english\.score >= 2 && english\.score > best\[1\]/);
   });
 
   it("⛔ the Gujarati row no longer contains the English word `have`", () => {
     const s = code("src/lib/imotara/respondRemote.ts");
     const gu = s.match(/tally\("gu", \/\\b\((.*?)\)\\b\/i\);/)?.[1] ?? "";
     expect(gu.length).toBeGreaterThan(0);
-    for (const w of ["have", "tame", "hu", "hun", "mane"]) {
-      expect(gu.split("|")).not.toContain(w);
+    expect(gu.split("|")).not.toContain("have");
+    // ⛔ …and ONLY `have`. I first copied the whole vetted removal set from
+    // emotion/keywordMaps.ts:54, which is three times longer and can afford to
+    // lose four markers. Stripping them from THIS row dropped genuine Gujarati
+    // below the English signal. These are real Gujarati words, not English:
+    for (const w of ["tame", "hu", "hun", "mane"]) {
+      expect(gu.split("|")).toContain(w);
     }
     // …but it is still a working Gujarati detector
     expect(gu.split("|")).toContain("che");

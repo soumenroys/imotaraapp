@@ -56,7 +56,9 @@ export type ImotaraAIResponse = {
   text: string;
   meta: {
     usedModel: string;
-    from: "openai" | "fallback" | "disabled" | "error";
+    // "skipped" = a hedge that was never needed because the primary
+    // answered first. It is always discarded, never shown to anyone.
+    from: "openai" | "fallback" | "disabled" | "error" | "skipped";
     reason?: string;
   };
 };
@@ -210,22 +212,81 @@ function remainingBudgetMs(elapsedMs: number): number {
 const CLIENT_OVERHEAD_MS = 1_500;
 const MIN_PRIMARY_MS = 5_000;
 
-type BudgetPlan = { primaryMs: number; fallbackEnabled: boolean };
+/**
+ * 🔴 THE ENGINES NO LONGER TAKE TURNS AT A TIGHT BUDGET.
+ *
+ * Found 2026-10-09 after OpenAI aborted twice in 24h. Sizing the server to the
+ * client's budget (planBudget, 981ed26) was right, but it left the chain
+ * SEQUENTIAL: run OpenAI for 8.5s, and only then run Gemini for 6s. Those two
+ * can never both fit in a 10s client budget, so one of them had to be dropped
+ * — and the one dropped was the fallback.
+ *
+ * ⚠️ 10s is MOBILE'S DEFAULT (`DEFAULT_REMOTE_TIMEOUT_MS`). So every mobile
+ * user on default settings had NO fallback: when OpenAI aborted they got a
+ * hard-coded TEMPLATE, not a weaker AI reply. Measured on this file's own
+ * numbers — 10s was the only setting of the four with `fallbackEnabled:false`.
+ *
+ * 🔑 The fix is not a bigger budget; raising the timeout spends the user's
+ * patience to buy a reply. The fix is to stop serialising: start the fallback
+ * ALONGSIDE the primary once the primary looks slow, and take whichever
+ * produces real content first.
+ *
+ *   t=0      OpenAI starts, and keeps its FULL window — nothing is taken away
+ *   t=hedge  Gemini starts TOO. OpenAI is NOT cancelled.
+ *   first real content wins; a template only if BOTH fail.
+ *
+ * ⚖️ Why this costs no reply quality: OpenAI still gets its entire window, so
+ * any reply it would have produced in time still wins the race. Gemini only
+ * wins when OpenAI was going to be LATE or fail — and in that case the thing
+ * it replaces is a template, not an OpenAI reply.
+ *
+ * 💰 Why it costs little money: the hedge fires only after the primary already
+ * looks slow. Measured, a direct /api/chat-reply round trip is ~3.2s, and the
+ * hedge point sits well past that, so an ordinary reply never starts a second
+ * call at all.
+ *
+ * ⚠️ SCOPE, DELIBERATELY NARROW: this changes behaviour ONLY for budgets too
+ * tight for a sequential fallback. At 15s and above the sequential path
+ * already works and is left exactly as it was.
+ */
+/** What Gemini needs to finish once started — measured 1.2–2.6s, plus margin. */
+const HEDGE_RESERVE_MS = 3_500;
+/** Below this the hedge would start too early to be a hedge; don't bother. */
+const MIN_HEDGE_AFTER_MS = 2_000;
+
+type BudgetPlan = {
+  primaryMs: number;
+  /** Run the fallback AFTER the primary fails (only when there is room). */
+  fallbackEnabled: boolean;
+  /** Run the fallback ALONGSIDE the primary from this point. null = no hedge. */
+  hedgeAfterMs: number | null;
+};
 
 function planBudget(clientBudgetMs?: number): BudgetPlan {
   // No header: an older client, or a server-to-server call. Behave exactly as
   // before rather than guessing — that is what got us here.
   if (typeof clientBudgetMs !== "number" || !Number.isFinite(clientBudgetMs) || clientBudgetMs <= 0) {
-    return { primaryMs: PRIMARY_BUDGET_MS, fallbackEnabled: true };
+    return { primaryMs: PRIMARY_BUDGET_MS, fallbackEnabled: true, hedgeAfterMs: null };
   }
   const available = clientBudgetMs - CLIENT_OVERHEAD_MS;
   if (available >= MIN_PRIMARY_MS + FALLBACK_RESERVE_MS) {
+    // Roomy: the sequential fallback already fits. Leave it alone.
     return {
       primaryMs: Math.min(PRIMARY_BUDGET_MS, available - FALLBACK_RESERVE_MS),
       fallbackEnabled: true,
+      hedgeAfterMs: null,
     };
   }
-  return { primaryMs: Math.max(MIN_PRIMARY_MS, available), fallbackEnabled: false };
+  // Tight. A sequential fallback cannot fit — so overlap instead of dropping it.
+  const primaryMs = Math.max(MIN_PRIMARY_MS, available);
+  const hedgeAfterMs = primaryMs - HEDGE_RESERVE_MS;
+  return {
+    primaryMs,
+    // ⚠️ Still false: the hedge REPLACES the sequential fallback here, and
+    // running both would mean two Gemini calls for one reply.
+    fallbackEnabled: false,
+    hedgeAfterMs: hedgeAfterMs >= MIN_HEDGE_AFTER_MS ? hedgeAfterMs : null,
+  };
 }
 
 /**
@@ -281,7 +342,74 @@ function getOpenAIBaseUrl(): string {
  * Keeps all OpenAI details in one place so the rest of the app
  * just uses a simple function.
  */
+/** Did this attempt actually produce something a person can read? */
+function isUsableReply(r: ImotaraAIResponse | null | undefined): boolean {
+  return !!r && typeof r.text === "string" && r.text.trim().length > 0;
+}
+
+const sleep = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
+
+/**
+ * 🔴 THE REPLY PATH. See planBudget above for why this hedges.
+ *
+ * At a roomy budget this is exactly the old behaviour — one call, and the
+ * primary does its own sequential fallback. At a TIGHT budget (mobile's 10s
+ * default) a sequential fallback cannot fit, so instead of dropping it we run
+ * it alongside: the primary keeps its whole window, and Gemini is started only
+ * once the primary already looks slow.
+ *
+ * 🔑 FIRST USABLE REPLY WINS, and that is the correct policy with no extra
+ * preference logic: if OpenAI is going to answer in time it answers first and
+ * wins; if Gemini wins, the primary was late and the alternative was a
+ * TEMPLATE, not an OpenAI reply.
+ *
+ * ⚠️ The primary is NOT cancelled when the hedge starts. Cancelling it to
+ * "save" a call would throw away the better reply precisely when it was about
+ * to arrive.
+ */
 export async function callImotaraAI(
+  prompt: string,
+  options: CallImotaraAIOptions = {},
+): Promise<ImotaraAIResponse> {
+  const plan = planBudget(options.clientBudgetMs);
+  if (plan.hedgeAfterMs === null) {
+    return callImotaraAIPrimary(prompt, options);
+  }
+
+  const tStart = Date.now();
+  let primaryDone = false;
+  const primary = callImotaraAIPrimary(prompt, options)
+    .then((r) => { primaryDone = true; return r; })
+    .catch((): ImotaraAIResponse => {
+      primaryDone = true;
+      return { text: "", meta: { usedModel: "", from: "error", reason: "primary threw" } };
+    });
+
+  const hedge = (async (): Promise<ImotaraAIResponse> => {
+    await sleep(plan.hedgeAfterMs as number);
+    // The primary already answered — do not spend a Gemini call.
+    if (primaryDone) return { text: "", meta: { usedModel: "", from: "skipped", reason: "primary answered first" } };
+    const left = (plan.primaryMs ?? 0) - (Date.now() - tStart);
+    console.warn(
+      `[imotara][aiClient] primary slow past ${plan.hedgeAfterMs}ms — starting Gemini alongside it (${left}ms left)`,
+    );
+    try {
+      return await callGeminiAI(prompt, { ...options, abortMs: Math.max(1_000, left) });
+    } catch {
+      return { text: "", meta: { usedModel: "", from: "error", reason: "hedge threw" } };
+    }
+  })();
+
+  // First USABLE reply wins; if neither is usable, prefer the primary's own
+  // result so its meta/reason still reaches the caller.
+  const winner = await Promise.race([
+    primary.then((r) => (isUsableReply(r) ? r : hedge)),
+    hedge.then((r) => (isUsableReply(r) ? r : primary)),
+  ]);
+  return winner;
+}
+
+async function callImotaraAIPrimary(
   prompt: string,
   options: CallImotaraAIOptions = {},
 ): Promise<ImotaraAIResponse> {
@@ -1045,7 +1173,115 @@ async function* streamGeminiAI(
  * matching the (bounded, not infinite) behavior the client's own 20s
  * stall-retry logic already assumed was happening.
  */
+/**
+ * Runs `make()` only after `ms`, and not at all if `skip()` has gone true.
+ * Lets a hedge be raced as an ordinary generator instead of juggling timers.
+ */
+async function* delayedStream(
+  ms: number,
+  make: () => AsyncGenerator<string, void, unknown>,
+  skip: () => boolean,
+): AsyncGenerator<string, void, unknown> {
+  await sleep(ms);
+  if (skip()) return;
+  yield* make();
+}
+
+/**
+ * 🔴 THE STREAMING REPLY PATH — hedged. See planBudget for the reasoning.
+ *
+ * 🔑 WHY A STREAM CAN BE HEDGED AT ALL: a token already sent cannot be taken
+ * back, but before the FIRST token nothing has reached the person, so swapping
+ * engines is free. The old code already depended on exactly this — it is what
+ * `yieldedAny` guards. The hedge is that same invariant, used earlier.
+ *
+ * Both generators are started; the first to produce a REAL token is committed
+ * to and drained, and the loser is closed. Tokens are never interleaved.
+ */
 export async function* streamImotaraAI(
+  prompt: string,
+  options: CallImotaraAIOptions = {},
+): AsyncGenerator<string, void, unknown> {
+  const plan = planBudget(options.clientBudgetMs);
+  if (plan.hedgeAfterMs === null) {
+    yield* streamImotaraAIPrimary(prompt, options);
+    return;
+  }
+
+  const tStart = Date.now();
+  let firstTokenSeen = false;
+
+  const a = streamImotaraAIPrimary(prompt, options);
+  const b = delayedStream(
+    plan.hedgeAfterMs,
+    () => {
+      const left = plan.primaryMs - (Date.now() - tStart);
+      console.warn(
+        `[imotara][aiClient] stream silent past ${plan.hedgeAfterMs}ms — starting Gemini alongside it (${left}ms left)`,
+      );
+      return streamGeminiAI(prompt, { ...options, abortMs: Math.max(1_000, left) });
+    },
+    // The primary already spoke — never spend the second call.
+    () => firstTokenSeen,
+  );
+
+  yield* raceToFirstToken(a, b, () => { firstTokenSeen = true; });
+}
+
+/**
+ * Races two token streams and commits to whichever produces a REAL token
+ * first, draining only that one.
+ *
+ * ⚠️ Exported for tests. The race is the part of the hedge that can go subtly
+ * wrong — an empty keep-alive chunk treated as content, one side finishing
+ * empty and stalling the other, tokens interleaved from both engines — and
+ * none of those are visible in a source-shape assertion.
+ */
+export async function* raceToFirstToken(
+  a: AsyncGenerator<string, void, unknown>,
+  b: AsyncGenerator<string, void, unknown>,
+  onFirstToken: () => void = () => {},
+): AsyncGenerator<string, void, unknown> {
+  let pA: Promise<IteratorResult<string>> | null = a.next();
+  let pB: Promise<IteratorResult<string>> | null = b.next();
+  let winner: AsyncGenerator<string, void, unknown> | null = null;
+  let loser: AsyncGenerator<string, void, unknown> | null = null;
+  let firstValue = "";
+
+  while (winner === null) {
+    if (pA === null && pB === null) return; // both finished with nothing
+    const races: Promise<{ who: "a" | "b"; v: IteratorResult<string> }>[] = [];
+    if (pA) races.push(pA.then((v) => ({ who: "a" as const, v })));
+    if (pB) races.push(pB.then((v) => ({ who: "b" as const, v })));
+    const { who, v } = await Promise.race(races);
+    const gen = who === "a" ? a : b;
+    if (v.done) {
+      if (who === "a") pA = null; else pB = null;
+      continue;
+    }
+    if (!v.value) {
+      // An empty chunk is not content — keep waiting on this side.
+      if (who === "a") pA = gen.next(); else pB = gen.next();
+      continue;
+    }
+    onFirstToken();
+    winner = gen;
+    loser = who === "a" ? b : a;
+    firstValue = v.value;
+  }
+
+  // Ask the loser to close. ⚠️ `.return()` CANNOT interrupt a generator that is
+  // suspended at an `await` — it takes effect only when that await settles. So
+  // the losing request is not killed on the spot; it ends when its own
+  // `abortMs` fires or its fetch completes, and then unwinds. That is bounded
+  // (both engines carry their own timeout) but it is NOT instant, and claiming
+  // otherwise would be wrong: a hedge really can leave one request in flight.
+  void loser?.return(undefined).catch(() => {});
+  yield firstValue;
+  yield* winner;
+}
+
+async function* streamImotaraAIPrimary(
   prompt: string,
   options: CallImotaraAIOptions = {},
 ): AsyncGenerator<string, void, unknown> {

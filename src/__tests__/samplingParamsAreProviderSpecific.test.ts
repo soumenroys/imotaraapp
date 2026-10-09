@@ -81,11 +81,21 @@ describe("🔴 the PRIMARY reply path keeps its sampling temperature", () => {
   });
 
   it("the OpenAI request bodies still send it", () => {
+    // ⚠️ REWRITTEN 2026-10-09. This asserted PROXIMITY — `api.openai.com`
+    // within 3000 characters of `temperature,` — and broke the moment a long
+    // comment block was added between the base-URL constant and the request
+    // body, while the behaviour was completely unchanged. A test that fails on
+    // the distance between two lines is measuring the file's layout, not the
+    // request. Assert the BODIES instead.
     const s = read(AI);
-    // both OpenAI calls post a body containing `temperature,`
-    const openAiBodies = [...s.matchAll(/api\.openai\.com[\s\S]{0,3000}?temperature,/g)];
-    expect(openAiBodies.length).toBeGreaterThanOrEqual(1);
-    expect(s).toMatch(/temperature,/);
+    const chatBodies = [...s.matchAll(/body: JSON\.stringify\(\{[\s\S]{0,800}?\}\),/g)]
+      .map((m) => m[0])
+      // `messages:` is the OpenAI chat shape; Gemini's bodies use `contents`.
+      // (`model` is passed shorthand, so it is not a usable discriminator.)
+      .filter((b) => /messages:/.test(b));
+    // one for callImotaraAIPrimary, one for streamImotaraAIPrimary
+    expect(chatBodies.length).toBeGreaterThanOrEqual(2);
+    for (const body of chatBodies) expect(body).toMatch(/temperature,/);
   });
 });
 

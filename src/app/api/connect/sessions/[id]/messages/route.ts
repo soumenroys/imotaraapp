@@ -112,11 +112,34 @@ export async function POST(
       : (session.consultant_lang ?? "en");
     if (sourceLang !== targetLang) {
       // 4-second timeout prevents a slow/hung translation API from blocking message delivery.
+      //
+      // 🔴 BUT A LOST RACE USED TO BE COMPLETELY SILENT. translatedContent
+      // stayed null, the message was inserted untranslated, and nothing was
+      // logged anywhere — on a PAID PER-MINUTE session where translation is
+      // the thing being paid for. (U7 of the 2026-10-09 audit, verified
+      // 2026-10-10.)
+      //
+      // ⚠️ And the race is not close: translateText chains FOUR providers at
+      // 10s each, so it can legitimately run ~40s. Any slow first provider
+      // loses this race, every time, and the chain keeps burning work whose
+      // result is then thrown away.
+      //
+      // This does not fix the delivery behaviour — blocking a live session on
+      // a slow translator would be worse. It makes the failure VISIBLE, so how
+      // often it happens stops being a guess.
+      const tTranslate = Date.now();
       const timeoutPromise = new Promise<null>((res) => setTimeout(() => res(null), 4000));
       translatedContent = await Promise.race([
         translateText(content.trim(), targetLang, sourceLang),
         timeoutPromise,
       ]);
+      if (translatedContent === null) {
+        console.warn(
+          `[connect/messages] translation MISSED the 4s window — delivering untranslated. ` +
+          `session=${id} ${sourceLang}->${targetLang} waited=${Date.now() - tTranslate}ms ` +
+          `paid=${session.status === "active"}`,
+        );
+      }
     }
   }
 

@@ -54,9 +54,39 @@ export async function POST(req: NextRequest) {
   }
 
   const sourceLang = rawSource === "auto" ? detectScript(text) : rawSource;
+  const guessed = rawSource === "auto";
 
   if (sourceLang === targetLang) {
-    return NextResponse.json({ ok: true, translatedText: text });
+    // 🔴 THIS RETURNS THE UNTRANSLATED ORIGINAL AS A SUCCESS. That is correct
+    // when the caller TOLD us the source language — there is genuinely nothing
+    // to do. It is a silent failure when we GUESSED it, because asking to
+    // translate into a language usually means believing the text is not
+    // already in it. (U6 of the 2026-10-09 audit, verified 2026-10-10.)
+    //
+    // ⚠️ Mobile never sends sourceLang — both call sites in ConnectScreen post
+    // only { text, targetLang } — so on mobile this is ALWAYS a guess.
+    //
+    // 🔑 The specific trigger the audit found is already gone: detectScript
+    // falls through to detectLangFromRomanHints, whose Gujarati row contained
+    // the English word `have`, so "I have…" detected as gu. Fixed 2026-10-09
+    // (7508f30, 5970e33, 354eb75). The STRUCTURAL problem remains — a guess is
+    // still a guess — so make it visible and tell the caller what we decided.
+    if (guessed) {
+      console.warn(
+        `[connect/translate] source GUESSED as "${sourceLang}" and it equals targetLang — ` +
+        `returning the original untranslated. len=${text.length}`,
+      );
+    }
+    return NextResponse.json({
+      ok: true,
+      translatedText: text,
+      sourceLang,
+      // Lets a caller tell "nothing to translate" apart from "we guessed and
+      // gave up". Mobile currently discards an unchanged translation silently,
+      // so without this the person is never told anything happened.
+      sourceWasGuessed: guessed,
+      unchanged: true,
+    });
   }
 
   const translatedText = await translateText(text, targetLang, sourceLang);

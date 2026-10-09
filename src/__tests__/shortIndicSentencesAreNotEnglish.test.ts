@@ -118,3 +118,40 @@ describe("⚖️ and plain English did not pay for any of it", () => {
     expect(detectLangFromRomanHints("My main concern is money")).toBe("pa");
   });
 });
+
+describe("🔴 the mobile app's own starter chips — web must agree", () => {
+    // ⚠️ The chips live in imotara-mobile's ChatScreen, but the ROWS they
+    // depend on exist in BOTH repos and must not drift. Four of the ten were
+    // answered in the wrong language on 2026-10-09 (ml→en, gu→bn, pa→en,
+    // or→bn). The full list, including native script, is pinned mobile-side in
+    // everyStarterChipAnswersInItsOwnLanguage.test.ts; these are the eight
+    // romanized ones, which is what THIS detector is responsible for.
+    it.each([
+        ["romba kashtama irukku", "ta"],
+        ["chala stress ga undi", "te"],
+        ["tumba bejar agide", "kn"],
+        ["valiya vishamamundu", "ml"],
+        ["man kharap che", "gu"],
+        ["man kharab aa", "pa"],
+        ["mana kharap laguchhi", "or"],
+        ["man kharab aahe", "mr"],
+    ])("%s → %s", (text, want) => {
+        expect(detectLangFromRomanHints(text)).toBe(want);
+    });
+
+    it("🔑 `kharap`/`kharab` is pan-Indic and must not hand every tie to Bengali", () => {
+        // It is genuinely Bengali — and also Gujarati, Punjabi, Odia, Hindi and
+        // Marathi. It lived only in the bn row, so it won every tie it entered.
+        // Each language is now settled by its OWN marker instead.
+        expect(detectLangFromRomanHints("man kharap che")).not.toBe("bn");
+        expect(detectLangFromRomanHints("mana kharap laguchhi")).not.toBe("bn");
+        // ⚠️ word boundaries keep these apart — `man kharap` must not match
+        // inside "mana kharap", nor `kharab aa` inside "kharab aahe".
+        expect(detectLangFromRomanHints("mana kharap laguchhi")).not.toBe("gu");
+        expect(detectLangFromRomanHints("man kharab aahe")).not.toBe("pa");
+    });
+
+    it("✅ an Odia sentence that used to fall through to English now lands", () => {
+        expect(detectLangFromRomanHints("mote bhari kasta lagucha")).toBe("or");
+    });
+});

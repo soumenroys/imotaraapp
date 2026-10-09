@@ -65,7 +65,7 @@ export function detectLangFromRomanHints(text: string): string {
     // Telugu
     tally("te", /\b(enti|ela|em|emi|ippudu|inka|avuna|kaadu|ledu|undhi|nenu|nuvvu|meeru|amma|nanna|baaga|chala|konchem|sare|parledu|enduku|ekkada)\b/i);
     // Gujarati
-    tally("gu", /\b(shu|kem|kem cho|majama|saru|saras|tame|hu|tane|mane|aaje|kaal|ghar|su che|barabar|chalo|joie|nathi|che|lage che|hun)\b/i);
+    tally("gu", /\b(man kharap|kharap che|shu|kem|kem cho|majama|saru|saras|tame|hu|tane|mane|aaje|kaal|ghar|su che|barabar|chalo|joie|nathi|che|lage che|hun)\b/i);
     // ⚠️ ONLY `have` removed 2026-10-09. It is an English auxiliary verb, and
     // one hint hit used to be proof of a language, so it alone made "Do you
     // have a minute?" Gujarati.
@@ -78,13 +78,13 @@ export function detectLangFromRomanHints(text: string): string {
     // really thodu stress" came out ENGLISH. Caught by running the function on
     // code-mixed sentences, which is the normal register for these speakers.
     // Punjabi
-    tally("pa", /\b(ki|kida|kive|haanji|hanji|nahi|hun|tusi|main|mera|meri|sada|sadi|paji|veer|bhain|maa|papa|ghar|kithe|kithon|changa|vadhiya|roti|aaja)\b/i);
+    tally("pa", /\b(kharab aa|man kharab aa|mainu|ki|kida|kive|haanji|hanji|nahi|hun|tusi|main|mera|meri|sada|sadi|paji|veer|bhain|maa|papa|ghar|kithe|kithon|changa|vadhiya|roti|aaja)\b/i);
     // Kannada
     tally("kn", /\b(yenu|enu|hegide|sari|chennagide|chennagilla|nanu|ivattu|naanu|neenu|nimge|nanage|amma|appa|bega|mane|illi|alli|yaake|hege|oota|neeru|tumba|bejar|ide|illa|saku|swalpa)\b/i);
     // Malayalam
-    tally("ml", /\b(entha|enthaanu|engane|sheri|ippo|inni|njaan|njan|nee|ningal|enikku|ninakku|amma|achan|chetta|chechi|vellam|urakkam|ivide|avide)\b/i);
+    tally("ml", /\b(valiya|vishamam|vishamamundu|budhimutt|sukhamalla|entha|enthaanu|engane|sheri|ippo|inni|njaan|njan|nee|ningal|enikku|ninakku|amma|achan|chetta|chechi|vellam|urakkam|ivide|avide)\b/i);
     // Odia
-    tally("or", /\b(kana|kanha|kemiti|kemti|bhala|bhal|thik achhi|mu|tume|apana|mo|tora|ghar|bahare|ethi|sethi|aaji|kali|asuchi|jauchhi)\b/i);
+    tally("or", /\b(mana|laguchhi|laguchi|lagucha|bujhiparuchi|kana|kanha|kemiti|kemti|bhala|bhal|thik achhi|mu|tume|apana|mo|tora|ghar|bahare|ethi|sethi|aaji|kali|asuchi|jauchhi)\b/i);
 
     const best = Object.entries(scores)
         .filter(([lang]) => substantive[lang])

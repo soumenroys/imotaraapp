@@ -124,13 +124,50 @@ const ALERT_COOLDOWN_MS = 5 * 60 * 1000;
 // saw. TOTAL_REPLY_BUDGET_MS is the combined ceiling for one reply attempt —
 // comfortably under the shortest client timeout — and the Gemini fallback is
 // given whatever's actually LEFT of that budget (not a fresh fixed window),
-// floored at MIN_GEMINI_TIMEOUT_MS so it always gets a real chance even if
-// OpenAI consumed nearly the whole budget before failing.
+// floored at FALLBACK_RESERVE_MS so it always gets a real chance — and, since
+// 2026-10-09, the primary is capped at PRIMARY_BUDGET_MS so it CANNOT consume
+// the whole budget before failing. See the note on FALLBACK_RESERVE_MS below.
 const TOTAL_REPLY_BUDGET_MS = 14_000;
-const MIN_GEMINI_TIMEOUT_MS = 3_000;
+
+/**
+ * 🔴 THE PRIMARY MUST NOT BE ALLOWED TO EAT THE WHOLE BUDGET.
+ *
+ * Found 2026-10-09 from a real TOTAL OUTAGE the night before
+ * (prod `cb0ee7c`, 2026-10-08T18:47Z): OpenAI aborted, and ~20s later Gemini
+ * aborted too, both with "This operation was aborted". Not billing — Gemini
+ * had ₹2,933.66 at the time, and a credit failure reads `429
+ * insufficient_quota` (that was August's outage, not this one).
+ *
+ * The cause was structural. `callImotaraAI` and `streamImotaraAI` defaulted
+ * their abort to the FULL `TOTAL_REPLY_BUDGET_MS`, so whenever OpenAI failed
+ * by *timing out* it had by definition consumed all 14s — and the fallback
+ * was handed `remainingBudgetMs(14_000) === the floor`. The floor was 3s
+ * against a measured gemini-3.5-flash range of 1.2–2.6s, i.e. about 0.4s of
+ * margin. One slow moment and both engines abort, and every user on web and
+ * mobile drops to `runImotara`'s hard-coded templates.
+ *
+ * ⚠️ So the fallback was least likely to work in precisely the case it exists
+ * for. Topping up Gemini could never have prevented this.
+ *
+ * The fix keeps the overall ceiling at 14s — it is still comfortably under the
+ * shortest client timeout (web 20s stall, mobile 20–25s) — and simply reserves
+ * a slice of it for the fallback instead of letting the primary take it all.
+ *
+ * ⚖️ THE TRADE: an OpenAI reply that would have arrived between 8s and 14s now
+ * fails over to Gemini instead. Those users get a Gemini reply at roughly
+ * 9.2–10.6s rather than an 8–14s OpenAI one — comparable latency, still a real
+ * LLM, and never the template engine. Gemini usage rises slightly; it is funded.
+ *
+ * 🔑 6s, not 5s, because the reserve has to clear gemini-3.5-flash's measured
+ * WORST case (2.6s) with real margin, not just its average. 5s failed that bar
+ * in `fallbackGetsARealWindow.test.ts` — which is the point of writing the bar
+ * down rather than picking a round number that looks generous.
+ */
+const FALLBACK_RESERVE_MS = 6_000;
+const PRIMARY_BUDGET_MS = TOTAL_REPLY_BUDGET_MS - FALLBACK_RESERVE_MS;
 
 function remainingBudgetMs(elapsedMs: number): number {
-  return Math.max(MIN_GEMINI_TIMEOUT_MS, TOTAL_REPLY_BUDGET_MS - elapsedMs);
+  return Math.max(FALLBACK_RESERVE_MS, TOTAL_REPLY_BUDGET_MS - elapsedMs);
 }
 
 /**
@@ -219,7 +256,7 @@ export async function callImotaraAI(
 
   // Optional timeout support: if the request hangs or is very slow,
   // we abort and fall back with the same style of message.
-  const abortMs = options.abortMs ?? TOTAL_REPLY_BUDGET_MS;
+  const abortMs = options.abortMs ?? PRIMARY_BUDGET_MS;
   const tStart = Date.now();
   const controller = new AbortController();
   const timeoutId =
@@ -914,7 +951,7 @@ export async function* streamImotaraAI(
   const systemPrompt = options.system ?? "You are Imotara — a warm, caring emotional companion. Be concise and human.";
   const temperature = typeof options.temperature === "number" ? options.temperature : 0.7;
   const maxTokens = options.maxTokens ?? 350;
-  const abortMs = options.abortMs ?? TOTAL_REPLY_BUDGET_MS;
+  const abortMs = options.abortMs ?? PRIMARY_BUDGET_MS;
   const tStart = Date.now();
   const controller = new AbortController();
   const timeoutId = abortMs > 0 ? setTimeout(() => controller.abort(), abortMs) : undefined;

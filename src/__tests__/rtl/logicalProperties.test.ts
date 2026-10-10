@@ -45,6 +45,34 @@ const BANNED: [string, RegExp, string][] = [
 
 const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
+/**
+ * The same source with COMMENTS BLANKED, line numbers preserved.
+ *
+ * 🔴 WHY. This guard used to scan raw source, which meant it forbade you from
+ * DESCRIBING the thing it guards. On 2026-10-10 a comment on the crisis banner
+ * reading "right-to-left languages" and "left-aligned Arabic" failed the rule
+ * three times — no CSS involved, just prose.
+ *
+ * ⚠️ And this file is where that is most likely: the phrase "right-to-left" is
+ * near-unavoidable in comments on RTL-facing code. A rule that fires on its own
+ * subject matter trains people to work around it, which is how a real `ml-2`
+ * eventually slips through next to a `// eslint-disable`-shaped excuse.
+ *
+ * 🔑 Lines are BLANKED, not removed, so the reported line numbers still point
+ * at the real line.
+ *
+ * ⛔ Only `/* … *\/` blocks and lines whose TRIMMED start is `//` or `*` are
+ * blanked. A `//` mid-line is left alone on purpose — truncating there would
+ * eat the rest of a line that may hold a real violation, and `"https://…"`
+ * would trigger it constantly.
+ */
+const stripComments = (src: string): string =>
+  src
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .split("\n")
+    .map((line) => (/^\s*(\/\/|\*)/.test(line) ? "" : line))
+    .join("\n");
+
 describe("the fixture is real", () => {
   it("every listed file exists and is substantial", () => {
     for (const f of FILES) expect(read(f).length).toBeGreaterThan(500);
@@ -61,8 +89,9 @@ describe("the fixture is real", () => {
 describe("no physical direction utilities on the RTL-facing surface", () => {
   for (const file of FILES) {
     it(`${file} uses logical properties only`, () => {
-      const src = read(file);
-      const lines = src.split("\n");
+      // ⚠️ CODE ONLY — see stripComments. Prose about direction is not a
+      // violation, and on these files it is unavoidable.
+      const lines = stripComments(read(file)).split("\n");
       const found: string[] = [];
       for (const [name, re, fix] of BANNED) {
         lines.forEach((line, i) => {
@@ -74,4 +103,48 @@ describe("no physical direction utilities on the RTL-facing surface", () => {
       expect(found).toEqual([]);
     });
   }
+});
+
+describe("⛔ stripping comments must not gut the rule", () => {
+  // 🔑 The risk of the fix above: blanking too much and passing vacuously.
+  it("a real violation in CODE is still caught", () => {
+    const sample = [
+      'const a = <div className="ml-2" />;',
+      'const b = <div className="text-right" />;',
+    ].join("\n");
+    const hits: string[] = [];
+    for (const [name, re] of BANNED) {
+      for (const line of stripComments(sample).split("\n")) {
+        for (const m of line.matchAll(re)) hits.push(`${name}:${m[0]}`);
+      }
+    }
+    expect(hits.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("…while the same text in a COMMENT is ignored", () => {
+    const sample = [
+      '// these are right-to-left languages, rendered left-aligned',
+      '/* ml-2 and text-right are mentioned here in prose */',
+      ' * a continuation line about left-to-right order',
+    ].join("\n");
+    const hits: string[] = [];
+    for (const [, re] of BANNED) {
+      for (const line of stripComments(sample).split("\n")) {
+        for (const m of line.matchAll(re)) hits.push(m[0]);
+      }
+    }
+    expect(hits).toEqual([]);
+  });
+
+  it("⚠️ a URL with // mid-line is NOT truncated", () => {
+    // The reason only line-leading comments are blanked.
+    const sample = 'const u = "https://example.com/x"; const c = "ml-2";';
+    const out = stripComments(sample);
+    expect(out).toContain("ml-2");
+  });
+
+  it("line numbers survive the strip", () => {
+    const sample = "// comment\nconst a = 1;\n/* block */\nconst b = 2;";
+    expect(stripComments(sample).split("\n")).toHaveLength(4);
+  });
 });

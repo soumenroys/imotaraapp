@@ -20,7 +20,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
-import { crisisBannerLangFor } from "@/app/chat/page";
+import { crisisBannerLangFor, crisisBannerDir } from "@/app/chat/page";
 import { CRISIS_BANNER_BY_LANG } from "@/lib/safety/crisisCopy";
 
 const hasCopy = (l: string) => Boolean(CRISIS_BANNER_BY_LANG[l]);
@@ -177,5 +177,51 @@ describe("⚠️ the banner really uses it", () => {
         const block = SRC.slice(i, i + 400);
         expect(block).toMatch(/m\.role === "user"/);
         expect(block).toMatch(/activeThread\?\.messages/);
+    });
+});
+
+describe("🔴 the banner carries its OWN direction", () => {
+    /**
+     * ⚠️ Found by following my own change through: RtlInit sets
+     * `document.dir` from `preferredLang` — the stored SETTING. The banner now
+     * resolves from the SCRIPT the person wrote. So an Arabic speaker who never
+     * set a language gets Arabic banner text on a page still marked `ltr`.
+     *
+     * ⚖️ Not a regression: before, those users got the banner in ENGLISH.
+     * Arabic that is left-aligned beats English they may not read. This makes
+     * the block self-consistent regardless of the document direction.
+     */
+    it.each([["ar"], ["he"], ["ur"]])("%s is rtl", (lang) => {
+        expect(crisisBannerDir(lang)).toBe("rtl");
+    });
+
+    it.each([["en"], ["bn"], ["hi"], ["ta"], ["ru"], ["zh"], ["ja"], ["es"]])(
+        "%s is ltr", (lang) => {
+            expect(crisisBannerDir(lang)).toBe("ltr");
+        });
+
+    it("⚠️ the RTL set matches RtlInit's, which owns document.dir", () => {
+        // Two copies of one fact. If they drift, the banner and the page
+        // disagree about direction on the same screen.
+        const rtlInit = fs.readFileSync(
+            path.join(process.cwd(), "src/components/imotara/RtlInit.tsx"), "utf8");
+        const m = rtlInit.match(/RTL_LANGS = new Set\(\[([^\]]+)\]\)/);
+        expect(m).not.toBeNull();
+        const theirs = m![1].split(",").map((x) => x.trim().replace(/["']/g, "")).sort();
+        const ours = ["ar", "he", "ur"].filter((l) => crisisBannerDir(l) === "rtl").sort();
+        expect(ours).toEqual(theirs);
+    });
+
+    it("⛔ the banner element really sets dir AND lang", () => {
+        const SRC2 = fs.readFileSync(
+            path.join(process.cwd(), "src/app/chat/page.tsx"), "utf8");
+        expect(SRC2).toMatch(/dir=\{crisisBannerDir\(bannerLang\)\}/);
+        expect(SRC2).toMatch(/lang=\{bannerLang\}/);
+    });
+
+    it("✅ every resolved language yields a valid dir", () => {
+        for (const [lang] of BY_SCRIPT) {
+            expect(["rtl", "ltr"]).toContain(crisisBannerDir(lang));
+        }
     });
 });

@@ -4421,7 +4421,10 @@ export default function ChatPage() {
             const txt = CRISIS_BANNER_BY_LANG[bannerLang] ?? CRISIS_BANNER_BY_LANG.en;
             const primaryLine = crisisCountryResources?.primary?.[0] ?? null;
             return (
-              <div className={`mx-auto mb-1 max-w-3xl rounded-2xl border px-4 py-3 text-sm ${
+              <div
+                dir={crisisBannerDir(bannerLang)}
+                lang={bannerLang}
+                className={`mx-auto mb-1 max-w-3xl rounded-2xl border px-4 py-3 text-sm ${
                 crisisTier === 2
                   ? "border-rose-400/40 bg-rose-500/10 text-rose-200"
                   : "border-amber-400/30 bg-amber-500/10 text-amber-200"
@@ -5454,6 +5457,36 @@ export function recognitionLangFor(
  * Latin script and we have no detector for them. That is a known gap on the
  * board, not something this function can paper over.
  */
+/**
+ * The three right-to-left languages among the 22.
+ *
+ * ⚠️ Mirrors RTL_LANGS in components/imotara/RtlInit.tsx. That component sets
+ * the DOCUMENT direction from `preferredLang` — the stored setting.
+ */
+const RTL_BANNER_LANGS = new Set(["ar", "he", "ur"]);
+
+/**
+ * Which `dir` the crisis banner must carry.
+ *
+ * 🔴 WHY THE BANNER NEEDS ITS OWN. Since crisisBannerLangFor started resolving
+ * from the SCRIPT the person wrote, the banner can be Arabic on a page whose
+ * `document.dir` is still `ltr` — because RtlInit keys off `preferredLang`,
+ * which is exactly the setting these people have not set. The bidi algorithm
+ * still renders the words correctly, but the block is left-aligned and the
+ * helpline link lands on the wrong side.
+ *
+ * ⚖️ This is a polish fix on top of a real improvement, NOT a regression being
+ * patched: before, those users got the banner in ENGLISH. Arabic that is
+ * left-aligned beats English they may not read.
+ *
+ * ⛔ Deliberately scoped to the banner. Setting document.dir from a detected
+ * script would re-flow the whole page mid-conversation, which is a much larger
+ * change and is not what a crisis moment needs.
+ */
+export function crisisBannerDir(lang: string): "rtl" | "ltr" {
+    return RTL_BANNER_LANGS.has(lang) ? "rtl" : "ltr";
+}
+
 export function crisisBannerLangFor(
     preferredLang: string | undefined | null,
     recentTexts: string[],

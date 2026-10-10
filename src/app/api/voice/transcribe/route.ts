@@ -274,6 +274,42 @@ export function hasNoSpeech(segments: WhisperSegment[] | undefined): boolean {
     );
 }
 
+/**
+ * Whisper supported language codes (ISO-639-1).
+ *
+ * Sending an unsupported code causes a 400 from Whisper — omitting the param
+ * lets Whisper auto-detect instead. Odia ("or"), for example, is not in
+ * Whisper's list and would silently fail.
+ *
+ * bn/te/ml/gu/pa are present: Whisper supports all five and they were once
+ * missing, which left them to auto-detection that mislabels short Indic
+ * utterances as Hindi/Arabic. "or" (Odia) remains absent — not supported.
+ */
+export const WHISPER_LANGS = new Set(["af","ar","hy","az","be","bs","bg","bn","ca","zh","hr","cs","da","nl","en","et","fi","fr","gl","gu","de","el","he","hi","hu","is","id","it","ja","kn","kk","ko","lv","lt","mk","ml","ms","mr","mi","ne","no","fa","pl","pt","pa","ro","ru","sr","sk","sl","es","sw","sv","tl","ta","te","th","tr","uk","ur","vi","cy"]);
+
+/**
+ * Which `language` to send Whisper, or null to let it detect.
+ *
+ * 🔴 Extracted 2026-10-10 from inside POST. Reported that day: a user spoke
+ * Bengali on a physical iPhone and got ENGLISH text. The client had sent
+ * `lang=en` (it derived the value with a helper that maps "auto" and unset to
+ * "en"), and this decision forwarded it, so Whisper was TOLD the audio was
+ * English and obeyed.
+ *
+ * 🔑 The client now sends "auto" when the person has stated no preference,
+ * which lands in the null branch below. That only works because an
+ * unrecognised code is OMITTED rather than defaulted, so this function is the
+ * contract the app depends on — which is why it is exported and tested
+ * directly instead of being re-implemented in a test.
+ *
+ * ⛔ Never default to "en" here. That is the reported bug.
+ */
+export function whisperLanguageFor(lang: unknown): string | null {
+    if (!lang || typeof lang !== "string") return null;
+    const code = lang.split("-")[0];   // whisper wants ISO-639-1, not BCP-47
+    return WHISPER_LANGS.has(code) ? code : null;
+}
+
 export async function POST(req: NextRequest) {
     const ip = getClientIp(req);
     if (!(await checkPersistentIpRateLimit("voice-transcribe", ip, RATE_LIMIT_PER_MIN, 60))) {
@@ -347,15 +383,6 @@ export async function POST(req: NextRequest) {
     // person will actually say. Optional; defaults to the product name.
     const whisperPrompt = whisperPromptFor(formData.get("companionName"));
 
-    // Whisper supported language codes (ISO-639-1). Sending an unsupported code
-    // causes a 400 from Whisper — omitting the param lets Whisper auto-detect instead.
-    // Odia ("or"), for example, is not in Whisper's list and would silently fail.
-    // Full Whisper v1 supported language set (ISO-639-1).
-    // bn/te/ml/gu/pa added — Whisper supports all five; previously missing, causing
-    // auto-detection that mislabels short Indic utterances as Hindi/Arabic.
-    // "or" (Odia) remains absent — not in Whisper's supported list.
-    const WHISPER_LANGS = new Set(["af","ar","hy","az","be","bs","bg","bn","ca","zh","hr","cs","da","nl","en","et","fi","fr","gl","gu","de","el","he","hi","hu","is","id","it","ja","kn","kk","ko","lv","lt","mk","ml","ms","mr","mi","ne","no","fa","pl","pt","pa","ro","ru","sr","sk","sl","es","sw","sv","tl","ta","te","th","tr","uk","ur","vi","cy"]);
-
     const whisperForm = new FormData();
     // All mobile recordings are MPEG_4/AAC (.m4a) — Android LOW_QUALITY is
     // overridden at record time to avoid THREE_GPP which Whisper does not accept.
@@ -370,13 +397,10 @@ export async function POST(req: NextRequest) {
     // Spelling hint — see WHISPER_PROMPT. Guarded by isPromptEcho, because
     // Whisper echoes its prompt back when it hears no speech.
     whisperForm.append("prompt", whisperPrompt);
-    if (lang && typeof lang === "string") {
-        const code = lang.split("-")[0];
-        if (WHISPER_LANGS.has(code)) {
-            whisperForm.append("language", code); // whisper wants ISO-639-1
-        }
-        // else: unsupported code — omit language and let Whisper auto-detect
-    }
+    // null = tell Whisper nothing and let it auto-detect. See
+    // whisperLanguageFor for why that is the right answer for "auto".
+    const whisperLang = whisperLanguageFor(lang);
+    if (whisperLang) whisperForm.append("language", whisperLang);
 
     /**
      * One attempt at Whisper. Factored out so an unsupported language code can

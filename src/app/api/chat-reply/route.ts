@@ -206,6 +206,18 @@ export async function POST(req: Request) {
   try {
     const ip = getClientIp(req);
     if (!(await checkPersistentIpRateLimit("chat-reply", ip, RATE_LIMIT_PER_MIN, 60))) {
+      // 🔴 SAY SO. This return was silent, and so was the quota return below.
+      // On 2026-10-10 a reply failed on a physical iPhone and the runtime logs
+      // for the whole window were empty — which ruled nothing out, because a
+      // rejection here looks exactly like a request that never arrived. The
+      // client could not fill the gap either: it had no diagnostics compiled
+      // in. Same reasoning as U4 — a failure must leave a trace.
+      if (process.env.NODE_ENV !== "test") {
+        console.warn(
+          `[/api/chat-reply] 429 rate limited — ${RATE_LIMIT_PER_MIN}/min per IP exceeded; ` +
+          `client will fall back to its on-device reply`,
+        );
+      }
       return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
     }
 
@@ -649,6 +661,16 @@ export async function POST(req: Request) {
               .eq("user_id", authedUserId)
               .gt("token_balance", 0);
           } else {
+            // 🔴 SAY SO — see the 429 above. This one is a 200, so it leaves
+            // no trace in request logs either: from outside, a quota rejection
+            // and a healthy reply are indistinguishable events.
+            if (process.env.NODE_ENV !== "test") {
+              console.warn(
+                `[/api/chat-reply] quota_exceeded — free daily limit reached ` +
+                `(used=${usageCount} limit=20 tokenBalance=0); ` +
+                `returning 200 with empty text, client replies on device`,
+              );
+            }
             const quotaRes = NextResponse.json(
               { text: "", meta: { from: "quota_exceeded", reason: "daily_limit", used: usageCount, limit: 20 } },
               { status: 200 },

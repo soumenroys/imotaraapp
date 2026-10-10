@@ -156,3 +156,81 @@ describe("⚖️ the 415 cannot silence a language Imotara supports", () => {
     for (const l of ["", "x", undefined, null]) expect(refuses(l), String(l)).toBe(true);
   });
 });
+
+/**
+ * ── 2026-10-10: the two REJECTIONS that were silent too ─────────────────
+ *
+ * U4 fixed the unhandled-error path. These two are different: they are
+ * deliberate refusals, and they said nothing either.
+ *
+ * 🔴 A reply failed on a physical iPhone and the runtime logs for the entire
+ * window were EMPTY. That ruled nothing out, because a rejection here looks
+ * exactly like a request that never arrived — and the quota one is worse than
+ * that: it returns **200**, so it leaves no trace even in request logs. From
+ * outside, a quota refusal and a healthy reply are indistinguishable.
+ *
+ * ⚠️ The client could not fill the gap either: debugLog/debugWarn are
+ * compiled out of device builds, so `remoteStatus` was computed and discarded.
+ * Both ends were silent at once, which is why the cause had to be established
+ * by reading code rather than evidence.
+ */
+describe("🔴 a deliberate REFUSAL leaves a trace too", () => {
+  const s = () => code(CHAT);
+
+  it("the 429 rate-limit rejection says so", () => {
+    const m = /if \(!\(await checkPersistentIpRateLimit\([\s\S]{0,900}?status: 429/.exec(s());
+    expect(m, "rate-limit block not found — did the route change shape?").toBeTruthy();
+    expect(m![0]).toMatch(/console\.warn\(/);
+    expect(m![0]).toMatch(/429 rate limited/);
+  });
+
+  it("…and names the limit it enforced, so the number is in the log", () => {
+    // "Too many requests" without the threshold cannot be acted on.
+    const m = /if \(!\(await checkPersistentIpRateLimit\([\s\S]{0,900}?status: 429/.exec(s());
+    expect(m![0]).toMatch(/\$\{RATE_LIMIT_PER_MIN\}/);
+  });
+
+  it("🔑 the quota rejection says so — it returns 200 and is otherwise invisible", () => {
+    const m = /quota_exceeded — free daily limit reached[\s\S]{0,400}?quotaRes/.exec(s());
+    expect(m, "quota log not found before the 200 is returned").toBeTruthy();
+    expect(m![0]).toMatch(/used=\$\{usageCount\}/);
+  });
+
+  it("both logs are gated on NODE_ENV, matching the U4 convention", () => {
+    // Not PROD-gated. The one environment where this matters is production,
+    // which is the mistake U4 was about.
+    const src = s();
+    const guards = src.match(/if \(process\.env\.NODE_ENV !== "test"\) \{/g) ?? [];
+    expect(guards.length).toBeGreaterThanOrEqual(3); // U4's + these two
+    expect(src).not.toMatch(/const SHOULD_LOG = !PROD/);
+  });
+
+  it("⛔ neither log fires before the decision to refuse is made", () => {
+    // A log above the guard would fire on every healthy request and bury the
+    // signal it exists to provide.
+    const src = s();
+    const rl = src.indexOf("checkPersistentIpRateLimit(");
+    const warn = src.indexOf("429 rate limited");
+    expect(rl).toBeGreaterThan(-1);
+    expect(warn).toBeGreaterThan(rl);
+  });
+
+  it("the refusals still return what the clients expect", () => {
+    // ⚠️ Adding logging must not change the contract. The mobile client reads
+    // meta.from === "quota_exceeded" to suppress its error toast; a different
+    // shape would surface a scary message for an ordinary daily limit.
+    const src = s();
+    // ⚠️ SCOPED to the quota block. A file-wide `/{ status: 200 }/` passed
+    // while the quota return was mutated to 429 — the route has other 200s,
+    // and the assertion was satisfied by one of those. Same failure mode as
+    // asserting "at least one match" instead of the site that matters.
+    const quota = /const quotaRes = NextResponse\.json\([\s\S]{0,400}?\);/.exec(src);
+    expect(quota, "quota response block not found").toBeTruthy();
+    expect(quota![0]).toMatch(/from: "quota_exceeded", reason: "daily_limit"/);
+    // 🔑 The 200 is load-bearing: the mobile client reads meta.from to
+    // suppress its error toast. A 4xx here would make the streaming path fail
+    // generically and surface "Couldn't connect" for an ordinary daily limit.
+    expect(quota![0]).toMatch(/\{ status: 200 \}/);
+    expect(src).toMatch(/error: "Too many requests\. Please slow down\." \}, \{ status: 429 \}/);
+  });
+});

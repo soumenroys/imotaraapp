@@ -285,11 +285,22 @@ export function hasNoSpeech(segments: WhisperSegment[] | undefined): boolean {
  * missing, which left them to auto-detection that mislabels short Indic
  * utterances as Hindi/Arabic. "or" (Odia) remains absent — not supported.
  */
-export const WHISPER_LANGS = new Set(["af","ar","hy","az","be","bs","bg","ca","zh","hr","cs","da","nl","en","et","fi","fr","gl","de","el","he","hi","hu","is","id","it","ja","kn","kk","ko","lv","lt","mk","ms","mr","mi","ne","no","fa","pl","pt","ro","ru","sr","sk","sl","es","sw","sv","tl","ta","th","tr","uk","ur","vi","cy"]);
+export const WHISPER_LANGS = new Set(["af","ar","hy","az","be","bs","bg","ca","zh","hr","cs","da","nl","en","et","fi","fr","gl","gu","de","el","he","hi","hu","is","id","it","ja","kn","kk","ko","lv","lt","mk","ml","ms","mr","mi","ne","no","fa","pl","pt","pa","ro","ru","sr","sk","sl","es","sw","sv","tl","ta","te","th","tr","uk","ur","vi","cy"]);
 
 /**
- * 🔴 bn / gu / te / ml / pa / or ARE NOT IN THAT SET, and that is not an
- * oversight — the Whisper API REJECTS them as a `language` value.
+ * 🔴 `bn` IS NOT IN THAT SET, and that is not an oversight — the Whisper API
+ * REJECTS it as a `language` value.
+ *
+ * ⚠️ CORRECTION, same day. The first version of this change ALSO removed
+ * gu/te/ml/pa, on the assumption that they were rejected too. Production had
+ * only ever rejected **bn** — the other four were removed on inference, which
+ * would have thrown away a working hint for four languages nobody had
+ * reported a problem with. They are back.
+ *
+ * ⛔ Do not remove a code from this set without a LOGGED rejection naming it.
+ * The retry below already handles an unexpected rejection gracefully, so the
+ * cost of leaving a doubtful code in is one wasted round-trip; the cost of
+ * removing a working one is permanently worse transcription.
  *
  * Production, repeatedly, 2026-10-10:
  *   Whisper 400: {"message":"Language 'bn' is not supported.",

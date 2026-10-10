@@ -70,8 +70,14 @@ describe("⛔ a real choice is still forwarded — the money case", () => {
         }
     });
 
-    it("…and the ones it rejects are omitted, so auto-detect runs instead", () => {
-        for (const l of ["bn", "gu", "te", "ml", "pa", "or"]) {
+    it("…and the ones with no usable hint are omitted, so auto-detect runs", () => {
+        // ⚠️ bn only. An earlier pass today also listed gu/te/ml/pa here, on
+        // inference rather than evidence — production had only ever rejected
+        // bn. They are forwarded again; see
+        // whisperRejectsSomeIndicLanguages.test.ts.
+        //
+        // "or" has never been in the set: Whisper has no Odia code.
+        for (const l of ["bn", "or"]) {
             expect(appendsLanguage(l), `${l} must NOT be sent`).toBeNull();
         }
     });

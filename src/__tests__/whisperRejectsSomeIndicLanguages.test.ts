@@ -35,15 +35,27 @@ describe("🔴 the codes the API actually rejects are not sent", () => {
         expect(whisperLanguageFor("bn")).toBeNull();
     });
 
-    it("the other Indic scripts the API does not take are also absent", () => {
-        for (const l of ["gu", "te", "ml", "pa", "or"]) {
-            expect(WHISPER_LANGS.has(l), `${l} must not be sent as language`).toBe(false);
+    it("⚠️ …but ONLY bn — the others were removed on inference and are back", () => {
+        // CORRECTION, same day. The first version of this change also dropped
+        // gu/te/ml/pa because they "looked like" bn. Production had only ever
+        // rejected bn — the other four were removed on inference, throwing
+        // away a working hint for languages nobody had reported a problem
+        // with.
+        //
+        // ⛔ Do not remove a code without a LOGGED rejection naming it. The
+        // route's retry handles an unexpected rejection gracefully, so a
+        // doubtful code costs one wasted round-trip; a wrongly removed one
+        // costs permanently worse transcription.
+        for (const l of ["gu", "te", "ml", "pa"]) {
+            expect(WHISPER_LANGS.has(l)).toBe(true);
         }
+        // Odia was never in the set, and that predates today.
+        expect(WHISPER_LANGS.has("or")).toBe(false);
     });
 
-    it("⚖️ the Indic languages the API DOES take are still sent", () => {
-        // Removing these would throw away a working hint for no reason.
-        for (const l of ["hi", "mr", "ta", "kn", "ur", "ne"]) {
+    it("⚖️ every Indic language the API DOES take is still sent", () => {
+        // Removing any of these would throw away a working hint for no reason.
+        for (const l of ["hi", "mr", "ta", "kn", "ur", "ne", "gu", "te", "ml", "pa"]) {
             expect(whisperLanguageFor(l), `${l} must still be sent`).toBe(l);
         }
     });
@@ -56,15 +68,24 @@ describe("🔴 the codes the API actually rejects are not sent", () => {
 });
 
 describe("🔑 a script prompt replaces the hint we cannot send", () => {
-    it("every rejected language has one, in its own script", () => {
+    it("the languages with no usable hint get one, in their own script", () => {
+        // Only those NOT in WHISPER_LANGS: bn (rejected by the API) and or
+        // (never in it — the route has always said Whisper has no "or").
         const ranges: Record<string, RegExp> = {
-            bn: /[ঀ-৿]/, gu: /[઀-૿]/, te: /[ఀ-౿]/,
-            ml: /[ഀ-ൿ]/, pa: /[਀-੿]/, or: /[଀-୿]/,
+            bn: /[\u0980-\u09FF]/, or: /[\u0B00-\u0B7F]/,
         };
         for (const [lang, re] of Object.entries(ranges)) {
-            const p = scriptPromptFor(lang);
-            expect(p, `${lang} needs a script prompt`).toBeTruthy();
-            expect(re.test(p), `${lang} prompt must be in its own script`).toBe(true);
+            const q = scriptPromptFor(lang);
+            expect(q, `${lang} needs a script prompt`).toBeTruthy();
+            expect(re.test(q), `${lang} prompt must be in its own script`).toBe(true);
+        }
+    });
+
+    it("⚖️ a language WITH a working hint gets no script prompt", () => {
+        // The hint is the stronger signal; sending both is noise. These four
+        // were removed on inference earlier today and are restored.
+        for (const l of ["gu", "te", "ml", "pa"]) {
+            expect(scriptPromptFor(l), l).toBe("");
         }
     });
 
@@ -85,14 +106,19 @@ describe("🔑 a script prompt replaces the hint we cannot send", () => {
         expect(scriptPromptFor("bn-IN")).toBe(SCRIPT_PROMPTS.bn);
     });
 
-    it("⛔ the two lists never overlap — one hint per language, never both", () => {
-        // The invariant behind the `WHISPER_LANGS.has(code)` guard in
-        // scriptPromptFor. A language in BOTH lists would send `language`
-        // AND a script prompt, which is noise at best and contradictory at
-        // worst. Asserted as data so adding an entry to either list cannot
-        // quietly create the overlap.
-        const both = Object.keys(SCRIPT_PROMPTS).filter((l) => WHISPER_LANGS.has(l));
-        expect(both).toEqual([]);
+    it("⛔ a language is never given BOTH a hint and a script prompt", () => {
+        // The real invariant. SCRIPT_PROMPTS deliberately keeps entries for
+        // languages that are currently accepted (gu/te/ml/pa) so the data is
+        // ready if OpenAI ever rejects one — the route's retry would then
+        // need it. What must never happen is sending both signals at once,
+        // which scriptPromptFor guarantees by checking WHISPER_LANGS first.
+        for (const l of Object.keys(SCRIPT_PROMPTS)) {
+            if (WHISPER_LANGS.has(l)) {
+                expect(scriptPromptFor(l), `${l} has a hint, so no script prompt`).toBe("");
+            } else {
+                expect(scriptPromptFor(l), `${l} has no hint, so it needs one`).toBeTruthy();
+            }
+        }
     });
 });
 

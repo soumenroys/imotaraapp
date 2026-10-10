@@ -869,6 +869,22 @@ async function logAssistantMessageToHistory(
   }
 }
 
+/**
+ * What to say when the natural voice has been rationed.
+ *
+ * 🔴 Owner, 2026-10-10: "imotara should request to login for better voice
+ * assistance." An ANONYMOUS identity has a daily allowance for the neural
+ * voice; past it /api/tts answers 429 and playback silently drops to the
+ * browser voice — experienced as the product breaking, with nothing saying
+ * why or that signing in removes the limit.
+ *
+ * ⚖️ Says what happened AND what fixes it. Kept identical in wording to
+ * mobile's VOICE_QUOTA_NUDGE: the same situation should not read as two
+ * different problems on two devices.
+ */
+const VOICE_QUOTA_NUDGE =
+  "Daily limit for the natural voice reached — using your device voice. Sign in for unlimited voice.";
+
 export default function ChatPage() {
   const searchParams = useSearchParams();
   const urlSessionId = (searchParams?.get("sessionId") ?? "").trim();
@@ -4205,6 +4221,7 @@ export default function ChatPage() {
                   </div>
                   ) : (
                   <Bubble
+                    onNotice={(message) => setChatToast({ message, type: "info" })}
                     key={m.id}
                     id={m.id}
                     role={m.role}
@@ -5566,9 +5583,17 @@ async function playChunkedTTS(
     // below. Forwarded to /api/tts for English-only emotion-aware style
     // selection; harmless no-op for other languages.
     emotion?: string;
+    // 🔴 Fires when the natural voice was REFUSED because this identity has
+    // used its daily allowance — not because anything broke. Anonymous
+    // identities have that allowance; signing in removes it.
+    //
+    // ⚠️ Separate from the silent fallback: everything else degrades without
+    // comment, because there is nothing useful to say. This one has an
+    // answer, so it gets said.
+    onVoiceQuotaReached?: () => void;
   },
 ): Promise<void> {
-  const { signal, onStart, onDone, emotion } = opts;
+  const { signal, onStart, onDone, emotion, onVoiceQuotaReached } = opts;
   const bcp47  = resolveTTSLang(text);
   const lang   = bcp47.split("-")[0];
   const gender = getTTSGenderPref();
@@ -5698,6 +5723,20 @@ async function playChunkedTTS(
     // own stop handler already reset its state).
     if (err instanceof DOMException && err.name === "AbortError") return;
 
+    // 🔴 A 429 IS A RATION, NOT A FAULT. Owner, 2026-10-10: "imotara should
+    // request to login for better voice assistance."
+    //
+    // An ANONYMOUS identity has a daily allowance for the natural voice. Past
+    // it /api/tts answers 429 and playback silently becomes the browser
+    // voice — experienced as the product breaking, with nothing saying why or
+    // that signing in removes the limit entirely.
+    //
+    // ⛔ Only for 429. Everything else still falls back in silence, because
+    // there is nothing useful to tell anyone about it.
+    if (err instanceof Error && /\bTTS 429\b/.test(err.message)) {
+      try { onVoiceQuotaReached?.(); } catch { /* never block the fallback */ }
+    }
+
     if (typeof window === "undefined" || !window.speechSynthesis) { onDone?.(); return; }
     // Previously always spoke `clean` (the full message) here, so a failure
     // partway through a multi-chunk reply made the fallback repeat
@@ -5731,6 +5770,9 @@ async function playChunkedTTS(
 }
 
 function Bubble({
+  // 🔴 So the voice-quota nudge can reach the person. Bubble owns the speaker
+  // button but not the toast, and a 429 must not degrade in silence.
+  onNotice,
   id,
   role,
   content,
@@ -5753,6 +5795,7 @@ function Bubble({
   avatarSrc,
   companionDisplayName,
 }: {
+  onNotice?: (message: string) => void;
   id: string;
   role: Role;
   content: string;
@@ -5814,6 +5857,9 @@ function Bubble({
         setSpeaking(false);
         if (ttsAbortRef.current === abort) ttsAbortRef.current = null;
       },
+      // 🔴 Say what happened and what fixes it, rather than quietly handing
+      // the person a worse voice. Signing in removes the limit entirely.
+      onVoiceQuotaReached: () => onNotice?.(VOICE_QUOTA_NUDGE),
     });
   }
 

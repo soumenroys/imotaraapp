@@ -379,6 +379,28 @@ export default function SiteHeader() {
                 the Supabase session, so rendering either label during SSR would
                 guess wrong half the time and hydrate into a flicker — briefly
                 offering "Sign in" to someone who is already signed in. */}
+            {/* 🔴 WHICH ACCOUNT IS THIS? Owner, 2026-10-10: "imotara should show
+                the emil address in which the user is logged in somewhere.
+                otherwise user will get confused."
+
+                Not cosmetic: signed-in vs anonymous changes the VOICE (the
+                neural voice is rationed for anonymous identities), the reply
+                quota and whether anything syncs. A whole investigation went
+                into "the speech got worse" before the answer turned out to be
+                "that device is signed out", with nothing on screen saying so.
+
+                ⚠️ Behind `mounted` for the same hydration reason as the
+                buttons, and truncated — a long address must not push the
+                controls off the header. */}
+            {mounted && user?.email && (
+              <span
+                title={user.email}
+                className="hidden md:inline-block max-w-[180px] truncate text-xs text-zinc-500 dark:text-zinc-400"
+              >
+                {user.email}
+              </span>
+            )}
+
             {mounted && (user ? (
               <button
                 type="button"
@@ -470,6 +492,14 @@ export default function SiteHeader() {
               {mounted && (
                 <>
                   <div className="my-1 border-t border-white/10 dark:border-zinc-700/40" />
+                  {/* The drawer is the narrow-screen header, and the desktop
+                      slot hides the address below md — so without this, phone
+                      users could never see which account they are on. */}
+                  {user?.email && (
+                    <div className="truncate px-3 py-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      {user.email}
+                    </div>
+                  )}
                   {user ? (
                     <button
                       type="button"

@@ -202,6 +202,49 @@ export async function GET() {
   );
 }
 
+/**
+ * How many completion tokens a reply gets.
+ *
+ * 🔴 Extracted 2026-10-10. The one production log in the window of a reported
+ * failure was:
+ *   [imotara][aiClient] reply TRUNCATED at maxTokens
+ *   (maxTokens=80, completion_tokens=80, model=gpt-4.1-2025-04-14)
+ *
+ * 80 is the closure-intent budget — a deliberately short send-off. But
+ * closure replies were EXCLUDED from the non-English scaling below
+ * (`!isClosureIntent && ...`), so a goodbye in Bengali got 80 where every
+ * other Bengali reply got 1.4x its budget. Indic scripts tokenise far more
+ * heavily per unit of meaning, which is the entire reason that scaling
+ * exists — and 80 does not cover the "1-2 short sentences" the closure prompt
+ * itself asks for. A goodbye cut off mid-word is a poor note to end on, and
+ * the prompt promises the opposite: "Always finish your last sentence
+ * completely - never end mid-sentence or mid-word."
+ *
+ * ⚖️ English closure replies are UNCHANGED at 80 — they already fit, and the
+ * cap is what keeps a send-off short. Only non-English ones move, to the same
+ * multiple everything else already gets.
+ *
+ * Exported so the arithmetic is asserted directly rather than re-implemented
+ * in a test, where it could agree with itself while the route drifted.
+ */
+export function replyTokenBudget(
+    isClosureIntent: boolean,
+    depth: string | undefined,
+    resolvedLang: string | undefined | null,
+): number {
+    const base = isClosureIntent
+        ? 80
+        : depth === "deep"
+            ? 320
+            : depth === "moderate"
+                ? 220
+                : 200;
+    // Non-English Unicode scripts (Bengali, Hindi, Tamil, etc.) require
+    // significantly more tokens per unit of meaning than English — scale up
+    // to prevent mid-sentence cutoff.
+    return (resolvedLang && resolvedLang !== "en") ? Math.round(base * 1.4) : base;
+}
+
 export async function POST(req: Request) {
   try {
     const ip = getClientIp(req);
@@ -3600,18 +3643,7 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join("\n");
 
-    const baseMaxTokens = isClosureIntent
-      ? 80
-      : arc.depth === "deep"
-        ? 320
-        : arc.depth === "moderate"
-          ? 220
-          : 200;
-    // Non-English Unicode scripts (Bengali, Hindi, Tamil, etc.) require significantly more
-    // tokens per unit of meaning than English — scale up to prevent mid-sentence cutoff.
-    const maxTokens = (!isClosureIntent && resolvedLang && resolvedLang !== "en")
-      ? Math.round(baseMaxTokens * 1.4)
-      : baseMaxTokens;
+    const maxTokens = replyTokenBudget(isClosureIntent, arc.depth, resolvedLang);
 
     const isRomanInput = resolvedLang !== "en" && isRomanizedInput(lastUserMsg, resolvedLang);
 

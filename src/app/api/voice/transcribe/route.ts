@@ -285,7 +285,57 @@ export function hasNoSpeech(segments: WhisperSegment[] | undefined): boolean {
  * missing, which left them to auto-detection that mislabels short Indic
  * utterances as Hindi/Arabic. "or" (Odia) remains absent — not supported.
  */
-export const WHISPER_LANGS = new Set(["af","ar","hy","az","be","bs","bg","bn","ca","zh","hr","cs","da","nl","en","et","fi","fr","gl","gu","de","el","he","hi","hu","is","id","it","ja","kn","kk","ko","lv","lt","mk","ml","ms","mr","mi","ne","no","fa","pl","pt","pa","ro","ru","sr","sk","sl","es","sw","sv","tl","ta","te","th","tr","uk","ur","vi","cy"]);
+export const WHISPER_LANGS = new Set(["af","ar","hy","az","be","bs","bg","ca","zh","hr","cs","da","nl","en","et","fi","fr","gl","de","el","he","hi","hu","is","id","it","ja","kn","kk","ko","lv","lt","mk","ms","mr","mi","ne","no","fa","pl","pt","ro","ru","sr","sk","sl","es","sw","sv","tl","ta","th","tr","uk","ur","vi","cy"]);
+
+/**
+ * 🔴 bn / gu / te / ml / pa / or ARE NOT IN THAT SET, and that is not an
+ * oversight — the Whisper API REJECTS them as a `language` value.
+ *
+ * Production, repeatedly, 2026-10-10:
+ *   Whisper 400: {"message":"Language 'bn' is not supported.",
+ *                 "code":"unsupported_language"}
+ *   [voice/transcribe] Whisper rejected language "bn" — retrying with
+ *                      auto-detect. Remove it from WHISPER_LANGS.
+ *
+ * An earlier change added bn/te/ml/gu/pa with the comment "Whisper supports
+ * all five". The model does; the API's `language` parameter does not accept
+ * them, and that is the thing this code sends. Every Bengali turn therefore
+ * cost a wasted 400 and then fell back to bare auto-detect — which returned
+ * Devanagari for Bengali speech and was reported as "i tried to talk in
+ * bengali but it typed in hindi".
+ *
+ * ⛔ Do not "fix" a mis-transcription by putting them back. The route tells
+ * you itself when a code is rejected; trust that log over any list.
+ *
+ * 🔑 What replaces the hint for these languages: a SCRIPT PROMPT. Whisper
+ * biases its output toward the script of its `prompt`, which is the only
+ * lever left once `language` is unavailable. See scriptPromptFor.
+ */
+
+/**
+ * A few words in the target script, used to bias Whisper's output when we
+ * cannot name the language.
+ *
+ * ⚠️ Deliberately short and ordinary. The prompt is echoed back verbatim when
+ * Whisper hears nothing, and isPromptEcho has to be able to recognise it —
+ * so it is passed to that guard as part of the same string it was sent as.
+ */
+export const SCRIPT_PROMPTS: Record<string, string> = {
+    bn: "আমি ভালো আছি।",
+    gu: "હું ઠીક છું.",
+    te: "నేను బాగున్నాను.",
+    ml: "എനിക്ക് സുഖമാണ്.",
+    pa: "ਮੈਂ ਠੀਕ ਹਾਂ।",
+    or: "ମୁଁ ଭଲ ଅଛି।",
+};
+
+/** The script hint for a language we cannot pass as `language`, or "". */
+export function scriptPromptFor(lang: unknown): string {
+    if (!lang || typeof lang !== "string") return "";
+    const code = lang.split("-")[0].toLowerCase();
+    if (WHISPER_LANGS.has(code)) return "";   // the real hint is available
+    return SCRIPT_PROMPTS[code] ?? "";
+}
 
 /**
  * Which `language` to send Whisper, or null to let it detect.
@@ -396,7 +446,12 @@ export async function POST(req: NextRequest) {
     whisperForm.append("response_format", "verbose_json");
     // Spelling hint — see WHISPER_PROMPT. Guarded by isPromptEcho, because
     // Whisper echoes its prompt back when it hears no speech.
-    whisperForm.append("prompt", whisperPrompt);
+    // 🔑 When `language` is unavailable for this tongue (bn/gu/te/ml/pa/or),
+    // bias the SCRIPT through the prompt instead — otherwise Whisper free-runs
+    // and returns Devanagari for Bengali speech, which is what was reported.
+    const scriptHint = scriptPromptFor(lang);
+    const effectivePrompt = scriptHint ? `${whisperPrompt}. ${scriptHint}` : whisperPrompt;
+    whisperForm.append("prompt", effectivePrompt);
     // null = tell Whisper nothing and let it auto-detect. See
     // whisperLanguageFor for why that is the right answer for "auto".
     const whisperLang = whisperLanguageFor(lang);
@@ -515,7 +570,7 @@ export async function POST(req: NextRequest) {
 
     // Returning "" routes the client to its existing "didn't catch that" path
     // (useVoiceInput's onNoSpeech), so nothing new has to be handled on mobile.
-    if (rawText && (hasNoSpeech(json?.segments) || isLikelyHallucination(rawText, whisperPrompt))) {
+    if (rawText && (hasNoSpeech(json?.segments) || isLikelyHallucination(rawText, effectivePrompt))) {
         console.warn("[voice/transcribe] discarded likely hallucination:", rawText.slice(0, 120));
         return NextResponse.json({ text: "", discarded: "no_speech" });
     }

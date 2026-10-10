@@ -215,7 +215,12 @@ describe("the app's own name is spelled right", () => {
             path.join(process.cwd(), "src/app/api/voice/transcribe/route.ts"), "utf8");
         // The hint is per-request now (whisperPromptFor), defaulting to the
         // product name — see "a renamed companion is hinted by ITS name".
-        expect(route).toMatch(/whisperForm\.append\("prompt", whisperPrompt\)/);
+        // ⚠️ RE-POINTED, not relaxed. The prompt sent is now `effectivePrompt`:
+        // the companion name, plus a SCRIPT hint for languages whose code
+        // the Whisper API rejects (bn/gu/te/ml/pa/or). The guarantee here is
+        // unchanged — a prompt IS sent, and it is built from the name.
+        expect(route).toMatch(/whisperForm\.append\("prompt", effectivePrompt\)/);
+        expect(route).toMatch(/const effectivePrompt = scriptHint \? `\$\{whisperPrompt\}\. \$\{scriptHint\}` : whisperPrompt;/);
     });
 
     it("the prompt is ONE word — the smaller the hint, the less it can leak", () => {
@@ -290,8 +295,17 @@ describe("a renamed companion is hinted by ITS name", () => {
 
     it("the route passes the effective hint to BOTH Whisper and the guard", () => {
         const route = fs.readFileSync(path.join(process.cwd(), "src/app/api/voice/transcribe/route.ts"), "utf8");
-        expect(route).toMatch(/whisperForm\.append\("prompt", whisperPrompt\)/);
-        expect(route).toMatch(/isLikelyHallucination\([a-zA-Z_.]+, whisperPrompt\)/);
+        // ⚠️ RE-POINTED, not relaxed. The prompt sent is now `effectivePrompt`:
+        // the companion name, plus a SCRIPT hint for languages whose code
+        // the Whisper API rejects (bn/gu/te/ml/pa/or). The guarantee here is
+        // unchanged — a prompt IS sent, and it is built from the name.
+        expect(route).toMatch(/whisperForm\.append\("prompt", effectivePrompt\)/);
+        expect(route).toMatch(/const effectivePrompt = scriptHint \? `\$\{whisperPrompt\}\. \$\{scriptHint\}` : whisperPrompt;/);
+        // ⚠️ RE-POINTED with the prompt change above. The guarantee is the one
+        // that matters MORE now, not less: the guard must be given the exact
+        // string that was SENT, or an echo of the script hint would be read
+        // back as if the person had said it.
+        expect(route).toMatch(/isLikelyHallucination\([a-zA-Z_.]+, effectivePrompt\)/);
         expect(route).toMatch(/whisperPromptFor\(formData\.get\("companionName"\)\)/);
     });
 });

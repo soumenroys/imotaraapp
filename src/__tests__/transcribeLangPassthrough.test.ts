@@ -52,15 +52,27 @@ describe("🔑 'auto' must reach Whisper as NO language", () => {
 });
 
 describe("⛔ a real choice is still forwarded — the money case", () => {
-    it("Bengali is forwarded as bn", () => {
-        // Explicit codes exist precisely because bare auto-detection
-        // "mislabels short Indic utterances as Hindi/Arabic" (route comment).
-        expect(appendsLanguage("bn")).toBe("bn");
+    it("⛔ Bengali is NOT forwarded — the API rejects it", () => {
+        // ⚠️ THIS ASSERTION WAS BACKWARDS when first written, on the strength
+        // of a code comment claiming "Whisper supports all five". Production
+        // disagreed on every single Bengali turn, 2026-10-10:
+        //   Whisper 400: {"message":"Language 'bn' is not supported.",
+        //                 "code":"unsupported_language"}
+        // The MODEL supports Bengali; the API's `language` PARAMETER does not,
+        // and that is what this route sends. See
+        // whisperRejectsSomeIndicLanguages.test.ts for the whole story.
+        expect(appendsLanguage("bn")).toBeNull();
     });
 
-    it("every Indian language Whisper supports is forwarded", () => {
-        for (const l of ["hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa", "ur"]) {
+    it("the Indian languages the API DOES accept are forwarded", () => {
+        for (const l of ["hi", "ta", "mr", "kn", "ur"]) {
             expect(appendsLanguage(l), `${l} must reach Whisper`).toBe(l);
+        }
+    });
+
+    it("…and the ones it rejects are omitted, so auto-detect runs instead", () => {
+        for (const l of ["bn", "gu", "te", "ml", "pa", "or"]) {
+            expect(appendsLanguage(l), `${l} must NOT be sent`).toBeNull();
         }
     });
 
@@ -77,8 +89,11 @@ describe("⛔ a real choice is still forwarded — the money case", () => {
     });
 
     it("a BCP-47 tag is reduced to its ISO-639-1 base", () => {
-        expect(appendsLanguage("bn-IN")).toBe("bn");
+        // ⚠️ bn-IN no longer demonstrates this, because bn is not forwarded
+        // at all now. hi-IN makes the same point with a code the API takes.
+        expect(appendsLanguage("hi-IN")).toBe("hi");
         expect(appendsLanguage("en-US")).toBe("en");
+        expect(appendsLanguage("ta-IN")).toBe("ta");
     });
 });
 

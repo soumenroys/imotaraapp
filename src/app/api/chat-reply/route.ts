@@ -39,6 +39,9 @@ import {
 } from "@/lib/supabaseServer";
 import { fetchUserMemories } from "@/lib/memory/fetchUserMemories";
 import { resolvePlatform } from "@/lib/imotara/clientPlatform";
+import {
+    SAFETY_BASELINE, CONNECT_REFERRAL_RULE, safetyEndReminders,
+} from "@/lib/imotara/replySafetyRules";
 import { resolveUserTier } from "@/lib/imotara/org";
 
 type ChatReplyRequest = {
@@ -1427,8 +1430,8 @@ export async function POST(req: Request) {
       "VENTING RULE: If the user is venting for the FIRST 1–2 turns, respond with pure presence — 'You don't have to figure this out right now' / 'You're allowed to feel all of this.' No advice yet. BUT: if they are still in the same pain after 3+ turns without resolution — pure presence is no longer enough. Gently shift: validate briefly, then offer one insight or perspective. A companion who only listens and never helps is not truly helping.",
       "SYMPTOM MIRRORING: When the user describes specific physical sensations or behaviors — chest tightness, insomnia, not eating, fatigue, headache, trembling, shallow breath — NAME those specific details back. Do NOT respond with a generic 'anxiety is hard' or 'this happens to many people'. Say back the exact thing they described: 'सीने की वो बेचैनी...' / 'नींद न आना और खाना भी नहीं — ये सब एक साथ बहुत भारी होता है'.",
       "OPENER RULE: Never start with 'Got it', 'Absolutely', 'Of course', or similar filler acknowledgements. Respond directly to what the user said.",
-      "No medical, diagnostic, or crisis instructions. If serious risk appears, encourage reaching out to trusted people and local professional crisis services — always lead with that.",
-      "CONNECT REFERRAL RULE: If the user explicitly says (in ANY language) that they are lonely, have no one to talk to, or wish they had someone real/human to talk to — you MUST, in that same reply, name 'Imotara Connect' as a place to talk to a real person one-on-one, e.g. 'you can also talk to a real person through Imotara Connect if you want company.' Say this plainly, alongside your own presence, not as a replacement for it. This is peer support only — NEVER call a Connect companion a therapist, counsellor, doctor, or any kind of licensed/medical professional. EXCEPTION: if the user has also expressed thoughts of suicide, self-harm, or ending their life anywhere in this conversation, do NOT mention Connect — the trusted-person/professional-crisis-service referral above must be the ONLY referral in your reply.",
+      SAFETY_BASELINE.full,
+      CONNECT_REFERRAL_RULE.full,
       "",
       includeExtendedTherapeuticGuidance ? [
         "MOTIVATIONAL GUIDANCE — WISDOM SOURCES FOR ADVICE AND ENCOURAGEMENT (ALL LANGUAGES):",
@@ -3632,12 +3635,11 @@ export async function POST(req: Request) {
       "",
       scriptMirrorInstruction, // LAST: repeat at end for highest LLM recall
       contextAnchor, // repeat context anchor near end for maximum recall
-      isLonelyOrWantsCompany
-        ? "REMINDER — CONNECT REFERRAL RULE (repeated near end for recall): The user said they're lonely / have no one to talk to / wish they had someone real to talk to. You MUST name 'Imotara Connect' in this reply as a place to talk to a real person one-on-one — peer support only, never call it therapy or a licensed professional."
-        : "",
-      isCrisisAdjacent
-        ? "REMINDER — CRISIS SAFETY (repeated near end for recall): The user has expressed thoughts of suicide, self-harm, or ending their life. Do NOT mention Imotara Connect anywhere in this reply, in any language. Your only referral must be to a trusted person and/or local professional crisis services."
-        : "",
+      // 🔴 ONE reminder, and crisis wins — see safetyEndReminders. These
+      // were two independent conditionals; they can contradict each other, and
+      // the only thing preventing it was `!isCrisisAdjacent` in a flag
+      // computed 3,300 lines earlier. The precedence now lives with the text.
+      safetyEndReminders({ isCrisisAdjacent, isLonelyOrWantsCompany }, "full"),
       "Now write " + effectiveCompanionName + "'s next reply — warm, specific to what the user said, and feels like a natural continuation. CRITICAL: Always finish your last sentence completely — never end mid-sentence or mid-word.",
     ]
       .filter(Boolean)
@@ -3701,10 +3703,8 @@ export async function POST(req: Request) {
           // reply with zero crisis-safety redirection. Kept minimal here to
           // match this prompt's own "1-2 sentences" constraint — full TIER 1
           // framework detail isn't needed, just the core referral behavior.
-          "No medical, diagnostic, or crisis instructions. If serious risk appears, encourage reaching out to trusted people and local professional crisis services — always lead with that, even in a short reply.",
-          isLonelyOrWantsCompany
-            ? "If the user is lonely / has no one to talk to / wishes they had someone real to talk to, you MUST name 'Imotara Connect' as a place to talk to a real person one-on-one — peer support only, never call it therapy or a licensed professional."
-            : "",
+          SAFETY_BASELINE.brief,
+          isLonelyOrWantsCompany ? CONNECT_REFERRAL_RULE.brief : "",
           companionPersonaHint || "Be warm and empathetic.",
           langAgeOverride,
           emotionHint,
@@ -3722,11 +3722,7 @@ export async function POST(req: Request) {
           // Repeated near the end for recall — same technique used in the
           // main prompt (scriptMirrorInstruction/contextAnchor), needed
           // because a buried instruction alone proved unreliable in testing.
-          isCrisisAdjacent
-            ? "REMINDER — CRISIS SAFETY: The user has expressed thoughts of suicide, self-harm, or ending their life. Do NOT mention Imotara Connect anywhere in this reply, in any language. Your only referral must be to a trusted person and/or local professional crisis services."
-            : isLonelyOrWantsCompany
-              ? "REMINDER: Name 'Imotara Connect' in this reply as a place to talk to a real person one-on-one — peer support only, never therapy or a licensed professional."
-              : "",
+          safetyEndReminders({ isCrisisAdjacent, isLonelyOrWantsCompany }, "brief"),
         ].filter(Boolean).join("\n")
       : null;
 

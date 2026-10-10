@@ -15,6 +15,8 @@ const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*
 const CHAT = strip(read("src/app/chat/page.tsx"));
 const SETTINGS = strip(read("src/app/settings/page.tsx"));
 const REPLY = strip(read("src/app/api/chat-reply/route.ts"));
+// The safety rules both prompts share — see replySafetyRules.test.ts.
+const SAFETY = read("src/lib/imotara/replySafetyRules.ts");
 
 describe("chat page: companion-voice strings follow the chosen name", () => {
     it("the low-mood hint helper takes the name and both sad hints use it", () => {
@@ -61,7 +63,27 @@ describe("chat-reply prompt: the model is told ONE name, consistently", () => {
 
     it("⚠️ brand references in the prompt are UNCHANGED", () => {
         expect(REPLY).toMatch(/Imotara is an Indian product/);
-        expect(REPLY).toMatch(/'Imotara Connect'/);
+        // ⚠️ RE-POINTED 2026-10-10, not dropped. The Connect referral rules
+        // moved out of this route into lib/imotara/replySafetyRules.ts, so
+        // that both the main prompt and the romanized one get them from one
+        // place — they used to be duplicate literals, which is how crisis
+        // safety went missing from the romanized prompt in 2026-08-14.
+        //
+        // 🔑 The guarantee this test exists for is unchanged and is checked
+        // below where the text now lives: the PRODUCT name is a fixed literal,
+        // never the renamed companion. A user who calls their companion "Maya"
+        // must still be pointed at 'Imotara Connect', not 'Maya Connect'.
+        expect(SAFETY).toMatch(/'Imotara Connect'/);
+    });
+
+    it("⛔ …and the brand is never interpolated with the companion name", () => {
+        // The failure the assertion above is really guarding: a template
+        // literal would make the product name follow the rename.
+        expect(SAFETY).not.toMatch(/\$\{[^}]*(?:companion|effectiveCompanionName)[^}]*\}\s*Connect/i);
+        expect(SAFETY).not.toMatch(/companionName/);
+        // and the route still hands those rules to BOTH prompts
+        expect(REPLY).toMatch(/SAFETY_BASELINE\.full/);
+        expect(REPLY).toMatch(/SAFETY_BASELINE\.brief/);
     });
 });
 

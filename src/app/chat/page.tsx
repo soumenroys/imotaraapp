@@ -4406,7 +4406,19 @@ export default function ChatPage() {
             const crisisMinTier: number = crisisThresholdSetting === "sensitive" ? 1 : crisisThresholdSetting === "conservative" ? 2 : 1;
             return crisisTier >= crisisMinTier;
           })() && (() => {
-            const txt = CRISIS_BANNER_BY_LANG[preferredLang] ?? CRISIS_BANNER_BY_LANG.en;
+            // 🔴 NOT `preferredLang` on its own — that rendered this banner in
+            // ENGLISH for 12 of 12 languages measured, including ones whose
+            // script is unambiguous. See crisisBannerLangFor.
+            const bannerLang = crisisBannerLangFor(
+              preferredLang,
+              (activeThread?.messages ?? [])
+                .filter(isAppMessage)
+                .filter((m) => m.role === "user")
+                .slice(-4)
+                .map((m) => m.content ?? ""),
+              (l) => Boolean(CRISIS_BANNER_BY_LANG[l]),
+            );
+            const txt = CRISIS_BANNER_BY_LANG[bannerLang] ?? CRISIS_BANNER_BY_LANG.en;
             const primaryLine = crisisCountryResources?.primary?.[0] ?? null;
             return (
               <div className={`mx-auto mb-1 max-w-3xl rounded-2xl border px-4 py-3 text-sm ${
@@ -5365,6 +5377,18 @@ function detectScriptLang(text: string): string | null {
   if (/[\u3040-\u30FF]/.test(text)) return "ja-JP";   // Japanese (kana — unambiguous)
   if (/[\u4E00-\u9FFF]/.test(text)) return "zh-CN";   // Chinese (CJK — shared)
   if (/[\uAC00-\uD7AF]/.test(text)) return "ko-KR";   // Korean
+  // \U0001f534 CYRILLIC WAS MISSING ENTIRELY. Found 2026-10-10 while checking which
+  // language the crisis banner speaks: Russian text returned null here, so it
+  // was invisible to EVERY caller of this function \u2014 the banner fell back to
+  // English, and resolveTTSLang fell through to the profile setting, which for
+  // anyone who had not set one meant a Russian reply READ ALOUD IN AN ENGLISH
+  // VOICE. Same shape as the Bengali-danda and kana-before-CJK bugs above:
+  // one missing branch, silent everywhere it mattered.
+  //
+  // \u2696\ufe0f Strictly additive \u2014 these characters produced `null` before, so no
+  // case that works today changes. Of the 22 supported languages only Russian
+  // uses Cyrillic, so the mapping is unambiguous for this app.
+  if (/[\u0400-\u04FF]/.test(text)) return "ru-RU";   // Cyrillic (Russian)
   return null;
 }
 
@@ -5404,6 +5428,58 @@ export function recognitionLangFor(
     // 3. Nothing to go on. en-US is a guess, but it is the SAME guess as
     //    before this function existed, so no working case changes.
     return "en-US";
+}
+
+/**
+ * Which language the CRISIS BANNER should speak.
+ *
+ * 🔴 MEASURED 2026-10-10: the banner read `preferredLang` directly, so for
+ * **12 of 12** languages tested it rendered in ENGLISH — Bengali, Hindi,
+ * Arabic, Hebrew, Russian, Chinese and Japanese included, every one of which
+ * `detectScriptLang` identifies with certainty. All 22 translations existed in
+ * CRISIS_BANNER_BY_LANG and were unreachable for anyone who had not set a
+ * language in Settings.
+ *
+ * ⚠️ That is the half of the crisis card nobody checked. The same day the
+ * detector went from 9 languages to 22, the thing it DRAWS was still speaking
+ * English to almost everyone it newly reached. A card that appears but cannot
+ * be read is most of the way back to no card at all.
+ *
+ * 🔑 Precedence copied deliberately from recognitionLangFor above — a stated
+ * choice wins, otherwise the script of what they actually wrote. ⛔ Do not
+ * reorder: someone who CHOSE English while typing Bengali script gets English,
+ * because they asked for it.
+ *
+ * ⚖️ es/fr/de/pt/id remain English-only here, and honestly so: they share the
+ * Latin script and we have no detector for them. That is a known gap on the
+ * board, not something this function can paper over.
+ */
+export function crisisBannerLangFor(
+    preferredLang: string | undefined | null,
+    recentTexts: string[],
+    hasCopy: (lang: string) => boolean,
+): string {
+    // 1. A stated choice wins — they picked it.
+    const stated = (preferredLang ?? "").trim().toLowerCase();
+    if (stated && stated !== "auto" && hasCopy(stated)) return stated;
+
+    // 2. No choice stated: the script of what they wrote, most recent first.
+    //    detectScriptLang returns BCP-47 ("bn-IN"); the copy is keyed on the
+    //    base code ("bn").
+    for (let i = recentTexts.length - 1; i >= 0; i--) {
+        const tag = detectScriptLang(recentTexts[i] ?? "");
+        const base = tag ? tag.split("-")[0] : "";
+        if (base && hasCopy(base)) return base;
+    }
+
+    // 3. Romanised Indic — "ami marte chai" is Bengali, in Latin letters.
+    for (let i = recentTexts.length - 1; i >= 0; i--) {
+        const hint = detectLangFromRomanHints(recentTexts[i] ?? "");
+        if (hint && hint !== "en" && hasCopy(hint)) return hint;
+    }
+
+    // 4. Nothing to go on. The same guess as before this function existed.
+    return "en";
 }
 
 function resolveTTSLang(text: string): string {

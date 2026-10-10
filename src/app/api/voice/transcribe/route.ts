@@ -327,17 +327,32 @@ export const WHISPER_LANGS = new Set(["af","ar","hy","az","be","bs","bg","ca","z
  * A few words in the target script, used to bias Whisper's output when we
  * cannot name the language.
  *
- * ⚠️ Deliberately short and ordinary. The prompt is echoed back verbatim when
- * Whisper hears nothing, and isPromptEcho has to be able to recognise it —
- * so it is passed to that guard as part of the same string it was sent as.
+ * ⚠️ Deliberately ORDINARY, and deliberately about FEELINGS. Whisper's prompt
+ * conditions the decoder's vocabulary, not just the script, so the words it
+ * contains are the words it becomes readier to produce. These are the common
+ * pronouns, verbs and emotional phrases this product actually hears — "I am
+ * well", "my mind is not good today", "how are you", "I feel very tired".
+ *
+ * 🔴 Reported 2026-10-10: "the words which are getting typed in bengali,
+ * those words does not exists in bengali dictionary." A single short sentence
+ * biased the SCRIPT but gave the decoder almost nothing to anchor spelling
+ * on. This is the cheapest lever that targets the words themselves.
+ *
+ * ⚖️ It is a lever, not a cure. The underlying limit is whisper-1's accuracy
+ * on these languages, which needs a model evaluation to move properly.
+ *
+ * ⚠️ The prompt is echoed back verbatim when Whisper hears nothing, and
+ * isPromptEcho has to be able to recognise it — so it is passed to that guard
+ * as part of the same string it was sent as. Longer prompts make that MORE
+ * important, not less.
  */
 export const SCRIPT_PROMPTS: Record<string, string> = {
-    bn: "আমি ভালো আছি।",
-    gu: "હું ઠીક છું.",
-    te: "నేను బాగున్నాను.",
-    ml: "എനിക്ക് സുഖമാണ്.",
-    pa: "ਮੈਂ ਠੀਕ ਹਾਂ।",
-    or: "ମୁଁ ଭଲ ଅଛି।",
+    bn: "আমি ভালো আছি। আজ আমার মন ভালো নেই। তুমি কেমন আছো? আমার খুব ক্লান্ত লাগছে।",
+    gu: "હું ઠીક છું. આજે મારું મન સારું નથી. તમે કેમ છો? મને ખૂબ થાક લાગે છે.",
+    te: "నేను బాగున్నాను. ఈ రోజు నాకు మనసు బాగాలేదు. మీరు ఎలా ఉన్నారు? నాకు చాలా అలసటగా ఉంది.",
+    ml: "എനിക്ക് സുഖമാണ്. ഇന്ന് എനിക്ക് മനസ്സ് സുഖമില്ല. നിങ്ങൾക്ക് സുഖമാണോ? എനിക്ക് വളരെ ക്ഷീണം തോന്നുന്നു.",
+    pa: "ਮੈਂ ਠੀਕ ਹਾਂ। ਅੱਜ ਮੇਰਾ ਮਨ ਚੰਗਾ ਨਹੀਂ ਹੈ। ਤੁਸੀਂ ਕਿਵੇਂ ਹੋ? ਮੈਨੂੰ ਬਹੁਤ ਥਕਾਵਟ ਲੱਗ ਰਹੀ ਹੈ।",
+    or: "ମୁଁ ଭଲ ଅଛି। ଆଜି ମୋର ମନ ଭଲ ନାହିଁ। ଆପଣ କେମିତି ଅଛନ୍ତି? ମୋତେ ବହୁତ ଥକ୍କା ଲାଗୁଛି।",
 };
 
 /** The script hint for a language we cannot pass as `language`, or "". */

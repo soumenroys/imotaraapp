@@ -142,3 +142,54 @@ describe("⛔ the echo guard must check the prompt we ACTUALLY sent", () => {
         expect(isLikelyHallucination("আমার আজ খুব ক্লান্ত লাগছে", combined)).toBe(false);
     });
 });
+
+describe("🔑 the prompt must bias the WORDS, not only the script", () => {
+    // 🔴 Reported 2026-10-10: "the words which are getting typed in bengali,
+    // those words does not exists in bengali dictionary."
+    //
+    // Whisper's prompt conditions the decoder's vocabulary, so what it
+    // contains is what the model becomes readier to produce. A single short
+    // sentence biased the script and almost nothing else.
+
+    it("every script prompt carries real sentences, not a token phrase", () => {
+        for (const [lang, text] of Object.entries(SCRIPT_PROMPTS)) {
+            expect(text.length, `${lang} prompt is too thin to condition anything`)
+                .toBeGreaterThan(40);
+        }
+    });
+
+    it("…and more than one sentence, so it spans some grammar", () => {
+        for (const [lang, text] of Object.entries(SCRIPT_PROMPTS)) {
+            const sentences = text.split(/[।.?!॥]/).filter((t) => t.trim().length > 2);
+            expect(sentences.length, `${lang} needs several sentences`).toBeGreaterThanOrEqual(3);
+        }
+    });
+
+    it("⚖️ they are about FEELINGS — the vocabulary this product hears", () => {
+        // A prompt about the weather would bias toward the wrong words.
+        // Each carries a question form too, since people are asked how they are.
+        for (const [lang, text] of Object.entries(SCRIPT_PROMPTS)) {
+            expect(text, `${lang} should include a question`).toMatch(/\?/);
+        }
+    });
+
+    it("⛔ still short enough to stay well inside Whisper's prompt budget", () => {
+        // ~224 tokens. These are far below it, but an unbounded prompt would
+        // start displacing the audio's own context.
+        for (const [lang, text] of Object.entries(SCRIPT_PROMPTS)) {
+            expect(text.length, `${lang} prompt is getting long`).toBeLessThan(220);
+        }
+    });
+
+    it("⛔ an echo of the longer prompt is STILL caught", () => {
+        // Longer prompts make the echo guard more important, not less: there
+        // is more text to be handed back as if someone had said it.
+        const combined = `Imotara. ${SCRIPT_PROMPTS.bn}`;
+        expect(isLikelyHallucination(combined, combined)).toBe(true);
+    });
+
+    it("…and real speech in that script is still NOT discarded", () => {
+        const combined = `Imotara. ${SCRIPT_PROMPTS.bn}`;
+        expect(isLikelyHallucination("আমার আজ খুব ক্লান্ত লাগছে", combined)).toBe(false);
+    });
+});

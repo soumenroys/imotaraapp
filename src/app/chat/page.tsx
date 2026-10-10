@@ -95,6 +95,7 @@ import {
   isConfusedText,
   isSadText,
   isStressText,
+  isCrisisTier2,
 } from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { CRISIS_BANNER_BY_LANG } from "@/lib/safety/crisisCopy";
@@ -453,37 +454,12 @@ function isAppMessage(m: Message): m is AppMessage {
 }
 
 // #20: Tiered crisis detection — English
-const CRISIS_TIER2_RE =
-  /\b(suicide|suicidal|end my life|end it all|kill myself|don'?t want to (be here|live|exist)|can'?t go on|no reason to live|want to die|hurt myself|self.?harm|cut myself|overdose|better off dead|wish i was dead|thinking (about|of) suicide|plan(ning)? to (kill|end|harm) (myself|my life)|sexual assault|being raped?|domestic violence|i'?m not safe|not safe right now|in immediate danger|being abused)\b/i;
 const CRISIS_TIER1_RE =
   /\b(hopeless|helpless|worthless|nothing matters|give up|can'?t take (it|this) anymore|breaking down|falling apart|no one cares|all alone|empty inside|numbing|numb(ing)?|disappear|feel like a burden|i'?m a burden|everyone (would be )?better off without me|don'?t deserve to (live|be here|exist)|trapped|feel(ing)? trapped|no way out|no escape|can'?t see a future|no future for me|thinking about (death|ending|disappearing)|thoughts of (death|ending it)|pointless|life is pointless)\b/i;
 
 // #20: Indian language crisis signals — Unicode script (hi/mr Devanagari, bn, ta, te, kn, ml, gu, pa)
-const CRISIS_INDIC_TIER2_RE = new RegExp(
-  [
-    // Hindi / Marathi (Devanagari)
-    "मरना चाहता","मरना चाहती","मर जाना","जीना नहीं","आत्महत्या","खुद को नुकसान","जिंदगी खत्म",
-    "मरायचंय","जगायचं नाही","आत्महत्या करायची","मरून जातो","मरून जाते",
-    // Bengali
-    "মরতে চাই","বাঁচতে চাই না","আত্মহত্যা","মরে যেতে চাই","নিজেকে কষ্ট দিতে চাই",
-    // Tamil
-    "வாழ வேண்டாம்","தற்கொலை","இறந்துவிட","சாக வேண்டும்",
-    // Telugu
-    "చనిపోవాలి","ఆత్మహత్య","బతకాలని లేదు","నన్ను నేను హాని",
-    // Kannada
-    "ಸಾಯಬೇಕು","ಆತ್ಮಹತ್ಯೆ","ಬದುಕಬೇಕಾಗಿಲ್ಲ",
-    // Malayalam
-    "മരിക്കണം","ആത്മഹത്യ","ജീവിക്കണ്ട","ജീവിതം വേണ്ട",
-    // Gujarati
-    "મરવું છે","આત્મહત્યા","જીવવું નથી",
-    // Punjabi (Gurmukhi)
-    "ਮਰਨਾ ਚਾਹੁੰਦਾ","ਆਤਮਹੱਤਿਆ","ਜਿਉਣਾ ਨਹੀਂ",
-  ].join("|"),
-);
 
 // #20: Indian language crisis signals — romanised (very common in Indian chat)
-const CRISIS_ROMAN_INDIC_TIER2_RE =
-  /marna\s+chah|mar\s+jaana|mar\s+jaun|jeena\s+nahi|zindagi\s+khatam|khud\s+ko\s+hurt|aatmahatya|maraycha|jagaych\s+nahi|morte\s+chai|bachte\s+chai\s+na|atmahatya|chanipovali|saayabeku|marikknam|marikkanam|jeevanam\s+venda|saaga\s+beku/i;
 
 // #20: Indian language tier-1 (distress but not immediate crisis) — Unicode
 const CRISIS_INDIC_TIER1_RE = new RegExp(
@@ -636,11 +612,10 @@ function detectCrisisTier(messages: Message[]): CrisisTier {
     .map((m) => m.content ?? "");
 
   for (const text of recentUser) {
-    if (
-      CRISIS_TIER2_RE.test(text) ||
-      CRISIS_INDIC_TIER2_RE.test(text) ||
-      CRISIS_ROMAN_INDIC_TIER2_RE.test(text)
-    ) return 2;
+    // 🔴 ONE shared decision — see isCrisisTier2. These three regexes used to
+    // live here, and because mobile used a different set this page covered
+    // 9 of 22 languages while the phone covered 22.
+    if (isCrisisTier2(text)) return 2;
   }
 
   const tier1Count = recentUser.filter(

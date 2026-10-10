@@ -17,7 +17,9 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
-import { whisperLanguageFor, WHISPER_LANGS } from "../app/api/voice/transcribe/route";
+import {
+    whisperLanguageFor, WHISPER_LANGS, STT_PRIMARY, STT_FALLBACK,
+} from "../app/api/voice/transcribe/route";
 
 const SRC = fs.readFileSync(
     path.join(process.cwd(), "src/app/api/voice/transcribe/route.ts"), "utf8");
@@ -52,16 +54,25 @@ describe("🔑 'auto' must reach Whisper as NO language", () => {
 });
 
 describe("⛔ a real choice is still forwarded — the money case", () => {
-    it("⛔ Bengali is NOT forwarded — the API rejects it", () => {
-        // ⚠️ THIS ASSERTION WAS BACKWARDS when first written, on the strength
-        // of a code comment claiming "Whisper supports all five". Production
-        // disagreed on every single Bengali turn, 2026-10-10:
-        //   Whisper 400: {"message":"Language 'bn' is not supported.",
-        //                 "code":"unsupported_language"}
-        // The MODEL supports Bengali; the API's `language` PARAMETER does not,
-        // and that is what this route sends. See
-        // whisperRejectsSomeIndicLanguages.test.ts for the whole story.
-        expect(appendsLanguage("bn")).toBeNull();
+    it("🔑 Bengali IS forwarded now — the new model accepts it", () => {
+        // ⚠️ THIS ASSERTION HAS BEEN BOTH WAYS ROUND, and both times it was
+        // right about a DIFFERENT model. Keep the history, because the lesson
+        // is the whole value of this file:
+        //
+        //   written first as "forwarded", from a code comment claiming
+        //     "Whisper supports all five"           — wrong, whisper-1 400s
+        //   corrected to "not forwarded"            — right, for whisper-1
+        //   now "forwarded" again                   — right, for gpt-transcribe
+        //
+        // Measured 2026-10-10 against both models:
+        //   gpt-transcribe  language=bn → ✅ "আমার আজ খুব ক্লান্ত লাগছে"
+        //   whisper-1       language=bn → ❌ Language 'bn' is not supported.
+        //
+        // 🔑 So the answer depends on the model, and the function takes one.
+        // Defaulting it to the primary is what the route does.
+        expect(appendsLanguage("bn")).toBe("bn");
+        expect(whisperLanguageFor("bn", STT_PRIMARY)).toBe("bn");
+        expect(whisperLanguageFor("bn", STT_FALLBACK)).toBeNull();
     });
 
     it("the Indian languages the API DOES accept are forwarded", () => {
@@ -71,14 +82,25 @@ describe("⛔ a real choice is still forwarded — the money case", () => {
     });
 
     it("…and the ones with no usable hint are omitted, so auto-detect runs", () => {
-        // ⚠️ bn only. An earlier pass today also listed gu/te/ml/pa here, on
-        // inference rather than evidence — production had only ever rejected
-        // bn. They are forwarded again; see
+        // ⚠️ REWRITTEN TWICE on inference before being measured. The list is
+        // now exactly the codes BOTH models refuse: Punjabi and Odia.
+        //   gpt-transcribe  Language code 'pa' is not recognized.
+        //   whisper-1       Language 'pa' is not supported.
+        // Those two rely on a script prompt instead; see
         // whisperRejectsSomeIndicLanguages.test.ts.
-        //
-        // "or" has never been in the set: Whisper has no Odia code.
-        for (const l of ["bn", "or"]) {
+        for (const l of ["pa", "or"]) {
             expect(appendsLanguage(l), `${l} must NOT be sent`).toBeNull();
+            expect(whisperLanguageFor(l, STT_FALLBACK), `${l} on the fallback`).toBeNull();
+        }
+    });
+
+    it("🔴 the four the FALLBACK cannot take are omitted only on the fallback", () => {
+        // The asymmetry the model switch introduced, and the reason the route
+        // rebuilds its request body instead of mutating it: these four lose
+        // their hint when we fall back, and need a script prompt in its place.
+        for (const l of ["bn", "te", "gu", "ml"]) {
+            expect(whisperLanguageFor(l, STT_PRIMARY), `${l} on the primary`).toBe(l);
+            expect(whisperLanguageFor(l, STT_FALLBACK), `${l} on the fallback`).toBeNull();
         }
     });
 
@@ -107,8 +129,11 @@ describe("⚠️ the premise, pinned", () => {
     it("POST actually uses this decision, rather than its own copy", () => {
         // The behaviour above is tested through the imported function; this is
         // the one thing that cannot be: that the request path calls it.
-        expect(SRC).toMatch(/const whisperLang = whisperLanguageFor\(lang\);/);
-        expect(SRC).toMatch(/if \(whisperLang\) whisperForm\.append\("language", whisperLang\);/);
+        // ⚠️ RE-POINTED 2026-10-10, not loosened. The decision is now made
+        // per model inside buildForm, and can be suppressed entirely for the
+        // retry after the API refuses a code.
+        expect(SRC).toMatch(/const code = withLanguageHint \? whisperLanguageFor\(lang, model\) : null;/);
+        expect(SRC).toMatch(/if \(code\) form\.append\("language", code\);/);
     });
 
     it("⛔ the decision never defaults to English", () => {

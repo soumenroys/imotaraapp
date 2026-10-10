@@ -10,7 +10,10 @@
  * quiet, short, or non-English utterance must survive.
  */
 import { describe, it, expect } from "vitest";
-import { isLikelyHallucination, hasNoSpeech, isPromptEcho, WHISPER_PROMPT, whisperPromptFor } from "@/app/api/voice/transcribe/route";
+import {
+    isLikelyHallucination, hasNoSpeech, isPromptEcho, WHISPER_PROMPT, whisperPromptFor,
+    responseFormatFor, STT_FALLBACK,
+} from "@/app/api/voice/transcribe/route";
 import fs from "fs";
 import path from "path";
 
@@ -197,9 +200,24 @@ describe("the route asks for the data it needs", () => {
         const path = await import("path");
         const src = fs.readFileSync(
             path.join(process.cwd(), "src/app/api/voice/transcribe/route.ts"), "utf8");
-        expect(src).toContain('whisperForm.append("response_format", "verbose_json")');
-        // and actually consults the segments
+        // ⚠️ RE-POINTED 2026-10-10, and this one is a REAL CHANGE, not a
+        // rename. verbose_json is no longer requested unconditionally, because
+        // the primary model cannot give it. Measured:
+        //   response_format 'verbose_json' is not compatible with model
+        //   'gpt-transcribe-api-ev3'. Use 'json' or 'text' instead.
+        //
+        // 🔑 Losing no_speech_prob is only acceptable because the new model
+        // does not need it: on four seconds of silence whisper-1 invented
+        // "আমার খুব ক্লান্ত লাগছে।" and was caught ONLY by that probability,
+        // whereas gpt-transcribe returned "". The guard is kept for the
+        // whisper-1 FALLBACK, which still hallucinates and still needs it.
+        expect(responseFormatFor(STT_FALLBACK)).toBe("verbose_json");
+        expect(src).toContain('form.append("response_format", responseFormatFor(model))');
+        // and actually consults the segments, when there are any
         expect(src).toMatch(/hasNoSpeech\(json\?\.segments\)/);
+        // ⛔ hasNoSpeech must stay FAIL-OPEN, or the primary model — which
+        // never sends segments — would have every word discarded.
+        expect(hasNoSpeech(undefined)).toBe(false);
     });
 });
 
@@ -219,8 +237,15 @@ describe("the app's own name is spelled right", () => {
         // the companion name, plus a SCRIPT hint for languages whose code
         // the Whisper API rejects (bn/gu/te/ml/pa/or). The guarantee here is
         // unchanged — a prompt IS sent, and it is built from the name.
-        expect(route).toMatch(/whisperForm\.append\("prompt", effectivePrompt\)/);
-        expect(route).toMatch(/const effectivePrompt = scriptHint \? `\$\{whisperPrompt\}\. \$\{scriptHint\}` : whisperPrompt;/);
+        // ⚠️ RE-POINTED again 2026-10-10: the body is now built per attempt
+        // by buildForm, because the fallback model needs a different format,
+        // a different language table and therefore a different prompt. The
+        // guarantee is unchanged — a prompt IS sent, built from the name.
+        expect(route).toMatch(/form\.append\("prompt", prompt\)/);
+        expect(route).toMatch(/const prompt = scriptHint \? `\$\{whisperPrompt\}\. \$\{scriptHint\}` : whisperPrompt;/);
+        // 🔑 and `effectivePrompt` still carries the string that was ACTUALLY
+        // sent out of buildForm, which is what the echo guard is given.
+        expect(route).toMatch(/effectivePrompt = built\.prompt;/);
     });
 
     it("the prompt is ONE word — the smaller the hint, the less it can leak", () => {
@@ -299,8 +324,15 @@ describe("a renamed companion is hinted by ITS name", () => {
         // the companion name, plus a SCRIPT hint for languages whose code
         // the Whisper API rejects (bn/gu/te/ml/pa/or). The guarantee here is
         // unchanged — a prompt IS sent, and it is built from the name.
-        expect(route).toMatch(/whisperForm\.append\("prompt", effectivePrompt\)/);
-        expect(route).toMatch(/const effectivePrompt = scriptHint \? `\$\{whisperPrompt\}\. \$\{scriptHint\}` : whisperPrompt;/);
+        // ⚠️ RE-POINTED again 2026-10-10: the body is now built per attempt
+        // by buildForm, because the fallback model needs a different format,
+        // a different language table and therefore a different prompt. The
+        // guarantee is unchanged — a prompt IS sent, built from the name.
+        expect(route).toMatch(/form\.append\("prompt", prompt\)/);
+        expect(route).toMatch(/const prompt = scriptHint \? `\$\{whisperPrompt\}\. \$\{scriptHint\}` : whisperPrompt;/);
+        // 🔑 and `effectivePrompt` still carries the string that was ACTUALLY
+        // sent out of buildForm, which is what the echo guard is given.
+        expect(route).toMatch(/effectivePrompt = built\.prompt;/);
         // ⚠️ RE-POINTED with the prompt change above. The guarantee is the one
         // that matters MORE now, not less: the guard must be given the exact
         // string that was SENT, or an echo of the script hint would be read

@@ -52,18 +52,29 @@ const TRANSCRIBE = "src/app/api/voice/transcribe/route.ts";
 const HISTORY = "src/app/api/history/route.ts";
 
 describe("🔴 a rejected language hint must not cost the user their recording", () => {
-  it("the Whisper call is factored out so it CAN be retried", () => {
+  it("the STT call is factored out so it CAN be retried", () => {
+    // ⚠️ RE-POINTED 2026-10-10 for the gpt-transcribe switch, not loosened.
+    // `callWhisper` became `callStt` when a second model arrived, and there
+    // are now THREE call sites rather than two: the first attempt, the
+    // dropped-hint retry, and the fallback to the older model. The invariant
+    // is unchanged — one call site would mean no recovery at all.
     const s = stripComments(read(TRANSCRIBE));
-    expect(s).toMatch(/async function callWhisper\(form: FormData\)/);
-    // called twice: the first attempt and the retry. One call site means the
-    // retry was removed and the 502 is back.
-    expect([...s.matchAll(/callWhisper\(whisperForm\)/g)].length).toBe(2);
+    expect(s).toMatch(/async function callStt\(form: FormData\)/);
+    const calls = [...s.matchAll(/callStt\(whisperForm\)/g)].length;
+    if (calls < 3) throw new Error(`only ${calls} callStt site(s) — a recovery path is gone`);
   });
 
   it("an unsupported_language 400 drops the hint and retries", () => {
     const s = stripComments(read(TRANSCRIBE));
     expect(s).toMatch(/unsupported_language/);
-    expect(s).toMatch(/whisperForm\.delete\("language"\)/);
+    // ⚠️ RE-POINTED. The hint used to be removed by mutating the form
+    // (`whisperForm.delete("language")`). It is now dropped by REBUILDING the
+    // body without it — `buildForm(model, false)` — because falling back also
+    // changes the response format and the script prompt, and mutating one
+    // field while forgetting another is how the bn failure survived its
+    // first fix.
+    expect(s).toMatch(/built = buildForm\(model, false\)/);
+    expect(s).toMatch(/function buildForm\(model: SttModel, withLanguageHint = true\)/);
   });
 
   it("⚠️ it only retries when a language was actually SENT", () => {
@@ -75,8 +86,23 @@ describe("🔴 a rejected language hint must not cost the user their recording",
   });
 
   it("🔑 the rejected code is logged, so the whitelist is fixed by evidence", () => {
+    // ⚠️ RE-POINTED: the message now names the model that refused, because
+    // the two models accept DIFFERENT codes and "which list do I edit?" has a
+    // different answer for each. langsNameFor supplies that name.
     const s = read(TRANSCRIBE);
-    expect(s).toMatch(/Whisper rejected language/);
+    expect(s).toMatch(/rejected language/);
+    expect(s).toMatch(/langsNameFor\(model\)/);
+  });
+
+  it("🔑 …and the refusal is matched on `param`, which BOTH models set", () => {
+    // 🔴 The trap this switch walked straight into. Measured 2026-10-10:
+    //   whisper-1       code "unsupported_language", param "language"
+    //   gpt-transcribe  code "invalid_value",        param "language"
+    // A check on `code` alone would have gone silently inert at the model
+    // switch, and the next Punjabi speaker would have lost their recording to
+    // a 502 — the exact 2026-10-08 failure, reintroduced by an upgrade.
+    const s = stripComments(read(TRANSCRIBE));
+    expect(s).toMatch(/errJson\?\.error\?\.param === "language"/);
   });
 
   it("…and a genuinely failed transcription still reports failure", () => {

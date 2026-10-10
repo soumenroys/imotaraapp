@@ -1,134 +1,191 @@
 /**
  * 🔴 "i tried to talk in bengali but it typed in hindi."
  *
- * The Whisper API REJECTS Bengali as a `language` value. Production said so
- * on every attempt, 2026-10-10:
+ * Which language codes each STT model's API actually accepts, and what we do
+ * for the ones it refuses.
  *
- *   Whisper 400: {"message":"Language 'bn' is not supported.",
- *                 "code":"unsupported_language"}
- *   [voice/transcribe] Whisper rejected language "bn" — retrying with
- *                      auto-detect. Remove it from WHISPER_LANGS.
+ * ⚠️ THIS FILE HAS BEEN WRONG TWICE IN ONE DAY, in opposite directions, and
+ * both times because someone reasoned about the set instead of asking the API.
  *
- * An earlier change had added bn/te/ml/gu/pa with the comment "Whisper
- * supports all five". The MODEL does; the API's `language` PARAMETER does
- * not, and that is what this route sends. Every Bengali turn therefore cost a
- * wasted 400 and then fell back to bare auto-detect, which returned
- * Devanagari for Bengali speech.
+ *   1. bn/te/gu/ml/pa were listed as supported, on the strength of a code
+ *      comment saying "Whisper supports all five". The MODEL does; the
+ *      `language` PARAMETER does not. Every Bengali turn cost a wasted 400 and
+ *      fell back to bare auto-detect, which returned Devanagari for Bengali
+ *      speech — the reported bug.
  *
- * 🔑 With `language` unavailable, the only remaining lever is Whisper's
- * `prompt`: it biases output toward the script of the prompt text.
+ *   2. They were removed, and then gu/te/ml/pa were RESTORED with the
+ *      reasoning that "production had only ever logged a rejection for bn".
+ *      It had only logged bn because nobody had yet spoken Gujarati into it.
+ *
+ * 🔑 All four are rejected. Measured 2026-10-10 by sending each of the 22 app
+ * languages to both models:
+ *
+ *      code   gpt-transcribe   whisper-1
+ *      bn     ✅ accepted      ❌ Language 'bn' is not supported.
+ *      te     ✅ accepted      ❌ Language 'te' is not supported.
+ *      gu     ✅ accepted      ❌ Language 'gu' is not supported.
+ *      ml     ✅ accepted      ❌ Language 'ml' is not supported.
+ *      pa     ❌ not recognized  ❌ Language 'pa' is not supported.
+ *      or     ❌ not recognized  ❌ Language 'or' is not supported.
+ *      (the other 16 app languages: accepted by both)
+ *
+ * ⛔ Do not edit either set from a log, a comment, or a memory of what OpenAI
+ * documents. A log tells you what somebody happened to try. Ask the API.
  */
 
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
+import type { SttModel } from "../app/api/voice/transcribe/route";
 import {
-    WHISPER_LANGS, SCRIPT_PROMPTS, scriptPromptFor, whisperLanguageFor, isLikelyHallucination,
+    WHISPER_LANGS, GPT_TRANSCRIBE_LANGS, SCRIPT_PROMPTS, scriptPromptFor,
+    whisperLanguageFor, isLikelyHallucination, langsFor, langsNameFor,
+    STT_PRIMARY, STT_FALLBACK, responseFormatFor,
 } from "../app/api/voice/transcribe/route";
 
 const SRC = fs.readFileSync(
     path.join(process.cwd(), "src/app/api/voice/transcribe/route.ts"), "utf8");
 
-describe("🔴 the codes the API actually rejects are not sent", () => {
-    it("⛔ bn is NOT offered as a language — production 400s on it", () => {
-        expect(WHISPER_LANGS.has("bn")).toBe(false);
-        expect(whisperLanguageFor("bn")).toBeNull();
-    });
+/** The hint this model would send for this language, or null. */
+const hint = (lang: string, model: SttModel = STT_PRIMARY) =>
+    whisperLanguageFor(lang, model);
 
-    it("⚠️ …but ONLY bn — the others were removed on inference and are back", () => {
-        // CORRECTION, same day. The first version of this change also dropped
-        // gu/te/ml/pa because they "looked like" bn. Production had only ever
-        // rejected bn — the other four were removed on inference, throwing
-        // away a working hint for languages nobody had reported a problem
-        // with.
-        //
-        // ⛔ Do not remove a code without a LOGGED rejection naming it. The
-        // route's retry handles an unexpected rejection gracefully, so a
-        // doubtful code costs one wasted round-trip; a wrongly removed one
-        // costs permanently worse transcription.
-        for (const l of ["gu", "te", "ml", "pa"]) {
-            expect(WHISPER_LANGS.has(l)).toBe(true);
+describe("🔴 the codes each API rejects are not sent to it", () => {
+    it("⛔ whisper-1 gets none of bn/te/gu/ml/pa/or — all six are refused", () => {
+        for (const l of ["bn", "te", "gu", "ml", "pa", "or"]) {
+            expect(WHISPER_LANGS.has(l), `${l} must not be in WHISPER_LANGS`).toBe(false);
+            expect(hint(l, STT_FALLBACK), `${l} must not be sent to whisper-1`).toBeNull();
         }
-        // Odia was never in the set, and that predates today.
-        expect(WHISPER_LANGS.has("or")).toBe(false);
     });
 
-    it("⚖️ every Indic language the API DOES take is still sent", () => {
+    it("🔑 gpt-transcribe DOES take bn/te/gu/ml — that is the upgrade", () => {
+        // The reason the model switch is more than a quality tweak: for these
+        // four we can finally TELL the model what language it is hearing,
+        // which is a stronger signal than any script prompt.
+        for (const l of ["bn", "te", "gu", "ml"]) {
+            expect(GPT_TRANSCRIBE_LANGS.has(l), `${l} must be in GPT_TRANSCRIBE_LANGS`).toBe(true);
+            expect(hint(l), `${l} must be sent to gpt-transcribe`).toBe(l);
+        }
+    });
+
+    it("⛔ …but NOT pa or or — both models refuse those two", () => {
+        for (const l of ["pa", "or"]) {
+            expect(GPT_TRANSCRIBE_LANGS.has(l), l).toBe(false);
+            expect(WHISPER_LANGS.has(l), l).toBe(false);
+            expect(hint(l), l).toBeNull();
+            expect(hint(l, STT_FALLBACK), l).toBeNull();
+        }
+    });
+
+    it("⚖️ every language BOTH models accept is still sent to both", () => {
         // Removing any of these would throw away a working hint for no reason.
-        for (const l of ["hi", "mr", "ta", "kn", "ur", "ne", "gu", "te", "ml", "pa"]) {
-            expect(whisperLanguageFor(l), `${l} must still be sent`).toBe(l);
+        const both = ["en", "hi", "mr", "ta", "kn", "ur",
+                      "ar", "he", "ru", "zh", "ja", "es", "fr", "de", "pt", "id"];
+        for (const l of both) {
+            expect(hint(l), `${l} -> gpt-transcribe`).toBe(l);
+            expect(hint(l, STT_FALLBACK), `${l} -> whisper-1`).toBe(l);
         }
     });
 
-    it("…and the foreign languages are untouched", () => {
-        for (const l of ["en", "ar", "he", "ru", "zh", "ja", "es", "fr", "de", "pt", "id"]) {
-            expect(whisperLanguageFor(l), l).toBe(l);
+    it("🔑 the new model's set is a strict superset of the old one", () => {
+        // The invariant that makes the fallback safe: falling back can only
+        // ever lose a hint, never gain an invalid one.
+        for (const l of WHISPER_LANGS) {
+            expect(GPT_TRANSCRIBE_LANGS.has(l), `${l} missing from the new set`).toBe(true);
         }
+        expect(GPT_TRANSCRIBE_LANGS.size).toBe(WHISPER_LANGS.size + 4);
+    });
+
+    it("langsFor routes each model to its own set", () => {
+        expect(langsFor(STT_PRIMARY)).toBe(GPT_TRANSCRIBE_LANGS);
+        expect(langsFor(STT_FALLBACK)).toBe(WHISPER_LANGS);
+        expect(langsNameFor(STT_PRIMARY)).toBe("GPT_TRANSCRIBE_LANGS");
+        expect(langsNameFor(STT_FALLBACK)).toBe("WHISPER_LANGS");
     });
 });
 
 describe("🔑 a script prompt replaces the hint we cannot send", () => {
-    it("the languages with no usable hint get one, in their own script", () => {
-        // Only those NOT in WHISPER_LANGS: bn (rejected by the API) and or
-        // (never in it — the route has always said Whisper has no "or").
+    it("⛔ pa and or — refused by both models — always get one", () => {
         const ranges: Record<string, RegExp> = {
-            bn: /[\u0980-\u09FF]/, or: /[\u0B00-\u0B7F]/,
+            pa: /[਀-੿]/, or: /[଀-୿]/,
         };
         for (const [lang, re] of Object.entries(ranges)) {
-            const q = scriptPromptFor(lang);
-            expect(q, `${lang} needs a script prompt`).toBeTruthy();
+            for (const model of [STT_PRIMARY, STT_FALLBACK] as const) {
+                const q = scriptPromptFor(lang, hint(lang, model));
+                expect(q, `${lang} needs a script prompt on ${model}`).toBeTruthy();
+                expect(re.test(q), `${lang} prompt must be in its own script`).toBe(true);
+            }
+        }
+    });
+
+    it("🔑 bn/te/gu/ml need one on the FALLBACK but not on the primary", () => {
+        // The whole point of keying this on the code actually sent. The same
+        // language needs opposite treatment on the two models.
+        for (const [lang, re] of Object.entries({
+            bn: /[ঀ-৿]/, te: /[ఀ-౿]/,
+            gu: /[઀-૿]/, ml: /[ഀ-ൿ]/,
+        })) {
+            expect(scriptPromptFor(lang, hint(lang, STT_PRIMARY)),
+                `${lang} has a real hint on gpt-transcribe`).toBe("");
+            const q = scriptPromptFor(lang, hint(lang, STT_FALLBACK));
+            expect(q, `${lang} needs the crutch on whisper-1`).toBeTruthy();
             expect(re.test(q), `${lang} prompt must be in its own script`).toBe(true);
         }
     });
 
-    it("⚖️ a language WITH a working hint gets no script prompt", () => {
-        // The hint is the stronger signal; sending both is noise. These four
-        // were removed on inference earlier today and are restored.
-        for (const l of ["gu", "te", "ml", "pa"]) {
-            expect(scriptPromptFor(l), l).toBe("");
+    it("⛔ a language is never given BOTH a hint and a script prompt", () => {
+        // The real invariant, and now it cannot be stated per-model because
+        // the function keys on the decision itself.
+        for (const model of [STT_PRIMARY, STT_FALLBACK] as const) {
+            for (const l of Object.keys(SCRIPT_PROMPTS)) {
+                const sent = hint(l, model);
+                if (sent) {
+                    expect(scriptPromptFor(l, sent), `${l}/${model}: hint sent, so no prompt`).toBe("");
+                } else {
+                    expect(scriptPromptFor(l, sent), `${l}/${model}: no hint, so needs one`).toBeTruthy();
+                }
+            }
         }
     });
 
-    it("⛔ no script prompt for languages whose real hint works", () => {
-        // Sending both would be noise; `language` is the stronger signal.
+    it("🔴 a RUNTIME rejection still gets the crutch, though the table says otherwise", () => {
+        // ⚠️ THE CASE THE FIRST VERSION GOT WRONG. scriptPromptFor originally
+        // took the model and re-derived the answer from langsFor(model) — right
+        // on the happy path, wrong on the one that matters. When the API
+        // rejects a code the table claims it accepts, the retry sends no hint,
+        // and the script prompt is the only signal left. Keyed on the model,
+        // it returned "" and the retry free-ran; keyed on the code actually
+        // sent, it returns the prompt.
+        expect(scriptPromptFor("bn", null)).toBe(SCRIPT_PROMPTS.bn);
+        expect(scriptPromptFor("te", null)).toBe(SCRIPT_PROMPTS.te);
+    });
+
+    it("⛔ no script prompt for languages whose real hint works on both", () => {
         for (const l of ["en", "hi", "ta", "mr", "kn", "ur"]) {
-            expect(scriptPromptFor(l), l).toBe("");
+            expect(scriptPromptFor(l, hint(l)), l).toBe("");
+            expect(scriptPromptFor(l, hint(l, STT_FALLBACK)), l).toBe("");
         }
     });
 
     it("degenerate input yields no prompt rather than throwing", () => {
         for (const v of ["", null, undefined, 42, {}]) {
-            expect(scriptPromptFor(v as unknown)).toBe("");
+            expect(scriptPromptFor(v as unknown, null)).toBe("");
         }
     });
 
     it("a BCP-47 tag still finds its script prompt", () => {
-        expect(scriptPromptFor("bn-IN")).toBe(SCRIPT_PROMPTS.bn);
-    });
-
-    it("⛔ a language is never given BOTH a hint and a script prompt", () => {
-        // The real invariant. SCRIPT_PROMPTS deliberately keeps entries for
-        // languages that are currently accepted (gu/te/ml/pa) so the data is
-        // ready if OpenAI ever rejects one — the route's retry would then
-        // need it. What must never happen is sending both signals at once,
-        // which scriptPromptFor guarantees by checking WHISPER_LANGS first.
-        for (const l of Object.keys(SCRIPT_PROMPTS)) {
-            if (WHISPER_LANGS.has(l)) {
-                expect(scriptPromptFor(l), `${l} has a hint, so no script prompt`).toBe("");
-            } else {
-                expect(scriptPromptFor(l), `${l} has no hint, so it needs one`).toBeTruthy();
-            }
-        }
+        expect(scriptPromptFor("bn-IN", null)).toBe(SCRIPT_PROMPTS.bn);
+        expect(scriptPromptFor("pa-IN", hint("pa-IN"))).toBe(SCRIPT_PROMPTS.pa);
     });
 });
 
 describe("⛔ the echo guard must check the prompt we ACTUALLY sent", () => {
     it("the combined prompt is what reaches the hallucination check", () => {
-        // Whisper echoes its prompt verbatim when it hears nothing. If the
-        // guard checked only the companion name, an echo of the SCRIPT hint
-        // would be accepted as if the person had spoken it.
+        // These models echo their prompt verbatim when they hear nothing. If
+        // the guard checked only the companion name, an echo of the SCRIPT
+        // hint would be accepted as if the person had spoken it.
         expect(SRC).toMatch(/isLikelyHallucination\(rawText, effectivePrompt\)/);
-        expect(SRC).toMatch(/whisperForm\.append\("prompt", effectivePrompt\)/);
+        expect(SRC).toMatch(/form\.append\("prompt", prompt\)/);
     });
 
     it("an echo of the combined prompt is still recognised", () => {
@@ -147,21 +204,24 @@ describe("🔑 the prompt must bias the WORDS, not only the script", () => {
     // 🔴 Reported 2026-10-10: "the words which are getting typed in bengali,
     // those words does not exists in bengali dictionary."
     //
-    // Whisper's prompt conditions the decoder's vocabulary, so what it
-    // contains is what the model becomes readier to produce. A single short
-    // sentence biased the script and almost nothing else.
+    // The prompt conditions the decoder's vocabulary, so what it contains is
+    // what the model becomes readier to produce. A single short sentence
+    // biased the script and almost nothing else.
+    //
+    // ⚖️ Still only a lever. The real fix for Bengali was the model — these
+    // prompts now matter mainly for pa/or, and for bn/te/gu/ml on the
+    // fallback path.
 
     it("every script prompt carries real sentences, not a token phrase", () => {
         for (const [lang, text] of Object.entries(SCRIPT_PROMPTS)) {
-            expect(text.length, `${lang} prompt is too thin to condition anything`)
-                .toBeGreaterThan(40);
+            if (text.length <= 40) throw new Error(`${lang} prompt is too thin to condition anything`);
         }
     });
 
     it("…and more than one sentence, so it spans some grammar", () => {
         for (const [lang, text] of Object.entries(SCRIPT_PROMPTS)) {
             const sentences = text.split(/[।.?!॥]/).filter((t) => t.trim().length > 2);
-            expect(sentences.length, `${lang} needs several sentences`).toBeGreaterThanOrEqual(3);
+            if (sentences.length < 3) throw new Error(`${lang} needs several sentences`);
         }
     });
 
@@ -169,15 +229,15 @@ describe("🔑 the prompt must bias the WORDS, not only the script", () => {
         // A prompt about the weather would bias toward the wrong words.
         // Each carries a question form too, since people are asked how they are.
         for (const [lang, text] of Object.entries(SCRIPT_PROMPTS)) {
-            expect(text, `${lang} should include a question`).toMatch(/\?/);
+            if (!text.includes("?")) throw new Error(`${lang} should include a question`);
         }
     });
 
-    it("⛔ still short enough to stay well inside Whisper's prompt budget", () => {
+    it("⛔ still short enough to stay well inside the prompt budget", () => {
         // ~224 tokens. These are far below it, but an unbounded prompt would
         // start displacing the audio's own context.
         for (const [lang, text] of Object.entries(SCRIPT_PROMPTS)) {
-            expect(text.length, `${lang} prompt is getting long`).toBeLessThan(220);
+            if (text.length >= 220) throw new Error(`${lang} prompt is getting long`);
         }
     });
 
@@ -191,5 +251,17 @@ describe("🔑 the prompt must bias the WORDS, not only the script", () => {
     it("…and real speech in that script is still NOT discarded", () => {
         const combined = `Imotara. ${SCRIPT_PROMPTS.bn}`;
         expect(isLikelyHallucination("আমার আজ খুব ক্লান্ত লাগছে", combined)).toBe(false);
+    });
+});
+
+describe("⚠️ the response format differs per model, and the guard depends on it", () => {
+    it("the fallback keeps verbose_json — it still needs no_speech_prob", () => {
+        expect(responseFormatFor(STT_FALLBACK)).toBe("verbose_json");
+    });
+
+    it("🔴 the primary CANNOT have it — the API refuses", () => {
+        // Measured: "response_format 'verbose_json' is not compatible with
+        // model 'gpt-transcribe-api-ev3'. Use 'json' or 'text' instead."
+        expect(responseFormatFor(STT_PRIMARY)).toBe("json");
     });
 });

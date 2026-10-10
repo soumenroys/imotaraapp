@@ -1,7 +1,13 @@
 // src/app/api/voice/transcribe/route.ts
-// Speech-to-text for mobile voice input — forwards audio to OpenAI Whisper.
-// Accepts a multipart/form-data POST with a single "file" field (audio/m4a).
-// Returns { text: string }.
+// Speech-to-text for mobile voice input. Accepts a multipart/form-data POST
+// with a single "file" field (audio/m4a) and returns { text: string }.
+//
+// Two models: gpt-transcribe, falling back to whisper-1. The choice is not
+// arbitrary and gpt-4o-transcribe is deliberately NOT one of them — see the
+// note above STT_PRIMARY before changing either.
+//
+// ⚠️ The web app does not use this route; it uses the browser's own
+// SpeechRecognition. Everything here is the iOS and Android voice path.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -275,53 +281,135 @@ export function hasNoSpeech(segments: WhisperSegment[] | undefined): boolean {
 }
 
 /**
- * Whisper supported language codes (ISO-639-1).
+ * THE TWO MODELS, and why there are two.
  *
- * Sending an unsupported code causes a 400 from Whisper — omitting the param
- * lets Whisper auto-detect instead. Odia ("or"), for example, is not in
- * Whisper's list and would silently fail.
+ * 🔴 `whisper-1` could not spell Bengali. Reported 2026-10-10: "the words
+ * which are getting typed in bengali, those words does not exists in bengali
+ * dictionary." Measured against the API the same day, spoken Bengali for
+ * "I feel very tired today":
  *
- * bn/te/ml/gu/pa are present: Whisper supports all five and they were once
- * missing, which left them to auto-detection that mislabels short Indic
- * utterances as Hindi/Arabic. "or" (Odia) remains absent — not supported.
+ *   spoken            আমার আজ খুব ক্লান্ত লাগছে
+ *   whisper-1         আমার আজ খুব ট্লান তো লাগ্ছে     ❌ ট্লান and লাগ্ছে are not words
+ *   gpt-transcribe    আমার আজ খুব ক্লান্ত লাগছে       ✅
+ *
+ * Same for Hindi (ठकान for थकान) and for a second Bengali clip (নে for নেই,
+ * লাক্ছে for লাগছে). gpt-transcribe was correct on every clip tested.
+ *
+ * ⚠️ AND IT IS SAFER ON SILENCE, which is the reason this route has a whole
+ * hallucination apparatus. Four seconds of silence, with the Bengali script
+ * prompt attached exactly as this route sends it:
+ *
+ *   whisper-1          invented "আমার খুব ক্লান্ত লাগছে।" — caught ONLY because
+ *                      verbose_json reported no_speech_prob = 0.96
+ *   gpt-4o-transcribe  invented "আমি ভালো আছি।" and offers NO such signal  ⛔
+ *   gpt-transcribe     returned ""                                         ✅
+ *
+ * ⛔ THAT IS WHY THE MODEL HERE IS `gpt-transcribe` AND NOT
+ * `gpt-4o-transcribe`. The 4o variant is the better-known name and the
+ * obvious-looking upgrade, and it would have put sentences nobody said into
+ * people's own histories with nothing able to detect it. Do not "simplify"
+ * this to 4o.
+ *
+ * 🔑 whisper-1 stays as the FALLBACK, not as dead code: if a new model has a
+ * bad hour, a person talking to this app about how they feel should not lose
+ * their words to it. The fallback keeps verbose_json and keeps the
+ * no_speech_prob guard, because it still needs it.
  */
-export const WHISPER_LANGS = new Set(["af","ar","hy","az","be","bs","bg","ca","zh","hr","cs","da","nl","en","et","fi","fr","gl","gu","de","el","he","hi","hu","is","id","it","ja","kn","kk","ko","lv","lt","mk","ml","ms","mr","mi","ne","no","fa","pl","pt","pa","ro","ru","sr","sk","sl","es","sw","sv","tl","ta","te","th","tr","uk","ur","vi","cy"]);
+export const STT_PRIMARY = "gpt-transcribe";
+export const STT_FALLBACK = "whisper-1";
+export type SttModel = typeof STT_PRIMARY | typeof STT_FALLBACK;
 
 /**
- * 🔴 `bn` IS NOT IN THAT SET, and that is not an oversight — the Whisper API
- * REJECTS it as a `language` value.
+ * Which `language` codes each model's API actually ACCEPTS (ISO-639-1).
  *
- * ⚠️ CORRECTION, same day. The first version of this change ALSO removed
- * gu/te/ml/pa, on the assumption that they were rejected too. Production had
- * only ever rejected **bn** — the other four were removed on inference, which
- * would have thrown away a working hint for four languages nobody had
- * reported a problem with. They are back.
+ * Sending a code the API does not take is a 400; omitting the parameter lets
+ * the model auto-detect, which is markedly worse on short Indic utterances.
  *
- * ⛔ Do not remove a code from this set without a LOGGED rejection naming it.
- * The retry below already handles an unexpected rejection gracefully, so the
- * cost of leaving a doubtful code in is one wasted round-trip; the cost of
- * removing a working one is permanently worse transcription.
+ * ⛔ EVERY DIFFERENCE BELOW WAS MEASURED, 2026-10-10, by asking the API about
+ * all 22 app languages against both models. Twice in one day this set was
+ * edited on inference instead, in both directions:
  *
- * Production, repeatedly, 2026-10-10:
- *   Whisper 400: {"message":"Language 'bn' is not supported.",
- *                 "code":"unsupported_language"}
- *   [voice/transcribe] Whisper rejected language "bn" — retrying with
- *                      auto-detect. Remove it from WHISPER_LANGS.
+ *   - bn/te/gu/ml/pa were first added with the comment "Whisper supports all
+ *     five". The MODEL does; the `language` PARAMETER does not. Every Bengali
+ *     turn cost a wasted 400 and fell back to bare auto-detect, which returned
+ *     Devanagari for Bengali speech — "i tried to talk in bengali but it
+ *     typed in hindi".
+ *   - They were then removed, then four of them RESTORED on the reasoning
+ *     that production had only ever logged a rejection for bn. It had only
+ *     logged bn because nobody had yet spoken Gujarati. The API rejects all
+ *     four: `Language 'gu' is not supported.`
  *
- * An earlier change added bn/te/ml/gu/pa with the comment "Whisper supports
- * all five". The model does; the API's `language` parameter does not accept
- * them, and that is the thing this code sends. Every Bengali turn therefore
- * cost a wasted 400 and then fell back to bare auto-detect — which returned
- * Devanagari for Bengali speech and was reported as "i tried to talk in
- * bengali but it typed in hindi".
- *
- * ⛔ Do not "fix" a mis-transcription by putting them back. The route tells
- * you itself when a code is rejected; trust that log over any list.
- *
- * 🔑 What replaces the hint for these languages: a SCRIPT PROMPT. Whisper
- * biases its output toward the script of its `prompt`, which is the only
- * lever left once `language` is unavailable. See scriptPromptFor.
+ * 🔑 The lesson is not about these codes. It is that a log tells you what
+ * someone happened to try, and a measurement tells you what is true. Ask the
+ * API before editing this.
  */
+const UNREACHABLE_BUT_DOCUMENTED = [
+    // Codes from OpenAI's published list that no app language maps to, so no
+    // user input can reach them. Left in place deliberately: removing an
+    // untested code is the exact inference mistake described above, and the
+    // retry below makes a wrong one cost a single round-trip.
+    "af","hy","az","be","bs","bg","ca","hr","cs","da","et","fi","gl","el","hu",
+    "is","kk","lv","lt","mk","ms","mi","no","ro","sr","sk","sl","sw","tl","cy",
+] as const;
+
+/** The 22 app languages both models take, plus the reachable extras. */
+const ACCEPTED_BY_BOTH = [
+    "en","hi","mr","ta","kn","ur",                        // Indian, accepted by both
+    "ar","he","ru","zh","ja","es","fr","de","pt","id",    // the foreign ten
+    "ne","fa","tr","vi","th","ko","it","nl","pl","sv",    // reachable via BCP-47
+    ...UNREACHABLE_BUT_DOCUMENTED,
+] as const;
+
+/**
+ * ⚠️ `pa` (Punjabi) and `or` (Odia) are in NEITHER set — both models reject
+ * them outright:
+ *   whisper-1       Language 'pa' is not supported.
+ *   gpt-transcribe  Language code 'pa' is not recognized.
+ * Those two rely on a script prompt instead. See SCRIPT_PROMPTS.
+ */
+export const WHISPER_LANGS = new Set<string>(ACCEPTED_BY_BOTH);
+
+/**
+ * 🔑 THE FOUR LANGUAGES THE NEW MODEL UNLOCKS. Bengali, Telugu, Gujarati and
+ * Malayalam are accepted as a `language` by gpt-transcribe and rejected by
+ * whisper-1 — so switching model does not merely transcribe Bengali better,
+ * it lets us TELL the model it is Bengali for the first time. That is the
+ * stronger of the two signals, and the script prompt was only ever a
+ * stand-in for it.
+ */
+export const GPT_TRANSCRIBE_LANGS = new Set<string>([
+    ...ACCEPTED_BY_BOTH, "bn", "te", "gu", "ml",
+]);
+
+/** The codes a given model will accept. */
+export function langsFor(model: SttModel): Set<string> {
+    return model === STT_FALLBACK ? WHISPER_LANGS : GPT_TRANSCRIBE_LANGS;
+}
+
+/** Which set a rejected code should be removed from — for the warning log. */
+export function langsNameFor(model: SttModel): string {
+    return model === STT_FALLBACK ? "WHISPER_LANGS" : "GPT_TRANSCRIBE_LANGS";
+}
+
+/**
+ * ⚠️ `verbose_json` IS NOT AVAILABLE on the new model, measured:
+ *   response_format 'verbose_json' is not compatible with model
+ *   'gpt-transcribe-api-ev3'. Use 'json' or 'text' instead.
+ *
+ * So `segments`, and with them no_speech_prob and avg_logprob, exist only on
+ * the fallback path. That is only acceptable because gpt-transcribe returns
+ * "" on silence rather than inventing a sentence — see the model note above.
+ * `hasNoSpeech(undefined)` is already false ("no data — never reject"), so
+ * the guard goes quiet on its own for the primary model.
+ *
+ * 🔑 The new format carries `languages: [{code}]` instead — `[]` when it
+ * heard no speech. A plausible replacement signal, deliberately NOT acted on
+ * yet: rejecting on it is unmeasured, and a wrong rejection means someone
+ * spoke and the app ignored them.
+ */
+export function responseFormatFor(model: SttModel): "json" | "verbose_json" {
+    return model === STT_FALLBACK ? "verbose_json" : "json";
+}
 
 /**
  * A few words in the target script, used to bias Whisper's output when we
@@ -355,12 +443,23 @@ export const SCRIPT_PROMPTS: Record<string, string> = {
     or: "ମୁଁ ଭଲ ଅଛି। ଆଜି ମୋର ମନ ଭଲ ନାହିଁ। ଆପଣ କେମିତି ଅଛନ୍ତି? ମୋତେ ବହୁତ ଥକ୍କା ଲାଗୁଛି।",
 };
 
-/** The script hint for a language we cannot pass as `language`, or "". */
-export function scriptPromptFor(lang: unknown): string {
+/**
+ * The script hint to attach when no `language` code could be sent.
+ *
+ * 🔑 KEYED ON THE CODE ACTUALLY SENT, not on a model's table. The first
+ * version of this took the model and re-derived the answer from
+ * `langsFor(model)` — which is right on the happy path and WRONG on the one
+ * that matters: when the API rejects a code the table claimed it accepts, the
+ * hint is gone and the crutch is needed, but the table still says otherwise.
+ * Passing the real decision in makes the two impossible to disagree.
+ *
+ * Sending both a `language` and a script prompt is noise — the real hint is
+ * the stronger signal — so a sent code yields "".
+ */
+export function scriptPromptFor(lang: unknown, sentLanguage: string | null): string {
+    if (sentLanguage) return "";                 // the real hint is available
     if (!lang || typeof lang !== "string") return "";
-    const code = lang.split("-")[0].toLowerCase();
-    if (WHISPER_LANGS.has(code)) return "";   // the real hint is available
-    return SCRIPT_PROMPTS[code] ?? "";
+    return SCRIPT_PROMPTS[lang.split("-")[0].toLowerCase()] ?? "";
 }
 
 /**
@@ -380,10 +479,10 @@ export function scriptPromptFor(lang: unknown): string {
  *
  * ⛔ Never default to "en" here. That is the reported bug.
  */
-export function whisperLanguageFor(lang: unknown): string | null {
+export function whisperLanguageFor(lang: unknown, model: SttModel = STT_PRIMARY): string | null {
     if (!lang || typeof lang !== "string") return null;
-    const code = lang.split("-")[0];   // whisper wants ISO-639-1, not BCP-47
-    return WHISPER_LANGS.has(code) ? code : null;
+    const code = lang.split("-")[0];   // the API wants ISO-639-1, not BCP-47
+    return langsFor(model).has(code) ? code : null;
 }
 
 export async function POST(req: NextRequest) {
@@ -459,35 +558,48 @@ export async function POST(req: NextRequest) {
     // person will actually say. Optional; defaults to the product name.
     const whisperPrompt = whisperPromptFor(formData.get("companionName"));
 
-    const whisperForm = new FormData();
-    // All mobile recordings are MPEG_4/AAC (.m4a) — Android LOW_QUALITY is
-    // overridden at record time to avoid THREE_GPP which Whisper does not accept.
-    whisperForm.append("file", file, "voice.m4a");
-    whisperForm.append("model", "whisper-1");
-    // verbose_json carries per-segment no_speech_prob and avg_logprob. Plain
-    // text does not, which is why this route could not tell a real sentence
-    // from one Whisper invented out of silence — see rejectHallucination below.
-    // The `.text` field is present in both formats, so nothing downstream
-    // changes.
-    whisperForm.append("response_format", "verbose_json");
-    // Spelling hint — see WHISPER_PROMPT. Guarded by isPromptEcho, because
-    // Whisper echoes its prompt back when it hears no speech.
-    // 🔑 When `language` is unavailable for this tongue (bn/gu/te/ml/pa/or),
-    // bias the SCRIPT through the prompt instead — otherwise Whisper free-runs
-    // and returns Devanagari for Bengali speech, which is what was reported.
-    const scriptHint = scriptPromptFor(lang);
-    const effectivePrompt = scriptHint ? `${whisperPrompt}. ${scriptHint}` : whisperPrompt;
-    whisperForm.append("prompt", effectivePrompt);
-    // null = tell Whisper nothing and let it auto-detect. See
-    // whisperLanguageFor for why that is the right answer for "auto".
-    const whisperLang = whisperLanguageFor(lang);
-    if (whisperLang) whisperForm.append("language", whisperLang);
+    /**
+     * Everything the request body depends on the MODEL for, in one place.
+     *
+     * 🔑 Built per attempt rather than mutated, because falling back to
+     * whisper-1 changes three things at once — the accepted language codes,
+     * the response format, and therefore whether a script prompt is needed
+     * instead of a hint. Mutating one field and forgetting another is how the
+     * bn failure survived its first fix.
+     */
+    function buildForm(model: SttModel, withLanguageHint = true) {
+        const form = new FormData();
+        // All mobile recordings are MPEG_4/AAC (.m4a) — Android LOW_QUALITY is
+        // overridden at record time to avoid THREE_GPP, which is not accepted.
+        form.append("file", file!, "voice.m4a");
+        form.append("model", model);
+        form.append("response_format", responseFormatFor(model));
+
+        // null = say nothing and let the model auto-detect. See
+        // whisperLanguageFor for why that is the right answer for "auto".
+        const code = withLanguageHint ? whisperLanguageFor(lang, model) : null;
+        if (code) form.append("language", code);
+
+        // Spelling hint — see WHISPER_PROMPT. Guarded by isPromptEcho, because
+        // these models can echo their prompt back when they hear no speech.
+        //
+        // 🔑 When `language` is unavailable for this tongue, bias the SCRIPT
+        // through the prompt instead — otherwise the model free-runs and
+        // returns Devanagari for Bengali speech, which is what was reported.
+        // ⚠️ Keyed off the code ACTUALLY sent, so a runtime rejection gets the
+        // crutch too.
+        const scriptHint = scriptPromptFor(lang, code);
+        const prompt = scriptHint ? `${whisperPrompt}. ${scriptHint}` : whisperPrompt;
+        form.append("prompt", prompt);
+
+        return { form, prompt };
+    }
 
     /**
-     * One attempt at Whisper. Factored out so an unsupported language code can
-     * be retried WITHOUT the hint instead of costing the user their recording.
+     * One attempt. Factored out so an unsupported language code can be retried
+     * WITHOUT the hint instead of costing the user their recording.
      */
-    async function callWhisper(form: FormData): Promise<Response> {
+    async function callStt(form: FormData): Promise<Response> {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 55_000); // 55s — Vercel limit is 60s
         try {
@@ -502,42 +614,48 @@ export async function POST(req: NextRequest) {
         }
     }
 
+    let model: SttModel = STT_PRIMARY;
+    let built = buildForm(model);
+    let whisperForm = built.form;
+    let effectivePrompt = built.prompt;
+
     let whisperRes: Response;
     try {
-        whisperRes = await callWhisper(whisperForm);
+        whisperRes = await callStt(whisperForm);
     } catch (err) {
-        console.error("[voice/transcribe] Whisper fetch failed:", err);
-        return NextResponse.json({ error: "STT service unavailable" }, { status: 502 });
+        console.error(`[voice/transcribe] ${model} fetch failed:`, err);
+        whisperRes = new Response(null, { status: 599 });  // fall through to the fallback
     }
 
     if (!whisperRes.ok) {
         const errText = await whisperRes.text().catch(() => "");
-        console.error(`[voice/transcribe] Whisper ${whisperRes.status}:`, errText);
+        console.error(`[voice/transcribe] ${model} ${whisperRes.status}:`, errText);
 
         /**
-         * 🔴 WHISPER REJECTED OUR LANGUAGE HINT — RETRY WITHOUT IT.
+         * 🔴 THE MODEL REJECTED OUR LANGUAGE HINT — RETRY WITHOUT IT.
          *
          * Production, 2026-10-08T18:48:39Z, on `cb0ee7c`:
          *   Whisper 400: {"error":{"message":"Language 'bn' is not supported.",
          *   "code":"unsupported_language","param":"language"}}
          *
-         * ⚠️ `bn` was in WHISPER_LANGS. The comment above it asserts "Whisper
-         * supports all five" — api.openai.com disagrees, and the live 400 wins.
-         *
-         * 🔑 But the whitelist being wrong is the SMALL half of this. The big
-         * half is what happened next: the route returned 502 and the user's
+         * 🔑 The whitelist being wrong was the SMALL half of this. The big half
+         * is what happened next: the route returned 502 and the user's
          * recording was DISCARDED. Someone spoke Bengali into a companion that
          * advertises 22 languages and got nothing back.
          *
-         * So the durable fix is not to edit the list — it will drift again the
-         * next time OpenAI changes it, and Odia is already excluded. It is to
-         * make an unsupported hint NON-FATAL: drop the hint and let Whisper
-         * auto-detect. Accuracy on short Indic utterances is worse without the
-         * hint, which is why the hint exists — but a slightly worse
-         * transcription is enormously better than none.
+         * So the durable fix is not to edit a list — it drifts every time
+         * OpenAI changes a model. It is to make an unsupported hint NON-FATAL:
+         * drop the hint, add the script prompt in its place, auto-detect.
+         *
+         * ⚠️ The two models word the refusal DIFFERENTLY, measured 2026-10-10:
+         *   whisper-1       code "unsupported_language", param "language"
+         *   gpt-transcribe  code "invalid_value",        param "language"
+         * Matching on `param` is what keeps this live across both — a check on
+         * `code` alone would have gone inert at the model switch and taken
+         * Punjabi down with it.
          *
          * The console line below is deliberate: it is how we learn which codes
-         * OpenAI actually refuses, instead of encoding another guess.
+         * are actually refused, instead of encoding another guess.
          */
         if (whisperRes.status === 400 && whisperForm.has("language")) {
             let unsupportedLang = false;
@@ -551,23 +669,55 @@ export async function POST(req: NextRequest) {
             if (unsupportedLang) {
                 const rejected = String(whisperForm.get("language") ?? "");
                 console.warn(
-                    `[voice/transcribe] Whisper rejected language "${rejected}" — ` +
-                    "retrying with auto-detect. Remove it from WHISPER_LANGS.",
+                    `[voice/transcribe] ${model} rejected language "${rejected}" — ` +
+                    `retrying with auto-detect. Remove it from ${langsNameFor(model)}.`,
                 );
-                whisperForm.delete("language");
+                built = buildForm(model, false);
+                whisperForm = built.form;
+                effectivePrompt = built.prompt;
                 try {
-                    whisperRes = await callWhisper(whisperForm);
+                    whisperRes = await callStt(whisperForm);
                 } catch (err) {
-                    console.error("[voice/transcribe] Whisper retry failed:", err);
-                    return NextResponse.json({ error: "STT service unavailable" }, { status: 502 });
+                    console.error(`[voice/transcribe] ${model} retry failed:`, err);
+                    whisperRes = new Response(null, { status: 599 });
                 }
+            }
+        }
+
+        /**
+         * 🔑 STILL FAILING — FALL BACK TO THE OLDER MODEL.
+         *
+         * gpt-transcribe transcribes Bengali correctly where whisper-1 does
+         * not, so it is the primary. But a new model having a bad hour must
+         * not cost someone the thing they just said out loud. whisper-1 is
+         * three years old and boringly available, and its accuracy — however
+         * poor on Indic scripts — beats "Transcription failed".
+         *
+         * ⚠️ Rebuilt, never mutated: the fallback needs verbose_json, a
+         * different language table, and a script prompt for bn/te/gu/ml that
+         * the primary did not need.
+         */
+        if (!whisperRes.ok && model === STT_PRIMARY) {
+            console.warn(
+                `[voice/transcribe] ${STT_PRIMARY} unavailable (${whisperRes.status}) — ` +
+                `falling back to ${STT_FALLBACK}.`,
+            );
+            model = STT_FALLBACK;
+            built = buildForm(model);
+            whisperForm = built.form;
+            effectivePrompt = built.prompt;
+            try {
+                whisperRes = await callStt(whisperForm);
+            } catch (err) {
+                console.error(`[voice/transcribe] ${model} fetch failed:`, err);
+                return NextResponse.json({ error: "STT service unavailable" }, { status: 502 });
             }
         }
     }
 
     if (!whisperRes.ok) {
         const errText = await whisperRes.text().catch(() => "");
-        console.error(`[voice/transcribe] Whisper ${whisperRes.status} (final):`, errText);
+        console.error(`[voice/transcribe] ${model} ${whisperRes.status} (final):`, errText);
         // Detect quota exhaustion so the client can show a clearer message
         if (whisperRes.status === 429) {
             try {

@@ -42,17 +42,46 @@ export function useOnlineStatus(): boolean {
 
   useEffect(() => {
     let mounted = true;
+    // Declared before the handlers that reset it — a listener registered
+    // above a `let` would be a temporal-dead-zone hazard if it ever fired
+    // during this effect body.
+    let consecutiveFailures = 0;
 
-    const markOnline = () => { if (mounted) setIsOnline(true); };
+    // The browser's own events are authoritative — the OS knows. They bypass
+    // the confirmation count entirely, in both directions.
+    const markOnline = () => { if (mounted) { consecutiveFailures = 0; setIsOnline(true); } };
     const markOffline = () => { if (mounted) setIsOnline(false); };
 
     window.addEventListener("online", markOnline);
     window.addEventListener("offline", markOffline);
 
+    // 🔴 ONE FAILED PROBE IS NOT EVIDENCE OF A DEAD NETWORK.
+    //
+    // Reported on mobile 2026-10-10 — "showing offline though the wifi is
+    // strongly available" — and this hook had the identical flaw: a single
+    // miss called setIsOnline(false). The probe is a real request to
+    // /api/health, a serverless function, so a cold start or a momentary
+    // stall makes it miss its 15s window while the connection is fine.
+    //
+    // ⚖️ Same asymmetry the timeout above is justified by: a false "offline"
+    // degrades the experience, a false "online" costs seconds. So require the
+    // bad news to repeat. At a 15s interval that is ~30s to admit a real
+    // outage, and the browser's own `offline` event still flips it instantly
+    // when the OS knows — which is the case that actually matters.
+    const OFFLINE_CONFIRMATIONS = 2;
+
     // Initial probe + periodic confirmation
     async function probe() {
       const online = await probeOnline();
-      if (mounted) setIsOnline(online);
+      if (!mounted) return;
+      if (online) {
+        consecutiveFailures = 0;
+        setIsOnline(true);
+        return;
+      }
+      consecutiveFailures += 1;
+      // ⛔ Hold the previous state until a second probe agrees.
+      if (consecutiveFailures >= OFFLINE_CONFIRMATIONS) setIsOnline(false);
     }
 
     probe();

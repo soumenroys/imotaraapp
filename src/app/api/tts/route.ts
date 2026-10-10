@@ -233,7 +233,7 @@ export async function POST(req: NextRequest) {
 
     console.log(`[tts] quota check done at +${Date.now() - tStart}ms anon=${!!user.is_anonymous}`);
 
-    let body: { text?: string; lang?: string; gender?: string; emotion?: string };
+    let body: { text?: string; lang?: string; gender?: string; emotion?: string; chunkIndex?: number };
     try {
         body = await req.json();
     } catch {
@@ -401,7 +401,25 @@ export async function POST(req: NextRequest) {
     // that's the only tier this route quota-gates. Mirrors chat-reply's
     // post-success usage_events insert. Runs BEFORE the response is returned
     // now that the body streams: there is no post-download moment to hook.
-    if (user.is_anonymous) {
+    // 🔴 ONE UNIT PER REPLY, NOT PER CHUNK.
+    //
+    // A reply is split into 3-4 chunks and each chunk is its own request, so
+    // counting every request made ANONYMOUS_TTS_DAILY_LIMIT = 15 mean three
+    // to five spoken replies a day, not fifteen. Reported 2026-10-10: the
+    // voice went faint and badly pronounced after a handful of replies —
+    // that was this quota being exhausted and the client silently dropping to
+    // the device voice.
+    //
+    // Owner decision the same day: "make it 15 replies per free user for now."
+    //
+    // ⚖️ FAILS SAFE. A client that does not send chunkIndex — every build
+    // already in the wild — is counted exactly as before, so nothing becomes
+    // cheaper by accident. Only a client that explicitly says "this is chunk
+    // 3 of a reply I already started" is skipped.
+    const isFirstChunkOfReply =
+        typeof body.chunkIndex === "number" ? body.chunkIndex === 0 : true;
+
+    if (user.is_anonymous && isFirstChunkOfReply) {
         void Promise.resolve(
             getSupabaseAdmin().from("usage_events").insert({
                 user_id:    user.id,

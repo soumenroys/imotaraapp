@@ -5605,7 +5605,12 @@ async function playChunkedTTS(
     }
   }
 
-  async function fetchChunk(chunkText: string): Promise<Blob> {
+  // 🔑 chunkIndex: the anonymous daily quota counts REQUESTS, and a reply is
+  // 3-4 of them, so "15 a day" delivered three to five spoken replies. The
+  // server now counts only chunk 0, making the limit mean replies.
+  // ⚖️ Omitting it is safe, not cheaper — the server counts a request with no
+  // chunkIndex exactly as before.
+  async function fetchChunk(chunkText: string, chunkIndex: number): Promise<Blob> {
     // ⚠️ Its OWN controller, not the shared `signal`. A per-fetch timer firing
     // on the shared signal would poison every LATER chunk too — that is
     // exactly mobile's U2, and web must not grow its own copy of it.
@@ -5614,7 +5619,7 @@ async function playChunkedTTS(
       const res = await fetch("/api/tts", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ text: chunkText, lang, gender, ...(emotion ? { emotion } : {}) }),
+        body:    JSON.stringify({ text: chunkText, lang, gender, chunkIndex, ...(emotion ? { emotion } : {}) }),
         signal:  a.signal,
       });
       if (!res.ok) throw new Error(`TTS ${res.status}`);
@@ -5673,7 +5678,7 @@ async function playChunkedTTS(
   const PREFETCH_DEPTH = 2;
   const queue: Promise<Blob>[] = [];
   for (let i = 0; i < Math.min(PREFETCH_DEPTH, chunks.length); i++) {
-    queue.push(fetchChunk(chunks[i]));
+    queue.push(fetchChunk(chunks[i], i));
   }
 
   try {
@@ -5682,7 +5687,7 @@ async function playChunkedTTS(
       const blob = await queue.shift()!;
       if (signal.aborted) throw new DOMException("aborted", "AbortError");
       const nextIndex = i + PREFETCH_DEPTH;
-      if (nextIndex < chunks.length) queue.push(fetchChunk(chunks[nextIndex]));
+      if (nextIndex < chunks.length) queue.push(fetchChunk(chunks[nextIndex], nextIndex));
       if (i === 0) onStart?.();
       await playBlob(blob);
       playedChunks = i + 1;

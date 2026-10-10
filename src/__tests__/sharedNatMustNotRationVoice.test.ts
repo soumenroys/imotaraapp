@@ -91,7 +91,11 @@ describe("⚖️ the arithmetic the fix is based on", () => {
     // /api/tts is per chunk: web splits a reply into sentences and fetches
     // each. If that stopped being true, the ceiling could come back down.
     const web = raw("src/app/chat/page.tsx");
-    expect(web).toMatch(/async function fetchChunk\(chunkText: string\)/);
+    // ⚠️ RE-POINTED: fetchChunk gained a `chunkIndex` so the DAILY quota can
+    // count replies instead of chunks. The premise asserted here is unchanged
+    // and is still true — /api/tts is still one request PER CHUNK, which is
+    // exactly why the per-IP ceiling below has to allow for several per reply.
+    expect(web).toMatch(/async function fetchChunk\(chunkText: string, chunkIndex: number\)/);
     expect(web).toMatch(/const PREFETCH_DEPTH = 2;/);
   });
 

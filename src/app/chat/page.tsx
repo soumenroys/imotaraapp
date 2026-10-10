@@ -5340,7 +5340,22 @@ const TTS_TRANSLITERATION_LANGS = new Set(["bn", "gu", "te", "kn", "ml", "ur", "
 
 function detectScriptLang(text: string): string | null {
   if (/[\u0590-\u05FF]/.test(text)) return "he-IL";   // Hebrew
-  if (/[\u0900-\u097F]/.test(text)) return MARATHI_HINT.test(text) ? "mr-IN" : "hi-IN"; // Devanagari
+  // 🔴 NOT the whole Devanagari block. U+0964 DANDA (।) and U+0965 DOUBLE
+  // DANDA live in it but are shared punctuation, used routinely in Bengali,
+  // Punjabi, Odia and Gujarati — so testing \u0900-\u097F classified ANY
+  // Bengali sentence ending in । as Hindi.
+  //
+  // ⚠️ Measured on the live site 2026-10-10: a Bengali reply whose ONLY
+  // character in that range was U+0964 resolved to hi-IN. Because
+  // resolveTTSLang shares this function, Bengali was being READ ALOUD IN A
+  // HINDI VOICE, and the same held for Punjabi and Odia.
+  //
+  // 🔑 The mobile app already had this right — aiClient.detectLangFromScript
+  // uses exactly this range and has done for some time. This is the second
+  // copy of one decision, and only the first copy was ever fixed.
+  if (/[\u0904-\u0939\u0958-\u0963\u0971-\u097F]/.test(text)) {
+    return MARATHI_HINT.test(text) ? "mr-IN" : "hi-IN"; // Devanagari LETTERS
+  }
   if (/[\u0980-\u09FF]/.test(text)) return "bn-IN";   // Bengali
   if (/[\u0B80-\u0BFF]/.test(text)) return "ta-IN";   // Tamil
   if (/[\u0C00-\u0C7F]/.test(text)) return "te-IN";   // Telugu
@@ -5350,8 +5365,13 @@ function detectScriptLang(text: string): string | null {
   if (/[\u0D00-\u0D7F]/.test(text)) return "ml-IN";   // Malayalam
   if (/[\u0B00-\u0B7F]/.test(text)) return "or-IN";   // Odia
   if (/[\u0600-\u06FF]/.test(text)) return URDU_HINT.test(text) ? "ur-PK" : "ar-SA"; // Arabic/Urdu
-  if (/[\u4E00-\u9FFF]/.test(text)) return "zh-CN";   // Chinese
-  if (/[\u3040-\u30FF]/.test(text)) return "ja-JP";   // Japanese
+  // 🔴 KANA BEFORE KANJI — same reasoning as the danda above, different
+  // scripts. Kana is unique to Japanese; the CJK ideographs are SHARED, and
+  // ordinary Japanese mixes the two. Testing Chinese first classified
+  // "今日は気分が悪い" as Chinese, which picked a Chinese TTS voice for it.
+  // The mobile detector had the identical ordering and is fixed with it.
+  if (/[\u3040-\u30FF]/.test(text)) return "ja-JP";   // Japanese (kana — unambiguous)
+  if (/[\u4E00-\u9FFF]/.test(text)) return "zh-CN";   // Chinese (CJK — shared)
   if (/[\uAC00-\uD7AF]/.test(text)) return "ko-KR";   // Korean
   return null;
 }

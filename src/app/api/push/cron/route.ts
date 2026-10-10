@@ -6,6 +6,8 @@
 // When the user's last message is available, the nudge body is personalised
 // to reference what they last talked about so it feels like Imotara remembers.
 //
+// 🔴 EXCEPT WHEN THAT CONVERSATION WAS A CRISIS. See buildNudge.
+//
 // Vercel automatically passes Authorization: Bearer <CRON_SECRET> on cron calls.
 // Set CRON_SECRET in Vercel env vars to protect this endpoint.
 
@@ -13,25 +15,62 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { sendPushNotification } from "@/lib/imotara/webpush";
 import { getNudgeLang, pick } from "@/lib/imotara/nudgeStrings";
+import { isCrisisTier2 } from "@/lib/emotion/keywordMaps";
 
 // Only nudge users silent for 2+ days; re-notify at most once every 24 h
 const INACTIVITY_THRESHOLD_MS = 2 * 24 * 60 * 60 * 1000; // 48 hours
 const NUDGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;           // 24 hours between nudges
 
 /** Truncates text to a word boundary and appends "…" if cut. */
-function truncateToWord(text: string, maxLen: number): string {
+export function truncateToWord(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
   const cut = text.slice(0, maxLen);
   const lastSpace = cut.lastIndexOf(" ");
   return (lastSpace > 10 ? cut.slice(0, lastSpace) : cut) + "…";
 }
 
-/** Builds a localised nudge payload in the user's preferred language. */
-function buildNudge(lastUserMessage?: string, lang?: string): { title: string; body: string } {
+/**
+ * Builds a localised nudge payload in the user's preferred language.
+ *
+ * 🔴 THE PERSONALISED BODY QUOTES THE PERSON'S OWN WORDS, so it must never
+ * quote a crisis.
+ *
+ * This nudge lands on a LOCK SCREEN, where anyone holding the phone can read
+ * it, hours or days after the conversation. A notification saying "Last time
+ * you mentioned wanting to end it — how are you now?" is indefensible: it
+ * exposes the most private thing someone has ever typed to whoever picks up
+ * their phone, and it reopens the subject with no one there to respond.
+ *
+ * ⚠️ `recentMessages` is the whole fetched window, not just the quoted one.
+ * The decision is about the CONVERSATION, not the sentence we happened to pick:
+ * someone can say "I want to end it" and then "ok goodnight", and quoting the
+ * second while the first sits two messages above it is the same failure.
+ *
+ * 🔑 THE NUDGE STILL GOES OUT — only the personalisation is dropped. Staying
+ * silent would mean the people who most need a gentle "I'm still here" are the
+ * only ones who never get one. The generic body ("How are you feeling today?")
+ * is warm, carries nothing private, and is safe on any lock screen.
+ *
+ * ⛔ Do not "improve" this by softening the crisis text instead of dropping it.
+ * There is no phrasing of someone's suicidal message that belongs in a push
+ * notification.
+ */
+export function buildNudge(
+  lastUserMessage: string | undefined,
+  lang: string | undefined,
+  recentMessages: string[] = [],
+): { title: string; body: string } {
   const L = getNudgeLang(lang);
-  if (!lastUserMessage) {
-    return { title: L.gt, body: pick(L.gb) };
-  }
+  const generic = { title: L.gt, body: pick(L.gb) };
+
+  if (!lastUserMessage) return generic;
+
+  // isCrisisTier2 is the same detector the in-app crisis card uses, in both
+  // repos — 22 languages, explicit suicidal ideation / self-harm / assault /
+  // immediate danger. See trap_crisis_card_two_detectors_two_platforms.
+  const window = recentMessages.length ? recentMessages : [lastUserMessage];
+  if (window.some((m) => isCrisisTier2(m))) return generic;
+
   const snippet = truncateToWord(lastUserMessage.replace(/[.!?,;:]+$/, "").trim(), 50);
   return { title: L.pt, body: pick(L.pb(snippet)) };
 }
@@ -113,11 +152,17 @@ export async function POST(req: Request) {
   );
 
   // Most recent user message per user_scope (already DESC-ordered by created_at)
+  // 🔑 …and the whole fetched window per user, because the crisis decision in
+  // buildNudge is about the CONVERSATION, not just the sentence we quote.
   const lastMessageMap = new Map<string, string>();
+  const recentMessagesMap = new Map<string, string[]>();
   for (const msg of (chatRes.data ?? [])) {
-    if (!lastMessageMap.has(msg.user_scope) && msg.content?.trim()) {
-      lastMessageMap.set(msg.user_scope, msg.content.trim());
-    }
+    const text = msg.content?.trim();
+    if (!text) continue;
+    if (!lastMessageMap.has(msg.user_scope)) lastMessageMap.set(msg.user_scope, text);
+    const bucket = recentMessagesMap.get(msg.user_scope);
+    if (bucket) bucket.push(text);
+    else recentMessagesMap.set(msg.user_scope, [text]);
   }
 
   // Preferred language per user (e.g. "hi", "bn", "ta")
@@ -142,7 +187,9 @@ export async function POST(req: Request) {
 
       const lastUserMessage = lastMessageMap.get(row.user_id);
       const lang = langMap.get(row.user_id);
-      const nudge = buildNudge(lastUserMessage, lang);
+      const nudge = buildNudge(
+        lastUserMessage, lang, recentMessagesMap.get(row.user_id) ?? [],
+      );
 
       const result = await sendPushNotification(sub, {
         ...nudge,

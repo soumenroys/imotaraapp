@@ -33,6 +33,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
+import { MOBILE_REPO } from "./helpers/siblingRepo";
 
 const raw = (f: string) => fs.readFileSync(path.join(process.cwd(), f), "utf8");
 /** ⚠️ Comment-stripped. The fix DOCUMENTS the old broken code in a comment, so
@@ -41,7 +42,8 @@ const raw = (f: string) => fs.readFileSync(path.join(process.cwd(), f), "utf8");
 const code = (f: string) =>
   raw(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 const WEB = "src/app/chat/page.tsx";
-const MOBILE_TTS = "/Users/soumenroy/Projects/imotara-mobile/src/lib/tts/mobileTTS.ts";
+// ⚠️ Relative, never an absolute home directory — see helpers/siblingRepo.
+const MOBILE_TTS = path.join(MOBILE_REPO, "src/lib/tts/mobileTTS.ts");
 
 describe("🔴 U1 — auto-speak cannot hang", () => {
   const s = raw(WEB);

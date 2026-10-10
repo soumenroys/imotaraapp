@@ -26,13 +26,15 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
+import { MOBILE_REPO } from "./helpers/siblingRepo";
 
 const raw = (f: string) => fs.readFileSync(path.join(process.cwd(), f), "utf8");
 const code = (f: string) =>
   raw(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 const AI = "src/lib/imotara/aiClient.ts";
 const RESPOND = "src/app/api/respond/route.ts";
-const MTTS = "/Users/soumenroy/Projects/imotara-mobile/src/lib/tts/mobileTTS.ts";
+// ⚠️ Relative, never an absolute home directory — see helpers/siblingRepo.
+const MTTS = path.join(MOBILE_REPO, "src/lib/tts/mobileTTS.ts");
 
 describe("🔴 U19 — no second engine for a caller that discards its answer", () => {
   it("the option exists and is honoured at EVERY fallback site", () => {

@@ -46,6 +46,7 @@ import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 import { detectLangFromRomanHints } from "@/lib/imotara/respondRemote";
+import { readMobileFile, noteSkipped } from "./helpers/siblingRepo";
 
 const code = (f: string) =>
   fs.readFileSync(path.join(process.cwd(), f), "utf8")
@@ -136,14 +137,16 @@ describe("the fix is where I say it is", () => {
   });
 
   it("…and the mobile copy was aligned to the same vetted list", () => {
-    const s = fs.readFileSync(
-      "/Users/soumenroy/Projects/imotara-mobile/src/lib/emotion/keywordMaps.ts", "utf8",
-    );
+    // 🔴 THIS TEST BROKE CI FOR ~25 RUNS, from 7508f30 until 2026-10-10.
+    // The skip was written, but AFTER the read:
+    //     const s = fs.readFileSync("/Users/…/keywordMaps.ts");  // ENOENT
+    //     if (!gu) { console.warn("SKIPPED…"); return; }         // never reached
+    // An absolute home-directory path exists on one machine. Now resolved
+    // relative to this repo, and absence is the same operation as the check.
+    const s = readMobileFile("src/lib/emotion/keywordMaps.ts");
+    if (s === null) { noteSkipped("the Gujarati mobile-copy check"); return; }
     const gu = s.match(/ROMAN_GU_LANG_HINT_REGEX\s*=\s*\n?\s*\/\\b\((.*?)\)\\b\/i;/s)?.[1] ?? "";
-    if (!gu) {
-      console.warn("[englishIsNotGujarati] ⚠️ SKIPPED the mobile half — sibling repo not checked out.");
-      return;
-    }
+    if (!gu) { noteSkipped("the Gujarati mobile-copy check (regex not found)"); return; }
     expect(gu.split("|")).not.toContain("have");
     expect(gu.split("|")).toContain("hve");
   });

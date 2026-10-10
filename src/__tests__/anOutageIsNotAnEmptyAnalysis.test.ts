@@ -24,6 +24,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
+import { MOBILE_REPO } from "./helpers/siblingRepo";
 
 const raw = (f: string) => fs.readFileSync(path.join(process.cwd(), f), "utf8");
 const ROUTE = "src/app/api/mindset-analysis/route.ts";
@@ -91,7 +92,8 @@ describe("🔴 both clients stop rendering an error as an empty result", () => {
   });
 
   it("🔑 mobile was fixed the same way — the defect was identical", () => {
-    const m = "/Users/soumenroy/Projects/imotara-mobile/src/screens/HistoryScreen.tsx";
+    // ⚠️ Relative, never an absolute home directory — see helpers/siblingRepo.
+    const m = path.join(MOBILE_REPO, "src/screens/HistoryScreen.tsx");
     if (!fs.existsSync(m)) {
       console.warn("[anOutageIsNotAnEmptyAnalysis] ⚠️ SKIPPED the mobile half — sibling repo not checked out.");
       return;

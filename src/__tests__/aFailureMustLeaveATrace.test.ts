@@ -26,6 +26,7 @@ import { describe, it, expect } from "vitest";
 import { AZURE_VOICES, AZURE_LOCALE } from "@/lib/azure-tts/voices";
 import fs from "fs";
 import path from "path";
+import { MOBILE_REPO } from "./helpers/siblingRepo";
 
 const raw = (f: string) => fs.readFileSync(path.join(process.cwd(), f), "utf8");
 const code = (f: string) =>
@@ -97,7 +98,8 @@ describe("🔴 U18 — no language is read aloud in another language's voice", (
 
   it("🔑 both clients turn a non-OK into their DEVICE voice, which is the point", () => {
     expect(raw("src/app/chat/page.tsx")).toMatch(/throw new Error\(`TTS \$\{res\.status\}`\)/);
-    const m = "/Users/soumenroy/Projects/imotara-mobile/src/lib/tts/mobileTTS.ts";
+    // ⚠️ Relative, never an absolute home directory — see helpers/siblingRepo.
+    const m = path.join(MOBILE_REPO, "src/lib/tts/mobileTTS.ts");
     if (fs.existsSync(m)) {
       expect(fs.readFileSync(m, "utf8")).toMatch(/throw new Error\(`TTS API \$\{res\.status\}`\)/);
     }

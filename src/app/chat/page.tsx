@@ -3072,7 +3072,14 @@ export default function ChatPage() {
     // W-3: use the module-level LANG_TO_BCP47 which covers all supported languages
     // (the previous local copy was missing fr, zh, es, pt, ru, id, ja, ur).
     const profileLang = getImotaraProfile()?.user?.preferredLang ?? "";
-    rec.lang = LANG_TO_BCP47[profileLang] ?? "en-US";
+    // 🔴 NOT `LANG_TO_BCP47[profileLang] ?? "en-US"` — that resolved "auto"
+    // and an unset preference to en-US, so the recogniser was told to expect
+    // English and returned English words for Bengali speech (reported
+    // 2026-10-10 on mobile; this path had the same defect).
+    rec.lang = recognitionLangFor(
+      profileLang,
+      (activeThread?.messages ?? []).slice(-6).map((m) => m.content),
+    );
     recognitionRef.current = rec;
     // Capture the wall-clock start of this session so the onend restart path
     // can compute remaining time rather than resetting to the full durSecs.
@@ -5347,6 +5354,44 @@ function detectScriptLang(text: string): string | null {
   if (/[\u3040-\u30FF]/.test(text)) return "ja-JP";   // Japanese
   if (/[\uAC00-\uD7AF]/.test(text)) return "ko-KR";   // Korean
   return null;
+}
+
+/**
+ * Which BCP-47 language to put the speech recogniser into.
+ *
+ * 🔴 Reported 2026-10-10 on mobile — spoke Bengali, got English text — and
+ * the web path had the same root cause: `LANG_TO_BCP47[profileLang] ?? "en-US"`
+ * resolves "auto", and an unset preference, to en-US. The recogniser was then
+ * told to expect English, so Bengali speech came back as English words.
+ *
+ * ⚠️ The Web Speech API has no auto-detect — unlike Whisper on mobile, there
+ * is no "just don't tell it" option here, so SOMETHING concrete must be
+ * chosen. The conversation is the best evidence available: someone whose last
+ * turns are in Bengali script is overwhelmingly likely to be speaking Bengali.
+ *
+ * ⚖️ Deliberately NOT falling back to navigator.language. A German-locale
+ * browser whose owner is typing English would then get de-DE and English
+ * speech would be recognised as German — a regression for a case that works
+ * today. An English-looking conversation keeps en-US.
+ */
+export function recognitionLangFor(
+    preferredLang: string | undefined | null,
+    recentTexts: string[],
+): string {
+    // 1. A stated choice wins — they picked it.
+    const stated = (preferredLang ?? "").trim().toLowerCase();
+    if (stated && stated !== "auto" && LANG_TO_BCP47[stated]) return LANG_TO_BCP47[stated];
+
+    // 2. No choice stated: the script of the recent conversation, most recent
+    //    first. Same evidence the TTS path already trusts for its voice.
+    for (let i = recentTexts.length - 1; i >= 0; i--) {
+        const fromScript = detectScriptLang(recentTexts[i] ?? "");
+        if (fromScript) return fromScript;
+    }
+
+    // 3. Nothing to go on. en-US is a guess, but it is the SAME guess as
+    //    before this function existed, so no working case changes.
+    return "en-US";
 }
 
 function resolveTTSLang(text: string): string {

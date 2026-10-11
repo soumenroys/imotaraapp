@@ -1,6 +1,6 @@
 # Imotara — Release Runbook (Web + Mobile)
 
-Operational source-of-truth for shipping Imotara. **Web** = `imotaraapp` (Next.js on Vercel, `www.imotara.com`). **Mobile** = `imotara-mobile` (Expo/EAS, iOS + Android). Both share Supabase project `rfsbvbqtiesswnplslln`. Current release: **v1.5.8 / build 143**. Grounded in the repos' own release docs and scripts (`RELEASE_COMMANDS.md`, `RELEASE_GO_NO_GO.md`, `WEBHOOK_PROD_CHECK.md`, `scripts/bump-version.mjs`, `eas.json`) — do not improvise steps.
+Operational source-of-truth for shipping Imotara. **Web** = `imotaraapp` (Next.js on Vercel, `www.imotara.com`). **Mobile** = `imotara-mobile` (Expo/EAS, iOS + Android). Both share Supabase project `rfsbvbqtiesswnplslln`. Current release: **v1.5.8 / build 158**. Grounded in the repos' own release docs and scripts (`RELEASE_COMMANDS.md`, `RELEASE_GO_NO_GO.md`, `WEBHOOK_PROD_CHECK.md`, `scripts/bump-version.mjs`, `eas.json`) — do not improvise steps.
 
 ---
 
@@ -32,7 +32,15 @@ It rewrites: `imotaraapp/package.json` (`version`, `buildNumber`); `imotara-mobi
 
 Then manually update what the script can't reach:
 - `imotaraapp/.env.local`: `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_APP_BUILD`, `NEXT_PUBLIC_IMOTARA_VERSION`.
-- **Vercel dashboard → Env Vars (Production):** `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_APP_BUILD`.
+- **Vercel → Env Vars:** `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_APP_BUILD`.
+  - ⚠️ **These are THREE separate variables each — production, preview and development.** Setting production alone leaves preview builds and local dev reporting a stale version. All three were found out of step on 2026-10-11.
+  - ⛔ **Set them BEFORE pushing.** `NEXT_PUBLIC_*` is inlined at **build** time, so a push that beats the env edit ships the old number. On 2026-10-11 the edit landed **13 seconds after** the deploy was created and won only because the build container starts later. That is luck, not a process.
+
+#### ⚠️ Three traps found on the 1.5.8 release (2026-10-11)
+
+1. **Use `bump-version.mjs`. Do not do it by hand.** Hand-editing missed `imotaraapp/package.json`'s **`buildNumber`**, which stayed at 142 while everything else said 158. The script rewrites all five fields across both repos in one go.
+2. **CI enforces the KB version headers.** `scripts/check-kb-version.mjs` compares the first `vX.Y.Z` token in seven `ImotaraKnowledgebase/*.md` files against `package.json` and **fails the build** if they disagree. Bump the version and the docs go stale in the same commit — run `npm run check:kb-version` before pushing. (It caught the 1.5.8 bump; its own header records the headers drifting twice before anyone automated it.)
+3. **The runbook's own header line carries the version too** — it said `v1.5.8 / build 143` after a partial edit. The KB checker only validates the *first* `vX.Y.Z` token per file, so a stale **build** number beside a correct version passes CI silently.
 
 ### A3. Commit & push web (this triggers the Vercel deploy)
 

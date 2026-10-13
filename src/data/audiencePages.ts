@@ -435,7 +435,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       "₹799 per person per year",
     ),
     plansNote:
-      "A whole community can be supported on a single plan — not per seat, and not per conversation. NGO pricing applies automatically — no lengthy verification is required to get started.",
+      "Seats are bought a year at a time and conversations are never metered — no per-session cost, no cap on how much someone leans on it. The 60% NGO subsidy applies automatically; no lengthy verification is required to get started.",
     closing: {
       title: "The Imotara Movement",
       body: "The Imotara Movement is our philanthropic initiative to bring emotional support to those who can least afford it. Partner NGOs help us reach the people who need a companion most; in return we sponsor seats, co-run awareness sessions and share what we learn. If your beneficiaries cannot pay, tell us — that is part of why we exist.",
@@ -481,7 +481,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       "₹999 per person per year",
     ),
     plansNote:
-      "A whole batch can be supported on a single plan — not per seat, and not per conversation. EDU pricing applies automatically — no lengthy verification is required to get started.",
+      "Seats are bought a year at a time and conversations are never metered — no per-session cost, no cap on how much a student leans on it. The 50% EDU subsidy applies automatically; no lengthy verification is required to get started.",
     closing: {
       title: "The Imotara Movement",
       body: "The Imotara Movement is our philanthropic initiative to bring emotional support to those who can least afford it. Partner institutions help us reach young people early, before quiet struggles become crises; in return we sponsor seats, co-run awareness sessions for students and parents, and share what we learn. If your students cannot pay, tell us — that is part of why we exist.",
@@ -527,7 +527,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       "₹799 · ₹999 · ₹1,999 per person per year",
     ),
     plansNote:
-      "An entire ward or department can be supported on a single plan — not per seat, and not per conversation. Subsidised pricing applies automatically — no lengthy verification is required to get started.",
+      "Seats are bought a year at a time and conversations are never metered — no per-session cost, no cap on how much someone leans on it. Subsidised pricing applies automatically — no lengthy verification is required to get started.",
     closing: {
       title: "The Imotara Movement",
       body: "The Imotara Movement is our philanthropic initiative to bring emotional support to those who can least afford it. Partner hospitals help us reach people at the moments they need a companion most; in return we sponsor seats for patients who cannot pay, co-run awareness sessions for staff and families, and share anonymised outcomes with your clinicians. We welcome a conversation with your psychiatry or psycho-oncology teams about where Imotara supports patients between appointments — and where it should hand off to them.",
@@ -573,7 +573,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       "₹799 per person per year",
     ),
     plansNote:
-      "A whole home can be supported on a single plan — not per resident, and not per conversation. Charitable pricing applies automatically — no lengthy verification is required to get started. Private homes are welcome too; ask us for standard rates.",
+      "Seats are bought a year at a time and conversations are never metered — no per-session cost, no cap on how much a resident leans on it. Charitable pricing applies automatically — no lengthy verification is required to get started. Private homes are welcome too; ask us for standard rates.",
     closing: {
       title: "The Imotara Movement",
       body: "The Imotara Movement is our philanthropic initiative to bring emotional support to those who can least afford it. Loneliness in later life is one of the quietest struggles there is. Partner homes help us reach elders who need a companion most; in return we sponsor seats, co-run gentle orientation sessions for residents and staff, and share what we learn. If your home cannot pay, tell us — that is part of why we exist.",

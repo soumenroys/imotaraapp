@@ -179,6 +179,23 @@ describe("acquisition copy does not position Imotara against clinical care", () 
         expect(src).not.toMatch(/cheaper than (a )?(counselling|counseling|therapy|therapist)/i);
     });
 
+    it("⛔ the plan NOTE never contradicts the plan TABLE on seat pricing", () => {
+        // Institutional pricing IS per seat: the row is named "Institution seat"
+        // and costs "₹799 per person per year", and the org table carries
+        // seats_purchased / seats_used. A note claiming "not per seat" sat
+        // directly above that table saying the opposite — a false claim is
+        // worse than the unsubstantiated comparison it replaced.
+        const src = fs.readFileSync(
+            path.join(process.cwd(), "src/data/audiencePages.ts"), "utf8");
+        expect(src).toMatch(/Institution seat/);
+        expect(src).toMatch(/per person per year/);
+        expect(src).not.toMatch(/not per seat/i);
+        expect(src).not.toMatch(/not per resident/i);
+        // "on a single plan" reads as one-price-covers-everyone, which is the
+        // same false promise in gentler words.
+        expect(src).not.toMatch(/supported on a single plan/i);
+    });
+
     it("⛔ no page invites children under 13", () => {
         // The product's own age selectors start at 13-17; the Terms say 13+.
         // A landing page inviting under-13s contradicted both.

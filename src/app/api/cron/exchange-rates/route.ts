@@ -18,7 +18,23 @@ const FALLBACK: Record<string, number> = {
 };
 
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret") ?? "";
+  // 🔴 THE BEARER HEADER IS THE ONE VERCEL CRON ACTUALLY SENDS, and until
+  // 2026-10-13 this route did not accept it. It checked only `x-cron-secret`
+  // or `?secret=`, neither of which Vercel sends, so every scheduled run
+  // answered 401 and the job NEVER SUCCEEDED ONCE.
+  //
+  // ⚠️ Proven, not inferred: app_settings.exchange_rates still held the SEED
+  // PLACEHOLDER from docs/sql/connect_schema.sql byte-for-byte, with
+  // updated_at = 2026-06-05, the day the schema was applied. Not stale data —
+  // no data. ⇒ international prices were converted at hardcoded guesses.
+  //
+  // The two older forms are kept so a manual curl from a runbook still works.
+  const bearer = req.headers.get("authorization") ?? "";
+  const secret =
+    (bearer.startsWith("Bearer ") ? bearer.slice(7) : "") ||
+    req.headers.get("x-cron-secret") ||
+    req.nextUrl.searchParams.get("secret") ||
+    "";
   if (!CRON_SECRET || secret !== CRON_SECRET) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }

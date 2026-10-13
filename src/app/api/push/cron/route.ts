@@ -107,7 +107,22 @@ export function buildNudge(
   return { title: L.pt, body: pick(L.rb(day)) };
 }
 
-export async function POST(req: Request) {
+// 🔴 GET, NOT POST. **Vercel Cron issues a GET.** This route was declared in
+// vercel.json and written as POST in the SAME commit (08cabfe, 2026-04-03), so
+// every scheduled invocation for over six months answered **405 Method Not
+// Allowed** and the daily push notification NEVER FIRED ONCE.
+//
+// ⚠️ Nothing caught it. ~3,800 tests were green because they all exercise
+// buildNudge/isDueNow/isSuppressed as FUNCTIONS; not one of them asked which
+// HTTP verb the handler answers. docs/ARCHITECTURE.md had it right — it
+// documents this endpoint as GET — so the docs and the code disagreed and the
+// code lost. Measured against production: GET ⇒ 405, while a working cron
+// returns 401.
+//
+// ⛔ Do not "simplify" this back to POST. The auth below is already exactly
+// Vercel's documented scheme (Authorization: Bearer ${CRON_SECRET}); it was
+// only ever the verb that was wrong.
+export async function GET(req: Request) {
   // Verify Vercel Cron secret
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {

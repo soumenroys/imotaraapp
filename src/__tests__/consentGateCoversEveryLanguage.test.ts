@@ -204,3 +204,38 @@ describe("acquisition copy does not position Imotara against clinical care", () 
         expect(src).not.toMatch(/[Cc]hildren under 13 should/);
     });
 });
+
+describe("🔴 the web gate outranks every other overlay", () => {
+    // The mobile twin of this failed on a wiped Android emulator 2026-10-13:
+    // as a sibling <Modal> it was covered by SignInPrompt, so sign-in was
+    // reachable without passing the gate. Web does NOT share that bug — CSS
+    // z-index is deterministic where Android modal stacking is not — but only
+    // while the gate stays the highest. This pins it.
+    const OVERLAYS = [
+        "src/components/imotara/PWAInstallPrompt.tsx",
+        "src/components/imotara/OnboardingTour.tsx",
+        "src/components/imotara/FirstVisitBanner.tsx",
+        "src/components/imotara/LocalDataNotice.tsx",
+        "src/components/imotara/OfflineIndicator.tsx",
+    ];
+
+    const maxZ = (file: string): number => {
+        const src = fs.readFileSync(path.join(process.cwd(), file), "utf8");
+        const hits = [...src.matchAll(/z-\[?(\d+)\]?/g)].map((m) => Number(m[1]));
+        return hits.length ? Math.max(...hits) : 0;
+    };
+
+    it("sits above every sibling overlay mounted in the root layout", () => {
+        const gate = maxZ("src/components/legal/ConsentGate.tsx");
+        expect(gate).toBeGreaterThan(0);
+        for (const f of OVERLAYS) {
+            expect(maxZ(f), `${f} is at or above the gate`).toBeLessThan(gate);
+        }
+    });
+
+    it("covers the whole viewport, so nothing behind is clickable", () => {
+        const src = fs.readFileSync(
+            path.join(process.cwd(), "src/components/legal/ConsentGate.tsx"), "utf8");
+        expect(src).toMatch(/fixed inset-0/);
+    });
+});

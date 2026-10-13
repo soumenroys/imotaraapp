@@ -16,6 +16,12 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { sendPushNotification } from "@/lib/imotara/webpush";
 import { getNudgeLang, pick } from "@/lib/imotara/nudgeStrings";
 import { isCrisisTier2 } from "@/lib/emotion/keywordMaps";
+import {
+  SNOOZE_MEMORY_TYPE,
+  SNOOZE_MEMORY_KEY,
+  DISABLED_MEMORY_KEY,
+  isSuppressed,
+} from "@/lib/reminders/snooze";
 
 // Only nudge users silent for 2+ days; re-notify at most once every 24 h
 const INACTIVITY_THRESHOLD_MS = 2 * 24 * 60 * 60 * 1000; // 48 hours
@@ -55,10 +61,28 @@ export function truncateToWord(text: string, maxLen: number): string {
  * There is no phrasing of someone's suicidal message that belongs in a push
  * notification.
  */
+/**
+ * The localised weekday of a conversation, e.g. "বৃহস্পতিবার" for bn.
+ *
+ * Verified 2026-10-13 that Node's ICU resolves a native weekday for all 22
+ * supported languages — including Odia and Malayalam — so there is no English
+ * fallback hiding in here. Falls back to the generic nudge if it ever throws.
+ */
+export function localisedWeekday(at: Date, lang: string | undefined): string | null {
+  try {
+    const base = String(lang ?? "en").trim().toLowerCase().split(/[-_]/)[0] || "en";
+    const w = new Intl.DateTimeFormat(base, { weekday: "long" }).format(at);
+    return w && w.trim() ? w : null;
+  } catch {
+    return null;
+  }
+}
+
 export function buildNudge(
   lastUserMessage: string | undefined,
   lang: string | undefined,
   recentMessages: string[] = [],
+  lastMessageAt?: Date,
 ): { title: string; body: string } {
   const L = getNudgeLang(lang);
   const generic = { title: L.gt, body: pick(L.gb) };
@@ -71,8 +95,16 @@ export function buildNudge(
   const window = recentMessages.length ? recentMessages : [lastUserMessage];
   if (window.some((m) => isCrisisTier2(m))) return generic;
 
-  const snippet = truncateToWord(lastUserMessage.replace(/[.!?,;:]+$/, "").trim(), 50);
-  return { title: L.pt, body: pick(L.pb(snippet)) };
+  // ⛔ The person's own words are NEVER put on a lock screen. Owner decision
+  // 2026-10-13: the nudge references WHEN the conversation happened, not WHAT
+  // was said. A lock screen is read by whoever picks the phone up, and quoting
+  // someone's message about their marriage or their diagnosis can out their use
+  // of a mental-health app to the person they are trying to get away from.
+  //
+  // The weekday is the hook: unmistakable to them, meaningless to a bystander.
+  const day = localisedWeekday(lastMessageAt ?? new Date(), lang);
+  if (!day) return generic;
+  return { title: L.pt, body: pick(L.rb(day)) };
 }
 
 export async function POST(req: Request) {
@@ -107,7 +139,7 @@ export async function POST(req: Request) {
   const inactivityCutoff = new Date(now - INACTIVITY_THRESHOLD_MS).toISOString();
 
   // Fetch last_notified_at, recent activity, chat messages, and preferred language in parallel
-  const [notifiedRes, activityRes, chatRes, langRes] = await Promise.all([
+  const [notifiedRes, activityRes, chatRes, langRes, suppressRes] = await Promise.all([
     admin
       .from("user_memory")
       .select("user_id, value")
@@ -140,6 +172,16 @@ export async function POST(req: Request) {
       .eq("type", "identity")
       .eq("key", "preferred_lang")
       .in("user_id", userIds),
+
+    // ⛔ Snooze and permanent-off MUST be enforced here. The nudge is a server
+    // push, so a client-side flag cannot stop it — the person would tap
+    // "snooze", see nothing change, and rightly conclude the control is fake.
+    admin
+      .from("user_memory")
+      .select("user_id, key, value")
+      .eq("type", SNOOZE_MEMORY_TYPE)
+      .in("key", [SNOOZE_MEMORY_KEY, DISABLED_MEMORY_KEY])
+      .in("user_id", userIds),
   ]);
 
   const lastNotifiedMap = new Map(
@@ -165,6 +207,17 @@ export async function POST(req: Request) {
     else recentMessagesMap.set(msg.user_scope, [text]);
   }
 
+  // Suppression state per user: an active snooze, or a paid user's permanent off.
+  const snoozedUntilMap = new Map<string, string>();
+  const disabledSet = new Set<string>();
+  for (const r of (suppressRes.data ?? [])) {
+    if (r.key === SNOOZE_MEMORY_KEY && typeof r.value === "string") {
+      snoozedUntilMap.set(r.user_id, r.value);
+    } else if (r.key === DISABLED_MEMORY_KEY && r.value) {
+      disabledSet.add(r.user_id);
+    }
+  }
+
   // Preferred language per user (e.g. "hi", "bn", "ta")
   const langMap = new Map(
     (langRes.data ?? []).map((r) => [r.user_id, r.value as string]),
@@ -175,6 +228,14 @@ export async function POST(req: Request) {
 
   await Promise.all(
     rows.map(async (row) => {
+      // ⛔ Snoozed or switched off: skip before anything else. This is the
+      // only place the person's choice is actually enforced.
+      if (isSuppressed(
+        snoozedUntilMap.get(row.user_id),
+        disabledSet.has(row.user_id),
+        new Date(now),
+      )) return;
+
       // Skip active users — they don't need a re-engagement nudge
       if (activeUserIds.has(row.user_id)) return;
 

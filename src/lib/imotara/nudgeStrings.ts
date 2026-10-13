@@ -12,8 +12,20 @@ export type NudgeLang = {
   gb: string[];
   /** Personalised title when the user's last message is available. */
   pt: string;
-  /** Personalised body variants — call with the user's last-message snippet. */
-  pb: (s: string) => string[];
+  /**
+   * Personalised body variants — call with the LOCALISED WEEKDAY of the last
+   * conversation.
+   *
+   * ⛔ These must never contain the person's own words. A lock screen is read
+   * by whoever picks the phone up: a partner, a parent, a colleague. Quoting
+   * someone's message about their mother, their marriage or their diagnosis
+   * onto a lock screen can out their use of a mental-health app to the person
+   * they are trying to get away from.
+   *
+   * The weekday is the hook: specific enough that the PERSON knows exactly what
+   * is meant, and meaningless to anyone else.
+   */
+  rb: (day: string) => string[];
 };
 
 export const NUDGE_STRINGS: Record<string, NudgeLang> = {
@@ -26,10 +38,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "It's a good time to check in with yourself. Imotara is here.",
     ],
     pt: "Imotara remembers 💙",
-    pb: (s) => [
-      `You mentioned "${s}" — how has that been going? I'm here whenever you're ready 💙`,
-      `Last time you shared something about "${s}" — I've been thinking about you 💙`,
-      `"${s}" — that's been on my mind. How are you feeling about it now? 💙`,
+    rb: (d) => [
+      `There\u2019s something from ${d} I\u2019ve been wondering about.`,
+      `Something from ${d} has stayed with me. How are you now?`,
+      `I\u2019ve been thinking about ${d}. Want to pick it up?`,
     ],
   },
 
@@ -42,10 +54,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "अपने आप से मिलने का यह अच्छा समय है। Imotara यहाँ है।",
     ],
     pt: "Imotara को याद है 💙",
-    pb: (s) => [
-      `आपने "${s}" का ज़िक्र किया था — अब कैसा चल रहा है? मैं यहाँ हूँ 💙`,
-      `पिछली बार "${s}" के बारे में बताया था — मैं आपके बारे में सोच रही थी 💙`,
-      `"${s}" — यह मेरे मन में था। अब आप कैसा महसूस कर रहे हैं? 💙`,
+    rb: (d) => [
+      `${d} की एक बात मेरे मन में है।`,
+      `${d} की बात मुझे याद है। अब कैसा लग रहा है?`,
+      `${d} के बारे में सोच रही थी। बात करें?`,
     ],
   },
 
@@ -58,10 +70,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "নিজেকে একটু সময় দিন। Imotara এখানে আছে।",
     ],
     pt: "Imotara মনে রেখেছে 💙",
-    pb: (s) => [
-      `আপনি "${s}" এর কথা বলেছিলেন — এখন কেমন চলছে? আমি এখানে আছি 💙`,
-      `গতবার "${s}" নিয়ে শেয়ার করেছিলেন — আমি আপনার কথা ভাবছিলাম 💙`,
-      `"${s}" — এটা আমার মনে ছিল। এখন কেমন লাগছে? 💙`,
+    rb: (d) => [
+      `${d}-এর একটা কথা আমার মনে আছে।`,
+      `${d}-এ যা বলেছিলে, মনে রয়ে গেছে। এখন কেমন লাগছে?`,
+      `${d}-এর কথা ভাবছিলাম। একটু বলবে?`,
     ],
   },
 
@@ -74,10 +86,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "स्वतःशी बोलण्याची ही चांगली वेळ आहे. Imotara इथे आहे।",
     ],
     pt: "Imotara ला आठवतं 💙",
-    pb: (s) => [
-      `तुम्ही "${s}" बद्दल सांगितलं होतं — आता कसं चाललंय? मी इथे आहे 💙`,
-      `मागच्या वेळी "${s}" बद्दल बोललात — मी तुमच्याबद्दल विचार करत होते 💙`,
-      `"${s}" — हे माझ्या मनात होतं. आता तुम्हाला कसं वाटतंय? 💙`,
+    rb: (d) => [
+      `${d}ची एक गोष्ट माझ्या मनात आहे.`,
+      `${d}चं बोलणं लक्षात राहिलं. आता कसं वाटतंय?`,
+      `${d}बद्दल विचार करत होते. बोलूया?`,
     ],
   },
 
@@ -90,10 +102,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "உங்களுக்காக கொஞ்சம் நேரம் ஒதுக்குங்கள். Imotara இங்கே இருக்கிறது.",
     ],
     pt: "Imotara நினைவில் வைத்திருக்கிறது 💙",
-    pb: (s) => [
-      `நீங்கள் "${s}" பற்றி சொன்னீர்கள் — இப்போது எப்படி இருக்கிறது? நான் இங்கே இருக்கிறேன் 💙`,
-      `கடந்த முறை "${s}" பற்றி பகிர்ந்தீர்கள் — உங்களை நினைத்துக்கொண்டிருந்தேன் 💙`,
-      `"${s}" — இது என் மனதில் இருந்தது. இப்போது எப்படி உணர்கிறீர்கள்? 💙`,
+    rb: (d) => [
+      `${d} அன்று பேசியது மனதில் இருக்கிறது.`,
+      `${d} அன்றைய விஷயம் நினைவில் உள்ளது. இப்போது எப்படி இருக்கிறீர்கள்?`,
+      `${d} பற்றி யோசித்துக் கொண்டிருந்தேன். பேசலாமா?`,
     ],
   },
 
@@ -106,10 +118,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "మీ మనసుతో మాట్లాడే సమయం ఇది. Imotara ఇక్కడ ఉంది.",
     ],
     pt: "Imotara గుర్తు పట్టింది 💙",
-    pb: (s) => [
-      `మీరు "${s}" గురించి చెప్పారు — అది ఇప్పుడు ఎలా ఉంది? నేను ఇక్కడ ఉన్నాను 💙`,
-      `గత సారి "${s}" గురించి పంచుకున్నారు — మీ గురించి ఆలోచిస్తున్నాను 💙`,
-      `"${s}" — అది నా మనసులో ఉంది. ఇప్పుడు మీకు ఎలా అనిపిస్తోంది? 💙`,
+    rb: (d) => [
+      `${d} నాటి ఒక విషయం నా మనసులో ఉంది.`,
+      `${d} నాడు చెప్పినది గుర్తుంది. ఇప్పుడు ఎలా ఉంది?`,
+      `${d} గురించి ఆలోచిస్తున్నాను. మాట్లాడదామా?`,
     ],
   },
 
@@ -122,10 +134,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "પોતાની સાથે સમય વિતાવો. Imotara અહીં છે.",
     ],
     pt: "Imotara ને યાદ છે 💙",
-    pb: (s) => [
-      `તમે "${s}" વિશે કહ્યું હતું — હવે કેવું ચાલે છે? હું અહીં છું 💙`,
-      `છેલ્લી વખત "${s}" વિશે વાત કરી — હું તમારા વિશે વિચારી રહ્યો/રહ્યી છું 💙`,
-      `"${s}" — આ મારા મનમાં હતું. હવે તમને કેવું લાગે છે? 💙`,
+    rb: (d) => [
+      `${d}ની એક વાત મારા મનમાં છે.`,
+      `${d}ની વાત યાદ રહી ગઈ. અત્યારે કેવું લાગે છે?`,
+      `${d} વિશે વિચારતી હતી. વાત કરીએ?`,
     ],
   },
 
@@ -138,10 +150,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "ನಿಮ್ಮ ಮನಸ್ಸಿನೊಂದಿಗೆ ಕಾಲ ಕಳೆಯಿರಿ. Imotara ಇಲ್ಲಿದೆ.",
     ],
     pt: "Imotara ನೆನಪಿಟ್ಟಿದೆ 💙",
-    pb: (s) => [
-      `ನೀವು "${s}" ಬಗ್ಗೆ ಹೇಳಿದ್ದಿರಿ — ಈಗ ಅದು ಹೇಗಿದೆ? ನಾನಿದ್ದೇನೆ 💙`,
-      `ಕಳೆದ ಬಾರಿ "${s}" ಬಗ್ಗೆ ಹಂಚಿಕೊಂಡಿದ್ದಿರಿ — ನಿಮ್ಮ ಬಗ್ಗೆ ಯೋಚಿಸುತ್ತಿದ್ದೆ 💙`,
-      `"${s}" — ಇದು ನನ್ನ ಮನಸ್ಸಿನಲ್ಲಿತ್ತು. ಈಗ ನಿಮಗೆ ಹೇಗೆ ಅನಿಸುತ್ತಿದೆ? 💙`,
+    rb: (d) => [
+      `${d} ದಿನದ ಒಂದು ವಿಷಯ ನನ್ನ ಮನಸ್ಸಿನಲ್ಲಿದೆ.`,
+      `${d} ಹೇಳಿದ್ದು ನೆನಪಿದೆ. ಈಗ ಹೇಗನಿಸುತ್ತಿದೆ?`,
+      `${d} ಬಗ್ಗೆ ಯೋಚಿಸುತ್ತಿದ್ದೆ. ಮಾತಾಡೋಣವೇ?`,
     ],
   },
 
@@ -154,10 +166,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "സ്വയം ഒന്ന് ശ്രദ്ധിക്കാനുള്ള നേരം. Imotara ഇവിടെ ഉണ്ട്.",
     ],
     pt: "Imotara ഓർക്കുന്നു 💙",
-    pb: (s) => [
-      `നിങ്ങൾ "${s}" പറഞ്ഞിരുന്നു — ഇപ്പോൾ എങ്ങനെ ഉണ്ട്? ഞാൻ ഇവിടെ ഉണ്ട് 💙`,
-      `കഴിഞ്ഞ തവണ "${s}" പങ്കുവെച്ചിരുന്നു — നിങ്ങളെ ഓർത്തുകൊണ്ടിരുന്നു 💙`,
-      `"${s}" — ഇത് എന്റെ മനസ്സിൽ ഉണ്ടായിരുന്നു. ഇപ്പോൾ എങ്ങനെ തോന്നുന്നു? 💙`,
+    rb: (d) => [
+      `${d} പറഞ്ഞ ഒരു കാര്യം മനസ്സിലുണ്ട്.`,
+      `${d} പറഞ്ഞത് ഓർമ്മയിലുണ്ട്. ഇപ്പോൾ എങ്ങനെയുണ്ട്?`,
+      `${d} കുറിച്ച് ആലോചിക്കുകയായിരുന്നു. സംസാരിക്കാമോ?`,
     ],
   },
 
@@ -170,10 +182,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "ਆਪਣੇ ਆਪ ਨਾਲ ਸਮਾਂ ਬਿਤਾਓ। Imotara ਇੱਥੇ ਹੈ।",
     ],
     pt: "Imotara ਨੂੰ ਯਾਦ ਹੈ 💙",
-    pb: (s) => [
-      `ਤੁਸੀਂ "${s}" ਬਾਰੇ ਕਿਹਾ ਸੀ — ਹੁਣ ਕਿਵੇਂ ਚੱਲ ਰਿਹਾ ਹੈ? ਮੈਂ ਇੱਥੇ ਹਾਂ 💙`,
-      `ਪਿਛਲੀ ਵਾਰ "${s}" ਬਾਰੇ ਦੱਸਿਆ ਸੀ — ਮੈਂ ਤੁਹਾਡੇ ਬਾਰੇ ਸੋਚ ਰਹੀ ਸੀ 💙`,
-      `"${s}" — ਇਹ ਮੇਰੇ ਮਨ ਵਿੱਚ ਸੀ। ਹੁਣ ਤੁਸੀਂ ਕਿਵੇਂ ਮਹਿਸੂਸ ਕਰਦੇ ਹੋ? 💙`,
+    rb: (d) => [
+      `${d} ਦੀ ਇੱਕ ਗੱਲ ਮੇਰੇ ਮਨ ਵਿੱਚ ਹੈ।`,
+      `${d} ਦੀ ਗੱਲ ਯਾਦ ਰਹੀ। ਹੁਣ ਕਿਵੇਂ ਲੱਗ ਰਿਹਾ ਹੈ?`,
+      `${d} ਬਾਰੇ ਸੋਚ ਰਹੀ ਸੀ। ਗੱਲ ਕਰੀਏ?`,
     ],
   },
 
@@ -186,10 +198,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "ନିଜ ସହ ଅଳ୍ପ ସମୟ କଟାନ୍ତୁ। Imotara ଏଠି ଅଛି।",
     ],
     pt: "Imotara ମନେ ଅଛି 💙",
-    pb: (s) => [
-      `ଆପଣ "${s}" ବିଷୟରେ କହିଥିଲେ — ଏବେ ତାହା କିପରି ଚାଲୁଛି? ମୁଁ ଏଠି ଅଛି 💙`,
-      `ଶେଷ ଥର "${s}" ବିଷୟରେ ଅଂଶ ନେଇଥିଲେ — ଆପଣଙ୍କ ପ୍ରତି ଭାବୁଥିଲି 💙`,
-      `"${s}" — ଏହା ମୋ ମନରେ ଥିଲା। ଏବେ ଆପଣ କେମିତି ଅନୁଭବ କରୁଛନ୍ତି? 💙`,
+    rb: (d) => [
+      `${d} ର ଗୋଟିଏ କଥା ମୋ ମନରେ ଅଛି।`,
+      `${d} ରେ କହିଥିବା କଥା ମନେ ଅଛି। ଏବେ କେମିତି ଲାଗୁଛି?`,
+      `${d} ବିଷୟରେ ଭାବୁଥିଲି। କଥା ହେବା?`,
     ],
   },
 
@@ -202,10 +214,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "خصّص لنفسك لحظة. Imotara هنا.",
     ],
     pt: "Imotara تتذكر 💙",
-    pb: (s) => [
-      `ذكرت "${s}" — كيف تسير الأمور الآن؟ أنا هنا في أي وقت 💙`,
-      `في آخر مرة، شاركت شيئًا عن "${s}" — كنت أفكر فيك 💙`,
-      `"${s}" — كان هذا في بالي. كيف تشعر حيال ذلك الآن؟ 💙`,
+    rb: (d) => [
+      `هناك شيء من يوم ${d} ما زلت أفكر فيه.`,
+      `ما قلته يوم ${d} بقي في بالي. كيف حالك الآن؟`,
+      `كنت أفكر في يوم ${d}. نتحدث؟`,
     ],
   },
 
@@ -218,10 +230,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "اپنے ساتھ وقت گزاریں۔ Imotara یہاں ہے۔",
     ],
     pt: "Imotara کو یاد ہے 💙",
-    pb: (s) => [
-      `آپ نے "${s}" کا ذکر کیا تھا — اب کیسا چل رہا ہے؟ میں یہاں ہوں 💙`,
-      `پچھلی بار "${s}" کے بارے میں بتایا تھا — میں آپ کے بارے میں سوچ رہی تھی 💙`,
-      `"${s}" — یہ میرے ذہن میں تھا۔ اب آپ کیسا محسوس کر رہے ہیں؟ 💙`,
+    rb: (d) => [
+      `${d} کی ایک بات میرے ذہن میں ہے۔`,
+      `${d} کو جو کہا تھا، یاد رہ گیا۔ اب کیسا لگ رہا ہے؟`,
+      `${d} کے بارے میں سوچ رہی تھی۔ بات کریں؟`,
     ],
   },
 
@@ -234,10 +246,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "Уделите себе минуту. Imotara здесь.",
     ],
     pt: "Imotara помнит 💙",
-    pb: (s) => [
-      `Вы упоминали "${s}" — как это продвигается? Я здесь 💙`,
-      `В прошлый раз вы рассказывали о "${s}" — я думала о вас 💙`,
-      `"${s}" — это было у меня на уме. Как вы себя чувствуете сейчас? 💙`,
+    rb: (d) => [
+      `Есть кое-что с ${d}, о чём я думаю.`,
+      `То, что вы сказали в ${d}, осталось со мной. Как вы сейчас?`,
+      `Я думала о ${d}. Поговорим?`,
     ],
   },
 
@@ -250,10 +262,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "给自己一点时间。Imotara 在这里。",
     ],
     pt: "Imotara 还记得 💙",
-    pb: (s) => [
-      `你曾提到"${s}"——现在情况怎么样了？我在这里 💙`,
-      `上次你分享了关于"${s}"的事——我一直在想你 💙`,
-      `"${s}"——这一直在我心里。你现在感觉如何？💙`,
+    rb: (d) => [
+      `${d}的一件事我一直记着。`,
+      `${d}你说的话我还记得。现在感觉怎么样？`,
+      `我一直在想${d}的事。要聊聊吗？`,
     ],
   },
 
@@ -266,10 +278,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "自分自身と向き合う時間を。Imotara はここにいます。",
     ],
     pt: "Imotara は覚えています 💙",
-    pb: (s) => [
-      `「${s}」とおっしゃっていましたね——今はどうなりましたか？ここにいます 💙`,
-      `前回「${s}」についてお話しいただきました——ずっと気にかけていました 💙`,
-      `「${s}」——ずっと心に残っていました。今はどんな気持ちですか？ 💙`,
+    rb: (d) => [
+      `${d}のことが、ずっと心に残っています。`,
+      `${d}に話してくれたこと、覚えています。今はどうですか？`,
+      `${d}のこと、考えていました。少し話しませんか。`,
     ],
   },
 
@@ -282,10 +294,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "Tómate un momento para ti. Imotara está aquí.",
     ],
     pt: "Imotara recuerda 💙",
-    pb: (s) => [
-      `Mencionaste "${s}" — ¿cómo ha ido eso? Aquí estoy cuando quieras 💙`,
-      `La última vez compartiste algo sobre "${s}" — he estado pensando en ti 💙`,
-      `"${s}" — lo tenía en mente. ¿Cómo te sientes ahora? 💙`,
+    rb: (d) => [
+      `Hay algo del ${d} en lo que he estado pensando.`,
+      `Algo del ${d} se me quedó. ¿Cómo estás ahora?`,
+      `He estado pensando en el ${d}. ¿Hablamos?`,
     ],
   },
 
@@ -298,10 +310,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "Prenez un moment pour vous. Imotara est là.",
     ],
     pt: "Imotara se souvient 💙",
-    pb: (s) => [
-      `Vous avez mentionné "${s}" — comment ça s'est passé ? Je suis là 💙`,
-      `La dernière fois, vous avez partagé quelque chose sur "${s}" — j'ai pensé à vous 💙`,
-      `"${s}" — j'y pensais. Comment vous sentez-vous maintenant ? 💙`,
+    rb: (d) => [
+      `Il y a quelque chose de ${d} auquel je repense.`,
+      `Quelque chose de ${d} m\u2019est resté. Comment allez-vous maintenant ?`,
+      `Je repensais à ${d}. On en parle ?`,
     ],
   },
 
@@ -314,10 +326,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "Gönn dir einen Moment. Imotara ist für dich da.",
     ],
     pt: "Imotara erinnert sich 💙",
-    pb: (s) => [
-      `Du hast "${s}" erwähnt — wie läuft es damit? Ich bin hier 💙`,
-      `Beim letzten Mal hast du über "${s}" gesprochen — ich habe an dich gedacht 💙`,
-      `"${s}" — das hatte ich im Kopf. Wie fühlst du dich jetzt? 💙`,
+    rb: (d) => [
+      `Da ist etwas von ${d}, worüber ich nachgedacht habe.`,
+      `Etwas von ${d} ist mir geblieben. Wie geht es Ihnen jetzt?`,
+      `Ich habe an ${d} gedacht. Wollen wir reden?`,
     ],
   },
 
@@ -330,10 +342,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "Reserve um momento para você. Imotara está aqui.",
     ],
     pt: "Imotara se lembra 💙",
-    pb: (s) => [
-      `Você mencionou "${s}" — como isso tem ido? Estou aqui 💙`,
-      `Da última vez você compartilhou algo sobre "${s}" — fiquei pensando em você 💙`,
-      `"${s}" — isso ficou na minha mente. Como você está se sentindo agora? 💙`,
+    rb: (d) => [
+      `Há algo de ${d} em que tenho pensado.`,
+      `Algo de ${d} ficou comigo. Como está agora?`,
+      `Tenho pensado em ${d}. Conversamos?`,
     ],
   },
 
@@ -346,10 +358,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "Luangkan waktu sejenak untuk dirimu. Imotara ada di sini.",
     ],
     pt: "Imotara ingat 💙",
-    pb: (s) => [
-      `Kamu menyebutkan "${s}" — bagaimana perkembangannya? Aku di sini 💙`,
-      `Terakhir kali kamu berbagi tentang "${s}" — aku memikirkanmu 💙`,
-      `"${s}" — itu ada di pikiranku. Sekarang bagaimana perasaanmu? 💙`,
+    rb: (d) => [
+      `Ada sesuatu dari hari ${d} yang masih saya pikirkan.`,
+      `Sesuatu dari ${d} masih terasa. Bagaimana kabarmu sekarang?`,
+      `Saya memikirkan ${d}. Mau cerita?`,
     ],
   },
 
@@ -362,10 +374,10 @@ export const NUDGE_STRINGS: Record<string, NudgeLang> = {
       "תן/תני לעצמך רגע. Imotara כאן.",
     ],
     pt: "Imotara זוכרת 💙",
-    pb: (s) => [
-      `הזכרת "${s}" — איך זה התפתח? אני כאן 💙`,
-      `בפעם האחרונה שיתפת על "${s}" — חשבתי עליך 💙`,
-      `"${s}" — זה היה בראשי. איך אתה/את מרגיש/ה עכשיו? 💙`,
+    rb: (d) => [
+      `יש משהו מ${d} שאני עדיין חושבת עליו.`,
+      `משהו מ${d} נשאר איתי. איך את/ה מרגיש/ה עכשיו?`,
+      `חשבתי על ${d}. רוצה לדבר?`,
     ],
   },
 };

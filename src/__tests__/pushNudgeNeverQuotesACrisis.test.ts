@@ -82,25 +82,47 @@ describe("🔴 a crisis in the window is NEVER quoted", () => {
 });
 
 describe("⚖️ the feature still works for everyone else", () => {
-    it("an ordinary message IS quoted — that is the point of the nudge", () => {
-        const n = buildNudge("work has been really stressful this week", "en",
-                             ["work has been really stressful this week"]);
+    it("⛔ an ordinary message is PERSONALISED but NEVER QUOTED", () => {
+        // RE-POINTED 2026-10-13, not loosened. This used to assert the opposite —
+        // that the body CONTAINS the person's words — and that was the correct
+        // test for the behaviour at the time. Owner decision: a lock screen is
+        // read by whoever picks the phone up, so the nudge now references WHEN
+        // the conversation happened, never WHAT was said.
+        const msg = "work has been really stressful this week";
+        const n = buildNudge(msg, "en", [msg], new Date("2026-10-15T10:00:00Z"));
         expect(isGeneric(n.body)).toBe(false);
-        expect(n.body).toContain("work has been really stressful");
+        // Still personalised — it names the day.
+        expect(n.body).toContain("Thursday");
+        // ⛔ and carries none of their words.
+        expect(n.body).not.toContain("work has been really stressful");
+        expect(n.body).not.toContain("stressful");
     });
 
-    it("a hard but non-crisis message is still quoted", () => {
-        // ⚠️ The regression that would matter: over-blocking turns this into a
-        // generic broadcast. Sadness and exhaustion are what this app is FOR.
-        for (const msg of [
-            "I feel very tired today",
-            "আমার আজ খুব ক্লান্ত লাগছে",
-            "my mum is in hospital and I'm scared",
-            "I had a fight with my partner",
-        ]) {
-            const n = buildNudge(msg, "en", [msg]);
-            expect(isGeneric(n.body), `"${msg}" should still personalise`).toBe(false);
+    it("⛔ no ordinary message leaks into the body, in any language", () => {
+        // ⚠️ The previous version of this test asserted only `isGeneric === false`,
+        // which KEPT PASSING after quoting was removed — it could not tell
+        // "personalised" from "quoted". A test that survives the change it was
+        // written to catch is not a test. See trap_a_mirror_test_cannot_catch_a_refactor.
+        const cases: Array<[string, string, string]> = [
+            ["en", "my mum is in hospital and I'm scared", "hospital"],
+            ["en", "I had a fight with my partner", "partner"],
+            ["bn", "আমার আজ খুব ক্লান্ত লাগছে", "ক্লান্ত"],
+            ["hi", "मेरी नौकरी चली गई", "नौकरी"],
+        ];
+        for (const [lang, msg, secret] of cases) {
+            const n = buildNudge(msg, lang, [msg], new Date("2026-10-15T10:00:00Z"));
+            expect(isGeneric(n.body), `${lang} should still personalise`).toBe(false);
+            expect(n.body, `${lang} leaked the message`).not.toContain(secret);
+            expect(n.title, `${lang} title leaked the message`).not.toContain(secret);
         }
+    });
+
+    it("falls back to generic rather than guessing when the weekday is unknown", () => {
+        // If the locale ever fails to resolve, a half-built sentence with an
+        // empty slot would be worse than the generic nudge.
+        const n = buildNudge("something ordinary", "en", ["something ordinary"],
+                             new Date(Number.NaN));
+        expect(isGeneric(n.body)).toBe(true);
     });
 
     it("no last message ⇒ generic, unchanged behaviour", () => {
@@ -108,9 +130,12 @@ describe("⚖️ the feature still works for everyone else", () => {
         expect(isGeneric(buildNudge("", "en").body)).toBe(true);
     });
 
-    it("an empty window falls back to the quoted message alone", () => {
+    it("an empty window still runs the crisis gate on the last message", () => {
         // Defensive: if the window is not supplied, the gate must still run on
-        // what we are about to quote, rather than silently passing.
+        // the message we are about to personalise from, rather than silently
+        // passing. ⚠️ Still relevant after quoting was removed: a crisis
+        // conversation must not get "there's something from Thursday…" either —
+        // that is still resurfacing it, just more vaguely.
         const n = buildNudge("I want to die", "en", []);
         expect(isGeneric(n.body)).toBe(true);
     });
@@ -133,8 +158,14 @@ describe("⚠️ the premise, pinned in the route", () => {
         // Order matters: a snippet computed first and blanked later is one
         // refactor away from leaking.
         const i = SRC.indexOf("if (window.some((m) => isCrisisTier2(m))) return generic;");
-        const j = SRC.indexOf("const snippet = truncateToWord(");
+        // RE-POINTED 2026-10-13: there is no snippet any more — the nudge
+        // references the weekday, not the words. The ORDERING this test exists
+        // to protect is unchanged though: nothing personalised may be computed
+        // before the crisis gate has run.
+        const j = SRC.indexOf("const day = localisedWeekday(");
         expect(i).toBeGreaterThan(-1);
         expect(j).toBeGreaterThan(i);
+        // ⛔ And the snippet builder must be GONE, not merely unused.
+        expect(SRC).not.toContain("truncateToWord(lastUserMessage");
     });
 });

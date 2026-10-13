@@ -110,7 +110,7 @@ export default function ConsentGate({ lang, countryCode, onAccepted }: Props) {
         >
             <div
                 className={[
-                    "relative w-full max-w-[26rem] overflow-hidden rounded-3xl",
+                    "relative w-full max-w-[416px] overflow-hidden rounded-3xl",
                     "border border-[var(--im-border-soft)] bg-[var(--im-surface)]",
                     "shadow-[0_24px_70px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl",
                     "transition-all duration-300 ease-out",
@@ -144,7 +144,7 @@ export default function ConsentGate({ lang, countryCode, onAccepted }: Props) {
 
                     <h1
                         id="consent-title"
-                        className="mb-3 text-center text-[1.35rem] font-semibold leading-snug tracking-[-0.01em] text-zinc-900 dark:text-zinc-50"
+                        className="mb-3 text-center text-[22px] font-semibold leading-snug tracking-[-0.01em] text-zinc-900 dark:text-zinc-50"
                     >
                         {copy.title}
                     </h1>
@@ -152,13 +152,13 @@ export default function ConsentGate({ lang, countryCode, onAccepted }: Props) {
                     {/* The warm line leads. Owner decision 2026-10-13: what Imotara
                         IS comes before what it is not, so the first thing someone in
                         distress reads is not a legal shield. */}
-                    <p className="mb-3.5 text-center text-[0.97rem] leading-relaxed text-zinc-700 dark:text-zinc-200">
+                    <p className="mb-3.5 text-center text-[15.5px] leading-relaxed text-zinc-700 dark:text-zinc-200">
                         {copy.warm}
                     </p>
 
                     {/* The disclaimer. ⛔ Demoted in WEIGHT only — still explicit,
                         still above the fold, still unambiguous. */}
-                    <p className="mb-5 text-center text-[0.8rem] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    <p className="mb-5 text-center text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                         {copy.body}
                     </p>
 
@@ -172,11 +172,11 @@ export default function ConsentGate({ lang, countryCode, onAccepted }: Props) {
                             "border-amber-500/70 bg-amber-500/[0.08] dark:bg-amber-400/[0.07]",
                         ].join(" ")}
                     >
-                        <p className="text-[0.875rem] leading-relaxed text-amber-800 dark:text-amber-200/90">
+                        <p className="text-[14px] leading-relaxed text-amber-800 dark:text-amber-200/90">
                             {copy.emergencyLead}
                         </p>
                         {(emergency || firstLine) && (
-                            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.875rem] font-semibold text-amber-900 dark:text-amber-100">
+                            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-semibold text-amber-900 dark:text-amber-100">
                                 {emergency && (
                                     <span className="whitespace-nowrap">
                                         {emergency.label} <span className="tabular-nums">{emergency.contact}</span>
@@ -194,7 +194,7 @@ export default function ConsentGate({ lang, countryCode, onAccepted }: Props) {
                         )}
                     </div>
 
-                    <label className="mb-6 flex cursor-pointer items-start gap-3 text-[0.875rem] leading-relaxed text-zinc-700 dark:text-zinc-300">
+                    <label className="mb-6 flex cursor-pointer items-start gap-3 text-[14px] leading-relaxed text-zinc-700 dark:text-zinc-300">
                         <input
                             type="checkbox"
                             checked={checked}
@@ -219,7 +219,7 @@ export default function ConsentGate({ lang, countryCode, onAccepted }: Props) {
                         onClick={accept}
                         disabled={!checked}
                         className={[
-                            "w-full rounded-2xl px-4 py-3.5 text-[0.9375rem] font-semibold text-white",
+                            "w-full rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-white",
                             "transition-all duration-200",
                             checked
                                 ? "shadow-[0_8px_24px_-8px_var(--im-accent-glow)] hover:brightness-110 active:scale-[0.985]"

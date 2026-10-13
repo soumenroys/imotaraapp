@@ -1586,13 +1586,49 @@ export default function SettingsPage() {
         try { localStorage.setItem(NOTIF_INACTIVITY_KEY, String(hours)); } catch { /* ignore */ }
     }
     const NOTIF_REMINDER_TIME_KEY = "imotara.notif.reminderTime.v1";
-    const [notifReminderTime, setNotifReminderTime] = useState("09:00");
+    // ⚠️ 20:00, matching the mobile reminder's DEFAULT_HOUR and the server's
+    // DEFAULT_REMINDER_HOUR. This used to default to "09:00" while mobile used
+    // 20:00 and the cron used 20:00 — three defaults for one idea.
+    const [notifReminderTime, setNotifReminderTime] = useState("20:00");
+    // Snooze / permanent-off. ⛔ The tier gate is enforced by the API, not here;
+    // this only decides which controls to SHOW.
+    const [reminderSnoozedUntil, setReminderSnoozedUntil] = useState<string | null>(null);
+    const [reminderBusy, setReminderBusy] = useState(false);
+
+    async function callReminderApi(action: "snooze" | "disable" | "resume", days?: 3 | 5) {
+        setReminderBusy(true);
+        try {
+            const res = await fetch("/api/reminders/snooze", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action, days }),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (res.ok) {
+                setReminderSnoozedUntil(action === "snooze" ? (json.until ?? null) : null);
+            }
+        } catch { /* best-effort */ } finally {
+            setReminderBusy(false);
+        }
+    }
     useEffect(() => {
         try { const v = localStorage.getItem(NOTIF_REMINDER_TIME_KEY); if (v) setNotifReminderTime(v); } catch { /* ignore */ }
     }, []);
     function handleNotifReminderTimeChange(val: string) {
         setNotifReminderTime(val);
         try { localStorage.setItem(NOTIF_REMINDER_TIME_KEY, val); } catch { /* ignore */ }
+        // ⛔ This used to stop at localStorage. The daily check-in is a SERVER
+        // push, so a time kept only on the device changed nothing at all —
+        // the control looked like it worked and did not. Same family as the
+        // setup-≠-outcome trap recorded for the voice settings.
+        const hour = Number.parseInt(String(val).slice(0, 2), 10);
+        if (Number.isInteger(hour) && hour >= 0 && hour <= 23) {
+            fetch("/api/profile/sync", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user: { reminderHour: hour } }),
+            }).catch(() => {}); // best-effort; the local value still stands
+        }
     }
 
     useEffect(() => {
@@ -3464,6 +3500,68 @@ export default function SettingsPage() {
                                 onChange={(e) => handleNotifReminderTimeChange(e.target.value)}
                                 className="mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-zinc-200 outline-none focus:border-sky-400/60 focus:ring-1 focus:ring-sky-500/40"
                             />
+                        </div>
+
+                        {/* Pause / turn off. Owner decision 2026-10-13 (option a):
+                            Free may snooze 3 or 5 days; Plus may turn it off.
+                            ⚠️ The system-level notification switch always remains
+                            free to everyone — that is what keeps this defensible,
+                            so it is said here rather than left implied. */}
+                        <div>
+                            <p className="text-xs font-medium text-zinc-300">
+                                {tier === "free" ? "Pause reminders" : "Reminders"}
+                            </p>
+
+                            {reminderSnoozedUntil ? (
+                                <div className="mt-2 flex flex-wrap items-center gap-3">
+                                    <span className="text-[11px] text-zinc-400">
+                                        Paused — reminders resume on{" "}
+                                        <span className="text-zinc-200">
+                                            {new Date(reminderSnoozedUntil).toLocaleDateString(undefined, {
+                                                day: "numeric", month: "long",
+                                            })}
+                                        </span>
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => callReminderApi("resume")}
+                                        disabled={reminderBusy}
+                                        className="rounded-lg border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-zinc-300 transition hover:bg-white/10 disabled:opacity-50"
+                                    >
+                                        Resume now
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {([3, 5] as const).map((d) => (
+                                        <button
+                                            key={d}
+                                            type="button"
+                                            onClick={() => callReminderApi("snooze", d)}
+                                            disabled={reminderBusy}
+                                            className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 transition hover:bg-white/10 disabled:opacity-50"
+                                        >
+                                            Pause {d} days
+                                        </button>
+                                    ))}
+                                    {tier !== "free" && (
+                                        <button
+                                            type="button"
+                                            onClick={() => callReminderApi("disable")}
+                                            disabled={reminderBusy}
+                                            className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 transition hover:bg-white/10 disabled:opacity-50"
+                                        >
+                                            Turn off
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            <p className="mt-2 text-[11px] text-zinc-500">
+                                {tier === "free"
+                                    ? "You can also silence Imotara entirely in your browser or system notification settings, at any time."
+                                    : "You can also silence Imotara entirely in your browser or system notification settings."}
+                            </p>
                         </div>
                         <div>
                             <p className="text-xs font-medium text-zinc-300">Remind me if I haven&apos;t visited in</p>

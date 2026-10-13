@@ -152,3 +152,49 @@ describe("the API refuses what the tier may not do", () => {
         expect(route()).toMatch(/until,/);
     });
 });
+
+describe("the settings UI offers what the tier allows — and says what cannot be taken away", () => {
+    const UI = () => fs.readFileSync(path.join(process.cwd(), "src/app/settings/page.tsx"), "utf8");
+
+    it("offers 3 and 5 day pauses", () => {
+        expect(UI()).toMatch(/\(\[3,\s*5\]\s*as const\)/);
+    });
+
+    it("⛔ shows 'Turn off' only to paid tiers", () => {
+        // The API refuses it regardless, but offering a button that always
+        // fails would be a worse experience than not offering it.
+        const src = UI();
+        expect(src).toMatch(/tier !== "free" && \(/);
+    });
+
+    it("⛔ tells the person the resume DATE, never just 'paused'", () => {
+        // Silent resumption is what produces "this app won't stop notifying
+        // me" reviews — on a 3-day cycle it would happen often.
+        const src = UI();
+        expect(src).toMatch(/reminders resume on/i);
+        expect(src).toMatch(/reminderSnoozedUntil/);
+    });
+
+    it("🔑 states that the OS switch is always available", () => {
+        // This sentence is load-bearing, not polish: a paywalled in-app off
+        // switch is only defensible because silencing Imotara at the system
+        // level is free to everyone. If people are not told, it is not a
+        // remedy they have.
+        expect(UI()).toMatch(/system notification settings/);
+    });
+
+    it("sends the reminder hour to the SERVER, not just localStorage", () => {
+        // The push is scheduled server-side. A time kept on the device changed
+        // nothing — the control looked like it worked and did not.
+        const src = UI();
+        const fn = src.slice(src.indexOf("function handleNotifReminderTimeChange"));
+        expect(fn.slice(0, 900)).toMatch(/\/api\/profile\/sync/);
+        expect(fn.slice(0, 900)).toMatch(/reminderHour/);
+    });
+
+    it("⚠️ the default hour agrees with mobile and the server", () => {
+        // Three defaults for one idea (web 09:00, mobile 20:00, cron 20:00) is
+        // how a feature ends up firing at a time nobody chose.
+        expect(UI()).toMatch(/useState\("20:00"\)/);
+    });
+});

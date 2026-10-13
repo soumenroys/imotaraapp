@@ -45,6 +45,9 @@ import {
 import { resolveUserTier } from "@/lib/imotara/org";
 
 type ChatReplyRequest = {
+  /** Stable per-device id for signed-out visitors, so a guest in crisis is
+   *  still attributable in crisis_events. Never used for authentication. */
+  anonId?: string;
   user?: { id?: string; name?: string };
   // ✅ Privacy guard: when false, server will not read user_memory
   allowMemory?: boolean;
@@ -165,23 +168,43 @@ export const maxDuration = 60;
 // Deduped to one row per ~60min episode per user, not one row per
 // crisis-adjacent turn — otherwise a single ongoing conversation would
 // flood the dashboard with dozens of near-identical rows.
-function logCrisisEvent(userId: string, platform: "web" | "mobile", preferredLang: string): void {
-  if (!userId) return; // no authenticated user to attribute this to — skip rather than log a null-user row
+function logCrisisEvent(
+  userId: string,
+  platform: "web" | "mobile",
+  preferredLang: string,
+  anonId?: string | null,
+): void {
+  // ⚠️ This used to begin `if (!userId) return;`, which meant an anonymous
+  // visitor in crisis left NO RECORD AT ALL — and a signed-out first-time
+  // visitor is exactly the person an incident is most likely to involve. A
+  // guest is now logged against their anon id instead (docs/sql/
+  // crisis_events_v2_evidence.sql). Only a request with neither identifier is
+  // skipped, because such a row could not be attributed to anyone.
+  const subjectId = userId || (anonId ?? "");
+  if (!subjectId) return;
+
   void (async () => {
     try {
       const supabase = getSupabaseAdmin();
-      const { data: recent } = await supabase
+      const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const dedupe = supabase
         .from("crisis_events")
         .select("id")
-        .eq("user_id", userId)
-        .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
-        .limit(1)
-        .maybeSingle();
+        .gte("created_at", since)
+        .limit(1);
+      // Dedupe on whichever identifier this request actually carries.
+      const { data: recent } = userId
+        ? await dedupe.eq("user_id", userId).maybeSingle()
+        : await dedupe.eq("anon_id", subjectId).maybeSingle();
       if (recent) return; // already logged this episode
 
       await supabase.from("crisis_events").insert({
-        user_id: userId,
+        user_id: userId || null,
+        anon_id: userId ? (anonId ?? null) : subjectId,
         platform,
+        // ⚠️ This is the language of the REQUEST, not of the card. The card
+        // resolves its own language client-side and reports it separately via
+        // /api/safety/crisis-shown — see crisis_events.card_lang.
         preferred_lang: preferredLang || null,
       });
     } catch (err) {
@@ -902,7 +925,8 @@ export async function POST(req: Request) {
 
     if (isCrisisAdjacent) {
       const isMobile = (req.headers.get("Authorization") ?? "").startsWith("Bearer ");
-      logCrisisEvent(authedUserId, isMobile ? "mobile" : "web", resolvedLang);
+      const anonId = typeof body?.anonId === "string" ? body.anonId.trim().slice(0, 128) : null;
+      logCrisisEvent(authedUserId, isMobile ? "mobile" : "web", resolvedLang, anonId);
     }
 
     // P2: Cultural Emotion Vocabulary — pre-select a candidate word (1 in 8 emotional turns).

@@ -14,6 +14,7 @@ import OfflineIndicator from "@/components/imotara/OfflineIndicator";
 import PWAInstallPrompt from "@/components/imotara/PWAInstallPrompt";
 import AppearanceInit from "@/components/imotara/AppearanceInit";
 import RtlInit from "@/components/imotara/RtlInit";
+import ConsentGateMount from "@/components/legal/ConsentGateMount";
 import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
 import PageTransition from "@/components/imotara/PageTransition";
 
@@ -396,6 +397,8 @@ export default function RootLayout({
 
         {/* local-storage notice overlays */}
         <LocalDataNotice />
+        {/* First-use Terms/Privacy acceptance. Renders nothing once accepted. */}
+        <ConsentGateMount />
         <AppearanceInit />
         <RtlInit />
         <FirstVisitBanner />

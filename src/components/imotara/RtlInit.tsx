@@ -11,12 +11,12 @@
 "use client";
 
 import { useEffect } from "react";
+import { isRtlLang } from "@/lib/lang/rtlLangs";
 
 const PROFILE_STORAGE_KEY = "imotara.profile.v1";
-const RTL_LANGS = new Set(["ar", "he", "ur"]);
 
 function applyDirFromLang(lang: string | undefined | null) {
-  const isRtl = !!lang && RTL_LANGS.has(lang);
+  const isRtl = isRtlLang(lang);
   document.documentElement.setAttribute("dir", isRtl ? "rtl" : "ltr");
   if (lang) document.documentElement.setAttribute("lang", lang);
 }

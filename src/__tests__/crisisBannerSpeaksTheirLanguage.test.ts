@@ -22,6 +22,7 @@ import fs from "fs";
 import path from "path";
 import { crisisBannerLangFor, crisisBannerDir } from "@/app/chat/page";
 import { CRISIS_BANNER_BY_LANG } from "@/lib/safety/crisisCopy";
+import { RTL_LANGS } from "@/lib/lang/rtlLangs";
 
 const hasCopy = (l: string) => Boolean(CRISIS_BANNER_BY_LANG[l]);
 const resolve = (pref: string | null, ...texts: string[]) =>
@@ -200,16 +201,24 @@ describe("🔴 the banner carries its OWN direction", () => {
             expect(crisisBannerDir(lang)).toBe("ltr");
         });
 
-    it("⚠️ the RTL set matches RtlInit's, which owns document.dir", () => {
-        // Two copies of one fact. If they drift, the banner and the page
-        // disagree about direction on the same screen.
+    it("⚠️ the RTL set matches the one that owns document.dir", () => {
+        // RE-POINTED 2026-10-13, not loosened. This used to scrape an inline
+        // `RTL_LANGS = new Set([...])` out of RtlInit.tsx, because the fact
+        // lived in two places and the test's job was to catch them drifting.
+        // The set has since been extracted to src/lib/lang/rtlLangs.ts and
+        // RtlInit imports it, so there is now ONE copy — but a shared module
+        // only helps while everyone actually uses it. The assertion therefore
+        // moves to the module AND pins that RtlInit still imports rather than
+        // re-inlining, which is strictly stronger than what it replaced.
+        const ours = ["ar", "he", "ur"].filter((l) => crisisBannerDir(l) === "rtl").sort();
+        const theirs = [...RTL_LANGS].sort();
+        expect(ours).toEqual(theirs);
+
         const rtlInit = fs.readFileSync(
             path.join(process.cwd(), "src/components/imotara/RtlInit.tsx"), "utf8");
-        const m = rtlInit.match(/RTL_LANGS = new Set\(\[([^\]]+)\]\)/);
-        expect(m).not.toBeNull();
-        const theirs = m![1].split(",").map((x) => x.trim().replace(/["']/g, "")).sort();
-        const ours = ["ar", "he", "ur"].filter((l) => crisisBannerDir(l) === "rtl").sort();
-        expect(ours).toEqual(theirs);
+        expect(rtlInit).toMatch(/from "@\/lib\/lang\/rtlLangs"/);
+        // ⛔ A re-inlined copy is the exact regression this guards.
+        expect(rtlInit).not.toMatch(/RTL_LANGS\s*=\s*new Set\(/);
     });
 
     it("⛔ the banner element really sets dir AND lang", () => {

@@ -157,6 +157,25 @@ type ImotaraProfileV1 = {
 
 const PROFILE_STORAGE_KEY = "imotara.profile.v1";
 
+/**
+ * The browser's IANA timezone, e.g. "Asia/Kolkata".
+ *
+ * ⛔ Returns undefined rather than guessing: a wrong zone would nudge someone at
+ * 3am, whereas no zone just falls back to the server's default hour.
+ *
+ * ⚠️ Module scope on purpose — it is needed by BOTH the profile sync (in
+ * ToneAndContextTile) and the push subscribe (in SettingsPage). It lived inside
+ * one component first, and the second caller could not see it.
+ */
+function resolveTimeZone(): string | undefined {
+    try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        return tz && tz.trim() ? tz.trim() : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 function safeParseProfile(json: string | null): ImotaraProfileV1 | null {
     if (!json) return null;
     try {
@@ -643,17 +662,6 @@ function ToneAndContextTile() {
             .catch(() => {}); // best-effort
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loaded, sbEmail]);
-
-    // ⛔ Returns undefined rather than guessing. A wrong zone would nudge
-    // someone at 3am; no zone just falls back to the server's default hour.
-    function resolveTimeZone(): string | undefined {
-        try {
-            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            return tz && tz.trim() ? tz.trim() : undefined;
-        } catch {
-            return undefined;
-        }
-    }
 
     // Cross-device profile sync — push to server on profile change when signed in (debounced)
     useEffect(() => {
@@ -1660,7 +1668,11 @@ export default function SettingsPage() {
             const pushRes = await fetch("/api/push/subscribe", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(sub.toJSON()),
+                // ⚠️ timeZone rides along with the subscription so the server
+                // knows what hour it is where this person actually is. Without
+                // it the daily check-in falls back to 20:00 UTC — 01:30 in
+                // India — for anyone who never opens this page again.
+                body: JSON.stringify({ ...sub.toJSON(), timeZone: resolveTimeZone() }),
             });
             if (pushRes.ok) {
                 setNotifSubscribed(true);

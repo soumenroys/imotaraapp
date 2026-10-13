@@ -49,3 +49,46 @@ describe("the timezone the daily reminder depends on", () => {
         expect(cron).toMatch(/tzMap/);
     });
 });
+
+describe("🔴 the timezone must not depend on someone opening Settings", () => {
+    it("is captured when a push subscription is created", () => {
+        // The daily check-in fires at the person's LOCAL hour. With no timezone
+        // isDueNow falls back to the same hour in UTC, and the default is
+        // 20:00 — which is 01:30 in India. Collecting it only in Settings would
+        // have woken every existing subscriber who never reopens that page, in
+        // the middle of the night, in the main market.
+        const route = read("src/app/api/push/subscribe/route.ts");
+        expect(route).toMatch(/subscription\.timeZone/);
+        expect(route).toMatch(/key: "time_zone"/);
+    });
+
+    it("⛔ validates it there too, rather than trusting the client", () => {
+        const route = read("src/app/api/push/subscribe/route.ts");
+        expect(route).toMatch(/new Intl\.DateTimeFormat\("en",\s*\{\s*timeZone:/);
+    });
+
+    it("⛔ a failed timezone write never fails the SUBSCRIPTION", () => {
+        // A missing timezone is an imperfect hour; a failed subscription is no
+        // reminders at all. The second must not be caused by the first.
+        const route = read("src/app/api/push/subscribe/route.ts");
+        const after = route.slice(route.indexOf("time_zone upsert failed"));
+        expect(after).toMatch(/return NextResponse\.json\(\{ ok: true \}\)/);
+    });
+
+    it("🔴 …and the row carries `confidence`, like every other write here", () => {
+        // ⚠️ A SILENT-FAILURE guard, not a style rule. The timezone write is
+        // deliberately non-fatal, so if user_memory.confidence is NOT NULL with
+        // no default, omitting the field fails the upsert and NOBODY EVER FINDS
+        // OUT — the subscription still returns ok, and the person is still
+        // nudged at 20:00 UTC. The two writes that are already live in
+        // production (profile/sync, push/cron) both set it; this one must too.
+        const route = read("src/app/api/push/subscribe/route.ts");
+        const block = route.slice(route.indexOf('key: "time_zone"'));
+        expect(block.slice(0, 200)).toMatch(/confidence: 1/);
+    });
+
+    it("the client actually sends it with the subscription", () => {
+        const settings = read("src/app/settings/page.tsx");
+        expect(settings).toMatch(/\.\.\.sub\.toJSON\(\),\s*timeZone: resolveTimeZone\(\)/);
+    });
+});

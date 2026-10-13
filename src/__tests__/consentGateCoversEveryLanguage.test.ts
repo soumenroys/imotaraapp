@@ -167,3 +167,23 @@ describe("the gate is mounted, and does not trap the pages it links to", () => {
         expect(mount).toMatch(/\/api\/legal\/accept/);
     });
 });
+
+describe("acquisition copy does not position Imotara against clinical care", () => {
+    it("⛔ no page prices Imotara against a counselling or therapy session", () => {
+        // A price comparison to counselling implies substitution for clinical
+        // care — the one claim the Terms exist to deny, and it sat on the pages
+        // aimed at hospitals, schools and care homes. Removed 2026-10-13.
+        const src = fs.readFileSync(
+            path.join(process.cwd(), "src/data/audiencePages.ts"), "utf8");
+        expect(src).not.toMatch(/cost of a (single )?(counselling|counseling|therapy)/i);
+        expect(src).not.toMatch(/cheaper than (a )?(counselling|counseling|therapy|therapist)/i);
+    });
+
+    it("⛔ no page invites children under 13", () => {
+        // The product's own age selectors start at 13-17; the Terms say 13+.
+        // A landing page inviting under-13s contradicted both.
+        const src = fs.readFileSync(
+            path.join(process.cwd(), "src/data/audiencePages.ts"), "utf8");
+        expect(src).not.toMatch(/[Cc]hildren under 13 should/);
+    });
+});

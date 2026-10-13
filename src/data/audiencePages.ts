@@ -221,7 +221,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       "Free is not a trial. Most people never need more than Free — and you can upgrade or cancel any time from inside the app.",
     closing: {
       title: "For parents and guardians",
-      body: "Imotara was created by two mothers who wanted a safe, judgement-free space for young people to speak their feelings. It is not therapy and does not diagnose. It adapts its tone for teenagers — extra-sensitive, careful, never romantic or adult — always encourages talking to a trusted adult, and surfaces local helplines if a conversation turns serious. Conversations are private to your child; you will not be able to read them, and neither can we. Children under 13 should install Imotara with a parent.",
+      body: "Imotara was created by two mothers who wanted a safe, judgement-free space for young people to speak their feelings. It is not therapy and does not diagnose. It adapts its tone for teenagers — extra-sensitive, careful, never romantic or adult — always encourages talking to a trusted adult, and surfaces local helplines if a conversation turns serious. Conversations are private to your child; you will not be able to read them, and neither can we. Imotara is for ages 13 and over; anyone under 18 should use it with a parent's or guardian's knowledge and agreement.",
     },
     pullQuote: ["You don’t have to carry everything alone.", "Sometimes just saying it out loud — to someone who actually listens — is the first step."],
     institutional: false,

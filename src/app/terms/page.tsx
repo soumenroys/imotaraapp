@@ -34,12 +34,27 @@ export default function TermsPage() {
         </h2>
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           <strong className="font-medium text-zinc-100">
-            You must be 18 years of age or older to use Imotara.
+            You must be 13 years of age or older to use Imotara.
           </strong>{" "}
-          Imotara is not intended for children, and we do not knowingly collect
-          information from anyone under 18. If you believe a person under 18 has
-          used Imotara, please contact us at info@imotara.com and we will delete
-          the account and its data.
+          Imotara is not intended for children under 13, and we do not knowingly
+          collect information from anyone under 13. If you believe a child under
+          13 has used Imotara, please contact us at info@imotara.com and we will
+          delete the account and its data.
+        </p>
+        <p className="mt-3 text-sm leading-7 text-zinc-300">
+          <strong className="font-medium text-zinc-100">
+            If you are under 18, you may use Imotara only with the knowledge and
+            consent of a parent or legal guardian.
+          </strong>{" "}
+          By continuing, you confirm that a parent or guardian has agreed to your
+          use of Imotara and to these terms on your behalf. A parent or guardian
+          may withdraw that consent at any time by writing to info@imotara.com,
+          and we will close the account and delete its data.
+        </p>
+        <p className="mt-3 text-sm leading-7 text-zinc-300">
+          Where the law of your country requires a higher minimum age for a
+          service of this kind, or requires a particular form of parental
+          consent, that law applies to you instead of the age stated above.
         </p>
         <p className="mt-3 text-sm leading-7 text-zinc-300">
           You must also be legally able to form a contract in your jurisdiction.

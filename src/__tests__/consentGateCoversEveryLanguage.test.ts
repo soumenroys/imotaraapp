@@ -116,7 +116,11 @@ describe("an acceptance record is only good for the version it names", () => {
             Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12",
         };
         const printed = `${m![3]}-${months[m![1]]}-${m![2].padStart(2, "0")}`;
-        expect(TERMS_VERSION).toBe(printed);
+        // A revision suffix ("2026-10-13b") is allowed: the Terms can be
+        // revised twice in one day, and an acceptance of the earlier draft must
+        // never be mistaken for an acceptance of the later one.
+        expect(TERMS_VERSION.startsWith(printed)).toBe(true);
+        expect(TERMS_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}[a-z]?$/);
     });
 
     it("⛔ /terms actually contains the clauses the gate makes people accept", () => {
@@ -124,7 +128,8 @@ describe("an acceptance record is only good for the version it names", () => {
         // If /terms does not state an age, a person is agreeing to something the
         // document does not say.
         const page = fs.readFileSync(path.join(process.cwd(), "src/app/terms/page.tsx"), "utf8");
-        expect(page).toMatch(/18 years of age or older/);
+        expect(page).toMatch(/13 years of age or older/);
+        expect(page).toMatch(/parent or legal guardian/);
         expect(page).toMatch(/Emergencies and Crisis Situations/);
         expect(page).toMatch(/not an emergency service/);
     });

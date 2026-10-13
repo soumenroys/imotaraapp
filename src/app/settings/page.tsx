@@ -644,6 +644,17 @@ function ToneAndContextTile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loaded, sbEmail]);
 
+    // ⛔ Returns undefined rather than guessing. A wrong zone would nudge
+    // someone at 3am; no zone just falls back to the server's default hour.
+    function resolveTimeZone(): string | undefined {
+        try {
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            return tz && tz.trim() ? tz.trim() : undefined;
+        } catch {
+            return undefined;
+        }
+    }
+
     // Cross-device profile sync — push to server on profile change when signed in (debounced)
     useEffect(() => {
         if (!loaded || !sbEmail) return;
@@ -654,6 +665,12 @@ function ToneAndContextTile() {
                     preferredLang: preferredLang !== "auto" ? preferredLang : undefined,
                     gender:        userGender !== "prefer_not" ? userGender : undefined,
                     responseStyle: responseStyle !== "auto" ? responseStyle : undefined,
+                    // ⚠️ Read from the browser, not asked for. The daily check-in
+                    // is a SERVER push, so the server must know what hour it is
+                    // where the person is — otherwise everyone is nudged at one
+                    // absolute UTC hour, which is the middle of the night for a
+                    // large part of the world. The server re-validates it.
+                    timeZone:      resolveTimeZone(),
                 },
                 companion: {
                     enabled:      compEnabled,

@@ -32,6 +32,31 @@ async function getAuthedUserId(req: Request): Promise<string | null> {
   return null;
 }
 
+/**
+ * Accepts an IANA zone only if Intl itself recognises it.
+ *
+ * ⛔ Never store an unvalidated zone: it is fed straight to Intl.DateTimeFormat
+ * in the cron, and a bad value there would throw per user on every hourly run.
+ * Asking Intl is the only honest check — a regex would accept "Mars/Olympus".
+ */
+function sanitiseTimeZone(tz: unknown): string | undefined {
+  if (typeof tz !== "string") return undefined;
+  const v = tz.trim();
+  if (!v || v.length > 64) return undefined;
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: v }).format(new Date());
+    return v;
+  } catch {
+    return undefined;
+  }
+}
+
+/** 0-23 only. Anything else is dropped so the cron falls back to its default. */
+function sanitiseHour(h: unknown): string | undefined {
+  const n = typeof h === "number" ? h : Number.parseInt(String(h ?? ""), 10);
+  return Number.isInteger(n) && n >= 0 && n <= 23 ? String(n) : undefined;
+}
+
 // ─── Field map: toneContext path → user_memory key ──────────────────────────
 type ProfileRow = { key: string; value: string };
 
@@ -52,6 +77,14 @@ function toneContextToRows(tc: Record<string, any>): ProfileRow[] {
   push("companion_relationship",  tc?.companion?.relationship);
   push("companion_age_tone",      tc?.companion?.ageTone);
   push("companion_gender",        tc?.companion?.gender);
+
+  // ⚠️ Not a tone field — the daily check-in reminder needs it. The nudge is a
+  // SERVER push, so the server has to know what hour it is where the person
+  // actually is; without this everyone falls back to one absolute UTC hour,
+  // which is the middle of the night for a large part of the world.
+  // Validated below rather than trusted: this value goes into Intl.
+  push("time_zone",               sanitiseTimeZone(tc?.user?.timeZone));
+  push("reminder_hour",           sanitiseHour(tc?.user?.reminderHour));
   return rows;
 }
 
@@ -61,6 +94,8 @@ function rowsToToneContext(rows: ProfileRow[]): Record<string, any> {
     user: {
       name:          get("preferred_name")  || undefined,
       preferredLang: get("preferred_lang")  || undefined,
+      timeZone:      get("time_zone")       || undefined,
+      reminderHour:  get("reminder_hour")   || undefined,
       ageTone:       get("user_age_tone")   || undefined,
       gender:        get("user_gender")     || undefined,
       responseStyle: get("response_style")  || undefined,
@@ -127,6 +162,7 @@ export async function GET(req: Request) {
     "preferred_name", "preferred_lang", "user_age_tone", "user_gender",
     "response_style", "companion_enabled", "companion_name",
     "companion_relationship", "companion_age_tone", "companion_gender",
+    "time_zone", "reminder_hour",
   ];
 
   const { data, error } = await admin

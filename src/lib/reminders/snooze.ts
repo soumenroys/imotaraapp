@@ -16,6 +16,8 @@
 // change, and reasonably conclude the control is fake.
 
 /** What a tier may do with the reminder. */
+import { normaliseTier, TIER_RANK } from "@/types/license";
+
 export type ReminderControl = "snooze_only" | "can_disable";
 
 /** Snooze lengths offered to free users, in days. Owner decision: 3 or 5. */
@@ -32,15 +34,18 @@ export const DISABLED_MEMORY_KEY = "reminders_disabled";
  * What this tier is allowed to do.
  *
  * ⚠️ Tier lives at `license.tier`, never at the root of the license object —
- * see trap_tier_lives_at_license_tier. Anything that is not a paid tier gets
- * snooze only, so an unknown or malformed tier fails CLOSED (snooze) rather
- * than silently granting a paid control.
+ * see trap_tier_lives_at_license_tier.
+ *
+ * ⛔ DERIVED from the licensing model, never a hand-written list. The first
+ * version of this function listed "plus | pro | enterprise | edu" and silently
+ * MISSED `family` — a paying subscriber would have been denied a paid control,
+ * and nothing would have failed. Anything above free can disable; normaliseTier
+ * resolves legacy ids (`pro` → `plus`) and returns "free" for anything it does
+ * not recognise, so an unknown tier fails CLOSED rather than granting a paid
+ * control by accident.
  */
 export function controlForTier(tier: string | null | undefined): ReminderControl {
-    const t = String(tier ?? "").trim().toLowerCase();
-    return t === "plus" || t === "pro" || t === "enterprise" || t === "edu"
-        ? "can_disable"
-        : "snooze_only";
+    return TIER_RANK[normaliseTier(tier)] > TIER_RANK.free ? "can_disable" : "snooze_only";
 }
 
 /** True when `days` is one of the offered snooze lengths. */

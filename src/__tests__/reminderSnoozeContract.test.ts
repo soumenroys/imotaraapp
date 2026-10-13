@@ -9,6 +9,7 @@ import {
     isSuppressed,
     snoozeEndsAt,
 } from "@/lib/reminders/snooze";
+import { TIER_ORDER, normaliseTier } from "@/types/license";
 
 const AT = (iso: string) => new Date(iso);
 
@@ -20,17 +21,34 @@ describe("who may do what with the reminder", () => {
         expect(controlForTier("")).toBe("snooze_only");
     });
 
-    it("lets paid tiers turn it off for good", () => {
-        expect(controlForTier("plus")).toBe("can_disable");
+    it("⛔ lets EVERY paid tier turn it off — derived from TIER_ORDER, not a list", () => {
+        // REGRESSION 2026-10-13: the first version hand-listed
+        // "plus | pro | enterprise | edu" and silently MISSED `family`. A
+        // paying subscriber was denied a paid control and nothing failed.
+        // This now walks the real tier list so adding a tier cannot repeat it.
+        for (const t of TIER_ORDER) {
+            const expected = t === "free" ? "snooze_only" : "can_disable";
+            expect(controlForTier(t), `tier "${t}"`).toBe(expected);
+        }
         expect(controlForTier("PLUS")).toBe("can_disable");
-        expect(controlForTier("enterprise")).toBe("can_disable");
+        // Legacy alias: `pro` was the internal id for what is now `plus`.
+        expect(controlForTier("pro")).toBe("can_disable");
     });
 
     it("⛔ fails CLOSED on an unknown tier", () => {
         // A typo or a renamed tier must not silently hand out a paid control.
         expect(controlForTier("plusss")).toBe("snooze_only");
-        expect(controlForTier("premium")).toBe("snooze_only");
         expect(controlForTier("{}")).toBe("snooze_only");
+        expect(controlForTier("not-a-tier")).toBe("snooze_only");
+    });
+
+    it("honours the licensing model's own aliases", () => {
+        // ⚠️ My first draft of the test above asserted that "premium" should
+        // fail closed. It should NOT: TIER_ALIASES maps premium → plus, so a
+        // premium subscriber is a paying subscriber. Deferring to the model
+        // rather than re-deciding here is the entire point of deriving this.
+        expect(controlForTier("premium")).toBe("can_disable");
+        expect(normaliseTier("premium")).toBe("plus");
     });
 
     it("offers exactly 3 and 5 days", () => {

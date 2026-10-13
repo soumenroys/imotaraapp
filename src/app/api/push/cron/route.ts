@@ -1,7 +1,8 @@
 // src/app/api/push/cron/route.ts
 // Called daily at 09:00 UTC by Vercel Cron (see vercel.json).
 // Sends a gentle re-engagement nudge ONLY to users who have been inactive
-// (no chat_reply event) for at least INACTIVITY_THRESHOLD_MS.
+// at the person's own local hour, skipping anyone who already used Imotara
+// during their own day. See src/lib/reminders/schedule.ts.
 // Active users are skipped entirely to avoid spamming engaged users.
 // When the user's last message is available, the nudge body is personalised
 // to reference what they last talked about so it feels like Imotara remembers.
@@ -22,10 +23,9 @@ import {
   DISABLED_MEMORY_KEY,
   isSuppressed,
 } from "@/lib/reminders/snooze";
+import { isDueNow, DEFAULT_REMINDER_HOUR } from "@/lib/reminders/schedule";
 
 // Only nudge users silent for 2+ days; re-notify at most once every 24 h
-const INACTIVITY_THRESHOLD_MS = 2 * 24 * 60 * 60 * 1000; // 48 hours
-const NUDGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;           // 24 hours between nudges
 
 /** Truncates text to a word boundary and appends "…" if cut. */
 export function truncateToWord(text: string, maxLen: number): string {
@@ -136,10 +136,9 @@ export async function POST(req: Request) {
 
   const userIds = rows.map((r) => r.user_id);
   const now = Date.now();
-  const inactivityCutoff = new Date(now - INACTIVITY_THRESHOLD_MS).toISOString();
 
   // Fetch last_notified_at, recent activity, chat messages, and preferred language in parallel
-  const [notifiedRes, activityRes, chatRes, langRes, suppressRes] = await Promise.all([
+  const [notifiedRes, activityRes, chatRes, langRes, suppressRes, whenRes] = await Promise.all([
     admin
       .from("user_memory")
       .select("user_id, value")
@@ -147,13 +146,16 @@ export async function POST(req: Request) {
       .eq("key", "last_notified_at")
       .in("user_id", userIds),
 
-    // Any chat_reply event after the cutoff means the user is still active — skip them
+    // Recent chat_reply events. ⚠️ The window is wider than the old 48h
+    // inactivity cutoff because the daily check-in asks a different question:
+    // "did they use Imotara during THEIR day", which needs the timestamp, not a
+    // boolean. isDueNow does the local-day comparison.
     admin
       .from("usage_events")
       .select("user_id, created_at")
       .eq("event_type", "chat_reply")
       .in("user_id", userIds)
-      .gte("created_at", inactivityCutoff),
+      .gte("created_at", new Date(now - 3 * 24 * 60 * 60 * 1000).toISOString()),
 
     // Fetch recent user messages so we can personalise the nudge body.
     // user_scope in imotara_chat_messages == user_id from auth.
@@ -182,16 +184,21 @@ export async function POST(req: Request) {
       .eq("type", SNOOZE_MEMORY_TYPE)
       .in("key", [SNOOZE_MEMORY_KEY, DISABLED_MEMORY_KEY])
       .in("user_id", userIds),
+
+    // Timezone and chosen hour, so the nudge lands in the person's own evening
+    // rather than at one absolute instant for the whole world.
+    admin
+      .from("user_memory")
+      .select("user_id, key, value")
+      .eq("type", "identity")
+      .in("key", ["time_zone", "reminder_hour"])
+      .in("user_id", userIds),
   ]);
 
   const lastNotifiedMap = new Map(
     (notifiedRes.data ?? []).map((r) => [r.user_id, new Date(r.value).getTime()]),
   );
 
-  // Build set of users who chatted recently (i.e. active — skip them)
-  const activeUserIds = new Set(
-    (activityRes.data ?? []).map((r) => r.user_id),
-  );
 
   // Most recent user message per user_scope (already DESC-ordered by created_at)
   // 🔑 …and the whole fetched window per user, because the crisis decision in
@@ -205,6 +212,28 @@ export async function POST(req: Request) {
     const bucket = recentMessagesMap.get(msg.user_scope);
     if (bucket) bucket.push(text);
     else recentMessagesMap.set(msg.user_scope, [text]);
+  }
+
+  // Most recent activity per user, as a timestamp — isDueNow needs the instant,
+  // not just "was active".
+  const lastActiveMap = new Map<string, number>();
+  for (const r of (activityRes.data ?? [])) {
+    const t = Date.parse(r.created_at);
+    if (!Number.isFinite(t)) continue;
+    const prev = lastActiveMap.get(r.user_id) ?? 0;
+    if (t > prev) lastActiveMap.set(r.user_id, t);
+  }
+
+  // Timezone and chosen hour per user.
+  const tzMap = new Map<string, string>();
+  const hourMap = new Map<string, number>();
+  for (const r of (whenRes.data ?? [])) {
+    if (r.key === "time_zone" && typeof r.value === "string") {
+      tzMap.set(r.user_id, r.value);
+    } else if (r.key === "reminder_hour") {
+      const h = Number.parseInt(String(r.value), 10);
+      if (Number.isFinite(h) && h >= 0 && h <= 23) hourMap.set(r.user_id, h);
+    }
   }
 
   // Suppression state per user: an active snooze, or a paid user's permanent off.
@@ -236,12 +265,16 @@ export async function POST(req: Request) {
         new Date(now),
       )) return;
 
-      // Skip active users — they don't need a re-engagement nudge
-      if (activeUserIds.has(row.user_id)) return;
-
-      // Skip if we already sent a nudge within the cooldown window
-      const lastNotified = lastNotifiedMap.get(row.user_id) ?? 0;
-      if (now - lastNotified < NUDGE_COOLDOWN_MS) return;
+      // Is it this person's hour, have they been quiet today, and were they
+      // left alone since yesterday? One decision, tested in isolation — see
+      // src/lib/reminders/schedule.ts.
+      if (!isDueNow({
+        now: new Date(now),
+        timeZone: tzMap.get(row.user_id) ?? null,
+        preferredHour: hourMap.get(row.user_id) ?? DEFAULT_REMINDER_HOUR,
+        lastNotifiedMs: lastNotifiedMap.get(row.user_id) ?? null,
+        lastActiveMs: lastActiveMap.get(row.user_id) ?? null,
+      })) return;
 
       let sub: any;
       try { sub = JSON.parse(row.value); } catch { return; }

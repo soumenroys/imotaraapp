@@ -103,13 +103,17 @@ describe("the cron actually enforces the choice", () => {
     it("⛔ skips suppressed users BEFORE any other check", () => {
         // If this lived anywhere else in the loop, a snoozed person could still
         // be nudged by an earlier branch. The whole control is only real here.
+        // RE-POINTED 2026-10-13: this pinned the ordering against
+        // `activeUserIds.has(...)`, which isDueNow replaced when the cron moved
+        // to per-person local scheduling. The INTENT is unchanged and is what
+        // matters — suppression must be decided before any other per-user
+        // branch, or a snoozed person could still be nudged by an earlier one.
         const cron = read("src/app/api/push/cron/route.ts");
-        expect(cron).toMatch(/isSuppressed\(/);
         const suppressAt = cron.indexOf("isSuppressed(");
-        const activeAt = cron.indexOf("activeUserIds.has(row.user_id)");
+        const dueAt = cron.indexOf("isDueNow({");
         expect(suppressAt).toBeGreaterThan(-1);
-        expect(activeAt).toBeGreaterThan(-1);
-        expect(suppressAt).toBeLessThan(activeAt);
+        expect(dueAt).toBeGreaterThan(-1);
+        expect(suppressAt).toBeLessThan(dueAt);
     });
 
     it("reads both the snooze and the permanent-off key", () => {

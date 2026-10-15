@@ -124,12 +124,26 @@ export default function FaqPage() {
             })}
 
             <footer className="mt-12 border-t border-white/10 pt-6 text-sm text-zinc-500">
+                {/* ⚠️ This page is indexed globally and quoted by AI surfaces, so
+                    the footer must not read as though India were the only place
+                    anyone opens it. India stays as a named example because most
+                    readers are there; the directory is what serves the rest. */}
                 <p>
                     Imotara is a companion for reflection — not a therapist or a doctor, and it
                     does not give medical advice. If you are in danger or thinking of harming
-                    yourself, please contact a real service: in India, Tele-MANAS on{" "}
-                    <strong className="text-zinc-300">14416</strong>, free and around the clock, or{" "}
-                    <strong className="text-zinc-300">112</strong> for emergencies.
+                    yourself, please contact a real service in your own country. In India that is
+                    Tele-MANAS on <strong className="text-zinc-300">14416</strong>, free and around
+                    the clock, or <strong className="text-zinc-300">112</strong> for emergencies.
+                    Anywhere else,{" "}
+                    <a
+                        className="underline hover:text-zinc-300"
+                        href="https://findahelpline.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        findahelpline.com
+                    </a>{" "}
+                    lists free helplines worldwide.
                 </p>
                 <p className="mt-4">
                     <Link className="underline hover:text-zinc-300" href="/help">

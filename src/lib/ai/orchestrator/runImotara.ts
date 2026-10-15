@@ -3365,12 +3365,15 @@ function draftResponse(
     );
 
     const countryCode = (ctx as any)?.countryCode ?? null;
+    // ⚠️ Never null, and never empty — an unrecognised country yields the
+    // international directory rather than one country's numbers. The old code
+    // had a prose fallback here naming no destination at all, reached by
+    // everyone outside the 59 listed countries.
     const countryResources = getCrisisResourcesForCountry(countryCode);
-    const primaryLine = countryResources?.primary?.[0] ?? null;
+    const primaryLine = countryResources.primary[0];
 
-    const crisisSupportOffer = primaryLine
-      ? `If you need immediate human support, you can reach ${primaryLine.label} at ${primaryLine.contact}. ${primaryLine.note ?? ""}`.trim()
-      : "If you need immediate human support, please reach out to a local crisis line or emergency services.";
+    const crisisSupportOffer =
+      `If you need immediate human support, you can reach ${primaryLine.label} at ${primaryLine.contact}. ${primaryLine.note ?? ""}`.trim();
 
     return {
       reflectionSeed: undefined,

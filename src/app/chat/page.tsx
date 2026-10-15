@@ -4419,7 +4419,10 @@ export default function ChatPage() {
               (l) => Boolean(CRISIS_BANNER_BY_LANG[l]),
             );
             const txt = CRISIS_BANNER_BY_LANG[bannerLang] ?? CRISIS_BANNER_BY_LANG.en;
-            const primaryLine = crisisCountryResources?.primary?.[0] ?? null;
+            // ⚠️ getCrisisResourcesForCountry never returns null and never
+            // returns an empty `primary`, so this line always exists. That is
+            // asserted in crisisResourcesNeverLeaveSomeoneWithNothing.test.ts.
+            const primaryLine = crisisCountryResources.primary[0];
             return (
               <div
                 dir={crisisBannerDir(bannerLang)}
@@ -4431,21 +4434,29 @@ export default function ChatPage() {
               }`}>
                 <p>
                   {crisisTier === 2 ? txt.tier2 : txt.tier1}{" "}
-                  {primaryLine ? (
+                  {/* 🔴 A directory line (findahelpline.com, used for every
+                      country without its own numbers) carries a `url`, and a
+                      `tel:` built from it dials nothing. Never collapse these
+                      two branches back into one.
+                      ⚠️ Its visible text stays `txt.link` — the TRANSLATED
+                      phrase — because "Find a Helpline" in English inside a
+                      Bengali banner would be a step backwards from what this
+                      branch already showed. */}
+                  {primaryLine.url ? (
                     <a
-                      href={`tel:${primaryLine.contact.replace(/[^\d+]/g, "")}`}
-                      className="font-semibold underline underline-offset-2 hover:opacity-80"
-                    >
-                      {primaryLine.label} ({primaryLine.contact})
-                    </a>
-                  ) : (
-                    <a
-                      href="https://findahelpline.com"
+                      href={primaryLine.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-semibold underline underline-offset-2 hover:opacity-80"
                     >
                       {txt.link}
+                    </a>
+                  ) : (
+                    <a
+                      href={`tel:${primaryLine.contact.replace(/[^\d+]/g, "")}`}
+                      className="font-semibold underline underline-offset-2 hover:opacity-80"
+                    >
+                      {primaryLine.label} ({primaryLine.contact})
                     </a>
                   )}
                   {crisisTier === 2 ? ". I\u2019m still here too." : " can help."}

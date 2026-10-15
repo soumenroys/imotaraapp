@@ -198,7 +198,7 @@ export const FAQ: FaqItem[] = [
         id: "crisis",
         section: "Safety and age",
         q: "What happens if I'm in crisis?",
-        a: "Imotara will show you the emergency numbers for your country and encourage you to use them, because it is not an emergency service and cannot contact one for you. In India that is Tele-MANAS on 14416, free and around the clock, or 112 for emergencies. Please contact a real service — Imotara is not monitored in real time and may not recognise every expression of distress.",
+        a: "Imotara will show you the crisis numbers for your own country and encourage you to use them, because it is not an emergency service and cannot contact one for you. In India, for example, that is Tele-MANAS on 14416 or 112 for emergencies; elsewhere it shows your country's own lines, and where it does not have them it points you to findahelpline.com, which lists free helplines worldwide. Please contact a real service — Imotara is not monitored in real time and may not recognise every expression of distress.",
     },
     {
         id: "is-it-safe",

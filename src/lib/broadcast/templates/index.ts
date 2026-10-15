@@ -3,17 +3,22 @@
 // deliverability decision rather than a stylistic one.
 
 import { INDIVIDUALS } from "./individuals";
+import { INDIVIDUALS_MORE } from "./individualsMore";
 import { NGOS } from "./ngos";
+import { NGOS_MORE } from "./ngosMore";
 import { EDUCATION } from "./education";
+import { EDUCATION_MORE } from "./educationMore";
 import { CORPORATES } from "./corporates";
+import { CORPORATES_MORE } from "./corporatesMore";
 import { ELDERCARE } from "./eldercare";
+import { ELDERCARE_MORE } from "./eldercareMore";
 import { AUDIENCE_LABEL, ORGANISATIONAL, type Audience, type Template } from "./types";
 
 export { AUDIENCE_LABEL, ORGANISATIONAL };
 export type { Audience, Template };
 
 export const TEMPLATES: readonly Template[] = [
-    ...INDIVIDUALS, ...NGOS, ...EDUCATION, ...CORPORATES, ...ELDERCARE,
+    ...INDIVIDUALS, ...INDIVIDUALS_MORE, ...NGOS, ...NGOS_MORE, ...EDUCATION, ...EDUCATION_MORE, ...CORPORATES, ...CORPORATES_MORE, ...ELDERCARE, ...ELDERCARE_MORE,
 ];
 
 /** Display order in the picker. `individuals` first — it is the real newsletter. */

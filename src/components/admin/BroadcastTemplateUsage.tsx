@@ -14,9 +14,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
+import { AUDIENCES, AUDIENCE_LABEL, type Audience } from "@/lib/broadcast/templates";
 
 type Row = {
     id: string;
+    audience: Audience;
     audienceLabel: string;
     title: string;
     subject: string;
@@ -35,6 +37,10 @@ export default function BroadcastTemplateUsage({ token }: { token: string }) {
     const [migrationNeeded, setMigrationNeeded] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [onlyUsed, setOnlyUsed] = useState(true);
+    // null = every category. ⚠️ Separate from `onlyUsed` on purpose: with 250
+    // templates, "which of my NGO ones are being used" and "which of all of
+    // them are unused" are different questions and both get asked.
+    const [audience, setAudience] = useState<Audience | null>(null);
 
     const load = useCallback(async () => {
         setError(null);
@@ -74,29 +80,64 @@ export default function BroadcastTemplateUsage({ token }: { token: string }) {
         );
     }
 
-    const shown = onlyUsed ? rows.filter((r) => r.used > 0) : rows;
-    const totalUsed = rows.reduce((n, r) => n + r.used, 0);
-    const neverUsed = rows.filter((r) => r.used === 0).length;
+    const byAudience = audience ? rows.filter((r) => r.audience === audience) : rows;
+    const shown = onlyUsed ? byAudience.filter((r) => r.used > 0) : byAudience;
+    // Counts are per CATEGORY once one is chosen, so the label never claims
+    // "all 250" while showing a filtered set.
+    const scopeTotal = byAudience.length;
+    const totalUsed = byAudience.reduce((n, r) => n + r.used, 0);
+    const neverUsed = byAudience.filter((r) => r.used === 0).length;
+    const usedCount = (a: Audience | null) =>
+        (a ? rows.filter((r) => r.audience === a) : rows).filter((r) => r.used > 0).length;
 
     return (
         <div className="space-y-3">
+            {/* ── Category filters ──────────────────────────────────────
+                Each chip carries how many of ITS templates have been used, so
+                the answer to "is anyone using the NGO set at all" is visible
+                without clicking through. */}
+            <div className="flex flex-wrap gap-1.5">
+                {([null, ...AUDIENCES] as (Audience | null)[]).map((a) => {
+                    const active = audience === a;
+                    const n = usedCount(a);
+                    return (
+                        <button
+                            key={a ?? "all"}
+                            type="button"
+                            onClick={() => setAudience(a)}
+                            className={`rounded-lg px-2.5 py-1 text-[11px] transition ${
+                                active
+                                    ? "bg-indigo-500/20 text-indigo-200 ring-1 ring-indigo-500/40"
+                                    : "bg-white/5 text-zinc-400 hover:bg-white/10"
+                            }`}
+                        >
+                            {a ? AUDIENCE_LABEL[a] : "All categories"}
+                            <span className="ml-1.5 tabular-nums text-zinc-500">{n}</span>
+                        </button>
+                    );
+                })}
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-zinc-500">
-                    {totalUsed} message{totalUsed === 1 ? "" : "s"} started from a template ·{" "}
-                    {neverUsed} of {rows.length} templates never used
+                    {totalUsed} message{totalUsed === 1 ? "" : "s"} started from{" "}
+                    {audience ? AUDIENCE_LABEL[audience].toLowerCase() : "a"} template ·{" "}
+                    {neverUsed} of {scopeTotal} never used
                 </p>
                 <button
                     type="button"
                     onClick={() => setOnlyUsed((v) => !v)}
                     className="rounded-lg bg-white/5 px-2.5 py-1 text-[11px] text-zinc-400 transition hover:bg-white/10"
                 >
-                    {onlyUsed ? "Show all 50" : "Show only used"}
+                    {onlyUsed ? `Show all ${scopeTotal}` : "Show only used"}
                 </button>
             </div>
 
             {shown.length === 0 ? (
                 <p className="rounded-xl border border-white/8 bg-white/3 p-4 text-sm text-zinc-500">
-                    No template has been used yet. Pick one in the composer and it will appear here.
+                    {audience
+                        ? `No ${AUDIENCE_LABEL[audience].toLowerCase()} template has been used yet.`
+                        : "No template has been used yet. Pick one in the composer and it will appear here."}
                 </p>
             ) : (
                 <div className="overflow-x-auto rounded-xl border border-white/8">

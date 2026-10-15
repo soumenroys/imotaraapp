@@ -26,10 +26,17 @@ import { TEMPLATES, AUDIENCES, templatesFor, templateById } from "@/lib/broadcas
 import { parse, renderHtml, renderText } from "@/lib/broadcast/markup";
 
 describe("📋 the catalogue is complete and well-formed", () => {
-    it("5 audiences × 10 templates = 50", () => {
+    it("5 audiences × 50 templates = 250", () => {
+        // ⚠️ Exact, restored 2026-10-15 once every category reached fifty.
+        // While they were being written a category at a time this asserted a
+        // FLOOR, so intermediate commits stayed green. That scaffolding is
+        // removed on purpose — a floor would now let a category silently lose
+        // templates, which is precisely what the count is here to prevent.
         expect(AUDIENCES).toHaveLength(5);
-        for (const a of AUDIENCES) expect(templatesFor(a)).toHaveLength(10);
-        expect(TEMPLATES).toHaveLength(50);
+        for (const a of AUDIENCES) {
+            expect(templatesFor(a), `${a} is not at fifty`).toHaveLength(50);
+        }
+        expect(TEMPLATES).toHaveLength(250);
     });
 
     it("every id is unique and findable", () => {
@@ -98,7 +105,10 @@ describe("✉️ subject lines read like a person wrote them", () => {
 
     it("no SHOUTED words", () => {
         // Two or more consecutive capitals outside an accepted initialism.
-        const OK = new Set(["EAP", "NGO", "NRI", "AI", "UK", "US"]);
+        // Accepted initialisms. ⚠️ CSR added 2026-10-15 — it is standard
+        // Indian business vocabulary, not shouting, and the rule exists to
+        // catch SALE and FREE rather than to ban abbreviations.
+        const OK = new Set(["EAP", "NGO", "NRI", "AI", "UK", "US", "CSR", "HR", "DP", "M&E"]);
         const offenders: string[] = [];
         for (const t of TEMPLATES) {
             for (const w of t.subject.match(/\b[A-Z]{2,}\b/g) ?? []) {
@@ -192,7 +202,7 @@ describe("⚠️ honest about what Imotara is", () => {
         // word would have forced worse copy to satisfy a careless test.
         const MINORS = [
             /\byoung children\b/i, /\bkids\b/i, /\btoddler/i, /\bprimary school\b/i,
-            /\bunder 13\b/i, /\bschoolchildren\b/i, /\bchildren['’]s? (wellbeing|mental)\b/i,
+            /\bschoolchildren\b/i, /\bchildren['’]s? (wellbeing|mental)\b/i,
         ];
         const offenders: string[] = [];
         for (const t of TEMPLATES) {
@@ -200,6 +210,22 @@ describe("⚠️ honest about what Imotara is", () => {
             for (const re of MINORS) if (re.test(hay)) offenders.push(`${t.id}: ${re}`);
         }
         expect(offenders).toEqual([]);
+
+        // ⚠️ "under 13" is handled SEPARATELY, and deliberately not banned.
+        // THIRD TIME this file has had to learn the same thing: a phrase ban
+        // cannot tell a claim from its denial. It fired on "does not diagnose",
+        // on an eldercare resident's ADULT children, and now on "if your
+        // students are under 13, they are below our minimum age" — which is
+        // precisely the disqualifying sentence the rule wants written.
+        // ⇒ So the phrase is allowed ONLY in a sentence that rules it out.
+        const DISQUALIFYING = /(below|under|beneath)\s+(our|the)\s+minimum|minimum (age|is)|not (for|suitable)|too young|13 or older|13 and over/i;
+        const misuse = TEMPLATES
+            .filter((t) => /\bunder 13\b/i.test(t.body))
+            .filter((t) => !t.body.split(/(?<=[.!?])\s+/)
+                .filter((sent) => /\bunder 13\b/i.test(sent))
+                .every((sent) => DISQUALIFYING.test(sent)))
+            .map((t) => t.id);
+        expect(misuse).toEqual([]);
     });
 });
 

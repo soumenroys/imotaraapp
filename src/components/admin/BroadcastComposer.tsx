@@ -18,6 +18,7 @@ import { renderHtml, emailDocument, footerHtml, headerHtml, FONTS, SIZES } from 
 import { checkImageUrl } from "@/lib/broadcast/imageUrl";
 import { AUDIENCE_PAGES, type AudiencePage } from "@/data/audiencePages";
 import type { ListRow } from "./BroadcastLists";
+import { AUDIENCES, AUDIENCE_LABEL, ORGANISATIONAL, templatesFor, templateById } from "@/lib/broadcast/templates";
 
 export type Draft = {
   id: string | null;
@@ -126,6 +127,11 @@ export default function BroadcastComposer({
   const [testState, setTestState] = useState<string | null>(null);
 
   const locked = Boolean(draft.status && draft.status !== "draft");
+
+  // Template picker. ⛔ Deliberately NOT stored on the draft — a template is a
+  // STARTING POINT that is then edited, so remembering which one was chosen
+  // would imply the message still says what the template said.
+  const [tplAudience, setTplAudience] = useState<(typeof AUDIENCES)[number]>("individuals");
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => {
     dirty.current = true;
@@ -401,6 +407,63 @@ export default function BroadcastComposer({
       <div className="grid gap-4 lg:grid-cols-2">
         {/* ── Left: the message ────────────────────────────────────────── */}
         <div className="space-y-3">
+
+          {/* ── Start from a template ──────────────────────────────────
+              Fills subject and body with editable markup. ⛔ Never sent
+              as-is: the admin edits it, which is also why choosing one is
+              not remembered on the draft. */}
+          {!locked && (
+            <div className="rounded-xl border border-white/8 bg-white/3 p-4">
+              <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                Start from a template
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {AUDIENCES.map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => setTplAudience(a)}
+                    className={`rounded-lg px-2.5 py-1 text-[11px] transition ${
+                      tplAudience === a
+                        ? "bg-indigo-500/20 text-indigo-200 ring-1 ring-indigo-500/40"
+                        : "bg-white/5 text-zinc-400 hover:bg-white/10"
+                    }`}
+                  >
+                    {AUDIENCE_LABEL[a]}
+                  </button>
+                ))}
+              </div>
+
+              {/* ⚠️ Said out loud, because fanning these at `info@` addresses
+                  is what produced a 30.1% bounce rate. */}
+              {ORGANISATIONAL.has(tplAudience) && (
+                <p className="mt-2 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-[10px] leading-relaxed text-amber-200/90">
+                  Outreach, not a newsletter — send these one to one, to a named person.
+                  Organisation inboxes bounce at 30% and spend the domain&apos;s reputation.
+                </p>
+              )}
+
+              <select
+                value=""
+                onChange={(e) => {
+                  const t = templateById(e.target.value);
+                  if (!t) return;
+                  set("subject", t.subject);
+                  set("body_source", t.body);
+                }}
+                className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-500/40"
+              >
+                <option value="">Choose one…</option>
+                {templatesFor(tplAudience).map((t) => (
+                  <option key={t.id} value={t.id}>{t.title} — {t.note}</option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-[10px] text-zinc-600">
+                Replaces the subject and body. Edit freely before sending.
+              </p>
+            </div>
+          )}
+
           <div className="rounded-xl border border-white/8 bg-white/3 p-4">
             <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Subject</label>
             <input

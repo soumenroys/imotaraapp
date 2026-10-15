@@ -16,6 +16,7 @@ import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { renderHtml, renderText } from "@/lib/broadcast/markup";
 import { availableIdentities, findIdentity } from "@/lib/broadcast/identities";
+import { templateEditedState } from "@/lib/broadcast/templates";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -72,7 +73,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const supabase = getSupabaseAdmin();
 
   const { data: current } = await supabase
-    .from("broadcasts").select("id, status").eq("id", id).maybeSingle();
+    .from("broadcasts").select("id, status, template_id").eq("id", id).maybeSingle();
   if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   if (current.status !== "draft") {
@@ -116,6 +117,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     patch.body_source = body.body_source;
     patch.body_html = renderHtml(body.body_source);
     patch.body_text = renderText(body.body_source);
+
+    // 🔑 RECOMPUTED ON EVERY BODY EDIT, not only at creation. Without this, a
+    // message started from a template and then rewritten entirely would still
+    // count as an UNEDITED use of it — the usage panel would be confidently
+    // wrong, which is worse than having no panel.
+    //
+    // ⚠️ It also handles the way back: if the admin edits and then restores the
+    // original wording, this flips to false again rather than staying dirty.
+    const tplId = (current as { template_id?: string | null }).template_id;
+    const edited = templateEditedState(tplId, body.body_source);
+    if (edited !== null) patch.template_edited = edited;
   }
   if (body.message_type === "broadcast" || body.message_type === "operational") {
     patch.message_type = body.message_type;

@@ -9,6 +9,7 @@ import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { renderHtml, renderText } from "@/lib/broadcast/markup";
 import { availableIdentities, findIdentity } from "@/lib/broadcast/identities";
+import { templateById, templateEditedState } from "@/lib/broadcast/templates";
 
 const MAX_SUBJECT = 200;
 const MAX_SOURCE = 100_000;   // ~30 printed pages; a paste bigger than this is a mistake
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   let body: {
     subject?: unknown; body_source?: unknown; from_email?: unknown;
-    message_type?: unknown; list_id?: unknown;
+    message_type?: unknown; list_id?: unknown; template_id?: unknown;
   };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "invalid JSON" }, { status: 400 }); }
@@ -52,6 +53,12 @@ export async function POST(req: NextRequest) {
   }
 
   const messageType = body.message_type === "operational" ? "operational" : "broadcast";
+
+  // ⛔ The template id is VALIDATED against the catalogue, never trusted. A
+  // request could otherwise invent an id and poison the usage counts with a
+  // template that does not exist — which, for a panel whose entire job is to
+  // report which templates get used, would make it quietly useless.
+  const tpl = typeof body.template_id === "string" ? templateById(body.template_id) : undefined;
 
   // The client sends SOURCE only. body_html and body_text are rendered here,
   // from a whitelist, and are never accepted from a request — otherwise the
@@ -98,6 +105,12 @@ export async function POST(req: NextRequest) {
       reply_to: auth.admin.email.toLowerCase(),
       created_by: auth.admin.id,
       status: "draft",
+      // ⚠️ `edited` is computed HERE from the body actually being saved, not
+      // reported by the client. A template is a starting point; recording only
+      // which one seeded a message would claim it still says what the template
+      // says, and after an edit that is false.
+      template_id: tpl?.id ?? null,
+      template_edited: templateEditedState(tpl?.id, source),
     })
     .select("id, subject, body_source, message_type, status, from_email, from_name, reply_to, list_id, created_at")
     .single();

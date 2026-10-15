@@ -128,10 +128,16 @@ export default function BroadcastComposer({
 
   const locked = Boolean(draft.status && draft.status !== "draft");
 
-  // Template picker. ⛔ Deliberately NOT stored on the draft — a template is a
-  // STARTING POINT that is then edited, so remembering which one was chosen
-  // would imply the message still says what the template said.
+  // Template picker.
+  //
+  // ⚠️ The id IS remembered, and sent with the draft, so the usage panel can
+  // report which templates get used (owner request, 2026-10-15). The obvious
+  // worry — that remembering it implies the message still SAYS what the
+  // template said — is handled on the server instead: it recomputes
+  // `template_edited` from the body on every save, so an edited message is
+  // counted as a use but not as an unedited one.
   const [tplAudience, setTplAudience] = useState<(typeof AUDIENCES)[number]>("individuals");
+  const [tplId, setTplId] = useState<string | null>(null);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => {
     dirty.current = true;
@@ -148,6 +154,10 @@ export default function BroadcastComposer({
       message_type: d.message_type,
       list_id: d.list_id,
       ...(d.from_email ? { from_email: d.from_email } : {}),
+      // Only on first save — the id is fixed at creation and the server will
+      // not let a later PATCH re-attribute an existing message to a different
+      // template, which would otherwise let one send inflate two counters.
+      ...(!d.id && tplId ? { template_id: tplId } : {}),
     };
     try {
       const res = await fetch(
@@ -448,6 +458,7 @@ export default function BroadcastComposer({
                 onChange={(e) => {
                   const t = templateById(e.target.value);
                   if (!t) return;
+                  setTplId(t.id);
                   set("subject", t.subject);
                   set("body_source", t.body);
                 }}

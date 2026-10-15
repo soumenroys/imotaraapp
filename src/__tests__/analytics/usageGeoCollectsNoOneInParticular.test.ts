@@ -57,6 +57,75 @@ describe("⛔ it collects nothing that could point at a person", () => {
         expect(create).toMatch(/\bday\s+date\s+not null/);
     });
 
+    it("🔴 NO FUTURE MIGRATION may add an identifying column to the table", () => {
+        // ⚠️ THE REAL GAP. The assertion above reads only the original
+        // `create table`, so an `alter table usage_geo_daily add column
+        // user_id uuid` in a migration written next year would sail past it —
+        // and that is precisely how an aggregate quietly becomes a per-person
+        // location history. This walks EVERY migration in the repo.
+        const SQL_DIR = path.join(process.cwd(), "docs", "sql");
+        const offenders: string[] = [];
+        for (const f of fs.readdirSync(SQL_DIR).filter((x) => x.endsWith(".sql"))) {
+            const sql = fs.readFileSync(path.join(SQL_DIR, f), "utf8")
+                .replace(/\/\*[\s\S]*?\*\//g, " ")
+                .replace(/--[^\n]*/g, " ");
+            for (const m of sql.matchAll(/alter table\s+(?:public\.)?usage_geo_daily([\s\S]*?);/gi)) {
+                for (const c of m[1].matchAll(/add column\s+(?:if not exists\s+)?([a-z_]+)/gi)) {
+                    const col = c[1].toLowerCase();
+                    if (/user|anon|session|device|ip|lat|lon|city|email|phone|token/.test(col)) {
+                        offenders.push(`${f}: adds usage_geo_daily.${col}`);
+                    }
+                }
+            }
+        }
+        expect(offenders).toEqual([]);
+    });
+
+    it("⚠️ the data gets COARSER as it ages — the date is destroyed, not kept", () => {
+        // The one way a row could ever come close to pointing at somebody is a
+        // small count on a specific DAY in a specific region. After 100 days
+        // the day is summed away into its month, so the trend survives and the
+        // date does not.
+        // ⚠️ COMMENTS STRIPPED. The migration's footer quotes this very SQL as
+        // a "check what it would do" snippet, so an unstripped matcher is
+        // satisfied by the comment and passes even after the real guard is
+        // deleted — which is exactly what happened when this was written.
+        // Sixth time in this repo; strip first, always.
+        const retention = read("docs/sql/usage_geo_retention.sql")
+            .replace(/\/\*[\s\S]*?\*\//g, " ")
+            .replace(/--[^\n]*/g, " ");
+        expect(retention).toMatch(/delete from public\.usage_geo_daily/i);
+        expect(retention).toMatch(/date_trunc\('month', day\)/i);
+        // ⛔ Without this guard a row already on the 1st would be folded into
+        // itself every night, doubling its count.
+        expect(retention).toMatch(/day <> date_trunc\('month', day\)/i);
+        // And it must actually be called, or it is decoration.
+        expect(read("src/app/api/cron/exchange-rates/route.ts"))
+            .toMatch(/rpc\("imotara_roll_up_usage_geo"\)/);
+    });
+
+    it("⛔ the roll-up can never break the cron it rides on", () => {
+        // That cron's real job is the exchange rates, which session billing
+        // depends on. Analytics retention must not be able to fail it.
+        const cron = read("src/app/api/cron/exchange-rates/route.ts");
+        const at = cron.indexOf("imotara_roll_up_usage_geo");
+        expect(at).toBeGreaterThan(-1);
+        // ⚠️ Containment, not proximity: everything between the nearest
+        // preceding `try {` and the call must contain no closing brace, or the
+        // try opened and shut before reaching it and the call is unguarded.
+        // ⚠️ PROXIMITY, NOT BRACE-COUNTING. Two cleverer versions of this
+        // assertion were written first and BOTH passed against a verified
+        // mutation that removed the try entirely: counting braces over
+        // TypeScript is defeated by object literals and destructuring, and
+        // `lastIndexOf("try {")` happily finds an unrelated try higher up the
+        // file. A short window is cruder and actually works.
+        // ⇒ trap_mutation_harness_can_report_false_caught — a control that
+        //   does not fail is not a control.
+        const window = cron.slice(Math.max(0, at - 120), at);
+        expect(window, "the roll-up call is not inside a try").toContain("try {");
+        expect(cron.slice(at, at + 400)).toMatch(/catch \{/);
+    });
+
     it("🔑 and the table is service-role only, grant AND policy", () => {
         // The lesson of connect_consultants: a row policy is not the only
         // door. Revoke the grant too.

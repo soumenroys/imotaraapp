@@ -71,5 +71,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Internal error", rates }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, rates, updated_at: new Date().toISOString() });
+  // ── Usage-geography retention, piggy-backed on the only daily cron ────────
+  // Sums usage_geo_daily rows older than 100 days into one row per month,
+  // destroying the exact date. The trend survives; the one thing that could
+  // ever come close to singling someone out — a small count on a specific
+  // DAY in a specific region — does not.
+  //
+  // ⛔ Here rather than in an eighth Vercel cron: the cron count is pinned by
+  // everyCronAnswersTheVerbVercelSends.test.ts, and a once-a-day job does not
+  // need a schedule of its own.
+  // ⚠️ Its failure must never fail the exchange-rate update, which is what
+  // this route is actually for and what session billing depends on.
+  let rolledUp: number | null = null;
+  try {
+    const { data } = await supabase.rpc("imotara_roll_up_usage_geo");
+    rolledUp = typeof data === "number" ? data : null;
+  } catch {
+    // Migration not run in this environment, or a transient error. Rates still
+    // updated; the roll-up simply runs tomorrow instead.
+  }
+
+  return NextResponse.json({ ok: true, rates, rolledUp, updated_at: new Date().toISOString() });
 }

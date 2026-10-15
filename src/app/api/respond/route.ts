@@ -1953,6 +1953,17 @@ export async function POST(req: Request) {
         // ✅ helps us confirm exactly which deployment mobile is hitting
         buildSha,
 
+        // 🔑 THE COUNTRY THE EDGE ACTUALLY SAW, for the crisis card.
+        // Both clients otherwise resolve it from the Intl LOCALE, which is not
+        // a location: a Bengali- or Hindi-locale phone in London reports IN and
+        // is shown Tele-MANAS, a number that does not dial from there. This is
+        // derived from the network the request arrived on — no permission, no
+        // coordinate — and the clients prefer it over their own guess while
+        // still letting an explicit Settings choice win over both.
+        // ⚠️ null when the edge could not place the request (local dev, some
+        // proxies); the client keeps its existing fallback for that.
+        resolvedCountry: countryCode,
+
         // QA-only: lets us verify whether UI renders formatted vs raw
         ...(qa
           ? {

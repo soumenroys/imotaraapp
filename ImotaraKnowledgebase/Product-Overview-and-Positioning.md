@@ -122,6 +122,21 @@ The internal **Competitor Landscape** and **Key Differentiators** decks profile 
 
 The eight claimed differentiators: the language moat (11 Indian languages + gendered AI grammar), privacy by design, offline-capable AI, accessible pricing, 71 evidence-backed psychological frameworks (CBT, DBT, ACT, narrative, somatic), the monthly companion letter, the customizable companion persona, and culturally rooted content.
 
+## Who Imotara is for, by age *(v1.5.8+)*
+
+**Minimum age 13.** Under **18** requires a parent or guardian's agreement. Where local law sets a
+higher age, the higher age applies. Every user passes a **first-use acceptance screen** before
+they can use Imotara, in all 22 languages, and the acceptance is recorded.
+
+🔑 **Say this early in any education conversation.** It is the first question a school or college
+asks, and answering it unprompted is worth more than answering it defensively three meetings in.
+⛔ Never imply suitability below 13 — it contradicts the Terms that every user accepts, and the
+contradiction is exactly the kind of thing a procurement review finds.
+
+⚠️ **Verifiable parental consent** (a mechanism that proves the parent agreed, rather than asking
+the user to confirm it) is **not implemented**. It is planned for around **January 2027**. Do not
+claim it before then.
+
 ## The B2B story
 
 **Organization licensing (NGO / EDU / Govt / Commercial).** Imotara offers institutional deployment through Family, EDU, and Enterprise tiers plus dedicated NGO/reseller licensing. Organizations get an admin dashboard (`/org/dashboard` on web) for member management, bulk CSV/SCIM user provisioning, org-level and anonymized aggregate analytics, audit logs, custom institution branding, API keys, SSO/SAML, and data-residency controls. EDU adds classroom/cohort mode and LMS (Moodle/Canvas) integration; Enterprise adds API access, custom integrations, and team/department management. NGOs get beneficiary-wellbeing tooling and admin guides. Members see a "Managed by [organization]" badge, and org licensing was rolled out across web and mobile in Phases 1–5 (v1.1.10). *(Note: some org features — LMS embed, referral commission tracking — are "Coming soon" per the v1.2.7 changelog; see the Org How-Tos doc for the honest status of each.)*

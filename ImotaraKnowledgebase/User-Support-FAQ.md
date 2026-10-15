@@ -84,6 +84,30 @@
 
 Three things worth knowing (all v1.4.1+): the reminder is titled in the **companion's name**, and renaming re-issues it; switching the reminder **off also cancels a queued inactivity nudge**; and on Android delivery is **inexact by design** — a 17:00 reminder can arrive around 17:07. ⚠️ On Android builds **older than v1.4.1** the reminder could not be scheduled at all and the app misreported it as "Permission needed" — the fix is to update.
 
+**Q: A Free user says they can't turn reminders off. Is that a bug?** *(v1.5.8+)*
+**A:** No, it is the intended behaviour. **Free** users can **pause** the daily reminder for **3 or 5 days**, as often as they like; **Plus and above** can switch it off entirely. Pausing and resuming are never restricted by plan, and a paused reminder **re-arms itself** when the pause ends — the user does not have to remember to turn it back on. They can also **Resume** early.
+
+If a Free user wants reminders gone permanently rather than paused, tell them they can turn Imotara's notifications off at the **operating-system level** (phone or browser notification settings). Nothing from Imotara reaches them after that. We do not trap anyone in notifications they do not want.
+
+**Q: Why does the reminder say "Tuesday" instead of quoting what I wrote?** *(v1.5.8+)*
+**A:** Deliberate. The reminder names **the day the person last wrote**, never the words they used. A lock screen is read by whoever picks the phone up, and a notification quoting a message about someone's marriage, diagnosis or family could disclose something they never chose to share. The weekday is unmistakable to them and meaningless to a bystander.
+
+**Q: The reminder arrives at an odd hour.**
+**A:** The default is **20:00 in the user's own timezone**, changeable in Settings. If it is landing at a strange time, ask them to open **Settings** once while signed in — that is what records their timezone. Until then the server falls back to a fixed hour that may not match their evening.
+
+## The welcome screen and age rules
+
+**Q: What is the screen people see the first time they open Imotara?** *(v1.5.8+)*
+**A:** A short first-use welcome screen, shown on **web, iOS and Android** before anything else. It states what Imotara is, says plainly what it is **not**, shows the **emergency numbers for the user's country**, and asks them to accept the **Terms** and **Privacy Policy**. It appears in **all 22 languages**, not only English. The acceptance box is **pre-ticked** — people read it and press Continue, or untick it.
+
+It is shown **once**. It returns only if the Terms themselves change, and then only so the new version can be accepted.
+
+**Q: What is the minimum age?**
+**A:** **13.** Users under **18** need a parent or guardian to agree to their use of Imotara. Where local law sets a higher age, the higher age applies. ⚠️ Support should quote **13**, not 18 — the two numbers both appear in the acceptance sentence and are easy to confuse.
+
+**Q: A user says the welcome screen appeared again.**
+**A:** That means the Terms changed and they are being asked to accept the new version. It is not a bug and not a lost account. If they insist nothing changed, check whether they cleared site data or reinstalled — the acceptance is stored on the device as well as recorded server-side.
+
 ## Organization members
 
 **Q: What does "Managed by [organization]" mean?**
@@ -95,7 +119,13 @@ Three things worth knowing (all v1.4.1+): the reminder is titled in the **compan
 ## Crisis situations
 
 **Q: What does the app do if someone is in crisis?**
-**A:** Imotara has 3-tier crisis detection. If it detects language suggesting immediate danger (suicidal ideation, recognized across 13 languages), it responds with grounded, warm support, opens a **guided breathing** exercise, and surfaces **crisis helplines for the user's country** (e.g., in India: Tele-MANAS 14416, KIRAN 1800-599-0019, Emergency 112; in the US: 988). For distress signals (hopelessness, feeling trapped), it gently surfaces in-app resources without interrupting. The tone is steady and non-alarming — never panic words, never a diagnosis.
+**A:** Imotara has 3-tier crisis detection. If it detects language suggesting immediate danger (suicidal ideation — see the language note below), it responds with grounded, warm support, opens a **guided breathing** exercise, and surfaces **crisis helplines for the user's country** (e.g., in India: Tele-MANAS 14416, KIRAN 1800-599-0019, Emergency 112; in the US: 988). For distress signals (hopelessness, feeling trapped), it gently surfaces in-app resources without interrupting. The tone is steady and non-alarming — never panic words, never a diagnosis.
+
+**Language coverage, stated precisely** *(corrected 2026-10-15 — this FAQ previously said "13 languages", which was both stale and imprecise):* the crisis card's **wording exists in all 22 languages**. Detection is not uniform across them:
+
+- **Detected from the script the person wrote in** (no setting required): Bengali, Hindi, Tamil, Telugu, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu, Arabic, Hebrew, Russian, Chinese, Japanese
+- **Relies on the user's chosen language**: Spanish, French, German, Portuguese, Indonesian — these share the Latin script, so there is nothing in the text itself to detect
+- ⚠️ **Known gap**: Marathi written in Devanagari without distinctive Marathi markers resolves to **Hindi**, so a Marathi speaker may see a Hindi helpline card. Recorded as a failing test rather than hidden.
 
 **Q: Is Imotara a therapist or a replacement for therapy?**
 **A:** No — and support should always be clear on this. Imotara is a **private wellness companion for self-reflection and emotional awareness, not a medical or therapeutic service.** It's designed to complement, not replace, professional mental health care. If someone is in danger or needs clinical help, direct them to the crisis helplines the app surfaces or local emergency services. The Imotara Connect human companions are also **non-clinical** roles, not licensed therapy, with an under-18 hard block and an in-session emergency button.

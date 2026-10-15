@@ -10,6 +10,25 @@
 
 ## 1. Getting started
 
+### 1·0. The welcome screen, the first time *(v1.5.8+)*
+
+The very first time Imotara opens — on the web, on iOS or on Android — a short welcome screen
+appears before anything else:
+
+1. It says what Imotara **is**, and plainly what it is **not** (a companion for reflection, not a
+   therapist or a doctor, and it does not give medical advice).
+2. It shows the **emergency numbers for your country**.
+3. It asks you to accept the **Terms** and **Privacy Policy**. The box is **already ticked** —
+   read it and press **Continue**, or untick it if you do not agree.
+4. It is in **your language**, all 22 of them.
+
+**Age:** you must be **13 or older**, and if you are under **18** a parent or guardian needs to
+agree to your use of Imotara. If the law where you live sets a higher age, that one applies.
+
+You see this **once**. It comes back only if the Terms themselves change, so you can accept the
+new version. It appears **before** sign-in on purpose — many people chat without ever making an
+account, and they should know what Imotara is too.
+
 ### 1a. Use Imotara without an account
 1. Open the app — on web go to **www.imotara.com**; on mobile open the Imotara app.
 2. Tap **Chat** and start typing. Text chat, mood check-ins, History, Trends, Grow, and reflections all work with no sign-in — data is stored locally on the device.
@@ -222,6 +241,23 @@ On mobile all four live together under **Settings → Experience → Voice input
 ### 10a. Daily check-in reminder at a chosen time
 1. **On web:** **Settings → Browser notifications → Enable notifications** (allow the browser prompt). Then set **Preferred reminder time** (a time picker) — "Daily check-in reminder fires around this time".
 2. **On mobile:** **Settings → Experience → Daily check-in reminder** — flip the switch on (allow the OS permission), then set the time with the **Hour** and **Minute** steppers (minutes step by 15). Optionally enable **Play sound** and **Show badge**. The notification is titled in the **companion's name** ("Maya is here for you 💙"), and renaming the companion re-issues it.
+
+#### Taking a break from the reminder *(v1.5.8+)*
+
+You do not have to choose between a daily reminder and none at all.
+
+1. In **Settings → Daily check-in reminder**, choose **Pause 3 days** or **Pause 5 days**.
+2. The card then shows the date it comes back. Nothing arrives while the pause lasts.
+3. It **re-arms itself** when the time is up — you do not have to remember to switch it on.
+4. Press **Resume** at any point to end the pause early.
+
+**Turning it off completely** is available on **Plus and above**. On **Free** you can pause as
+often as you like, and if you would rather have no notifications at all you can switch them off
+for Imotara in your phone's or browser's own notification settings — that always works.
+
+**What the reminder says:** it names **the day you last wrote** — "You wrote on Tuesday" — and
+never quotes your words. A lock screen is read by whoever picks the phone up, and your message is
+nobody else's business. The default time is **20:00 where you are**.
    - ⏱ **Delivery is intentionally inexact.** Android schedules this as an inexact alarm with roughly an **8-minute window**, so a 17:00 reminder can legitimately arrive at 17:07. That is not a fault, and the app does not request exact-alarm permission (Android 14+ restricts it).
    - ⚠️ **Android release builds before v1.4.1 could not schedule this at all** — the toggle failed and misreported it as a permission problem. Fixed in v1.4.1; if a user on an older build reports "Permission needed" with notifications already allowed, the fix is to update the app.
 

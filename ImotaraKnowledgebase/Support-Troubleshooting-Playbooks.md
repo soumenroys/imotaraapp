@@ -28,6 +28,9 @@
 | "The app crashed" | 14 |
 | "My voice wasn't sent / it typed words I never said" | 15 |
 | "Reminder says 'Permission needed' but notifications are allowed" | 10 (step 0 — Android below v1.4.1) |
+| "Reminders stopped for a few days" | 10 (step −1 — probably PAUSED, v1.5.8+) |
+| "I can't turn reminders off" | 10 (step −1 — Free pauses, Plus disables; OS settings always work) |
+| "The welcome / consent screen came back" | 16 — the Terms changed; accepting the new version is the whole point |
 
 ---
 
@@ -356,6 +359,22 @@
 5. Expo module unavailable (Expo Go dev builds).
 6. 🔴 **Android app older than v1.4.1** — the reminder could never be scheduled at all (see step 0 below).
 7. Not actually missing: the reminder is an **inexact** alarm and can arrive up to ~8 minutes late.
+8. 🆕 **The user PAUSED it** (v1.5.8+). Pausing is silent by design — nothing arrives for 3 or 5
+   days. The Settings card shows the date it resumes. Ask them to look there before anything else;
+   this is now the most common benign cause.
+9. 🆕 **No timezone on file** — the daily check-in fires at the person's **local** hour (default
+   **20:00**). If we have never recorded their timezone the server falls back to a fixed hour,
+   which can land at an odd time rather than not at all. Fixed by opening **Settings** once while
+   signed in.
+
+**Step −1 — check whether it is simply PAUSED (v1.5.8+).** Settings → Daily check-in reminder. If
+the card reads "Paused — reminders resume on …", nothing is broken. **Resume** ends it early.
+
+⚠️ **A Free user cannot turn reminders OFF, only pause them** (3 or 5 days). Plus and above can
+disable entirely. If a Free user wants them gone for good, point them at the **operating-system**
+notification settings rather than telling them it is impossible — that always works and is not
+gated by plan. ⛔ Do not describe the Free limitation as a bug; it is the owner's decision of
+2026-10-13.
 
 **Step 0 — the one that wasted an hour, check it first on Android.**
 In **every Android release build before v1.4.1**, enabling "Daily check-in reminder" failed outright and the app blamed permissions: the user sees **"Permission needed — please allow notifications in your device settings"** even though `POST_NOTIFICATIONS` is granted, and no amount of permission fiddling helps. Root cause was R8 stripping `expo-notifications`' reflective `Serializable` hooks, so persisting the scheduled request threw `NotSerializableException: org.json.JSONObject`. Confirm with:
@@ -546,6 +565,30 @@ adb shell dumpsys audio | grep "rec start\|rec stop"    # timestamped turn bound
 **Escalate when…** genuine speech is being dropped repeatedly (the fail-open bias should make that rare), or hallucinated text appears on v1.4.1+ despite all three guards.
 
 ---
+
+## Runbook 16 — "A welcome / consent screen appeared" (v1.5.8+)
+
+**Symptom:** A full-screen welcome appears before the app can be used, asking the user to accept
+the Terms and Privacy Policy.
+
+**This is not a fault.** Since v1.5.8 every first use — web, iOS and Android — shows it once. It
+states what Imotara is and is not, shows the **emergency numbers for the user's country**, and
+carries a **pre-ticked** acceptance box. It renders in **all 22 languages**.
+
+**If a user says it came back:**
+1. **The Terms changed.** A new version re-prompts everyone, by design, so the new version can be
+   accepted. Nothing is lost and no account is affected.
+2. **They cleared site data or reinstalled.** Acceptance is stored on the device as well as
+   recorded server-side, so a wiped device asks again.
+3. ⛔ It is **not** connected to signing in. It appears before sign-in precisely because people
+   chat without an account, and that is who it most needs to reach.
+
+**Age questions:** the minimum is **13**; under **18** needs a parent or guardian's agreement; a
+higher local legal age wins. ⚠️ Quote **13**, not 18 — both numbers appear in the acceptance
+sentence and are easy to transpose.
+
+**If the user refuses to accept:** they cannot use Imotara, and that is correct. There is no
+bypass to offer, and support must not suggest one.
 
 ## Discrepancies & traps found (worth fixing / knowing)
 

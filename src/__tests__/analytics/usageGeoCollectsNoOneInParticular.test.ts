@@ -196,6 +196,47 @@ describe("📋 it reads the two headers correctly, and distrusts them", () => {
     });
 });
 
+describe("🔴 mobile is not recorded until the store declarations say so", () => {
+    it("⛔ the recorder returns early for ios/android unless the switch is on", () => {
+        // 🔑 THE TRAP. This runs SERVER-SIDE on /api/respond, which every
+        // already-installed app calls, and those builds already send
+        // X-Imotara-Platform. So mobile would start being recorded the instant
+        // the WEB deploys — no app release involved — and therefore possibly
+        // before the Play Data Safety form declares it. Google's rule on
+        // IP-inferred approximate location is explicit, so that window would be
+        // a false declaration on a live listing.
+        const code = MODULE.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+        expect(code).toMatch(
+            /platform !== "web" && process\.env\.IMOTARA_USAGE_GEO_MOBILE !== "true"/,
+        );
+        // ⚠️ It must RETURN, not merely branch — a log line here would still
+        // leave the write below reachable.
+        expect(code).toMatch(/IMOTARA_USAGE_GEO_MOBILE !== "true"\)\s*return;/);
+    });
+
+    it("🔑 and the gate sits BEFORE the write, not after it", () => {
+        const code = MODULE.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+        const gateAt = code.indexOf("IMOTARA_USAGE_GEO_MOBILE");
+        const writeAt = code.indexOf("imotara_record_usage_geo");
+        expect(gateAt).toBeGreaterThan(-1);
+        expect(writeAt).toBeGreaterThan(-1);
+        expect(gateAt, "the gate is after the write — it would not prevent anything")
+            .toBeLessThan(writeAt);
+    });
+
+    it("⚠️ the Play doc's gate names the WEB deploy, not a mobile release", () => {
+        // My first version of that doc said the declaration became true at the
+        // "next EAS build". It does not: it becomes true on the web deploy, for
+        // apps already in people's hands. A gate that names the wrong trigger
+        // is worse than none, because it buys false time.
+        const play = fs.readFileSync(
+            path.join(process.cwd(), "..", "imotara-mobile", "PLAY_DATA_SAFETY.md"),
+            "utf8",
+        );
+        expect(play).toMatch(/IMOTARA_USAGE_GEO_MOBILE/);
+    });
+});
+
 describe("🔴 it can never delay or break a reply", () => {
     it("⛔ the respond route does NOT await it", () => {
         // The standing constraint: nothing may degrade reply quality or user

@@ -80,6 +80,25 @@ export function readUsageGeo(req: { headers: HeaderLike }): UsageGeo {
 export async function recordUsageGeo(req: { headers: HeaderLike }): Promise<void> {
     try {
         const { country, region, platform } = readUsageGeo(req);
+
+        // 🔴 MOBILE IS OFF UNTIL THE STORE DECLARATIONS SAY IT IS ON.
+        //
+        // The trap this exists for: this recorder runs SERVER-SIDE on
+        // /api/respond, which every already-installed iOS and Android build
+        // calls, and those builds already send X-Imotara-Platform. So mobile
+        // usage would begin being recorded the instant the WEB deploys — with
+        // no new app release, and therefore potentially before the Play Data
+        // Safety form declares it. Google's rule is explicit that IP-inferred
+        // approximate location must be disclosed, so that window would be a
+        // false declaration on a live listing.
+        //
+        // ⛔ Default is web-only. Set IMOTARA_USAGE_GEO_MOBILE=true in Vercel
+        // ONLY once the Play Data Safety form and the Apple privacy label have
+        // been updated ⇒ imotara-mobile/PLAY_DATA_SAFETY.md.
+        // ⚠️ Not a feature flag to tidy away later: it is what keeps the
+        // declaration and the behaviour in step, in that order.
+        if (platform !== "web" && process.env.IMOTARA_USAGE_GEO_MOBILE !== "true") return;
+
         await getSupabaseAdmin().rpc("imotara_record_usage_geo", {
             p_country: country,
             p_region: region,

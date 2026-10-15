@@ -90,6 +90,25 @@ export async function requireSuperAdmin(req: NextRequest): Promise<SuperAdminRes
   }
 
   // ── 2. Legacy ADMIN_SECRET fallback ───────────────────────────────────────
+  // 🔴 THE KILL SWITCH USED TO COVER ONLY HALF THE SURFACE. adminAuthorized()
+  // and connectAdminAuthorized() honoured ADMIN_SECRET_DISABLED; this function
+  // did not — and it is the one the doc comment above tells you to use for any
+  // NEW admin route, so it guards MORE routes than the other two combined
+  // (19 vs 20 at the time of writing, including /admin/users/[userId]/
+  // recovery-link, which mints a magic link that signs the caller in AS that
+  // user). Setting the switch therefore produced false assurance: the owner
+  // would believe the emergency key was retired while it still opened the most
+  // powerful route in the system.
+  //
+  // ⛔ Checked here FIRST, before the secret is even read, so the switch can
+  // never be half-applied again. Found in the security review of 2026-10-16.
+  if (process.env.ADMIN_SECRET_DISABLED === "true") {
+    return {
+      ok:       false,
+      response: NextResponse.json({ error: "unauthorized" }, { status: 401 }),
+    };
+  }
+
   const secret = process.env.ADMIN_SECRET?.trim();
   if (secret) {
     const auth     = req.headers.get("authorization") ?? "";

@@ -163,6 +163,34 @@ export default function PrivacyPage() {
                   identifiers for tracking purposes.
                 </p>
               </div>
+
+              {/* ⚠️ This paragraph is the disclosure for src/lib/analytics/usageGeo.ts.
+                  It is deliberately specific about what is NOT collected, because
+                  what makes that feature safe is its refusals — and a vague
+                  paragraph here would not survive the day someone proposes
+                  adding the city. */}
+              <div>
+                <p className="text-sm font-semibold text-zinc-100">
+                  Where Imotara is used
+                </p>
+                <p className="mt-1 text-sm leading-7 text-zinc-300">
+                  We count how many times Imotara is opened in each country and region,
+                  so we know which languages and regions to support next. This comes from
+                  the network your request arrives on, not from your phone&apos;s location
+                  service &mdash; Imotara never asks for location permission, and turning
+                  location off changes nothing about this.
+                </p>
+                <p className="mt-1 text-sm leading-7 text-zinc-300">
+                  We do not store your coordinates, your city, your IP address, or any
+                  link between a place and you. What is kept is a daily tally &mdash; for
+                  example, &ldquo;412 opens from West Bengal on Android today&rdquo;
+                  &mdash; with nothing in it that identifies a person, which is why there
+                  is nothing here to export or delete at an individual level. Because it
+                  is based on the network, it reflects where a request came from rather
+                  than where you are: a VPN or an office connection will place you
+                  somewhere else.
+                </p>
+              </div>
             </div>
           </section>
 

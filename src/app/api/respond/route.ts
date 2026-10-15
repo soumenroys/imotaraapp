@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordUsageGeo } from "@/lib/analytics/usageGeo";
 import { createHash } from "crypto";
 import { runImotara } from "@/lib/ai/orchestrator/runImotara";
 import type { EmotionAnalysis } from "@/lib/ai/emotion/emotionTypes";
@@ -1231,6 +1232,14 @@ export async function POST(req: Request) {
     (body as any)?.countryCode ||
     (baseCtx as any)?.countryCode ||
     null;
+
+  // Coarse usage geography — country + region + platform, counted into a daily
+  // aggregate. ⛔ NOT AWAITED, and that is the whole point: nothing may sit
+  // between a person in distress and their reply, least of all analytics. It
+  // swallows its own failures, writes no user id, no IP and no coordinate, and
+  // the same edge header above already told us the country for free.
+  // ⇒ src/lib/analytics/usageGeo.ts
+  void recordUsageGeo(req);
 
   // ── Parallel quote generation (~1 in 5 emotional turns, all languages) ──────
   // Started BEFORE runImotara so both run concurrently. Quote is appended to

@@ -231,6 +231,20 @@ export default function HindiPage() {
             </div>
           </div>
 
+          {/* 🔑 The question-shaped page in this language. Measured 16 Oct:
+              this page and its two siblings produce no non-brand impressions,
+              because they are organised around what Imotara wants to SAY.
+              /faq/hi is organised around what people ASK. */}
+          <div className="text-sm">
+            <Link
+              href="/faq/hi"
+              hrefLang="hi"
+              className="text-zinc-400 underline underline-offset-2 hover:text-zinc-200"
+            >
+              इमोतारा के बारे में आम सवाल और जवाब
+            </Link>
+          </div>
+
           {/* Language switcher */}
           <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
             <span>भाषा बदलें:</span>

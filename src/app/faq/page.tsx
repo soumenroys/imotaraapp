@@ -29,6 +29,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FAQ, FAQ_SECTIONS } from "@/data/faq";
+import { LANG_FAQ, LANG_FAQ_CODES } from "@/data/faqLang";
 
 const SITE_URL = "https://www.imotara.com";
 const URL = `${SITE_URL}/faq`;
@@ -37,7 +38,17 @@ export const metadata: Metadata = {
     title: "Imotara FAQ — questions people actually ask",
     description:
         "Straight answers about Imotara: whether it is therapy, what it costs, who can read your conversations, which languages it speaks, and what it does if you are in crisis.",
-    alternates: { canonical: URL },
+    // 🔑 RECIPROCAL hreflang. Each Indian-language question page names this
+    // one and every sibling; without the return links Google treats the set as
+    // unrelated near-duplicates rather than translations of one another.
+    alternates: {
+        canonical: URL,
+        languages: {
+            en: URL,
+            ...Object.fromEntries(LANG_FAQ_CODES.map((c) => [c, `${URL}/${c}`])),
+            "x-default": URL,
+        },
+    },
     openGraph: {
         title: "Imotara FAQ — questions people actually ask",
         description:
@@ -73,12 +84,10 @@ export default function FaqPage() {
         <main className="mx-auto w-full max-w-3xl px-5 py-12 sm:py-16">
             <script
                 type="application/ld+json"
-                // eslint-disable-next-line react/no-danger
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
             />
             <script
                 type="application/ld+json"
-                // eslint-disable-next-line react/no-danger
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
             />
 
@@ -144,6 +153,22 @@ export default function FaqPage() {
                         findahelpline.com
                     </a>{" "}
                     lists free helplines worldwide.
+                </p>
+                {/* The same questions in the eleven Indian languages. Internal
+                    inbound links those pages would not otherwise have, and a
+                    reader who thinks in one of them is one tap away. */}
+                <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+                    {LANG_FAQ_CODES.map((code) => (
+                        <Link
+                            key={code}
+                            href={`/faq/${code}`}
+                            hrefLang={code}
+                            lang={code}
+                            className="underline hover:text-zinc-300"
+                        >
+                            {LANG_FAQ[code].nativeName}
+                        </Link>
+                    ))}
                 </p>
                 <p className="mt-4">
                     <Link className="underline hover:text-zinc-300" href="/help">

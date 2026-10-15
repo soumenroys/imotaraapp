@@ -231,6 +231,20 @@ export default function BengaliPage() {
             </div>
           </div>
 
+          {/* 🔑 The question-shaped page in this language. Measured 16 Oct:
+              this page and its two siblings produce no non-brand impressions,
+              because they are organised around what Imotara wants to SAY.
+              /faq/bn is organised around what people ASK. */}
+          <div className="text-sm">
+            <Link
+              href="/faq/bn"
+              hrefLang="bn"
+              className="text-zinc-400 underline underline-offset-2 hover:text-zinc-200"
+            >
+              ইমোতারা নিয়ে সাধারণ প্রশ্ন ও উত্তর
+            </Link>
+          </div>
+
           {/* Language switcher */}
           <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
             <span>ভাষা পরিবর্তন করুন:</span>

@@ -232,6 +232,20 @@ export default function TamilPage() {
             </div>
           </div>
 
+          {/* 🔑 The question-shaped page in this language. Measured 16 Oct:
+              this page and its two siblings produce no non-brand impressions,
+              because they are organised around what Imotara wants to SAY.
+              /faq/ta is organised around what people ASK. */}
+          <div className="text-sm">
+            <Link
+              href="/faq/ta"
+              hrefLang="ta"
+              className="text-zinc-400 underline underline-offset-2 hover:text-zinc-200"
+            >
+              இமோதாரா பற்றிய பொதுவான கேள்வி-பதில்கள்
+            </Link>
+          </div>
+
           {/* Language switcher */}
           <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
             <span>மொழி மாற்றவும்:</span>

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getAllPosts } from "@/lib/blog";
 import { AUDIENCE_PAGES } from "@/data/audiencePages";
+import { LANG_FAQ_CODES } from "@/data/faqLang";
 
 const base = (() => {
   const explicit = (process.env.NEXT_PUBLIC_SITE_URL || "").trim();
@@ -18,6 +19,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // remember this file.
   const audienceEntries: MetadataRoute.Sitemap = Object.keys(AUDIENCE_PAGES).map((slug) => ({
     url: `${base}/for/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly",
+    priority: 0.9,
+  }));
+
+  // The Indian-language question pages. Enumerated from the data for the same
+  // reason as the audience pages — a twelfth language should be indexed the day
+  // it is written, not whenever someone remembers this file.
+  // ⚠️ Same priority as /faq: these are the question-shaped pages, in the
+  // languages where the competition is thinnest.
+  const langFaqEntries: MetadataRoute.Sitemap = LANG_FAQ_CODES.map((lang) => ({
+    url: `${base}/faq/${lang}`,
     lastModified: now,
     changeFrequency: "monthly",
     priority: 0.9,
@@ -55,6 +68,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/hi`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
     { url: `${base}/bn`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
     { url: `${base}/ta`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+
+    // ── The question pages in the Indian languages ──────────────────────────
+    // ⚠️ Not the same thing as /hi /bn /ta above. Those are brand pages; these
+    // answer what people actually type.
+    ...langFaqEntries,
 
     // ── Who it's for: the audience landing pages ────────────────────────────
     { url: `${base}/for`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },

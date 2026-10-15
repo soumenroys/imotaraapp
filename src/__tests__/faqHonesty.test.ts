@@ -152,7 +152,17 @@ describe("🔍 the page is built so search and AI surfaces can use it", () => {
     });
 
     it("carries a canonical URL", () => {
-        expect(page).toMatch(/alternates: \{ canonical: URL \}/);
+        expect(page).toMatch(/canonical: URL,?/);
+    });
+
+    it("🔑 and points at its Indian-language translations, reciprocally", () => {
+        // The eleven /faq/<lang> pages each name this one; without the return
+        // links Google reads the set as unrelated near-duplicates rather than
+        // translations of one another. ⚠️ This assertion is why the canonical
+        // pin above had to loosen — `alternates` grew a `languages` map.
+        expect(page).toMatch(/languages: \{/);
+        expect(page).toMatch(/LANG_FAQ_CODES/);
+        expect(page).toMatch(/"x-default": URL/);
     });
 
     it("⛔ /help was NOT modified — the owner's constraint", () => {

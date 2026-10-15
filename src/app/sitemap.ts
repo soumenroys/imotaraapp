@@ -35,6 +35,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/`,        lastModified: now, changeFrequency: "weekly",  priority: 1.0 },
     { url: `${base}/about`,   lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${base}/guide`,   lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    // ⚠️ High priority on purpose. Measured 16 Oct: the site ranks for its own
+    // NAME and essentially nothing else, and the only non-brand query that has
+    // ever produced an impression was question-shaped. /faq is the one page
+    // built in that shape.
+    { url: `${base}/faq`,     lastModified: now, changeFrequency: "monthly", priority: 0.9 },
     { url: `${base}/donate`,  lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${base}/privacy`, lastModified: now, changeFrequency: "yearly",  priority: 0.5 },
     { url: `${base}/terms`,   lastModified: now, changeFrequency: "yearly",  priority: 0.5 },

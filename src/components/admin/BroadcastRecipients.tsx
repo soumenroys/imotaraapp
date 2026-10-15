@@ -66,6 +66,10 @@ export default function BroadcastRecipients({
   const [rows, setRows] = useState<Row[]>([{ local: "", domain: "gmail.com", custom: "" }]);
 
   const [buckets, setBuckets] = useState<Buckets | null>(null);
+  // Refused by the DNS gate in the route, not by classify — kept beside the
+  // buckets rather than inside them because classify stays pure.
+  const [undeliverable, setUndeliverable] =
+    useState<{ email: string; reason: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [added, setAdded] = useState<number | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
@@ -90,7 +94,7 @@ export default function BroadcastRecipients({
 
   function setRow(i: number, patch: Partial<Row>) {
     setRows((rs) => rs.map((r, n) => (n === i ? { ...r, ...patch } : r)));
-    setBuckets(null); setAdded(null);
+    setBuckets(null); setAdded(null); setUndeliverable([]);
   }
 
   function addRow(after: number) {
@@ -122,6 +126,7 @@ export default function BroadcastRecipients({
       const j = await res.json().catch(() => ({}));
       if (!res.ok) { setError(j.error ?? `Request failed (HTTP ${res.status}).`); return; }
       setBuckets(j.buckets ?? null);
+      setUndeliverable(j.undeliverable ?? []);
       if (!dryRun) {
         setAdded(j.added ?? 0);
         setRaw("");
@@ -214,7 +219,7 @@ export default function BroadcastRecipients({
             {([["rows", "Type them in"], ["paste", "Paste a list"]] as const).map(([m, label]) => (
               <button
                 key={m}
-                onClick={() => { setMode(m); setBuckets(null); setAdded(null); }}
+                onClick={() => { setMode(m); setBuckets(null); setAdded(null); setUndeliverable([]); }}
                 className={`rounded-md px-2.5 py-1 text-[11px] transition ${
                   mode === m ? "bg-white/10 font-medium text-zinc-200" : "text-zinc-500 hover:text-zinc-300"
                 }`}
@@ -326,7 +331,7 @@ export default function BroadcastRecipients({
         ) : (
           <textarea
             value={raw}
-            onChange={(e) => { setRaw(e.target.value); setBuckets(null); setAdded(null); }}
+            onChange={(e) => { setRaw(e.target.value); setBuckets(null); setAdded(null); setUndeliverable([]); }}
             rows={5}
             placeholder={"One per line, or separated by commas.\npriya.n@childcare.org\nPriya N <priya.n@childcare.org>"}
             className="w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 font-mono text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-indigo-500/40"
@@ -394,6 +399,15 @@ export default function BroadcastRecipients({
             title={`${buckets.invalid.length} not a valid address`} note="fix or drop"
             detail={buckets.invalid.map((i) =>
               `${i.original} — ${i.reason}${i.suggestion ? `, did you mean ${i.suggestion}?` : ""}`).join(" · ")} />
+
+          {/* 🔴 Separate from "not a valid address" ON PURPOSE. These are
+              perfectly well-formed addresses at a domain that has no mail
+              server, so there is nothing to fix — the action is to drop them.
+              Telling an admin to "fix" lgsservices.org would waste their time. */}
+          <Bucket tone="rose" n={undeliverable.length}
+            title={`${undeliverable.length} at a domain that cannot receive mail`}
+            note="refused — would hard bounce"
+            detail={undeliverable.map((u) => `${u.email} — ${u.reason}`).join(" · ")} />
         </div>
       )}
 

@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { classify } from "@/lib/broadcast/parseRecipients";
+import { checkEmailDomains, domainOf } from "@/lib/broadcast/deliverability";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -129,8 +130,39 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const buckets = classify(raw, existing, suppressed);
 
+  // 🔴 DNS gate, applied AFTER classify and deliberately not inside it.
+  // classify is pure by design ("no I/O — the classification logic is the part
+  // most worth testing"), and a DNS call in there would make every test of it
+  // need a network. So the syntactic verdict stays pure and the deliverability
+  // verdict is layered on here, where the route already does I/O.
+  //
+  // ⚠️ Measured 2026-10-15: 10.2% HARD bounce rate against a ~2% healthy
+  // ceiling. A domain with no mail server is a guaranteed hard bounce, and
+  // suppression only catches it AFTER the reputation damage. This refuses it
+  // at the door instead.
+  const undeliverable: { email: string; reason: string }[] = [];
+  if (buckets.toAdd.length > 0) {
+    const verdicts = await checkEmailDomains(buckets.toAdd.map((a) => a.email));
+    const keep: typeof buckets.toAdd = [];
+    for (const a of buckets.toAdd) {
+      // ⛔ Only a definite "no_mail_server" rejects. "unknown" is allowed
+      // through on purpose — see the asymmetry note in deliverability.ts.
+      if (verdicts.get(domainOf(a.email)) === "no_mail_server") {
+        undeliverable.push({
+          email: a.email,
+          reason: `"${domainOf(a.email)}" has no mail server — mail to it cannot be delivered`,
+        });
+      } else {
+        keep.push(a);
+      }
+    }
+    buckets.toAdd = keep;
+  }
+
   if (dryRun) {
-    return NextResponse.json({ dryRun: true, buckets, wouldAdd: buckets.toAdd.length });
+    return NextResponse.json({
+      dryRun: true, buckets, undeliverable, wouldAdd: buckets.toAdd.length,
+    });
   }
 
   // ── Write ──────────────────────────────────────────────────────────────────
@@ -160,7 +192,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     added = count ?? rows.length;
   }
 
-  return NextResponse.json({ added, buckets }, { status: 200 });
+  // undeliverable travels with the write result too, not only the dry run —
+  // an admin who skipped the preview still needs to see what was refused.
+  return NextResponse.json({ added, buckets, undeliverable }, { status: 200 });
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {

@@ -419,7 +419,33 @@ Behavior (`POST .../members` with `action: "resend_password_link"`, super-admin 
 
 **Where:** `/admin` → the **📣 Broadcast** tab. It is the only tab restricted to the `owner` role. Every route behind it calls `requireOwner()`, so the hidden tab is convenience and the server is the rule. `requireOwner()` also **refuses the legacy `ADMIN_SECRET` bearer path** (§17): that path returns a synthetic identity which is not a row in `super_admins`, so it could never satisfy `created_by`.
 
-The tab has four screens: **Broadcasts**, **Recipient lists**, **Requests**, **Sending status**.
+The tab has five screens: **Broadcasts**, **Recipient lists**, **Requests**, **Sending status**, **Templates**.
+
+### 16.0 Message templates and the usage counter (added 2026-10-15, v1.5.8)
+
+**Where:** inside the composer, a **Start from a template** card above the subject.
+
+Fifty ready-made messages across five audiences — **Individual users, NGOs, Educational institutes, Corporates, Old age homes**, ten each. Choosing one fills the subject and body with ordinary composer markup that you then edit. Nothing is sent as written.
+
+**The house style is a deliverability decision, not a matter of taste.** Every template deliberately has **no images, no call-to-action buttons and at most one link**, because those are precisely the signals that route mail to Gmail's Promotions tab. Enforced by `src/__tests__/broadcast/templateHouseStyle.test.ts` — promotional vocabulary, shouted or duplicated subject lines and missing questions all fail the build. If you add a template, it must pass the same rules.
+
+**Every template ends with a question.** As of 15 October 2026, 233 broadcasts had been delivered and **not one recipient had ever replied**. A reply is the strongest signal a mail provider has that a sender is wanted, so each message asks something answerable.
+
+> ⚠️ **Four of the five sets are NOT a newsletter.** NGOs, educational institutes, corporates and old age homes are **sales outreach, to be sent one-to-one to a named person**. Measured on 15 October: organisation generic inboxes (`info@…`) bounced at **30.1%**, individuals at **4.8%**. Fanning a newsletter at `info@` addresses is what put the sending domain at risk. The picker shows a warning on those four; it cannot stop you.
+
+**Templates screen** — per template: how many drafts were **used**, how many were **sent**, how many were still **unedited**, plus recipients, delivered, bounced with rate, and the date last used. Toggle between the templates that have been used and all fifty.
+
+*Used* and *unedited* are two separate numbers on purpose. A template is a starting point you rewrite, so a single count would claim a message still says what the template says when it may not. A template that is **always** heavily edited is the most useful thing the screen can tell you: it needs rewriting.
+
+Requires `docs/sql/broadcast_template_usage.sql` (applied to production 15 Oct 2026). If the columns are missing the screen says so rather than showing an empty table.
+
+### 16.0.1 Addresses are checked when they are imported
+
+Pasting recipients now runs a DNS check on each distinct domain. An address whose domain has **no mail server** is refused and listed separately from "not a valid address" — there is nothing to fix in `someone@dead-domain.org`, so the action is to drop it rather than correct it.
+
+The check deliberately **fails open**: a timeout, a SERVFAIL or any ambiguous answer lets the address through. Wrongly rejecting a real subscriber is silent and permanent; wrongly accepting a dead address costs one bounce that suppression then catches.
+
+⚠️ **It will not fix a high bounce rate on its own.** Measured against the 33 real hard bounces of 15 October, it would have caught **none of them** — every one of those domains was live and only the mailbox was dead. Catching that needs a paid verification service, or not mailing the list.
 
 ---
 

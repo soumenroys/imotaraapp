@@ -94,6 +94,31 @@ Renaming your companion now re-issues the reminder, so the next one uses the new
 
 Fixed in 1.4.1 — turning the reminder off now also cancels any "we miss you" nudge already waiting. Before that, one could still arrive up to 48 hours later.
 
+**"I want a break, but I don't want to lose the reminder"**
+
+From **1.5.8** you can pause it instead of switching it off. In **Settings → Daily check-in reminder**, choose **Pause 3 days** or **Pause 5 days**. The card then shows the date it comes back, and you can press **Resume** at any point before that to end the pause early.
+
+A pause really is a pause: nothing arrives while it lasts, and the reminder re-arms itself when the time is up — you don't have to remember to turn it back on.
+
+**Who can turn it off completely**
+
+- **Free** — you can pause for 3 or 5 days, as often as you like
+- **Plus and above** — you can also switch it off entirely
+
+Pausing and resuming are never restricted by your plan. If you are on Free and want it gone permanently rather than paused, you can also turn reminders off at the operating-system level — in your phone's or browser's notification settings for Imotara — and nothing from Imotara will reach you.
+
+**"Why does it say 'Tuesday' instead of what I wrote?"**
+
+Deliberately. The reminder names **the day you last wrote**, never the words you used.
+
+A lock screen is read by whoever happens to pick the phone up, and a notification quoting your message about your marriage, your diagnosis or your family could tell somebody something you never chose to share. The weekday is unmistakable to you and meaningless to anyone else.
+
+**"It arrives at the wrong time of day"**
+
+The default is **20:00 in your own timezone**, and you can change the time in **Settings → Daily check-in reminder**.
+
+If it arrives at an odd hour, open **Settings** once while signed in — that is what tells us which timezone you are in. Until then we fall back to a fixed hour that may not match your local evening.
+
 ## "The app crashed"
 
 1. If you see the "Something went wrong" screen, tap **Restart app** — your data is safe, and most one-off glitches clear immediately.

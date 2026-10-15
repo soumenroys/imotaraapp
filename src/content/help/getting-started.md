@@ -6,6 +6,19 @@ A friendly walkthrough of your first steps: what Imotara is, using it with or wi
 
 Imotara is a private, emotion-aware AI companion that helps you understand your feelings, track your mood over time, and grow emotionally — without ads, without data tracking, and without paywalls interrupting your conversations. It's available as a web app at www.imotara.com, plus iOS and Android apps. Imotara is a wellness companion for self-reflection and emotional awareness — it is **not** therapy and is not a replacement for professional mental health care. If you ever need clinical help, please reach out to a professional or the crisis helplines listed in the app (see our Safety & Crisis article).
 
+## The welcome screen you see first
+
+The very first time you open Imotara — on the web, on iOS or on Android — you are shown a short welcome screen before anything else. It says what Imotara is, says plainly what it is **not**, shows the emergency numbers for your country, and asks you to accept the Terms and Privacy Policy.
+
+- **Age**: you must be **13 or older**. If you are under **18**, a parent or guardian needs to agree to your use of Imotara. Where your local law sets a higher age, that higher age applies.
+- The acceptance box is **already ticked** — read it and press **Continue** if you agree, or untick it if you do not.
+- It appears in **your language**, all 22 of them, not only in English.
+- You see it **once**. It returns only if the Terms themselves change, and then only so you can accept the new version.
+
+It is deliberately short. The point is that nobody should discover what Imotara is and isn't at the worst possible moment.
+
+> **Imotara is not therapy**, not a crisis service, and not a replacement for a professional who knows you. If you are in danger or thinking of harming yourself, please contact a real service — in India, **Tele-MANAS on 14416**, free and around the clock, or **112** for emergencies.
+
 ## Using Imotara without an account
 
 You don't need to sign up to start. Here's how:

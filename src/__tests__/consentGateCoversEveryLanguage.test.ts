@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
-import { CONSENT_COPY_BY_LANG, getConsentCopy, MINIMUM_AGE } from "@/lib/legal/consentCopy";
+import { CONSENT_COPY_BY_LANG, getConsentCopy, MINIMUM_AGE, PARENTAL_CONSENT_BELOW } from "@/lib/legal/consentCopy";
 import { CRISIS_BANNER_BY_LANG } from "@/lib/safety/crisisCopy";
 import {
     TERMS_VERSION,
@@ -35,18 +35,35 @@ describe("the consent gate speaks every language the crisis card does", () => {
         }
     });
 
-    it("states the minimum age in every translation", () => {
-        // A gate that says "I am 18 or older" in English and omits the number
-        // elsewhere is not an age gate in those languages.
+    it("🔴 states BOTH the minimum age and the parental-consent age, in every translation", () => {
+        // A gate that says the age in English and omits it elsewhere is not an
+        // age gate in those languages.
+        //
+        // 🔑 WHY BOTH NUMBERS. This test used to check for ONE number —
+        // String(MINIMUM_AGE) — and MINIMUM_AGE was wrong (18, when the owner
+        // had decided 13 on 2026-10-13). It passed anyway, because every
+        // translation contains "18" in the parental-consent half of the same
+        // sentence. The guard on the minimum age was being satisfied by a
+        // different number sitting next to it.
+        //
+        // ⛔ Requiring both makes that coincidence impossible: 13 and 18 cannot
+        // stand in for each other.
+        const DIGITS: Record<string, (n: number) => string> = {
+            or: (n) => String(n).replace(/[0-9]/g, (d) => "୦୧୨୩୪୫୬୭୮୯"[Number(d)]),
+            bn: (n) => String(n).replace(/[0-9]/g, (d) => "০১২৩৪৫৬৭৮৯"[Number(d)]),
+        };
+        const missing: string[] = [];
         for (const [lang, copy] of Object.entries(CONSENT_COPY_BY_LANG)) {
-            const hasWesternDigits = copy.agree.includes(String(MINIMUM_AGE));
-            const hasOdiaDigits = copy.agree.includes("୧୮");
-            const hasBengaliDigits = copy.agree.includes("১৮");
-            expect(
-                hasWesternDigits || hasOdiaDigits || hasBengaliDigits,
-                `${lang} does not state the age`,
-            ).toBe(true);
+            const local = DIGITS[lang] ?? ((n: number) => String(n));
+            if (!copy.agree.includes(local(MINIMUM_AGE))) missing.push(`${lang}: minimum age`);
+            if (!copy.agree.includes(local(PARENTAL_CONSENT_BELOW))) missing.push(`${lang}: parental age`);
         }
+        expect(missing).toEqual([]);
+    });
+
+    it("⛔ the constants match the owner's decision, not a nearby number", () => {
+        expect(MINIMUM_AGE).toBe(13);
+        expect(PARENTAL_CONSENT_BELOW).toBe(18);
     });
 
     it("⛔ keeps the DISCLAIMER in every language, not just the warm line", () => {

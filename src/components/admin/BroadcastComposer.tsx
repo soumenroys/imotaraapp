@@ -154,10 +154,12 @@ export default function BroadcastComposer({
       message_type: d.message_type,
       list_id: d.list_id,
       ...(d.from_email ? { from_email: d.from_email } : {}),
-      // Only on first save — the id is fixed at creation and the server will
-      // not let a later PATCH re-attribute an existing message to a different
-      // template, which would otherwise let one send inflate two counters.
-      ...(!d.id && tplId ? { template_id: tplId } : {}),
+      // ⚠️ Sent on EVERY save, not only the first. The common flow is: open
+      // the composer, it autosaves a draft, THEN pick a template — so a
+      // first-save-only rule recorded nothing at all. The server adopts the id
+      // only when the row has none, so one send still cannot inflate two
+      // counters.
+      ...(tplId ? { template_id: tplId } : {}),
     };
     try {
       const res = await fetch(

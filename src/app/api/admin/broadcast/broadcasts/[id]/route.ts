@@ -16,7 +16,7 @@ import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { renderHtml, renderText } from "@/lib/broadcast/markup";
 import { availableIdentities, findIdentity } from "@/lib/broadcast/identities";
-import { templateEditedState } from "@/lib/broadcast/templates";
+import { templateById, templateEditedState } from "@/lib/broadcast/templates";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -65,7 +65,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
   let body: {
     subject?: unknown; body_source?: unknown; header_text?: unknown; from_email?: unknown;
-    message_type?: unknown; list_id?: unknown;
+    message_type?: unknown; list_id?: unknown; template_id?: unknown;
   };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "invalid JSON" }, { status: 400 }); }
@@ -88,6 +88,23 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  // 🔴 A draft can adopt a template AFTER it exists, and until 2026-10-16 it
+  // could not. The composer only sent template_id on the FIRST save, so the
+  // ordinary flow — open the composer, it autosaves, THEN pick a template —
+  // recorded nothing. Three real drafts were created from templates and all
+  // three had template_id NULL; the usage panel would have stayed empty
+  // however much the templates were used.
+  //
+  // ⛔ ADOPT ONCE, NEVER RE-ATTRIBUTE. A row that already names a template
+  // keeps it: letting a later PATCH point it somewhere else would let one send
+  // increment two templates' counters, which is the exact dishonesty the
+  // separate `unedited` number exists to avoid.
+  const existingTpl = (current as { template_id?: string | null }).template_id ?? null;
+  const incomingTpl =
+    typeof body.template_id === "string" ? templateById(body.template_id) : undefined;
+  const effectiveTpl = existingTpl ?? incomingTpl?.id ?? null;
+  if (!existingTpl && incomingTpl) patch.template_id = incomingTpl.id;
 
   if (typeof body.subject === "string") {
     const subject = body.subject.trim();
@@ -125,8 +142,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     //
     // ⚠️ It also handles the way back: if the admin edits and then restores the
     // original wording, this flips to false again rather than staying dirty.
-    const tplId = (current as { template_id?: string | null }).template_id;
-    const edited = templateEditedState(tplId, body.body_source);
+    const edited = templateEditedState(effectiveTpl, body.body_source);
     if (edited !== null) patch.template_edited = edited;
   }
   if (body.message_type === "broadcast" || body.message_type === "operational") {

@@ -100,11 +100,39 @@ describe("⛔ the server decides, not the client", () => {
         expect(patchRoute.slice(i, i + 1100)).toMatch(/templateEditedState\(/);
     });
 
-    it("the PATCH reads the EXISTING template_id rather than taking a new one", () => {
-        // Re-attributing a sent message to a different template would let one
-        // send inflate two counters.
+    it("the PATCH reads the EXISTING template_id", () => {
         const pat = patchRoute.indexOf("export async function PATCH");
         expect(patchRoute.slice(pat, pat + 1200)).toMatch(/select\("id, status, template_id"\)/);
+    });
+
+    it("🔴 a draft can ADOPT a template after it already exists", () => {
+        // THE BUG, found 2026-10-16 against real data: three drafts were
+        // created from templates and all three recorded template_id NULL,
+        // because the composer only sent the id on a draft's FIRST save — and
+        // the ordinary flow is open composer → autosave → pick template.
+        // The panel would have stayed empty however much the templates were used.
+        expect(patchRoute).toMatch(/templateById\(body\.template_id\)/);
+        expect(patchRoute).toMatch(/if \(!existingTpl && incomingTpl\) patch\.template_id/);
+        // ⛔ And the composer must send it on every save, not only the first.
+        const composer = read("src/components/admin/BroadcastComposer.tsx");
+        expect(composer).toMatch(/\.\.\.\(tplId \? \{ template_id: tplId \} : \{\}\)/);
+        expect(composer).not.toMatch(/!d\.id && tplId/);
+    });
+
+    it("⛔ …but NEVER re-attributes one that already has a template", () => {
+        // Otherwise a single send could increment two templates' counters,
+        // which is the exact dishonesty the separate `unedited` number exists
+        // to prevent. Adoption is guarded on the row being empty.
+        expect(patchRoute).toMatch(/const effectiveTpl = existingTpl \?\? incomingTpl\?\.id \?\? null/);
+        expect(patchRoute).toMatch(/!existingTpl/);
+    });
+
+    it("the edited verdict is computed against the EFFECTIVE template", () => {
+        // A template picked on an existing draft arrives with its body in the
+        // same PATCH; computing `edited` against the old (null) id would
+        // record nothing and the use would count as neither edited nor not.
+        const i = patchRoute.indexOf("patch.body_source = body.body_source");
+        expect(patchRoute.slice(i, i + 1100)).toMatch(/templateEditedState\(effectiveTpl,/);
     });
 });
 

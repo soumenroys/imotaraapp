@@ -105,8 +105,9 @@ export const metadata: Metadata = {
     title: "Imotara — An Immortal Friend for Your Emotions",
     description:
       "An emotion-aware companion that listens, learns, and grows with you — quietly, ethically, and forever.",
-    creator: "@imotara4x",
-    site: "@imotara4x",
+    // ⇒ businessIdentity.ts — never retype a handle here.
+    creator: BUSINESS.social.xHandle,
+    site: BUSINESS.social.xHandle,
     images: ["/og-image.png"],
   },
   icons: {
@@ -192,8 +193,14 @@ function JsonLd() {
     // needs to survive being quoted without the page around it.
     description:
       "Imotara is a private emotional wellness companion available in 22 languages. It is not therapy, it does not diagnose, and it is not a crisis service.",
+    // 🔑 sameAs is how a search engine ties this entity to its profiles. A
+    // WRONG entry is worse than none — it claims a stranger's account is ours.
+    // All of these come from businessIdentity.ts. ⇒ owner's social table.
     sameAs: [
-      "https://twitter.com/imotara4x",
+      BUSINESS.social.x,
+      BUSINESS.social.instagram,
+      BUSINESS.social.youtube,
+      BUSINESS.social.linkedin,
       "https://play.google.com/store/apps/details?id=com.imotara.imotara",
       "https://apps.apple.com/in/app/imotara/id6756697569",
     ],

@@ -58,6 +58,33 @@ export const BUSINESS = {
     supportResponseTarget: "2 business days",
 
     website: "https://www.imotara.com",
+
+    /**
+     * 🔑 THE OFFICIAL SOCIAL CHANNELS — owner-supplied, 2026-10-16, and the
+     * single source of truth for them.
+     *
+     * 🔴 WHY THIS EXISTS. The X handle was hardcoded as `imotara4x` in FOUR
+     * places — the twitter card `creator` and `site`, the Organization schema's
+     * `sameAs`, and the blog's tweet-intent `via=`. It is wrong: the real
+     * account is `imotaraofficial`. A wrong handle in `sameAs` tells search
+     * engines the wrong profile belongs to this entity, which is worse than
+     * naming none at all, and a wrong `via=` credits a stranger every time
+     * someone shares a post.
+     *
+     * ⛔ Owner's standing instruction: the social-channels table they maintain
+     * is the right information. Do not take a handle from code, from a form's
+     * autofill, or from memory — take it from here, and correct here first.
+     *
+     * ⚠️ Facebook is deliberately absent: the entry on that sheet is the bare
+     * `facebook.com/` root, not a page, so there is nothing to point at yet.
+     */
+    social: {
+        x: "https://x.com/imotaraofficial",
+        xHandle: "@imotaraofficial",
+        instagram: "https://www.instagram.com/imotaraofficial/",
+        youtube: "https://www.youtube.com/@Imotara",
+        linkedin: "https://www.linkedin.com/in/imotara-app-9b4147403",
+    },
 } as const;
 
 /** "6/B, Kalipada Mukherjee Road, Barisha, Kolkata, West Bengal – 700008, India" */

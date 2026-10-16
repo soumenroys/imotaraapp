@@ -157,3 +157,54 @@ describe("🔴 the site-wide schemas are actually EMITTED, not merely defined", 
         expect(emitted, "a schema object is defined with nothing rendering it").toBe(defined);
     });
 });
+
+describe("🔴 social handles come from the owner's table, never from code", () => {
+    // Found 2026-10-16. `imotara4x` was hardcoded in FOUR places — the twitter
+    // card creator and site, the Organization sameAs, and the blog's
+    // tweet-intent via= — and it is not Imotara's account. The real one is
+    // imotaraofficial.
+    //
+    // ⛔ WHY THIS IS WORSE THAN HAVING NO HANDLE. `sameAs` is how a search
+    // engine ties an entity to its profiles, so a wrong entry asserts that a
+    // stranger's account belongs to this company. And `via=` credits that
+    // stranger every time a reader shares a post.
+    //
+    // 🔑 Owner's standing instruction: their social-channels table is the right
+    // information. These assert the code DERIVES from the one module that
+    // carries it, rather than repeating a handle that can rot.
+
+    it("the wrong handle appears nowhere in live code", () => {
+        for (const f of ["src/app/layout.tsx", "src/app/blog/[slug]/page.tsx"]) {
+            const src = read(f);
+            // Comments may document the old value; code may not use it.
+            const code = src
+                .split("\n")
+                .filter((l) => !l.trim().startsWith("//") && !l.trim().startsWith("*"))
+                .join("\n");
+            expect(code, `${f} still uses the retired handle`).not.toContain("imotara4x");
+        }
+    });
+
+    it("the twitter card and sameAs both derive from the identity module", () => {
+        const layout = read("src/app/layout.tsx");
+        expect(layout).toContain("creator: BUSINESS.social.xHandle");
+        expect(layout).toContain("site: BUSINESS.social.xHandle");
+        expect(layout).toContain("BUSINESS.social.x,");
+    });
+
+    it("sameAs lists every channel the owner actually has", () => {
+        const start = read("src/app/layout.tsx").indexOf("const organization = {");
+        const layout = read("src/app/layout.tsx");
+        const sameAsStart = layout.indexOf("sameAs: [", start);
+        const sameAs = layout.slice(sameAsStart, layout.indexOf("]", sameAsStart));
+        for (const k of ["BUSINESS.social.x", "BUSINESS.social.instagram", "BUSINESS.social.youtube", "BUSINESS.social.linkedin"]) {
+            expect(sameAs, `sameAs is missing ${k}`).toContain(k);
+        }
+    });
+
+    it("the handle itself is the official one", async () => {
+        const { BUSINESS } = await import("@/lib/imotara/businessIdentity");
+        expect(BUSINESS.social.xHandle).toBe("@imotaraofficial");
+        expect(BUSINESS.social.x).toContain("imotaraofficial");
+    });
+});

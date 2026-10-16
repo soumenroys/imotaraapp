@@ -9,6 +9,7 @@ import {
   formatPostDate,
   type BlogCategory,
 } from "@/lib/blog";
+import { BUSINESS } from "@/lib/imotara/businessIdentity";
 import BlogComments from "@/components/blog/BlogComments";
 import BlogHero from "@/components/blog/BlogHero";
 
@@ -133,7 +134,9 @@ function CategoryBadge({ category }: { category: BlogCategory }) {
 
 function ShareButtons({ title, slug }: { title: string; slug: string }) {
   const url = `https://imotara.com/blog/${slug}`;
-  const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}&via=imotara4x`;
+  // ⚠️ `via=` credits an account by handle. It was `imotara4x`, which is not
+  // ours — every share was crediting a stranger. ⇒ businessIdentity.ts
+  const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}&via=${BUSINESS.social.xHandle.replace("@", "")}`;
   const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
 
   return (

@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { getAllPosts } from "@/lib/blog";
 import { AUDIENCE_PAGES } from "@/data/audiencePages";
 import { LANG_FAQ_CODES } from "@/data/faqLang";
+import { COMPARE_SLUGS } from "@/data/comparePages";
 
 const base = (() => {
   const explicit = (process.env.NEXT_PUBLIC_SITE_URL || "").trim();
@@ -31,6 +32,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // languages where the competition is thinnest.
   const langFaqEntries: MetadataRoute.Sitemap = LANG_FAQ_CODES.map((lang) => ({
     url: `${base}/faq/${lang}`,
+    lastModified: now,
+    changeFrequency: "monthly",
+    priority: 0.9,
+  }));
+
+  // ⚠️ Derived, like the two above, so a sixth decision page is indexed the day
+  // it is written rather than whenever someone remembers this file.
+  const compareEntries: MetadataRoute.Sitemap = COMPARE_SLUGS.map((slug) => ({
+    url: `${base}/compare/${slug}`,
     lastModified: now,
     changeFrequency: "monthly",
     priority: 0.9,
@@ -73,6 +83,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // ⚠️ Not the same thing as /hi /bn /ta above. Those are brand pages; these
     // answer what people actually type.
     ...langFaqEntries,
+
+    // ── The decision pages ──────────────────────────────────────────────────
+    // ⚠️ Same priority as /faq and the language FAQs, and for the same measured
+    // reason: question-shaped pages are the only shape that has ever produced a
+    // non-brand impression here.
+    { url: `${base}/compare`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+    ...compareEntries,
 
     // ── Who it's for: the audience landing pages ────────────────────────────
     { url: `${base}/for`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },

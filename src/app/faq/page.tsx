@@ -171,6 +171,13 @@ export default function FaqPage() {
                     ))}
                 </p>
                 <p className="mt-4">
+                    {/* ⚠️ /compare is reachable from here on purpose. The sitemap
+                        alone leaves it an orphan in the HTML link graph, which is
+                        crawled later and carries no internal weight. */}
+                    <Link className="underline hover:text-zinc-300" href="/compare">
+                        Honest comparisons
+                    </Link>
+                    {" · "}
                     <Link className="underline hover:text-zinc-300" href="/help">
                         Ask the help assistant
                     </Link>

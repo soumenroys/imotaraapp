@@ -9,7 +9,7 @@ export const meta: BlogPost = {
     "AI mental wellness apps and therapy both support emotional health — but in very different ways. Here's an honest breakdown of what each does, and when to choose which.",
   date: "2026-04-20",
   category: "Mental Health",
-  tags: ["AI therapy", "mental health", "therapy alternative", "AI companion", "emotional wellness"],
+  tags: ["AI vs therapy", "mental health", "when to see a therapist", "AI companion", "emotional wellness"],
   author: {
     name: "Soumen Roy",
     role: "Founder, Imotara",

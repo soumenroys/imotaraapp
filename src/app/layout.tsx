@@ -67,12 +67,10 @@ export const metadata: Metadata = {
     "digital companion",
     "private companion",
     "multilingual mental health",
-    "private companion",
     "emotional diary",
     "mood journal app",
     "anxiety support app",
     "mindfulness app",
-    "therapy alternative companion",
     "emotional intelligence app",
     "free mental health app",
     "mental wellness Android app",
@@ -280,7 +278,7 @@ function JsonLd() {
       "ta","te","ml","kn","mr","gu","pa","ur","or",
     ],
     keywords:
-      "emotional wellness companion, mental health, mood tracker, multilingual, anxiety support, mindfulness, therapy alternative, talk about feelings, private mental health app",
+      "emotional wellness companion, mental health, mood tracker, multilingual, anxiety support, mindfulness, talk about feelings, private mental health app",
   };
 
   const webApp = {

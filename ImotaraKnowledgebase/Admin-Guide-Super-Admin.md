@@ -609,10 +609,22 @@ Only people who approached Imotara may be mailed: an event, a meeting, an email,
 
 ---
 
-## 17. Security note: the ADMIN_SECRET legacy fallback
+## 17. The ADMIN_SECRET legacy fallback — **retired 16 Oct 2026**
 
-There is a legacy authentication path: a single shared secret sent as `Authorization: Bearer <ADMIN_SECRET>`. When accepted, it authenticates as a synthetic **owner** ("Admin (legacy key)").
+**Short version: it is off, the login box is gone, and sign-in is email + password with 2FA. There is nothing you need to do.**
 
-**Why it should be disabled:** anyone holding that one secret gets full owner-level access with no individual accountability, no 2FA, and no per-person audit trail. The multi-user session system (this whole guide) exists to replace it.
+There used to be a second way in: a single shared secret sent as `Authorization: Bearer <ADMIN_SECRET>`, and a **"Secret key" tab on the `/admin` login card** that posted it for you. Anyone holding that one secret had admin access with no individual accountability, no 2FA and no per-person audit trail — and the key in production was **194 days old and present in Preview as well as Production**.
 
-**How to disable it:** set the environment variable **`ADMIN_SECRET_DISABLED=true`**. When set, both `adminAuthorized()` and `connectAdminAuthorized()` refuse the Bearer secret entirely and only accept real session cookies. The shipped `.env.example` already sets `ADMIN_SECRET_DISABLED=true` — production should keep it that way and reserve the secret strictly for emergency break-glass (e.g., if all owner accounts are locked out).
+**What changed, 16 Oct 2026:**
+
+| | |
+|---|---|
+| `ADMIN_SECRET_DISABLED=true` | set in **Production and Preview**, and production **redeployed** — the variable alone does nothing until a deploy |
+| The **"Secret key" tab** on `/admin` | **removed from the code**, along with its form and handler |
+| The footer hint *"Set ADMIN_SECRET in .env.local"* | replaced — it would have sent a locked-out admin chasing a key that no longer works |
+
+**How to get in now:** email + password on `/admin`, with 2FA if you have it enabled. Locked out? Use **Forgot password?** — a 15-minute reset link is emailed to you.
+
+⚠️ **A correction to what this section used to say.** It claimed the key authenticates as a synthetic **owner**. That was true once and is not now: it reports role `admin`, deliberately, so it cannot delete an organisation, mint a new owner-role super-admin, or unlock an existing one. It also claimed `adminAuthorized()` and `connectAdminAuthorized()` were the two functions honouring the switch — **a third, `requireSuperAdmin()`, did not**, and it guarded more routes than both of those combined, including the one that issues a sign-in link for any user. Fixed 16 Oct.
+
+**If you ever genuinely need break-glass access**, the path is `git revert` of the UI removal plus setting `ADMIN_SECRET_DISABLED=false` — a deliberate, reviewable act, not an env var someone can quietly flip. The `ADMIN_SECRET` variable itself still exists in Vercel and can be deleted whenever you want; nothing in either repo reads or sends it.

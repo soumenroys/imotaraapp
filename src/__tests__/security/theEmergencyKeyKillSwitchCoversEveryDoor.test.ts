@@ -96,6 +96,40 @@ describe("🔴 the emergency-key kill switch covers every door the key opens", (
         expect(source).not.toMatch(/role:\s*"owner" as const/);
     });
 
+    it("⛔ /admin offers NO secret-key login box any more", () => {
+        // 🔴 The key was never curl-only: /admin had a "Secret key" tab beside
+        // the email one. It posted the key to /api/admin/comments and, on 200,
+        // stored it in sessionStorage as the session token for every later
+        // admin call. So the 194-day-old shared secret was a FRONT-DOOR LOGIN,
+        // not just an emergency header.
+        //
+        // ⚠️ Once ADMIN_SECRET_DISABLED=true was set, that box could never
+        // succeed — leaving a login form that silently always fails, the same
+        // shape as the mobile crisis-country setting that was written and never
+        // read. Removed in code so it cannot come back by an env-var edit.
+        const page = fs.readFileSync(
+            path.join(process.cwd(), "src/app/admin/page.tsx"), "utf8",
+        );
+        const code = page.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+        expect(code, "the Secret key tab is back").not.toMatch(/Secret key/);
+        expect(code, "the login mode switcher is back").not.toMatch(/setLoginMode/);
+        // ⛔ And nothing on that page may send a Bearer to the comments route,
+        // which is how the box authenticated.
+        expect(code).not.toMatch(/admin\/comments["'`][\s\S]{0,160}Authorization/);
+    });
+
+    it("✅ and the page points a locked-out admin at the reset flow instead", () => {
+        // The old footer said "Set ADMIN_SECRET in .env.local" — advice that
+        // would now send someone chasing a key that is switched off and has no
+        // login box. A dead instruction is worse than none.
+        const page = fs.readFileSync(
+            path.join(process.cwd(), "src/app/admin/page.tsx"), "utf8",
+        );
+        const code = page.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+        expect(code).not.toMatch(/Set <code[^>]*>ADMIN_SECRET/);
+        expect(code).toMatch(/Forgot password\?/);
+    });
+
     it("⚠️ nothing in the codebase DEPENDS on the legacy Bearer path", () => {
         // Which is why the switch is safe to turn on. Crons authenticate with
         // CRON_SECRET; no script and nothing in imotara-mobile sends this key.

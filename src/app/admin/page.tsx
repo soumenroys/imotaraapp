@@ -157,7 +157,6 @@ function providerLabel(p: string | null) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
-  const [loginMode, setLoginMode] = useState<"email" | "secret">("email");
 
   // Email + password mode
   const [email, setEmail]         = useState("");
@@ -219,12 +218,6 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
     });
   }
 
-  // Secret key mode (legacy)
-  const [value, setValue]       = useState("");
-  const [showPwd, setShowPwd]   = useState(false);
-  const [error, setError]       = useState("");
-  const [isPending, startTransition] = useTransition();
-
   function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     startEmailTransition(async () => {
@@ -246,20 +239,6 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
     });
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    startTransition(async () => {
-      const res = await fetch("/api/admin/comments", {
-        headers: { Authorization: `Bearer ${value.trim()}` },
-      });
-      if (res.ok) {
-        sessionStorage.setItem(SESSION_KEY, value.trim());
-        onAuth(value.trim());
-      } else {
-        setError("Incorrect secret key. Check ADMIN_SECRET in .env.local");
-      }
-    });
-  }
 
   const inputCls = "w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-4 pr-10 text-sm text-zinc-200 placeholder-zinc-600 outline-none transition focus:border-indigo-500/40";
 
@@ -277,17 +256,21 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
           <p className="mt-0.5 text-xs text-zinc-500">Super-admin panel</p>
         </div>
 
-        {/* Mode switcher */}
-        <div className="flex rounded-xl border border-white/8 bg-white/5 p-1">
-          <button type="button" onClick={() => setLoginMode("email")}
-            className={`flex-1 rounded-lg py-1.5 text-xs transition ${loginMode === "email" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
-            Email / Password
-          </button>
-          <button type="button" onClick={() => setLoginMode("secret")}
-            className={`flex-1 rounded-lg py-1.5 text-xs transition ${loginMode === "secret" ? "bg-white/10 font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}>
-            Secret key
-          </button>
-        </div>
+        {/* 🔴 THE "Secret key" TAB IS GONE — removed 2026-10-16.
+            It signed you in with ADMIN_SECRET: one static shared secret, 194
+            days old, present in BOTH Production and Preview, standing in for a
+            real super-admin. It reached /admin/users/[userId]/recovery-link,
+            which mints a magic link that signs the caller in AS ANY USER.
+
+            ⛔ The tab had already stopped working when ADMIN_SECRET_DISABLED=true
+            was set, so leaving it would have been a login box that silently
+            always fails — the same shape as the crisis-country setting that was
+            written and never read.
+
+            🔑 Removed in CODE, not by deleting the env var, because this is
+            reversible: `git revert` plus flipping the flag brings it back if an
+            emergency ever needs it. Email + password with 2FA is the way in, and
+            there are two active owner accounts with working e-mail reset. */}
 
         {/* Password reset flow — shown when ?reset_token= is in URL */}
         {resetToken && (
@@ -308,7 +291,7 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
         )}
 
         {/* Email + password login */}
-        {!resetToken && loginMode === "email" && !showForgot && (
+        {!resetToken && !showForgot && (
           <form onSubmit={handleEmailSubmit} className="space-y-3">
             <input type="email" aria-label="Admin email" placeholder="admin@imotara.com" value={email} onChange={(e) => { setEmail(e.target.value); setEmailError(""); }} autoFocus required className={inputCls} />
             <div className="relative">
@@ -331,7 +314,7 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
         )}
 
         {/* Forgot password flow */}
-        {!resetToken && loginMode === "email" && showForgot && (
+        {!resetToken && showForgot && (
           <div className="space-y-3">
             <p className="text-sm text-zinc-300">Enter your admin email — we&apos;ll send a reset link (expires in 15 min).</p>
             {forgotMsg ? (
@@ -352,43 +335,16 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
         )}
 
         {/* Legacy secret key login */}
-        {loginMode === "secret" && (
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="relative">
-            <input
-              type={showPwd ? "text" : "password"}
-              placeholder="Enter admin secret key"
-              value={value}
-              onChange={(e) => { setValue(e.target.value); setError(""); }}
-              autoFocus
-              required
-              className={inputCls}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPwd((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 transition hover:text-zinc-300"
-              aria-label={showPwd ? "Hide key" : "Show key"}
-            >
-              <EyeIcon open={showPwd} />
-            </button>
-          </div>
+        {/* ⛔ The secret-key form was HERE and is deliberately gone.
+            Nothing could reach it once the tab was removed, and an unreachable
+            login form is exactly the dead code this repo has been caught by
+            before — it reads as a working path to whoever finds it next. */}
 
-          {error && <p className="text-[11px] text-rose-400">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={isPending || !value.trim()}
-            className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-sky-500 py-2.5 text-sm font-medium text-white shadow-sm transition hover:brightness-110 disabled:opacity-40"
-          >
-            {isPending ? "Verifying…" : "Sign in"}
-          </button>
-        </form>
-        )}
-
+        {/* ⚠️ Was "Set ADMIN_SECRET in .env.local" — advice that would now send
+            someone chasing a key that is switched off and no longer has a login
+            box. Locked-out admins need the reset flow, not an env var. */}
         <p className="mt-auto text-center text-[10px] text-zinc-600">
-          Set <code className="text-zinc-400">ADMIN_SECRET</code> in{" "}
-          <code className="text-zinc-400">.env.local</code>
+          Locked out? Use <span className="text-zinc-400">Forgot password?</span> above.
         </p>
         </div>
         {/* ── RIGHT: Guide panel ───────────────────────────────────────────── */}

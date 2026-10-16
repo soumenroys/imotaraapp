@@ -97,6 +97,21 @@ as $$
       and w.purged_at is null
 $$;
 
+-- 🔴 REVOKE FROM **PUBLIC** FIRST, AND THIS IS THE LINE THAT ACTUALLY MATTERS.
+-- PostgreSQL grants EXECUTE on every new function to PUBLIC automatically, and
+-- `anon` inherits it from there. Revoking from anon and authenticated by name
+-- therefore removes NOTHING — the implicit PUBLIC grant is still standing.
+--
+-- ⚠️ MEASURED, 2026-10-16, after this file was first applied: calling this
+-- function with the public anon key returned `[]` — it EXECUTED. It is
+-- `security definer` and selects `auth.users.email`, so once accounts started
+-- going dormant, anyone holding the anon key could have enumerated the email
+-- addresses of dormant users. It returned empty only because no account is yet
+-- 24 months idle; the hole was real and simply had nothing in it.
+--
+-- ⇒ Every other function in docs/sql already revokes from PUBLIC. This file
+-- was the one that broke the convention.
+revoke all on function public.retention_candidates(integer) from public;
 revoke all on function public.retention_candidates(integer) from anon, authenticated;
 
 comment on function public.retention_candidates(integer) is

@@ -87,6 +87,12 @@ export const BUSINESS = {
         // /in/imotara-app-9b4147403 still redirects, but a stable, readable URL
         // is the one that belongs in `sameAs` and on printed material.
         linkedin: "https://www.linkedin.com/in/imotara",
+        // ⚠️ Claimed the username on 2026-10-16. Before that the Page had none
+        // and lived at profile.php?id=61591783672102 — a URL that cannot go in
+        // sameAs and that nobody can type. `imotara` was already taken, almost
+        // certainly by one of the duplicate Pages; `imotaraofficial` matches
+        // the X and Instagram handles, which is the better outcome anyway.
+        facebook: "https://www.facebook.com/imotaraofficial",
     },
 } as const;
 

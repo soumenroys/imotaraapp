@@ -212,6 +212,7 @@ function JsonLd() {
       BUSINESS.social.instagram,
       BUSINESS.social.youtube,
       BUSINESS.social.linkedin,
+      BUSINESS.social.facebook,
       "https://play.google.com/store/apps/details?id=com.imotara.imotara",
       "https://apps.apple.com/in/app/imotara/id6756697569",
     ],

@@ -107,7 +107,7 @@ const BENIGN_HOSTS = new Set([
     // markup + store/social links we render
     "schema.org", "play.google.com", "apps.apple.com", "findahelpline.com",
     "x.com", "twitter.com", "www.linkedin.com", "www.instagram.com",
-    "instagram.com", "www.youtube.com",
+    "instagram.com", "www.youtube.com", "www.facebook.com",
     // consoles and status pages we link to in admin/docs
     "status.openai.com", "platform.openai.com", "aistudio.google.com",
     "console.cloud.google.com",

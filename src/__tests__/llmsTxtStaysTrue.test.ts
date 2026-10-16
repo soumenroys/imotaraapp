@@ -86,7 +86,7 @@ describe("llms.txt carries the social handles from BUSINESS.social", () => {
         expect(LLMS).not.toMatch(/imotara4x|imotara4me/i);
     });
 
-    for (const key of ["instagram", "youtube", "linkedin"] as const) {
+    for (const key of ["instagram", "youtube", "linkedin", "facebook"] as const) {
         it(`links ${key} as BUSINESS.social says`, () => {
             expect(LLMS).toContain(BUSINESS.social[key]);
         });

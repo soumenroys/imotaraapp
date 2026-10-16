@@ -1,4 +1,8 @@
 import Link from "next/link";
+import {
+  RETENTION_INACTIVE_MONTHS,
+  RETENTION_GRACE_DAYS,
+} from "@/lib/account/retentionPolicy";
 import PrivacyActionsPanel from "@/components/imotara/PrivacyActionsPanel";
 import packageJson from "../../../package.json";
 
@@ -309,8 +313,25 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-medium text-zinc-50">Data Retention</h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
               Local data remains on your device unless you delete it or uninstall the
-              app/clear browser storage. Cloud-synced data remains until you request
-              deletion, delete your account, or retention limits require removal.
+              app, or clear browser storage.
+            </p>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              Cloud-synced data is kept for as long as your account is active, because
+              your mood history over months and years is the part of Imotara that gets
+              more useful with time. We do not delete the history of people who are
+              using the app.
+            </p>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              If an account shows no activity for <strong>{RETENTION_INACTIVE_MONTHS} months</strong>, we email
+              the address on it to say the data is about to be removed. If there is
+              still no activity <strong>{RETENTION_GRACE_DAYS} days</strong> after that email, the account
+              and its cloud data are permanently deleted. You can stop this at any point
+              simply by signing in.
+            </p>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              You can also delete everything yourself at any time, without waiting —
+              see Your Rights &amp; Controls below. That removal is immediate and
+              permanent.
             </p>
           </section>
 

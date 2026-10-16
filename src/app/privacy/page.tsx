@@ -156,6 +156,31 @@ export default function PrivacyPage() {
                 </p>
               </div>
 
+              {/* ⚠️ This block is the disclosure for the microphone: for
+                  src/app/api/voice/transcribe/route.ts on mobile, the browser's
+                  SpeechRecognition on web, and /api/tts for the spoken reply.
+                  Before this was written the policy listed only text — chat,
+                  journal, reflections, moods — while the app had been recording
+                  audio and sending it off the device for transcription. The Play
+                  Data Safety form already declared Voice correctly, so the
+                  published policy was the thing lagging behind, not the app.
+                  ⛔ If voice ever stops leaving the device, or a new speech
+                  provider is added, THIS paragraph changes in the same commit. */}
+              <div>
+                <p className="text-sm font-semibold text-zinc-100">Voice (optional)</p>
+                <p className="mt-1 text-sm leading-7 text-zinc-300">
+                  If you tap the microphone, Imotara records what you say so it can be turned
+                  into text. On Android and iOS the recording is sent to our server and on to
+                  OpenAI to be transcribed; it is not stored, by us or by them, once the text
+                  comes back. On the web, speech is handled by your own browser&apos;s built-in
+                  speech recognition, which may send the audio to your browser vendor under
+                  their privacy policy rather than ours. When Imotara reads a reply aloud, the
+                  text of that reply is sent to <strong>Microsoft Azure Speech</strong> to be
+                  turned into audio. The microphone is never opened unless you ask for it, and
+                  you can use Imotara entirely by typing.
+                </p>
+              </div>
+
               <div>
                 <p className="text-sm font-semibold text-zinc-100">
                   Device &amp; technical data
@@ -247,13 +272,17 @@ export default function PrivacyPage() {
               Imotara uses artificial intelligence models to generate reflective and supportive
               responses to the messages you choose to enter. Some processing may occur locally
               on your device. When cloud mode is enabled, your message text is sent to{" "}
-              <strong>OpenAI (openai.com)</strong> to generate a reply.
+              <strong>OpenAI (openai.com)</strong> to generate a reply, or to{" "}
+              <strong>Google (Gemini)</strong> if OpenAI is unavailable or too slow to answer.
+              Only your message text is sent — your name, account identifier and device
+              information are not attached.
             </p>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              Your conversations are not sold and are not used for advertising systems.
-              Data sent to OpenAI is processed solely to generate your reply and is not
-              used to train OpenAI models. You can switch to device-only mode at any time
-              in Settings to prevent any data from leaving your device.
+              Your conversations are not sold and are not used for advertising systems. We use
+              both services on paid business terms under which your messages are processed
+              solely to generate your reply and are not used to train their models. You can
+              switch to device-only mode at any time in Settings to prevent any data from
+              leaving your device.
             </p>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
               Automated responses may not always be perfect. Imotara is
@@ -374,16 +403,44 @@ export default function PrivacyPage() {
               Data Sharing &amp; Processors
             </h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              We do not sell personal data. We use a small number of service providers to run
-              the app and deliver optional features, under contractual safeguards and our instructions.
+              We do not sell personal data. The service providers listed below help us run the
+              app and deliver optional features, under contractual safeguards and our
+              instructions. Each one receives only what it needs for the job next to its name.
             </p>
 
+            {/* ⚠️ THIS LIST IS THE DISCLOSURE. Every third party that receives
+                personal data belongs here, by name.
+                🔴 It was wrong once: it named OpenAI, Supabase and Resend and
+                stopped there, while the code was also sending message text to
+                Google, reply text to Microsoft, payment details to Razorpay and
+                audio to OpenAI — and the policy said nothing about voice at all.
+                ⛔ ADDING AN OUTBOUND CALL THAT CARRIES USER DATA? It goes in this
+                list in the SAME commit. A processor that is live in production
+                and absent here is not an oversight, it is an inaccurate
+                statement to the reader — and it also breaks the Play Data Safety
+                declaration and the Apple privacy label, which both have to agree
+                with this page. */}
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
               <li>
-                <strong>Cloud database &amp; sync</strong>: Supabase (stores optional synced data with per-user access controls).
+                <strong>Cloud database &amp; sync</strong>: <strong>Supabase</strong> stores optional synced data with per-user access controls.
               </li>
               <li>
-                <strong>Response generation</strong>: <strong>OpenAI (openai.com)</strong> may process the text of your message to generate a reply when cloud mode is enabled. Only your message text is sent — no account info, name, or device data is attached.
+                <strong>Hosting</strong>: <strong>Vercel</strong> runs this website and the APIs behind the apps.
+              </li>
+              <li>
+                <strong>Response generation</strong>: <strong>OpenAI (openai.com)</strong>, or <strong>Google (Gemini)</strong> when OpenAI is unavailable, processes the text of your message to generate a reply when cloud mode is enabled. Only your message text is sent — no account info, name, or device data is attached.
+              </li>
+              <li>
+                <strong>Voice</strong>: <strong>OpenAI</strong> transcribes recordings you choose to make on Android and iOS, and <strong>Microsoft Azure Speech</strong> turns replies into audio when you ask Imotara to read them aloud. Recordings are not kept once the text comes back.
+              </li>
+              <li>
+                <strong>Translation in Connect</strong>: if you turn on automatic translation, the message being translated is sent to <strong>Google Cloud Translation</strong>, or to <strong>OpenAI</strong> or <strong>MyMemory (Translated srl)</strong> when that service does not return a usable result.
+              </li>
+              <li>
+                <strong>Payments</strong>: <strong>Razorpay</strong> handles card and UPI payments for licences and donations, and receives the billing details you enter. We never see or store your full card number.
+              </li>
+              <li>
+                <strong>Purchases in the apps</strong>: <strong>Apple</strong> and <strong>Google Play</strong> confirm to us that a purchase you made in their stores is genuine.
               </li>
               <li>
                 <strong>Email delivery</strong>: <strong>Resend (resend.com)</strong> delivers the email we
@@ -391,7 +448,7 @@ export default function PrivacyPage() {
                 updates about Imotara. Only your email address and the message itself are shared.
               </li>
               <li>
-                <strong>Hosting</strong>: our hosting providers deliver the web experience and APIs.
+                <strong>Notifications</strong>: <strong>Expo</strong> delivers push notifications to your phone if you use Connect and allow them.
               </li>
             </ul>
 
@@ -407,8 +464,17 @@ export default function PrivacyPage() {
               International Data Transfers
             </h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              If data is processed outside your country of residence, we take reasonable
-              measures to ensure appropriate protection consistent with applicable laws.
+              Imotara is run from India, and several of the providers listed above operate
+              from the United States and the European Union, so your data may be processed
+              outside the country you live in. Where that happens we rely on the data
+              protection terms those providers offer — including the European Commission&apos;s
+              standard contractual clauses where they apply — to keep the protection
+              consistent with the law that covers you.
+            </p>
+            <p className="mt-3 text-sm leading-7 text-zinc-300">
+              Spoken replies are sent to whichever Azure Speech region is closest to you —
+              India, the European Union, the United States or the Asia-Pacific region — so
+              that audio travels the shortest distance it can.
             </p>
           </section>
 
@@ -430,7 +496,7 @@ export default function PrivacyPage() {
               here and, when appropriate, notify you in-app or via email.
             </p>
             <p className="mt-2 text-xs text-zinc-400">
-              Effective date: Nov 1, 2025 • Last updated: Feb 18, 2026
+              Effective date: Nov 1, 2025 • Last updated: Oct 16, 2026
             </p>
           </section>
 

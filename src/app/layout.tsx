@@ -173,20 +173,31 @@ function JsonLd() {
     url: site,
     logo: { "@type": "ImageObject", url: `${site}/og-image.png` },
     email: BUSINESS.email,
-    telephone: BUSINESS.phone,
+    // 🔴 CITY LEVEL ONLY, AND NO TELEPHONE. Owner's instruction, 2026-10-16:
+    // keep the registered address and phone out of the public domain as far as
+    // possible.
+    //
+    // ⚠️ They are NOT secret — /contact and /refunds publish both in full
+    // because Razorpay will not enable payments for a site that does not, and
+    // those strings must match the KYC record exactly. What this avoids is
+    // RE-publishing them in machine-readable form, where they are trivially
+    // scraped at scale and end up in data brokers rather than read by a person
+    // who needed to contact us.
+    //
+    // 🔑 City, region and country are enough for the E-E-A-T signal: they tell
+    // a search engine the entity is a real organisation operating from a real
+    // place. The street line and the phone add nothing a crawler needs.
+    // ⛔ Do not "complete" this block by adding them back.
     address: {
       "@type": "PostalAddress",
-      streetAddress: `${BUSINESS.address.line1}, ${BUSINESS.address.locality}`,
       addressLocality: BUSINESS.address.city,
       addressRegion: BUSINESS.address.state,
-      postalCode: BUSINESS.address.postalCode,
       addressCountry: "IN",
     },
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer support",
       email: BUSINESS.email,
-      telephone: BUSINESS.phone,
       availableLanguage: ["English", "Hindi", "Bengali"],
     },
     // 🔴 Said plainly, in the markup, because this is the sentence that most

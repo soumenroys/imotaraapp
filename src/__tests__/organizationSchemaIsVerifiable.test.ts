@@ -82,12 +82,30 @@ describe("the organisation is identifiable", () => {
 
     // A site that will not say who it is does not get cited, and for YMYL
     // content Google asks for exactly these.
-    it("publishes a legal name, a postal address and a way to reach a human", () => {
+    it("publishes a legal name, a place and a way to reach a human", () => {
         expect(layout).toContain("legalName: BUSINESS.legalName");
         expect(layout).toContain('"@type": "PostalAddress"');
         expect(layout).toContain('"@type": "ContactPoint"');
         expect(layout).toContain("email: BUSINESS.email");
-        expect(layout).toContain("telephone: BUSINESS.phone");
+    });
+
+    // 🔴 OWNER'S INSTRUCTION, 2026-10-16: keep the registered address and phone
+    // out of the public domain as far as possible. They are published in full
+    // on /contact and /refunds because Razorpay requires it, but they must not
+    // be RE-published here in machine-readable form, where they are scraped at
+    // scale rather than read by someone who needed to get in touch.
+    //
+    // ⛔ This is the guard against a future pass "completing" the schema.
+    it("does NOT republish the street address, postcode or phone", () => {
+        const start = layout.indexOf("const organization = {");
+        const end = layout.indexOf("const website = {", start);
+        const org = layout.slice(start, end);
+
+        expect(org, "street address republished").not.toContain("BUSINESS.address.line1");
+        expect(org, "postcode republished").not.toContain("BUSINESS.address.postalCode");
+        expect(org, "phone republished").not.toContain("BUSINESS.phone");
+        // City level is deliberate and should stay.
+        expect(org).toContain("BUSINESS.address.city");
     });
 
     it("lists both app stores in the organisation's OWN sameAs", () => {

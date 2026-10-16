@@ -98,6 +98,11 @@ product's own voice. See `copy_rule_ai_wording`.
 | iOS | https://apps.apple.com/in/app/imotara/id6756697569 |
 | Privacy | https://www.imotara.com/privacy |
 | Contact | info@imotara.com |
+
+⚠️ **Two mailboxes, and they are not interchangeable.** `social@imotara.com` goes on **social
+media** — profile contact fields, bios, anything a follower writes to; it is the account that
+actually owns the social presence. `info@imotara.com` stays for the website, the app, the store
+listings, legal and billing. ⬜ Directories sit between the two — ask before switching them.
 | X | https://x.com/imotaraofficial |
 | Instagram | https://www.instagram.com/imotaraofficial/ |
 | YouTube | https://www.youtube.com/@Imotara |

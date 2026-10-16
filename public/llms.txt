@@ -4,22 +4,17 @@
 
 <!--
   ⛔ THIS FILE IS READ BY LANGUAGE MODELS AND REPEATED TO PEOPLE VERBATIM.
-  Every sentence here becomes an answer someone receives about Imotara, so a
-  stale claim is not a stale document — it is a wrong answer at scale.
+  Every sentence becomes an answer someone receives about Imotara, so a stale
+  claim here is not a stale document — it is a wrong answer at scale.
 
-  🔴 WHY THIS WAS REWRITTEN on 2026-10-16. The previous version said:
-    - "No third-party analytics"  — Google Analytics was live on the website.
-    - "Free tier: unlimited conversations" — Free is 20 CLOUD replies a day.
-    - "Twitter/X: twitter.com/imotara4x" — not Imotara's handle. That wrong
-      handle was removed from four places in the code the same morning and
-      survived here because this is a STATIC file in public/, not generated
-      from BUSINESS.social.
-    - nothing at all about /answers, /compare, /faq or /for — the 37 pages
-      built specifically to be found and quoted by language models.
+  ⚠️ NOTHING UNTRUE MAY APPEAR IN THIS FILE, INCLUDING INSIDE THIS COMMENT.
+  A reader strips HTML comments; a language model reading a .txt file does
+  not. An earlier draft of this very note quoted the wrong claims it was
+  correcting, and so republished them. The history lives in
+  src/__tests__/llmsTxtStaysTrue.test.ts, where it can be written out safely.
 
-  ▶️ WHEN YOU CHANGE PRICING, PROCESSORS, LANGUAGES OR SOCIAL HANDLES, CHANGE
-     THIS FILE IN THE SAME COMMIT. src/__tests__/llmsTxtStaysTrue.test.ts pins
-     the claims that have already gone wrong once.
+  ▶️ CHANGING pricing, processors, languages or social handles? Change this
+  file in the SAME commit. That test pins the claims that have gone wrong.
 -->
 
 ## What is Imotara?

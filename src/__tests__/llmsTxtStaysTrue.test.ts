@@ -30,10 +30,21 @@ import { BUSINESS } from "@/lib/imotara/businessIdentity";
 
 const ROOT = process.cwd();
 
-/** The file as a reader sees it — HTML comments are for us, not for them. */
-const LLMS = fs
-    .readFileSync(path.join(ROOT, "public/llms.txt"), "utf8")
-    .replace(/<!--[\s\S]*?-->/g, "");
+/**
+ * 🔴 THE RAW FILE, COMMENTS AND ALL — because that is what a language model
+ * reads.
+ *
+ * ⚠️ The first version of this test stripped `<!-- -->` before asserting, on
+ * the assumption that a comment is invisible. It is invisible in HTML. This is
+ * a .txt file: a model ingests the comment as content. The first draft of the
+ * explanatory note inside llms.txt quoted the four wrong claims it was
+ * correcting — and the stripped-comment test passed while the wrong handle and
+ * the false analytics line were live on imotara.com/llms.txt.
+ *
+ * ⛔ Negative assertions MUST run against this raw text. If a falsehood is
+ * anywhere in the bytes, it is in the model's context.
+ */
+const LLMS = fs.readFileSync(path.join(ROOT, "public/llms.txt"), "utf8");
 
 describe("llms.txt does not repeat the claims that were wrong", () => {
     it("does not claim there is no third-party analytics", () => {

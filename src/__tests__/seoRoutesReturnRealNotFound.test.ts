@@ -7,6 +7,19 @@
 // set of indexable 200 URLs all serving the same thin page — a soft 404, which
 // Google reports and then drops the pages over.
 //
+// ⚠️ CORRECTION, MEASURED AFTER THE FIRST FIX SHIPPED. dynamicParams=false
+// genuinely restores a 404 on /faq and /for, which are STATIC — verified in
+// production: /faq/zz and /for/zzbogus both return 404. It does NOT on
+// /blog/[slug], which reads searchParams (?en=1) and is therefore
+// server-rendered and streamed; Next cannot change a status after headers are
+// sent, so it stays 200. That case is benign: Next injects
+// <meta name="robots" content="noindex"> into the streamed HTML and its own
+// docs state this does not lead to indexation. The assertion below is still
+// correct and still worth keeping — it is what would make /blog 404 the moment
+// that route stops streaming — but it is NOT what makes /blog safe today.
+// ⇒ node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/
+//   loading.md#status-codes
+//
 // ⛔ THIS IS NOT A TEXT ASSERTION ON THE LINE THAT FIXES IT. Reading the file
 // back for the string "dynamicParams = false" would pass even if the export
 // were commented out, moved into dead code or shadowed — a mirror test, which

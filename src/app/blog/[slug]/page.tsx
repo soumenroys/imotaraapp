@@ -52,7 +52,38 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const mod = getPostModuleBySlug(slug);
-  if (!mod) return { title: "Post not found" };
+  // 🔴 notFound(), NOT a polite "Post not found" title.
+  //
+  // This route reads searchParams (the ?en=1 toggle), which opts it out of
+  // static generation — so `dynamicParams = false` above governs nothing here
+  // and the page is server-rendered on demand. Next then begins STREAMING the
+  // response, which commits HTTP 200 before the component body runs; the
+  // notFound() further down can swap the UI but can no longer change the
+  // status. Measured 2026-10-16: /blog/zzbogus returned **200** while
+  // rendering the not-found page even after dynamicParams was added.
+  //
+  // ⚠️ MEASURED, AND IT DOES NOT CHANGE THE STATUS. I expected this to restore
+  // a real 404 because generateMetadata runs before the component. It does not:
+  // this app has a root `loading.tsx`, so a Suspense fallback renders and the
+  // response begins streaming regardless, and Next's docs are explicit that
+  // "the status code of the response cannot be updated" once headers are sent
+  // ⇒ 03-file-conventions/loading.md#status-codes.
+  //
+  // ✅ WHY THAT IS NEVERTHELESS FINE HERE. Next injects
+  // `<meta name="robots" content="noindex">` into the streamed 404 HTML, and
+  // the same doc says plainly: "Some crawlers may label these responses as
+  // soft 404s. In the streaming case, this does not lead to indexation because
+  // the page is explicitly marked noindex." Verified present on this route.
+  //
+  // 🔑 KEPT ANYWAY, for two reasons: it is the honest expression of intent,
+  // and if this route ever stops streaming — the ?en=1 searchParams read
+  // removed, or the root loading.tsx gone — it becomes a real 404 for free.
+  // ⛔ Do not "tidy" it back into a returned title.
+  //
+  // ▶️ IF A TRUE 404 STATUS IS EVER REQUIRED (compliance, analytics), the
+  // documented route is a slug check in src/proxy.ts — note that THIS Next
+  // calls it proxy.ts, not middleware.ts.
+  if (!mod) notFound();
 
   const { meta } = mod;
   const showEnglish = sp.en === "1" && meta.languageCode && meta.languageCode !== "en";

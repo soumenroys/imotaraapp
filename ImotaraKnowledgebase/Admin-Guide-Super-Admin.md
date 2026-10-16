@@ -17,7 +17,7 @@ Key facts (from `src/app/api/admin/_auth.ts` and `src/lib/imotara/adminCrypto.ts
 - Passwords are hashed with **scrypt** (never stored in plain text).
 - A successful login issues a session stored as an **httpOnly cookie** named `imotara_admin_session`.
 - **Sessions last 8 hours** (`SESSION_TTL_MS = 8 hours`), then require re-login.
-- Every admin API route checks the session cookie first. There is also a legacy `ADMIN_SECRET` Bearer-token fallback (see §17).
+- Every admin API route checks the session cookie. The legacy `ADMIN_SECRET` Bearer fallback was **retired 16 Oct 2026** — switched off and its login tab removed (see §17).
 
 ### 1.1 Roles and exactly what each can/cannot do
 
@@ -325,7 +325,7 @@ Every end-user sign-in on Imotara is Google-only, so the plain **"Add existing u
 4. They click the link, land on **imotara.com/auth/accept**, choose a password (same complexity policy as admin passwords — see §4), and are signed straight into their org dashboard.
 5. From then on, they sign in at **imotara.com/login** with that email + password — a separate, gated login page that only ever works for accounts created this way. It is **not** wired into the regular Google sign-in used everywhere else, so it doesn't expand the attack surface for the rest of the user base. **"Forgot password?"** on that page (`/auth/forgot-password`) lets them reset it themselves later.
 
-Behavior (`POST .../members` with `action: "create_and_invite"`, requires a full session-based super-admin login — the legacy `ADMIN_SECRET` bearer also works but has no name/email to record):
+Behavior (`POST .../members` with `action: "create_and_invite"`, requires a full session-based super-admin login; the legacy `ADMIN_SECRET` bearer no longer works at all, retired 16 Oct 2026):
 - If the email has no Imotara account, creates one (`email_confirm: false`) and sends a Supabase **invite**-type link. If the email already has an account (e.g. a prior Google user), sends a **recovery**-type link instead — either way they land on the same set-password page.
 - Idempotent: re-inviting the same email re-issues the link without duplicating the seat or the `org_members` row.
 - Rate-limited to **20 provisions/hour per admin**.

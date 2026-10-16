@@ -274,7 +274,7 @@ All users who install before 2026-07-01 receive Plus free for 90 days.
 ## 10. Security
 
 ### 10.1 Implemented
-- **Admin timing-safe auth** — `crypto.timingSafeEqual()` on ADMIN_SECRET comparison
+- **Admin auth** — scrypt-hashed personal passwords + optional TOTP 2FA. *(The old `crypto.timingSafeEqual()` ADMIN_SECRET comparison was retired 16 Oct 2026 — the shared key is switched off and its login tab removed.)*
 - **Content Security Policy** — full CSP header on all web responses
 - **Schema leak prevention** — API errors return generic messages, not raw DB errors
 - **IDOR prevention** — all Supabase queries scoped to authenticated user's ID
@@ -460,7 +460,7 @@ imotaraapp/                          ← Next.js web app
         tts/route.ts                 ← Azure Neural TTS endpoint
         voice/transcribe/route.ts    ← OpenAI Whisper STT
         license/                     ← License verify + status
-        admin/                       ← Admin panel API (ADMIN_SECRET gated)
+        admin/                       ← Admin panel API (super-admin session cookie)
       chat/page.tsx                  ← Main chat interface
       admin/page.tsx                 ← Admin panel UI
     lib/

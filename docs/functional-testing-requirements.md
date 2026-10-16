@@ -857,15 +857,18 @@ All banners below appear at the top of the chat screen. Only one banner appears 
 
 ### MODULE 17: Imotara Super-Admin Panel (Web only, `/admin`)
 
-> This is Imotara's internal back-office, separate from the org admin dashboard. Access requires the ADMIN_SECRET token. Imotara team provides credentials. Only Imotara staff should ever have access to this panel.
+> This is Imotara's internal back-office, separate from the org admin dashboard. Access is by **personal admin email + password** (plus 2FA where enabled); the Imotara team issues the account. Only Imotara staff should ever have access to this panel.
+>
+> ⚠️ **Changed 16 Oct 2026:** these cases used to say "enter the correct ADMIN_SECRET". That shared-secret login was retired — the tab is gone from `/admin` and the Bearer path is switched off — so a tester following the old steps would be hunting for a control that no longer exists.
 
 ---
 
 #### SECTION 17A — Authentication & Security
 
 #### TC-ADMIN-01 — Admin Login (Web)
-**Steps:** Navigate to `/admin` → enter the correct ADMIN_SECRET  
-**Expected:** Admin panel loads. All tabs (Comments, Licenses, Organizations, Connect) are visible.
+**Steps:** Navigate to `/admin` → enter your admin **email and password** → Sign in (enter the 2FA code if prompted)  
+**Expected:** Admin panel loads. All tabs (Comments, Licenses, Orgs, Connect, Admins, Broadcast, Dashboard, Activity, Crisis) are visible.  
+⛔ **Also check there is NO "Secret key" tab** on the login card, and no "Set ADMIN_SECRET in .env.local" hint — both were removed.
 
 #### TC-ADMIN-02 — Wrong Token Rejected (Web)
 **Steps:** Navigate to `/admin` → enter an incorrect token  
@@ -1121,7 +1124,7 @@ These checks confirm that the same feature works equivalently on all three platf
 
 #### TC-ROLE-01 — Super-Admin Can Access /admin, Org Admin Cannot (Web)
 **Steps:** Log in as an org admin → navigate to `/admin`  
-**Expected:** Access is denied. The admin ADMIN_SECRET prompt appears but entering the org admin's password fails.
+**Expected:** Access is denied. The super-admin email/password login appears, and the org admin's credentials fail against it — org accounts are a separate system from super-admin accounts.
 
 #### TC-ROLE-02 — Org Owner Can Access /org/dashboard, Regular User Cannot (Web)
 **Steps:** Log in as a regular user (no org) → navigate to `/org/dashboard`  

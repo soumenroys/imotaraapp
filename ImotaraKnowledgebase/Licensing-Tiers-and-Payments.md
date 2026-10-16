@@ -197,7 +197,7 @@ Called fire-and-forget by mobile after sign-in (Bearer auth, always returns 200)
 
 ### 5.2 Admin grant — `POST /api/admin/licenses`
 
-Protected by admin auth (super-admin session cookie or legacy `ADMIN_SECRET` Bearer). Body: `{ userId, userEmail, tier, status, expiresAt?, tokenBalance?, notes?, adminLabel? }`. Upserts the `licenses` row with `source: 'manual'` and writes an `admin_license_history` audit row (action derived: assign / tier_change / extend / token_adjust / withdraw / status_change). `GET` on the same route searches users via the `admin_search_users_with_licenses` RPC. Per-user detail/edit is at `/api/admin/licenses/[userId]`; history at `/api/admin/licenses/history`.
+Protected by admin auth (super-admin session cookie; the legacy `ADMIN_SECRET` Bearer was retired 16 Oct 2026). Body: `{ userId, userEmail, tier, status, expiresAt?, tokenBalance?, notes?, adminLabel? }`. Upserts the `licenses` row with `source: 'manual'` and writes an `admin_license_history` audit row (action derived: assign / tier_change / extend / token_adjust / withdraw / status_change). `GET` on the same route searches users via the `admin_search_users_with_licenses` RPC. Per-user detail/edit is at `/api/admin/licenses/[userId]`; history at `/api/admin/licenses/history`.
 
 This is the correct tool for "grant someone Pro for 3 months" or "add token credits" without a payment.
 

@@ -4,7 +4,9 @@
 --
 -- Run in Supabase SQL Editor.
 -- After running, use /api/admin/auth/seed to create the first owner account.
--- ADMIN_SECRET env var remains as an emergency fallback only.
+-- ADMIN_SECRET was the emergency fallback. RETIRED 2026-10-16: switched off via
+-- ADMIN_SECRET_DISABLED=true and its login tab removed from /admin. Break-glass is
+-- now a git revert plus an env flip, not a key anyone can hold.
 -- ============================================================
 
 -- ── SUPER_ADMINS ──────────────────────────────────────────────────────────────

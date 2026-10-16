@@ -231,8 +231,9 @@ function SuperAdminSection() {
       <H2 id="sa-login">Part 1 — Logging In</H2>
 
       <Step n={1} title='Open https://imotara.com/admin in your browser'>
-        <p>You will see the admin login screen. It has two tabs: <strong className="text-zinc-200">Email / Password</strong> (preferred — uses your personal admin account) and <strong className="text-zinc-200">Secret key</strong> (legacy emergency fallback).</p>
-        <Screen title="admin" caption="The admin login page. Use the Email / Password tab.">
+        <p>You will see the admin login screen. Sign in with your <strong className="text-zinc-200">email and password</strong> — your own personal admin account. If you have 2FA enabled you will be asked for your six-digit code next.</p>
+        <p className="mt-2 text-zinc-500">There used to be a second <em>Secret key</em> tab, a single shared secret anyone could use. It was retired on 16 October 2026 — everyone signs in as themselves now, so every action is attributable. If you cannot get in, use <strong className="text-zinc-200">Forgot password?</strong> rather than looking for a key.</p>
+        <Screen title="admin" caption="The admin login page. Email and password — there is no longer a second tab.">
           <div className="flex items-center justify-center bg-[#0d0d10] py-10">
             <div className="w-80 rounded-2xl border border-white/10 bg-white/5 px-6 py-8 shadow-2xl space-y-5">
               <div className="text-center space-y-1">
@@ -240,10 +241,10 @@ function SuperAdminSection() {
                 <p className="text-sm font-semibold text-zinc-100">Imotara Admin</p>
                 <p className="text-[10px] text-zinc-500">Super-admin panel</p>
               </div>
-              <div className="flex rounded-xl border border-white/8 bg-white/5 p-1 text-xs">
-                <div className="flex-1 rounded-lg bg-white/10 py-1.5 text-center font-medium text-zinc-100">Email / Password</div>
-                <div className="flex-1 py-1.5 text-center text-zinc-500">Secret key</div>
-              </div>
+              {/* ⚠️ The mock used to draw a two-tab switcher with "Secret key"
+                  beside it. A tutorial screenshot showing a control that no
+                  longer exists sends the reader hunting for it — so the mock
+                  changes whenever the real card does. */}
               <div className="space-y-2">
                 <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-zinc-500">admin@imotara.com</div>
                 <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-zinc-600 tracking-widest">••••••••••••</div>

@@ -14,6 +14,19 @@ import BlogComments from "@/components/blog/BlogComments";
 import BlogHero from "@/components/blog/BlogHero";
 import { OG_IMAGE } from "@/lib/seo/ogImage";
 
+/**
+ * The canonical origin for this route's canonical and hreflang tags.
+ *
+ * ⚠️ **www**, deliberately. Search Console holds TWO properties —
+ * `imotara.com` and `www.imotara.com` — and every indexed URL, the sitemap and
+ * `sameAs` all use www. A canonical tag pointing at the bare host would name a
+ * different property as the preferred URL, which is the one mistake a canonical
+ * tag can make that is worse than having none.
+ */
+const SITE_URL = (
+    process.env.NEXT_PUBLIC_SITE_URL || "https://www.imotara.com"
+).replace(/\/+$/, "");
+
 // ─── Static params ────────────────────────────────────────────────────────────
 
 /**
@@ -92,9 +105,39 @@ export async function generateMetadata({
   const title = showEnglish && meta.titleEn ? meta.titleEn : meta.title;
   const description = showEnglish && meta.descriptionEn ? meta.descriptionEn : meta.description;
 
+  // 🔴 EVERY BLOG POST WAS INDEXED TWICE.
+  //
+  // Search Console, 16 Oct 2026: `/blog/alucinacion-digital-manejo-crisis`
+  // AND `/blog/alucinacion-digital-manejo-crisis?en=1` were both in the
+  // indexed set, as were doomscrolling-echo-chambers, confidentialite and
+  // ai-cultural-bias. This route had NO `alternates` at all, while eight other
+  // routes set a canonical — so Google saw two unrelated URLs and split the
+  // ranking signal between them instead of pooling it.
+  //
+  // ⛔ The fix is NOT to canonicalise ?en=1 away. Those are real translations:
+  // a non-English post rendered in English, with its own title and description.
+  // Collapsing them would delete a page that legitimately serves English
+  // readers. The honest relationship is "these are the same article in two
+  // languages", which is what hreflang says.
+  //
+  // 🔑 So: canonical points at SELF (param included), and `languages` links the
+  // pair. Only emitted when a post actually HAS an English variant — a
+  // monolingual English post has nothing to pair with, and an hreflang pointing
+  // at a page that does not differ is worse than none.
+  const base = `${SITE_URL}/blog/${slug}`;
+  const hasEnglishVariant = Boolean(
+    meta.languageCode && meta.languageCode !== "en" && meta.titleEn,
+  );
+
   return {
     title,
     description,
+    alternates: {
+      canonical: showEnglish ? `${base}?en=1` : base,
+      ...(hasEnglishVariant
+        ? { languages: { [meta.languageCode as string]: base, en: `${base}?en=1` } }
+        : {}),
+    },
     openGraph: {
             ...OG_IMAGE,
       title: `${title} · Imotara Blog`,
@@ -177,8 +220,9 @@ function ArticleJsonLd({
     : never;
   showEnglish: boolean;
 }) {
-  const siteUrl =
-    (process.env.NEXT_PUBLIC_SITE_URL || "https://imotara.com").replace(/\/+$/, "");
+  // ⚠️ Was a second copy of this with a non-www fallback, which could emit
+  // JSON-LD urls on a different host from the canonical tag above.
+  const siteUrl = SITE_URL;
   const title = showEnglish && meta.titleEn ? meta.titleEn : meta.title;
   const description = showEnglish && meta.descriptionEn ? meta.descriptionEn : meta.description;
 

@@ -3,6 +3,7 @@ import { getAllPosts } from "@/lib/blog";
 import { AUDIENCE_PAGES } from "@/data/audiencePages";
 import { LANG_FAQ_CODES } from "@/data/faqLang";
 import { COMPARE_SLUGS } from "@/data/comparePages";
+import { ANSWER_SLUGS } from "@/data/answerPages";
 
 const base = (() => {
   const explicit = (process.env.NEXT_PUBLIC_SITE_URL || "").trim();
@@ -46,6 +47,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.9,
   }));
 
+  // ⚠️ Derived, like the rest, so a ninth answer page indexes itself.
+  const answerEntries: MetadataRoute.Sitemap = ANSWER_SLUGS.map((slug) => ({
+    url: `${base}/answers/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly",
+    priority: 0.9,
+  }));
+
   const blogPostEntries: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${base}/blog/${post.slug}`,
     lastModified: new Date(post.date),
@@ -83,6 +92,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // ⚠️ Not the same thing as /hi /bn /ta above. Those are brand pages; these
     // answer what people actually type.
     ...langFaqEntries,
+
+    // ── The answer pages ────────────────────────────────────────────────────
+    // ⚠️ Top priority alongside /faq. Measured 16 Oct: the ONLY non-brand query
+    // this site has ever had an impression for was conversational and about the
+    // reader's situation. These are that shape.
+    { url: `${base}/answers`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+    ...answerEntries,
 
     // ── The decision pages ──────────────────────────────────────────────────
     // ⚠️ Same priority as /faq and the language FAQs, and for the same measured

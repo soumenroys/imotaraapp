@@ -174,6 +174,10 @@ export default function FaqPage() {
                     {/* ⚠️ /compare is reachable from here on purpose. The sitemap
                         alone leaves it an orphan in the HTML link graph, which is
                         crawled later and carries no internal weight. */}
+                    <Link className="underline hover:text-zinc-300" href="/answers">
+                        Answers
+                    </Link>
+                    {" · "}
                     <Link className="underline hover:text-zinc-300" href="/compare">
                         Honest comparisons
                     </Link>

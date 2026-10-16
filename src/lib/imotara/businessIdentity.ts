@@ -83,7 +83,10 @@ export const BUSINESS = {
         xHandle: "@imotaraofficial",
         instagram: "https://www.instagram.com/imotaraofficial/",
         youtube: "https://www.youtube.com/@Imotara",
-        linkedin: "https://www.linkedin.com/in/imotara-app-9b4147403",
+        // ⚠️ Claimed the clean vanity handle on 2026-10-16; the old
+        // /in/imotara-app-9b4147403 still redirects, but a stable, readable URL
+        // is the one that belongs in `sameAs` and on printed material.
+        linkedin: "https://www.linkedin.com/in/imotara",
     },
 } as const;
 

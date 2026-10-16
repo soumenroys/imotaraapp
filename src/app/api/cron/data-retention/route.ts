@@ -25,6 +25,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { purgeUserData } from "@/lib/account/purgeUserData";
 import {
+    sendRetentionNotice,
+    isRetentionNoticeConfigured,
+} from "@/lib/account/retentionNotice";
+import {
     RETENTION_INACTIVE_MONTHS,
     RETENTION_GRACE_DAYS,
     retentionEnforcing,
@@ -51,8 +55,17 @@ export async function GET(req: NextRequest) {
     }
 
     const admin = getSupabaseAdmin();
-    const enforce = retentionEnforcing();
     const errors: string[] = [];
+
+    // 🔴 ENFORCEMENT REQUIRES A WORKING SENDER. Without one, nobody can be
+    // warned, and erasing accounts that were never warned is precisely the
+    // outcome /privacy promises cannot happen. Fail back to report-only rather
+    // than proceed — a flag set in good faith must not become silent deletion
+    // because an unrelated env var is missing.
+    const enforce = retentionEnforcing() && isRetentionNoticeConfigured();
+    if (retentionEnforcing() && !isRetentionNoticeConfigured()) {
+        errors.push("enforcement requested but no sender identity configured — report-only");
+    }
 
     const { data, error } = await admin.rpc("retention_candidates", {
         p_months: INACTIVE_MONTHS,
@@ -81,16 +94,35 @@ export async function GET(req: NextRequest) {
 
     if (enforce) {
         for (const c of toWarn) {
-            // ⚠️ The warning row is written whether or not the email sends.
-            // Erasure is gated on having warned; if a send failure stopped the
-            // row being written, the account would be re-warned forever and
-            // never reach the grace period — dormant data kept indefinitely by
-            // a mail outage, which is the opposite of the point.
+            // ⛔ No address, no notice, therefore no erasure. An account we
+            // cannot warn must simply keep its data: silent deletion is the one
+            // outcome this job must never produce.
+            if (!c.email) {
+                errors.push(`warn ${c.user_id}: no email on the account`);
+                continue;
+            }
+
+            // 🔴 SEND FIRST, RECORD SECOND, AND ONLY ON SUCCESS.
+            // Erasure is gated on a warning row existing. Writing that row after
+            // a failed send would schedule a deletion with the notice promised
+            // at /privacy never actually given. The opposite failure — a mail
+            // outage leaving accounts re-warned and never purged — keeps data
+            // longer than policy, which is a nuisance rather than a harm, and
+            // it corrects itself the moment mail works again.
+            const outcome = await sendRetentionNotice(c.email);
+            if (!outcome.ok) {
+                errors.push(`warn ${c.user_id}: ${outcome.code} ${outcome.message}`);
+                continue;
+            }
+
             const { error: wErr } = await admin
                 .from("retention_warnings")
                 .insert({ user_id: c.user_id, email: c.email });
             if (wErr) {
-                errors.push(`warn ${c.user_id}: ${wErr.message}`);
+                // The notice went out but the row did not. They will be warned
+                // once more on the next run — mildly annoying, and strictly
+                // safer than the alternative.
+                errors.push(`warn ${c.user_id}: sent but not recorded: ${wErr.message}`);
                 continue;
             }
             warned += 1;

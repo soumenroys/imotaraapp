@@ -83,3 +83,49 @@ describe("the purge cascade", () => {
         expect(USER_ID_TABLES).not.toContain("imotara_history");
     });
 });
+
+// ── The warning notice ───────────────────────────────────────────────────────
+//
+// 🔴 Erasure is gated on a warning having been sent. These pin the properties
+// that make that gate meaningful, because the failure they guard against —
+// deleting a mental-health history with no notice — is irreversible.
+
+describe("the retention warning notice", () => {
+    it("states BOTH numbers the privacy policy publishes", async () => {
+        const { retentionNoticeText } = await import("@/lib/account/retentionNotice");
+        const text = retentionNoticeText();
+        // ⚠️ Both, separately. A test checking only one passes while the other
+        // silently says something /privacy contradicts — and 24 and 30 are
+        // close enough that a single loose assertion could be satisfied by the
+        // wrong one. ⇒ the MINIMUM_AGE lesson: pin every value you rely on.
+        expect(text).toContain(`${RETENTION_INACTIVE_MONTHS} months`);
+        expect(text).toContain(`${RETENTION_GRACE_DAYS} days`);
+    });
+
+    it("tells the reader the one action that stops it", async () => {
+        const { retentionNoticeText } = await import("@/lib/account/retentionNotice");
+        expect(retentionNoticeText().toLowerCase()).toContain("sign in");
+    });
+
+    it("says plainly that deletion is permanent", async () => {
+        const { retentionNoticeText } = await import("@/lib/account/retentionNotice");
+        expect(retentionNoticeText().toLowerCase()).toContain("permanently deleted");
+    });
+
+    // ⛔ A deletion notice is not marketing. Offering an unsubscribe from it
+    // would let someone opt out of the warning and still be erased.
+    it("carries no unsubscribe language", async () => {
+        const { retentionNoticeText } = await import("@/lib/account/retentionNotice");
+        expect(retentionNoticeText().toLowerCase()).not.toContain("unsubscribe");
+    });
+
+    // 🔑 Tone guard. This reaches someone who stopped using a mental-health app
+    // two years ago, for reasons that may not be happy ones.
+    it("uses no urgency or guilt language", async () => {
+        const { retentionNoticeText } = await import("@/lib/account/retentionNotice");
+        const lower = retentionNoticeText().toLowerCase();
+        for (const phrase of ["we miss you", "act now", "urgent", "don't lose", "last chance", "hurry"]) {
+            expect(lower).not.toContain(phrase);
+        }
+    });
+});

@@ -271,6 +271,10 @@ function JsonLd() {
       priceCurrency: "USD",
     },
     author: { "@type": "Organization", name: "Imotara", url: site },
+    // 🔑 The Wikidata item is typed "mobile app / web application", which is
+    // exactly this node. It is what an assistant reads to learn what Imotara
+    // IS, rather than what it says about itself. ⇒ businessIdentity.ts
+    sameAs: [BUSINESS.wikidata],
     inLanguage: [
       "en","es","hi","fr","bn","ar","pt","de","ja","ru","he","id","zh",
       "ta","te","ml","kn","mr","gu","pa","ur","or",
@@ -304,6 +308,10 @@ function JsonLd() {
       priceCurrency: "USD",
     },
     author: { "@type": "Organization", name: "Imotara", url: site },
+    // Same item as the MobileApplication node above: Wikidata records one
+    // Imotara that is both a mobile app and a web application, so both nodes
+    // point at it rather than inventing a second entity for the web build.
+    sameAs: [BUSINESS.wikidata],
   };
 
 

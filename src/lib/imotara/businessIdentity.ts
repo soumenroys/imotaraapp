@@ -60,6 +60,22 @@ export const BUSINESS = {
     website: "https://www.imotara.com",
 
     /**
+     * 🔑 THE WIKIDATA ITEM — Q141751345, created 2026-10-17.
+     *
+     * Why it is here and not in `social`: it is not a channel anyone posts to.
+     * It is the entity record assistants and search engines read to answer
+     * "what IS Imotara" — which is the one question `sameAs` on a profile
+     * cannot answer.
+     *
+     * ⚠️ The item's `instance of` is **mobile app / web application**, so it
+     * belongs in the `sameAs` of the MobileApplication and SoftwareApplication
+     * nodes — NOT the Organization node. The organisation is the publisher;
+     * saying the publisher *is* the app would be a false identity claim, and
+     * a wrong `sameAs` is worse than none ⇒ the note on `social` below.
+     */
+    wikidata: "https://www.wikidata.org/wiki/Q141751345",
+
+    /**
      * 🔑 THE OFFICIAL SOCIAL CHANNELS — owner-supplied, 2026-10-16, and the
      * single source of truth for them.
      *

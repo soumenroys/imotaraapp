@@ -265,3 +265,48 @@ describe("⛔ no social profile URL is hardcoded outside the identity module", (
         });
     }
 });
+
+describe("the Wikidata item is claimed by the right entity", () => {
+    /**
+     * 🔑 WHY THIS IS WORTH PINNING. Q141751345 was created 2026-10-17 and is
+     * the record an assistant reads to answer "what IS Imotara" — the one
+     * question a social profile in `sameAs` cannot answer. It only works if
+     * the site and the item point at each other; a Q-id that drifts in one
+     * place breaks the link silently, because nothing renders differently.
+     *
+     * ⛔ AND IT MUST BE CLAIMED BY THE RIGHT NODE. The item's `instance of`
+     * is mobile app / web application. Putting it in the Organization's
+     * `sameAs` would assert that the publisher IS the app — a false identity
+     * claim, which is the specific failure `sameAs` causes ⇒ the wrong-handle
+     * note in businessIdentity.ts.
+     */
+    const QID = "Q141751345";
+    const layout = read("src/app/layout.tsx");
+
+    it("names one Q-id, from the identity module", () => {
+        expect(BUSINESS.wikidata).toBe(`https://www.wikidata.org/wiki/${QID}`);
+    });
+
+    it("is claimed by both application nodes", () => {
+        for (const marker of ["const mobileApp = {", "const webApp = {"]) {
+            const start = layout.indexOf(marker);
+            expect(start, `${marker} not found`).toBeGreaterThan(-1);
+            const node = layout.slice(start, layout.indexOf("\n  };", start));
+            expect(node, `${marker} does not claim the item`).toContain("sameAs: [BUSINESS.wikidata]");
+        }
+    });
+
+    it("⛔ is NOT claimed by the Organization node", () => {
+        const start = layout.indexOf("const organization = {");
+        const org = layout.slice(start, layout.indexOf("const website = {", start));
+        expect(org, "the publisher must not claim to be the app").not.toContain("wikidata");
+    });
+
+    it("llms.txt names the same item, not a second one", () => {
+        const raw = read("public/llms.txt");
+        expect(raw).toContain(`https://www.wikidata.org/wiki/${QID}`);
+        // A second Q-id anywhere in the file would mean two entities claiming
+        // to be Imotara, which is worse than naming none.
+        expect(raw.match(/\bQ\d{4,}\b/g) ?? []).toEqual([QID]);
+    });
+});

@@ -108,6 +108,9 @@ const BENIGN_HOSTS = new Set([
     "schema.org", "play.google.com", "apps.apple.com", "findahelpline.com",
     "x.com", "twitter.com", "www.linkedin.com", "www.instagram.com",
     "instagram.com", "www.youtube.com", "www.facebook.com",
+    // The Wikidata item, named in schema markup so assistants can resolve what
+    // Imotara is. Outbound link only — nothing is sent to it at runtime.
+    "www.wikidata.org",
     // consoles and status pages we link to in admin/docs
     "status.openai.com", "platform.openai.com", "aistudio.google.com",
     "console.cloud.google.com",

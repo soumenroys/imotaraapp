@@ -1,4 +1,12 @@
-# Wikidata item for Imotara — ready to create
+# Wikidata item for Imotara — ✅ created
+
+**[Q141751345](https://www.wikidata.org/wiki/Q141751345)** — created 17 Oct 2026 by
+`ImotaraOfficial`. Label, description and all 14 statements below are live and were read back
+from the API to confirm, not assumed.
+
+⚠️ **Do not keep editing it.** A new item repeatedly edited by its own subject draws scrutiny.
+It was set in one edit, deliberately. The remaining items are at the bottom of this file and
+each needs a fact we do not have yet.
 
 **Why this is worth doing.** Assistants lean on Wikidata for entity facts: what a thing *is*, who
 made it, where to find it. Unlike Wikipedia there is **no notability bar** for a basic item — a
@@ -75,9 +83,20 @@ check the real Play Store release date.
 **Anything about what Imotara does therapeutically.** An item states what a thing *is*; it is not
 a place for positioning. ⇒ [[trap_marketing_copy_claims_a_regulated_title]].
 
-## After it exists
+## ✅ Wired back to the site
 
-- Note the new **Q-id** and tell me — it goes into `llms.txt` and the site's `sameAs`, which is
-  how the item gets tied back to the entity rather than floating alone.
-- ⚠️ **Do not keep editing it.** A newly created item edited repeatedly by its own subject draws
-  scrutiny. Set it once, correctly, and leave it.
+An item nobody links to is an item nobody trusts. The link runs both ways now:
+
+- `businessIdentity.ts` → `BUSINESS.wikidata`, the single place the Q-id is written.
+- `layout.tsx` → the `sameAs` of the **MobileApplication** and **SoftwareApplication** nodes.
+- `public/llms.txt` → under *Contact and links*.
+
+🔑 **Deliberately NOT in the Organization node's `sameAs`.** The item's `instance of` is
+*mobile app / web application*. The Organization is the publisher, M/S IMOTARA. Claiming the
+publisher *is* the app is a false identity statement, and a wrong `sameAs` is worse than none
+⇒ the wrong-handle note in `businessIdentity.ts`.
+
+⛔ Guarded by `organizationSchemaIsVerifiable.test.ts`: the Q-id must match in all three places,
+must appear on both app nodes, must **not** appear on the Organization, and a second Q-id
+anywhere in `llms.txt` fails the build. All four assertions were mutation-tested against a
+control — 4/4 caught.

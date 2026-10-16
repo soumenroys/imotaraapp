@@ -131,3 +131,29 @@ describe("⛔ FAQPage markup only where the questions are visible", () => {
         expect((src.match(/"@type": "Question"/g) ?? []).length).toBeGreaterThan(1);
     });
 });
+
+describe("🔴 the site-wide schemas are actually EMITTED, not merely defined", () => {
+    // Found the hard way on 2026-10-16. A regex meant to remove only the
+    // site-wide faqSchema <script> removed every <script> in JsonLd's return.
+    // The four objects were still defined, tsc passed, every test passed, the
+    // build passed — and the deployed site carried NO Organization, WebSite or
+    // app structured data at all. Nothing in the suite was watching whether a
+    // defined object ever reached the page.
+    //
+    // ⛔ So: defining a schema is not emitting it. Assert the emission.
+    const layout = read("src/app/layout.tsx");
+
+    for (const name of ["organization", "website", "mobileApp", "webApp"]) {
+        it(`${name} is defined AND rendered`, () => {
+            expect(layout, `${name} is not defined`).toContain(`const ${name} = {`);
+            expect(layout, `${name} is defined but never emitted`)
+                .toContain(`JSON.stringify(${name})`);
+        });
+    }
+
+    it("emits one ld+json script per schema object", () => {
+        const defined = (layout.match(/\n  const \w+ = \{\n    "@context"/g) ?? []).length;
+        const emitted = (layout.match(/application\/ld\+json/g) ?? []).length;
+        expect(emitted, "a schema object is defined with nothing rendering it").toBe(defined);
+    });
+});

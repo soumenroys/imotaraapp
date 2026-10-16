@@ -288,8 +288,35 @@ function JsonLd() {
   };
 
 
+  // ⛔ ALL FOUR ARE EMITTED HERE. On 2026-10-16 a regex meant to remove ONLY
+  // the site-wide faqSchema <script> removed every <script> in this return,
+  // leaving the objects defined and nothing rendering them — the site shipped
+  // with no Organization, WebSite or app schema at all for one deploy. The
+  // tests passed, the build passed, and the check that caught it was reading
+  // the PRODUCTION html and counting what was actually there.
+  // 🔑 The lesson: verify what survived, not only what you meant to delete.
   return (
     <>
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organization) }}
+      />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(website) }}
+      />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(mobileApp) }}
+      />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webApp) }}
+      />
     </>
   );
 }

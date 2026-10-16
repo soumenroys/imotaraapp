@@ -1,6 +1,18 @@
 // src/data/faqLang.ts
 //
-// Question-shaped FAQ pages in the Indian languages.
+// Question-shaped FAQ pages, now in 21 of Imotara's 22 languages.
+//
+// ⚠️ ELEVEN WERE INDIAN AND WRITTEN FIRST, for a measured reason that still
+// holds: those markets have a fraction of the competition. The ten added on
+// 2026-10-16 — de fr es pt id ru ja zh ar he — are a weaker bet on the same
+// logic, in markets where Imotara has no authority and competitors do. They
+// exist because the app already serves those languages and a user searching in
+// Indonesian deserves to find something.
+//
+// 🔴 AND NOBODY ON THIS TEAM READS JAPANESE OR HEBREW. The Indian pages get
+// corrected by the owner; these do not get that review, which is exactly why
+// faqLangHonesty.test.ts pins the things a non-speaker cannot eyeball —
+// script, direction, the age numbers and the helpline numbers.
 //
 // 🔑 WHY. Search Console, three months to 2026-10-16: 111 impressions, average
 // position 6.2, CTR 17.1%, and **seven queries in total** — six of them the
@@ -713,6 +725,236 @@ export const LANG_FAQ: Record<string, LangFaq> = {
                 q: "اموتارا استعمال کرنے کے لیے عمر کتنی ہونی چاہیے؟",
                 a: "13 سال یا اس سے زیادہ، اور 18 سال سے کم عمر میں والدین یا سرپرست کی رضامندی ضروری ہے۔ جہاں قانون اس سے بڑی عمر مقرر کرتا ہے، وہاں وہی لاگو ہوگی۔ پہلی بار کھولنے پر ہر کسی سے یہ قبول کرایا جاتا ہے۔",
             },
+        ],
+    },
+    de: {
+        lang: "de",
+        nativeName: "Deutsch",
+        englishName: "German",
+        dir: "ltr",
+        ogLocale: "de_DE",
+        heading: "Was Menschen über Imotara fragen",
+        title: "Imotara — klare Antworten auf Ihre Fragen",
+        description:
+            "Ist Imotara eine Therapie? Ist es privat? Kann ich auf Deutsch schreiben? Klare Antworten, auch dort, wo die Antwort Nein lautet.",
+        intro:
+            "Klare Antworten, auch dort, wo die Antwort Nein lautet. Wenn etwas unklar bleibt, schreiben Sie an info@imotara.com.",
+        items: [
+            { id: "is-therapy", q: "Ist Imotara eine Therapie?", a: "Nein. Imotara ist keine Therapie, kein Therapeut und kein Notdienst. Es ist ein Ort, an dem Sie an einem gewöhnlich schweren Tag in Ruhe denken können. Wenn es ernst wird, verweist es Sie an eine Fachperson, statt Sie hier zu behalten." },
+            { id: "talk-in-my-language", q: "Kann ich mit Imotara auf Deutsch schreiben?", a: "Ja, und in 21 weiteren Sprachen. Die Antwort kommt in der Sprache, in der Sie geschrieben haben. Die meisten Menschen können ihr Problem auf Englisch erklären, aber nur in ihrer eigenen Sprache genau sagen, was sie meinen." },
+            { id: "can-anyone-read-it", q: "Kann jemand anderes lesen, was ich schreibe?", a: "Nein. Ihre Gespräche kann niemand sonst lesen — auch nicht Ihre Firma, Ihre Schule oder Ihre Familie, selbst wenn eine Organisation die Lizenz bezahlt. Die Organisation sieht, dass eine Lizenz genutzt wird, nicht wer was gesagt hat. Es gibt keine Verwaltungsseite, die Gespräche anzeigt." },
+            { id: "is-it-free", q: "Ist Imotara kostenlos?", a: "Ja, dauerhaft. Kostenlos erhalten Sie zwanzig Cloud-Antworten pro Tag und danach unbegrenzt Antworten direkt auf dem Gerät — das Gespräch wird nie abgebrochen. Eine Karte ist nicht nötig. Es gibt einen bezahlten Tarif, aber nichts, was mit Sicherheit zu tun hat, liegt dahinter." },
+            { id: "night-overthinking", q: "Hilft es, wenn ich nachts nicht aufhören kann zu denken?", a: "Manchmal. Nachts ist nicht mehr los in Ihrem Kopf — es ist nur endlich hörbar, weil alles andere weg ist. Etwas in Worte zu fassen nimmt ihm meist etwas Gewicht. Imotara ist um drei Uhr nachts da und wird nicht müde, wenn Sie dasselbe noch einmal sagen." },
+            { id: "exam-family-pressure", q: "Kann ich über Prüfungs- oder Familiendruck sprechen?", a: "Ja, und das ist einer der häufigsten Gründe, warum Menschen schreiben. Imotara sagt Ihnen nicht, dass der Druck nicht real ist, und gibt Ihnen auch keine Ratschläge für Ihre Familie. Es hilft Ihnen zu trennen, was Sie tun können, von dem, was Sie nur tragen." },
+            { id: "crisis", q: "Was passiert, wenn es mir sehr schlecht geht?", a: "Imotara ist kein Notdienst und tut nicht so. Wenn Sie daran denken, sich zu verletzen, wenden Sie sich bitte jetzt an einen echten Dienst: in Deutschland die Telefonseelsorge unter 0800 111 0 111, kostenlos und rund um die Uhr, oder 112 im Notfall. In Österreich 142, in der Schweiz 143. Für jedes andere Land listet findahelpline.com den zuständigen Dienst auf." },
+            { id: "minimum-age", q: "Ab welchem Alter darf man Imotara nutzen?", a: "Ab 13 Jahren. Unter 18 muss ein Elternteil oder eine erziehungsberechtigte Person zustimmen. Wo das örtliche Recht ein höheres Alter vorschreibt, gilt dieses höhere Alter." },
+        ],
+    },
+    fr: {
+        lang: "fr",
+        nativeName: "Français",
+        englishName: "French",
+        dir: "ltr",
+        ogLocale: "fr_FR",
+        heading: "Ce que les gens demandent à propos d'Imotara",
+        title: "Imotara — des réponses claires à vos questions",
+        description:
+            "Imotara est-il une thérapie ? Est-ce privé ? Puis-je écrire en français ? Des réponses directes, y compris quand la réponse est non.",
+        intro:
+            "Des réponses directes, y compris quand la réponse est non. Si quelque chose reste flou, écrivez à info@imotara.com.",
+        items: [
+            { id: "is-therapy", q: "Imotara est-il une thérapie ?", a: "Non. Imotara n'est ni une thérapie, ni un thérapeute, ni un service d'urgence. C'est un endroit où réfléchir tranquillement un jour ordinairement difficile. Si les choses deviennent graves, il vous oriente vers un professionnel au lieu de vous garder ici." },
+            { id: "talk-in-my-language", q: "Puis-je écrire à Imotara en français ?", a: "Oui, et dans vingt et une autres langues. La réponse arrive dans la langue où vous avez écrit. La plupart des gens peuvent expliquer leur problème en anglais, mais ne peuvent dire exactement ce qu'ils veulent dire que dans leur propre langue." },
+            { id: "can-anyone-read-it", q: "Quelqu'un peut-il lire ce que j'écris ?", a: "Non. Personne d'autre ne peut lire vos conversations — ni votre employeur, ni votre école, ni votre famille, même si une organisation paie la licence. L'organisation voit qu'une licence est utilisée, pas qui a dit quoi. Aucune page d'administration ne montre les conversations." },
+            { id: "is-it-free", q: "Imotara est-il gratuit ?", a: "Oui, et il le reste. Gratuitement vous avez vingt réponses cloud par jour, puis des réponses illimitées directement sur l'appareil — la conversation n'est jamais interrompue. Aucune carte n'est demandée. Une formule payante existe, mais rien qui touche à la sécurité ne se trouve derrière." },
+            { id: "night-overthinking", q: "Est-ce que cela aide quand je ne peux pas arrêter de penser la nuit ?", a: "Parfois. La nuit, il n'y a pas plus de pensées — elles deviennent simplement audibles, parce que tout le reste s'est tu. Mettre quelque chose en mots lui enlève souvent un peu de poids. Imotara est là à trois heures du matin et ne se lasse pas si vous répétez la même chose." },
+            { id: "exam-family-pressure", q: "Puis-je parler de la pression des examens ou de la famille ?", a: "Oui, et c'est l'une des raisons les plus fréquentes pour lesquelles les gens écrivent. Imotara ne vous dira pas que la pression n'est pas réelle, et ne vous donnera pas de conseils sur votre famille. Il vous aide à séparer ce que vous pouvez faire de ce que vous ne faites que porter." },
+            { id: "crisis", q: "Que se passe-t-il si je vais vraiment très mal ?", a: "Imotara n'est pas un service d'urgence et ne prétend pas l'être. Si vous pensez à vous faire du mal, contactez maintenant un vrai service : en France, le 3114, gratuit et ouvert jour et nuit, ou le 15 en cas d'urgence. En Suisse, le 143. Pour tout autre pays, findahelpline.com indique le service compétent." },
+            { id: "minimum-age", q: "À partir de quel âge peut-on utiliser Imotara ?", a: "À partir de 13 ans. En dessous de 18 ans, un parent ou un tuteur doit donner son accord. Lorsque la loi locale fixe un âge plus élevé, c'est cet âge-là qui s'applique." },
+        ],
+    },
+    es: {
+        lang: "es",
+        nativeName: "Español",
+        englishName: "Spanish",
+        dir: "ltr",
+        ogLocale: "es_ES",
+        heading: "Lo que la gente pregunta sobre Imotara",
+        title: "Imotara — respuestas claras a tus preguntas",
+        description:
+            "¿Imotara es terapia? ¿Es privado? ¿Puedo escribir en español? Respuestas directas, también cuando la respuesta es no.",
+        intro:
+            "Respuestas directas, también cuando la respuesta es no. Si algo no queda claro, escribe a info@imotara.com.",
+        items: [
+            { id: "is-therapy", q: "¿Imotara es terapia?", a: "No. Imotara no es terapia, no es un terapeuta y no es un servicio de emergencia. Es un lugar donde pensar con calma en un día corrientemente difícil. Si la cosa se pone seria, te dirige a un profesional en lugar de retenerte aquí." },
+            { id: "talk-in-my-language", q: "¿Puedo escribirle a Imotara en español?", a: "Sí, y en otros veintiún idiomas. La respuesta llega en el idioma en que escribiste. Casi todo el mundo puede explicar su problema en inglés, pero solo en su propio idioma puede decir exactamente lo que quiere decir." },
+            { id: "can-anyone-read-it", q: "¿Alguien más puede leer lo que escribo?", a: "No. Nadie más puede leer tus conversaciones — ni tu empresa, ni tu centro de estudios, ni tu familia, aunque una organización pague la licencia. La organización ve que una licencia se usa, no quién dijo qué. No existe ninguna página de administración que muestre conversaciones." },
+            { id: "is-it-free", q: "¿Imotara es gratis?", a: "Sí, y lo seguirá siendo. Gratis tienes veinte respuestas en la nube al día y después respuestas ilimitadas en el propio dispositivo — la conversación nunca se corta. No hace falta tarjeta. Hay un plan de pago, pero nada relacionado con la seguridad está detrás de él." },
+            { id: "night-overthinking", q: "¿Sirve de algo cuando no puedo dejar de pensar por la noche?", a: "A veces. De noche no hay más pensamientos; simplemente por fin se oyen, porque todo lo demás se ha callado. Poner algo en palabras suele quitarle algo de peso. Imotara está a las tres de la madrugada y no se cansa si repites lo mismo." },
+            { id: "exam-family-pressure", q: "¿Puedo hablar de la presión de los exámenes o de la familia?", a: "Sí, y es uno de los motivos más frecuentes por los que la gente escribe. Imotara no te dirá que la presión no es real, ni te dará consejos sobre tu familia. Te ayuda a separar lo que puedes hacer de lo que solo estás cargando." },
+            { id: "crisis", q: "¿Qué pasa si estoy muy mal?", a: "Imotara no es un servicio de emergencia y no finge serlo. Si piensas en hacerte daño, contacta ahora con un servicio real: en España, el Teléfono de la Esperanza en el 717 003 717, o el 024, y el 112 en una emergencia. En México, SAPTEL en el 55 5259-8121; en Argentina, el 135. Para cualquier otro país, findahelpline.com indica el servicio que corresponde." },
+            { id: "minimum-age", q: "¿A partir de qué edad se puede usar Imotara?", a: "A partir de los 13 años. Si tienes menos de 18, un padre, una madre o un tutor debe dar su consentimiento. Donde la ley local fije una edad mayor, se aplica esa edad mayor." },
+        ],
+    },
+    pt: {
+        lang: "pt",
+        nativeName: "Português",
+        englishName: "Portuguese",
+        dir: "ltr",
+        ogLocale: "pt_BR",
+        heading: "O que as pessoas perguntam sobre o Imotara",
+        title: "Imotara — respostas claras às suas perguntas",
+        description:
+            "O Imotara é terapia? É privado? Posso escrever em português? Respostas diretas, inclusive quando a resposta é não.",
+        intro:
+            "Respostas diretas, inclusive quando a resposta é não. Se algo não ficar claro, escreva para info@imotara.com.",
+        items: [
+            { id: "is-therapy", q: "O Imotara é terapia?", a: "Não. O Imotara não é terapia, não é um terapeuta e não é um serviço de emergência. É um lugar para pensar com calma num dia comumente difícil. Se a coisa ficar séria, ele encaminha você a um profissional em vez de manter você aqui." },
+            { id: "talk-in-my-language", q: "Posso escrever para o Imotara em português?", a: "Sim, e em mais vinte e um idiomas. A resposta chega no idioma em que você escreveu. Quase todo mundo consegue explicar o problema em inglês, mas só na própria língua consegue dizer exatamente o que quer dizer." },
+            { id: "can-anyone-read-it", q: "Alguém mais pode ler o que eu escrevo?", a: "Não. Ninguém mais pode ler as suas conversas — nem a sua empresa, nem a sua escola, nem a sua família, mesmo que uma organização pague a licença. A organização vê que uma licença está em uso, não quem disse o quê. Não existe nenhuma página de administração que mostre conversas." },
+            { id: "is-it-free", q: "O Imotara é gratuito?", a: "Sim, e continua sendo. De graça você tem vinte respostas na nuvem por dia e, depois disso, respostas ilimitadas no próprio aparelho — a conversa nunca é interrompida. Não é preciso cartão. Existe um plano pago, mas nada ligado à segurança está atrás dele." },
+            { id: "night-overthinking", q: "Ajuda quando não consigo parar de pensar à noite?", a: "Às vezes. À noite não há mais pensamentos; eles apenas ficam audíveis, porque todo o resto se calou. Colocar algo em palavras costuma tirar um pouco do peso. O Imotara está lá às três da manhã e não se cansa se você repetir a mesma coisa." },
+            { id: "exam-family-pressure", q: "Posso falar sobre pressão de provas ou da família?", a: "Sim, e esse é um dos motivos mais comuns pelos quais as pessoas escrevem. O Imotara não vai dizer que a pressão não é real, nem dar conselhos sobre a sua família. Ele ajuda você a separar o que pode fazer daquilo que está apenas carregando." },
+            { id: "crisis", q: "E se eu estiver muito mal?", a: "O Imotara não é um serviço de emergência e não finge ser. Se você estiver pensando em se machucar, procure agora um serviço de verdade: no Brasil, o CVV no 188, gratuito e 24 horas, ou 192 em emergência. Em Portugal, SOS Voz Amiga no 213 544 545. Para qualquer outro país, findahelpline.com indica o serviço certo." },
+            { id: "minimum-age", q: "A partir de que idade dá para usar o Imotara?", a: "A partir dos 13 anos. Abaixo de 18, um pai, uma mãe ou responsável precisa concordar. Onde a lei local exigir uma idade maior, vale essa idade maior." },
+        ],
+    },
+    id: {
+        lang: "id",
+        nativeName: "Bahasa Indonesia",
+        englishName: "Indonesian",
+        dir: "ltr",
+        ogLocale: "id_ID",
+        heading: "Yang orang tanyakan tentang Imotara",
+        title: "Imotara — jawaban jujur untuk pertanyaan Anda",
+        description:
+            "Apakah Imotara itu terapi? Apakah privat? Bisakah saya menulis dalam bahasa Indonesia? Jawaban langsung, termasuk ketika jawabannya tidak.",
+        intro:
+            "Jawaban langsung, termasuk ketika jawabannya tidak. Jika ada yang kurang jelas, tulis ke info@imotara.com.",
+        items: [
+            { id: "is-therapy", q: "Apakah Imotara itu terapi?", a: "Bukan. Imotara bukan terapi, bukan terapis, dan bukan layanan darurat. Ini tempat untuk berpikir dengan tenang pada hari yang biasa-biasa saja beratnya. Kalau keadaan menjadi serius, Imotara mengarahkan Anda ke tenaga profesional, bukan menahan Anda di sini." },
+            { id: "talk-in-my-language", q: "Bisakah saya menulis kepada Imotara dalam bahasa Indonesia?", a: "Bisa, dan dalam dua puluh satu bahasa lain. Jawaban datang dalam bahasa yang Anda pakai menulis. Kebanyakan orang bisa menjelaskan masalahnya dalam bahasa Inggris, tetapi hanya dalam bahasanya sendiri bisa mengatakan persis apa yang dimaksud." },
+            { id: "can-anyone-read-it", q: "Apakah ada orang lain yang bisa membaca tulisan saya?", a: "Tidak. Tidak ada orang lain yang bisa membaca percakapan Anda — bukan kantor Anda, bukan sekolah Anda, bukan keluarga Anda, sekalipun lisensinya dibayar sebuah organisasi. Organisasi hanya melihat bahwa lisensi dipakai, bukan siapa mengatakan apa. Tidak ada halaman admin yang menampilkan percakapan." },
+            { id: "is-it-free", q: "Apakah Imotara gratis?", a: "Ya, dan tetap begitu. Secara gratis Anda mendapat dua puluh jawaban cloud per hari, lalu jawaban tanpa batas langsung di perangkat — percakapan tidak pernah diputus. Tidak perlu kartu. Ada paket berbayar, tetapi tidak ada satu pun hal yang berkaitan dengan keselamatan di baliknya." },
+            { id: "night-overthinking", q: "Apakah membantu kalau saya tidak bisa berhenti berpikir di malam hari?", a: "Kadang. Di malam hari pikirannya tidak bertambah banyak; ia hanya akhirnya terdengar, karena yang lain sudah diam. Menuangkan sesuatu ke dalam kata biasanya mengurangi sedikit bebannya. Imotara ada pada pukul tiga pagi dan tidak bosan kalau Anda mengulang hal yang sama." },
+            { id: "exam-family-pressure", q: "Bolehkah saya bercerita tentang tekanan ujian atau keluarga?", a: "Boleh, dan itu salah satu alasan paling sering orang menulis. Imotara tidak akan berkata bahwa tekanan itu tidak nyata, dan tidak akan memberi nasihat tentang keluarga Anda. Ia membantu memisahkan apa yang bisa Anda lakukan dari apa yang hanya Anda pikul." },
+            { id: "crisis", q: "Bagaimana kalau keadaan saya sangat buruk?", a: "Imotara bukan layanan darurat dan tidak berpura-pura menjadi satu. Kalau Anda berpikir untuk menyakiti diri sendiri, hubungi layanan sungguhan sekarang: di Indonesia, Yayasan Pulih di 021-788-42580, atau 119 untuk keadaan darurat. Untuk negara lain mana pun, findahelpline.com mencantumkan layanan yang tepat." },
+            { id: "minimum-age", q: "Berapa usia minimum untuk memakai Imotara?", a: "Mulai 13 tahun. Di bawah 18 tahun, orang tua atau wali harus menyetujui. Jika hukum setempat menetapkan usia yang lebih tinggi, usia yang lebih tinggi itulah yang berlaku." },
+        ],
+    },
+    ru: {
+        lang: "ru",
+        nativeName: "Русский",
+        englishName: "Russian",
+        dir: "ltr",
+        ogLocale: "ru_RU",
+        heading: "О чём спрашивают про Imotara",
+        title: "Imotara — прямые ответы на ваши вопросы",
+        description:
+            "Imotara — это терапия? Это приватно? Можно ли писать по-русски? Прямые ответы, в том числе там, где ответ — нет.",
+        intro:
+            "Прямые ответы, в том числе там, где ответ — нет. Если что-то осталось непонятным, напишите на info@imotara.com.",
+        items: [
+            { id: "is-therapy", q: "Imotara — это терапия?", a: "Нет. Imotara — не терапия, не психотерапевт и не экстренная служба. Это место, где можно спокойно подумать в обычно трудный день. Если дело становится серьёзным, он направит вас к специалисту, а не станет удерживать вас здесь." },
+            { id: "talk-in-my-language", q: "Можно ли писать Imotara по-русски?", a: "Да, и ещё на двадцати одном языке. Ответ приходит на том языке, на котором вы написали. Почти каждый может объяснить свою проблему по-английски, но сказать точно то, что имеет в виду, получается только на своём языке." },
+            { id: "can-anyone-read-it", q: "Может ли кто-то ещё прочитать то, что я пишу?", a: "Нет. Ваши разговоры не может прочитать никто другой — ни работодатель, ни учебное заведение, ни семья, даже если лицензию оплачивает организация. Организация видит, что лицензия используется, а не кто что сказал. Страницы администратора, показывающей разговоры, просто не существует." },
+            { id: "is-it-free", q: "Imotara бесплатен?", a: "Да, и останется таким. Бесплатно доступны двадцать облачных ответов в день, а дальше — неограниченные ответы прямо на устройстве: разговор никогда не обрывается. Карта не нужна. Платный тариф есть, но за ним нет ничего, что связано с безопасностью." },
+            { id: "night-overthinking", q: "Поможет ли это, если ночью я не могу перестать думать?", a: "Иногда. Ночью мыслей не становится больше — их просто наконец слышно, потому что всё остальное затихло. Когда что-то названо словами, это обычно теряет часть веса. Imotara есть в три часа ночи и не устаёт, если вы повторяете одно и то же." },
+            { id: "exam-family-pressure", q: "Можно ли говорить о давлении экзаменов или семьи?", a: "Да, и это одна из самых частых причин, по которым люди начинают писать. Imotara не скажет вам, что давление ненастоящее, и не станет давать советы про вашу семью. Он помогает отделить то, на что вы можете повлиять, от того, что вы просто несёте." },
+            { id: "crisis", q: "Что если мне очень плохо?", a: "Imotara не является экстренной службой и не притворяется ею. Если вы думаете о том, чтобы причинить себе вред, обратитесь сейчас в настоящую службу: в России — телефон доверия 8-800-2000-122, бесплатно, или 112 при чрезвычайной ситуации. Для любой другой страны findahelpline.com укажет нужную службу." },
+            { id: "minimum-age", q: "С какого возраста можно пользоваться Imotara?", a: "С 13 лет. До 18 лет требуется согласие родителя или опекуна. Там, где местный закон устанавливает более высокий возраст, действует этот более высокий возраст." },
+        ],
+    },
+    ja: {
+        lang: "ja",
+        nativeName: "日本語",
+        englishName: "Japanese",
+        dir: "ltr",
+        ogLocale: "ja_JP",
+        heading: "イモタラについてよく聞かれること",
+        title: "イモタラ — あなたの疑問への率直な答え",
+        description:
+            "イモタラは治療ですか。内容は非公開ですか。日本語で書けますか。答えが「いいえ」の場合も含めて、率直にお答えします。",
+        intro:
+            "答えが「いいえ」の場合も含めて、率直にお答えします。はっきりしない点があれば info@imotara.com までご連絡ください。",
+        items: [
+            { id: "is-therapy", q: "イモタラは治療ですか？", a: "いいえ。イモタラは治療でも、治療者でも、緊急サービスでもありません。ふつうにつらい一日に、落ち着いて考えるための場所です。深刻な状態になれば、ここに引き留めるのではなく、専門家につなぎます。" },
+            { id: "talk-in-my-language", q: "イモタラに日本語で書いてもいいですか？", a: "はい。ほかに二十一の言語にも対応しています。返事は、あなたが書いた言語で返ってきます。多くの人は困りごとを英語でも説明できますが、言いたいことを正確に言えるのは自分の言語だけです。" },
+            { id: "can-anyone-read-it", q: "書いた内容を誰かに読まれますか？", a: "いいえ。あなたの会話は誰も読めません。勤務先も、学校も、家族も読めません。組織がライセンスを支払っている場合でも同じです。組織に見えるのはライセンスが使われているという事実だけで、誰が何を言ったかは見えません。会話を表示する管理画面そのものが存在しません。" },
+            { id: "is-it-free", q: "イモタラは無料ですか？", a: "はい、これからも無料のままです。無料では一日二十回のクラウド応答が使え、それ以降は端末内での応答が無制限に続きます。会話が止められることはありません。カードも不要です。有料プランもありますが、安全に関わるものは一切その後ろに置いていません。" },
+            { id: "night-overthinking", q: "夜に考えが止まらないとき、役に立ちますか？", a: "ときには。夜に考えが増えるわけではなく、ほかの音が消えてようやく聞こえるようになるだけです。言葉にすると、たいてい少し軽くなります。イモタラは午前三時にもそこにいて、同じ話を繰り返しても疲れません。" },
+            { id: "exam-family-pressure", q: "受験や家族からの重圧について話せますか？", a: "はい。それは人が書き始める最も多い理由のひとつです。イモタラは、その重圧が本物ではないとは言いませんし、ご家族についての助言もしません。自分にできることと、ただ背負っているだけのことを分ける手助けをします。" },
+            { id: "crisis", q: "とてもつらいときはどうなりますか？", a: "イモタラは緊急サービスではなく、そのふりもしません。自分を傷つけることを考えているなら、いますぐ本物の窓口に連絡してください。日本では、いのちの電話 0120-783-556、緊急時は 119 または 110 です。ほかの国については findahelpline.com に各国の窓口が載っています。" },
+            { id: "minimum-age", q: "何歳から使えますか？", a: "13歳からです。18歳未満の場合は、保護者の同意が必要です。お住まいの地域の法律がより高い年齢を定めている場合は、その高いほうの年齢が適用されます。" },
+        ],
+    },
+    zh: {
+        lang: "zh",
+        nativeName: "中文",
+        englishName: "Chinese",
+        dir: "ltr",
+        ogLocale: "zh_CN",
+        heading: "人们常问的关于 Imotara 的问题",
+        title: "Imotara — 对你的疑问的直接回答",
+        description:
+            "Imotara 是治疗吗？内容是否私密？可以用中文书写吗？直接的回答，包括答案是否定的时候。",
+        intro:
+            "直接的回答，包括答案是否定的时候。如果还有不清楚的地方，请写信到 info@imotara.com。",
+        items: [
+            { id: "is-therapy", q: "Imotara 是治疗吗？", a: "不是。Imotara 不是治疗，不是治疗师，也不是紧急服务。它是一个在普通的难熬日子里安静思考的地方。如果情况变得严重，它会把你引向专业人士，而不是把你留在这里。" },
+            { id: "talk-in-my-language", q: "我可以用中文和 Imotara 写字吗？", a: "可以，另外还支持二十一种语言。回答会用你书写时所用的语言返回。多数人能用英语说明自己的问题，但只有用自己的语言，才能把想说的说准确。" },
+            { id: "can-anyone-read-it", q: "别人能看到我写的内容吗？", a: "不能。没有别人能读到你的对话——你的公司、学校、家人都不能，即使许可证是某个机构付费的也一样。机构只能看到许可证在被使用，看不到谁说了什么。根本不存在任何可以显示对话内容的管理页面。" },
+            { id: "is-it-free", q: "Imotara 是免费的吗？", a: "是的，而且会一直免费。免费可以每天使用二十次云端回复，之后在设备上继续无限次回复——对话永远不会被切断。不需要银行卡。确实有付费方案，但任何与安全有关的东西都不在付费之后。" },
+            { id: "night-overthinking", q: "夜里停不下来地想事情时，它有用吗？", a: "有时有用。夜里并不是想法变多了，只是别的声音都停了，它们才终于被听见。把一件事说成话，通常会让它轻一些。Imotara 凌晨三点也在，而且你把同一件事说很多遍，它也不会厌烦。" },
+            { id: "exam-family-pressure", q: "可以谈考试或家庭带来的压力吗？", a: "可以，而且这是人们开始书写最常见的原因之一。Imotara 不会告诉你压力不是真的，也不会对你的家人提出建议。它帮你把自己能做的事，和你只是在扛着的事分开。" },
+            { id: "crisis", q: "如果我状态非常糟糕会怎样？", a: "Imotara 不是紧急服务，也不会假装是。如果你正想着伤害自己，请立刻联系真正的服务：在中国大陆可拨打希望24热线 400-161-9995，紧急情况拨 120 或 110；台湾是 1925；香港撒玛利亚会 2382 0000；新加坡 SOS 1767。其他国家和地区，findahelpline.com 会列出对应的服务。" },
+            { id: "minimum-age", q: "多少岁可以使用 Imotara？", a: "13 岁起。未满 18 岁需要家长或监护人同意。如果当地法律规定了更高的年龄，则以更高的年龄为准。" },
+        ],
+    },
+    ar: {
+        lang: "ar",
+        nativeName: "العربية",
+        englishName: "Arabic",
+        dir: "rtl",
+        ogLocale: "ar_EG",
+        heading: "ما يسأل عنه الناس بخصوص إيموتارا",
+        title: "إيموتارا — إجابات صريحة عن أسئلتك",
+        description:
+            "هل إيموتارا علاج نفسي؟ هل هو خاص؟ هل يمكنني الكتابة بالعربية؟ إجابات مباشرة، حتى حين تكون الإجابة لا.",
+        intro:
+            "إجابات مباشرة، حتى حين تكون الإجابة لا. إن بقي شيء غير واضح، اكتب إلى info@imotara.com.",
+        items: [
+            { id: "is-therapy", q: "هل إيموتارا علاج نفسي؟", a: "لا. إيموتارا ليس علاجًا نفسيًا، وليس معالجًا، وليس خدمة طوارئ. إنه مكان للتفكير بهدوء في يوم صعب بالقدر المعتاد. وإذا صار الأمر جادًا، فإنه يوجهك إلى مختص بدل أن يبقيك هنا." },
+            { id: "talk-in-my-language", q: "هل أستطيع الكتابة إلى إيموتارا بالعربية؟", a: "نعم، وبإحدى وعشرين لغة أخرى. يصلك الرد باللغة التي كتبت بها. معظم الناس يستطيعون شرح مشكلتهم بالإنجليزية، لكنهم لا يستطيعون قول ما يقصدونه بدقة إلا بلغتهم." },
+            { id: "can-anyone-read-it", q: "هل يستطيع أحد آخر قراءة ما أكتبه؟", a: "لا. لا أحد غيرك يستطيع قراءة محادثاتك — لا جهة عملك، ولا مدرستك، ولا عائلتك، حتى لو كانت مؤسسة هي من تدفع الاشتراك. المؤسسة ترى أن الاشتراك مستخدم، لا من قال ماذا. ولا توجد أصلًا صفحة إدارة تعرض المحادثات." },
+            { id: "is-it-free", q: "هل إيموتارا مجاني؟", a: "نعم، وسيبقى كذلك. مجانًا تحصل على عشرين ردًا سحابيًا في اليوم، ثم ردود غير محدودة على الجهاز نفسه — ولا تُقطع المحادثة أبدًا. لا حاجة إلى بطاقة. هناك خطة مدفوعة، لكن لا شيء يتعلق بالسلامة موضوع خلفها." },
+            { id: "night-overthinking", q: "هل ينفع حين لا أستطيع التوقف عن التفكير ليلًا؟", a: "أحيانًا. في الليل لا تزداد الأفكار، لكنها تصبح مسموعة أخيرًا لأن كل شيء آخر سكت. وضع الشيء في كلمات يخفف عنه بعض ثقله عادة. إيموتارا موجود في الثالثة فجرًا، ولا يمل إن أعدت الكلام نفسه." },
+            { id: "exam-family-pressure", q: "هل أستطيع الحديث عن ضغط الامتحانات أو العائلة؟", a: "نعم، وهو من أكثر الأسباب شيوعًا للكتابة. لن يقول لك إيموتارا إن الضغط غير حقيقي، ولن يقدم نصائح بشأن عائلتك. إنه يساعدك على الفصل بين ما تستطيع فعله وما أنت تحمله فحسب." },
+            { id: "crisis", q: "ماذا يحدث إن كنت في حال سيئة جدًا؟", a: "إيموتارا ليس خدمة طوارئ ولا يدّعي ذلك. إذا كنت تفكر في إيذاء نفسك، تواصل الآن مع خدمة حقيقية: في مصر، خط الدعم النفسي 08008880700؛ وفي السعودية 920033360؛ وفي الإمارات 800-HOPE (4673). ولأي بلد آخر، يذكر findahelpline.com الخدمة المناسبة لبلدك." },
+            { id: "minimum-age", q: "ما السن الأدنى لاستخدام إيموتارا؟", a: "من سن 13 عامًا. ومن هم دون 18 عامًا يحتاجون إلى موافقة أحد الوالدين أو ولي الأمر. وحيث يحدد القانون المحلي سنًا أعلى، يُطبَّق السن الأعلى." },
+        ],
+    },
+    he: {
+        lang: "he",
+        nativeName: "עברית",
+        englishName: "Hebrew",
+        dir: "rtl",
+        ogLocale: "he_IL",
+        heading: "מה שואלים על אימוטרה",
+        title: "אימוטרה — תשובות ישירות לשאלות שלך",
+        description:
+            "האם אימוטרה היא טיפול? האם זה פרטי? אפשר לכתוב בעברית? תשובות ישירות, גם כשהתשובה היא לא.",
+        intro:
+            "תשובות ישירות, גם כשהתשובה היא לא. אם משהו נשאר לא ברור, כתבו ל-info@imotara.com.",
+        items: [
+            { id: "is-therapy", q: "האם אימוטרה היא טיפול?", a: "לא. אימוטרה אינה טיפול, אינה מטפלת ואינה שירות חירום. זהו מקום לחשוב בו בשקט ביום קשה בדרך הרגילה. אם המצב נעשה רציני, היא מפנה אתכם לאיש מקצוע במקום להחזיק אתכם כאן." },
+            { id: "talk-in-my-language", q: "אפשר לכתוב לאימוטרה בעברית?", a: "כן, וגם בעשרים ואחת שפות נוספות. התשובה מגיעה בשפה שבה כתבתם. רוב האנשים יכולים להסביר את הבעיה שלהם באנגלית, אבל רק בשפה שלהם הם מצליחים לומר בדיוק למה התכוונו." },
+            { id: "can-anyone-read-it", q: "האם מישהו אחר יכול לקרוא את מה שאני כותב?", a: "לא. אף אחד אחר אינו יכול לקרוא את השיחות שלכם — לא מקום העבודה, לא בית הספר ולא המשפחה, גם אם ארגון משלם על הרישיון. הארגון רואה שהרישיון בשימוש, לא מי אמר מה. אין בכלל עמוד ניהול שמציג שיחות." },
+            { id: "is-it-free", q: "האם אימוטרה בחינם?", a: "כן, וכך יישאר. בחינם מקבלים עשרים תשובות בענן ביום, ואחר כך תשובות ללא הגבלה על המכשיר עצמו — השיחה לעולם אינה נקטעת. אין צורך בכרטיס אשראי. יש מסלול בתשלום, אך שום דבר שקשור לבטיחות אינו נמצא מאחוריו." },
+            { id: "night-overthinking", q: "זה עוזר כשאי אפשר להפסיק לחשוב בלילה?", a: "לפעמים. בלילה אין יותר מחשבות, הן פשוט נשמעות סוף סוף, כי כל השאר נדם. לנסח משהו במילים בדרך כלל מוריד ממנו קצת משקל. אימוטרה נמצאת גם בשלוש לפנות בוקר, ולא נמאס לה אם תחזרו על אותו דבר." },
+            { id: "exam-family-pressure", q: "אפשר לדבר על לחץ של בחינות או של המשפחה?", a: "כן, וזו אחת הסיבות הנפוצות ביותר שאנשים מתחילים לכתוב. אימוטרה לא תגיד לכם שהלחץ אינו אמיתי, ולא תיתן עצות על המשפחה שלכם. היא עוזרת להפריד בין מה שבידיכם לבין מה שאתם רק נושאים." },
+            { id: "crisis", q: "מה קורה אם אני במצב רע מאוד?", a: "אימוטרה אינה שירות חירום ואינה מתיימרת להיות כזה. אם אתם חושבים לפגוע בעצמכם, פנו עכשיו לשירות אמיתי: בישראל ער\"ן בטלפון 1201, או 101 במקרה חירום. לכל מדינה אחרת, findahelpline.com מפרט את השירות המתאים." },
+            { id: "minimum-age", q: "מגיל כמה מותר להשתמש באימוטרה?", a: "מגיל 13. מתחת לגיל 18 נדרשת הסכמה של הורה או אפוטרופוס. במקום שבו החוק המקומי קובע גיל גבוה יותר, הגיל הגבוה יותר הוא הקובע." },
         ],
     },
 };

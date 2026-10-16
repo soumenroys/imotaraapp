@@ -267,10 +267,18 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
             always fails — the same shape as the crisis-country setting that was
             written and never read.
 
-            🔑 Removed in CODE, not by deleting the env var, because this is
-            reversible: `git revert` plus flipping the flag brings it back if an
-            emergency ever needs it. Email + password with 2FA is the way in, and
-            there are two active owner accounts with working e-mail reset. */}
+            🔑 Removed in CODE first, so the removal survives any env change.
+            ⛔ THEN THE KEY ITSELF WAS DELETED from Vercel (Production + Preview)
+            on 16 Oct 2026 and the project redeployed — because the kill switch
+            tests `ADMIN_SECRET_DISABLED === "true"`, and a value of `1`, `True`
+            or `yes` would have left the fallback wide open while the dashboard
+            looked correct. With the variable absent, all three auth helpers
+            fail closed regardless of how the flag is spelled.
+
+            Break-glass is therefore no longer "flip a flag": it is git revert +
+            mint a NEW secret + redeploy, which is a deliberate reviewable act.
+            Email + password with 2FA is the way in, and there are two active
+            owner accounts with working e-mail reset. */}
 
         {/* Password reset flow — shown when ?reset_token= is in URL */}
         {resetToken && (
@@ -2025,6 +2033,11 @@ function SuperAdminsSection({ token }: { token: string }) {
   const [myAdmin, setMyAdmin]             = useState<SuperAdmin | null>(null);
 
   // Legacy key status
+  // 🔴 ALWAYS FALSE SINCE 16 Oct 2026 — ADMIN_SECRET was deleted from Vercel
+  // and all three auth helpers fail closed without it, so no token can now be
+  // anything but a session. Kept as a guard, not as a feature: if a future
+  // change ever revives a non-session token, the banner says so instead of
+  // quietly reassuring the operator.
   const legacyKeyActive = !token.startsWith("session:");
 
   const fetchAdmins = useCallback(async () => {
@@ -2182,8 +2195,8 @@ function SuperAdminsSection({ token }: { token: string }) {
         <p className="font-semibold text-zinc-300">Security status</p>
         <p className={legacyKeyActive ? "text-amber-300" : "text-emerald-300"}>
           {legacyKeyActive
-            ? "⚠ You are logged in via legacy secret key. Set ADMIN_SECRET_DISABLED=true in Vercel env vars to disable this fallback once all admins are on email/password."
-            : "✓ Logged in via secure email/password session. Legacy secret key is your emergency fallback."}
+            ? "⚠ You are logged in via legacy secret key. That path no longer exists — sign out and sign in with email and password."
+            : "✓ Logged in via secure email/password session. There is no secret-key fallback: ADMIN_SECRET was deleted from Vercel on 16 Oct 2026, so email/password is the only way in."}
         </p>
         <p className="text-zinc-500">Password policy: 12+ chars · 1 uppercase · 1 number · 1 special character. Accounts lock for 15 minutes after 5 failed attempts.</p>
       </div>

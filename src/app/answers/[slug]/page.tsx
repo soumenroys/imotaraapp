@@ -22,6 +22,7 @@ import { notFound } from "next/navigation";
 import { publisherNode, NOT_THERAPY_SCHEMA_NOTE } from "@/lib/seo/publisher";
 
 import { ANSWER_PAGES, answerPageFor, type AnswerSlug } from "@/data/answerPages";
+import { OG_IMAGE } from "@/lib/seo/ogImage";
 
 const SITE_URL = "https://www.imotara.com";
 
@@ -47,6 +48,7 @@ export async function generateMetadata({
         keywords: page.keywords,
         alternates: { canonical: url },
         openGraph: {
+            ...OG_IMAGE,
             type: "article",
             url,
             siteName: "Imotara",

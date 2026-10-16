@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ANSWER_PAGES, ANSWER_SLUGS } from "@/data/answerPages";
+import { OG_IMAGE } from "@/lib/seo/ogImage";
 
 const SITE_URL = "https://www.imotara.com";
 
@@ -13,7 +14,8 @@ export const metadata: Metadata = {
     description:
         "Honest answers to the things people actually ask at 2am: grief, night-time anxiety, loneliness, overthinking, exam stress, anger, and whether it is time to talk to someone.",
     alternates: { canonical: `${SITE_URL}/answers` },
-    openGraph: { type: "website", url: `${SITE_URL}/answers`, siteName: "Imotara", title: "Answers — Imotara" },
+    openGraph: {
+            ...OG_IMAGE, type: "website", url: `${SITE_URL}/answers`, siteName: "Imotara", title: "Answers — Imotara" },
 };
 
 export default function AnswersIndexPage() {

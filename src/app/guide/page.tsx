@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { OG_IMAGE } from "@/lib/seo/ogImage";
 
 export const metadata: Metadata = {
   title: "How to Use Imotara — Your Private Emotional Wellness Companion",
   description:
     "A step-by-step guide to getting started with Imotara: talk freely, personalize your companion, and keep your data private.",
   openGraph: {
+            ...OG_IMAGE,
     title: "How to Use Imotara",
     description:
       "Imotara is a quiet, private space for your emotions. Learn how to talk freely, work offline, personalize your companion, and control your data.",

@@ -12,6 +12,7 @@ import {
 import { BUSINESS } from "@/lib/imotara/businessIdentity";
 import BlogComments from "@/components/blog/BlogComments";
 import BlogHero from "@/components/blog/BlogHero";
+import { OG_IMAGE } from "@/lib/seo/ogImage";
 
 // ─── Static params ────────────────────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ export async function generateMetadata({
     title,
     description,
     openGraph: {
+            ...OG_IMAGE,
       title: `${title} · Imotara Blog`,
       description,
       type: "article",

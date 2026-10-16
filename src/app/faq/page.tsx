@@ -30,6 +30,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FAQ, FAQ_SECTIONS } from "@/data/faq";
 import { LANG_FAQ, LANG_FAQ_CODES } from "@/data/faqLang";
+import { OG_IMAGE } from "@/lib/seo/ogImage";
 
 const SITE_URL = "https://www.imotara.com";
 const URL = `${SITE_URL}/faq`;
@@ -50,6 +51,7 @@ export const metadata: Metadata = {
         },
     },
     openGraph: {
+            ...OG_IMAGE,
         title: "Imotara FAQ — questions people actually ask",
         description:
             "Is it therapy? Is it private? Which languages? Straight answers, including the ones that say no.",

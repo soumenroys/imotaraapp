@@ -25,6 +25,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LANG_FAQ, LANG_FAQ_CODES, langFaqFor } from "@/data/faqLang";
+import { OG_IMAGE } from "@/lib/seo/ogImage";
 
 const SITE_URL = "https://www.imotara.com";
 
@@ -82,6 +83,7 @@ export async function generateMetadata({
         description: faq.description,
         alternates: { canonical: url, languages: hreflangMap() },
         openGraph: {
+            ...OG_IMAGE,
             type: "website",
             url,
             siteName: "Imotara",

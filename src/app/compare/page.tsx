@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { COMPARE_PAGES, COMPARE_SLUGS } from "@/data/comparePages";
+import { OG_IMAGE } from "@/lib/seo/ogImage";
 
 const SITE_URL = "https://www.imotara.com";
 
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
         "Is an AI companion the same as therapy? Should you talk to a person instead? What a free tier should include, how to choose an app, and which ones work in Indian languages.",
     alternates: { canonical: `${SITE_URL}/compare` },
     openGraph: {
+            ...OG_IMAGE,
         type: "website",
         url: `${SITE_URL}/compare`,
         siteName: "Imotara",

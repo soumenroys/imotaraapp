@@ -43,12 +43,12 @@ not worth losing.
 
 **Recommended:**
 
-> `A private companion that listens — in 22 languages, 11 of them Indian.` *(69)*
+> `A private companion that listens — in 22 languages, 11 of them Indian.` *(70)*
 
 **Alternates:**
 
-- `Talk about how you feel, in your own language. Private, free to start.` *(69)*
-- `For the days you don't feel like explaining yourself. 22 languages.` *(66)*
+- `Talk about how you feel, in your own language. Private, free to start.` *(70)*
+- `For the days you don't feel like explaining yourself. 22 languages.` *(67)*
 
 ## 3. Full description — 4000 characters
 
@@ -146,7 +146,7 @@ Imotara is operated by M/S IMOTARA, a registered partnership firm in
 Kolkata, India. Questions: info@imotara.com
 ```
 
-*(≈3,050 characters — within the 4,000 limit, ~850 more than today.)*
+*(2,697 characters — within the 4,000 limit, ~490 more than today. Counted, not estimated.)*
 
 ---
 

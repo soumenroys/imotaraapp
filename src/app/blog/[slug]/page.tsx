@@ -14,6 +14,29 @@ import BlogHero from "@/components/blog/BlogHero";
 
 // ─── Static params ────────────────────────────────────────────────────────────
 
+/**
+ * ⛔ A REAL 404, not a 200 that happens to render the 404 page.
+ *
+ * Measured against production 2026-10-16: `/blog/zzbogus` returned **HTTP 200** with the
+ * not-found body, while `/xyzzy123` correctly returned 404. `notFound()` below
+ * picks the right UI but not the right status, so every invented slug under
+ * this route was an indexable 200 — an unbounded set of URLs all serving the
+ * same thin page. Google calls this a **soft 404**, reports it in Search
+ * Console and drops the pages; a crawler cannot tell the real pages from the
+ * noise.
+ *
+ * 🔑 `dynamicParams = false` makes anything outside generateStaticParams a
+ * genuine 404 that is never rendered — the documented behaviour in this
+ * version, see node_modules/next/dist/docs/01-app/03-api-reference/
+ * 03-file-conventions/02-route-segment-config/dynamicParams.md.
+ * ⚠️ It is unavailable if Cache Components is ever turned on; this project
+ * does not enable it (next.config.ts).
+ *
+ * ⛔ The notFound() call below STAYS. It is the guard for a param that IS in
+ * the static list but whose data has gone missing — a different failure.
+ */
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   return getAllPosts().map((p) => ({ slug: p.slug }));
 }

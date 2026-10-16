@@ -22,8 +22,13 @@
  *                            this. Everything that must be read lives inside.
  *   - Max file size          6 MB
  *
+ * 📐 X/Twitter header is a different shape entirely: 1500 x 500, and the
+ *    profile picture punches a hole in the BOTTOM-LEFT corner, so nothing may
+ *    live there. Generated from the same copy so the two cannot drift.
+ *
  * ▶️ Run:  node scripts/generate-youtube-banner.js
- *    Output: docs/brand/imotara-youtube-banner.png
+ *    Output: docs/brand/imotara-youtube-banner.png   (2560 x 1440)
+ *            docs/brand/imotara-x-header.png         (1500 x 500)
  *
  * ⚠️ Rendered with headless Chrome because this machine has no rsvg-convert,
  * ImageMagick or Inkscape. Chrome is the one renderer that is definitely here.
@@ -36,6 +41,7 @@ const { execFileSync } = require("child_process");
 const ROOT = path.join(__dirname, "..");
 const OUT_DIR = path.join(ROOT, "docs", "brand");
 const OUT_PNG = path.join(OUT_DIR, "imotara-youtube-banner.png");
+const OUT_X = path.join(OUT_DIR, "imotara-x-header.png");
 const LOGO = path.join(ROOT, "public", "icon-512.png");
 
 const CHROME =
@@ -58,13 +64,40 @@ const PILLS = [
     ["#10b981", "Peer companions, not clinicians"],
 ];
 
-function buildHtml(logoB64) {
+/**
+ * The two canvases. ⚠️ They are NOT the same shape and must not be scaled from
+ * one another.
+ *
+ * ⛔ X punches the profile picture through the BOTTOM-LEFT of the header, so
+ * the lockup is nudged UP and RIGHT to clear it. YouTube centres everything in
+ * its safe area instead.
+ */
+const SPECS = {
+    youtube: {
+        w: 2560, h: 1440,
+        // YouTube's safe area: the only region guaranteed visible on a phone.
+        safeW: 1546, safeH: 423, safeShift: "",
+        logo: 232, gap: 60, head: 62, sub: 40, subGap: 14,
+        pillGap: 28, pillSpace: 13, pillText: 22, pillPadY: 13, pillPadX: 24, pillDot: 11,
+        out: OUT_PNG, maxMb: 6,
+    },
+    x: {
+        w: 1500, h: 500,
+        // Nudged up and right so the avatar cannot cover the logo or the pills.
+        safeW: 1320, safeH: 330, safeShift: "transform:translate(44px,-34px);",
+        logo: 136, gap: 36, head: 38, sub: 25, subGap: 9,
+        pillGap: 18, pillSpace: 9, pillText: 14, pillPadY: 8, pillPadX: 15, pillDot: 7,
+        out: OUT_X, maxMb: 5,
+    },
+};
+
+function buildHtml(logoB64, spec) {
     return `<!doctype html>
 <html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{width:2560px;height:1440px;overflow:hidden}
+  html,body{width:${spec.w}px;height:${spec.h}px;overflow:hidden}
   body{
     font-family:Inter,-apple-system,sans-serif;
     background:
@@ -75,20 +108,20 @@ function buildHtml(logoB64) {
     display:flex;align-items:center;justify-content:center;
   }
   /* The safe area, centred. Nothing outside it is guaranteed to survive a phone. */
-  .safe{width:1546px;height:423px;display:flex;align-items:center;justify-content:center;gap:60px}
-  .logo{width:232px;height:232px;flex:0 0 232px;border-radius:52px;
+  .safe{width:${spec.safeW}px;height:${spec.safeH}px;display:flex;align-items:center;justify-content:center;gap:${spec.gap}px;${spec.safeShift}}
+  .logo{width:${spec.logo}px;height:${spec.logo}px;flex:0 0 ${spec.logo}px;border-radius:${Math.round(spec.logo*0.224)}px;
         box-shadow:0 20px 56px rgba(79,70,229,.22), 0 2px 8px rgba(0,0,0,.05)}
   .copy{display:flex;flex-direction:column;align-items:flex-start}
-  .head{font-size:62px;font-weight:700;letter-spacing:-2px;line-height:1.1;color:#0f172a}
-  .sub{margin-top:14px;font-size:40px;font-weight:700;letter-spacing:-1.1px;line-height:1.1;
+  .head{font-size:${spec.head}px;font-weight:700;letter-spacing:-2px;line-height:1.1;color:#0f172a}
+  .sub{margin-top:${spec.subGap}px;font-size:${spec.sub}px;font-weight:700;letter-spacing:-1.1px;line-height:1.1;
        background:linear-gradient(100deg,#4f46e5 0%,#0284c7 46%,#059669 100%);
        -webkit-background-clip:text;background-clip:text;color:transparent}
-  .pills{margin-top:28px;display:flex;gap:13px}
-  .pill{display:flex;align-items:center;gap:10px;padding:13px 24px;border-radius:999px;
+  .pills{margin-top:${spec.pillGap}px;display:flex;gap:${spec.pillSpace}px}
+  .pill{display:flex;align-items:center;gap:${spec.pillDot}px;padding:${spec.pillPadY}px ${spec.pillPadX}px;border-radius:999px;
         background:rgba(255,255,255,.85);border:1.5px solid rgba(79,70,229,.15);
-        font-size:22px;font-weight:600;color:#273449;white-space:nowrap;
+        font-size:${spec.pillText}px;font-weight:600;color:#273449;white-space:nowrap;
         box-shadow:0 2px 12px rgba(30,41,59,.06)}
-  .dot{width:11px;height:11px;border-radius:50%;flex:0 0 11px}
+  .dot{width:${spec.pillDot}px;height:${spec.pillDot}px;border-radius:50%;flex:0 0 ${spec.pillDot}px}
 </style></head>
 <body>
   <div class="safe">
@@ -104,17 +137,9 @@ function buildHtml(logoB64) {
 </body></html>`;
 }
 
-function main() {
-    if (!fs.existsSync(CHROME)) {
-        console.error(`Chrome not found at ${CHROME}. Set CHROME_PATH.`);
-        process.exit(1);
-    }
-    fs.mkdirSync(OUT_DIR, { recursive: true });
-
-    const logoB64 = fs.readFileSync(LOGO).toString("base64");
-    const htmlPath = path.join(OUT_DIR, ".banner.tmp.html");
-    fs.writeFileSync(htmlPath, buildHtml(logoB64), "utf8");
-
+function render(spec, logoB64, label) {
+    const htmlPath = path.join(OUT_DIR, `.banner.${label}.tmp.html`);
+    fs.writeFileSync(htmlPath, buildHtml(logoB64, spec), "utf8");
     execFileSync(
         CHROME,
         [
@@ -122,8 +147,8 @@ function main() {
             "--disable-gpu",
             "--hide-scrollbars",
             "--force-device-scale-factor=1",
-            "--window-size=2560,1440",
-            `--screenshot=${OUT_PNG}`,
+            `--window-size=${spec.w},${spec.h}`,
+            `--screenshot=${spec.out}`,
             `file://${htmlPath}`,
         ],
         { stdio: "ignore" },
@@ -131,21 +156,31 @@ function main() {
     fs.unlinkSync(htmlPath);
 
     // ⚠️ Verify the geometry rather than trusting it. A banner at the wrong
-    // size is silently rejected or cropped by YouTube.
-    const buf = fs.readFileSync(OUT_PNG);
+    // size is silently rejected or cropped.
+    const buf = fs.readFileSync(spec.out);
     const width = buf.readUInt32BE(16);
     const height = buf.readUInt32BE(20);
-    const mb = (buf.length / 1024 / 1024).toFixed(2);
-    if (width !== 2560 || height !== 1440) {
-        console.error(`Wrong size: ${width}x${height}, expected 2560x1440`);
+    const mb = buf.length / 1024 / 1024;
+    if (width !== spec.w || height !== spec.h) {
+        console.error(`${label}: wrong size ${width}x${height}, expected ${spec.w}x${spec.h}`);
         process.exit(1);
     }
-    if (buf.length > 6 * 1024 * 1024) {
-        console.error(`Too large: ${mb} MB, YouTube's limit is 6 MB`);
+    if (mb > spec.maxMb) {
+        console.error(`${label}: ${mb.toFixed(2)} MB exceeds the ${spec.maxMb} MB limit`);
         process.exit(1);
     }
-    console.log(`Banner written: ${OUT_PNG}`);
-    console.log(`  ${width} x ${height}, ${mb} MB — within YouTube's limits`);
+    console.log(`  ${label.padEnd(8)} ${width} x ${height}, ${mb.toFixed(2)} MB  ->  ${path.relative(ROOT, spec.out)}`);
+}
+
+function main() {
+    if (!fs.existsSync(CHROME)) {
+        console.error(`Chrome not found at ${CHROME}. Set CHROME_PATH.`);
+        process.exit(1);
+    }
+    fs.mkdirSync(OUT_DIR, { recursive: true });
+    const logoB64 = fs.readFileSync(LOGO).toString("base64");
+    render(SPECS.youtube, logoB64, "youtube");
+    render(SPECS.x, logoB64, "x");
 }
 
 main();

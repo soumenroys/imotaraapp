@@ -22,7 +22,7 @@ This is the single biggest miss in the listing. On Play the title carries more r
 than anything else, and 23 characters are doing nothing. Nobody searches "Imotara" who does not
 already know it — which is exactly what Search Console shows for the website.
 
-**Recommended:**
+✅ **CHOSEN BY THE OWNER, 16 Oct 2026:** `Imotara: Mood & Mind Companion` *(30/30)*
 
 > `Imotara: Mood & Mind Companion` *(30)*
 
@@ -152,7 +152,7 @@ Kolkata, India. Questions: info@imotara.com
 
 ## Open questions for the owner
 
-1. **Title** — go with `Imotara: Mood & Mind Companion`, or one of the alternates?
+1. ~~**Title**~~ — ✅ decided: `Imotara: Mood & Mind Companion`.
 2. **Tele-MANAS 14416** — I have used it because the website's answer pages already name it. Say
    if you would rather name iCall or Vandrevala instead, which the brand-voice doc mentions.
 3. **"Partnership firm"** — kept verbatim from the current listing. ⚠️ Worth a thought given

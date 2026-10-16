@@ -559,7 +559,7 @@ function BannerConnect() {
     <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-900/30 to-teal-900/20 border border-emerald-500/20 p-6 flex gap-6 items-center">
       <div className="flex-1 hidden sm:block">
         <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-2">Imotara Connect</p>
-        <p className="text-zinc-200 text-sm leading-relaxed">Book a live session with a professional companion — counsellors, coaches, and wellness guides. Pay per minute. Fully private.</p>
+        <p className="text-zinc-200 text-sm leading-relaxed">Book a live session with a verified peer wellness companion — a real person who listens, not a clinician. Pay per minute. Fully private.</p>
         <div className="mt-3 space-y-2">
           {[
             { icon: "📋", label: "Browse companions" },
@@ -2034,8 +2034,8 @@ const FEATURES: Record<string, Feature[]> = {
     {
       icon: "🤝",
       title: "What is Imotara Connect?",
-      short: "Book live sessions with professional companions — counsellors, coaches, and wellness guides.",
-      long: "Imotara Connect is a human consultancy layer inside the app. You can browse verified professional companions — counsellors, life coaches, wellness guides — and book instant or scheduled sessions with them. Sessions are billed per minute from your prepaid balance with that specific companion. All sessions are private and confidential.",
+      short: "Book live sessions with verified peer wellness companions — real people who listen, not clinicians.",
+      long: "Imotara Connect is a human layer inside the app. You can browse verified peer wellness companions — people offering support from lived experience, in roles like friend, elder sibling or wellness companion — and book instant or scheduled sessions with them. Connect is peer support and is not clinical care: companions are not therapists, counsellors or doctors. Sessions are billed per minute from your prepaid balance with that specific companion. All sessions are private and confidential.",
       steps: [
         "Tap the Connect tab at the bottom of the app (or open imotara.com/connect on web).",
         "Browse companions — filter by availability, language, or specialty.",

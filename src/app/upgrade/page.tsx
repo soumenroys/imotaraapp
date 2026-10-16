@@ -890,7 +890,7 @@ export default function UpgradePage() {
                             {[
                                 {
                                     label: "Browse wellness companions",
-                                    desc: "Discover and explore verified human wellness companions, therapists, and counsellors",
+                                    desc: "Discover and explore verified peer wellness companions — Connect is peer support, not clinical care",
                                     free: true, plus: true, ent: true,
                                 },
                                 {
@@ -930,7 +930,7 @@ export default function UpgradePage() {
                                 },
                                 {
                                     label: "Register as a companion",
-                                    desc: "Apply to become a verified wellness companion or counsellor on Imotara Connect",
+                                    desc: "Apply to become a verified peer wellness companion on Imotara Connect",
                                     free: true, plus: true, ent: true,
                                 },
                             ].map((row) => <CompareRow key={row.label} {...row} />)}

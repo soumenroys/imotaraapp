@@ -298,7 +298,7 @@ function NewSessionInner() {
             <p className="text-xs text-zinc-400 mb-1">
               Your language: <span className="text-zinc-200">{LANG_NAME[userLang] ?? userLang}</span>
               {" · "}
-              Counselor&apos;s language: <span className="text-zinc-200">{LANG_NAME[consultantLang] ?? consultantLang}</span>
+              Companion&apos;s language: <span className="text-zinc-200">{LANG_NAME[consultantLang] ?? consultantLang}</span>
             </p>
             <p className="text-xs text-zinc-500 mb-4">
               Adds +10% to the per-minute rate. Machine translation adds 1–3 seconds per message and may not capture full emotional nuance.
@@ -501,7 +501,7 @@ function NewSessionInner() {
               </select>
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-xs text-zinc-500">Counselor&apos;s language</label>
+              <label className="mb-1 block text-xs text-zinc-500">Companion&apos;s language</label>
               <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-zinc-400">
                 {LANG_NAME[consultantLang] ?? consultantLang}
               </div>
@@ -529,7 +529,7 @@ function NewSessionInner() {
             </div>
           )}
           {langsMatch && (
-            <p className="text-xs text-zinc-500">Both you and your counselor speak {LANG_NAME[userLang] ?? userLang} — no translation needed.</p>
+            <p className="text-xs text-zinc-500">Both you and your companion speak {LANG_NAME[userLang] ?? userLang} — no translation needed.</p>
           )}
         </div>
 

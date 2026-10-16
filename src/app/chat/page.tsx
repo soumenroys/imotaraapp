@@ -4563,7 +4563,7 @@ export default function ChatPage() {
                   {discoveryCard === "companion" && "Make Imotara yours — personalize your companion's name and tone in"}
                   {discoveryCard === "offline" && `Always here, even offline — ${companionDisplayName || "Imotara"} replies without internet using local mode.`}
                   {discoveryCard === "unsent_letter" && "Write to someone you can't reach — the Unsent Letter space is here for you."}
-                  {discoveryCard === "connect_translation" && "Talk to a companion in your language — Connect now supports auto-translation between you and your counsellor."}
+                  {discoveryCard === "connect_translation" && "Talk to a companion in your language — Connect now supports auto-translation between you and your companion."}
                   {(discoveryCard === "trends" || discoveryCard === "companion") && (
                     <a
                       href={discoveryCard === "trends" ? "/history" : "/settings"}

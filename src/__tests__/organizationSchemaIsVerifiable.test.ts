@@ -208,3 +208,42 @@ describe("🔴 social handles come from the owner's table, never from code", () 
         expect(BUSINESS.social.x).toContain("imotaraofficial");
     });
 });
+
+describe("⛔ no social profile URL is hardcoded outside the identity module", () => {
+    // 🔴 THREE different X handles existed in this repo at once on 2026-10-16:
+    // `imotara4x` in the schema and twitter card, `imotara4me` in the site
+    // footer, and `imotaraofficial` — the only real one — in the owner's table.
+    // The footer also linked to a LinkedIn profile that had just been deleted.
+    //
+    // Nothing caught any of it, because a social URL looks plausible wherever
+    // it sits and no test ever compared one to anything. This is that test.
+
+    const FILES = [
+        "src/components/SiteFooter.tsx",
+        "src/app/layout.tsx",
+        "src/app/blog/[slug]/page.tsx",
+    ];
+
+    // Profile URLs, not share-intent endpoints: /sharing/share-offsite and
+    // /intent/tweet are generic and carry no identity.
+    const PROFILE_URL = /(x\.com|twitter\.com)\/(?!intent)[A-Za-z0-9_]+|linkedin\.com\/in\/[A-Za-z0-9-]+|instagram\.com\/[A-Za-z0-9_.]+|youtube\.com\/@[A-Za-z0-9_-]+/;
+
+    for (const file of FILES) {
+        it(`${file} derives its social links instead of hardcoding them`, () => {
+            // ⚠️ Strip comments BEFORE scanning, as whole blocks. A per-line
+            // "starts with //" check missed the middle lines of a multi-line
+            // {/* … */} JSX comment and reported a documented, retired handle
+            // as a live link. Comments must be allowed to quote the wrong value
+            // — that is how the next reader learns what went wrong.
+            const code = read(file)
+                .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
+                .replace(/\/\*[\s\S]*?\*\//g, "")
+                .split("\n")
+                .filter((l) => !l.trim().startsWith("//"))
+                .join("\n");
+
+            const offenders = code.split("\n").filter((l) => PROFILE_URL.test(l));
+            expect(offenders, `${file} hardcodes a social profile URL`).toEqual([]);
+        });
+    }
+});

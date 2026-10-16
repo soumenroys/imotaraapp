@@ -21,6 +21,24 @@ function IconLinkedIn() {
   );
 }
 
+function IconInstagram() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function IconYouTube() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+      <path d="M21.6 7.2a2.5 2.5 0 0 0-1.76-1.77C18.25 5 12 5 12 5s-6.25 0-7.84.43A2.5 2.5 0 0 0 2.4 7.2 26 26 0 0 0 2 12a26 26 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.76 1.77C5.75 19 12 19 12 19s6.25 0 7.84-.43a2.5 2.5 0 0 0 1.76-1.77A26 26 0 0 0 22 12a26 26 0 0 0-.4-4.8ZM10 15V9l5.2 3L10 15Z" />
+    </svg>
+  );
+}
+
 function IconMail() {
   return (
     <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden>
@@ -128,8 +146,14 @@ export default function SiteFooter() {
 
             {/* Social links */}
             <div className="flex items-center gap-2">
+              {/* 🔴 EVERY HREF COMES FROM businessIdentity.ts. On 2026-10-16 this
+                  footer was found linking to x.com/imotara4me — a THIRD X handle,
+                  matching neither the code's own imotara4x nor the owner's actual
+                  account — and to a LinkedIn profile that had just been deleted.
+                  A hardcoded social link looks plausible forever and nothing
+                  checks it. ⇒ the owner's social table is the source of truth. */}
               <a
-                href="https://x.com/imotara4me"
+                href={BUSINESS.social.x}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Imotara on X"
@@ -138,13 +162,31 @@ export default function SiteFooter() {
                 <IconX />
               </a>
               <a
-                href="https://linkedin.com/in/imotara-4me-5b77753b0"
+                href={BUSINESS.social.linkedin}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Imotara on LinkedIn"
                 className="group flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-500 transition hover:border-[#0A66C2]/40 hover:bg-[#0A66C2]/15 hover:text-[#70aee8]"
               >
                 <IconLinkedIn />
+              </a>
+              <a
+                href={BUSINESS.social.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Imotara on Instagram"
+                className="group flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-500 transition hover:border-pink-500/40 hover:bg-pink-500/10 hover:text-pink-300"
+              >
+                <IconInstagram />
+              </a>
+              <a
+                href={BUSINESS.social.youtube}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Imotara on YouTube"
+                className="group flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-500 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
+              >
+                <IconYouTube />
               </a>
               <a
                 href="mailto:info@imotara.com"

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { isWithinLaunchOffer, getLaunchOfferEndsAt } from "@/lib/imotara/license";
+import { HOME_FAQ_SCHEMA } from "@/lib/seo/homeFaqSchema";
 
 function IconChat(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -120,6 +121,14 @@ export default function Home() {
 
   return (
     <section className="mx-auto flex min-h-[calc(100dvh-5rem)] max-w-5xl items-center px-4 py-10 sm:py-24">
+      {/* 🔑 FAQPage lives HERE, not in the root layout: these questions are
+          visible on this page and nowhere else, and Google requires the
+          markup to match visible content. ⇒ src/lib/seo/homeFaqSchema.ts */}
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(HOME_FAQ_SCHEMA) }}
+      />
       <div className="w-full space-y-10">
         {/* Hero glass card */}
         <div className="imotara-glass-card px-6 py-8 sm:px-8 sm:py-10">

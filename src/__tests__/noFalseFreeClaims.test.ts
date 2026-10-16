@@ -29,6 +29,12 @@ const ROOT = path.join(__dirname, "..");
 const FILES = [
     "app/layout.tsx",
     "app/page.tsx",
+    // ⚠️ ADDED 2026-10-16, WHEN THE FAQ SCHEMA MOVED. It used to live in
+    // layout.tsx; it now lives here, because the root layout was emitting
+    // FAQPage on every url including /privacy. The guards below must follow
+    // the CONTENT, not the filename — a pricing check pointed at a file the
+    // copy has left is a check that cannot fail.
+    "lib/seo/homeFaqSchema.ts",
     "app/ai-emotional-support/page.tsx",
     "app/ai-mental-wellness/page.tsx",
     "content/help/plans-and-payments.md",
@@ -56,8 +62,16 @@ describe("no false 'everything is free' claims", () => {
         });
     }
 
-    it("⛔ the JSON-LD FAQ in layout.tsx is the one Google reads — keep it honest", () => {
-        const src = fs.readFileSync(path.join(ROOT, "app/layout.tsx"), "utf8");
+    it("⛔ the JSON-LD FAQ Google reads is honest about pricing", () => {
+        // ⚠️ MOVED 2026-10-16: this read app/layout.tsx until the FAQ schema
+        // was relocated to lib/seo/homeFaqSchema.ts. The assertion below passed
+        // for the wrong reason the moment the content left — `toMatch` on a
+        // file that no longer contains the copy simply fails, which is how this
+        // was caught, but the reverse (a `not.toMatch` guard silently passing
+        // on an empty file) is the dangerous direction and the reason this now
+        // asserts the file still HAS the copy before checking it.
+        const src = fs.readFileSync(path.join(ROOT, "lib/seo/homeFaqSchema.ts"), "utf8");
+        expect(src).toContain('"@type": "FAQPage"');
         // It may say free to use / no subscription required. It may not say the
         // product is free of paywalls.
         expect(src).toMatch(/free to use/i);

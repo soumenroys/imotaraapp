@@ -1,5 +1,6 @@
 // src/app/layout.tsx
 import "./globals.css";
+import { BUSINESS } from "@/lib/imotara/businessIdentity";
 import { Inter } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import SiteHeader from "@/components/SiteHeader";
@@ -144,15 +145,57 @@ export const metadata: Metadata = {
 function JsonLd() {
   const site = siteUrl;
 
+  // 🔑 E-E-A-T, and every field below is VERIFIABLE.
+  //
+  // For a health-adjacent site Google wants to know who stands behind the
+  // content: a real legal entity, a real postal address, a real way to reach a
+  // human. Those are also the signals an AI assistant uses when deciding
+  // whether a page is worth citing — a site that will not say who it is does
+  // not get quoted.
+  //
+  // ⛔ EVERY STRING COMES FROM businessIdentity.ts, never retyped here. That
+  // module is matched to the firm PAN and the bank account because a payment
+  // aggregator rejects a mismatch outright, which makes it the most carefully
+  // checked set of facts in this repository. Hardcoding them here would create
+  // a second copy that drifts, and the drifting one would be the public one.
+  //
+  // ⛔ NO `Person` AND NO MEDICAL REVIEWER. Health sites routinely carry
+  // "reviewed by Dr X" markup, and it is the single most tempting thing to
+  // fabricate for E-E-A-T. Nobody clinical reviews this content, so claiming it
+  // would be a lie told in machine-readable form on a mental-health site.
+  // `author` stays the organisation, which is true.
   const organization = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "Imotara",
+    name: BUSINESS.brand,
+    legalName: BUSINESS.legalName,
     url: site,
     logo: { "@type": "ImageObject", url: `${site}/og-image.png` },
+    email: BUSINESS.email,
+    telephone: BUSINESS.phone,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: `${BUSINESS.address.line1}, ${BUSINESS.address.locality}`,
+      addressLocality: BUSINESS.address.city,
+      addressRegion: BUSINESS.address.state,
+      postalCode: BUSINESS.address.postalCode,
+      addressCountry: "IN",
+    },
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer support",
+      email: BUSINESS.email,
+      telephone: BUSINESS.phone,
+      availableLanguage: ["English", "Hindi", "Bengali"],
+    },
+    // 🔴 Said plainly, in the markup, because this is the sentence that most
+    // needs to survive being quoted without the page around it.
+    description:
+      "Imotara is a private emotional wellness companion available in 22 languages. It is not therapy, it does not diagnose, and it is not a crisis service.",
     sameAs: [
       "https://twitter.com/imotara4x",
       "https://play.google.com/store/apps/details?id=com.imotara.imotara",
+      "https://apps.apple.com/in/app/imotara/id6756697569",
     ],
   };
 
@@ -244,99 +287,9 @@ function JsonLd() {
     author: { "@type": "Organization", name: "Imotara", url: site },
   };
 
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "What is Imotara?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Imotara is a free, private emotional wellness companion available on web, Android, and iOS. It helps you talk about your feelings, track your mood over time, and receive gentle, thoughtful reflections — in 22 languages, with no ads, no social feed, and full privacy control.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Is Imotara free to use?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. Imotara is free to use and no subscription is required. A free account includes 20 cloud AI replies a day, your last 7 days of history, and unlimited on-device replies. Imotara Plus adds unlimited replies, full history and deeper insights.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Is my data private on Imotara?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. By default, all your conversations are stored only on your device (local-first). Cloud sync is optional and only activates with your explicit consent. Imotara has no ads and does not sell your data.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "What languages does Imotara support?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Imotara supports 22 languages including English, Hindi, Bengali, Marathi, Tamil, Telugu, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu, Spanish, French, German, Portuguese, Russian, Arabic, Chinese, Japanese, Hebrew, and Indonesian.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Is there an Imotara mobile app?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. Imotara is available on Android via Google Play and on iOS via the App Store, in addition to the web app at https://imotara.com.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Is Imotara a replacement for therapy?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "No. Imotara is a private wellness companion for self-reflection and emotional awareness, not a medical or therapeutic service. It is designed to complement — not replace — professional mental health care.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Can I use Imotara offline?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. The web app works offline as a PWA and mobile apps support offline use. Your conversations are stored locally on your device by default.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "How does Imotara work?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Imotara uses advanced language technology for cloud-based reflections. You can also use the app in fully local mode on your device for complete privacy.",
-        },
-      },
-    ],
-  };
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organization) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(website) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(mobileApp) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(webApp) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-      />
     </>
   );
 }

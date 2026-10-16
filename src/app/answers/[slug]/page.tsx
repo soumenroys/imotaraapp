@@ -19,6 +19,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { publisherNode, NOT_THERAPY_SCHEMA_NOTE } from "@/lib/seo/publisher";
+
 import { ANSWER_PAGES, answerPageFor, type AnswerSlug } from "@/data/answerPages";
 
 const SITE_URL = "https://www.imotara.com";
@@ -70,6 +72,13 @@ export default async function AnswerPage({
     const faqSchema = {
         "@context": "https://schema.org",
         "@type": "FAQPage",
+        // 🔑 Attribution lives INSIDE the schema, because an assistant quotes
+        // one answer with no page around it. ⇒ src/lib/seo/publisher.ts
+        publisher: publisherNode(),
+        inLanguage: "en",
+        isPartOf: { "@type": "WebSite", name: "Imotara", url: SITE_URL },
+        // 🔴 Travels with the quote, deliberately.
+        disambiguatingDescription: NOT_THERAPY_SCHEMA_NOTE,
         mainEntity: [
             {
                 "@type": "Question",

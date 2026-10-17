@@ -11,6 +11,7 @@
 // written by people who knew the rules, so this is the path it matters most on.
 
 import { useEffect, useMemo, useState } from "react";
+import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 
 type LanguageRow = {
   code: string;
@@ -58,14 +59,17 @@ export default function ComposePost() {
   const [results, setResults] = useState<Result[]>([]);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
+  /** null = not yet known. ⛔ Never assumed true. */
+  const [authed, setAuthed] = useState<boolean | null>(null);
 
   useEffect(() => {
     void (async () => {
       const res = await fetch("/api/admin/social/languages", { credentials: "same-origin" });
       if (res.status === 401) {
-        setError("Not signed in. Log in at /admin first.");
+        setAuthed(false);
         return;
       }
+      setAuthed(true);
       const json = await res.json();
       if (!res.ok) {
         setError(json.error ?? "Could not load the languages.");
@@ -115,6 +119,8 @@ export default function ComposePost() {
           </p>
         </header>
 
+        {authed === false && <SignedOut />}
+
         {error && (
           <div className="rounded-xl border border-rose-900 bg-rose-950/30 p-4 text-sm text-rose-200">{error}</div>
         )}
@@ -127,7 +133,9 @@ export default function ComposePost() {
           </div>
         )}
 
-        <section className="space-y-5 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+        {authed !== false && (
+          <>
+        <section className="space-y-5 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 mb-8">
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-2">
               <label htmlFor="lang" className="block text-xs font-semibold text-zinc-400">
@@ -349,6 +357,8 @@ export default function ComposePost() {
             insightful or generous is read, not matched; that part is yours.
           </p>
         </section>
+          </>
+        )}
       </div>
     </main>
   );

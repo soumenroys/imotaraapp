@@ -11,6 +11,7 @@
 // how would it land on a bad day — are printed where they cannot be skipped.
 
 import { useCallback, useEffect, useState } from "react";
+import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 
 type Finding = { list: string; rule: string; matched: string; because: string };
 type GateResult = {
@@ -89,6 +90,9 @@ export default function SocialAdmin() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [role, setRole] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  /** null = not yet known. ⛔ Never assumed true: that is what made the page
+   *  render its defaults as though they were data. */
+  const [authed, setAuthed] = useState<boolean | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
@@ -104,9 +108,10 @@ export default function SocialAdmin() {
         fetch("/api/admin/social/schedules", { credentials: "same-origin" }),
       ]);
       if (p.status === 401 || s.status === 401) {
-        setError("Not signed in. Log in at /admin first.");
+        setAuthed(false);
         return;
       }
+      setAuthed(true);
       if (p.status === 403) {
         setError((await p.json()).error ?? "Not permitted.");
         return;
@@ -210,9 +215,13 @@ export default function SocialAdmin() {
           </div>
         </header>
 
+        {authed === false && <SignedOut />}
+
+        {authed !== false && (
+          <>
         {/* ⛔ Said on every visit, because the single most consequential fact
             about this feature right now is that it does not publish. */}
-        <div className="rounded-xl border border-amber-900/60 bg-amber-950/20 p-4 text-sm text-amber-200">
+        <div className="mb-8 rounded-xl border border-amber-900/60 bg-amber-950/20 p-4 text-sm text-amber-200">
           <strong className="font-semibold">Phase 1: nothing publishes yet.</strong> Posts are written,
           checked and queued. There is no channel adapter, so an approved post waits rather than going
           out — and you can post it by hand in two clicks from here.
@@ -557,6 +566,8 @@ export default function SocialAdmin() {
             </ul>
           )}
         </section>
+          </>
+        )}
       </div>
     </main>
   );

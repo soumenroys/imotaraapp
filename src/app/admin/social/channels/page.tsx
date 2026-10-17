@@ -8,6 +8,7 @@
 // request.
 
 import { useCallback, useEffect, useState } from "react";
+import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 
 type Account = {
   id: string;
@@ -42,6 +43,8 @@ export default function Channels() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  /** null = not yet known. ⛔ Never assumed true. */
+  const [authed, setAuthed] = useState<boolean | null>(null);
   const [termsFor, setTermsFor] = useState("");
   const [terms, setTerms] = useState("");
 
@@ -54,9 +57,10 @@ export default function Channels() {
       fetch("/api/admin/social/languages", { credentials: "same-origin" }),
     ]);
     if (c.status === 401) {
-      setError("Not signed in. Log in at /admin first.");
+      setAuthed(false);
       return;
     }
+    setAuthed(true);
     const cj = await c.json();
     const lj = await l.json();
     if (!c.ok) {
@@ -134,6 +138,8 @@ export default function Channels() {
           </p>
         </header>
 
+        {authed === false && <SignedOut />}
+
         {error && (
           <div className="rounded-xl border border-rose-900 bg-rose-950/30 p-4 text-sm text-rose-200">{error}</div>
         )}
@@ -143,7 +149,9 @@ export default function Channels() {
           </div>
         )}
 
-        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+        {authed !== false && (
+          <>
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 mb-8">
           <div className="space-y-1">
             <h2 className="text-sm font-semibold">
               The master switch {!isOwner && <span className="text-xs font-normal text-zinc-500">· owner tier</span>}
@@ -319,6 +327,8 @@ export default function Channels() {
               wrong for months.
             </p>
           </section>
+        )}
+          </>
         )}
       </div>
     </main>

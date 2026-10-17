@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
+import { ConnectChannel } from "@/app/admin/social/_components/ConnectChannel";
 
 type Account = {
   id: string;
@@ -45,6 +46,8 @@ export default function Channels() {
   const [busy, setBusy] = useState(false);
   /** null = not yet known. ⛔ Never assumed true. */
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [storage, setStorage] = useState<{ ok: boolean; reason?: string }>({ ok: false });
   const [termsFor, setTermsFor] = useState("");
   const [terms, setTerms] = useState("");
 
@@ -72,6 +75,7 @@ export default function Channels() {
     setPauseNote(cj.settings?.note ?? "");
     setScripts(cj.scriptsAwaitingVerification ?? []);
     setRole(cj.actorRole ?? "");
+    setStorage(cj.tokenStorage ?? { ok: false, reason: "The server did not say." });
     setLanguages(lj.languages ?? []);
   }, []);
 
@@ -185,16 +189,37 @@ export default function Channels() {
           </button>
         </section>
 
+        {connecting && isOwner && (
+          <div className="mb-8">
+            <ConnectChannel
+              storageReady={storage}
+              onCancel={() => setConnecting(false)}
+              onConnected={(note) => {
+                setConnecting(false);
+                setMessage(note);
+                void load();
+              }}
+            />
+          </div>
+        )}
+
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-zinc-300">Connected</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-zinc-300">Connected</h2>
+            {isOwner && (
+              <button type="button" onClick={() => setConnecting((c) => !c)}
+                className="min-h-11 rounded-lg border border-zinc-700 px-4 text-sm hover:bg-zinc-800">
+                {connecting ? "Close" : "Connect a channel"}
+              </button>
+            )}
+          </div>
           {accounts.length === 0 ? (
             <div className="space-y-2 rounded-xl border border-dashed border-zinc-800 p-6 text-sm text-zinc-400">
-              <p>No channel is connected, and none can be yet.</p>
-              <p className="text-xs text-zinc-500">
-                ⛔ This screen will not store a token until there is encryption for it — a credential in
-                a plain column outlives the intention to protect it later. Phase 2 adds the encryption
-                and the Facebook adapter together, because the first is what makes the second safe to
-                have.
+              <p>No channel is connected yet.</p>
+              <p className="text-xs leading-relaxed text-zinc-500">
+                {storage.ok
+                  ? "Tokens are stored encrypted. ⛔ Connecting one does not mean posting works: there is still no adapter to publish with, so a connected channel holds its queue until there is."
+                  : `⛔ Nothing can be stored yet. ${storage.reason ?? ""}`}
               </p>
             </div>
           ) : (
@@ -220,6 +245,18 @@ export default function Channels() {
                     · {a.last_verified_at ? `verified ${new Date(a.last_verified_at).toLocaleString()}` : "never verified"}
                   </div>
                   {a.last_error && <div className="text-xs text-rose-300">{a.last_error}</div>}
+                  {(a.status === "dead" || a.status === "expiring") && (
+                    <div className="text-xs text-amber-300">
+                      ▶️ Re-validate: generate a new token on the platform and paste it here. ⛔ Your
+                      password is not involved — changing it does not break posting.
+                    </div>
+                  )}
+                  {a.status === "pending" && (
+                    <div className="text-xs text-zinc-500">
+                      Stored, but not yet shown to work. ⚠️ Nothing has asked the platform whether it
+                      is good — there is no adapter to ask with.
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

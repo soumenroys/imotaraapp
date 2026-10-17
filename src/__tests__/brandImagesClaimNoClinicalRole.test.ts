@@ -92,7 +92,9 @@ describe("the generated banners claim no clinical role", () => {
     it("renders all three channel sizes from the one copy", () => {
         // If a channel is drawn outside this script, its copy is unguarded.
         const src = fs.readFileSync(SCRIPT, "utf8");
-        for (const spec of ["youtube:", "x:", "facebook:"]) {
+        // ⚠️ Add every new channel here. A size rendered outside this script,
+        // or quietly deleted from it, is copy nothing checks.
+        for (const spec of ["youtube:", "x:", "facebook:", "producthunt:"]) {
             expect(src, `${spec} spec missing`).toContain(spec);
         }
     });

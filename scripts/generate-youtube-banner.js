@@ -41,6 +41,11 @@
  *    Output: docs/brand/imotara-youtube-banner.png   (2560 x 1440)
  *            docs/brand/imotara-x-header.png         (1500 x 500)
  *            docs/brand/imotara-facebook-cover.png   (1640 x 624)
+ *            docs/brand/imotara-producthunt-gallery.png (1270 x 760)
+ *
+ * 📐 Product Hunt gallery: 1270 x 760 — nearly 5:3, much squarer than every
+ *    other canvas here, so the lockup stacks instead of sitting side by side.
+ *    No avatar overlaps it, so nothing needs clearing.
  *
  * ⚠️ Rendered with headless Chrome because this machine has no rsvg-convert,
  * ImageMagick or Inkscape. Chrome is the one renderer that is definitely here.
@@ -55,6 +60,7 @@ const OUT_DIR = path.join(ROOT, "docs", "brand");
 const OUT_PNG = path.join(OUT_DIR, "imotara-youtube-banner.png");
 const OUT_X = path.join(OUT_DIR, "imotara-x-header.png");
 const OUT_FB = path.join(OUT_DIR, "imotara-facebook-cover.png");
+const OUT_PH = path.join(OUT_DIR, "imotara-producthunt-gallery.png");
 const LOGO = path.join(ROOT, "public", "icon-512.png");
 
 const CHROME =
@@ -102,6 +108,20 @@ const SPECS = {
         pillGap: 18, pillSpace: 9, pillText: 14, pillPadY: 8, pillPadX: 15, pillDot: 7,
         out: OUT_X, maxMb: 5,
     },
+    producthunt: {
+        w: 1270, h: 760,
+        /**
+         * ⚠️ The only canvas here that is nearly square, so the side-by-side
+         * lockup the other three use would leave the copy cramped and the
+         * image mostly empty. This one STACKS — logo above the words — which
+         * is why `stack: true` exists at all.
+         */
+        stack: true,
+        safeW: 1040, safeH: 600, safeShift: "",
+        logo: 180, gap: 44, head: 58, sub: 32, subGap: 14,
+        pillGap: 30, pillSpace: 12, pillText: 19, pillPadY: 11, pillPadX: 20, pillDot: 9,
+        out: OUT_PH, maxMb: 5,
+    },
     facebook: {
         w: 1640, h: 624,
         /**
@@ -140,15 +160,16 @@ function buildHtml(logoB64, spec) {
     display:flex;align-items:center;justify-content:center;
   }
   /* The safe area, centred. Nothing outside it is guaranteed to survive a phone. */
-  .safe{width:${spec.safeW}px;height:${spec.safeH}px;display:flex;align-items:center;justify-content:center;gap:${spec.gap}px;${spec.safeShift}}
+  .safe{width:${spec.safeW}px;height:${spec.safeH}px;display:flex;align-items:center;justify-content:center;gap:${spec.gap}px;${spec.safeShift}
+        ${spec.stack ? "flex-direction:column;" : ""}}
   .logo{width:${spec.logo}px;height:${spec.logo}px;flex:0 0 ${spec.logo}px;border-radius:${Math.round(spec.logo*0.224)}px;
         box-shadow:0 20px 56px rgba(79,70,229,.22), 0 2px 8px rgba(0,0,0,.05)}
-  .copy{display:flex;flex-direction:column;align-items:flex-start}
+  .copy{display:flex;flex-direction:column;align-items:${spec.stack ? "center" : "flex-start"};text-align:${spec.stack ? "center" : "left"}}
   .head{font-size:${spec.head}px;font-weight:700;letter-spacing:-2px;line-height:1.1;color:#0f172a}
   .sub{margin-top:${spec.subGap}px;font-size:${spec.sub}px;font-weight:700;letter-spacing:-1.1px;line-height:1.1;
        background:linear-gradient(100deg,#4f46e5 0%,#0284c7 46%,#059669 100%);
        -webkit-background-clip:text;background-clip:text;color:transparent}
-  .pills{margin-top:${spec.pillGap}px;display:flex;gap:${spec.pillSpace}px}
+  .pills{margin-top:${spec.pillGap}px;display:flex;gap:${spec.pillSpace}px;justify-content:center;flex-wrap:wrap}
   .pill{display:flex;align-items:center;gap:${spec.pillDot}px;padding:${spec.pillPadY}px ${spec.pillPadX}px;border-radius:999px;
         background:rgba(255,255,255,.85);border:1.5px solid rgba(79,70,229,.15);
         font-size:${spec.pillText}px;font-weight:600;color:#273449;white-space:nowrap;
@@ -214,6 +235,7 @@ function main() {
     render(SPECS.youtube, logoB64, "youtube");
     render(SPECS.x, logoB64, "x");
     render(SPECS.facebook, logoB64, "facebook");
+    render(SPECS.producthunt, logoB64, "producthunt");
 }
 
 main();

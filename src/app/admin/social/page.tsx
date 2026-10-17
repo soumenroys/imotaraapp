@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
+import { PageTutorial, TUTORIALS } from "@/app/admin/social/_components/PageTutorial";
 import { SocialPage, Chip, Explain, HowItWorks, POST_STATUS } from "@/app/admin/social/_components/ui";
 
 type Finding = { list: string; rule: string; matched: string; because: string };
@@ -125,6 +126,8 @@ export default function Today() {
 
       {authed === true && (
         <>
+          <PageTutorial id="today" {...TUTORIALS.today} />
+
           {message && (
             <div className="rounded-xl border border-indigo-900 bg-indigo-950/30 p-4 text-sm text-indigo-200">
               {message}

@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
+import { PageTutorial, TUTORIALS } from "@/app/admin/social/_components/PageTutorial";
 import { ConnectChannel } from "@/app/admin/social/_components/ConnectChannel";
 import { SocialPage, Chip, Explain, CHANNEL_STATUS } from "@/app/admin/social/_components/ui";
 
@@ -96,6 +97,9 @@ export default function Channels() {
 
       {authed === true && (
         <>
+
+        <PageTutorial id="channels" {...TUTORIALS.channels} />
+
           {message && (
             <div className="rounded-xl border border-indigo-900 bg-indigo-950/30 p-4 text-sm text-indigo-200">
               {message}

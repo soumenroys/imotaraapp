@@ -5,7 +5,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-type Section = "policy" | "superadmin" | "orgadmin" | "faq";
+type Section = "policy" | "superadmin" | "orgadmin" | "social" | "faq";
 
 // ── Shared UI building blocks ─────────────────────────────────────────────────
 
@@ -1251,12 +1251,124 @@ function FaqSection() {
   );
 }
 
+// ── Social posting ────────────────────────────────────────────────────────────
+//
+// ⚠️ Admin-only, so it lives here and NOT in src/content/help — that feeds the
+// end-user help chat, and an answer describing a tool nobody outside this panel
+// can reach is worse than no answer.
+
+function SocialSection() {
+  const Step = ({ n, title, children }: { n: number; title: string; children: React.ReactNode }) => (
+    <div className="flex gap-3">
+      <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-indigo-500/20 text-[11px] font-semibold text-indigo-300">{n}</span>
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-zinc-200">{title}</div>
+        <div className="text-xs leading-relaxed text-zinc-400">{children}</div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-8">
+      <header className="space-y-2">
+        <h2 className="text-xl font-semibold">📅 Social Posting</h2>
+        <p className="text-sm text-zinc-400">
+          Writes Imotara&rsquo;s social posts on a schedule, checks the words, makes the picture, and
+          queues them for you. <a href="/admin/social" className="text-indigo-300 underline">Open it →</a>
+        </p>
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          ⛔ <strong>It does not publish yet.</strong> Everything up to &ldquo;a finished post is ready at
+          the right moment&rdquo; works. The code that hands a post to Facebook or LinkedIn is the next
+          piece of work — until then an approved post waits, and you can post it by hand.
+        </p>
+      </header>
+
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold text-zinc-300">Setting up your first schedule</h3>
+        <Step n={1} title="Open Schedules → New schedule">
+          A schedule is what writes posts. Nothing is written until one exists.
+        </Step>
+        <Step n={2} title="Write the brief">
+          The standing instruction behind every post on that schedule. The subject is chosen fresh each
+          time and checked against everything already posted, so it never repeats.
+        </Step>
+        <Step n={3} title="Choose channels, shape, languages, time and days">
+          Shape is text, a picture, both, a short video or an animated GIF. It writes in one language
+          per post, rotating through the ones you pick.
+        </Step>
+        <Step n={4} title="Press “See what it would write” before saving">
+          It writes a real sample from your brief. Nothing is saved, so you can try the brief three
+          ways and tune the voice before committing.
+        </Step>
+        <Step n={5} title="Create it, then read the draft on Today">
+          Drafts appear two hours before the time you set. Approve it, or change the words.
+        </Step>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold text-zinc-300">What the word check refuses</h3>
+        <ul className="space-y-1.5 text-xs text-zinc-400">
+          <li><strong className="text-zinc-300">Clinical claims</strong> — therapist, counsellor, diagnose, heal, &ldquo;therapy alternative&rdquo;. This product is not therapy and must never imply it is.</li>
+          <li><strong className="text-zinc-300">Abuse and profanity</strong> — in the post&rsquo;s own language, in its script and in Latin letters.</li>
+          <li><strong className="text-zinc-300">Careless language</strong> — <em>crazy</em>, <em>insane</em>, <em>psycho</em> used loosely; &ldquo;commit suicide&rdquo;; urgency and streak language; guilt. 🔴 This is the list an ordinary profanity filter does not have, and the one most likely to be tripped by a well-meant sentence.</li>
+        </ul>
+        <p className="text-xs text-zinc-500">
+          ⛔ No check can read whether a post is gentle, whether it leaves the reader something to
+          think, or how it would land on somebody having a bad day. That is why a draft waits for you.
+        </p>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold text-zinc-300">The two switches</h3>
+        <ul className="space-y-1.5 text-xs text-zinc-400">
+          <li><strong className="text-zinc-300">Post it without asking me</strong> (per schedule, off by default) — on, it posts unattended. 🔐 Owner only to turn on; anyone may turn off.</li>
+          <li><strong className="text-zinc-300">Stop everything</strong> (Channels) — holds every schedule at once. 🔐 Owner only.</li>
+        </ul>
+        <p className="text-xs text-zinc-500">⛔ The word check runs in both positions. The switch decides whether a <em>person</em> reads the post, never whether it is checked.</p>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold text-zinc-300">Channels and tokens</h3>
+        <p className="text-xs leading-relaxed text-zinc-400">
+          Connect with a <strong>token the platform issues</strong>, never a password. A token only
+          posts to one page, you can revoke it on its own, and ⛔ it keeps working when you change your
+          password — a stored password would break posting every time you changed it.
+        </p>
+        <p className="text-xs leading-relaxed text-zinc-400">
+          Tokens are stored encrypted and never shown back; only the last four characters. A daily
+          check emails <code className="text-zinc-300">social@imotara.com</code> the hour a channel
+          stops working, so you know to re-validate.
+        </p>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold text-zinc-300">Languages</h3>
+        <p className="text-xs leading-relaxed text-zinc-400">
+          All 22 can be written, pictured and queued. A schedule may post in one <strong>without you
+          reading it</strong> only when two separate things are true: somebody here can read that
+          language, <em>and</em> a word list exists for it. ⛔ Both, never either — Bengali and Hindi
+          pass the first and fail the second.
+        </p>
+        <p className="text-xs leading-relaxed text-zinc-400">
+          ▶️ To widen one: get a dozen words from a speaker — native script <em>and</em> Latin spelling
+          — and add them on the Languages screen.
+        </p>
+      </section>
+
+      <p className="text-xs text-zinc-500">
+        Full reference: <strong>Social Posting Scheduler (Admin)</strong> in the Imotara Knowledge Base.
+      </p>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 const SECTIONS: { id: Section; label: string; icon: string; desc: string }[] = [
   { id: "policy",     label: "Licensing Policy",  icon: "🏷️", desc: "Tiers, pricing, priority chain, gateways" },
   { id: "superadmin", label: "Super-Admin Guide",  icon: "👑", desc: "Login, orgs, pools, admins — step by step" },
   { id: "orgadmin",   label: "Org Admin Guide",    icon: "🏢", desc: "Members, licenses, pools, analytics" },
+  { id: "social",     label: "Social Posting",     icon: "📅", desc: "Schedules, the word check, languages, channels" },
   { id: "faq",        label: "FAQ",                icon: "❓", desc: "Common issues and how to fix them" },
 ];
 
@@ -1266,7 +1378,7 @@ export default function AdminGuidePage() {
   // Read ?s= after mount — avoids SSR/client hydration mismatch
   useEffect(() => {
     const s = new URLSearchParams(window.location.search).get("s") ?? "";
-    if (["policy", "superadmin", "orgadmin", "faq"].includes(s)) {
+    if (["policy", "superadmin", "orgadmin", "social", "faq"].includes(s)) {
       setActive(s as Section);
     }
   }, []);
@@ -1357,6 +1469,7 @@ export default function AdminGuidePage() {
           {active === "policy"     && <PolicySection />}
           {active === "superadmin" && <SuperAdminSection />}
           {active === "orgadmin"   && <OrgAdminSection />}
+          {active === "social"     && <SocialSection />}
           {active === "faq"        && <FaqSection />}
 
           <div className="mt-16 border-t border-white/8 pt-6 text-center text-xs text-zinc-600">

@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
+import { PageTutorial, TUTORIALS } from "@/app/admin/social/_components/PageTutorial";
 import { PLATFORMS as CHANNELS, PLATFORM_IDS } from "@/lib/social/platforms";
 import { SocialPage, Explain } from "@/app/admin/social/_components/ui";
 
@@ -136,6 +137,8 @@ export default function ComposePost() {
             not brief on a slow one, and a reassuring lie either way. */}
         {authed === true && (
           <>
+          <PageTutorial id="compose" {...TUTORIALS.compose} />
+
         <section className="space-y-5 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 mb-8">
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-2">

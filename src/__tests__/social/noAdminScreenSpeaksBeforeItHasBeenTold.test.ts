@@ -258,3 +258,91 @@ describe("the screens stay readable", () => {
         expect(ui).toMatch(/means:/);
     });
 });
+
+describe("every screen tells you what to do on it", () => {
+    /**
+     * 🔑 THE OWNER, 18 Oct: "i am facing difficulty to understand this social
+     * media scheduler part." Two different gaps sat behind that, and they need
+     * two different answers:
+     *
+     *   • "What IS this?" — the concept. <HowItWorks>, once, on Today.
+     *   • "What do I DO here?" — the sequence. <PageTutorial>, on each screen.
+     *
+     * ⚠️ A tool that needs a person to hold five screens in their head before
+     * the first useful action is a tool nobody starts.
+     */
+    const PAGES: [string, string][] = [
+        ["src/app/admin/social/page.tsx", "today"],
+        ["src/app/admin/social/schedules/page.tsx", "schedules"],
+        ["src/app/admin/social/compose/page.tsx", "compose"],
+        ["src/app/admin/social/channels/page.tsx", "channels"],
+        ["src/app/admin/social/languages/page.tsx", "languages"],
+    ];
+
+    for (const [page, key] of PAGES) {
+        it(`${key} carries its own steps`, () => {
+            const src = read(page);
+            expect(src, `${key} has no tutorial`).toMatch(/<PageTutorial/);
+            expect(src, `${key} does not pass its own steps`).toContain(`TUTORIALS.${key}`);
+        });
+    }
+
+    it("every screen's steps exist and are real instructions", () => {
+        const src = read("src/app/admin/social/_components/PageTutorial.tsx");
+        for (const [, key] of PAGES) {
+            expect(src, `no steps defined for ${key}`).toMatch(new RegExp(`\\b${key}:\\s*\\{`));
+        }
+        const steps = [...src.matchAll(/do:\s*"([^"]+)"/g)].map((m) => m[1]);
+        expect(steps.length, "barely any steps at all").toBeGreaterThanOrEqual(20);
+        for (const s of steps) {
+            /**
+             * ⚠️ MY FIRST VERSION OF THIS DEMANDED MORE THAN FOUR WORDS, and it
+             * failed on `Press "New schedule".` — which is three words and a
+             * perfectly good instruction. Length is not the thing being
+             * guarded; a bare NOUN is ("Schedules", "Languages"), because that
+             * is a heading pretending to be a step.
+             */
+            expect(s.split(/\s+/).length, `"${s}" is a label, not an instruction`).toBeGreaterThan(2);
+            expect(s, `"${s}" is not phrased as something to do`).toMatch(/[a-z]/);
+        }
+    });
+
+    it("⛔ the tutorial survives storage being unavailable", () => {
+        /**
+         * A private window, cleared site data, or a browser that throws on
+         * access. ⚠️ The failure mode must be "the tutorial shows again",
+         * never a screen that does not render.
+         */
+        const src = read("src/app/admin/social/_components/PageTutorial.tsx");
+        const reads = (src.match(/localStorage/g) ?? []).length;
+        const catches = (src.match(/catch\s*\{/g) ?? []).length;
+        expect(reads).toBeGreaterThan(0);
+        expect(catches, "localStorage is touched outside a try/catch").toBeGreaterThanOrEqual(2);
+    });
+
+    it("the admin guide and the knowledge base describe it too", () => {
+        // ⇒ tutorial_sync_rule: the tutorial and the KB move with the feature.
+        expect(read("src/app/admin/guide/page.tsx"), "no Social section in the admin guide").toMatch(
+            /SocialSection/,
+        );
+        const index = read("ImotaraKnowledgebase/00-START-HERE-Index.md");
+        expect(index, "the KB index does not list it").toMatch(/Social Posting Scheduler/);
+        const doc = read("ImotaraKnowledgebase/Social-Posting-Scheduler.md");
+        expect(doc.length, "the KB doc is a stub").toBeGreaterThan(4000);
+        // ⛔ And it must say the one thing that is most misunderstood.
+        expect(doc).toMatch(/does not publish yet/i);
+    });
+
+    it("⛔ it is NOT in the end-user help", () => {
+        /**
+         * `src/content/help/*.md` is compiled into helpKb.json and answered by
+         * the help chat. An answer describing an admin tool to somebody who
+         * cannot reach it is worse than no answer.
+         */
+        const dir = path.join(ROOT, "src/content/help");
+        for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".md"))) {
+            const body = fs.readFileSync(path.join(dir, file), "utf8").toLowerCase();
+            expect(body, `${file} mentions the admin-only scheduler`).not.toContain("/admin/social");
+        }
+    });
+});

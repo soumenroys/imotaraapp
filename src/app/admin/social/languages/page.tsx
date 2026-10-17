@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
+import { PageTutorial, TUTORIALS } from "@/app/admin/social/_components/PageTutorial";
 import { SocialPage, Chip, Explain } from "@/app/admin/social/_components/ui";
 
 type Row = {
@@ -88,6 +89,9 @@ export default function Languages() {
 
       {authed === true && (
         <>
+
+        <PageTutorial id="languages" {...TUTORIALS.languages} />
+
           {message && (
             <div className="rounded-xl border border-indigo-900 bg-indigo-950/30 p-4 text-sm text-indigo-200">
               {message}

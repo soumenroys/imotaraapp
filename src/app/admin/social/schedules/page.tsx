@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
+import { PageTutorial, TUTORIALS } from "@/app/admin/social/_components/PageTutorial";
 import { NewSchedule } from "@/app/admin/social/_components/NewSchedule";
 import { SocialPage, Chip, Explain } from "@/app/admin/social/_components/ui";
 
@@ -121,6 +122,8 @@ export default function Schedules() {
 
       {authed === true && (
         <>
+          <PageTutorial id="schedules" {...TUTORIALS.schedules} />
+
           {message && (
             <div className="rounded-xl border border-indigo-900 bg-indigo-950/30 p-4 text-sm text-indigo-200">
               {message}

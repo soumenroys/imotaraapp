@@ -18,6 +18,7 @@ This Project is the knowledge base for **Imotara** — a privacy-first, emotion-
 | **Organization Owner & Admin How-Tos** | Org owner/admin reference: create an org, invites, domain auto-join, seats & pools, cohorts, analytics, API keys, org deletion — with honest "Coming soon" flags |
 | **Imotara Connect (Consultant Marketplace)** | Connect reference: marketplace model, wallet architecture, consultant lifecycle, moderation, safety rules |
 | **Release Runbook (Web + Mobile)** | Shipping a release end-to-end: version bump, Vercel deploy, manual SQL migrations, webhook checks, EAS builds, store submission, OTA rules, rollback |
+| **Social Posting Scheduler (Admin)** | The `/admin/social` tool: schedules, the three-list word check, the language tiers, picture recipes, QR codes, animation, token storage and the re-validate alert — ⛔ admin-only, and it does not publish yet |
 | **User Support FAQ** | Ready-made Q&A answers for end-user questions |
 
 ## Step-by-step playbooks (numbered procedures to follow or read aloud)
@@ -33,6 +34,8 @@ This Project is the knowledge base for **Imotara** — a privacy-first, emotion-
 ## Quick answers to the most common questions
 
 - **"How do we email our users / send a newsletter?"** → Admin Guide §16: the owner-only 📣 Broadcast tab. Recipient lists with recorded consent, a composer that renders from a whitelist, warm-up-limited sending, one-click unsubscribe, and a recipient-level report. Only people who approached Imotara may be mailed — harvested lists are not permitted.
+- **"How do we post to Facebook / LinkedIn automatically?"** → Social Posting Scheduler. `/admin/social` writes, checks and queues posts on a schedule today. ⛔ It does not send yet — the channel adapter is the next piece of work, and Facebook needs ~15 minutes in the Meta Business Portfolio first.
+- **"Can we store my social media password so it logs in and posts as me?"** → No, and a token is better at the same job. See Social Posting Scheduler §5: a hash cannot log in, encryption needs the plaintext back so the key sits beside it, no platform allows programmatic password login — and a token survives a password change where a stored password would break posting every time.
 - **"Someone wants to stop receiving our emails"** → every broadcast has a one-click unsubscribe that takes effect immediately, including for messages already queued. Never remove an address from the suppression list to let them back in.
 - **"How do I create a superadmin?"** → Admin Guide §2: `POST /api/admin/auth/seed` (works only while `super_admins` is empty); afterwards owners create admins from `/admin` → Admins tab.
 - **"How do I create an NGO, its admin, and add users?"** → Playbook — Organizations & NGOs End-to-End, Scenarios 1–3 (the full chain with every step).

@@ -14,6 +14,8 @@
 
 import { useState } from "react";
 import { PLATFORMS as CHANNELS, PLATFORM_IDS } from "@/lib/social/platforms";
+// ⛔ From animationFacts, not animate: the latter pulls ffmpeg into the bundle.
+import { animationWarning } from "@/lib/social/animationFacts";
 
 type Language = { code: string; name: string; reviewed: boolean; mayPostUnattended: boolean; reason: string | null };
 
@@ -219,6 +221,16 @@ export function NewSchedule({
             </label>
           ))}
         </div>
+        {/* ⚠️ Said BEFORE the schedule is saved, not discovered after posting.
+            A GIF animates on X and nowhere else — LinkedIn strips it and
+            Facebook converts it — and that is the one thing somebody choosing
+            it needs to know. */}
+        {(contentType === "animated_gif" || contentType === "short_video") && (
+          <p className="text-[11px] leading-relaxed text-amber-300/90">
+            {animationWarning(contentType === "animated_gif" ? "gif" : "mp4", platforms) ??
+              "This will animate on every channel you have chosen."}
+          </p>
+        )}
       </fieldset>
 
       <fieldset className="space-y-2">

@@ -27,7 +27,12 @@ import { composePicture, type Picture } from "@/lib/social/compose";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
 
-export type ContentType = "text" | "graphic" | "text_graphic" | "short_video";
+/**
+ * ⚠️ `animated_gif` animates on X and nowhere else; `short_video` animates
+ * everywhere. Both are offered because the owner asked for the GIF, and the
+ * admin says which channels will actually move ⇒ animate.animationWarning.
+ */
+export type ContentType = "text" | "graphic" | "text_graphic" | "animated_gif" | "short_video";
 
 export type ScheduleShape = {
   id: string;
@@ -91,7 +96,7 @@ export type PreparedPost = {
   body: string;
   support?: string;
   status: "needs_review" | "approved";
-  mediaKind: "none" | "graphic";
+  mediaKind: "none" | "graphic" | "animated_gif" | "short_video";
   picture: Picture | null;
   recipe: Recipe | null;
   gate: GateResult;
@@ -132,7 +137,27 @@ export function nextLanguage(languages: string[], postsSoFar: number): string {
 
 /** Does this content type want a picture? */
 export function wantsPicture(contentType: ContentType): boolean {
-  return contentType === "graphic" || contentType === "text_graphic";
+  return (
+    contentType === "graphic" ||
+    contentType === "text_graphic" ||
+    // 🔑 A moving card is the same card: the still is composed first, and the
+    // frames are that picture with parts hidden. Nothing extra is written.
+    contentType === "animated_gif" ||
+    contentType === "short_video"
+  );
+}
+
+/** Does this shape move? */
+export function wantsAnimation(contentType: ContentType): boolean {
+  return contentType === "animated_gif" || contentType === "short_video";
+}
+
+/** What the post's media_kind should be. */
+export function mediaKindFor(contentType: ContentType, hasPicture: boolean): string {
+  if (!hasPicture) return "none";
+  if (contentType === "animated_gif") return "animated_gif";
+  if (contentType === "short_video") return "short_video";
+  return "graphic";
 }
 
 async function buildPicture(
@@ -323,7 +348,7 @@ export async function prepareGenerated(
         body,
         support: written.support,
         status,
-        mediaKind: picture ? "graphic" : "none",
+        mediaKind: mediaKindFor(args.schedule.contentType, Boolean(picture)) as PreparedPost["mediaKind"],
         picture,
         recipe,
         gate,
@@ -436,7 +461,7 @@ export async function prepareWritten(
       // does not apply, because its whole purpose is to decide what may go out
       // with nobody reading it — and somebody just did.
       status: args.publishImmediately ? "approved" : "needs_review",
-      mediaKind: picture ? "graphic" : "none",
+      mediaKind: mediaKindFor(args.contentType, Boolean(picture)) as PreparedPost["mediaKind"],
       picture,
       recipe,
       gate,

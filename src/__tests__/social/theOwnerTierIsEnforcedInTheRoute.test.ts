@@ -260,22 +260,31 @@ describe("creating a schedule", () => {
     expect((await res.json()).error).toMatch(/no default/i);
   });
 
-  it("rejects short video, which is not built", async () => {
+  it("accepts short video, which is built now", async () => {
     const { POST } = await import("@/app/api/admin/social/schedules/route");
     currentRole = "owner";
-    const res = await POST(
-      post("/api/admin/social/schedules", {
-        name: "A schedule",
-        brief: "Say one true thing about privacy, plainly, as a person would.",
-        platforms: ["facebook"],
-        contentType: "short_video",
-        languages: ["en"],
-        days: [1],
-        postAt: "09:30",
-      }),
-    );
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/not built yet/i);
+    /**
+     * ⚠️ THIS GUARD USED TO ASSERT THE OPPOSITE. Short video was refused with
+     * "not built yet", which was true until 18 Oct and is a reasonable thing to
+     * have pinned — a half-built shape silently accepted is worse than one
+     * openly refused.
+     *
+     * ⇒ Now it must be ACCEPTED, and reaching the database is the proof: a 400
+     * would never have got that far.
+     */
+    await expect(
+      POST(
+        post("/api/admin/social/schedules", {
+          name: "A schedule",
+          brief: "Say one true thing about privacy, plainly, as a person would.",
+          platforms: ["facebook"],
+          contentType: "short_video",
+          languages: ["en"],
+          days: [1],
+          postAt: "09:30",
+        }),
+      ),
+    ).rejects.toThrow(/reached the database/);
   });
 });
 

@@ -14,7 +14,7 @@ import { PLATFORM_IDS } from "@/lib/social/platforms";
 
 export const maxDuration = 60;
 
-const CONTENT_TYPES: ContentType[] = ["text", "graphic", "text_graphic"];
+const CONTENT_TYPES: ContentType[] = ["text", "graphic", "text_graphic", "animated_gif", "short_video"];
 const PLATFORMS: string[] = PLATFORM_IDS;
 
 type Body = {

@@ -26,11 +26,25 @@ import { LOGO_URL, type QrCode } from "@/lib/social/brandMarks";
  * row of dots along the top edge, and two of six motifs were silently
  * decorative. Satori does not warn about a property it does not understand.
  */
+/**
+ * What a node IS, declared rather than guessed.
+ *
+ * 🔴 The animation first worked this out by shape — "a div with a background
+ * colour and no children is probably the accent rule" — and got it wrong the
+ * moment it ran: the white QR panels have no text and no colour of their own,
+ * so they were treated as part of nothing and appeared in frame one, before
+ * the headline, as three floating white squares.
+ *
+ * ⇒ A role is one word per node and it cannot be misread.
+ */
+export type NodeRole = "motif" | "label" | "rule" | "headline" | "support" | "footer";
+
 export type Node = {
   tag: "div" | "span" | "img";
   style: Record<string, string | number>;
   text?: string;
   src?: string;
+  role?: NodeRole;
   children?: Node[];
 };
 
@@ -75,6 +89,8 @@ function motifLayer(motif: string, accent: string, w: number, h: number): Node |
   };
   // ⚠️ Longhand, never `inset`. See the note on Node above.
   const full = { ...base, top: 0, left: 0, width: `${w}px`, height: `${h}px` };
+  // Every motif branch returns a layer with this role; it is always visible.
+  const motifRole = "motif" as const;
 
   switch (motif) {
     case "none":
@@ -86,6 +102,7 @@ function motifLayer(motif: string, accent: string, w: number, h: number): Node |
       // visibly unconsidered. Seen only in a render.
       return {
         tag: "div",
+        role: motifRole,
         style: {
           ...full,
           flexDirection: "column",
@@ -101,6 +118,7 @@ function motifLayer(motif: string, accent: string, w: number, h: number): Node |
     case "rule-stack":
       return {
         tag: "div",
+        role: motifRole,
         style: {
           ...base,
           right: 0,
@@ -121,6 +139,7 @@ function motifLayer(motif: string, accent: string, w: number, h: number): Node |
       const down = Math.ceil((h - 80) / 52) + 1;
       return {
         tag: "div",
+        role: motifRole,
         style: { ...full, flexWrap: "wrap", alignContent: "flex-start", padding: "40px" },
         children: Array.from({ length: across * down }, () => ({
           tag: "div" as const,
@@ -140,6 +159,7 @@ function motifLayer(motif: string, accent: string, w: number, h: number): Node |
       const d = Math.round(Math.min(w, h) * 0.9);
       return {
         tag: "div",
+        role: motifRole,
         style: {
           ...base,
           right: `${-Math.round(d * 0.3)}px`,
@@ -167,6 +187,7 @@ function motifLayer(motif: string, accent: string, w: number, h: number): Node |
       const d = Math.round(Math.min(w, h) * 1.15);
       return {
         tag: "div",
+        role: motifRole,
         style: {
           ...base,
           left: `${-Math.round(d * 0.28)}px`,
@@ -387,6 +408,7 @@ function footerNode(opts: {
 
   return {
     tag: "div",
+    role: "footer",
     style: { display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between" },
     children,
   };
@@ -442,6 +464,7 @@ function layoutFor(
 
   const accentRule = (width: string, thickness: number, extra: Record<string, string | number> = {}): Node => ({
     tag: "div",
+    role: "rule",
     style: {
       display: "flex",
       width,
@@ -454,6 +477,7 @@ function layoutFor(
 
   const hairline = (extra: Record<string, string | number> = {}): Node => ({
     tag: "div",
+    role: "rule",
     style: {
       display: "flex",
       width: "100%",
@@ -642,6 +666,7 @@ export function composePicture(input: ComposeInput): Picture {
     recipe.layout === "stacked-label" || recipe.typeTreatment === "caps-label"
       ? {
           tag: "div",
+          role: "label",
           style: {
             display: "flex",
             fontSize: `${type.label}px`,
@@ -655,6 +680,7 @@ export function composePicture(input: ComposeInput): Picture {
 
   const headlineNode: Node = {
     tag: "div",
+    role: "headline",
     style: {
       display: "flex",
       fontSize: `${type.headline}px`,
@@ -670,6 +696,7 @@ export function composePicture(input: ComposeInput): Picture {
   const supportNode: Node | null = support?.trim()
     ? {
         tag: "div",
+        role: "support",
         style: {
           display: "flex",
           fontSize: `${type.support}px`,

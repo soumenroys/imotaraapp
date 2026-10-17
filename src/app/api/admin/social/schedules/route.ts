@@ -8,7 +8,7 @@ import { PLATFORM_IDS } from "@/lib/social/platforms";
 import { isSupportedLanguage } from "@/lib/social/languages";
 import { TOPIC_POOL_IDS } from "@/lib/social/subjects";
 
-const CONTENT_TYPES = ["text", "graphic", "text_graphic", "short_video"];
+const CONTENT_TYPES = ["text", "graphic", "text_graphic", "animated_gif", "short_video"];
 // ⚠️ From the shared list. Three hand-kept copies is how one of them ends
 // up missing a channel ⇒ the ConsultantCard LANGUAGE_MAP that held 16 of 22.
 const PLATFORMS: string[] = PLATFORM_IDS;
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
   const contentType = body.contentType ?? "";
   if (!CONTENT_TYPES.includes(contentType)) problems.push(`Content type must be one of ${CONTENT_TYPES.join(", ")}.`);
-  if (contentType === "short_video") problems.push("Short video is not built yet — it is the last phase.");
+
 
   const languages = (body.languages ?? []).filter((l) => typeof l === "string");
   const unknown = languages.filter((l) => !isSupportedLanguage(l));

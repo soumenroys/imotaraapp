@@ -80,6 +80,29 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
 
+  /**
+   * ⚠️ THE FFMPEG BINARY HAS TO BE TRACED IN BY HAND.
+   *
+   * `@ffmpeg-installer/ffmpeg` resolves a platform-specific binary at runtime,
+   * so Next's bundler cannot see it: the package is included, the executable is
+   * not, and the social video route fails in production with ENOENT while
+   * working perfectly in `next dev`. ⇒ Named explicitly here.
+   *
+   * 🔑 It is only needed by the one route that encodes video. Tracing it into
+   * every function would add ~70MB to each of them.
+   */
+  /**
+   * ⚠️ ffmpeg resolves its platform binary with a dynamic require that
+   * Turbopack cannot follow — the build fails with "server relative imports are
+   * not implemented". Opting it out means Node requires it at runtime, which is
+   * what it was written for.
+   */
+  serverExternalPackages: ["@ffmpeg-installer/ffmpeg"],
+
+  outputFileTracingIncludes: {
+    "/api/admin/social/animation/[id]": ["./node_modules/@ffmpeg-installer/**/*"],
+  },
+
   async headers() {
     return [
       {

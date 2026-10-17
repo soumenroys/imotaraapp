@@ -196,8 +196,7 @@ create table if not exists social_schedules (
   name           text        not null,
   brief          text        not null,
   platforms      text[]      not null,
-  content_type   text        not null
-                   check (content_type in ('text', 'graphic', 'text_graphic', 'short_video')),
+  content_type   text        not null,
   topic_pool     text[]      not null default '{}',
   tone           text        not null default 'gentle_plain',
   length_hint    text        not null default 'short',
@@ -224,6 +223,27 @@ create table if not exists social_schedules (
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
+
+-- ── 4a-ter. THE SHAPES A POST CAN TAKE ──────────────────────────────────────
+-- Named and dropped-first, so adding a shape is a re-run of this file.
+--
+-- ⚠️ `animated_gif` animates on X and nowhere else — LinkedIn strips the
+-- animation and Facebook converts it. `short_video` animates everywhere. Both
+-- exist because the owner asked for the GIF and the video is what works; the
+-- admin says which channels will move before anything is scheduled.
+
+alter table social_schedules drop constraint if exists social_schedules_content_type_check;
+alter table social_schedules drop constraint if exists social_schedules_content_type_known;
+alter table social_schedules
+  add constraint social_schedules_content_type_known
+  check (content_type in ('text', 'graphic', 'text_graphic', 'animated_gif', 'short_video'));
+
+alter table social_posts drop constraint if exists social_posts_media_kind_check;
+alter table social_posts drop constraint if exists social_posts_media_kind_known;
+alter table social_posts
+  add constraint social_posts_media_kind_known
+  check (media_kind in ('none', 'graphic', 'animated_gif', 'short_video'));
+
 
 -- ── 4a-bis. THE EMPTY-ARRAY TRAP ─────────────────────────────────────────────
 --
@@ -461,7 +481,7 @@ create table if not exists social_posts (
 
   subject          text,
   body             text,
-  media_kind       text        check (media_kind in ('none', 'graphic', 'short_video')),
+  media_kind       text,
   media_path       text,
   visual_recipe    jsonb,
 

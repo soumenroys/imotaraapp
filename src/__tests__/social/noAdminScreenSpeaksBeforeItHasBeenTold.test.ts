@@ -134,3 +134,31 @@ describe("the feature is reachable and usable at all", () => {
         expect(route).toMatch(/requireSocialOwner/);
     });
 });
+
+describe("the screens do not contradict themselves", () => {
+    it("⛔ approving does not promise a publication that cannot happen", () => {
+        /**
+         * 🔴 SEEN LIVE. Every screen carries a banner reading "Phase 1: nothing
+         * publishes yet" — and approving a post answered "Approved. It will
+         * publish at its slot", three lines below it.
+         *
+         * ⚠️ Two sentences on one screen that cannot both be true is how a
+         * person learns to stop reading either of them. On this feature the
+         * banner is the one that matters, so the other had to change.
+         */
+        /**
+         * ⚠️ COMMENTS STRIPPED FIRST. The fix explains itself in prose that
+         * quotes the old sentence, and the first version of this guard failed
+         * on its own explanation — the same shape as the `inset` check and the
+         * third time this exact mistake has been made here
+         * ⇒ trap_a_guard_satisfied_by_a_neighbouring_value.
+         */
+        const route = read("src/app/api/admin/social/posts/[id]/route.ts")
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/^\s*\/\/.*$/gm, "");
+        expect(route).not.toMatch(/will publish at its slot/i);
+        expect(route, "the approval note no longer says what actually happens").toMatch(
+            /Nothing publishes yet/i,
+        );
+    });
+});

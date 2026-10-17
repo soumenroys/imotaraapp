@@ -315,7 +315,7 @@ export default function SocialAdmin() {
                     </div>
                     <div className="text-xs text-zinc-500">
                       {s.platforms.join(", ")} · {s.content_type.replace("_", " + ")} ·{" "}
-                      <span className="tabular-nums">{s.post_at}</span> {s.timezone} ·{" "}
+                      <span className="tabular-nums">{String(s.post_at).slice(0, 5)}</span> {s.timezone} ·{" "}
                       {s.days.map((d) => DAY[d]).join(" ")} · {s.languages.join(" / ")}
                     </div>
                   </div>

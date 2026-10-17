@@ -81,7 +81,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       if (error || !data) {
         return NextResponse.json({ error: "Somebody else changed this post first." }, { status: 409 });
       }
-      return NextResponse.json({ post: data, note: "Approved. It will publish at its slot." });
+      /**
+       * ⚠️ NOT "it will publish at its slot". The banner directly above this
+       * message says nothing publishes yet, and for a while this said the
+       * opposite three lines below it — the exact contradiction that teaches
+       * somebody to stop reading either one.
+       */
+      return NextResponse.json({
+        post: data,
+        note:
+          "Approved — it is ready and waiting for a channel. ⛔ Nothing publishes yet: there is no " +
+          "adapter, so this sits here until one exists, or until you post it by hand.",
+      });
     }
 
     case "edit": {

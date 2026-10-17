@@ -26,9 +26,21 @@
  *    profile picture punches a hole in the BOTTOM-LEFT corner, so nothing may
  *    live there. Generated from the same copy so the two cannot drift.
  *
+ * 📐 Facebook Page cover: 1640 x 624 (2x the 820 x 312 desktop slot, so it
+ *    stays crisp). ⚠️ TWO crops, not one — desktop shows 820 x 312 while
+ *    mobile shows a TALLER, NARROWER region, so only the centre survives both.
+ *    The Page avatar also overlaps the bottom-left, exactly like X.
+ *
+ * 🔴 ADDED 2026-10-17, and for the same reason the file exists at all: the
+ *    live Facebook cover read "A safe space to talk, HEAL & grow" with a badge
+ *    saying "Human Consultation". Heal is a treatment claim and consultation
+ *    is a clinical one — the third banner found carrying a claim the product
+ *    denies. Images are copy, and no test can read them.
+ *
  * ▶️ Run:  node scripts/generate-youtube-banner.js
  *    Output: docs/brand/imotara-youtube-banner.png   (2560 x 1440)
  *            docs/brand/imotara-x-header.png         (1500 x 500)
+ *            docs/brand/imotara-facebook-cover.png   (1640 x 624)
  *
  * ⚠️ Rendered with headless Chrome because this machine has no rsvg-convert,
  * ImageMagick or Inkscape. Chrome is the one renderer that is definitely here.
@@ -42,6 +54,7 @@ const ROOT = path.join(__dirname, "..");
 const OUT_DIR = path.join(ROOT, "docs", "brand");
 const OUT_PNG = path.join(OUT_DIR, "imotara-youtube-banner.png");
 const OUT_X = path.join(OUT_DIR, "imotara-x-header.png");
+const OUT_FB = path.join(OUT_DIR, "imotara-facebook-cover.png");
 const LOGO = path.join(ROOT, "public", "icon-512.png");
 
 const CHROME =
@@ -88,6 +101,25 @@ const SPECS = {
         logo: 136, gap: 36, head: 38, sub: 25, subGap: 9,
         pillGap: 18, pillSpace: 9, pillText: 14, pillPadY: 8, pillPadX: 15, pillDot: 7,
         out: OUT_X, maxMb: 5,
+    },
+    facebook: {
+        w: 1640, h: 624,
+        /**
+         * ⚠️ TWO crops to survive, worked out rather than guessed:
+         *   - desktop 820 x 312 — the same 2.63 ratio as this canvas, so no
+         *     side crop at all;
+         *   - mobile ~1.78 ratio — crops the SIDES, keeping only x 265..1375.
+         * The Page avatar overlaps roughly x 0..213, y 424..624.
+         *
+         * ⛔ NO SHIFT. X needs one because its canvas is tight and the avatar
+         * sits under the lockup; here the content already lands at x≈345..1295
+         * and y≈217..407, clearing the avatar zone and sitting inside the
+         * mobile crop. Nudging it up only created dead space along the bottom.
+         */
+        safeW: 1280, safeH: 400, safeShift: "",
+        logo: 160, gap: 42, head: 44, sub: 29, subGap: 11,
+        pillGap: 22, pillSpace: 11, pillText: 16, pillPadY: 10, pillPadX: 18, pillDot: 8,
+        out: OUT_FB, maxMb: 5,
     },
 };
 
@@ -181,6 +213,7 @@ function main() {
     const logoB64 = fs.readFileSync(LOGO).toString("base64");
     render(SPECS.youtube, logoB64, "youtube");
     render(SPECS.x, logoB64, "x");
+    render(SPECS.facebook, logoB64, "facebook");
 }
 
 main();

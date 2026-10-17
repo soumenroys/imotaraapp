@@ -353,3 +353,43 @@ describe("sameAs names the ORGANISATION's profiles, not a person's", () => {
         expect(read("public/llms.txt")).toContain(BUSINESS.social.linkedin);
     });
 });
+
+describe("the share card speaks with the same voice as the profiles", () => {
+    /**
+     * 🔑 WHY THIS IS A SOCIAL SURFACE, NOT JUST METADATA. The openGraph and
+     * twitter blocks are what render when anyone posts an imotara.com link to
+     * X, Facebook or LinkedIn. They reach more people than the profiles do,
+     * and until 2026-10-17 they said something different from all five of them.
+     *
+     * 🔴 WHAT WAS WRONG. Two DIFFERENT descriptions for one page — openGraph
+     * and twitter had drifted apart — neither naming the 22 languages, and
+     * both ending "quietly, ethically, and forever". ⛔ "Forever" is a promise
+     * no software can make, on a product whose whole claim is that it does not
+     * oversell itself.
+     *
+     * ⛔ THE TITLE IS NOT A DEFECT. "An Immortal Friend for Your Emotions" is
+     * the brand line and also the homepage hero. Positioning is the owner's;
+     * only the drift and the unkeepable promise were fixed.
+     */
+    const layout = read("src/app/layout.tsx");
+
+    it("openGraph and twitter share one description constant", () => {
+        expect(layout).toMatch(/const SHARE_DESCRIPTION\s*=/);
+        // Both blocks must REFERENCE it — a second literal is how they drifted.
+        const refs = layout.match(/description: SHARE_DESCRIPTION/g) ?? [];
+        expect(refs.length, "openGraph and twitter must both use it").toBe(2);
+    });
+
+    it("promises nothing it cannot keep", () => {
+        const start = layout.indexOf("const SHARE_DESCRIPTION");
+        const decl = layout.slice(start, layout.indexOf(";", start));
+        expect(decl.toLowerCase()).not.toContain("forever");
+    });
+
+    it("names what actually distinguishes the product", () => {
+        const start = layout.indexOf("const SHARE_DESCRIPTION");
+        const decl = layout.slice(start, layout.indexOf(";", start));
+        expect(decl).toContain("22 languages");
+        expect(decl.toLowerCase()).toContain("not therapy");
+    });
+});

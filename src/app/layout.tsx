@@ -46,6 +46,14 @@ export const viewport: Viewport = {
   ],
 };
 
+/**
+ * One sentence for every social share card, matching the bio now live on
+ * X, Instagram, Facebook, LinkedIn and YouTube. One voice across the
+ * channels is what lets a search engine resolve the brand to one entity.
+ */
+const SHARE_DESCRIPTION =
+  "A private place to say how you actually feel - in 22 languages. No ads, no feed. Not therapy, and we say so.";
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   // ⬇️ Title template so child pages can just set "About", "History", etc.
@@ -86,8 +94,14 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: "Imotara",
     title: "Imotara — An Immortal Friend for Your Emotions",
-    description:
-      "A companion that listens, remembers, and grows with your emotions — quietly, ethically, and forever.",
+    // 🔑 THE SHARE CARD IS A SOCIAL SURFACE. This is what renders when anyone
+    // posts an imotara.com link to X, Facebook or LinkedIn — so it must say
+    // what the five profiles say. On 2026-10-17 it did not: OG and Twitter
+    // carried two DIFFERENT descriptions, neither mentioning the 22 languages,
+    // and both ended "quietly, ethically, and forever" — a promise no software
+    // can keep, on a product whose own consent gate is about honesty.
+    // ⛔ The TITLE is the brand line and stays; it is on the homepage hero too.
+    description: SHARE_DESCRIPTION,
     images: [
       {
         url: "/og-image.png",
@@ -101,8 +115,9 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Imotara — An Immortal Friend for Your Emotions",
-    description:
-      "An emotion-aware companion that listens, learns, and grows with you — quietly, ethically, and forever.",
+    // Same sentence as openGraph, deliberately. Two descriptions for one page
+    // is how they drifted apart in the first place.
+    description: SHARE_DESCRIPTION,
     // ⇒ businessIdentity.ts — never retype a handle here.
     creator: BUSINESS.social.xHandle,
     site: BUSINESS.social.xHandle,

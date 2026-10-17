@@ -24,6 +24,30 @@ import QRCode from "qrcode";
 export const LOGO_URL = "https://www.imotara.com/android-chrome-192.png";
 
 /**
+ * Is this pair readable by a phone camera?
+ *
+ * 🔴 A QR CODE IS NOT A DESIGN ELEMENT THAT CAN BE TINTED TO TASTE. Scanners
+ * threshold the image, so a low-contrast code is not a subtle code — it is a
+ * code that does not work, and it fails silently and only for the reader.
+ * ⇒ So the composer renders the code on its own light panel rather than on the
+ * palette's ground, and this is the check that keeps that true.
+ */
+export function qrContrastOk(dark: string, light: string): boolean {
+  const lum = (hex: string) => {
+    const v = hex.replace("#", "");
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) / 255);
+    const f = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const a = lum(dark);
+  const b = lum(light);
+  const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  // ⚠️ 7:1, well above the 4.5:1 that text needs. A camera has none of the
+  // advantages a reading eye has: no context, no expectation, one exposure.
+  return ratio >= 7;
+}
+
+/**
  * 🔴 THREE CODES, NOT ONE — and they were already defined here before I
  * arrived. `scripts/generate-qr-codes.js` has generated qr-website, qr-android
  * and qr-ios since the org-invite emails were built, pointing at the site, the
@@ -39,12 +63,30 @@ export const LOGO_URL = "https://www.imotara.com/android-chrome-192.png";
  * somewhere nobody checks.
  */
 export const QR_TARGETS = [
-  { id: "web", label: "Website", url: "https://imotara.com" },
-  { id: "android", label: "Android", url: "https://play.google.com/store/apps/details?id=com.imotara.imotara" },
-  { id: "ios", label: "iPhone", url: "https://apps.apple.com/in/app/imotara/id6756697569" },
+  {
+    id: "web",
+    label: "Website",
+    url: "https://imotara.com",
+    // Imotara indigo, darkened until it clears the camera bar.
+    color: "#312E81",
+  },
+  {
+    id: "android",
+    label: "Android",
+    url: "https://play.google.com/store/apps/details?id=com.imotara.imotara",
+    // A deep green that reads as Play without borrowing their mark.
+    color: "#14532D",
+  },
+  {
+    id: "ios",
+    label: "iPhone",
+    url: "https://apps.apple.com/in/app/imotara/id6756697569",
+    // Near-black slate: Apple's own listings are monochrome.
+    color: "#0F172A",
+  },
 ] as const;
 
-export type QrCode = { id: string; label: string; dataUri: string };
+export type QrCode = { id: string; label: string; dataUri: string; color: string };
 
 /**
  * Where a scan lands, tagged so the channel is visible in analytics.
@@ -85,35 +127,28 @@ export async function qrDataUri(target: string, dark: string, light: string): Pr
 export async function allQrCodes(platform: string): Promise<QrCode[]> {
   const out: QrCode[] = [];
   for (const t of QR_TARGETS) {
+    /**
+     * 🔴 THE COLOUR IS CHECKED, NOT TRUSTED. A QR code is the one graphic on a
+     * card that is read by a machine with none of a human eye's advantages: no
+     * context, no expectation, one exposure, often at an angle on a lit screen.
+     *
+     * ⛔ So a colour that does not clear 7:1 against white is NOT used in a
+     * muted version or with a warning — it is replaced with near-black, and the
+     * code still works. A pretty code that does not scan is not a pretty code,
+     * it is a dead end that fails silently and only for the reader.
+     */
+    const dark = qrContrastOk(t.color, "#FFFFFF") ? t.color : "#111827";
     try {
-      out.push({ id: t.id, label: t.label, dataUri: await qrDataUri(qrTarget(platform, t.url), "#111827", "#FFFFFF") });
+      out.push({
+        id: t.id,
+        label: t.label,
+        color: dark,
+        dataUri: await qrDataUri(qrTarget(platform, t.url), dark, "#FFFFFF"),
+      });
     } catch {
-      // Skipped, not fatal.
+      // Skipped, not fatal: a card with two codes is still a card.
     }
   }
   return out;
 }
 
-/**
- * Is this pair readable by a phone camera?
- *
- * 🔴 A QR CODE IS NOT A DESIGN ELEMENT THAT CAN BE TINTED TO TASTE. Scanners
- * threshold the image, so a low-contrast code is not a subtle code — it is a
- * code that does not work, and it fails silently and only for the reader.
- * ⇒ So the composer renders the code on its own light panel rather than on the
- * palette's ground, and this is the check that keeps that true.
- */
-export function qrContrastOk(dark: string, light: string): boolean {
-  const lum = (hex: string) => {
-    const v = hex.replace("#", "");
-    const [r, g, b] = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) / 255);
-    const f = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
-  };
-  const a = lum(dark);
-  const b = lum(light);
-  const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-  // ⚠️ 7:1, well above the 4.5:1 that text needs. A camera has none of the
-  // advantages a reading eye has: no context, no expectation, one exposure.
-  return ratio >= 7;
-}

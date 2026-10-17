@@ -161,7 +161,7 @@ describe("the logo and the QR", () => {
             headline: "A headline",
             language: "en",
             platform: "facebook",
-            qrCodes: [{ id: "web", label: "Website", dataUri: "data:image/png;base64,AAAA" }],
+            qrCodes: [{ id: "web", label: "Website", color: "#312E81", dataUri: "data:image/png;base64,AAAA" }],
         });
         for (const src of imagesInPicture(picture)) {
             const allowed = src === LOGO_URL || src.startsWith("data:image/png;base64,");
@@ -180,7 +180,7 @@ describe("the logo and the QR", () => {
          * a puzzle: a reader has to scan one to discover whether it was the one
          * for their phone, which is worse than a single code would have been.
          */
-        const codes = QR_TARGETS.map((t) => ({ id: t.id, label: t.label, dataUri: `data:image/png;base64,${t.id}` }));
+        const codes = QR_TARGETS.map((t) => ({ id: t.id, label: t.label, color: t.color, dataUri: `data:image/png;base64,${t.id}` }));
         const picture = composePicture({
             recipe: recipe(), headline: "A headline", language: "en", platform: "facebook", qrCodes: codes,
         });
@@ -225,6 +225,35 @@ describe("the logo and the QR", () => {
             if (t.url.includes("imotara.com")) expect(out).toContain("utm_source");
             else expect(out, `${t.id} was tagged`).toBe(t.url);
         }
+    });
+
+    it("🔴 every QR colour clears the camera bar, not the reading bar", () => {
+        /**
+         * The owner asked for colourful codes, and colour is the one thing on a
+         * card that can stop a QR working — silently, and only for the reader.
+         *
+         * ⚠️ A QR is read by a machine with none of a human eye's advantages:
+         * no context, no expectation, one exposure, usually at an angle on a
+         * lit screen. ⇒ 7:1, well above the 4.5:1 that text needs, and the
+         * colour sits on the RING and the modules, never behind them.
+         *
+         * ⛔ A colour that fails is not used in a muted form or with a warning.
+         * It is replaced with near-black and the code still works.
+         */
+        for (const t of QR_TARGETS) {
+            expect(
+                qrContrastOk(t.color, "#FFFFFF"),
+                `the ${t.id} code's colour ${t.color} will not reliably scan`,
+            ).toBe(true);
+        }
+    });
+
+    it("the three are told apart by colour as well as by label", () => {
+        // ⚠️ Colour alone would fail anybody who cannot distinguish them, which
+        // is why the labels exist too — but three identical grey squares is
+        // what the owner was looking at, and that was the complaint.
+        const colours = new Set(QR_TARGETS.map((t) => t.color));
+        expect(colours.size).toBe(QR_TARGETS.length);
     });
 
     it("the code is rendered at a contrast a camera can actually threshold", () => {

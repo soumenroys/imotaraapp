@@ -335,6 +335,10 @@ function footerNode(opts: {
               backgroundColor: "#FFFFFF",
               borderRadius: `${Math.round(10 * scale)}px`,
               padding: `${Math.round(8 * scale)}px`,
+              // ⚠️ The colour goes on the RING, and the modules themselves are
+              // already dark enough to scan. Tinting the white behind a code is
+              // where a designed QR stops working.
+              border: `${Math.max(2, Math.round(3 * scale))}px solid ${code.color}`,
             },
             children: [
               {
@@ -345,14 +349,36 @@ function footerNode(opts: {
             ],
           },
           {
-            tag: "span" as const,
+            tag: "div" as const,
             style: {
               display: "flex",
-              marginTop: `${Math.round(7 * scale)}px`,
-              fontSize: `${Math.round(16 * scale)}px`,
-              color: muted,
+              alignItems: "center",
+              marginTop: `${Math.round(8 * scale)}px`,
             },
-            text: code.label,
+            children: [
+              // A dot in the code's own colour, so the three read as a set on a
+              // dark ground where the labels must stay light to be legible.
+              {
+                tag: "div" as const,
+                style: {
+                  display: "flex",
+                  width: `${Math.max(5, Math.round(7 * scale))}px`,
+                  height: `${Math.max(5, Math.round(7 * scale))}px`,
+                  borderRadius: "999px",
+                  backgroundColor: code.color,
+                  marginRight: `${Math.round(6 * scale)}px`,
+                },
+              },
+              {
+                tag: "span" as const,
+                style: {
+                  display: "flex",
+                  fontSize: `${Math.round(16 * scale)}px`,
+                  color: muted,
+                },
+                text: code.label,
+              },
+            ],
           },
         ],
       })),

@@ -12,7 +12,7 @@
 // writes copy. The gate cannot read a picture, so a picture may only repeat
 // words that have already been through it.
 
-import { PALETTES, wordmarkFor, type Recipe } from "@/lib/social/visualRecipe";
+import { PALETTES, wordmarkFor, canonicalLayout, type Recipe } from "@/lib/social/visualRecipe";
 import { BRAND_IN_SCRIPT } from "@/lib/social/languages";
 import { planWordmark, type WordmarkPlan } from "@/lib/social/fonts";
 import { platformSpec } from "@/lib/social/platforms";
@@ -635,7 +635,9 @@ export function composePicture(input: ComposeInput): Picture {
   });
 
   const content = layoutFor(
-    recipe.layout,
+    // ⚠️ Translated, not trusted. A stored recipe may name a layout that has
+    // since been renamed, and a post approved yesterday must still render.
+    canonicalLayout(recipe.layout),
     palette,
     { label, headline: headlineNode, support: supportNode, foot },
     { w, h, pad, scale },

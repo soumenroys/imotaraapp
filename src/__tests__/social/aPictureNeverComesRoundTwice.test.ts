@@ -31,7 +31,10 @@ import {
     TOTAL_COMBINATIONS,
     headlineFromBody,
     wordmarkFor,
+    RETIRED_LAYOUTS,
+    canonicalLayout,
 } from "@/lib/social/visualRecipe";
+import { composePicture } from "@/lib/social/compose";
 
 /** A deterministic rng so a failure is reproducible rather than occasional. */
 const seeded = (seed: number) => {
@@ -198,5 +201,64 @@ describe("the words on a picture", () => {
         expect(wordmarkFor("kn")).toBe("ಇಮೋತಾರಾ");
         expect(wordmarkFor("ur")).toBe("اموتارا");
         expect(wordmarkFor("en")).toBe("Imotara");
+    });
+});
+
+describe("a picture stored yesterday still renders today", () => {
+    /**
+     * 🔴 THE DEFECT THIS PINS, seen live on 18 Oct. The layouts were renamed to
+     * describe geometry instead of alignment — and the recipe is PERSISTED, as
+     * JSON on the post. A post approved an hour before the rename then rendered
+     * as `unknown layout "split-rule"`: a 422, and a broken image sitting in
+     * the review queue.
+     *
+     * ⚠️ THE LESSON IS BIGGER THAN THE MAP. Any value that is stored and later
+     * matched by name is a public identifier, even when it looks internal.
+     * Renaming one is a migration, not a tidy-up.
+     */
+    it("every retired layout name maps to one that exists", () => {
+        for (const [old, now] of Object.entries(RETIRED_LAYOUTS)) {
+            expect(LAYOUTS as readonly string[], `${old} maps to "${now}", which is not a layout`).toContain(now);
+            // ⛔ And a retired name must not also be a current one, or the map
+            // would silently shadow a real layout.
+            expect(LAYOUTS as readonly string[]).not.toContain(old);
+        }
+    });
+
+    it("composes a picture from a recipe saved under an old name", () => {
+        const base = { layout: "split-rule", palette: "ink", typeTreatment: "tight-display", motif: "arcs", script: "en" };
+        expect(() =>
+            composePicture({
+                recipe: { ...base, hash: recipeHash(base as never) } as never,
+                headline: "Your words stay on your device",
+                language: "en",
+                platform: "facebook",
+            }),
+        ).not.toThrow();
+    });
+
+    it("⛔ still refuses a name that was never a layout", () => {
+        // A typo must not quietly become a picture.
+        expect(canonicalLayout("diagonal")).toBe("diagonal");
+        expect(() =>
+            composePicture({
+                recipe: { layout: "diagonal", palette: "ink", typeTreatment: "display", motif: "none", script: "en", hash: "x" } as never,
+                headline: "A headline",
+                language: "en",
+                platform: "facebook",
+            }),
+        ).toThrow(/unknown layout/i);
+    });
+
+    it("⛔ does not rewrite the stored hash", () => {
+        /**
+         * 🔑 The register recorded what was actually used. Rewriting history to
+         * match a new vocabulary would be a worse bug than the one the alias
+         * fixes: two different recipes could collapse onto one hash, and a
+         * picture could then be used twice.
+         */
+        const oldName = { layout: "split-rule", palette: "ink", typeTreatment: "display", motif: "arcs", script: "en" };
+        const newName = { ...oldName, layout: "side-bar" };
+        expect(recipeHash(oldName as never)).not.toBe(recipeHash(newName as never));
     });
 });

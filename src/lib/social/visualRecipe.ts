@@ -59,6 +59,37 @@ export const LAYOUTS = [
  * substitutable; `ink` clears 4.5:1 on `ground` and `muted` clears it too at
  * body size.
  */
+/**
+ * 🔴 NAMES THESE AXES USED TO HAVE, AND WHAT THEY BECAME.
+ *
+ * Renaming the layouts on 18 Oct broke every picture already stored under an
+ * old name: the recipe lives in `social_posts.visual_recipe` as JSON, so a post
+ * approved an hour earlier suddenly rendered as
+ * `unknown layout "split-rule"` — a 422 and a broken image in the queue.
+ *
+ * ⚠️ THE GENERAL LESSON, which is worth more than this map: ANY value that is
+ * persisted and then matched by name is a public identifier, even when it looks
+ * like an internal one. Renaming it is a migration, not a tidy-up. The same
+ * applies to the palettes, the motifs and the type treatments below — if one of
+ * those is ever renamed, it needs an entry here too.
+ *
+ * ⛔ The HASH is deliberately NOT rewritten. The register recorded what was
+ * actually used, and rewriting history to match a new vocabulary would be a
+ * worse bug than the one this fixes: a recipe could then be used twice.
+ */
+export const RETIRED_LAYOUTS: Record<string, string> = {
+  "wordmark-corner": "corner-block",
+  "split-rule": "side-bar",
+  stacked: "stacked-label",
+  "language-grid": "stacked-label",
+};
+
+/** The current name for a layout, old or new. ⛔ Still throws on one that was
+ *  never a layout at all — a typo must not silently become a picture. */
+export function canonicalLayout(name: string): string {
+  return RETIRED_LAYOUTS[name] ?? name;
+}
+
 export const PALETTES: Record<
   string,
   { ground: string; ink: string; muted: string; accent: string; accentInk: string }

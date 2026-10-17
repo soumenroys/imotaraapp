@@ -149,7 +149,16 @@ export default function Channels() {
           </div>
         )}
 
-        {authed !== false && (
+        {authed === null && (
+          <p className="text-sm text-zinc-500">Checking the admin session…</p>
+        )}
+
+        {/* ⛔ `=== true`, not `!== false`. While the session check is in
+            flight `authed` is null, and the earlier version rendered the whole
+            body in that moment — master switch reading "Everything is held",
+            counters reading 0 — none of it fetched. Brief on a fast connection,
+            not brief on a slow one, and a reassuring lie either way. */}
+        {authed === true && (
           <>
         <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 mb-8">
           <div className="space-y-1">

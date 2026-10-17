@@ -217,7 +217,16 @@ export default function SocialAdmin() {
 
         {authed === false && <SignedOut />}
 
-        {authed !== false && (
+        {authed === null && (
+          <p className="text-sm text-zinc-500">Checking the admin session…</p>
+        )}
+
+        {/* ⛔ `=== true`, not `!== false`. While the session check is in
+            flight `authed` is null, and the earlier version rendered the whole
+            body in that moment — master switch reading "Everything is held",
+            counters reading 0 — none of it fetched. Brief on a fast connection,
+            not brief on a slow one, and a reassuring lie either way. */}
+        {authed === true && (
           <>
         {/* ⛔ Said on every visit, because the single most consequential fact
             about this feature right now is that it does not publish. */}

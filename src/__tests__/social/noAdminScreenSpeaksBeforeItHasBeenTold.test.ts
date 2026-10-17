@@ -57,7 +57,16 @@ describe("every social admin screen knows whether it has a session", () => {
 
         it(`${screen} shows the sign-in panel and hides the body`, () => {
             expect(src, "no signed-out panel").toMatch(/authed === false && <SignedOut/);
-            expect(src, "the body is not hidden when signed out").toMatch(/authed !== false && \(/);
+            /**
+             * ⛔ `=== true`, not `!== false`. While the check is in flight
+             * `authed` is null — and `!== false` is TRUE for null, so the body
+             * rendered during loading with the master switch reading
+             * "Everything is held" and every counter reading 0. Brief on a fast
+             * connection; not brief on a slow one, and the same untrue claim
+             * either way. Caught by screenshotting the page a moment too early.
+             */
+            expect(src, "the body renders before the session is known").toMatch(/authed === true && \(/);
+            expect(src, "no loading state").toMatch(/authed === null &&/);
         });
 
         it(`${screen} no longer tells a signed-in person they are not signed in`, () => {

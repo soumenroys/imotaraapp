@@ -110,10 +110,12 @@ describe("the feature is reachable and usable at all", () => {
         );
     });
 
-    it("a schedule can be created from the overview", () => {
-        const overview = read("src/app/admin/social/page.tsx");
-        expect(overview, "no way to create a schedule").toMatch(/<NewSchedule/);
-        expect(overview).toMatch(/New schedule/);
+    it("a schedule can be created", () => {
+        // ⚠️ Moved off the overview on 18 Oct: "what needs me today" and "what
+        // should happen every week" are not the same visit.
+        const page = read("src/app/admin/social/schedules/page.tsx");
+        expect(page, "no way to create a schedule").toMatch(/<NewSchedule/);
+        expect(page).toMatch(/New schedule/);
     });
 
     it("the schedule form asks for everything the database will not default", () => {
@@ -160,5 +162,99 @@ describe("the screens do not contradict themselves", () => {
         expect(route, "the approval note no longer says what actually happens").toMatch(
             /Nothing publishes yet/i,
         );
+    });
+});
+
+describe("the screens stay readable", () => {
+    /**
+     * 🔴 WHAT THIS PINS, from the owner on 18 Oct: "its difficult for admin to
+     * understand the all functionalities."
+     *
+     * They were right, and the measurement is blunt but real. The channels
+     * screen had grown to roughly 1,800 words on one scroll — and ~750 of them
+     * were THE SAME 40-WORD PARAGRAPH REPEATED NINETEEN TIMES, once per
+     * language nobody here reads.
+     *
+     * ⚠️ The paragraph was true. Printing it nineteen times is what made it
+     * unreadable: an explanation that cannot be skipped buries the one line
+     * that changes what somebody does today.
+     *
+     * ⇒ Nothing was deleted. The reasoning moved into <Explain>, which folds it
+     * behind a question, or into the code comments where the next editor reads.
+     */
+    const SCREENS = [
+        "src/app/admin/social/page.tsx",
+        "src/app/admin/social/schedules/page.tsx",
+        "src/app/admin/social/channels/page.tsx",
+        "src/app/admin/social/languages/page.tsx",
+        "src/app/admin/social/compose/page.tsx",
+    ];
+
+    /** Visible copy only: JSX text and string literals that reach the screen,
+     *  with code comments stripped — a comment is not something a user reads. */
+    const visibleWords = (src: string) => {
+        const noComments = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+        const text = noComments
+            .replace(/import[\s\S]*?from\s+"[^"]+";/g, "")
+            .replace(/className="[^"]*"/g, "")
+            .replace(/<[^>]+>/g, " ");
+        return text.split(/\s+/).filter((w) => /[a-z]{3,}/i.test(w)).length;
+    };
+
+    for (const screen of SCREENS) {
+        it(`${screen} does not bury the reader`, () => {
+            // ⚠️ A ceiling, not a target. It exists so that the next long
+            // explanation goes into <Explain> rather than onto the page.
+            expect(visibleWords(read(screen)), `${screen} is a wall of text again`).toBeLessThan(900);
+        });
+
+    }
+
+    it("⛔ the per-language reason is not printed on every row", () => {
+        /**
+         * 🔴 THE EXACT DEFECT THAT PROMPTED THIS, pinned precisely rather than
+         * by a heuristic. The languages list rendered `r.reason` as visible
+         * text inside its `.map()`, so the same 40-word paragraph appeared
+         * nineteen times — ~750 words of identical prose on one scroll.
+         *
+         * ⇒ It is now a `title` on the chip: available on hover, present for a
+         * screen reader, and not shouted nineteen times at somebody scanning.
+         * The shared explanation above the table says it once.
+         *
+         * ⚠️ My first attempt at this guard was a heuristic that flagged any
+         * long string inside any `.map()`, and it fired on the Today page —
+         * where the long text only renders for the ONE row that is expanded.
+         * A guard that cannot tell those apart teaches people to ignore it.
+         */
+        const src = read("src/app/admin/social/languages/page.tsx");
+        expect(src, "the reason is rendered as a text node per row").not.toMatch(/\{r\.reason\}/);
+        expect(src, "the reason is not available at all").toMatch(/title=\{r\.reason/);
+    });
+
+    it("every screen carries the same navigation", () => {
+        // Three screens that linked to each other from different corners gave
+        // no way to tell what the section even contained.
+        for (const screen of SCREENS) {
+            expect(read(screen), `${screen} is not on the shared shell`).toMatch(/<SocialPage/);
+        }
+    });
+
+    it("statuses are shown in words a person uses", () => {
+        /**
+         * ⛔ "needs_review", "rejected_by_gate" and "pending" are precise and
+         * they are not English. Nobody should have to learn a private dialect
+         * to use an admin screen.
+         */
+        const ui = read("src/app/admin/social/_components/ui.tsx");
+        for (const [raw, plain] of [
+            ["needs_review", "Waiting for you"],
+            ["rejected_by_gate", "Blocked"],
+            ["approved", "Ready to go"],
+            ["published", "Posted"],
+        ]) {
+            expect(ui, `${raw} has no plain label`).toContain(plain);
+        }
+        // And each one says what it means, not just what it is called.
+        expect(ui).toMatch(/means:/);
     });
 });

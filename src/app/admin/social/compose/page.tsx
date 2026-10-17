@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { PLATFORMS as CHANNELS, PLATFORM_IDS } from "@/lib/social/platforms";
+import { SocialPage, Explain } from "@/app/admin/social/_components/ui";
 
 type LanguageRow = {
   code: string;
@@ -104,18 +105,11 @@ export default function ComposePost() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-10">
-      <div className="mx-auto max-w-3xl space-y-8">
-        <header className="space-y-2">
-          <a href="/admin/social" className="text-xs text-zinc-500 hover:text-zinc-300">
-            ← Social posting
-          </a>
-          <h1 className="text-2xl font-semibold tracking-tight">Write a post</h1>
-          <p className="text-sm text-zinc-400">
-            Your words, the same checks. All 22 languages are open here — writing by hand means a
-            person is already reading it.
-          </p>
-        </header>
+    <SocialPage
+      here="/admin/social/compose"
+      title="Write a post"
+      lede="Your words, the same checks. Every language is open here, because you are reading it."
+    >
 
         {authed === false && <SignedOut />}
 
@@ -347,26 +341,36 @@ export default function ComposePost() {
           </section>
         )}
 
-        {/* ⛔ The voice rules, where somebody writing can see them. Not a
-            collapsed panel: the point is that they are read. */}
+        {/* ⚠️ These five stay OPEN, unlike most explanations here: somebody is
+            about to write, and this is the moment the rules are useful. */}
         <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/30 p-5 text-sm">
-          <h2 className="font-semibold text-zinc-300">The voice</h2>
+          <h2 className="font-semibold text-zinc-300">How to write it</h2>
           <ul className="space-y-1.5 text-zinc-400">
             <li>Write to one person. “You”, never “users”.</li>
             <li>Say one true thing and stop.</li>
             <li>Leave room — but never “What do you think? 👇”.</li>
             <li>Be generous. Say what the product does not do.</li>
-            <li>Assume nothing about who is reading, and never address a segment.</li>
+            <li>Assume nothing about who is reading.</li>
           </ul>
-          <p className="text-xs text-zinc-500">
-            The gate refuses clinical claims, abuse, and careless idiom — <em>crazy</em>,{" "}
-            <em>insane</em>, <em>psycho</em>, <em>triggered</em> used loosely. ⛔ Whether it is gentle,
-            insightful or generous is read, not matched; that part is yours.
-          </p>
+          <Explain q="What will be refused automatically?">
+            <p>
+              Clinical words — therapist, counsellor, diagnose, heal — because this product is not
+              therapy and must never imply it is.
+            </p>
+            <p>Abuse and profanity.</p>
+            <p>
+              Careless language: <em>crazy</em>, <em>insane</em>, <em>psycho</em>, <em>triggered</em>{" "}
+              used loosely. On a page about how people feel, that is the sentence that gets
+              screenshot.
+            </p>
+            <p>
+              ⛔ Whether it is gentle, insightful or generous is not something a check can read. That
+              part is yours.
+            </p>
+          </Explain>
         </section>
           </>
         )}
-      </div>
-    </main>
+    </SocialPage>
   );
 }

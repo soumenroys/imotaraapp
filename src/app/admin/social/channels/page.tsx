@@ -1,15 +1,15 @@
 "use client";
 
-// /admin/social/channels — the channels, the master switch, and the languages.
+// /admin/social/channels — the places posts go, and whether they work.
 //
-// 🔐 The controls an Imotara admin may not use are disabled here AND refused by
-// the route. ⛔ A disabled button is a hint, never a gate: this page only knows
-// the actor's role because the API told it, and the API checks again on every
-// request.
+// ⚠️ This page used to carry the master switch, the connect form, the
+// connections, ALL 22 LANGUAGES and the font-script note — ~1,800 words on one
+// scroll. The languages moved to their own screen; what is left is one job.
 
 import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { ConnectChannel } from "@/app/admin/social/_components/ConnectChannel";
+import { SocialPage, Chip, Explain, CHANNEL_STATUS } from "@/app/admin/social/_components/ui";
 
 type Account = {
   id: string;
@@ -17,66 +17,38 @@ type Account = {
   display_name: string;
   token_tail: string | null;
   token_expires_at: string | null;
-  scopes: string[];
   status: string;
   last_verified_at: string | null;
   last_error: string | null;
 };
-
-type LanguageRow = {
-  code: string;
-  name: string;
-  reviewed: boolean;
-  abuse_list_ready: boolean;
-  abuse_list_builtin: boolean;
-  contributedTerms: number;
-  mayPostUnattended: boolean;
-  reason: string | null;
-};
+type Channel = { id: string; label: string; canPublish: boolean; blockedBy: string };
 
 export default function Channels() {
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [languages, setLanguages] = useState<LanguageRow[]>([]);
-  const [paused, setPaused] = useState<boolean>(true);
-  const [pauseNote, setPauseNote] = useState<string>("");
-  const [scripts, setScripts] = useState<string[]>([]);
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [paused, setPaused] = useState(true);
+  const [storage, setStorage] = useState<{ ok: boolean; reason?: string }>({ ok: false });
   const [role, setRole] = useState("");
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  /** null = not yet known. ⛔ Never assumed true. */
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [connecting, setConnecting] = useState(false);
-  const [storage, setStorage] = useState<{ ok: boolean; reason?: string }>({ ok: false });
-  const [termsFor, setTermsFor] = useState("");
-  const [terms, setTerms] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
 
   const isOwner = role === "owner";
 
   const load = useCallback(async () => {
-    setError("");
-    const [c, l] = await Promise.all([
-      fetch("/api/admin/social/channels", { credentials: "same-origin" }),
-      fetch("/api/admin/social/languages", { credentials: "same-origin" }),
-    ]);
-    if (c.status === 401) {
+    const res = await fetch("/api/admin/social/channels", { credentials: "same-origin" });
+    if (res.status === 401) {
       setAuthed(false);
       return;
     }
     setAuthed(true);
-    const cj = await c.json();
-    const lj = await l.json();
-    if (!c.ok) {
-      setError(cj.error ?? "Could not load the channels.");
-      return;
-    }
-    setAccounts(cj.accounts ?? []);
-    setPaused(Boolean(cj.settings?.posting_paused));
-    setPauseNote(cj.settings?.note ?? "");
-    setScripts(cj.scriptsAwaitingVerification ?? []);
-    setRole(cj.actorRole ?? "");
-    setStorage(cj.tokenStorage ?? { ok: false, reason: "The server did not say." });
-    setLanguages(lj.languages ?? []);
+    const json = await res.json();
+    setAccounts(json.accounts ?? []);
+    setChannels(json.channels ?? []);
+    setPaused(Boolean(json.settings?.posting_paused));
+    setStorage(json.tokenStorage ?? { ok: false, reason: "The server did not say." });
+    setRole(json.actorRole ?? "");
   }, []);
 
   useEffect(() => {
@@ -85,7 +57,6 @@ export default function Channels() {
 
   async function togglePause() {
     setBusy(true);
-    setMessage("");
     try {
       const res = await fetch("/api/admin/social/settings", {
         method: "PATCH",
@@ -101,96 +72,37 @@ export default function Channels() {
     }
   }
 
-  async function contribute(code: string) {
-    const list = terms
-      .split(/[\n,]/)
-      .map((t) => t.trim())
-      .filter(Boolean);
-    if (list.length === 0) return;
-    setBusy(true);
-    setMessage("");
-    try {
-      const res = await fetch("/api/admin/social/languages", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ language: code, terms: list }),
-      });
-      const json = await res.json();
-      setMessage(res.ok ? `${json.note} ${json.reminder}` : json.error);
-      if (res.ok) {
-        setTerms("");
-        setTermsFor("");
-        await load();
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
+  const connected = new Set(accounts.map((a) => a.platform));
 
   return (
-    <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-10">
-      <div className="mx-auto max-w-4xl space-y-8">
-        <header className="space-y-2">
-          <a href="/admin/social" className="text-xs text-zinc-500 hover:text-zinc-300">
-            ← Social posting
-          </a>
-          <h1 className="text-2xl font-semibold tracking-tight">Channels</h1>
-          <p className="max-w-2xl text-sm text-zinc-400">
-            Connected once, with a token the platform issues and you can revoke. Your password is never
-            asked for, never stored, and never typed into this page.
-          </p>
-        </header>
-
-        {authed === false && <SignedOut />}
-
-        {error && (
-          <div className="rounded-xl border border-rose-900 bg-rose-950/30 p-4 text-sm text-rose-200">{error}</div>
-        )}
-        {message && (
-          <div className="rounded-xl border border-indigo-900 bg-indigo-950/30 p-4 text-sm text-indigo-200">
-            {message}
-          </div>
-        )}
-
-        {authed === null && (
-          <p className="text-sm text-zinc-500">Checking the admin session…</p>
-        )}
-
-        {/* ⛔ `=== true`, not `!== false`. While the session check is in
-            flight `authed` is null, and the earlier version rendered the whole
-            body in that moment — master switch reading "Everything is held",
-            counters reading 0 — none of it fetched. Brief on a fast connection,
-            not brief on a slow one, and a reassuring lie either way. */}
-        {authed === true && (
-          <>
-        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 mb-8">
-          <div className="space-y-1">
-            <h2 className="text-sm font-semibold">
-              The master switch {!isOwner && <span className="text-xs font-normal text-zinc-500">· owner tier</span>}
-            </h2>
-            <p className="max-w-xl text-xs text-zinc-400">
-              {paused
-                ? "Everything is held. Posts are still written and queued; nothing publishes."
-                : "Posting is live. Schedules with auto-publish on will go out unread."}
-              {pauseNote && <span className="block text-zinc-500">{pauseNote}</span>}
-            </p>
-          </div>
+    <SocialPage
+      here="/admin/social/channels"
+      title="Channels"
+      lede="Where posts go. Connected with a token the platform gives you — never a password."
+      actions={
+        authed === true && isOwner ? (
           <button
             type="button"
-            onClick={() => void togglePause()}
-            disabled={busy || !isOwner}
-            title={isOwner ? undefined : "The owner tier only"}
-            className={`min-h-11 rounded-lg px-4 text-sm font-semibold disabled:opacity-40 ${
-              paused ? "bg-indigo-600 hover:bg-indigo-500" : "border border-amber-800 text-amber-300 hover:bg-amber-950/40"
-            }`}
+            onClick={() => setConnecting((c) => !c)}
+            className="flex min-h-11 items-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold hover:bg-indigo-500"
           >
-            {paused ? "Resume posting" : "Hold everything"}
+            {connecting ? "Close" : "Connect a channel"}
           </button>
-        </section>
+        ) : undefined
+      }
+    >
+      {authed === null && <p className="text-sm text-zinc-500">Checking the admin session…</p>}
+      {authed === false && <SignedOut />}
 
-        {connecting && isOwner && (
-          <div className="mb-8">
+      {authed === true && (
+        <>
+          {message && (
+            <div className="rounded-xl border border-indigo-900 bg-indigo-950/30 p-4 text-sm text-indigo-200">
+              {message}
+            </div>
+          )}
+
+          {connecting && isOwner && (
             <ConnectChannel
               storageReady={storage}
               onCancel={() => setConnecting(false)}
@@ -200,183 +112,102 @@ export default function Channels() {
                 void load();
               }}
             />
-          </div>
-        )}
+          )}
 
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-zinc-300">Connected</h2>
-            {isOwner && (
-              <button type="button" onClick={() => setConnecting((c) => !c)}
-                className="min-h-11 rounded-lg border border-zinc-700 px-4 text-sm hover:bg-zinc-800">
-                {connecting ? "Close" : "Connect a channel"}
-              </button>
-            )}
-          </div>
-          {accounts.length === 0 ? (
-            <div className="space-y-2 rounded-xl border border-dashed border-zinc-800 p-6 text-sm text-zinc-400">
-              <p>No channel is connected yet.</p>
-              <p className="text-xs leading-relaxed text-zinc-500">
-                {storage.ok
-                  ? "Tokens are stored encrypted. ⛔ Connecting one does not mean posting works: there is still no adapter to publish with, so a connected channel holds its queue until there is."
-                  : `⛔ Nothing can be stored yet. ${storage.reason ?? ""}`}
-              </p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-zinc-800 overflow-hidden rounded-xl border border-zinc-800">
-              {accounts.map((a) => (
-                <li key={a.id} className="space-y-1 bg-zinc-900/40 p-4">
+          {/* One row per channel, connected or not: the answer to "can I post
+              there?" is the same shape either way. */}
+          <ul className="space-y-3">
+            {channels.map((c) => {
+              const account = accounts.find((a) => a.platform === c.id);
+              const s = account ? CHANNEL_STATUS[account.status] ?? CHANNEL_STATUS.pending : null;
+              return (
+                <li key={c.id} className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{a.display_name}</span>
-                    <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-[11px]">{a.platform}</span>
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[11px] ${
-                        a.status === "ok"
-                          ? "border-emerald-800 text-emerald-300"
-                          : "border-amber-800 text-amber-300"
-                      }`}
-                    >
-                      {a.status}
-                    </span>
+                    <span className="font-medium">{c.label}</span>
+                    {account ? (
+                      <Chip tone={s!.tone} title={s!.means}>{s!.label}</Chip>
+                    ) : (
+                      <Chip>Not connected</Chip>
+                    )}
                   </div>
-                  <div className="font-mono text-[11px] text-zinc-500">
-                    token ···{a.token_tail ?? "????"} ·{" "}
-                    {a.token_expires_at ? `expires ${new Date(a.token_expires_at).toLocaleDateString()}` : "no expiry"}{" "}
-                    · {a.last_verified_at ? `verified ${new Date(a.last_verified_at).toLocaleString()}` : "never verified"}
-                  </div>
-                  {a.last_error && <div className="text-xs text-rose-300">{a.last_error}</div>}
-                  {(a.status === "dead" || a.status === "expiring") && (
-                    <div className="text-xs text-amber-300">
-                      ▶️ Re-validate: generate a new token on the platform and paste it here. ⛔ Your
-                      password is not involved — changing it does not break posting.
-                    </div>
-                  )}
-                  {a.status === "pending" && (
-                    <div className="text-xs text-zinc-500">
-                      Stored, but not yet shown to work. ⚠️ Nothing has asked the platform whether it
-                      is good — there is no adapter to ask with.
-                    </div>
+
+                  {account ? (
+                    <>
+                      <p className="font-mono text-[11px] text-zinc-500">
+                        {account.display_name} · token ···{account.token_tail ?? "????"}
+                        {account.token_expires_at &&
+                          ` · expires ${new Date(account.token_expires_at).toLocaleDateString()}`}
+                      </p>
+                      {s && <p className="text-xs text-zinc-400">{s.means}</p>}
+                      {account.last_error && <p className="text-xs text-rose-300">{account.last_error}</p>}
+                      {(account.status === "dead" || account.status === "expiring") && (
+                        <p className="text-xs text-amber-300">
+                          ▶️ Generate a new token on the platform and connect it again. ⛔ Your password
+                          is not involved — changing it does not break posting.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-zinc-500">{c.blockedBy}</p>
                   )}
                 </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="space-y-3">
-          <div className="space-y-1">
-            <h2 className="text-sm font-semibold text-zinc-300">Languages</h2>
-            <p className="text-xs text-zinc-500">
-              Every one of the 22 can be written, pictured and queued. Two separate things decide
-              whether a schedule may post in it <strong>unattended</strong>: somebody here can read it,
-              and an abuse list exists for it. ⛔ Both, not either.
-            </p>
-          </div>
-          <ul className="divide-y divide-zinc-800 overflow-hidden rounded-xl border border-zinc-800">
-            {languages.map((l) => (
-              <li key={l.code} className="space-y-2 bg-zinc-900/40 p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{l.name}</span>
-                  <span className="font-mono text-[11px] text-zinc-500">{l.code}</span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[11px] ${
-                      l.reviewed ? "border-emerald-800 text-emerald-300" : "border-zinc-700 text-zinc-400"
-                    }`}
-                  >
-                    {l.reviewed ? "read by someone here" : "not read here"}
-                  </span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[11px] ${
-                      l.abuse_list_ready ? "border-emerald-800 text-emerald-300" : "border-amber-800 text-amber-300"
-                    }`}
-                  >
-                    {l.abuse_list_builtin
-                      ? "abuse list in code"
-                      : l.contributedTerms > 0
-                        ? `${l.contributedTerms} terms contributed`
-                        : "no abuse list"}
-                  </span>
-                  {l.mayPostUnattended && (
-                    <span className="rounded-full border border-indigo-800 bg-indigo-950/40 px-2 py-0.5 text-[11px] text-indigo-300">
-                      may post unattended
-                    </span>
-                  )}
-                </div>
-                {l.reason && <p className="text-[11px] leading-relaxed text-zinc-500">{l.reason}</p>}
-
-                {isOwner && !l.abuse_list_builtin && (
-                  termsFor === l.code ? (
-                    <div className="space-y-2">
-                      <label htmlFor={`t-${l.code}`} className="block text-[11px] font-semibold text-zinc-400">
-                        Terms a speaker has sent, one per line or comma separated
-                      </label>
-                      <textarea
-                        id={`t-${l.code}`}
-                        rows={4}
-                        value={terms}
-                        onChange={(e) => setTerms(e.target.value)}
-                        placeholder="Both the native script and the Latin transliteration"
-                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 p-2 text-sm"
-                      />
-                      <p className="text-[11px] text-zinc-500">
-                        ⚠️ Abuse in these languages is written in Latin letters at least as often as in
-                        its own script. A list with only one form checks half the posts.
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => void contribute(l.code)}
-                          disabled={busy || !terms.trim()}
-                          className="min-h-11 rounded-lg bg-indigo-600 px-4 text-sm font-semibold hover:bg-indigo-500 disabled:opacity-40"
-                        >
-                          Add them
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTermsFor("");
-                            setTerms("");
-                          }}
-                          className="min-h-11 rounded-lg border border-zinc-700 px-4 text-sm hover:bg-zinc-800"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setTermsFor(l.code)}
-                      className="min-h-11 text-xs text-indigo-400 hover:text-indigo-300"
-                    >
-                      Add abuse terms a speaker has sent →
-                    </button>
-                  )
-                )}
-              </li>
-            ))}
+              );
+            })}
           </ul>
-        </section>
 
-        {scripts.length > 0 && (
-          <section className="space-y-2 rounded-xl border border-amber-900/60 bg-amber-950/20 p-5 text-sm text-amber-200">
-            <h2 className="font-semibold">The brand name on a picture</h2>
-            <p className="text-xs leading-relaxed">
-              The renderer does not do full shaping for complex scripts, and nobody here can tell a
-              correctly shaped brand name from a mangled one. So for these scripts the wordmark is set
-              in Latin instead, and the post itself is still written in its own language:{" "}
-              <span className="font-mono">{scripts.join(", ")}</span>.
+          {!storage.ok && (
+            <p className="rounded-xl border border-rose-900 bg-rose-950/30 p-4 text-sm text-rose-200">
+              ⛔ No channel can be connected yet. {storage.reason}
             </p>
-            <p className="text-xs leading-relaxed">
-              ▶️ One person who reads a script looking at one rendered picture closes it. ⛔ Until then,
-              publishing it would mean not knowing — which is how the Urdu and Kannada spellings were
-              wrong for months.
-            </p>
+          )}
+
+          <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+            <div className="space-y-1">
+              <h2 className="text-sm font-semibold">
+                Stop everything {!isOwner && <span className="text-xs font-normal text-zinc-500">· owner only</span>}
+              </h2>
+              <p className="max-w-xl text-xs text-zinc-400">
+                {paused
+                  ? "Everything is held. Posts are still written and queued; nothing goes out."
+                  : "Posting is live. Posts go out as normal."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void togglePause()}
+              disabled={busy || !isOwner}
+              title={isOwner ? undefined : "Only the owner can change this."}
+              className={`min-h-11 rounded-lg px-4 text-sm font-semibold disabled:opacity-40 ${
+                paused ? "bg-indigo-600 hover:bg-indigo-500" : "border border-amber-800 text-amber-300 hover:bg-amber-950/40"
+              }`}
+            >
+              {paused ? "Start posting again" : "Stop everything"}
+            </button>
           </section>
-        )}
-          </>
-        )}
-      </div>
-    </main>
+
+          <Explain q="Why a token and not my password?">
+            <p>
+              A token only lets this app post to one page. It cannot read your messages, change your
+              account, or do anything else — and you can cancel it on the platform at any time.
+            </p>
+            <p>
+              ⛔ A password would be the whole account, and it would have to be stored in a form this
+              app could read back, which means anybody who got the database could read it too.
+            </p>
+            <p>
+              🔑 And a token <strong>keeps working when you change your password</strong>. Storing a
+              password would break posting every time you changed it.
+            </p>
+          </Explain>
+
+          {connected.size === 0 && (
+            <p className="text-xs text-zinc-500">
+              ⛔ Connecting a channel does not make posting work yet — the code that actually sends to
+              each platform is not built. A connected channel holds its queue until it is.
+            </p>
+          )}
+        </>
+      )}
+    </SocialPage>
   );
 }

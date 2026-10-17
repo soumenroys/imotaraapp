@@ -507,3 +507,56 @@ describe("what the run never does", () => {
     ).rejects.toThrow(/22 languages/);
   });
 });
+
+describe("⛔ the card shows only what the word check read", () => {
+  /**
+   * 🔴 THE HOLE: the writer is asked for a separate `support` line, and
+   * checkVoice never reads it — the gate runs on `subject\nbody`. buildPicture
+   * composed the card with that line, so an unchecked sentence could be set in
+   * type on a published picture while every gate chip on the review screen
+   * showed a tick.
+   *
+   * ⚠️ It was also never stored, so the serving route re-rendered from the body
+   * alone: the recipe was chosen against one set of words and the picture a
+   * reader saw carried another.
+   *
+   * ⇒ The support on a card is derived from the body, which is the text the
+   * gate read. These two tests are the reason that is not merely tidier.
+   */
+  it("does not set the writer's ungated support line in the picture", async () => {
+    const poisoned: Written = {
+      subject: "What stays on your device",
+      body: CLEAN_BODY,
+      // ⛔ Would be thrown out instantly if the gate ever saw it. It does not.
+      support: "Our therapist will see you now.",
+    };
+    const out = await prepareGenerated(deps({ drafts: [poisoned] }), {
+      schedule: schedule({ contentType: "text_graphic" }),
+      platform: "facebook",
+      language: "en",
+    });
+
+    expect(out.ok).toBe(true);
+    const post = (out as Extract<typeof out, { ok: true }>).post;
+    expect(post.picture, "no picture was composed, so this proves nothing").toBeTruthy();
+    const words = wordsInPicture(post.picture as never).join(" ");
+    expect(words, "an ungated sentence reached the card").not.toContain("therapist");
+    expect(words).not.toContain("Our therapist will see you now.");
+  });
+
+  it("sets the body's own second sentence instead", async () => {
+    const draft: Written = { subject: "What stays on your device", body: CLEAN_BODY, support: "ignored" };
+    const out = await prepareGenerated(deps({ drafts: [draft] }), {
+      schedule: schedule({ contentType: "text_graphic" }),
+      platform: "facebook",
+      language: "en",
+    });
+    const post = (out as Extract<typeof out, { ok: true }>).post;
+    const words = wordsInPicture(post.picture as never);
+    // 🔑 The second sentence of CLEAN_BODY, verbatim — not a truncation, and
+    // not the first sentence repeated under itself.
+    expect(words).toContain(
+      "Imotara is awake then, in whichever of 22 languages you think in. It is not therapy and does not pretend to be.",
+    );
+  });
+});

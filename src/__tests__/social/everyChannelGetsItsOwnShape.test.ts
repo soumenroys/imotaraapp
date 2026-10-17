@@ -161,7 +161,7 @@ describe("the logo and the QR", () => {
             headline: "A headline",
             language: "en",
             platform: "facebook",
-            qrCodes: [{ id: "web", label: "Website", color: "#312E81", dataUri: "data:image/png;base64,AAAA" }],
+            qrCodes: [{ id: "web", label: "Website", color: "#312E81", ringColor: "#A5B4FC", dataUri: "data:image/png;base64,AAAA" }],
         });
         for (const src of imagesInPicture(picture)) {
             const allowed = src === LOGO_URL || src.startsWith("data:image/png;base64,");
@@ -180,7 +180,7 @@ describe("the logo and the QR", () => {
          * a puzzle: a reader has to scan one to discover whether it was the one
          * for their phone, which is worse than a single code would have been.
          */
-        const codes = QR_TARGETS.map((t) => ({ id: t.id, label: t.label, color: t.color, dataUri: `data:image/png;base64,${t.id}` }));
+        const codes = QR_TARGETS.map((t) => ({ id: t.id, label: t.label, color: t.color, ringColor: t.onDark, dataUri: `data:image/png;base64,${t.id}` }));
         const picture = composePicture({
             recipe: recipe(), headline: "A headline", language: "en", platform: "facebook", qrCodes: codes,
         });

@@ -13,6 +13,7 @@
 // way round.
 
 import { assertPostableLanguage } from "@/lib/social/languages";
+import type { ContentType } from "@/lib/social/contentTypes";
 import {
   checkVoice,
   checkHouseStyle,
@@ -22,17 +23,14 @@ import {
   type HouseStyleResult,
 } from "@/lib/social/voiceGate";
 import { judgeSubject, subjectHash, exclusionList } from "@/lib/social/subjects";
-import { pickRecipe, headlineFromBody, type Recipe } from "@/lib/social/visualRecipe";
+import { pickRecipe, headlineFromBody, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
 import { composePicture, type Picture } from "@/lib/social/compose";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
 
-/**
- * ⚠️ `animated_gif` animates on X and nowhere else; `short_video` animates
- * everywhere. Both are offered because the owner asked for the GIF, and the
- * admin says which channels will actually move ⇒ animate.animationWarning.
- */
-export type ContentType = "text" | "graphic" | "text_graphic" | "animated_gif" | "short_video";
+// ⚠️ Re-exported, not declared. The list lives in contentTypes.ts so a client
+// component can read it without pulling `crypto` through visualRecipe.
+export { CONTENT_TYPES, type ContentType } from "@/lib/social/contentTypes";
 
 export type ScheduleShape = {
   id: string;
@@ -162,7 +160,7 @@ export function mediaKindFor(contentType: ContentType, hasPicture: boolean): str
 
 async function buildPicture(
   deps: PipelineDeps,
-  args: { language: string; body: string; support?: string; scheduleId: string | null; platform: string },
+  args: { language: string; body: string; scheduleId: string | null; platform: string },
 ): Promise<{ picture: Picture | null; recipe: Recipe | null; notes: string[] }> {
   const notes: string[] = [];
 
@@ -216,7 +214,19 @@ async function buildPicture(
   const picture = composePicture({
     recipe: picked.recipe,
     headline,
-    support: args.support,
+    /**
+     * 🔴 FROM THE BODY, NOT FROM THE WRITER'S `support`.
+     *
+     * The writer is asked for a separate support line, and checkVoice never
+     * reads it — the gate runs on `${subject}\n${body}`. Composing with it put
+     * a sentence on the card that nothing had checked. It was never stored
+     * either, so the render route drew its card from the body alone and the
+     * two disagreed: the recipe was chosen against one set of words and the
+     * published picture showed another.
+     *
+     * ⇒ One source for the card, and it is the one the word check read.
+     */
+    support: supportFromBody(args.body) ?? undefined,
     language: args.language,
     platform: args.platform,
     qrCodes,
@@ -316,7 +326,6 @@ export async function prepareGenerated(
       const built = await buildPicture(deps, {
         language,
         body,
-        support: written.support,
         scheduleId: args.schedule.id,
         platform: args.platform,
       });
@@ -426,9 +435,12 @@ export async function prepareWritten(
 
   if (wantsPicture(args.contentType)) {
     const built = await buildPicture(deps, {
+      // ⚠️ A hand-written post's support line is not passed either. The admin
+      // typed it, but checkVoice still did not read it, and the card has one
+      // rule: it shows what the word check read. The line is kept on the post
+      // for the record; it is not drawn.
       language,
       body,
-      support: args.support,
       scheduleId: null,
       platform: args.platform,
     });

@@ -27,13 +27,28 @@ type LanguageRow = {
 
 type Result = { platform: string; postId?: string; error?: string; notes?: string[] };
 
+// ⛔ From contentTypes, not pipeline: this is a client component and pipeline
+// reaches `crypto` through visualRecipe.
+import { CONTENT_TYPES, SHAPE_LABELS, type ContentType } from "@/lib/social/contentTypes";
+
 const PLATFORMS = PLATFORM_IDS.map((id) => ({ id, label: CHANNELS[id].label }));
 
-const SHAPES = [
-  { id: "text", label: "Text", hint: "Words only." },
-  { id: "text_graphic", label: "Text + graphic", hint: "A caption and a composed card." },
-  { id: "graphic", label: "Graphic", hint: "The card carries it." },
-] as const;
+/**
+ * 🔴 THE SIXTH COPY OF THE SHAPE LIST, and the second one that was short two
+ * entries. A post written by hand could not be a short video or an animated
+ * GIF, although the compose route accepts both and the encoder has been there
+ * since the animation work landed. ⇒ Derived, with a hint apiece; a shape
+ * without a hint is a compile error.
+ */
+const SHAPE_HINTS: Record<ContentType, string> = {
+  text: "Words only.",
+  text_graphic: "A caption and a composed card.",
+  graphic: "The card carries it.",
+  short_video: "The card assembling itself. Moves on LinkedIn, Facebook, Instagram and X.",
+  animated_gif: "The same six seconds as a GIF. ⚠️ Only X plays it — the rest show frame one.",
+};
+
+const SHAPES = CONTENT_TYPES.map((id) => ({ id, label: SHAPE_LABELS[id], hint: SHAPE_HINTS[id] }));
 
 /** Mirrors `checkHouseStyle` closely enough to be useful while typing.
  *  ⚠️ The real check runs on the server; this is a hint, not the verdict. */

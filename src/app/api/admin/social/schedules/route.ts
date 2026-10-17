@@ -7,10 +7,15 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { PLATFORM_IDS } from "@/lib/social/platforms";
 import { isSupportedLanguage } from "@/lib/social/languages";
 import { TOPIC_POOL_IDS } from "@/lib/social/subjects";
+import { CONTENT_TYPES as SHARED_CONTENT_TYPES } from "@/lib/social/contentTypes";
 
-const CONTENT_TYPES = ["text", "graphic", "text_graphic", "animated_gif", "short_video"];
 // ⚠️ From the shared list. Three hand-kept copies is how one of them ends
 // up missing a channel ⇒ the ConsultantCard LANGUAGE_MAP that held 16 of 22.
+//
+// 🔴 AND THE LINE THAT USED TO SIT ABOVE THIS COMMENT WAS A FOURTH COPY. The
+// shapes were listed here by hand, next to a note explaining why that is how
+// things go wrong, and the copy in NewSchedule drifted anyway.
+const CONTENT_TYPES: string[] = [...SHARED_CONTENT_TYPES];
 const PLATFORMS: string[] = PLATFORM_IDS;
 
 export async function GET(req: NextRequest) {
@@ -122,9 +127,30 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
-    // 🔑 The database's own refusal is the most useful message available here:
-    // the language trigger explains exactly which language is unqualified and
-    // what to do about it. ⛔ Do not replace it with "could not save".
+    /**
+     * 🔑 The database's own refusal is usually the most useful message there
+     * is: the language trigger names the unqualified language and says what to
+     * do about it. ⛔ Do not replace it with "could not save".
+     *
+     * ⚠️ ONE EXCEPTION, because one refusal is not self-explanatory. The live
+     * content-type constraint predates the video and GIF work, so a schedule
+     * set to one of those shapes is rejected with a constraint name and
+     * nothing an admin can act on. The migration in the repo is already
+     * correct; it has not been re-run. ⇒ Say so.
+     */
+    if (error.message.includes("content_type")) {
+      return NextResponse.json(
+        {
+          error:
+            `The database has not been updated for this shape yet, so it was not saved. ` +
+            `Re-run docs/sql/social_autopost_v1.sql — its content-type constraint lists all five ` +
+            `shapes, and the one the live database is still using was written before short video ` +
+            `and animated GIF existed. Nothing else about the schedule is wrong. ` +
+            `(${error.message})`,
+        },
+        { status: 400 },
+      );
+    }
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
   return NextResponse.json({ schedule: data }, { status: 201 });

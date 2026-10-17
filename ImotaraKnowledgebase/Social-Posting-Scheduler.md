@@ -72,7 +72,11 @@ All 22 can be **written, pictured and queued**. Two separate conditions decide w
 
 Composed from a **recipe**: 8 layouts × 6 palettes × 4 type treatments × 6 motifs × the wordmark in 22 scripts = **25,344 combinations**. Every one is hashed and recorded, and none ever repeats. No palette or layout returns among the last five posts.
 
-Every card carries the **logo** and **three QR codes** — Website, Android, iPhone — matching `scripts/generate-qr-codes.js`, each in its own colour with a label.
+Each card shows the post's **opening sentence as the headline** and **what follows it as a second line**, both derived from the body — never stored, never anything the word check has not read.
+
+Every card carries the **logo** and **three QR codes** — Website, Android, iPhone — matching `scripts/generate-qr-codes.js`, each labelled and ringed in its own colour.
+
+⚠️ **The ring colour is not the code colour.** The code's own squares stay dark because they sit on a white panel and a camera thresholds them. The ring and the dot sit on the card, so on the five dark palettes they use a lighter version — indigo, green and App Store blue. Two jobs, two values.
 
 ⛔ **Never in a picture:** a word the check has not read · a human face (it reads as a testimonial from somebody who does not exist) · any depiction of distress · festival or country furniture · a gradient wash.
 
@@ -80,12 +84,16 @@ Every card carries the **logo** and **three QR codes** — Website, Android, iPh
 
 ### Shapes
 
+All five are offered both on a schedule and when writing a post by hand.
+
 | Shape | Notes |
 |---|---|
 | Text | Words only |
 | Picture · Text + picture | The composed card |
 | **Short video** | ✅ Animates on LinkedIn, Facebook, Instagram, X |
 | **Animated GIF** | ⛔ Animates on **X only** — LinkedIn strips it, Facebook converts it |
+
+⚠️ **A schedule set to Animated GIF will be refused by the database** until the content-type constraint in `docs/sql/social_autopost_v1.sql` is re-run. The live database still carries the original constraint, which predates the animation work.
 
 The animation is the card assembling itself: rule, then headline, then the supporting line, then the logo and codes. ~6 seconds, silent, no movement — reveal only. Every frame is the finished card with parts hidden, so **no frame can introduce a word the check has not read**.
 
@@ -143,7 +151,12 @@ Kept because each one cost time and none was visible from a test:
 - 🔴 **`inset: 0` is silently ignored by Satori** — two of six motifs rendered as nothing.
 - 🔴 **The screens stated production's condition before being told it** — "Everything is held" came from a `useState(true)` default while the page had no session.
 - ⚠️ **Three QR codes already existed** in `scripts/generate-qr-codes.js`; one generic code was shipped without looking.
+- 🔴 **The colour on the QR codes was not visible on five cards in six.** `qrContrastOk` guarded the code's squares against the white panel — correctly — and nothing guarded the ring against the card. 15 of the 18 combinations measured below 3:1; the iPhone ring on the ink palette was 1.01, the same luminance as the card behind it. **A guard can be entirely correct and still be the wrong pair.**
+- 🔴 **And the first repair swapped one fault for another.** Lifting each colour's lightness while keeping its hue turned the indigo and the near-black into two blues 20ΔE apart — visible, and no longer telling a reader which code was for which phone.
+- 🔴 **No published card ever showed its second line.** `composePicture` has taken a support line since it was written, every layout places it, and several tests pass one in. Both render routes called it with the headline alone. The empty upper third of every card was the layout distributing space around a node that was not there.
+- 🔴 **The writer's support line was never checked.** The gate reads `subject` + `body`; the writer was asked for a third field, and the composer drew it. Nothing stored it, so the picture a reader saw was re-rendered from the body and differed from the one the recipe was chosen against. Now the card's second line comes from the body, which is the text the gate read.
+- 🔴 **Two of the five shapes were built end to end and unreachable.** Short video and animated GIF reached the storyboard, the encoders, the routes, the database, the tests and this document — and never reached the radio buttons, on either screen. The page's own walkthrough told the reader to pick an option that was not there. **The list existed in six places by hand**; it now lives in `src/lib/social/contentTypes.ts` and a shape without a label does not compile.
 
 ---
 
-**Tests:** `src/__tests__/social/` — 12 files. **Design doc:** `docs/social-autopost-design.md`.
+**Tests:** `src/__tests__/social/` — 20 files. **Design doc:** `docs/social-autopost-design.md`.

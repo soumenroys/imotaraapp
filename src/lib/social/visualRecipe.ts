@@ -288,6 +288,45 @@ export function headlineFromBody(body: string, maxChars = 64): string | null {
   return clean;
 }
 
+/**
+ * The line under the headline: what the body says after its opening sentence.
+ *
+ * 🔴 BOTH RENDER ROUTES CALLED compose WITH THE HEADLINE ALONE. composePicture
+ * has taken a `support` since the day it was written, all eight layouts place
+ * it, and the tests pass one in — so every one of them exercised a node that
+ * nothing in production ever supplied. No published card has ever carried a
+ * second line, and the empty upper third of every card was the layout
+ * distributing space around a node that was not there.
+ *
+ * ⚠️ A test that hands compose a support and checks where it lands says
+ * nothing about whether anything hands compose a support. That is the
+ * reachability trap, and it is the second time it has bitten this feature.
+ *
+ * ⛔ DERIVED FROM THE BODY, NEVER STORED — the same rule as the headline, for
+ * the same reason: a picture must not be able to show a sentence the word check
+ * did not read. If the words are edited, the card follows them.
+ *
+ * ⚠️ Whole sentences only. A support line cut mid-clause reads as a bug, and
+ * returning nothing is the better failure: the card is then exactly what every
+ * card has been until now.
+ */
+export function supportFromBody(body: string, maxChars = 150): string | null {
+  const sentences = body
+    .trim()
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (sentences.length < 2) return null;
+
+  let out = "";
+  for (const s of sentences.slice(1)) {
+    const next = out ? `${out} ${s}` : s;
+    if ([...next].length > maxChars) break;
+    out = next.replace(/\s+/g, " ");
+  }
+  return out || null;
+}
+
 export function isRtl(language: string): boolean {
   return RTL_LANGUAGES.has(language);
 }

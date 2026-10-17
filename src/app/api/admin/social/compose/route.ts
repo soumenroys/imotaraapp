@@ -7,14 +7,16 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
-import { prepareWritten, wantsPicture, type ContentType } from "@/lib/social/pipeline";
+import { prepareWritten, wantsPicture } from "@/lib/social/pipeline";
+import { CONTENT_TYPES as SHARED_CONTENT_TYPES, type ContentType } from "@/lib/social/contentTypes";
 import { liveDeps, savePreparedPost } from "@/lib/social/store";
 import { isSupportedLanguage } from "@/lib/social/languages";
 import { PLATFORM_IDS } from "@/lib/social/platforms";
 
 export const maxDuration = 60;
 
-const CONTENT_TYPES: ContentType[] = ["text", "graphic", "text_graphic", "animated_gif", "short_video"];
+// ⚠️ From the shared list. This was the fifth hand-kept copy of five.
+const CONTENT_TYPES: readonly ContentType[] = SHARED_CONTENT_TYPES;
 const PLATFORMS: string[] = PLATFORM_IDS;
 
 type Body = {

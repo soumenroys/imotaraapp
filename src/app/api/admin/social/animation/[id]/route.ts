@@ -18,7 +18,7 @@ import { type Node } from "@/lib/social/compose";
 import { encode, MIME, type AnimationFormat } from "@/lib/social/animate";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
-import { headlineFromBody, recipeHash, type Recipe } from "@/lib/social/visualRecipe";
+import { headlineFromBody, supportFromBody, recipeHash, type Recipe } from "@/lib/social/visualRecipe";
 
 // ⚠️ Encoding is the slow part, not rendering. 60s is generous for five frames
 // and still well inside the platform ceiling.
@@ -88,7 +88,16 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 
   let board;
   try {
-    board = storyboard({ recipe, headline, language: post.language as string, platform, qrCodes });
+    board = storyboard({
+      recipe,
+      headline,
+      // ⚠️ Without this the storyboard's third beat revealed an empty node:
+      // six seconds of card with a silent gap where a line should arrive.
+      support: supportFromBody(post.body as string) ?? undefined,
+      language: post.language as string,
+      platform,
+      qrCodes,
+    });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 422 });
   }

@@ -32,9 +32,9 @@ const input = (over: Record<string, unknown> = {}) => ({
   language: "en",
   platform: "facebook",
   qrCodes: [
-    { id: "web", label: "Website", color: "#312E81", dataUri: "data:image/png;base64,W" },
-    { id: "android", label: "Android", color: "#14532D", dataUri: "data:image/png;base64,A" },
-    { id: "ios", label: "iPhone", color: "#0F172A", dataUri: "data:image/png;base64,I" },
+    { id: "web", label: "Website", color: "#312E81", ringColor: "#A5B4FC", dataUri: "data:image/png;base64,W" },
+    { id: "android", label: "Android", color: "#14532D", ringColor: "#4ADE80", dataUri: "data:image/png;base64,A" },
+    { id: "ios", label: "iPhone", color: "#0F172A", ringColor: "#38BDF8", dataUri: "data:image/png;base64,I" },
   ],
   ...over,
 });

@@ -19,7 +19,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { composePicture, type Node } from "@/lib/social/compose";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
-import { headlineFromBody, recipeHash, type Recipe } from "@/lib/social/visualRecipe";
+import { headlineFromBody, supportFromBody, recipeHash, type Recipe } from "@/lib/social/visualRecipe";
 
 /** The tree from compose.ts, as React elements. ⚠️ Keys, because Satori
  *  renders a real React tree and an unkeyed list warns on every render. */
@@ -117,6 +117,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     picture = composePicture({
       recipe,
       headline,
+      // ⚠️ Derived here, exactly like the headline. Omitting it is what left
+      // every published card with one line and an empty upper third.
+      support: supportFromBody(post.body as string) ?? undefined,
       language: post.language as string,
       platform,
       qrCodes,

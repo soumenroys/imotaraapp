@@ -16,6 +16,9 @@ import { useState } from "react";
 import { PLATFORMS as CHANNELS, PLATFORM_IDS } from "@/lib/social/platforms";
 // ⛔ From animationFacts, not animate: the latter pulls ffmpeg into the bundle.
 import { animationWarning } from "@/lib/social/animationFacts";
+// ⛔ From contentTypes, not pipeline: pipeline reaches `crypto` through
+// visualRecipe, and this is a client component.
+import { CONTENT_TYPES, SHAPE_LABELS } from "@/lib/social/contentTypes";
 
 type Language = { code: string; name: string; reviewed: boolean; mayPostUnattended: boolean; reason: string | null };
 
@@ -30,11 +33,20 @@ const PLATFORMS = PLATFORM_IDS.map((id) => ({
   blockedBy: CHANNELS[id].blockedBy,
 }));
 
-const SHAPES = [
-  { id: "text", label: "Text" },
-  { id: "text_graphic", label: "Text + graphic" },
-  { id: "graphic", label: "Graphic" },
-];
+/**
+ * 🔴 THIS LIST HELD THREE OF THE FIVE SHAPES AND NOBODY COULD SEE THE OTHER TWO.
+ *
+ * `short_video` and `animated_gif` were built end to end — the storyboard, the
+ * encoder, the route, the database constraint, the tests, the knowledgebase,
+ * and the warning a few lines below that tells you a GIF only animates on X.
+ * They were never added here, so the warning was unreachable and the page's own
+ * walkthrough told the reader to choose an option that was not on the screen.
+ *
+ * ⇒ Derived from the shared list now, with a label for each. A shape without a
+ * label stops the build; a shape nobody can pick cannot happen again.
+ */
+
+const SHAPES = CONTENT_TYPES.map((id) => ({ id, label: SHAPE_LABELS[id] }));
 
 const POOLS = [
   { id: "languages", label: "The 22 languages" },

@@ -16,7 +16,7 @@ import { PALETTES, wordmarkFor, canonicalLayout, type Recipe } from "@/lib/socia
 import { BRAND_IN_SCRIPT } from "@/lib/social/languages";
 import { planWordmark, type WordmarkPlan } from "@/lib/social/fonts";
 import { platformSpec } from "@/lib/social/platforms";
-import { LOGO_URL, type QrCode } from "@/lib/social/brandMarks";
+import { LOGO_URL, onGround, relativeLuminance, type QrCode } from "@/lib/social/brandMarks";
 
 /**
  * A minimal flexbox tree.
@@ -236,11 +236,14 @@ function typeScale(treatment: string, w: number) {
 function footerNode(opts: {
   ink: string;
   muted: string;
+  /** ⚠️ The card's own ground. The ring and the dot are drawn ON it, so a
+   *  colour chosen without it is a colour that may not be there. */
+  ground: string;
   wordmark: string;
   qrCodes?: QrCode[];
   scale: number;
 }): Node {
-  const { ink, muted, wordmark, qrCodes, scale } = opts;
+  const { ink, muted, ground, wordmark, qrCodes, scale } = opts;
   const mark = Math.round(58 * scale);
 
   /**
@@ -340,7 +343,21 @@ function footerNode(opts: {
     children.push({
       tag: "div",
       style: { display: "flex", alignItems: "flex-end" },
-      children: qrCodes.map((code): Node => ({
+      children: qrCodes.map((code): Node => {
+        // 🔑 TWO JOBS, TWO VALUES. The modules keep the brand colour and stay
+        // dark, because they sit on white and a scanner thresholds them. The
+        // ring and the dot sit on the CARD, which is a different pair and the
+        // one nobody checked.
+        //
+        // ⚠️ onGround is kept around the chosen colour rather than replaced by
+        // it. The five dark palettes all clear the bar on these values today;
+        // the guard is what keeps that true if a palette's ground is ever
+        // retuned, which is precisely how this broke the first time.
+        const ring = onGround(
+          relativeLuminance(ground) < 0.5 ? code.ringColor : code.color,
+          ground,
+        );
+        return {
         tag: "div" as const,
         style: {
           display: "flex",
@@ -359,7 +376,7 @@ function footerNode(opts: {
               // ⚠️ The colour goes on the RING, and the modules themselves are
               // already dark enough to scan. Tinting the white behind a code is
               // where a designed QR stops working.
-              border: `${Math.max(2, Math.round(3 * scale))}px solid ${code.color}`,
+              border: `${Math.max(2, Math.round(3 * scale))}px solid ${ring}`,
             },
             children: [
               {
@@ -386,7 +403,7 @@ function footerNode(opts: {
                   width: `${Math.max(5, Math.round(7 * scale))}px`,
                   height: `${Math.max(5, Math.round(7 * scale))}px`,
                   borderRadius: "999px",
-                  backgroundColor: code.color,
+                  backgroundColor: ring,
                   marginRight: `${Math.round(6 * scale)}px`,
                 },
               },
@@ -402,7 +419,8 @@ function footerNode(opts: {
             ],
           },
         ],
-      })),
+        };
+      }),
     });
   }
 
@@ -712,6 +730,7 @@ export function composePicture(input: ComposeInput): Picture {
   const foot = footerNode({
     ink: palette.ink,
     muted: palette.muted,
+    ground: palette.ground,
     wordmark: wordmarkText,
     qrCodes,
     scale,

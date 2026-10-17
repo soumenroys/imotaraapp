@@ -25,7 +25,7 @@ import { judgeSubject, subjectHash, exclusionList } from "@/lib/social/subjects"
 import { pickRecipe, headlineFromBody, type Recipe } from "@/lib/social/visualRecipe";
 import { composePicture, type Picture } from "@/lib/social/compose";
 import { platformSpec } from "@/lib/social/platforms";
-import { qrDataUri, qrTarget } from "@/lib/social/brandMarks";
+import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
 
 export type ContentType = "text" | "graphic" | "text_graphic" | "short_video";
 
@@ -178,12 +178,13 @@ async function buildPicture(
    * code is a card; no card at all is a text post nobody asked for.
    */
   const spec = platformSpec(args.platform);
-  let qrImage: string | undefined;
+  let qrCodes: QrCode[] = [];
   if (spec.qr) {
-    try {
-      qrImage = await qrDataUri(qrTarget(args.platform), "#111827", "#FFFFFF");
-    } catch (e) {
-      notes.push(`No QR code on this one: ${(e as Error).message} The picture is otherwise unchanged.`);
+    qrCodes = await allQrCodes(args.platform);
+    if (qrCodes.length < 3) {
+      notes.push(
+        `Only ${qrCodes.length} of the three QR codes could be made. The picture is otherwise unchanged.`,
+      );
     }
   }
 
@@ -193,7 +194,7 @@ async function buildPicture(
     support: args.support,
     language: args.language,
     platform: args.platform,
-    qrImage,
+    qrCodes,
   });
   notes.push(...picture.notes);
 

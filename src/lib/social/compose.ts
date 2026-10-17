@@ -16,7 +16,7 @@ import { PALETTES, wordmarkFor, canonicalLayout, type Recipe } from "@/lib/socia
 import { BRAND_IN_SCRIPT } from "@/lib/social/languages";
 import { planWordmark, type WordmarkPlan } from "@/lib/social/fonts";
 import { platformSpec } from "@/lib/social/platforms";
-import { LOGO_URL } from "@/lib/social/brandMarks";
+import { LOGO_URL, type QrCode } from "@/lib/social/brandMarks";
 
 /**
  * A minimal flexbox tree.
@@ -51,8 +51,9 @@ export type ComposeInput = {
   support?: string;
   language: string;
   platform: string;
-  /** A PNG data URI from `qrDataUri`, when the channel earns one. */
-  qrImage?: string;
+  /** The three codes — website, Android, iPhone — from `allQrCodes`. ⚠️ A
+   *  reader on a phone wants the store for the phone they are holding. */
+  qrCodes?: QrCode[];
 };
 
 const MOTIF_OPACITY = 0.13;
@@ -215,10 +216,10 @@ function footerNode(opts: {
   ink: string;
   muted: string;
   wordmark: string;
-  qrImage?: string;
+  qrCodes?: QrCode[];
   scale: number;
 }): Node {
-  const { ink, muted, wordmark, qrImage, scale } = opts;
+  const { ink, muted, wordmark, qrCodes, scale } = opts;
   const mark = Math.round(58 * scale);
 
   /**
@@ -302,30 +303,59 @@ function footerNode(opts: {
 
   const children: Node[] = [left];
 
-  if (qrImage) {
+  if (qrCodes && qrCodes.length > 0) {
     /**
-     * ⛔ THE CODE SITS ON ITS OWN WHITE PANEL, never on the palette's ground.
+     * ⛔ EACH CODE SITS ON ITS OWN WHITE PANEL, never on the palette's ground.
      * Scanners threshold the image, so a code tinted to match the card is not
      * a subtle code — it is one that does not work, silently, and only for the
      * reader. The padding is the quiet zone, which is not optional and is the
-     * commonest way a QR on a designed card fails while looking perfectly fine.
+     * commonest way a QR on a designed card fails while looking fine.
+     *
+     * ⚠️ AND EACH IS LABELLED. Three unlabelled codes side by side is a puzzle:
+     * a reader has to scan one to find out whether it was the one for their
+     * phone. The label is the whole reason there are three rather than one.
      */
+    const q = Math.round(74 * scale);
     children.push({
       tag: "div",
-      style: {
-        display: "flex",
-        alignItems: "center",
-        backgroundColor: "#FFFFFF",
-        borderRadius: `${Math.round(12 * scale)}px`,
-        padding: `${Math.round(10 * scale)}px`,
-      },
-      children: [
-        {
-          tag: "img",
-          src: qrImage,
-          style: { display: "flex", width: `${Math.round(86 * scale)}px`, height: `${Math.round(86 * scale)}px` },
+      style: { display: "flex", alignItems: "flex-end" },
+      children: qrCodes.map((code): Node => ({
+        tag: "div" as const,
+        style: {
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          marginLeft: `${Math.round(14 * scale)}px`,
         },
-      ],
+        children: [
+          {
+            tag: "div" as const,
+            style: {
+              display: "flex",
+              backgroundColor: "#FFFFFF",
+              borderRadius: `${Math.round(10 * scale)}px`,
+              padding: `${Math.round(8 * scale)}px`,
+            },
+            children: [
+              {
+                tag: "img" as const,
+                src: code.dataUri,
+                style: { display: "flex", width: `${q}px`, height: `${q}px` },
+              },
+            ],
+          },
+          {
+            tag: "span" as const,
+            style: {
+              display: "flex",
+              marginTop: `${Math.round(7 * scale)}px`,
+              fontSize: `${Math.round(16 * scale)}px`,
+              color: muted,
+            },
+            text: code.label,
+          },
+        ],
+      })),
     });
   }
 
@@ -554,7 +584,7 @@ function layoutFor(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function composePicture(input: ComposeInput): Picture {
-  const { recipe, headline, support, language, platform, qrImage } = input;
+  const { recipe, headline, support, language, platform, qrCodes } = input;
 
   const spec = platformSpec(platform);
   const { width: w, height: h } = spec.picture;
@@ -630,7 +660,7 @@ export function composePicture(input: ComposeInput): Picture {
     ink: palette.ink,
     muted: palette.muted,
     wordmark: wordmarkText,
-    qrImage,
+    qrCodes,
     scale,
   });
 

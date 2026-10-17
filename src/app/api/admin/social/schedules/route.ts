@@ -107,7 +107,8 @@ export async function POST(req: NextRequest) {
       content_type: contentType,
       topic_pool: topicPool,
       tone: body.tone?.trim() || "gentle_plain",
-      length_hint: body.lengthHint?.trim() || "short",
+      // ⚠️ medium, not short. "short" produced two sentences every time.
+      length_hint: body.lengthHint?.trim() || "medium",
       languages,
       post_at: body.postAt,
       timezone: body.timezone?.trim() || "Asia/Kolkata",

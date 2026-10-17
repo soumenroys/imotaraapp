@@ -17,10 +17,12 @@
  */
 
 import { describe, it, expect } from "vitest";
+import fs from "fs";
+import path from "path";
 import { PLATFORMS, PLATFORM_IDS, platformSpec, publishableToday } from "@/lib/social/platforms";
 import { composePicture, wordsInPicture, imagesInPicture } from "@/lib/social/compose";
 import { recipeHash, LAYOUTS, PALETTE_NAMES, TYPE_TREATMENTS, MOTIFS } from "@/lib/social/visualRecipe";
-import { qrTarget, qrContrastOk, LOGO_URL } from "@/lib/social/brandMarks";
+import { qrTarget, qrContrastOk, LOGO_URL, QR_TARGETS } from "@/lib/social/brandMarks";
 import { buildPrompt } from "@/lib/social/writer";
 
 const recipe = (over: Record<string, string> = {}) => {
@@ -159,7 +161,7 @@ describe("the logo and the QR", () => {
             headline: "A headline",
             language: "en",
             platform: "facebook",
-            qrImage: "data:image/png;base64,AAAA",
+            qrCodes: [{ id: "web", label: "Website", dataUri: "data:image/png;base64,AAAA" }],
         });
         for (const src of imagesInPicture(picture)) {
             const allowed = src === LOGO_URL || src.startsWith("data:image/png;base64,");
@@ -167,20 +169,39 @@ describe("the logo and the QR", () => {
         }
     });
 
-    it("appears only where the channel earns it", () => {
-        const qr = "data:image/png;base64,AAAA";
-        for (const id of PLATFORM_IDS) {
-            const picture = composePicture({
-                recipe: recipe(), headline: "A headline", language: "en", platform: id,
-                qrImage: PLATFORMS[id].qr ? qr : undefined,
-            });
-            const hasQr = imagesInPicture(picture).includes(qr);
-            expect(hasQr, `${id} QR presence does not match its spec`).toBe(PLATFORMS[id].qr);
+    it("⛔ all THREE codes, and each one labelled", () => {
+        /**
+         * 🔴 I SHIPPED ONE GENERIC CODE AND DID NOT LOOK. The three had been
+         * defined since the org-invite emails were built —
+         * `scripts/generate-qr-codes.js`, pointing at the site, the Play
+         * listing and the App Store listing.
+         *
+         * ⚠️ And they must be LABELLED. Three unlabelled codes side by side is
+         * a puzzle: a reader has to scan one to discover whether it was the one
+         * for their phone, which is worse than a single code would have been.
+         */
+        const codes = QR_TARGETS.map((t) => ({ id: t.id, label: t.label, dataUri: `data:image/png;base64,${t.id}` }));
+        const picture = composePicture({
+            recipe: recipe(), headline: "A headline", language: "en", platform: "facebook", qrCodes: codes,
+        });
+        const images = imagesInPicture(picture);
+        for (const c of codes) expect(images, `the ${c.id} code is missing`).toContain(c.dataUri);
+        for (const c of codes) expect(wordsInPicture(picture), `the ${c.id} code has no label`).toContain(c.label);
+    });
+
+    it("the codes point where the email QR codes point", () => {
+        // ⛔ Two places encoding different URLs for "the Android one" is the
+        // drift that makes a QR point somewhere nobody checks.
+        const script = fs.readFileSync(path.join(process.cwd(), "scripts/generate-qr-codes.js"), "utf8");
+        for (const t of QR_TARGETS) {
+            expect(script, `${t.id} points somewhere the email QR does not`).toContain(t.url);
         }
-        // ⛔ Not on X or Instagram: there the image is a thumbnail in a feed on
-        // the same phone that would have to scan it.
-        expect(PLATFORMS.x.qr).toBe(false);
-        expect(PLATFORMS.instagram.qr).toBe(false);
+    });
+
+    it("every channel carries them", () => {
+        for (const id of PLATFORM_IDS) {
+            expect(PLATFORMS[id].qr, `${id} has no QR codes`).toBe(true);
+        }
     });
 
     it("the scan target carries no identifier", () => {
@@ -193,6 +214,16 @@ describe("the logo and the QR", () => {
             const target = qrTarget(id);
             expect(target).toContain(`utm_source=${id}`);
             expect(target).not.toMatch(/post_?id|schedule|uid|user|session|[0-9a-f]{16,}/i);
+        }
+    });
+
+    it("⛔ leaves the store links untagged", () => {
+        // A store URL with unknown query parameters is a store URL that may
+        // not resolve. Only our own site gets the utm tags.
+        for (const t of QR_TARGETS) {
+            const out = qrTarget("facebook", t.url);
+            if (t.url.includes("imotara.com")) expect(out).toContain("utm_source");
+            else expect(out, `${t.id} was tagged`).toBe(t.url);
         }
     });
 

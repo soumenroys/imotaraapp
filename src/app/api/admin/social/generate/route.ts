@@ -7,12 +7,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { prepareGenerated, nextLanguage, type ScheduleShape } from "@/lib/social/pipeline";
+import { prepareGenerated, nextLanguage, type ScheduleShape, type ContentType } from "@/lib/social/pipeline";
 import { liveDeps, savePreparedPost, toScheduleShape, postCountFor, type ScheduleRow } from "@/lib/social/store";
 
 export const maxDuration = 120;
 
-type Body = { scheduleId?: string; platform?: string; language?: string; dryRun?: boolean };
+type Body = {
+  scheduleId?: string;
+  platform?: string;
+  language?: string;
+  dryRun?: boolean;
+  /**
+   * 🔑 A schedule that does not exist yet.
+   *
+   * The owner's mental model, 18 Oct: "i thought that i can schedule the social
+   * media name, time, language and preview the content and schedule". Preview
+   * came BEFORE saving, and it could not — you had to create the schedule, then
+   * generate, then look. ⇒ This previews from the form's own values.
+   *
+   * ⛔ Always a dry run: nothing is saved, and the subject and picture recipe
+   * are NOT claimed, so previewing twice does not burn two subjects.
+   */
+  preview?: {
+    brief?: string;
+    platforms?: string[];
+    contentType?: ContentType;
+    topicPool?: string[];
+    tone?: string;
+    lengthHint?: string;
+    languages?: string[];
+  };
+};
 
 export async function POST(req: NextRequest) {
   const guard = await requireSocialAdmin(req);
@@ -24,6 +49,56 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "the request body was not JSON" }, { status: 400 });
   }
+  // ── Previewing an unsaved schedule ────────────────────────────────────────
+  if (input.preview && !input.scheduleId) {
+    const pv = input.preview;
+    const platform = pv.platforms?.[0];
+    const language = pv.languages?.[0];
+    if (!platform || !language) {
+      return NextResponse.json(
+        { error: "Choose at least one channel and one language before previewing." },
+        { status: 400 },
+      );
+    }
+    if (!pv.brief || pv.brief.trim().length < 20) {
+      return NextResponse.json({ error: "Write the brief first — it is what the post is written from." }, { status: 400 });
+    }
+
+    const shape: ScheduleShape = {
+      id: "preview",
+      name: "preview",
+      brief: pv.brief.trim(),
+      platforms: [platform],
+      contentType: pv.contentType ?? "text_graphic",
+      topicPool: pv.topicPool ?? [],
+      tone: pv.tone ?? "gentle_plain",
+      lengthHint: pv.lengthHint ?? "medium",
+      languages: [language],
+      autoPublish: false,
+    };
+
+    const deps = await liveDeps();
+    const result = await prepareGenerated(deps, { schedule: shape, platform, language });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.reason, rejected: result.rejected }, { status: 422 });
+    }
+    return NextResponse.json({
+      preview: true,
+      subject: result.post.subject,
+      body: result.post.body,
+      support: result.post.support ?? null,
+      language: result.post.language,
+      platform,
+      characters: [...result.post.body].length,
+      houseStyle: result.post.houseStyle.problems,
+      listsRun: result.post.gate.listsRun,
+      listsUnavailable: result.post.gate.listsUnavailable,
+      notes: result.post.notes,
+      // ⛔ Said plainly: nothing was kept, so this subject can still come up.
+      note: "Nothing was saved. This is what the schedule would write.",
+    });
+  }
+
   if (!input.scheduleId) return NextResponse.json({ error: "scheduleId is required" }, { status: 400 });
 
   const db = getSupabaseAdmin();

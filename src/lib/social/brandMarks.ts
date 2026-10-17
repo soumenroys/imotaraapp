@@ -24,27 +24,52 @@ import QRCode from "qrcode";
 export const LOGO_URL = "https://www.imotara.com/android-chrome-192.png";
 
 /**
+ * 🔴 THREE CODES, NOT ONE — and they were already defined here before I
+ * arrived. `scripts/generate-qr-codes.js` has generated qr-website, qr-android
+ * and qr-ios since the org-invite emails were built, pointing at the site, the
+ * Play listing and the App Store listing.
+ *
+ * ⚠️ I shipped a single generic code to imotara.com and did not look. The
+ * convention existed, the owner knew it, and a reader on a phone wants the
+ * store for the phone they are holding — not a website that will ask them
+ * which one they have.
+ *
+ * ⛔ The targets must stay identical to that script's. Two places encoding
+ * different URLs for "the Android one" is the drift that makes a QR point
+ * somewhere nobody checks.
+ */
+export const QR_TARGETS = [
+  { id: "web", label: "Website", url: "https://imotara.com" },
+  { id: "android", label: "Android", url: "https://play.google.com/store/apps/details?id=com.imotara.imotara" },
+  { id: "ios", label: "iPhone", url: "https://apps.apple.com/in/app/imotara/id6756697569" },
+] as const;
+
+export type QrCode = { id: string; label: string; dataUri: string };
+
+/**
  * Where a scan lands, tagged so the channel is visible in analytics.
  *
- * ⚠️ `utm_*` only. ⛔ No post id, no schedule id, nothing that identifies the
- * reader or lets two scans be tied together — a QR on a mental-health post is
- * exactly the place not to build a tracking link.
+ * ⚠️ `utm_*` only, and only on the website link — a store URL with unknown
+ * query parameters is a store URL that may not resolve. ⛔ No post id, no
+ * schedule id, nothing identifying: a QR on a mental-health post is exactly
+ * the place not to build a tracking link.
  */
-export function qrTarget(platform: string): string {
-  return `https://www.imotara.com/?utm_source=${encodeURIComponent(platform)}&utm_medium=social&utm_campaign=post`;
+export function qrTarget(platform: string, base: string = QR_TARGETS[0].url): string {
+  if (!base.startsWith("https://imotara.com")) return base;
+  return `${base}/?utm_source=${encodeURIComponent(platform)}&utm_medium=social&utm_campaign=post`;
 }
 
 /**
  * A QR code as a PNG data URI, sized for the card.
  *
- * ⚠️ ERROR CORRECTION 'M', not 'L'. The code sits on a coloured ground and is
- * photographed off a screen at an angle, which is exactly when the lowest level
- * fails. 'H' would be more robust still and makes the code denser, which costs
- * legibility at this size — M is the trade that actually scans.
+ * ⚠️ ERROR CORRECTION 'M', not 'L'. The code sits on a card photographed off a
+ * screen at an angle, which is exactly when the lowest level fails. 'H' is more
+ * robust and denser, which costs legibility at this size — M is the trade that
+ * actually scans.
  *
  * ⛔ The quiet zone is NOT optional. A code butted against a coloured panel is
- * unreadable by most phone cameras, and it is the single commonest way a QR on
- * a designed card fails while looking perfectly fine.
+ * unreadable by most phone cameras, and it is the commonest way a QR on a
+ * designed card fails while looking perfectly fine.
  */
 export async function qrDataUri(target: string, dark: string, light: string): Promise<string> {
   return QRCode.toDataURL(target, {
@@ -53,6 +78,20 @@ export async function qrDataUri(target: string, dark: string, light: string): Pr
     width: 220,
     color: { dark, light },
   });
+}
+
+/** All three, ready for the composer. ⚠️ One failure loses one code, not the
+ *  picture: a card with two codes is a card. */
+export async function allQrCodes(platform: string): Promise<QrCode[]> {
+  const out: QrCode[] = [];
+  for (const t of QR_TARGETS) {
+    try {
+      out.push({ id: t.id, label: t.label, dataUri: await qrDataUri(qrTarget(platform, t.url), "#111827", "#FFFFFF") });
+    } catch {
+      // Skipped, not fatal.
+    }
+  }
+  return out;
 }
 
 /**

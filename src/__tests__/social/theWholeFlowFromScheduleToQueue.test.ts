@@ -114,7 +114,16 @@ describe("the happy path", () => {
     if (!result.ok || !result.post.picture) return;
 
     const gated = `${result.post.subject}\n${result.post.body}\n${result.post.support ?? ""}`;
-    const allowed = ["22 languages", "imotara.com", "Imotara"];
+    /**
+     * Fixed brand furniture — the only words on a picture that do not come
+     * from the post.
+     *
+     * ⚠️ "Website", "Android" and "iPhone" are the QR labels, added 18 Oct.
+     * This guard caught them the moment they appeared, which is the point: any
+     * NEW text on a card has to be declared here deliberately, so nothing can
+     * drift onto a picture without somebody deciding it should.
+     */
+    const allowed = ["22 languages", "imotara.com", "Imotara", "Website", "Android", "iPhone"];
 
     for (const text of wordsInPicture(result.post.picture)) {
       const fromPost = gated.includes(text);

@@ -99,6 +99,28 @@ No markdown, no code fence, no commentary.
 `.trim();
 }
 
+/**
+ * 🔴 "LENGTH: short" WAS THE WHOLE INSTRUCTION, and it produced two sentences
+ * every time — about 130 characters. The owner noticed: "i think the post
+ * content are very small".
+ *
+ * ⚠️ A model given an adjective picks the shortest reading of it. A model given
+ * a character range writes to the range. ⇒ Ranges, not adjectives.
+ *
+ * ⛔ And the schedule form never offered this at all, so every schedule
+ * silently took the API's default. A setting nobody can reach is not a setting.
+ */
+const LENGTH_GUIDE: Record<string, string> = {
+  short:
+    "Two or three sentences, roughly 200–350 characters. Enough to say one thing properly.",
+  medium:
+    "A short paragraph, roughly 350–700 characters. Room for the thing and why it matters, " +
+    "still one idea.",
+  longer:
+    "Two short paragraphs, roughly 700–1,200 characters. ⚠️ Only where the channel gives you the " +
+    "room — never pad to reach it.",
+};
+
 export function buildPrompt(req: WriteRequest): string {
   const pools = TOPIC_POOLS.filter((p) => req.topicPool.includes(p.id));
   const angles = pools.length > 0 ? pools : TOPIC_POOLS;
@@ -137,7 +159,8 @@ export function buildPrompt(req: WriteRequest): string {
             "addressed, no assumption about anybody's work, age, country or family.",
         ]
       : []),
-    `TONE: ${req.tone}. LENGTH: ${req.lengthHint}.`,
+    `TONE: ${req.tone}.`,
+    `LENGTH: ${LENGTH_GUIDE[req.lengthHint] ?? LENGTH_GUIDE.medium}`,
     `LANGUAGE: write the subject and the body in ${languageName(req.language)}.` +
       (req.language === "en"
         ? ""

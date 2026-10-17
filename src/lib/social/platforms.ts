@@ -30,7 +30,7 @@ export type PlatformSpec = {
   hashtags: number;
   /** The angle and register. ⛔ Never a segment. */
   voice: string;
-  /** Whether a QR code earns its place on this channel's picture. */
+  /** Whether the three QR codes go on this channel's picture. */
   qr: boolean;
   /** Built and able to publish? ⛔ Honest, and shown in the admin. */
   canPublish: false;
@@ -84,7 +84,11 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
       "The picture carries it and the caption follows. One line that makes somebody look again, " +
       "then one that says what it is. ⚠️ The first 125 characters are all most people see, so the " +
       "post cannot depend on its second half.",
-    qr: false, // ⛔ Nobody scans a square in a phone feed they are already holding.
+    // ⚠️ I had this off, reasoning that a square in a phone feed is on the
+    // same phone that would scan it. The owner wants the codes on posts, and
+    // they are right that a card without them gives a reader nowhere to go.
+    // The labels are what make three codes worth the space.
+    qr: true,
     canPublish: false,
     blockedBy:
       "Instagram publishing is a separate permission set from the Page token, and the account only " +
@@ -100,7 +104,7 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     voice:
       "One thought, finished, inside 280 characters. ⛔ No thread, no 'a 🧵', no hook that promises " +
       "a payoff further down. If it needs a second post it is the wrong thought for this channel.",
-    qr: false, // A timeline image at thumbnail size: a QR is unreadable.
+    qr: true,
     canPublish: false,
     blockedBy: "X's API is paid, and the account has 2 followers — worth asking whether it is worth it.",
   },

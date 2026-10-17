@@ -67,9 +67,13 @@ export function NewSchedule({
   const [langs, setLangs] = useState<string[]>(["en"]);
   const [postAt, setPostAt] = useState("09:30");
   const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [tone, setTone] = useState("gentle_plain");
+  const [lengthHint, setLengthHint] = useState("medium");
   const [autoPublish, setAutoPublish] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState<{ subject: string; body: string; characters: number; language: string; platform: string; houseStyle: string[] } | null>(null);
+  const [previewing, setPreviewing] = useState(false);
 
   const toggle = <T,>(list: T[], value: T, set: (v: T[]) => void) =>
     set(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
@@ -79,6 +83,40 @@ export function NewSchedule({
   const blocked = langs
     .map((c) => languages.find((l) => l.code === c))
     .filter((l): l is Language => !!l && !l.mayPostUnattended);
+
+  /**
+   * 🔑 SEE IT BEFORE YOU COMMIT TO IT. Previously you had to create the
+   * schedule, generate a post, and go to another screen to look — so the first
+   * time you saw the voice was after you had already committed to a brief.
+   *
+   * ⛔ Nothing is saved, and the subject is not claimed, so previewing three
+   * times does not burn three subjects.
+   */
+  async function runPreview() {
+    setPreviewing(true);
+    setError("");
+    setPreview(null);
+    try {
+      const res = await fetch("/api/admin/social/generate", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          preview: { brief, platforms, contentType, topicPool, tone, lengthHint, languages: langs },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "Nothing could be written.");
+        return;
+      }
+      setPreview(json);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPreviewing(false);
+    }
+  }
 
   async function submit() {
     setBusy(true);
@@ -90,7 +128,7 @@ export function NewSchedule({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           name, brief, platforms, contentType, topicPool,
-          languages: langs, postAt, days, autoPublish,
+          languages: langs, postAt, days, autoPublish, tone, lengthHint,
         }),
       });
       const json = await res.json();
@@ -205,6 +243,31 @@ export function NewSchedule({
         )}
       </fieldset>
 
+      {/* 🔴 Neither of these existed, so every schedule silently took the
+          API's defaults — which is why every post came out at two sentences. */}
+      <div className="grid gap-5 md:grid-cols-2">
+        <div className="space-y-2">
+          <label htmlFor="ns-tone" className={label}>Tone</label>
+          <select id="ns-tone" value={tone} onChange={(e) => setTone(e.target.value)} className={field}>
+            <option value="gentle_plain">Gentle and plain</option>
+            <option value="thoughtful">Thoughtful — leaves a question standing</option>
+            <option value="generous">Generous — gives something away</option>
+            <option value="practical">Practical</option>
+          </select>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="ns-len" className={label}>How long</label>
+          <select id="ns-len" value={lengthHint} onChange={(e) => setLengthHint(e.target.value)} className={field}>
+            <option value="short">Short — two or three sentences</option>
+            <option value="medium">Medium — a short paragraph</option>
+            <option value="longer">Longer — two short paragraphs</option>
+          </select>
+          <p className="text-[11px] text-zinc-500">
+            X is capped at 280 characters whatever you pick here.
+          </p>
+        </div>
+      </div>
+
       <fieldset className="space-y-2">
         <legend className={label}>Days</legend>
         <div className="flex flex-wrap gap-2">
@@ -250,7 +313,37 @@ export function NewSchedule({
         </label>
       </div>
 
+      {preview && (
+        <section className="space-y-3 rounded-xl border border-zinc-700 bg-zinc-950/60 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold">What it would write</h3>
+            <span className="font-mono text-[11px] text-zinc-500">
+              {preview.platform} · {preview.language} · {preview.characters} characters
+            </span>
+          </div>
+          <p className="text-xs font-medium text-zinc-400">{preview.subject}</p>
+          <p className="whitespace-pre-wrap text-sm leading-7 text-zinc-200">{preview.body}</p>
+          {preview.houseStyle.length > 0 && (
+            <ul className="space-y-1 text-[11px] text-amber-300">
+              {preview.houseStyle.map((h, i) => <li key={i}>{h}</li>)}
+            </ul>
+          )}
+          <p className="text-[11px] text-zinc-500">
+            Nothing was saved. Change the brief, the tone or the length and try again — every
+            preview writes something new.
+          </p>
+        </section>
+      )}
+
       <div className="flex flex-wrap gap-2 border-t border-zinc-800 pt-4">
+        <button
+          type="button"
+          onClick={() => void runPreview()}
+          disabled={previewing || brief.trim().length < 20 || langs.length === 0 || platforms.length === 0}
+          className="min-h-11 rounded-lg border border-zinc-700 px-4 text-sm hover:bg-zinc-800 disabled:opacity-40"
+        >
+          {previewing ? "Writing a sample…" : "See what it would write"}
+        </button>
         <button type="button" onClick={() => void submit()}
           disabled={busy || name.trim().length < 3 || brief.trim().length < 20 || langs.length === 0 || platforms.length === 0 || days.length === 0}
           className="min-h-11 rounded-lg bg-indigo-600 px-5 text-sm font-semibold hover:bg-indigo-500 disabled:opacity-40">

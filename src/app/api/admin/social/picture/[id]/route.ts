@@ -18,7 +18,7 @@ import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { composePicture, type Node } from "@/lib/social/compose";
 import { platformSpec } from "@/lib/social/platforms";
-import { qrDataUri, qrTarget } from "@/lib/social/brandMarks";
+import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
 import { headlineFromBody, recipeHash, type Recipe } from "@/lib/social/visualRecipe";
 
 /** The tree from compose.ts, as React elements. ⚠️ Keys, because Satori
@@ -103,15 +103,13 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   // channel and a campaign tag, so it is derivable, and a stored data URI would
   // be a second copy to keep in step with nothing.
   const platform = post.platform as string;
-  let qrImage: string | undefined;
+  let qrCodes: QrCode[] = [];
   try {
-    if (platformSpec(platform).qr) {
-      qrImage = await qrDataUri(qrTarget(platform), "#111827", "#FFFFFF");
-    }
+    if (platformSpec(platform).qr) qrCodes = await allQrCodes(platform);
   } catch {
-    // ⛔ A missing code must not lose the picture. A card without a QR is a
+    // ⛔ Missing codes must not lose the picture. A card without them is a
     // card; no card is a blank space where one was promised.
-    qrImage = undefined;
+    qrCodes = [];
   }
 
   let picture;
@@ -121,7 +119,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       headline,
       language: post.language as string,
       platform,
-      qrImage,
+      qrCodes,
     });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 422 });

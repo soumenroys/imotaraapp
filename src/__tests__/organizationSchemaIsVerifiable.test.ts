@@ -310,3 +310,46 @@ describe("the Wikidata item is claimed by the right entity", () => {
         expect(raw.match(/\bQ\d{4,}\b/g) ?? []).toEqual([QID]);
     });
 });
+
+describe("sameAs names the ORGANISATION's profiles, not a person's", () => {
+    /**
+     * 🔴 THE DEFECT THIS PINS, found 2026-10-17. `BUSINESS.social.linkedin`
+     * read `linkedin.com/in/imotara` — a LinkedIn MEMBER profile, display name
+     * "Imotara App". The Organization's `sameAs`, `llms.txt`, the site footer
+     * and the mobile app's links row all inherited it.
+     *
+     * ⛔ `sameAs` asserts "this profile IS this entity". A `/in/` URL is a
+     * person. Naming one on an Organization is the same false identity claim
+     * that keeps the Wikidata item off the Organization node — and a wrong
+     * `sameAs` is worse than none ⇒ the handle note in businessIdentity.ts.
+     *
+     * 🔑 WHY NO TEST CAUGHT IT. Every assertion derived the URL from
+     * BUSINESS.social, so they all agreed with each other and with the wrong
+     * value. Deriving from one source stops DRIFT; it cannot notice that the
+     * source itself names the wrong thing ⇒ trap_a_mirror_test_cannot_catch_a_refactor.
+     * So this guard asserts the SHAPE the URL must have, not its equality to
+     * the module.
+     */
+    it("the LinkedIn entry is a company page", () => {
+        expect(BUSINESS.social.linkedin).toMatch(/linkedin\.com\/company\//);
+        expect(
+            BUSINESS.social.linkedin,
+            "a /in/ URL is a person, not the organisation",
+        ).not.toMatch(/linkedin\.com\/in\//);
+    });
+
+    it("no profile in sameAs is a personal LinkedIn URL", () => {
+        const layout = read("src/app/layout.tsx");
+        const start = layout.indexOf("const organization = {");
+        const sameAsStart = layout.indexOf("sameAs: [", start);
+        const sameAs = layout.slice(sameAsStart, layout.indexOf("]", sameAsStart));
+        // ⚠️ Must be anchored to the HOST. A bare "/in/" also matches
+        // `apps.apple.com/in/app/...` — the India storefront — which is
+        // correct and unrelated. The first version of this guard failed on it.
+        expect(sameAs).not.toMatch(/linkedin\.com\/in\//);
+    });
+
+    it("llms.txt points at the same company page", () => {
+        expect(read("public/llms.txt")).toContain(BUSINESS.social.linkedin);
+    });
+});

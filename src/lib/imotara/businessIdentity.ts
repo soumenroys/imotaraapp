@@ -99,10 +99,28 @@ export const BUSINESS = {
         xHandle: "@imotaraofficial",
         instagram: "https://www.instagram.com/imotaraofficial/",
         youtube: "https://www.youtube.com/@Imotara",
-        // ⚠️ Claimed the clean vanity handle on 2026-10-16; the old
-        // /in/imotara-app-9b4147403 still redirects, but a stable, readable URL
-        // is the one that belongs in `sameAs` and on printed material.
-        linkedin: "https://www.linkedin.com/in/imotara",
+        /**
+         * 🔴 THE COMPANY PAGE, NOT THE PERSONAL PROFILE. Corrected 2026-10-17.
+         *
+         * This read `/in/imotara` — a LinkedIn MEMBER profile, display name
+         * "Imotara App", 423 connections. Everything downstream inherited it:
+         * the Organization's `sameAs`, `llms.txt`, the site footer and the
+         * mobile app's links row.
+         *
+         * ⛔ WHY THAT WAS WRONG, AND NOT MERELY UNTIDY. `sameAs` on an
+         * Organization asserts "these profiles ARE this organisation". A `/in/`
+         * URL is a *person*. It is the same false identity claim the Wikidata
+         * item is deliberately kept out of the Organization node to avoid.
+         *
+         * Two practical costs on top of the wrong claim: directories reject
+         * `/in/` URLs for company listings, and the company page — the one that
+         * actually carries the corrected tagline, industry and overview —
+         * received none of the link equity.
+         *
+         * ⚠️ The personal profile has 17× the followers. It is still a real
+         * asset and nothing here deletes it; it simply is not the organisation.
+         */
+        linkedin: "https://www.linkedin.com/company/imotara",
         // ⚠️ Claimed the username on 2026-10-16. Before that the Page had none
         // and lived at profile.php?id=61591783672102 — a URL that cannot go in
         // sameAs and that nobody can type. `imotara` was already taken, almost

@@ -78,6 +78,29 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/contact`, lastModified: now, changeFrequency: "yearly",  priority: 0.5 },
     { url: `${base}/refunds`, lastModified: now, changeFrequency: "yearly",  priority: 0.5 },
 
+    /**
+     * 🔴 ADDED 2026-10-17. These four were PUBLIC, HTTP 200 and not noindexed,
+     * and had simply never been added to this hand-maintained list. They were
+     * invisible to search for as long as they have existed.
+     *
+     * ⚠️ /pricing/corporate is the page the NGO and institutional
+     * conversations send people to — the commercial driver, unlisted.
+     * ⚠️ /help answers questions in the shape people actually search.
+     *
+     * ⇒ The guard in sitemapCoversEveryPublicPage.test.ts now fails the build
+     * when a public route is added without a decision about this list.
+     */
+    { url: `${base}/help`,              lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${base}/tutorial`,          lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${base}/pricing/corporate`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${base}/careers`,           lastModified: now, changeFrequency: "monthly", priority: 0.4 },
+
+    // ⚠️ These two the guard found, not a human: /upgrade is explicitly
+    // ALLOWED in robots.txt — we were inviting crawlers to a page we had not
+    // listed and had not given a title. /updates is the mailing-list page.
+    { url: `${base}/upgrade`,           lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${base}/updates`,           lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+
     // ── LLM / SEO landing pages ──────────────────────────────────────────────
     { url: `${base}/ai-emotional-support`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
     { url: `${base}/mood-tracker-app`,     lastModified: now, changeFrequency: "monthly", priority: 0.9 },

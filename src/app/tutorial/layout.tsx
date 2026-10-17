@@ -10,11 +10,13 @@ export const metadata: Metadata = {
     title: "Imotara Tutorial — Every Feature Explained",
     description:
       "Learn how to use Imotara: talk with your AI companion, track emotions, personalize your experience, and understand your data — in 3 levels of detail.",
-    url: "https://imotara.com/tutorial",
+    url: "https://www.imotara.com/tutorial",
     siteName: "Imotara",
     type: "website",
   },
-  alternates: { canonical: "https://imotara.com/tutorial" },
+  // 🔴 www — see the note in guide/page.tsx. Both pages pointed at the
+  // bare host until 2026-10-17.
+  alternates: { canonical: "https://www.imotara.com/tutorial" },
 };
 
 export default function TutorialLayout({ children }: { children: React.ReactNode }) {

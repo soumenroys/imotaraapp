@@ -11,11 +11,15 @@ export const metadata: Metadata = {
     title: "How to Use Imotara",
     description:
       "Imotara is a quiet, private space for your emotions. Learn how to talk freely, work offline, personalize your companion, and control your data.",
-    url: "https://imotara.com/guide",
+    url: "https://www.imotara.com/guide",
     siteName: "Imotara",
     type: "website",
   },
-  alternates: { canonical: "https://imotara.com/guide" },
+  // 🔴 www, not the bare host. Search Console holds BOTH properties and
+  // everything else — sitemap, sameAs, every indexed URL — uses www. A
+  // canonical naming the other one nominates it as preferred, which is the
+  // single worst thing a canonical can do.
+  alternates: { canonical: "https://www.imotara.com/guide" },
 };
 
 const STEPS = [

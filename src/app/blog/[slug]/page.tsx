@@ -178,7 +178,10 @@ function CategoryBadge({ category }: { category: BlogCategory }) {
 // ─── Share buttons ────────────────────────────────────────────────────────────
 
 function ShareButtons({ title, slug }: { title: string; slug: string }) {
-  const url = `https://imotara.com/blog/${slug}`;
+  // 🔴 www. A share is a BACKLINK, and every one of these was crediting the
+  // bare host — the Search Console property the canonicals do not name.
+  // Same defect as the canonicals, but it leaks link equity outward.
+  const url = `${SITE_URL}/blog/${slug}`;
   // ⚠️ `via=` credits an account by handle. It was `imotara4x`, which is not
   // ours — every share was crediting a stranger. ⇒ businessIdentity.ts
   const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}&via=${BUSINESS.social.xHandle.replace("@", "")}`;

@@ -95,29 +95,62 @@ describe("connecting a channel", () => {
     expect(res.status).toBe(401);
   });
 
-  it("⛔ reaches the owner and still refuses to store a token in plain text", async () => {
+  it("⛔ reaches the owner and still refuses to store without a key", async () => {
     /**
      * 🔑 THE ASSERTION THAT MATTERS MOST HERE, and it is not about permissions.
-     * Even for the owner, this route will not write a credential before there
-     * is encryption for it — a token in a plain column outlives the intention
-     * to protect it later, and the row would still be there in a year.
+     * Even for the owner, this route will not write a credential it cannot
+     * encrypt — a token in a plain column outlives the intention to protect it
+     * later, and the row would still be there in a year.
+     *
+     * ⚠️ SOCIAL_TOKEN_KEY is deliberately absent here, so this exercises the
+     * refusal rather than the happy path.
      */
-    const { POST } = await import("@/app/api/admin/social/channels/route");
-    currentRole = "owner";
-    const res = await POST(
-      post("/api/admin/social/channels", {
-        platform: "facebook",
-        displayName: "Imotara",
-        externalId: "123",
-        accessToken: "a-token-value-ending-abcd",
-      }),
-    );
-    expect(res.status).toBe(501);
-    const json = await res.json();
-    expect(json.error).toMatch(/encrypt/i);
-    // And it does not echo the token back, only the tail.
-    expect(JSON.stringify(json)).not.toContain("a-token-value-ending-abcd");
-    expect(json.wouldHaveStored.tokenTail).toBe("abcd");
+    const previous = process.env.SOCIAL_TOKEN_KEY;
+    delete process.env.SOCIAL_TOKEN_KEY;
+    try {
+      const { POST } = await import("@/app/api/admin/social/channels/route");
+      currentRole = "owner";
+      const res = await POST(
+        post("/api/admin/social/channels", {
+          platform: "facebook",
+          displayName: "Imotara",
+          externalId: "123",
+          accessToken: "a-token-value-ending-abcd",
+        }),
+      );
+      expect(res.status).toBe(503);
+      const json = await res.json();
+      expect(json.error).toMatch(/SOCIAL_TOKEN_KEY/);
+      // ⛔ And the token is never echoed back, on any path.
+      expect(JSON.stringify(json)).not.toContain("a-token-value-ending-abcd");
+    } finally {
+      if (previous === undefined) delete process.env.SOCIAL_TOKEN_KEY;
+      else process.env.SOCIAL_TOKEN_KEY = previous;
+    }
+  });
+
+  it("⛔ refuses something that is plainly not a token, even from the owner", async () => {
+    // ⚠️ A guardrail against the honest mistake of pasting a login into a field
+    // meant for a token — not a security control.
+    const previous = process.env.SOCIAL_TOKEN_KEY;
+    process.env.SOCIAL_TOKEN_KEY = Buffer.alloc(32, 3).toString("base64");
+    try {
+      const { POST } = await import("@/app/api/admin/social/channels/route");
+      currentRole = "owner";
+      const res = await POST(
+        post("/api/admin/social/channels", {
+          platform: "facebook",
+          displayName: "Imotara",
+          externalId: "123",
+          accessToken: "soumenroys@gmail.com",
+        }),
+      );
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/never takes an email or a password/i);
+    } finally {
+      if (previous === undefined) delete process.env.SOCIAL_TOKEN_KEY;
+      else process.env.SOCIAL_TOKEN_KEY = previous;
+    }
   });
 });
 

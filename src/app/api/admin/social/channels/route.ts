@@ -11,6 +11,8 @@ import { requireSocialAdmin, requireSocialOwner } from "@/app/api/admin/social/_
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { PLATFORM_IDS } from "@/lib/social/platforms";
 import { scriptsAwaitingVerification } from "@/lib/social/fonts";
+import { PLATFORMS as CHANNELS } from "@/lib/social/platforms";
+import { encryptToken, tokenAad, tokenTail, tokenFingerprint, tokenStorageReady } from "@/lib/social/tokenCrypto";
 
 const PLATFORMS: string[] = PLATFORM_IDS;
 
@@ -33,6 +35,14 @@ export async function GET(req: NextRequest) {
     settings: settings.data ?? { posting_paused: true, note: "settings row missing — treated as paused" },
     languages: tiers.data ?? [],
     scriptsAwaitingVerification: scriptsAwaitingVerification(),
+    // ⚠️ Said plainly in the admin rather than discovered on the first paste.
+    tokenStorage: tokenStorageReady(),
+    channels: Object.values(CHANNELS).map((c) => ({
+      id: c.id,
+      label: c.label,
+      canPublish: c.canPublish,
+      blockedBy: c.blockedBy,
+    })),
     actorRole: guard.actor.role,
   });
 }
@@ -78,30 +88,94 @@ export async function POST(req: NextRequest) {
   }
 
   /**
-   * ⛔ PHASE 1 STOPS HERE, AND SAYS SO RATHER THAN PRETENDING.
+   * ⛔ A PASSWORD IS NOT ACCEPTED HERE, AND NEVER WILL BE.
    *
-   * ⚠️ Storing a token before there is encryption for it would put a live
-   * credential in a database column in plain text, and the row would outlive
-   * the intention to encrypt it later. The honest failure is to refuse the
-   * write and name what is missing.
+   * The owner asked whether their social password could be encrypted and
+   * stored so the app could log in as them. Encryption cannot do that job:
+   * logging in needs the plaintext back, so the key sits beside the ciphertext
+   * and anybody with both has the password. (Hashing cannot do it at all — a
+   * hash can be checked, never used to log in.)
    *
-   * ▶️ Phase 2 adds the encryption and the Facebook adapter together, because
-   * the first is what makes the second safe to have.
+   * ⚠️ It also would not work. None of these platforms allows programmatic
+   * password login; driving a browser instead meets checkpoints, 2FA and
+   * device verification, and is against their terms — on an estate that was
+   * nearly lost to an enforcement action on 17 Oct.
+   *
+   * 🔑 And a TOKEN is better at the very thing that was wanted: it is scoped to
+   * posting on one page, revoked on its own, and it SURVIVES A PASSWORD
+   * CHANGE. A stored password would break posting every time one changed.
+   * ⇒ no_credential_impersonation_for_paid_apis
    */
-  return NextResponse.json(
-    {
-      error:
-        "Channel connection is not built yet — and this route will not store a token until it can " +
-        "encrypt it. A credential in a plain column outlives the intention to protect it later. " +
-        "Phase 2 adds encryption and the Facebook adapter together.",
-      wouldHaveStored: {
-        platform,
-        displayName,
-        externalId,
-        tokenTail: accessToken.slice(-4),
-        scopes: input.scopes ?? [],
+  const storage = tokenStorageReady();
+  if (!storage.ok) {
+    // ⛔ Refuses rather than writing plaintext "for now".
+    return NextResponse.json({ error: storage.reason }, { status: 503 });
+  }
+
+  if (/^[^\s@]+@[^\s@]+$/.test(accessToken) || accessToken.length < 20) {
+    return NextResponse.json(
+      {
+        error:
+          "That does not look like a platform token. ⛔ This field never takes an email or a " +
+          "password — only a token the platform itself issued, which you can revoke without " +
+          "changing anything else about your account.",
       },
-    },
-    { status: 501 },
-  );
+      { status: 400 },
+    );
+  }
+
+  const db = getSupabaseAdmin();
+  const aad = tokenAad(platform, externalId);
+
+  // 🔑 The fingerprint tells a REPLACEMENT from a RE-PASTE without keeping the
+  // old value — which is what makes "your credentials changed, re-validate"
+  // possible at all.
+  const fingerprint = tokenFingerprint(accessToken);
+  const { data: existing } = await db
+    .from("social_accounts")
+    .select("id, token_fingerprint")
+    .eq("platform", platform)
+    .eq("external_id", externalId)
+    .maybeSingle();
+
+  const row = {
+    platform,
+    display_name: displayName,
+    external_id: externalId,
+    access_token: encryptToken(accessToken, aad),
+    refresh_token: input.refreshToken?.trim() ? encryptToken(input.refreshToken.trim(), aad) : null,
+    token_tail: tokenTail(accessToken),
+    token_fingerprint: fingerprint,
+    token_expires_at: input.expiresAt ?? null,
+    scopes: input.scopes ?? [],
+    // ⚠️ 'pending', not 'ok'. A token that has been STORED is not a token that
+    // has been SHOWN TO WORK, and the difference is the whole point of the
+    // health check.
+    status: "pending",
+    last_error: null,
+    connected_by: guard.actor.id,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = existing
+    ? await db.from("social_accounts").update(row).eq("id", existing.id)
+    : await db.from("social_accounts").insert(row);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const replaced = Boolean(existing && existing.token_fingerprint !== fingerprint);
+  return NextResponse.json({
+    platform,
+    tokenTail: tokenTail(accessToken),
+    replaced,
+    status: "pending",
+    note:
+      (replaced
+        ? "Token replaced. "
+        : existing
+          ? "That is the same token as before; nothing changed. "
+          : "Channel connected. ") +
+      "⚠️ It is stored as PENDING, not working: being saved is not the same as being shown to " +
+      "work. The daily check verifies it against the platform and tells you the hour it stops.",
+  });
 }

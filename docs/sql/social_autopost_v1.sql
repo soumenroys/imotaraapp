@@ -141,6 +141,12 @@ create table if not exists social_accounts (
   access_token     text,                 -- encrypted at the application layer
   refresh_token    text,                 -- encrypted at the application layer
   token_tail       text,                 -- last 4 chars, for "is this the one I pasted?"
+
+  -- 🔑 A sha256 prefix of the token, so a REPLACEMENT can be told from a
+  -- RE-PASTE without keeping anything comparable in plaintext. It is what makes
+  -- "your credentials changed, re-validate" answerable at all, and it reveals
+  -- nothing: the same token hashes the same, a different one does not.
+  token_fingerprint text,
   token_expires_at timestamptz,          -- null = does not expire (a Meta system user)
   scopes           text[]      not null default '{}',
   status           text        not null default 'pending'
@@ -151,6 +157,9 @@ create table if not exists social_accounts (
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
+
+alter table social_accounts
+  add column if not exists token_fingerprint text;
 
 create unique index if not exists social_accounts_platform_external_idx
   on social_accounts (platform, external_id);

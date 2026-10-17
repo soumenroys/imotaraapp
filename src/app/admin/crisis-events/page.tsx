@@ -9,7 +9,10 @@
 // fetch. If it's missing/expired, the fetch 401s and this page just links
 // back to /admin to log in there, rather than duplicating that whole flow.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AdminShell, Tile, useAdminRole } from "@/app/admin/_components/ui";
+import { PageTutorial } from "@/app/admin/_components/PageTutorial";
+import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
 
 type CrisisEvent = {
   id: string;
@@ -23,17 +26,10 @@ type CrisisEvent = {
 export default function CrisisEventsPage() {
   const [events, setEvents]   = useState<CrisisEvent[] | null>(null);
   const [error, setError]     = useState<"unauthorized" | "other" | null>(null);
+  const role = useAdminRole();
 
-  // This admin panel is dark-only — same override as the main /admin page,
-  // so a carried-over light data-theme doesn't collide into unreadable text.
-  useEffect(() => {
-    const html = document.documentElement;
-    const prevTheme = html.getAttribute("data-theme");
-    html.removeAttribute("data-theme");
-    return () => {
-      if (prevTheme) html.setAttribute("data-theme", prevTheme);
-    };
-  }, []);
+  // ⚠️ The data-theme / data-fontsize override that used to sit here has moved
+  // to src/app/admin/layout.tsx, which applies it to EVERY admin route.
 
   useEffect(() => {
     fetch("/api/admin/crisis-events", { credentials: "same-origin" })
@@ -46,46 +42,68 @@ export default function CrisisEventsPage() {
       .catch(() => setError("other"));
   }, []);
 
-  return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-10">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">Crisis Events</h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              Metadata-only log of detected crisis-adjacent messages (suicidal ideation, self-harm, abuse).
-              No message text is stored. One row per ~60-minute episode per user.
-            </p>
-          </div>
-          <a href="/admin" className="text-sm text-violet-400 underline underline-offset-2 hover:text-violet-300">
-            ← Back to Admin
-          </a>
-        </div>
+  /**
+   * ⚠️ Counted here rather than asked of the server: the rows are already in
+   * the browser, and a second endpoint that could disagree with the table
+   * underneath it is a bug waiting to be filed.
+   */
+  const summary = useMemo(() => {
+    if (!events) return null;
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recent = events.filter((e) => new Date(e.created_at).getTime() >= weekAgo).length;
+    const mobile = events.filter((e) => e.platform === "mobile").length;
+    const languages = new Set(events.map((e) => e.preferred_lang).filter(Boolean)).size;
+    return { total: events.length, recent, mobile, web: events.length - mobile, languages };
+  }, [events]);
 
+  return (
+    <AdminShell
+      title="Crisis Events"
+      lede="A metadata-only log of detected crisis-adjacent messages. No message text is stored — one row per roughly 60-minute episode per person."
+      current="crisis"
+      role={role}
+    >
+      <PageTutorial id="admin-crisis" {...ADMIN_TUTORIALS.crisis} />
+
+      <div className="mt-6 space-y-6">
         {error === "unauthorized" && (
-          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+          <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-200">
             Your admin session isn&apos;t active here.{" "}
             <a href="/admin" className="font-semibold underline underline-offset-2">Log in at /admin</a> first, then return to this page.
           </div>
         )}
         {error === "other" && (
-          <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+          <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-200">
             Failed to load crisis events. Try refreshing.
           </div>
         )}
 
         {!error && events === null && (
-          <p className="text-sm text-zinc-500">Loading…</p>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-white/5" />)}
+          </div>
+        )}
+
+        {!error && summary && summary.total > 0 && (
+          <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Tile label="Episodes logged" value={summary.total} tone="rose" sub="most recent 200" />
+            <Tile label="Last 7 days" value={summary.recent} tone="amber" />
+            <Tile label="On the app" value={summary.mobile} tone="sky" sub={`${summary.web} on the web`} />
+            <Tile label="Languages" value={summary.languages} tone="indigo"
+              href="/admin/analytics" goesTo="Compare with Activity" />
+          </section>
         )}
 
         {!error && events !== null && events.length === 0 && (
-          <p className="text-sm text-zinc-500">No crisis events recorded.</p>
+          <p className="rounded-2xl border border-dashed border-white/10 px-5 py-12 text-center text-sm text-zinc-500">
+            No crisis events recorded.
+          </p>
         )}
 
         {!error && events !== null && events.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-white/10">
+          <div className="overflow-x-auto rounded-2xl border border-white/8">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-white/10 bg-white/5 text-xs uppercase tracking-wide text-zinc-400">
+              <thead className="border-b border-white/8 bg-white/5 text-xs uppercase tracking-wide text-zinc-400">
                 <tr>
                   <th className="px-4 py-3">When</th>
                   <th className="px-4 py-3">User</th>
@@ -116,9 +134,9 @@ export default function CrisisEventsPage() {
         )}
 
         {!error && events !== null && events.length >= 200 && (
-          <p className="mt-3 text-xs text-zinc-500">Showing the most recent 200 events.</p>
+          <p className="text-xs text-zinc-500">Showing the most recent 200 events.</p>
         )}
       </div>
-    </main>
+    </AdminShell>
   );
 }

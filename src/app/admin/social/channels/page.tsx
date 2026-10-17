@@ -125,7 +125,7 @@ export default function Channels() {
               const account = accounts.find((a) => a.platform === c.id);
               const s = account ? CHANNEL_STATUS[account.status] ?? CHANNEL_STATUS.pending : null;
               return (
-                <li key={c.id} className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+                <li key={c.id} className="space-y-2 rounded-xl border border-white/8 bg-white/5 p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{c.label}</span>
                     {account ? (
@@ -165,7 +165,7 @@ export default function Channels() {
             </p>
           )}
 
-          <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+          <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/5 p-5">
             <div className="space-y-1">
               <h2 className="text-sm font-semibold">
                 Stop everything {!isOwner && <span className="text-xs font-normal text-zinc-500">· owner only</span>}

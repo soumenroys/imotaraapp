@@ -136,7 +136,7 @@ export default function Today() {
 
           {/* 🔑 The first thing on the page is the answer to "is there anything
               for me?" — not a dashboard. */}
-          <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+          <section className="rounded-xl border border-white/8 bg-white/5 p-5">
             {waiting > 0 ? (
               <p className="text-sm">
                 <strong className="text-base">
@@ -161,7 +161,7 @@ export default function Today() {
                 className={`min-h-11 rounded-lg border px-3 text-sm ${
                   view === v.key
                     ? "border-indigo-600 bg-indigo-950/40 text-indigo-200"
-                    : "border-zinc-800 text-zinc-400 hover:bg-zinc-900"
+                    : "border-white/8 text-zinc-400 hover:bg-white/5"
                 }`}
               >
                 {v.label}
@@ -170,7 +170,7 @@ export default function Today() {
           </div>
 
           {posts.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-zinc-800 p-8 text-center text-sm text-zinc-500">
+            <p className="rounded-xl border border-dashed border-white/8 p-8 text-center text-sm text-zinc-500">
               Nothing here.
             </p>
           ) : (
@@ -180,14 +180,14 @@ export default function Today() {
                 const isOpen = open === post.id;
                 const status = POST_STATUS[post.status] ?? { label: post.status, tone: "zinc" as const, means: "" };
                 return (
-                  <li key={post.id} className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
+                  <li key={post.id} className="overflow-hidden rounded-xl border border-white/8 bg-white/5">
                     <button
                       type="button"
                       onClick={() => {
                         setOpen(isOpen ? "" : post.id);
                         setDraft(null);
                       }}
-                      className="flex w-full flex-wrap items-center gap-3 p-4 text-left hover:bg-zinc-900/70"
+                      className="flex w-full flex-wrap items-center gap-3 p-4 text-left hover:bg-white/10"
                     >
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -195,7 +195,18 @@ export default function Today() {
                           <span className="text-xs text-zinc-500">
                             {post.platform} · {post.language}
                             {post.media_kind === "graphic" && " · with a picture"}
-                            {post.origin === "written" && " · you wrote this"}
+                            {post.media_kind === "short_video" && " · a short video"}
+                            {post.media_kind === "animated_gif" && " · an animated GIF"}
+                            {post.origin === "written"
+                              ? " · you wrote this"
+                              : /* 🔴 The API has always sent scheduleNames and this screen
+                                   stored them and never showed them — so a queue with three
+                                   schedules running gave no way to tell which one wrote a
+                                   draft, which is the first thing you want when the voice
+                                   is off. */
+                                post.schedule_id && scheduleNames[post.schedule_id]
+                                ? ` · from “${scheduleNames[post.schedule_id]}”`
+                                : ""}
                           </span>
                         </div>
                         <div className="font-medium">{post.subject}</div>
@@ -205,7 +216,7 @@ export default function Today() {
                     </button>
 
                     {isOpen && (
-                      <div className="space-y-5 border-t border-zinc-800 p-4">
+                      <div className="space-y-5 border-t border-white/8 p-4">
                         {draft ? (
                           <div className="space-y-3">
                             <label className="block text-xs font-semibold text-zinc-400" htmlFor={`s-${post.id}`}>
@@ -215,7 +226,7 @@ export default function Today() {
                               id={`s-${post.id}`}
                               value={draft.subject}
                               onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
-                              className="min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm"
+                              className="min-h-11 w-full rounded-lg border border-white/15 bg-black/30 px-3 text-sm"
                             />
                             <label className="block text-xs font-semibold text-zinc-400" htmlFor={`b-${post.id}`}>
                               The post
@@ -225,7 +236,7 @@ export default function Today() {
                               rows={10}
                               value={draft.body}
                               onChange={(e) => setDraft({ ...draft, body: e.target.value })}
-                              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 p-3 text-sm leading-relaxed"
+                              className="w-full rounded-lg border border-white/15 bg-black/30 p-3 text-sm leading-relaxed"
                             />
                             <p className="text-xs text-zinc-500">
                               Saving puts it back in the queue — approving belongs to the words, not to
@@ -233,7 +244,7 @@ export default function Today() {
                             </p>
                           </div>
                         ) : (
-                          <article className="whitespace-pre-wrap rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 text-sm leading-7 text-zinc-200">
+                          <article className="whitespace-pre-wrap rounded-lg border border-white/8 bg-black/30 p-4 text-sm leading-7 text-zinc-200">
                             {post.body}
                           </article>
                         )}
@@ -244,7 +255,7 @@ export default function Today() {
                             <img
                               src={`/api/admin/social/picture/${post.id}`}
                               alt={`The picture for “${post.subject}”`}
-                              className="w-full max-w-xl rounded-lg border border-zinc-800"
+                              className="w-full max-w-xl rounded-lg border border-white/8"
                             />
                             <Explain q="Where did this picture come from?">
                               <p>
@@ -287,7 +298,7 @@ export default function Today() {
                             )}
                           </div>
 
-                          <div className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+                          <div className="space-y-2 rounded-lg border border-white/8 bg-black/20 p-3">
                             <div className="text-xs font-semibold text-zinc-400">What only you can judge</div>
                             <ul className="space-y-1.5 text-xs text-zinc-300">
                               <li>Is this written for everyone?</li>
@@ -318,7 +329,7 @@ export default function Today() {
                           </Explain>
                         )}
 
-                        <div className="flex flex-wrap gap-2 border-t border-zinc-800 pt-4">
+                        <div className="flex flex-wrap gap-2 border-t border-white/8 pt-4">
                           {post.status === "needs_review" &&
                             (draft ? (
                               <>
@@ -328,7 +339,7 @@ export default function Today() {
                                   Save the changes
                                 </button>
                                 <button type="button" onClick={() => setDraft(null)}
-                                  className="min-h-11 rounded-lg border border-zinc-700 px-4 text-sm hover:bg-zinc-800">
+                                  className="min-h-11 rounded-lg border border-white/15 px-4 text-sm hover:bg-white/10">
                                   Cancel
                                 </button>
                               </>
@@ -341,7 +352,7 @@ export default function Today() {
                                 </button>
                                 <button type="button"
                                   onClick={() => setDraft({ subject: post.subject, body: post.body })}
-                                  className="min-h-11 rounded-lg border border-zinc-700 px-4 text-sm hover:bg-zinc-800">
+                                  className="min-h-11 rounded-lg border border-white/15 px-4 text-sm hover:bg-white/10">
                                   Change the words
                                 </button>
                                 <button type="button" disabled={busy === post.id}
@@ -354,7 +365,7 @@ export default function Today() {
                           {post.status === "approved" && (
                             <button type="button" disabled={busy === post.id}
                               onClick={() => void act(post.id, "unapprove")}
-                              className="min-h-11 rounded-lg border border-zinc-700 px-4 text-sm hover:bg-zinc-800 disabled:opacity-50">
+                              className="min-h-11 rounded-lg border border-white/15 px-4 text-sm hover:bg-white/10 disabled:opacity-50">
                               Put it back
                             </button>
                           )}
@@ -374,7 +385,7 @@ export default function Today() {
               ["Posted", byStatus.published ?? 0],
               ["Blocked", byStatus.rejected_by_gate ?? 0],
             ].map(([label, value]) => (
-              <div key={label as string} className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+              <div key={label as string} className="rounded-xl border border-white/8 bg-white/5 p-3">
                 <div className="text-[11px] uppercase tracking-wide text-zinc-500">{label}</div>
                 <div className="mt-1 text-xl font-semibold tabular-nums">{value}</div>
               </div>

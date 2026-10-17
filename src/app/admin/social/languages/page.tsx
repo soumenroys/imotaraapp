@@ -99,7 +99,7 @@ export default function Languages() {
           )}
 
           {/* 🔑 Said ONCE. The nineteen copies are gone, not the explanation. */}
-          <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+          <section className="space-y-3 rounded-xl border border-white/8 bg-white/5 p-5">
             <p className="text-sm text-zinc-300">
               A language can post <strong>on its own</strong> only when two separate things are true:
               somebody here can read it, <em>and</em> there is a word list to check it against.
@@ -127,10 +127,10 @@ export default function Languages() {
             </Explain>
           </section>
 
-          <section className="overflow-hidden rounded-xl border border-zinc-800">
+          <section className="overflow-hidden rounded-xl border border-white/8">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900/60 text-left text-[11px] uppercase tracking-wide text-zinc-500">
+                <tr className="border-b border-white/8 bg-white/8 text-left text-[11px] uppercase tracking-wide text-zinc-500">
                   <th scope="col" className="p-3 font-semibold">Language</th>
                   <th scope="col" className="p-3 font-semibold">Someone reads it</th>
                   <th scope="col" className="p-3 font-semibold">Word list</th>
@@ -140,7 +140,7 @@ export default function Languages() {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.code} className="border-b border-zinc-900 last:border-0">
+                  <tr key={r.code} className="border-b border-white/8 last:border-0">
                     <td className="p-3">
                       <span className="font-medium">{r.name}</span>
                     </td>
@@ -194,7 +194,7 @@ export default function Languages() {
                 value={terms}
                 onChange={(e) => setTerms(e.target.value)}
                 placeholder="One per line, or comma separated"
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 p-3 text-sm"
+                className="w-full rounded-lg border border-white/15 bg-black/30 p-3 text-sm"
               />
               <Explain q="What should be in this list?">
                 <p>
@@ -225,7 +225,7 @@ export default function Languages() {
                     setOpenFor("");
                     setTerms("");
                   }}
-                  className="min-h-11 rounded-lg border border-zinc-700 px-4 text-sm hover:bg-zinc-800"
+                  className="min-h-11 rounded-lg border border-white/15 px-4 text-sm hover:bg-white/10"
                 >
                   Cancel
                 </button>
@@ -233,7 +233,7 @@ export default function Languages() {
             </section>
           )}
 
-          <section className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/30 p-5">
+          <section className="space-y-2 rounded-xl border border-white/8 bg-white/5 p-5">
             <h2 className="text-sm font-semibold text-zinc-300">The brand name on pictures</h2>
             <p className="text-sm text-zinc-400">
               On a post in Bengali, Tamil, Urdu and nine other scripts, the picture shows{" "}

@@ -90,18 +90,6 @@ function Tag({ children, color = "zinc" }: { children: React.ReactNode; color?: 
   return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${c[color]}`}>{children}</span>;
 }
 
-function AdminSidebar({ active }: { active: string }) {
-  const items = [["📊","Dashboard"],["🏢","Organizations"],["👑","Super Admins"]];
-  return (
-    <div className="w-40 shrink-0 border-r border-white/8 bg-black/20 py-3">
-      {items.map(([icon, label]) => (
-        <div key={label} className={`flex items-center gap-2 px-3 py-2 text-[11px] ${active === label ? "bg-indigo-500/15 text-indigo-300 border-r-2 border-indigo-400 font-semibold" : "text-zinc-500"}`}>
-          <span>{icon}</span><span>{label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function OrgSidebar({ active }: { active: string }) {
   const items = [["📊","Overview"],["👥","Members"],["🔑","Licenses"],["🎫","Pool"],["🏫","Teams"],["📈","Analytics"],["📋","Audit log"],["⚙️","Settings"]];
@@ -1257,8 +1245,17 @@ function FaqSection() {
 // end-user help chat, and an answer describing a tool nobody outside this panel
 // can reach is worse than no answer.
 
-function SocialSection() {
-  const Step = ({ n, title, children }: { n: number; title: string; children: React.ReactNode }) => (
+/**
+ * A tighter numbered step than the timeline `Step` above.
+ *
+ * 🔴 THIS WAS DECLARED INSIDE SocialSection, where it shadowed that one. A
+ * component defined in a render body is a NEW component type on every render,
+ * so React throws the previous subtree away and remounts it each time — state
+ * inside it cannot survive, and the React Compiler rejects it outright. It
+ * only ever looked fine because nothing inside these steps holds state.
+ */
+function CompactStep({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
     <div className="flex gap-3">
       <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-indigo-500/20 text-[11px] font-semibold text-indigo-300">{n}</span>
       <div className="space-y-1">
@@ -1267,7 +1264,9 @@ function SocialSection() {
       </div>
     </div>
   );
+}
 
+function SocialSection() {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
@@ -1285,24 +1284,24 @@ function SocialSection() {
 
       <section className="space-y-4">
         <h3 className="text-sm font-semibold text-zinc-300">Setting up your first schedule</h3>
-        <Step n={1} title="Open Schedules → New schedule">
+        <CompactStep n={1} title="Open Schedules → New schedule">
           A schedule is what writes posts. Nothing is written until one exists.
-        </Step>
-        <Step n={2} title="Write the brief">
+        </CompactStep>
+        <CompactStep n={2} title="Write the brief">
           The standing instruction behind every post on that schedule. The subject is chosen fresh each
           time and checked against everything already posted, so it never repeats.
-        </Step>
-        <Step n={3} title="Choose channels, shape, languages, time and days">
+        </CompactStep>
+        <CompactStep n={3} title="Choose channels, shape, languages, time and days">
           Shape is text, a picture, both, a short video or an animated GIF. It writes in one language
           per post, rotating through the ones you pick.
-        </Step>
-        <Step n={4} title="Press “See what it would write” before saving">
+        </CompactStep>
+        <CompactStep n={4} title="Press “See what it would write” before saving">
           It writes a real sample from your brief. Nothing is saved, so you can try the brief three
           ways and tune the voice before committing.
-        </Step>
-        <Step n={5} title="Create it, then read the draft on Today">
+        </CompactStep>
+        <CompactStep n={5} title="Create it, then read the draft on Today">
           Drafts appear two hours before the time you set. Approve it, or change the words.
-        </Step>
+        </CompactStep>
       </section>
 
       <section className="space-y-3">

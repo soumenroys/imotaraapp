@@ -103,10 +103,14 @@ describe("the feature is reachable and usable at all", () => {
      * ⚠️ Neither is visible from a unit test, a type check or a build. Both
      * are the kind of gap only using the thing reveals.
      */
-    it("the admin tab bar links to social posting", () => {
-        const adminPage = read("src/app/admin/page.tsx");
-        expect(adminPage, "nothing in the admin nav points at /admin/social").toMatch(
-            /href="\/admin\/social"/,
+    it("the admin nav links to social posting", () => {
+        // \u26a0\ufe0f The nav moved out of admin/page.tsx into the shared panel
+        // furniture on 18 Oct, when Activity, Crisis and Social stopped being
+        // three odd chips hanging off the end of the tab bar. The question is
+        // unchanged: can somebody who does not know the URL get here?
+        const nav = read("src/app/admin/_components/ui.tsx");
+        expect(nav, "nothing in the admin nav points at /admin/social").toMatch(
+            /href: "\/admin\/social"/,
         );
     });
 
@@ -288,6 +292,8 @@ describe("every screen tells you what to do on it", () => {
     }
 
     it("every screen's steps exist and are real instructions", () => {
+        // \u26a0\ufe0f The panel moved to the shared admin components when the rest
+        // of the panel needed one too; social keeps only its steps.
         const src = read("src/app/admin/social/_components/PageTutorial.tsx");
         for (const [, key] of PAGES) {
             expect(src, `no steps defined for ${key}`).toMatch(new RegExp(`\\b${key}:\\s*\\{`));
@@ -313,7 +319,7 @@ describe("every screen tells you what to do on it", () => {
          * access. ⚠️ The failure mode must be "the tutorial shows again",
          * never a screen that does not render.
          */
-        const src = read("src/app/admin/social/_components/PageTutorial.tsx");
+        const src = read("src/app/admin/_components/PageTutorial.tsx");
         const reads = (src.match(/localStorage/g) ?? []).length;
         const catches = (src.match(/catch\s*\{/g) ?? []).length;
         expect(reads).toBeGreaterThan(0);

@@ -154,7 +154,7 @@ export default function ComposePost() {
           <>
           <PageTutorial id="compose" {...TUTORIALS.compose} />
 
-        <section className="space-y-5 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 mb-8">
+        <section className="space-y-5 rounded-xl border border-white/8 bg-white/5 p-5 mb-8">
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-2">
               <label htmlFor="lang" className="block text-xs font-semibold text-zinc-400">
@@ -164,7 +164,7 @@ export default function ComposePost() {
                 id="lang"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm"
+                className="min-h-11 w-full rounded-lg border border-white/15 bg-black/30 px-3 text-sm"
               >
                 <optgroup label="Read by someone here">
                   {languages
@@ -222,7 +222,7 @@ export default function ComposePost() {
                 <label
                   key={s.id}
                   className={`cursor-pointer rounded-lg border p-3 text-sm ${
-                    shape === s.id ? "border-indigo-600 bg-indigo-950/40" : "border-zinc-800 hover:bg-zinc-900"
+                    shape === s.id ? "border-indigo-600 bg-indigo-950/40" : "border-white/8 hover:bg-white/5"
                   }`}
                 >
                   <span className="flex items-center gap-2 font-medium">
@@ -254,7 +254,7 @@ export default function ComposePost() {
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="A short phrase, for the register and the headline"
-              className="min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm"
+              className="min-h-11 w-full rounded-lg border border-white/15 bg-black/30 px-3 text-sm"
             />
             <p className="text-[11px] text-zinc-500">
               Kept in the register, so no generated post will use it either.
@@ -270,7 +270,7 @@ export default function ComposePost() {
               rows={10}
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 p-3 text-sm leading-7"
+              className="w-full rounded-lg border border-white/15 bg-black/30 p-3 text-sm leading-7"
             />
             <div className="flex flex-wrap gap-4 font-mono text-[11px] text-zinc-500">
               <span>{counts.characters} characters</span>
@@ -288,11 +288,11 @@ export default function ComposePost() {
               id="support"
               value={support}
               onChange={(e) => setSupport(e.target.value)}
-              className="min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm"
+              className="min-h-11 w-full rounded-lg border border-white/15 bg-black/30 px-3 text-sm"
             />
           </div>
 
-          <fieldset className="space-y-2 border-t border-zinc-800 pt-4">
+          <fieldset className="space-y-2 border-t border-white/8 pt-4">
             <legend className="text-xs font-semibold text-zinc-400">When</legend>
             <label className="flex min-h-11 items-center gap-3 text-sm">
               <input
@@ -320,7 +320,7 @@ export default function ComposePost() {
             </p>
           </fieldset>
 
-          <div className="flex flex-wrap gap-2 border-t border-zinc-800 pt-4">
+          <div className="flex flex-wrap gap-2 border-t border-white/8 pt-4">
             <button
               type="button"
               onClick={() => void submit()}
@@ -361,7 +361,7 @@ export default function ComposePost() {
 
         {/* ⚠️ These five stay OPEN, unlike most explanations here: somebody is
             about to write, and this is the moment the rules are useful. */}
-        <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/30 p-5 text-sm">
+        <section className="space-y-3 rounded-xl border border-white/8 bg-white/5 p-5 text-sm">
           <h2 className="font-semibold text-zinc-300">How to write it</h2>
           <ul className="space-y-1.5 text-zinc-400">
             <li>Write to one person. “You”, never “users”.</li>

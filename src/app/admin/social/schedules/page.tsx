@@ -144,13 +144,13 @@ export default function Schedules() {
           )}
 
           {schedules.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-zinc-800 p-8 text-center text-sm text-zinc-500">
+            <p className="rounded-xl border border-dashed border-white/8 p-8 text-center text-sm text-zinc-500">
               No schedules yet. Press <strong>New schedule</strong> to make one.
             </p>
           ) : (
             <ul className="space-y-3">
               {schedules.map((s) => (
-                <li key={s.id} className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+                <li key={s.id} className="space-y-3 rounded-xl border border-white/8 bg-white/5 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -181,7 +181,7 @@ export default function Schedules() {
                         type="button"
                         onClick={() => void writeNow(s.id)}
                         disabled={busy === s.id}
-                        className="min-h-11 rounded-lg border border-zinc-700 px-3 text-sm hover:bg-zinc-800 disabled:opacity-50"
+                        className="min-h-11 rounded-lg border border-white/15 px-3 text-sm hover:bg-white/10 disabled:opacity-50"
                       >
                         {busy === s.id ? "Writing…" : "Write one now"}
                       </button>
@@ -189,7 +189,7 @@ export default function Schedules() {
                         type="button"
                         onClick={() => void setActive(s.id, !s.active)}
                         disabled={busy === s.id}
-                        className="min-h-11 rounded-lg border border-zinc-700 px-3 text-sm hover:bg-zinc-800 disabled:opacity-50"
+                        className="min-h-11 rounded-lg border border-white/15 px-3 text-sm hover:bg-white/10 disabled:opacity-50"
                       >
                         {s.active ? "Pause" : "Resume"}
                       </button>

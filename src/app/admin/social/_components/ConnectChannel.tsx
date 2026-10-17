@@ -56,7 +56,7 @@ export function ConnectChannel({
   const [error, setError] = useState("");
 
   const label = "block text-xs font-semibold text-zinc-400";
-  const field = "min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm";
+  const field = "min-h-11 w-full rounded-lg border border-white/15 bg-black/30 px-3 text-sm";
 
   async function submit() {
     setBusy(true);
@@ -145,7 +145,7 @@ export function ConnectChannel({
           Stored encrypted and never shown back — only its last four characters. ⛔ If you paste an
           email or a password here it will be refused, deliberately.
         </p>
-        <p className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 text-[11px] leading-relaxed text-zinc-400">
+        <p className="rounded-lg border border-white/8 bg-black/30 p-3 text-[11px] leading-relaxed text-zinc-400">
           <strong className="text-zinc-300">Where to get it:</strong> {HOW[platform]}
         </p>
       </div>
@@ -160,14 +160,14 @@ export function ConnectChannel({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-t border-zinc-800 pt-4">
+      <div className="flex flex-wrap gap-2 border-t border-white/8 pt-4">
         <button type="button" onClick={() => void submit()}
           disabled={busy || !storageReady.ok || !displayName.trim() || !externalId.trim() || accessToken.length < 20}
           className="min-h-11 rounded-lg bg-indigo-600 px-5 text-sm font-semibold hover:bg-indigo-500 disabled:opacity-40">
           {busy ? "Storing…" : "Connect it"}
         </button>
         <button type="button" onClick={onCancel}
-          className="min-h-11 rounded-lg border border-zinc-700 px-4 text-sm hover:bg-zinc-800">
+          className="min-h-11 rounded-lg border border-white/15 px-4 text-sm hover:bg-white/10">
           Cancel
         </button>
       </div>

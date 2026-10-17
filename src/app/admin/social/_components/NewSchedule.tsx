@@ -161,7 +161,7 @@ export function NewSchedule({
   }
 
   const label = "block text-xs font-semibold text-zinc-400";
-  const field = "min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm";
+  const field = "min-h-11 w-full rounded-lg border border-white/15 bg-black/30 px-3 text-sm";
 
   return (
     <section className="space-y-5 rounded-xl border border-indigo-900/60 bg-indigo-950/10 p-5">
@@ -188,7 +188,7 @@ export function NewSchedule({
       <div className="space-y-2">
         <label htmlFor="ns-brief" className={label}>The brief</label>
         <textarea id="ns-brief" rows={3} value={brief} onChange={(e) => setBrief(e.target.value)}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-950 p-3 text-sm leading-relaxed" />
+          className="w-full rounded-lg border border-white/15 bg-black/30 p-3 text-sm leading-relaxed" />
         <p className="text-[11px] text-zinc-500">
           The standing instruction behind every post on this schedule. The voice rules are fixed and
           not editable here.
@@ -201,7 +201,7 @@ export function NewSchedule({
           {PLATFORMS.map((p) => (
             <label key={p.id} title={p.blockedBy}
               className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${
-                platforms.includes(p.id) ? "border-indigo-600 bg-indigo-950/40" : "border-zinc-800"}`}>
+                platforms.includes(p.id) ? "border-indigo-600 bg-indigo-950/40" : "border-white/8"}`}>
               <input type="checkbox" checked={platforms.includes(p.id)} className="h-4 w-4 accent-indigo-500"
                 onChange={() => toggle(platforms, p.id, setPlatforms)} />
               {p.label}
@@ -226,7 +226,7 @@ export function NewSchedule({
         <div className="flex flex-wrap gap-2">
           {SHAPES.map((s) => (
             <label key={s.id} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${
-              contentType === s.id ? "border-indigo-600 bg-indigo-950/40" : "border-zinc-800"}`}>
+              contentType === s.id ? "border-indigo-600 bg-indigo-950/40" : "border-white/8"}`}>
               <input type="radio" name="ns-shape" checked={contentType === s.id} className="h-4 w-4 accent-indigo-500"
                 onChange={() => setContentType(s.id)} />
               {s.label}
@@ -252,7 +252,7 @@ export function NewSchedule({
             <label key={l.code} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${
               langs.includes(l.code)
                 ? l.mayPostUnattended ? "border-emerald-800 bg-emerald-950/30" : "border-amber-800 bg-amber-950/20"
-                : "border-zinc-800 text-zinc-400"}`}>
+                : "border-white/8 text-zinc-400"}`}>
               <input type="checkbox" checked={langs.includes(l.code)} className="h-4 w-4 accent-indigo-500"
                 onChange={() => toggle(langs, l.code, setLangs)} />
               {l.name}
@@ -297,7 +297,7 @@ export function NewSchedule({
         <div className="flex flex-wrap gap-2">
           {DAYS.map((d, i) => (
             <label key={d} className={`flex min-h-11 w-14 cursor-pointer items-center justify-center rounded-lg border text-sm ${
-              days.includes(i) ? "border-indigo-600 bg-indigo-950/40" : "border-zinc-800 text-zinc-400"}`}>
+              days.includes(i) ? "border-indigo-600 bg-indigo-950/40" : "border-white/8 text-zinc-400"}`}>
               <input type="checkbox" checked={days.includes(i)} className="sr-only"
                 onChange={() => toggle(days, i, setDays)} />
               {d}
@@ -311,7 +311,7 @@ export function NewSchedule({
         <div className="flex flex-wrap gap-2">
           {POOLS.map((p) => (
             <label key={p.id} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-3 text-xs ${
-              topicPool.includes(p.id) ? "border-indigo-600 bg-indigo-950/40" : "border-zinc-800 text-zinc-400"}`}>
+              topicPool.includes(p.id) ? "border-indigo-600 bg-indigo-950/40" : "border-white/8 text-zinc-400"}`}>
               <input type="checkbox" checked={topicPool.includes(p.id)} className="h-3.5 w-3.5 accent-indigo-500"
                 onChange={() => toggle(topicPool, p.id, setTopicPool)} />
               {p.label}
@@ -320,7 +320,7 @@ export function NewSchedule({
         </div>
       </fieldset>
 
-      <div className="space-y-2 border-t border-zinc-800 pt-4">
+      <div className="space-y-2 border-t border-white/8 pt-4">
         <label className={`flex items-start gap-3 ${isOwner ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
           <input type="checkbox" checked={autoPublish} disabled={!isOwner} className="mt-1 h-4 w-4 accent-indigo-500"
             onChange={(e) => setAutoPublish(e.target.checked)} />
@@ -338,7 +338,7 @@ export function NewSchedule({
       </div>
 
       {preview && (
-        <section className="space-y-3 rounded-xl border border-zinc-700 bg-zinc-950/60 p-4">
+        <section className="space-y-3 rounded-xl border border-white/15 bg-black/30 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-semibold">What it would write</h3>
             <span className="font-mono text-[11px] text-zinc-500">
@@ -359,12 +359,12 @@ export function NewSchedule({
         </section>
       )}
 
-      <div className="flex flex-wrap gap-2 border-t border-zinc-800 pt-4">
+      <div className="flex flex-wrap gap-2 border-t border-white/8 pt-4">
         <button
           type="button"
           onClick={() => void runPreview()}
           disabled={previewing || brief.trim().length < 20 || langs.length === 0 || platforms.length === 0}
-          className="min-h-11 rounded-lg border border-zinc-700 px-4 text-sm hover:bg-zinc-800 disabled:opacity-40"
+          className="min-h-11 rounded-lg border border-white/15 px-4 text-sm hover:bg-white/10 disabled:opacity-40"
         >
           {previewing ? "Writing a sample…" : "See what it would write"}
         </button>
@@ -374,7 +374,7 @@ export function NewSchedule({
           {busy ? "Saving…" : "Create it"}
         </button>
         <button type="button" onClick={onCancel}
-          className="min-h-11 rounded-lg border border-zinc-700 px-4 text-sm hover:bg-zinc-800">
+          className="min-h-11 rounded-lg border border-white/15 px-4 text-sm hover:bg-white/10">
           Cancel
         </button>
       </div>

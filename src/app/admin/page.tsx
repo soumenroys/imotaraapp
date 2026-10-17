@@ -89,6 +89,10 @@ interface DetailResponse {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { AdminShell, SignOutButton, Tile, type NavKey } from "@/app/admin/_components/ui";
+import { PageTutorial } from "@/app/admin/_components/PageTutorial";
+import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
+
 const SESSION_KEY = "imotara_admin_token";
 
 // adminFetchOpts now lives in @/lib/imotara/adminFetch so components in
@@ -277,8 +281,28 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
 
             Break-glass is therefore no longer "flip a flag": it is git revert +
             mint a NEW secret + redeploy, which is a deliberate reviewable act.
-            Email + password with 2FA is the way in, and there are two active
-            owner accounts with working e-mail reset. */}
+            The way in is email + password, and there are two active owner
+            accounts with working e-mail reset.
+
+            🔴 THIS COMMENT USED TO SAY "email + password WITH 2FA" AND THAT IS
+            NOT WHAT HAPPENS. Enrolment is real and complete: Super Admins has
+            a working setup / verify / disable flow with backup codes, and
+            /api/admin/auth/2fa/verify even carries a login-challenge branch
+            keyed on a loginToken.
+
+            ⛔ THE LOGIN ROUTE HAS NO 2FA STEP AT ALL. It checks the password,
+            the lockout and the attempt log, and signs you in — it never reads
+            whether 2FA is enabled and never mints the loginToken that verify's
+            challenge branch waits for. So an admin can scan the QR code, store
+            their backup codes, see "2FA enabled", and still be signed in by
+            email and password alone. Half a control that announces itself is
+            worse than none, because it is believed.
+
+            ⚠️ NOT WIRED UP HERE. Enforcement is a change to the only way into
+            this panel; getting it wrong locks every admin out at once, and it
+            wants somebody watching the first sign-in afterwards. It is written
+            down instead — here, and on the Admins screen where somebody is
+            about to trust it. */}
 
         {/* Password reset flow — shown when ?reset_token= is in URL */}
         {resetToken && (
@@ -313,7 +337,13 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
             <button type="button" onClick={() => { setShowForgot(true); setForgotEmail(email); }} className="w-full text-center text-[11px] text-zinc-500 hover:text-indigo-400 transition">
               Forgot password?
             </button>
-            <p className="text-center text-[11px] text-zinc-600">First time? Run <code className="text-zinc-400">POST /api/admin/auth/seed</code> to create owner account.</p>
+            {/* ⚠️ "First time? Run POST /api/admin/auth/seed" used to sit here,
+                shown to every visitor on every load. That endpoint refuses with
+                409 the moment super_admins has a single row, and it has had two
+                owner accounts for months — so the instruction could not succeed,
+                and all it did was name an auth endpoint to whoever opened the
+                page. The real answer for somebody who cannot get in is the
+                reset flow, which is already offered above. */}
             <p className="text-center text-[11px] text-zinc-600">
               This is Imotara&apos;s own internal panel — not for org accounts.
               Org member or admin? <Link href="/login" className="text-indigo-400 hover:text-indigo-300 underline">Sign in here instead</Link>.
@@ -374,6 +404,10 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
               { href: "/admin/guide?s=policy",    icon: "🏷️", label: "Licensing Policy",  desc: "Tiers, pricing, priority chain, payment gateways" },
               { href: "/admin/guide?s=superadmin", icon: "👑", label: "Super-Admin Guide", desc: "Login, create orgs, issue pools, manage admins" },
               { href: "/admin/guide?s=orgadmin",   icon: "🏢", label: "Org Admin Guide",   desc: "Invite members, assign licenses, analytics" },
+              // ⚠️ Added when the social guide was: the guide grew a fifth
+              // section and this list kept four, so the one screen nobody
+              // knows how to use was the one with no card pointing at it.
+              { href: "/admin/guide?s=social",     icon: "📅", label: "Social Posting",    desc: "Schedules, the word check, pictures and video" },
               { href: "/admin/guide?s=faq",        icon: "❓", label: "FAQ",               desc: "Activate pending orgs, fix tier issues & more" },
             ].map(({ href, icon, label, desc }) => (
               <a key={href} href={href} target="_blank" rel="noopener noreferrer"
@@ -1664,8 +1698,6 @@ function OrganizationsSection({ token, myRole }: { token: string; myRole: string
     status: "pending", seats_purchased: "10", expires_at: "", notes: "", owner_email: "",
   });
 
-  const authHeader = { Authorization: `Bearer ${token}` };
-
   const fetchOrgs = useCallback(async (q: string, s: string) => {
     setLoading(true); setError("");
     try {
@@ -1677,7 +1709,6 @@ function OrganizationsSection({ token, myRole }: { token: string; myRole: string
       setOrgs((await res.json()).orgs ?? []);
     } catch { setError("Network error."); }
     finally { setLoading(false); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   useEffect(() => { void fetchOrgs(search, statusFilter); }, [fetchOrgs, search, statusFilter]);
@@ -2315,8 +2346,8 @@ function SuperAdminsSection({ token }: { token: string }) {
             <p className="text-sm font-medium text-zinc-300">Two-factor authentication (2FA)</p>
             <p className="text-[11px] text-zinc-500 mt-0.5">
               {myAdmin?.totp_enabled
-                ? "✓ 2FA is enabled on your account."
-                : "2FA is not enabled. Enable it for extra security."}
+                ? "Set up on your account — a code is stored and backup codes were issued."
+                : "Not set up on your account."}
             </p>
           </div>
           <button onClick={() => { setShow2FA((v) => !v); setTwoFAMsg(""); setTwoFAErr(""); }}
@@ -2324,6 +2355,21 @@ function SuperAdminsSection({ token }: { token: string }) {
             {show2FA ? "Hide" : "Manage"}
           </button>
         </div>
+
+        {/* 🔴 SAID OUT LOUD, WHERE SOMEBODY IS ABOUT TO TRUST IT. The enrolment
+            flow below is complete and works: it stores a secret, verifies a
+            code and issues backup codes. The LOGIN ROUTE NEVER ASKS FOR ANY OF
+            IT — it checks the password and signs you in. The status line above
+            used to read "✓ 2FA is enabled on your account", which is a claim
+            about how sign-in behaves, and it was not true.
+
+            ⛔ Half a security control that announces itself is worse than none,
+            because somebody picks a weaker password on the strength of it. */}
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-amber-200">
+          ⚠️ <strong>Enrolling here does not yet protect sign-in.</strong> The codes are stored and the
+          setup works, but the login screen does not ask for a code — email and password alone still
+          get in. Treat your password as the only thing guarding this panel until that is finished.
+        </p>
 
         {show2FA && (
           <div className="space-y-4">
@@ -2435,19 +2481,17 @@ function StatsSection({ token }: { token: string }) {
   return (
     <div className="space-y-6">
 
-      {/* Top stat cards */}
+      {/* \u26a0\ufe0f Each tile goes where its number can be acted on. Three of the four
+          are about organisations; the fourth is about people, which lives on
+          Activity. A tile that leads nowhere would stay a plain div. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: "Total orgs",       value: stats.orgs.total,           sub: `${stats.orgs.active} active`,       color: "text-indigo-300" },
-          { label: "Total members",    value: stats.members.total,         sub: `${stats.members.admins} admins`,    color: "text-sky-300"    },
-          { label: "Pool licenses",    value: stats.pools.totalIssued,     sub: `${stats.pools.totalAvailable} free`, color: "text-emerald-300"},
-          { label: "Assigned licenses",value: stats.pools.totalAssigned,   sub: `${stats.pools.activePools} pools`,  color: "text-amber-300"  },
-        ].map((s) => (
-          <div key={s.label} className="rounded-2xl border border-white/8 bg-white/4 px-4 py-3 text-center">
-            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-[11px] text-zinc-400">{s.label}</p>
-            <p className="text-[10px] text-zinc-600">{s.sub}</p>
-          </div>
+        {([
+          { label: "Total orgs",        value: stats.orgs.total,         sub: `${stats.orgs.active} active`,        tone: "indigo"  as const, href: "/admin?section=organizations", goesTo: "Open organisations" },
+          { label: "Total members",     value: stats.members.total,      sub: `${stats.members.admins} admins`,     tone: "sky"     as const, href: "/admin?section=organizations", goesTo: "See who they are" },
+          { label: "Pool licenses",     value: stats.pools.totalIssued,  sub: `${stats.pools.totalAvailable} free`, tone: "emerald" as const, href: "/admin?section=licenses",      goesTo: "Open licences" },
+          { label: "Assigned licenses", value: stats.pools.totalAssigned,sub: `${stats.pools.activePools} pools`,   tone: "amber"   as const, href: "/admin?section=licenses",      goesTo: "Open licences" },
+        ]).map((t) => (
+          <Tile key={t.label} label={t.label} value={t.value} sub={t.sub} tone={t.tone} href={t.href} goesTo={t.goesTo} />
         ))}
       </div>
 
@@ -3309,6 +3353,27 @@ function ConnectSection({ token }: { token: string }) {
 
 type Section = "comments" | "licenses" | "organizations" | "superadmins" | "stats" | "connect" | "broadcast";
 
+/**
+ * ⚠️ The heading for each one, as a lookup rather than the six-deep nested
+ * ternary this used to be inline in the header. A section added without a
+ * title is a compile error instead of the word "Dashboard".
+ */
+const SECTION_TITLES: Record<Section, string> = {
+  comments:      "Blog Comments",
+  licenses:      "License Management",
+  organizations: "Organisations",
+  connect:       "Connect",
+  superadmins:   "Super Admins",
+  broadcast:     "Broadcast",
+  stats:         "Dashboard",
+};
+
+const SECTION_KEYS = Object.keys(SECTION_TITLES) as Section[];
+
+function isSection(v: string | null): v is Section {
+  return v !== null && (SECTION_KEYS as string[]).includes(v);
+}
+
 export default function AdminPage() {
   const [token, setToken]     = useState<string | null>(null);
   const [myRole, setMyRole]   = useState<string | null>(null);
@@ -3324,21 +3389,31 @@ export default function AdminPage() {
     if (saved) setToken(saved);
   }, []);
 
-  // The admin panel is a separate internal tool built dark-only — it was
-  // never designed to work with the consumer app's data-theme="light"
-  // toggle, which force-overrides zinc/white-opacity utility classes with
-  // !important (see globals.css). If a browser carries that attribute over
-  // from the consumer app (same-origin, same <html>), text and backgrounds
-  // here collide into unreadable dark-on-dark. Force it off for as long as
-  // /admin is mounted, restore whatever it was on unmount.
+  /**
+   * 🔑 THE SECTION IS IN THE URL, which is what makes the rest of the panel
+   * able to point at it. Activity, Crisis and Social are their own pages, so
+   * their nav has to LINK back to a section of this one rather than set state
+   * in it — and a tile saying "12 organisations" has somewhere to send you.
+   *
+   * ⚠️ replaceState, not push: switching tabs is not navigation, and filling
+   * somebody's Back button with seven tab changes makes Back useless for
+   * leaving the panel.
+   */
   useEffect(() => {
-    const html = document.documentElement;
-    const prevTheme = html.getAttribute("data-theme");
-    html.removeAttribute("data-theme");
-    return () => {
-      if (prevTheme) html.setAttribute("data-theme", prevTheme);
-    };
+    const wanted = new URLSearchParams(window.location.search).get("section");
+    if (isSection(wanted)) setSection(wanted);
   }, []);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("section") === section) return;
+    url.searchParams.set("section", section);
+    window.history.replaceState(null, "", url);
+  }, [section]);
+
+  // ⚠️ The data-theme / data-fontsize override that used to sit here has moved
+  // to src/app/admin/layout.tsx, which applies it to EVERY admin route. Three
+  // pages had their own copy and five social screens had none.
 
   // Fetch logged-in admin's role and restrict view for connect_reviewer
   useEffect(() => {
@@ -3391,107 +3466,39 @@ export default function AdminPage() {
     { key: "all",      label: "All",             count: counts.all      },
   ];
 
+  const signOut = async () => {
+    if (token?.startsWith("session:")) {
+      await fetch("/api/admin/auth/logout", { method: "DELETE", credentials: "same-origin" }).catch(() => {});
+    }
+    sessionStorage.removeItem(SESSION_KEY);
+    setToken(null);
+  };
+
   return (
-    <main className="mx-auto w-full max-w-4xl px-3 py-6 sm:px-6 sm:py-10">
-      {/* Header — stacks on mobile */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Image src="/android-chrome-192.png" width={32} height={32} alt="Imotara" className="rounded-xl" />
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">Imotara · Admin</p>
-            <h1 className="text-lg font-semibold text-zinc-100">
-              {section === "comments" ? "Blog Comments" : section === "licenses" ? "License Management" : section === "organizations" ? "Organizations" : section === "superadmins" ? "Super Admins" : section === "connect" ? "Connect" : section === "broadcast" ? "Broadcast" : "Dashboard"}
-            </h1>
-          </div>
-        </div>
-        <button
-          onClick={async () => {
-            if (token?.startsWith("session:")) {
-              await fetch("/api/admin/auth/logout", { method: "DELETE", credentials: "same-origin" }).catch(() => {});
-            }
-            sessionStorage.removeItem(SESSION_KEY);
-            setToken(null);
-          }}
-          className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-500 transition hover:text-zinc-300">
-          Sign out
-        </button>
-      </div>
-
-      {/* Tab bar — scrollable on mobile so all tabs fit */}
-      <div className="mb-6 flex items-center gap-2 overflow-x-auto">
-        <div className="flex min-w-max gap-1 rounded-xl border border-white/8 bg-white/5 p-1">
-          {([
-            ["comments",      "💬", "Comments"],
-            ["licenses",      "🔑", "Licenses"],
-            ["organizations", "🏢", "Orgs"],
-            ["connect",       "🤝", "Connect"],
-            ["superadmins",   "👑", "Admins"],
-            ["broadcast",     "📣", "Broadcast"],
-            ["stats",         "📊", "Dashboard"],
-          ] as const)
-            // Two independent rules, written out rather than bolted together:
-            // broadcast is owner-only, and connect_reviewer sees only its two
-            // tabs. Hiding a tab is convenience — every route behind it
-            // enforces the same rule server-side.
-            .filter(([key]) => {
-              if (key === "broadcast") return myRole === "owner";
-              if (myRole === "connect_reviewer") return key === "connect" || key === "comments";
-              return true;
-            })
-            .map(([key, icon, label]) => (
-            <button key={key} onClick={() => setSection(key)}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs whitespace-nowrap transition ${
-                section === key ? "bg-white/10 font-semibold text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
-              }`}>
-              <span>{icon}</span>
-              <span className="hidden sm:inline">{label}</span>
-            </button>
-          ))}
-        </div>
-
-        {myRole !== "connect_reviewer" && (
-          <a href="/admin/analytics"
-            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-2.5 text-xs whitespace-nowrap text-indigo-300 transition hover:border-indigo-400/40 hover:bg-indigo-500/15">
-            <span>📈</span>
-            <span className="hidden sm:inline">Activity</span>
-          </a>
-        )}
-
-        {myRole !== "connect_reviewer" && (
-          <a href="/admin/crisis-events"
-            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-500/10 px-3 py-2.5 text-xs whitespace-nowrap text-rose-300 transition hover:border-rose-400/40 hover:bg-rose-500/15">
-            <span>🆘</span>
-            <span className="hidden sm:inline">Crisis Events</span>
-          </a>
-        )}
-
-        {/* ⚠️ Added 18 Oct because the feature shipped UNREACHABLE: the routes
-            and the screens were live and nothing in this bar pointed at them,
-            so the only way in was typing the URL. A tab nobody can find is a
-            feature nobody has. ⛔ connect_reviewer is excluded here as it is
-            everywhere else, and the routes behind it check again. */}
-        {myRole !== "connect_reviewer" && (
-          <a href="/admin/social"
-            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-sky-400/20 bg-sky-500/10 px-3 py-2.5 text-xs whitespace-nowrap text-sky-300 transition hover:border-sky-400/40 hover:bg-sky-500/15">
-            <span>📅</span>
-            <span className="hidden sm:inline">Social</span>
-          </a>
-        )}
-      </div>
+    <AdminShell
+      title={SECTION_TITLES[section]}
+      current={section}
+      role={myRole}
+      onSelect={(key: NavKey) => setSection(key as Section)}
+      actions={<SignOutButton onSignOut={() => void signOut()} />}
+    >
+      <PageTutorial id={`admin-${section}`} {...ADMIN_TUTORIALS[section]} />
 
       {/* Comments section */}
       {section === "comments" && (
         <>
+          {/* \u26a0\ufe0f Each tile now SELECTS the list it counts. They were three plain
+              divs: the reader was told "7 pending" and then had to find the
+              tab that showed them. */}
           <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3">
-            {[
-              { label: "Pending",  value: counts.pending,  color: "text-amber-400"   },
-              { label: "Approved", value: counts.approved, color: "text-emerald-400" },
-              { label: "Total",    value: counts.all,      color: "text-indigo-400"  },
-            ].map((s) => (
-              <div key={s.label} className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-center backdrop-blur-md">
-                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                <p className="mt-0.5 text-[10px] uppercase tracking-[0.15em] text-zinc-600">{s.label}</p>
-              </div>
+            {([
+              { key: "pending"  as CommentTab, label: "Pending",  value: counts.pending,  tone: "amber"   as const },
+              { key: "approved" as CommentTab, label: "Approved", value: counts.approved, tone: "emerald" as const },
+              { key: "all"      as CommentTab, label: "Total",    value: counts.all,      tone: "indigo"  as const },
+            ]).map((t) => (
+              <Tile key={t.label} label={t.label} value={t.value} tone={t.tone}
+                goesTo={tab === t.key ? undefined : "Show these"}
+                onClick={() => setTab(t.key)} />
             ))}
           </div>
 
@@ -3549,6 +3556,6 @@ export default function AdminPage() {
       {section === "superadmins"   && <SuperAdminsSection   token={token} />}
       {section === "broadcast"     && <BroadcastSection     token={token} />}
       {section === "stats"         && <StatsSection         token={token} />}
-    </main>
+    </AdminShell>
   );
 }

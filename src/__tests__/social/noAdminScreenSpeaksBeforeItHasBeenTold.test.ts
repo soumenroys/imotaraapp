@@ -88,3 +88,49 @@ describe("every social admin screen knows whether it has a session", () => {
         expect(panel).toMatch(/nothing true to say/i);
     });
 });
+
+describe("the feature is reachable and usable at all", () => {
+    /**
+     * 🔴 BOTH OF THESE SHIPPED BROKEN AND BOTH WERE FOUND BY OPENING THE PAGE.
+     *
+     *   • Nothing in the admin tab bar pointed at /admin/social, so the only
+     *     way in was typing the URL. A screen nobody can find is a feature
+     *     nobody has.
+     *   • The overview said "No schedules yet" next to NO BUTTON. The POST
+     *     route existed, the cron existed, the queue existed — and there was
+     *     no way to create the one thing all of them operate on.
+     *
+     * ⚠️ Neither is visible from a unit test, a type check or a build. Both
+     * are the kind of gap only using the thing reveals.
+     */
+    it("the admin tab bar links to social posting", () => {
+        const adminPage = read("src/app/admin/page.tsx");
+        expect(adminPage, "nothing in the admin nav points at /admin/social").toMatch(
+            /href="\/admin\/social"/,
+        );
+    });
+
+    it("a schedule can be created from the overview", () => {
+        const overview = read("src/app/admin/social/page.tsx");
+        expect(overview, "no way to create a schedule").toMatch(/<NewSchedule/);
+        expect(overview).toMatch(/New schedule/);
+    });
+
+    it("the schedule form asks for everything the database will not default", () => {
+        // ⛔ Each of these is a field the schema refuses to guess: no language,
+        // no platform and no day are all rejected by a constraint, and the
+        // brief is what every post on the schedule is written from.
+        const form = read("src/app/admin/social/_components/NewSchedule.tsx");
+        for (const needed of ["languages", "platforms", "days", "brief", "postAt", "contentType"]) {
+            expect(form, `the form never sends ${needed}`).toContain(needed);
+        }
+    });
+
+    it("auto-publish is disabled in the form for a non-owner", () => {
+        const form = read("src/app/admin/social/_components/NewSchedule.tsx");
+        expect(form).toMatch(/disabled=\{!isOwner\}/);
+        // ⚠️ And the route checks again — the disabled input is only a hint.
+        const route = read("src/app/api/admin/social/schedules/route.ts");
+        expect(route).toMatch(/requireSocialOwner/);
+    });
+});

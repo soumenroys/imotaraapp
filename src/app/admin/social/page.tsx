@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
+import { NewSchedule } from "@/app/admin/social/_components/NewSchedule";
 
 type Finding = { list: string; rule: string; matched: string; because: string };
 type GateResult = {
@@ -93,6 +94,8 @@ export default function SocialAdmin() {
   /** null = not yet known. ⛔ Never assumed true: that is what made the page
    *  render its defaults as though they were data. */
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [languages, setLanguages] = useState<{ code: string; name: string; reviewed: boolean; mayPostUnattended: boolean; reason: string | null }[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
@@ -103,9 +106,10 @@ export default function SocialAdmin() {
     setLoading(true);
     setError("");
     try {
-      const [p, s] = await Promise.all([
+      const [p, s, l] = await Promise.all([
         fetch(`/api/admin/social/posts?view=${view}`, { credentials: "same-origin" }),
         fetch("/api/admin/social/schedules", { credentials: "same-origin" }),
+        fetch("/api/admin/social/languages", { credentials: "same-origin" }),
       ]);
       if (p.status === 401 || s.status === 401) {
         setAuthed(false);
@@ -127,6 +131,7 @@ export default function SocialAdmin() {
       setScheduleNames(pj.scheduleNames ?? {});
       setRole(pj.actorRole ?? "");
       setSchedules(sj.schedules ?? []);
+      setLanguages((await l.json()).languages ?? []);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -206,6 +211,13 @@ export default function SocialAdmin() {
             >
               Channels
             </a>
+            <button
+              type="button"
+              onClick={() => setCreating((c) => !c)}
+              className="flex min-h-11 items-center rounded-lg border border-zinc-700 px-4 text-sm hover:bg-zinc-900"
+            >
+              {creating ? "Close" : "New schedule"}
+            </button>
             <a
               href="/admin/social/compose"
               className="flex min-h-11 items-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold hover:bg-indigo-500"
@@ -267,12 +279,27 @@ export default function SocialAdmin() {
           ))}
         </section>
 
+        {creating && (
+          <div className="mb-8">
+            <NewSchedule
+              languages={languages}
+              isOwner={role === "owner"}
+              onCancel={() => setCreating(false)}
+              onCreated={() => {
+                setCreating(false);
+                setMessage("Schedule created. Press “Write one now” to see what it writes.");
+                void load();
+              }}
+            />
+          </div>
+        )}
+
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-zinc-300">Schedules</h2>
           {schedules.length === 0 ? (
             <p className="rounded-xl border border-dashed border-zinc-800 p-6 text-sm text-zinc-500">
               No schedules yet. One schedule decides when something is written, for which channel, in
-              what shape, and in which languages.
+              what shape, and in which languages. Press <strong>New schedule</strong> above.
             </p>
           ) : (
             <ul className="divide-y divide-zinc-800 overflow-hidden rounded-xl border border-zinc-800">

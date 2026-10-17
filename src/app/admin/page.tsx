@@ -3464,6 +3464,19 @@ export default function AdminPage() {
             <span className="hidden sm:inline">Crisis Events</span>
           </a>
         )}
+
+        {/* ⚠️ Added 18 Oct because the feature shipped UNREACHABLE: the routes
+            and the screens were live and nothing in this bar pointed at them,
+            so the only way in was typing the URL. A tab nobody can find is a
+            feature nobody has. ⛔ connect_reviewer is excluded here as it is
+            everywhere else, and the routes behind it check again. */}
+        {myRole !== "connect_reviewer" && (
+          <a href="/admin/social"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-sky-400/20 bg-sky-500/10 px-3 py-2.5 text-xs whitespace-nowrap text-sky-300 transition hover:border-sky-400/40 hover:bg-sky-500/15">
+            <span>📅</span>
+            <span className="hidden sm:inline">Social</span>
+          </a>
+        )}
       </div>
 
       {/* Comments section */}

@@ -1,0 +1,355 @@
+"use client";
+
+// /admin/social/compose — write a post yourself.
+//
+// 🔑 THE OCCASIONS THAT MATTER ARE NEVER GENERATED. A launch, a thank-you, an
+// apology, a response to something in the news — those need a person, and
+// before this screen there was nowhere to write them.
+//
+// ⛔ AND IT IS NOT A BYPASS. The same gate runs on these words as on a
+// generated draft. Eight claims this product must never make were found in copy
+// written by people who knew the rules, so this is the path it matters most on.
+
+import { useEffect, useMemo, useState } from "react";
+
+type LanguageRow = {
+  code: string;
+  name: string;
+  reviewed: boolean;
+  abuse_list_ready: boolean;
+  mayPostUnattended: boolean;
+  reason: string | null;
+};
+
+type Result = { platform: string; postId?: string; error?: string; notes?: string[] };
+
+const PLATFORMS = [
+  { id: "facebook", label: "Facebook Page" },
+  { id: "linkedin", label: "LinkedIn Page" },
+];
+
+const SHAPES = [
+  { id: "text", label: "Text", hint: "Words only." },
+  { id: "text_graphic", label: "Text + graphic", hint: "A caption and a composed card." },
+  { id: "graphic", label: "Graphic", hint: "The card carries it." },
+] as const;
+
+/** Mirrors `checkHouseStyle` closely enough to be useful while typing.
+ *  ⚠️ The real check runs on the server; this is a hint, not the verdict. */
+function localCounts(text: string) {
+  return {
+    characters: [...text].length,
+    emoji: (text.match(/\p{Extended_Pictographic}/gu) ?? []).length,
+    hashtags: (text.match(/(^|\s)#[\p{L}\p{N}_]+/gu) ?? []).length,
+    links: (text.match(/https?:\/\/\S+/g) ?? []).length,
+  };
+}
+
+export default function ComposePost() {
+  const [languages, setLanguages] = useState<LanguageRow[]>([]);
+  const [language, setLanguage] = useState("en");
+  const [platforms, setPlatforms] = useState<string[]>(["facebook"]);
+  const [shape, setShape] = useState<string>("text_graphic");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [support, setSupport] = useState("");
+  const [when, setWhen] = useState<"queue" | "now">("queue");
+  const [busy, setBusy] = useState(false);
+  const [results, setResults] = useState<Result[]>([]);
+  const [error, setError] = useState("");
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    void (async () => {
+      const res = await fetch("/api/admin/social/languages", { credentials: "same-origin" });
+      if (res.status === 401) {
+        setError("Not signed in. Log in at /admin first.");
+        return;
+      }
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "Could not load the languages.");
+        return;
+      }
+      setLanguages(json.languages ?? []);
+    })();
+  }, []);
+
+  const counts = useMemo(() => localCounts(body), [body]);
+  const chosen = languages.find((l) => l.code === language);
+
+  async function submit() {
+    setBusy(true);
+    setError("");
+    setNote("");
+    setResults([]);
+    try {
+      const res = await fetch("/api/admin/social/compose", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ platforms, language, subject, body, support, contentType: shape, when }),
+      });
+      const json = await res.json();
+      setResults(json.results ?? []);
+      if (!res.ok) setError(json.error ?? json.note ?? "Nothing was saved.");
+      else setNote(json.note ?? "Saved.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100 md:p-10">
+      <div className="mx-auto max-w-3xl space-y-8">
+        <header className="space-y-2">
+          <a href="/admin/social" className="text-xs text-zinc-500 hover:text-zinc-300">
+            ← Social posting
+          </a>
+          <h1 className="text-2xl font-semibold tracking-tight">Write a post</h1>
+          <p className="text-sm text-zinc-400">
+            Your words, the same checks. All 22 languages are open here — writing by hand means a
+            person is already reading it.
+          </p>
+        </header>
+
+        {error && (
+          <div className="rounded-xl border border-rose-900 bg-rose-950/30 p-4 text-sm text-rose-200">{error}</div>
+        )}
+        {note && (
+          <div className="rounded-xl border border-emerald-900 bg-emerald-950/30 p-4 text-sm text-emerald-200">
+            {note}{" "}
+            <a href="/admin/social" className="underline">
+              Back to the queue
+            </a>
+          </div>
+        )}
+
+        <section className="space-y-5 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="lang" className="block text-xs font-semibold text-zinc-400">
+                Language
+              </label>
+              <select
+                id="lang"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm"
+              >
+                <optgroup label="Read by someone here">
+                  {languages
+                    .filter((l) => l.reviewed)
+                    .map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.name}
+                      </option>
+                    ))}
+                </optgroup>
+                <optgroup label="Not yet read by anyone here">
+                  {languages
+                    .filter((l) => !l.reviewed)
+                    .map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.name}
+                      </option>
+                    ))}
+                </optgroup>
+              </select>
+              {chosen && !chosen.mayPostUnattended && (
+                <p className="text-[11px] leading-relaxed text-zinc-500">
+                  A schedule could not post in {chosen.name} unattended — {chosen.reason} ⛔ That does
+                  not restrict this screen: you are the check here.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <span className="block text-xs font-semibold text-zinc-400">Channels</span>
+              <div className="space-y-2">
+                {PLATFORMS.map((p) => (
+                  <label key={p.id} className="flex min-h-11 items-center gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={platforms.includes(p.id)}
+                      onChange={(e) =>
+                        setPlatforms(
+                          e.target.checked ? [...platforms, p.id] : platforms.filter((x) => x !== p.id),
+                        )
+                      }
+                      className="h-4 w-4 accent-indigo-500"
+                    />
+                    {p.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-semibold text-zinc-400">Shape</legend>
+            <div className="grid gap-2 md:grid-cols-3">
+              {SHAPES.map((s) => (
+                <label
+                  key={s.id}
+                  className={`cursor-pointer rounded-lg border p-3 text-sm ${
+                    shape === s.id ? "border-indigo-600 bg-indigo-950/40" : "border-zinc-800 hover:bg-zinc-900"
+                  }`}
+                >
+                  <span className="flex items-center gap-2 font-medium">
+                    <input
+                      type="radio"
+                      name="shape"
+                      checked={shape === s.id}
+                      onChange={() => setShape(s.id)}
+                      className="h-4 w-4 accent-indigo-500"
+                    />
+                    {s.label}
+                  </span>
+                  <span className="mt-1 block text-[11px] text-zinc-500">{s.hint}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              The picture is composed from an unused recipe, and its headline comes from your opening
+              sentence — so nothing in it is unchecked.
+            </p>
+          </fieldset>
+
+          <div className="space-y-2">
+            <label htmlFor="subject" className="block text-xs font-semibold text-zinc-400">
+              What this one is about
+            </label>
+            <input
+              id="subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="A short phrase, for the register and the headline"
+              className="min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm"
+            />
+            <p className="text-[11px] text-zinc-500">
+              Kept in the register, so no generated post will use it either.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="body" className="block text-xs font-semibold text-zinc-400">
+              The post
+            </label>
+            <textarea
+              id="body"
+              rows={10}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 p-3 text-sm leading-7"
+            />
+            <div className="flex flex-wrap gap-4 font-mono text-[11px] text-zinc-500">
+              <span>{counts.characters} characters</span>
+              <span className={counts.emoji > 0 ? "text-amber-400" : ""}>{counts.emoji} emoji</span>
+              <span className={counts.hashtags > 2 ? "text-amber-400" : ""}>{counts.hashtags} hashtags</span>
+              <span className={counts.links > 1 ? "text-amber-400" : ""}>{counts.links} links</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="support" className="block text-xs font-semibold text-zinc-400">
+              A supporting line for the picture (optional)
+            </label>
+            <input
+              id="support"
+              value={support}
+              onChange={(e) => setSupport(e.target.value)}
+              className="min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm"
+            />
+          </div>
+
+          <fieldset className="space-y-2 border-t border-zinc-800 pt-4">
+            <legend className="text-xs font-semibold text-zinc-400">When</legend>
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input
+                type="radio"
+                name="when"
+                checked={when === "queue"}
+                onChange={() => setWhen("queue")}
+                className="h-4 w-4 accent-indigo-500"
+              />
+              Leave it in the queue
+            </label>
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input
+                type="radio"
+                name="when"
+                checked={when === "now"}
+                onChange={() => setWhen("now")}
+                className="h-4 w-4 accent-indigo-500"
+              />
+              Approve it now
+            </label>
+            <p className="text-[11px] text-zinc-500">
+              ⚠️ Approving does not publish it — there is no channel adapter yet. It means the post is
+              ready and waiting for one.
+            </p>
+          </fieldset>
+
+          <div className="flex flex-wrap gap-2 border-t border-zinc-800 pt-4">
+            <button
+              type="button"
+              onClick={() => void submit()}
+              disabled={busy || !subject.trim() || !body.trim() || platforms.length === 0}
+              className="min-h-11 rounded-lg bg-indigo-600 px-5 text-sm font-semibold hover:bg-indigo-500 disabled:opacity-40"
+            >
+              {busy ? "Checking…" : when === "now" ? "Approve it" : "Save to the queue"}
+            </button>
+          </div>
+        </section>
+
+        {results.length > 0 && (
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-zinc-300">What happened</h2>
+            <ul className="space-y-2">
+              {results.map((r) => (
+                <li
+                  key={r.platform}
+                  className={`rounded-lg border p-3 text-sm ${
+                    r.postId
+                      ? "border-emerald-900 bg-emerald-950/20 text-emerald-200"
+                      : "border-rose-900 bg-rose-950/20 text-rose-200"
+                  }`}
+                >
+                  <strong>{r.platform}</strong>: {r.postId ? "saved" : r.error}
+                  {(r.notes ?? []).length > 0 && (
+                    <ul className="mt-1 space-y-0.5 text-[11px] opacity-80">
+                      {(r.notes ?? []).map((n, i) => (
+                        <li key={i}>· {n}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* ⛔ The voice rules, where somebody writing can see them. Not a
+            collapsed panel: the point is that they are read. */}
+        <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/30 p-5 text-sm">
+          <h2 className="font-semibold text-zinc-300">The voice</h2>
+          <ul className="space-y-1.5 text-zinc-400">
+            <li>Write to one person. “You”, never “users”.</li>
+            <li>Say one true thing and stop.</li>
+            <li>Leave room — but never “What do you think? 👇”.</li>
+            <li>Be generous. Say what the product does not do.</li>
+            <li>Assume nothing about who is reading, and never address a segment.</li>
+          </ul>
+          <p className="text-xs text-zinc-500">
+            The gate refuses clinical claims, abuse, and careless idiom — <em>crazy</em>,{" "}
+            <em>insane</em>, <em>psycho</em>, <em>triggered</em> used loosely. ⛔ Whether it is gentle,
+            insightful or generous is read, not matched; that part is yours.
+          </p>
+        </section>
+      </div>
+    </main>
+  );
+}

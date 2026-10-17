@@ -111,6 +111,25 @@ const BENIGN_HOSTS = new Set([
     // The Wikidata item, named in schema markup so assistants can resolve what
     // Imotara is. Outbound link only — nothing is sent to it at runtime.
     "www.wikidata.org",
+    /**
+     * The font CDN the picture composer fetches from, SERVER-SIDE, at render
+     * time ⇒ src/lib/social/fonts.ts.
+     *
+     * ✅ Benign, and the reasoning matters rather than the verdict: the fetch
+     * is made by the Vercel function, not by a reader's browser, so no visitor
+     * IP, cookie or user agent ever reaches jsdelivr. The request body is a
+     * font URL. Nothing about a person is in it.
+     *
+     * ⚠️ IT WOULD NOT BE BENIGN IF A PAGE LINKED IT. A stylesheet or font
+     * loaded by the browser sends the reader's IP to a third party, which on
+     * this product is a disclosure. ⛔ So if this host ever appears in a
+     * `<link>` or an `@font-face` served to a visitor, it stops being benign
+     * and belongs in the policy.
+     *
+     * ▶️ The alternative is bundling the font, which `next/og`'s 500 KB budget
+     * makes impractical once more than one script is verified.
+     */
+    "cdn.jsdelivr.net",
     // consoles and status pages we link to in admin/docs
     "status.openai.com", "platform.openai.com", "aistudio.google.com",
     "console.cloud.google.com",

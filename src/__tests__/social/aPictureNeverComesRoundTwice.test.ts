@@ -85,9 +85,9 @@ describe("uniqueness is a guarantee", () => {
     });
 
     it("the hash depends on every axis", () => {
-        const base = { layout: "stacked", palette: "ink", typeTreatment: "display", motif: "arcs", script: "en" };
+        const base = { layout: "stacked-label", palette: "ink", typeTreatment: "display", motif: "arcs", script: "en" };
         const variants = [
-            { ...base, layout: "split-rule" },
+            { ...base, layout: "side-bar" },
             { ...base, palette: "sand" },
             { ...base, typeTreatment: "measured" },
             { ...base, motif: "bands" },
@@ -106,13 +106,13 @@ describe("the recency preference is honoured, or reported", () => {
             language: "en",
             usedHashes: new Set(),
             recentPalettes: ["ink", "slate"],
-            recentLayouts: ["stacked"],
+            recentLayouts: ["stacked-label"],
             rng: seeded(7),
         });
         expect(r.ok).toBe(true);
         if (!r.ok) return;
         expect(["ink", "slate"]).not.toContain(r.recipe.palette);
-        expect(r.recipe.layout).not.toBe("stacked");
+        expect(r.recipe.layout).not.toBe("stacked-label");
         expect(r.relaxed).toEqual([]);
     });
 
@@ -124,14 +124,14 @@ describe("the recency preference is honoured, or reported", () => {
             for (const palette of PALETTE_NAMES)
                 for (const typeTreatment of TYPE_TREATMENTS)
                     for (const motif of MOTIFS)
-                        if (!(layout === "stacked" && palette === "ink"))
+                        if (!(layout === "stacked-label" && palette === "ink"))
                             used.add(recipeHash({ layout, palette, typeTreatment, motif, script: "en" }));
 
         const r = pickRecipe({
             language: "en",
             usedHashes: used,
             recentPalettes: ["ink"],
-            recentLayouts: ["stacked"],
+            recentLayouts: ["stacked-label"],
         });
         expect(r.ok).toBe(true);
         if (!r.ok) return;

@@ -4,11 +4,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin, requireSocialOwner } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { PLATFORM_IDS } from "@/lib/social/platforms";
 import { isSupportedLanguage } from "@/lib/social/languages";
 import { TOPIC_POOL_IDS } from "@/lib/social/subjects";
 
 const CONTENT_TYPES = ["text", "graphic", "text_graphic", "short_video"];
-const PLATFORMS = ["facebook", "linkedin", "instagram", "x"];
+// ⚠️ From the shared list. Three hand-kept copies is how one of them ends
+// up missing a channel ⇒ the ConsultantCard LANGUAGE_MAP that held 16 of 22.
+const PLATFORMS: string[] = PLATFORM_IDS;
 
 export async function GET(req: NextRequest) {
   const guard = await requireSocialAdmin(req);

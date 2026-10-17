@@ -13,13 +13,20 @@
 // where a default would be a decision made on somebody's behalf.
 
 import { useState } from "react";
+import { PLATFORMS as CHANNELS, PLATFORM_IDS } from "@/lib/social/platforms";
 
 type Language = { code: string; name: string; reviewed: boolean; mayPostUnattended: boolean; reason: string | null };
 
-const PLATFORMS = [
-  { id: "facebook", label: "Facebook Page" },
-  { id: "linkedin", label: "LinkedIn Page" },
-];
+/**
+ * ⚠️ From the shared list, so a channel added in one place appears here. ⛔ And
+ * each one carries its OWN blocker rather than a blanket "coming soon": the
+ * reasons differ, and only one of them is work that can be done from this side.
+ */
+const PLATFORMS = PLATFORM_IDS.map((id) => ({
+  id,
+  label: CHANNELS[id].label,
+  blockedBy: CHANNELS[id].blockedBy,
+}));
 
 const SHAPES = [
   { id: "text", label: "Text" },
@@ -140,14 +147,26 @@ export function NewSchedule({
         <legend className={label}>Channels</legend>
         <div className="flex flex-wrap gap-2">
           {PLATFORMS.map((p) => (
-            <label key={p.id} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${
-              platforms.includes(p.id) ? "border-indigo-600 bg-indigo-950/40" : "border-zinc-800"}`}>
+            <label key={p.id} title={p.blockedBy}
+              className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${
+                platforms.includes(p.id) ? "border-indigo-600 bg-indigo-950/40" : "border-zinc-800"}`}>
               <input type="checkbox" checked={platforms.includes(p.id)} className="h-4 w-4 accent-indigo-500"
                 onChange={() => toggle(platforms, p.id, setPlatforms)} />
               {p.label}
             </label>
           ))}
         </div>
+        {platforms.length > 0 && (
+          <ul className="space-y-1 text-[11px] leading-relaxed text-amber-300/90">
+            {platforms.map((id) => (
+              <li key={id}>
+                ⛔ {CHANNELS[id as keyof typeof CHANNELS].label} cannot publish yet —{" "}
+                {CHANNELS[id as keyof typeof CHANNELS].blockedBy} Posts are still written, pictured
+                and queued.
+              </li>
+            ))}
+          </ul>
+        )}
       </fieldset>
 
       <fieldset className="space-y-2">

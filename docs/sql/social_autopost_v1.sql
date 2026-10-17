@@ -135,7 +135,7 @@ alter table social_language_tiers enable row level security;
 
 create table if not exists social_accounts (
   id               uuid        primary key default gen_random_uuid(),
-  platform         text        not null check (platform in ('facebook', 'linkedin', 'instagram', 'x')),
+  platform         text        not null,
   display_name     text        not null,
   external_id      text        not null,
   access_token     text,                 -- encrypted at the application layer
@@ -441,7 +441,7 @@ create table if not exists social_posts (
   schedule_id      uuid        references social_schedules(id) on delete set null,
   author_id        uuid        references super_admins(id) on delete set null,
 
-  platform         text        not null check (platform in ('facebook', 'linkedin', 'instagram', 'x')),
+  platform         text        not null,
   language         text        not null references social_language_tiers(code),
 
   scheduled_for    timestamptz,          -- null = post as soon as it is approved
@@ -481,6 +481,31 @@ create index if not exists social_posts_schedule_idx
   on social_posts (schedule_id, created_at desc);
 
 alter table social_posts enable row level security;
+
+
+-- ── 5a. THE CHANNELS, AS A RE-RUNNABLE CONSTRAINT ───────────────────────────
+--
+-- ⚠️ Named and dropped-first, so adding a channel is a re-run of this file
+-- rather than a hand-typed ALTER somebody has to remember. The original
+-- constraints were inline and auto-named, which is why both are dropped here.
+--
+-- ⛔ A channel being LISTED here does not mean it can publish. Every one of
+-- them is blocked on something different, and src/lib/social/platforms.ts says
+-- what, per channel. Collapsing those reasons into "coming soon" would hide
+-- that LinkedIn is waiting on LinkedIn while Facebook is waiting on fifteen
+-- minutes in a portfolio.
+
+alter table social_accounts drop constraint if exists social_accounts_platform_check;
+alter table social_accounts drop constraint if exists social_accounts_platform_known;
+alter table social_accounts
+  add constraint social_accounts_platform_known
+  check (platform in ('facebook', 'linkedin', 'instagram', 'x', 'youtube'));
+
+alter table social_posts drop constraint if exists social_posts_platform_check;
+alter table social_posts drop constraint if exists social_posts_platform_known;
+alter table social_posts
+  add constraint social_posts_platform_known
+  check (platform in ('facebook', 'linkedin', 'instagram', 'x', 'youtube'));
 
 
 -- ── 6. THE SUBJECT REGISTER ──────────────────────────────────────────────────

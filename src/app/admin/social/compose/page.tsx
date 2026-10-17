@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
+import { PLATFORMS as CHANNELS, PLATFORM_IDS } from "@/lib/social/platforms";
 
 type LanguageRow = {
   code: string;
@@ -24,10 +25,7 @@ type LanguageRow = {
 
 type Result = { platform: string; postId?: string; error?: string; notes?: string[] };
 
-const PLATFORMS = [
-  { id: "facebook", label: "Facebook Page" },
-  { id: "linkedin", label: "LinkedIn Page" },
-];
+const PLATFORMS = PLATFORM_IDS.map((id) => ({ id, label: CHANNELS[id].label }));
 
 const SHAPES = [
   { id: "text", label: "Text", hint: "Words only." },

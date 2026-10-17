@@ -31,13 +31,20 @@ export type Recipe = {
 // The axes
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * ⚠️ RENAMED 18 Oct, because the old names described alignment and the new
+ * ones describe GEOMETRY. `split-rule` drew no rule; `stacked` and
+ * `wordmark-corner` differed from each other only in justification. Each of
+ * these now contributes a mark to the frame — a rule, a bar, a block, a
+ * division — so that two posts a day apart look like two posts.
+ */
 export const LAYOUTS = [
-  "wordmark-corner",
+  "rule-over",
   "centred-statement",
-  "split-rule",
-  "stacked",
+  "side-bar",
+  "stacked-label",
   "offset-quote",
-  "language-grid",
+  "corner-block",
   "low-horizon",
   "full-bleed-type",
 ] as const;

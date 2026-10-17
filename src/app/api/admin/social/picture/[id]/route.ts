@@ -16,13 +16,20 @@ import { ImageResponse } from "next/og";
 import { createElement, type ReactElement } from "react";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { composePicture, type Node, PICTURE_WIDTH, PICTURE_HEIGHT } from "@/lib/social/compose";
+import { composePicture, type Node } from "@/lib/social/compose";
+import { platformSpec } from "@/lib/social/platforms";
+import { qrDataUri, qrTarget } from "@/lib/social/brandMarks";
 import { headlineFromBody, recipeHash, type Recipe } from "@/lib/social/visualRecipe";
 
 /** The tree from compose.ts, as React elements. ⚠️ Keys, because Satori
  *  renders a real React tree and an unkeyed list warns on every render. */
 function toElement(node: Node, key = "root"): ReactElement {
   const children = node.children?.map((c, i) => toElement(c, `${key}.${i}`));
+  // ⚠️ An <img> is void: passing children to it throws in React, and the
+  // logo and the QR are both images.
+  if (node.tag === "img") {
+    return createElement("img", { key, style: node.style, src: node.src });
+  }
   return createElement(
     node.tag,
     { key, style: node.style },
@@ -59,7 +66,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const db = getSupabaseAdmin();
   const { data: post, error } = await db
     .from("social_posts")
-    .select("id, language, subject, body, media_kind, visual_recipe")
+    .select("id, language, platform, subject, body, media_kind, visual_recipe")
     .eq("id", id)
     .single();
 
@@ -92,9 +99,30 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     );
   }
 
+  // ⚠️ The QR is regenerated here rather than stored: it encodes only the
+  // channel and a campaign tag, so it is derivable, and a stored data URI would
+  // be a second copy to keep in step with nothing.
+  const platform = post.platform as string;
+  let qrImage: string | undefined;
+  try {
+    if (platformSpec(platform).qr) {
+      qrImage = await qrDataUri(qrTarget(platform), "#111827", "#FFFFFF");
+    }
+  } catch {
+    // ⛔ A missing code must not lose the picture. A card without a QR is a
+    // card; no card is a blank space where one was promised.
+    qrImage = undefined;
+  }
+
   let picture;
   try {
-    picture = composePicture({ recipe, headline, language: post.language as string });
+    picture = composePicture({
+      recipe,
+      headline,
+      language: post.language as string,
+      platform,
+      qrImage,
+    });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 422 });
   }
@@ -107,8 +135,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   }
 
   return new ImageResponse(toElement(picture.root), {
-    width: PICTURE_WIDTH,
-    height: PICTURE_HEIGHT,
+    // 🔑 The channel's own size. A LinkedIn card rendered at Facebook's
+    // ratio, or a square cropped from a 16:9, loses the words first.
+    width: picture.width,
+    height: picture.height,
     fonts: [{ name: picture.wordmark.font.family, data: fontData, weight: 600, style: "normal" }],
     headers: {
       // Derived from a stored recipe and the post's body: safe to cache, and

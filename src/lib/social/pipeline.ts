@@ -24,6 +24,8 @@ import {
 import { judgeSubject, subjectHash, exclusionList } from "@/lib/social/subjects";
 import { pickRecipe, headlineFromBody, type Recipe } from "@/lib/social/visualRecipe";
 import { composePicture, type Picture } from "@/lib/social/compose";
+import { platformSpec } from "@/lib/social/platforms";
+import { qrDataUri, qrTarget } from "@/lib/social/brandMarks";
 
 export type ContentType = "text" | "graphic" | "text_graphic" | "short_video";
 
@@ -45,6 +47,9 @@ export type WriteRequest = {
   tone: string;
   lengthHint: string;
   language: string;
+  /** ⚠️ The channel the post is FOR. Its register and its ceiling differ, and
+   *  a LinkedIn post written to Facebook's shape reads as the wrong room. */
+  platform?: string;
   topicPool: string[];
   /** Subjects the writer must not use again. ⚠️ A help, never the guarantee. */
   avoid: string[];
@@ -132,7 +137,7 @@ export function wantsPicture(contentType: ContentType): boolean {
 
 async function buildPicture(
   deps: PipelineDeps,
-  args: { language: string; body: string; support?: string; scheduleId: string | null },
+  args: { language: string; body: string; support?: string; scheduleId: string | null; platform: string },
 ): Promise<{ picture: Picture | null; recipe: Recipe | null; notes: string[] }> {
   const notes: string[] = [];
 
@@ -161,11 +166,34 @@ async function buildPicture(
   }
 
   notes.push(...picked.relaxed);
+
+  /**
+   * The QR, only where the channel earns one.
+   *
+   * ⛔ Not on X or Instagram: there the image is a thumbnail in a feed, on the
+   * same phone that would have to scan it. A code there is decoration
+   * pretending to be a function, and it costs space the words need.
+   *
+   * ⚠️ A failure to generate it must not lose the picture — a card without a
+   * code is a card; no card at all is a text post nobody asked for.
+   */
+  const spec = platformSpec(args.platform);
+  let qrImage: string | undefined;
+  if (spec.qr) {
+    try {
+      qrImage = await qrDataUri(qrTarget(args.platform), "#111827", "#FFFFFF");
+    } catch (e) {
+      notes.push(`No QR code on this one: ${(e as Error).message} The picture is otherwise unchanged.`);
+    }
+  }
+
   const picture = composePicture({
     recipe: picked.recipe,
     headline,
     support: args.support,
     language: args.language,
+    platform: args.platform,
+    qrImage,
   });
   notes.push(...picture.notes);
 
@@ -225,6 +253,7 @@ export async function prepareGenerated(
       tone: args.schedule.tone,
       lengthHint: args.schedule.lengthHint,
       language,
+      platform: args.platform,
       topicPool: args.schedule.topicPool,
       avoid: exclusionList(recent),
       previousObjections: objections.length ? [...objections] : undefined,
@@ -263,6 +292,7 @@ export async function prepareGenerated(
         body,
         support: written.support,
         scheduleId: args.schedule.id,
+        platform: args.platform,
       });
       picture = built.picture;
       recipe = built.recipe;
@@ -369,7 +399,13 @@ export async function prepareWritten(
   let recipe: Recipe | null = null;
 
   if (wantsPicture(args.contentType)) {
-    const built = await buildPicture(deps, { language, body, support: args.support, scheduleId: null });
+    const built = await buildPicture(deps, {
+      language,
+      body,
+      support: args.support,
+      scheduleId: null,
+      platform: args.platform,
+    });
     picture = built.picture;
     recipe = built.recipe;
     notes.push(...built.notes);

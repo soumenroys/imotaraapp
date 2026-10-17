@@ -10,11 +10,12 @@ import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { prepareWritten, wantsPicture, type ContentType } from "@/lib/social/pipeline";
 import { liveDeps, savePreparedPost } from "@/lib/social/store";
 import { isSupportedLanguage } from "@/lib/social/languages";
+import { PLATFORM_IDS } from "@/lib/social/platforms";
 
 export const maxDuration = 60;
 
 const CONTENT_TYPES: ContentType[] = ["text", "graphic", "text_graphic"];
-const PLATFORMS = ["facebook", "linkedin", "instagram", "x"];
+const PLATFORMS: string[] = PLATFORM_IDS;
 
 type Body = {
   platforms?: string[];

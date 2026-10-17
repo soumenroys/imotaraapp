@@ -361,12 +361,12 @@ describe("the picture", () => {
             for (const palette of PALETTE_NAMES)
               for (const typeTreatment of TYPE_TREATMENTS)
                 for (const motif of MOTIFS)
-                  if (!(layout === "stacked" && palette === "ink"))
+                  if (!(layout === "stacked-label" && palette === "ink"))
                     used.add(recipeHash({ layout, palette, typeTreatment, motif, script: "en" }));
           return used;
         },
         recentPalettes: async () => ["ink"],
-        recentLayouts: async () => ["stacked"],
+        recentLayouts: async () => ["stacked-label"],
       }),
       { schedule: schedule(), platform: "facebook", language: "en" },
     );

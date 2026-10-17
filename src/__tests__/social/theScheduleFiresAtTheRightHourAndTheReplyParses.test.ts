@@ -19,7 +19,8 @@
 import { describe, it, expect } from "vitest";
 import { isDue, LEAD_MINUTES } from "@/lib/social/store";
 import { parseWritten, buildPrompt } from "@/lib/social/writer";
-import { composePicture, wordsInPicture, PICTURE_WIDTH } from "@/lib/social/compose";
+import { composePicture, wordsInPicture, imagesInPicture } from "@/lib/social/compose";
+import { PLATFORMS, PLATFORM_IDS } from "@/lib/social/platforms";
 import { LAYOUTS, PALETTE_NAMES, TYPE_TREATMENTS, MOTIFS, recipeHash } from "@/lib/social/visualRecipe";
 
 const weekdaysAt = (postAt: string, timezone = "Asia/Kolkata") => ({
@@ -180,7 +181,7 @@ describe("the prompt", () => {
 
 describe("the composer", () => {
   const recipe = (over: Record<string, string> = {}) => {
-    const base = { layout: "stacked", palette: "ink", typeTreatment: "display", motif: "arcs", script: "en", ...over };
+    const base = { layout: "rule-over", palette: "ink", typeTreatment: "display", motif: "arcs", script: "en", ...over };
     return { ...base, hash: recipeHash(base as never) } as never;
   };
 
@@ -196,9 +197,10 @@ describe("the composer", () => {
             const picture = composePicture({
               recipe: recipe({ layout, palette, typeTreatment, motif }),
               headline: "Most of the hard hours are not office hours",
+              platform: "facebook",
               language: "en",
             });
-            expect(picture.width).toBe(PICTURE_WIDTH);
+            expect(picture.width).toBe(PLATFORMS.facebook.picture.width);
             expect(wordsInPicture(picture)).toContain("Most of the hard hours are not office hours");
             composed++;
           }
@@ -212,6 +214,7 @@ describe("the composer", () => {
     const picture = composePicture({
       recipe: recipe(),
       headline: "A headline",
+      platform: "facebook",
       support: "A supporting line",
       language: "en",
     });
@@ -225,22 +228,22 @@ describe("the composer", () => {
   });
 
   it("refuses to compose without a headline rather than inventing one", () => {
-    expect(() => composePicture({ recipe: recipe(), headline: "   ", language: "en" })).toThrow(
+    expect(() => composePicture({ recipe: recipe(), headline: "   ", language: "en", platform: "facebook" })).toThrow(
       /never writes one/i,
     );
   });
 
   it("refuses an unknown palette or layout rather than guessing", () => {
-    expect(() => composePicture({ recipe: recipe({ palette: "chartreuse" }), headline: "A", language: "en" })).toThrow(
+    expect(() => composePicture({ recipe: recipe({ palette: "chartreuse" }), headline: "A", language: "en", platform: "facebook" })).toThrow(
       /unknown palette/i,
     );
-    expect(() => composePicture({ recipe: recipe({ layout: "diagonal" }), headline: "A", language: "en" })).toThrow(
+    expect(() => composePicture({ recipe: recipe({ layout: "diagonal" }), headline: "A", language: "en", platform: "facebook" })).toThrow(
       /unknown layout/i,
     );
   });
 
   it("sets the Latin wordmark, and says so, for a script nobody has verified", () => {
-    const picture = composePicture({ recipe: recipe({ script: "bn" }), headline: "A headline", language: "bn" });
+    const picture = composePicture({ recipe: recipe({ script: "bn" }), headline: "A headline", language: "bn", platform: "facebook" });
     expect(picture.wordmark.substituted).toBe(true);
     expect(wordsInPicture(picture)).toContain("Imotara");
     expect(wordsInPicture(picture)).not.toContain("ইমোতারা");
@@ -268,6 +271,7 @@ describe("the composer", () => {
         const picture = composePicture({
           recipe: recipe({ layout, motif }),
           headline: "A headline",
+          platform: "facebook",
           support: "A supporting line",
           language: "en",
         });
@@ -294,6 +298,7 @@ describe("the composer", () => {
       const picture = composePicture({
         recipe: recipe({ layout }),
         headline: "A headline",
+        platform: "facebook",
         support: "A supporting line",
         language: "en",
       });
@@ -309,7 +314,7 @@ describe("the composer", () => {
   });
 
   it("names a font on the root, because Satori draws nothing without one", () => {
-    const picture = composePicture({ recipe: recipe(), headline: "A headline", language: "en" });
+    const picture = composePicture({ recipe: recipe(), headline: "A headline", language: "en", platform: "facebook" });
     expect(String(picture.root.style.fontFamily ?? "")).toBeTruthy();
   });
 });

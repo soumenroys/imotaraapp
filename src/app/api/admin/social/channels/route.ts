@@ -9,9 +9,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin, requireSocialOwner } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { PLATFORM_IDS } from "@/lib/social/platforms";
 import { scriptsAwaitingVerification } from "@/lib/social/fonts";
 
-const PLATFORMS = ["facebook", "linkedin", "instagram", "x"];
+const PLATFORMS: string[] = PLATFORM_IDS;
 
 export async function GET(req: NextRequest) {
   const guard = await requireSocialAdmin(req);

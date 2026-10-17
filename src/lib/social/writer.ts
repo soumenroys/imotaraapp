@@ -16,6 +16,7 @@
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { languageName } from "@/lib/social/languages";
 import { TOPIC_POOLS } from "@/lib/social/subjects";
+import { platformSpec } from "@/lib/social/platforms";
 import type { WriteRequest, Written } from "@/lib/social/pipeline";
 
 /**
@@ -102,6 +103,8 @@ export function buildPrompt(req: WriteRequest): string {
   const pools = TOPIC_POOLS.filter((p) => req.topicPool.includes(p.id));
   const angles = pools.length > 0 ? pools : TOPIC_POOLS;
 
+  const spec = req.platform ? platformSpec(req.platform) : null;
+
   const parts = [
     `You are writing one social media post for Imotara, in ${languageName(req.language)}.`,
     "",
@@ -114,6 +117,26 @@ export function buildPrompt(req: WriteRequest): string {
     `CHOOSE ONE OF THESE ANGLES AND STAY INSIDE IT\n` +
       angles.map((p) => `- ${p.label}: ${p.angle}`).join("\n"),
     "",
+    ...(spec
+      ? [
+          "",
+          /**
+           * 🔑 REGISTER AND ANGLE, NEVER ADDRESS. The owner asked for posts
+           * shaped to the channel; the standing rule says never address a
+           * segment. Both hold: the channel decides how a thing is said and
+           * which true thing is chosen, never who is welcome to read it.
+           */
+          `THIS ONE IS FOR ${spec.label.toUpperCase()}.\n${spec.voice}\n` +
+            `Keep the body under ${spec.limits.soft} characters — that is where this channel folds ` +
+            `it and the rest goes behind "see more". ` +
+            (spec.hashtags === 0
+              ? "Use no hashtags at all on this channel."
+              : `At most ${spec.hashtags} hashtag${spec.hashtags === 1 ? "" : "s"}, and none is usually better.`),
+          "",
+          "⛔ Still for everyone. The channel changes the register, never the reader: no job title " +
+            "addressed, no assumption about anybody's work, age, country or family.",
+        ]
+      : []),
     `TONE: ${req.tone}. LENGTH: ${req.lengthHint}.`,
     `LANGUAGE: write the subject and the body in ${languageName(req.language)}.` +
       (req.language === "en"

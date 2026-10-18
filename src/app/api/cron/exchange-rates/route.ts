@@ -8,6 +8,7 @@ export const maxDuration = 30;
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { markCronFired } from "@/lib/cron/heartbeat";
 
 const CRON_SECRET   = process.env.CRON_SECRET ?? "";
 const EXCHANGE_API  = "https://open.exchangerate-api.com/v6/latest/INR";
@@ -38,6 +39,9 @@ export async function GET(req: NextRequest) {
   if (!CRON_SECRET || secret !== CRON_SECRET) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
+  // 🔵 It fired. Recorded before the work, so a job that crashes
+  // half-way still proves Vercel invoked it. Never throws.
+  void markCronFired("/api/cron/exchange-rates");
 
   let rates: Record<string, number>;
 

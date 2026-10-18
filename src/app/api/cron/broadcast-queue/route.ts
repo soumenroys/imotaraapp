@@ -22,6 +22,7 @@ import {
 } from "@/lib/broadcast/unsubscribe";
 import { emailDocument, headerHtml, headerText, mergeFields, usesMergeFields } from "@/lib/broadcast/markup";
 import { notifyOwner } from "@/lib/broadcast/notify";
+import { markCronFired } from "@/lib/cron/heartbeat";
 
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
 
@@ -61,6 +62,9 @@ export async function GET(req: NextRequest) {
   if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
+  // 🔵 It fired. Recorded before the work, so a job that crashes
+  // half-way still proves Vercel invoked it. Never throws.
+  void markCronFired("/api/cron/broadcast-queue");
 
   if (!isResendConfigured()) {
     console.error("[broadcast-queue] RESEND_API_KEY missing — nothing sent");

@@ -23,6 +23,7 @@ import {
   LEAD_MINUTES,
   type ScheduleRow,
 } from "@/lib/social/store";
+import { markCronFired } from "@/lib/cron/heartbeat";
 
 export const maxDuration = 300;
 
@@ -37,6 +38,10 @@ type Outcome = {
 export async function GET(req: NextRequest) {
   const auth = cronAuthorised(req);
   if (!auth.ok) return NextResponse.json({ error: auth.reason }, { status: 401 });
+  // 🔵 It fired. Recorded before the work, so a job that crashes
+  // half-way still proves Vercel invoked it — which is the thing a dead
+  // cron cannot do. Never throws; see markCronFired.
+  void markCronFired("/api/cron/social-queue");
 
   const now = new Date();
   const paused = await postingIsPaused();

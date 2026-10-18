@@ -24,6 +24,7 @@ import {
   isSuppressed,
 } from "@/lib/reminders/snooze";
 import { isDueNow, DEFAULT_REMINDER_HOUR } from "@/lib/reminders/schedule";
+import { markCronFired } from "@/lib/cron/heartbeat";
 
 // Only nudge users silent for 2+ days; re-notify at most once every 24 h
 
@@ -132,6 +133,9 @@ export async function GET(req: Request) {
   if (auth !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // 🔵 It fired. Recorded before the work, so a job that crashes
+  // half-way still proves Vercel invoked it. Never throws.
+  void markCronFired("/api/push/cron");
 
   const admin = getSupabaseAdmin();
 

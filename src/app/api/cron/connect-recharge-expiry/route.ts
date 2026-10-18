@@ -12,6 +12,7 @@ export const preferredRegion = ["sin1"];
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { markCronFired } from "@/lib/cron/heartbeat";
 
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
 // 30 min = 2× Razorpay's 15-min order lifetime — enough margin to let legitimate
@@ -23,6 +24,9 @@ export async function GET(req: NextRequest) {
   if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
+  // 🔵 It fired. Recorded before the work, so a job that crashes
+  // half-way still proves Vercel invoked it. Never throws.
+  void markCronFired("/api/cron/connect-recharge-expiry");
 
   const supabase = getSupabaseAdmin();
   const cutoff = new Date(Date.now() - EXPIRY_MINUTES * 60 * 1000).toISOString();

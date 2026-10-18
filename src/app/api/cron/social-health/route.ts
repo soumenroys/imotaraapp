@@ -18,6 +18,7 @@ import { cronAuthorised } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { tokenStorageReady } from "@/lib/social/tokenCrypto";
 import { sendChannelAlert } from "@/lib/social/alert";
+import { markCronFired } from "@/lib/cron/heartbeat";
 
 export const maxDuration = 120;
 
@@ -29,6 +30,10 @@ const WARN_DAYS = 10;
 export async function GET(req: NextRequest) {
   const auth = cronAuthorised(req);
   if (!auth.ok) return NextResponse.json({ error: auth.reason }, { status: 401 });
+  // 🔵 It fired. Recorded before the work, so a job that crashes
+  // half-way still proves Vercel invoked it — which is the thing a dead
+  // cron cannot do. Never throws; see markCronFired.
+  void markCronFired("/api/cron/social-health");
 
   const db = getSupabaseAdmin();
   const now = new Date();

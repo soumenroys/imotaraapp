@@ -91,6 +91,7 @@ interface DetailResponse {
 
 import { AdminShell, SignOutButton, Tile, type NavKey } from "@/app/admin/_components/ui";
 import { PageTutorial } from "@/app/admin/_components/PageTutorial";
+import { CronHealth } from "@/app/admin/_components/CronHealth";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
 
 const SESSION_KEY = "imotara_admin_token";
@@ -2552,6 +2553,10 @@ function StatsSection({ token }: { token: string }) {
           </tbody>
         </table>
       </div>
+
+      {/* \u26a0\ufe0f On the Dashboard because this is operational health, not a fact
+          about users. It is the first thing worth knowing is wrong. */}
+      <CronHealth />
 
       {/* Super-admins + recent audit */}
       <div className="grid gap-4 sm:grid-cols-2">

@@ -71,7 +71,27 @@ export async function captureChannelStats(
     .from("social_channel_stats")
     .select("id", { count: "exact", head: true })
     .eq("account_id", accountId);
-  const baseline = (count ?? 0) === 0;
+
+  /**
+   * 🔴 THE FLAG IS STICKY, AND IT WAS NOT.
+   *
+   * The schema comment promised the baseline "may not be erased" — and the
+   * upsert wrote `is_baseline: (count === 0)` on EVERY capture. The second
+   * capture of the same day found count = 1, wrote false over the true, and
+   * the starting line was gone. ⛔ A comment stating a guarantee the code does
+   * not enforce is worse than no comment: it stops the next person checking.
+   *
+   * ⚠️ Read back rather than assumed, because the row being corrected today
+   * may be the baseline row itself.
+   */
+  const { data: today } = await db
+    .from("social_channel_stats")
+    .select("is_baseline")
+    .eq("account_id", accountId)
+    .eq("captured_on", capturedOn(opts.now))
+    .maybeSingle();
+
+  const baseline = (count ?? 0) === 0 || today?.is_baseline === true;
 
   // ⚠️ How many of OUR posts were live when this was taken. It is what makes
   // the follower line readable — a jump with no posts behind it came from

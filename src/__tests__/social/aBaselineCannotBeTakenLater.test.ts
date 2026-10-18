@@ -221,3 +221,28 @@ describe("the metric search tells retirement apart from failure", () => {
     expect(adapter).toMatch(/const pageId = args\.postId\.split\("_"\)\[0\]/);
   });
 });
+
+/**
+ * 🔴 THE SCHEMA PROMISED THE BASELINE FLAG "MAY NOT BE ERASED" AND THE CODE
+ * ERASED IT.
+ *
+ * `is_baseline` was written as `(count === 0)` on every capture. The first
+ * capture found no rows and set true; the second capture the same day found
+ * one row and wrote FALSE over it. The starting line — the one figure that
+ * cannot be recovered later — was silently lost within hours.
+ *
+ * ⛔ A comment stating a guarantee the code does not enforce is worse than no
+ * comment at all: it stops the next person checking.
+ */
+describe("the baseline flag survives a correction", () => {
+  const src = read("src/lib/social/stats.ts");
+
+  it("⛔ keeps the flag when today's row already carries it", () => {
+    expect(src).toMatch(/const baseline = \(count \?\? 0\) === 0 \|\| today\?\.is_baseline === true;/);
+  });
+
+  it("reads today's row back rather than assuming", () => {
+    // The row being corrected may BE the baseline row.
+    expect(src).toMatch(/\.eq\("captured_on", capturedOn\(opts\.now\)\)/);
+  });
+});

@@ -9,6 +9,7 @@ import { timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { hashSessionToken, SESSION_COOKIE } from "@/lib/imotara/adminCrypto";
+import { sessionNeedsSecondFactor } from "@/lib/admin/twoFactor";
 
 // ── adminAuthorized: checks ADMIN_SECRET Bearer OR session cookie ─────────────
 // connect_reviewer role is intentionally excluded — they use connectAdminAuthorized().
@@ -64,9 +65,18 @@ export async function requireSuperAdmin(req: NextRequest): Promise<SuperAdminRes
       const tokenHash = hashSessionToken(token);
       const supabase  = getSupabaseAdmin();
 
+      /**
+       * ⚠️ `select("*")`, NOT a column list, and that is deliberate.
+       * `two_fa_verified` is added by docs/sql/admin_session_two_fa.sql. Naming
+       * it explicitly would make this query fail with 42703 wherever that
+       * migration has not run yet — and a failing auth query here does not
+       * degrade, it locks every admin out of the panel at once. With `*` the
+       * field is simply absent, and `?? true` below means the behaviour is
+       * identical to before the column existed.
+       */
       const { data: session } = await supabase
         .from("admin_sessions")
-        .select("admin_id, expires_at")
+        .select("*")
         .eq("token_hash", tokenHash)
         .single();
 
@@ -78,6 +88,30 @@ export async function requireSuperAdmin(req: NextRequest): Promise<SuperAdminRes
           .single();
 
         if (admin?.active) {
+          /**
+           * 🔑 THE ENFORCEMENT POINT. A 2FA-enabled admin who has given their
+           * password but not yet a code holds a session that exists and is in
+           * date — and must still be refused everything.
+           *
+           * ⛔ Only ever refuses when the admin HAS 2FA on. Somebody who never
+           * enrolled is unaffected, so turning this on cannot lock out an
+           * account that has no second factor to offer.
+           *
+           * ⚠️ `?? true` is the no-migration case, not laziness: absent column
+           * means absent enforcement, which is exactly how it behaved
+           * yesterday. The failure mode is "2FA is not yet enforced", never
+           * "nobody can get in".
+           */
+          if (sessionNeedsSecondFactor(admin, session as { two_fa_verified?: boolean })) {
+            return {
+              ok: false,
+              response: NextResponse.json(
+                { error: "Two-step verification is not complete for this session.", requires2fa: true },
+                { status: 401 },
+              ),
+            };
+          }
+
           return {
             ok:    true,
             admin: { id: admin.id, email: admin.email, name: admin.name, role: admin.role as "owner" | "admin", totp_enabled: admin.totp_enabled ?? false },

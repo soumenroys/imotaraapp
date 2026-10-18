@@ -170,6 +170,16 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
   const [emailError, setEmailError] = useState("");
   const [emailPending, startEmailTransition] = useTransition();
 
+  /**
+   * 🔑 THE SECOND-FACTOR CHALLENGE. Set when the password was right but the
+   * account has 2FA on — the session exists and is useless until a code
+   * arrives, so the panel must not be shown behind this.
+   */
+  const [challenge, setChallenge]   = useState<{ label: string } | null>(null);
+  const [twoFaCode, setTwoFaCode]   = useState("");
+  const [twoFaError, setTwoFaError] = useState("");
+  const [twoFaPending, startTwoFa]  = useTransition();
+
   // Forgot password mode
   const [showForgot, setShowForgot]       = useState(false);
   const [forgotEmail, setForgotEmail]     = useState("");
@@ -223,6 +233,23 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
     });
   }
 
+  function handleTwoFa(e: React.FormEvent) {
+    e.preventDefault();
+    startTwoFa(async () => {
+      const r = await fetch("/api/admin/auth/2fa/verify", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: twoFaCode.trim() }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) { setTwoFaError(j.error ?? "That code was not accepted."); return; }
+      const label = challenge?.label ?? "admin";
+      sessionStorage.setItem(SESSION_KEY, `session:${label}`);
+      onAuth(`session:${label}`);
+    });
+  }
+
   function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     startEmailTransition(async () => {
@@ -234,9 +261,14 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
       });
       if (res.ok) {
         const j = await res.json();
+        const label = j.admin?.name ?? email;
+        // ⛔ The password was right and the panel still does not open. The
+        // session cookie is set but marked unverified, and every admin route
+        // refuses it until the code below is accepted.
+        if (j.requires2fa) { setChallenge({ label }); return; }
         // Use email as the "token" so existing code still works for display
-        sessionStorage.setItem(SESSION_KEY, `session:${j.admin?.name ?? email}`);
-        onAuth(`session:${j.admin?.name ?? email}`);
+        sessionStorage.setItem(SESSION_KEY, `session:${label}`);
+        onAuth(`session:${label}`);
       } else {
         const j = await res.json().catch(() => ({}));
         setEmailError(j.error ?? "Invalid email or password");
@@ -323,8 +355,44 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
           </div>
         )}
 
+        {/* \u2460 The second factor, when the account has one */}
+        {!resetToken && challenge && (
+          <form onSubmit={handleTwoFa} className="space-y-3">
+            <p className="text-sm text-zinc-300">
+              Hi <strong>{challenge.label}</strong> — enter the code from your authenticator app.
+            </p>
+            <input
+              inputMode="text"
+              autoComplete="one-time-code"
+              aria-label="Two-step verification code"
+              placeholder="123456, or a backup code"
+              value={twoFaCode}
+              onChange={(e) => { setTwoFaCode(e.target.value); setTwoFaError(""); }}
+              autoFocus
+              required
+              className={inputCls}
+            />
+            {twoFaError && (
+              <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{twoFaError}</p>
+            )}
+            <button type="submit" disabled={twoFaPending}
+              className="w-full rounded-xl bg-indigo-600/80 py-3 text-sm font-semibold text-white transition hover:bg-indigo-600 disabled:opacity-60">
+              {twoFaPending ? "Checking…" : "Verify"}
+            </button>
+            <p className="text-center text-[11px] leading-relaxed text-zinc-500">
+              Lost your phone? Use one of the backup codes you saved when you set this up.
+              Each one works once.
+            </p>
+            <button type="button"
+              onClick={() => { setChallenge(null); setTwoFaCode(""); setTwoFaError(""); setEmailPwd(""); }}
+              className="w-full text-center text-xs text-zinc-500 transition hover:text-zinc-300">
+              \u2190 Start again
+            </button>
+          </form>
+        )}
+
         {/* Email + password login */}
-        {!resetToken && !showForgot && (
+        {!resetToken && !showForgot && !challenge && (
           <form onSubmit={handleEmailSubmit} className="space-y-3">
             <input type="email" aria-label="Admin email" placeholder="admin@imotara.com" value={email} onChange={(e) => { setEmail(e.target.value); setEmailError(""); }} autoFocus required className={inputCls} />
             <div className="relative">
@@ -2347,8 +2415,8 @@ function SuperAdminsSection({ token }: { token: string }) {
             <p className="text-sm font-medium text-zinc-300">Two-factor authentication (2FA)</p>
             <p className="text-[11px] text-zinc-500 mt-0.5">
               {myAdmin?.totp_enabled
-                ? "Set up on your account — a code is stored and backup codes were issued."
-                : "Not set up on your account."}
+                ? "On. Sign-in asks for a code from your authenticator app."
+                : "Off. Your password is the only thing guarding this panel."}
             </p>
           </div>
           <button onClick={() => { setShow2FA((v) => !v); setTwoFAMsg(""); setTwoFAErr(""); }}
@@ -2366,10 +2434,11 @@ function SuperAdminsSection({ token }: { token: string }) {
 
             ⛔ Half a security control that announces itself is worse than none,
             because somebody picks a weaker password on the strength of it. */}
-        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-amber-200">
-          ⚠️ <strong>Enrolling here does not yet protect sign-in.</strong> The codes are stored and the
-          setup works, but the login screen does not ask for a code — email and password alone still
-          get in. Treat your password as the only thing guarding this panel until that is finished.
+        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-emerald-200">
+          ✅ <strong>Sign-in asks for a code.</strong> With this on, your password alone will not open
+          the panel — you will be asked for the six digits from your authenticator, or one of your
+          backup codes. ⛔ Each backup code works once, so keep the list somewhere you can reach
+          without this phone.
         </p>
 
         {show2FA && (

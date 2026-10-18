@@ -94,7 +94,7 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
     ],
     footnote:
       "🔐 Adding an owner gives away everything, including the ability to remove you — there is no higher level to appeal to. " +
-      "⚠️ And note the warning on two-factor: it can be set up, but sign-in does not ask for a code yet, so the password is still the only lock.",
+      "⚠️ Turn two-factor on and sign-in will ask you for a code. Save the eight backup codes somewhere that is not the phone holding the app.",
   },
 
   broadcast: {

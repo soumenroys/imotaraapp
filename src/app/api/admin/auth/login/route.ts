@@ -42,7 +42,11 @@ export async function POST(req: NextRequest) {
   // Fetch admin — always, even if not found, to prevent timing-based enumeration
   const { data: superAdmin } = await admin
     .from("super_admins")
-    .select("id, email, name, role, password_hash, active, failed_attempts, locked_until")
+    // ⚠️ totp_enabled is in this list because the second-factor decision below
+    // reads it. Leaving it out does not fail — it reads `undefined`, decides no
+    // second factor is needed, and silently signs an enrolled admin straight
+    // in. A guard that is skipped is indistinguishable from one that passed.
+    .select("id, email, name, role, password_hash, active, failed_attempts, locked_until, totp_enabled")
     .eq("email", email)
     .single();
 
@@ -121,14 +125,47 @@ export async function POST(req: NextRequest) {
   const { token, tokenHash } = generateSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
 
-  const { error: sessionErr } = await admin.from("admin_sessions").insert({
+  /**
+   * 🔴 THE SECOND FACTOR, WHICH USED TO BE ANNOUNCED AND NEVER ASKED FOR.
+   *
+   * Enrolment has always worked — QR code, verification, eight backup codes —
+   * and the Admins screen said "2FA is enabled on your account". This route
+   * never read `totp_enabled` and never issued the loginToken that
+   * /2fa/verify's challenge branch waits for, so an enrolled admin was signed
+   * in by password alone. A control that announces itself and does nothing is
+   * worse than none, because somebody picks a weaker password on its strength.
+   *
+   * ⚠️ The session is still created and the cookie still set. It is simply
+   * marked unverified, and requireSuperAdmin refuses everything until a code
+   * arrives — which is also what lets the verify call authenticate itself.
+   */
+  const needsSecondFactor = superAdmin.totp_enabled === true;
+
+  const sessionRow: Record<string, unknown> = {
     admin_id:     superAdmin.id,
     token_hash:   tokenHash,
     expires_at:   expiresAt,
     ip_address:   ip,
     user_agent:   ua,
     last_used_at: new Date().toISOString(),
-  });
+    two_fa_verified: !needsSecondFactor,
+  };
+
+  let { error: sessionErr } = await admin.from("admin_sessions").insert(sessionRow);
+
+  /**
+   * ⛔ THE ONE WAY THIS COULD HAVE LOCKED EVERYBODY OUT. If
+   * docs/sql/admin_session_two_fa.sql has not been run, inserting
+   * `two_fa_verified` fails with 42703 — and a failed insert here is a failed
+   * LOGIN, for every admin, including the person who would have to fix it.
+   * ⇒ Retry once without the column. Enforcement is then simply not yet on,
+   * which is exactly how yesterday behaved.
+   */
+  if (sessionErr && /two_fa_verified/.test(sessionErr.message ?? "")) {
+    console.warn("[admin/login] admin_sessions.two_fa_verified missing — run docs/sql/admin_session_two_fa.sql. 2FA is NOT being enforced.");
+    delete sessionRow.two_fa_verified;
+    ({ error: sessionErr } = await admin.from("admin_sessions").insert(sessionRow));
+  }
 
   if (sessionErr) {
     return NextResponse.json({ error: "Session creation failed." }, { status: 500 });
@@ -138,6 +175,8 @@ export async function POST(req: NextRequest) {
 
   const res = NextResponse.json({
     ok:    true,
+    // ⚠️ The screen must not show the panel yet when this is true.
+    requires2fa: needsSecondFactor,
     admin: { id: superAdmin.id, email: superAdmin.email, name: superAdmin.name, role: superAdmin.role },
   });
 

@@ -16,6 +16,7 @@ type Account = {
   id: string;
   platform: string;
   display_name: string;
+  external_id: string;
   token_tail: string | null;
   token_expires_at: string | null;
   status: string;
@@ -37,6 +38,11 @@ export default function Channels() {
   // ⚠️ Per account, not one flag. One flag disables every row's button while
   // any row is checking, which reads as the page having frozen.
   const [checking, setChecking] = useState<string | null>(null);
+  // 🔑 The id is editable because the first live check found the wrong one —
+  // and ⛔ it cannot be edited in the database, because it is half of the
+  // token's encryption binding ⇒ the PATCH route re-encrypts.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftId, setDraftId] = useState("");
 
   const isOwner = role === "owner";
 
@@ -71,6 +77,26 @@ export default function Channels() {
       const json = await res.json();
       setMessage(res.ok ? json.note : json.error);
       if (res.ok) await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveId(accountId: string) {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/social/channels/${accountId}`, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ externalId: draftId }),
+      });
+      const json = await res.json();
+      setMessage(res.ok ? json.note : json.error);
+      if (res.ok) {
+        setEditingId(null);
+        await load();
+      }
     } finally {
       setBusy(false);
     }
@@ -163,7 +189,8 @@ export default function Channels() {
                   {account ? (
                     <>
                       <p className="font-mono text-[11px] text-zinc-500">
-                        {account.display_name} · token ···{account.token_tail ?? "????"}
+                        {account.display_name} · id {account.external_id} · token ···
+                        {account.token_tail ?? "????"}
                         {account.token_expires_at &&
                           ` · expires ${new Date(account.token_expires_at).toLocaleDateString()}`}
                       </p>
@@ -194,12 +221,67 @@ export default function Channels() {
                         >
                           {checking === account.id ? "Asking the platform…" : "Check it now"}
                         </button>
+                        {isOwner && editingId !== account.id && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(account.id);
+                              setDraftId(account.external_id);
+                            }}
+                            className="min-h-9 rounded-lg border border-white/15 px-3 text-xs font-semibold hover:bg-white/10"
+                          >
+                            Correct the id
+                          </button>
+                        )}
                         <span className="text-[11px] text-zinc-500">
                           {account.last_verified_at
                             ? `Last checked ${new Date(account.last_verified_at).toLocaleString()}`
                             : "Never checked."}
                         </span>
                       </div>
+
+                      {/* ⚠️ Says what it is doing. "Edit the id" sounds free;
+                          re-encrypting the token against it is the actual
+                          operation, and knowing that is what stops somebody
+                          going round this screen with a SQL update. */}
+                      {isOwner && editingId === account.id && (
+                        <div className="space-y-2 rounded-lg border border-white/10 bg-black/20 p-3">
+                          <label
+                            htmlFor={`id-${account.id}`}
+                            className="block text-[11px] font-semibold text-zinc-400"
+                          >
+                            The platform&rsquo;s own id for this channel
+                          </label>
+                          <input
+                            id={`id-${account.id}`}
+                            value={draftId}
+                            onChange={(e) => setDraftId(e.target.value)}
+                            className="min-h-10 w-full rounded-lg border border-white/15 bg-black/30 px-3 font-mono text-sm"
+                          />
+                          <p className="text-[11px] text-zinc-500">
+                            The stored token is re-encrypted against the new id, because the id is part
+                            of what it is encrypted with. ⛔ Changing it directly in the database would
+                            make the token unreadable instead.
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void saveId(account.id)}
+                              disabled={busy || !draftId.trim()}
+                              className="min-h-9 rounded-lg bg-indigo-600 px-3 text-xs font-semibold hover:bg-indigo-500 disabled:opacity-40"
+                            >
+                              Save the id
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(null)}
+                              className="min-h-9 rounded-lg border border-white/15 px-3 text-xs font-semibold hover:bg-white/10"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       {/* ⚠️ Only when we have nothing better. `last_error`
                           already carries the step to take, and it knows which
                           one; this is the fallback for a status set by

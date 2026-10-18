@@ -253,6 +253,71 @@ describe("a specific diagnosis replaces the generic remedy", () => {
   });
 });
 
+/**
+ * 🔴 `external_id` IS HALF OF THE TOKEN'S ENCRYPTION BINDING.
+ *
+ * It is bound into the aad on purpose, so one row's ciphertext cannot decrypt
+ * in another. ⛔ Which means correcting a wrong Page id with an UPDATE — in
+ * SQL, in the table editor, anywhere — does not fix a typo. It makes the token
+ * permanently unreadable, silently, with the failure arriving later at the
+ * moment somebody needed to post.
+ *
+ * It happened on day one: the Page was connected with 61591783672102, the
+ * brand PROFILE's id, and the real Page is 1222416224285686.
+ */
+describe("correcting the id re-binds the token instead of stranding it", () => {
+  const route = readFileSync(
+    join(process.cwd(), "src/app/api/admin/social/channels/[id]/route.ts"),
+    "utf8",
+  );
+
+  it("decrypts under the old binding and re-encrypts under the new one", () => {
+    expect(route).toMatch(/encryptToken\(decryptToken\(/);
+    expect(route).toContain("oldAad");
+    expect(route).toContain("newAad");
+  });
+
+  /**
+   * ⛔ RE-ENCRYPTING AND NOT STORING IT is the same stranding by a longer
+   * route: the new id lands beside ciphertext bound to the old one. The work
+   * has to reach the row, so the assertion is on the UPDATE, not on the maths.
+   */
+  it("⛔ the re-encrypted token is what gets written", () => {
+    // ⚠️ lastIndexOf: the READ above also ends `.eq("id", id)`, and taking the
+    // first one sliced backwards to an empty string — which passed every
+    // assertion in it. A test that measures nothing is green.
+    const update = route.slice(route.indexOf(".update("), route.lastIndexOf('.eq("id", id)'));
+    expect(update.length).toBeGreaterThan(50);
+    expect(update).toMatch(/external_id: next/);
+    expect(update).toMatch(/access_token: access/);
+    expect(update).toMatch(/refresh_token: refresh/);
+  });
+
+  it("⛔ writes nothing at all if the re-bind fails", () => {
+    // The update must sit after the try/catch, and the catch must return.
+    const catchAt = route.indexOf("} catch (e) {");
+    const updateAt = route.indexOf('.from("social_accounts")\n    .update(');
+    expect(catchAt).toBeGreaterThan(-1);
+    expect(updateAt).toBeGreaterThan(catchAt);
+    expect(route.slice(catchAt, updateAt)).toMatch(/return NextResponse\.json/);
+  });
+
+  it("⛔ does not carry the old verdict over to a different target", () => {
+    expect(route).toMatch(/status: "pending"/);
+    expect(route).toMatch(/last_verified_at: null/);
+  });
+
+  /**
+   * ⚠️ On the CALL, not on the identifier. `requireSocialOwner` appears in the
+   * import line too, so `toContain` stayed green with the guard swapped for
+   * the admin one — found by mutation, which is the only way that shows up.
+   */
+  it("is owner-only, because it moves a credential", () => {
+    expect(route).toMatch(/await requireSocialOwner\(req,/);
+    expect(route).not.toMatch(/await requireSocialAdmin\(/);
+  });
+});
+
 describe("the check route refuses to invent a verdict", () => {
   const route = readFileSync(
     join(process.cwd(), "src/app/api/admin/social/channels/[id]/check/route.ts"),

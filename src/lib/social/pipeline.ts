@@ -24,6 +24,7 @@ import {
 } from "@/lib/social/voiceGate";
 import { judgeSubject, subjectHash, exclusionList } from "@/lib/social/subjects";
 import { pickRecipe, headlineFor, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
+import { unshapableScripts, unshapableNote } from "@/lib/social/shaping";
 import { pickWord, untranslatablePoolReady } from "@/lib/social/untranslatableWords";
 import { pickMistake, mistakesPoolReady, mentionsMistake, type ProductMistake } from "@/lib/social/productMistakes";
 import { composePicture, type Picture } from "@/lib/social/compose";
@@ -282,6 +283,22 @@ async function buildPicture(
    * caller was never moved onto it.
    */
   const headline = headlineFor(args.subject, args.body);
+
+  /**
+   * 🔴 THE SAME REFUSAL THE RENDERER MAKES, MADE EARLIER.
+   *
+   * The renderer is the authority — it re-derives the headline from the words
+   * at draw time ⇒ renderPicture.ts. But a post queued for a card that can
+   * never be drawn is a post that fails at 17:00 with nobody watching, so the
+   * same question is asked here, where the answer can still change a draft
+   * ⇒ src/lib/social/shaping.ts.
+   */
+  const unshapable = headline ? unshapableScripts(headline) : [];
+  if (unshapable.length > 0) {
+    notes.push(`No picture: ${unshapableNote(unshapable, "The card's headline")}`);
+    return { picture: null, recipe: null, notes };
+  }
+
   if (!headline) {
     // ⛔ Not a truncated headline. Half a sentence on a card is worse than no
     // card, and the post still works as text.

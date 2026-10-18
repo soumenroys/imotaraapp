@@ -95,10 +95,30 @@ describe("⛔ and something actually calls it", () => {
     it(`${route.split("/").slice(-2)[0]} passes a support to the composer`, () => {
       const src = readFileSync(join(process.cwd(), route), "utf8");
       expect(src, "the route does not import supportFromBody").toContain("supportFromBody");
-      expect(
-        /support:\s*supportFromBody\(/.test(src),
-        "the route imports supportFromBody but never passes the result as `support`",
-      ).toBe(true);
+
+      /**
+       * ⚠️ FOLLOWS ONE HOP, because the value no longer reaches the composer
+       * inline. A script this renderer cannot shape has its support line
+       * DROPPED ⇒ shaping.ts, which needs a step between deriving the line
+       * and passing it. The rule did not change: whatever `support` is given
+       * must come from supportFromBody.
+       *
+       * ⛔ Still bites on the bug it was written for — `support` not passed
+       * at all, or passed a literal `undefined`.
+       */
+      // ⚠️ `support: x`, `support: supportFromBody(...)` or the shorthand
+      // `support,` — the rule is about what reaches the composer, not style.
+      const passed = src.match(/support:\s*([A-Za-z_$][\w$]*|supportFromBody\()|^\s*support,\s*$/m);
+      expect(passed, "nothing is passed as `support` to the composer").not.toBeNull();
+      const value = passed![1] ?? "support";
+      expect(value, "`support` is passed a literal undefined").not.toBe("undefined");
+      if (!value.startsWith("supportFromBody")) {
+        const assigned = new RegExp(`(const|let)\\s+${value}\\b[^;]*supportFromBody\\(`, "s");
+        expect(
+          assigned.test(src),
+          `\`support\` is passed ${value}, which is not derived from supportFromBody`,
+        ).toBe(true);
+      }
     });
 
     it(`${route.split("/").slice(-2)[0]} derives it from the post's own body`, () => {

@@ -18,6 +18,7 @@ import { composePicture, type Node } from "@/lib/social/compose";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
 import { headlineFor, supportFromBody, recipeHash, type Recipe } from "@/lib/social/visualRecipe";
+import { unshapableScripts, unshapableNote } from "@/lib/social/shaping";
 
 /** The tree from compose.ts, as React elements. ⚠️ Keys, because Satori
  *  renders a real React tree and an unkeyed list warns on every render. */
@@ -123,6 +124,26 @@ export async function renderPostPicture(
     };
   }
 
+  /**
+   * 🔴 A SCRIPT THIS RENDERER CANNOT SHAPE IS REFUSED, NOT DRAWN WRONG.
+   *
+   * Found on a live Instagram post, 18 Oct: `অভিমান` rendered as `অভমিান`,
+   * because Bengali's pre-base vowel sign must move left of its consonant and
+   * Satori does not reorder ⇒ src/lib/social/shaping.ts.
+   *
+   * ⛔ The file already said this about the WORDMARK — "set in Latin until
+   * somebody who reads the script has confirmed a rendered picture" — and the
+   * rule was never applied to the words. One use of the renderer was
+   * protected and the other was not.
+   */
+  const headlineScripts = unshapableScripts(headline);
+  if (headlineScripts.length > 0) {
+    return {
+      ok: false,
+      failure: { status: 422, error: unshapableNote(headlineScripts, "The card's headline") },
+    };
+  }
+
   // ⚠️ The QR is regenerated here rather than stored: it encodes only the
   // channel and a campaign tag, so it is derivable, and a stored data URI would
   // be a second copy to keep in step with nothing.
@@ -134,6 +155,23 @@ export async function renderPostPicture(
     // card; no card is a blank space where one was promised.
     qrCodes = [];
   }
+
+  /**
+   * 🔑 FROM SENTENCE 0 when the headline came from the subject — otherwise
+   * the post's strongest line, its opening, appears nowhere on the card.
+   * ⛔ From sentence 1 when the headline IS the opening, or the card says the
+   * same thing twice.
+   */
+  let support =
+    supportFromBody(post.body, 150, headline === (post.subject ?? "").trim() ? 0 : 1) ?? undefined;
+
+  /**
+   * ⚠️ DROPPED, not refused, when it carries a script we cannot shape. The
+   * headline comes from the subject and is usually Latin, so a card with one
+   * good line beats no card — and beats a card with a misspelt word on it by
+   * a distance ⇒ src/lib/social/shaping.ts.
+   */
+  if (support && unshapableScripts(support).length > 0) support = undefined;
 
   let picture;
   try {
@@ -149,9 +187,7 @@ export async function renderPostPicture(
        * ⛔ From sentence 1 when the headline IS the opening, or the card says
        * the same thing twice.
        */
-      support:
-        supportFromBody(post.body, 150, headline === (post.subject ?? "").trim() ? 0 : 1) ??
-        undefined,
+      support,
       language: post.language,
       platform: post.platform,
       qrCodes,

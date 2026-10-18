@@ -215,6 +215,8 @@ describe("a post that lost its card says so on the row", () => {
 
   it("the pipeline still writes that note", () => {
     const pipeline = read("src/lib/social/pipeline.ts");
-    expect(pipeline).toMatch(/"No picture: the opening sentence is too long/);
+    // ⚠️ The wording changed with the rule: the card is refused only when
+    // NEITHER the subject nor the opening sentence will serve as a headline.
+    expect(pipeline).toMatch(/"No picture: neither the subject nor the opening sentence/);
   });
 });

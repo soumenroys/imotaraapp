@@ -312,12 +312,40 @@ describe("the language rotation", () => {
 });
 
 describe("the picture", () => {
-  it("is skipped, not truncated, when the opening sentence is too long", async () => {
-    const long =
-      "This opening sentence has been written deliberately long so that no headline could hold it " +
-      "without cutting it in half somewhere awkward. And then a second sentence.";
+  const LONG_BODY =
+    "This opening sentence has been written deliberately long so that no headline could hold it " +
+    "without cutting it in half somewhere awkward. And then a second sentence.";
+
+  it("uses the SUBJECT as the headline when the opening sentence is too long", async () => {
+    /**
+     * 🔴 THE SUBJECT IS WRITTEN TO BE THE HEADLINE, and this decision used to
+     * ignore it. `buildPicture` asked `headlineFromBody(body)` while the
+     * renderer asked `headlineFor(subject, body)` — so one piece of code
+     * decided whether a card could exist and another decided what it would
+     * say, from different inputs.
+     *
+     * ⛔ The cost: a post with a perfectly good short subject was refused a
+     * card, which on a channel with no text-only post means refused entirely.
+     * Three Instagram drafts died that way.
+     */
     const result = await prepareGenerated(
-      deps({ drafts: [{ subject: "A long opening", body: long }] }),
+      deps({ drafts: [{ subject: "A long opening", body: LONG_BODY }] }),
+      { schedule: schedule(), platform: "facebook", language: "en", postsSoFar: 0 },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.post.picture).not.toBeNull();
+    expect(result.post.mediaKind).toBe("graphic");
+  });
+
+  it("is skipped, not truncated, when NEITHER will serve as a headline", async () => {
+    // ⚠️ The rule that has not moved: nothing is ever cut in half. A subject
+    // too long to be a headline falls through to the body, and a body too
+    // long means no card at all.
+    const longSubject =
+      "A subject so long that it could not possibly be set as a headline on a card without being cut";
+    const result = await prepareGenerated(
+      deps({ drafts: [{ subject: longSubject, body: LONG_BODY }] }),
       { schedule: schedule(), platform: "facebook", language: "en", postsSoFar: 0 },
     );
     expect(result.ok).toBe(true);

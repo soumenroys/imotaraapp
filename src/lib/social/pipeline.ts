@@ -23,7 +23,7 @@ import {
   type HouseStyleResult,
 } from "@/lib/social/voiceGate";
 import { judgeSubject, subjectHash, exclusionList } from "@/lib/social/subjects";
-import { pickRecipe, headlineFromBody, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
+import { pickRecipe, headlineFor, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
 import { pickWord, untranslatablePoolReady } from "@/lib/social/untranslatableWords";
 import { pickMistake, mistakesPoolReady, mentionsMistake, type ProductMistake } from "@/lib/social/productMistakes";
 import { composePicture, type Picture } from "@/lib/social/compose";
@@ -258,17 +258,37 @@ export function mediaKindFor(contentType: ContentType, hasPicture: boolean): str
 
 async function buildPicture(
   deps: PipelineDeps,
-  args: { language: string; body: string; scheduleId: string | null; platform: string },
+  args: { language: string; subject: string; body: string; scheduleId: string | null; platform: string },
 ): Promise<{ picture: Picture | null; recipe: Recipe | null; notes: string[] }> {
   const notes: string[] = [];
 
-  const headline = headlineFromBody(args.body);
+  /**
+   * 🔴 THE SAME QUESTION THE RENDERER ASKS, asked the same way.
+   *
+   * This called `headlineFromBody(body)` while the renderer calls
+   * `headlineFor(subject, body)` — subject first, because the subject was
+   * WRITTEN to be the headline. So two pieces of code disagreed about what
+   * the headline is: one decided whether a card could exist, the other
+   * decided what it would say.
+   *
+   * ⛔ The cost was not cosmetic. A post with a short subject and a long
+   * opening sentence HAS a perfectly good headline, and was refused a card
+   * anyway — which on a channel with no text-only post means refused
+   * entirely. Three Instagram drafts died that way before anybody looked
+   * ⇒ trap_a_constraint_nobody_told_the_writer.
+   *
+   * ⚠️ Same shape as the defect that put the Page's first public post out as
+   * plain text: `headlineFor` was introduced to prefer the subject, and this
+   * caller was never moved onto it.
+   */
+  const headline = headlineFor(args.subject, args.body);
   if (!headline) {
     // ⛔ Not a truncated headline. Half a sentence on a card is worse than no
     // card, and the post still works as text.
     notes.push(
-      "No picture: the opening sentence is too long to set as a headline, and it is not truncated " +
-        "here — half a thought on a card reads worse than no card. The post goes out as text.",
+      "No picture: neither the subject nor the opening sentence is short enough to set as a " +
+        "headline, and neither is truncated here — half a thought on a card reads worse than no " +
+        "card. The post goes out as text.",
     );
     return { picture: null, recipe: null, notes };
   }
@@ -492,6 +512,9 @@ export async function prepareGenerated(
     if (wantsPicture(args.schedule.contentType)) {
       const built = await buildPicture(deps, {
         language,
+        // ⚠️ The subject is the card's headline ⇒ headlineFor. Omitting it
+        // here is what made this decision disagree with the renderer.
+        subject,
         body,
         scheduleId: args.schedule.id,
         platform: args.platform,
@@ -657,6 +680,7 @@ export async function prepareWritten(
       // rule: it shows what the word check read. The line is kept on the post
       // for the record; it is not drawn.
       language,
+      subject,
       body,
       scheduleId: null,
       platform: args.platform,

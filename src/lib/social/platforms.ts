@@ -154,22 +154,24 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     // they are right that a card without them gives a reader nowhere to go.
     // The labels are what make three codes worth the space.
     qr: true,
-    canPublish: false,
     /**
-     * ⚠️ WHAT IS ACTUALLY LEFT, as of 18 Oct — the account itself is ready.
-     * `@imotaraofficial` is linked to the Page and is the BIGGER audience of
-     * the two (81 followers against the Page's 51). What is missing is a token
-     * carrying `instagram_basic` + `instagram_content_publish`, and the
-     * publicly fetchable card URL that Instagram requires.
+     * ✅ 18 Oct. `@imotaraofficial` is linked to the Page and is the BIGGER
+     * audience of the two — 81 followers against the Page's 51.
+     *
+     * ⚠️ `canPublish` MEANS "THE CODE CAN", NOT "IT IS CONNECTED". The
+     * publisher still holds a post, visibly, when no Instagram channel has a
+     * token ⇒ social-publish. ⛔ The two must not be conflated: a flag that
+     * also meant "connected" would make an unconnected channel look broken
+     * and a broken one look unbuilt.
      *
      * 🔴 AND THE ONE THAT IS NOT A PERMISSION. Instagram has no byte upload:
-     * it is handed a URL and fetches the image ITSELF, unauthenticated. The
-     * Facebook path — render the card and upload the bytes — simply does not
-     * exist here ⇒ src/lib/social/cardUrl.ts.
+     * it is handed a URL and fetches the image ITSELF, unauthenticated
+     * ⇒ src/lib/social/cardUrl.ts. It also takes JPEG and nothing else.
      */
-    blockedBy:
-      "A token with instagram_basic + instagram_content_publish, and a publicly fetchable card URL " +
-      "— Instagram fetches the image itself and cannot be handed bytes.",
+    canPublish: true,
+    // ⚠️ Empty, like Facebook's: nothing is blocking the code. What may still
+    // be missing is a CONNECTED channel, and that is a different screen.
+    blockedBy: "",
   },
 
   x: {

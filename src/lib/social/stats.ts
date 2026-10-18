@@ -23,6 +23,11 @@ import {
   fetchPageInsights,
   fetchPostImpressions,
 } from "@/lib/social/adapters/facebook";
+import {
+  fetchInstagramStats,
+  fetchInstagramAccountInsights,
+  fetchInstagramPostStats,
+} from "@/lib/social/adapters/instagram";
 
 /** ⚠️ UTC, matching the table's `captured_on` default, so a capture at 23:40
  *  IST does not land on yesterday's row or create tomorrow's. */
@@ -50,13 +55,28 @@ export async function captureChannelStats(
   const cred = await loadChannelCredential(db, accountId);
   if (!cred.ok) return { ok: false, reason: cred.reason };
 
-  if (cred.platform !== "facebook") {
+  if (cred.platform !== "facebook" && cred.platform !== "instagram") {
     // ⛔ Said, not skipped. A channel silently absent from the record looks
     // identical to a channel that never grew.
     return { ok: false, reason: `There is no way to read ${cred.platform} figures yet.` };
   }
 
-  const stats = await fetchPageStats({ token: cred.token, pageId: cred.externalId });
+  /**
+   * ⚠️ THE TWO CHANNELS REPORT DIFFERENT THINGS, and the differences are kept
+   * rather than flattened into a shared lowest common denominator:
+   *   • a Page has `fans` as well as followers; an Instagram account has only
+   *     followers, so `fans` stays NULL rather than being filled with a copy;
+   *   • Instagram reports NET FOLLOWER CHANGE for a day, which can be
+   *     negative, and Facebook does not;
+   *   • Facebook reports impressions and reach for the Page.
+   * ⛔ Filling a column a platform does not report would make the two
+   * channels look comparable in a chart where they are not.
+   */
+  const isInstagram = cred.platform === "instagram";
+
+  const stats = isInstagram
+    ? await fetchInstagramStats({ token: cred.token, igUserId: cred.externalId })
+    : await fetchPageStats({ token: cred.token, pageId: cred.externalId });
   if (!stats.ok) return { ok: false, reason: stats.message };
 
   const day = capturedOn(opts.now);
@@ -108,8 +128,17 @@ export async function captureChannelStats(
    * error. ⛔ The figures stay NULL — never 0 — and the reason is kept in the
    * note, because a column of zeros would read as "nobody saw anything".
    */
-  const insights = await fetchPageInsights({ token: cred.token, pageId: cred.externalId });
+  const insights = isInstagram
+    ? await fetchInstagramAccountInsights({ token: cred.token, igUserId: cred.externalId })
+    : await fetchPageInsights({ token: cred.token, pageId: cred.externalId });
   const insightNote = insights.ok ? "" : ` ⚠️ Reach unavailable: ${insights.message}`;
+
+  const reach = insights.ok ? insights.insights.reach : null;
+  // ⚠️ Only Instagram reports these two, and only Facebook the other.
+  const followerChange =
+    insights.ok && "followerChange" in insights.insights ? insights.insights.followerChange : null;
+  const impressions =
+    insights.ok && "impressions" in insights.insights ? insights.insights.impressions : null;
 
   const { error } = await db.from("social_channel_stats").upsert(
     {
@@ -118,10 +147,14 @@ export async function captureChannelStats(
       captured_on: day,
       is_baseline: baseline,
       followers: stats.stats.followers,
-      fans: stats.stats.fans,
+      // ⛔ NULL for Instagram rather than a copy of the follower count. A Page
+      // "like" and a follow are different acts, and duplicating one into the
+      // other would invent a number nobody measured.
+      fans: "fans" in stats.stats ? stats.stats.fans : null,
       posts_live: live ?? 0,
-      impressions: insights.ok ? insights.insights.impressions : null,
-      reach: insights.ok ? insights.insights.reach : null,
+      impressions,
+      reach,
+      follower_change: followerChange,
       raw: { page: stats.stats.raw, insights: insights.ok ? insights.insights.raw : { error: insights.message } },
       note: (opts.note ?? "") + insightNote || null,
     },
@@ -140,7 +173,10 @@ export async function captureChannelStats(
           `done anything. ⛔ This figure cannot be recovered later.`
         : `${stats.stats.followers ?? "unknown"} followers today.`) +
       (insights.ok
-        ? ` Reach yesterday: ${insights.insights.reach ?? "unknown"}, impressions ${insights.insights.impressions ?? "unknown"}.`
+        ? ` Reach yesterday: ${reach ?? "unknown"}` +
+          (impressions !== null ? `, impressions ${impressions}` : "") +
+          (followerChange !== null ? `, net followers ${followerChange > 0 ? "+" : ""}${followerChange}` : "") +
+          "."
         : insightNote),
   };
 }
@@ -161,9 +197,10 @@ export async function capturePostStats(
   const problems: string[] = [];
   const cred = await loadChannelCredential(db, accountId);
   if (!cred.ok) return { captured: 0, skipped: 0, problems: [cred.reason] };
-  if (cred.platform !== "facebook") {
+  if (cred.platform !== "facebook" && cred.platform !== "instagram") {
     return { captured: 0, skipped: 0, problems: [`No reader for ${cred.platform} yet.`] };
   }
+  const isInstagram = cred.platform === "instagram";
 
   /**
    * ⚠️ A WINDOW, not every post ever. Engagement on a post older than a
@@ -188,6 +225,48 @@ export async function capturePostStats(
   let skipped = 0;
 
   for (const p of posts ?? []) {
+    /**
+     * 🔑 SAVES ARE THE INSTAGRAM NUMBER. The voice for that channel is written
+     * to be worth KEEPING rather than worth agreeing with ⇒ platforms.ts, and
+     * a metric we deliberately optimise for and never record is a claim
+     * nobody can check afterwards.
+     */
+    if (isInstagram) {
+      const ig = await fetchInstagramPostStats({
+        token: cred.token,
+        igUserId: cred.externalId,
+        mediaId: p.external_post_id as string,
+      });
+      if (!ig.ok) {
+        problems.push(`${p.external_post_id}: ${ig.message}`);
+        skipped += 1;
+        continue;
+      }
+      const { error: igError } = await db.from("social_post_stats").upsert(
+        {
+          post_id: p.id,
+          captured_on: day,
+          reactions: ig.stats.likes,
+          comments: ig.stats.comments,
+          // ⛔ NULL, not 0. Instagram does not report shares per post on this
+          // edge, and a zero would read as "nobody shared it".
+          shares: null,
+          saves: ig.stats.saved,
+          reach: ig.stats.reach,
+          impressions: ig.stats.views,
+          raw: ig.stats.raw,
+        },
+        { onConflict: "post_id,captured_on" },
+      );
+      if (igError) {
+        problems.push(`${p.id}: ${igError.message}`);
+        skipped += 1;
+        continue;
+      }
+      captured += 1;
+      continue;
+    }
+
     const stats = await fetchPostStats({ token: cred.token, postId: p.external_post_id as string });
     if (!stats.ok) {
       // ⛔ One post failing must not lose the rest of the day's figures.

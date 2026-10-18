@@ -33,7 +33,10 @@ const HOW: Record<string, string> = {
     "LinkedIn developer app → Community Management API → once approved, generate an access token " +
     "with w_organization_social. ⚠️ It expires in 60 days; the refresh token lasts a year.",
   instagram:
-    "A separate permission set from the Facebook Page token, through the same portfolio.",
+    "The SAME system user token as the Page, regenerated with instagram_basic and " +
+    "instagram_content_publish added (and instagram_manage_insights, for saves and reach). " +
+    "⚠️ Whatever is ticked is ALL the new token gets, so leave the three pages_* permissions and " +
+    "read_insights ticked or Facebook posting breaks. ⛔ Not the messaging permissions.",
   x: "X developer portal → a project with write access. ⚠️ The API is paid.",
   youtube: "Google Cloud console → YouTube Data API → OAuth for the channel's own account.",
 };
@@ -119,9 +122,13 @@ export function ConnectChannel({
               <option key={id} value={id}>{CHANNELS[id].label}</option>
             ))}
           </select>
-          <p className="text-[11px] leading-relaxed text-amber-300/90">
-            ⛔ {CHANNELS[platform as keyof typeof CHANNELS].blockedBy}
-          </p>
+          {/* ⚠️ Only when there IS one. A bare "⛔" with nothing after it has
+              been showing on Facebook since the day it started publishing. */}
+          {CHANNELS[platform as keyof typeof CHANNELS].blockedBy ? (
+            <p className="text-[11px] leading-relaxed text-amber-300/90">
+              ⛔ {CHANNELS[platform as keyof typeof CHANNELS].blockedBy}
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-2">
@@ -132,9 +139,25 @@ export function ConnectChannel({
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="cc-id" className={label}>The platform&rsquo;s own id for it</label>
+        <label htmlFor="cc-id" className={label}>
+          The platform&rsquo;s own id for it{platform === "instagram" ? " (optional)" : ""}
+        </label>
         <input id="cc-id" value={externalId} onChange={(e) => setExternalId(e.target.value)}
-          placeholder="e.g. the Page id" className={`${field} font-mono`} />
+          placeholder={platform === "instagram" ? "leave blank, or @imotaraofficial" : "e.g. the Page id"}
+          className={`${field} font-mono`} />
+        {platform === "instagram" ? (
+          /**
+           * 🔑 Instagram&rsquo;s id is the one nobody can find — it is shown in
+           * neither the app, the profile, nor Business Suite&rsquo;s own screens.
+           * ⛔ And a mistyped one is encrypted against itself, so it cannot be
+           * corrected afterwards: it is half the token&rsquo;s binding, and the
+           * symptom days later reads like a dead token.
+           */
+          <p className="text-[11px] leading-relaxed text-zinc-500">
+            ⚠️ Leave this blank and it is looked up from the token. Only put an @name here if the
+            token can see more than one Instagram account.
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -162,7 +185,7 @@ export function ConnectChannel({
 
       <div className="flex flex-wrap gap-2 border-t border-white/8 pt-4">
         <button type="button" onClick={() => void submit()}
-          disabled={busy || !storageReady.ok || !displayName.trim() || !externalId.trim() || accessToken.length < 20}
+          disabled={busy || !storageReady.ok || !displayName.trim() || (platform !== "instagram" && !externalId.trim()) || accessToken.length < 20}
           className="min-h-11 rounded-lg bg-indigo-600 px-5 text-sm font-semibold hover:bg-indigo-500 disabled:opacity-40">
           {busy ? "Storing…" : "Connect it"}
         </button>

@@ -218,7 +218,19 @@ describe("the health cron uses the answer it got", () => {
   );
 
   it("calls the adapter rather than inferring from a date", () => {
-    expect(health).toContain("checkFacebookPage");
+    /**
+     * ⚠️ The anchor moved and the rule did not. This pinned
+     * `checkFacebookPage`; the cron now asks `checkChannel`, which dispatches
+     * to the real adapter for whichever channel it is ⇒ channelCheck.ts. The
+     * reason that exists: this cron and the button an admin presses had
+     * separate platform ladders, and already disagreed once about the same
+     * Page — the button said Working, the cron said Needs you.
+     */
+    expect(health).toContain("checkChannel");
+    expect(health).toContain("channelCanBeChecked");
+    // ⛔ And the date branch is still only ever the FALLBACK for a channel
+    // with no adapter, never the answer for one that has one.
+    expect(health.indexOf("checkChannel(cred)")).toBeLessThan(health.indexOf("a.token_expires_at"));
   });
 
   it("⛔ does not mark a channel ok when it cannot be posted to", () => {

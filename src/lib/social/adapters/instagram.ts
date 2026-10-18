@@ -439,3 +439,97 @@ export async function fetchInstagramPostStats(args: {
     },
   };
 }
+
+export type InstagramAccountInsights = {
+  /** Distinct people who saw anything of ours. ⛔ null, never 0, when Meta declines. */
+  reach: number | null;
+  /** ⚠️ Net new followers that day, which Instagram reports and Facebook does
+   *  not. It is signed: a negative number is people leaving, and recording it
+   *  as 0 would be the flattering lie this whole table exists to avoid. */
+  followerChange: number | null;
+  raw: unknown;
+};
+
+/**
+ * Yesterday's account figures.
+ *
+ * ⚠️ YESTERDAY, NOT TODAY. A `day` period for a day still in progress returns
+ * a partial number that looks like a bad day, and comparing it with a full
+ * day's figure is how a chart invents a decline.
+ *
+ * ⛔ A FAILURE HERE IS NOT A FAILURE OF THE CAPTURE. Account insights need
+ * `instagram_manage_insights` and Meta declines them on very small accounts;
+ * the follower count still comes from the node, and these stay null.
+ */
+export async function fetchInstagramAccountInsights(args: {
+  token: string;
+  igUserId: string;
+  fetchImpl?: typeof fetch;
+}): Promise<{ ok: true; insights: InstagramAccountInsights } | { ok: false; kind: InstagramFailure; message: string }> {
+  const doFetch = args.fetchImpl ?? fetch;
+  const linked = await instagramLink({ token: args.token, igUserId: args.igUserId, fetchImpl: doFetch });
+  if (!linked.ok) return linked;
+
+  const res = await getJson(
+    graph(`${encodeURIComponent(args.igUserId)}/insights`) +
+      `?metric=reach,follower_count&period=day&access_token=${encodeURIComponent(linked.link.pageToken)}`,
+    doFetch,
+  );
+  if (!res.ok) return res;
+
+  const rows = (res.json.data ?? []) as { name?: string; values?: { value?: number }[] }[];
+  const pick = (name: string): number | null => {
+    const v = rows.find((r) => r.name === name)?.values?.[0]?.value;
+    return typeof v === "number" ? v : null;
+  };
+
+  return {
+    ok: true,
+    insights: { reach: pick("reach"), followerChange: pick("follower_count"), raw: res.json },
+  };
+}
+
+export type InstagramAccountSummary = { igUserId: string; username: string; pageId: string; pageName: string };
+
+/**
+ * Every Instagram account this token can publish to.
+ *
+ * 🔑 SO NOBODY HAS TO FIND A 17841… NUMBER BY HAND. The Instagram user id is
+ * not shown anywhere a person would naturally look — not in the app, not on
+ * the profile, not in Business Suite's main screens — and a mistyped one is
+ * stored, encrypted against itself, and fails later as something that reads
+ * like a dead token ⇒ trap_an_id_can_be_half_an_encryption_key.
+ *
+ * ⛔ Returns what it can see rather than guessing. A portfolio with two
+ * accounts must be a question, not a coin toss.
+ */
+export async function listInstagramAccounts(args: {
+  token: string;
+  fetchImpl?: typeof fetch;
+}): Promise<{ ok: true; accounts: InstagramAccountSummary[] } | { ok: false; kind: InstagramFailure; message: string }> {
+  const res = await getJson(
+    graph("me/accounts") +
+      `?fields=id,name,instagram_business_account{id,username}&limit=100` +
+      `&access_token=${encodeURIComponent(args.token)}`,
+    args.fetchImpl ?? fetch,
+  );
+  if (!res.ok) return res;
+
+  const pages = (res.json.data ?? []) as {
+    id?: string;
+    name?: string;
+    instagram_business_account?: { id?: string; username?: string };
+  }[];
+
+  return {
+    ok: true,
+    accounts: pages
+      .filter((p) => p.instagram_business_account?.id)
+      .map((p) => ({
+        igUserId: p.instagram_business_account!.id!,
+        username: p.instagram_business_account!.username ?? "",
+        pageId: p.id ?? "",
+        pageName: p.name ?? "",
+      })),
+  };
+}

@@ -20,7 +20,7 @@ import { tokenStorageReady } from "@/lib/social/tokenCrypto";
 import { sendChannelAlert } from "@/lib/social/alert";
 import { markCronFired } from "@/lib/cron/heartbeat";
 import { loadChannelCredential } from "@/lib/social/channelCredentials";
-import { checkFacebookPage } from "@/lib/social/adapters/facebook";
+import { checkChannel, channelCanBeChecked } from "@/lib/social/channelCheck";
 
 export const maxDuration = 120;
 
@@ -67,19 +67,23 @@ export async function GET(req: NextRequest) {
       // Saying "ok" here would be the most expensive lie this route could tell.
       next = "dead";
       why = storage.reason;
-    } else if (a.platform === "facebook") {
+    } else if (channelCanBeChecked(a.platform as string)) {
       /**
        * 🔑 THE REAL CALL. Everything below this branch is inference from a
        * date; this is the platform itself answering. A token revoked at the
        * other end, an app removed from the portfolio or a Page un-assigned all
        * surface here and nowhere else.
+       *
+       * ⚠️ Which platforms that covers is decided in ONE place
+       * ⇒ channelCheck.ts, so this cron and the button somebody presses can
+       * never again disagree about the same channel.
        */
       const cred = await loadChannelCredential(db, a.id as string);
       if (!cred.ok) {
         next = "dead";
         why = cred.reason;
       } else {
-        const result = await checkFacebookPage({ token: cred.token, pageId: cred.externalId });
+        const result = await checkChannel(cred);
         if (result.ok) {
           // ⛔ `canPost` false is NOT healthy. A Page we can read and cannot
           // post to is the failure that otherwise reads as success.

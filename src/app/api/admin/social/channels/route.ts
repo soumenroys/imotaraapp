@@ -14,6 +14,7 @@ import { scriptsAwaitingVerification } from "@/lib/social/fonts";
 import { PLATFORMS as CHANNELS } from "@/lib/social/platforms";
 import { encryptToken, tokenAad, tokenTail, tokenFingerprint, tokenStorageReady } from "@/lib/social/tokenCrypto";
 import { captureChannelStats } from "@/lib/social/stats";
+import { listInstagramAccounts } from "@/lib/social/adapters/instagram";
 
 const PLATFORMS: string[] = PLATFORM_IDS;
 
@@ -79,11 +80,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `platform must be one of ${PLATFORMS.join(", ")}` }, { status: 400 });
   }
   const displayName = input.displayName?.trim() ?? "";
-  const externalId = input.externalId?.trim() ?? "";
+  let externalId = input.externalId?.trim() ?? "";
   const accessToken = input.accessToken?.trim() ?? "";
-  if (!displayName || !externalId || !accessToken) {
+  if (!displayName || !accessToken) {
     return NextResponse.json(
-      { error: "A channel needs a name, the platform's own id for it, and a token." },
+      { error: "A channel needs a name and a token." },
+      { status: 400 },
+    );
+  }
+  /**
+   * ⚠️ Instagram is allowed to arrive without an id, because its id is the one
+   * nobody can find — see below. Every other platform still must bring one.
+   */
+  if (!externalId && platform !== "instagram") {
+    return NextResponse.json(
+      { error: "A channel needs the platform's own id for it." },
       { status: 400 },
     );
   }
@@ -123,6 +134,57 @@ export async function POST(req: NextRequest) {
       },
       { status: 400 },
     );
+  }
+
+  /**
+   * 🔑 INSTAGRAM'S ID IS LOOKED UP RATHER THAN TYPED, and it has to happen
+   * HERE — before the binding below. `external_id` is half the token's
+   * encryption aad, so a value corrected afterwards does not fix anything: it
+   * makes the stored token undecryptable, and the symptom reads like a dead
+   * token ⇒ trap_an_id_can_be_half_an_encryption_key.
+   *
+   * ⚠️ The Instagram user id (17841…) is not shown in the app, on the profile,
+   * or anywhere in Business Suite a person would naturally look. Asking
+   * somebody to paste one is asking for a typo that surfaces days later.
+   *
+   * ⛔ A portfolio with two accounts is a QUESTION, not a coin toss.
+   */
+  if (platform === "instagram") {
+    const found = await listInstagramAccounts({ token: accessToken });
+    if (!found.ok) {
+      return NextResponse.json({ error: found.message }, { status: 400 });
+    }
+    const wanted = externalId.replace(/^@/, "").toLowerCase();
+    const matches = wanted
+      ? found.accounts.filter((a) => a.igUserId === wanted || a.username.toLowerCase() === wanted)
+      : found.accounts;
+
+    if (matches.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            found.accounts.length === 0
+              ? "This token can see no Instagram account on any Page. ▶️ Link the account to the " +
+                "Page in Business settings, make sure it is a Business or Creator account, and " +
+                "check the token carries instagram_basic."
+              : `No Instagram account matching "${externalId}". ⚠️ This token can see: ` +
+                found.accounts.map((a) => `@${a.username} on ${a.pageName}`).join(", "),
+        },
+        { status: 400 },
+      );
+    }
+    if (matches.length > 1) {
+      return NextResponse.json(
+        {
+          error:
+            `This token can see ${matches.length} Instagram accounts, so it is not obvious which ` +
+            `one you mean: ${matches.map((a) => `@${a.username} on ${a.pageName}`).join(", ")}. ` +
+            `▶️ Put the @name in the id field.`,
+        },
+        { status: 400 },
+      );
+    }
+    externalId = matches[0].igUserId;
   }
 
   const db = getSupabaseAdmin();

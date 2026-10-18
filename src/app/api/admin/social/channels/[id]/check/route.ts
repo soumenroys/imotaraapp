@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { loadChannelCredential } from "@/lib/social/channelCredentials";
-import { checkFacebookPage } from "@/lib/social/adapters/facebook";
+import { checkChannel, channelCanBeChecked } from "@/lib/social/channelCheck";
 import { captureChannelStats } from "@/lib/social/stats";
 
 export const maxDuration = 60;
@@ -28,10 +28,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!cred.ok) return NextResponse.json({ error: cred.reason }, { status: 400 });
 
   /**
-   * ⚠️ Facebook is the only channel with an adapter today, and this says so
-   * rather than returning a cheerful nothing. ⇒ src/lib/social/platforms.ts
+   * ⚠️ Asked of the dispatcher rather than tested against a string here. This
+   * read `cred.platform !== "facebook"`, which meant adding Instagram needed
+   * an edit in a file nobody would think to open ⇒ channelCheck.ts.
    */
-  if (cred.platform !== "facebook") {
+  if (!channelCanBeChecked(cred.platform)) {
     return NextResponse.json(
       {
         error:
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     );
   }
 
-  const result = await checkFacebookPage({ token: cred.token, pageId: cred.externalId });
+  const result = await checkChannel(cred);
   const now = new Date().toISOString();
 
   /**

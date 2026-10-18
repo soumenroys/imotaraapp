@@ -20,8 +20,19 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { headlineFromBody, supportFromBody } from "@/lib/social/visualRecipe";
 
+/**
+ * ⚠️ THE STILL PICTURE'S RENDERER MOVED on 18 Oct, out of the admin route and
+ * into a shared module, because the publisher needs the same bytes and cannot
+ * be handed a URL behind an admin guard ⇒ src/lib/social/renderPicture.ts.
+ *
+ * 🔑 THE TEST FOLLOWED THE CODE RATHER THAN BEING RELAXED. It fired on the
+ * move, which is what it is for — and pointing it at the new home keeps it
+ * checking the same thing: that a call site exists at all. ⛔ Deleting the
+ * failing case, or loosening it to "somewhere in src/", would have thrown away
+ * the one check that caught the original bug.
+ */
 const ROUTES = [
-  "src/app/api/admin/social/picture/[id]/route.ts",
+  "src/lib/social/renderPicture.ts",
   "src/app/api/admin/social/animation/[id]/route.ts",
 ];
 
@@ -93,8 +104,15 @@ describe("⛔ and something actually calls it", () => {
     it(`${route.split("/").slice(-2)[0]} derives it from the post's own body`, () => {
       // ⛔ Not from the subject, and not from a stored column. A picture must
       // not be able to show a sentence the word check did not read.
+      //
+      // ⚠️ The `as string` cast is NOT part of the rule and used to be baked
+      // into this pattern. Once the renderer moved into a module that types
+      // `body` properly, the cast was gone and the assertion failed over
+      // punctuation rather than over the thing it exists to check.
       const src = readFileSync(join(process.cwd(), route), "utf8");
-      expect(src).toMatch(/supportFromBody\(post\.body as string\)/);
+      expect(src).toMatch(/supportFromBody\(\s*post\.body\b/);
+      // ⛔ And still not from either of the two wrong sources.
+      expect(src).not.toMatch(/supportFromBody\(\s*post\.subject\b/);
     });
   }
 });

@@ -136,6 +136,160 @@ export function classifyGraphError(err: GraphError): { kind: FacebookFailure; me
 }
 
 /**
+ * Mint the Page's own access token from the system user's.
+ *
+ * 🔑 POSTING NEEDS THE PAGE'S TOKEN, NOT THE SYSTEM USER'S. A post made with
+ * the user token is attributed to the person, not the Page — or refused. The
+ * Page token comes from the Page node itself and is derived per call.
+ *
+ * ⛔ NEVER STORED. A second copy of a credential is a second place it can leak
+ * from, it expires on its own schedule, and deriving it costs one request that
+ * the publish was going to make anyway.
+ */
+async function pageAccessToken(args: {
+  token: string;
+  pageId: string;
+  fetchImpl?: typeof fetch;
+}): Promise<{ ok: true; token: string } | { ok: false; kind: FacebookFailure; message: string }> {
+  const doFetch = args.fetchImpl ?? fetch;
+  try {
+    const res = await doFetch(
+      graph(encodeURIComponent(args.pageId)) +
+        `?fields=access_token&access_token=${encodeURIComponent(args.token)}`,
+      { signal: AbortSignal.timeout(15_000), cache: "no-store" },
+    );
+    const json = (await res.json()) as { access_token?: string; error?: GraphError };
+    if (json.error) return { ok: false, ...classifyGraphError(json.error) };
+    if (!json.access_token) {
+      return {
+        ok: false,
+        kind: "permission",
+        message:
+          "Facebook returned no Page access token for this Page. ▶️ The token needs pages_show_list " +
+          "and pages_read_engagement, and the system user needs the Page assigned.",
+      };
+    }
+    return { ok: true, token: json.access_token };
+  } catch (e) {
+    return {
+      ok: false,
+      kind: "network",
+      message: `Could not reach Facebook (${(e as Error).message}).`,
+    };
+  }
+}
+
+export type FacebookPublish =
+  | { ok: true; postId: string; url: string }
+  | { ok: false; kind: FacebookFailure; message: string };
+
+/**
+ * Put a post on the Page.
+ *
+ * 🔑 WHY A PICTURE IS UPLOADED UNPUBLISHED AND THEN ATTACHED, rather than
+ * posted straight to `/photos`:
+ *
+ *   • `/photos` takes a `caption`, and a caption is not a post message — the
+ *     two render differently and only one of them is the post's text;
+ *   • the two-step form is the documented way to put a message and an image in
+ *     ONE post rather than two things on the timeline;
+ *   • and `attached_media` takes a LIST, so the same path carries a carousel
+ *     the day we build one, without a second way of publishing.
+ *
+ * ⛔ NOTHING IS RETRIED IN HERE. A retry around a call that may have succeeded
+ * is how a post gets published twice, and a duplicate on a timeline cannot be
+ * un-seen. The caller owns the attempt count and the decision not to try again.
+ */
+export async function publishToFacebook(args: {
+  token: string;
+  pageId: string;
+  message: string;
+  /** PNG bytes, already rendered. ⚠️ Omitted for a text-only post. */
+  picture?: Uint8Array;
+  fetchImpl?: typeof fetch;
+}): Promise<FacebookPublish> {
+  const doFetch = args.fetchImpl ?? fetch;
+
+  const page = await pageAccessToken({ token: args.token, pageId: args.pageId, fetchImpl: args.fetchImpl });
+  if (!page.ok) return page;
+
+  let attachedMedia: string | undefined;
+
+  if (args.picture) {
+    const form = new FormData();
+    form.set("access_token", page.token);
+    // ⚠️ `published=false` — this uploads the image and does NOT put it on the
+    // timeline. The feed call below is the only thing that publishes.
+    form.set("published", "false");
+    form.set("source", new Blob([new Uint8Array(args.picture)], { type: "image/png" }), "post.png");
+
+    let photoId: string;
+    try {
+      const res = await doFetch(graph(`${encodeURIComponent(args.pageId)}/photos`), {
+        method: "POST",
+        body: form,
+        // ⚠️ Longer than a text post: this is an upload, and timing it out at
+        // fifteen seconds would fail pictures that were about to succeed.
+        signal: AbortSignal.timeout(60_000),
+      });
+      const json = (await res.json()) as { id?: string; error?: GraphError };
+      if (json.error) return { ok: false, ...classifyGraphError(json.error) };
+      if (!json.id) {
+        return { ok: false, kind: "unknown", message: `Facebook accepted the image but returned no id (HTTP ${res.status}).` };
+      }
+      photoId = json.id;
+    } catch (e) {
+      return {
+        ok: false,
+        kind: "network",
+        message:
+          `The picture could not be uploaded (${(e as Error).message}). ⚠️ Nothing was posted — ` +
+          `the image was uploaded unpublished, so there is nothing on the timeline to undo.`,
+      };
+    }
+    attachedMedia = JSON.stringify([{ media_fbid: photoId }]);
+  }
+
+  const body = new URLSearchParams({ access_token: page.token, message: args.message });
+  if (attachedMedia) body.set("attached_media", attachedMedia);
+
+  try {
+    const res = await doFetch(graph(`${encodeURIComponent(args.pageId)}/feed`), {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+      signal: AbortSignal.timeout(60_000),
+    });
+    const json = (await res.json()) as { id?: string; error?: GraphError };
+    if (json.error) return { ok: false, ...classifyGraphError(json.error) };
+    if (!json.id) {
+      return { ok: false, kind: "unknown", message: `Facebook returned no post id (HTTP ${res.status}).` };
+    }
+    return {
+      ok: true,
+      postId: json.id,
+      // ⚠️ The id comes back as `{pageId}_{postId}`; the permalink wants it
+      // whole, exactly as given.
+      url: `https://www.facebook.com/${json.id}`,
+    };
+  } catch (e) {
+    /**
+     * 🔴 THE ONE FAILURE THAT IS NOT SAFE TO ASSUME FAILED. A timeout here
+     * means the request may have been received and the post may exist. ⛔ So
+     * this says so rather than reporting a clean failure — the caller must not
+     * treat it as "nothing happened" and try again.
+     */
+    return {
+      ok: false,
+      kind: "network",
+      message:
+        `The post call did not complete (${(e as Error).message}). ⛔ It may still have published — ` +
+        `check the Page before trying again, because a retry would post it twice.`,
+    };
+  }
+}
+
+/**
  * Which Pages can this token actually see?
  *
  * 🔴 THIS EXISTS BECAUSE "EITHER/OR" IS NOT A DIAGNOSIS. Facebook answers

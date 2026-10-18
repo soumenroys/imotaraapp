@@ -37,6 +37,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/social-publish",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/social-health",
       "schedule": "30 3 * * *"
     }

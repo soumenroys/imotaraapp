@@ -2556,7 +2556,13 @@ function StatsSection({ token }: { token: string }) {
       {/* Super-admins + recent audit */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-4 space-y-2">
-          <p className="text-sm font-medium text-zinc-300">Super-admins</p>
+          {/* \u26a0\ufe0f Four counts about people whose access is managed one tab away,
+              with nothing joining the two. Heading is the link \u2014 four rows of
+              two words each do not each need to become a control. */}
+          <div className="flex items-baseline justify-between">
+            <p className="text-sm font-medium text-zinc-300">Super-admins</p>
+            <a href="/admin?section=superadmins" className="text-[11px] text-indigo-400 hover:text-indigo-300">Manage →</a>
+          </div>
           {[
             { label: "Total",    value: stats.superAdmins.total,    color: "text-zinc-200" },
             { label: "Owners",  value: stats.superAdmins.owners,   color: "text-amber-300" },
@@ -2570,7 +2576,10 @@ function StatsSection({ token }: { token: string }) {
           ))}
         </div>
         <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-4 space-y-2">
-          <p className="text-sm font-medium text-zinc-300">Recent activity</p>
+          <div className="flex items-baseline justify-between">
+            <p className="text-sm font-medium text-zinc-300">Recent activity</p>
+            <a href="/admin?section=organizations" className="text-[11px] text-indigo-400 hover:text-indigo-300">Organisations →</a>
+          </div>
           {stats.recentAudit.slice(0, 6).map((a, i) => (
             <div key={i} className="flex items-center justify-between text-[11px]">
               <span className="text-zinc-400">{a.action.replace(/_/g," ")}</span>
@@ -3378,15 +3387,57 @@ export default function AdminPage() {
   const [token, setToken]     = useState<string | null>(null);
   const [myRole, setMyRole]   = useState<string | null>(null);
   const [section, setSection] = useState<Section>("comments");
+  // ⚠️ Starts true so a signed-in admin never sees the login card flash past
+  // while we ask the server whether this tab is already authenticated.
+  const [checking, setChecking] = useState(true);
 
   const [tab, setTab]           = useState<CommentTab>("pending");
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingC, setLoadingC] = useState(false);
   const [counts, setCounts]     = useState({ pending: 0, approved: 0, all: 0 });
 
+  /**
+   * 🔴 THE PANEL ASKED FOR A PASSWORD IT ALREADY HAD.
+   *
+   * The sign-in marker lives in sessionStorage, which is PER TAB. The session
+   * itself is an httpOnly cookie good for eight hours. So opening /admin in a
+   * second tab — or reopening it after closing the first — showed the login
+   * form to somebody who was still signed in, while /admin/social,
+   * /admin/analytics and /admin/crisis-events all worked in that same tab,
+   * because they ask the server instead of the tab.
+   *
+   * ⚠️ Found by opening the panel in a fresh tab during an end-to-end pass.
+   * /api/admin/auth/me returned 200 while the login card was on screen.
+   *
+   * ⇒ Ask the server when the tab has nothing. The cookie is the authority on
+   * whether somebody is signed in; sessionStorage was only ever a cache of
+   * that answer, and a cache miss is not a sign-out.
+   */
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
-    if (saved) setToken(saved);
+    if (saved) { setToken(saved); setChecking(false); return; }
+
+    let cancelled = false;
+    fetch("/api/admin/auth/me", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled) return;
+        const who = d?.admin;
+        if (who) {
+          const restored = `session:${who.name ?? who.email ?? "admin"}`;
+          sessionStorage.setItem(SESSION_KEY, restored);
+          setToken(restored);
+          if (who.role) {
+            setMyRole(who.role);
+            if (who.role === "connect_reviewer") setSection("connect");
+          }
+        }
+      })
+      .catch(() => {})
+      // ⛔ Whatever happened, stop holding the screen. A failed check must
+      // land on the login form, never on a spinner that never resolves.
+      .finally(() => { if (!cancelled) setChecking(false); });
+    return () => { cancelled = true; };
   }, []);
 
   /**
@@ -3457,6 +3508,18 @@ export default function AdminPage() {
     fetchComments(tab, token);
     fetchCounts(token);
   }, [token, section, tab, fetchComments, fetchCounts]);
+
+  if (checking) {
+    return (
+      <main className="mx-auto w-full max-w-5xl px-3 py-6 sm:px-6 sm:py-10">
+        <div className="h-9 w-48 animate-pulse rounded-xl bg-white/5" />
+        <div className="mt-6 h-12 animate-pulse rounded-xl bg-white/5" />
+        <div className="mt-6 space-y-3">
+          {[1, 2, 3].map((i) => <div key={i} className="h-24 animate-pulse rounded-2xl bg-white/5" />)}
+        </div>
+      </main>
+    );
+  }
 
   if (!token) return <LoginGate onAuth={(t) => setToken(t)} />;
 

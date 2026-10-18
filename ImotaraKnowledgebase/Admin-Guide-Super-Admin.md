@@ -133,15 +133,27 @@ An owner can overwrite any admin's password directly:
 
 ## 5. Two-factor authentication (2FA / TOTP)
 
-2FA uses a standard authenticator app (Google Authenticator, Authy, etc.) via TOTP. **These are API-only endpoints** — there is no 2FA management screen in the current admin UI beyond the login challenge. Perform these with the admin session cookie active.
+> ⛔ **IT DOES NOT PROTECT SIGN-IN YET. Read 5.2 before relying on this.**
+
+2FA uses a standard authenticator app (Google Authenticator, Authy, etc.) via TOTP.
+
+⚠️ This section used to say "these are API-only endpoints — there is no 2FA management screen". That stopped being true: **Admins → Two-factor authentication** has a full setup, verify and disable flow with backup codes. Checked against the code on 18 Oct 2026.
 
 ### 5.1 Enable 2FA
-1. Call `POST /api/admin/auth/2fa/setup` while logged in. It returns a `secret` and a `qrDataUrl` (a scannable QR image). 2FA is **not yet active** at this point.
+On `/admin` → **👑 Admins** → *Two-factor authentication* → **Manage**:
+1. **Set up** calls `POST /api/admin/auth/2fa/setup` and shows a QR code. 2FA is **not yet active** at this point.
 2. Scan the QR (or enter the secret) into your authenticator app.
-3. Call `POST /api/admin/auth/2fa/verify` with `{"code":"123456"}` (the current 6-digit code). On the **first** successful verify, 2FA is enabled and the response includes **8 one-time backup codes** — store these somewhere safe; they are shown only once.
+3. Enter the current 6-digit code. On the **first** successful verify, 2FA is marked enabled and **8 one-time backup codes** are shown — store them somewhere safe; they are shown only once.
 
-### 5.2 Log in with 2FA
-When 2FA is enabled, login is completed by verifying the TOTP code against the pending session (`loginToken` flow), which marks the session `two_fa_verified`.
+### 5.2 🔴 Logging in does NOT ask for a code
+
+**This is the important part of this section.** `POST /api/admin/auth/login` checks the password, the lockout and the attempt log, and signs you in. **It never reads whether 2FA is enabled**, and it never issues the `loginToken` that `/api/admin/auth/2fa/verify`'s challenge branch waits for.
+
+So an admin can enrol, store backup codes, see the account marked as having 2FA set up — and still be signed in by email and password alone.
+
+⚠️ This entry previously described the `loginToken` flow as if it ran at sign-in. It does not, and did not. Treat **your password as the only thing guarding this panel** until enforcement is wired into the login route, and choose it accordingly. The Admins screen carries the same warning beside the setup button.
+
+▶️ **To finish this:** the login route needs to check `totp_enabled`, and where it is set, return a pending `loginToken` instead of a session — which the existing verify endpoint already knows how to complete. It is a change to the only way into the panel, so do it with somebody watching the next sign-in and a second admin already signed in elsewhere.
 
 ### 5.3 Disable 2FA
 - Call `DELETE /api/admin/auth/2fa/disable` with `{"code":"123456"}` (a current valid code is required to confirm). This clears the secret, disables 2FA, and wipes the backup codes.
@@ -154,8 +166,10 @@ When 2FA is enabled, login is completed by verifying the TOTP code against the p
 
 ### 6.1 Log in
 1. Go to `/admin`.
-2. The login card has two tabs: **Email / Password** (preferred, your personal account) and **Secret key** (legacy emergency fallback, see §17).
-3. Enter credentials and submit (`POST /api/admin/auth/login`). A session cookie is set for **8 hours**.
+2. Enter your email and password and submit (`POST /api/admin/auth/login`). A session cookie is set for **8 hours**.
+3. Locked out? Use **Forgot password?** on the same card — it mails a reset link that expires in 15 minutes.
+
+⚠️ This step used to describe a second **Secret key** tab. That tab was removed from the code on 16 Oct 2026 and `ADMIN_SECRET` was deleted from Vercel; there is no key login and no way to re-enable one without a reviewed code change. Email and password is the only way in.
 
 ### 6.2 See your active sessions
 - `GET /api/admin/auth/sessions` lists your active sessions with IP, user agent, and timestamps, and marks which one is current.

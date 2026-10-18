@@ -45,15 +45,51 @@ export type UntranslatableWord = {
   confirmedAt: string | null;
   /** Anything a confirmer should weigh before vouching for it. */
   note?: string;
+  /**
+   * What was checked against a source, and where.
+   *
+   * 🔑 TWO TIERS, AND THEY ARE NOT THE SAME THING. A dictionary settles the
+   * DENOTATION — it would have caught the Tamil error outright, because every
+   * source glosses உற்சாகம் as enthusiasm and none as a quiet lift. It cannot
+   * settle the NUANCE, which is the entire reason these words are interesting:
+   * no dictionary tells you that অভিমান is the kind of hurt you only feel
+   * towards someone you love.
+   *
+   * ⛔ So evidence is not confirmation and never promotes an entry on its own.
+   * It exists to stop ME seeding a plausible invention, and to give the person
+   * confirming something to argue with.
+   */
+  evidence?: { supports: string; source: string }[];
 };
 
 /**
- * ⚠️ EVERY ENTRY BELOW IS UNCONFIRMED ON PURPOSE. I seeded the table; I do not
- * speak these languages well enough to vouch for a published gloss, and the
- * whole point of the file is that my confidence is not the standard.
+ * ⚠️ ENTRIES ARE SEEDED UNCONFIRMED. I wrote the candidates; I do not speak
+ * these languages well enough to vouch for a published gloss, and the whole
+ * point of the file is that my confidence is not the standard.
  *
  * ▶️ To confirm one: check the meaning line reads true to a speaker, then set
  * `confirmedBy` to their name and `confirmedAt` to the date. Nothing else.
+ *
+ * 🔴 WHY THIS IS NOT 22 LANGUAGES × FIVE WORDS, which was asked for directly
+ * on 18 Oct and is a minute's work to produce.
+ *
+ *   • Generating fluent, plausible, WRONG glosses at scale is precisely the
+ *     failure that created this file. Doing it at seed time instead of at
+ *     write time makes it worse, not better: it arrives looking like data.
+ *   • An unconfirmed entry produces no posts. A hundred of them produce no
+ *     posts and a backlog — and a long list of things waiting to be ticked is
+ *     how a confirmation step turns into a rubber stamp.
+ *   • The only languages anybody here can confirm TODAY are the ones the owner
+ *     speaks. So the table is deep where confirmation is reachable and empty
+ *     where it is not, rather than evenly and uselessly full.
+ *
+ * ▶️ The other twenty languages are not forgotten — they are a standing ask:
+ * whenever a native speaker appears for any reason, this table is one of the
+ * things to put in front of them ⇒ native_speakers_should_audit_real_replies.
+ *
+ * ⛔ And a word being famous and untranslatable is not enough. जुगाड़ is
+ * well attested in several dictionaries and was NOT seeded: it is a clever
+ * makeshift fix, not a feeling, and this pool is about feelings.
  */
 export const UNTRANSLATABLE_WORDS: UntranslatableWord[] = [
   {
@@ -92,6 +128,51 @@ export const UNTRANSLATABLE_WORDS: UntranslatableWord[] = [
     confirmedBy: null,
     confirmedAt: null,
     note: "⛔ DECLINED by a Bengali speaker on 18 Oct 2026 — the philosophical 'illusion' sense overlaps too much. Do not confirm this one.",
+  },
+  {
+    word: "আড্ডা",
+    roman: "adda",
+    language: "bn",
+    meaning:
+      "the long, unhurried, going-nowhere talk among friends that is not leading anywhere and is " +
+      "not meant to — the talk itself is the point",
+    confirmedBy: null,
+    confirmedAt: null,
+    note:
+      "⚠️ Strictly this is something people DO rather than something they feel, which is why the " +
+      "angle was widened to 'a feeling, or a kind of closeness between people'. If that widening " +
+      "is wrong, decline this rather than stretching the meaning to sound like a feeling.",
+    evidence: [
+      {
+        supports: "An informal social gathering centred on conversation; lively informal talk. No exact English equivalent.",
+        source: "https://www.dictionary.com/browse/adda",
+      },
+      {
+        supports: "An informal meeting place for conversation; a session of chat.",
+        source: "https://www.wiktionary.com/wiki/adda",
+      },
+    ],
+  },
+  {
+    word: "মন খারাপ",
+    roman: "mon kharap",
+    language: "bn",
+    meaning:
+      "the flat, heavy mood that is not quite sadness and often has no single cause you could " +
+      "name if someone asked",
+    confirmedBy: null,
+    confirmedAt: null,
+    note:
+      "⚠️ WEAKER EVIDENCE THAN THE OTHERS — no dictionary entry was found for the phrase itself, " +
+      "only for related forms and for how it is used. ⛔ Treat the meaning line below as my " +
+      "inference until a speaker says otherwise; it is the kind of entry this file exists to be " +
+      "suspicious of.",
+    evidence: [
+      {
+        supports: "Related forms (খারাপ লাগা, গায়ে লাগা) cover feeling hurt, regretful or low — supporting a broad mood term rather than 'sad'.",
+        source: "https://amarkosh.tech/%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE/%E0%A6%B6%E0%A6%AC%E0%A7%8D%E0%A6%A6/%E0%A6%96%E0%A6%BE%E0%A6%B0%E0%A6%BE%E0%A6%AA+%E0%A6%B2%E0%A6%BE%E0%A6%97%E0%A6%BE",
+      },
+    ],
   },
   {
     word: "अपनापन",

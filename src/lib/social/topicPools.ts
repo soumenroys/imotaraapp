@@ -88,9 +88,13 @@ export const TOPIC_POOLS: TopicPool[] = [
     id: "untranslatable",
     label: "A feeling English has no word for",
     angle:
-      "ONE word from one of the languages this product speaks, naming a feeling English needs a whole " +
-      "sentence for. Give the word, the language, and what it actually means — plainly, the way a speaker " +
-      "would explain it to a friend, not the way a dictionary would. " +
+      "ONE word from one of the languages this product speaks, naming a feeling — or a kind of closeness " +
+      "between people — that English needs a whole sentence for. Give the word, the language, and what it " +
+      "actually means — plainly, the way a speaker would explain it to a friend, not the way a dictionary " +
+      "would. " +
+      "⛔ THE WORD IS CHOSEN FOR YOU AND HANDED TO YOU WITH ITS MEANING. You may not pick your own: the " +
+      "first time this angle ran it invented a gloss for a Tamil word and was wrong " +
+      "⇒ src/lib/social/untranslatableWords.ts. " +
       "⛔ ONLY a word you are certain of. If you are not sure the word means what you are about to say, " +
       "choose a different post: a mistranslation here insults the people whose language it is, and they " +
       "are exactly the readers this is for. ⛔ Do not explain why this matters for mental health, and do " +

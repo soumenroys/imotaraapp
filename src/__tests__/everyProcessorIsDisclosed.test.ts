@@ -151,6 +151,21 @@ const BENIGN_HOSTS = new Set([
      * adapter was written and pushed before anybody asked this question.
      */
     "graph.facebook.com",
+    /**
+     * Dictionary and lexicon pages CITED, never fetched.
+     *
+     * ✅ These appear only as `evidence[].source` strings in
+     * src/lib/social/untranslatableWords.ts — the record of what was checked
+     * before a word was proposed, so the person confirming it has something to
+     * argue with. Nothing in the product requests them at build time or at
+     * run time; they are footnotes in data.
+     *
+     * ⚠️ This test cannot tell a citation from a fetch, and SHOULD NOT try to:
+     * the day somebody wires a live dictionary lookup, the host is already in
+     * the file and the check would wave it through. ⛔ So if any of these ever
+     * appears in a `fetch(`, it stops being benign and this entry is wrong.
+     */
+    "www.dictionary.com", "www.wiktionary.com", "amarkosh.tech",
     // consoles and status pages we link to in admin/docs
     "status.openai.com", "platform.openai.com", "aistudio.google.com",
     "console.cloud.google.com",

@@ -502,30 +502,31 @@ export async function prepareGenerated(
     }
 
     /**
-     * 🔴 A CHANNEL THAT CANNOT POST WITHOUT A PICTURE REFUSES HERE, LOUDLY.
+     * 🔴 A CHANNEL THAT CANNOT POST WITHOUT A PICTURE RETRIES, THEN REFUSES.
      *
      * `buildPicture` returns no picture when the opening sentence is too long
      * to set as a headline — deliberately, because half a thought on a card
      * reads worse than no card, and on Facebook the words still go out.
      *
-     * ⛔ On Instagram they cannot. Saving this post would queue something the
-     * publisher must hold on every run forever, and the only symptom would be
-     * Instagram going quiet — indistinguishable from a channel nobody
-     * scheduled. Refusing now puts the reason in the queue's own report, on
-     * the day it happens.
+     * ⛔ On Instagram they cannot. But a hard refusal here was wrong too: the
+     * FIRST Instagram draft failed exactly this way, and a channel that
+     * refuses whenever a sentence runs long is a channel that never posts.
+     * ⚠️ So it rejects the DRAFT, like every other objection in this loop, and
+     * the model is told why on the next attempt. Only when every attempt has
+     * failed the same way is it a refusal — and then it is a signal about the
+     * brief, which is what the exhaustion message already says.
+     *
+     * 🔑 The real fix is upstream: a channel that requires a picture tells the
+     * writer its headline limit before the first draft ⇒ writer.ts.
      */
     if (platformSpec(args.platform).requiresPicture && !picture) {
-      return {
-        ok: false,
-        // ⚠️ The drafts that got this far are carried, not dropped: the words
-        // passed the gate and the reason for refusal is the CARD, which is
-        // exactly what somebody reading the report needs to see.
-        rejected,
-        reason:
-          `${platformSpec(args.platform).label} has no text-only post, and no card could be made ` +
-          `for this one: ${notes.join(" ") || "the opening sentence would not set as a headline."} ` +
-          `⛔ Nothing was queued, because a post that can never publish is worse than no post.`,
-      };
+      const why =
+        `${platformSpec(args.platform).label} has no text-only post and this draft made no card: ` +
+        `${notes.join(" ") || "the opening sentence would not set as a headline."} ` +
+        `▶️ The first sentence has to be short enough to BE the headline.`;
+      rejected.push({ attempt, subject, body, why });
+      objections.push(why);
+      continue;
     }
 
     /**

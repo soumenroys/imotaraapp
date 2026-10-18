@@ -13,6 +13,7 @@
 // sufficient. The point of saying it twice is that the model tries less often,
 // not that the check gets to relax.
 
+import { HEADLINE_MAX } from "@/lib/social/visualRecipe";
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { languageName } from "@/lib/social/languages";
 import { TOPIC_POOLS } from "@/lib/social/subjects";
@@ -256,7 +257,26 @@ export function buildPrompt(req: WriteRequest): string {
               : `At most ${spec.hashtags} hashtag${spec.hashtags === 1 ? "" : "s"}, specific ones a real person searches for, placed at the end. `) +
             (spec.emoji === 0
               ? "No emoji."
-              : `At most ${spec.emoji} emoji, and only one a person would genuinely type — never decoration, and never beside a sentence about someone feeling bad.`),
+              : `At most ${spec.emoji} emoji, and only one a person would genuinely type — never decoration, and never beside a sentence about someone feeling bad.`) +
+            /**
+             * 🔴 THE CONSTRAINT THAT DECIDES WHETHER A POST CAN EXIST AT ALL.
+             *
+             * On a channel with no text-only post, the card is not a nicety —
+             * without it there is nothing to publish. The card's headline is
+             * the post's FIRST SENTENCE, and it is never truncated, so a long
+             * opening means no card and therefore no post.
+             *
+             * ⚠️ The first Instagram draft ever written failed exactly here.
+             * The limit is read from the same constant the check uses, so the
+             * instruction and the rule cannot drift apart.
+             */
+            (spec.requiresPicture
+              ? ` 🔴 THIS CHANNEL HAS NO TEXT-ONLY POST. The picture is required, and its headline is ` +
+                `this post's FIRST SENTENCE, used whole and never shortened. So the first sentence ` +
+                `must be at most ${HEADLINE_MAX} characters — a short, complete line that can stand ` +
+                `alone on a card. Say the rest in the sentences after it. A long opening means no ` +
+                `card, and no card means the post cannot be published at all.`
+              : ""),
           "",
           spec.linksInBody
             ? "A single link is fine on this channel."

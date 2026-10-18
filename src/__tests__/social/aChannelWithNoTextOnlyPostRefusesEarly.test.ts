@@ -21,6 +21,8 @@ const pipeline = read("src/lib/social/pipeline.ts");
 /** ⚠️ Comments stripped: a test that reads the prose explaining a rule passes
  *  just as happily when the rule itself is gone. */
 const code = pipeline.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+const writer = read("src/lib/social/writer.ts");
+const recipe = read("src/lib/social/visualRecipe.ts");
 const publisher = read("src/app/api/cron/social-publish/route.ts")
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .replace(/^\s*\/\/.*$/gm, "");
@@ -45,33 +47,67 @@ describe("which channels cannot take a post without a picture", () => {
   });
 });
 
-describe("the refusal happens at generation, not at publish time", () => {
-  it("refuses before the post is saved", () => {
+describe("a long opening is a bad DRAFT, not a dead channel", () => {
+  it("the generated path rejects the draft and writes another", () => {
     /**
-     * ⚠️ ORDER, and it is the whole point. A post saved first and refused
-     * later is a row that sits in the queue forever.
+     * 🔴 MY FIRST VERSION REFUSED OUTRIGHT, AND THE FIRST REAL INSTAGRAM
+     * DRAFT FAILED EXACTLY THIS WAY. A channel that gives up whenever one
+     * sentence runs long is a channel that never posts — which is the same
+     * silence the rule was written to prevent.
+     *
+     * ⚠️ So it behaves like every other objection in the loop: the draft is
+     * rejected with a reason, the model is told, and it tries again. Only
+     * when every attempt fails is it a refusal, and the exhaustion message
+     * already says that is a signal about the brief.
      */
-    const guard = code.indexOf("requiresPicture");
-    const save = code.indexOf("mediaKind: mediaKindFor");
+    const guard = code.indexOf("requiresPicture && !picture");
     expect(guard).toBeGreaterThan(-1);
+    const block = code.slice(guard, guard + 600);
+    expect(block).toContain("rejected.push");
+    expect(block).toContain("objections.push");
+    expect(block).toContain("continue;");
+    // ⛔ And it does NOT bail out of the whole run on one bad draft.
+    expect(block.slice(0, block.indexOf("continue;"))).not.toContain("return {");
+  });
+
+  it("the check runs before the post is saved", () => {
+    // ⚠️ Order, not presence. A post saved first and refused later is a row
+    // that sits in the queue forever.
+    const guard = code.indexOf("requiresPicture && !picture");
+    const save = code.indexOf("mediaKind: mediaKindFor");
     expect(save).toBeGreaterThan(-1);
     expect(guard).toBeLessThan(save);
   });
 
-  it("the refusal is a refusal, with the drafts kept", () => {
-    const block = code.slice(code.indexOf("requiresPicture"));
-    const first = block.slice(0, block.indexOf("};") + 2);
-    expect(first).toContain("ok: false");
-    // ⚠️ The words passed the gate; the card is what failed. Dropping the
-    // drafts would hide the only thing worth reading in the report.
-    expect(first).toContain("rejected");
+  it("the reason names the channel and what to do about it", () => {
+    const guard = code.indexOf("requiresPicture && !picture");
+    const block = code.slice(guard, guard + 600);
+    expect(block).toContain("no text-only post");
+    // ▶️ The actionable half: it is the FIRST SENTENCE that has to be short.
+    expect(block).toContain("first sentence");
+  });
+});
+
+describe("the writer is told the limit before it drafts", () => {
+  it("a picture-only channel gets the headline length in its prompt", () => {
+    /**
+     * 🔑 THE REAL FIX IS UPSTREAM. Retrying handles a bad draft; telling the
+     * writer the constraint stops most of them being written.
+     */
+    expect(writer).toContain("spec.requiresPicture");
+    expect(writer).toContain("HEADLINE_MAX");
+    expect(writer).toContain("NO TEXT-ONLY POST");
   });
 
-  it("says which channel and why, not just that something went wrong", () => {
-    const block = code.slice(code.indexOf("requiresPicture"));
-    const first = block.slice(0, block.indexOf("};") + 2);
-    expect(first).toContain("no text-only post");
-    expect(first).toContain("Nothing was queued");
+  it("the prompt and the check read the SAME number", () => {
+    /**
+     * ⛔ A limit written twice is a limit that drifts — and the drift would be
+     * invisible: posts would simply start failing to make cards, with the
+     * instruction still claiming a different number.
+     */
+    expect(recipe).toContain("export const HEADLINE_MAX");
+    expect(recipe).not.toMatch(/maxChars = 64/);
+    expect(writer).not.toMatch(/at most 64 characters/);
   });
 });
 

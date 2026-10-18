@@ -280,7 +280,17 @@ export function pickRecipe(input: PickInput): PickResult {
  * Returns null rather than truncating mid-thought: a half sentence on a card is
  * worse than no card, and the caller can fall back to text-only.
  */
-export function headlineFromBody(body: string, maxChars = 64): string | null {
+/**
+ * 🔑 THE CARD'S HEADLINE LIMIT, named so the WRITER can be told it.
+ *
+ * ⛔ It was a default argument only, which meant the one number that decides
+ * whether a post can have a card at all was invisible to the thing writing
+ * the post. On a channel with no text-only post that is the difference
+ * between a draft and no post ever.
+ */
+export const HEADLINE_MAX = 64;
+
+export function headlineFromBody(body: string, maxChars = HEADLINE_MAX): string | null {
   const first = body.trim().split(/(?<=[.!?])\s+/)[0]?.trim();
   if (!first) return null;
   const clean = first.replace(/\s+/g, " ").replace(/[.]$/, "");
@@ -309,7 +319,7 @@ export function headlineFromBody(body: string, maxChars = 64): string | null {
  * subject falls through to the body, and an over-long body still returns null
  * and the post goes out as text.
  */
-export function headlineFor(subject: string, body: string, maxChars = 64): string | null {
+export function headlineFor(subject: string, body: string, maxChars = HEADLINE_MAX): string | null {
   const fromSubject = subject?.trim().replace(/\s+/g, " ").replace(/[.]$/, "") ?? "";
   if (fromSubject && [...fromSubject].length <= maxChars) return fromSubject;
   return headlineFromBody(body, maxChars);

@@ -82,3 +82,43 @@ describe("why the old filters could not have caught it", () => {
     expect(scheduled).toMatch(/\.lt\("scheduled_at"/);
   });
 });
+
+describe("\u26d4 and the sweep is actually REACHED", () => {
+  /**
+   * \ud83d\udd34 THE FIRST VERSION OF THIS FIX NEVER RAN. The sweep was appended to the
+   * end of the handler, below an early `return NextResponse.json({ ok: true,
+   * completed: 0 })` that fires whenever there are no stuck ACTIVE sessions —
+   * which is almost always. The cron was provably firing, its query provably
+   * matched four rows, and nothing happened.
+   *
+   * \u26a0\ufe0f Every test in the block above passed the whole time, because they
+   * assert what the sweep CONTAINS. Reachability is a different question and
+   * needs a different assertion: code added to the end of a handler is not
+   * reachable just because the handler is.
+   */
+  it("no success return can fire before the sweep", () => {
+    const sweepAt = orphans.indexOf("INSTANT_PENDING_TTL_MS");
+    expect(sweepAt, "the sweep is gone").toBeGreaterThan(-1);
+
+    // Everything the handler can return before reaching the sweep.
+    const before = orphans.slice(0, sweepAt);
+    const earlyReturns = [...before.matchAll(/return NextResponse\.json\(([\s\S]{0,60})/g)]
+      .map((m) => m[1].replace(/\s+/g, " ").trim());
+
+    for (const r of earlyReturns) {
+      // \ud83d\udd11 An error exit above the sweep is fine \u2014 the run genuinely failed.
+      // A SUCCESS exit is not: it skips the sweep and reports ok.
+      expect(
+        /ok: false|status: 4\d\d|status: 5\d\d/.test(r),
+        `a success return runs before the sweep and skips it: ${r}`,
+      ).toBe(true);
+    }
+  });
+
+  it("the sweep's own result is reported, so a silent skip is visible", () => {
+    // If `cancelled` ever stops being returned, the only signal that the sweep
+    // ran at all disappears again.
+    const tail = orphans.slice(orphans.lastIndexOf("return NextResponse.json"));
+    expect(tail).toMatch(/cancelled/);
+  });
+});

@@ -69,9 +69,23 @@ export async function GET(req: NextRequest) {
     return s.type === "instant" && s.started_at != null && new Date(s.started_at).getTime() < Date.now() - 15 * 60 * 1000;
   });
 
-  if (trueOrphans.length === 0) {
-    return NextResponse.json({ ok: true, completed: 0 });
-  }
+  /**
+   * 🔴 THERE WAS A `return` HERE WHEN trueOrphans WAS EMPTY, AND IT MADE THE
+   * UNANSWERED-REQUEST SWEEP BELOW DEAD CODE.
+   *
+   * Active orphans are rare — usually zero — so this returned on almost every
+   * run, and the sweep only ever executed when a stuck ACTIVE session happened
+   * to exist at the same moment. Four stale pending requests sat there through
+   * it, which is how it was noticed: the cron was provably firing and the rows
+   * were provably matching its query, and nothing changed.
+   *
+   * ⚠️ The fix that introduced the sweep was appended after this return
+   * without reading the control flow above it. Code added to the end of a
+   * handler is not reachable just because the handler is.
+   *
+   * ⇒ No early exit. The loop below does nothing on an empty array, and the
+   * single return at the end reports both counts.
+   */
 
   const now = new Date().toISOString();
   let completed = 0;

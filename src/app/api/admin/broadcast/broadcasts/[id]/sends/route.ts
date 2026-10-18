@@ -34,7 +34,14 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   let query = supabase
     .from("broadcast_sends")
-    .select("id, email, status, skip_reason, error, resend_id, created_at, sent_at, delivered_at", { count: "exact" })
+    // 🔴 `queued_at`, NOT `created_at`. broadcast_sends has no created_at
+    // column and never did, so every request to this route answered 500 and the
+    // "Every recipient" table has been empty since the day it shipped — it only
+    // surfaced when a send with four bounces made somebody want to know WHICH
+    // four. ⚠️ The name was assumed from the other tables, never checked
+    // against the schema; PostgREST reports it as 42703 and the route turned
+    // that into "Internal error", which told nobody anything.
+    .select("id, email, status, skip_reason, error, resend_id, queued_at, sent_at, delivered_at", { count: "exact" })
     .eq("broadcast_id", id);
 
   if (STATUSES.has(status)) query = query.eq("status", status);
@@ -63,7 +70,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const CAP = 5000;
   const { data: times } = await supabase
     .from("broadcast_sends")
-    .select("created_at, sent_at, delivered_at")
+    .select("queued_at, sent_at, delivered_at")
     .eq("broadcast_id", id)
     .limit(CAP);
 
@@ -76,7 +83,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   let lastSent: number | null = null;
 
   for (const r of times ?? []) {
-    const q = r.created_at as string | null;
+    const q = r.queued_at as string | null;
     const s2 = r.sent_at as string | null;
     const d = r.delivered_at as string | null;
 

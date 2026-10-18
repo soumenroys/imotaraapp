@@ -204,6 +204,19 @@ export function buildPrompt(req: WriteRequest): string {
     "",
     `CHOOSE ONE OF THESE ANGLES AND STAY INSIDE IT\n` +
       angles.map((p) => `- ${p.label}: ${p.angle}`).join("\n"),
+    ...(req.mistake
+      ? [
+          "",
+          `⛔ IF YOU CHOOSE "Something we got wrong", THE MISTAKE IS ALREADY CHOSEN AND IT IS THIS ` +
+            `ONE:\n` +
+            `  what went wrong: ${req.mistake.what}\n` +
+            `  what it was changed to: ${req.mistake.fix}\n` +
+            `⛔ Write about THIS and nothing else. Do not invent a different mistake, do not add a ` +
+            `detail that is not in the two lines above, and do not make it sound bigger or smaller ` +
+            `than it was. ⚠️ The first time this angle ran it invented a history that never ` +
+            `happened, so anything you add here is a false statement about a real company.`,
+        ]
+      : []),
     ...(word
       ? [
           "",

@@ -118,9 +118,12 @@ describe("exactly one angle reaches the writer", () => {
    * ⛔ An angle with nothing behind it is worse than a missing angle: the
    * rotation would land on it every fifth post and have nothing to write from.
    */
-  it("drops the word angle from the cycle when no word is confirmed", () => {
+  it("drops an angle from the cycle when nothing is confirmed behind it", () => {
     expect(pipeline).toMatch(/export function usablePools/);
-    expect(pipeline).toMatch(/pools\.filter\(\(p\) => p !== "untranslatable"\)/);
+    // ⚠️ BOTH angles that depend on a confirmed table, not just the first one
+    // ⇒ untranslatableWords.ts and productMistakes.ts.
+    expect(pipeline).toMatch(/out\.filter\(\(p\) => p !== "untranslatable"\)/);
+    expect(pipeline).toMatch(/out\.filter\(\(p\) => p !== "built-wrong"\)/);
   });
 
   /**

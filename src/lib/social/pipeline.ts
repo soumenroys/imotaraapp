@@ -25,6 +25,7 @@ import {
 import { judgeSubject, subjectHash, exclusionList } from "@/lib/social/subjects";
 import { pickRecipe, headlineFromBody, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
 import { pickWord, untranslatablePoolReady } from "@/lib/social/untranslatableWords";
+import { pickMistake, mistakesPoolReady, mentionsMistake, type ProductMistake } from "@/lib/social/productMistakes";
 import { composePicture, type Picture } from "@/lib/social/compose";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
@@ -70,6 +71,15 @@ export type WriteRequest = {
    * ⇒ src/lib/social/untranslatableWords.ts.
    */
   word?: { word: string; roman: string; language: string; meaning: string };
+  /**
+   * The real, confirmed mistake this post must be about, when the angle is the
+   * "something we got wrong" one.
+   *
+   * ⛔ Never invented. The model has no access to the product's history and
+   * produced a plausible one the first time it was asked
+   * ⇒ src/lib/social/productMistakes.ts.
+   */
+  mistake?: ProductMistake;
 };
 
 export type Written = { subject: string; body: string; support?: string };
@@ -191,8 +201,12 @@ export function bodyUsesWord(text: string, word: { word: string; roman: string }
 }
 
 export function usablePools(pools: string[]): string[] {
-  if (untranslatablePoolReady().ok) return pools;
-  return pools.filter((p) => p !== "untranslatable");
+  let out = pools;
+  if (!untranslatablePoolReady().ok) out = out.filter((p) => p !== "untranslatable");
+  // ⛔ Same rule, same reason: the first post this angle wrote invented a
+  // history that never happened ⇒ src/lib/social/productMistakes.ts.
+  if (!mistakesPoolReady().ok) out = out.filter((p) => p !== "built-wrong");
+  return out;
 }
 
 export function nextPool(pools: string[], postsSoFar: number): string {
@@ -372,6 +386,7 @@ export async function prepareGenerated(
    */
   const pool = nextPool(usablePools(args.schedule.topicPool), args.postsSoFar);
   const word = pool === "untranslatable" ? pickWord(args.postsSoFar) : null;
+  const mistake = pool === "built-wrong" ? pickMistake(args.postsSoFar) : null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const written = await deps.write({
@@ -387,6 +402,7 @@ export async function prepareGenerated(
        */
       topicPool: [pool],
       word: word ?? undefined,
+      mistake: mistake ?? undefined,
       avoid: exclusionList(recent),
       previousObjections: objections.length ? [...objections] : undefined,
     });
@@ -409,6 +425,22 @@ export async function prepareGenerated(
      * of itself, it is a different post that nobody asked for — and it would
      * burn the rotation's turn.
      */
+    /**
+     * ⚠️ WEAKER THAN THE WORD CHECK, and said plainly rather than implied. A
+     * word is either in the post or it is not. A mistake can be the right
+     * subject with an invented detail bolted on, and no string match sees
+     * that — which is why a post from this angle also never auto-publishes.
+     */
+    if (mistake && !mentionsMistake(`${subject}\n${body}`, mistake)) {
+      const why =
+        `This was written on the "what we got wrong" angle with a specific, confirmed mistake ` +
+        `supplied, and the post is not about it. ⛔ Refused rather than queued: the only thing an ` +
+        `admission is worth is that it is true.`;
+      rejected.push({ attempt, subject, body, why });
+      objections.push(why);
+      continue;
+    }
+
     if (word && !bodyUsesWord(`${subject}\n${body}`, word)) {
       const why =
         `This was written on the word angle with ${word.word} (${word.roman}) supplied, and the ` +
@@ -454,7 +486,27 @@ export async function prepareGenerated(
       notes.push(...built.notes);
     }
 
-    const { status, note } = decideStatus(args.schedule.autoPublish, language, overlay);
+    /**
+     * 🔴 A CONFESSION NEVER POSTS UNATTENDED, whatever the schedule says.
+     *
+     * The keyword check above proves the post is about the right mistake. It
+     * cannot prove the post did not ADD something — the right subject with an
+     * invented detail attached looks exactly like a good post. A false claim
+     * about our own company, published voluntarily, is the most expensive
+     * thing this system could produce, so this angle keeps a human in the way
+     * even when "post without asking me" is on.
+     *
+     * ⚠️ Overriding TOWARDS review only. ⛔ This may never turn a
+     * needs_review into an approved.
+     */
+    const decided = decideStatus(args.schedule.autoPublish, language, overlay);
+    const status = mistake ? "needs_review" : decided.status;
+    const note =
+      mistake && decided.status === "approved"
+        ? `⚠️ Held for you to read. A post about something we got wrong never publishes ` +
+          `unattended — the keyword check proves it is about the right mistake and cannot prove ` +
+          `it did not add to it.`
+        : decided.note;
     if (note) notes.push(note);
     if (gate.listsUnavailable.length > 0) {
       notes.push(

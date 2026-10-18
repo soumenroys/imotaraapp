@@ -200,6 +200,9 @@ export async function savePreparedPost(
       subject: post.subject,
       body: post.body,
       media_kind: post.mediaKind,
+      // ⚠️ NULL for a hand-written post, which has no angle — and that is the
+      // truth rather than a default pool.
+      topic_pool: post.topicPool ?? null,
       media_path: opts.mediaPath ?? null,
       visual_recipe: post.recipe ? { ...post.recipe, notes: post.notes } : null,
       gate_result: {

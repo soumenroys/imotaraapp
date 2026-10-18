@@ -246,3 +246,84 @@ describe("the baseline flag survives a correction", () => {
     expect(src).toMatch(/\.eq\("captured_on", capturedOn\(opts\.now\)\)/);
   });
 });
+
+/**
+ * 🔴 THE FIRST DASHBOARD WAS SINGLE-CHANNEL SHAPED.
+ *
+ * The owner, 18 Oct: "we will connect multiple social media from this… you are
+ * not showing the social media name or post language or post type etc. is the
+ * dashboard okay from all perspective?"
+ *
+ * ⛔ It was not. One followers figure taken from whichever row happened to be
+ * last, one chart mixing every account, and no language, shape or angle
+ * anywhere. With two channels recording it would not have LOOKED broken — it
+ * would have looked fine and been wrong, which is worse.
+ *
+ * 🔴 And underneath it, the angle was never stored at all: nextPool chose one
+ * per post, handed it to the writer, and dropped it. "Which angle actually
+ * lands" — the question the rotation exists to answer — was unanswerable.
+ */
+describe("the angle is recorded, because it cannot be reconstructed", () => {
+  const pipeline = read("src/lib/social/pipeline.ts");
+  const store = read("src/lib/social/store.ts");
+  const sql = read("docs/sql/social_post_angle.sql");
+
+  it("the prepared post carries the pool it was written from", () => {
+    expect(pipeline).toMatch(/topicPool: pool,/);
+  });
+
+  it("and the store writes it", () => {
+    expect(store).toMatch(/topic_pool: post\.topicPool \?\? null,/);
+  });
+
+  /**
+   * ⛔ NULL FOR A HAND-WRITTEN POST, and for anything published before the
+   * column existed. Defaulting to a pool would file posts under an angle they
+   * were never written from — a guess wearing a fact's clothes.
+   */
+  it("⛔ stores null rather than inventing an angle", () => {
+    expect(store).not.toMatch(/topic_pool: post\.topicPool \?\? "/);
+    expect(sql).toMatch(/Never backfilled/);
+    expect(sql).not.toMatch(/update social_posts set topic_pool/i);
+  });
+});
+
+describe("the dashboard separates the channels", () => {
+  const page = read("src/app/admin/social/stats/page.tsx");
+
+  it("⛔ renders one section per measured channel, not one set of figures", () => {
+    expect(page).toMatch(/measured\.map\(\(c\) =>/);
+    expect(page).toMatch(/days\.filter\(\(d\) => d\.account_id === c\.id\)/);
+  });
+
+  it("⛔ only charts a channel that has readings", () => {
+    // A channel with none must not be drawn as a flat line at zero.
+    expect(page).toMatch(/channels\.filter\(\(c\) => days\.some\(\(d\) => d\.account_id === c\.id\)\)/);
+  });
+
+  it("breaks the posts down by angle, language and shape", () => {
+    for (const t of ["By angle", "By language", "By shape"]) expect(page).toContain(t);
+  });
+
+  /**
+   * ⚠️ `measured` IS CARRIED SEPARATELY FROM `count`. "3 posts, 2 measured,
+   * 7 engagements" is honest; dividing 7 by 3 averages in a post nobody has
+   * figures for and under-reports everything recent.
+   */
+  it("⛔ says how many posts in a breakdown actually have figures", () => {
+    expect(page).toMatch(/row\.measured \+= 1/);
+    expect(page).toContain("<th>Measured</th>");
+    expect(page).toMatch(/v\.measured === 0 \? "—"/);
+    /**
+     * ⚠️ AND IT IS ACTUALLY RENDERED. Counting it, heading a column for it and
+     * never printing it leaves a header over an empty cell — which is how the
+     * first version of this test passed with the value deleted.
+     */
+    expect(page).toMatch(/\{v\.measured\}<\/td>/);
+    expect(page).toMatch(/v\.measured < v\.count \? "text-amber-300"/);
+  });
+
+  it("shows an unrecorded angle as unrecorded, not as a pool", () => {
+    expect(page).toMatch(/p\.angle \?\? <span[^>]*>not recorded/);
+  });
+});

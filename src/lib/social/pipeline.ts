@@ -117,6 +117,14 @@ export type PreparedPost = {
   support?: string;
   status: "needs_review" | "approved";
   mediaKind: "none" | "graphic" | "animated_gif" | "short_video";
+  /**
+   * 🔑 WHICH ANGLE THIS CAME FROM, carried so it can be STORED.
+   *
+   * ⛔ It was chosen by nextPool, handed to the writer, and dropped on the
+   * floor — which made "which angle actually lands?" unanswerable, and that is
+   * the question the rotation exists to let somebody ask.
+   */
+  topicPool?: string;
   picture: Picture | null;
   recipe: Recipe | null;
   gate: GateResult;
@@ -537,6 +545,8 @@ export async function prepareGenerated(
         support: written.support,
         status,
         mediaKind: mediaKindFor(args.schedule.contentType, Boolean(picture)) as PreparedPost["mediaKind"],
+        // 🔑 The angle this was actually written from ⇒ nextPool.
+        topicPool: pool,
         picture,
         recipe,
         gate,

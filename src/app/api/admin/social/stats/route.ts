@@ -26,7 +26,10 @@ export async function GET(req: NextRequest) {
       .order("captured_on", { ascending: true }),
     db
       .from("social_posts")
-      .select("id, platform, subject, published_at, external_post_id, media_kind")
+      // 🔑 Every dimension somebody would want to slice by. ⛔ `topic_pool` is
+      // NULL on anything written before 18 Oct — the angle was not recorded,
+      // and it cannot be reconstructed ⇒ docs/sql/social_post_angle.sql.
+      .select("id, platform, language, topic_pool, subject, published_at, external_post_id, media_kind")
       .eq("status", "published")
       .order("published_at", { ascending: false })
       .limit(60),
@@ -58,6 +61,9 @@ export async function GET(req: NextRequest) {
     posts: (posts.data ?? []).map((p) => ({
       id: p.id,
       platform: p.platform,
+      language: p.language,
+      angle: p.topic_pool ?? null,
+      shape: p.media_kind,
       subject: p.subject,
       publishedAt: p.published_at,
       url: p.external_post_id ? `https://www.facebook.com/${p.external_post_id}` : null,

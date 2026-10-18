@@ -91,8 +91,19 @@ export const BUSINESS = {
      * is the right information. Do not take a handle from code, from a form's
      * autofill, or from memory — take it from here, and correct here first.
      *
-     * ⚠️ Facebook is deliberately absent: the entry on that sheet is the bare
-     * `facebook.com/` root, not a page, so there is nothing to point at yet.
+     * 🔴 THIS COMMENT SAID "Facebook is deliberately absent", three lines
+     * above a `facebook` key, while `sameAs`, `llms.txt` and the site footer
+     * all carried the Page. It was true when written — the sheet held the
+     * bare `facebook.com/` root — and it outlived that by a day.
+     *
+     * ⚠️ 18 Oct: the Page is `facebook.com/imotaraofficial` (id
+     * 1222416224285686, confirmed by following the id, which redirects to the
+     * vanity URL) and it now publishes daily by itself.
+     *
+     * ⛔ A sentence that states the world goes stale and nothing checks it
+     * ⇒ trap_a_sentence_that_states_the_world_goes_stale. The rule above —
+     * take the handle from the owner's table and correct HERE first — is the
+     * one that still holds.
      */
     social: {
         x: "https://x.com/imotaraofficial",

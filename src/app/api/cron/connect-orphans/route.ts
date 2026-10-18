@@ -1,7 +1,24 @@
 // GET /api/cron/connect-orphans
-// Called by Vercel Cron every 10 minutes.
-// Auto-completes active sessions that have not received a tick in > 15 minutes
-// (client crashed, network dropped, etc.) and credits the consultant.
+// Called by Vercel Cron every 10 minutes. Two jobs, both about sessions that
+// got stuck somewhere they cannot leave on their own:
+//
+//   1. ACTIVE sessions with no tick for > 15 minutes (client crashed, network
+//      dropped) — auto-completed, and the consultant credited.
+//   2. PENDING INSTANT requests nobody ever accepted — cancelled.
+//
+// \U0001f534 (2) WAS MISSING ENTIRELY AND NOTHING ELSE COVERED IT. connect-scheduled
+// expires pending requests, but only where `type = "scheduled"` and
+// `scheduled_at` is in the past — an instant request has a null scheduled_at
+// and never matches. This cron only ever looked at `status = "active"`. So an
+// instant "talk to me now" that a companion never accepted stayed pending
+// FOREVER: the oldest found in production was 63 days old.
+//
+// \u26a0\ufe0f Three consequences, and the third is how it was found. The person who
+// asked sees a request that never resolves. The companion keeps a request they
+// can still accept weeks later. And a consultant with any pending session
+// cannot be removed — the admin soft-delete refuses with a 409 — so four stale
+// rows were blocking the removal of two obvious test accounts from the public
+// marketplace.
 
 export const preferredRegion = ["sin1"];
 export const maxDuration = 60;
@@ -176,6 +193,52 @@ export async function GET(req: NextRequest) {
     completed++;
   }
 
-  console.log(`[connect-orphans] auto-completed ${completed} orphan session(s)`);
-  return NextResponse.json({ ok: true, completed });
+  /**
+   * Pending instant requests nobody answered.
+   *
+   * \u26a0\ufe0f THIRTY MINUTES, not the two hours a scheduled booking gets. An
+   * instant request means "talk to me now" \u2014 somebody who asked half an hour
+   * ago and heard nothing has gone. Accepting it at that point would ring a
+   * phone for a conversation its owner no longer expects.
+   *
+   * \u26d4 Nothing is charged and nothing is credited: minutes_used is zero on
+   * these by definition, because the session never started.
+   */
+  const INSTANT_PENDING_TTL_MS = 30 * 60 * 1000;
+  const staleRequestCutoff = new Date(Date.now() - INSTANT_PENDING_TTL_MS).toISOString();
+
+  const { data: staleRequests, error: staleErr } = await supabase
+    .from("connect_sessions")
+    .select("id, user_id, consultant_id")
+    .eq("status", "pending")
+    .eq("type", "instant")
+    .lt("created_at", staleRequestCutoff);
+
+  let cancelled = 0;
+  if (staleErr) {
+    console.error("[connect-orphans] stale pending query error:", staleErr.message);
+  } else {
+    for (const request of staleRequests ?? []) {
+      // \u26a0\ufe0f Guarded on status, exactly like the active path above: a companion
+      // may be accepting this request in the same instant.
+      const { data: won } = await supabase
+        .from("connect_sessions")
+        .update({ status: "cancelled", ended_at: new Date().toISOString() })
+        .eq("id", request.id)
+        .eq("status", "pending")
+        .select("id");
+      if (!won || won.length === 0) continue;
+
+      // \U0001f511 A companion left flagged busy by a request that never began would be
+      // invisible in the marketplace until they noticed and fixed it themselves.
+      await supabase.from("connect_consultants").update({ is_busy: false }).eq("id", request.consultant_id);
+      cancelled++;
+    }
+  }
+
+  console.log(
+    `[connect-orphans] auto-completed ${completed} orphan session(s), ` +
+      `cancelled ${cancelled} unanswered request(s)`,
+  );
+  return NextResponse.json({ ok: true, completed, cancelled });
 }

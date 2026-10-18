@@ -2934,7 +2934,17 @@ function ConnectSection({ token }: { token: string }) {
   async function handleDelete(id: string, name: string) {
     const reason = actionReason[id]?.trim() ?? "";
     if (!hasMinLetters(reason)) { setError("Please enter a reason with at least 2 letters before deleting."); return; }
-    if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+    // ⚠️ IT IS NOT PERMANENT AND IT CAN BE UNDONE. The endpoint behind this
+    // sets status = 'deleted' and keeps the row, so session and earnings
+    // history survive for accounting — which is the whole reason it is a soft
+    // delete. Saying "cannot be undone" made a reversible, correct action read
+    // as the scariest button on the screen, and an admin who believes that
+    // leaves obvious junk in the public marketplace rather than risk it.
+    if (!confirm(
+      `Remove "${name}" from Connect?\n\n` +
+      `They stop appearing in the marketplace immediately. Their session and ` +
+      `earnings history is kept, and this can be reversed.`,
+    )) return;
     setActionLoading(id);
     try {
       const res = await fetch(`/api/admin/connect/${id}`, {

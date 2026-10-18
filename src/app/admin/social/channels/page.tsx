@@ -34,6 +34,9 @@ export default function Channels() {
   const [connecting, setConnecting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  // ⚠️ Per account, not one flag. One flag disables every row's button while
+  // any row is checking, which reads as the page having frozen.
+  const [checking, setChecking] = useState<string | null>(null);
 
   const isOwner = role === "owner";
 
@@ -74,6 +77,28 @@ export default function Channels() {
   }
 
   const connected = new Set(accounts.map((a) => a.platform));
+
+  /**
+   * 🔑 THE MOMENT A TOKEN IS PASTED IS THE ONLY MOMENT somebody is standing
+   * there able to fix it. Leaving verification to the daily cron turns a
+   * thirty-second correction into a day of nothing being posted.
+   */
+  async function checkNow(accountId: string) {
+    setChecking(accountId);
+    try {
+      const res = await fetch(`/api/admin/social/channels/${accountId}/check`, {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const json = await res.json();
+      setMessage(res.ok ? json.note : json.error);
+      if (res.ok) await load();
+    } catch (e) {
+      setMessage((e as Error).message);
+    } finally {
+      setChecking(null);
+    }
+  }
 
   return (
     <SocialPage
@@ -144,6 +169,26 @@ export default function Channels() {
                       </p>
                       {s && <p className="text-xs text-zinc-400">{s.means}</p>}
                       {account.last_error && <p className="text-xs text-rose-300">{account.last_error}</p>}
+
+                      {/* ⚠️ Offered on every connected channel, including the
+                          ones with no adapter — the refusal then NAMES the
+                          channel that cannot be checked, which is more use
+                          than a button that is not there to press. */}
+                      <div className="flex flex-wrap items-center gap-3 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => void checkNow(account.id)}
+                          disabled={checking !== null}
+                          className="min-h-9 rounded-lg border border-white/15 px-3 text-xs font-semibold hover:bg-white/10 disabled:opacity-40"
+                        >
+                          {checking === account.id ? "Asking the platform…" : "Check it now"}
+                        </button>
+                        <span className="text-[11px] text-zinc-500">
+                          {account.last_verified_at
+                            ? `Last checked ${new Date(account.last_verified_at).toLocaleString()}`
+                            : "Never checked."}
+                        </span>
+                      </div>
                       {(account.status === "dead" || account.status === "expiring") && (
                         <p className="text-xs text-amber-300">
                           ▶️ Generate a new token on the platform and connect it again. ⛔ Your password

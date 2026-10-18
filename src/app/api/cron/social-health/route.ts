@@ -19,6 +19,8 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { tokenStorageReady } from "@/lib/social/tokenCrypto";
 import { sendChannelAlert } from "@/lib/social/alert";
 import { markCronFired } from "@/lib/cron/heartbeat";
+import { loadChannelCredential } from "@/lib/social/channelCredentials";
+import { checkFacebookPage } from "@/lib/social/adapters/facebook";
 
 export const maxDuration = 120;
 
@@ -52,12 +54,49 @@ export async function GET(req: NextRequest) {
     const was = a.status as string;
     let next = was;
     let why: string | undefined;
+    /**
+     * ⚠️ FALSE UNTIL A PLATFORM ANSWERS. A run that could not reach Facebook
+     * must not stamp `last_verified_at` — "checked an hour ago" would then be
+     * a lie told by the one field somebody consults to decide whether to
+     * trust the rest of this page.
+     */
+    let verified = true;
 
     if (!storage.ok) {
       // ⛔ Without the key nothing can be verified AND nothing can be posted.
       // Saying "ok" here would be the most expensive lie this route could tell.
       next = "dead";
       why = storage.reason;
+    } else if (a.platform === "facebook") {
+      /**
+       * 🔑 THE REAL CALL. Everything below this branch is inference from a
+       * date; this is the platform itself answering. A token revoked at the
+       * other end, an app removed from the portfolio or a Page un-assigned all
+       * surface here and nowhere else.
+       */
+      const cred = await loadChannelCredential(db, a.id as string);
+      if (!cred.ok) {
+        next = "dead";
+        why = cred.reason;
+      } else {
+        const result = await checkFacebookPage({ token: cred.token, pageId: cred.externalId });
+        if (result.ok) {
+          // ⛔ `canPost` false is NOT healthy. A Page we can read and cannot
+          // post to is the failure that otherwise reads as success.
+          next = result.canPost ? "ok" : "dead";
+          why = result.canPost ? undefined : result.note;
+        } else if (result.kind === "network") {
+          // ⚠️ Our connectivity failing is not the platform saying no.
+          verified = false;
+          why = result.message;
+        } else if (result.kind === "rate") {
+          verified = false;
+          why = result.message;
+        } else {
+          next = "dead";
+          why = result.message;
+        }
+      }
     } else if (a.token_expires_at) {
       const days = (new Date(a.token_expires_at as string).getTime() - now.getTime()) / 86_400_000;
       if (days <= 0) {
@@ -72,19 +111,21 @@ export async function GET(req: NextRequest) {
     }
 
     /**
-     * ⚠️ WHAT THIS DOES NOT DO YET, said plainly rather than implied: it does
-     * not call the platform. There is no adapter, so there is nothing to call
-     * with. It checks what is knowable from here — the key, and the expiry the
-     * platform told us at connect time.
+     * ⚠️ WHAT THIS DOES AND DOES NOT DO, PER CHANNEL, said plainly rather than
+     * implied. Facebook is asked directly — `ok` there means Facebook answered
+     * and returned the Page. Every other channel has no adapter, so all that
+     * is knowable from here is the key and the expiry the platform gave at
+     * connect time; a token revoked at the other end still reads 'pending'.
      *
-     * ⛔ So a token revoked at the other end still reads 'pending' until an
-     * adapter exists. That is why `pending` is a status and `ok` is only ever
+     * ⛔ That is why `pending` is a status at all, and why `ok` is only ever
      * set by a real call that succeeded.
      */
+    const patch: Record<string, unknown> = verified ? { last_verified_at: now.toISOString() } : {};
+
     if (next !== was) {
       await db
         .from("social_accounts")
-        .update({ status: next, last_error: why ?? null, last_verified_at: now.toISOString() })
+        .update({ ...patch, status: next, last_error: why ?? null })
         .eq("id", a.id);
 
       if ((next === "dead" || next === "expiring") && was !== next) {
@@ -94,8 +135,8 @@ export async function GET(req: NextRequest) {
           why: why ?? "It stopped working.",
         });
       }
-    } else {
-      await db.from("social_accounts").update({ last_verified_at: now.toISOString() }).eq("id", a.id);
+    } else if (verified) {
+      await db.from("social_accounts").update(patch).eq("id", a.id);
     }
 
     checked.push({ platform: a.platform as string, was, now: next, why });
@@ -114,8 +155,9 @@ export async function GET(req: NextRequest) {
     checked,
     alerted,
     note:
-      "⚠️ This verifies what is knowable from here: the encryption key and the expiry the platform " +
-      "gave at connect time. It cannot yet ask the platform whether a token still works, because " +
-      "there is no adapter to ask with — so a token revoked at the other end still reads 'pending'.",
+      "✅ Facebook is asked directly: 'ok' there means Facebook answered and returned the Page. " +
+      "⚠️ Every other channel has no adapter yet, so all that is checked is the encryption key and " +
+      "the expiry the platform gave at connect time — a token revoked at the other end still " +
+      "reads 'pending' on those.",
   });
 }

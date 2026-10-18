@@ -18,6 +18,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { ADMIN_NAV, navFor } from "@/app/admin/_components/ui";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
+import { resetBeforePaintScript, CONSUMER_APPEARANCE, ADMIN_APPEARANCE_KEY } from "@/app/admin/_components/appearance";
 // ⚠️ The social section keeps its own five, one per screen — its nav entry
 // lands on Today. A walkthrough is a walkthrough wherever it is declared.
 import { TUTORIALS as SOCIAL_TUTORIALS } from "@/app/admin/social/_components/PageTutorial";
@@ -170,9 +171,46 @@ describe("the consumer app's appearance is neutralised once, for everything", ()
      */
     const layout = read("src/app/admin/layout.tsx");
     expect(layout, "no pre-paint script").toMatch(/dangerouslySetInnerHTML/);
-    expect(layout).toMatch(/removeAttribute/);
+    // \u26a0\ufe0f The script BODY lives in appearance.ts now \u2014 it cannot live in a
+    // client module, and building it inline in the layout is what hid the
+    // `undefined` bug. Assert on what the function returns.
+    expect(resetBeforePaintScript()).toMatch(/removeAttribute/);
     // \u26d4 And it must run before the children, or it is not before their paint.
     expect(layout.indexOf("dangerouslySetInnerHTML")).toBeLessThan(layout.indexOf("<AdminChrome>"));
+  });
+
+  it("\ud83d\udd34 the script that ships is a REAL script, not one full of `undefined`", () => {
+    /**
+     * \ud83d\udd34 THE FIX SHIPPED AND DID NOTHING. The constants lived in
+     * AdminChrome.tsx, a "use client" module. Next.js replaces a client
+     * module's exports with client REFERENCES when a server component imports
+     * them, so on the server both were `undefined` and production received:
+     *
+     *     var d=document.documentElement,k=undefined,s={};
+     *     for(var i=0;i<k.length;i++){ ... }
+     *     window[undefined]=s;
+     *
+     * `k.length` threw, the try/catch swallowed it, and the flash was
+     * untouched. Found by reading the HTML the server actually sent.
+     *
+     * \u26a0\ufe0f The previous test asserted the layout "contains
+     * dangerouslySetInnerHTML and removeAttribute" \u2014 both true of that broken
+     * script. Checking the SHAPE of code cannot tell you its VALUES.
+     */
+    const script = resetBeforePaintScript();
+    expect(script, "a value evaluated to undefined").not.toContain("undefined");
+    for (const attr of CONSUMER_APPEARANCE) expect(script).toContain(attr);
+    expect(script).toContain(ADMIN_APPEARANCE_KEY);
+    // \u26d4 And it must actually be runnable.
+    expect(() => new Function(script)).not.toThrow();
+  });
+
+  it("\u26d4 the constants do not live in a \"use client\" module", () => {
+    // That is the mistake, stated as a rule: a value shared between a server
+    // component and a client one belongs in a module that is neither.
+    const plain = read("src/app/admin/_components/appearance.ts");
+    expect(plain.slice(0, 400)).not.toMatch(/^\s*["']use client["']/m);
+    expect(read("src/app/admin/layout.tsx")).toMatch(/from "@\/app\/admin\/_components\/appearance"/);
   });
 
   it("\u26a0\ufe0f the script hands the originals to the component, which cannot re-read them", () => {
@@ -182,9 +220,8 @@ describe("the consumer app's appearance is neutralised once, for everything", ()
      * there would capture nulls and restore nothing \u2014 so anybody who merely
      * visited the panel would find /chat dark for the rest of the session.
      */
-    const layout = read("src/app/admin/layout.tsx");
     const chrome = read("src/app/admin/_components/AdminChrome.tsx");
-    expect(layout).toMatch(/ADMIN_APPEARANCE_KEY/);
+    expect(resetBeforePaintScript()).toContain(ADMIN_APPEARANCE_KEY);
     expect(chrome).toMatch(/w\[ADMIN_APPEARANCE_KEY\] \?\?/);
     // \ud83d\udd11 The fallback is load-bearing: on a client-side nav back into /admin
     // the layout HTML is not re-sent, so the script does not run again.

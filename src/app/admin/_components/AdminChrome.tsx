@@ -30,11 +30,12 @@
 
 import { useEffect } from "react";
 
-/** The attributes the consumer app's boot script writes onto <html>. */
-export const CONSUMER_APPEARANCE = ["data-theme", "data-theme-pref", "data-fontsize", "data-accent"] as const;
+// ⛔ Declared in a plain module, not here. A server component importing a
+// value from a "use client" file gets a client reference, not the value — the
+// layout's pre-paint script shipped with `undefined` everywhere because of it.
+import { CONSUMER_APPEARANCE, ADMIN_APPEARANCE_KEY } from "@/app/admin/_components/appearance";
 
-/** Where the pre-paint script leaves the originals for this component. */
-export const ADMIN_APPEARANCE_KEY = "__imotaraAdminAppearance";
+export { CONSUMER_APPEARANCE, ADMIN_APPEARANCE_KEY };
 
 type Saved = Partial<Record<string, string | null>>;
 

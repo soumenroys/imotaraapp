@@ -9,7 +9,11 @@
 // looked broken for any admin whose machine was in light mode.
 
 import type { Metadata } from "next";
-import { AdminChrome, ADMIN_APPEARANCE_KEY, CONSUMER_APPEARANCE } from "@/app/admin/_components/AdminChrome";
+import { AdminChrome } from "@/app/admin/_components/AdminChrome";
+// ⛔ From the plain module, NEVER from AdminChrome — that one is "use client",
+// and a server component importing its values gets client references, which
+// evaluate to `undefined` here. See appearance.ts.
+import { resetBeforePaintScript } from "@/app/admin/_components/appearance";
 
 export const metadata: Metadata = {
   title: "Imotara admin",
@@ -35,11 +39,7 @@ export const metadata: Metadata = {
  * attributes then would capture nulls and restore nothing, leaving every
  * consumer page dark after somebody navigated out of the panel.
  */
-const RESET_BEFORE_PAINT = `(function(){try{
-var d=document.documentElement,k=${JSON.stringify(CONSUMER_APPEARANCE)},s={};
-for(var i=0;i<k.length;i++){s[k[i]]=d.getAttribute(k[i]);d.removeAttribute(k[i]);}
-window[${JSON.stringify(ADMIN_APPEARANCE_KEY)}]=s;
-}catch(e){}})();`;
+const RESET_BEFORE_PAINT = resetBeforePaintScript();
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (

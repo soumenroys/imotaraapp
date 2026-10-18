@@ -18,7 +18,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { nextPool, nextLanguage } from "@/lib/social/pipeline";
+import { nextPool, nextLanguage, usablePools, bodyUsesWord } from "@/lib/social/pipeline";
+import { untranslatablePoolReady } from "@/lib/social/untranslatableWords";
 import { TOPIC_POOLS } from "@/lib/social/topicPools";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
@@ -76,11 +77,50 @@ describe("exactly one angle reaches the writer", () => {
    * nextPool somewhere in the file.
    */
   it("hands over a single-element list, not the schedule's whole set", () => {
-    expect(pipeline).toMatch(/topicPool: \[nextPool\(args\.schedule\.topicPool, args\.postsSoFar\)\]/);
+    // ⚠️ The angle is decided ONCE, above the retry loop, and passed as a
+    // one-element list ⇒ the `pool` const.
+    expect(pipeline).toMatch(/const pool = nextPool\(usablePools\(args\.schedule\.topicPool\), args\.postsSoFar\)/);
+    expect(pipeline).toMatch(/topicPool: \[pool\],/);
     expect(
       /topicPool: args\.schedule\.topicPool,/.test(pipeline),
       "the full pool list is being handed to the model again",
     ).toBe(false);
+  });
+
+  /**
+   * 🔴 THE INSTRUCTION WAS NOT ENOUGH. Handed অভিমান and told in capitals to
+   * use exactly it, the writer produced a post about talking versus typing.
+   * ⛔ So the word is chosen by the pipeline — which is therefore able to
+   * check the result — and an off-angle draft is rejected rather than queued.
+   */
+  it("⛔ rejects a word-angle draft that does not use its word", () => {
+    expect(pipeline).toMatch(/if \(word && !bodyUsesWord\(/);
+    const branch = pipeline.slice(pipeline.indexOf("if (word && !bodyUsesWord("));
+    expect(branch.slice(0, 600)).toContain("rejected.push");
+    expect(branch.slice(0, 600)).toContain("continue;");
+  });
+
+  it("decides the word once, outside the retry loop", () => {
+    const decided = pipeline.indexOf('const word = pool === "untranslatable"');
+    const loop = pipeline.indexOf("for (let attempt = 1;");
+    /**
+     * ⚠️ THE `> -1` IS THE WHOLE TEST. `indexOf` returns -1 when the line is
+     * gone, and -1 is less than any loop position — so the original version
+     * of this assertion passed with the word-picking DELETED. Found by
+     * mutation ⇒ trap_mutation_harness_can_report_false_caught.
+     */
+    expect(decided, "the word is never picked at all").toBeGreaterThan(-1);
+    expect(loop).toBeGreaterThan(-1);
+    expect(decided, "the word is picked per attempt, so a retry changes the subject").toBeLessThan(loop);
+  });
+
+  /**
+   * ⛔ An angle with nothing behind it is worse than a missing angle: the
+   * rotation would land on it every fifth post and have nothing to write from.
+   */
+  it("drops the word angle from the cycle when no word is confirmed", () => {
+    expect(pipeline).toMatch(/export function usablePools/);
+    expect(pipeline).toMatch(/pools\.filter\(\(p\) => p !== "untranslatable"\)/);
   });
 
   /**
@@ -117,5 +157,51 @@ describe("one counter drives both rotations", () => {
   it("the cron passes the count it already had", () => {
     const cron = read("src/app/api/cron/social-queue/route.ts");
     expect(cron).toMatch(/postsSoFar: count/);
+  });
+});
+
+/**
+ * ⚠️ BEHAVIOUR, NOT SOURCE. The assertions above read the file; these run the
+ * function, because "did it use the word" is the thing that actually has to
+ * be true ⇒ trap_text_assertions_cannot_see_reachability.
+ */
+describe("using the word it was given", () => {
+  const word = { word: "অভিমান", roman: "abhimaan" };
+
+  it("accepts the word in its own script", () => {
+    expect(bodyUsesWord("There is a Bengali word, অভিমান, for this.", word)).toBe(true);
+  });
+
+  it("accepts the romanisation, for readers who do not read the script", () => {
+    expect(bodyUsesWord("There is a Bengali word — Abhimaan — for this.", word)).toBe(true);
+  });
+
+  it("⛔ refuses a post that is about something else entirely", () => {
+    expect(
+      bodyUsesWord("Some feelings are easier to say than to write. You can talk or type here.", word),
+    ).toBe(false);
+  });
+
+  it("does not accept a near miss", () => {
+    // ⚠️ A post about "abhiman" or "abhimana" is a post about a word nobody
+    // confirmed, which is the whole failure this guards.
+    expect(bodyUsesWord("The word abhiman means pride.", word)).toBe(false);
+  });
+});
+
+describe("the pool cycle skips an angle with nothing behind it", () => {
+  it("keeps the word angle only while a word is confirmed", () => {
+    const pools = ["privacy", "untranslatable", "the-unsaid"];
+    const usable = usablePools(pools);
+    if (untranslatablePoolReady().ok) {
+      expect(usable).toEqual(pools);
+    } else {
+      expect(usable).not.toContain("untranslatable");
+      expect(usable).toEqual(["privacy", "the-unsaid"]);
+    }
+  });
+
+  it("leaves every other pool alone", () => {
+    expect(usablePools(["privacy", "the-unsaid"])).toEqual(["privacy", "the-unsaid"]);
   });
 });

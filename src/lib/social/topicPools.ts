@@ -95,10 +95,24 @@ export const TOPIC_POOLS: TopicPool[] = [
       "⛔ THE WORD IS CHOSEN FOR YOU AND HANDED TO YOU WITH ITS MEANING. You may not pick your own: the " +
       "first time this angle ran it invented a gloss for a Tamil word and was wrong " +
       "⇒ src/lib/social/untranslatableWords.ts. " +
-      "⛔ ONLY a word you are certain of. If you are not sure the word means what you are about to say, " +
-      "choose a different post: a mistranslation here insults the people whose language it is, and they " +
-      "are exactly the readers this is for. ⛔ Do not explain why this matters for mental health, and do " +
-      "not mention the product at all unless it genuinely belongs. The word is the post.",
+      /**
+       * 🔴 THIS USED TO SAY "⛔ ONLY a word you are certain of. If you are not
+       * sure the word means what you are about to say, CHOOSE A DIFFERENT
+       * POST." That was correct while the model picked its own word.
+       *
+       * ⛔ The moment the word started being HANDED to it, the same sentence
+       * became an explicit licence to abandon the angle — and the first post
+       * written under the new design took it: given অভিমান, it wrote about
+       * talking versus typing instead. An instruction that is right under one
+       * design and wrong under the next reads perfectly reasonable in
+       * isolation, which is exactly why it survived the change.
+       */
+      "⛔ The word you are given is the only one you may use, and the meaning you are given is the " +
+      "only meaning you may give it. You are not being asked to judge whether it is right — somebody " +
+      "who speaks the language already did that. Do not substitute another word, and do not fall back " +
+      "to a different subject: on this angle there is no different subject available. " +
+      "⛔ Do not explain why this matters for mental health, and do not mention the product at all " +
+      "unless it genuinely belongs. The word is the post.",
   },
   {
     id: "the-unsaid",

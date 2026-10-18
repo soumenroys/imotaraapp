@@ -24,6 +24,7 @@ import {
 } from "@/lib/social/voiceGate";
 import { judgeSubject, subjectHash, exclusionList } from "@/lib/social/subjects";
 import { pickRecipe, headlineFromBody, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
+import { pickWord, untranslatablePoolReady } from "@/lib/social/untranslatableWords";
 import { composePicture, type Picture } from "@/lib/social/compose";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
@@ -58,6 +59,17 @@ export type WriteRequest = {
   avoid: string[];
   /** On a retry, what the gate objected to last time. */
   previousObjections?: string[];
+  /**
+   * The word this post must be about, when the angle is the untranslatable
+   * one.
+   *
+   * 🔑 CHOSEN HERE RATHER THAN INSIDE THE WRITER, so that the thing which
+   * sent the instruction is also the thing that can CHECK the result. The
+   * writer used to pick it from a seed; nothing could then verify the post
+   * was about it, because nobody else knew which word had been handed over
+   * ⇒ src/lib/social/untranslatableWords.ts.
+   */
+  word?: { word: string; roman: string; language: string; meaning: string };
 };
 
 export type Written = { subject: string; body: string; support?: string };
@@ -154,6 +166,35 @@ export function nextLanguage(languages: string[], postsSoFar: number): string {
  * ⛔ Throws rather than defaulting. A schedule with no pool is a schedule
  * nobody finished setting up, and picking one for them hides that.
  */
+/**
+ * The pools that can actually produce a post today.
+ *
+ * 🔴 AN ANGLE WITH NOTHING BEHIND IT IS WORSE THAN A MISSING ANGLE. If the
+ * untranslatable pool is in a schedule and no word has been confirmed, the
+ * rotation would land on it every fifth post and the writer would have
+ * nothing to write from — so it is removed from the cycle rather than left in
+ * it to fail ⇒ src/lib/social/untranslatableWords.ts.
+ *
+ * ⚠️ Filtering BEFORE the rotation, not after: dropping it afterwards would
+ * silently shift every other pool's turn.
+ */
+/**
+ * Did the post actually use the word it was given?
+ *
+ * ⚠️ Either the script or the romanisation counts. A post may reasonably
+ * write "abhimaan" for readers who do not read Bengali, and demanding the
+ * script would reject a perfectly good post — while demanding neither is no
+ * check at all.
+ */
+export function bodyUsesWord(text: string, word: { word: string; roman: string }): boolean {
+  return text.includes(word.word) || text.toLowerCase().includes(word.roman.toLowerCase());
+}
+
+export function usablePools(pools: string[]): string[] {
+  if (untranslatablePoolReady().ok) return pools;
+  return pools.filter((p) => p !== "untranslatable");
+}
+
 export function nextPool(pools: string[], postsSoFar: number): string {
   if (!pools || pools.length === 0) {
     throw new Error(
@@ -323,6 +364,15 @@ export async function prepareGenerated(
   const rejected: RejectedDraft[] = [];
   const objections: string[] = [];
 
+  /**
+   * 🔑 THE ANGLE AND ITS WORD ARE DECIDED ONCE, HERE, before any attempt.
+   * Deciding them inside the loop would change the subject on a gate retry,
+   * and deciding them inside the writer left nobody able to check the result
+   * ⇒ the `word` field on WriteRequest.
+   */
+  const pool = nextPool(usablePools(args.schedule.topicPool), args.postsSoFar);
+  const word = pool === "untranslatable" ? pickWord(args.postsSoFar) : null;
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const written = await deps.write({
       brief: args.schedule.brief,
@@ -335,13 +385,38 @@ export async function prepareGenerated(
        * reliably picked the safest angle on the menu and the variety never
        * happened.
        */
-      topicPool: [nextPool(args.schedule.topicPool, args.postsSoFar)],
+      topicPool: [pool],
+      word: word ?? undefined,
       avoid: exclusionList(recent),
       previousObjections: objections.length ? [...objections] : undefined,
     });
 
     const subject = written.subject?.trim() ?? "";
     const body = written.body?.trim() ?? "";
+
+    /**
+     * 🔴 THE INSTRUCTION WAS NOT ENOUGH, AND IT WAS NEVER GOING TO BE.
+     *
+     * Handed অভিমান and told in capitals to use exactly it, the writer
+     * produced a post about talking versus typing. The angle's own text still
+     * carried a line from the previous design saying "if you are not sure,
+     * choose a different post", and it took that exit — but the lesson is the
+     * one this codebase already had: a prompt is an instruction, and anything
+     * that must be true is checked afterwards ⇒ src/lib/social/writer.ts.
+     *
+     * ⛔ Rejected as a draft rather than published as an off-angle post: an
+     * untranslatable post that is not about its word is not a worse version
+     * of itself, it is a different post that nobody asked for — and it would
+     * burn the rotation's turn.
+     */
+    if (word && !bodyUsesWord(`${subject}\n${body}`, word)) {
+      const why =
+        `This was written on the word angle with ${word.word} (${word.roman}) supplied, and the ` +
+        `post does not use it. ⛔ The word is the post.`;
+      rejected.push({ attempt, subject, body, why });
+      objections.push(why);
+      continue;
+    }
 
     const verdict = judgeSubject(subject, recent);
     if (!verdict.ok) {

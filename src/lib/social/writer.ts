@@ -16,7 +16,6 @@
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { languageName } from "@/lib/social/languages";
 import { TOPIC_POOLS } from "@/lib/social/subjects";
-import { pickWord, untranslatablePoolReady } from "@/lib/social/untranslatableWords";
 import { platformSpec } from "@/lib/social/platforms";
 import type { WriteRequest, Written } from "@/lib/social/pipeline";
 
@@ -183,10 +182,13 @@ export function buildPrompt(req: WriteRequest): string {
    * offered the word and its meaning come WITH it
    * ⇒ src/lib/social/untranslatableWords.ts.
    */
-  const ready = untranslatablePoolReady();
-  // ⚠️ A stable seed, so re-running the same request does not wander between
-  // words — and so a retry after a gate rejection keeps the same subject.
-  const word = ready.ok ? pickWord(req.avoid.length + req.language.length) : null;
+  /**
+   * ⚠️ THE WORD NOW ARRIVES WITH THE REQUEST. It used to be picked here from
+   * a seed, which meant nobody outside this function knew which word had been
+   * handed over — so nothing could check that the post was about it, and the
+   * first post written under that design was not ⇒ src/lib/social/pipeline.ts.
+   */
+  const word = req.word ?? null;
   const angles = word ? chosen : chosen.filter((p) => p.id !== "untranslatable");
 
   const spec = req.platform ? platformSpec(req.platform) : null;

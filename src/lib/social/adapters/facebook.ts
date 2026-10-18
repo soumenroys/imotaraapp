@@ -559,3 +559,97 @@ export async function fetchPostStats(args: {
     return { ok: false, kind: "network", message: `Could not reach Facebook (${(e as Error).message}).` };
   }
 }
+
+/**
+ * Page reach and impressions — how many people actually SAW anything.
+ *
+ * 🔴 THE NUMBER THAT MAKES THE REST MEAN SOMETHING. Followers and reactions
+ * describe people who already arrived; impressions describe whether a post was
+ * put in front of anybody at all. Without it, "no reactions" is unreadable —
+ * it could be a weak post or a post nobody was shown.
+ *
+ * ⛔ NEEDS `read_insights` ON THE TOKEN. If the scope is missing, Facebook
+ * answers with a permission error rather than an empty series — which is why
+ * this returns a classified failure and the caller stores NULL, never 0.
+ */
+export type PageInsights = {
+  impressions: number | null;
+  reach: number | null;
+  raw: Record<string, unknown>;
+};
+
+export async function fetchPageInsights(args: {
+  token: string;
+  pageId: string;
+  /** ⚠️ Yesterday by default: Facebook's "day" period is only complete once
+   *  the day is over, and asking for today returns a partial figure that
+   *  looks like a collapse. */
+  day?: Date;
+  fetchImpl?: typeof fetch;
+}): Promise<{ ok: true; insights: PageInsights } | { ok: false; kind: FacebookFailure; message: string }> {
+  const doFetch = args.fetchImpl ?? fetch;
+  const until = args.day ?? new Date(Date.now() - 86_400_000);
+  const since = new Date(until.getTime() - 86_400_000);
+  const d = (x: Date) => Math.floor(x.getTime() / 1000);
+
+  try {
+    const res = await doFetch(
+      graph(`${encodeURIComponent(args.pageId)}/insights`) +
+        `?metric=page_impressions,page_impressions_unique&period=day` +
+        `&since=${d(since)}&until=${d(until)}&access_token=${encodeURIComponent(args.token)}`,
+      { signal: AbortSignal.timeout(20_000), cache: "no-store" },
+    );
+    const json = (await res.json()) as {
+      data?: { name?: string; values?: { value?: number }[] }[];
+      error?: GraphError;
+    };
+    if (json.error) return { ok: false, ...classifyGraphError(json.error) };
+
+    /**
+     * ⚠️ TAKE THE LAST VALUE, not the first. Facebook returns a series and the
+     * most recent complete day is at the end; reading [0] silently reports a
+     * figure one day older than the row it is filed under.
+     */
+    const pick = (name: string): number | null => {
+      const series = json.data?.find((m) => m.name === name)?.values ?? [];
+      const last = series[series.length - 1]?.value;
+      return typeof last === "number" ? last : null;
+    };
+
+    return {
+      ok: true,
+      insights: {
+        impressions: pick("page_impressions"),
+        reach: pick("page_impressions_unique"),
+        raw: json as Record<string, unknown>,
+      },
+    };
+  } catch (e) {
+    return { ok: false, kind: "network", message: `Could not reach Facebook (${(e as Error).message}).` };
+  }
+}
+
+/** How many people saw ONE post. ⛔ Also behind `read_insights`. */
+export async function fetchPostImpressions(args: {
+  token: string;
+  postId: string;
+  fetchImpl?: typeof fetch;
+}): Promise<{ ok: true; impressions: number | null } | { ok: false; kind: FacebookFailure; message: string }> {
+  const doFetch = args.fetchImpl ?? fetch;
+  try {
+    const res = await doFetch(
+      graph(`${encodeURIComponent(args.postId)}/insights`) +
+        `?metric=post_impressions&access_token=${encodeURIComponent(args.token)}`,
+      { signal: AbortSignal.timeout(20_000), cache: "no-store" },
+    );
+    const json = (await res.json()) as {
+      data?: { name?: string; values?: { value?: number }[] }[];
+      error?: GraphError;
+    };
+    if (json.error) return { ok: false, ...classifyGraphError(json.error) };
+    const v = json.data?.find((m) => m.name === "post_impressions")?.values?.[0]?.value;
+    return { ok: true, impressions: typeof v === "number" ? v : null };
+  } catch (e) {
+    return { ok: false, kind: "network", message: `Could not reach Facebook (${(e as Error).message}).` };
+  }
+}

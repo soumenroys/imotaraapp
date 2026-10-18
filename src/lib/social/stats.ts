@@ -17,7 +17,12 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadChannelCredential } from "@/lib/social/channelCredentials";
-import { fetchPageStats, fetchPostStats } from "@/lib/social/adapters/facebook";
+import {
+  fetchPageStats,
+  fetchPostStats,
+  fetchPageInsights,
+  fetchPostImpressions,
+} from "@/lib/social/adapters/facebook";
 
 /** ⚠️ UTC, matching the table's `captured_on` default, so a capture at 23:40
  *  IST does not land on yesterday's row or create tomorrow's. */
@@ -77,6 +82,15 @@ export async function captureChannelStats(
     .eq("platform", cred.platform)
     .eq("status", "published");
 
+  /**
+   * ⚠️ BEST EFFORT, AND ITS FAILURE IS RECORDED RATHER THAN HIDDEN. Reach
+   * needs `read_insights`; without it Facebook answers with a permission
+   * error. ⛔ The figures stay NULL — never 0 — and the reason is kept in the
+   * note, because a column of zeros would read as "nobody saw anything".
+   */
+  const insights = await fetchPageInsights({ token: cred.token, pageId: cred.externalId });
+  const insightNote = insights.ok ? "" : ` ⚠️ Reach unavailable: ${insights.message}`;
+
   const { error } = await db.from("social_channel_stats").upsert(
     {
       account_id: accountId,
@@ -86,8 +100,10 @@ export async function captureChannelStats(
       followers: stats.stats.followers,
       fans: stats.stats.fans,
       posts_live: live ?? 0,
-      raw: stats.stats.raw,
-      note: opts.note ?? null,
+      impressions: insights.ok ? insights.insights.impressions : null,
+      reach: insights.ok ? insights.insights.reach : null,
+      raw: { page: stats.stats.raw, insights: insights.ok ? insights.insights.raw : { error: insights.message } },
+      note: (opts.note ?? "") + insightNote || null,
     },
     // ⛔ Named, so a correction lands on the same row rather than failing.
     { onConflict: "account_id,captured_on" },
@@ -98,10 +114,14 @@ export async function captureChannelStats(
     ok: true,
     followers: stats.stats.followers,
     baseline,
-    note: baseline
-      ? `Baseline taken: ${stats.stats.followers ?? "unknown"} followers before the scheduler has ` +
-        `done anything. ⛔ This figure cannot be recovered later.`
-      : `${stats.stats.followers ?? "unknown"} followers today.`,
+    note:
+      (baseline
+        ? `Baseline taken: ${stats.stats.followers ?? "unknown"} followers before the scheduler has ` +
+          `done anything. ⛔ This figure cannot be recovered later.`
+        : `${stats.stats.followers ?? "unknown"} followers today.`) +
+      (insights.ok
+        ? ` Reach yesterday: ${insights.insights.reach ?? "unknown"}, impressions ${insights.insights.impressions ?? "unknown"}.`
+        : insightNote),
   };
 }
 
@@ -155,6 +175,10 @@ export async function capturePostStats(
       skipped += 1;
       continue;
     }
+    // ⚠️ A second call, because impressions live on a different edge. Its
+    // failure must not lose the reactions we already have.
+    const seen = await fetchPostImpressions({ token: cred.token, postId: p.external_post_id as string });
+
     const { error } = await db.from("social_post_stats").upsert(
       {
         post_id: p.id,
@@ -162,7 +186,7 @@ export async function capturePostStats(
         reactions: stats.stats.reactions,
         comments: stats.stats.comments,
         shares: stats.stats.shares,
-        impressions: stats.stats.impressions,
+        impressions: seen.ok ? seen.impressions : null,
         raw: stats.stats.raw,
       },
       { onConflict: "post_id,captured_on" },

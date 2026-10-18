@@ -92,3 +92,12 @@ alter table social_post_stats enable row level security;
 -- and RLS being ON with no policy means no row is readable
 -- ⇒ security_review_findings_2026_10_16, where a table with RLS on and a
 -- permissive policy was mistaken for a protected one.
+
+-- ── 4. REACH, ADDED 18 Oct once the token carried `read_insights` ────────────
+--
+-- 🔑 Impressions = times shown. Reach = distinct people. ⛔ Both NULL rather
+-- than 0 whenever the scope is missing or Facebook declines — "we could not
+-- ask" and "nobody saw it" are different facts and a zero averages into every
+-- chart as if it were a measurement.
+alter table social_channel_stats add column if not exists impressions int;
+alter table social_channel_stats add column if not exists reach       int;

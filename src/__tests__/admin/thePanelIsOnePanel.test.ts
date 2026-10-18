@@ -157,4 +157,37 @@ describe("the consumer app's appearance is neutralised once, for everything", ()
   it("and it covers every admin route by being the layout", () => {
     expect(read("src/app/admin/layout.tsx")).toMatch(/AdminChrome/);
   });
+
+  it("\u2460 strips them BEFORE the first paint, not in an effect", () => {
+    /**
+     * \ud83d\udd34 THE THEME SHIFT THE OWNER SAW. The root layout sets data-theme from a
+     * blocking script in <head>, so the admin's HTML painted with the CONSUMER
+     * theme on it. An effect runs after hydration \u2014 measured on production:
+     * first paint 316ms, attribute still present then, gone by 401ms. For that
+     * window `[data-theme="light"]` was active and it INVERTS the zinc palette
+     * the admin is built on, so the panel flashed light-and-wrong before
+     * snapping to dark. Not two designs disagreeing \u2014 one page painting twice.
+     */
+    const layout = read("src/app/admin/layout.tsx");
+    expect(layout, "no pre-paint script").toMatch(/dangerouslySetInnerHTML/);
+    expect(layout).toMatch(/removeAttribute/);
+    // \u26d4 And it must run before the children, or it is not before their paint.
+    expect(layout.indexOf("dangerouslySetInnerHTML")).toBeLessThan(layout.indexOf("<AdminChrome>"));
+  });
+
+  it("\u26a0\ufe0f the script hands the originals to the component, which cannot re-read them", () => {
+    /**
+     * \u26d4 THE WAY THIS FIX COULD BREAK THE CONSUMER APP. By the time
+     * AdminChrome's effect runs the attributes are already gone. Reading them
+     * there would capture nulls and restore nothing \u2014 so anybody who merely
+     * visited the panel would find /chat dark for the rest of the session.
+     */
+    const layout = read("src/app/admin/layout.tsx");
+    const chrome = read("src/app/admin/_components/AdminChrome.tsx");
+    expect(layout).toMatch(/ADMIN_APPEARANCE_KEY/);
+    expect(chrome).toMatch(/w\[ADMIN_APPEARANCE_KEY\] \?\?/);
+    // \ud83d\udd11 The fallback is load-bearing: on a client-side nav back into /admin
+    // the layout HTML is not re-sent, so the script does not run again.
+    expect(chrome).toMatch(/CONSUMER_APPEARANCE\.map\(\(name\) => \[name, html\.getAttribute\(name\)\]\)/);
+  });
 });

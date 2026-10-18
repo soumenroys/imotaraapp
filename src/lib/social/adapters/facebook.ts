@@ -136,6 +136,60 @@ export function classifyGraphError(err: GraphError): { kind: FacebookFailure; me
 }
 
 /**
+ * Which Pages can this token actually see?
+ *
+ * 🔴 THIS EXISTS BECAUSE "EITHER/OR" IS NOT A DIAGNOSIS. Facebook answers
+ * `100/33` for both a wrong Page id and an unassigned Page, and the first
+ * version of this file simply told the reader it was one of the two and left
+ * them to work out which — on the one screen where guessing wrong means
+ * revoking a working credential.
+ *
+ * ⚠️ `/me/accounts` on a system user token lists exactly the Pages that user
+ * has been assigned, which settles it: a list with our Page in it means the id
+ * was wrong, and an empty list means the assignment is.
+ *
+ * ⛔ Best effort. A failure here must never overwrite the real finding — this
+ * is extra evidence for a diagnosis already made, not a second verdict.
+ */
+export async function listFacebookPages(args: {
+  token: string;
+  fetchImpl?: typeof fetch;
+}): Promise<{ id: string; name: string }[] | null> {
+  const doFetch = args.fetchImpl ?? fetch;
+  try {
+    const res = await doFetch(
+      graph("me/accounts") + `?fields=id,name&limit=50&access_token=${encodeURIComponent(args.token)}`,
+      { signal: AbortSignal.timeout(15_000), cache: "no-store" },
+    );
+    const json = (await res.json()) as { data?: { id: string; name: string }[]; error?: GraphError };
+    if (json.error || !Array.isArray(json.data)) return null;
+    return json.data.map((p) => ({ id: String(p.id), name: String(p.name ?? "unnamed") }));
+  } catch {
+    return null;
+  }
+}
+
+/** The sentence that turns "one of two things" into "this thing". */
+function namePagesItCanSee(pages: { id: string; name: string }[] | null, wanted: string): string {
+  if (pages === null) return "";
+  if (pages.length === 0) {
+    return (
+      ` ⇒ Asked again: this token can see NO Pages at all, so the Page is not assigned to the ` +
+      `system user. ▶️ Business settings → Users → System users → … → Assign assets → Facebook Pages.`
+    );
+  }
+  const match = pages.find((p) => p.id === wanted);
+  if (match) {
+    return ` ⇒ Asked again: the token CAN see “${match.name}” (${match.id}), so this is something else.`;
+  }
+  const list = pages.map((p) => `“${p.name}” (${p.id})`).join(", ");
+  return (
+    ` ⇒ Asked again: this token can see ${list} — and not ${wanted}. ` +
+    `▶️ That is the id to use. ⛔ The token is fine; do not replace it.`
+  );
+}
+
+/**
  * Ask Facebook whether this token still reaches this Page.
  *
  * 🔑 ONE CALL ANSWERS THREE QUESTIONS: the token is alive (it did not 190), it
@@ -184,7 +238,16 @@ export async function checkFacebookPage(args: {
     };
   }
 
-  if (json.error) return { ok: false, ...classifyGraphError(json.error) };
+  if (json.error) {
+    const verdict = classifyGraphError(json.error);
+    // 🔑 Only for the ambiguous one. A dead token cannot list anything, and
+    // asking would add a second failure to a message that is already clear.
+    if (verdict.kind === "page") {
+      const pages = await listFacebookPages({ token: args.token, fetchImpl: args.fetchImpl });
+      return { ok: false, kind: "page", message: verdict.message + namePagesItCanSee(pages, args.pageId) };
+    }
+    return { ok: false, ...verdict };
+  }
 
   if (!json.id) {
     return {

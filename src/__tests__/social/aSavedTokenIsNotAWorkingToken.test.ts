@@ -108,6 +108,82 @@ describe("asking Facebook about the Page", () => {
     expect(!r.ok && r.message).toMatch(/wrong Page/i);
   });
 
+  /**
+   * 🔴 "EITHER/OR" IS NOT A DIAGNOSIS. The first live check on 18 Oct returned
+   * exactly this and left the reader to guess which of two things it was — on
+   * the screen where guessing wrong costs a working credential. The adapter
+   * now asks a second question that settles it.
+   */
+  describe("a 100/33 is chased down rather than left ambiguous", () => {
+    /** First call answers with the error; the second lists the Pages. */
+    function twoAnswers(first: unknown, second: unknown): typeof fetch {
+      let n = 0;
+      return (async () => {
+        n += 1;
+        return new Response(JSON.stringify(n === 1 ? first : second), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as unknown as typeof fetch;
+    }
+    const denied = { error: { code: 100, error_subcode: 33, message: "Unsupported get request." } };
+
+    it("names the id the token CAN see, and says not to replace the token", async () => {
+      const r = await checkFacebookPage({
+        token: "t",
+        pageId: PAGE,
+        fetchImpl: twoAnswers(denied, { data: [{ id: "777", name: "Imotara" }] }),
+      });
+      expect(r.ok).toBe(false);
+      expect(!r.ok && r.message).toContain("777");
+      expect(!r.ok && r.message).toMatch(/do not replace it/i);
+    });
+
+    it("an empty list means the assignment, and points at the right screen", async () => {
+      const r = await checkFacebookPage({
+        token: "t",
+        pageId: PAGE,
+        fetchImpl: twoAnswers(denied, { data: [] }),
+      });
+      expect(!r.ok && r.message).toMatch(/NO Pages at all/);
+      expect(!r.ok && r.message).toMatch(/Assign assets/);
+    });
+
+    /**
+     * ⛔ A QUESTION THAT FAILED IS NOT A QUESTION THAT ANSWERED "NONE".
+     * Returning an empty list where the lookup errored would print "this token
+     * can see NO Pages at all, so the Page is not assigned" — a confident,
+     * specific, wrong diagnosis, which is strictly worse than the honest
+     * either/or it replaced.
+     */
+    it("⛔ a failure of the second question never masks or invents an answer", async () => {
+      const r = await checkFacebookPage({
+        token: "t",
+        pageId: PAGE,
+        fetchImpl: twoAnswers(denied, { error: { code: 1, message: "unknown" } }),
+      });
+      expect(r.ok).toBe(false);
+      expect(!r.ok && r.kind).toBe("page");
+      expect(!r.ok && r.message).toMatch(/do not re-paste/i);
+      // Says nothing at all about what the token can see, rather than "none".
+      expect(!r.ok && r.message).not.toMatch(/NO Pages at all/);
+      expect(!r.ok && r.message).not.toMatch(/Asked again/);
+    });
+
+    it("⛔ a dead token is not asked to list anything", async () => {
+      let calls = 0;
+      const counting = (async () => {
+        calls += 1;
+        return new Response(JSON.stringify({ error: { code: 190, message: "revoked" } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as unknown as typeof fetch;
+      await checkFacebookPage({ token: "t", pageId: PAGE, fetchImpl: counting });
+      expect(calls).toBe(1);
+    });
+  });
+
   it("an error body is classified, not swallowed", async () => {
     const r = await checkFacebookPage({
       token: "t",
@@ -153,6 +229,27 @@ describe("the health cron uses the answer it got", () => {
     // The guard is the `verified` flag, not an unconditional write.
     expect(health).toMatch(/verified \? \{ last_verified_at/);
     expect(health).not.toMatch(/\} else \{\s*await db\.from\("social_accounts"\)\.update\(\{ last_verified_at/);
+  });
+});
+
+/**
+ * 🔴 THE ROW SAID THREE THINGS AND THE TWO LOUDER ONES WERE WRONG.
+ *
+ * The adapter's careful "⛔ do not re-paste before checking the id and the
+ * assignment" printed between a hard-coded "It stopped working. Generate a new
+ * token and paste it in." and a hard-coded "▶️ Generate a new token on the
+ * platform and connect it again." A correct diagnosis is worth nothing if the
+ * screen shouts the wrong remedy around it.
+ */
+describe("a specific diagnosis replaces the generic remedy", () => {
+  const page = readFileSync(join(process.cwd(), "src/app/admin/social/channels/page.tsx"), "utf8");
+
+  it("the status blurb is shown only when there is no specific error", () => {
+    expect(page).toMatch(/account\.last_error \?[\s\S]{0,200}?s && <p/);
+  });
+
+  it("⛔ the 'generate a new token' line is suppressed when we know better", () => {
+    expect(page).toMatch(/account\.status === "expiring"\) &&\s*!account\.last_error/);
   });
 });
 

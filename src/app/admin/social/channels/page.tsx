@@ -167,8 +167,19 @@ export default function Channels() {
                         {account.token_expires_at &&
                           ` · expires ${new Date(account.token_expires_at).toLocaleDateString()}`}
                       </p>
-                      {s && <p className="text-xs text-zinc-400">{s.means}</p>}
-                      {account.last_error && <p className="text-xs text-rose-300">{account.last_error}</p>}
+                      {/* 🔴 A SPECIFIC DIAGNOSIS REPLACES THE GENERIC ONE, it
+                          does not sit underneath it. On 18 Oct the first live
+                          check returned "this is a wrong Page id OR an
+                          unassigned Page — ⛔ do not re-paste" and the row
+                          printed, above and below it, two hard-coded lines
+                          saying to generate a new token. Three sentences, the
+                          two louder ones wrong, on the screen where acting on
+                          them costs a working credential. */}
+                      {account.last_error ? (
+                        <p className="text-xs text-rose-300">{account.last_error}</p>
+                      ) : (
+                        s && <p className="text-xs text-zinc-400">{s.means}</p>
+                      )}
 
                       {/* ⚠️ Offered on every connected channel, including the
                           ones with no adapter — the refusal then NAMES the
@@ -189,12 +200,17 @@ export default function Channels() {
                             : "Never checked."}
                         </span>
                       </div>
-                      {(account.status === "dead" || account.status === "expiring") && (
-                        <p className="text-xs text-amber-300">
-                          ▶️ Generate a new token on the platform and connect it again. ⛔ Your password
-                          is not involved — changing it does not break posting.
-                        </p>
-                      )}
+                      {/* ⚠️ Only when we have nothing better. `last_error`
+                          already carries the step to take, and it knows which
+                          one; this is the fallback for a status set by
+                          something that did not say why. */}
+                      {(account.status === "dead" || account.status === "expiring") &&
+                        !account.last_error && (
+                          <p className="text-xs text-amber-300">
+                            ▶️ Generate a new token on the platform and connect it again. ⛔ Your
+                            password is not involved — changing it does not break posting.
+                          </p>
+                        )}
                     </>
                   ) : (
                     <p className="text-xs text-zinc-500">{c.blockedBy}</p>

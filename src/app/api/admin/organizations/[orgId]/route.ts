@@ -260,7 +260,20 @@ export async function DELETE(
   const { data: org } = await admin.from("organizations").select("name").eq("id", orgId).single();
   if (!org) return NextResponse.json({ error: "org not found" }, { status: 404 });
 
-  if (body.confirmName?.trim() !== org.name) {
+  /**
+   * 🔴 AN ORG WHOSE NAME HAS A STRAY SPACE COULD NEVER BE DELETED.
+   *
+   * This compared the TRIMMED input against the UNTRIMMED stored name. One of
+   * the four live organisations is called "Child Care " — with a trailing
+   * space, almost certainly a slip when it was typed. Type that name exactly
+   * and the trim removes the space, so it stops matching; type it without and
+   * it never matched to begin with. There was no string an admin could enter.
+   *
+   * ⚠️ The confirmation is there to make somebody stop and read the name,
+   * not to test their ability to reproduce invisible whitespace. ⇒ Both sides
+   * are trimmed, so it still demands the right name and can now be satisfied.
+   */
+  if ((body.confirmName ?? "").trim() !== org.name.trim()) {
     return NextResponse.json({ error: "Type the organisation's exact name to confirm deletion" }, { status: 400 });
   }
 

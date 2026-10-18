@@ -14,7 +14,7 @@ import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { loadChannelCredential } from "@/lib/social/channelCredentials";
 import { checkChannel, channelCanBeChecked } from "@/lib/social/channelCheck";
-import { captureChannelStats } from "@/lib/social/stats";
+import { captureChannelStats, capturePostStats } from "@/lib/social/stats";
 
 export const maxDuration = 60;
 
@@ -98,6 +98,32 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       if (taken.ok) figures = ` ${taken.note}`;
     } catch {
       // ⚠️ Silent on purpose — see above. The daily run will try again.
+    }
+
+    /**
+     * 🔑 AND THE POSTS, NOT ONLY THE CHANNEL.
+     *
+     * ⛔ Until now the ONLY caller of capturePostStats was the 19:30 cron, so
+     * the first time a new channel's per-post reader ever ran was unattended,
+     * at night, with nobody to read the error. That is precisely the shape of
+     * failure this feature exists to prevent — and on Instagram the figure it
+     * fetches is SAVES, which is the number the whole voice was written for.
+     *
+     * ⚠️ Cheap here: it reads only posts published in the last fortnight,
+     * and a channel that has just been connected has none.
+     */
+    try {
+      const posts = await capturePostStats(db, cred.id);
+      if (posts.captured > 0) {
+        figures += ` ${posts.captured} post(s) measured.`;
+      }
+      if (posts.problems.length > 0) {
+        // ⛔ Said, not swallowed. A reader that cannot read is the thing
+        // somebody standing here can still fix.
+        figures += ` ⚠️ Post figures: ${posts.problems.join("; ")}`;
+      }
+    } catch (e) {
+      figures += ` ⚠️ Post figures could not be taken (${(e as Error).message}).`;
     }
   }
 

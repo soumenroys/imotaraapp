@@ -372,3 +372,57 @@ describe("the check route refuses to invent a verdict", () => {
     expect(strip(stmt)).not.toContain(strip('result.ok ? "ok" :'));
   });
 });
+
+/**
+ * 🔴 A READER WHOSE FIRST RUN IS UNATTENDED.
+ *
+ * `capturePostStats` had exactly one caller: the 19:30 cron. So the first
+ * time a newly connected channel's per-post reader ever ran, it ran at night
+ * with nobody to read the error — the shape of failure this whole feature
+ * exists to prevent ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+ *
+ * ⚠️ On Instagram the figure it fetches is SAVES, which is the number the
+ * channel's voice was written for. A reader that silently cannot read it
+ * would leave the one metric we optimise for permanently null.
+ */
+describe("the check button exercises the post reader too", () => {
+  const raw = readFileSync(
+    join(process.cwd(), "src/app/api/admin/social/channels/[id]/check/route.ts"),
+    "utf8",
+  );
+  /**
+   * ⚠️ COMMENTS STRIPPED AND IMPORTS DROPPED, both learned the hard way
+   * tonight. `toContain("capturePostStats")` passed with the call replaced by
+   * a stub, because the IMPORT line still said the name; and a regex for the
+   * failure message matched the sentence in the catch branch explaining it.
+   * ⇒ trap_text_assertions_cannot_see_reachability.
+   */
+  const check = raw
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "")
+    .split("\n")
+    .filter((l) => !l.trimStart().startsWith("import "))
+    .join("\n");
+
+  it("captures post figures, not only the channel's", () => {
+    expect(check).toContain("await capturePostStats(");
+    expect(check).toContain("await captureChannelStats(");
+  });
+
+  it("says when the post reader failed instead of swallowing it", () => {
+    // ⛔ The whole point is that somebody is standing there and can still fix
+    // it. A silent catch would make the button a lie.
+    const call = check.indexOf("await capturePostStats(");
+    expect(call).toBeGreaterThan(-1);
+    const block = check.slice(call, check.indexOf("return NextResponse.json", call));
+    expect(block).toContain("posts.problems.join");
+    expect(block).toContain("figures +=");
+  });
+
+  it("⛔ still never fails the check itself over figures", () => {
+    // The verdict is what somebody pressed the button for; figures are a bonus.
+    const call = check.indexOf("await capturePostStats(");
+    const block = check.slice(call, check.indexOf("return NextResponse.json", call));
+    expect(block).not.toMatch(/status:\s*\d{3}/);
+  });
+});

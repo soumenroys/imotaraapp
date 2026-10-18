@@ -14,6 +14,7 @@ import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { loadChannelCredential } from "@/lib/social/channelCredentials";
 import { checkFacebookPage } from "@/lib/social/adapters/facebook";
+import { captureChannelStats } from "@/lib/social/stats";
 
 export const maxDuration = 60;
 
@@ -81,11 +82,29 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  /**
+   * 🔑 A CHECK IS ALSO A CHANCE TO TAKE STOCK, and it is the only way to get a
+   * baseline for a channel that was connected before any of this existed —
+   * Facebook was connected hours earlier the same day.
+   *
+   * ⛔ Never fails the check. The verdict above is the answer somebody pressed
+   * the button for; figures are a bonus.
+   */
+  let figures = "";
+  if (result.ok) {
+    try {
+      const taken = await captureChannelStats(db, cred.id, { note: "taken at check" });
+      if (taken.ok) figures = ` ${taken.note}`;
+    } catch {
+      // ⚠️ Silent on purpose — see above. The daily run will try again.
+    }
+  }
+
   return NextResponse.json({
     status,
     ok: result.ok,
     // ⚠️ `ok` from Facebook is not `ok` as a channel. The note carries which.
-    note: result.ok ? result.note : result.message,
+    note: (result.ok ? result.note : result.message) + figures,
     // ⚠️ Carried separately because a reachable Page that cannot be posted to
     // is the one failure that otherwise reads as success.
     canPost: result.ok ? result.canPost : false,

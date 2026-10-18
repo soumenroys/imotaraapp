@@ -1,0 +1,179 @@
+// src/lib/social/stats.ts
+// Taking the stock of a channel, and of what it has published.
+//
+// 🔑 THE OWNER'S ASK, 18 Oct: capture a channel's figures when it is
+// connected, update them after every day's post, and keep the series so the
+// scheduler can be judged on whether anything actually moved.
+//
+// 🔴 THE BASELINE IS THE PART THAT CANNOT BE RECOVERED LATER. Without the
+// figure from before the scheduler started, every later number is unreadable:
+// 63 followers is a success or a disappointment depending entirely on what it
+// was the day before. So it is taken the moment a channel is connected, not
+// the day somebody first wants a chart.
+//
+// ⚠️ AND THE HONEST LIMIT. The Page had ~50 followers on 18 Oct. One person is
+// 2%. For a long while anything that looks like a trend over a few days is
+// noise, and this module's job is to record honestly, not to flatter.
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { loadChannelCredential } from "@/lib/social/channelCredentials";
+import { fetchPageStats, fetchPostStats } from "@/lib/social/adapters/facebook";
+
+/** ⚠️ UTC, matching the table's `captured_on` default, so a capture at 23:40
+ *  IST does not land on yesterday's row or create tomorrow's. */
+export function capturedOn(now: Date = new Date()): string {
+  return now.toISOString().slice(0, 10);
+}
+
+export type CaptureResult =
+  | { ok: true; followers: number | null; baseline: boolean; note: string }
+  | { ok: false; reason: string };
+
+/**
+ * Take one day's figures for a channel.
+ *
+ * ⛔ UPSERT ON (account_id, captured_on). Two captures in a day are the same
+ * day's figure — the second corrects the first. Inserting twice would turn a
+ * retry into a second reading and make every average wrong.
+ */
+export async function captureChannelStats(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: SupabaseClient<any, any, any>,
+  accountId: string,
+  opts: { note?: string; now?: Date } = {},
+): Promise<CaptureResult> {
+  const cred = await loadChannelCredential(db, accountId);
+  if (!cred.ok) return { ok: false, reason: cred.reason };
+
+  if (cred.platform !== "facebook") {
+    // ⛔ Said, not skipped. A channel silently absent from the record looks
+    // identical to a channel that never grew.
+    return { ok: false, reason: `There is no way to read ${cred.platform} figures yet.` };
+  }
+
+  const stats = await fetchPageStats({ token: cred.token, pageId: cred.externalId });
+  if (!stats.ok) return { ok: false, reason: stats.message };
+
+  const day = capturedOn(opts.now);
+
+  /**
+   * 🔑 Is this the first capture this channel has ever had? Asked BEFORE the
+   * write, because afterwards the answer is always no. ⛔ The flag records
+   * which row is the starting line; a later capture on the same day may
+   * correct the VALUES but must never erase that.
+   */
+  const { count } = await db
+    .from("social_channel_stats")
+    .select("id", { count: "exact", head: true })
+    .eq("account_id", accountId);
+  const baseline = (count ?? 0) === 0;
+
+  // ⚠️ How many of OUR posts were live when this was taken. It is what makes
+  // the follower line readable — a jump with no posts behind it came from
+  // somewhere else entirely.
+  const { count: live } = await db
+    .from("social_posts")
+    .select("id", { count: "exact", head: true })
+    .eq("platform", cred.platform)
+    .eq("status", "published");
+
+  const { error } = await db.from("social_channel_stats").upsert(
+    {
+      account_id: accountId,
+      platform: cred.platform,
+      captured_on: day,
+      is_baseline: baseline,
+      followers: stats.stats.followers,
+      fans: stats.stats.fans,
+      posts_live: live ?? 0,
+      raw: stats.stats.raw,
+      note: opts.note ?? null,
+    },
+    // ⛔ Named, so a correction lands on the same row rather than failing.
+    { onConflict: "account_id,captured_on" },
+  );
+  if (error) return { ok: false, reason: error.message };
+
+  return {
+    ok: true,
+    followers: stats.stats.followers,
+    baseline,
+    note: baseline
+      ? `Baseline taken: ${stats.stats.followers ?? "unknown"} followers before the scheduler has ` +
+        `done anything. ⛔ This figure cannot be recovered later.`
+      : `${stats.stats.followers ?? "unknown"} followers today.`,
+  };
+}
+
+/**
+ * Take today's figures for every post this channel has published recently.
+ *
+ * ⚠️ A post's numbers keep moving for days, so this is a SERIES per post, not
+ * one final reading. The shape of that curve is the only way to tell a post
+ * that landed from one that was merely seen early.
+ */
+export async function capturePostStats(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: SupabaseClient<any, any, any>,
+  accountId: string,
+  opts: { days?: number; now?: Date } = {},
+): Promise<{ captured: number; skipped: number; problems: string[] }> {
+  const problems: string[] = [];
+  const cred = await loadChannelCredential(db, accountId);
+  if (!cred.ok) return { captured: 0, skipped: 0, problems: [cred.reason] };
+  if (cred.platform !== "facebook") {
+    return { captured: 0, skipped: 0, problems: [`No reader for ${cred.platform} yet.`] };
+  }
+
+  /**
+   * ⚠️ A WINDOW, not every post ever. Engagement on a post older than a
+   * fortnight does not move, and asking Facebook about hundreds of them every
+   * day is a rate limit waiting to happen ⇒ classifyGraphError's `rate` case.
+   */
+  const days = opts.days ?? 14;
+  const since = new Date((opts.now?.getTime() ?? Date.now()) - days * 86_400_000).toISOString();
+
+  const { data: posts } = await db
+    .from("social_posts")
+    .select("id, external_post_id, published_at")
+    .eq("platform", cred.platform)
+    .eq("status", "published")
+    .not("external_post_id", "is", null)
+    .gte("published_at", since)
+    .order("published_at", { ascending: false })
+    .limit(50);
+
+  const day = capturedOn(opts.now);
+  let captured = 0;
+  let skipped = 0;
+
+  for (const p of posts ?? []) {
+    const stats = await fetchPostStats({ token: cred.token, postId: p.external_post_id as string });
+    if (!stats.ok) {
+      // ⛔ One post failing must not lose the rest of the day's figures.
+      problems.push(`${p.external_post_id}: ${stats.message}`);
+      skipped += 1;
+      continue;
+    }
+    const { error } = await db.from("social_post_stats").upsert(
+      {
+        post_id: p.id,
+        captured_on: day,
+        reactions: stats.stats.reactions,
+        comments: stats.stats.comments,
+        shares: stats.stats.shares,
+        impressions: stats.stats.impressions,
+        raw: stats.stats.raw,
+      },
+      { onConflict: "post_id,captured_on" },
+    );
+    if (error) {
+      problems.push(`${p.id}: ${error.message}`);
+      skipped += 1;
+      continue;
+    }
+    captured += 1;
+  }
+
+  return { captured, skipped, problems };
+}

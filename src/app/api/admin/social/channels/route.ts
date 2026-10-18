@@ -13,6 +13,7 @@ import { PLATFORM_IDS } from "@/lib/social/platforms";
 import { scriptsAwaitingVerification } from "@/lib/social/fonts";
 import { PLATFORMS as CHANNELS } from "@/lib/social/platforms";
 import { encryptToken, tokenAad, tokenTail, tokenFingerprint, tokenStorageReady } from "@/lib/social/tokenCrypto";
+import { captureChannelStats } from "@/lib/social/stats";
 
 const PLATFORMS: string[] = PLATFORM_IDS;
 
@@ -163,6 +164,38 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
+  /**
+   * 🔴 THE BASELINE IS TAKEN NOW OR NEVER.
+   *
+   * The owner, 18 Oct: "whenever you connect any social media channel, take
+   * the stock of that channel and store that." ⇒ Without the figure from
+   * BEFORE the scheduler has done anything, every later number is unreadable:
+   * 63 followers is a success or a disappointment depending entirely on what
+   * it was the day we started, and that cannot be asked for retroactively.
+   *
+   * ⛔ NEVER FAILS THE CONNECT. A channel that is connected and unmeasured is
+   * a great deal better than a channel that could not be connected because a
+   * statistics call timed out.
+   */
+  let baselineNote = "";
+  try {
+    const { data: row } = await db
+      .from("social_accounts")
+      .select("id")
+      .eq("platform", platform)
+      .eq("external_id", externalId)
+      .maybeSingle();
+    if (row) {
+      const taken = await captureChannelStats(db, row.id as string, { note: "taken at connect" });
+      baselineNote = taken.ok
+        ? ` ${taken.note}`
+        : ` ⚠️ The opening figures could not be taken (${taken.reason}) — the channel is connected ` +
+          `either way, and the daily run will try again.`;
+    }
+  } catch (e) {
+    baselineNote = ` ⚠️ The opening figures could not be taken (${(e as Error).message}).`;
+  }
+
   const replaced = Boolean(existing && existing.token_fingerprint !== fingerprint);
   return NextResponse.json({
     platform,
@@ -176,6 +209,7 @@ export async function POST(req: NextRequest) {
           ? "That is the same token as before; nothing changed. "
           : "Channel connected. ") +
       "⚠️ It is stored as PENDING, not working: being saved is not the same as being shown to " +
-      "work. The daily check verifies it against the platform and tells you the hour it stops.",
+      "work. The daily check verifies it against the platform and tells you the hour it stops." +
+      baselineNote,
   });
 }

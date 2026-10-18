@@ -41,6 +41,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/social-stats",
+      "schedule": "0 14 * * *"
+    },
+    {
       "path": "/api/cron/social-health",
       "schedule": "30 3 * * *"
     }

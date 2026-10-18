@@ -439,3 +439,123 @@ export async function checkFacebookPage(args: {
         `to the token.`,
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Taking the stock of a channel
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 🔑 THE OWNER'S ASK, 18 Oct: take stock when a channel is connected, then
+ * update it after every day's post, so the scheduler can be judged on whether
+ * anything actually moved.
+ *
+ * ⛔ WHAT THIS CANNOT READ, said here rather than discovered as a column of
+ * zeros. Page REACH and IMPRESSIONS live behind `read_insights`, and the token
+ * carries `pages_manage_posts`, `pages_read_engagement` and `pages_show_list`.
+ * Adding that scope means regenerating the token, so until somebody decides to
+ * do that, impressions are NULL — never 0. "We could not ask" and "nobody saw
+ * it" are different facts.
+ */
+export type PageStats = {
+  followers: number | null;
+  fans: number | null;
+  name: string | null;
+  raw: Record<string, unknown>;
+};
+
+export async function fetchPageStats(args: {
+  token: string;
+  pageId: string;
+  fetchImpl?: typeof fetch;
+}): Promise<{ ok: true; stats: PageStats } | { ok: false; kind: FacebookFailure; message: string }> {
+  const doFetch = args.fetchImpl ?? fetch;
+  try {
+    const res = await doFetch(
+      graph(encodeURIComponent(args.pageId)) +
+        `?fields=id,name,followers_count,fan_count&access_token=${encodeURIComponent(args.token)}`,
+      { signal: AbortSignal.timeout(15_000), cache: "no-store" },
+    );
+    const json = (await res.json()) as {
+      name?: string;
+      followers_count?: number;
+      fan_count?: number;
+      error?: GraphError;
+    };
+    if (json.error) return { ok: false, ...classifyGraphError(json.error) };
+
+    /**
+     * ⚠️ `?? null`, NOT `?? 0`. A field Facebook declined to return must not
+     * enter the record as a real measurement of zero — it would drag every
+     * average down and look like a collapse rather than a gap.
+     */
+    return {
+      ok: true,
+      stats: {
+        followers: typeof json.followers_count === "number" ? json.followers_count : null,
+        fans: typeof json.fan_count === "number" ? json.fan_count : null,
+        name: json.name ?? null,
+        raw: json as Record<string, unknown>,
+      },
+    };
+  } catch (e) {
+    return { ok: false, kind: "network", message: `Could not reach Facebook (${(e as Error).message}).` };
+  }
+}
+
+/** How one published post is doing. ⚠️ Its numbers keep moving for days. */
+export type PostStats = {
+  reactions: number | null;
+  comments: number | null;
+  shares: number | null;
+  /** ⛔ NULL without `read_insights` ⇒ fetchPageStats. */
+  impressions: number | null;
+  raw: Record<string, unknown>;
+};
+
+export async function fetchPostStats(args: {
+  token: string;
+  postId: string;
+  fetchImpl?: typeof fetch;
+}): Promise<{ ok: true; stats: PostStats } | { ok: false; kind: FacebookFailure; message: string }> {
+  const doFetch = args.fetchImpl ?? fetch;
+  try {
+    /**
+     * 🔑 `summary(true)` is what returns a COUNT rather than a page of
+     * objects. Without it this asks Facebook for every reaction one by one and
+     * then counts the first twenty-five of them.
+     */
+    const res = await doFetch(
+      graph(encodeURIComponent(args.postId)) +
+        `?fields=reactions.summary(true).limit(0),comments.summary(true).limit(0),shares` +
+        `&access_token=${encodeURIComponent(args.token)}`,
+      { signal: AbortSignal.timeout(15_000), cache: "no-store" },
+    );
+    const json = (await res.json()) as {
+      reactions?: { summary?: { total_count?: number } };
+      comments?: { summary?: { total_count?: number } };
+      shares?: { count?: number };
+      error?: GraphError;
+    };
+    if (json.error) return { ok: false, ...classifyGraphError(json.error) };
+
+    const num = (v: unknown) => (typeof v === "number" ? v : null);
+    return {
+      ok: true,
+      stats: {
+        reactions: num(json.reactions?.summary?.total_count),
+        comments: num(json.comments?.summary?.total_count),
+        /**
+         * ⚠️ `shares` is ABSENT when a post has none — Facebook omits the
+         * field rather than returning zero. Here, and only here, absent does
+         * mean none: the field is part of the response shape, so its absence
+         * is an answer rather than a refusal.
+         */
+        shares: typeof json.shares?.count === "number" ? json.shares.count : 0,
+        impressions: null,
+        raw: json as Record<string, unknown>,
+      },
+    };
+  } catch (e) {
+    return { ok: false, kind: "network", message: `Could not reach Facebook (${(e as Error).message}).` };
+  }
+}

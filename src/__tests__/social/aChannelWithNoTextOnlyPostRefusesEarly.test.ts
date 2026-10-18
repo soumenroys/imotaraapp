@@ -75,6 +75,25 @@ describe("the refusal happens at generation, not at publish time", () => {
   });
 });
 
+describe("both ways in, not just the generated one", () => {
+  it("the hand-written path refuses too", () => {
+    /**
+     * 🔴 I SHIPPED THIS GUARD ON ONE PATH. `prepareGenerated` had it and
+     * `prepareWritten` did not, so a post typed into the composer would still
+     * have been saved cardless ⇒ trap_crisis_card_two_detectors_two_platforms,
+     * where a protection reached one platform and not the other.
+     */
+    const guards = code.match(/requiresPicture && !picture/g) ?? [];
+    expect(guards.length).toBe(2);
+    // ⚠️ One on each side of the file's two entry points, not two in the same
+    // function — pinned by position rather than by count alone.
+    const written = code.indexOf("origin: \"written\"");
+    const second = code.lastIndexOf("requiresPicture && !picture");
+    expect(second).toBeLessThan(written);
+    expect(second).toBeGreaterThan(code.indexOf("requiresPicture && !picture"));
+  });
+});
+
 describe("the publisher still refuses too, because both can be reached", () => {
   it("holds an Instagram post that somehow arrives without a card", () => {
     /**

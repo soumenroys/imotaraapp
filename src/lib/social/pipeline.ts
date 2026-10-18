@@ -665,6 +665,27 @@ export async function prepareWritten(
     notes.push(...built.notes);
   }
 
+  /**
+   * 🔴 THE SAME RULE ON THE OTHER WAY IN.
+   *
+   * I put this guard on the generated path only, and a post written by hand
+   * would still have been saved without a card. ⛔ The publisher would refuse
+   * it, so nothing wrong publishes — but the loud refusal is the whole point,
+   * and a rule that holds on one of two paths is a rule somebody will walk
+   * around without knowing it ⇒ trap_crisis_card_two_detectors_two_platforms,
+   * where a protection reached one platform and not the other.
+   */
+  if (platformSpec(args.platform).requiresPicture && !picture) {
+    return {
+      ok: false,
+      rejected: [],
+      reason:
+        `${platformSpec(args.platform).label} has no text-only post, and no card could be made ` +
+        `for this one: ${notes.join(" ") || "the opening sentence would not set as a headline."} ` +
+        `▶️ Shorten the first sentence so it can be the headline.`,
+    };
+  }
+
   if (gate.listsUnavailable.length > 0) {
     notes.push(
       `Not every list could be run: ${gate.listsUnavailable.join(", ")} has no vocabulary for ` +

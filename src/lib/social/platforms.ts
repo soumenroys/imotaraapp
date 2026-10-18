@@ -78,6 +78,19 @@ export type PlatformSpec = {
    * ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
    */
   requiresPicture: boolean;
+  /**
+   * 🔑 IS A POST WITH NO TAGS A MISSED OPPORTUNITY HERE?
+   *
+   * ⚠️ Not the same question as "how many are allowed". LinkedIn permits
+   * three and a good LinkedIn post often has none; Instagram permits five and
+   * tags are close to the only way a stranger ever arrives — which on an
+   * account of 81 followers is the whole difference between being read and
+   * being posted.
+   *
+   * ⛔ So saying "you used none of your tags" on Facebook, whose right answer
+   * is zero, would be advice to do the wrong thing.
+   */
+  tagsDriveDiscovery: boolean;
 };
 
 export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
@@ -97,6 +110,7 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     qr: true,
     // ✅ 18 Oct 2026. System user token stored and verified against the Graph
     // API, and the publisher is live ⇒ src/app/api/cron/social-publish.
+    tagsDriveDiscovery: false,
     requiresPicture: false,
     canPublish: true,
     blockedBy: "",
@@ -126,6 +140,7 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
       "⛔ Never address a job title, never assume the reader manages anyone, no case-study framing, " +
       "no 'thrilled to announce'.",
     qr: true,
+    tagsDriveDiscovery: false,
     requiresPicture: false,
     canPublish: false,
     blockedBy: "Community Management API approval from LinkedIn, then a token and encryption.",
@@ -183,6 +198,7 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
      * it is handed a URL and fetches the image ITSELF, unauthenticated
      * ⇒ src/lib/social/cardUrl.ts. It also takes JPEG and nothing else.
      */
+    tagsDriveDiscovery: true,
     requiresPicture: true,
     canPublish: true,
     // ⚠️ Empty, like Facebook's: nothing is blocking the code. What may still
@@ -204,6 +220,7 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
       "One thought, finished, inside 280 characters. ⛔ No thread, no 'a 🧵', no hook that promises " +
       "a payoff further down. If it needs a second post it is the wrong thought for this channel.",
     qr: true,
+    tagsDriveDiscovery: false,
     requiresPicture: false,
     canPublish: false,
     blockedBy: "X's API is paid, and the account has 2 followers — worth asking whether it is worth it.",
@@ -223,6 +240,7 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
       "A community post, to people who already chose to be there. It can assume they know what " +
       "Imotara is, so it says something new rather than reintroducing it.",
     qr: true,
+    tagsDriveDiscovery: false,
     requiresPicture: false,
     canPublish: false,
     blockedBy:

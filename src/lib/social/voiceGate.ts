@@ -807,6 +807,79 @@ export function checkHouseStyle(text: string, platform: string): HouseStyleResul
     );
   }
 
+  /**
+   * 🔴 THE THREE THINGS I FOUND BY READING, THAT NOTHING CHECKED.
+   *
+   * The first Instagram post, 18 Oct: it opened on a wind-up, its fold landed
+   * mid-phrase, and it used none of its five tags. All four word checks
+   * passed and the only note was the character count — so a post that was
+   * mediocre by this product's OWN written rules looked clean.
+   *
+   * ⚠️ Advice, like everything else here, never a gate. A person may open
+   * with a scene-setting clause on purpose. ⛔ But they should be told they
+   * did it, and tomorrow's 17:00 post goes out with nobody reading it.
+   */
+
+  // ── 1. NOTHING FINISHES BEFORE THE FOLD ──────────────────────────────────
+  //
+  // 🔑 The rule everywhere else in this file is "the first N characters have
+  // to work completely on their own". A reader who reaches "see more" with no
+  // sentence yet finished has been given a fragment.
+  //
+  // 🔴 MY FIRST VERSION DEMANDED THE FOLD LAND EXACTLY ON A SENTENCE END, and
+  // it flagged the rewrite that fixed the original — a complete sentence at
+  // 60 characters followed by a trailing clause, which is fine and arguably
+  // better, because the cut-off is where the curiosity is. ⛔ A check that
+  // calls the fix a failure teaches people to ignore it
+  // ⇒ trap_blunt_fix_trades_one_failure_for_its_opposite.
+  //
+  // ⚠️ So the question is whether ANY sentence finishes in view, not where
+  // the cut happens to fall.
+  if (characters > spec.limits.soft) {
+    const shown = [...text].slice(0, spec.limits.soft).join("");
+    // Any sentence end — including the Devanagari/Bengali danda — or a
+    // paragraph break counts as a thought finishing.
+    const finished = /[.!?।॥]["')\]]?(\s|$)|\n\s*\n/.test(shown);
+    if (!finished) {
+      problems.push(
+        `Nothing finishes before the fold: a reader sees “…${shown.slice(-40).trim()}” and then ` +
+          `"see more", with no sentence yet complete. ▶️ Finish a thought inside the first ` +
+          `${spec.limits.soft} characters.`,
+      );
+    }
+  }
+
+  // ── 2. NONE OF THE TAGS WERE USED ────────────────────────────────────────
+  //
+  // 🔴 ASKED OF THE CHANNEL, NOT INFERRED FROM ITS BUDGET. My first version
+  // was `spec.hashtags > 0`, which flagged every tagless LinkedIn post —
+  // LinkedIn permits three and a good one often has none. The question is
+  // whether tags DRIVE DISCOVERY here, and that is a per-channel fact
+  // ⇒ platforms.ts. ⛔ On Facebook the right answer is zero, and saying "you
+  // used none" would be advice to do the wrong thing.
+  if (spec.tagsDriveDiscovery && hashtags === 0) {
+    problems.push(
+      `No hashtags, where ${spec.label} allows ${spec.hashtags}. ▶️ Specific ones a real person ` +
+        `searches, at the end. ⛔ Never one naming a condition somebody might be living with.`,
+    );
+  }
+
+  // ── 3. A WIND-UP BEFORE THE POST STARTS ──────────────────────────────────
+  //
+  // ⛔ "In Bengali, অভিমান means…" — eleven characters spent before the thing
+  // itself, on a channel where the first 125 are the whole post. The pattern
+  // is narrow on purpose: a short scene-setting phrase, then a comma, then
+  // the actual sentence.
+  const windUp = text.trim().match(
+    /^(In|On|At|For|With|Among|Across|Throughout|According to|Here(?:'|’)s|There(?:'|’)s|Have you ever)\b[^,.!?\n]{0,30},/i,
+  );
+  if (windUp) {
+    problems.push(
+      `Opens on a wind-up — “${windUp[0]}” comes before the post does. ▶️ Start on the thing ` +
+        `itself; the opening line is the whole post on most channels.`,
+    );
+  }
+
   const aiTells = findAiTells(text);
   if (aiTells.length > 0) {
     problems.push(

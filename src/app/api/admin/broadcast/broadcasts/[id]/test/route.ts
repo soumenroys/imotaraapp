@@ -16,7 +16,7 @@ import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
 import { sendBatch, isResendConfigured } from "@/lib/broadcast/resendClient";
-import { emailDocument, footerHtml, footerText, headerHtml, headerText } from "@/lib/broadcast/markup";
+import { emailDocument, footerHtml, footerText, headerHtml, headerText, mergeFields, usesMergeFields } from "@/lib/broadcast/markup";
 import { EMAIL_RE } from "@/lib/broadcast/parseRecipients";
 
 type Params = { params: Promise<{ id: string }> };
@@ -74,14 +74,39 @@ export async function POST(req: NextRequest, { params }: Params) {
   const footerT = b.message_type === "broadcast" ? footerText("(not active in a test)") : "";
 
   const name = b.from_name?.trim().replace(/["\\]/g, "");
+
+  /**
+   * \U0001f534 THE TEST USED TO SEND THE MERGE TAGS RAW. An admin who pressed "Send
+   * me a test" received a message opening `Hello {{name|there}},` \u2014 and this
+   * route exists precisely so that "the first time anyone saw the true
+   * rendering" is not when the recipients did. It kept the footer for exactly
+   * that reason, then undid the point by skipping substitution.
+   *
+   * \u26a0\ufe0f IT IS WORSE THAN COSMETIC. The obvious reading of a raw tag is "this
+   * is broken", and the obvious fix is to delete the tag and hard-code a
+   * greeting \u2014 which would send "Hello there," to every recipient, including
+   * the ones whose name we actually hold.
+   *
+   * \u21d2 Substituted the same way the queue does it, using the tester's own
+   * name and address, so the test shows the shape a named recipient gets.
+   * \u26d4 Recipients with no stored name still see the fallback; `mergedFields`
+   * in the response lets the screen say so.
+   */
+  const asFields = { name: auth.admin.name ?? null, email: to };
+  const merged = usesMergeFields(`${b.subject} ${b.body_html ?? ""}`);
+
   const [outcome] = await sendBatch([{
     from: name ? `"${name}" <${b.from_email}>` : (b.from_email as string),
     to,
     // Marked in the subject so a test can never be mistaken for the real
     // thing, by the sender or by anyone the sender forwards it to.
-    subject: `[TEST] ${b.subject}`,
-    html: emailDocument(b.body_html as string, footer, headerHtml((b.header_text as string) ?? "")),
-    text: `${headerText((b.header_text as string) ?? "")}${b.body_text ?? ""}${footerT}`,
+    subject: `[TEST] ${mergeFields(b.subject as string, asFields, false)}`,
+    html: emailDocument(
+      mergeFields(b.body_html as string, asFields, true),
+      footer,
+      headerHtml((b.header_text as string) ?? ""),
+    ),
+    text: `${headerText((b.header_text as string) ?? "")}${mergeFields((b.body_text as string) ?? "", asFields, false)}${footerT}`,
     replyTo: (b.reply_to ?? b.from_email) as string,
   }]);
 
@@ -92,5 +117,5 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  return NextResponse.json({ ok: true, to, id: outcome.id }, { status: 200 });
+  return NextResponse.json({ ok: true, to, id: outcome.id, mergedFields: merged }, { status: 200 });
 }

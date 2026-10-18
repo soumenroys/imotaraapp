@@ -103,10 +103,33 @@ describe("where the rule is enforced", () => {
     expect(block).toContain("unshapableNote");
   });
 
-  it("the renderer DROPS a support line rather than losing the card", () => {
-    // ⚠️ The headline comes from the subject and is usually Latin. One good
-    // line beats no card, and beats a misspelt word by a distance.
-    expect(renderer).toMatch(/if \(support && unshapableScripts\(support\)\.length > 0\) support = undefined;/);
+  it("the renderer SKIPS an unshapable sentence and uses the next one", () => {
+    /**
+     * ⛔ My first version dropped the support line outright, which left a
+     * card with one line and an empty upper third — the exact weakness
+     * `supportFromBody` was added to fix. The broken word was in sentence 0;
+     * sentences 1 to 3 were plain Latin and would have carried the card.
+     *
+     * ⚠️ Pinned as a LOOP that advances, not a single assignment, and with
+     * the give-up branch intact: a post written entirely in an unshapable
+     * script has nothing to offer here.
+     */
+    const at = renderer.indexOf("for (let from = startAt");
+    expect(at).toBeGreaterThan(-1);
+    const block = renderer.slice(at, at + 400);
+    expect(block).toContain("unshapableScripts(support)");
+    expect(block).toContain("supportFromBody(post.body, 150, from + 1)");
+    expect(block).toContain("support = undefined");
+  });
+
+  it("⛔ the skip cannot loop forever on a body it never satisfies", () => {
+    // ⚠️ `supportFromBody` returns null once `from` passes the sentence
+    // count, and an unchanged value also ends it — both exits are pinned,
+    // because an infinite loop here would hang a publish, not fail it.
+    const at = renderer.indexOf("for (let from = startAt");
+    const block = renderer.slice(at, at + 400);
+    expect(block).toMatch(/if \(!next \|\| next === support\)/);
+    expect(block).toContain("break;");
   });
 
   it("the pipeline refuses earlier, so nothing is queued that cannot be drawn", () => {

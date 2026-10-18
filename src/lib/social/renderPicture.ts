@@ -162,16 +162,29 @@ export async function renderPostPicture(
    * ⛔ From sentence 1 when the headline IS the opening, or the card says the
    * same thing twice.
    */
-  let support =
-    supportFromBody(post.body, 150, headline === (post.subject ?? "").trim() ? 0 : 1) ?? undefined;
+  const startAt = headline === (post.subject ?? "").trim() ? 0 : 1;
+  let support = supportFromBody(post.body, 150, startAt) ?? undefined;
 
   /**
-   * ⚠️ DROPPED, not refused, when it carries a script we cannot shape. The
-   * headline comes from the subject and is usually Latin, so a card with one
-   * good line beats no card — and beats a card with a misspelt word on it by
-   * a distance ⇒ src/lib/social/shaping.ts.
+   * 🔑 A SENTENCE WE CANNOT SHAPE IS SKIPPED, NOT THE WHOLE SUPPORT LINE.
+   *
+   * ⛔ Dropping it outright left a card with one line and an empty upper
+   * third — the exact weakness `supportFromBody` was added to fix. The word
+   * that broke this was in the FIRST sentence; the ones after it were plain
+   * Latin and would have carried the card perfectly well.
+   *
+   * ⚠️ Bounded by the sentence count, and the last resort is still no support
+   * line: a post written entirely in an unshapable script has nothing here to
+   * offer, and that is the honest answer ⇒ src/lib/social/shaping.ts.
    */
-  if (support && unshapableScripts(support).length > 0) support = undefined;
+  for (let from = startAt; support && unshapableScripts(support).length > 0; from += 1) {
+    const next = supportFromBody(post.body, 150, from + 1) ?? undefined;
+    if (!next || next === support) {
+      support = undefined;
+      break;
+    }
+    support = next;
+  }
 
   let picture;
   try {

@@ -746,7 +746,16 @@ export const PLATFORM_LIMITS: Record<string, { hard: number; soft: number }> =
 export function checkHouseStyle(text: string, platform: string): HouseStyleResult {
   const problems: string[] = [];
   const emoji = countEmoji(text);
-  const hashtags = (text.match(/(^|\s)#[\p{L}\p{N}_]+/gu) ?? []).length;
+  /**
+   * ⚠️ `\p{M}` IS NOT OPTIONAL IN A PRODUCT THAT WRITES 22 SCRIPTS.
+   *
+   * Without it this matched `#অভ` out of `#অভিমান`: the Bengali vowel signs
+   * are combining MARKS, neither letters nor numbers. The count happened to
+   * stay right — one tag is one tag — but the matched TEXT was a truncated
+   * word, which is a landmine for anything that later reads it rather than
+   * counts it. Devanagari, Tamil, Telugu, Odia and Arabic all behave this way.
+   */
+  const hashtags = (text.match(/(^|\s)#[\p{L}\p{N}\p{M}_]+/gu) ?? []).length;
   const links = (text.match(/https?:\/\/\S+/g) ?? []).length;
   const characters = [...text].length;
 

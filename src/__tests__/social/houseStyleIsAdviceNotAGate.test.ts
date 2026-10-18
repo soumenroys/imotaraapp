@@ -18,6 +18,8 @@
 import { describe, it, expect } from "vitest";
 import { checkHouseStyle, checkVoice, PLATFORM_LIMITS } from "@/lib/social/voiceGate";
 import { PLATFORM_IDS } from "@/lib/social/platforms";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 describe("what it counts", () => {
     /**
@@ -257,4 +259,47 @@ describe("advice and the gate stay separate", () => {
         expect(checkVoice(copy, "en").ok).toBe(true);
         expect(checkHouseStyle(copy, "linkedin").ok).toBe(true);
     });
+});
+
+/**
+ * 🔴 A HASHTAG IN A SCRIPT THAT USES COMBINING MARKS.
+ *
+ * Imotara writes in 22 languages. `[\p{L}\p{N}_]` excludes `\p{M}`, so the
+ * Bengali vowel signs in অভিমান are not matched: `#অভিমান` came out as `#অভ`.
+ *
+ * ⚠️ AND IT HAS NO BEHAVIOURAL CONSEQUENCE TODAY, which is said here rather
+ * than hidden behind a test that looks like proof. The only caller takes
+ * `.length`, and a truncated match still counts as one tag — so every
+ * behavioural assertion I tried passed just as happily with the bug in place.
+ * My first attempt at this test "passed" by rebuilding the regex in the test
+ * file ⇒ trap_a_mirror_test_cannot_catch_a_refactor: it was checking its own
+ * copy, not the code.
+ *
+ * ⛔ So this pins the SOURCE, and says why. The fix is worth keeping because
+ * the next caller to read the matched text instead of counting it would get a
+ * truncated Bengali word with nothing to warn them.
+ */
+describe("hashtags in scripts that use combining marks", () => {
+  const gate = readFileSync(join(process.cwd(), "src/lib/social/voiceGate.ts"), "utf8");
+
+  it("the hashtag pattern accepts combining marks", () => {
+    const line = gate.split("\n").find((l) => l.includes("const hashtags ="));
+    expect(line).toBeDefined();
+    expect(line).toContain("\\p{M}");
+  });
+
+  it("the pattern it pins actually matches a whole Bengali tag", () => {
+    // ⚠️ Built FROM the source line, not retyped, so this cannot drift into a
+    // mirror of a regex nobody uses.
+    const line = gate.split("\n").find((l) => l.includes("const hashtags ="))!;
+    const source = line.match(/\/(\(\^\|.*?)\/gu/)![1];
+    const re = new RegExp(source, "gu");
+    expect("#অভিমান".match(re)?.[0]).toBe("#অভিমান");
+    expect("#बहुत".match(re)?.[0]).toBe("#बहुत");
+  });
+
+  it("still counts one tag as one tag, in any script", () => {
+    const six = "words #a #b #c #d #e #অভিমান";
+    expect(checkHouseStyle(six, "instagram").problems.join(" ")).toMatch(/hashtag/i);
+  });
 });

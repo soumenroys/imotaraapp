@@ -54,6 +54,21 @@ const VIEWS = [
   { key: "all", label: "Everything" },
 ] as const;
 
+/**
+ * The reason a card is missing, or null.
+ *
+ * 🔑 DERIVED FROM THE NOTE THE PIPELINE ALREADY WROTE rather than from a new
+ * column. `buildPicture` says exactly why it refused — "the opening sentence
+ * is too long to set as a headline", "that recipe has been used" — and that
+ * sentence is more useful on the row than any flag could be.
+ *
+ * ⛔ Matches the start of the note, not a substring anywhere: a post whose
+ * BODY happens to say "no picture" must not be flagged as missing one.
+ */
+function missingPicture(gate: { notes?: string[] }): string | null {
+  return (gate.notes ?? []).find((n) => n.startsWith("No picture:")) ?? null;
+}
+
 export default function Today() {
   const [view, setView] = useState<string>("queue");
   const [posts, setPosts] = useState<Post[]>([]);
@@ -192,6 +207,17 @@ export default function Today() {
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <Chip tone={status.tone} title={status.means}>{status.label}</Chip>
+                          {/* 🔴 A POST THAT LOST ITS CARD USED TO READ EXACTLY LIKE A
+                              TEXT POST. The reason was written into the notes and the
+                              notes are three clicks down; the row itself said nothing,
+                              so a schedule set to "words and a picture" quietly
+                              produced words. ⇒ Found on 18 Oct when the new, more
+                              specific opening sentence ran past the headline limit. */}
+                          {missingPicture(gate) && (
+                            <Chip tone="amber" title={missingPicture(gate) as string}>
+                              Asked for a picture — none made
+                            </Chip>
+                          )}
                           <span className="text-xs text-zinc-500">
                             {post.platform} · {post.language}
                             {post.media_kind === "graphic" && " · with a picture"}

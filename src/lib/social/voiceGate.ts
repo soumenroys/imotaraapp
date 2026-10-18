@@ -21,8 +21,14 @@ import { REVIEWED_LANGUAGES, isSupportedLanguage } from "@/lib/social/languages"
 // ⚠️ `platforms` has no imports of its own, so the gate stays as light as it
 // was. It is the single source for every per-channel number below.
 import { PLATFORMS, PLATFORM_IDS, type PlatformId } from "@/lib/social/platforms";
+import { checkWordClaim } from "@/lib/social/untranslatableWords";
 
-export type GateListId = "clinical" | "abuse" | "careless";
+/**
+ * ⚠️ `unvetted-word` added 18 Oct. It is not a vocabulary list like the other
+ * three — it is the one finding that fires on a FACT the reviewer cannot check
+ * either ⇒ src/lib/social/untranslatableWords.ts.
+ */
+export type GateListId = "clinical" | "abuse" | "careless" | "unvetted-word";
 
 export type GateFinding = {
   list: GateListId;
@@ -493,6 +499,25 @@ export function checkVoice(text: string, language: string, overlay?: GateOverlay
     }
   } else {
     listsUnavailable.push("careless");
+  }
+
+  /**
+   * 🔴 THE ONE CHECK THAT IS NOT ABOUT WORDS WE FORBID, but about a claim
+   * nobody here can verify. The first post the untranslatable angle produced
+   * glossed a Tamil word wrongly and confidently, and would have passed every
+   * list above ⇒ src/lib/social/untranslatableWords.ts.
+   */
+  const claim = checkWordClaim(text, language);
+  if (!claim.ok) {
+    findings.push({
+      list: "unvetted-word",
+      rule: "a foreign word must come from the confirmed table",
+      matched: text.slice(0, 120),
+      because: claim.problem,
+    });
+    listsRun.push("unvetted-word");
+  } else if (language === "en") {
+    listsRun.push("unvetted-word");
   }
 
   return { ok: findings.length === 0, findings, listsRun, listsUnavailable, language };

@@ -16,6 +16,7 @@
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { languageName } from "@/lib/social/languages";
 import { TOPIC_POOLS } from "@/lib/social/subjects";
+import { pickWord, untranslatablePoolReady } from "@/lib/social/untranslatableWords";
 import { platformSpec } from "@/lib/social/platforms";
 import type { WriteRequest, Written } from "@/lib/social/pipeline";
 
@@ -171,7 +172,22 @@ const LENGTH_GUIDE: Record<string, string> = {
 
 export function buildPrompt(req: WriteRequest): string {
   const pools = TOPIC_POOLS.filter((p) => req.topicPool.includes(p.id));
-  const angles = pools.length > 0 ? pools : TOPIC_POOLS;
+  const chosen = pools.length > 0 ? pools : TOPIC_POOLS;
+
+  /**
+   * 🔴 THE WRITER DOES NOT CHOOSE THE WORD ANY MORE.
+   *
+   * The first post this angle ever produced glossed a Tamil word wrongly and
+   * confidently, against an instruction in capitals telling it not to. So the
+   * angle is only offered when a person has confirmed a word, and when it is
+   * offered the word and its meaning come WITH it
+   * ⇒ src/lib/social/untranslatableWords.ts.
+   */
+  const ready = untranslatablePoolReady();
+  // ⚠️ A stable seed, so re-running the same request does not wander between
+  // words — and so a retry after a gate rejection keeps the same subject.
+  const word = ready.ok ? pickWord(req.avoid.length + req.language.length) : null;
+  const angles = word ? chosen : chosen.filter((p) => p.id !== "untranslatable");
 
   const spec = req.platform ? platformSpec(req.platform) : null;
 
@@ -186,6 +202,19 @@ export function buildPrompt(req: WriteRequest): string {
     "",
     `CHOOSE ONE OF THESE ANGLES AND STAY INSIDE IT\n` +
       angles.map((p) => `- ${p.label}: ${p.angle}`).join("\n"),
+    ...(word
+      ? [
+          "",
+          `⛔ IF YOU CHOOSE "${TOPIC_POOLS.find((p) => p.id === "untranslatable")?.label}", THE WORD IS ` +
+            `ALREADY CHOSEN AND YOU MUST USE EXACTLY THIS ONE:\n` +
+            `  word: ${word.word} (${word.roman}), in ${languageName(word.language)}\n` +
+            `  it means: ${word.meaning}\n` +
+            `⛔ Do not pick a different word. Do not widen, narrow or prettify that meaning. Do not ` +
+            `claim it is untranslatable in any way beyond what the meaning line says. ` +
+            `⚠️ A speaker of the language confirmed exactly this gloss and nothing else; anything ` +
+            `you add to it is unverified and will be refused.`,
+        ]
+      : []),
     "",
     ...(spec
       ? [

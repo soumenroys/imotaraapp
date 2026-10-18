@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin, requireSocialOwner } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { PLATFORM_IDS } from "@/lib/social/platforms";
+import { cleanPlatformTimes } from "@/lib/social/platformTimes";
 import { isSupportedLanguage } from "@/lib/social/languages";
 import { TOPIC_POOL_IDS } from "@/lib/social/subjects";
 import { CONTENT_TYPES as SHARED_CONTENT_TYPES } from "@/lib/social/contentTypes";
@@ -42,6 +43,7 @@ type Body = {
   lengthHint?: string;
   languages?: string[];
   postAt?: string;
+  platformTimes?: unknown;
   timezone?: string;
   days?: number[];
   autoPublish?: boolean;
@@ -91,6 +93,10 @@ export async function POST(req: NextRequest) {
   if (days.length === 0) problems.push("Choose at least one day.");
 
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(body.postAt ?? "")) problems.push("The time must look like 09:30.");
+  // ⚠️ Collected with the other problems rather than returned early, so one
+  // submission reports everything wrong with it at once.
+  const times = cleanPlatformTimes(body.platformTimes);
+  if (!times.ok) problems.push(times.error);
 
   const topicPool = (body.topicPool ?? []).filter((t) => TOPIC_POOL_IDS.includes(t));
 
@@ -116,6 +122,10 @@ export async function POST(req: NextRequest) {
       length_hint: body.lengthHint?.trim() || "medium",
       languages,
       post_at: body.postAt,
+      // ⚠️ `problems` is empty by here, so this branch is proven ok — but
+      // narrowed explicitly rather than asserted, because a future early
+      // return above would otherwise make this a silent `any`.
+      platform_times: times.ok ? times.value : null,
       timezone: body.timezone?.trim() || "Asia/Kolkata",
       days,
       auto_publish: Boolean(body.autoPublish),

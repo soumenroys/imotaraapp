@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
 import { prepareGenerated, nextLanguage } from "@/lib/social/pipeline";
 import {
-  dueSchedules,
+  duePlatforms,
   liveDeps,
   postCountFor,
   postingIsPaused,
@@ -21,7 +21,6 @@ import {
   toScheduleShape,
   alreadyWrittenFor,
   LEAD_MINUTES,
-  type ScheduleRow,
 } from "@/lib/social/store";
 import { markCronFired } from "@/lib/cron/heartbeat";
 import { pickRecipe, headlineFor } from "@/lib/social/visualRecipe";
@@ -125,7 +124,13 @@ export async function GET(req: NextRequest) {
    */
   const upgrades = await giveMissingCards(deps);
 
-  const due = await dueSchedules(now);
+  /**
+   * 🔑 PAIRS, NOT SCHEDULES. A schedule posting to Instagram at 17:00 and
+   * Facebook at 17:30 is due for one and not the other, and writing both at
+   * the earlier time is exactly the bug this replaces
+   * ⇒ docs/sql/social_platform_times.sql.
+   */
+  const due = await duePlatforms(now);
   if (due.length === 0) {
     return NextResponse.json({ ran: true, due: 0, cards: upgrades, at: now.toISOString() });
   }
@@ -133,11 +138,12 @@ export async function GET(req: NextRequest) {
   const outcomes: Outcome[] = [];
   const slot = new Date(now.getTime() + LEAD_MINUTES * 60_000).toISOString();
 
-  for (const row of due as ScheduleRow[]) {
+  for (const { schedule: row, platforms } of due) {
     const schedule = toScheduleShape(row);
     const count = await postCountFor(schedule.id);
 
-    for (const platform of schedule.platforms) {
+    // ⚠️ The platforms DUE NOW, not every platform on the schedule.
+    for (const platform of platforms) {
       // ⚠️ The cron runs every minute and a slot lasts a minute, but a retry, a
       // clock skew or an overlapping invocation would otherwise write the same
       // post twice. Checked per platform, because the slot is per platform.

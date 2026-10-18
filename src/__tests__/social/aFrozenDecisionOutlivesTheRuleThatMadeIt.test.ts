@@ -44,13 +44,30 @@ describe("where the repair runs", () => {
    * fix landing at the weekend would have waited until Monday.
    */
   it("runs even when no schedule is due", () => {
-    expect(cron.indexOf("giveMissingCards(deps)")).toBeLessThan(cron.indexOf("const due = await dueSchedules"));
+    /**
+     * ⚠️ Both anchors pinned present FIRST. `indexOf` returns -1 for a string
+     * that is gone, and -1 is less than any real index — so this assertion
+     * passed happily with the repair deleted ⇒ the -1 trap, third time.
+     *
+     * 🔑 The anchor moved (dueSchedules → duePlatforms, because a schedule is
+     * now due per CHANNEL) and the rule did not: the repair runs before the
+     * due computation, so it happens even when nothing is due.
+     */
+    const repair = cron.indexOf("giveMissingCards(deps)");
+    const due = cron.indexOf("const due = await duePlatforms");
+    expect(repair).toBeGreaterThan(-1);
+    expect(due).toBeGreaterThan(-1);
+    expect(repair).toBeLessThan(due);
     // And the early-return answer still reports what it did.
     expect(cron).toMatch(/ran: true, due: 0, cards: upgrades/);
   });
 
   it("respects the master switch, like everything else here", () => {
-    expect(cron.indexOf("postingIsPaused")).toBeLessThan(cron.indexOf("giveMissingCards(deps)"));
+    const paused = cron.indexOf("postingIsPaused");
+    const repair = cron.indexOf("giveMissingCards(deps)");
+    expect(paused).toBeGreaterThan(-1);
+    expect(repair).toBeGreaterThan(-1);
+    expect(paused).toBeLessThan(repair);
   });
 });
 

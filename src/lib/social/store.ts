@@ -37,6 +37,12 @@ export type ScheduleRow = {
   post_at: string;
   timezone: string;
   days: number[];
+  /**
+   * 🔑 PER-PLATFORM OVERRIDES of post_at/days. Absent platform = the row's own.
+   * ⚠️ An override, not a replacement: the simple case — one channel, one
+   * time — stays readable in two plain columns ⇒ docs/sql/social_platform_times.sql.
+   */
+  platform_times: Record<string, { post_at?: string; days?: number[] }> | null;
   active: boolean;
   auto_publish: boolean;
   created_at: string;
@@ -291,7 +297,55 @@ export function isDue(
   now: Date,
   leadMinutes = LEAD_MINUTES,
 ): boolean {
+  return isDueForPlatform({ ...schedule, platform_times: null }, null, now, leadMinutes);
+}
+
+/**
+ * The time and days this ONE platform runs on, which may not be the
+ * schedule's.
+ *
+ * ⚠️ A MISSING OR MALFORMED OVERRIDE FALLS BACK, it does not fail. The cost
+ * of a bad json value should be "this channel posts at the schedule's normal
+ * time", never "this channel silently stops" — the failure nobody sees.
+ */
+export function timeForPlatform(
+  schedule: {
+    post_at: string;
+    days: number[];
+    platform_times?: Record<string, { post_at?: string; days?: number[] }> | null;
+  },
+  platform: string | null,
+): { post_at: string; days: number[]; overridden: boolean } {
+  const override = platform ? schedule.platform_times?.[platform] : undefined;
+  // ⛔ Shape-checked rather than trusted. This column is hand-editable.
+  const at = typeof override?.post_at === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(override.post_at)
+    ? override.post_at
+    : null;
+  const days = Array.isArray(override?.days) && override.days.every((d) => Number.isInteger(d))
+    ? override.days
+    : null;
+  return {
+    post_at: at ?? schedule.post_at,
+    days: days ?? schedule.days,
+    overridden: at !== null || days !== null,
+  };
+}
+
+/** Is this schedule due to be written now, FOR THIS PLATFORM? */
+export function isDueForPlatform(
+  schedule: {
+    post_at: string;
+    timezone: string;
+    days: number[];
+    active: boolean;
+    platform_times?: Record<string, { post_at?: string; days?: number[] }> | null;
+  },
+  platform: string | null,
+  now: Date,
+  leadMinutes = LEAD_MINUTES,
+): boolean {
   if (!schedule.active) return false;
+  const when = timeForPlatform(schedule, platform);
 
   const target = new Date(now.getTime() + leadMinutes * 60_000);
 
@@ -307,16 +361,28 @@ export function isDue(
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   const weekday = get("weekday");
   const dayIndex = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(weekday);
-  if (dayIndex < 0 || !schedule.days.includes(dayIndex)) return false;
+  if (dayIndex < 0 || !when.days.includes(dayIndex)) return false;
 
-  const [h, m] = schedule.post_at.split(":").map(Number);
+  const [h, m] = when.post_at.split(":").map(Number);
   return Number(get("hour")) === h && Number(get("minute")) === m;
 }
 
-export async function dueSchedules(now: Date): Promise<ScheduleRow[]> {
+/**
+ * Every (schedule, platform) pair due to be written this minute.
+ *
+ * 🔴 IT RETURNS PAIRS, NOT SCHEDULES, and that is the whole change. A
+ * schedule posting to two channels at two times is due for one of them and
+ * not the other — returning the schedule alone would make the caller write
+ * both, which is the bug this replaces.
+ */
+export async function duePlatforms(
+  now: Date,
+): Promise<{ schedule: ScheduleRow; platforms: string[] }[]> {
   const db = getSupabaseAdmin();
   const { data } = await db.from("social_schedules").select("*").eq("active", true);
-  return ((data ?? []) as ScheduleRow[]).filter((s) => isDue(s, now));
+  return ((data ?? []) as ScheduleRow[])
+    .map((s) => ({ schedule: s, platforms: (s.platforms ?? []).filter((p) => isDueForPlatform(s, p, now)) }))
+    .filter((x) => x.platforms.length > 0);
 }
 
 export async function postingIsPaused(): Promise<{ paused: boolean; note?: string }> {

@@ -84,6 +84,8 @@ export type EditableSchedule = {
   languages: string[];
   post_at: string;
   days: number[];
+  /** 🔑 Per-channel overrides of post_at/days ⇒ docs/sql/social_platform_times.sql. */
+  platform_times?: Record<string, { post_at?: string; days?: number[] }> | null;
   tone: string;
   length_hint: string;
   auto_publish: boolean;
@@ -115,6 +117,26 @@ export function NewSchedule({
   // ⚠️ `post_at` comes back as "09:30:00"; the input needs "09:30".
   const [postAt, setPostAt] = useState(String(editing?.post_at ?? "09:30").slice(0, 5));
   const [days, setDays] = useState<number[]>(editing?.days ?? [1, 2, 3, 4, 5]);
+  /**
+   * 🔑 PER-CHANNEL TIMES. Only the channels that DIFFER are held here; an
+   * empty box means "the schedule's own time", which is both the common case
+   * and the one that must not need a decision.
+   * ⚠️ "09:30:00" from the database, "09:30" in the input.
+   */
+  const [channelTimes, setChannelTimes] = useState<Record<string, string>>(() => {
+    const out: Record<string, string> = {};
+    for (const [id, v] of Object.entries(editing?.platform_times ?? {})) {
+      if (v?.post_at) out[id] = String(v.post_at).slice(0, 5);
+    }
+    return out;
+  });
+  const [channelDays, setChannelDays] = useState<Record<string, number[]>>(() => {
+    const out: Record<string, number[]> = {};
+    for (const [id, v] of Object.entries(editing?.platform_times ?? {})) {
+      if (Array.isArray(v?.days)) out[id] = v.days;
+    }
+    return out;
+  });
   const [tone, setTone] = useState(editing?.tone ?? "gentle_plain");
   const [lengthHint, setLengthHint] = useState(editing?.length_hint ?? "medium");
   const [autoPublish, setAutoPublish] = useState(editing?.auto_publish ?? false);
@@ -179,6 +201,27 @@ export function NewSchedule({
         body: JSON.stringify({
           name, brief, platforms, contentType, topicPool,
           languages: langs, postAt, days, autoPublish, tone, lengthHint,
+          /**
+           * ⛔ Only the channels that actually differ are sent. An entry equal
+           * to the schedule's own time is not an override — storing it would
+           * make the row claim a decision nobody made, and quietly pin that
+           * channel if the schedule's time later changed.
+           */
+          platformTimes: Object.fromEntries(
+            platforms
+              .map((id) => {
+                const entry: { post_at?: string; days?: number[] } = {};
+                if (channelTimes[id] && channelTimes[id] !== postAt) entry.post_at = channelTimes[id];
+                // ⚠️ Days too: identical to the schedule's is not an
+                // override. Storing it would pin this channel silently if the
+                // schedule's own days later changed.
+                const same =
+                  JSON.stringify([...(channelDays[id] ?? [])].sort()) === JSON.stringify([...days].sort());
+                if (channelDays[id]?.length && !same) entry.days = channelDays[id];
+                return [id, entry] as const;
+              })
+              .filter(([, entry]) => Object.keys(entry).length > 0),
+          ),
         }),
       },
       );
@@ -245,16 +288,106 @@ export function NewSchedule({
             </label>
           ))}
         </div>
-        {platforms.length > 0 && (
+        {/* ⚠️ Only channels that actually cannot publish. This listed EVERY
+            selected channel, so Facebook — live since this morning — was
+            still being announced as blocked, with an empty reason. */}
+        {platforms.some((id) => !CHANNELS[id as keyof typeof CHANNELS].canPublish) && (
           <ul className="space-y-1 text-[11px] leading-relaxed text-amber-300/90">
-            {platforms.map((id) => (
-              <li key={id}>
-                ⛔ {CHANNELS[id as keyof typeof CHANNELS].label} cannot publish yet —{" "}
-                {CHANNELS[id as keyof typeof CHANNELS].blockedBy} Posts are still written, pictured
-                and queued.
-              </li>
-            ))}
+            {platforms
+              .filter((id) => !CHANNELS[id as keyof typeof CHANNELS].canPublish)
+              .map((id) => (
+                <li key={id}>
+                  ⛔ {CHANNELS[id as keyof typeof CHANNELS].label} cannot publish yet —{" "}
+                  {CHANNELS[id as keyof typeof CHANNELS].blockedBy} Posts are still written,
+                  pictured and queued.
+                </li>
+              ))}
           </ul>
+        )}
+
+        {/**
+          * 🔑 PER-CHANNEL TIMES. The owner, 18 Oct: "I want every social media
+          * schedule can be customized in different date and time."
+          *
+          * ⚠️ Blank means the schedule's own time, and blank is the default —
+          * so the common case (one time for everything) needs no decision and
+          * reads as before.
+          */}
+        {platforms.length > 1 && (
+          <div className="space-y-2 rounded-lg border border-white/8 bg-black/20 p-3">
+            <p className="text-[11px] leading-relaxed text-zinc-400">
+              <strong className="text-zinc-300">A different time for a channel?</strong> Leave a box
+              empty and that channel uses the schedule&rsquo;s own time ({postAt}). ⚠️ Channels
+              differ in when their readers are there as much as in how they read.
+            </p>
+            {platforms.map((id) => (
+              <div key={id} className="flex flex-wrap items-center gap-3">
+                <span className="min-w-32 text-sm text-zinc-300">
+                  {CHANNELS[id as keyof typeof CHANNELS].label}
+                </span>
+                <input
+                  type="time"
+                  aria-label={`Time for ${CHANNELS[id as keyof typeof CHANNELS].label}`}
+                  value={channelTimes[id] ?? ""}
+                  onChange={(e) =>
+                    setChannelTimes((prev) => ({ ...prev, [id]: e.target.value }))
+                  }
+                  className={`${field} max-w-36`}
+                />
+                <span className="text-[11px] text-zinc-500">
+                  {channelTimes[id] && channelTimes[id] !== postAt
+                    ? `its own time`
+                    : `same as the schedule`}
+                </span>
+                <label className="flex cursor-pointer items-center gap-2 text-[11px] text-zinc-400">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-indigo-500"
+                    checked={Boolean(channelDays[id]?.length)}
+                    onChange={() =>
+                      setChannelDays((prev) => {
+                        const next = { ...prev };
+                        if (next[id]?.length) delete next[id];
+                        else next[id] = days;
+                        return next;
+                      })
+                    }
+                  />
+                  different days too
+                </label>
+                {channelDays[id]?.length ? (
+                  <div className="flex flex-wrap gap-1">
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => (
+                      <label
+                        key={d}
+                        className={`min-h-9 cursor-pointer rounded-md border px-2 py-1 text-[11px] ${
+                          channelDays[id].includes(i)
+                            ? "border-indigo-600 bg-indigo-950/40"
+                            : "border-white/8 text-zinc-400"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={channelDays[id].includes(i)}
+                          onChange={() =>
+                            setChannelDays((prev) => {
+                              const have = prev[id] ?? [];
+                              const next = have.includes(i)
+                                ? have.filter((x) => x !== i)
+                                : [...have, i].sort();
+                              return { ...prev, [id]: next };
+                            })
+                          }
+                        />
+                        {d}
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
         )}
       </fieldset>
 

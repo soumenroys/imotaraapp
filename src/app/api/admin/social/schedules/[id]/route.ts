@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin, requireSocialOwner } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { cleanPlatformTimes } from "@/lib/social/platformTimes";
 import { isSupportedLanguage } from "@/lib/social/languages";
 
 type Body = {
@@ -15,6 +16,7 @@ type Body = {
   lengthHint?: string;
   languages?: string[];
   postAt?: string;
+  platformTimes?: unknown;
   timezone?: string;
   days?: number[];
   active?: boolean;
@@ -78,6 +80,17 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       return NextResponse.json({ error: "The time must look like 09:30." }, { status: 400 });
     }
     patch.post_at = body.postAt;
+  }
+  /**
+   * 🔑 PER-CHANNEL TIMES. An override of post_at/days for one platform
+   * ⇒ docs/sql/social_platform_times.sql. ⛔ Refused rather than silently
+   * dropped: "it saved" and a channel that never posts is the exact failure
+   * this feature exists to prevent.
+   */
+  if (body.platformTimes !== undefined) {
+    const times = cleanPlatformTimes(body.platformTimes);
+    if (!times.ok) return NextResponse.json({ error: times.error }, { status: 400 });
+    patch.platform_times = times.value;
   }
   if (body.topicPool !== undefined) patch.topic_pool = body.topicPool;
   if (body.tone !== undefined) patch.tone = body.tone;

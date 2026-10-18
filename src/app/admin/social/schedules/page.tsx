@@ -22,6 +22,8 @@ type Schedule = {
   post_at: string;
   timezone: string;
   days: number[];
+  /** 🔑 Per-channel overrides ⇒ docs/sql/social_platform_times.sql. */
+  platform_times?: Record<string, { post_at?: string; days?: number[] }> | null;
   active: boolean;
   auto_publish: boolean;
   // ⚠️ Needed to EDIT one, not to list one. The API has always returned them.
@@ -196,7 +198,20 @@ export default function Schedules() {
                       <p className="text-sm text-zinc-400">
                         <strong className="tabular-nums text-zinc-300">{String(s.post_at).slice(0, 5)}</strong>{" "}
                         on {s.days.length === 7 ? "every day" : s.days.map((d) => DAY[d]).join(", ")} ·{" "}
-                        {SHAPE[s.content_type] ?? s.content_type} · {s.platforms.join(" and ")} ·{" "}
+                        {SHAPE[s.content_type] ?? s.content_type} ·{" "}
+                        {/* ⚠️ A channel on its own hour says so HERE, in the
+                            line somebody reads, rather than only inside the
+                            editor. A time that differs and does not show is a
+                            schedule that looks like it does something else. */}
+                        {s.platforms
+                          .map((p) => {
+                            const at = s.platform_times?.[p]?.post_at;
+                            return at && String(at).slice(0, 5) !== String(s.post_at).slice(0, 5)
+                              ? `${p} at ${String(at).slice(0, 5)}`
+                              : p;
+                          })
+                          .join(" and ")}{" "}
+                        ·{" "}
                         {s.languages.length === 1
                           ? s.languages[0]
                           : `${s.languages.length} languages, in turn`}

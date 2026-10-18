@@ -11,6 +11,7 @@ import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { PageTutorial, TUTORIALS } from "@/app/admin/social/_components/PageTutorial";
 import { NewSchedule } from "@/app/admin/social/_components/NewSchedule";
 import { SocialPage, Chip, Explain } from "@/app/admin/social/_components/ui";
+import { PLATFORMS as CHANNELS } from "@/lib/social/platforms";
 
 type Schedule = {
   id: string;
@@ -72,20 +73,29 @@ export default function Schedules() {
     void load();
   }, [load]);
 
-  async function writeNow(id: string) {
-    setBusy(id);
+  /**
+   * 🔴 THE CHANNEL IS NAMED, AND IT WAS NOT.
+   *
+   * This sent only `scheduleId`, so the route fell back to `platforms[0]` —
+   * and once a schedule had two channels, pressing the button on a Facebook +
+   * Instagram schedule always wrote a FACEBOOK post, with nothing on screen
+   * saying so. Somebody checking their new Instagram wording would have read
+   * a post for the other channel and concluded the voice rules did not work.
+   */
+  async function writeNow(id: string, platform: string) {
+    setBusy(`${id}:${platform}`);
     setMessage("");
     try {
       const res = await fetch("/api/admin/social/generate", {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ scheduleId: id }),
+        body: JSON.stringify({ scheduleId: id, platform }),
       });
       const json = await res.json();
       setMessage(
         res.ok
-          ? `Written: “${json.subject}”. It is waiting for you on Today.`
+          ? `Written for ${platform}: “${json.subject}”. It is waiting for you on Today.`
           : json.error ?? "Nothing was written.",
       );
     } finally {
@@ -218,14 +228,24 @@ export default function Schedules() {
                       </p>
                     </div>
                     <div className="flex flex-none gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void writeNow(s.id)}
-                        disabled={busy === s.id}
-                        className="min-h-11 rounded-lg border border-white/15 px-3 text-sm hover:bg-white/10 disabled:opacity-50"
-                      >
-                        {busy === s.id ? "Writing…" : "Write one now"}
-                      </button>
+                      {/* ⚠️ One button per channel when there is more than
+                          one, because a schedule with two channels writes two
+                          different posts and "Write one now" cannot mean both. */}
+                      {s.platforms.map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => void writeNow(s.id, p)}
+                          disabled={busy === `${s.id}:${p}`}
+                          className="min-h-11 rounded-lg border border-white/15 px-3 text-sm hover:bg-white/10 disabled:opacity-50"
+                        >
+                          {busy === `${s.id}:${p}`
+                            ? "Writing…"
+                            : s.platforms.length === 1
+                              ? "Write one now"
+                              : `Write one for ${CHANNELS[p as keyof typeof CHANNELS]?.label ?? p}`}
+                        </button>
+                      ))}
                       <button
                         type="button"
                         onClick={() => {

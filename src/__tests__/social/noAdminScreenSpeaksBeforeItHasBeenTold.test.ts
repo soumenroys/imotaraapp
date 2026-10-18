@@ -163,9 +163,22 @@ describe("the screens do not contradict themselves", () => {
             .replace(/\/\*[\s\S]*?\*\//g, "")
             .replace(/^\s*\/\/.*$/gm, "");
         expect(route).not.toMatch(/will publish at its slot/i);
-        expect(route, "the approval note no longer says what actually happens").toMatch(
-            /Nothing publishes yet/i,
+
+        /**
+         * 🔴 THE FIX FOR THAT CONTRADICTION BECAME THE NEXT ONE. This used to
+         * require the literal "Nothing publishes yet" — correct on 17 Oct,
+         * and FALSE on 18 Oct the moment Facebook could publish. Eight places
+         * carried that sentence and every one of them was then a confident
+         * lie, including the banner this very test was protecting.
+         *
+         * ⛔ So the assertion is no longer on the WORDS. It is that the note
+         * is DERIVED from what is actually built ⇒ publishingSentence — the
+         * only version of this that cannot go stale.
+         */
+        expect(route, "the approval note is hard-coded again, so it will go stale again").toMatch(
+            /publishingSentence\(\)/,
         );
+        expect(route).not.toMatch(/Nothing publishes yet/i);
     });
 });
 

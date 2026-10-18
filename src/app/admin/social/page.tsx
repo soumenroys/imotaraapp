@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { PageTutorial, TUTORIALS } from "@/app/admin/social/_components/PageTutorial";
 import { SocialPage, Chip, Explain, HowItWorks, POST_STATUS } from "@/app/admin/social/_components/ui";
+import { publishingSentence } from "@/lib/social/platforms";
 
 type Finding = { list: string; rule: string; matched: string; because: string };
 type GateResult = {
@@ -421,8 +422,9 @@ export default function Today() {
           <HowItWorks />
 
           <p className="text-xs text-zinc-500">
-            ⛔ Nothing publishes yet — no channel is connected, so an approved post waits. You can post
-            it by hand from here in the meantime.{" "}
+            {/* ⚠️ DERIVED, not written here. This sentence said "no channel is
+                connected" for an hour after one was ⇒ publishingSentence. */}
+            {publishingSentence()}{" "}
             <a href="/admin/social/channels" className="underline">Connect a channel</a>.
           </p>
         </>

@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { PageTutorial, TUTORIALS } from "@/app/admin/social/_components/PageTutorial";
-import { PLATFORMS as CHANNELS, PLATFORM_IDS } from "@/lib/social/platforms";
+import { PLATFORMS as CHANNELS, PLATFORM_IDS, publishingSentence } from "@/lib/social/platforms";
 import { SocialPage, Explain } from "@/app/admin/social/_components/ui";
 
 type LanguageRow = {
@@ -315,8 +315,9 @@ export default function ComposePost() {
               Approve it now
             </label>
             <p className="text-[11px] text-zinc-500">
-              ⚠️ Approving does not publish it — there is no channel adapter yet. It means the post is
-              ready and waiting for one.
+              {/* ⚠️ Derived ⇒ publishingSentence. The hard-coded version of this
+                  outlived the thing it described by about an hour. */}
+              {publishingSentence()}
             </p>
           </fieldset>
 

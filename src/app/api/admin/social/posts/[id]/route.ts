@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { checkVoice, checkHouseStyle } from "@/lib/social/voiceGate";
+import { publishingSentence } from "@/lib/social/platforms";
 import { loadOverlay } from "@/lib/social/store";
 
 type Body = { action?: string; subject?: string; body?: string };
@@ -89,9 +90,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
        */
       return NextResponse.json({
         post: data,
-        note:
-          "Approved — it is ready and waiting for a channel. ⛔ Nothing publishes yet: there is no " +
-          "adapter, so this sits here until one exists, or until you post it by hand.",
+        // ⚠️ Derived ⇒ publishingSentence. The comment three lines above warns
+        // about this message contradicting the screen; hard-coding the state
+        // of the world is how that happened in the first place.
+        note: `Approved. ${publishingSentence()}`,
       });
     }
 

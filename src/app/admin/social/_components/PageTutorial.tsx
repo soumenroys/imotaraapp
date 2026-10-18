@@ -41,7 +41,10 @@ export const TUTORIALS: Record<string, { title: string; steps: Step[]; footnote?
       },
     ],
     footnote:
-      "⛔ Nothing you approve is published yet — no channel is connected. An approved post waits, and you can post it by hand in the meantime.",
+      // ⚠️ Phrased so it stays TRUE as channels come online. The version
+      // that named the state ("no channel is connected") was false within a
+      // day ⇒ publishingSentence, which the live screens derive instead.
+      "Approving is not posting. An approved post goes out at its scheduled time, on a channel that is connected and checked — and nothing goes out at all while posting is paused.",
   },
 
   schedules: {
@@ -87,7 +90,7 @@ export const TUTORIALS: Record<string, { title: string; steps: Step[]; footnote?
       },
       {
         do: "Choose whether it waits in the queue or is approved now.",
-        then: "Approving does not publish it — there is no channel adapter yet.",
+        then: "Approving marks it ready. It goes out at its scheduled time, on a connected channel.",
       },
       { do: "Press Save. The same word check runs on your words as on a written one." },
     ],
@@ -116,7 +119,7 @@ export const TUTORIALS: Record<string, { title: string; steps: Step[]; footnote?
       },
     ],
     footnote:
-      "⛔ Connecting a channel does not make posting work yet — the code that sends to each platform is the next piece of work.",
+      "⚠️ Connecting a channel is not the same as it working. The row says “Not checked yet” until something has asked the platform — press “Check it now” and it will tell you.",
   },
 
   languages: {

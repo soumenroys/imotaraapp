@@ -19,7 +19,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
-import { PLATFORMS, PLATFORM_IDS, platformSpec, publishableToday } from "@/lib/social/platforms";
+import { PLATFORMS, PLATFORM_IDS, platformSpec, publishableToday, publishingSentence } from "@/lib/social/platforms";
 import { composePicture, wordsInPicture, imagesInPicture } from "@/lib/social/compose";
 import { recipeHash, LAYOUTS, PALETTE_NAMES, TYPE_TREATMENTS, MOTIFS } from "@/lib/social/visualRecipe";
 import { qrTarget, qrContrastOk, LOGO_URL, QR_TARGETS } from "@/lib/social/brandMarks";
@@ -272,13 +272,38 @@ describe("the logo and the QR", () => {
 });
 
 describe("what the admin is told about publishing", () => {
-    it("nothing can publish yet, and each channel says why in its own terms", () => {
-        expect(publishableToday()).toEqual([]);
+    /**
+     * 🔴 THIS USED TO ASSERT `publishableToday()` IS EMPTY. True until 18 Oct,
+     * when Facebook started publishing — at which point the test was pinning
+     * a fact about yesterday and standing in the way of recording today.
+     *
+     * ⛔ It now pins the RULE instead: a channel either publishes, or it says
+     * in its own terms what is missing. Both halves matter — a blocker on a
+     * working channel is as wrong as a missing one on a blocked channel.
+     */
+    it("every channel either publishes or says why not, in its own terms", () => {
         for (const id of PLATFORM_IDS) {
-            // ⛔ Not "coming soon". The reasons differ, and only one of them is
-            // work that can be done from this side.
-            expect(PLATFORMS[id].blockedBy.length, `${id} has no stated blocker`).toBeGreaterThan(20);
-            expect(PLATFORMS[id].blockedBy.toLowerCase()).not.toContain("coming soon");
+            const spec = PLATFORMS[id];
+            if (spec.canPublish) {
+                expect(spec.blockedBy, `${id} publishes but still states a blocker`).toBe("");
+            } else {
+                // ⛔ Not "coming soon". The reasons differ, and only some of
+                // them are work that can be done from this side.
+                expect(spec.blockedBy.length, `${id} has no stated blocker`).toBeGreaterThan(20);
+                expect(spec.blockedBy.toLowerCase()).not.toContain("coming soon");
+            }
+        }
+    });
+
+    it("the sentence the admin reads follows what is actually built", () => {
+        const sentence = publishingSentence();
+        if (publishableToday().length === 0) {
+            expect(sentence).toMatch(/Nothing publishes yet/i);
+        } else {
+            // ⚠️ Names the channels that work AND the ones that do not, so an
+            // admin never assumes a post for X went out because Y did.
+            for (const id of publishableToday()) expect(sentence).toContain(PLATFORMS[id].label);
+            expect(sentence).toMatch(/paused/i);
         }
     });
 

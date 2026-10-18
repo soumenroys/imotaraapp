@@ -54,9 +54,16 @@ export type PlatformSpec = {
   voice: string;
   /** Whether the three QR codes go on this channel's picture. */
   qr: boolean;
-  /** Built and able to publish? ⛔ Honest, and shown in the admin. */
-  canPublish: false;
-  /** What is actually needed before it could. */
+  /**
+   * Built and able to publish?
+   *
+   * 🔴 THIS WAS TYPED AS THE LITERAL `false`, which was accurate for exactly
+   * as long as nothing could publish — and then became a type error standing
+   * in the way of telling the truth. ⚠️ A field whose type encodes today's
+   * answer is a field that cannot record tomorrow's.
+   */
+  canPublish: boolean;
+  /** What is actually needed before it could. ⚠️ Empty once it can. */
   blockedBy: string;
 };
 
@@ -75,9 +82,10 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
       "day, a specific thing the product does. Warm, unhurried, no jargon. ⛔ No hashtags here; " +
       "they read as advertising on this channel.",
     qr: true,
-    canPublish: false,
-    blockedBy:
-      "A Business Manager system user token, and encryption to store it. No App Review needed.",
+    // ✅ 18 Oct 2026. System user token stored and verified against the Graph
+    // API, and the publisher is live ⇒ src/app/api/cron/social-publish.
+    canPublish: true,
+    blockedBy: "",
   },
 
   linkedin: {
@@ -203,4 +211,37 @@ export function platformSpec(id: string): PlatformSpec {
  */
 export function publishableToday(): PlatformId[] {
   return PLATFORM_IDS.filter((id) => PLATFORMS[id].canPublish);
+}
+
+/**
+ * One sentence about whether approving a post does anything yet.
+ *
+ * 🔴 THIS EXISTS BECAUSE EIGHT PLACES SAID "nothing publishes yet" and all
+ * eight were true on 17 Oct and false on 18 Oct. Hard-coding the state of the
+ * world into a sentence means the sentence has to be remembered — and the one
+ * nobody remembers is the one a reader trusts most, because it is phrased as
+ * a fact ⇒ the Today banner still said no channel was connected an hour after
+ * one was.
+ *
+ * ⚠️ It says what IS BUILT, not what is switched on. The pause switch and a
+ * dead token are live state and belong to the screens that can read them;
+ * this answers only "does a publisher exist for anything".
+ */
+export function publishingSentence(): string {
+  const live = publishableToday();
+  if (live.length === 0) {
+    return (
+      "⛔ Nothing publishes yet — no channel has a publisher built, so an approved post waits. " +
+      "You can post it by hand in the meantime."
+    );
+  }
+  const names = live.map((id) => PLATFORMS[id].label);
+  const rest = PLATFORM_IDS.filter((id) => !PLATFORMS[id].canPublish).map((id) => PLATFORMS[id].label);
+  return (
+    `✅ An approved post publishes to ${names.join(" and ")} at its scheduled time` +
+    (rest.length > 0
+      ? `. ⚠️ ${rest.join(", ")} have no publisher yet, so a post for one of those waits to be sent by hand.`
+      : ".") +
+    " ⛔ Unless posting is paused, in which case nothing goes out at all."
+  );
 }

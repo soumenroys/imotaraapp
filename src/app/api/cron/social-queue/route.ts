@@ -24,6 +24,7 @@ import {
   type ScheduleRow,
 } from "@/lib/social/store";
 import { markCronFired } from "@/lib/cron/heartbeat";
+import { publishingSentence } from "@/lib/social/platforms";
 
 export const maxDuration = 300;
 
@@ -133,10 +134,11 @@ export async function GET(req: NextRequest) {
     outcomes,
     // ⛔ Said out loud on every run, so nobody mistakes a full queue for a
     // feature that is working end to end.
+    // ⚠️ Derived ⇒ publishingSentence. This said "Phase 1 does not publish"
+    // for an hour after the publisher went live.
     publishing:
       approved > 0
-        ? `${approved} post(s) are marked approved and will publish as soon as a channel adapter exists. ` +
-          `Phase 1 does not publish — nothing has reached a timeline.`
-        : "Phase 1 does not publish. Everything written is waiting to be read.",
+        ? `${approved} post(s) are marked approved. ${publishingSentence()}`
+        : publishingSentence(),
   });
 }

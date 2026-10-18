@@ -206,3 +206,102 @@ export function RetentionCurve({ points }: { points: { day: string; pct: number 
     </svg>
   );
 }
+
+/**
+ * Horizontal bars, for comparing a handful of named things.
+ *
+ * 🔑 WHY BARS AND NOT A LINE for breakdowns. A line implies an order and a
+ * continuity between its points; "by angle" and "by language" have neither.
+ * Drawing categories as a line invites somebody to read a slope that does not
+ * exist.
+ *
+ * ⛔ A null value draws NO BAR and prints "—". Rendering it as a zero-width
+ * bar would be indistinguishable from a real zero, which is the distinction
+ * this whole screen is built on.
+ *
+ * ⚠️ The scale is the largest value present, and it is SAID, because a bar
+ * chart with no axis invites comparison against an imagined hundred.
+ */
+export function Bars({
+  rows,
+  unit,
+  color = "#818CF8",
+}: {
+  rows: { label: string; value: number | null; note?: string }[];
+  unit?: string;
+  color?: string;
+}) {
+  const max = Math.max(1, ...rows.map((r) => r.value ?? 0));
+  if (rows.length === 0) return null;
+  return (
+    <div className="space-y-1.5">
+      {rows.map((r) => (
+        <div key={r.label} className="grid grid-cols-[9rem_1fr_4.5rem] items-center gap-2 text-xs">
+          <span className="truncate text-zinc-300" title={r.label}>{r.label}</span>
+          <span className="h-2 rounded-full bg-white/8">
+            {r.value !== null && (
+              <span
+                className="block h-2 rounded-full"
+                style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: color }}
+              />
+            )}
+          </span>
+          <span className="text-right tabular-nums text-zinc-400">
+            {r.value === null ? "—" : r.value.toLocaleString()}
+            {r.note && <span className="ml-1 text-zinc-600">{r.note}</span>}
+          </span>
+        </div>
+      ))}
+      <p className="pt-1 text-[11px] text-zinc-600">
+        Longest bar = {max.toLocaleString()}{unit ? ` ${unit}` : ""}. ⛔ “—” means not measured, not zero.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * One figure as a share of another — reach inside an audience, say.
+ *
+ * 🔴 IT HANDLES OVER 100% ON PURPOSE. Reach can exceed followers when people
+ * who do not follow the page are shown a post, and that is the single most
+ * interesting thing this product's analytics can report. A bar that silently
+ * clamped at full would hide exactly the day worth celebrating.
+ */
+export function Proportion({
+  value,
+  of,
+  label,
+  color = "#4ADE80",
+}: {
+  value: number | null;
+  of: number | null;
+  label: string;
+  color?: string;
+}) {
+  if (value === null || of === null || of === 0) {
+    return <p className="text-xs text-zinc-500">{label}: — (not measured)</p>;
+  }
+  const pct = (value / of) * 100;
+  const over = pct > 100;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-baseline justify-between text-xs">
+        <span className="text-zinc-300">{label}</span>
+        <span className="tabular-nums text-zinc-400">
+          {value.toLocaleString()} of {of.toLocaleString()} · {pct.toFixed(pct < 10 ? 1 : 0)}%
+        </span>
+      </div>
+      <div className="h-2.5 overflow-hidden rounded-full bg-white/8">
+        <div
+          className="h-2.5 rounded-full"
+          style={{ width: `${Math.min(100, pct)}%`, background: over ? "#38BDF8" : color }}
+        />
+      </div>
+      {over && (
+        <p className="text-[11px] text-sky-300">
+          ⬆️ Past the whole audience — people who do not follow the page saw this.
+        </p>
+      )}
+    </div>
+  );
+}

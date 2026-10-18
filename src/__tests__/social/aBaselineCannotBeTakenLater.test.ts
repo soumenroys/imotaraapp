@@ -327,3 +327,74 @@ describe("the dashboard separates the channels", () => {
     expect(page).toMatch(/p\.angle \?\? <span[^>]*>not recorded/);
   });
 });
+
+/**
+ * 🔑 VISUALS THAT WORK ON ONE DAY OF DATA.
+ *
+ * The owner asked for clearer graphics. ⛔ The obvious answer — more line
+ * charts — would have shown nothing: a line needs at least two points, and on
+ * day one there is one. So the figures that mean something from a single
+ * reading are drawn instead, and the lines appear when there is a line to
+ * draw.
+ */
+describe("the visuals are honest about sparse data", () => {
+  const page = read("src/app/admin/social/stats/page.tsx");
+  const charts = read("src/app/admin/_components/charts.tsx");
+
+  it("shows reach as a share of the audience, which needs only one reading", () => {
+    expect(page).toMatch(/<Proportion value=\{now\?\.reach \?\? null\} of=\{now\?\.followers \?\? null\}/);
+  });
+
+  /**
+   * 🔴 OVER 100% IS NOT CLAMPED. Reach exceeding followers means people who do
+   * NOT follow the page were shown a post — the single most interesting thing
+   * this product's analytics can report. A bar that silently filled and
+   * stopped would hide exactly the day worth celebrating.
+   */
+  it("⛔ says so when reach passes the whole audience", () => {
+    expect(charts).toMatch(/const over = pct > 100;/);
+    /**
+     * ⚠️ RENDERED, not merely present. Checking that the sentence exists in
+     * the file passed with its whole block disabled — the string sat there
+     * unreachable. Third time today that "it is in the source" was mistaken
+     * for "it reaches the screen"
+     * ⇒ trap_text_assertions_cannot_see_reachability.
+     */
+    expect(charts).toMatch(/\{over && \(/);
+    expect(charts).toMatch(/Past the whole audience/);
+    // ⛔ And the colour changes too, so it is visible before it is read.
+    expect(charts).toMatch(/over \? "#38BDF8"/);
+    // The fill is capped for layout, but the FIGURE and the message are not.
+    expect(charts).toMatch(/Math\.min\(100, pct\)/);
+  });
+
+  it("⚠️ computes frequency only when BOTH numbers were measured", () => {
+    // A ratio built on one real number and one guess is not a ratio.
+    expect(page).toMatch(/typeof now\?\.impressions === "number" && typeof now\?\.reach === "number" && now\.reach > 0/);
+  });
+
+  /**
+   * ⛔ A NULL DRAWS NO BAR. A zero-width bar is indistinguishable from a real
+   * zero, which is the distinction this whole screen is built on.
+   */
+  it("⛔ draws no bar for an unmeasured value", () => {
+    expect(charts).toMatch(/\{r\.value !== null && \(/);
+    expect(charts).toMatch(/r\.value === null \? "—"/);
+  });
+
+  it("says what the longest bar is worth, so nothing is read against an imagined 100", () => {
+    expect(charts).toMatch(/Longest bar = \{max\.toLocaleString\(\)\}/);
+  });
+
+  it("keeps the exact figures beside the bars rather than replacing them", () => {
+    // A bar cannot show "2 of 3 measured" without lying; the table can.
+    const fn = page.slice(page.indexOf("function Breakdown"));
+    expect(fn).toMatch(/<Bars/);
+    expect(fn).toMatch(/<table/);
+  });
+
+  it("only draws a line once there is a line to draw", () => {
+    expect(page).toMatch(/withFollowers\.length > 1 &&/);
+    expect(page).toMatch(/withReach\.length > 1 &&/);
+  });
+});

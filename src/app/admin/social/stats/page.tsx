@@ -21,7 +21,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { SocialPage, Chip, Explain } from "@/app/admin/social/_components/ui";
-import { LineChart } from "@/app/admin/_components/charts";
+import { LineChart, Bars, Proportion } from "@/app/admin/_components/charts";
 
 type Channel = { id: string; platform: string; display_name: string; status: string };
 type Day = {
@@ -176,9 +176,61 @@ export default function SocialStats() {
                   />
                 )}
 
+                {/* 🔑 THE TWO FIGURES THAT MEAN SOMETHING ON DAY ONE.
+                    A line chart needs weeks; a proportion needs one reading.
+                    ⛔ So these are shown first and always, and the lines above
+                    only once there is more than a single point to join. */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2 rounded-lg border border-white/8 bg-black/20 p-3">
+                    <h3 className="text-xs font-semibold text-zinc-400">How far it reached</h3>
+                    <Proportion value={now?.reach ?? null} of={now?.followers ?? null} label="Of your own audience" />
+                    <p className="text-[11px] text-zinc-500">
+                      ⚠️ Reach is distinct people. Going past 100% is the interesting day — it means
+                      people who do not follow the page were shown something.
+                    </p>
+                  </div>
+                  <div className="space-y-2 rounded-lg border border-white/8 bg-black/20 p-3">
+                    <h3 className="text-xs font-semibold text-zinc-400">How often each person saw it</h3>
+                    {/* ⚠️ views ÷ reach. ⛔ Null unless BOTH were measured —
+                        a ratio built on one real number is not a ratio. */}
+                    {typeof now?.impressions === "number" && typeof now?.reach === "number" && now.reach > 0 ? (
+                      <>
+                        <p className="text-2xl font-semibold tabular-nums">
+                          {(now.impressions / now.reach).toFixed(1)}×
+                        </p>
+                        <p className="text-[11px] text-zinc-500">
+                          {n(now.impressions)} views spread across {n(now.reach)} people. Much above
+                          ~2× usually means the same small group seeing it repeatedly rather than it
+                          travelling.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-zinc-500">— (not measured)</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* 🔑 BARS, NOT A LINE. A line implies an order between its
+                    points; "by angle" and "by language" have none, and drawing
+                    them joined invites somebody to read a slope that is not
+                    there. */}
                 <Breakdown title="By angle" rows={groupBy(mineP, (p) => p.angle)} />
                 <Breakdown title="By language" rows={groupBy(mineP, (p) => p.language)} />
                 <Breakdown title="By shape" rows={groupBy(mineP, (p) => p.shape)} />
+
+                {mineP.some((p) => engagement(p.stats) !== null) && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold text-zinc-400">Engagement per post</h3>
+                    <Bars
+                      unit="reactions + comments + shares"
+                      rows={mineP.slice(0, 12).map((p) => ({
+                        label: p.subject,
+                        value: engagement(p.stats),
+                        note: p.hadCard ? "card" : "text",
+                      }))}
+                    />
+                  </div>
+                )}
               </section>
             );
           })}
@@ -270,6 +322,13 @@ function Breakdown({
   return (
     <div className="space-y-1">
       <h3 className="text-xs font-semibold text-zinc-400">{title}</h3>
+      {/* ⚠️ The bars compare at a glance; the table keeps the exact figures
+          and the `measured` count, which a bar cannot show without lying. */}
+      <Bars
+        unit="posts"
+        color="#A5B4FC"
+        rows={rows.map(([k, v]) => ({ label: k, value: v.count, note: v.measured < v.count ? `${v.measured} measured` : undefined }))}
+      />
       <table className="w-full text-left text-xs">
         <thead className="text-zinc-500">
           <tr><th className="py-1">&nbsp;</th><th>Posts</th><th>Measured</th><th>Engagement</th><th>Views</th></tr>

@@ -118,6 +118,21 @@ export function classifyGraphError(err: GraphError): { kind: FacebookFailure; me
     };
   }
 
+  /**
+   * ⚠️ A #100 ABOUT A METRIC IS NOT ABOUT THE PAGE. Sending somebody to check
+   * a Page id that is perfectly correct is the same wasted afternoon as
+   * telling them to re-paste a working token.
+   */
+  if (code === 100 && /valid insights metric|nonexisting field/i.test(said)) {
+    return {
+      kind: "unknown",
+      message:
+        `Facebook does not recognise that insights metric: ${said} ⚠️ Meta RETIRES these in waves, ` +
+        `so this is almost certainly a name that has been withdrawn rather than anything wrong ` +
+        `with the Page or the token. ▶️ Update the metric lists in facebook.ts.`,
+    };
+  }
+
   if (code === 100 || code === 2500) {
     return {
       kind: "page",
@@ -578,6 +593,63 @@ export type PageInsights = {
   raw: Record<string, unknown>;
 };
 
+/**
+ * 🔴 META RETIRES INSIGHTS METRICS, IN WAVES, AND THE OLD NAME STOPS BEING A
+ * NAME AT ALL.
+ *
+ * Asked for `page_impressions` on 18 Oct 2026, Facebook answered
+ * `(#100) The value must be a valid insights metric` — not a permission
+ * error. `page_impressions_unique` was deprecated in June 2026,
+ * `page_impressions` and `post_impressions` in waves before it, and the
+ * published replacements disagree between Meta's own changelog and every
+ * connector vendor that tracks them.
+ *
+ * ⛔ SO THE NAME IS NOT GUESSED ONCE AND BAKED IN. Each list is tried in
+ * order, newest first, and the first that ANSWERS is used — and the name that
+ * worked is recorded, so the next person reads a fact instead of repeating
+ * this search. ⚠️ One invalid metric fails the WHOLE request, which is why
+ * they are tried one at a time rather than asked for together.
+ *
+ * ⇒ Same family as trap_an_unknown_graph_version_reads_as_a_node_id: a string
+ * Meta publishes is a public identifier with a retirement date.
+ */
+const PAGE_REACH_METRICS = ["page_total_media_view_unique", "page_impressions_unique"];
+const PAGE_VIEW_METRICS = ["page_media_view", "page_views_total", "page_impressions"];
+const POST_VIEW_METRICS = ["post_media_view", "post_impressions_unique", "post_impressions"];
+
+/** ⚠️ Returns null for a metric Facebook refuses as invalid, and THROWS
+ *  nothing — the caller decides whether a missing figure matters. */
+async function readMetric(
+  doFetch: typeof fetch,
+  node: string,
+  metric: string,
+  extra: string,
+  token: string,
+): Promise<{ value: number | null; invalid: boolean; raw: unknown }> {
+  const res = await doFetch(
+    graph(`${encodeURIComponent(node)}/insights`) +
+      `?metric=${metric}${extra}&access_token=${encodeURIComponent(token)}`,
+    { signal: AbortSignal.timeout(20_000), cache: "no-store" },
+  );
+  const json = (await res.json()) as {
+    data?: { name?: string; values?: { value?: number }[] }[];
+    error?: GraphError;
+  };
+  if (json.error) {
+    // 🔑 "not a metric" is retirement; anything else is a real problem.
+    const invalid = /valid insights metric|nonexisting field/i.test(json.error.message ?? "");
+    return { value: null, invalid, raw: json };
+  }
+  /**
+   * ⚠️ THE LAST VALUE, not the first. Facebook returns a series and the most
+   * recent complete day is at the END; reading [0] files a figure one day
+   * older than the row it sits in.
+   */
+  const series = json.data?.find((m) => m.name === metric)?.values ?? [];
+  const last = series[series.length - 1]?.value;
+  return { value: typeof last === "number" ? last : null, invalid: false, raw: json };
+}
+
 export async function fetchPageInsights(args: {
   token: string;
   pageId: string;
@@ -588,40 +660,52 @@ export async function fetchPageInsights(args: {
   fetchImpl?: typeof fetch;
 }): Promise<{ ok: true; insights: PageInsights } | { ok: false; kind: FacebookFailure; message: string }> {
   const doFetch = args.fetchImpl ?? fetch;
+  // ⚠️ YESTERDAY. Facebook's "day" period is only complete once the day is
+  // over; asking for today returns a partial figure that reads as a collapse.
   const until = args.day ?? new Date(Date.now() - 86_400_000);
   const since = new Date(until.getTime() - 86_400_000);
-  const d = (x: Date) => Math.floor(x.getTime() / 1000);
+  const window = `&period=day&since=${Math.floor(since.getTime() / 1000)}&until=${Math.floor(until.getTime() / 1000)}`;
+
+  const tried: string[] = [];
+  const raw: Record<string, unknown> = {};
+
+  /** First name that ANSWERS wins; retired names are skipped and recorded. */
+  const firstThatWorks = async (names: string[]) => {
+    for (const metric of names) {
+      tried.push(metric);
+      try {
+        const got = await readMetric(doFetch, args.pageId, metric, window, args.token);
+        raw[metric] = got.raw;
+        if (!got.invalid) return { metric, value: got.value };
+      } catch (e) {
+        return { metric, value: null, network: (e as Error).message };
+      }
+    }
+    return null;
+  };
 
   try {
-    const res = await doFetch(
-      graph(`${encodeURIComponent(args.pageId)}/insights`) +
-        `?metric=page_impressions,page_impressions_unique&period=day` +
-        `&since=${d(since)}&until=${d(until)}&access_token=${encodeURIComponent(args.token)}`,
-      { signal: AbortSignal.timeout(20_000), cache: "no-store" },
-    );
-    const json = (await res.json()) as {
-      data?: { name?: string; values?: { value?: number }[] }[];
-      error?: GraphError;
-    };
-    if (json.error) return { ok: false, ...classifyGraphError(json.error) };
+    const reach = await firstThatWorks(PAGE_REACH_METRICS);
+    const views = await firstThatWorks(PAGE_VIEW_METRICS);
 
-    /**
-     * ⚠️ TAKE THE LAST VALUE, not the first. Facebook returns a series and the
-     * most recent complete day is at the end; reading [0] silently reports a
-     * figure one day older than the row it is filed under.
-     */
-    const pick = (name: string): number | null => {
-      const series = json.data?.find((m) => m.name === name)?.values ?? [];
-      const last = series[series.length - 1]?.value;
-      return typeof last === "number" ? last : null;
-    };
+    if (!reach && !views) {
+      return {
+        ok: false,
+        kind: "unknown",
+        message:
+          `None of these are metrics Facebook still recognises: ${tried.join(", ")}. ` +
+          `⚠️ This is RETIREMENT, not a permission problem — Meta removes Page Insights metrics ` +
+          `in waves. ▶️ Check Meta's current Page Insights reference and add the new name to ` +
+          `PAGE_REACH_METRICS / PAGE_VIEW_METRICS.`,
+      };
+    }
 
     return {
       ok: true,
       insights: {
-        impressions: pick("page_impressions"),
-        reach: pick("page_impressions_unique"),
-        raw: json as Record<string, unknown>,
+        impressions: views?.value ?? null,
+        reach: reach?.value ?? null,
+        raw: { usedForReach: reach?.metric ?? null, usedForViews: views?.metric ?? null, tried, ...raw },
       },
     };
   } catch (e) {
@@ -634,21 +718,20 @@ export async function fetchPostImpressions(args: {
   token: string;
   postId: string;
   fetchImpl?: typeof fetch;
-}): Promise<{ ok: true; impressions: number | null } | { ok: false; kind: FacebookFailure; message: string }> {
+}): Promise<{ ok: true; impressions: number | null; metric: string | null } | { ok: false; kind: FacebookFailure; message: string }> {
   const doFetch = args.fetchImpl ?? fetch;
+  const tried: string[] = [];
   try {
-    const res = await doFetch(
-      graph(`${encodeURIComponent(args.postId)}/insights`) +
-        `?metric=post_impressions&access_token=${encodeURIComponent(args.token)}`,
-      { signal: AbortSignal.timeout(20_000), cache: "no-store" },
-    );
-    const json = (await res.json()) as {
-      data?: { name?: string; values?: { value?: number }[] }[];
-      error?: GraphError;
+    for (const metric of POST_VIEW_METRICS) {
+      tried.push(metric);
+      const got = await readMetric(doFetch, args.postId, metric, "", args.token);
+      if (!got.invalid) return { ok: true, impressions: got.value, metric };
+    }
+    return {
+      ok: false,
+      kind: "unknown",
+      message: `Facebook no longer recognises any of: ${tried.join(", ")}. ▶️ Update POST_VIEW_METRICS.`,
     };
-    if (json.error) return { ok: false, ...classifyGraphError(json.error) };
-    const v = json.data?.find((m) => m.name === "post_impressions")?.values?.[0]?.value;
-    return { ok: true, impressions: typeof v === "number" ? v : null };
   } catch (e) {
     return { ok: false, kind: "network", message: `Could not reach Facebook (${(e as Error).message}).` };
   }

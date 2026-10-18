@@ -186,6 +186,8 @@ export async function capturePostStats(
         reactions: stats.stats.reactions,
         comments: stats.stats.comments,
         shares: stats.stats.shares,
+        // ⚠️ `seen.ok` false means every candidate name was retired, not that
+        // nobody saw it ⇒ NULL, never 0.
         impressions: seen.ok ? seen.impressions : null,
         raw: stats.stats.raw,
       },

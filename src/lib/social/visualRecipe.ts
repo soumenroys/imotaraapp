@@ -291,6 +291,8 @@ export function pickRecipe(input: PickInput): PickResult {
 export const HEADLINE_MAX = 64;
 
 export function headlineFromBody(body: string, maxChars = HEADLINE_MAX): string | null {
+  // ⚠️ Same rule as the support line: a tag on a card is not a word.
+  body = withoutHashtags(body);
   const first = body.trim().split(/(?<=[.!?])\s+/)[0]?.trim();
   if (!first) return null;
   const clean = first.replace(/\s+/g, " ").replace(/[.]$/, "");
@@ -347,6 +349,29 @@ export function headlineFor(subject: string, body: string, maxChars = HEADLINE_M
  * returning nothing is the better failure: the card is then exactly what every
  * card has been until now.
  */
+/**
+ * 🔴 A HASHTAG IS CAPTION SYNTAX, AND A CARD IS NOT A CAPTION.
+ *
+ * Caught on the second Instagram card, before it published: the body ends
+ * with `#imfine #theunsaid #quietthoughts #feelings`, the support line is
+ * taken from the body, and so four hashtags were set in type on the image.
+ * On a picture they mean nothing, they are not clickable, and they read as
+ * clutter under a line somebody was meant to sit with.
+ *
+ * ⚠️ The first Instagram card hid this: its support line was cut short by a
+ * long opening sentence before it ever reached the tags.
+ *
+ * ⛔ Stripped wherever they appear, not only at the end. `\p{M}` is in the
+ * class so a Bengali or Devanagari tag is removed whole rather than leaving
+ * its vowel signs behind ⇒ the same lesson as the hashtag counter.
+ */
+export function withoutHashtags(text: string): string {
+  return text
+    .replace(/(^|\s)#[\p{L}\p{N}\p{M}_]+/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function supportFromBody(
   body: string,
   maxChars = 150,
@@ -360,7 +385,9 @@ export function supportFromBody(
    */
   from = 1,
 ): string | null {
-  const sentences = body
+  // ⛔ Tags removed BEFORE the sentences are counted, so a trailing tag line
+  // does not become a "sentence" that the caller then has to skip past.
+  const sentences = withoutHashtags(body)
     .trim()
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())

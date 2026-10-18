@@ -18,7 +18,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { headlineFromBody, supportFromBody } from "@/lib/social/visualRecipe";
+import { headlineFromBody, supportFromBody, withoutHashtags } from "@/lib/social/visualRecipe";
 
 /**
  * ⚠️ THE STILL PICTURE'S RENDERER MOVED on 18 Oct, out of the admin route and
@@ -135,4 +135,48 @@ describe("⛔ and something actually calls it", () => {
       expect(src).not.toMatch(/supportFromBody\(\s*post\.subject\b/);
     });
   }
+});
+
+/**
+ * 🔴 CAUGHT ON THE SECOND INSTAGRAM CARD, BEFORE IT PUBLISHED.
+ *
+ * The body ended with `#imfine #theunsaid #quietthoughts #feelings`, the
+ * support line is taken from the body, and so four hashtags were set in type
+ * on the image. On a picture they mean nothing, they are not clickable, and
+ * they read as clutter under a line somebody was meant to sit with.
+ *
+ * ⚠️ The FIRST Instagram card hid this: its support was cut short by a long
+ * opening sentence before it ever reached the tags.
+ */
+describe("a hashtag is caption syntax, and a card is not a caption", () => {
+  const body =
+    "You say you’re fine because it’s faster than explaining what’s really on your mind.\n\n" +
+    "Nobody asks twice.\n\n#imfine #theunsaid #quietthoughts #feelings";
+
+  it("keeps the words and drops the tags", () => {
+    const support = supportFromBody(body, 150, 0);
+    expect(support).toContain("Nobody asks twice.");
+    expect(support).not.toMatch(/#/);
+    expect(support).not.toMatch(/imfine|theunsaid|quietthoughts|feelings/);
+  });
+
+  it("does not leave a trailing tag line masquerading as a sentence", () => {
+    // ⛔ Stripped BEFORE the sentences are counted, or `from` would have to
+    // skip past a "sentence" made only of tags.
+    expect(supportFromBody(body, 150, 1)).toBe("Nobody asks twice.");
+    expect(supportFromBody(body, 150, 2)).toBeNull();
+  });
+
+  it("removes a tag in a script that uses combining marks, whole", () => {
+    // ⚠️ `\p{M}` is in the class, or the vowel signs are left behind as
+    // loose marks on the card ⇒ the same lesson as the hashtag counter.
+    expect(withoutHashtags("keep this #অভিমান gone")).toBe("keep this gone");
+    expect(withoutHashtags("keep this #बहुत gone")).toBe("keep this gone");
+  });
+
+  it("the headline is protected the same way", () => {
+    // ⚠️ The trailing full stop is dropped by the headline rule, not by the
+    // tag strip — a headline on a card does not end in a period.
+    expect(headlineFromBody("#imfine You say you’re fine.", 64)).toBe("You say you’re fine");
+  });
 });

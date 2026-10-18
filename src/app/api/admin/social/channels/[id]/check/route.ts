@@ -54,7 +54,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ status: "unchanged", ok: false, note: result.message });
   }
 
-  const status = result.ok ? "ok" : result.kind === "rate" ? "pending" : "dead";
+  /**
+   * ⛔ THE SAME RULE AS THE CRON, including `canPost`. The first version of
+   * this route said `result.ok ? "ok" : …`, so a Page we could read and not
+   * post to read **Working** here and **Needs you** an hour later when the
+   * daily check ran. Two paths, one state, two verdicts — and the one the
+   * owner would have trusted is the one they pressed themselves.
+   * ⇒ src/app/api/cron/social-health/route.ts
+   */
+  const status = result.ok
+    ? result.canPost
+      ? "ok"
+      : "dead"
+    : result.kind === "rate"
+      ? "pending"
+      : "dead";
 
   const { error } = await db
     .from("social_accounts")
@@ -70,6 +84,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   return NextResponse.json({
     status,
     ok: result.ok,
+    // ⚠️ `ok` from Facebook is not `ok` as a channel. The note carries which.
     note: result.ok ? result.note : result.message,
     // ⚠️ Carried separately because a reachable Page that cannot be posted to
     // is the one failure that otherwise reads as success.

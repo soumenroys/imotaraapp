@@ -332,4 +332,31 @@ describe("the check route refuses to invent a verdict", () => {
   it("says plainly that other channels cannot be checked yet", () => {
     expect(route).toMatch(/no way to check a \$\{cred\.platform\} token yet/);
   });
+
+  /**
+   * 🔴 THE BUTTON AND THE CRON MUST NOT DISAGREE. This route first read
+   * `result.ok ? "ok" : …`, so a Page that could be read and not posted to
+   * showed **Working** when the owner pressed the button and **Needs you**
+   * when the daily check ran an hour later — and the verdict they would have
+   * trusted is the one they pressed themselves.
+   */
+  it("⛔ applies canPost exactly as the cron does", () => {
+    const health = readFileSync(
+      join(process.cwd(), "src/app/api/cron/social-health/route.ts"),
+      "utf8",
+    );
+    const strip = (s: string) => s.replace(/\s+/g, "");
+    expect(strip(health)).toContain(strip('result.canPost ? "ok" : "dead"'));
+
+    /**
+     * ⚠️ THE STATEMENT, NOT THE FILE. The first version of this assertion
+     * searched the whole source for the weaker rule and failed on the COMMENT
+     * that explains why the weaker rule is wrong — a test that cannot tell
+     * code from prose about code.
+     */
+    const stmt = route.slice(route.indexOf("const status ="), route.indexOf('const { error }'));
+    expect(stmt.length).toBeGreaterThan(20);
+    expect(strip(stmt)).toContain(strip('result.canPost ? "ok" : "dead"'));
+    expect(strip(stmt)).not.toContain(strip('result.ok ? "ok" :'));
+  });
 });

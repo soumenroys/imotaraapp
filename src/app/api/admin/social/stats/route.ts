@@ -22,20 +22,20 @@ export async function GET(req: NextRequest) {
     db.from("social_accounts").select("id, platform, display_name, status"),
     db
       .from("social_channel_stats")
-      .select("account_id, platform, captured_on, is_baseline, followers, fans, impressions, reach, posts_live")
+      .select("account_id, platform, captured_on, is_baseline, followers, fans, impressions, reach, follower_change, posts_live")
       .order("captured_on", { ascending: true }),
     db
       .from("social_posts")
       // 🔑 Every dimension somebody would want to slice by. ⛔ `topic_pool` is
       // NULL on anything written before 18 Oct — the angle was not recorded,
       // and it cannot be reconstructed ⇒ docs/sql/social_post_angle.sql.
-      .select("id, platform, language, topic_pool, subject, published_at, external_post_id, media_kind")
+      .select("id, platform, language, topic_pool, subject, published_at, external_post_id, external_url, media_kind")
       .eq("status", "published")
       .order("published_at", { ascending: false })
       .limit(60),
     db
       .from("social_post_stats")
-      .select("post_id, captured_on, reactions, comments, shares, impressions")
+      .select("post_id, captured_on, reactions, comments, shares, impressions, saves, reach")
       .order("captured_on", { ascending: true }),
   ]);
 
@@ -44,13 +44,28 @@ export async function GET(req: NextRequest) {
    * same post on a different day — adding them together would multiply one
    * post's four reactions into twelve.
    */
-  const latest = new Map<string, { reactions: number | null; comments: number | null; shares: number | null; impressions: number | null; captured_on: string }>();
+  const latest = new Map<
+    string,
+    {
+      reactions: number | null;
+      comments: number | null;
+      shares: number | null;
+      impressions: number | null;
+      /** 🔑 Instagram's own two. `saves` is the number that channel ranks on
+       *  and the number its voice was written for ⇒ platforms.ts. */
+      saves: number | null;
+      reach: number | null;
+      captured_on: string;
+    }
+  >();
   for (const s of postStats.data ?? []) {
     latest.set(s.post_id as string, {
       reactions: s.reactions as number | null,
       comments: s.comments as number | null,
       shares: s.shares as number | null,
       impressions: s.impressions as number | null,
+      saves: s.saves as number | null,
+      reach: s.reach as number | null,
       captured_on: s.captured_on as string,
     });
   }
@@ -66,7 +81,23 @@ export async function GET(req: NextRequest) {
       shape: p.media_kind,
       subject: p.subject,
       publishedAt: p.published_at,
-      url: p.external_post_id ? `https://www.facebook.com/${p.external_post_id}` : null,
+      /**
+       * 🔴 THE LINK USED TO BE BUILT AS facebook.com/<id> FOR EVERY POST.
+       *
+       * Harmless with one channel. The moment Instagram published, every
+       * Instagram post pointed at a Facebook URL that does not exist — and
+       * somebody clicks a link.
+       *
+       * ⚠️ Instagram's permalink CANNOT be constructed: the shortcode is not
+       * derivable from the media id, so it is captured at publish time
+       * ⇒ docs/sql/social_post_url.sql. ⛔ Null for anything published before
+       * that column existed, and NOT backfilled with a guess.
+       */
+      url:
+        (p.external_url as string | null) ??
+        (p.platform === "facebook" && p.external_post_id
+          ? `https://www.facebook.com/${p.external_post_id}`
+          : null),
       hadCard: p.media_kind === "graphic",
       // ⛔ null, not 0, when nothing has been captured for it yet — the daily
       // run may simply not have reached it.

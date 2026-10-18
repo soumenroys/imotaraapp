@@ -292,8 +292,39 @@ describe("the dashboard separates the channels", () => {
   const page = read("src/app/admin/social/stats/page.tsx");
 
   it("⛔ renders one section per measured channel, not one set of figures", () => {
-    expect(page).toMatch(/measured\.map\(\(c\) =>/);
+    /**
+     * ⚠️ The anchor moved from `measured.map` to `shown.map` when the channel
+     * filter arrived, and the rule did not: one section per channel, never
+     * one set of figures taken from whichever row happened to be last.
+     *
+     * ⛔ `shown` is pinned as derived FROM `measured`, so the filter cannot
+     * start drawing a channel that has no readings.
+     */
+    expect(page).toMatch(/shown\.map\(\(c\) =>/);
+    expect(page).toMatch(/const shown =[\s\S]{0,120}measured/);
     expect(page).toMatch(/days\.filter\(\(d\) => d\.account_id === c\.id\)/);
+  });
+
+  it("has a channel filter with an 'all' that consolidates", () => {
+    // 🔑 The owner, 18 Oct: "separate filter to see different social media
+    // reports and ... a consolidated report or overview as well with a
+    // filter all."
+    expect(page).toMatch(/only === "all"/);
+    expect(page).toContain("<Consolidated");
+    // ⛔ And the consolidated view only when there IS something to
+    // consolidate — with one channel it would be the same numbers twice.
+    expect(page).toMatch(/only === "all" && measured\.length > 1/);
+  });
+
+  it("⛔ never calls a summed reach 'distinct people'", () => {
+    /**
+     * 🔴 The one figure in the consolidated view that cannot honestly be
+     * added: the same person may follow two channels, so a sum counts them
+     * twice. Per channel it IS distinct people; across channels it is not.
+     */
+    const block = page.slice(page.indexOf("function Consolidated"));
+    expect(block).toMatch(/summed, not distinct people/);
+    expect(block).toMatch(/counted twice/);
   });
 
   it("⛔ only charts a channel that has readings", () => {

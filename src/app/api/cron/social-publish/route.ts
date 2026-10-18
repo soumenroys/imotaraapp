@@ -340,6 +340,7 @@ export async function GET(req: NextRequest) {
         .update({
           status: "published",
           external_post_id: result.postId,
+          external_url: result.url,
           published_at: new Date().toISOString(),
           last_error: null,
           updated_at: new Date().toISOString(),

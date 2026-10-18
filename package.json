@@ -103,6 +103,7 @@
     "react-hook-form": "^7.65.0",
     "recharts": "^3.3.0",
     "resend": "^6.26.0",
+    "sharp": "0.35.4",
     "stripe": "^20.0.0",
     "tailwind-variants": "^3.1.1",
     "upng-js": "^2.1.0",

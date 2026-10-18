@@ -19,7 +19,10 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { postingIsPaused } from "@/lib/social/store";
 import { loadChannelCredential } from "@/lib/social/channelCredentials";
 import { publishToFacebook } from "@/lib/social/adapters/facebook";
+import { publishToInstagram } from "@/lib/social/adapters/instagram";
 import { renderPostPictureBytes } from "@/lib/social/renderPicture";
+import { cardUrlFor } from "@/lib/social/cardUrl";
+import { platformSpec } from "@/lib/social/platforms";
 import { markCronFired } from "@/lib/cron/heartbeat";
 
 export const maxDuration = 300;
@@ -49,6 +52,46 @@ type Outcome = {
   detail?: string;
   url?: string;
 };
+
+/**
+ * Can a stranger get a JPEG from this URL?
+ *
+ * 🔴 THE QUESTION INSTAGRAM WILL ASK, asked first and from here. Meta fetches
+ * the card itself, so the failures that matter are the ones a local render
+ * cannot see: a wrong NEXT_PUBLIC_SITE_URL, deployment protection in front of
+ * the route, a signature that does not verify, a post whose status moved.
+ *
+ * ⚠️ GET rather than HEAD. A Next route handler that exports only GET does
+ * not reliably answer HEAD, and a 405 here would stop every Instagram post
+ * for a reason that has nothing to do with the card.
+ *
+ * ⛔ The content type is checked, not assumed. A route that answered 200 with
+ * an HTML error page would otherwise look healthy, and Instagram would fail
+ * later with a message about the media.
+ */
+async function cardReaches(url: string): Promise<{ ok: true } | { ok: false; why: string }> {
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
+    if (!res.ok) {
+      return {
+        ok: false,
+        why:
+          `${url} answered ${res.status}. ▶️ Check NEXT_PUBLIC_SITE_URL and that the card route is ` +
+          `publicly reachable — Instagram fetches it with none of our credentials.`,
+      };
+    }
+    const type = res.headers.get("content-type") ?? "";
+    if (!type.startsWith("image/jpeg")) {
+      return {
+        ok: false,
+        why: `${url} answered ${res.status} but with "${type}". ⛔ Instagram accepts JPEG and nothing else.`,
+      };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, why: `The card URL could not be fetched from here (${(e as Error).message}).` };
+  }
+}
 
 export async function GET(req: NextRequest) {
   const auth = cronAuthorised(req);
@@ -102,16 +145,24 @@ export async function GET(req: NextRequest) {
   for (const post of due) {
     const platform = post.platform as string;
 
-    if (platform !== "facebook") {
-      // ⛔ Said out loud rather than skipped silently. A post waiting forever
-      // on a channel that cannot publish is exactly the kind of nothing this
-      // feature was built to stop happening quietly.
+    /**
+     * ⚠️ ASKED OF platforms.ts RATHER THAN HARD-CODED. This was
+     * `platform !== "facebook"`, which meant adding a channel needed an edit
+     * in a file nobody would think to open ⇒ everyShapeIsReachable.
+     *
+     * ⛔ Said out loud rather than skipped silently. A post waiting forever on
+     * a channel that cannot publish is exactly the kind of nothing this
+     * feature was built to stop happening quietly.
+     */
+    if (!platformSpec(platform).canPublish) {
       outcomes.push({
         id: post.id as string,
         platform,
         language: post.language as string,
         result: "held",
-        detail: `There is no publisher for ${platform} yet. The post stays approved and waits.`,
+        detail:
+          `There is no publisher for ${platform} yet (${platformSpec(platform).blockedBy ?? "not enabled"}). ` +
+          `The post stays approved and waits.`,
       });
       continue;
     }
@@ -168,47 +219,120 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    let picture: Uint8Array | undefined;
-    if (post.media_kind === "graphic") {
-      const rendered = await renderPostPictureBytes({
-        platform,
-        language: post.language as string,
-        // ⛔ The card's headline ⇒ headlineFor. Omitting it here and not in the
-        // admin would mean the published card differs from the one approved.
-        subject: post.subject as string | null,
-        body: post.body as string,
-        media_kind: post.media_kind as string | null,
-        visual_recipe: post.visual_recipe,
-      });
-      if (!rendered.ok) {
-        /**
-         * ⛔ A POST THAT WAS MEANT TO HAVE A PICTURE DOES NOT GO OUT WITHOUT
-         * ONE. The card carries the brand marks and, on several shapes, the
-         * line that makes the words make sense. Publishing the text alone
-         * would be publishing something nobody approved.
-         */
+    /**
+     * 🔑 ONE SHAPE FOR BOTH CHANNELS, so everything after this point — the
+     * success write, the failure write, the unverified rule — is written
+     * once. ⛔ Two copies of "what to do when a publish fails" is two places
+     * to get the duplicate-post rule wrong.
+     */
+    type PublishResult =
+      | { ok: true; postId: string; url: string }
+      | { ok: false; kind: string; message: string };
+    let result: PublishResult;
+
+    if (platform === "instagram") {
+      /**
+       * 🔴 THERE IS NO TEXT-ONLY INSTAGRAM POST. Facebook will take words on
+       * their own; Instagram will not. A post that arrives here without a
+       * card is not a post that goes out as words — it is a post that does
+       * not go out.
+       */
+      if (post.media_kind !== "graphic") {
         await db
           .from("social_posts")
-          .update({ status: "approved", last_error: rendered.failure.error, updated_at: new Date().toISOString() })
+          .update({ status: "approved", last_error: "Instagram needs a picture", updated_at: new Date().toISOString() })
           .eq("id", post.id);
         outcomes.push({
           id: post.id as string,
           platform,
           language: post.language as string,
           result: "failed",
-          detail: `The picture could not be rendered, so nothing was posted: ${rendered.failure.error}`,
+          detail:
+            "Instagram has no text-only post, and this one has no card. ⛔ Nothing was published. " +
+            "▶️ Give it a graphic in the composer.",
         });
         continue;
       }
-      picture = rendered.bytes;
-    }
 
-    const result = await publishToFacebook({
-      token: cred.token,
-      pageId: cred.externalId,
-      message: post.body as string,
-      picture,
-    });
+      /**
+       * 🔴 THE CARD IS CHECKED BY FETCHING IT, not by rendering it again.
+       *
+       * Instagram fetches `image_url` ITSELF, from Meta's servers, with none
+       * of our credentials. So the question that matters is not "does this
+       * card render here?" — it is "can a stranger on the internet get a JPEG
+       * from this URL?". A local re-render answers the wrong question and
+       * would pass happily with the site URL wrong, the signature mismatched,
+       * or deployment protection in front of the route.
+       */
+      const cardUrl = cardUrlFor(post.id as string);
+      const reachable = await cardReaches(cardUrl);
+      if (!reachable.ok) {
+        await db
+          .from("social_posts")
+          .update({ status: "approved", last_error: reachable.why, updated_at: new Date().toISOString() })
+          .eq("id", post.id);
+        outcomes.push({
+          id: post.id as string,
+          platform,
+          language: post.language as string,
+          result: "failed",
+          detail: `Instagram would not have been able to fetch the card, so nothing was posted: ${reachable.why}`,
+        });
+        continue;
+      }
+
+      const r = await publishToInstagram({
+        token: cred.token,
+        igUserId: cred.externalId,
+        caption: post.body as string,
+        imageUrl: cardUrl,
+      });
+      result = r.ok
+        ? { ok: true, postId: r.mediaId, url: r.url }
+        : { ok: false, kind: r.kind, message: r.message };
+    } else {
+      let picture: Uint8Array | undefined;
+      if (post.media_kind === "graphic") {
+        const rendered = await renderPostPictureBytes({
+          platform,
+          language: post.language as string,
+          // ⛔ The card's headline ⇒ headlineFor. Omitting it here and not in the
+          // admin would mean the published card differs from the one approved.
+          subject: post.subject as string | null,
+          body: post.body as string,
+          media_kind: post.media_kind as string | null,
+          visual_recipe: post.visual_recipe,
+        });
+        if (!rendered.ok) {
+          /**
+           * ⛔ A POST THAT WAS MEANT TO HAVE A PICTURE DOES NOT GO OUT WITHOUT
+           * ONE. The card carries the brand marks and, on several shapes, the
+           * line that makes the words make sense. Publishing the text alone
+           * would be publishing something nobody approved.
+           */
+          await db
+            .from("social_posts")
+            .update({ status: "approved", last_error: rendered.failure.error, updated_at: new Date().toISOString() })
+            .eq("id", post.id);
+          outcomes.push({
+            id: post.id as string,
+            platform,
+            language: post.language as string,
+            result: "failed",
+            detail: `The picture could not be rendered, so nothing was posted: ${rendered.failure.error}`,
+          });
+          continue;
+        }
+        picture = rendered.bytes;
+      }
+
+      result = await publishToFacebook({
+        token: cred.token,
+        pageId: cred.externalId,
+        message: post.body as string,
+        picture,
+      });
+    }
 
     if (result.ok) {
       await db

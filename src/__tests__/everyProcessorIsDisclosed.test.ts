@@ -180,10 +180,20 @@ const BENIGN_HOSTS = new Set([
     "open.exchangerate-api.com", "fonts.googleapis.com",
     // documentation placeholders and test fixtures
     "example.com", "yourwebsite.com", "yourorg.com", "test.supabase.co",
-    "a.test", "b.test", "i.test", "x.test", "cdn.test",
+    "a.test", "b.test", "i.test", "x.test", "cdn.test", "example.test",
 ]);
 
-/** Every https host referenced anywhere under src/, excluding tests. */
+/**
+ * Every https host referenced anywhere under src/.
+ *
+ * ⚠️ TESTS INCLUDED, whatever this comment used to claim. It said "excluding
+ * tests" while the grep below scanned all of src — which is why the fixture
+ * hosts above (a.test, b.test, cdn.test …) had to be listed one by one by
+ * people who presumably read the comment first.
+ *
+ * 🔑 Left scanning tests on purpose. A fixture host is cheap to declare, and
+ * narrowing the sweep to make one test quieter is how a guard stops guarding.
+ */
 function hostsInSource(): string[] {
     const out = execSync(
         `grep -rhoE 'https://[a-zA-Z0-9.-]+\\.[a-z]{2,}' src --include='*.ts' --include='*.tsx' || true`,

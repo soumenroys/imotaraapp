@@ -68,7 +68,8 @@ export type PictureSource = {
 };
 
 export type RenderFailure = {
-  /** 404 nothing to draw · 422 the recipe or the words cannot make one · 502 fonts */
+  /** 404 nothing to draw · 422 the recipe or the words cannot make one · 502 the machinery
+   *  (fonts could not be fetched, or the encoder failed) ⇒ renderPostPictureJpeg. */
   status: 404 | 422 | 502;
   error: string;
 };
@@ -202,4 +203,55 @@ export async function renderPostPictureBytes(
   if (!rendered.ok) return rendered;
   const buf = await rendered.picture.response.arrayBuffer();
   return { ok: true, bytes: new Uint8Array(buf) };
+}
+
+/**
+ * The same picture again, as JPEG.
+ *
+ * 🔴 NOT A PREFERENCE — INSTAGRAM TAKES NOTHING ELSE. `ImageResponse` emits
+ * PNG and has no format option (confirmed in this version's own docs:
+ * node_modules/next/dist/docs/01-app/03-api-reference/04-functions/image-response.md
+ * — "convert HTML and CSS into PNG", and the options list has no `format`).
+ * Instagram's Content Publishing API documents JPEG and rejects the rest, so
+ * without this step every Instagram post fails at the media-container call
+ * with an error about the image, which reads like a broken card rather than a
+ * wrong container.
+ *
+ * ⚠️ STILL ONE RENDERER. The pixels come from `renderPostPicture` exactly as
+ * the admin preview and the Facebook upload do; only the container changes.
+ * ⛔ A second drawing path for Instagram would mean the card a reviewer
+ * approved and the card Instagram shows could differ, and nobody would find
+ * out from inside the admin.
+ *
+ * 🔑 Quality 92 and `chromaSubsampling: "4:4:4"`. The card is flat colour with
+ * type on it — the shape JPEG is worst at. Default subsampling smears coloured
+ * text edges, and on a 1080px square the wordmark is where it shows.
+ */
+export async function renderPostPictureJpeg(
+  post: PictureSource,
+): Promise<{ ok: true; bytes: Uint8Array } | { ok: false; failure: RenderFailure }> {
+  const png = await renderPostPictureBytes(post);
+  if (!png.ok) return png;
+  try {
+    // ⚠️ Imported here rather than at the top: sharp is a native module, and
+    // the admin preview and the Facebook path have no reason to load it.
+    const sharp = (await import("sharp")).default;
+    const jpeg = await sharp(Buffer.from(png.bytes))
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: 92, chromaSubsampling: "4:4:4" })
+      .toBuffer();
+    return { ok: true, bytes: new Uint8Array(jpeg) };
+  } catch (e) {
+    return {
+      ok: false,
+      failure: {
+        // ⚠️ 502, not 422: the recipe and the words were fine — the machinery
+        // underneath them failed, and the remedy is not to edit the post.
+        status: 502,
+        error:
+          `The card was drawn but could not be converted to JPEG (${(e as Error).message}). ` +
+          `⚠️ Instagram accepts no other format, so nothing was posted.`,
+      },
+    };
+  }
 }

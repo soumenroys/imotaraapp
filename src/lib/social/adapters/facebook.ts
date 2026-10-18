@@ -24,7 +24,14 @@
  */
 const DEFAULT_VERSION = "v26.0";
 
-function graph(path: string): string {
+/**
+ * ⚠️ EXPORTED so the Instagram adapter uses the SAME version pin. Instagram's
+ * API is served by graph.facebook.com too, and a second copy of the version
+ * string is a second thing to remember when Meta retires one — on a failure
+ * mode that reads as "that object does not exist" rather than "wrong version"
+ * ⇒ trap_an_unknown_graph_version_reads_as_a_node_id.
+ */
+export function graph(path: string): string {
   const version = process.env.FACEBOOK_GRAPH_VERSION?.trim() || DEFAULT_VERSION;
   return `https://graph.facebook.com/${version}/${path}`;
 }
@@ -161,7 +168,7 @@ export function classifyGraphError(err: GraphError): { kind: FacebookFailure; me
  * from, it expires on its own schedule, and deriving it costs one request that
  * the publish was going to make anyway.
  */
-async function pageAccessToken(args: {
+export async function pageAccessToken(args: {
   token: string;
   pageId: string;
   fetchImpl?: typeof fetch;

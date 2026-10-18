@@ -289,6 +289,33 @@ export function headlineFromBody(body: string, maxChars = 64): string | null {
 }
 
 /**
+ * The headline a card should actually carry.
+ *
+ * 🔴 THE SUBJECT WAS WRITTEN TO BE THIS AND WAS BEING THROWN AWAY.
+ *
+ * `writer.ts` instructs the model: *"subject is for our records and for the
+ * headline on the picture: a short phrase, under sixty characters"*. The gate
+ * reads it — `checkVoice(`${subject}\n${body}`)` — so it is as safe to publish
+ * as the body. And then the renderer ignored it and used the body's opening
+ * sentence, which nothing had ever asked to be short.
+ *
+ * ⚠️ So the card disappeared exactly when the writing was good: the 18 Oct
+ * content rules push for a specific, concrete opening line, the first one
+ * written under them ran to 160 characters, and the post went out as grey text
+ * in a feed of bold graphics.
+ *
+ * ⛔ THE RULES THAT MATTER ARE UNTOUCHED. Nothing is invented — both candidates
+ * are words the gate has already read. Nothing is truncated — an over-long
+ * subject falls through to the body, and an over-long body still returns null
+ * and the post goes out as text.
+ */
+export function headlineFor(subject: string, body: string, maxChars = 64): string | null {
+  const fromSubject = subject?.trim().replace(/\s+/g, " ").replace(/[.]$/, "") ?? "";
+  if (fromSubject && [...fromSubject].length <= maxChars) return fromSubject;
+  return headlineFromBody(body, maxChars);
+}
+
+/**
  * The line under the headline: what the body says after its opening sentence.
  *
  * 🔴 BOTH RENDER ROUTES CALLED compose WITH THE HEADLINE ALONE. composePicture
@@ -310,16 +337,28 @@ export function headlineFromBody(body: string, maxChars = 64): string | null {
  * returning nothing is the better failure: the card is then exactly what every
  * card has been until now.
  */
-export function supportFromBody(body: string, maxChars = 150): string | null {
+export function supportFromBody(
+  body: string,
+  maxChars = 150,
+  /**
+   * ⚠️ Which sentence to start from.
+   *
+   * 🔑 It was always 1 — skip the opening, because the opening WAS the
+   * headline. Now that the headline comes from the subject, starting at 1
+   * means the post's strongest line never appears on the card at all, so the
+   * caller says where to begin rather than this guessing.
+   */
+  from = 1,
+): string | null {
   const sentences = body
     .trim()
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
     .filter(Boolean);
-  if (sentences.length < 2) return null;
+  if (sentences.length <= from) return null;
 
   let out = "";
-  for (const s of sentences.slice(1)) {
+  for (const s of sentences.slice(from)) {
     const next = out ? `${out} ${s}` : s;
     if ([...next].length > maxChars) break;
     out = next.replace(/\s+/g, " ");

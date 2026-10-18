@@ -281,11 +281,18 @@ async function buildPicture(
   notes.push(...picked.relaxed);
 
   /**
-   * The QR, only where the channel earns one.
+   * The QR, on every channel whose spec asks for one ⇒ platforms.ts.
    *
-   * ⛔ Not on X or Instagram: there the image is a thumbnail in a feed, on the
-   * same phone that would have to scan it. A code there is decoration
-   * pretending to be a function, and it costs space the words need.
+   * 🔴 THIS COMMENT SAID "⛔ Not on X or Instagram" AND THE DATA SAID
+   * OTHERWISE. My reasoning was that a square in a phone feed is on the same
+   * phone that would have to scan it; the owner overruled it, `qr` was set
+   * true on all five channels, and the comment was left behind — so the file
+   * read as if a rule were in force that nothing enforced.
+   *
+   * ⚠️ Same shape as the eight screens that said "nothing publishes yet" an
+   * hour after it did ⇒ trap_a_sentence_that_states_the_world_goes_stale. A
+   * comment that states the current configuration goes stale exactly like a
+   * banner that states it.
    *
    * ⚠️ A failure to generate it must not lose the picture — a card without a
    * code is a card; no card at all is a text post nobody asked for.

@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
 
   const { data: due, error } = await db
     .from("social_posts")
-    .select("id, platform, language, body, media_kind, visual_recipe, attempts, scheduled_for")
+    .select("id, platform, language, subject, body, media_kind, visual_recipe, attempts, scheduled_for")
     .eq("status", "approved")
     // ⚠️ `scheduled_for` null means "as soon as it is approved" ⇒ the schema.
     .or(`scheduled_for.is.null,scheduled_for.lte.${now.toISOString()}`)
@@ -173,6 +173,9 @@ export async function GET(req: NextRequest) {
       const rendered = await renderPostPictureBytes({
         platform,
         language: post.language as string,
+        // ⛔ The card's headline ⇒ headlineFor. Omitting it here and not in the
+        // admin would mean the published card differs from the one approved.
+        subject: post.subject as string | null,
         body: post.body as string,
         media_kind: post.media_kind as string | null,
         visual_recipe: post.visual_recipe,

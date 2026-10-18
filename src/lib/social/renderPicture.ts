@@ -17,7 +17,7 @@ import { createElement, type ReactElement } from "react";
 import { composePicture, type Node } from "@/lib/social/compose";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
-import { headlineFromBody, supportFromBody, recipeHash, type Recipe } from "@/lib/social/visualRecipe";
+import { headlineFor, supportFromBody, recipeHash, type Recipe } from "@/lib/social/visualRecipe";
 
 /** The tree from compose.ts, as React elements. ⚠️ Keys, because Satori
  *  renders a real React tree and an unkeyed list warns on every render. */
@@ -60,6 +60,8 @@ async function loadFont(url: string): Promise<ArrayBuffer> {
 export type PictureSource = {
   platform: string;
   language: string;
+  /** ⚠️ Needed now: it is the card's headline ⇒ headlineFor. */
+  subject?: string | null;
   body: string;
   media_kind: string | null;
   visual_recipe: unknown;
@@ -100,10 +102,16 @@ export async function renderPostPicture(
     hash: stored.hash ?? recipeHash(stored as Omit<Recipe, "hash">),
   };
 
-  // ⛔ The headline is re-derived from the post's own body, not stored
-  // separately. If the words were edited, the picture follows them — so a
-  // picture can never show a sentence the gate did not read at approval.
-  const headline = headlineFromBody(post.body);
+  /**
+   * ⛔ Re-derived from the post's own words, never stored separately — if the
+   * words are edited the picture follows them, so a card can never show a
+   * sentence the gate did not read at approval.
+   *
+   * 🔑 The SUBJECT first, because it was written to be this ⇒ headlineFor.
+   * Using the body's opening sentence meant the card vanished precisely when
+   * the opening was good and long.
+   */
+  const headline = headlineFor(post.subject ?? "", post.body);
   if (!headline) {
     return {
       ok: false,
@@ -131,9 +139,18 @@ export async function renderPostPicture(
     picture = composePicture({
       recipe,
       headline,
-      // ⚠️ Derived here, exactly like the headline. Omitting it is what left
-      // every published card with one line and an empty upper third.
-      support: supportFromBody(post.body) ?? undefined,
+      /**
+       * ⚠️ Derived here, exactly like the headline. Omitting it is what left
+       * every published card with one line and an empty upper third.
+       *
+       * 🔑 FROM SENTENCE 0 when the headline came from the subject — otherwise
+       * the post's strongest line, its opening, appears nowhere on the card.
+       * ⛔ From sentence 1 when the headline IS the opening, or the card says
+       * the same thing twice.
+       */
+      support:
+        supportFromBody(post.body, 150, headline === (post.subject ?? "").trim() ? 0 : 1) ??
+        undefined,
       language: post.language,
       platform: post.platform,
       qrCodes,

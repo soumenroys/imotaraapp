@@ -39,6 +39,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     {
       platform: post.platform as string,
       language: post.language as string,
+      subject: post.subject as string | null,
       body: post.body as string,
       media_kind: post.media_kind as string | null,
       visual_recipe: post.visual_recipe,

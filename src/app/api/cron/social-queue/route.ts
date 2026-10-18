@@ -24,6 +24,54 @@ import {
   type ScheduleRow,
 } from "@/lib/social/store";
 import { markCronFired } from "@/lib/cron/heartbeat";
+import { pickRecipe, headlineFor } from "@/lib/social/visualRecipe";
+import { postsWantingACard, attachCard, type CardUpgrade } from "@/lib/social/store";
+
+/**
+ * ⚠️ One pass, small and bounded. ⛔ It never touches a published post and
+ * never changes a word — it only attaches a picture recipe to a post whose
+ * schedule asked for one and which could not have had one when it was written.
+ */
+async function giveMissingCards(deps: Awaited<ReturnType<typeof liveDeps>>): Promise<CardUpgrade[]> {
+  const out: CardUpgrade[] = [];
+  const posts = await postsWantingACard();
+  if (posts.length === 0) return out;
+
+  const used = await deps.usedRecipeHashes();
+  const palettes = await deps.recentPalettes();
+  const layouts = await deps.recentLayouts();
+
+  for (const p of posts) {
+    // ⛔ Still derived from the post's own words, never invented.
+    if (!headlineFor(p.subject ?? "", p.body)) {
+      out.push({ id: p.id, subject: p.subject, result: "still-no-headline" });
+      continue;
+    }
+    const picked = pickRecipe({
+      language: p.language,
+      usedHashes: used,
+      recentPalettes: palettes,
+      recentLayouts: layouts,
+      rng: deps.rng,
+    });
+    if (!picked.ok) {
+      out.push({ id: p.id, subject: p.subject, result: "refused", detail: picked.reason });
+      continue;
+    }
+    const done = await attachCard(p, picked.recipe);
+    if (!done.ok) {
+      out.push({ id: p.id, subject: p.subject, result: "refused", detail: done.reason });
+      continue;
+    }
+    // ⚠️ Kept in step within the run, so two posts in one pass cannot be
+    // handed the same recipe before the register has caught up.
+    used.add(picked.recipe.hash);
+    palettes.unshift(picked.recipe.palette);
+    layouts.unshift(picked.recipe.layout);
+    out.push({ id: p.id, subject: p.subject, result: "given" });
+  }
+  return out;
+}
 import { publishingSentence } from "@/lib/social/platforms";
 
 export const maxDuration = 300;
@@ -57,12 +105,31 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  const deps = await liveDeps();
+
+  /**
+   * 🔴 GIVE QUEUED POSTS THE CARD THEY CAN NOW HAVE, before anything else.
+   *
+   * `media_kind` is frozen when a post is written, and the card rules change.
+   * On 18 Oct the headline moved from the body's opening sentence to the
+   * subject — and every post already queued stayed cardless, so the first one
+   * to publish went out as plain text ⇒ src/lib/social/store.ts.
+   *
+   * ⛔ Deliberately HERE and not in the publisher. Claiming a recipe can fail
+   * against a unique index, and the publish path is the one thing in this
+   * feature that cannot be undone; it does not need another way to go wrong a
+   * second before it posts.
+   *
+   * ⚠️ Runs even when no schedule is due — a quiet Sunday is exactly when the
+   * backlog should be repaired.
+   */
+  const upgrades = await giveMissingCards(deps);
+
   const due = await dueSchedules(now);
   if (due.length === 0) {
-    return NextResponse.json({ ran: true, due: 0, at: now.toISOString() });
+    return NextResponse.json({ ran: true, due: 0, cards: upgrades, at: now.toISOString() });
   }
 
-  const deps = await liveDeps();
   const outcomes: Outcome[] = [];
   const slot = new Date(now.getTime() + LEAD_MINUTES * 60_000).toISOString();
 
@@ -136,6 +203,7 @@ export async function GET(req: NextRequest) {
     // feature that is working end to end.
     // ⚠️ Derived ⇒ publishingSentence. This said "Phase 1 does not publish"
     // for an hour after the publisher went live.
+    cards: upgrades,
     publishing:
       approved > 0
         ? `${approved} post(s) are marked approved. ${publishingSentence()}`

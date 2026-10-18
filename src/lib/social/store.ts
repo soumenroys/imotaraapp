@@ -13,6 +13,8 @@
 
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { RECENT_WINDOW } from "@/lib/social/visualRecipe";
+import { wantsPicture } from "@/lib/social/pipeline";
+import type { ContentType } from "@/lib/social/contentTypes";
 import type { GateOverlay } from "@/lib/social/voiceGate";
 import type { PipelineDeps, PreparedPost, ScheduleShape } from "@/lib/social/pipeline";
 import { writeWithModel } from "@/lib/social/writer";
@@ -355,4 +357,102 @@ export async function alreadyWrittenFor(
     .eq("scheduled_for", scheduledFor)
     .limit(1);
   return (data ?? []).length > 0;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Giving a queued post the card it can now have
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 🔴 `media_kind` IS FROZEN AT WRITE TIME, AND THE CARD RULES CHANGE.
+ *
+ * On 18 Oct the headline started coming from the subject rather than the
+ * body's opening sentence ⇒ src/lib/social/visualRecipe.ts. Every post already
+ * in the queue had been composed under the old rule, had failed to produce a
+ * headline, and carried `media_kind: "none"` — so fixing the renderer changed
+ * nothing for them, and the first post to publish went out as plain text into
+ * a feed of bold graphics.
+ *
+ * ⚠️ I patched four of them with a one-off script. That worked and left the
+ * owner unable to do the same thing — the same "dependency, not a feature"
+ * problem as the missing reschedule control.
+ *
+ * ⛔ AND IT DOES NOT BELONG IN THE PUBLISHER. Composing a card claims a recipe
+ * against a unique index, which can fail; the publish path is the one place in
+ * this feature that cannot be undone, and it does not need another way to go
+ * wrong a second before it posts. The queue cron already holds the recipe
+ * register, so it does this.
+ */
+export type CardUpgrade = { id: string; subject: string; result: "given" | "still-no-headline" | "refused"; detail?: string };
+
+/** Posts that are queued, have no card, and belong to a schedule that wanted one. */
+export async function postsWantingACard(): Promise<
+  { id: string; subject: string; body: string; language: string; schedule_id: string | null }[]
+> {
+  const db = getSupabaseAdmin();
+  const { data: posts } = await db
+    .from("social_posts")
+    .select("id, subject, body, language, schedule_id, media_kind, visual_recipe, status")
+    .in("status", ["needs_review", "approved"])
+    .eq("media_kind", "none")
+    .is("visual_recipe", null)
+    .limit(50);
+
+  const rows = (posts ?? []) as { id: string; subject: string; body: string; language: string; schedule_id: string | null }[];
+  if (rows.length === 0) return [];
+
+  // ⚠️ The post row does not carry the content type — the SCHEDULE does. A
+  // post from a text-only schedule must not sprout a card it was never meant
+  // to have.
+  const ids = [...new Set(rows.map((r) => r.schedule_id).filter(Boolean))] as string[];
+  if (ids.length === 0) return [];
+  const { data: schedules } = await db
+    .from("social_schedules")
+    .select("id, content_type")
+    .in("id", ids);
+
+  const wants = new Map((schedules ?? []).map((s) => [s.id as string, s.content_type as string]));
+  return rows.filter((r) => r.schedule_id && wantsPicture(wants.get(r.schedule_id) as ContentType));
+}
+
+/**
+ * Claim a recipe and attach it to a post.
+ *
+ * ⛔ The claim goes through the SAME unique index the pipeline uses, so a
+ * recipe still cannot come round twice — and a post is only updated once its
+ * recipe is safely claimed, never the other way round.
+ */
+export async function attachCard(
+  post: { id: string; schedule_id: string | null },
+  recipe: { hash: string; layout: string; palette: string; typeTreatment: string; motif: string; script: string },
+): Promise<{ ok: boolean; reason?: string }> {
+  const db = getSupabaseAdmin();
+  const claim = await db.from("social_visuals_used").insert({
+    recipe_hash: recipe.hash,
+    layout: recipe.layout,
+    palette: recipe.palette,
+    type_treatment: recipe.typeTreatment,
+    motif: recipe.motif,
+    script: recipe.script,
+    schedule_id: post.schedule_id,
+    post_id: post.id,
+  });
+  if (claim.error) {
+    const duplicate = claim.error.code === "23505" || /duplicate key/i.test(claim.error.message);
+    return {
+      ok: false,
+      reason: duplicate
+        ? "Another run claimed that picture recipe first."
+        : `The picture register refused the entry: ${claim.error.message}`,
+    };
+  }
+
+  const { error } = await db
+    .from("social_posts")
+    .update({ media_kind: "graphic", visual_recipe: recipe, updated_at: new Date().toISOString() })
+    .eq("id", post.id)
+    // ⛔ Only while it is still cardless. A concurrent run must not overwrite
+    // a recipe that was just attached.
+    .eq("media_kind", "none");
+  return error ? { ok: false, reason: error.message } : { ok: true };
 }

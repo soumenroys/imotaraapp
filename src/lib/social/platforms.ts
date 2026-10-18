@@ -128,19 +128,48 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     hashtags: 5,
     emoji: 2,
     linksInBody: false,
+    /**
+     * 🔑 WRITTEN FOR WHAT INSTAGRAM ACTUALLY REWARDS, not for what a caption
+     * looks like. The owner's standing rule, 18 Oct: every post is customised
+     * to its channel's audience and to what that platform ranks on
+     * ⇒ feedback_social_content_standing_rules.
+     *
+     * ⚠️ Instagram ranks on SAVES and SHARES far more than on likes. A caption
+     * worth keeping beats a caption worth agreeing with — which, for this
+     * product, is the easier of the two to write honestly.
+     */
     voice:
-      "The picture carries it and the caption follows. One line that makes somebody look again, " +
-      "then one that says what it is. ⚠️ The first 125 characters are all most people see, so the " +
-      "post cannot depend on its second half.",
+      "The picture carries it and the caption follows. ⚠️ The first 125 characters are all most " +
+      "people see before “more”, so the post cannot depend on its second half — open on the thing " +
+      "itself, never on a wind-up. " +
+      "🔑 Write something worth SAVING rather than worth agreeing with: a specific feeling named " +
+      "precisely, a word somebody will want to look up again, a sentence a person might screenshot " +
+      "and send to one other person. That is what this channel ranks on, and it is also the only " +
+      "kind of post this product should be making. " +
+      "⛔ No “link in bio” — there is no link to go to and saying it trains people to ignore you. " +
+      "⚠️ Tags at the END, specific ones a real person searches; never a wall, and never a tag " +
+      "about a condition somebody might be living with.",
     // ⚠️ I had this off, reasoning that a square in a phone feed is on the
     // same phone that would scan it. The owner wants the codes on posts, and
     // they are right that a card without them gives a reader nowhere to go.
     // The labels are what make three codes worth the space.
     qr: true,
     canPublish: false,
+    /**
+     * ⚠️ WHAT IS ACTUALLY LEFT, as of 18 Oct — the account itself is ready.
+     * `@imotaraofficial` is linked to the Page and is the BIGGER audience of
+     * the two (81 followers against the Page's 51). What is missing is a token
+     * carrying `instagram_basic` + `instagram_content_publish`, and the
+     * publicly fetchable card URL that Instagram requires.
+     *
+     * 🔴 AND THE ONE THAT IS NOT A PERMISSION. Instagram has no byte upload:
+     * it is handed a URL and fetches the image ITSELF, unauthenticated. The
+     * Facebook path — render the card and upload the bytes — simply does not
+     * exist here ⇒ src/lib/social/cardUrl.ts.
+     */
     blockedBy:
-      "Instagram publishing is a separate permission set from the Page token, and the account only " +
-      "joined the business portfolio on 17 Oct.",
+      "A token with instagram_basic + instagram_content_publish, and a publicly fetchable card URL " +
+      "— Instagram fetches the image itself and cannot be handed bytes.",
   },
 
   x: {

@@ -625,7 +625,7 @@ async function readMetric(
   metric: string,
   extra: string,
   token: string,
-): Promise<{ value: number | null; invalid: boolean; raw: unknown }> {
+): Promise<{ value: number | null; invalid: boolean; raw: unknown; error?: GraphError }> {
   const res = await doFetch(
     graph(`${encodeURIComponent(node)}/insights`) +
       `?metric=${metric}${extra}&access_token=${encodeURIComponent(token)}`,
@@ -636,9 +636,18 @@ async function readMetric(
     error?: GraphError;
   };
   if (json.error) {
-    // 🔑 "not a metric" is retirement; anything else is a real problem.
+    /**
+     * 🔴 "NOT A METRIC" IS RETIREMENT — TRY THE NEXT NAME. ANYTHING ELSE IS A
+     * REAL FAILURE AND MUST BE RETURNED, NOT SWALLOWED.
+     *
+     * ⛔ The first version of this returned `{ value: null, invalid: false }`
+     * for every other error, and the caller read that as "the metric answered
+     * and there was no data". A `(#190) This method must be called with a
+     * Page Access Token` therefore surfaced as a cheerful "Reach yesterday:
+     * unknown" — a real, fixable error reported as an empty number.
+     */
     const invalid = /valid insights metric|nonexisting field/i.test(json.error.message ?? "");
-    return { value: null, invalid, raw: json };
+    return { value: null, invalid, raw: json, error: invalid ? undefined : json.error };
   }
   /**
    * ⚠️ THE LAST VALUE, not the first. Facebook returns a series and the most
@@ -666,16 +675,31 @@ export async function fetchPageInsights(args: {
   const since = new Date(until.getTime() - 86_400_000);
   const window = `&period=day&since=${Math.floor(since.getTime() / 1000)}&until=${Math.floor(until.getTime() / 1000)}`;
 
+  /**
+   * 🔴 INSIGHTS NEED THE PAGE'S OWN TOKEN, exactly like publishing does.
+   * Asked with the system user's token, Facebook answers `(#190) This method
+   * must be called with a Page Access Token` — which is nothing to do with
+   * the metric name, the scope or the Page id.
+   */
+  const page = await pageAccessToken({ token: args.token, pageId: args.pageId, fetchImpl: args.fetchImpl });
+  if (!page.ok) return page;
+
   const tried: string[] = [];
   const raw: Record<string, unknown> = {};
+  let failure: GraphError | undefined;
 
-  /** First name that ANSWERS wins; retired names are skipped and recorded. */
+  /** First name that ANSWERS wins; retired names are skipped and recorded.
+   *  ⛔ A non-retirement error stops the search and is reported. */
   const firstThatWorks = async (names: string[]) => {
     for (const metric of names) {
       tried.push(metric);
       try {
-        const got = await readMetric(doFetch, args.pageId, metric, window, args.token);
+        const got = await readMetric(doFetch, args.pageId, metric, window, page.token);
         raw[metric] = got.raw;
+        if (got.error) {
+          failure = got.error;
+          return null;
+        }
         if (!got.invalid) return { metric, value: got.value };
       } catch (e) {
         return { metric, value: null, network: (e as Error).message };
@@ -687,6 +711,10 @@ export async function fetchPageInsights(args: {
   try {
     const reach = await firstThatWorks(PAGE_REACH_METRICS);
     const views = await firstThatWorks(PAGE_VIEW_METRICS);
+
+    // ⛔ A real error wins over the retirement message: telling somebody to
+    // update a metric list when the token is wrong is the wrong afternoon.
+    if (failure) return { ok: false, ...classifyGraphError(failure) };
 
     if (!reach && !views) {
       return {
@@ -720,11 +748,22 @@ export async function fetchPostImpressions(args: {
   fetchImpl?: typeof fetch;
 }): Promise<{ ok: true; impressions: number | null; metric: string | null } | { ok: false; kind: FacebookFailure; message: string }> {
   const doFetch = args.fetchImpl ?? fetch;
+  /**
+   * ⚠️ The Page token again. A post's id is `{pageId}_{postId}`, so the page
+   * is derivable from it rather than passed in separately — one less argument
+   * for a caller to get wrong.
+   */
+  const pageId = args.postId.split("_")[0];
+  const page = await pageAccessToken({ token: args.token, pageId, fetchImpl: args.fetchImpl });
+  if (!page.ok) return page;
+
   const tried: string[] = [];
   try {
     for (const metric of POST_VIEW_METRICS) {
       tried.push(metric);
-      const got = await readMetric(doFetch, args.postId, metric, "", args.token);
+      const got = await readMetric(doFetch, args.postId, metric, "", page.token);
+      // ⛔ Same rule: retirement means try the next name, anything else is real.
+      if (got.error) return { ok: false, ...classifyGraphError(got.error) };
       if (!got.invalid) return { ok: true, impressions: got.value, metric };
     }
     return {

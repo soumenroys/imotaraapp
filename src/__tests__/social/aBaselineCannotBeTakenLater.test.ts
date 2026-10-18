@@ -151,3 +151,73 @@ describe("what it refuses to pretend", () => {
     expect(stats).toMatch(/\.limit\(50\)/);
   });
 });
+
+/**
+ * 🔴 A FALLBACK THAT SWALLOWS THE REAL ERROR IS WORSE THAN NO FALLBACK.
+ *
+ * The metric-name search returned `{ value: null, invalid: false }` for every
+ * error that was not "retired metric" — and the caller read that as "the
+ * metric answered and there was no data". So
+ * `(#190) This method must be called with a Page Access Token` surfaced in the
+ * admin as a cheerful "Reach yesterday: unknown".
+ *
+ * ⚠️ A real, fixable error reported as an empty number. Found by reading the
+ * stored `raw`, not by the message on screen — which is the whole reason the
+ * unparsed response is kept.
+ */
+describe("the metric search tells retirement apart from failure", () => {
+  const adapter = read("src/lib/social/adapters/facebook.ts");
+
+  it("⛔ returns a non-retirement error instead of a null value", () => {
+    expect(adapter).toMatch(/error: invalid \? undefined : json\.error/);
+  });
+
+  it("stops the search on a real error rather than walking the whole list", () => {
+    expect(adapter).toMatch(/if \(got\.error\) \{\s*\n\s*failure = got\.error;\s*\n\s*return null;/);
+  });
+
+  it("⛔ a real error wins over the 'update the metric list' message", () => {
+    const fn = adapter.slice(adapter.indexOf("export async function fetchPageInsights"));
+    const real = fn.indexOf("if (failure) return { ok: false, ...classifyGraphError(failure) }");
+    const retired = fn.indexOf("None of these are metrics Facebook still recognises");
+    /**
+     * ⚠️ `> -1` FIRST. `indexOf` returns −1 when the line is DELETED, and −1
+     * is less than any position — so the ordering assertion passed with the
+     * guard removed entirely. Second time today
+     * ⇒ trap_mutation_harness_can_report_false_caught.
+     */
+    expect(real, "the real-error guard is gone").toBeGreaterThan(-1);
+    expect(retired).toBeGreaterThan(-1);
+    expect(real).toBeLessThan(retired);
+  });
+
+  /**
+   * 🔑 Insights need the PAGE's own token, exactly like publishing. Asked with
+   * the system user's token, Facebook answers #190 — nothing to do with the
+   * metric, the scope, or the Page id.
+   */
+  it("mints a Page token before asking for insights", () => {
+    const page = adapter.slice(adapter.indexOf("export async function fetchPageInsights"));
+    const minted = page.indexOf("await pageAccessToken(");
+    expect(minted, "no Page token is minted at all").toBeGreaterThan(-1);
+    expect(minted).toBeLessThan(page.indexOf("firstThatWorks"));
+    const post = adapter.slice(adapter.indexOf("export async function fetchPostImpressions"));
+    expect(post).toMatch(/await pageAccessToken\(/);
+  });
+
+  /**
+   * ⛔ MINTING IT IS NOT USING IT. The first version of the test above passed
+   * with every metric still requested using the SYSTEM USER's token — which
+   * is the exact #190 this change exists to fix.
+   */
+  it("⛔ and actually passes that Page token to every metric call", () => {
+    expect(adapter).toMatch(/readMetric\(doFetch, args\.pageId, metric, window, page\.token\)/);
+    expect(adapter).toMatch(/readMetric\(doFetch, args\.postId, metric, "", page\.token\)/);
+    expect(adapter).not.toMatch(/readMetric\([^)]*args\.token\)/);
+  });
+
+  it("derives the page from the post id rather than taking it twice", () => {
+    // A post id is `{pageId}_{postId}` — one less argument to get wrong.
+    expect(adapter).toMatch(/const pageId = args\.postId\.split\("_"\)\[0\]/);
+  });
+});

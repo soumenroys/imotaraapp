@@ -80,6 +80,8 @@ export default function Today() {
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState<string>("");
   const [draft, setDraft] = useState<{ subject: string; body: string } | null>(null);
+  /** The post whose time is being changed, and the value in the field. */
+  const [when, setWhen] = useState<{ id: string; value: string } | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/social/posts?view=${view}`, { credentials: "same-origin" });
@@ -396,7 +398,68 @@ export default function Today() {
                               Put it back
                             </button>
                           )}
+
+                          {/* 🔴 THERE WAS NO WAY TO CHANGE A POST'S TIME. Six
+                              posts approved at once with no time all became due
+                              immediately, and spreading them took a direct
+                              database update — which left the owner unable to
+                              do the same thing. */}
+                          {post.status !== "published" && (
+                            <button type="button" disabled={busy === post.id}
+                              onClick={() => setWhen(when?.id === post.id ? null : {
+                                id: post.id,
+                                // ⚠️ A datetime-local input wants the LOCAL
+                                // wall clock with no zone, so the stored UTC
+                                // instant is shifted into the browser's zone
+                                // before it is shown — otherwise an Indian
+                                // 09:30 displays as 04:00 and looks wrong.
+                                value: post.scheduled_for
+                                  ? new Date(new Date(post.scheduled_for).getTime()
+                                      - new Date().getTimezoneOffset() * 60000)
+                                      .toISOString().slice(0, 16)
+                                  : "",
+                              })}
+                              className="min-h-11 rounded-lg border border-white/15 px-4 text-sm hover:bg-white/10 disabled:opacity-50">
+                              {when?.id === post.id ? "Close" : "Change the time"}
+                            </button>
+                          )}
                         </div>
+
+                      {when?.id === post.id && (
+                        <div className="space-y-2 rounded-lg border border-white/10 bg-black/20 p-3">
+                          <label htmlFor={`when-${post.id}`} className="block text-[11px] font-semibold text-zinc-400">
+                            When should it go out?
+                          </label>
+                          <input
+                            id={`when-${post.id}`}
+                            type="datetime-local"
+                            value={when.value}
+                            onChange={(e) => setWhen({ id: post.id, value: e.target.value })}
+                            className="min-h-10 w-full rounded-lg border border-white/15 bg-black/30 px-3 text-sm"
+                          />
+                          <p className="text-[11px] text-zinc-500">
+                            In your own time zone. ⚠️ Leave it empty for “as soon as it is approved” —
+                            which means a run within the minute, so several undated posts all go out
+                            at once.
+                          </p>
+                          <div className="flex gap-2">
+                            <button type="button" disabled={busy === post.id}
+                              onClick={() => void act(post.id, "reschedule", {
+                                // ⛔ null, not "", because null is the real
+                                // value for "as soon as approved" and an empty
+                                // string is not a date.
+                                scheduledFor: when.value ? new Date(when.value).toISOString() : null,
+                              })}
+                              className="min-h-9 rounded-lg bg-indigo-600 px-3 text-xs font-semibold hover:bg-indigo-500 disabled:opacity-40">
+                              Save the time
+                            </button>
+                            <button type="button" onClick={() => setWhen(null)}
+                              className="min-h-9 rounded-lg border border-white/15 px-3 text-xs font-semibold hover:bg-white/10">
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       </div>
                     )}
                   </li>

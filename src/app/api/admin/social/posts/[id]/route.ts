@@ -12,7 +12,7 @@ import { checkVoice, checkHouseStyle } from "@/lib/social/voiceGate";
 import { publishingSentence } from "@/lib/social/platforms";
 import { loadOverlay } from "@/lib/social/store";
 
-type Body = { action?: string; subject?: string; body?: string };
+type Body = { action?: string; subject?: string; body?: string; scheduledFor?: string | null };
 
 const APPROVABLE = ["needs_review"];
 
@@ -175,9 +175,78 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       return NextResponse.json({ post: data });
     }
 
+    /**
+     * 🔴 THERE WAS NO WAY TO CHANGE A POST'S TIME FROM THE PRODUCT.
+     *
+     * On 18 Oct six posts were approved at once with no scheduled time, which
+     * means "as soon as approved" — so unpausing would have put five on the
+     * Page inside a minute and the sixth a minute later. On a page with fifty
+     * followers that reads as spam.
+     *
+     * ⚠️ I spread them with a direct database update, which worked and was
+     * the wrong shape: it left the owner unable to do the same thing, and the
+     * next backlog would have needed me again.
+     */
+    case "reschedule": {
+      const raw = input.scheduledFor;
+
+      // ⛔ `null` is a real choice and means "as soon as it is approved" ⇒ the
+      // schema. It is NOT the same as leaving the field out, which is a
+      // request with nothing in it.
+      if (raw === undefined) {
+        return NextResponse.json(
+          { error: "Say when it should go out, or send null for “as soon as it is approved”." },
+          { status: 400 },
+        );
+      }
+
+      let when: string | null = null;
+      if (raw !== null) {
+        const parsed = new Date(raw);
+        if (Number.isNaN(parsed.getTime())) {
+          return NextResponse.json({ error: `“${raw}” is not a date I can read.` }, { status: 400 });
+        }
+        /**
+         * ⚠️ A PAST DATE IS ACCEPTED, DELIBERATELY, and said out loud. It
+         * means "send at the next run", which is a thing somebody legitimately
+         * wants — and refusing it would send them back to the database, which
+         * is what this whole case exists to prevent.
+         */
+        when = parsed.toISOString();
+      }
+
+      const { data, error } = await db
+        .from("social_posts")
+        .update({ scheduled_for: when, updated_at: now })
+        .eq("id", id)
+        // ⛔ Not a published one. Moving the date on something already public
+        // would rewrite a record of what went out in the company's name.
+        .in("status", ["drafting", "generating", "needs_review", "approved", "failed"])
+        .select("id, status, scheduled_for")
+        .single();
+
+      if (error || !data) {
+        return NextResponse.json(
+          { error: "That post cannot be rescheduled — it has already been published, or it is gone." },
+          { status: 409 },
+        );
+      }
+
+      const soon = when !== null && new Date(when).getTime() <= Date.now();
+      return NextResponse.json({
+        post: data,
+        note:
+          when === null
+            ? `Set to go out as soon as it is approved. ${publishingSentence()}`
+            : soon
+              ? `That time has already passed, so it will go at the next run. ${publishingSentence()}`
+              : `Set for ${new Date(when).toLocaleString()}. ${publishingSentence()}`,
+      });
+    }
+
     default:
       return NextResponse.json(
-        { error: "action must be approve, edit, skip or unapprove" },
+        { error: "action must be approve, edit, skip, unapprove or reschedule" },
         { status: 400 },
       );
   }

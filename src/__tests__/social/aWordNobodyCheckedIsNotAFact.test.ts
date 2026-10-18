@@ -104,9 +104,12 @@ describe("the claim check refuses what nobody can verify", () => {
    * mutation ⇒ trap_mutation_harness_can_report_false_caught.
    */
   it("⛔ catches a script the post never names as a language", () => {
-    const r = checkWordClaim("Some evenings you just feel অভিমান and could not explain it.", "en");
+    // ⚠️ Deliberately NOT অভিমান any more. That word was confirmed on 18 Oct,
+    // so using it here would have quietly turned this case into a test of
+    // nothing — the fixture has to be a word still outside the table.
+    const r = checkWordClaim("Some evenings you just feel உற்சாகம் and could not explain it.", "en");
     expect(r.ok).toBe(false);
-    expect(!r.ok && r.problem).toContain("অভিমান");
+    expect(!r.ok && r.problem).toContain("உற்சாகம்");
   });
 
   it("leaves an ordinary English post alone", () => {
@@ -126,15 +129,40 @@ describe("the claim check refuses what nobody can verify", () => {
     expect(checkWordClaim("আজ একটু ভালো লাগছে। কথা বলতে ইচ্ছে করছে।", "bn").ok).toBe(true);
   });
 
-  it("a confirmed word would be allowed through", () => {
-    // Simulated, because the real table is deliberately empty of confirmations.
-    const sample = UNTRANSLATABLE_WORDS[0];
-    const body = `The Bengali word ${sample.word} (${sample.roman}) means ${sample.meaning}.`;
-    const r = checkWordClaim(body, "en");
-    // ⚠️ Refused TODAY — and the message says the remedy is a confirmation,
-    // not a rewrite. That distinction is the whole design.
-    expect(r.ok).toBe(false);
-    expect(!r.ok && r.problem).toMatch(/confirmation|confirmed/i);
+  /**
+   * ✅ A CONFIRMED WORD GOES THROUGH. অভিমান was confirmed on 18 Oct by a
+   * Bengali speaker reading the gloss in the table.
+   *
+   * ⛔ Which is the half of this that is easy to get wrong: a check that
+   * refuses everything is not safe, it is broken, and somebody would turn it
+   * off within a week.
+   */
+  it("lets a confirmed word through", () => {
+    const w = vettedWords("bn").find((x) => x.roman === "abhimaan");
+    expect(w, "অভিমান is no longer confirmed — this test now proves nothing").toBeTruthy();
+    const body = `The Bengali word ${w!.word} (${w!.roman}) means ${w!.meaning}.`;
+    expect(checkWordClaim(body, "en").ok).toBe(true);
+    expect(checkVoice(body, "en").ok).toBe(true);
+  });
+
+  it("⛔ still refuses an entry that is in the table but unconfirmed", () => {
+    // 🔑 Being listed is not being vouched for. अपनापन is seeded and unsigned.
+    const unsigned = UNTRANSLATABLE_WORDS.find((w) => w.confirmedBy === null && w.language === "hi");
+    expect(unsigned, "no unconfirmed entry left to test with").toBeTruthy();
+    const body = `The Hindi word ${unsigned!.word} (${unsigned!.roman}) means ${unsigned!.meaning}.`;
+    expect(checkWordClaim(body, "en").ok).toBe(false);
+  });
+
+  /**
+   * ⛔ মায়া WAS DECLINED, not merely left unconfirmed — a Bengali speaker
+   * judged the philosophical "illusion" sense too close. It stays in the table
+   * so the next person does not have the same good idea again.
+   */
+  it("keeps the declined word listed, unconfirmed, with the reason", () => {
+    const maya = UNTRANSLATABLE_WORDS.find((w) => w.roman === "maya");
+    expect(maya, "the declined entry was deleted, so it will be proposed again").toBeTruthy();
+    expect(maya!.confirmedBy).toBeNull();
+    expect(maya!.note).toMatch(/DECLINED/);
   });
 });
 

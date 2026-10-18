@@ -63,9 +63,12 @@ export const UNTRANSLATABLE_WORDS: UntranslatableWord[] = [
     meaning:
       "the hurt pride you can only feel towards someone you love — wounded, a little sulky, and " +
       "waiting for them to notice without being told",
-    confirmedBy: null,
-    confirmedAt: null,
-    note: "The owner speaks Bengali and can confirm or correct this one directly.",
+    // ✅ CONFIRMED 18 Oct 2026 by Soumen Roy, who speaks Bengali, reading this
+    // exact gloss. ⛔ The meaning line above is what he confirmed — changing a
+    // word of it un-confirms it, because what was vouched for was this
+    // sentence and not the headword.
+    confirmedBy: "Soumen Roy",
+    confirmedAt: "2026-10-18",
   },
   {
     word: "মায়া",
@@ -74,9 +77,21 @@ export const UNTRANSLATABLE_WORDS: UntranslatableWord[] = [
     meaning:
       "the attachment that grows quietly out of being near someone or something for a long time, " +
       "and the ache that comes with it when you have to leave",
+    /**
+     * ⛔ DECLINED 18 Oct 2026, and kept here so nobody proposes it again.
+     *
+     * The concern was that মায়া also carries the philosophical sense of
+     * illusion, and the owner — a Bengali speaker — confirmed the overlap is
+     * real. A post explaining it as everyday attachment would read as half the
+     * word to anybody who knows the other half.
+     *
+     * ⚠️ Left in the table rather than deleted: a removed entry comes back,
+     * because the next person has the same good idea and no record of why it
+     * was dropped.
+     */
     confirmedBy: null,
     confirmedAt: null,
-    note: "⚠️ Also a philosophical term (illusion). The everyday sense is the one meant here — worth a speaker deciding whether the overlap makes it a bad choice.",
+    note: "⛔ DECLINED by a Bengali speaker on 18 Oct 2026 — the philosophical 'illusion' sense overlaps too much. Do not confirm this one.",
   },
   {
     word: "अपनापन",
@@ -103,7 +118,16 @@ export function vettedWords(language?: string): UntranslatableWord[] {
   );
 }
 
-/** Is the pool usable at all today? ⚠️ Said in the admin, not discovered. */
+/**
+ * Is the pool usable at all today? ⚠️ Said in the admin, not discovered.
+ *
+ * 🔑 ONE CONFIRMED WORD IS ONE POST, not an endless angle. The word is handed
+ * to the writer, so a second post from this pool would be about the same word
+ * — and the subject register rejects it for overlapping too far with one
+ * already used ⇒ src/lib/social/subjects.ts. That is the right failure: the
+ * angle quietly stops being available rather than publishing the same thought
+ * twice. ▶️ It gets legs when more entries are confirmed, not before.
+ */
 export function untranslatablePoolReady(): { ok: boolean; reason?: string } {
   const n = vettedWords().length;
   if (n > 0) return { ok: true };

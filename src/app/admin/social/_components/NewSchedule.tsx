@@ -19,6 +19,7 @@ import { animationWarning } from "@/lib/social/animationFacts";
 // ⛔ From contentTypes, not pipeline: pipeline reaches `crypto` through
 // visualRecipe, and this is a client component.
 import { CONTENT_TYPES, SHAPE_LABELS } from "@/lib/social/contentTypes";
+import { TOPIC_POOLS } from "@/lib/social/topicPools";
 
 type Language = { code: string; name: string; reviewed: boolean; mayPostUnattended: boolean; reason: string | null };
 
@@ -48,15 +49,15 @@ const PLATFORMS = PLATFORM_IDS.map((id) => ({
 
 const SHAPES = CONTENT_TYPES.map((id) => ({ id, label: SHAPE_LABELS[id] }));
 
-const POOLS = [
-  { id: "languages", label: "The 22 languages" },
-  { id: "privacy", label: "Privacy, and what stays on the device" },
-  { id: "voice", label: "Talking rather than typing" },
-  { id: "offline", label: "Working without signal" },
-  { id: "limits", label: "What it is not" },
-  { id: "organisations", label: "For organisations" },
-  { id: "quiet-hours", label: "The hours nobody staffs" },
-];
+/**
+ * 🔴 THIS WAS HAND-WRITTEN, one line below the comment explaining why the
+ * SHAPES list beside it is not. Adding a pool to the writer would have left it
+ * invisible here — the same defect as `short_video`, in the same file, with
+ * its own post-mortem directly above it.
+ * ⇒ src/lib/social/topicPools.ts now has no dependencies, so this can simply
+ * read it.
+ */
+const POOLS = TOPIC_POOLS.map((p) => ({ id: p.id, label: p.label }));
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 

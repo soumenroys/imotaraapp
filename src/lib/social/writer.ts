@@ -26,14 +26,42 @@ import type { WriteRequest, Written } from "@/lib/social/pipeline";
  * thinking, and no abusive words. Turned into things a writer can actually do.
  */
 const VOICE = `
+THE FIRST LINE IS THE WHOLE POST
+
+Almost nobody sees the second line. Every one of these channels folds a post
+after a sentence or two, and the reader decides there whether to open it.
+
+- Open on the most specific, most concrete thing you have. Not the setup to it.
+- ⛔ Never clear your throat first. No "In today's world", no "We all know
+  that", no "Let's be honest", no defining a word before using it.
+- The first sentence must make sense standing completely alone, and it must
+  leave the reader wanting the next one. If it reads like an introduction,
+  delete it and start at the second sentence.
+- ⛔ Do not open by naming the product. Earn the reader's attention first; the
+  product can arrive in the middle or not at all.
+
+MAKE SOMEBODY CURIOUS
+
+- A specific, slightly surprising, completely true detail beats any claim.
+  A word from one language that English has no word for. An hour of the day.
+  Something the product deliberately refuses to do.
+- Leave one thing unexplained on purpose — the thing that makes a person look
+  us up rather than nod and scroll on.
+- ⛔ Curiosity is not withholding. Never tease a thing you will not deliver,
+  and never write a headline the body does not pay off.
+
 HOW TO WRITE
 
 - Write to one person. "You", never "users", never "our community".
 - Say one true thing and stop. No list of benefits. No three-part structure.
 - Leave room. A post that answers everything invites nothing. Where it is
-  honest to end open, end open — but never with a manufactured question like
-  "What do you think?" An open ending is a thought left standing, not a
-  question begged.
+  honest to end open, end open.
+- ONE real question is allowed, and only one, and only if the post earned it —
+  a question you would actually want the answer to, about the thing the post
+  is about. ⛔ Never a manufactured one: not "What do you think?", not "Can you
+  relate?", and never "Tag a friend", "Comment below", "Share if you agree" —
+  those are demoted by the platforms themselves, so they cost reach as well as
+  dignity. Most posts should end on a thought left standing, not a question.
 - Be generous. Credit the reader's intelligence. Say what the product does not
   do. Point to something useful even when it is not ours.
 - Earn the feeling instead of asking for it. Do not stage sympathy and do not
@@ -55,8 +83,28 @@ NEVER
   streak and no badge; the writing must not contradict that.
 - Guilt or shame aimed at the reader: "you owe yourself", "no excuses".
 - Belittling anyone — competitors, professionals, or anybody's way of coping.
-- Emoji. More than two hashtags. More than one link.
 - A testimonial, or a story about a person who does not exist.
+
+⛔ THE PHRASES THAT ANNOUNCE A MACHINE WROTE THIS
+
+Never use any of these, or anything built to the same pattern. They are not
+banned for being unfashionable — they are banned because each one fills the
+shape of a sentence without committing to anything, and a post that says
+nothing gets scrolled past:
+
+  "In today's fast-paced world" · "In a world where" · "We all know that"
+  "Let's face it" · "Let's be honest" · "Let's dive in" · "Picture this"
+  "At the end of the day" · "It's important to remember" · "Here's the thing"
+  "The truth is" · "That's where Imotara comes in"
+  "game-changer" · "unlock your" · "elevate your" · "embark on"
+  "navigate the journey" · "seamless experience" · "take it to the next level"
+  "Not just another..." · "More than just..." · "Whether you're X or Y"
+
+Also avoid the SHAPES that give it away, even with different words: three
+balanced clauses in a row, a sentence whose two halves mirror each other, and
+a neat summarising line at the end that repeats what you just said. Real
+writing is lopsided. Let one sentence be much shorter than the others. Begin
+a sentence with "And" or "But" if that is how it would be said out loud.
 `.trim();
 
 const FACTS = `
@@ -149,11 +197,30 @@ export function buildPrompt(req: WriteRequest): string {
            * which true thing is chosen, never who is welcome to read it.
            */
           `THIS ONE IS FOR ${spec.label.toUpperCase()}.\n${spec.voice}\n` +
-            `Keep the body under ${spec.limits.soft} characters — that is where this channel folds ` +
-            `it and the rest goes behind "see more". ` +
+            /**
+             * ⚠️ THE FOLD IS A REAL NUMBER AND IT IS SMALL — LinkedIn's is
+             * about 210 characters, Instagram's about 125. This used to tell
+             * the model LinkedIn folded at 1300, so posts were written past
+             * the fold with the instruction's blessing.
+             */
+            `This channel folds the post at about ${spec.limits.soft} characters — everything after ` +
+            `that is behind "see more" and most readers never open it. ⛔ So the first ` +
+            `${spec.limits.soft} characters have to work completely on their own. ` +
+            `The hard ceiling is ${spec.limits.hard}. ` +
             (spec.hashtags === 0
-              ? "Use no hashtags at all on this channel."
-              : `At most ${spec.hashtags} hashtag${spec.hashtags === 1 ? "" : "s"}, and none is usually better.`),
+              ? "Use no hashtags at all on this channel — they do nothing here and read as advertising. "
+              : `At most ${spec.hashtags} hashtag${spec.hashtags === 1 ? "" : "s"}, specific ones a real person searches for, placed at the end. `) +
+            (spec.emoji === 0
+              ? "No emoji."
+              : `At most ${spec.emoji} emoji, and only one a person would genuinely type — never decoration, and never beside a sentence about someone feeling bad.`),
+          "",
+          spec.linksInBody
+            ? "A single link is fine on this channel."
+            : "⛔ NO LINK IN THE BODY on this channel. It sends people off-platform, which costs the " +
+              "post most of its reach" +
+              (spec.id === "instagram" ? ", and Instagram does not make it clickable anyway. " : ". ") +
+              "The picture carries the codes and the profile carries the link — write as if the " +
+              "reader will look us up, not as if you must send them.",
           "",
           "⛔ Still for everyone. The channel changes the register, never the reader: no job title " +
             "addressed, no assumption about anybody's work, age, country or family.",

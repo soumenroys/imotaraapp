@@ -11,68 +11,14 @@
 
 import { createHash } from "crypto";
 
-export type TopicPool = {
-  id: string;
-  label: string;
-  /** The angle handed to the writer. Not a subject — a direction to find one in. */
-  angle: string;
-};
-
 /**
- * The pools a schedule can draw from.
- *
- * 🔑 Every one of these is something the product actually does or actually
- * refuses to do. ⛔ There is no "tips and inspiration" pool, because that is
- * where a brand with nothing to say ends up, and it is also where the claims
- * creep back in.
+ * 🔑 THE POOLS MOVED OUT ⇒ src/lib/social/topicPools.ts, because this file
+ * imports `crypto` and the schedule form therefore could not read them — so it
+ * kept a hand-written copy, which is exactly how `short_video` and
+ * `animated_gif` ended up unreachable. Re-exported here so every existing
+ * caller keeps working.
  */
-export const TOPIC_POOLS: TopicPool[] = [
-  {
-    id: "languages",
-    label: "The 22 languages",
-    angle:
-      "One language the product speaks, and what it means to think in it rather than translate into English. " +
-      "Name the language. Say something true about speaking it that a speaker would recognise.",
-  },
-  {
-    id: "privacy",
-    label: "Privacy, and what stays on the device",
-    angle:
-      "One specific thing about where a person's words go, or do not go. Concrete, checkable, no reassurance " +
-      "that is not backed by a setting or a policy line somebody could read.",
-  },
-  {
-    id: "voice",
-    label: "Talking rather than typing",
-    angle: "Why saying a thing out loud is different from writing it, and what the product does about that.",
-  },
-  {
-    id: "offline",
-    label: "Working without signal",
-    angle: "One thing that still works with no connection, and why that was worth building.",
-  },
-  {
-    id: "limits",
-    label: "What it is not",
-    angle:
-      "Something the product deliberately does not do, and the reason. ⛔ Not framed as modesty or as a " +
-      "humblebrag — as information a person deciding whether to use it would want.",
-  },
-  {
-    id: "organisations",
-    label: "For organisations",
-    angle:
-      "How a team or an NGO uses it, stated plainly. ⛔ Never addressed to a job title — see the audience " +
-      "rule; say the thing so that anybody reading it understands what it is.",
-  },
-  {
-    id: "quiet-hours",
-    label: "The hours nobody staffs",
-    angle: "Being available at a time when nothing else is, without dramatising it.",
-  },
-];
-
-export const TOPIC_POOL_IDS = TOPIC_POOLS.map((p) => p.id);
+export { TOPIC_POOLS, TOPIC_POOL_IDS, type TopicPool } from "@/lib/social/topicPools";
 
 /**
  * Normalise before hashing, so that trivial differences collide.

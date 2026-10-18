@@ -28,6 +28,28 @@ export type PlatformSpec = {
   limits: { hard: number; soft: number };
   /** How many hashtags are normal here. ⚠️ Not a licence — fewer is still better. */
   hashtags: number;
+  /**
+   * How many emoji the body may carry.
+   *
+   * 🔴 THIS USED TO BE ZERO EVERYWHERE, as house style rather than as a reason.
+   * The owner asked on 18 Oct for anything that costs reach to come out unless
+   * it is there for safety — and a total ban is a taste, not a safeguard. One
+   * is what a person types; a row of them is decoration, and decoration around
+   * a sentence about feeling bad reads as flippant.
+   */
+  emoji: number;
+  /**
+   * May a link sit in the body?
+   *
+   * 🔴 FALSE IS NOT A STYLE RULE — it is how these platforms work. Facebook and
+   * LinkedIn both demote a post that sends people off-platform, so a link in
+   * the body costs the post most of its distribution. ⛔ On Instagram a link in
+   * the caption is not even clickable: it is pure noise that buys nothing.
+   *
+   * ⚠️ Where this is false the destination still has somewhere to live — the
+   * composed picture carries the QR codes, and the profile carries the link.
+   */
+  linksInBody: boolean;
   /** The angle and register. ⛔ Never a segment. */
   voice: string;
   /** Whether the three QR codes go on this channel's picture. */
@@ -45,6 +67,8 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     picture: { width: 1200, height: 630, note: "the link-card size Facebook renders" },
     limits: { hard: 63206, soft: 500 },
     hashtags: 0,
+    emoji: 1,
+    linksInBody: false,
     voice:
       "Everyday register. Somebody is between other things — a queue, a sofa, a bus — so the post " +
       "has to be worth stopping for in one line. Concrete over abstract: a moment, an hour of the " +
@@ -60,8 +84,18 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     id: "linkedin",
     label: "LinkedIn Page",
     picture: { width: 1200, height: 627, note: "LinkedIn's own card ratio" },
-    limits: { hard: 3000, soft: 1300 },
-    hashtags: 2,
+    /**
+     * 🔴 `soft` WAS 1300 AND THAT WAS SIMPLY WRONG — and it was handed to the
+     * writer as a fact: "keep the body under 1300, that is where this channel
+     * folds it". LinkedIn folds at roughly **210 characters on desktop and
+     * ~140 on a phone**, not 1300. So every post was written past the fold
+     * with the instruction's blessing, and the only words most people ever saw
+     * were the first two lines nobody had been asked to make count.
+     */
+    limits: { hard: 3000, soft: 210 },
+    hashtags: 3,
+    emoji: 1,
+    linksInBody: false,
     voice:
       "The register of somewhere people are working, and an angle about what a thing means for " +
       "people at work or for the organisations they are in — the cost of a team with nowhere to " +
@@ -79,7 +113,13 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     label: "Instagram",
     picture: { width: 1080, height: 1080, note: "square; the feed crops anything else" },
     limits: { hard: 2200, soft: 125 },
-    hashtags: 2,
+    // ⚠️ Five, not two. Instagram is the one channel here where a handful of
+    // specific tags still reaches people who do not follow us — and the
+    // product's own subject matter supplies them honestly. ⛔ Not thirty: a
+    // wall of tags reads as spam and the platform treats it as such.
+    hashtags: 5,
+    emoji: 2,
+    linksInBody: false,
     voice:
       "The picture carries it and the caption follows. One line that makes somebody look again, " +
       "then one that says what it is. ⚠️ The first 125 characters are all most people see, so the " +
@@ -101,6 +141,10 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     picture: { width: 1600, height: 900, note: "16:9; X crops to it anyway" },
     limits: { hard: 280, soft: 280 },
     hashtags: 1,
+    emoji: 1,
+    // ⚠️ True here and nowhere else on this list: X does not punish an
+    // outbound link the way Meta and LinkedIn do.
+    linksInBody: true,
     voice:
       "One thought, finished, inside 280 characters. ⛔ No thread, no 'a 🧵', no hook that promises " +
       "a payoff further down. If it needs a second post it is the wrong thought for this channel.",
@@ -115,6 +159,10 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     picture: { width: 1280, height: 720, note: "the community-post and thumbnail ratio" },
     limits: { hard: 1500, soft: 300 },
     hashtags: 0,
+    emoji: 1,
+    // 🔑 These are people who already subscribed. A link is a service to them,
+    // not a leak of reach.
+    linksInBody: true,
     voice:
       "A community post, to people who already chose to be there. It can assume they know what " +
       "Imotara is, so it says something new rather than reintroducing it.",

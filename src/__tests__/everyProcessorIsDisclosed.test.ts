@@ -130,6 +130,27 @@ const BENIGN_HOSTS = new Set([
      * makes impractical once more than one script is verified.
      */
     "cdn.jsdelivr.net",
+    /**
+     * Facebook's Graph API, called SERVER-SIDE by the social scheduler
+     * ⇒ src/lib/social/adapters/facebook.ts.
+     *
+     * ✅ Benign, and again the reasoning is the point rather than the verdict:
+     * what travels to it is MARKETING COPY WE WROTE and a token belonging to
+     * Imotara's own business portfolio. No visitor IP, no reader's browser, no
+     * account holder's words, nothing from a conversation. It is the same
+     * relationship as a person posting to their own Page by hand.
+     *
+     * ⛔ IT STOPS BEING BENIGN THE MOMENT A POST CARRIES SOMETHING A USER
+     * WROTE. If the scheduler is ever asked to publish a quote from a
+     * conversation, a testimonial, a name, or anything a person typed into the
+     * product, that is a disclosure and this entry is wrong — move it to
+     * PROCESSOR_HOSTS and name it in the policy. The writer is forbidden from
+     * inventing a testimonial today, which is what keeps this line true.
+     *
+     * ⚠️ This test is also the thing that caught the host arriving at all: the
+     * adapter was written and pushed before anybody asked this question.
+     */
+    "graph.facebook.com",
     // consoles and status pages we link to in admin/docs
     "status.openai.com", "platform.openai.com", "aistudio.google.com",
     "console.cloud.google.com",

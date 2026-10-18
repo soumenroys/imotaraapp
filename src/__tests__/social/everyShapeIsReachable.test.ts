@@ -18,6 +18,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CONTENT_TYPES, SHAPE_LABELS } from "@/lib/social/contentTypes";
+import { TOPIC_POOLS, TOPIC_POOL_IDS } from "@/lib/social/topicPools";
 import { mediaKindFor, wantsAnimation, wantsPicture } from "@/lib/social/pipeline";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
@@ -76,6 +77,52 @@ describe("the form offers every shape", () => {
     expect(form).toContain("animationWarning");
     for (const ct of CONTENT_TYPES.filter(wantsAnimation))
       expect(form, `${ct} is never named in the form`).toContain(ct);
+  });
+});
+
+/**
+ * 🔴 AND THE SAME DEFECT WAS ALREADY SITTING ONE LINE BELOW THE FIX.
+ *
+ * `SHAPES` in NewSchedule is derived, with a post-mortem comment above it
+ * explaining why. Directly underneath, `POOLS` was hand-written — seven
+ * entries copied by hand, because `subjects.ts` imports `crypto` and a client
+ * component cannot read it. So adding a topic pool to the writer would have
+ * produced a pool no admin could ever pick: the identical failure, in the
+ * identical file, under its own warning.
+ *
+ * ⛔ Found by MUTATION, not by reading: replacing the derived list with a
+ * hand-written one broke no test at all ⇒ the fix is the same one that
+ * produced contentTypes.ts — a list with no dependencies, in its own module.
+ */
+describe("the form offers every topic pool", () => {
+  const form = read("src/app/admin/social/_components/NewSchedule.tsx");
+
+  it("⛔ builds its checkboxes from the shared list, not by hand", () => {
+    expect(form).toMatch(/const POOLS = TOPIC_POOLS\.map\(/);
+    expect(
+      /const POOLS = \[\s*\{/.test(form),
+      "POOLS has gone back to a hand-written list",
+    ).toBe(false);
+  });
+
+  it("every pool the writer can draw from is pickable, by id", () => {
+    // 🔑 The assertion that would have caught the original bug: not "is the
+    // list derived" but "can a person actually choose this one".
+    const picked = [...form.matchAll(/const POOLS = TOPIC_POOLS/g)];
+    expect(picked.length, "the form does not read the shared pools at all").toBe(1);
+    for (const p of TOPIC_POOLS) {
+      expect(p.id, "a pool with no id").toBeTruthy();
+      expect(p.label, `no label for the ${p.id} pool`).toBeTruthy();
+      expect(p.angle.length, `the ${p.id} pool has no angle for the writer`).toBeGreaterThan(40);
+    }
+  });
+
+  it("⛔ the validator accepts exactly the pools that exist", () => {
+    // The route filters submitted pools against TOPIC_POOL_IDS; a pool missing
+    // from that list is silently dropped on save rather than refused.
+    const route = read("src/app/api/admin/social/schedules/route.ts");
+    expect(route).toContain("TOPIC_POOL_IDS");
+    expect(new Set(TOPIC_POOL_IDS).size, "duplicate pool ids").toBe(TOPIC_POOLS.length);
   });
 });
 

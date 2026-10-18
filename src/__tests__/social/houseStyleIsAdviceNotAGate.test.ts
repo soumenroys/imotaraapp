@@ -17,26 +17,59 @@
 
 import { describe, it, expect } from "vitest";
 import { checkHouseStyle, checkVoice, PLATFORM_LIMITS } from "@/lib/social/voiceGate";
+import { PLATFORM_IDS } from "@/lib/social/platforms";
 
 describe("what it counts", () => {
-    it("counts emoji, which the house style forbids in the body", () => {
-        const r = checkHouseStyle("Somewhere to say how you actually feel 🙂", "facebook");
-        expect(r.emoji).toBe(1);
-        expect(r.ok).toBe(false);
-        expect(r.problems.join(" ")).toMatch(/emoji/i);
+    /**
+     * 🔑 THE RULES BECAME PER-CHANNEL ON 18 OCT. The owner asked for anything
+     * that costs reach and is not there for safety to come out, and the global
+     * values were costing it: no emoji anywhere, two hashtags everywhere (too
+     * few for Instagram, pointless on Facebook), one link allowed in a body
+     * where Meta and LinkedIn both demote it.
+     *
+     * ⛔ NOTHING IN `checkVoice` MOVED. The clinical vocabulary, the crisis
+     * language and the abuse lists are not style, and reach is not a reason to
+     * relax one of them — the last describe block in this file is what keeps
+     * that true.
+     */
+    it("allows the one emoji a person would type, and objects to decoration", () => {
+        const one = checkHouseStyle("Somewhere to say how you actually feel 🙂", "facebook");
+        expect(one.emoji).toBe(1);
+        expect(one.problems.join(" ")).not.toMatch(/emoji/i);
+
+        const several = checkHouseStyle("Somewhere to say how you feel 🙂✨💛", "facebook");
+        expect(several.emoji).toBe(3);
+        expect(several.problems.join(" ")).toMatch(/emoji/i);
     });
 
-    it("counts a multi-codepoint emoji as one", () => {
-        // ⚠️ A family or a flag is several codepoints. Counting characters
-        // instead of graphemes would report four emoji and read as a bug.
-        const r = checkHouseStyle("Hello 👩‍👩‍👧", "facebook");
-        expect(r.emoji).toBeGreaterThan(0);
-        expect(r.ok).toBe(false);
+    /**
+     * 🔴 THE OLD VERSION OF THIS TEST DID NOT TEST ITS OWN TITLE. It was called
+     * "counts a multi-codepoint emoji as one" and asserted only
+     * `toBeGreaterThan(0)` — which is true of three. It passed for weeks over
+     * a counter that reported 👩‍👩‍👧 as three joined people.
+     *
+     * ⛔ Harmless while the rule was "none", and a live defect the moment the
+     * rule became "at most one": the only posts it would have rejected are the
+     * ones using an emoji that names a family or a country.
+     */
+    it("counts a joined emoji as the one thing a reader sees", () => {
+        expect(checkHouseStyle("Hello 👩‍👩‍👧", "facebook").emoji, "ZWJ family").toBe(1);
+        expect(checkHouseStyle("Hello 👋🏽", "facebook").emoji, "skin tone modifier").toBe(1);
+        expect(checkHouseStyle("Hello 🇮🇳", "facebook").emoji, "regional indicator pair").toBe(1);
+        expect(checkHouseStyle("Hello 👩‍👩‍👧", "facebook").problems.join(" ")).not.toMatch(/emoji/i);
+        // ⚠️ And still counts three separate ones as three.
+        expect(checkHouseStyle("🙂✨💛", "facebook").emoji).toBe(3);
     });
 
-    it("allows up to two hashtags and objects to a third", () => {
-        expect(checkHouseStyle("A post #one #two", "linkedin").problems.join(" ")).not.toMatch(/hashtag/i);
-        expect(checkHouseStyle("A post #one #two #three", "linkedin").problems.join(" ")).toMatch(/hashtag/i);
+    it("counts hashtags against THIS channel's number, not one global number", () => {
+        // LinkedIn: three is normal, four is not.
+        expect(checkHouseStyle("A post #one #two #three", "linkedin").problems.join(" ")).not.toMatch(/hashtag/i);
+        expect(checkHouseStyle("A post #one #two #three #four", "linkedin").problems.join(" ")).toMatch(/hashtag/i);
+        // Instagram: five, because it is the one channel where tags still reach.
+        expect(checkHouseStyle("A post #a #b #c #d #e", "instagram").problems.join(" ")).not.toMatch(/hashtag/i);
+        // Facebook: none. ⚠️ Two hashtags used to pass here and did nothing but
+        // make the post look like an advert.
+        expect(checkHouseStyle("A post #one", "facebook").problems.join(" ")).toMatch(/hashtag/i);
     });
 
     it("counts a hashtag in a non-Latin script", () => {
@@ -47,11 +80,29 @@ describe("what it counts", () => {
         expect(r.ok).toBe(false);
     });
 
-    it("allows one link and objects to two", () => {
-        expect(checkHouseStyle("Read https://www.imotara.com today", "linkedin").links).toBe(1);
-        const two = checkHouseStyle("https://www.imotara.com and https://www.imotara.com/help", "linkedin");
+    /**
+     * 🔴 A LINK IN THE BODY IS A REACH DECISION, NOT A TIDINESS ONE. Facebook
+     * and LinkedIn demote a post that sends people off-platform, and Instagram
+     * does not make a caption link clickable at all — so the old "one link is
+     * fine" rule was quietly paying for nothing on three of the five channels.
+     */
+    it("refuses a body link where the platform charges for it, and allows one where it does not", () => {
+        for (const p of ["facebook", "linkedin", "instagram"]) {
+            const r = checkHouseStyle("Read https://www.imotara.com today", p);
+            expect(r.links, p).toBe(1);
+            expect(r.problems.join(" "), p).toMatch(/link/i);
+        }
+        expect(checkHouseStyle("Read https://www.imotara.com today", "x").problems.join(" ")).not.toMatch(/link/i);
+
+        const two = checkHouseStyle("https://www.imotara.com and https://www.imotara.com/help", "x");
         expect(two.links).toBe(2);
         expect(two.problems.join(" ")).toMatch(/link/i);
+    });
+
+    it("says that Instagram would not even make the link clickable", () => {
+        // ⚠️ The reason belongs in the message. "No links here" invites somebody
+        // to overrule it; "it is not clickable anyway" does not.
+        expect(checkHouseStyle("https://www.imotara.com", "instagram").problems.join(" ")).toMatch(/clickable/i);
     });
 
     it("counts characters by code point, not by UTF-16 unit", () => {
@@ -79,12 +130,33 @@ describe("what it counts", () => {
 });
 
 describe("the platform limits", () => {
+    /**
+     * 🔴 THIS LIST USED TO BE A SECOND COPY and it had already drifted: it
+     * carried no `youtube` row, so a YouTube post was the one kind that fell
+     * through `Object.hasOwn` and was never measured — which looks exactly
+     * like passing. It is now a view of PLATFORMS, and this test walks EVERY
+     * platform rather than a hand-written four.
+     */
     it("knows a hard ceiling and a fold point for every platform it may post to", () => {
-        for (const platform of ["facebook", "linkedin", "instagram", "x"]) {
+        for (const platform of PLATFORM_IDS) {
             const limit = PLATFORM_LIMITS[platform];
             expect(limit, `no limits for ${platform}`).toBeTruthy();
             expect(limit.soft).toBeLessThanOrEqual(limit.hard);
         }
+        expect(Object.keys(PLATFORM_LIMITS).sort()).toEqual([...PLATFORM_IDS].sort());
+    });
+
+    /**
+     * 🔴 LINKEDIN'S FOLD WAS RECORDED AS 1300 AND IT IS ABOUT 210. The number
+     * was not merely wrong in a table — it was handed to the writer as a fact
+     * ("that is where this channel folds it"), so posts were written past the
+     * fold with the instruction's blessing and the only words most people ever
+     * saw were two lines nobody had been asked to make count.
+     */
+    it("puts LinkedIn's fold where LinkedIn actually folds", () => {
+        expect(PLATFORM_LIMITS.linkedin.soft).toBeLessThan(400);
+        const pastTheFold = checkHouseStyle("a".repeat(600), "linkedin");
+        expect(pastTheFold.problems.join(" ")).toMatch(/see more/i);
     });
 
     it("distinguishes 'the platform will refuse this' from 'the reader sees see-more'", () => {
@@ -96,11 +168,63 @@ describe("the platform limits", () => {
         expect(refused.problems.join(" ")).toMatch(/will not accept/i);
     });
 
-    it("says nothing about length for an unknown platform rather than guessing", () => {
-        // ⛔ A made-up ceiling would either reject a valid post or let an
-        // invalid one through, and both are worse than silence.
+    /**
+     * ⛔ CHANGED DELIBERATELY ON 18 OCT. Silence used to be the answer for an
+     * unknown channel, on the reasoning that a made-up ceiling is worse than
+     * none. But silence here is indistinguishable from a clean post, and that
+     * is precisely how the missing `youtube` row hid: the honest answer is to
+     * say that nothing could be checked.
+     */
+    it("refuses to wave through a channel it does not know", () => {
         const r = checkHouseStyle("a".repeat(5000), "mastodon");
-        expect(r.problems.join(" ")).not.toMatch(/characters/i);
+        expect(r.ok).toBe(false);
+        expect(r.problems.join(" ")).toMatch(/not a channel this product knows/i);
+        // ⛔ And still invents no ceiling for it.
+        expect(r.problems.join(" ")).not.toMatch(/will not accept more than/i);
+    });
+});
+
+/**
+ * 🔑 "try to be more humanized than AI generated content" — the owner, 18 Oct.
+ *
+ * ⛔ A PROMPT CANNOT CARRY THAT ALONE. A model asked to sound human still
+ * reaches for these phrases, because they are the median of what it read. So
+ * the instruction is in the prompt AND the result is counted here, which is
+ * this codebase's standing division of labour ⇒ src/lib/social/writer.ts.
+ */
+describe("the phrases that announce a machine wrote it", () => {
+    it("catches the throat-clearing opener", () => {
+        const r = checkHouseStyle("In today's fast-paced world, everybody needs a moment.", "facebook");
+        expect(r.aiTells).toContain("in today's fast-paced world");
+        expect(r.problems.join(" ")).toMatch(/machine-written/i);
+    });
+
+    it("catches a curly apostrophe, which is what a model actually emits", () => {
+        // ⚠️ Without normalising, `it's` would never match `it’s` and the whole
+        // list would silently match nothing — worse than having no list.
+        expect(checkHouseStyle("Let’s be honest about this.", "facebook").aiTells).toContain("let's be honest");
+    });
+
+    it("catches engagement bait, which the platforms demote by policy", () => {
+        // 🔑 A reach rule, not a matter of taste.
+        expect(checkHouseStyle("Tag a friend who needs this.", "facebook").aiTells).toContain("tag a friend");
+    });
+
+    /**
+     * ⛔ NOT A LIST OF "AI WORDS". `delve`, `realm`, `tapestry` and the rest of
+     * that folklore are ordinary English. Banning real words makes the writing
+     * worse, which is the opposite of the point.
+     */
+    it("leaves ordinary English alone", () => {
+        const human =
+            "Most of the hard hours are not office hours. We delve into whatever you bring, in " +
+            "whichever of 22 languages you think in.";
+        expect(checkHouseStyle(human, "facebook").aiTells).toEqual([]);
+    });
+
+    it("is advice, not a gate — the voice check is untouched by it", () => {
+        const r = checkVoice("In today's world, here's the thing: at the end of the day, tag a friend.", "en");
+        expect(r.ok, "an AI-sounding post was REJECTED rather than flagged").toBe(true);
     });
 });
 

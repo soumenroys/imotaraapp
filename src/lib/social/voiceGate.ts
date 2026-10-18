@@ -18,6 +18,9 @@
 // day. Those are read by a person, which is the honest reason a draft waits.
 
 import { REVIEWED_LANGUAGES, isSupportedLanguage } from "@/lib/social/languages";
+// ⚠️ `platforms` has no imports of its own, so the gate stays as light as it
+// was. It is the single source for every per-channel number below.
+import { PLATFORMS, PLATFORM_IDS, type PlatformId } from "@/lib/social/platforms";
 
 export type GateListId = "clinical" | "abuse" | "careless";
 
@@ -554,50 +557,231 @@ export type HouseStyleResult = {
   emoji: number;
   hashtags: number;
   links: number;
-};
-
-/** Hard platform ceilings, and the soft point where a reader sees "see more". */
-export const PLATFORM_LIMITS: Record<string, { hard: number; soft: number }> = {
-  facebook: { hard: 63206, soft: 500 },
-  linkedin: { hard: 3000, soft: 1300 },
-  instagram: { hard: 2200, soft: 125 },
-  x: { hard: 280, soft: 280 },
+  /** Which machine-written tells were found, if any. */
+  aiTells: string[];
 };
 
 /**
- * The countable rules: no emoji in the body, at most two hashtags, one link,
- * and inside the platform's ceiling.
+ * 🔴 THE PHRASES THAT ANNOUNCE A MACHINE WROTE IT.
  *
- * Same house style the broadcast templates already enforce
- * ⇒ broadcast_templates_house_style. ⚠️ Kept out of `checkVoice` because these
- * are advice a person may knowingly overrule, while the gate's lists are not.
+ * The owner, 18 Oct: *"try to be more humanized than AI generated content"*.
+ * ⛔ That cannot live only in the prompt. A model asked to sound human still
+ * reaches for these, because they are the median of what it was trained on —
+ * and this codebase's own rule is that a prompt is an instruction while
+ * anything that must be true is checked afterwards ⇒ src/lib/social/writer.ts.
+ *
+ * ⚠️ WHAT THESE HAVE IN COMMON, so the list can be extended honestly: every
+ * one is a phrase that fills the shape of a sentence without committing to
+ * anything. They are not banned for being unfashionable — they are banned
+ * because a post built from them says nothing, and a post that says nothing is
+ * scrolled past, which is the reach problem underneath the style problem.
+ *
+ * ⛔ NOT a list of "AI words". `delve`, `realm` and the rest of that folklore
+ * are ordinary English and are deliberately absent: banning real words makes
+ * the writing worse, which is the opposite of the point.
+ */
+export const AI_TELLS: string[] = [
+  // Openings that clear the throat instead of starting.
+  "in today's fast-paced world",
+  "in today's world",
+  "in a world where",
+  "we all know that",
+  "let's face it",
+  "let's be honest",
+  "let's dive in",
+  "let's talk about",
+  "it's no secret that",
+  "picture this",
+  // The shapes that sound like a conclusion without being one.
+  "at the end of the day",
+  "it's important to remember",
+  "it's worth remembering",
+  "the truth is",
+  "here's the thing",
+  "that's where we come in",
+  "that's where imotara comes in",
+  // Brochure vocabulary.
+  "game-changer",
+  "game changer",
+  "unlock the power",
+  "unlock your",
+  "take it to the next level",
+  "elevate your",
+  "embark on",
+  "navigate the journey",
+  "transformative journey",
+  "revolutionize",
+  "revolutionise",
+  "seamless experience",
+  "empowering you to",
+  "dive deep into",
+  // The balanced constructions a person almost never speaks.
+  "not just a",
+  "not just another",
+  "whether you're",
+  "whether you are",
+  "more than just",
+  // Engagement bait, which Meta demotes by policy — a reach rule, not taste.
+  "tag a friend",
+  "comment below",
+  "double tap if",
+  "share if you agree",
+  "drop a ❤️",
+  "like and share",
+];
+
+/**
+ * ⚠️ Case-insensitive and apostrophe-insensitive, because a curly apostrophe
+ * is what a model actually emits and `it's` would otherwise never match
+ * `it’s` — a list that silently matches nothing is worse than no list.
+ */
+function normaliseForTells(text: string): string {
+  return text.toLowerCase().replace(/[’‘`´]/g, "'").replace(/\s+/g, " ");
+}
+
+export function findAiTells(text: string): string[] {
+  const hay = normaliseForTells(text);
+  return AI_TELLS.filter((t) => hay.includes(normaliseForTells(t)));
+}
+
+/**
+ * 🔴 COUNT WHAT A READER SEES, WHICH IS GRAPHEMES — NOT CODE POINTS.
+ *
+ * `\p{Extended_Pictographic}` counts 👩‍👩‍👧 as **three**, because it is three
+ * people joined by zero-width joiners. A skin-toned 👋🏽 counts as two. A flag
+ * 🇮🇳 is two regional indicators.
+ *
+ * ⛔ THIS WAS HARMLESS UNTIL IT WASN'T. While the rule was "no emoji at all",
+ * over-counting changed nothing — one or three, both are more than zero. The
+ * moment the rule became "at most one", the same code started rejecting a
+ * single ordinary emoji as three, and the only post it would have hit is one
+ * written by somebody using the kind of emoji that names a family or a country
+ * ⇒ trap_blunt_fix_trades_one_failure_for_its_opposite.
+ *
+ * ⚠️ The test that was supposed to catch this was called "counts a
+ * multi-codepoint emoji as one" and asserted `toBeGreaterThan(0)`. It did not
+ * test its own title, and it passed for weeks.
+ */
+export function countEmoji(text: string): number {
+  /**
+   * ⛔ `Extended_Pictographic` ALONE MISSES EVERY FLAG. 🇮🇳 is two Regional
+   * Indicator letters and carries no pictographic code point at all, so the
+   * old counter scored it ZERO — a caption made entirely of flags passed a
+   * rule that said "no emoji". Nothing tested it, in either direction.
+   */
+  const emojiish = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+  if (typeof Intl !== "undefined" && typeof Intl.Segmenter === "function") {
+    let n = 0;
+    for (const { segment } of new Intl.Segmenter("en", { granularity: "grapheme" }).segment(text)) {
+      if (emojiish.test(segment)) n += 1;
+    }
+    return n;
+  }
+  // ⚠️ Fallback only. Over-counts joined sequences, which is the bug above —
+  // but a runtime without Intl.Segmenter is a runtime where silently counting
+  // nothing would be worse.
+  return (text.match(/\p{Extended_Pictographic}/gu) ?? []).length;
+}
+
+/**
+ * 🔴 THIS WAS A SECOND COPY OF THE PLATFORM LIMITS and it had already drifted:
+ * it carried no `youtube` row at all, so a YouTube post was the one kind this
+ * check never measured — it fell through `Object.hasOwn` and reported nothing,
+ * which looks exactly like passing.
+ *
+ * ⛔ It also held LinkedIn's fold at 1300, which is wrong by a factor of six.
+ * Two copies of a number do not disagree loudly; they disagree silently, and
+ * the one you are not reading is the one in use ⇒ the same shape as the five
+ * copies of the content-type list ⇒ src/lib/social/contentTypes.ts.
+ *
+ * ⚠️ Kept as a named export because callers and tests use it; it is now a view
+ * of `PLATFORMS` rather than a rival to it.
+ */
+export const PLATFORM_LIMITS: Record<string, { hard: number; soft: number }> =
+  Object.fromEntries(PLATFORM_IDS.map((id) => [id, PLATFORMS[id].limits]));
+
+/**
+ * The countable rules, PER CHANNEL.
+ *
+ * 🔴 THEY USED TO BE GLOBAL, and the global values were costing reach for no
+ * safety reason — zero emoji anywhere, two hashtags everywhere (too few for
+ * Instagram, too many for Facebook where they do nothing), and one link
+ * allowed in a body where Facebook and LinkedIn both demote it and Instagram
+ * does not even make it clickable. The owner's instruction on 18 Oct was to
+ * take out anything that costs reach and is not there for safety.
+ *
+ * ⛔ WHAT DID NOT MOVE, and must not: the clinical vocabulary, the crisis
+ * language, the abuse lists and the no-invented-people rule all live in
+ * `checkVoice` and are untouched by any of this. They are not style, and
+ * reach is not a reason to relax one of them.
+ *
+ * ⚠️ Still kept out of `checkVoice` because these are advice a person may
+ * knowingly overrule, while the gate's lists are not.
  */
 export function checkHouseStyle(text: string, platform: string): HouseStyleResult {
   const problems: string[] = [];
-  const emoji = (text.match(/\p{Extended_Pictographic}/gu) ?? []).length;
+  const emoji = countEmoji(text);
   const hashtags = (text.match(/(^|\s)#[\p{L}\p{N}_]+/gu) ?? []).length;
   const links = (text.match(/https?:\/\/\S+/g) ?? []).length;
   const characters = [...text].length;
 
-  if (emoji > 0) problems.push(`${emoji} emoji in the body — the house style is none.`);
-  if (hashtags > 2) problems.push(`${hashtags} hashtags — at most two, and none is usually better.`);
-  if (links > 1) problems.push(`${links} links — one, so the reader knows which one matters.`);
+  // ⚠️ `hasOwn`, not a bare index: `PLATFORMS["constructor"]` returns
+  // something truthy off the prototype, and every comparison below would then
+  // read `undefined` and quietly report nothing — which looks like passing.
+  const spec = Object.hasOwn(PLATFORMS, platform) ? PLATFORMS[platform as PlatformId] : undefined;
 
-  // ⚠️ `hasOwn`, not a bare index: `PLATFORM_LIMITS["constructor"]` returns
-  // something truthy off the prototype, and the comparisons below would then
-  // read `undefined` and quietly report nothing.
-  const limit = Object.hasOwn(PLATFORM_LIMITS, platform) ? PLATFORM_LIMITS[platform] : undefined;
-  if (limit) {
-    if (characters > limit.hard) {
-      problems.push(`${characters} characters — ${platform} will not accept more than ${limit.hard}.`);
-    } else if (characters > limit.soft) {
-      problems.push(
-        `${characters} characters — ${platform} folds the post at about ${limit.soft}, so the rest is behind "see more".`,
-      );
-    }
+  if (!spec) {
+    // ⛔ An unknown channel is not silently waved through. Reporting nothing
+    // is the failure mode this whole function exists to avoid.
+    problems.push(`${platform} is not a channel this product knows, so nothing could be checked.`);
+    return { ok: false, problems, characters, emoji, hashtags, links, aiTells: [] };
   }
 
-  return { ok: problems.length === 0, problems, characters, emoji, hashtags, links };
+  if (emoji > spec.emoji) {
+    problems.push(
+      spec.emoji === 0
+        ? `${emoji} emoji — none on ${spec.label}.`
+        : `${emoji} emoji — at most ${spec.emoji} on ${spec.label}, and it should be one a person ` +
+          `would actually type, never decoration.`,
+    );
+  }
+
+  if (hashtags > spec.hashtags) {
+    problems.push(
+      spec.hashtags === 0
+        ? `${hashtags} hashtags — none on ${spec.label}; they do nothing here and read as advertising.`
+        : `${hashtags} hashtags — at most ${spec.hashtags} on ${spec.label}.`,
+    );
+  }
+
+  if (!spec.linksInBody && links > 0) {
+    problems.push(
+      `${links} link${links === 1 ? "" : "s"} in the body — ⛔ none on ${spec.label}. ` +
+        `It sends people off-platform, which costs the post most of its reach` +
+        (platform === "instagram" ? ", and Instagram does not make it clickable anyway." : "."),
+    );
+  } else if (spec.linksInBody && links > 1) {
+    problems.push(`${links} links — one, so the reader knows which one matters.`);
+  }
+
+  if (characters > spec.limits.hard) {
+    problems.push(`${characters} characters — ${spec.label} will not accept more than ${spec.limits.hard}.`);
+  } else if (characters > spec.limits.soft) {
+    problems.push(
+      `${characters} characters — ${spec.label} folds the post at about ${spec.limits.soft}, so the ` +
+        `rest is behind "see more".`,
+    );
+  }
+
+  const aiTells = findAiTells(text);
+  if (aiTells.length > 0) {
+    problems.push(
+      `Reads as machine-written: ${aiTells.map((t) => `“${t}”`).join(", ")}. ` +
+        `▶️ Say it the way you would say it to one person.`,
+    );
+  }
+
+  return { ok: problems.length === 0, problems, characters, emoji, hashtags, links, aiTells };
 }
 
 /** Exported for the tests, and so the admin can show the reviewer what ran. */

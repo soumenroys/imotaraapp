@@ -78,7 +78,18 @@ export async function POST(req: NextRequest) {
     };
 
     const deps = await liveDeps();
-    const result = await prepareGenerated(deps, { schedule: shape, platform, language });
+    /**
+     * ⚠️ A PREVIEW HAS NO HISTORY, so there is no count to rotate on. Pressing
+     * "See what it would write" repeatedly would otherwise show the same angle
+     * every time and look like the rotation is broken — so a preview walks the
+     * pools instead, which is also the fastest way to see what each one does.
+     */
+    const result = await prepareGenerated(deps, {
+      schedule: shape,
+      platform,
+      language,
+      postsSoFar: Math.floor(Math.random() * Math.max(1, shape.topicPool.length)),
+    });
     if (!result.ok) {
       return NextResponse.json({ error: result.reason, rejected: result.rejected }, { status: 422 });
     }
@@ -119,7 +130,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const language = input.language ?? nextLanguage(schedule.languages, await postCountFor(schedule.id));
+  /**
+   * ⚠️ ONE count, used for BOTH the language and the angle ⇒ nextPool. Calling
+   * postCountFor twice would be two different numbers if a post landed in
+   * between, and the two rotations would then drift apart for no reason
+   * anybody could see.
+   */
+  const postsSoFar = await postCountFor(schedule.id);
+  const language = input.language ?? nextLanguage(schedule.languages, postsSoFar);
   if (!schedule.languages.includes(language)) {
     return NextResponse.json(
       { error: `This schedule does not write in ${language}. It writes in ${schedule.languages.join(", ")}.` },
@@ -128,7 +146,7 @@ export async function POST(req: NextRequest) {
   }
 
   const deps = await liveDeps();
-  const result = await prepareGenerated(deps, { schedule, platform, language });
+  const result = await prepareGenerated(deps, { schedule, platform, language, postsSoFar });
 
   if (!result.ok) {
     // 🔑 The rejected drafts come back too. "Three drafts were written and all

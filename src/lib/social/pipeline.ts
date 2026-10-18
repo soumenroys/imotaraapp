@@ -133,6 +133,41 @@ export function nextLanguage(languages: string[], postsSoFar: number): string {
   return languages[postsSoFar % languages.length];
 }
 
+/**
+ * Which angle this post takes.
+ *
+ * 🔴 THE MODEL USED TO CHOOSE, AND IT CHOSE THE SAME THING EVERY TIME.
+ *
+ * The prompt listed every pool the schedule had and said "CHOOSE ONE OF THESE
+ * ANGLES". On 18 Oct three pools were added specifically because the first
+ * seven are all product explanation and product explanation does not travel —
+ * and then three posts in a row came back about privacy, about memory, and
+ * about having no streaks. The new angles were offered every time and never
+ * taken.
+ *
+ * ⚠️ THE GENERAL SHAPE, which is worth more than this fix: a menu handed to a
+ * model is not a rotation. It will pick the safest item on it, consistently,
+ * and the variety you think you configured never happens. Languages were
+ * always rotated in code for exactly this reason ⇒ nextLanguage. The angle is
+ * now rotated the same way.
+ *
+ * ⛔ Throws rather than defaulting. A schedule with no pool is a schedule
+ * nobody finished setting up, and picking one for them hides that.
+ */
+export function nextPool(pools: string[], postsSoFar: number): string {
+  if (!pools || pools.length === 0) {
+    throw new Error(
+      "social/pipeline: this schedule has no topic pool, so there is nothing to write about. " +
+        "⛔ No default — a silently chosen subject is how a brand ends up posting whatever the " +
+        "model finds easiest.",
+    );
+  }
+  if (postsSoFar < 0 || !Number.isFinite(postsSoFar)) {
+    throw new Error(`social/pipeline: postsSoFar must be a non-negative number, got ${postsSoFar}`);
+  }
+  return pools[postsSoFar % pools.length];
+}
+
 /** Does this content type want a picture? */
 export function wantsPicture(contentType: ContentType): boolean {
   return (
@@ -275,7 +310,12 @@ export function decideStatus(
  */
 export async function prepareGenerated(
   deps: PipelineDeps,
-  args: { schedule: ScheduleShape; platform: string; language: string },
+  /**
+   * ⚠️ `postsSoFar` decides the ANGLE, the same counter that decides the
+   * language ⇒ nextPool. Passed in rather than counted here, because this
+   * function does not read the database and three of its tests depend on that.
+   */
+  args: { schedule: ScheduleShape; platform: string; language: string; postsSoFar: number },
 ): Promise<PrepareResult> {
   const language = assertPostableLanguage(args.language);
   const maxAttempts = deps.maxAttempts ?? 3;
@@ -290,7 +330,12 @@ export async function prepareGenerated(
       lengthHint: args.schedule.lengthHint,
       language,
       platform: args.platform,
-      topicPool: args.schedule.topicPool,
+      /**
+       * ⚠️ ONE pool, chosen here, not the whole list. ⇒ nextPool — the model
+       * reliably picked the safest angle on the menu and the variety never
+       * happened.
+       */
+      topicPool: [nextPool(args.schedule.topicPool, args.postsSoFar)],
       avoid: exclusionList(recent),
       previousObjections: objections.length ? [...objections] : undefined,
     });

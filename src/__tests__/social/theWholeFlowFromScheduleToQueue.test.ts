@@ -80,7 +80,7 @@ describe("the happy path", () => {
   it("writes, gates, composes and queues", async () => {
     const result = await prepareGenerated(
       deps({ drafts: [{ subject: "The hours nobody staffs", body: CLEAN_BODY, support: "22 languages." }] }),
-      { schedule: schedule(), platform: "facebook", language: "en" },
+      { schedule: schedule(), platform: "facebook", language: "en", postsSoFar: 0 },
     );
 
     expect(result.ok).toBe(true);
@@ -108,7 +108,7 @@ describe("the happy path", () => {
      */
     const result = await prepareGenerated(
       deps({ drafts: [{ subject: "What happens to what you type", body: CLEAN_BODY, support: "Private by default." }] }),
-      { schedule: schedule(), platform: "facebook", language: "en" },
+      { schedule: schedule(), platform: "facebook", language: "en", postsSoFar: 0 },
     );
     expect(result.ok).toBe(true);
     if (!result.ok || !result.post.picture) return;
@@ -145,7 +145,7 @@ describe("when the gate objects", () => {
           { subject: "The hours nobody staffs", body: CLEAN_BODY },
         ],
       }),
-      { schedule: schedule(), platform: "facebook", language: "en" },
+      { schedule: schedule(), platform: "facebook", language: "en", postsSoFar: 0 },
     );
 
     expect(result.ok).toBe(true);
@@ -163,6 +163,7 @@ describe("when the gate objects", () => {
       schedule: schedule(),
       platform: "facebook",
       language: "en",
+      postsSoFar: 0,
     });
 
     expect(result.ok).toBe(false);
@@ -187,6 +188,7 @@ describe("when the gate objects", () => {
       schedule: schedule(),
       platform: "facebook",
       language: "en",
+      postsSoFar: 0,
     });
     expect(result.ok, "a clinical claim in the SUBJECT was let through").toBe(false);
     if (result.ok) return;
@@ -208,7 +210,7 @@ describe("when the gate objects", () => {
             : { subject: "Our expert counselors", body: "Our expert counselors are here." };
         },
       }),
-      { schedule: schedule(), platform: "facebook", language: "en" },
+      { schedule: schedule(), platform: "facebook", language: "en", postsSoFar: 0 },
     );
     expect(result.ok).toBe(true);
     expect(objections[0]).toEqual([]);
@@ -226,7 +228,7 @@ describe("when the subject has been used", () => {
           { subject: "The hours nobody staffs", body: CLEAN_BODY },
         ],
       }),
-      { schedule: schedule(), platform: "facebook", language: "en" },
+      { schedule: schedule(), platform: "facebook", language: "en", postsSoFar: 0 },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -244,7 +246,7 @@ describe("when the subject has been used", () => {
           return { subject: "The hours nobody staffs", body: CLEAN_BODY };
         },
       }),
-      { schedule: schedule(), platform: "facebook", language: "en" },
+      { schedule: schedule(), platform: "facebook", language: "en", postsSoFar: 0 },
     );
     expect(seen).toEqual(["One", "Two", "Three"]);
   });
@@ -281,7 +283,7 @@ describe("the auto-publish setting", () => {
   it("carries through the whole run, not just the helper", async () => {
     const result = await prepareGenerated(
       deps({ drafts: [{ subject: "The hours nobody staffs", body: CLEAN_BODY }] }),
-      { schedule: schedule({ autoPublish: true, languages: ["bn"] }), platform: "facebook", language: "bn" },
+      { schedule: schedule({ autoPublish: true, languages: ["bn"] }), platform: "facebook", language: "bn", postsSoFar: 0 },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -316,7 +318,7 @@ describe("the picture", () => {
       "without cutting it in half somewhere awkward. And then a second sentence.";
     const result = await prepareGenerated(
       deps({ drafts: [{ subject: "A long opening", body: long }] }),
-      { schedule: schedule(), platform: "facebook", language: "en" },
+      { schedule: schedule(), platform: "facebook", language: "en", postsSoFar: 0 },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -328,7 +330,7 @@ describe("the picture", () => {
   it("is not composed at all for a text-only schedule", async () => {
     const result = await prepareGenerated(
       deps({ drafts: [{ subject: "The hours nobody staffs", body: CLEAN_BODY }] }),
-      { schedule: schedule({ contentType: "text" }), platform: "facebook", language: "en" },
+      { schedule: schedule({ contentType: "text" }), platform: "facebook", language: "en", postsSoFar: 0 },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -341,7 +343,7 @@ describe("the picture", () => {
     // has checked a rendered picture. The reviewer is TOLD, not left to notice.
     const result = await prepareGenerated(
       deps({ drafts: [{ subject: "The hours nobody staffs", body: CLEAN_BODY }] }),
-      { schedule: schedule({ languages: ["bn"] }), platform: "facebook", language: "bn" },
+      { schedule: schedule({ languages: ["bn"] }), platform: "facebook", language: "bn", postsSoFar: 0 },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -377,7 +379,7 @@ describe("the picture", () => {
         recentPalettes: async () => ["ink"],
         recentLayouts: async () => ["stacked-label"],
       }),
-      { schedule: schedule(), platform: "facebook", language: "en" },
+      { schedule: schedule(), platform: "facebook", language: "en", postsSoFar: 0 },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -492,6 +494,7 @@ describe("what the run never does", () => {
         schedule: schedule(),
         platform: "facebook",
         language: "en",
+      postsSoFar: 0,
       });
       if (result.ok) expect(result.post.gate.findings).toEqual([]);
     }
@@ -503,6 +506,7 @@ describe("what the run never does", () => {
         schedule: schedule(),
         platform: "facebook",
         language: "ko",
+      postsSoFar: 0,
       }),
     ).rejects.toThrow(/22 languages/);
   });
@@ -534,6 +538,7 @@ describe("⛔ the card shows only what the word check read", () => {
       schedule: schedule({ contentType: "text_graphic" }),
       platform: "facebook",
       language: "en",
+      postsSoFar: 0,
     });
 
     expect(out.ok).toBe(true);
@@ -550,6 +555,7 @@ describe("⛔ the card shows only what the word check read", () => {
       schedule: schedule({ contentType: "text_graphic" }),
       platform: "facebook",
       language: "en",
+      postsSoFar: 0,
     });
     const post = (out as Extract<typeof out, { ok: true }>).post;
     const words = wordsInPicture(post.picture as never);

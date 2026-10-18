@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
       }
 
       try {
-        const prepared = await prepareGenerated(deps, { schedule, platform, language });
+        const prepared = await prepareGenerated(deps, { schedule, platform, language, postsSoFar: count });
         if (!prepared.ok) {
           outcomes.push({ schedule: schedule.name, platform, language, result: "refused", detail: prepared.reason });
           continue;

@@ -174,17 +174,32 @@ export function insightsFor(d: AnalyticsShape): Insight[] {
   }
 
   // ── How often, not just how many ───────────────────────────────────────────
-  if (d.rolling.mau > 0) {
-    const sticky = round(pct(d.rolling.dau, d.rolling.mau));
+  /**
+   * 🔴 THIS READ "0% OF DAYS" IN PRODUCTION AT BREAKFAST, and it was the clock
+   * talking, not the product. The first version divided rolling.dau — who has
+   * been active SO FAR TODAY — by the 30-day figure, so the number started
+   * every morning at zero and climbed all day, while the card underneath it
+   * offered a theory about journals versus companions to explain it.
+   *
+   * ⚠️ It is also not what DAU/MAU means. The measure is the AVERAGE daily
+   * actives across the window against the people in it, and an average cannot
+   * be dragged to zero by the hour somebody happens to open this page.
+   */
+  const daysWithData = d.series.filter((s) => s.activeUsers > 0 || s.events > 0);
+  if (d.rolling.mau > 0 && daysWithData.length >= 7) {
+    const avgDaily = d.series.reduce((a, b) => a + b.activeUsers, 0) / d.series.length;
+    const sticky = round(pct(avgDaily, d.rolling.mau));
     const sev: Severity = sticky < 10 ? "watch" : sticky < 20 ? "info" : "good";
     out.push({
       id: "stickiness",
       severity: sev,
-      headline: `People who use Imotara use it on ${sticky}% of days.`,
-      evidence: `${d.rolling.dau} active today against ${d.rolling.mau} active in 30 days.`,
+      headline: `On an average day, ${sticky}% of the window's people are here.`,
+      evidence:
+        `${Math.round(avgDaily * 10) / 10} people on an average day across ${d.series.length} days, ` +
+        `against ${d.rolling.mau} active in 30 days. ⚠️ An average, not today — today is still happening.`,
       action:
         sticky < 10
-          ? "Low for a companion, high for a journal. Decide which one Imotara is being used as before treating this as a problem — the hours nobody staffs are not daily hours."
+          ? "Low for something used daily, normal for something reached for when it is needed. Decide which Imotara is before treating this as a fault — the hours nobody staffs are not daily hours."
           : "Healthy for something people reach for when they need it rather than every day.",
     });
   }

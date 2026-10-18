@@ -10,6 +10,7 @@
 // ⚠️ The general shape: a fact a UI needs and a machine that acts on it are two
 // modules. Putting them together is convenient right up until something that
 // runs in a browser needs the fact.
+import { PLATFORMS } from "@/lib/social/platforms";
 
 export type AnimationFormat = "gif" | "mp4";
 
@@ -27,10 +28,29 @@ export const ANIMATES_ON: Record<AnimationFormat, { yes: string[]; no: string[] 
 export function animationWarning(format: AnimationFormat, platforms: string[]): string | null {
   const stills = platforms.filter((p) => ANIMATES_ON[format].no.includes(p));
   if (stills.length === 0) return null;
+
+  /**
+   * ⚠️ READ ALOUD BEFORE SHIPPING, which is how these two came out.
+   *
+   * It said "facebook will show this as a still image — those platforms strip
+   * GIF animation": the channel's id rather than its name, and a plural about
+   * one of them. Small, and it is the sentence standing between an admin and a
+   * post that does not move.
+   */
+  // ⚠️ Indexed by a plain string, because these ids arrive from a form. An
+  // unknown one falls back to itself rather than throwing.
+  const labels = PLATFORMS as Record<string, { label: string } | undefined>;
+  const named = stills.map((p) => labels[p]?.label ?? p);
+  const list =
+    named.length === 1
+      ? named[0]
+      : `${named.slice(0, -1).join(", ")} and ${named[named.length - 1]}`;
+  const they = named.length === 1 ? "it strips" : "they strip";
+
   return format === "gif"
-    ? `⛔ ${stills.join(" and ")} will show this as a still image — those platforms strip GIF ` +
-        `animation. Short video animates everywhere.`
-    : `⚠️ ${stills.join(" and ")} will not play this as video.`;
+    ? `⛔ ${list} will show this as a still image — ${they} GIF animation. ` +
+        `Short video animates everywhere.`
+    : `⚠️ ${list} will not play this as video.`;
 }
 
 export const MIME: Record<AnimationFormat, string> = {

@@ -168,6 +168,22 @@ describe("what the admin is told before choosing", () => {
     expect(warn, "it does not point at the format that works").toMatch(/video/i);
   });
 
+  it("\u26a0\ufe0f names the channel the way the screen does, and counts", () => {
+    /**
+     * \ud83d\udd34 It read "facebook will show this as a still image \u2014 those platforms
+     * strip GIF animation": the id rather than the name, and a plural about one
+     * of them. Found by selecting the option and reading the sentence.
+     */
+    const one = animationWarning("gif", ["facebook"])!;
+    expect(one).toContain("Facebook Page");
+    expect(one, "plural about a single channel").toContain("it strips");
+    expect(one).not.toContain("those platforms");
+
+    const two = animationWarning("gif", ["facebook", "linkedin"])!;
+    expect(two).toContain("Facebook Page and LinkedIn Page");
+    expect(two).toContain("they strip");
+  });
+
   it("says nothing when the choice is fine", () => {
     expect(animationWarning("gif", ["x"])).toBeNull();
     expect(animationWarning("mp4", ["facebook", "linkedin", "instagram", "x"])).toBeNull();

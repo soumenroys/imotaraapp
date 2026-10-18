@@ -109,8 +109,16 @@ export function AdminNav({
 }) {
   const items = navFor(role);
   return (
-    <nav aria-label="Admin sections" className="mb-6 overflow-x-auto">
-      <div className="flex min-w-max gap-1 rounded-xl border border-white/8 bg-white/5 p-1">
+    /**
+     * ⚠️ WRAPS, it does not scroll sideways. Ten destinations do not fit on
+     * one line at this width, and the first version scrolled — which put a
+     * scrollbar under the nav and cut "Social" off at the right edge, so the
+     * newest section was the one you could not see. A row that wraps shows
+     * everything at every width, and on a phone three short rows beat a
+     * horizontal scroll nobody discovers.
+     */
+    <nav aria-label="Admin sections" className="mb-6">
+      <div className="flex flex-wrap gap-1 rounded-xl border border-white/8 bg-white/5 p-1">
         {items.map((item) => {
           const active = item.key === current;
           const className =

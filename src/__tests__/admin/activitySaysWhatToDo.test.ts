@@ -174,3 +174,39 @@ describe("every insight is usable as an insight", () => {
     expect(new Set(list.map((i) => i.id)).size).toBe(list.length);
   });
 });
+
+describe("🔴 the stickiness card was reading the clock", () => {
+  /**
+   * It said "People who use Imotara use it on 0% of days" in production one
+   * morning, with "0 active today against 44 active in 30 days" underneath —
+   * because rolling.dau is who has been active SO FAR TODAY. The number
+   * started at zero every midnight and climbed all day, and the card offered a
+   * theory about journals to explain the time of day.
+   */
+  const busy = (over: Partial<AnalyticsShape> = {}) =>
+    base({
+      rolling: { dau: 0, wau: 20, mau: 44 },
+      series: Array.from({ length: 30 }, (_, i) => ({ date: `d${i}`, events: 12, activeUsers: 6 })),
+      ...over,
+    });
+
+  it("⛔ does not report 0% just because today has barely started", () => {
+    const i = insightsFor(busy()).find((x) => x.id === "stickiness")!;
+    expect(i).toBeTruthy();
+    // 6 people a day against 44 in the window ≈ 13.6%, not 0%.
+    expect(i.headline).not.toMatch(/\b0%/);
+    expect(i.headline).toContain("13.6%");
+  });
+
+  it("says out loud that it is an average, not today", () => {
+    const i = insightsFor(busy()).find((x) => x.id === "stickiness")!;
+    expect(i.evidence).toMatch(/average/i);
+    expect(i.evidence).toMatch(/today is still happening/i);
+  });
+
+  it("⚠️ stays quiet when there is too little of the window to average", () => {
+    // Three days of data cannot describe a typical day.
+    const thin = busy({ series: Array.from({ length: 30 }, (_, i) => ({ date: `d${i}`, events: i < 3 ? 5 : 0, activeUsers: i < 3 ? 2 : 0 })) });
+    expect(insightsFor(thin).find((x) => x.id === "stickiness")).toBeUndefined();
+  });
+});

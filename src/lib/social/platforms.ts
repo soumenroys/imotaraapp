@@ -65,6 +65,19 @@ export type PlatformSpec = {
   canPublish: boolean;
   /** What is actually needed before it could. ⚠️ Empty once it can. */
   blockedBy: string;
+  /**
+   * 🔴 DOES THIS CHANNEL REFUSE A POST WITHOUT A PICTURE?
+   *
+   * Instagram has no text-only post at all. Facebook does, and that
+   * difference decides what happens when a card cannot be made: on Facebook
+   * the words still go out, on Instagram the post can NEVER publish.
+   *
+   * ⛔ Without this, such a post is generated, saved, and then held by the
+   * publisher on every run forever — and the only symptom is that Instagram
+   * goes quiet, which looks exactly like a channel nobody scheduled
+   * ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+   */
+  requiresPicture: boolean;
 };
 
 export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
@@ -84,6 +97,7 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     qr: true,
     // ✅ 18 Oct 2026. System user token stored and verified against the Graph
     // API, and the publisher is live ⇒ src/app/api/cron/social-publish.
+    requiresPicture: false,
     canPublish: true,
     blockedBy: "",
   },
@@ -112,6 +126,7 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
       "⛔ Never address a job title, never assume the reader manages anyone, no case-study framing, " +
       "no 'thrilled to announce'.",
     qr: true,
+    requiresPicture: false,
     canPublish: false,
     blockedBy: "Community Management API approval from LinkedIn, then a token and encryption.",
   },
@@ -168,6 +183,7 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
      * it is handed a URL and fetches the image ITSELF, unauthenticated
      * ⇒ src/lib/social/cardUrl.ts. It also takes JPEG and nothing else.
      */
+    requiresPicture: true,
     canPublish: true,
     // ⚠️ Empty, like Facebook's: nothing is blocking the code. What may still
     // be missing is a CONNECTED channel, and that is a different screen.
@@ -188,6 +204,7 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
       "One thought, finished, inside 280 characters. ⛔ No thread, no 'a 🧵', no hook that promises " +
       "a payoff further down. If it needs a second post it is the wrong thought for this channel.",
     qr: true,
+    requiresPicture: false,
     canPublish: false,
     blockedBy: "X's API is paid, and the account has 2 followers — worth asking whether it is worth it.",
   },
@@ -206,6 +223,7 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
       "A community post, to people who already chose to be there. It can assume they know what " +
       "Imotara is, so it says something new rather than reintroducing it.",
     qr: true,
+    requiresPicture: false,
     canPublish: false,
     blockedBy:
       "The COPPA audience setting is still unresolved on the channel, and Studio opens the wrong " +

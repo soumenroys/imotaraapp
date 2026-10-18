@@ -502,6 +502,33 @@ export async function prepareGenerated(
     }
 
     /**
+     * 🔴 A CHANNEL THAT CANNOT POST WITHOUT A PICTURE REFUSES HERE, LOUDLY.
+     *
+     * `buildPicture` returns no picture when the opening sentence is too long
+     * to set as a headline — deliberately, because half a thought on a card
+     * reads worse than no card, and on Facebook the words still go out.
+     *
+     * ⛔ On Instagram they cannot. Saving this post would queue something the
+     * publisher must hold on every run forever, and the only symptom would be
+     * Instagram going quiet — indistinguishable from a channel nobody
+     * scheduled. Refusing now puts the reason in the queue's own report, on
+     * the day it happens.
+     */
+    if (platformSpec(args.platform).requiresPicture && !picture) {
+      return {
+        ok: false,
+        // ⚠️ The drafts that got this far are carried, not dropped: the words
+        // passed the gate and the reason for refusal is the CARD, which is
+        // exactly what somebody reading the report needs to see.
+        rejected,
+        reason:
+          `${platformSpec(args.platform).label} has no text-only post, and no card could be made ` +
+          `for this one: ${notes.join(" ") || "the opening sentence would not set as a headline."} ` +
+          `⛔ Nothing was queued, because a post that can never publish is worse than no post.`,
+      };
+    }
+
+    /**
      * 🔴 A CONFESSION NEVER POSTS UNATTENDED, whatever the schedule says.
      *
      * The keyword check above proves the post is about the right mistake. It

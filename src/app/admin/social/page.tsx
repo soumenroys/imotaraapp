@@ -66,7 +66,19 @@ const VIEWS = [
  * ⛔ Matches the start of the note, not a substring anywhere: a post whose
  * BODY happens to say "no picture" must not be flagged as missing one.
  */
-function missingPicture(gate: { notes?: string[] }): string | null {
+function missingPicture(gate: { notes?: string[] }, mediaKind?: string | null): string | null {
+  /**
+   * 🔴 THE NOTE IS HISTORY, NOT STATE. It was written when the post was
+   * composed. A post can gain a card afterwards — four of them did on 18 Oct,
+   * when the headline started coming from the subject — and the chip went on
+   * reading "Asked for a picture — none made" directly above the card itself.
+   *
+   * ⛔ Same shape as the eight screens that said "nothing publishes yet" an
+   * hour after it did ⇒ trap_a_sentence_that_states_the_world_goes_stale. A
+   * STORED SENTENCE describing the world is stale the moment the world moves;
+   * the only safe reading of it is alongside what is true now.
+   */
+  if (mediaKind && mediaKind !== "none") return null;
   return (gate.notes ?? []).find((n) => n.startsWith("No picture:")) ?? null;
 }
 
@@ -216,8 +228,8 @@ export default function Today() {
                               so a schedule set to "words and a picture" quietly
                               produced words. ⇒ Found on 18 Oct when the new, more
                               specific opening sentence ran past the headline limit. */}
-                          {missingPicture(gate) && (
-                            <Chip tone="amber" title={missingPicture(gate) as string}>
+                          {missingPicture(gate, post.media_kind) && (
+                            <Chip tone="amber" title={missingPicture(gate, post.media_kind) as string}>
                               Asked for a picture — none made
                             </Chip>
                           )}

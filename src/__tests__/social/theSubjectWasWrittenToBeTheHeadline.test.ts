@@ -118,3 +118,37 @@ describe("both renderers were given the subject", () => {
     expect(cron).toMatch(/\.select\("id, platform, language, subject, body/);
   });
 });
+
+/**
+ * 🔴 THE CHIP READ A NOTE AND CALLED IT STATE.
+ *
+ * "Asked for a picture — none made" is derived from a note written when the
+ * post was COMPOSED. Four approved posts gained cards on 18 Oct once the
+ * headline started coming from the subject — and the chip went on announcing
+ * that no picture had been made, directly above the picture.
+ *
+ * ⛔ A stored sentence describing the world is stale the moment the world
+ * moves ⇒ trap_a_sentence_that_states_the_world_goes_stale.
+ */
+describe("the queue row reads what is true now", () => {
+  const page = read("src/app/admin/social/page.tsx");
+
+  it("⛔ suppresses the missing-card chip once a card exists", () => {
+    expect(page).toMatch(/if \(mediaKind && mediaKind !== "none"\) return null;/);
+  });
+
+  it("passes the post's current media kind to it, at every call site", () => {
+    const calls = page.match(/missingPicture\([^)]*\)/g) ?? [];
+    expect(calls.length).toBeGreaterThan(1);
+    for (const c of calls) {
+      if (c.includes("gate:")) continue; // the declaration
+      expect(c, `${c} does not pass the current state`).toMatch(/post\.media_kind|mediaKind/);
+    }
+  });
+
+  it("⛔ no longer tells an approved post it is waiting for a channel", () => {
+    const ui = read("src/app/admin/social/_components/ui.tsx");
+    expect(ui).not.toMatch(/once a channel is connected/);
+    expect(ui).toMatch(/not at all while posting is paused/);
+  });
+});

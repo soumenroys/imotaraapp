@@ -32,7 +32,7 @@ export const POST_STATUS: Record<string, { label: string; tone: Tone; means: str
   drafting:         { label: "Being written",    tone: "zinc",   means: "The words are being written now." },
   generating:       { label: "Being written",    tone: "zinc",   means: "The words are being written now." },
   needs_review:     { label: "Waiting for you",  tone: "indigo", means: "Read it, then approve or change it. Nothing happens until you do." },
-  approved:         { label: "Ready to go",      tone: "amber",  means: "You approved it. It posts at its time — once a channel is connected." },
+  approved:         { label: "Ready to go",      tone: "amber",  means: "You approved it. It goes out at its time, on a connected channel — and not at all while posting is paused." },
   publishing:       { label: "Sending",          tone: "amber",  means: "Going out now." },
   published:        { label: "Posted",           tone: "green",  means: "It is live on the channel." },
   failed:           { label: "Didn't send",      tone: "rose",   means: "The channel refused it. The reason is below." },

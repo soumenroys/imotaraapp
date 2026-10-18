@@ -24,6 +24,10 @@ type Schedule = {
   days: number[];
   active: boolean;
   auto_publish: boolean;
+  // ⚠️ Needed to EDIT one, not to list one. The API has always returned them.
+  topic_pool: string[];
+  tone: string;
+  length_hint: string;
 };
 
 const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -40,6 +44,9 @@ export default function Schedules() {
   const [role, setRole] = useState("");
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [creating, setCreating] = useState(false);
+  /** 🔑 The schedule being edited, or null. ⚠️ Keyed on in the form below, so
+   *  switching from one schedule to another re-reads its values. */
+  const [editing, setEditing] = useState<Schedule | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
 
@@ -109,7 +116,12 @@ export default function Schedules() {
         authed === true ? (
           <button
             type="button"
-            onClick={() => setCreating((c) => !c)}
+            onClick={() => {
+              // ⚠️ Closes an open EDIT too. Otherwise "New schedule" leaves the
+              // edit form on screen and the new one never appears.
+              setEditing(null);
+              setCreating((c) => !c);
+            }}
             className="flex min-h-11 items-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold hover:bg-indigo-500"
           >
             {creating ? "Close" : "New schedule"}
@@ -130,14 +142,28 @@ export default function Schedules() {
             </div>
           )}
 
-          {creating && (
+          {(creating || editing) && (
             <NewSchedule
+              /* ⚠️ Keyed, so opening a DIFFERENT schedule re-reads its values.
+                 Without this React keeps the first one's state and the form
+                 silently edits one schedule with another's words in it. */
+              key={editing?.id ?? "new"}
               languages={languages}
               isOwner={role === "owner"}
-              onCancel={() => setCreating(false)}
-              onCreated={() => {
+              editing={editing}
+              onCancel={() => {
                 setCreating(false);
-                setMessage("Schedule created. Press “Write one now” to see what it writes.");
+                setEditing(null);
+              }}
+              onSaved={() => {
+                const wasEditing = editing;
+                setCreating(false);
+                setEditing(null);
+                setMessage(
+                  wasEditing
+                    ? `“${wasEditing.name}” saved. ⚠️ Posts already written keep the words they were written with — press “Write one now” to see the change.`
+                    : "Schedule created. Press “Write one now” to see what it writes.",
+                );
                 void load();
               }}
             />
@@ -184,6 +210,19 @@ export default function Schedules() {
                         className="min-h-11 rounded-lg border border-white/15 px-3 text-sm hover:bg-white/10 disabled:opacity-50"
                       >
                         {busy === s.id ? "Writing…" : "Write one now"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreating(false);
+                          setEditing(s);
+                          // ⚠️ The form renders above the list, so without this
+                          // the button appears to do nothing on a long page.
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                        className="min-h-11 rounded-lg border border-white/15 px-3 text-sm hover:bg-white/10"
+                      >
+                        Edit
                       </button>
                       <button
                         type="button"

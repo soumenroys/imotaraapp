@@ -61,30 +61,63 @@ const POOLS = TOPIC_POOLS.map((p) => ({ id: p.id, label: p.label }));
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+/**
+ * 🔴 A SCHEDULE USED TO BE CREATE-ONLY, and nothing said so.
+ *
+ * The PATCH route has always accepted the name, the brief, the channels, the
+ * languages, the days, the hour, the tone, the length AND the topic pools —
+ * and this screen only ever sent `active`. So the only way to change what a
+ * schedule writes about was to delete it and make another one, which throws
+ * away the record of what it had already published ⇒ the delete note in
+ * src/app/api/admin/social/schedules/[id]/route.ts.
+ *
+ * ⚠️ Found while trying to add a topic pool to a live schedule on 18 Oct.
+ * There was no way to do it from the product at all.
+ */
+export type EditableSchedule = {
+  id: string;
+  name: string;
+  brief: string;
+  platforms: string[];
+  content_type: string;
+  topic_pool: string[];
+  languages: string[];
+  post_at: string;
+  days: number[];
+  tone: string;
+  length_hint: string;
+  auto_publish: boolean;
+};
+
 export function NewSchedule({
   languages,
   isOwner,
-  onCreated,
+  editing,
+  onSaved,
   onCancel,
 }: {
   languages: Language[];
   isOwner: boolean;
-  onCreated: () => void;
+  /** ⚠️ Present = edit that schedule. Absent = make a new one. */
+  editing?: EditableSchedule | null;
+  onSaved: () => void;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(editing?.name ?? "");
   const [brief, setBrief] = useState(
-    "Take one capability of Imotara and say what it is for, in plain words, as a person would. No slogans, and no claim to be therapy.",
+    editing?.brief ??
+      "Take one capability of Imotara and say what it is for, in plain words, as a person would. No slogans, and no claim to be therapy.",
   );
-  const [platforms, setPlatforms] = useState<string[]>(["facebook"]);
-  const [contentType, setContentType] = useState("text_graphic");
-  const [topicPool, setTopicPool] = useState<string[]>(["privacy", "quiet-hours"]);
-  const [langs, setLangs] = useState<string[]>(["en"]);
-  const [postAt, setPostAt] = useState("09:30");
-  const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [tone, setTone] = useState("gentle_plain");
-  const [lengthHint, setLengthHint] = useState("medium");
-  const [autoPublish, setAutoPublish] = useState(false);
+  const [platforms, setPlatforms] = useState<string[]>(editing?.platforms ?? ["facebook"]);
+  const [contentType, setContentType] = useState(editing?.content_type ?? "text_graphic");
+  const [topicPool, setTopicPool] = useState<string[]>(editing?.topic_pool ?? ["privacy", "quiet-hours"]);
+  const [langs, setLangs] = useState<string[]>(editing?.languages ?? ["en"]);
+  // ⚠️ `post_at` comes back as "09:30:00"; the input needs "09:30".
+  const [postAt, setPostAt] = useState(String(editing?.post_at ?? "09:30").slice(0, 5));
+  const [days, setDays] = useState<number[]>(editing?.days ?? [1, 2, 3, 4, 5]);
+  const [tone, setTone] = useState(editing?.tone ?? "gentle_plain");
+  const [lengthHint, setLengthHint] = useState(editing?.length_hint ?? "medium");
+  const [autoPublish, setAutoPublish] = useState(editing?.auto_publish ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<{ subject: string; body: string; characters: number; language: string; platform: string; houseStyle: string[] } | null>(null);
@@ -137,15 +170,18 @@ export function NewSchedule({
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/social/schedules", {
-        method: "POST",
+      const res = await fetch(
+        editing ? `/api/admin/social/schedules/${editing.id}` : "/api/admin/social/schedules",
+        {
+        method: editing ? "PATCH" : "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           name, brief, platforms, contentType, topicPool,
           languages: langs, postAt, days, autoPublish, tone, lengthHint,
         }),
-      });
+      },
+      );
       const json = await res.json();
       if (!res.ok) {
         // 🔑 The database's own refusal is the most useful message available —
@@ -153,7 +189,7 @@ export function NewSchedule({
         setError(json.error ?? "The schedule could not be saved.");
         return;
       }
-      onCreated();
+      onSaved();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -166,7 +202,7 @@ export function NewSchedule({
 
   return (
     <section className="space-y-5 rounded-xl border border-indigo-900/60 bg-indigo-950/10 p-5">
-      <h2 className="text-base font-semibold">A new schedule</h2>
+      <h2 className="text-base font-semibold">{editing ? `Editing “${editing.name}”` : "A new schedule"}</h2>
 
       {error && (
         <div className="rounded-lg border border-rose-900 bg-rose-950/30 p-3 text-sm text-rose-200">{error}</div>
@@ -372,7 +408,7 @@ export function NewSchedule({
         <button type="button" onClick={() => void submit()}
           disabled={busy || name.trim().length < 3 || brief.trim().length < 20 || langs.length === 0 || platforms.length === 0 || days.length === 0}
           className="min-h-11 rounded-lg bg-indigo-600 px-5 text-sm font-semibold hover:bg-indigo-500 disabled:opacity-40">
-          {busy ? "Saving…" : "Create it"}
+          {busy ? "Saving…" : editing ? "Save the changes" : "Create it"}
         </button>
         <button type="button" onClick={onCancel}
           className="min-h-11 rounded-lg border border-white/15 px-4 text-sm hover:bg-white/10">

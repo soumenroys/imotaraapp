@@ -76,3 +76,77 @@ export async function sendChannelAlert(
   }
   return true;
 }
+
+/**
+ * Telling somebody that a schedule was due and wrote nothing.
+ *
+ * 🔴 THE GAP THIS CLOSES, found at 00:00 on 19 Oct. The health cron alerts
+ * when a TOKEN stops working. Nothing alerted when GENERATION refused — and
+ * generation refuses for several honest reasons: three drafts rejected by the
+ * gate, a channel that cannot take a post without a picture and no card could
+ * be made, a model outage.
+ *
+ * ⛔ So the failure mode was: the queue refuses at 15:00, nothing publishes at
+ * 17:00, and the only symptom is an empty feed. That is precisely what this
+ * feature was built to prevent, and the "refuse loudly" built into the
+ * pipeline only ever reached an HTTP response nobody reads
+ * ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+ *
+ * ⚠️ A REFUSAL IS AN EVENT, NOT A STATE, so unlike the health alert this does
+ * not wait for a change — each due slot that produced nothing is worth one
+ * message. At one or two slots a day that is rare by construction.
+ */
+export async function sendQueueAlert(
+  refused: { schedule: string; platform: string; language?: string; why: string }[],
+): Promise<boolean> {
+  if (refused.length === 0) return false;
+
+  if (!isResendConfigured()) {
+    console.error("[social-queue] a schedule was due and wrote nothing, and email is not configured:", refused);
+    return false;
+  }
+
+  const lines = refused
+    .map((r) => `• ${r.platform}${r.language ? ` (${r.language})` : ""} — “${r.schedule}”\n  ${r.why}`)
+    .join("\n\n");
+
+  const text = [
+    "A schedule was due and wrote nothing.",
+    "",
+    lines,
+    "",
+    "⚠️ Nothing is broken at the platform end — the channel and its token are fine. What failed is",
+    "the WRITING, so there is no post waiting for that slot and the slot will simply pass.",
+    "",
+    "The attempts and the reason each one was refused are on",
+    "https://www.imotara.com/admin/social",
+    "",
+    "⛔ If the same reason repeats for several days it is a signal about the brief, not bad luck.",
+  ].join("\n");
+
+  const identity = envIdentities()[0];
+  const from = identity
+    ? `${identity.name} <${identity.email}>`
+    : `Imotara <social@${sendingDomain()}>`;
+
+  const subject =
+    refused.length === 1
+      ? `Nothing written for ${refused[0].platform} — the slot will pass`
+      : `${refused.length} schedules were due and wrote nothing`;
+
+  const outcome = await sendOne({
+    from,
+    to: TO,
+    subject,
+    html: `<pre style="font:14px/1.6 ui-monospace,monospace;white-space:pre-wrap">${text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")}</pre>`,
+    text,
+  });
+
+  if (!outcome.ok) {
+    console.error("[social-queue] the alert itself failed to send:", outcome.code, outcome.message, refused);
+    return false;
+  }
+  return true;
+}

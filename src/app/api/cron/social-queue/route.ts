@@ -23,6 +23,7 @@ import {
   LEAD_MINUTES,
 } from "@/lib/social/store";
 import { markCronFired } from "@/lib/cron/heartbeat";
+import { sendQueueAlert } from "@/lib/social/alert";
 import { pickRecipe, headlineFor } from "@/lib/social/visualRecipe";
 import { postsWantingACard, attachCard, type CardUpgrade } from "@/lib/social/store";
 
@@ -199,7 +200,43 @@ export async function GET(req: NextRequest) {
 
   const approved = outcomes.filter((o) => o.result === "approved").length;
 
+  /**
+   * 🔴 A DUE SLOT THAT WROTE NOTHING IS TOLD TO SOMEBODY.
+   *
+   * ⛔ Until 19 Oct this reason only ever reached the HTTP response Vercel
+   * Cron throws away. So generation could refuse every day — three drafts
+   * rejected, no card possible on a channel that cannot post without one, a
+   * model outage — and the only symptom would be an empty feed
+   * ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+   *
+   * ⚠️ ONLY `refused`. `already-written` is the idempotency guard doing its
+   * job on a cron that runs every minute, and `skipped` means the post exists
+   * but a duplicate subject was caught — neither is a slot that produced
+   * nothing. Alerting on those would be a daily email that teaches somebody
+   * to filter the one that matters.
+   *
+   * ⛔ Never fails the run. An alert that cannot send must not cost the posts
+   * that DID get written.
+   */
+  const refused = outcomes.filter((o) => o.result === "refused");
+  let alerted = false;
+  if (refused.length > 0) {
+    try {
+      alerted = await sendQueueAlert(
+        refused.map((o) => ({
+          schedule: o.schedule,
+          platform: o.platform,
+          language: o.language,
+          why: o.detail ?? "No reason was recorded.",
+        })),
+      );
+    } catch (e) {
+      console.error("[social-queue] the refusal alert threw:", (e as Error).message);
+    }
+  }
+
   return NextResponse.json({
+    alerted,
     ran: true,
     at: now.toISOString(),
     slot,

@@ -56,7 +56,7 @@ const EXCLUDED: Record<string, string> = {
     // screen appearing in search would expose the shape of the queue.
     "/admin/social": "staff only", "/admin/social/compose": "staff only",
     "/admin/social/channels": "staff only", "/admin/social/schedules": "staff only",
-    "/admin/social/languages": "staff only",
+    "/admin/social/languages": "staff only", "/admin/social/stats": "staff only",
     "/auth/accept": "auth flow", "/auth/callback": "auth flow",
     "/auth/callback-mobile": "auth flow", "/auth/forgot-password": "auth flow",
     "/login": "auth flow",

@@ -44,6 +44,33 @@ export async function checkChannel(
     return r.ok ? { ok: true, canPost: r.canPost, note: r.note } : r;
   }
 
+  if (cred.platform === "youtube") {
+    /**
+     * 🔑 REACHING HERE IS ITSELF THE ANSWER. `loadCredentialFor` only returns
+     * an ok credential for YouTube after exchanging the stored refresh token
+     * with Google for a live access token — so by this line the grant has
+     * already been proven alive, seconds ago.
+     *
+     * ⛔ THERE IS NO SECOND CALL TO MAKE, and that is deliberate rather than
+     * lazy: `youtube.upload` cannot read the channel back (`channels.list`
+     * wants a wider scope we chose not to ask for), and an upload is not a
+     * health check — it publishes a video.
+     *
+     * ⚠️ WHAT THIS DOES AND DOES NOT PROVE. It proves the credential is
+     * valid — which is the thing that silently dies when a grant is revoked
+     * or the OAuth app slips back to "Testing", where refresh tokens expire
+     * after 7 days. It does NOT prove the channel will accept a particular
+     * video. Said plainly here rather than implied by a green tick.
+     */
+    return {
+      ok: true,
+      canPost: true,
+      note:
+        "Google exchanged the stored refresh token for a live access token, so the grant is good. " +
+        "⚠️ That is the credential, not a test upload — the upload scope cannot read the channel back.",
+    };
+  }
+
   /**
    * ⛔ SAID, NOT SILENTLY PASSED. A channel with no adapter must not come back
    * looking healthy: all that is knowable about it is what the platform told
@@ -63,5 +90,5 @@ export async function checkChannel(
  *  where the answer changes what a screen says, so "not checked" is never
  *  shown as "broken". */
 export function channelCanBeChecked(platform: string): boolean {
-  return platform === "facebook" || platform === "instagram";
+  return platform === "facebook" || platform === "instagram" || platform === "youtube";
 }

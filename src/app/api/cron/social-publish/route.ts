@@ -17,14 +17,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { postingIsPaused } from "@/lib/social/store";
-import { loadChannelCredential, loadChannelRefreshToken } from "@/lib/social/channelCredentials";
+import { loadChannelCredential, loadCredentialFor } from "@/lib/social/channelCredentials";
 import { publishToFacebook, publishVideoToFacebook } from "@/lib/social/adapters/facebook";
 import { publishShortToYouTube, youtubeTitleFrom, TITLE_MAX } from "@/lib/social/adapters/youtube";
-import {
-  youtubeOAuthConfig,
-  refreshYouTubeAccessToken,
-  type YouTubeRefreshToken,
-} from "@/lib/social/adapters/youtubeAuth";
 import { publishToInstagram, publishCarouselToInstagram, publishReelToInstagram } from "@/lib/social/adapters/instagram";
 import { renderPostPictureBytes } from "@/lib/social/renderPicture";
 import { publicOrigin, videoUrlFor } from "@/lib/social/cardUrl";
@@ -77,45 +72,6 @@ type Outcome = {
  * an HTML error page would otherwise look healthy, and Instagram would fail
  * later with a message about the media.
  */
-/**
- * A YouTube credential, in the shape the rest of this route already speaks.
- *
- * 🔑 RETURNS THE SAME TYPE AS `loadChannelCredential` so the publish loop does
- * not need to know that one channel works differently. Everything below reads
- * `cred.token` and `cred.externalId`, and for YouTube `token` is an access
- * token minted seconds ago rather than one read out of the row.
- *
- * ⚠️ THE FAILURES ARE PASSED THROUGH WORD FOR WORD. `refreshYouTubeAccessToken`
- * already distinguishes a revoked grant from a missing client secret from a
- * blip at Google's end, and each sends a different person somewhere different.
- * Flattening them to "YouTube auth failed" would throw that away.
- */
-async function youtubeAccessFor(
-  db: Parameters<typeof loadChannelRefreshToken>[0],
-  accountId: string,
-): Promise<Awaited<ReturnType<typeof loadChannelCredential>>> {
-  const stored = await loadChannelRefreshToken(db, accountId);
-  if (!stored.ok) return stored;
-
-  const config = youtubeOAuthConfig(process.env, publicOrigin());
-  if (!config.ok) return { ok: false, reason: config.message };
-
-  const minted = await refreshYouTubeAccessToken({
-    config: config.config,
-    refreshToken: stored.refreshToken as YouTubeRefreshToken,
-  });
-  if (!minted.ok) return { ok: false, reason: minted.message };
-
-  return {
-    ok: true,
-    id: stored.id,
-    platform: stored.platform,
-    externalId: stored.externalId,
-    displayName: stored.displayName,
-    token: minted.accessToken,
-  };
-}
-
 async function cardReaches(
   url: string,
   /**
@@ -240,7 +196,7 @@ export async function GET(req: NextRequest) {
              * run, however many Shorts are due, for the same reason the other
              * channels decrypt once — fewer chances to mishandle a credential.
              */
-            ? await youtubeAccessFor(db, account.id as string)
+            ? await loadCredentialFor(db, account.id as string, "youtube", publicOrigin())
             : await loadChannelCredential(db, account.id as string)
           : { ok: false, reason: `No ${platform} channel is connected.` },
       );

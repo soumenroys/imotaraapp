@@ -252,3 +252,54 @@ describe("⛔ the connect outcome reaches a human", () => {
         expect(CALLBACK).not.toMatch(/get\("nonsense-that-is-not-there"\)/);
     });
 });
+
+/**
+ * 🔴 A CONNECTED CHANNEL THAT NOTHING WATCHES.
+ *
+ * The YouTube credential-minting branch was first written INSIDE
+ * social-publish/route.ts, where the health check could not reach it — so
+ * `channelCanBeChecked("youtube")` was false and the daily cron skipped the
+ * channel entirely. Connected, publishing, and unmonitored.
+ *
+ * ⛔ That is the precise failure the OAuth app was pushed to "In production"
+ * to avoid: a refresh token dies after 7 days in "Testing", and the thing
+ * meant to warn ten days ahead was not looking
+ * ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+ */
+describe("⛔ YouTube is watched, not just connected", () => {
+    const CHECK = fs.readFileSync(path.join(process.cwd(), "src/lib/social/channelCheck.ts"), "utf8");
+    const CREDS = fs.readFileSync(path.join(process.cwd(), "src/lib/social/channelCredentials.ts"), "utf8");
+    const PUBLISHER = fs.readFileSync(
+        path.join(process.cwd(), "src/app/api/cron/social-publish/route.ts"),
+        "utf8",
+    );
+    const HEALTH = fs.readFileSync(
+        path.join(process.cwd(), "src/app/api/cron/social-health/route.ts"),
+        "utf8",
+    );
+
+    it("🔑 the health check knows how to answer for it", () => {
+        expect(CHECK).toMatch(/platform === "youtube"/);
+        expect(CHECK, "channelCanBeChecked still excludes youtube").toMatch(
+            /channelCanBeChecked[\s\S]{0,300}youtube/,
+        );
+    });
+
+    it("⛔ and the minting lives in ONE place, reachable by both", () => {
+        // ⚠️ The duplicate is the bug: a copy inside the publisher is a copy
+        // the health cron cannot call ⇒ trap_blunt_fix_trades_one_failure_for_its_opposite.
+        expect(CREDS).toMatch(/export async function loadCredentialFor/);
+        expect(PUBLISHER).toMatch(/loadCredentialFor\(/);
+        expect(HEALTH).toMatch(/loadCredentialFor\(/);
+        expect(PUBLISHER, "the publisher kept its own private copy").not.toMatch(
+            /async function youtubeAccessFor/,
+        );
+    });
+
+    it("⛔ and those four files were really read", () => {
+        for (const [name, src] of [["check", CHECK], ["creds", CREDS], ["publisher", PUBLISHER], ["health", HEALTH]] as const) {
+            expect(src.length, `${name} was not actually read`).toBeGreaterThan(500);
+        }
+        expect(CHECK).not.toMatch(/platform === "myspace"/);
+    });
+});

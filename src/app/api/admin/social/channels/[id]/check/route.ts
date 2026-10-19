@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { loadChannelCredential } from "@/lib/social/channelCredentials";
+import { loadCredentialFor } from "@/lib/social/channelCredentials";
 import { checkChannel, channelCanBeChecked } from "@/lib/social/channelCheck";
 import { captureChannelStats, capturePostStats } from "@/lib/social/stats";
 import { describeToken } from "@/lib/social/adapters/facebook";
@@ -25,7 +25,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!guard.ok) return guard.response;
 
   const db = getSupabaseAdmin();
-  const cred = await loadChannelCredential(db, id);
+
+  /**
+   * ⚠️ The platform is read FIRST, because what counts as "the credential"
+   * differs by channel: four store a long-lived token, YouTube stores a
+   * refresh token and mints one ⇒ loadCredentialFor.
+   */
+  const { data: row } = await db
+    .from("social_accounts")
+    .select("platform")
+    .eq("id", id)
+    .maybeSingle();
+  if (!row) {
+    return NextResponse.json({ error: "There is no connected channel with that id." }, { status: 404 });
+  }
+
+  const cred = await loadCredentialFor(db, id, row.platform as string);
   if (!cred.ok) return NextResponse.json({ error: cred.reason }, { status: 400 });
 
   /**

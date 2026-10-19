@@ -20,7 +20,7 @@ import { tokenStorageReady } from "@/lib/social/tokenCrypto";
 import { sendChannelAlert, sendMissedSlotAlert } from "@/lib/social/alert";
 import { missedSlots, missedSummary, type QueueRow } from "@/lib/social/queueHealth";
 import { markCronFired } from "@/lib/cron/heartbeat";
-import { loadChannelCredential } from "@/lib/social/channelCredentials";
+import { loadCredentialFor } from "@/lib/social/channelCredentials";
 import { checkChannel, channelCanBeChecked } from "@/lib/social/channelCheck";
 
 export const maxDuration = 120;
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
        * ⇒ channelCheck.ts, so this cron and the button somebody presses can
        * never again disagree about the same channel.
        */
-      const cred = await loadChannelCredential(db, a.id as string);
+      const cred = await loadCredentialFor(db, a.id as string, a.platform as string);
       if (!cred.ok) {
         next = "dead";
         why = cred.reason;

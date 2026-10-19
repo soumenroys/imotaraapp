@@ -13,6 +13,11 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, tokenAad, tokenStorageReady } from "@/lib/social/tokenCrypto";
+import {
+  youtubeOAuthConfig,
+  refreshYouTubeAccessToken,
+  type YouTubeRefreshToken,
+} from "@/lib/social/adapters/youtubeAuth";
 
 export type ChannelCredential =
   | { ok: true; id: string; platform: string; externalId: string; displayName: string; token: string }
@@ -140,4 +145,61 @@ export async function loadChannelRefreshToken(
         `row problem, not a revoked token — check SOCIAL_TOKEN_KEY, and whether external_id was edited.`,
     };
   }
+}
+
+/**
+ * 🔑 ONE DOOR FOR THE PUBLISHER AND THE HEALTH CHECK ALIKE, whatever the
+ * channel keeps.
+ *
+ * Four platforms store a long-lived access token; YouTube stores a refresh
+ * token and mints an access token per use. Callers want the same thing from
+ * all five — "a credential I can send" — and this is where that difference is
+ * absorbed.
+ *
+ * ⛔ IT EXISTS BECAUSE I WROTE THE YOUTUBE BRANCH TWICE. The first copy lived
+ * inside social-publish/route.ts, which meant the health check could not reach
+ * it and reported YouTube as uncheckable — a channel connected and silently
+ * unmonitored, which is the exact failure the production OAuth status was
+ * chosen to avoid ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+ *
+ * ⚠️ Minting is NOT cached. The token is wanted immediately before use, and a
+ * cache would outlive a revocation.
+ */
+export async function loadCredentialFor(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: SupabaseClient<any, any, any>,
+  accountId: string,
+  platform: string,
+  origin?: string,
+): Promise<ChannelCredential> {
+  if (platform !== "youtube") return loadChannelCredential(db, accountId);
+
+  const stored = await loadChannelRefreshToken(db, accountId);
+  if (!stored.ok) return stored;
+
+  const config = youtubeOAuthConfig(process.env, origin);
+  if (!config.ok) return { ok: false, reason: config.message };
+
+  const minted = await refreshYouTubeAccessToken({
+    config: config.config,
+    refreshToken: stored.refreshToken as YouTubeRefreshToken,
+  });
+  /**
+   * 🔑 AND THIS IS WHAT MAKES YOUTUBE CHECKABLE AT ALL. `youtube.upload` is
+   * too narrow to read the channel back — `channels.list?mine=true` needs a
+   * wider scope we deliberately did not ask for. But exchanging the refresh
+   * token IS the meaningful question: it is exactly the thing that dies when a
+   * grant is revoked or the OAuth app slips back to "Testing". ⇒ A successful
+   * mint proves the credential is alive, without widening the scope.
+   */
+  if (!minted.ok) return { ok: false, reason: minted.message };
+
+  return {
+    ok: true,
+    id: stored.id,
+    platform: stored.platform,
+    externalId: stored.externalId,
+    displayName: stored.displayName,
+    token: minted.accessToken,
+  };
 }

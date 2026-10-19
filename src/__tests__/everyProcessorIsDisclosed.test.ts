@@ -168,6 +168,31 @@ const BENIGN_HOSTS = new Set([
      * which is an improvement on the Facebook entry above, where the same
      * question was asked only after it had shipped.
      */
+    /**
+     * YouTube's upload host, called SERVER-SIDE to put a Short on the Imotara
+     * channel ⇒ src/lib/social/adapters/youtube.ts.
+     *
+     * 🔴 IT WAS ALREADY IN THIS LIST, AND FOR THE WRONG REASON — grouped under
+     * "Google sign-in and the help docs' cloud-storage examples", i.e. a host
+     * we LINK to. On 19 Oct it became a host we POST VIDEO BYTES to, and the
+     * paragraph a few lines up says exactly what that means: "if any of these
+     * ever appears in a `fetch(`, it stops being benign and this entry is
+     * wrong." ⇒ Moved here, with the reasoning that actually applies.
+     *
+     * ✅ Still benign, on the same argument as graph.facebook.com and
+     * api.linkedin.com: what travels is a video WE rendered from marketing
+     * copy WE wrote, plus a token belonging to Imotara. No visitor IP, no
+     * reader's browser, nothing anybody typed into the product.
+     *
+     * ⛔ AND IT STOPS BEING BENIGN ON THE SAME DAY AS THOSE TWO — the moment a
+     * post carries something a user wrote, all three entries are wrong and
+     * these hosts belong in PROCESSOR_HOSTS and in the policy.
+     *
+     * ⚠️ The classification did not change. The STATED REASON did, which is
+     * the part a future reader relies on ⇒ a sentence that states the world
+     * goes stale.
+     */
+    "www.googleapis.com",
     "api.linkedin.com",
     /**
      * Microsoft Learn — LinkedIn's API DOCUMENTATION, cited in a comment and
@@ -199,7 +224,7 @@ const BENIGN_HOSTS = new Set([
     "status.openai.com", "platform.openai.com", "aistudio.google.com",
     "console.cloud.google.com",
     // Google sign-in and the help docs' cloud-storage examples
-    "accounts.google.com", "oauth2.googleapis.com", "www.googleapis.com",
+    "accounts.google.com", "oauth2.googleapis.com",
     "drive.google.com", "photos.google.com", "mail.google.com",
     "www.dropbox.com", "1drv.ms", "contoso.sharepoint.com", "sso.okta.com",
     "www.paypal.com",

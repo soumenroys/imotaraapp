@@ -289,8 +289,10 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     requiresPicture: false,
     canPublish: false,
     blockedBy:
-      "The COPPA audience setting is still unresolved on the channel, and Studio opens the wrong " +
-      "channel for this account.",
+      "Studio opens the wrong channel for this Google account, so nobody can authorise an upload yet. "
+      + "\u26a0\ufe0f NOT the COPPA setting, which was the recorded blocker and is not one: the audience is "
+      + "declared PER VIDEO at upload \u21d2 selfDeclaredMadeForKids, so a channel default cannot stop us. "
+      + "\u26d4 And NOT community posts, which the Data API cannot create at all \u2014 the format is Shorts.",
   },
 };
 

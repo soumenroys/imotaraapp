@@ -152,6 +152,88 @@ export async function sendQueueAlert(
 }
 
 /**
+ * 🔴 A SLOT PASSED WITH A FINISHED POST SITTING RIGHT THERE.
+ *
+ * ⛔ NOT THE SAME AS `sendQueueAlert`, whose words are "there is no post
+ * waiting for that slot". That one is about the WRITING failing. This one is
+ * the opposite shape: the post exists, the channel is healthy, the token is
+ * fine — and the hour went by because nobody pressed approve.
+ *
+ * 🔑 WHY IT REPEATS UNTIL FIXED, unlike the channel alert. A broken token is
+ * a STATE that somebody is already working on, so saying it daily is noise.
+ * A post that missed its slot yesterday and is still sitting there has not
+ * been seen — and at one or two slots a day, with a miss being rare, the
+ * repetition costs almost nothing and stops exactly when it is acted on.
+ *
+ * ⚠️ TIMED TO BE ACTIONABLE. This rides the health cron at 03:30Z, which is
+ * 09:00 in Kolkata — before the 17:00 and 17:30 slots. So it reports
+ * yesterday's miss while there is still a whole day to catch today's.
+ */
+export async function sendMissedSlotAlert(
+  missed: { platform: string; subject: string; lateMinutes: number; kind: "unreviewed" | "stuck"; why: string }[],
+  summary: string,
+): Promise<boolean> {
+  if (missed.length === 0) return false;
+
+  if (!isResendConfigured()) {
+    console.error("[social-health] a slot passed unpublished and email is not configured:", missed);
+    return false;
+  }
+
+  const hours = (m: number) => (m < 120 ? `${m} minutes late` : `${Math.round(m / 60)} hours late`);
+
+  const lines = missed
+    .map((m) => `• ${m.platform} — “${m.subject}”\n  ${hours(m.lateMinutes)}. ${m.why}`)
+    .join("\n\n");
+
+  const waiting = missed.filter((m) => m.kind === "unreviewed").length;
+
+  const text = [
+    summary + ".",
+    "",
+    lines,
+    "",
+    // ⛔ Said plainly, because the natural fear on reading this is worse than
+    // the truth: nothing has been lost and nothing is broken at the platform.
+    "⚠️ Nothing is lost. A post keeps its place and goes out within a minute of being approved —",
+    "late, but out. What it cannot do is go out by itself.",
+    ...(waiting > 0
+      ? [
+          "",
+          "Approve them here:",
+          "https://www.imotara.com/admin/social",
+        ]
+      : [
+          "",
+          "⛔ These are already approved, so this is not waiting on you — the publisher is not",
+          "sending them. The attempts and the last error are on",
+          "https://www.imotara.com/admin/social",
+        ]),
+  ].join("\n");
+
+  const identity = envIdentities()[0];
+  const from = identity
+    ? `${identity.name} <${identity.email}>`
+    : `Imotara <social@${sendingDomain()}>`;
+
+  const outcome = await sendOne({
+    from,
+    to: TO,
+    subject: summary,
+    html: `<pre style="font:14px/1.6 ui-monospace,monospace;white-space:pre-wrap">${text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")}</pre>`,
+    text,
+  });
+
+  if (!outcome.ok) {
+    console.error("[social-health] the missed-slot alert itself failed to send:", outcome.code, outcome.message, missed);
+    return false;
+  }
+  return true;
+}
+
+/**
  * 🔴 A POST PEOPLE ARE UPSET BY, RAISED TO A PERSON — TODAY, NOT IN A REPORT.
  *
  * This is the one alert in this feature where being slow to notice costs more

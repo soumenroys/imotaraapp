@@ -17,7 +17,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { tokenStorageReady } from "@/lib/social/tokenCrypto";
-import { sendChannelAlert } from "@/lib/social/alert";
+import { sendChannelAlert, sendMissedSlotAlert } from "@/lib/social/alert";
+import { missedSlots, missedSummary, type QueueRow } from "@/lib/social/queueHealth";
 import { markCronFired } from "@/lib/cron/heartbeat";
 import { loadChannelCredential } from "@/lib/social/channelCredentials";
 import { checkChannel, channelCanBeChecked } from "@/lib/social/channelCheck";
@@ -153,11 +154,38 @@ export async function GET(req: NextRequest) {
     alerted = await sendChannelAlert(newlyBroken);
   }
 
+  /**
+   * 🔴 THE SECOND ROAD TO THE SILENCE THIS CRON EXISTS TO PREVENT.
+   *
+   * The header above says it plainly: the failure is "the queue fills, every
+   * screen looks healthy, and nobody has posted for three weeks". ⛔ Until 19
+   * Oct this file only ever read `social_accounts`, so it could see a broken
+   * token and could NOT see a healthy channel with a finished post nobody
+   * approved — which produces the identical symptom.
+   *
+   * ⚠️ It happened the day this was added: Instagram's 11:30Z slot passed with
+   * a post sitting in `needs_review` and nothing said a word
+   * ⇒ src/lib/social/queueHealth.ts.
+   */
+  const { data: queue } = await db
+    .from("social_posts")
+    .select("id, platform, subject, status, scheduled_for, attempts, last_error")
+    .in("status", ["needs_review", "approved"])
+    // ⚠️ Bounded. A post whose slot passed a month ago is a fact about history,
+    // not something to be told about this morning.
+    .gte("scheduled_for", new Date(now.getTime() - 7 * 86_400_000).toISOString())
+    .order("scheduled_for");
+
+  const missed = missedSlots((queue ?? []) as QueueRow[], now);
+  const missedAlerted = missed.length > 0 ? await sendMissedSlotAlert(missed, missedSummary(missed)) : false;
+
   return NextResponse.json({
     ran: true,
     at: now.toISOString(),
     checked,
     alerted,
+    missed: missed.map((m) => ({ platform: m.platform, kind: m.kind, lateMinutes: m.lateMinutes, subject: m.subject })),
+    missedAlerted,
     note:
       "✅ Facebook is asked directly: 'ok' there means Facebook answered and returned the Page. " +
       "⚠️ Every other channel has no adapter yet, so all that is checked is the encryption key and " +

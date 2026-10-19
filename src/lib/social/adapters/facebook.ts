@@ -822,3 +822,76 @@ export async function fetchPostImpressions(args: {
     return { ok: false, kind: "network", message: `Could not reach Facebook (${(e as Error).message}).` };
   }
 }
+
+/**
+ * Put a video on the Page's timeline.
+ *
+ * 🔴 A DIFFERENT EDGE ENTIRELY, and that is the whole reason this exists.
+ * `/feed` takes a message and attached photos; it cannot take a video. Video
+ * goes to `/{page-id}/videos`, which publishes IN ONE CALL — unlike the photo
+ * path, where the upload is deliberately `published=false` and `/feed` is the
+ * only thing that posts.
+ *
+ * ⚠️ `file_url`, NOT BYTES. Facebook fetches the video itself, from a URL we
+ * host — the same shape as Instagram's image publishing ⇒ cardUrl.ts. Uploading
+ * the bytes is possible and is a chunked, resumable protocol with three phases;
+ * a URL it can fetch is the same outcome with none of that, and we already have
+ * a signed public route to serve one.
+ *
+ * ⛔ THE FIELD IS `description`, NOT `message`. A video posted with `message`
+ * goes out with an EMPTY caption and no error — the field is simply ignored.
+ * That is a silent loss of every word somebody approved.
+ */
+export async function publishVideoToFacebook(args: {
+  token: string;
+  pageId: string;
+  message: string;
+  /** ⚠️ Must be PUBLIC: Facebook fetches it ⇒ /api/social/video/[id]. */
+  videoUrl: string;
+  fetchImpl?: typeof fetch;
+}): Promise<FacebookPublish> {
+  const doFetch = args.fetchImpl ?? fetch;
+
+  const page = await pageAccessToken({ token: args.token, pageId: args.pageId, fetchImpl: args.fetchImpl });
+  if (!page.ok) return page;
+
+  const body = new URLSearchParams({
+    file_url: args.videoUrl,
+    // ⛔ See above: `description` is the caption on this edge.
+    description: args.message,
+    access_token: page.token,
+  });
+
+  try {
+    const res = await doFetch(graph(`${encodeURIComponent(args.pageId)}/videos`), {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+      // ⚠️ Longer than a photo's: Facebook fetches and transcodes before it
+      // answers, and a timeout here is a video that may or may not be live.
+      signal: AbortSignal.timeout(90_000),
+      cache: "no-store",
+    });
+    const json = (await res.json()) as { id?: string; error?: GraphError };
+    if (json.error) return { ok: false, ...classifyGraphError(json.error) };
+
+    if (!json.id) {
+      return {
+        ok: false,
+        kind: "unknown",
+        message:
+          "Facebook accepted the video request and returned no id, so it is not known whether the " +
+          "post exists. ⛔ Not retried: a second attempt is how one video becomes two.",
+      };
+    }
+
+    /**
+     * ⚠️ THE ID IS A VIDEO ID, NOT A POST ID, and they are not interchangeable.
+     * The permalink is built from it rather than guessed: `pageid_postid` —
+     * the shape used for photos — does not resolve for a video.
+     */
+    return { ok: true, postId: json.id, url: `https://www.facebook.com/${encodeURIComponent(json.id)}` };
+  } catch (e) {
+    return { ok: false, kind: "network", message: `Could not reach Facebook (${(e as Error).message}).` };
+  }
+}

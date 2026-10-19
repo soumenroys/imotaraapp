@@ -215,11 +215,23 @@ async function waitForContainer(args: {
   imageUrl: string;
   doFetch: typeof fetch;
   sleep: (ms: number) => Promise<void>;
+  /**
+   * ⚠️ HOW PATIENT TO BE, because a picture and a reel are not comparable.
+   * An image container is usually FINISHED on the first poll; a video has to
+   * be fetched, transcoded and thumbnailed first. ⛔ Defaulting a reel to the
+   * image budget would give up at 24 seconds on something that routinely
+   * takes a minute — and giving up cancels nothing, so the retry publishes it
+   * twice.
+   */
+  tries?: number;
+  waitMs?: number;
 }): Promise<{ ok: true } | { ok: false; kind: InstagramFailure; message: string }> {
   const { containerId, pageToken, imageUrl, doFetch, sleep } = args;
+  const tries = args.tries ?? CONTAINER_TRIES;
+  const waitMs = args.waitMs ?? CONTAINER_WAIT_MS;
   let lastStatus = "unknown";
 
-  for (let attempt = 0; attempt < CONTAINER_TRIES; attempt += 1) {
+  for (let attempt = 0; attempt < tries; attempt += 1) {
     const state = await getJson(
       graph(encodeURIComponent(containerId)) +
         `?fields=status_code,status&access_token=${encodeURIComponent(pageToken)}`,
@@ -245,14 +257,14 @@ async function waitForContainer(args: {
           `must be publicly reachable and a JPEG. ⛔ Nothing was published.`,
       };
     }
-    if (attempt < CONTAINER_TRIES - 1) await sleep(CONTAINER_WAIT_MS);
+    if (attempt < tries - 1) await sleep(waitMs);
   }
 
   return {
     ok: false,
     kind: "unknown",
     message:
-      `Instagram was still preparing the picture after ${(CONTAINER_TRIES * CONTAINER_WAIT_MS) / 1000}s ` +
+      `Instagram was still preparing the media after ${(tries * waitMs) / 1000}s ` +
       `(last status ${lastStatus}). ⛔ Nothing was published — the container is not a post.`,
   };
 }
@@ -742,4 +754,84 @@ export async function listInstagramAccounts(args: {
         pageName: p.name ?? "",
       })),
   };
+}
+
+/**
+ * 🔴 A REEL TAKES FAR LONGER TO PROCESS THAN A PICTURE.
+ *
+ * An image container is usually FINISHED on the first poll. A video has to be
+ * fetched, transcoded and thumbnailed before Instagram will publish it, and
+ * 24 seconds — the image budget — is nowhere near enough. ⛔ Giving up early
+ * does not cancel anything: the container keeps processing at Meta's end, so
+ * a retry would publish the reel twice.
+ */
+const REEL_TRIES = 30;
+const REEL_WAIT_MS = 6_000;
+
+/**
+ * Put a video on the Instagram timeline, as a Reel.
+ *
+ * 🔑 THE SAME THREE-BEAT SHAPE AS EVERYTHING HERE — container, wait, publish
+ * — with two differences that are not cosmetic:
+ *
+ *   · `media_type=REELS` and `video_url` rather than `image_url`. ⛔ There is
+ *     no "video post" on this API any more; a video IS a reel, and one posted
+ *     without that media_type is rejected with an error about the image.
+ *   · the wait is minutes, not seconds ⇒ REEL_TRIES.
+ *
+ * ⚠️ Meta fetches `videoUrl` ITSELF, with none of our credentials, so it must
+ * be publicly reachable — the same constraint as the card ⇒ cardUrl.ts.
+ */
+export async function publishReelToInstagram(args: {
+  token: string;
+  igUserId: string;
+  caption: string;
+  /** ⚠️ Must be PUBLIC and MP4: Meta fetches it. */
+  videoUrl: string;
+  /** ⚠️ Instagram picks its own cover if none is given. */
+  coverUrl?: string;
+  fetchImpl?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<InstagramPublish> {
+  const doFetch = args.fetchImpl ?? fetch;
+  const sleep = args.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+
+  const linked = await instagramLink({ token: args.token, igUserId: args.igUserId, fetchImpl: doFetch });
+  if (!linked.ok) return linked;
+  const pageToken = linked.link.pageToken;
+
+  // ── 1. THE CONTAINER ──────────────────────────────────────────────────────
+  const made = await makeContainer(
+    args.igUserId,
+    {
+      media_type: "REELS",
+      video_url: args.videoUrl,
+      caption: args.caption,
+      ...(args.coverUrl ? { cover_url: args.coverUrl } : {}),
+      access_token: pageToken,
+    },
+    doFetch,
+  );
+  if (!made.ok) return made;
+
+  // ── 2. WAIT — MINUTES, NOT SECONDS ────────────────────────────────────────
+  const ready = await waitForContainer({
+    containerId: made.containerId,
+    pageToken,
+    imageUrl: args.videoUrl,
+    doFetch,
+    sleep,
+    tries: REEL_TRIES,
+    waitMs: REEL_WAIT_MS,
+  });
+  if (!ready.ok) return { ...ready, containerId: made.containerId };
+
+  // ── 3. THE CALL THAT ACTUALLY PUBLISHES ───────────────────────────────────
+  return publishContainer({
+    igUserId: args.igUserId,
+    containerId: made.containerId,
+    pageToken,
+    username: linked.link.username,
+    doFetch,
+  });
 }

@@ -18,6 +18,16 @@ type Body = { action?: string; subject?: string; body?: string; scheduledFor?: s
 
 const APPROVABLE = ["needs_review"];
 
+/**
+ * ⚠️ APPROVING NOW DOES REAL WORK. For a short video it renders five frames,
+ * asks Azure to speak each sentence and runs ffmpeg ⇒ ensureCard — seconds,
+ * not milliseconds. The default limit is for a route that writes a row.
+ *
+ * ⛔ Deliberately on the APPROVAL, where a person is waiting and watching,
+ * rather than on the request Meta makes ⇒ docs/sql/social_card_store.sql.
+ */
+export const maxDuration = 120;
+
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const guard = await requireSocialAdmin(req);

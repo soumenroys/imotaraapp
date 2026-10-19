@@ -123,6 +123,22 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/admin/social/animation/[id]": ["./node_modules/@ffmpeg-installer/**/*"],
     /**
+     * 🔴 AND THE APPROVAL ROUTE, WHICH NOW ENCODES TOO — added 19 Oct after
+     * it failed in production and nowhere else.
+     *
+     * Approving a post renders and stores its media ⇒ ensureCard, and for a
+     * short video that means ffmpeg. The binary was traced into the ANIMATION
+     * route only, because that was the only route that had ever needed it.
+     *
+     * ⛔ THIS IS THE THIRD TIME THIS EXACT SHAPE HAS BITTEN, and the comment
+     * above `serverExternalPackages` describes the first two: a package whose
+     * EXECUTABLE or DATA FILE the bundler cannot see, working perfectly in
+     * `next dev` and failing with ENOENT in production. ⚠️ Adding a call to
+     * ffmpeg or Chromium from a NEW route is not a code change — it is a
+     * deployment change, and nothing in the type system says so.
+     */
+    "/api/admin/social/posts/[id]": ["./node_modules/@ffmpeg-installer/**/*"],
+    /**
      * ⚠️ NAMED PER ROUTE, not globally. Chromium is ~67MB: tracing it into
      * every function would add that to each of them, which is the reason the
      * ffmpeg entry above is scoped the same way.

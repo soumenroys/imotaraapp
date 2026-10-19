@@ -99,41 +99,52 @@ describe("one switch, not two detectors", () => {
    * ⇒ trap_crisis_card_two_detectors_two_platforms — the same shape as the
    * defect shaping.ts was created to fix.
    *
-   * ⚠️ They agree today only because every complex script is unverified.
-   * These tests pin that they agree BY CONSTRUCTION, not by coincidence.
+   * 🔴 AND ON 19 Oct THE ONE SWITCH HAD TO BECOME TWO, because a second
+   * renderer appeared. A Bengali reader confirmed a card drawn by a BROWSER
+   * and `shapingVerified` flipped — at which point this detector, reading
+   * that flag, announced that SATORI could draw Bengali. It cannot and never
+   * will. Bengali posts would have gone straight back down the Satori path
+   * and published অভমিান a second time, with a green suite.
    *
-   * ▶️ WHEN A SCRIPT IS GENUINELY VERIFIED by a reader, the assertions below
-   * that expect it BLOCKED must be updated deliberately. That is the intent,
-   * not friction: unlocking somebody's script on a public card is a decision,
-   * and a decision should have to touch a test.
+   * ⇒ `complexScript` is a property of the SCRIPT: can Satori draw it at all?
+   *   Nothing we do changes it.
+   * ⇒ `shapingVerified` is a property of our EVIDENCE: has a reader confirmed
+   *   OUR render? It decides whether the SHAPED path may be used
+   *   ⇒ needsShaping.cardPlan.
+   *
+   * ⚠️ This detector asks the first question only, because its callers are
+   * the ones about to hand the words to Satori.
    */
   it("takes the verdict from fonts.ts rather than its own list", () => {
     const src = read("src/lib/social/shaping.ts");
-    expect(src).toContain("SCRIPT_FONTS[s.script]?.shapingVerified");
+    expect(src).toContain("SCRIPT_FONTS[s.script]?.complexScript");
     // ⛔ And no second hard-coded allow/deny list hiding beside it.
-    expect(src).not.toMatch(/shapingVerified:\s*(true|false)/);
+    expect(src).not.toMatch(/complexScript:\s*(true|false)/);
+    // ⛔ And it must NOT read the evidence flag — that is the conflation
+    // that would send a confirmed script to the renderer that cannot draw it.
+    expect(src).not.toMatch(/SCRIPT_FONTS\[s\.script\]\?\.shapingVerified/);
   });
 
-  it("unlocks the moment a script is verified — the same switch as the wordmark", () => {
+  it("⛔ stays blocked for Satori even once a reader has confirmed the script", () => {
     /**
-     * 🔑 THE BEHAVIOUR THAT MATTERS. If a native reader confirms Bengali on a
-     * rendered card, flipping ONE flag in fonts.ts must unlock the headline
-     * too. This proves it by flipping the real table at runtime.
+     * 🔴 THE REGRESSION THIS NOW GUARDS, and it is the opposite of what this
+     * test asserted yesterday. Bengali IS confirmed — by the owner, on a card
+     * rendered in production — and Satori still cannot draw it. Confirmation
+     * unlocks the browser path, never the Satori one.
      */
-    const before = unshapableScripts(ABHIMAAN);
-    expect(before).toContain("Bengali");
+    expect(SCRIPT_FONTS.bengali.shapingVerified).toBe(true);
+    expect(unshapableScripts(ABHIMAAN)).toContain("Bengali");
 
+    // And flipping the evidence flag at runtime must not change this answer.
     const entry = SCRIPT_FONTS.bengali;
     const saved = entry.shapingVerified;
     try {
-      (entry as { shapingVerified: boolean }).shapingVerified = true;
-      expect(unshapableScripts(ABHIMAAN)).toEqual([]);
+      (entry as { shapingVerified: boolean }).shapingVerified = false;
+      expect(unshapableScripts(ABHIMAAN)).toContain("Bengali");
     } finally {
       (entry as { shapingVerified: boolean }).shapingVerified = saved;
     }
-    // ⚠️ Restored, and checked — a leaked mutation would silently unblock
-    // Bengali for every test after this one.
-    expect(unshapableScripts(ABHIMAAN)).toContain("Bengali");
+    expect(SCRIPT_FONTS.bengali.shapingVerified).toBe(true);
   });
 
   it("⛔ treats a script fonts.ts has never heard of as unverified", () => {

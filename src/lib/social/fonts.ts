@@ -61,6 +61,21 @@ export type ScriptFont = {
    * without that confirmation publishes a misspelling nobody here can see.
    */
   shapingVerified: boolean;
+  /**
+   * 🔴 DOES THIS SCRIPT NEED SHAPING AT ALL? A PROPERTY OF THE SCRIPT,
+   * NOT OF OUR EVIDENCE — and the two were one field until 19 Oct.
+   *
+   * `shapingVerified` answers "has a reader confirmed OUR render?".
+   * This answers "can Satori draw it?", which nothing we do can change:
+   * Satori does no pre-base vowel reordering, no conjunct formation and no
+   * Arabic joining, and it never will on our account.
+   *
+   * ⛔ CONFLATING THEM BROKE THE MOMENT BENGALI WAS CONFIRMED. One flag
+   * flipped and `unshapableScripts` immediately claimed Satori could draw
+   * Bengali — which would have sent Bengali posts down the Satori path and
+   * published অভমিান all over again, with a green test suite.
+   */
+  complexScript: boolean;
   verifiedBy?: string;
   verifiedAt?: string;
 };
@@ -70,6 +85,9 @@ const LATIN: ScriptFont = {
   // ⚠️ A static TTF, not the woff2 the stylesheet serves. Satori cannot read woff2.
   url: "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-600-normal.ttf",
   shapingVerified: true,
+  // ⚠️ Latin needs no reordering, no conjuncts and no joining. This is the
+  // only entry where that is true by the script's own nature.
+  complexScript: false,
   verifiedBy: "latin script, legible to everyone here",
 };
 
@@ -103,6 +121,7 @@ export const SCRIPT_FONTS: Record<string, ScriptFont> = {
      * all of them to fail. The remaining question is not "which scripts are
      * safe" but "what replaces the renderer".
      */
+    complexScript: true,
     shapingVerified: false,
   },
   bengali: {
@@ -123,57 +142,94 @@ export const SCRIPT_FONTS: Record<string, ScriptFont> = {
      * 🔑 This is the first hard evidence for the warning at the top of this
      * file. ⛔ Nothing changes for the other scripts: they are still
      * unverified because nobody has looked, not because anything was proven.
+     *
+     * ─────────────────────────────────────────────────────────────────────
+     * ✅ CONFIRMED 19 Oct 2026 — AND THE RENDERER IS WHAT CHANGED.
+     *
+     * The owner, who reads Bengali, looked at a card rendered BY PRODUCTION
+     * and said it is right. On it: `অভিমান` with the ি correctly before ভ —
+     * the very word and the very failure above — plus `হ্যালো` with its
+     * conjunct formed, `ইমোতারা` with the ো wrapping the ত, and `আছি।`.
+     *
+     * ⚠️ SATORI STILL CANNOT DRAW THIS. Nothing about that has improved and
+     * this flag does not claim it has. Bengali cards are now drawn by a
+     * BROWSER and the bytes stored at approval ⇒ shapedRenderer.ts,
+     * ensureCard.ts, needsShaping.ts. The flag means "a reader has confirmed
+     * a rendered card", which is what it has always meant, and the route it
+     * unlocks is the shaped one.
+     *
+     * 🔴 WHAT IT TOOK, because the next script will cost the same. Three
+     * deploys went on two guesses: a remote `url()` that the container could
+     * not fetch, and then — the real one — composePicture setting
+     * `fontFamily` on the ROOT node, which for an unverified script is the
+     * SUBSTITUTED LATIN family. Every glyph was being asked for in Inter.
+     * ⛔ And my local preview could never have caught it: a Mac has Noto Sans
+     * Bengali installed, so Chromium fell back to the system face and the
+     * card looked perfect every time I ran it. ⇒ Ask the page what it has,
+     * do not look at a render on a machine that owns the fonts
+     * ⇒ FontProbe and /api/admin/social/shaping-check?debug=1.
      */
-    shapingVerified: false,
+    complexScript: true,
+    shapingVerified: true,
   },
   tamil: {
     family: "Noto Sans Tamil",
     url: "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-tamil@latest/tamil-600-normal.ttf",
+    complexScript: true,
     shapingVerified: false,
   },
   telugu: {
     family: "Noto Sans Telugu",
     url: "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-telugu@latest/telugu-600-normal.ttf",
+    complexScript: true,
     shapingVerified: false,
   },
   gujarati: {
     family: "Noto Sans Gujarati",
     url: "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-gujarati@latest/gujarati-600-normal.ttf",
+    complexScript: true,
     shapingVerified: false,
   },
   gurmukhi: {
     family: "Noto Sans Gurmukhi",
     url: "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-gurmukhi@latest/gurmukhi-600-normal.ttf",
+    complexScript: true,
     shapingVerified: false,
   },
   kannada: {
     family: "Noto Sans Kannada",
     url: "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-kannada@latest/kannada-600-normal.ttf",
+    complexScript: true,
     shapingVerified: false,
   },
   malayalam: {
     family: "Noto Sans Malayalam",
     url: "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-malayalam@latest/malayalam-600-normal.ttf",
+    complexScript: true,
     shapingVerified: false,
   },
   oriya: {
     family: "Noto Sans Oriya",
     url: "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-oriya@latest/oriya-600-normal.ttf",
+    complexScript: true,
     shapingVerified: false,
   },
   arabic: {
     family: "Noto Sans Arabic",
     url: "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-arabic@latest/arabic-600-normal.ttf",
+    complexScript: true,
     shapingVerified: false,
   },
   hebrew: {
     family: "Noto Sans Hebrew",
     url: "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-hebrew@latest/hebrew-600-normal.ttf",
+    complexScript: true,
     shapingVerified: false,
   },
   japanese: {
     family: "Noto Sans JP",
     url: "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-jp@latest/japanese-600-normal.ttf",
+    complexScript: true,
     shapingVerified: false,
   },
 };

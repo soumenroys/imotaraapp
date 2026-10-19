@@ -46,9 +46,23 @@ export function cardPlan(language: string): CardPlan {
     };
   }
 
-  // Latin has always been drawn by Satori and is the only script proven in
-  // public. ⚠️ `shapingVerified` is the flag, not the script's name.
-  if (font.shapingVerified) return { how: "derive", script };
+  /**
+   * 🔴 TWO QUESTIONS, AND I HAD THEM AS ONE.
+   *
+   * ⛔ This used to read `if (font.shapingVerified) return derive` — which
+   * sent a CONFIRMED script to SATORI, the renderer that cannot draw it. The
+   * moment Bengali was confirmed, `cardPlan("bn")` answered "derive" and the
+   * jumbled card would have published again. Caught by four tests that had
+   * been written for the old single flag and were right to fail.
+   *
+   * ⇒ `complexScript` decides WHICH renderer; `shapingVerified` decides
+   * whether the shaped one is allowed yet.
+   */
+  if (!font.complexScript) return { how: "derive", script };
+
+  if (font.shapingVerified) {
+    return { how: "shape", script, family: font.family, url: font.url };
+  }
 
   return {
     how: "refuse",

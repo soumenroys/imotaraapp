@@ -94,12 +94,33 @@ describe("⛔ shaping unlocks the possibility; a READER unlocks the language", (
      * still meet a missing glyph, a conjunct the face lacks, or a line break
      * in the wrong place.
      */
-    for (const language of ["bn", "hi", "ta", "ml"]) {
+    // ⚠️ bn is NO LONGER in this list: the owner, who reads Bengali, looked
+    // at a card rendered in production on 19 Oct and confirmed it. That is
+    // the gate working, not the gate being bypassed.
+    for (const language of ["hi", "ta", "ml"]) {
       const plan = cardPlan(language);
       expect(plan.how, `${language} must still be held`).toBe("refuse");
       if (plan.how !== "refuse") throw new Error("unreachable");
       expect(plan.why).toMatch(/confirmed a rendered card/i);
     }
+  });
+
+  it("⛔ a CONFIRMED script goes to the browser, never back to Satori", () => {
+    /**
+     * 🔴 THE BUG THIS CAUGHT ON THE DAY BENGALI WAS CONFIRMED. `cardPlan`
+     * read one flag and answered "derive" — sending a script Satori cannot
+     * draw to Satori. The jumbled card would have published a second time.
+     *
+     * ⇒ Two questions: `complexScript` picks the renderer, `shapingVerified`
+     * permits the shaped one.
+     */
+    const bn = cardPlan("bn");
+    expect(bn.how).toBe("shape");
+    if (bn.how !== "shape") throw new Error("unreachable");
+    expect(bn.family).toMatch(/Bengali/);
+
+    // ⛔ And English still derives — the shaped path is not for everyone.
+    expect(cardPlan("en").how).toBe("derive");
   });
 
   it("English is derived, because it is the one script proven in public", () => {

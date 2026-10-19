@@ -371,11 +371,15 @@ describe("the picture", () => {
   });
 
   it("says when the wordmark had to fall back to Latin", async () => {
-    // ⚠️ A Bengali post gets a Latin wordmark until somebody who reads Bengali
-    // has checked a rendered picture. The reviewer is TOLD, not left to notice.
+    /**
+     * ⚠️ TAMIL, NOT BENGALI — the example moved on 19 Oct when the owner
+     * confirmed a Bengali card rendered in production. The RULE is unchanged:
+     * a post in an unverified script gets a Latin wordmark, and the reviewer
+     * is TOLD rather than left to notice.
+     */
     const result = await prepareGenerated(
       deps({ drafts: [{ subject: "The hours nobody staffs", body: CLEAN_BODY }] }),
-      { schedule: schedule({ languages: ["bn"] }), platform: "facebook", language: "bn", postsSoFar: 0 },
+      { schedule: schedule({ languages: ["ta"] }), platform: "facebook", language: "ta", postsSoFar: 0 },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;

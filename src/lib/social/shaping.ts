@@ -98,16 +98,26 @@ export function unshapableScripts(text: string): string[] {
   return SCRIPT_RANGES.filter((s) => {
     if (!s.range.test(text)) return false;
     /**
-     * 🔑 THE ONE SWITCH. `shapingVerified` means a person who READS this
-     * script has looked at a rendered picture and said it is right
-     * ⇒ fonts.ts. Flipping it there unlocks the wordmark AND the card's
-     * words together, which is the whole point of asking one question once.
+     * 🔴 THIS ASKS ABOUT SATORI, AND ONLY ABOUT SATORI.
+     *
+     * ⛔ IT USED TO READ `shapingVerified`, AND THAT WAS WRONG THE MOMENT A
+     * SECOND RENDERER EXISTED. On 19 Oct a Bengali reader confirmed a card
+     * drawn by a BROWSER, the flag flipped — and this function immediately
+     * claimed Satori could draw Bengali. It cannot, and never will: Satori
+     * does no pre-base vowel reordering, no conjunct formation and no Arabic
+     * joining. Bengali posts would have gone straight back down the Satori
+     * path and published অভমিান a second time, with a green suite.
+     *
+     * ⇒ Two questions, two fields. `complexScript` is a property of the
+     * SCRIPT and nothing we do changes it. `shapingVerified` is a property of
+     * our EVIDENCE and decides whether the shaped path may be used at all
+     * ⇒ needsShaping.cardPlan.
      *
      * ⛔ A script with NO entry in fonts.ts — Thai, Khmer, Myanmar, Sinhala;
-     * none of the 22 languages use them — is unverified by definition.
-     * `?? false` rather than `?? true`: an unknown script is not a safe one.
+     * none of the 22 languages use them — is treated as complex. An unknown
+     * script is not a safe one.
      */
-    return SCRIPT_FONTS[s.script]?.shapingVerified !== true;
+    return SCRIPT_FONTS[s.script]?.complexScript !== false;
   }).map((s) => SCRIPT_LABELS[s.script] ?? s.script);
 }
 

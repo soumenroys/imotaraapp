@@ -35,7 +35,13 @@
 export const SCRIPT_SAMPLES: Record<string, { language: string; text: string }> = {
   latin: { language: "English", text: "Hi, I'm Imotara. I'm here with you." },
   devanagari: { language: "Hindi", text: "नमस्ते, मैं इमोतारा हूँ. मैं आपके साथ हूँ।" },
-  bengali: { language: "Bengali", text: "হ্যালো, আমি ইমোতারা. আমি তোমার সাথে আছি।" },
+  /**
+   * ⚠️ DANDA, NOT A FULL STOP, after ইমোতারা. The first version used a Latin
+   * "." mid-sentence and a danda "।" at the end — inconsistent punctuation
+   * that renders perfectly and reads as carelessness in the language it is
+   * written for. ⛔ Spotted on the card that confirmed Bengali, 19 Oct.
+   */
+  bengali: { language: "Bengali", text: "হ্যালো, আমি ইমোতারা। আমি তোমার সাথে আছি।" },
   tamil: { language: "Tamil", text: "வணக்கம், நான் இமோதாரா. நான் உங்களுடன் இருக்கிறேன்." },
   telugu: { language: "Telugu", text: "నమస్కారం, నేను ఇమోతారా. నేను మీతో ఉన్నాను." },
   gujarati: { language: "Gujarati", text: "નમસ્તે, હું ઇમોતારા છું. હું તમારી સાથે છું." },

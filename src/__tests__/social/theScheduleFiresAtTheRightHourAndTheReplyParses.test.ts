@@ -238,11 +238,26 @@ describe("the composer", () => {
   });
 
   it("sets the Latin wordmark, and says so, for a script nobody has verified", () => {
-    const picture = composePicture({ recipe: recipe({ script: "bn" }), headline: "A headline", language: "bn", platform: "facebook" });
+    /**
+     * ⚠️ TAMIL, NOT BENGALI. This used Bengali until 19 Oct, when the owner
+     * confirmed a Bengali card rendered in production and the flag flipped.
+     * ⛔ The RULE is unchanged and is what matters: an unverified script gets
+     * the Latin wordmark and the reviewer is told why. Only the example had
+     * to move to a script that is still unverified.
+     */
+    const picture = composePicture({ recipe: recipe({ script: "ta" }), headline: "A headline", language: "ta", platform: "facebook" });
     expect(picture.wordmark.substituted).toBe(true);
     expect(wordsInPicture(picture)).toContain("Imotara");
-    expect(wordsInPicture(picture)).not.toContain("ইমোতারা");
     expect(picture.notes.join(" ")).toMatch(/nobody here can tell/i);
+  });
+
+  it("⛔ and a CONFIRMED script keeps its own wordmark", () => {
+    // 🔑 The other half of the same switch: confirming Bengali unlocked the
+    // wordmark AND the card's words together, which is the whole point of
+    // asking one question once ⇒ fonts.ts.
+    const picture = composePicture({ recipe: recipe({ script: "bn" }), headline: "A headline", language: "bn", platform: "facebook" });
+    expect(picture.wordmark.substituted).toBe(false);
+    expect(wordsInPicture(picture)).not.toContain("Imotara");
   });
 
   it("⛔ uses no CSS shorthand Satori ignores", () => {

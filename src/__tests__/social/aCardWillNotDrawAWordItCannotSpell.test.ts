@@ -20,6 +20,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { unshapableScripts, unshapableNote } from "@/lib/social/shaping";
+import { SCRIPT_FONTS } from "@/lib/social/fonts";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 const strip = (s: string) =>
@@ -86,6 +87,67 @@ describe("which scripts are blocked, and which are deliberately not", () => {
     expect(note).toMatch(/misspelt|misspelling/);
     // ▶️ And why refusing is the right answer, where somebody will read it.
     expect(note).toMatch(/insults exactly the readers it is for/);
+  });
+});
+
+describe("one switch, not two detectors", () => {
+  /**
+   * 🔴 fonts.ts ALREADY CARRIED THIS CONCERN, as a per-script
+   * `shapingVerified` flag gated on "somebody who READS this script has
+   * looked at a rendered picture and said it is right". It governs the
+   * WORDMARK. I wrote shaping.ts hours later without noticing
+   * ⇒ trap_crisis_card_two_detectors_two_platforms — the same shape as the
+   * defect shaping.ts was created to fix.
+   *
+   * ⚠️ They agree today only because every complex script is unverified.
+   * These tests pin that they agree BY CONSTRUCTION, not by coincidence.
+   *
+   * ▶️ WHEN A SCRIPT IS GENUINELY VERIFIED by a reader, the assertions below
+   * that expect it BLOCKED must be updated deliberately. That is the intent,
+   * not friction: unlocking somebody's script on a public card is a decision,
+   * and a decision should have to touch a test.
+   */
+  it("takes the verdict from fonts.ts rather than its own list", () => {
+    const src = read("src/lib/social/shaping.ts");
+    expect(src).toContain("SCRIPT_FONTS[s.script]?.shapingVerified");
+    // ⛔ And no second hard-coded allow/deny list hiding beside it.
+    expect(src).not.toMatch(/shapingVerified:\s*(true|false)/);
+  });
+
+  it("unlocks the moment a script is verified — the same switch as the wordmark", () => {
+    /**
+     * 🔑 THE BEHAVIOUR THAT MATTERS. If a native reader confirms Bengali on a
+     * rendered card, flipping ONE flag in fonts.ts must unlock the headline
+     * too. This proves it by flipping the real table at runtime.
+     */
+    const before = unshapableScripts(ABHIMAAN);
+    expect(before).toContain("Bengali");
+
+    const entry = SCRIPT_FONTS.bengali;
+    const saved = entry.shapingVerified;
+    try {
+      (entry as { shapingVerified: boolean }).shapingVerified = true;
+      expect(unshapableScripts(ABHIMAAN)).toEqual([]);
+    } finally {
+      (entry as { shapingVerified: boolean }).shapingVerified = saved;
+    }
+    // ⚠️ Restored, and checked — a leaked mutation would silently unblock
+    // Bengali for every test after this one.
+    expect(unshapableScripts(ABHIMAAN)).toContain("Bengali");
+  });
+
+  it("⛔ treats a script fonts.ts has never heard of as unverified", () => {
+    // Thai, Khmer, Myanmar and Sinhala are in the ranges and not in the font
+    // table — none of the 22 languages use them. `?? false`, never `?? true`:
+    // an unknown script is not a safe one.
+    expect(unshapableScripts("สวัสดี")).toContain("Thai");
+    expect(SCRIPT_FONTS.thai).toBeUndefined();
+  });
+
+  it("every blocked script name is one a person can read", () => {
+    // ⚠️ The note goes to a human. "oriya" is a table key; "Odia" is a word.
+    expect(unshapableScripts("ଅଭିମାନ")).toContain("Odia");
+    expect(unshapableScripts("ଅଭିମାନ")).not.toContain("oriya");
   });
 });
 

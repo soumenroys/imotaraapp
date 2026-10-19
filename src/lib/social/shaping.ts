@@ -1,3 +1,5 @@
+import { SCRIPT_FONTS } from "@/lib/social/fonts";
+
 // src/lib/social/shaping.ts
 // Which scripts this renderer cannot draw correctly.
 //
@@ -24,31 +26,64 @@
 // renderer exists.
 
 /**
- * The scripts that need reordering or joining to be drawn correctly.
+ * 🔴 THE VERDICT LIVES IN fonts.ts, NOT HERE — corrected 19 Oct.
  *
- * ⚠️ NOT "non-Latin". Greek, Cyrillic, Hebrew letters, Han, Kana and Hangul
- * all draw correctly left-to-right with no glyph reordering, and blocking
- * them would cost the product languages for nothing. ⛔ The test is whether
- * the glyphs must MOVE or CHANGE SHAPE, not whether the script is familiar.
+ * `fonts.ts` already carried exactly this concern, as a per-script
+ * `shapingVerified` flag gated on *"somebody who READS this script has looked
+ * at a rendered picture and said it is right"*. It governs the WORDMARK.
+ *
+ * ⛔ I wrote this module hours later without noticing, which made two
+ * independent detectors for one question ⇒
+ * trap_crisis_card_two_detectors_two_platforms, the same shape as the defect
+ * this file was created to fix. They agree today because every complex script
+ * is unverified. They would disagree the moment somebody verifies one: the
+ * wordmark would switch to Bengali while the headline stayed refused.
+ *
+ * ✅ So the split is now: this file detects WHICH scripts a string contains;
+ * `fonts.ts` decides whether each may be drawn. One switch unlocks both.
+ *
+ * ⚠️ The ranges below are still needed and are NOT in fonts.ts, which maps a
+ * LANGUAGE to a script. This maps arbitrary TEXT to the scripts inside it —
+ * a different question, because a post written in English can quote a Bengali
+ * word, which is exactly what happened on the first Instagram card.
  */
-const COMPLEX: { name: string; range: RegExp }[] = [
+/** ⚠️ What a PERSON reading the note should see. The keys match fonts.ts; a
+ *  reader should not have to know that Odia is keyed "oriya". */
+const SCRIPT_LABELS: Record<string, string> = {
+  devanagari: "Devanagari (Hindi, Marathi)",
+  bengali: "Bengali",
+  gurmukhi: "Gurmukhi (Punjabi)",
+  gujarati: "Gujarati",
+  oriya: "Odia",
+  tamil: "Tamil",
+  telugu: "Telugu",
+  kannada: "Kannada",
+  malayalam: "Malayalam",
+  sinhala: "Sinhala",
+  arabic: "Arabic (incl. Urdu)",
+  thai: "Thai",
+  khmer: "Khmer",
+  myanmar: "Myanmar",
+};
+
+const SCRIPT_RANGES: { script: string; range: RegExp }[] = [
   // Indic and Brahmic — all reorder pre-base vowel signs.
-  { name: "Devanagari (Hindi, Marathi)", range: /[ऀ-ॿ]/u },
-  { name: "Bengali", range: /[ঀ-৿]/u },
-  { name: "Gurmukhi (Punjabi)", range: /[਀-੿]/u },
-  { name: "Gujarati", range: /[઀-૿]/u },
-  { name: "Odia", range: /[଀-୿]/u },
-  { name: "Tamil", range: /[஀-௿]/u },
-  { name: "Telugu", range: /[ఀ-౿]/u },
-  { name: "Kannada", range: /[ಀ-೿]/u },
-  { name: "Malayalam", range: /[ഀ-ൿ]/u },
-  { name: "Sinhala", range: /[඀-෿]/u },
+  { script: "devanagari", range: /[ऀ-ॿ]/u },
+  { script: "bengali", range: /[ঀ-৿]/u },
+  { script: "gurmukhi", range: /[਀-੿]/u },
+  { script: "gujarati", range: /[઀-૿]/u },
+  { script: "oriya", range: /[଀-୿]/u },
+  { script: "tamil", range: /[஀-௿]/u },
+  { script: "telugu", range: /[ఀ-౿]/u },
+  { script: "kannada", range: /[ಀ-೿]/u },
+  { script: "malayalam", range: /[ഀ-ൿ]/u },
+  { script: "sinhala", range: /[඀-෿]/u },
   // Cursive joining scripts — every letter changes shape by position.
-  { name: "Arabic (incl. Urdu)", range: /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/u },
+  { script: "arabic", range: /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/u },
   // Clustering scripts.
-  { name: "Thai", range: /[฀-๿]/u },
-  { name: "Khmer", range: /[ក-៿]/u },
-  { name: "Myanmar", range: /[က-႟]/u },
+  { script: "thai", range: /[฀-๿]/u },
+  { script: "khmer", range: /[ក-៿]/u },
+  { script: "myanmar", range: /[က-႟]/u },
 ];
 
 /**
@@ -60,7 +95,20 @@ const COMPLEX: { name: string; range: RegExp }[] = [
  */
 export function unshapableScripts(text: string): string[] {
   if (!text) return [];
-  return COMPLEX.filter((s) => s.range.test(text)).map((s) => s.name);
+  return SCRIPT_RANGES.filter((s) => {
+    if (!s.range.test(text)) return false;
+    /**
+     * 🔑 THE ONE SWITCH. `shapingVerified` means a person who READS this
+     * script has looked at a rendered picture and said it is right
+     * ⇒ fonts.ts. Flipping it there unlocks the wordmark AND the card's
+     * words together, which is the whole point of asking one question once.
+     *
+     * ⛔ A script with NO entry in fonts.ts — Thai, Khmer, Myanmar, Sinhala;
+     * none of the 22 languages use them — is unverified by definition.
+     * `?? false` rather than `?? true`: an unknown script is not a safe one.
+     */
+    return SCRIPT_FONTS[s.script]?.shapingVerified !== true;
+  }).map((s) => SCRIPT_LABELS[s.script] ?? s.script);
 }
 
 /** ⚠️ The sentence shown to whoever has to act on it. */

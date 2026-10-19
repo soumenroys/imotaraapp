@@ -73,6 +73,22 @@ export const SCRIPT_FONTS: Record<string, ScriptFont> = {
   bengali: {
     family: "Noto Sans Bengali",
     url: "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-bengali@latest/bengali-600-normal.ttf",
+    /**
+     * 🔴 NOW MEASURED, NOT ASSUMED — 18 Oct 2026, on a PUBLISHED post.
+     *
+     * A card carried `অভিমান` and rendered it **অভমিান**: the pre-base vowel
+     * sign ি did not move left of its consonant and the া detached. The
+     * owner, who reads Bengali, spotted it on the live Instagram post; it was
+     * deleted and the post republished without it.
+     *
+     * ⚠️ The CHARACTERS were correct everywhere — caption, database row and
+     * the owner-confirmed word table were byte-identical. Only the render was
+     * wrong, which is why this flag cannot be decided by inspecting a string.
+     *
+     * 🔑 This is the first hard evidence for the warning at the top of this
+     * file. ⛔ Nothing changes for the other scripts: they are still
+     * unverified because nobody has looked, not because anything was proven.
+     */
     shapingVerified: false,
   },
   tamil: {

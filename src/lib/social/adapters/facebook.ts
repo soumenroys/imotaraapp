@@ -643,9 +643,29 @@ export type PostStats = {
 export async function fetchPostStats(args: {
   token: string;
   postId: string;
+  /**
+   * 🔴 THE PAGE ID, BECAUSE A POST'S ENGAGEMENT NEEDS A **PAGE** TOKEN.
+   *
+   * ⛔ THE DEFECT THIS FIXES, found 19 Oct by asking `/debug_token` instead of
+   * inferring for a fourth time. Facebook refused every post's figures with
+   * "requires the 'pages_read_engagement' permission" — and the token HAS
+   * that permission. The inspector printed it plainly.
+   *
+   * ⚠️ The permission was never the problem. The TOKEN KIND was. Every
+   * publishing path here exchanges the system-user token for a Page token
+   * ⇒ pageAccessToken, called in four places. The two stats readers used the
+   * raw system-user token, and reading a Page post's engagement with one is
+   * refused in the words of a missing permission — which is why three
+   * confident wrong answers all sounded supported.
+   */
+  pageId: string;
   fetchImpl?: typeof fetch;
 }): Promise<{ ok: true; stats: PostStats } | { ok: false; kind: FacebookFailure; message: string }> {
   const doFetch = args.fetchImpl ?? fetch;
+
+  const page = await pageAccessToken({ token: args.token, pageId: args.pageId, fetchImpl: args.fetchImpl });
+  if (!page.ok) return page;
+
   try {
     /**
      * 🔑 `summary(true)` is what returns a COUNT rather than a page of
@@ -686,7 +706,8 @@ export async function fetchPostStats(args: {
         `,reactions.type(ANGRY).limit(0).summary(true).as(angry)` +
         `,reactions.type(SAD).limit(0).summary(true).as(sad)` +
         `,reactions.type(LOVE).limit(0).summary(true).as(love)` +
-        `&access_token=${encodeURIComponent(args.token)}`,
+        // ⛔ The PAGE token, not the one passed in ⇒ the note on `pageId`.
+        `&access_token=${encodeURIComponent(page.token)}`,
       { signal: AbortSignal.timeout(15_000), cache: "no-store" },
     );
     type Summary = { summary?: { total_count?: number } };
@@ -902,16 +923,26 @@ export async function fetchPageInsights(args: {
 export async function fetchPostImpressions(args: {
   token: string;
   postId: string;
+  /** ⚠️ Same reason as `fetchPostStats` — a post's insights want a PAGE token. */
+  pageId: string;
   fetchImpl?: typeof fetch;
 }): Promise<{ ok: true; impressions: number | null; metric: string | null } | { ok: false; kind: FacebookFailure; message: string }> {
   const doFetch = args.fetchImpl ?? fetch;
+
   /**
-   * ⚠️ The Page token again. A post's id is `{pageId}_{postId}`, so the page
-   * is derivable from it rather than passed in separately — one less argument
-   * for a caller to get wrong.
+   * 🔴 THE PAGE ID IS PASSED IN NOW, NOT DERIVED — and the comment that used
+   * to sit here explains why it had to change:
+   *
+   *   "A post's id is `{pageId}_{postId}`, so the page is derivable from it
+   *    rather than passed in separately — one less argument for a caller to
+   *    get wrong."
+   *
+   * ⛔ True of a photo or text post. NOT true of a video: `/videos` returns a
+   * bare id with no underscore, so `split("_")[0]` returned the whole video
+   * id and asked Facebook for a Page that does not exist. ⚠️ A derivation is
+   * a guess about a format, and this one was right about three posts in four.
    */
-  const pageId = args.postId.split("_")[0];
-  const page = await pageAccessToken({ token: args.token, pageId, fetchImpl: args.fetchImpl });
+  const page = await pageAccessToken({ token: args.token, pageId: args.pageId, fetchImpl: args.fetchImpl });
   if (!page.ok) return page;
 
   const tried: string[] = [];

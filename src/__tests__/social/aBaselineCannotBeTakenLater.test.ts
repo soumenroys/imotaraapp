@@ -216,9 +216,22 @@ describe("the metric search tells retirement apart from failure", () => {
     expect(adapter).not.toMatch(/readMetric\([^)]*args\.token\)/);
   });
 
-  it("derives the page from the post id rather than taking it twice", () => {
-    // A post id is `{pageId}_{postId}` — one less argument to get wrong.
-    expect(adapter).toMatch(/const pageId = args\.postId\.split\("_"\)\[0\]/);
+  it("⛔ takes the page id rather than SPLITTING it out of the post id", () => {
+    /**
+     * 🔴 THIS TEST USED TO PIN THE OPPOSITE, and its reasoning was good: "a
+     * post id is `{pageId}_{postId}` — one less argument to get wrong."
+     *
+     * ⛔ True of a photo or a text post. NOT true of a video: `/videos`
+     * returns a BARE id with no underscore, so `split("_")[0]` handed back
+     * the whole video id and asked Facebook for a Page that does not exist.
+     * The derivation was right about three posts in four, which is the worst
+     * kind of wrong — it looks like a working rule.
+     *
+     * ⚠️ A derivation is a guess about a FORMAT. The caller already knows the
+     * page; being told beats inferring ⇒ trap_a_model_invents_specifics_it_cannot_have.
+     */
+    expect(adapter, "the page is still split out of the post id").not.toMatch(/args\.postId\.split\("_"\)/);
+    expect(adapter).toMatch(/pageId: args\.pageId/);
   });
 });
 

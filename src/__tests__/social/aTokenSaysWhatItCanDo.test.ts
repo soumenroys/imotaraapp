@@ -16,6 +16,8 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describeToken } from "@/lib/social/adapters/facebook";
 
 const answering = (body: unknown, status = 200) =>
@@ -110,5 +112,63 @@ describe("asking the token what it can do", () => {
     });
     expect(url).toContain("debug_token");
     expect(url.toLowerCase(), "an app secret reached the query string").not.toMatch(/client_secret|app_secret/);
+  });
+});
+
+/**
+ * ⛔ THE PERMISSION WAS NEVER THE PROBLEM. THE TOKEN KIND WAS.
+ *
+ * 🔴 THE ANSWER, 19 Oct 2026, after THREE confident wrong diagnoses. The
+ * inspector above printed what the token actually carries:
+ *
+ *   read_insights, pages_show_list, instagram_basic, instagram_manage_insights,
+ *   instagram_content_publish, pages_read_engagement, pages_manage_posts,
+ *   public_profile
+ *
+ * ⚠️ `pages_read_engagement` IS THERE. Facebook was refusing with
+ * "requires the 'pages_read_engagement' permission" anyway — because reading a
+ * Page post's engagement needs a **PAGE** access token, and these two readers
+ * were the only Facebook calls using the raw SYSTEM-USER token. Every
+ * publishing path exchanges it first ⇒ pageAccessToken, in four places.
+ *
+ * 🔑 That is why three wrong answers all sounded supported: the error names a
+ * permission, so every theory was about permissions.
+ */
+describe("⛔ a post's figures are read with a PAGE token", () => {
+  const source = readFileSync(join(process.cwd(), "src/lib/social/adapters/facebook.ts"), "utf8");
+
+  it("🔴 both readers exchange for a Page token before asking", async () => {
+    const { fetchPostStats, fetchPostImpressions } = await import("@/lib/social/adapters/facebook");
+    for (const [name, fn] of [["fetchPostStats", fetchPostStats], ["fetchPostImpressions", fetchPostImpressions]] as const) {
+      const urls: string[] = [];
+      await fn({
+        token: "system-user-token",
+        postId: "1222416224285686_999",
+        pageId: "1222416224285686",
+        fetchImpl: (async (u: string) => {
+          urls.push(u);
+          // ⚠️ The exchange call answers with a DIFFERENT token.
+          if (u.includes("access_token=system-user-token") && !u.includes("fields=reactions") && !u.includes("insights")) {
+            return new Response(JSON.stringify({ access_token: "page-token", id: "1222416224285686" }), { status: 200 });
+          }
+          return new Response(JSON.stringify({ reactions: { summary: { total_count: 1 } } }), { status: 200 });
+        }) as unknown as typeof fetch,
+      });
+      expect(urls.length, `${name} made no calls`).toBeGreaterThan(1);
+      // ⛔ The FIRST call is the exchange; nothing asks for figures with the
+      // system-user token.
+      expect(urls[0], `${name} did not exchange for a Page token first`).toMatch(/access_token=system-user-token/);
+    }
+  });
+
+  it("⚠️ the page id is PASSED, never split out of the post id", () => {
+    /**
+     * 🔴 It used to be derived: `args.postId.split("_")[0]`, because a post id
+     * is `{pageId}_{postId}`. ⛔ A VIDEO's id has no underscore, so that
+     * returned the whole video id and asked for a Page that does not exist.
+     * A derivation is a guess about a format, and this one was right about
+     * three posts in four.
+     */
+    expect(source, "the page id is still derived by splitting a post id").not.toContain('postId.split("_")[0]');
   });
 });

@@ -267,7 +267,16 @@ export async function capturePostStats(
       continue;
     }
 
-    const stats = await fetchPostStats({ token: cred.token, postId: p.external_post_id as string });
+    /**
+     * 🔑 THE PAGE ID GOES WITH IT. Reading a Page post's engagement needs a
+     * PAGE token, and these two readers are the only Facebook calls that were
+     * using the raw system-user token ⇒ the note on fetchPostStats.
+     */
+    const stats = await fetchPostStats({
+      token: cred.token,
+      postId: p.external_post_id as string,
+      pageId: cred.externalId,
+    });
     if (!stats.ok) {
       // ⛔ One post failing must not lose the rest of the day's figures.
       problems.push(`${p.external_post_id}: ${stats.message}`);
@@ -276,7 +285,11 @@ export async function capturePostStats(
     }
     // ⚠️ A second call, because impressions live on a different edge. Its
     // failure must not lose the reactions we already have.
-    const seen = await fetchPostImpressions({ token: cred.token, postId: p.external_post_id as string });
+    const seen = await fetchPostImpressions({
+      token: cred.token,
+      postId: p.external_post_id as string,
+      pageId: cred.externalId,
+    });
 
     const { error } = await db.from("social_post_stats").upsert(
       {

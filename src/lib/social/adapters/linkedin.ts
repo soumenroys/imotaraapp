@@ -196,6 +196,15 @@ export async function publishToLinkedIn(args: {
   text: string;
   /** An already-uploaded image URN ⇒ urn:li:image:{id}. ⚠️ Optional. */
   imageUrn?: string;
+  /**
+   * 🔑 WHAT THE CARD SAYS, FOR SOMEBODY WHO CANNOT SEE IT.
+   *
+   * ⛔ Our cards carry the post's HEADLINE as their main element, so a reader
+   * on a screen reader gets nothing at all without this — on a product whose
+   * whole subject is people who are struggling, some of whom are blind.
+   * ⚠️ LinkedIn allows 4,086 characters and recommends under 120.
+   */
+  imageAltText?: string;
   fetchImpl?: typeof fetch;
   env?: NodeJS.ProcessEnv;
 }): Promise<LinkedInPublish> {
@@ -232,7 +241,17 @@ export async function publishToLinkedIn(args: {
     lifecycleState: "PUBLISHED",
     isReshareDisabledByAuthor: false,
   };
-  if (args.imageUrn) body.content = { media: { id: args.imageUrn } };
+  if (args.imageUrn) {
+    body.content = {
+      media: {
+        id: args.imageUrn,
+        // ⚠️ Trimmed to LinkedIn's recommended length rather than its ceiling:
+        // a screen reader announcing 4,000 characters before the post is worse
+        // than one announcing a sentence.
+        ...(args.imageAltText ? { altText: args.imageAltText.slice(0, 120) } : {}),
+      },
+    };
+  }
 
   let res: Response;
   try {
@@ -273,6 +292,162 @@ export async function publishToLinkedIn(args: {
     postId,
     // ⚠️ The documented shape for viewing a published post.
     url: `https://www.linkedin.com/feed/update/${postId}/`,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The card — uploaded before the post, because a post cannot carry bytes
+// ─────────────────────────────────────────────────────────────────────────────
+
+const IMAGES_URL = "https://api.linkedin.com/rest/images";
+
+export type LinkedInUpload =
+  | { ok: true; imageUrn: string }
+  | { ok: false; kind: LinkedInFailure; message: string };
+
+/**
+ * ⚠️ LinkedIn accepts JPG, PNG and GIF, under 36,152,320 pixels. Our cards are
+ * 1200×627 ⇒ platforms.ts, which is four orders of magnitude inside that.
+ */
+export const LINKEDIN_MAX_PIXELS = 36_152_320;
+
+/**
+ * 🔴 HOW LONG TO WAIT FOR LINKEDIN TO FINISH PROCESSING THE IMAGE, and why
+ * waiting is not optional.
+ *
+ * ⛔ The docs, on the Assets page and applying equally here: "It is required
+ * that image upload completes successfully before creating a UGC Post or
+ * Share. If the post is created before confirming image upload success and
+ * the image upload fails to process, THE POST WON'T BE VISIBLE TO MEMBERS."
+ *
+ * ⚠️ AND THE IMAGES API CANNOT BE ASKED TO BE SYNCHRONOUS — "SYNCHRONOUS_UPLOAD
+ * is not supported in Images API". So polling is the only way to know, and
+ * posting without it risks a post that publishes, reports success, stores an
+ * id, and is invisible. That failure would look exactly like a healthy feed
+ * from our side ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+ */
+export const PROCESSING_TRIES = 10;
+export const PROCESSING_WAIT_MS = 1_000;
+
+/**
+ * Put the card on LinkedIn and wait until it is really there.
+ *
+ * ⛔ THREE CALLS, AND THE MIDDLE ONE IS NOT THE ONE YOU WOULD GUESS:
+ *   1. initializeUpload  → an upload URL and the image URN
+ *   2. **PUT** the bytes to that URL, WITH the Authorization header
+ *   3. poll the image until `status` is AVAILABLE
+ *
+ * ⚠️ PUT, not POST — and carrying the token, which is the opposite of the
+ * VIDEO upload, where the docs say the call "shouldn't include an OAuth
+ * token". Two upload endpoints at the same company with opposite rules is
+ * exactly the kind of thing that is read, not remembered.
+ */
+export async function uploadLinkedInImage(args: {
+  token: string;
+  organizationId: string;
+  bytes: Uint8Array;
+  contentType?: string;
+  fetchImpl?: typeof fetch;
+  env?: NodeJS.ProcessEnv;
+  /** ⚠️ Injected so a test does not sit through ten real seconds. */
+  waitMs?: (ms: number) => Promise<void>;
+}): Promise<LinkedInUpload> {
+  const doFetch = args.fetchImpl ?? fetch;
+  const wait = args.waitMs ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+  const h = headers(args.token, args.env);
+
+  // ── 1. tell LinkedIn an upload is coming ──────────────────────────────────
+  let init: Response;
+  try {
+    init = await doFetch(`${IMAGES_URL}?action=initializeUpload`, {
+      method: "POST",
+      headers: h,
+      body: JSON.stringify({ initializeUploadRequest: { owner: `urn:li:organization:${args.organizationId}` } }),
+    });
+  } catch (e) {
+    return { ok: false, kind: "transient", message: `LinkedIn could not be reached: ${(e as Error).message}` };
+  }
+  if (!init.ok) {
+    const body = await init.text().catch(() => "");
+    const { kind, message } = classifyLinkedInError(init.status, body);
+    return { ok: false, kind, message: `The card could not be registered with LinkedIn. ${message}` };
+  }
+
+  const registered = (await init.json().catch(() => ({}))) as {
+    value?: { uploadUrl?: string; image?: string };
+  };
+  const uploadUrl = registered.value?.uploadUrl;
+  const imageUrn = registered.value?.image;
+  if (!uploadUrl || !imageUrn) {
+    return {
+      ok: false,
+      kind: "transient",
+      message: "LinkedIn accepted the upload registration but returned no uploadUrl or image URN.",
+    };
+  }
+
+  // ── 2. the bytes ──────────────────────────────────────────────────────────
+  let put: Response;
+  try {
+    put = await doFetch(uploadUrl, {
+      // 🔑 PUT. ⛔ And WITH the token: the video endpoint refuses one, this
+      // one requires it, and getting them the wrong way round fails at the
+      // byte upload with nothing useful said.
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${args.token}`,
+        "Content-Type": args.contentType ?? "image/png",
+      },
+      body: new Uint8Array(args.bytes) as unknown as BodyInit,
+    });
+  } catch (e) {
+    return { ok: false, kind: "transient", message: `The card could not be uploaded: ${(e as Error).message}` };
+  }
+  if (!put.ok) {
+    const body = await put.text().catch(() => "");
+    const { kind, message } = classifyLinkedInError(put.status, body);
+    return { ok: false, kind, message: `LinkedIn refused the card's bytes. ${message}` };
+  }
+
+  // ── 3. wait until it is really processed ──────────────────────────────────
+  for (let attempt = 0; attempt < PROCESSING_TRIES; attempt += 1) {
+    let look: Response;
+    try {
+      look = await doFetch(`${IMAGES_URL}/${encodeURIComponent(imageUrn)}`, { headers: h });
+    } catch {
+      // ⚠️ A hiccup while polling is not a failed upload. Try again.
+      await wait(PROCESSING_WAIT_MS);
+      continue;
+    }
+    if (look.ok) {
+      const seen = (await look.json().catch(() => ({}))) as { status?: string };
+      if (seen.status === "AVAILABLE") return { ok: true, imageUrn };
+      if (seen.status === "PROCESSING_FAILED") {
+        return {
+          ok: false,
+          kind: "content",
+          message:
+            "LinkedIn could not process the card — it reports PROCESSING_FAILED. " +
+            "⚠️ Usually the file is too large or the format is not one of JPG, PNG or GIF.",
+        };
+      }
+    }
+    await wait(PROCESSING_WAIT_MS);
+  }
+
+  /**
+   * ⛔ A TIMEOUT IS NOT A SUCCESS, and it is not a failure of the post either.
+   * The image may well finish a second later — but posting now is the one
+   * thing the docs explicitly warn against, because the post would publish
+   * INVISIBLE. ⇒ Refuse, and let the caller's attempt counter try again.
+   */
+  return {
+    ok: false,
+    kind: "transient",
+    message:
+      `LinkedIn is still processing the card after ${PROCESSING_TRIES} checks. ` +
+      `⛔ Nothing was posted: a post made before its image is ready publishes INVISIBLY, ` +
+      `which is worse than a post that is late.`,
   };
 }
 

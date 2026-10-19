@@ -22,6 +22,7 @@ import {
   DEFAULT_LINKEDIN_VERSION,
   classifyLinkedInError,
   publishToLinkedIn,
+  uploadLinkedInImage,
 } from "@/lib/social/adapters/linkedin";
 
 describe("little text", () => {
@@ -251,5 +252,149 @@ describe("publishing", () => {
       fetchImpl: (async () => { calls += 1; return new Response("{}", { status: 503 }); }) as unknown as typeof fetch,
     });
     expect(calls).toBe(1);
+  });
+});
+
+/**
+ * ⛔ THE CARD GOES UP BEFORE THE POST, AND THE POST WAITS FOR IT.
+ *
+ * 🔴 THE WARNING THAT MAKES THIS NOT OPTIONAL, from LinkedIn's own docs:
+ * "It is required that image upload completes successfully before creating a
+ * UGC Post or Share. If the post is created before confirming image upload
+ * success and the image upload fails to process, THE POST WON'T BE VISIBLE TO
+ * MEMBERS."
+ *
+ * ⚠️ And the Images API cannot be asked to be synchronous — "SYNCHRONOUS_UPLOAD
+ * is not supported in Images API" — so polling is the only way to know. A post
+ * made too early publishes, reports success, stores an id, and is invisible:
+ * a failure that looks exactly like a healthy feed from our side.
+ */
+describe("uploading the card", () => {
+  const INIT = {
+    value: { uploadUrl: "https://www.linkedin.com/dms-uploads/abc", image: "urn:li:image:C4E10AQF" },
+  };
+  const bytes = new Uint8Array([1, 2, 3, 4]);
+  const nowait = async () => {};
+
+  /** A fetch that answers each URL in turn, recording what it was sent. */
+  const faker = (opts: { statuses: string[]; putStatus?: number }) => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    let polled = 0;
+    const impl = (async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      if (url.includes("action=initializeUpload")) return new Response(JSON.stringify(INIT), { status: 200 });
+      if (url.startsWith("https://www.linkedin.com/dms-uploads")) return new Response(null, { status: opts.putStatus ?? 201 });
+      const status = opts.statuses[Math.min(polled++, opts.statuses.length - 1)];
+      return new Response(JSON.stringify({ status }), { status: 200 });
+    }) as unknown as typeof fetch;
+    return { impl, calls };
+  };
+
+  it("🔴 PUTs the bytes, WITH the token — which is the opposite of the video rule", async () => {
+    /**
+     * ⛔ The docs: the image upload "requires a valid OAuth token in the
+     * Authorization header. This is different than the upload video call
+     * which doesn't accept an OAuth token." Two endpoints at one company with
+     * opposite rules is a thing to read, never to remember.
+     */
+    const { impl, calls } = faker({ statuses: ["AVAILABLE"] });
+    const r = await uploadLinkedInImage({ token: "t", organizationId: "123", bytes, fetchImpl: impl, waitMs: nowait });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.imageUrn).toBe("urn:li:image:C4E10AQF");
+
+    const put = calls.find((c) => c.url.startsWith("https://www.linkedin.com/dms-uploads"))!;
+    expect(put.init!.method, "the bytes were not PUT").toBe("PUT");
+    expect((put.init!.headers as Record<string, string>).Authorization).toBe("Bearer t");
+  });
+
+  it("⛔ waits for AVAILABLE before saying the card is up", async () => {
+    const { impl } = faker({ statuses: ["WAITING_UPLOAD", "PROCESSING", "AVAILABLE"] });
+    const r = await uploadLinkedInImage({ token: "t", organizationId: "123", bytes, fetchImpl: impl, waitMs: nowait });
+    expect(r.ok).toBe(true);
+  });
+
+  it("🔴 REFUSES rather than posting when processing never finishes", async () => {
+    // ⚠️ A timeout is not a success and not a failed post. Posting now is the
+    // one thing the docs warn against — it would publish INVISIBLY.
+    const { impl } = faker({ statuses: ["PROCESSING"] });
+    const r = await uploadLinkedInImage({ token: "t", organizationId: "123", bytes, fetchImpl: impl, waitMs: nowait });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.kind).toBe("transient");
+    expect(r.message).toMatch(/INVISIBLY/);
+    expect(r.message, "it did not say that nothing was posted").toMatch(/Nothing was posted/i);
+  });
+
+  it("names a card LinkedIn could not process, with the likely cause", async () => {
+    const { impl } = faker({ statuses: ["PROCESSING_FAILED"] });
+    const r = await uploadLinkedInImage({ token: "t", organizationId: "123", bytes, fetchImpl: impl, waitMs: nowait });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.kind).toBe("content");
+    expect(r.message).toMatch(/JPG, PNG or GIF/);
+  });
+
+  it("⛔ does not claim success when the registration returns no URN", async () => {
+    const impl = (async () => new Response(JSON.stringify({ value: {} }), { status: 200 })) as unknown as typeof fetch;
+    const r = await uploadLinkedInImage({ token: "t", organizationId: "123", bytes, fetchImpl: impl, waitMs: nowait });
+    expect(r.ok).toBe(false);
+  });
+
+  it("⚠️ a refused byte upload is reported as such, not as a bad post", async () => {
+    const { impl } = faker({ statuses: ["AVAILABLE"], putStatus: 403 });
+    const r = await uploadLinkedInImage({ token: "t", organizationId: "123", bytes, fetchImpl: impl, waitMs: nowait });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.message).toMatch(/refused the card's bytes/i);
+    expect(r.kind).toBe("permission");
+  });
+});
+
+describe("alt text", () => {
+  it("🔑 the card carries what it says, for somebody who cannot see it", async () => {
+    /**
+     * ⛔ Our cards put the HEADLINE in type, so without altText a screen
+     * reader gets nothing at all — on a product whose subject is people who
+     * are struggling, some of whom are blind.
+     */
+    let body = "";
+    await publishToLinkedIn({
+      token: "t", organizationId: "1234567", text: "x",
+      imageUrn: "urn:li:image:abc",
+      imageAltText: "Awake at an hour with no queue",
+      fetchImpl: (async (_u: string, init: RequestInit) => {
+        body = String(init.body);
+        return new Response(null, { status: 201, headers: { "x-restli-id": "urn:li:share:1" } });
+      }) as unknown as typeof fetch,
+    });
+    expect(JSON.parse(body).content.media.altText).toBe("Awake at an hour with no queue");
+  });
+
+  it("⚠️ trims to the RECOMMENDED length, not the 4,086 ceiling", async () => {
+    // 🔑 A screen reader announcing 4,000 characters before the post is worse
+    // than one announcing a sentence.
+    let body = "";
+    await publishToLinkedIn({
+      token: "t", organizationId: "1234567", text: "x",
+      imageUrn: "urn:li:image:abc", imageAltText: "y".repeat(500),
+      fetchImpl: (async (_u: string, init: RequestInit) => {
+        body = String(init.body);
+        return new Response(null, { status: 201, headers: { "x-restli-id": "urn:li:share:1" } });
+      }) as unknown as typeof fetch,
+    });
+    expect(JSON.parse(body).content.media.altText).toHaveLength(120);
+  });
+
+  it("omits altText entirely when there is none, rather than sending empty", async () => {
+    let body = "";
+    await publishToLinkedIn({
+      token: "t", organizationId: "1234567", text: "x", imageUrn: "urn:li:image:abc",
+      fetchImpl: (async (_u: string, init: RequestInit) => {
+        body = String(init.body);
+        return new Response(null, { status: 201, headers: { "x-restli-id": "urn:li:share:1" } });
+      }) as unknown as typeof fetch,
+    });
+    expect(JSON.parse(body).content.media).toEqual({ id: "urn:li:image:abc" });
   });
 });

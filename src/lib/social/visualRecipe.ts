@@ -24,6 +24,16 @@ export type Recipe = {
   typeTreatment: string;
   motif: string;
   script: string;
+  /**
+   * 🔑 HOW THE GROUND IS PAINTED — added 19 Oct, after the owner: "the
+   * contents are always with a solid coloured background with a text in
+   * front... if you add more variations the posts will be nicer."
+   *
+   * ⚠️ OPTIONAL, and absent means "flat". Every recipe stored before today
+   * has no wash, and a card must still render from it ⇒ renderPicture reads
+   * these back from the database months later.
+   */
+  wash?: string;
   hash: string;
 };
 
@@ -100,19 +110,81 @@ export const PALETTES: Record<
   sand:   { ground: "#F5EFE6", ink: "#2B2318", muted: "#5B4F3F", accent: "#9A3412", accentInk: "#FFFFFF" },
   plum:   { ground: "#2E1065", ink: "#FFFFFF", muted: "#DDD6FE", accent: "#C4B5FD", accentInk: "#1E0A44" },
   forest: { ground: "#14281D", ink: "#FFFFFF", muted: "#D1E3D5", accent: "#86EFAC", accentInk: "#0A1710" },
+
+  /**
+   * 🔑 ADDED 19 Oct. FIVE OF THE SIX ABOVE ARE DARK, which is half the reason
+   * every card looked like the last one — the owner saw it as "always a solid
+   * coloured background" and the colour was almost always a dark one.
+   *
+   * ⛔ EVERY ONE OF THESE STILL CLEARS THE CONTRAST BAR. A pale ground is
+   * only pretty if the words on it can be read; `ink` is checked against
+   * `ground` by the same ratio the QR panel uses, and a palette that failed
+   * would be a card nobody can read in sunlight ⇒ theRingIsDrawnOnTheCard.
+   */
+  pastel: { ground: "#EEE9F5", ink: "#2A2140", muted: "#564A73", accent: "#6D5BA6", accentInk: "#FFFFFF" },
+  clay:   { ground: "#F2E3D5", ink: "#3A2418", muted: "#6B4A33", accent: "#B4451F", accentInk: "#FFFFFF" },
+  mist:   { ground: "#E7EEF2", ink: "#17272E", muted: "#44616F", accent: "#1E6B86", accentInk: "#FFFFFF" },
+  dusk:   { ground: "#3B2340", ink: "#FDF7FF", muted: "#E2CFE8", accent: "#F0A6B8", accentInk: "#2A1430" },
 };
 
 export const PALETTE_NAMES = Object.keys(PALETTES);
 
+/**
+ * 🔑 HOW THE GROUND IS PAINTED.
+ *
+ * ⛔ STILL NOTHING REPRESENTATIONAL. No code path here can draw a figure, a
+ * face, or anything that reads as distress — which on a mental-health feed is
+ * protection rather than timidity, and is the rule the motif layer has always
+ * kept. A wash is colour and light; it cannot become a person.
+ *
+ * ⚠️ EVERY ONE OF THESE HAS TO RENDER IN BOTH RENDERERS. Satori is the
+ * stricter: it supports linear-gradient and radial-gradient and not much
+ * else, so there is no blur, no blend mode and no image filter here. A wash
+ * that looked good only in the browser would publish differently from the
+ * card a reviewer approved.
+ */
+export const WASHES = ["flat", "linear", "radial", "duotone"] as const;
+
 export const TYPE_TREATMENTS = ["display", "tight-display", "measured", "caps-label"] as const;
 
 /**
- * Line and shape fields only.
+ * Line and shape fields.
  *
- * ⛔ No gradient wash. It is the single most recognisable mark of a picture
- * that nobody designed, and this brand cannot afford to look generated.
+ * 🔴 THIS USED TO SAY "⛔ No gradient wash. It is the single most
+ * recognisable mark of a picture that nobody designed, and this brand cannot
+ * afford to look generated." — AND THAT FEAR IS STILL RIGHT.
+ *
+ * ⚠️ IT IS NOT A FEAR OF GRADIENTS, it is a fear of ONE gradient: the
+ * unanchored purple-to-pink diagonal that every template ships with. The
+ * owner asked for more variation on 19 Oct and was right that six line
+ * fields on six solid grounds is a narrow repertoire.
+ *
+ * ⇒ So the rule is kept by CONSTRUCTION rather than by prohibition
+ * ⇒ WASHES. Every wash is built from the PALETTE'S OWN colours — a ground
+ * against a darkened or lightened version of itself — so it can only ever
+ * look like this brand. There is no hue the palette did not already contain,
+ * no arbitrary second colour, and the stops are deliberately close together
+ * so the card reads as light falling on paper rather than as a gradient.
+ *
+ * ⛔ AND STILL NOTHING REPRESENTATIONAL. No figure, no face, nothing that
+ * reads as distress. That rule has not moved and is not negotiable.
  */
-export const MOTIFS = ["none", "arcs", "dotted-grid", "concentric", "bands", "rule-stack"] as const;
+export const MOTIFS = [
+  "none",
+  "arcs",
+  "dotted-grid",
+  "concentric",
+  "bands",
+  "rule-stack",
+  /**
+   * 🔑 ADDED 19 Oct — large, soft, organic. The six above are all THIN LINE
+   * fields, which is why every card looked like a sibling of the last one
+   * however the colours moved. These give the frame a big shape to sit in.
+   */
+  "halo",
+  "drift",
+  "wave",
+] as const;
 
 /**
  * 🔑 THE AXIS THAT IS NOT DECORATION. The wordmark is set in the script of the
@@ -124,15 +196,32 @@ export const MOTIFS = ["none", "arcs", "dotted-grid", "concentric", "bands", "ru
 export const SCRIPTS = Object.keys(BRAND_IN_SCRIPT);
 
 export const TOTAL_COMBINATIONS =
-  LAYOUTS.length * PALETTE_NAMES.length * TYPE_TREATMENTS.length * MOTIFS.length * SCRIPTS.length;
+  LAYOUTS.length *
+  PALETTE_NAMES.length *
+  TYPE_TREATMENTS.length *
+  MOTIFS.length *
+  WASHES.length *
+  SCRIPTS.length;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Uniqueness
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function recipeHash(r: Omit<Recipe, "hash">): string {
+  /**
+   * ⛔ `flat` HASHES EXACTLY AS BEFORE, and that is not tidiness.
+   *
+   * Every recipe ever used is in `social_visuals_used` under a hash computed
+   * WITHOUT a wash. Appending the field unconditionally would make every one
+   * of those combinations hashable again as a "new" recipe — so the
+   * never-repeat guarantee, which is backed by a unique index, would quietly
+   * start allowing repeats of every card already published.
+   */
+  const axes = [r.layout, r.palette, r.typeTreatment, r.motif, r.script];
+  if (r.wash && r.wash !== "flat") axes.push(r.wash);
+
   return createHash("sha256")
-    .update([r.layout, r.palette, r.typeTreatment, r.motif, r.script].join("|"))
+    .update(axes.join("|"))
     .digest("hex")
     .slice(0, 32);
 }
@@ -227,11 +316,13 @@ export function pickRecipe(input: PickInput): PickResult {
     for (const palette of PALETTE_NAMES) {
       for (const typeTreatment of TYPE_TREATMENTS) {
         for (const motif of MOTIFS) {
-          const candidate = { layout, palette, typeTreatment, motif, script };
+          for (const wash of WASHES) {
+          const candidate = { layout, palette, typeTreatment, motif, wash, script };
           if (usedHashes.has(recipeHash(candidate))) continue;
           unused.push(candidate);
           if (!avoidPalettes.has(palette) && !avoidLayouts.has(layout)) {
             unusedPreferred.push(candidate);
+          }
           }
         }
       }
@@ -239,9 +330,10 @@ export function pickRecipe(input: PickInput): PickResult {
   }
 
   if (unused.length === 0) {
-    // 8 × 6 × 4 × 6 = 1,152 per language. At one post a day this is a problem
-    // for somebody in the 2030s, and they should be told plainly rather than
-    // handed a repeat.
+    // ⚠️ 8 layouts × 10 palettes × 4 treatments × 9 motifs × 4 washes =
+    // 11,520 per language, up from 1,152 before the wash axis and the organic
+    // motifs. At one post a day this is a problem for somebody in the 2050s,
+    // and they should be told plainly rather than handed a repeat.
     return {
       ok: false,
       reason:

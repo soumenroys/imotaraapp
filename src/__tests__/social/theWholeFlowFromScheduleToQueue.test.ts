@@ -34,6 +34,7 @@ import {
   PALETTE_NAMES,
   TYPE_TREATMENTS,
   MOTIFS,
+  WASHES,
   recipeHash,
 } from "@/lib/social/visualRecipe";
 
@@ -408,8 +409,16 @@ describe("the picture", () => {
             for (const palette of PALETTE_NAMES)
               for (const typeTreatment of TYPE_TREATMENTS)
                 for (const motif of MOTIFS)
-                  if (!(layout === "stacked-label" && palette === "ink"))
-                    used.add(recipeHash({ layout, palette, typeTreatment, motif, script: "en" }));
+                  /**
+                   * ⚠️ AND THE WASH AXIS, added 19 Oct. Exactly the same way
+                   * this setup failed the first time: an axis left out of the
+                   * enumeration leaves recipes unused, so nothing is forced
+                   * and no relaxation happens. ⛔ A test that exhausts a space
+                   * has to exhaust ALL of it.
+                   */
+                  for (const wash of WASHES)
+                    if (!(layout === "stacked-label" && palette === "ink"))
+                      used.add(recipeHash({ layout, palette, typeTreatment, motif, wash, script: "en" }));
           return used;
         },
         recentPalettes: async () => ["ink"],

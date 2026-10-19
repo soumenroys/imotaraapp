@@ -904,6 +904,56 @@ export function checkHouseStyle(text: string, platform: string): HouseStyleResul
     );
   }
 
+  /**
+   * ── 4. THE SHAPES THAT ONLY APPEAR IN LONGER WRITING ────────────────────
+   *
+   * 🔴 ADDED 19 Oct, AND THE TIMING IS THE POINT. The owner asked that
+   * everything be written like a person, and in the same breath the length
+   * targets went up — Facebook from a measured 163 characters to 320–460.
+   * ⛔ Those two changes pull against each other: `AI_TELLS` is a list of 42
+   * PHRASES, and almost all of them are openings and closings. A model given
+   * three more sentences does not reach for "in today's world"; it reaches
+   * for SHAPE — the tidy tricolon, the rhetorical question, the reassuring
+   * moral at the end.
+   *
+   * ⚠️ A phrase list cannot see a shape. These can, and they exist because
+   * the room was widened, not in spite of it.
+   */
+  const trimmed = text.trim();
+
+  // A rhetorical question the writer immediately answers. ⛔ The commonest
+  // way machine text manufactures a conversation with nobody.
+  const rhetorical = trimmed.match(/(?:^|[.!?]\s)((?:Ever|Have you ever|What if|Why do|Sound familiar|Isn['’]t it)\b[^?]{0,80}\?)/i);
+  if (rhetorical) {
+    problems.push(
+      `Asks a question it answers itself — “${rhetorical[1].trim()}”. ▶️ Say the thing instead. ` +
+        `⚠️ A real question invites a reply; this shape only performs one.`,
+    );
+  }
+
+  /**
+   * The reassuring moral at the end. 🔴 On THIS brand it is worse than a
+   * cliché: "and that's okay" told to somebody having a bad night is the
+   * voice of a poster, not a person ⇒ the-unsaid pool exists precisely
+   * because adding a moral is what makes a true thing read as advertising.
+   */
+  const moral = trimmed.match(/\b(and that['’]s (?:okay|ok|fine)|you['’]re not alone|be kind to yourself|remember,? you matter|it['’]s okay not to be okay)\b[^.!?]*[.!?]?\s*$/i);
+  if (moral) {
+    problems.push(
+      `Ends on a moral — “${moral[1]}”. ▶️ Stop at the recognition. ⛔ Adding a lesson is what ` +
+        `makes a true thing read as an advertisement, and on this subject it reads as a poster.`,
+    );
+  }
+
+  // The tidy three-part negation: "Not X, not Y, just Z."
+  const tricolon = trimmed.match(/\bNo\b[^.!?]{2,40}\.\s*No\b[^.!?]{2,40}\.\s*(?:No|Just|Only)\b[^.!?]{2,40}\./i);
+  if (tricolon) {
+    problems.push(
+      `Falls into a tidy three-part list — the “No this. No that. Just the other.” shape. ` +
+        `▶️ Keep one of the three. ⚠️ It is satisfying to write and reads as copy, not as a person.`,
+    );
+  }
+
   const aiTells = findAiTells(text);
   if (aiTells.length > 0) {
     problems.push(

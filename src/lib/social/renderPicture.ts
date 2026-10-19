@@ -132,6 +132,22 @@ export async function renderPostPicture(
     typeTreatment: stored.typeTreatment,
     motif: stored.motif,
     script: stored.script,
+    /**
+     * 🔴 THIS LINE WAS MISSING AND WOULD HAVE DEFEATED THE WHOLE WASH AXIS,
+     * SILENTLY.
+     *
+     * The recipe is rebuilt FIELD BY FIELD rather than spread, which is right
+     * — a stored row is untrusted and a spread would carry anything the
+     * column happened to hold. ⛔ But it means every new axis has to be added
+     * here too, and forgetting is invisible: `pickRecipe` would save a wash,
+     * `composePicture` would be handed `undefined`, and every card would
+     * render flat while the database insisted it was not.
+     *
+     * ⚠️ AND MY PREVIEWS COULD NOT HAVE CAUGHT IT. They build a recipe
+     * inline and never go near this path — the same shape of blind spot as
+     * the font preview on a machine that already had the fonts.
+     */
+    wash: typeof stored.wash === "string" ? stored.wash : "flat",
     hash: stored.hash ?? recipeHash(stored as Omit<Recipe, "hash">),
   };
 

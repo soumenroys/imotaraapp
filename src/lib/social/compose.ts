@@ -16,7 +16,7 @@ import { PALETTES, wordmarkFor, canonicalLayout, HEADLINE_MAX, type Recipe } fro
 import { BRAND_IN_SCRIPT } from "@/lib/social/languages";
 import { planWordmark, type WordmarkPlan } from "@/lib/social/fonts";
 import { platformSpec } from "@/lib/social/platforms";
-import { LOGO_URL, onGround, relativeLuminance, type QrCode } from "@/lib/social/brandMarks";
+import { LOGO_URL, onGround, relativeLuminance, shiftLightness, type QrCode } from "@/lib/social/brandMarks";
 
 /**
  * A minimal flexbox tree.
@@ -92,6 +92,60 @@ const MOTIF_OPACITY = 0.13;
  * that can draw a figure, a face, or anything that reads as distress — which
  * is the point, rather than a rule somebody has to remember.
  */
+/**
+ * 🔑 HOW THE GROUND IS PAINTED ⇒ visualRecipe.WASHES.
+ *
+ * 🔴 THIS REVERSES A WRITTEN RULE, so the reasoning is here rather than in a
+ * commit nobody will find. visualRecipe.ts said: "⛔ No gradient wash. It is
+ * the single most recognisable mark of a picture that nobody designed, and
+ * this brand cannot afford to look generated." ⚠️ THAT FEAR IS STILL RIGHT —
+ * it is just not a fear of gradients, it is a fear of ONE gradient: the
+ * unanchored purple-to-pink diagonal every template ships with.
+ *
+ * ⇒ So the rule is kept BY CONSTRUCTION. Every stop below is the palette's
+ * OWN ground, lightened or darkened against itself. There is no second hue,
+ * no colour the palette did not already contain, and the stops sit close
+ * together so a card reads as light falling on paper rather than as a
+ * gradient. A wash cannot make this brand look like anything else because it
+ * has nothing else to be made of.
+ *
+ * ⛔ AND IT MUST RENDER IN BOTH RENDERERS. Satori is the stricter one: it
+ * supports linear-gradient and radial-gradient and little else, so there is
+ * no blur, no blend mode and no filter here. A wash that only worked in the
+ * browser would publish differently from the card a reviewer approved.
+ */
+function washFor(wash: string | undefined, ground: string): Record<string, string> {
+  // ⚠️ `flat` is the default and the historic behaviour: a plain ground.
+  if (!wash || wash === "flat") return { backgroundColor: ground };
+
+  const lift = shiftLightness(ground, 0.1);
+  const drop = shiftLightness(ground, -0.08);
+
+  switch (wash) {
+    case "linear":
+      return {
+        backgroundColor: ground,
+        backgroundImage: `linear-gradient(160deg, ${lift} 0%, ${ground} 55%, ${drop} 100%)`,
+      };
+    case "radial":
+      // Light pooling in one corner, like a lamp off-frame.
+      return {
+        backgroundColor: ground,
+        backgroundImage: `radial-gradient(circle at 22% 18%, ${lift} 0%, ${ground} 58%)`,
+      };
+    case "duotone":
+      // ⚠️ Two stops of the SAME hue, further apart. The nearest this gets to
+      // a conventional gradient, and still only one colour deep.
+      return {
+        backgroundColor: ground,
+        backgroundImage: `linear-gradient(135deg, ${shiftLightness(ground, 0.16)} 0%, ${shiftLightness(ground, -0.14)} 100%)`,
+      };
+    default:
+      // ⛔ An unknown wash is a flat ground, never a missing background.
+      return { backgroundColor: ground };
+  }
+}
+
 function motifLayer(motif: string, accent: string, w: number, h: number): Node | null {
   const base: Record<string, string | number> = {
     position: "absolute",
@@ -238,6 +292,90 @@ function motifLayer(motif: string, accent: string, w: number, h: number): Node |
         },
       };
     }
+
+    /**
+     * 🔑 THE THREE ADDED 19 Oct ARE LARGE AND SOFT, and that is the point.
+     * The six above are all thin-line fields, which is why every card looked
+     * like a sibling of the last one however the colours moved — the owner
+     * saw it before I did. These give the frame one big shape to sit in.
+     *
+     * ⛔ STILL NOTHING REPRESENTATIONAL. A circle is a circle: no code path
+     * here can produce a figure, a face, or anything that reads as distress.
+     * ⚠️ And all of them are built from `accent` at MOTIF_OPACITY, so they
+     * cannot introduce a colour the palette did not already contain.
+     */
+    case "halo":
+      // One very large circle, mostly off-frame, like light through a window.
+      return {
+        tag: "div",
+        role: motifRole,
+        style: {
+          ...base,
+          top: `${Math.round(-h * 0.35)}px`,
+          left: `${Math.round(w * 0.42)}px`,
+          width: `${Math.round(w * 0.95)}px`,
+          height: `${Math.round(w * 0.95)}px`,
+          borderRadius: "9999px",
+          backgroundColor: accent,
+        },
+      };
+
+    case "drift":
+      // Three overlapping ovals, low and wide. ⚠️ Kept BELOW the headline
+      // band — texture must never cost legibility.
+      return {
+        tag: "div",
+        role: motifRole,
+        style: { ...full, flexDirection: "column" },
+        children: [0, 1, 2].map((i) => ({
+          tag: "div" as const,
+          style: {
+            position: "absolute" as const,
+            display: "flex",
+            top: `${Math.round(h * (0.58 + i * 0.12))}px`,
+            left: `${Math.round(w * (-0.15 + i * 0.28))}px`,
+            width: `${Math.round(w * 0.72)}px`,
+            height: `${Math.round(h * 0.28)}px`,
+            borderRadius: "9999px",
+            backgroundColor: accent,
+            opacity: 0.55,
+          },
+        })),
+      };
+
+    case "wave":
+      // Two broad curved bands sweeping across the lower frame.
+      return {
+        tag: "div",
+        role: motifRole,
+        style: { ...full },
+        /**
+         * 🔴 THE GEOMETRY MATTERS AND I GOT IT WRONG FIRST TIME.
+         *
+         * My first version was 1.4w wide and 0.34h tall. An ellipse that much
+         * wider than it is tall has an almost FLAT top edge across the part
+         * you can see — so it rendered as hard-edged horizontal stripes, not
+         * as a wave. Obvious in one render, invisible in the numbers.
+         *
+         * ⇒ Taller than the frame and mostly below it, so what shows is the
+         * curved shoulder rather than a straight edge. Satori draws no paths;
+         * a clipped ellipse is the only way to get a curve at all.
+         */
+        children: [0, 1].map((i) => ({
+          tag: "div" as const,
+          style: {
+            position: "absolute" as const,
+            display: "flex",
+            top: `${Math.round(h * (0.52 + i * 0.22))}px`,
+            left: `${Math.round(-w * (0.35 - i * 0.2))}px`,
+            width: `${Math.round(w * 1.7)}px`,
+            height: `${Math.round(h * 1.1)}px`,
+            borderRadius: "9999px",
+            backgroundColor: accent,
+            opacity: i === 0 ? 0.75 : 0.5,
+          },
+        })),
+      };
 
     default:
       return null;
@@ -867,7 +1005,8 @@ export function composePicture(input: ComposeInput): Picture {
         display: "flex",
         width: `${w}px`,
         height: `${h}px`,
-        backgroundColor: palette.ground,
+        // 🔑 The ground, however this recipe paints it ⇒ washFor.
+        ...washFor(recipe.wash, palette.ground),
         // ⚠️ An explicit family: Satori has no system default, and text in an
         // unnamed family simply does not appear.
         fontFamily: wordmark.font.family,

@@ -27,6 +27,7 @@ import {
     PALETTES,
     TYPE_TREATMENTS,
     MOTIFS,
+    WASHES,
     RECENT_WINDOW,
     TOTAL_COMBINATIONS,
     headlineFromBody,
@@ -50,7 +51,7 @@ describe("uniqueness is a guarantee", () => {
         const used = new Set<string>();
         for (let i = 0; i < 300; i++) {
             const r = pickRecipe({ language: "en", usedHashes: used, rng: seeded(i + 1) });
-            expect(r.ok, `ran out after ${i} picks, which should not happen inside 1,152`).toBe(true);
+            expect(r.ok, `ran out after ${i} picks, which should not happen inside the space`).toBe(true);
             if (!r.ok) return;
             expect(used.has(r.recipe.hash), `recipe repeated at pick ${i}`).toBe(false);
             used.add(r.recipe.hash);
@@ -66,7 +67,11 @@ describe("uniqueness is a guarantee", () => {
             for (const palette of PALETTE_NAMES)
                 for (const typeTreatment of TYPE_TREATMENTS)
                     for (const motif of MOTIFS)
-                        used.add(recipeHash({ layout, palette, typeTreatment, motif, script: "en" }));
+                        // ⚠️ THE WASH AXIS, added 19 Oct. An exhaustion test
+                        // that misses an axis does not exhaust anything — it
+                        // just proves the generator found the gap it left.
+                        for (const wash of WASHES)
+                            used.add(recipeHash({ layout, palette, typeTreatment, motif, wash, script: "en" }));
 
         const r = pickRecipe({ language: "en", usedHashes: used });
         expect(r.ok).toBe(false);
@@ -81,7 +86,11 @@ describe("uniqueness is a guarantee", () => {
             for (const palette of PALETTE_NAMES)
                 for (const typeTreatment of TYPE_TREATMENTS)
                     for (const motif of MOTIFS)
-                        used.add(recipeHash({ layout, palette, typeTreatment, motif, script: "en" }));
+                        // ⚠️ THE WASH AXIS, added 19 Oct. An exhaustion test
+                        // that misses an axis does not exhaust anything — it
+                        // just proves the generator found the gap it left.
+                        for (const wash of WASHES)
+                            used.add(recipeHash({ layout, palette, typeTreatment, motif, wash, script: "en" }));
 
         expect(pickRecipe({ language: "en", usedHashes: used }).ok).toBe(false);
         expect(pickRecipe({ language: "bn", usedHashes: used }).ok).toBe(true);
@@ -127,8 +136,12 @@ describe("the recency preference is honoured, or reported", () => {
             for (const palette of PALETTE_NAMES)
                 for (const typeTreatment of TYPE_TREATMENTS)
                     for (const motif of MOTIFS)
-                        if (!(layout === "stacked-label" && palette === "ink"))
-                            used.add(recipeHash({ layout, palette, typeTreatment, motif, script: "en" }));
+                        // ⚠️ The wash axis too, or the "everything else is
+                        // used" premise is false and the pick simply finds a
+                        // recipe the preference never forbade.
+                        for (const wash of WASHES)
+                            if (!(layout === "stacked-label" && palette === "ink"))
+                                used.add(recipeHash({ layout, palette, typeTreatment, motif, wash, script: "en" }));
 
         const r = pickRecipe({
             language: "en",

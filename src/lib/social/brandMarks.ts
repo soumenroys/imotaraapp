@@ -83,6 +83,36 @@ function fromHsl(h: number, s: number, l: number): string {
 }
 
 /**
+ * The same colour, a little lighter or darker.
+ *
+ * 🔑 EXPORTED SO THE WASHES CAN BE BUILT FROM THE PALETTE ITSELF
+ * ⇒ compose.washFor. A gradient between a ground and a shifted version of
+ * that same ground cannot introduce a hue the palette did not contain — which
+ * is how "no gradient that looks generated" is kept by construction rather
+ * than by prohibition.
+ *
+ * ⛔ A COPY OF toHsl/fromHsl IN compose.ts WOULD HAVE BEEN EASIER and is
+ * exactly the drift this codebase keeps finding: two colour functions, one
+ * corrected, one not.
+ */
+export function shiftLightness(hex: string, by: number): string {
+  const { h, s, l } = toHsl(hex);
+  /**
+   * ⛔ NEVER ALL THE WAY TO BLACK OR WHITE, and this was found by a test.
+   *
+   * The `ink` palette's ground is #111827 — already very dark — so a −0.14
+   * shift clamped to #000000. Pure black against a near-black ground is a
+   * HARD EDGE rather than a wash, and it also throws the hue away entirely:
+   * a wash built from the palette's own colour stopped being that colour at
+   * the one end where it mattered.
+   *
+   * ⚠️ The floor and ceiling are deliberately not 0 and 1.
+   */
+  const bounded = Math.max(0.05, Math.min(0.95, l + by));
+  return fromHsl(h, s, bounded);
+}
+
+/**
  * The same colour, made visible against a particular ground.
  *
  * 🔴 THE RING AND THE DOT ARE NOT THE CODE, and only the code was ever

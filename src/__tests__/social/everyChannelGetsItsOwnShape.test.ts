@@ -21,7 +21,7 @@ import fs from "fs";
 import path from "path";
 import { PLATFORMS, PLATFORM_IDS, platformSpec, publishableToday, publishingSentence } from "@/lib/social/platforms";
 import { composePicture, wordsInPicture, imagesInPicture } from "@/lib/social/compose";
-import { recipeHash, LAYOUTS, PALETTE_NAMES, TYPE_TREATMENTS, MOTIFS } from "@/lib/social/visualRecipe";
+import { recipeHash, LAYOUTS, PALETTE_NAMES, TYPE_TREATMENTS, MOTIFS, WASHES } from "@/lib/social/visualRecipe";
 import { qrTarget, qrContrastOk, LOGO_URL, QR_TARGETS } from "@/lib/social/brandMarks";
 import { buildPrompt } from "@/lib/social/writer";
 
@@ -308,6 +308,19 @@ describe("what the admin is told about publishing", () => {
     });
 
     it("the recipe space is unchanged by any of this", () => {
-        expect(LAYOUTS.length * PALETTE_NAMES.length * TYPE_TREATMENTS.length * MOTIFS.length).toBe(1152);
+        /**
+         * ⚠️ 11,520 per language since 19 Oct, up from 1,152. The owner:
+         * "the contents are always with a solid coloured background with a
+         * text in front" — so a WASH axis was added (flat, linear, radial,
+         * duotone), three large organic motifs joined the six thin-line
+         * fields, and four lighter palettes joined the six mostly-dark ones.
+         *
+         * 🔑 The number is pinned, not computed from the arrays, so that
+         * ADDING an axis is a decision somebody makes rather than something
+         * a test quietly absorbs.
+         */
+        expect(
+          LAYOUTS.length * PALETTE_NAMES.length * TYPE_TREATMENTS.length * MOTIFS.length * WASHES.length,
+        ).toBe(11520);
     });
 });

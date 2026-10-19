@@ -805,6 +805,30 @@ export function checkHouseStyle(text: string, platform: string): HouseStyleResul
       `${characters} characters — ${spec.label} folds the post at about ${spec.limits.soft}, so the ` +
         `rest is behind "see more".`,
     );
+  } else if (characters < spec.bodyTarget.min) {
+    /**
+     * 🔴 TOO SHORT IS A PROBLEM TOO, AND NOTHING COULD SEE IT UNTIL NOW.
+     *
+     * ⛔ Every check here asked "is this too long?". Measured 19 Oct, after
+     * the owner asked why every post is two sentences: 23 of 30 were exactly
+     * two, and Facebook's median was 163 characters against a 500-character
+     * fold. A third of the format, every day, and the system was content.
+     *
+     * ⚠️ A WARNING, NOT A REFUSAL — like every other house-style note. Some
+     * posts really are one line, and "the first line is the whole post"
+     * remains the rule. This says the rest of the room went unused.
+     */
+    /**
+     * ⚠️ THE WORD "fold" IS DELIBERATELY ABSENT. The note above it is the
+     * too-LONG note, and a test asserts that a post fitting inside the fold
+     * draws no fold complaint. Two different problems sharing a word is how
+     * one gets mistaken for the other, by a test and by a reader.
+     */
+    problems.push(
+      `${characters} characters — short for ${spec.label}, which shows about ${spec.limits.soft} ` +
+        `before "see more". ▶️ Around ${spec.bodyTarget.min}–${spec.bodyTarget.max} uses the room a ` +
+        `reader already gave you. ⚠️ Only if there is more worth saying: padding is worse than brevity.`,
+    );
   }
 
   /**

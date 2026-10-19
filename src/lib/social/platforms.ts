@@ -26,6 +26,22 @@ export type PlatformSpec = {
   picture: { width: number; height: number; note: string };
   /** The ceiling the platform enforces, and the point a reader sees "see more". */
   limits: { hard: number; soft: number };
+  /**
+   * 🔴 HOW LONG A POST SHOULD ACTUALLY BE HERE — a FLOOR as well as a ceiling.
+   *
+   * ⛔ MEASURED 19 Oct, after the owner asked why every post is two
+   * sentences: 23 of 30 posts were exactly two, Facebook's median was 163
+   * characters against a 500-character fold. A third of the format, every
+   * day. `limits` only ever said "do not exceed", so nothing in the system
+   * could notice that a post was too SHORT to be worth the reader's tap.
+   *
+   * ⚠️ NOT "LONGER IS BETTER". The rule that the first line carries the post
+   * is unchanged; this says how much room the rest of it has earned. On
+   * Instagram the fold is at 125 and everything after it is behind "see
+   * more", so its target stays where it is — the channels genuinely differ,
+   * which is the whole reason this is per-channel and not one number.
+   */
+  bodyTarget: { min: number; max: number };
   /** How many hashtags are normal here. ⚠️ Not a licence — fewer is still better. */
   hashtags: number;
   /**
@@ -99,6 +115,9 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     label: "Facebook Page",
     picture: { width: 1200, height: 630, note: "the link-card size Facebook renders" },
     limits: { hard: 63206, soft: 500 },
+    // ⚠️ Room for a small story before the fold. Facebook is read with more
+    // patience than Instagram and shows ~500 characters before "see more".
+    bodyTarget: { min: 320, max: 460 },
     hashtags: 0,
     emoji: 1,
     linksInBody: false,
@@ -129,6 +148,8 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
      * were the first two lines nobody had been asked to make count.
      */
     limits: { hard: 3000, soft: 210 },
+    // ⚠️ ~210 on desktop, ~140 on a phone ⇒ finish before the shorter one.
+    bodyTarget: { min: 140, max: 210 },
     hashtags: 3,
     emoji: 1,
     linksInBody: false,
@@ -151,6 +172,12 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     label: "Instagram",
     picture: { width: 1080, height: 1080, note: "square; the feed crops anything else" },
     limits: { hard: 2200, soft: 125 },
+    /**
+     * ⛔ DELIBERATELY UNCHANGED at the measured median. Instagram folds at
+     * about 125 characters; everything past it is behind "see more" and
+     * mostly goes unread. This is the channel where two sentences is right.
+     */
+    bodyTarget: { min: 120, max: 200 },
     // ⚠️ Five, not two. Instagram is the one channel here where a handful of
     // specific tags still reaches people who do not follow us — and the
     // product's own subject matter supplies them honestly. ⛔ Not thirty: a
@@ -211,6 +238,8 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     label: "X",
     picture: { width: 1600, height: 900, note: "16:9; X crops to it anyway" },
     limits: { hard: 280, soft: 280 },
+    // ⚠️ The hard limit IS the fold here: there is nothing behind a "see more".
+    bodyTarget: { min: 150, max: 270 },
     hashtags: 1,
     emoji: 1,
     // ⚠️ True here and nowhere else on this list: X does not punish an
@@ -231,6 +260,7 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     label: "YouTube community",
     picture: { width: 1280, height: 720, note: "the community-post and thumbnail ratio" },
     limits: { hard: 1500, soft: 300 },
+    bodyTarget: { min: 180, max: 290 },
     hashtags: 0,
     emoji: 1,
     // 🔑 These are people who already subscribed. A link is a service to them,

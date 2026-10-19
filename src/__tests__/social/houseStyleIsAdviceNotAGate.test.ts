@@ -116,7 +116,17 @@ describe("what it counts", () => {
         // judgement, which is why length is advice and not a gate.
         const r = checkHouseStyle("ইমোতারা", "x");
         expect(r.characters).toBeLessThan(10);
-        expect(r.ok).toBe(true);
+        /**
+         * ⚠️ PINNED ON THE CONSEQUENCE OF OVER-COUNTING, not on `ok`.
+         *
+         * The bug would report a short post as OVER a limit. `ok` used to
+         * stand in for that and stopped being able to on 19 Oct, when a
+         * too-SHORT note was added and this seven-character fixture started
+         * drawing one — correctly, and for a reason that has nothing to do
+         * with counting. ⛔ A test whose assertion is only incidentally
+         * related to its subject breaks on changes that do not concern it.
+         */
+        expect(r.problems.join(" ")).not.toMatch(/will not accept|behind "see more"/);
 
         /**
          * ⚠️ THE ASSERTION ABOVE CANNOT CATCH THE BUG, which a mutation run
@@ -238,8 +248,20 @@ describe("advice and the gate stay separate", () => {
     });
 
     it("a post that is tidy but makes a claim is rejected by the gate", () => {
-        const copy = "Our therapist is here.";
-        expect(checkHouseStyle(copy, "linkedin").ok, "house style objected to a short clean post").toBe(true);
+        /**
+         * ⚠️ A REAL POST'S LENGTH, because the fixture used to be one line.
+         * Since 19 Oct the house style also notes a post that is too SHORT
+         * for its channel, and a four-word fixture drew that note — which
+         * would have made this read as "house style objected to a claim",
+         * the exact confusion the test exists to prevent.
+         *
+         * 🔑 The point is unchanged and is the whole reason these are two
+         * functions: the writing here is tidy, and it still must not publish.
+         */
+        const copy =
+            "Our therapist is here whenever you want to talk, at any hour, in whichever of the " +
+            "twenty-two languages you happen to think in. Nothing is stored unless you ask for it.";
+        expect(checkHouseStyle(copy, "linkedin").ok, "house style objected to a tidy post").toBe(true);
         expect(checkVoice(copy, "en").ok).toBe(false);
     });
 

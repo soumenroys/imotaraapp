@@ -280,6 +280,25 @@ export function buildPrompt(req: WriteRequest): string {
             `that is behind "see more" and most readers never open it. ⛔ So the first ` +
             `${spec.limits.soft} characters have to work completely on their own. ` +
             `The hard ceiling is ${spec.limits.hard}. ` +
+            /**
+             * 🔴 THE ROOM THIS CHANNEL GIVES — A FLOOR, NOT JUST A CEILING.
+             *
+             * ⛔ MEASURED 19 Oct, after the owner asked why every post is two
+             * sentences. 23 of 30 were exactly two; Facebook's median was 163
+             * characters against a 500-character fold — a third of the format,
+             * every day. Everything above tells the model what not to EXCEED.
+             * Nothing ever told it what it had ROOM for, so it wrote to the
+             * tightest channel everywhere.
+             *
+             * ⚠️ THE SAME SHAPE AS HEADLINE_MAX, which lived as a default
+             * argument and so could never be told to the model that had to
+             * satisfy it ⇒ trap_a_constraint_nobody_told_the_writer. A limit
+             * the writer cannot see is a hope, not a limit.
+             */
+            `Aim for ${spec.bodyTarget.min}–${spec.bodyTarget.max} characters. ` +
+            `⛔ Do NOT pad to reach that — if the post is done in two sentences it is done, and ` +
+            `padding reads far worse than brevity. ⚠️ But if there is a second true thing worth ` +
+            `saying, this is the room you have for it. ` +
             (spec.hashtags === 0
               ? "Use no hashtags at all on this channel — they do nothing here and read as advertising. "
               : `At most ${spec.hashtags} hashtag${spec.hashtags === 1 ? "" : "s"}, specific ones a real person searches for, placed at the end. `) +

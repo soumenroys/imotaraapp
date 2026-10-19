@@ -65,6 +65,31 @@ export default function Channels() {
     void load();
   }, [load]);
 
+  /**
+   * 🔴 THE OUTCOME OF THE YOUTUBE CONSENT, WHICH NOTHING USED TO READ.
+   *
+   * The callback redirects here with `?connected=` or `?error=` carrying the
+   * real reason. ⛔ Until 19 Oct nothing consumed either, so a FAILED connect
+   * rendered an ordinary page: the owner completed the consent, the upsert was
+   * refused by Postgres, and the screen said nothing at all. The only visible
+   * symptom was the channel still reading "Not connected" — which looks like
+   * not having finished rather than like an error
+   * ⇒ trap_a_sentence_that_states_the_world_goes_stale.
+   *
+   * ⚠️ The parameter is STRIPPED after reading, so a reload does not reassert
+   * an outcome that has since changed.
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const note = params.get("connected") ?? params.get("error");
+    if (!note) return;
+    setMessage(note);
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete("connected");
+    clean.searchParams.delete("error");
+    window.history.replaceState({}, "", clean.toString());
+  }, []);
+
   async function togglePause() {
     setBusy(true);
     try {

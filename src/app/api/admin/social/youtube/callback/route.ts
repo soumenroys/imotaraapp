@@ -36,7 +36,14 @@ import { YOUTUBE_UPLOAD_SCOPE } from "@/lib/social/adapters/youtube";
 export const IMOTARA_YOUTUBE_CHANNEL_ID = "UCJSh0QnG31SYa4vw5KE1Baw";
 
 function back(origin: string, note: string, ok: boolean) {
-  const url = new URL("/admin/social", origin);
+  /**
+   * ⚠️ /admin/social/channels, NOT /admin/social. The first version landed on
+   * the overview, which reads no query params and renders identically whether
+   * the connection worked or failed — so a real error was invisible and the
+   * page looked normal. The banner lives on the channels screen, which is both
+   * where somebody doing this is standing and where the result is shown.
+   */
+  const url = new URL("/admin/social/channels", origin);
   url.searchParams.set(ok ? "connected" : "error", note);
   return NextResponse.redirect(url, { status: 307, headers: { "cache-control": "no-store" } });
 }
@@ -103,7 +110,18 @@ export async function GET(req: NextRequest) {
         refresh_token: encryptToken(String(exchanged.refreshToken), aad),
         token_tail: tokenTail(String(exchanged.refreshToken)),
         token_fingerprint: tokenFingerprint(String(exchanged.refreshToken)),
-        scopes: YOUTUBE_UPLOAD_SCOPE,
+        /**
+         * 🔴 AN ARRAY, NOT A STRING. `scopes` is `text[] not null default '{}'`
+         * ⇒ social_autopost_v1.sql. Passing the bare string made Postgres try
+         * to parse it as an array literal and refuse the whole upsert with
+         * "malformed array literal" — AFTER the grant was spent.
+         *
+         * ⚠️ The error handling below reported it perfectly and nobody saw it,
+         * because the redirect carried the reason to a page that read no
+         * params. The visible failure was "the channel is simply not connected"
+         * ⇒ trap_a_sentence_that_states_the_world_goes_stale.
+         */
+        scopes: [YOUTUBE_UPLOAD_SCOPE],
         status: "ok",
         last_verified_at: new Date().toISOString(),
         last_error: null,

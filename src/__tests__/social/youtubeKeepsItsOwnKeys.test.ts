@@ -16,6 +16,8 @@
  */
 
 import { describe, it, expect } from "vitest";
+import fs from "fs";
+import path from "path";
 import {
     youtubeOAuthConfig,
     youtubeConsentUrl,
@@ -196,5 +198,57 @@ describe("⛔ the title comes from the post, and is never invented or cut", () =
         const tooLong = `${"a".repeat(TITLE_MAX + 40)}.`;
         expect(youtubeTitleFrom(null, tooLong)).toBeNull();
         expect(youtubeTitleFrom(tooLong, tooLong)).toBeNull();
+    });
+});
+
+/**
+ * 🔴 THE TWO DEFECTS THAT MET ON 19 Oct, AND WHY BOTH ARE PINNED HERE.
+ *
+ * The consent succeeded, Google granted access, and the upsert was refused:
+ * `scopes` is `text[]` and the callback passed a bare string, so Postgres said
+ * "malformed array literal". The handling was right — it caught the error and
+ * wrote the real reason into the redirect.
+ *
+ * ⛔ AND NOBODY SAW IT, because the redirect went to a page that read no query
+ * params. A failed connect rendered an ordinary screen. The whole visible
+ * symptom was a channel still reading "Not connected", which looks like not
+ * having finished rather than like an error.
+ *
+ * 🔑 One bug cost nothing on its own. It was the SILENCE that cost the time
+ * ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+ */
+describe("⛔ the connect outcome reaches a human", () => {
+    const CALLBACK = fs.readFileSync(
+        path.join(process.cwd(), "src/app/api/admin/social/youtube/callback/route.ts"),
+        "utf8",
+    );
+    const LANDING = fs.readFileSync(
+        path.join(process.cwd(), "src/app/admin/social/channels/page.tsx"),
+        "utf8",
+    );
+
+    it("🔴 stores scopes as an ARRAY, because the column is text[]", () => {
+        // ⚠️ `scopes text[] not null default '{}'` ⇒ social_autopost_v1.sql.
+        // A bare string is refused by Postgres AFTER the grant is spent, which
+        // is the most expensive moment to discover a type.
+        expect(CALLBACK).toMatch(/scopes:\s*\[/);
+        expect(CALLBACK, "a bare string scope would be refused as a malformed array literal")
+            .not.toMatch(/scopes:\s*YOUTUBE_UPLOAD_SCOPE\s*,/);
+    });
+
+    it("🔑 redirects to a page that actually reads what it is sent", () => {
+        // ⛔ The pairing is the point: it is no use writing a careful message
+        // into a parameter nobody consumes.
+        expect(CALLBACK).toMatch(/\/admin\/social\/channels/);
+        expect(LANDING, "the landing page never reads ?connected=").toMatch(/get\("connected"\)/);
+        expect(LANDING, "the landing page never reads ?error=").toMatch(/get\("error"\)/);
+    });
+
+    it("⛔ and the files were really read", () => {
+        // 🔑 The control. Two readFileSync calls prove nothing until one is
+        // shown answering NO ⇒ trap_mutation_harness_can_report_false_caught.
+        expect(CALLBACK.length).toBeGreaterThan(500);
+        expect(LANDING.length).toBeGreaterThan(500);
+        expect(CALLBACK).not.toMatch(/get\("nonsense-that-is-not-there"\)/);
     });
 });

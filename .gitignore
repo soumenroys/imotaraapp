@@ -90,3 +90,6 @@ yarn-error.log*
 # binaries would re-create the very problem this replaced: PDFs treated as
 # source, drifting away from the prices they are supposed to quote.
 docs/sales/
+
+# Local output of scripts/preview-card.tsx — never committed.
+card-*.png

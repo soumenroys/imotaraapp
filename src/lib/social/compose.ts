@@ -108,10 +108,27 @@ function motifLayer(motif: string, accent: string, w: number, h: number): Node |
           flexDirection: "column",
           justifyContent: "flex-end",
           paddingBottom: `${Math.round(h * 0.22)}px`,
+          alignItems: "flex-end",
         },
-        children: [34, 22, 14, 8].map((bh) => ({
+        /**
+         * 🔴 FULL-WIDTH BARS CUT THE CARD IN HALF. Moved clear of the footer
+         * once already; the remaining problem was the other edge — four
+         * full-bleed bars between the message and the wordmark read as a
+         * divider, or as a rendering fault, rather than as a mark.
+         *
+         * ⚠️ Seen only in a render, again. ⇒ Narrowing and right-aligning
+         * them turns the same four rules into something deliberate: they sit
+         * beside the text block instead of slicing it off.
+         */
+        children: [34, 22, 14, 8].map((bh, i) => ({
           tag: "div" as const,
-          style: { display: "flex", width: "100%", height: `${bh}px`, backgroundColor: accent, marginTop: "16px" },
+          style: {
+            display: "flex",
+            width: `${[46, 34, 24, 16][i]}%`,
+            height: `${bh}px`,
+            backgroundColor: accent,
+            marginTop: "16px",
+          },
         })),
       };
 
@@ -209,10 +226,28 @@ function motifLayer(motif: string, accent: string, w: number, h: number): Node |
 // Type
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Scaled to the frame: a 1080 square and a 1600×900 are not one canvas, and a
- *  single type scale across both leaves one of them wrong. */
-function typeScale(treatment: string, w: number) {
-  const k = w / 1200;
+/**
+ * Scaled to the frame: a 1080 square and a 1600×900 are not one canvas, and a
+ * single type scale across both leaves one of them wrong.
+ *
+ * 🔴 IT SCALED BY WIDTH ALONE, AND THE SQUARE PAID FOR IT. `w / 1200` was
+ * right while the only card was Facebook's 1200×630 landscape. Instagram is
+ * 1080×1080, so k came out at 0.90 and the headline rendered at **59px on a
+ * 1080 square** — about 5% of the frame, with three times the vertical room
+ * left empty. That is the dead space on the first two published cards.
+ *
+ * ✅ The geometric mean of the frame instead. A square has far more room than
+ * a letterbox of the same width and should use it.
+ *
+ *   Facebook  1200×630  → 1.00  (⛔ EXACTLY unchanged — the live channel)
+ *   Instagram 1080×1080 → 1.24  (59px → 82px)
+ *   X         1600×900  → 1.38
+ *
+ * ⚠️ `h` is now required. Passing width only is what caused this, so the
+ * signature no longer allows it.
+ */
+function typeScale(treatment: string, w: number, h: number) {
+  const k = Math.sqrt(w * h) / Math.sqrt(1200 * 630);
   const base: Record<string, { headline: number; support: number; label: number; tracking: string }> = {
     display: { headline: 66, support: 27, label: 18, tracking: "-0.02em" },
     "tight-display": { headline: 60, support: 25, label: 17, tracking: "-0.035em" },
@@ -670,7 +705,7 @@ export function composePicture(input: ComposeInput): Picture {
 
   const scale = w / 1200;
   const pad = Math.round(72 * scale);
-  const type = typeScale(recipe.typeTreatment, w);
+  const type = typeScale(recipe.typeTreatment, w, h);
 
   const notes: string[] = [];
   const wordmark = planWordmark(language);

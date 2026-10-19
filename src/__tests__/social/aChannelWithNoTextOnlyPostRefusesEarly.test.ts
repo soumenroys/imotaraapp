@@ -15,6 +15,9 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PLATFORMS, platformSpec } from "@/lib/social/platforms";
+import { instagramCardPlan } from "@/lib/social/instagramCardPlan";
+
+const POST_ID = "b1b9f1f6-0000-4000-8000-000000000001";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 const pipeline = read("src/lib/social/pipeline.ts");
@@ -139,8 +142,26 @@ describe("the publisher still refuses too, because both can be reached", () => {
      * where six already-queued posts stayed cardless after the rule was fixed
      * and the first public post went out as text.
      */
-    expect(publisher).toContain('post.media_kind !== "graphic"');
-    const block = publisher.slice(publisher.indexOf('post.media_kind !== "graphic"'));
-    expect(block.slice(0, block.indexOf("continue;"))).toContain("Nothing was published");
+    /**
+     * 🔴 THIS USED TO READ THE ROUTE'S SOURCE for the string
+     * `post.media_kind !== "graphic"`, and it broke the moment that decision
+     * moved into a module where it could be CALLED — which is the whole
+     * problem with testing a rule by looking for it. ⛔ A text assertion
+     * cannot see whether the rule still runs.
+     *
+     * ⚠️ So the rule is exercised, and the route is only asked to still
+     * consult it.
+     */
+    const out = instagramCardPlan({ id: POST_ID, subject: "A subject", media_kind: null }, "https://x.test");
+    expect(out.ok).toBe(false);
+    if (out.ok) throw new Error("unreachable");
+    expect(out.hint).toContain("Nothing was published");
+
+    expect(publisher).toContain("instagramCardPlan(");
+    // ⛔ And it acts on the refusal before anything is published: the `continue`
+    // comes between the plan and the publish call.
+    const at = publisher.indexOf("instagramCardPlan(");
+    const toPublish = publisher.slice(at, publisher.indexOf("publishToInstagram", at));
+    expect(toPublish).toContain("continue;");
   });
 });

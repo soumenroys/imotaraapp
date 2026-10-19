@@ -15,6 +15,7 @@ import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { PageTutorial, TUTORIALS } from "@/app/admin/social/_components/PageTutorial";
 import { SocialPage, Chip, Explain, HowItWorks, POST_STATUS } from "@/app/admin/social/_components/ui";
 import { publishingSentence } from "@/lib/social/platforms";
+import { cardsForPost } from "@/lib/social/cards";
 
 type Finding = { list: string; rule: string; matched: string; because: string };
 type GateResult = {
@@ -35,11 +36,25 @@ type Post = {
   status: string;
   subject: string;
   body: string;
+  /** 🔑 A carousel's cards after the subject. Null on every other shape. */
+  slides: string[] | null;
   media_kind: string;
   visual_recipe: Record<string, unknown> | null;
   gate_result: GateResult | null;
   created_at: string;
 };
+
+/**
+ * The card numbers this post publishes, in order.
+ *
+ * ⛔ FROM `cardsForPost`, the same function the renderer and the publisher
+ * use. A second count here would be a reviewer approving five cards while
+ * six go out — and nothing on the screen would say so.
+ */
+function cardIndexes(post: { subject: string; slides: string[] | null; media_kind: string }): number[] {
+  if (post.media_kind !== "carousel") return [0];
+  return cardsForPost(post).map((_, i) => i);
+}
 
 const LIST_LABEL: Record<string, string> = {
   clinical: "Clinical claims",
@@ -290,14 +305,46 @@ export default function Today() {
                           </article>
                         )}
 
-                        {post.media_kind === "graphic" && (
+                        {(post.media_kind === "graphic" || post.media_kind === "carousel") && (
                           <div className="space-y-2">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={`/api/admin/social/picture/${post.id}`}
-                              alt={`The picture for “${post.subject}”`}
-                              className="w-full max-w-xl rounded-lg border border-white/8"
-                            />
+                            {/*
+                              🔴 EVERY CARD, NOT THE FIRST ONE.
+                              Approving a carousel from its opening card is
+                              approving five public cards having seen one —
+                              and the four unseen ones are the ones a reader
+                              swipes to. ⛔ They are shown side by side, in
+                              the order they publish, so "which card is which"
+                              is answered by looking rather than by trusting.
+                            */}
+                            <div className={post.media_kind === "carousel" ? "flex gap-3 overflow-x-auto pb-2" : ""}>
+                              {cardIndexes(post).map((slide) => (
+                                <figure key={slide} className="shrink-0">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={
+                                      slide === 0
+                                        ? `/api/admin/social/picture/${post.id}`
+                                        : `/api/admin/social/picture/${post.id}?slide=${slide}`
+                                    }
+                                    alt={
+                                      post.media_kind === "carousel"
+                                        ? `Card ${slide + 1} of ${cardIndexes(post).length} for “${post.subject}”`
+                                        : `The picture for “${post.subject}”`
+                                    }
+                                    className={
+                                      post.media_kind === "carousel"
+                                        ? "h-56 w-56 rounded-lg border border-white/8 object-cover"
+                                        : "w-full max-w-xl rounded-lg border border-white/8"
+                                    }
+                                  />
+                                  {post.media_kind === "carousel" && (
+                                    <figcaption className="mt-1 text-center text-xs text-zinc-500">
+                                      {slide + 1} / {cardIndexes(post).length}
+                                    </figcaption>
+                                  )}
+                                </figure>
+                              ))}
+                            </div>
                             <Explain q="Where did this picture come from?">
                               <p>
                                 The headline is your opening sentence. The style — the colours, the

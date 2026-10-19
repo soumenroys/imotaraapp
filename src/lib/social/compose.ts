@@ -12,7 +12,7 @@
 // writes copy. The gate cannot read a picture, so a picture may only repeat
 // words that have already been through it.
 
-import { PALETTES, wordmarkFor, canonicalLayout, type Recipe } from "@/lib/social/visualRecipe";
+import { PALETTES, wordmarkFor, canonicalLayout, HEADLINE_MAX, type Recipe } from "@/lib/social/visualRecipe";
 import { BRAND_IN_SCRIPT } from "@/lib/social/languages";
 import { planWordmark, type WordmarkPlan } from "@/lib/social/fonts";
 import { platformSpec } from "@/lib/social/platforms";
@@ -68,6 +68,17 @@ export type ComposeInput = {
   /** The three codes — website, Android, iPhone — from `allQrCodes`. ⚠️ A
    *  reader on a phone wants the store for the phone they are holding. */
   qrCodes?: QrCode[];
+  /**
+   * 🔑 WHERE THIS CARD SITS IN A CAROUSEL, 1-based — "3 / 5".
+   *
+   * ⚠️ NOT DECORATION. A carousel asks for a swipe before it has given
+   * anything, and the only thing that makes that a fair bargain is knowing how
+   * many swipes are being asked for. A reader on an unnumbered card three does
+   * not know whether the good one is next or whether there are nine more.
+   *
+   * ⛔ Absent on a single card, where it would be a count of one.
+   */
+  counter?: { index: number; total: number };
 };
 
 const MOTIF_OPACITY = 0.13;
@@ -599,12 +610,23 @@ function layoutFor(
       };
 
     case "stacked-label":
-      // Hairlines between the pieces, like a printed index.
+      /**
+       * Hairlines between the pieces, like a printed index.
+       *
+       * 🔴 THE ONE LAYOUT WITH NOTHING ABOVE THE WORDS, and on a 1080 square
+       * it left two thirds of the frame empty under them — measured in a
+       * render, invisible in this code, and the same fault `squarish` was
+       * introduced to fix everywhere else. ⇒ The index still starts at the
+       * top, because that is what makes it an index; the headline below it
+       * now sits off the floor on a square and is unchanged on a wide card.
+       */
       return column([
         ...(label ? [label, hairline({ marginTop: `${Math.round(18 * scale)}px`, marginBottom: `${Math.round(26 * scale)}px` })] : []),
+        ...(squarish ? [spacer()] : []),
         headline,
         ...(support ? [support] : []),
         spacer(),
+        ...(squarish ? [spacer()] : []),
         hairline({ marginBottom: `${Math.round(24 * scale)}px` }),
         foot,
       ]);
@@ -726,28 +748,67 @@ export function composePicture(input: ComposeInput): Picture {
   // Setting the Bengali form in a Latin font renders as empty boxes.
   const wordmarkText = wordmark.substituted ? BRAND_IN_SCRIPT.en : wordmarkFor(language);
 
-  const label: Node | null =
-    recipe.layout === "stacked-label" || recipe.typeTreatment === "caps-label"
-      ? {
-          tag: "div",
-          role: "label",
-          style: {
-            display: "flex",
-            fontSize: `${type.label}px`,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: palette.muted,
-          },
-          text: "22 languages",
-        }
+  /**
+   * 🔴 ON A CAROUSEL THE EYEBROW IS THE COUNTER, AND IT IS ALWAYS DRAWN.
+   *
+   * ⛔ The fixed "22 languages" was a brand claim stamped on whatever the post
+   * happened to be about — five identical copies of it down a carousel about
+   * restlessness, measured in a render. A counter is true on every card, is
+   * the one thing a reader on card three actually wants, and is drawn on EVERY
+   * layout rather than only the two that happen to have an eyebrow: a reader
+   * does not know which recipe was rolled.
+   */
+  const labelText = input.counter
+    ? `${input.counter.index} / ${input.counter.total}`
+    : recipe.layout === "stacked-label" || recipe.typeTreatment === "caps-label"
+      ? "22 languages"
       : null;
+
+  const label: Node | null = labelText
+    ? {
+        tag: "div",
+        role: "label",
+        style: {
+          display: "flex",
+          fontSize: `${type.label}px`,
+          // ⚠️ A counter is digits and a slash: tracked like a label, but not
+          // upper-cased, because there is nothing to upper-case.
+          letterSpacing: input.counter ? "0.12em" : "0.18em",
+          textTransform: input.counter ? "none" : "uppercase",
+          color: palette.muted,
+        },
+        text: labelText,
+      }
+    : null;
+
+  /**
+   * 🔑 A SHORT CARD DESERVES BIGGER TYPE, and a carousel is mostly short
+   * cards. "You tidy a drawer that was already tidy." set at the size chosen
+   * for a 64-character headline occupies a third of a square and leaves the
+   * rest empty — measured, in a render.
+   *
+   * ⛔ NOT A FIXED BUMP FOR CAROUSELS. Slides are not length-capped, so a
+   * blanket multiplier would overflow the long one. The scale comes from the
+   * text's OWN length and reaches 1 well before the headline limit, which
+   * makes it self-limiting.
+   *
+   * 🔴 AND ONLY WHEN THERE IS NO SUPPORT LINE. My first version scaled every
+   * short headline, and on a 1200×630 Facebook card it pushed the support
+   * line straight through the bottom hairline — rendered, looked at, and
+   * caught there. A card with a support line is already using its vertical
+   * room; a slide, which is one sentence alone in a square, is not. ⇒ The
+   * emptiness this fixes is the emptiness that only a lone headline creates.
+   */
+  const fit = support?.trim()
+    ? 1
+    : Math.min(1.42, Math.max(1, HEADLINE_MAX / Math.max(headline.trim().length, 1)));
 
   const headlineNode: Node = {
     tag: "div",
     role: "headline",
     style: {
       display: "flex",
-      fontSize: `${type.headline}px`,
+      fontSize: `${Math.round(type.headline * fit)}px`,
       lineHeight: 1.16,
       letterSpacing: type.tracking,
       fontWeight: 600,

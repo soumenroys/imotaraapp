@@ -19,9 +19,10 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { postingIsPaused } from "@/lib/social/store";
 import { loadChannelCredential } from "@/lib/social/channelCredentials";
 import { publishToFacebook } from "@/lib/social/adapters/facebook";
-import { publishToInstagram } from "@/lib/social/adapters/instagram";
+import { publishToInstagram, publishCarouselToInstagram } from "@/lib/social/adapters/instagram";
 import { renderPostPictureBytes } from "@/lib/social/renderPicture";
-import { cardUrlFor } from "@/lib/social/cardUrl";
+import { publicOrigin } from "@/lib/social/cardUrl";
+import { instagramCardPlan } from "@/lib/social/instagramCardPlan";
 import { platformSpec } from "@/lib/social/platforms";
 import { markCronFired } from "@/lib/cron/heartbeat";
 
@@ -121,7 +122,7 @@ export async function GET(req: NextRequest) {
 
   const { data: due, error } = await db
     .from("social_posts")
-    .select("id, platform, language, subject, body, media_kind, visual_recipe, attempts, scheduled_for")
+    .select("id, platform, language, subject, body, slides, media_kind, visual_recipe, attempts, scheduled_for")
     .eq("status", "approved")
     // ⚠️ `scheduled_for` null means "as soon as it is approved" ⇒ the schema.
     .or(`scheduled_for.is.null,scheduled_for.lte.${now.toISOString()}`)
@@ -232,61 +233,96 @@ export async function GET(req: NextRequest) {
 
     if (platform === "instagram") {
       /**
-       * 🔴 THERE IS NO TEXT-ONLY INSTAGRAM POST. Facebook will take words on
-       * their own; Instagram will not. A post that arrives here without a
-       * card is not a post that goes out as words — it is a post that does
-       * not go out.
+       * 🔑 THE DECISION IS MADE IN A FUNCTION THAT CAN BE TESTED, and this
+       * route does the part that cannot be undone ⇒ instagramCardPlan.ts.
+       * Its three refusals are the three ways a carousel publishes as
+       * something nobody approved.
        */
-      if (post.media_kind !== "graphic") {
+      const plan = instagramCardPlan(
+        {
+          id: post.id as string,
+          subject: post.subject as string | null,
+          slides: post.slides as string[] | null,
+          media_kind: post.media_kind as string | null,
+        },
+        publicOrigin(),
+      );
+      if (!plan.ok) {
         await db
           .from("social_posts")
-          .update({ status: "approved", last_error: "Instagram needs a picture", updated_at: new Date().toISOString() })
+          .update({ status: "approved", last_error: plan.why, updated_at: new Date().toISOString() })
           .eq("id", post.id);
         outcomes.push({
           id: post.id as string,
           platform,
           language: post.language as string,
           result: "failed",
-          detail:
-            "Instagram has no text-only post, and this one has no card. ⛔ Nothing was published. " +
-            "▶️ Give it a graphic in the composer.",
+          detail: plan.hint,
+        });
+        continue;
+      }
+      const cardUrls = plan.urls;
+
+      /**
+       * 🔴 THE CARDS ARE CHECKED BY FETCHING THEM, not by rendering again.
+       *
+       * Instagram fetches each `image_url` ITSELF, from Meta's servers, with
+       * none of our credentials. So the question that matters is not "does
+       * this card render here?" — it is "can a stranger on the internet get a
+       * JPEG from this URL?". A local re-render answers the wrong question and
+       * would pass happily with the site URL wrong, the signature mismatched,
+       * or deployment protection in front of the route.
+       *
+       * ⚠️ EVERY CARD, not just the first. One unreachable slide fails the
+       * whole post at Meta's end, after some children have already been
+       * built — and the error it returns talks about "media".
+       */
+      let unreachable: { ok: false; why: string } | undefined;
+      for (const [i, url] of cardUrls.entries()) {
+        const reachable = await cardReaches(url);
+        if (!reachable.ok) {
+          unreachable = {
+            ok: false,
+            why: cardUrls.length > 1 ? `Card ${i + 1} of ${cardUrls.length}: ${reachable.why}` : reachable.why,
+          };
+          break;
+        }
+      }
+      if (unreachable) {
+        await db
+          .from("social_posts")
+          .update({ status: "approved", last_error: unreachable.why, updated_at: new Date().toISOString() })
+          .eq("id", post.id);
+        outcomes.push({
+          id: post.id as string,
+          platform,
+          language: post.language as string,
+          result: "failed",
+          detail: `Instagram would not have been able to fetch the card, so nothing was posted: ${unreachable.why}`,
         });
         continue;
       }
 
       /**
-       * 🔴 THE CARD IS CHECKED BY FETCHING IT, not by rendering it again.
-       *
-       * Instagram fetches `image_url` ITSELF, from Meta's servers, with none
-       * of our credentials. So the question that matters is not "does this
-       * card render here?" — it is "can a stranger on the internet get a JPEG
-       * from this URL?". A local re-render answers the wrong question and
-       * would pass happily with the site URL wrong, the signature mismatched,
-       * or deployment protection in front of the route.
+       * ⚠️ DISPATCHED ON HOW MANY CARDS THERE ARE, not on `media_kind`. The
+       * two are kept in step by the refusal above; branching on the count is
+       * what makes "several cards" and "the carousel call" impossible to get
+       * out of step here.
        */
-      const cardUrl = cardUrlFor(post.id as string);
-      const reachable = await cardReaches(cardUrl);
-      if (!reachable.ok) {
-        await db
-          .from("social_posts")
-          .update({ status: "approved", last_error: reachable.why, updated_at: new Date().toISOString() })
-          .eq("id", post.id);
-        outcomes.push({
-          id: post.id as string,
-          platform,
-          language: post.language as string,
-          result: "failed",
-          detail: `Instagram would not have been able to fetch the card, so nothing was posted: ${reachable.why}`,
-        });
-        continue;
-      }
-
-      const r = await publishToInstagram({
-        token: cred.token,
-        igUserId: cred.externalId,
-        caption: post.body as string,
-        imageUrl: cardUrl,
-      });
+      const r =
+        cardUrls.length > 1
+          ? await publishCarouselToInstagram({
+              token: cred.token,
+              igUserId: cred.externalId,
+              caption: post.body as string,
+              imageUrls: cardUrls,
+            })
+          : await publishToInstagram({
+              token: cred.token,
+              igUserId: cred.externalId,
+              caption: post.body as string,
+              imageUrl: cardUrls[0],
+            });
       result = r.ok
         ? { ok: true, postId: r.mediaId, url: r.url }
         : { ok: false, kind: r.kind, message: r.message };

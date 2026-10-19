@@ -88,6 +88,18 @@ export type RenderFailure = {
 export type RenderedPicture = { response: ImageResponse; width: number; height: number };
 
 /**
+ * The media kinds that have a card to draw.
+ *
+ * ⚠️ A SET, NOT AN EQUALITY, on purpose: the next shape with a picture is
+ * added here, and a shape that needs one but is missing from this list fails
+ * as "this post has no picture" — which reads like a missing recipe rather
+ * than a missing entry ⇒ it cost me exactly that half hour when `carousel`
+ * was new. ⛔ `short_video` and `animated_gif` are NOT here: they are drawn
+ * frame by frame elsewhere.
+ */
+const PICTURE_KINDS = new Set(["graphic", "carousel"]);
+
+/**
  * ⚠️ RETURNS A FAILURE RATHER THAN THROWING, because both callers need to tell
  * "this post has no picture" from "this post should have one and it broke" —
  * and for the publisher the difference decides whether to post the words
@@ -97,7 +109,16 @@ export async function renderPostPicture(
   post: PictureSource,
   headers?: Record<string, string>,
 ): Promise<{ ok: true; picture: RenderedPicture } | { ok: false; failure: RenderFailure }> {
-  if (post.media_kind !== "graphic" || !post.visual_recipe) {
+  /**
+   * 🔴 BOTH KINDS THAT HAVE A PICTURE, and I nearly shipped only one.
+   *
+   * This guard read `!== "graphic"` while the whole carousel path above it was
+   * being built — so every card of every carousel would have 404'd with "This
+   * post has no picture", including the ones the publisher had already proved
+   * reachable. ⛔ `media_kind` gained a value and a guard written as a single
+   * equality did not notice; a list is the shape that does.
+   */
+  if (!PICTURE_KINDS.has(post.media_kind ?? "") || !post.visual_recipe) {
     return { ok: false, failure: { status: 404, error: "This post has no picture." } };
   }
 
@@ -259,6 +280,15 @@ export async function renderPostPicture(
       language: post.language,
       platform: post.platform,
       qrCodes,
+      /**
+       * 🔑 "3 / 5" ON EVERY CARD OF A CAROUSEL, and on nothing else.
+       *
+       * ⚠️ 1-BASED, because it is read by a person, not indexed by one. Card 0
+       * is "1 / 5" ⇒ the subject card, which is where a reader starts.
+       *
+       * ⛔ `cards.length` and not `slides.length`: the subject is a card.
+       */
+      counter: isCarousel ? { index: slide + 1, total: cards.length } : undefined,
     });
   } catch (e) {
     return { ok: false, failure: { status: 422, error: (e as Error).message } };

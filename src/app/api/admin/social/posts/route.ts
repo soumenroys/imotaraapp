@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   let q = db
     .from("social_posts")
     .select(
-      "id, origin, schedule_id, author_id, platform, language, scheduled_for, status, subject, body, " +
+      "id, origin, schedule_id, author_id, platform, language, scheduled_for, status, subject, body, slides, " +
         "media_kind, visual_recipe, gate_result, reviewed_by, reviewed_at, external_post_id, attempts, " +
         "last_error, generated_at, published_at, created_at",
     )

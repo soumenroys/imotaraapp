@@ -29,11 +29,25 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const db = getSupabaseAdmin();
   const { data: post, error } = await db
     .from("social_posts")
-    .select("id, language, platform, subject, body, media_kind, visual_recipe")
+    .select("id, language, platform, subject, body, slides, media_kind, visual_recipe")
     .eq("id", id)
     .single();
 
   if (error || !post) return NextResponse.json({ error: "no such post" }, { status: 404 });
+
+  /**
+   * 🔑 WHICH CARD OF A CAROUSEL. Absent means the first, which is what every
+   * link written before carousels existed means ⇒ nothing had to change.
+   *
+   * ⛔ A SLIDE THAT IS NOT A NUMBER IS NOT CARD 0. Quietly falling back would
+   * show a reviewer the subject card while they believed they were approving
+   * slide four — and they would approve it.
+   */
+  const raw = req.nextUrl.searchParams.get("slide");
+  const slide = raw === null ? 0 : Number(raw);
+  if (!Number.isInteger(slide) || slide < 0) {
+    return NextResponse.json({ error: `"${raw}" is not a card number.` }, { status: 400 });
+  }
 
   const rendered = await renderPostPicture(
     {
@@ -41,6 +55,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       language: post.language as string,
       subject: post.subject as string | null,
       body: post.body as string,
+      slides: post.slides as string[] | null,
+      slide,
       media_kind: post.media_kind as string | null,
       visual_recipe: post.visual_recipe,
     },

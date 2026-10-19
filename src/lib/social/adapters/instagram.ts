@@ -199,39 +199,79 @@ const CONTAINER_TRIES = 8;
 const CONTAINER_WAIT_MS = 3_000;
 
 /**
- * Put one picture and one caption on the Instagram timeline.
+ * Wait until Meta has fetched the picture and accepted the container.
  *
- * ⚠️ TWO CALLS, AND THE SECOND ONE IS THE POST. The first makes a container
- * and returns an id that looks exactly like a success.
+ * 🔑 EXTRACTED so the single-card and carousel paths cannot drift. A carousel
+ * waits on several children and then on the carousel itself; the same rules
+ * apply to every one of them, and two copies of "is it ready yet" is two
+ * copies of the ERROR branch that explains what actually went wrong.
+ *
+ * ⛔ Returns the reason, never a bare boolean. "Not ready" and "Meta could not
+ * fetch your image" need different actions from a human.
  */
-export async function publishToInstagram(args: {
-  token: string;
-  igUserId: string;
-  caption: string;
-  /** ⚠️ Must be PUBLIC and JPEG: Meta fetches it ⇒ cardUrl.ts. */
+async function waitForContainer(args: {
+  containerId: string;
+  pageToken: string;
   imageUrl: string;
-  fetchImpl?: typeof fetch;
-  /** ⚠️ Injected so the wait is instant under test rather than 24 seconds. */
-  sleep?: (ms: number) => Promise<void>;
-}): Promise<InstagramPublish> {
-  const doFetch = args.fetchImpl ?? fetch;
-  const sleep = args.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  doFetch: typeof fetch;
+  sleep: (ms: number) => Promise<void>;
+}): Promise<{ ok: true } | { ok: false; kind: InstagramFailure; message: string }> {
+  const { containerId, pageToken, imageUrl, doFetch, sleep } = args;
+  let lastStatus = "unknown";
 
-  const linked = await instagramLink({ token: args.token, igUserId: args.igUserId, fetchImpl: doFetch });
-  if (!linked.ok) return linked;
-  const pageToken = linked.link.pageToken;
+  for (let attempt = 0; attempt < CONTAINER_TRIES; attempt += 1) {
+    const state = await getJson(
+      graph(encodeURIComponent(containerId)) +
+        `?fields=status_code,status&access_token=${encodeURIComponent(pageToken)}`,
+      doFetch,
+    );
+    if (!state.ok) return state;
 
-  // ── 1. THE CONTAINER ──────────────────────────────────────────────────────
-  const made = await getJson(graph(`${encodeURIComponent(args.igUserId)}/media`), doFetch, {
+    lastStatus = (state.json.status_code as string) ?? "unknown";
+    if (lastStatus === "FINISHED") return { ok: true };
+    if (lastStatus === "ERROR" || lastStatus === "EXPIRED") {
+      /**
+       * ⛔ AN ERROR HERE IS ALMOST ALWAYS THE IMAGE, NOT THE TOKEN. Meta could
+       * not fetch the URL, or it was not a JPEG, or it was the wrong size.
+       * Saying so is the difference between a five-minute fix and an
+       * afternoon spent on permissions.
+       */
+      return {
+        ok: false,
+        kind: "unknown",
+        message:
+          `Instagram could not accept the picture (${lastStatus}: ${String(state.json.status ?? "no detail")}). ` +
+          `⚠️ This is about the IMAGE, not the token: Meta fetches ${imageUrl} itself, and it ` +
+          `must be publicly reachable and a JPEG. ⛔ Nothing was published.`,
+      };
+    }
+    if (attempt < CONTAINER_TRIES - 1) await sleep(CONTAINER_WAIT_MS);
+  }
+
+  return {
+    ok: false,
+    kind: "unknown",
+    message:
+      `Instagram was still preparing the picture after ${(CONTAINER_TRIES * CONTAINER_WAIT_MS) / 1000}s ` +
+      `(last status ${lastStatus}). ⛔ Nothing was published — the container is not a post.`,
+  };
+}
+
+/**
+ * Ask Meta to build one container, whatever kind.
+ *
+ * ⚠️ THE FIELDS GO IN THE BODY, not the query string: a caption is long, has
+ * line breaks, and a URL is a place things get logged.
+ */
+async function makeContainer(
+  igUserId: string,
+  fields: Record<string, string>,
+  doFetch: typeof fetch,
+): Promise<{ ok: true; containerId: string } | { ok: false; kind: InstagramFailure; message: string }> {
+  const made = await getJson(graph(`${encodeURIComponent(igUserId)}/media`), doFetch, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
-    // ⚠️ In the body, not the query string: a caption is long, contains line
-    // breaks, and a URL is a place things get logged.
-    body: new URLSearchParams({
-      image_url: args.imageUrl,
-      caption: args.caption,
-      access_token: pageToken,
-    }).toString(),
+    body: new URLSearchParams(fields).toString(),
   });
   if (!made.ok) return made;
 
@@ -243,52 +283,25 @@ export async function publishToInstagram(args: {
       message: "Instagram accepted the media request but returned no container id, so nothing was published.",
     };
   }
+  return { ok: true, containerId };
+}
 
-  // ── 2. WAIT FOR META TO FETCH AND ACCEPT THE PICTURE ──────────────────────
-  let lastStatus = "unknown";
-  for (let attempt = 0; attempt < CONTAINER_TRIES; attempt += 1) {
-    const state = await getJson(
-      graph(encodeURIComponent(containerId)) +
-        `?fields=status_code,status&access_token=${encodeURIComponent(pageToken)}`,
-      doFetch,
-    );
-    if (!state.ok) return { ...state, containerId };
+/**
+ * The call that actually publishes, plus the permalink read.
+ *
+ * 🔑 SHARED BY BOTH SHAPES. A carousel's final two steps are a single card's
+ * final two steps — the only difference is which container id gets published.
+ */
+async function publishContainer(args: {
+  igUserId: string;
+  containerId: string;
+  pageToken: string;
+  username: string;
+  doFetch: typeof fetch;
+}): Promise<InstagramPublish> {
+  const { igUserId, containerId, pageToken, username, doFetch } = args;
 
-    lastStatus = (state.json.status_code as string) ?? "unknown";
-    if (lastStatus === "FINISHED") break;
-    if (lastStatus === "ERROR" || lastStatus === "EXPIRED") {
-      /**
-       * ⛔ AN ERROR HERE IS ALMOST ALWAYS THE IMAGE, NOT THE TOKEN. Meta could
-       * not fetch the URL, or it was not a JPEG, or it was the wrong size.
-       * Saying so is the difference between a five-minute fix and an
-       * afternoon spent on permissions.
-       */
-      return {
-        ok: false,
-        kind: "unknown",
-        containerId,
-        message:
-          `Instagram could not accept the picture (${lastStatus}: ${String(state.json.status ?? "no detail")}). ` +
-          `⚠️ This is about the IMAGE, not the token: Meta fetches ${args.imageUrl} itself, and it ` +
-          `must be publicly reachable and a JPEG. ⛔ Nothing was published.`,
-      };
-    }
-    if (attempt < CONTAINER_TRIES - 1) await sleep(CONTAINER_WAIT_MS);
-  }
-
-  if (lastStatus !== "FINISHED") {
-    return {
-      ok: false,
-      kind: "unknown",
-      containerId,
-      message:
-        `Instagram was still preparing the picture after ${(CONTAINER_TRIES * CONTAINER_WAIT_MS) / 1000}s ` +
-        `(last status ${lastStatus}). ⛔ Nothing was published — the container is not a post.`,
-    };
-  }
-
-  // ── 3. THE CALL THAT ACTUALLY PUBLISHES ───────────────────────────────────
-  const published = await getJson(graph(`${encodeURIComponent(args.igUserId)}/media_publish`), doFetch, {
+  const published = await getJson(graph(`${encodeURIComponent(igUserId)}/media_publish`), doFetch, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ creation_id: containerId, access_token: pageToken }).toString(),
@@ -314,11 +327,208 @@ export async function publishToInstagram(args: {
     graph(encodeURIComponent(mediaId)) + `?fields=permalink&access_token=${encodeURIComponent(pageToken)}`,
     doFetch,
   );
-  const url = link.ok && typeof link.json.permalink === "string"
-    ? link.json.permalink
-    : `https://www.instagram.com/${linked.link.username || ""}`;
+  const url =
+    link.ok && typeof link.json.permalink === "string"
+      ? link.json.permalink
+      : `https://www.instagram.com/${username || ""}`;
 
   return { ok: true, mediaId, url };
+}
+
+/**
+ * Put one picture and one caption on the Instagram timeline.
+ *
+ * ⚠️ TWO CALLS, AND THE SECOND ONE IS THE POST. The first makes a container
+ * and returns an id that looks exactly like a success.
+ */
+export async function publishToInstagram(args: {
+  token: string;
+  igUserId: string;
+  caption: string;
+  /** ⚠️ Must be PUBLIC and JPEG: Meta fetches it ⇒ cardUrl.ts. */
+  imageUrl: string;
+  fetchImpl?: typeof fetch;
+  /** ⚠️ Injected so the wait is instant under test rather than 24 seconds. */
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<InstagramPublish> {
+  const doFetch = args.fetchImpl ?? fetch;
+  const sleep = args.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+
+  const linked = await instagramLink({ token: args.token, igUserId: args.igUserId, fetchImpl: doFetch });
+  if (!linked.ok) return linked;
+  const pageToken = linked.link.pageToken;
+
+  // ── 1. THE CONTAINER ──────────────────────────────────────────────────────
+  const made = await makeContainer(
+    args.igUserId,
+    { image_url: args.imageUrl, caption: args.caption, access_token: pageToken },
+    doFetch,
+  );
+  if (!made.ok) return made;
+  const containerId = made.containerId;
+
+  // ── 2. WAIT FOR META TO FETCH AND ACCEPT THE PICTURE ──────────────────────
+  const ready = await waitForContainer({ containerId, pageToken, imageUrl: args.imageUrl, doFetch, sleep });
+  if (!ready.ok) return { ...ready, containerId };
+
+  // ── 3. THE CALL THAT ACTUALLY PUBLISHES ───────────────────────────────────
+  return publishContainer({
+    igUserId: args.igUserId,
+    containerId,
+    pageToken,
+    username: linked.link.username,
+    doFetch,
+  });
+}
+
+/**
+ * 🔑 INSTAGRAM TAKES 2–10 ITEMS IN A CAROUSEL. Not one, not eleven.
+ *
+ * ⚠️ Enforced HERE as well as in the writer's nine-slide cap, because the two
+ * limits exist for different reasons: the writer caps what a model may invent,
+ * this caps what Meta will accept. One card is not a carousel — it is a
+ * single-image post, and it publishes as one rather than failing.
+ */
+export const CAROUSEL_MIN = 2;
+export const CAROUSEL_MAX = 10;
+
+/**
+ * Put several pictures and one caption on the Instagram timeline.
+ *
+ * 🔴 THREE KINDS OF CALL, AND THE FIRST TWO BOTH LOOK LIKE SUCCESS.
+ *
+ *   1. one child container per slide — `is_carousel_item=true`, ⛔ NO caption
+ *   2. one carousel container — `media_type=CAROUSEL`, `children=<ids>`, caption
+ *   3. `media_publish` on the carousel — this is the only call that posts
+ *
+ * ⛔ A CAPTION ON A CHILD IS SILENTLY DISCARDED. Meta takes the field, returns
+ * a container id, and the words never appear anywhere — so the caption goes on
+ * the PARENT only, and putting it on a child would look like it worked.
+ *
+ * ⚠️ EVERY CHILD IS WAITED FOR. A carousel container built from a child Meta
+ * has not finished fetching fails at step 2 with an error about "media", which
+ * reads like a bad card rather than a race.
+ *
+ * 🔑 ORDER IS THE ORDER OF `children`, which is the order of `imageUrls`,
+ * which is `cardsForPost` ⇒ subject first, then the slides. Three
+ * implementations of "which card is which" is how a carousel publishes
+ * shuffled while every card is individually fine.
+ */
+export async function publishCarouselToInstagram(args: {
+  token: string;
+  igUserId: string;
+  caption: string;
+  /** ⚠️ Each must be PUBLIC and JPEG: Meta fetches them ⇒ cardUrl.ts. */
+  imageUrls: string[];
+  fetchImpl?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<InstagramPublish> {
+  const doFetch = args.fetchImpl ?? fetch;
+  const sleep = args.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const urls = args.imageUrls.filter((u) => typeof u === "string" && u.trim().length > 0);
+
+  if (urls.length > CAROUSEL_MAX) {
+    return {
+      ok: false,
+      kind: "unknown",
+      message:
+        `A carousel takes at most ${CAROUSEL_MAX} cards and this post has ${urls.length}. ` +
+        `⛔ Nothing was published — refused here rather than publishing a silently truncated post.`,
+    };
+  }
+  if (urls.length < CAROUSEL_MIN) {
+    return {
+      ok: false,
+      kind: "unknown",
+      message:
+        `A carousel needs at least ${CAROUSEL_MIN} cards and this post has ${urls.length}. ` +
+        `⛔ Nothing was published — publish it as a single picture instead.`,
+    };
+  }
+
+  const linked = await instagramLink({ token: args.token, igUserId: args.igUserId, fetchImpl: doFetch });
+  if (!linked.ok) return linked;
+  const pageToken = linked.link.pageToken;
+
+  // ── 1. ONE CHILD PER SLIDE, each waited for ───────────────────────────────
+  const children: string[] = [];
+  for (const [index, imageUrl] of urls.entries()) {
+    const child = await makeContainer(
+      args.igUserId,
+      {
+        image_url: imageUrl,
+        // ⛔ No caption here — see above. The parent carries the words.
+        is_carousel_item: "true",
+        access_token: pageToken,
+      },
+      doFetch,
+    );
+    if (!child.ok) {
+      return {
+        ok: false,
+        kind: child.kind,
+        message: `Card ${index + 1} of ${urls.length}: ${child.message} ⛔ Nothing was published.`,
+      };
+    }
+
+    const ready = await waitForContainer({
+      containerId: child.containerId,
+      pageToken,
+      imageUrl,
+      doFetch,
+      sleep,
+    });
+    if (!ready.ok) {
+      return {
+        ok: false,
+        kind: ready.kind,
+        containerId: child.containerId,
+        message: `Card ${index + 1} of ${urls.length}: ${ready.message}`,
+      };
+    }
+
+    children.push(child.containerId);
+  }
+
+  // ── 2. THE CAROUSEL ITSELF, which carries the caption ─────────────────────
+  const carousel = await makeContainer(
+    args.igUserId,
+    {
+      media_type: "CAROUSEL",
+      children: children.join(","),
+      caption: args.caption,
+      access_token: pageToken,
+    },
+    doFetch,
+  );
+  if (!carousel.ok) return carousel;
+
+  /**
+   * ⚠️ AND THE CAROUSEL CONTAINER IS WAITED FOR TOO. It assembles its children
+   * asynchronously like any other container, and publishing it early fails
+   * with the same misleading "media" error.
+   *
+   * ⛔ `imageUrl` here is the first card only, which is the best available
+   * guess in an ERROR message — the children all passed already, so an error
+   * at this point is about the assembly, not one picture.
+   */
+  const assembled = await waitForContainer({
+    containerId: carousel.containerId,
+    pageToken,
+    imageUrl: urls[0],
+    doFetch,
+    sleep,
+  });
+  if (!assembled.ok) return { ...assembled, containerId: carousel.containerId };
+
+  // ── 3. THE CALL THAT ACTUALLY PUBLISHES ───────────────────────────────────
+  return publishContainer({
+    igUserId: args.igUserId,
+    containerId: carousel.containerId,
+    pageToken,
+    username: linked.link.username,
+    doFetch,
+  });
 }
 
 export type InstagramStats = {

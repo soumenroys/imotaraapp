@@ -152,6 +152,35 @@ const BENIGN_HOSTS = new Set([
      */
     "graph.facebook.com",
     /**
+     * LinkedIn's REST API, called SERVER-SIDE by the same scheduler
+     * ⇒ src/lib/social/adapters/linkedin.ts.
+     *
+     * ✅ Benign for EXACTLY the reasons set out for graph.facebook.com above,
+     * and that entry's condition applies here word for word: what travels is
+     * marketing copy we wrote, plus a token held by Imotara. No visitor IP, no
+     * reader's browser, nothing anybody typed into the product.
+     *
+     * ⛔ AND IT STOPS BEING BENIGN ON THE SAME DAY — the moment a post carries
+     * something a user wrote, this entry is wrong and LinkedIn belongs in
+     * PROCESSOR_HOSTS and in the policy.
+     *
+     * ⚠️ 19 Oct: this test caught the host BEFORE the adapter was pushed,
+     * which is an improvement on the Facebook entry above, where the same
+     * question was asked only after it had shipped.
+     */
+    "api.linkedin.com",
+    /**
+     * Microsoft Learn — LinkedIn's API DOCUMENTATION, cited in a comment and
+     * never fetched by anything.
+     *
+     * ✅ It appears once, in the header of the LinkedIn adapter, recording
+     * WHERE the request shapes came from. That provenance is worth keeping:
+     * this project has published a confident, wrong API specific before
+     * ⇒ trap_a_model_invents_specifics_it_cannot_have, and a URL is how the
+     * next person checks rather than re-guesses.
+     */
+    "learn.microsoft.com",
+    /**
      * Dictionary and lexicon pages CITED, never fetched.
      *
      * ✅ These appear only as `evidence[].source` strings in

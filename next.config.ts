@@ -97,10 +97,40 @@ const nextConfig: NextConfig = {
    * not implemented". Opting it out means Node requires it at runtime, which is
    * what it was written for.
    */
-  serverExternalPackages: ["@ffmpeg-installer/ffmpeg"],
+  /**
+   * 🔴 AND THE SAME CLASS OF PROBLEM AGAIN, MEASURED IN PRODUCTION 19 Oct.
+   *
+   * `playwright-core` reads `browsers.json` — a DATA file sitting beside its
+   * code — at require time. The bundler followed the JavaScript, shipped
+   * `coreBundle.js`, and left the json behind, so the function failed with
+   * "Cannot find module .../playwright-core/browsers.json" while working
+   * perfectly on a Mac.
+   *
+   * ⚠️ IT FAILED WHERE IT COULD BE SEEN, which was the whole point of
+   * building the diagnostic before anything depended on it
+   * ⇒ /api/admin/social/shaping-check.
+   *
+   * ⛔ `@sparticuz/chromium` is here for the same reason twice over: it
+   * unpacks a compressed Chromium from files the bundler also cannot see,
+   * AND resolves their path at runtime.
+   */
+  serverExternalPackages: [
+    "@ffmpeg-installer/ffmpeg",
+    "playwright-core",
+    "@sparticuz/chromium",
+  ],
 
   outputFileTracingIncludes: {
     "/api/admin/social/animation/[id]": ["./node_modules/@ffmpeg-installer/**/*"],
+    /**
+     * ⚠️ NAMED PER ROUTE, not globally. Chromium is ~67MB: tracing it into
+     * every function would add that to each of them, which is the reason the
+     * ffmpeg entry above is scoped the same way.
+     */
+    "/api/admin/social/shaping-check": [
+      "./node_modules/playwright-core/**/*",
+      "./node_modules/@sparticuz/chromium/**/*",
+    ],
   },
 
   async headers() {

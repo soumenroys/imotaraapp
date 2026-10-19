@@ -7,6 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { cleanPlatformTimes } from "@/lib/social/platformTimes";
 import { isSupportedLanguage } from "@/lib/social/languages";
 import { mixProblems } from "@/lib/social/contentMix";
+import { cadenceProblems } from "@/lib/social/platforms";
 import { retimeFor, touchesTheClock } from "@/lib/social/retimeQueue";
 
 type Body = {
@@ -78,6 +79,28 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const days = body.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
     if (days.length === 0) return NextResponse.json({ error: "Choose at least one day." }, { status: 400 });
     patch.days = days;
+  }
+
+  /**
+   * 💰 A METERED CHANNEL MAY NOT BE RUN DAILY ⇒ cadenceProblems. X charges for
+   * every post, and the owner's instruction is weekly. ⛔ Checked against the
+   * days and platforms this schedule will have AFTER the patch — judging the
+   * pieces separately accepts a pair that is wrong together.
+   */
+  {
+    const nextDays = (patch.days as number[] | undefined) ?? body.days;
+    const nextPlatforms = (patch.platforms as string[] | undefined) ?? body.platforms;
+    if (nextDays || nextPlatforms) {
+      const { data: current } = await getSupabaseAdmin()
+        .from("social_schedules").select("days, platforms").eq("id", id).single();
+      const problems = cadenceProblems(
+        nextPlatforms ?? (current?.platforms as string[] | undefined) ?? [],
+        nextDays ?? (current?.days as number[] | undefined) ?? [],
+      );
+      if (problems.length > 0) {
+        return NextResponse.json({ error: problems.map((p) => p.why).join(" "), problems }, { status: 400 });
+      }
+    }
   }
   if (body.postAt !== undefined) {
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(body.postAt)) {

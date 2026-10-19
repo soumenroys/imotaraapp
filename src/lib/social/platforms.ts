@@ -336,6 +336,51 @@ export function platformSpec(id: string): PlatformSpec {
  * would hide that LinkedIn is waiting on LinkedIn while Facebook is waiting on
  * fifteen minutes in a portfolio.
  */
+/**
+ * 🔴 CHANNELS WHERE EVERY POST IS A PURCHASE, and how often they may run.
+ *
+ * ⛔ X IS THE ONLY ONE, and only since 19 Oct, when the owner moved it to
+ * pay-per-use: the free tier is gone and both subscription plans are closed
+ * to new signups, so each post is charged. The owner, the same day: "as X is
+ * paid, we will post in X weekly, not daily."
+ *
+ * ⚠️ WHY THIS IS A RULE IN CODE AND NOT A NOTE. There is no X schedule yet,
+ * so the instruction has nothing to attach to — and an instruction with
+ * nothing to attach to is one somebody follows once and then forgets. The day
+ * a schedule is made, this refuses the daily one.
+ */
+export const MAX_DAYS_PER_WEEK: Partial<Record<PlatformId, number>> = {
+  x: 1,
+};
+
+export type CadenceProblem = { platform: PlatformId; allowed: number; asked: number; why: string };
+
+/**
+ * Does this schedule run a metered channel too often?
+ *
+ * ⛔ REFUSES, rather than quietly trimming the days. Trimming would publish a
+ * schedule the admin did not write, on days they did not pick.
+ */
+export function cadenceProblems(platforms: readonly string[], days: readonly number[]): CadenceProblem[] {
+  const out: CadenceProblem[] = [];
+  for (const p of platforms) {
+    const allowed = MAX_DAYS_PER_WEEK[p as PlatformId];
+    if (allowed === undefined) continue;
+    const asked = new Set(days).size;
+    if (asked <= allowed) continue;
+    out.push({
+      platform: p as PlatformId,
+      allowed,
+      asked,
+      why:
+        `${PLATFORMS[p as PlatformId].label} charges for every post, so it runs at most ` +
+        `${allowed} day${allowed === 1 ? "" : "s"} a week — this schedule asks for ${asked}. ` +
+        `▶️ Choose fewer days, or give ${PLATFORMS[p as PlatformId].label} its own schedule.`,
+    });
+  }
+  return out;
+}
+
 export function publishableToday(): PlatformId[] {
   return PLATFORM_IDS.filter((id) => PLATFORMS[id].canPublish);
 }

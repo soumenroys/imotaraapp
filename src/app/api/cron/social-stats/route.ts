@@ -47,6 +47,46 @@ export async function GET(req: NextRequest) {
      */
     const stats = await captureChannelStats(db, a.id as string);
     const posts = await capturePostStats(db, a.id as string);
+
+    /**
+     * 🔴 THE REASON USED TO EXIST FOR ONE SECOND AND THEN BE DISCARDED.
+     *
+     * ⛔ `posts.problems` went into this route's JSON response — and NOBODY
+     * READS A CRON'S RESPONSE. Vercel does not store it. So on 19 Oct every
+     * Facebook post had no figures at all, one of them 25 hours old, and the
+     * explanation had been thrown away twice over.
+     *
+     * ⚠️ THE SAME SHAPE AS THE ANIMATION FAILURE EARLIER THAT DAY: a 422 with
+     * a body is not an exception, and a field in a response is not a log
+     * ⇒ `[ensureCard] the animation failed`.
+     *
+     * 🔑 AND A CHANNEL THAT CAPTURES NOTHING IS LOUDER THAN ONE POST FAILING.
+     * Zero captured while posts exist is not bad luck; it is a permission, a
+     * token, or an endpoint — and it is invisible from every screen, because
+     * a missing row looks exactly like a post nobody saw.
+     */
+    if (posts.problems.length > 0) {
+      console.error("[social-stats] posts could not be captured", {
+        platform: a.platform,
+        channel: a.display_name,
+        captured: posts.captured,
+        skipped: posts.skipped,
+        problems: posts.problems.slice(0, 10),
+      });
+    }
+    if (posts.captured === 0 && posts.skipped > 0) {
+      console.error("[social-stats] a channel captured NOTHING", {
+        platform: a.platform,
+        skipped: posts.skipped,
+        firstProblem: posts.problems[0] ?? "(no reason recorded)",
+      });
+    }
+    if (!stats.ok) {
+      console.error("[social-stats] channel figures could not be read", {
+        platform: a.platform,
+        reason: stats.reason,
+      });
+    }
     channels.push({
       channel: a.display_name,
       platform: a.platform,

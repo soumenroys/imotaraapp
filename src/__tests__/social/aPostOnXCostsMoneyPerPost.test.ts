@@ -202,3 +202,62 @@ describe("what a failure means, when posting costs money", () => {
     expect(classifyXError(503, "{}").kind).toBe("transient");
   });
 });
+
+/**
+ * ⛔ A CHANNEL THAT CHARGES PER POST DOES NOT RUN DAILY.
+ *
+ * 🔑 THE OWNER, 19 Oct 2026: "as X is paid, we will post in X weekly, not
+ * daily." ⚠️ There was no X schedule to apply that to — which is exactly why
+ * it is a rule in code. An instruction with nothing to attach to is one
+ * somebody follows once and then forgets, and the forgetting costs money
+ * every day it lasts.
+ */
+describe("a metered channel may not be run daily", () => {
+  const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
+
+  it("🔴 refuses a daily schedule that includes X", async () => {
+    const { cadenceProblems } = await import("@/lib/social/platforms");
+    const [p] = cadenceProblems(["x"], EVERY_DAY);
+    expect(p.platform).toBe("x");
+    expect(p.asked).toBe(7);
+    expect(p.allowed).toBe(1);
+    expect(p.why).toMatch(/charges for every post/);
+    // ⚠️ And says what to do, not only what is wrong.
+    expect(p.why).toMatch(/Choose fewer days|its own schedule/);
+  });
+
+  it("allows a weekly one", async () => {
+    const { cadenceProblems } = await import("@/lib/social/platforms");
+    expect(cadenceProblems(["x"], [2])).toEqual([]);
+  });
+
+  it("⛔ catches X hidden inside a multi-channel daily schedule", async () => {
+    /**
+     * 🔑 THE CASE THAT WOULD ACTUALLY HAPPEN. Nobody sets out to post to X
+     * seven days a week; they add X to the Instagram schedule because it is
+     * already there, and the charge arrives quietly.
+     */
+    const { cadenceProblems } = await import("@/lib/social/platforms");
+    const problems = cadenceProblems(["instagram", "x", "facebook"], EVERY_DAY);
+    expect(problems.map((p) => p.platform)).toEqual(["x"]);
+  });
+
+  it("⚠️ says nothing about the channels that cost nothing per post", async () => {
+    const { cadenceProblems } = await import("@/lib/social/platforms");
+    expect(cadenceProblems(["facebook", "instagram", "linkedin", "youtube"], EVERY_DAY)).toEqual([]);
+  });
+
+  it("⛔ counts DISTINCT days, so a repeated day is not a second post", async () => {
+    const { cadenceProblems } = await import("@/lib/social/platforms");
+    expect(cadenceProblems(["x"], [2, 2, 2])).toEqual([]);
+  });
+
+  it("🔑 X is the only metered channel today, and that is pinned", async () => {
+    /**
+     * ⚠️ So the day another one starts charging, somebody has to come here
+     * and say so — rather than it becoming true quietly.
+     */
+    const { MAX_DAYS_PER_WEEK } = await import("@/lib/social/platforms");
+    expect(Object.keys(MAX_DAYS_PER_WEEK)).toEqual(["x"]);
+  });
+});

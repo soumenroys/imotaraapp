@@ -22,7 +22,7 @@
 import { useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { SocialPage, Chip, Explain } from "@/app/admin/social/_components/ui";
-import { SCRIPT_SAMPLES, SCRIPT_STRESS_WORDS } from "@/lib/social/scriptSamples";
+import { SCRIPT_SAMPLES, SCRIPT_STRESS_WORDS, SAMPLE_TESTS_REORDERING } from "@/lib/social/scriptSamples";
 import { SCRIPT_FONTS } from "@/lib/social/fonts";
 
 export default function ScriptCheck() {
@@ -59,6 +59,15 @@ export default function ScriptCheck() {
             const font = SCRIPT_FONTS[key];
             const stress = SCRIPT_STRESS_WORDS[key];
             const verified = font?.shapingVerified === true;
+            /**
+             * 🔴 A SAMPLE WITH NO PRE-BASE VOWEL UNDER-TESTS ITS SCRIPT.
+             * Bengali broke on ি, which is stored after its consonant and
+             * must render before it. A sentence containing no such vowel can
+             * render perfectly and prove almost nothing.
+             * ⛔ `undefined` means "not assessed", which is NOT the same as
+             * "fine" — so it warns in both the false and the unknown case.
+             */
+            const testsReordering = SAMPLE_TESTS_REORDERING[key];
 
             return (
               <section key={key} className="space-y-3 rounded-xl border border-white/8 bg-white/5 p-5">
@@ -101,6 +110,18 @@ export default function ScriptCheck() {
                 {stress && (
                   <p className="rounded-lg border border-white/8 bg-black/20 p-3 text-xs leading-relaxed text-zinc-400">
                     ⚠️ {stress.why}
+                  </p>
+                )}
+
+                {testsReordering !== true && (
+                  <p className="rounded-lg border border-rose-900/60 bg-rose-950/20 p-3 text-xs leading-relaxed text-rose-200">
+                    ⛔ {testsReordering === false
+                      ? "This sentence contains no pre-base vowel sign, so on its own it does not test the thing that broke Bengali."
+                      : "It has not been established whether this sample exercises pre-base reordering."}{" "}
+                    A script can draw this correctly and still misplace vowel signs in real words.{" "}
+                    {stress
+                      ? "Judge the larger word above it, not the sentence."
+                      : "⚠️ There is no stress word for this script yet — treat a pass here as weak evidence."}
                   </p>
                 )}
 

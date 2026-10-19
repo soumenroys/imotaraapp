@@ -20,16 +20,33 @@
 // own script, on a public post that is permanent and screenshot. It is the
 // Urdu and Kannada defect of 17 Oct again, except published.
 //
-// ⚠️ AND NOBODY HERE COULD SEE IT. I can render a PNG and measure its pixels. I
-// cannot tell whether ইমোতারা came out shaped correctly, and neither can anyone
-// else on this side. That is the same reason the abuse lists stop at English.
-// ⇒ brand_name_in_native_scripts, native_speakers_should_audit_real_replies
+// 🔴 THIS BLOCK USED TO SAY "NOBODY HERE COULD SEE IT". THAT WAS FALSE, and
+// the falsehood had a cost — corrected 19 Oct after the owner asked why I was
+// deferring a check I was capable of making.
+//
+// I read and write several of these scripts, Bengali and Devanagari among
+// them. "Nobody here" was a standing assumption nobody had tested, and
+// repeating it turned a check I could do into a check I skipped: before the
+// first Instagram post went out I HAD the rendered card on screen, read the
+// Latin headline, and never read the Bengali line underneath it. The card
+// published অভিমান as অভমিান — and the whole sentence as non-words, with the
+// vowel signs floating free of their consonants.
+//
+// ⚠️ WHAT IS ACTUALLY TRUE, which is narrower and more useful:
+//   • The rendered picture must be READ, not measured. Pixel dimensions and a
+//     successful render prove nothing about shaping.
+//   • Whoever reads the script reads it — and for several of these that
+//     includes whoever is doing the work, not only the owner.
+//   • ⛔ Confidence is NOT equal across 22 languages. State a judgement where
+//     it can be stood behind, and say "I cannot judge this one" where it
+//     cannot. Silence and a shrug both read as approval.
 //
 // ✅ SO: a script may carry the wordmark only once somebody who reads it has
-// looked at a rendered picture and said it is right. Until then the picture
-// uses the Latin form — which is the shipped form for eight of the 22 anyway —
-// and the post itself is still written in its own language. ⛔ The alternative
-// is publishing a possibly mangled brand name and not knowing.
+// looked at a RENDERED PICTURE and said it is right ⇒ /admin/social/scripts
+// renders exactly that, beside the browser's own correct rendering. Until
+// then the picture uses the Latin form — the shipped form for eight of the 22
+// anyway — and the post itself is still written in its own language.
+// ⇒ brand_name_in_native_scripts, native_speakers_should_audit_real_replies
 
 export type ScriptFont = {
   /** Font family name as Satori will see it. */

@@ -63,4 +63,43 @@ export const SCRIPT_STRESS_WORDS: Record<string, { word: string; why: string }> 
       "Published 18 Oct and rendered অভমিান — the pre-base vowel sign ি did not move left of its " +
       "consonant and the া detached. If this line looks right, the renderer has started shaping.",
   },
+  /**
+   * 🔴 ADDED 19 Oct BECAUSE THE SENTENCE ABOVE DOES NOT TEST THE HARD CASE.
+   *
+   * "नमस्ते, मैं इमोतारा हूँ…" contains no ि at all — every vowel in it sits
+   * above, below or after its consonant (ो ै ू े ा). So Devanagari could pass
+   * that sample and still fail exactly the way Bengali did.
+   *
+   * ⚠️ अभिमान is the direct cognate of অভিমান, same meaning, and भि is
+   * भ + ि — pre-base, reordered. It tests the one thing that matters.
+   */
+  devanagari: {
+    word: "अभिमान",
+    why:
+      "The sentence above contains no ि, so it does not test pre-base reordering at all. " +
+      "भि is भ + ि and must render with the hook BEFORE भ. This is the same word that broke " +
+      "Bengali — if it reads अभिमान rather than अभमिान, Devanagari reorders correctly.",
+  },
+};
+
+/**
+ * ⚠️ WHICH SAMPLES ACTUALLY TEST THE HARD CASE.
+ *
+ * 🔴 A sample with no pre-base vowel under-tests its script, and a pass on it
+ * means little. Said per script rather than implied, because "it looked fine"
+ * on a sample that never exercised reordering is how a script gets unblocked
+ * wrongly ⇒ feedback_do_the_check_you_are_capable_of.
+ *
+ * ⛔ Only scripts whose behaviour can be stated with confidence are listed.
+ * An absent entry means "not assessed" — not "fine".
+ */
+export const SAMPLE_TESTS_REORDERING: Record<string, boolean> = {
+  // আমি carries ি, and the stress word doubles it.
+  bengali: true,
+  // ⛔ The sentence does NOT. The stress word above is what tests it.
+  devanagari: false,
+  // ਸਤਿ carries ਿ, which is pre-base in Gurmukhi.
+  gurmukhi: true,
+  // Latin has no reordering to test.
+  latin: true,
 };

@@ -21,6 +21,28 @@
 // to upload media to `upload.twitter.com/1.1/media/upload.json`. X's
 // documentation does not mention the v1.1 endpoint at all.
 
+// 🔴 AND THE TOKEN THIS FILE TAKES IS NOT ONE YOU CAN PASTE AND FORGET.
+//
+// `POST /2/tweets` wants an OAuth 2.0 **USER** token as Bearer, and X's PKCE
+// guide puts its lifetime at **TWO HOURS** unless the app asks for
+// `offline.access` — which issues a refresh token, refreshed at
+// `POST /2/oauth2/token`. Scopes to post: tweet.read, tweet.write, users.read.
+//
+// ⛔ SO A PASTED TOKEN WOULD POST, AND THEN STOP TWO HOURS LATER — on a WEEKLY
+// schedule, which is the worst cadence there is for noticing. ⇒ X needs the
+// same shape as YouTube: store a refresh token, mint per use. `loadCredentialFor`
+// already absorbs that difference; what is missing is an `xAuth.ts`
+// mirroring `youtubeAuth.ts` ⇒ youtube_oauth_setup_2026_10_19.
+//
+// ⚠️ X'S OWN DOCS DISAGREE: the OAuth FAQ says "access tokens are not
+// explicitly expired", the PKCE guide says two hours. ▶️ Build for the shorter
+// claim; a token that outlives its documentation costs nothing, and one that
+// dies early costs a silent week.
+//
+// 🔵 DEFERRED by the owner 20 Oct 2026 to items 2️⃣/3️⃣ — not on cost or
+// difficulty, but because @imotaraofficial has TWO followers and these posts
+// earn their keep once they are being indexed, not before.
+
 const API = "https://api.x.com";
 
 export type XFailure = "auth" | "permission" | "content" | "rate" | "billing" | "transient";

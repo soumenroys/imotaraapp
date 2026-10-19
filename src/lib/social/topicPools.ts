@@ -70,13 +70,24 @@ export const TOPIC_POOLS: TopicPool[] = [
        * Given only this pool it still wrote "Imotara understands Hindi,
        * Bengali, Tamil…" — an entirely different angle's subject.
        *
-       * ⚠️ I blamed the schedule's brief and was wrong. `the-unsaid` writes
-       * non-product posts under that same brief every day, because it says
-       * "no turn towards the product at the end" and this one did not. The
-       * FACTS block puts the product in front of the writer on every call;
-       * an angle about ordinary life has to decline it explicitly, or the
-       * writer drifts back to the thing it has most to say about.
-       * ⇒ feedback_do_the_check_you_are_capable_of — test, then conclude.
+       * 🔴 MEASURED, after I got this wrong TWICE in opposite directions.
+       * Four previews per combination, not one:
+       *
+       *   the-unsaid     @ the live brief → 2/2 good moment posts
+       *   ways-of-saying @ the live brief → 3/3 product-shaped, NO list
+       *   ways-of-saying @ a neutral brief → 2/2 genuine five-item lists
+       *
+       * ⚠️ So this guard is necessary and NOT sufficient. It stops the
+       * product being NAMED; it does not stop the live brief — "take one
+       * capability of Imotara and say what it is for" — from overriding the
+       * SHAPE. A moment can illustrate a capability, which is why
+       * `the-unsaid` survives that brief. A list of five ways a feeling
+       * shows up cannot, and loses.
+       *
+       * ▶️ THIS POOL NEEDS ITS OWN SCHEDULE, with a brief that does not ask
+       * for a capability ⇒ social_platform_rules_reviewed_2026_10_19.
+       * ⛔ Do not "fix" it by rewriting the shared brief: the product pools
+       * (privacy, voice, offline, languages) are supposed to answer it.
        */
       "⛔ NOT ADVICE. No steps, no 'how to', no 'try this', no fixing. Nobody is being taught anything — " +
       "they are being recognised, which is the only reason anyone saves a post like this. " +

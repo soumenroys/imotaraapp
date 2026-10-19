@@ -14,7 +14,7 @@
 // 🔑 IT CHANGES NOTHING. No post, no row, no file. Running it is free.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
+import { requireSocialAdmin, cronAuthorised } from "@/app/api/admin/social/_guard";
 import { composePicture } from "@/lib/social/compose";
 import { renderShapedCard } from "@/lib/social/shapedRenderer";
 import { SCRIPT_FONTS, SCRIPT_OF_LANGUAGE } from "@/lib/social/fonts";
@@ -24,8 +24,24 @@ import type { Recipe } from "@/lib/social/visualRecipe";
 export const maxDuration = 120;
 
 export async function GET(req: NextRequest) {
-  const guard = await requireSocialAdmin(req);
-  if (!guard.ok) return guard.response;
+  /**
+   * 🔑 AN ADMIN SESSION OR THE SCHEDULER'S BEARER — either opens this.
+   *
+   * ⛔ NOT A WEAKENING. It is the same secret every cron route here already
+   * accepts ⇒ cronAuthorised, and this route changes nothing: no post, no
+   * row, no file. It renders one card and describes it.
+   *
+   * ⚠️ THE REASON IS DIAGNOSTIC TURNAROUND. Finding out why a card is tofu
+   * took three deploys, and every one of them ended with a person being asked
+   * to open a URL in a browser and describe what they saw. A question that
+   * can only be asked through somebody else's eyes gets asked less often than
+   * it should, and gets answered with guesses in between.
+   */
+  const bearer = cronAuthorised(req);
+  if (!bearer.ok) {
+    const guard = await requireSocialAdmin(req);
+    if (!guard.ok) return guard.response;
+  }
 
   const language = req.nextUrl.searchParams.get("language") ?? "bn";
   const script = SCRIPT_OF_LANGUAGE[language] ?? "latin";

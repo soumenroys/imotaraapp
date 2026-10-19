@@ -96,19 +96,19 @@ describe("⛔ the page is handed the font BYTES, never a url", () => {
    */
   it("embeds a data: URI and never a remote url", () => {
     const page = cardHtml(node({ text: "অভিমান" }), 1080, 1080, [
-      { family: "Noto Sans Bengali", url: "https://cdn.example/bn.ttf", dataUri: "data:font/ttf;base64,QUJD" },
+      { family: "Noto Sans Bengali", url: "https://x.test/bn.ttf", dataUri: "data:font/ttf;base64,QUJD" },
     ]);
     expect(page).toContain("src:url(data:font/ttf;base64,QUJD)");
-    expect(page).not.toContain("https://cdn.example/bn.ttf");
+    expect(page).not.toContain("https://x.test/bn.ttf");
   });
 
   it("⛔ a face with no bytes is DROPPED, not quietly fetched", () => {
     // ⚠️ Silently falling back to the url would reinstate exactly the failure
     // this removes, and hide it again.
     const page = cardHtml(node(), 1080, 1080, [
-      { family: "Noto Sans Bengali", url: "https://cdn.example/bn.ttf" },
+      { family: "Noto Sans Bengali", url: "https://x.test/bn.ttf" },
     ]);
-    expect(page).not.toContain("https://cdn.example/bn.ttf");
+    expect(page).not.toContain("https://x.test/bn.ttf");
     expect(page).not.toContain("@font-face");
   });
 });

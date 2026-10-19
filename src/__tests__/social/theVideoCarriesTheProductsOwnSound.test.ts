@@ -27,7 +27,32 @@ describe("which sound a video carries", () => {
     // ⛔ A missing file would mean a silent video and no error — the kind of
     // thing that is only noticed months later by somebody who unmutes.
     for (const bed of AMBIENT_BEDS) {
-      expect(existsSync(join(process.cwd(), "public", "sounds", bed)), bed).toBe(true);
+      if (!bed.file) continue; // ⚠️ Silence is a real entry, not a missing one.
+      expect(existsSync(join(process.cwd(), "public", "sounds", bed.file)), bed.file).toBe(true);
+    }
+  });
+
+  it("⛔ silence is IN the rotation, not the absence of one", () => {
+    /**
+     * 🔑 The owner, 19 Oct, having heard all three: "even silent. you can
+     * randomly use for all videos." ⚠️ So `file: null` is a decision, and the
+     * encoder must treat it as one rather than looking up "null.mp3".
+     */
+    expect(AMBIENT_BEDS.some((b) => b.file === null)).toBe(true);
+    expect(AMBIENT_BEDS.some((b) => b.file !== null)).toBe(true);
+  });
+
+  it("water is rolled off and the bowl is not", () => {
+    /**
+     * 🔴 NOT A PREFERENCE. Rain and ocean are BROADBAND NOISE, and quiet
+     * broadband noise with nothing else in the mix is physically hiss — which
+     * is what the owner heard and reported. A singing bowl is TONAL: it has
+     * pitch and cannot collapse into noise however quiet it gets.
+     */
+    for (const bed of AMBIENT_BEDS) {
+      if (!bed.file) continue;
+      const isWater = bed.file.includes("rain") || bed.file.includes("ocean");
+      expect(bed.filter.includes("lowpass"), `${bed.file} roll-off`).toBe(isWater);
     }
   });
 
@@ -50,9 +75,12 @@ describe("which sound a video carries", () => {
      * complaint that started all of this.
      */
     const seen = new Set(
-      Array.from({ length: 40 }, (_, i) => ambientBed(`hash-${i}-${i * 7}`)),
+      Array.from({ length: 60 }, (_, i) => ambientBed(`hash-${i}-${i * 7}`)?.file ?? "silent"),
     );
     expect(seen.size).toBeGreaterThan(1);
+    // ⚠️ And silence genuinely comes up, rather than being in the list and
+    // never chosen.
+    expect(seen.has("silent")).toBe(true);
   });
 
   it("a post with no recipe gets no bed, rather than a default one", () => {

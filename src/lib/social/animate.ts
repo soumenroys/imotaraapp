@@ -33,6 +33,9 @@ export type EncodeInput = {
    * the caller should know that rather than wonder.
    */
   audioPath?: string;
+  /** ⚠️ The chain applied before the fades — water is rolled off, a bowl is
+   *  not ⇒ renderAnimation.AMBIENT_BEDS. */
+  audioFilter?: string;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -152,15 +155,28 @@ export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
      * with no audio track at all as a weaker candidate, and somebody who
      * unmutes deliberately should not get silence.
      *
-     * ⛔ NORMALISED, NOT ATTENUATED — and that was a correction. A flat
-     * -18dB sounded right in the abstract and measured -46dB mean, which is
-     * nearly inaudible to somebody who deliberately unmutes. These files are
-     * already quiet ambient recordings (-28 to -30dB), so shifting them down
-     * buries them. ⚠️ They also differ from each other by 2.3dB, so any fixed
-     * shift gives a different result depending on which one the recipe picks.
+     * 🔴 A GENTLE TRIM, AND NOTHING ELSE. TWO WRONG ANSWERS CAME FIRST.
      *
-     * ⇒ `loudnorm` targets a LEVEL instead: -26 LUFS is present-but-under,
-     * and it lands there whichever track is chosen.
+     * ⛔ -18dB flat measured -46dB mean — nearly inaudible to somebody who
+     * deliberately unmutes. These are already quiet ambient recordings.
+     *
+     * ⛔ Then `loudnorm=I=-26`, which hit the level and RUINED THE SOUND. The
+     * owner heard it and said so: "only a hissing sound at background". In
+     * single-pass mode loudnorm applies heavy dynamic correction, and on a
+     * quiet textured bed that flattens the dynamics completely — the swell of
+     * a wave and the gap between waves end up at the same level, which is the
+     * definition of broadband noise. Rain stops sounding like rain and starts
+     * sounding like tape hiss.
+     *
+     * ⚠️ AND IT WAS NEVER NEEDED. Measured across the first 19 seconds — the
+     * part a clip actually uses — the three beds sit at -26.2, -27.6 and
+     * -26.2dB. They are already matched to within 1.4dB and already at the
+     * level a background wants. ⇒ A small trim keeps them under the words
+     * without touching what makes them sound like water.
+     *
+     * 🔑 THE LESSON IS NOT ABOUT AUDIO. I reached for the heavier tool
+     * because the first attempt failed, without measuring whether the lighter
+     * one was enough. It was.
      *
      * ⚠️ FADED AT BOTH ENDS regardless. A bed that arrives at full volume is
      * a jump-scare on a post about a bad night, and one that stops dead is
@@ -174,7 +190,7 @@ export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
       ? [
           "-i", input.audioPath,
           "-filter_complex",
-          `[1:a]loudnorm=I=-26:TP=-2:LRA=7,afade=t=in:st=0:d=1.2,afade=t=out:st=${Math.max(0, seconds - 1.5).toFixed(2)}:d=1.5[a]`,
+          `[1:a]${input.audioFilter ? `${input.audioFilter},` : ""}afade=t=in:st=0:d=1.2,afade=t=out:st=${Math.max(0, seconds - 1.5).toFixed(2)}:d=1.5[a]`,
           "-map", "0:v",
           "-map", "[a]",
           "-c:a", "aac",

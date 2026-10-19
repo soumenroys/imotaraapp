@@ -25,33 +25,59 @@ import { platformSpec } from "@/lib/social/platforms";
 export type AnimationFormat = "gif" | "mp4";
 
 /**
- * 🔑 THE AMBIENT BEDS THE PRODUCT ALREADY SHIPS ⇒ public/sounds.
+ * 🔑 THE SOUND A VIDEO CARRIES — including no sound at all.
  *
- * ⚠️ THESE ARE THE BREATHING SOUNDS, not a track chosen for a feed — which is
+ * ⚠️ THESE ARE THE PRODUCT'S OWN BREATHING SOUNDS ⇒ public/sounds, which is
  * most of why they are right: they are calm because they were made to be
- * breathed to, and they are literally the sound of the thing being posted
- * about.
+ * breathed to, not chosen for a feed.
  *
- * ⛔ PROVENANCE IS UNCONFIRMED AND THE OWNER WAS TOLD SO. "Licensed for
- * in-app use" and "licensed for marketing" are different grants, and a stock
- * licence that covers the first does not always cover the second. ▶️ If these
- * turn out to be in-app only, set AMBIENT_BEDS to [] — every video then
- * publishes silent and nothing else changes.
+ * 🔴 WATER IS LOW-PASSED AND THE BOWL IS NOT, AND THAT IS NOT A PREFERENCE.
+ * The owner heard the first ocean version and said "only a hissing sound at
+ * background" — correctly. Rain and ocean are BROADBAND NOISE, and quiet
+ * broadband noise with nothing else in the mix is, physically, hiss. ⛔ My
+ * first theory was that loudnorm had flattened the dynamics; I measured it
+ * and it had not (20.4dB of range against 20.7dB without). The material was
+ * the answer, not the processing.
+ *
+ * ⇒ Rolling off above 1.2kHz turns fizz into a warm rumble, with a little
+ * gain back because the filter removes energy. A singing bowl needs none of
+ * this: it is TONAL, so it has pitch and can never collapse into noise.
+ *
+ * 🔑 SILENCE IS ONE OF THE OPTIONS, at the owner's request. It costs a small
+ * Reels ranking nudge and nothing else, and a feed where every video sounds
+ * the same is the complaint that started all of this.
+ *
+ * ⛔ PROVENANCE REMAINS THE OWNER'S TO CONFIRM. "Licensed for in-app use" and
+ * "licensed for marketing" are different grants. ▶️ If these turn out to be
+ * in-app only, delete every entry with a `file` and leave the silent one —
+ * every video then publishes silent and nothing else changes.
  */
-// ⚠️ `string[]`, not `as const`: the whole point is that this can be
-// emptied if the licence turns out not to cover marketing, and a literal
-// tuple type makes `length === 0` a compile error rather than a setting.
-export const AMBIENT_BEDS: string[] = ["rain.mp3", "ocean.mp3", "bowl.mp3"];
+export type Bed = {
+  /** ⚠️ `null` is a real choice, not a missing value: it means silence. */
+  file: string | null;
+  /** The ffmpeg chain applied before the fades. */
+  filter: string;
+};
+
+export const AMBIENT_BEDS: Bed[] = [
+  // Tonal — cannot read as noise however quiet it is.
+  { file: "bowl.mp3", filter: "volume=-3dB" },
+  // Water, rolled off so it is a rumble rather than a fizz.
+  { file: "rain.mp3", filter: "lowpass=f=1200,volume=+2dB" },
+  { file: "ocean.mp3", filter: "lowpass=f=1200,volume=+2dB" },
+  // ⛔ Silent, deliberately in the rotation.
+  { file: null, filter: "" },
+];
 
 /**
  * Which bed this post gets.
  *
  * ⚠️ CHOSEN FROM THE RECIPE HASH, not at random and not always the same one.
- * Random would mean a post re-encoded after an edit could arrive with a
- * different sound than the one somebody approved; always-the-same would make
- * every video in the feed identical to hear.
+ * Random would mean a post re-encoded after an edit arrives with a different
+ * sound than the one somebody approved; always-the-same would make every
+ * video in the feed identical to hear.
  */
-export function ambientBed(recipeHash: string | undefined): string | null {
+export function ambientBed(recipeHash: string | undefined): Bed | null {
   if (AMBIENT_BEDS.length === 0 || !recipeHash) return null;
   let n = 0;
   for (const ch of recipeHash) n = (n + ch.charCodeAt(0)) % 997;
@@ -165,14 +191,16 @@ export async function renderAnimation(
      * are the post and the bed is a courtesy.
      */
     const bed = format === "mp4" ? ambientBed((post.visual_recipe as Recipe | null)?.hash) : null;
-    const audioPath = bed ? join(process.cwd(), "public", "sounds", bed) : undefined;
+    // ⚠️ `bed.file === null` is SILENCE and must not become a lookup of
+    // "null.mp3" — the one place where an absent value is a decision.
+    const audioPath = bed?.file ? join(process.cwd(), "public", "sounds", bed.file) : undefined;
 
     const out = await encode(format, {
       frames,
       holdMs: board.holdMs,
       width: board.width,
       height: board.height,
-      ...(audioPath && existsSync(audioPath) ? { audioPath } : {}),
+      ...(audioPath && existsSync(audioPath) ? { audioPath, audioFilter: bed?.filter } : {}),
     });
     return { ok: true, bytes: new Uint8Array(out), width: board.width, height: board.height, ms: Date.now() - started };
   } catch (e) {

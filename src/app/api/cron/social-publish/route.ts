@@ -17,8 +17,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { postingIsPaused } from "@/lib/social/store";
-import { loadChannelCredential } from "@/lib/social/channelCredentials";
+import { loadChannelCredential, loadChannelRefreshToken } from "@/lib/social/channelCredentials";
 import { publishToFacebook, publishVideoToFacebook } from "@/lib/social/adapters/facebook";
+import { publishShortToYouTube, youtubeTitleFrom, TITLE_MAX } from "@/lib/social/adapters/youtube";
+import {
+  youtubeOAuthConfig,
+  refreshYouTubeAccessToken,
+  type YouTubeRefreshToken,
+} from "@/lib/social/adapters/youtubeAuth";
 import { publishToInstagram, publishCarouselToInstagram, publishReelToInstagram } from "@/lib/social/adapters/instagram";
 import { renderPostPictureBytes } from "@/lib/social/renderPicture";
 import { publicOrigin, videoUrlFor } from "@/lib/social/cardUrl";
@@ -71,6 +77,45 @@ type Outcome = {
  * an HTML error page would otherwise look healthy, and Instagram would fail
  * later with a message about the media.
  */
+/**
+ * A YouTube credential, in the shape the rest of this route already speaks.
+ *
+ * 🔑 RETURNS THE SAME TYPE AS `loadChannelCredential` so the publish loop does
+ * not need to know that one channel works differently. Everything below reads
+ * `cred.token` and `cred.externalId`, and for YouTube `token` is an access
+ * token minted seconds ago rather than one read out of the row.
+ *
+ * ⚠️ THE FAILURES ARE PASSED THROUGH WORD FOR WORD. `refreshYouTubeAccessToken`
+ * already distinguishes a revoked grant from a missing client secret from a
+ * blip at Google's end, and each sends a different person somewhere different.
+ * Flattening them to "YouTube auth failed" would throw that away.
+ */
+async function youtubeAccessFor(
+  db: Parameters<typeof loadChannelRefreshToken>[0],
+  accountId: string,
+): Promise<Awaited<ReturnType<typeof loadChannelCredential>>> {
+  const stored = await loadChannelRefreshToken(db, accountId);
+  if (!stored.ok) return stored;
+
+  const config = youtubeOAuthConfig(process.env, publicOrigin());
+  if (!config.ok) return { ok: false, reason: config.message };
+
+  const minted = await refreshYouTubeAccessToken({
+    config: config.config,
+    refreshToken: stored.refreshToken as YouTubeRefreshToken,
+  });
+  if (!minted.ok) return { ok: false, reason: minted.message };
+
+  return {
+    ok: true,
+    id: stored.id,
+    platform: stored.platform,
+    externalId: stored.externalId,
+    displayName: stored.displayName,
+    token: minted.accessToken,
+  };
+}
+
 async function cardReaches(
   url: string,
   /**
@@ -184,7 +229,19 @@ export async function GET(req: NextRequest) {
       channels.set(
         platform,
         account
-          ? await loadChannelCredential(db, account.id as string)
+          ? platform === "youtube"
+            /**
+             * 🔴 YOUTUBE IS THE ONE CHANNEL WHERE THE STORED SECRET IS NOT THE
+             * ONE WE SEND. Google's access tokens last about an hour, so the
+             * row holds a REFRESH token and an access token is minted here,
+             * immediately before use ⇒ youtubeAuth.ts.
+             *
+             * 🔑 Inside the per-platform cache deliberately: one refresh per
+             * run, however many Shorts are due, for the same reason the other
+             * channels decrypt once — fewer chances to mishandle a credential.
+             */
+            ? await youtubeAccessFor(db, account.id as string)
+            : await loadChannelCredential(db, account.id as string)
           : { ok: false, reason: `No ${platform} channel is connected.` },
       );
     }
@@ -301,23 +358,101 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      const r =
-        platform === "instagram"
-          ? await publishReelToInstagram({
-              token: cred.token,
-              igUserId: cred.externalId,
-              caption: post.body as string,
-              videoUrl,
-            })
-          : await publishVideoToFacebook({
-              token: cred.token,
-              pageId: cred.externalId,
-              message: post.body as string,
-              videoUrl,
-            });
+      /**
+       * 🔴 YOUTUBE DOES NOT FETCH — IT IS FED. Meta and Instagram take a URL
+       * and collect the file themselves, which is why the reachability check
+       * above exists. Google's `videos.insert` wants the BYTES in the request.
+       *
+       * ⚠️ So the fetch that the other two channels make from the outside, we
+       * make from the inside — and a failure here is ours, not Google's, which
+       * is why it is reported separately rather than as a refused upload.
+       */
+      let r:
+        | { ok: true; postId?: string; mediaId?: string; videoId?: string; url: string }
+        | { ok: false; kind: string; message: string };
+
+      if (platform === "youtube") {
+        /**
+         * ⛔ ASKED BEFORE THE BYTES ARE FETCHED. Downloading a video and then
+         * discovering there is no usable title wastes the transfer and, worse,
+         * puts the failure after the expensive step where it reads like an
+         * upload problem.
+         */
+        const title = youtubeTitleFrom(post.subject as string | null, post.body as string);
+        if (!title) {
+          outcomes.push({
+            id: post.id as string,
+            platform,
+            language: post.language as string,
+            result: "held",
+            detail:
+              `No title under ${TITLE_MAX} characters could be taken from this post's own approved words, ` +
+              `and a Short must have one. ⛔ Nothing was invented to fill it. ▶️ Give the post a shorter ` +
+              `subject, or a shorter opening sentence.`,
+          });
+          continue;
+        }
+
+        let bytes: Uint8Array;
+        try {
+          const res = await fetch(videoUrl);
+          if (!res.ok) throw new Error(`${res.status} from our own video route`);
+          bytes = new Uint8Array(await res.arrayBuffer());
+        } catch (e) {
+          outcomes.push({
+            id: post.id as string,
+            platform,
+            language: post.language as string,
+            result: "failed",
+            detail: `The video could not be read for upload, so nothing was posted: ${(e as Error).message}`,
+          });
+          continue;
+        }
+
+        r = await publishShortToYouTube({
+          accessToken: cred.token,
+          /**
+           * ⛔ THE TITLE IS THE POST'S OWN FIRST LINE, never an invention.
+           * YouTube requires a title and the body is written as a post, so the
+           * headline is taken from it rather than generated — a title nobody
+           * approved is a title nobody approved
+           * ⇒ trap_a_model_invents_specifics_it_cannot_have.
+           */
+          title,
+          description: post.body as string,
+          videoBytes: bytes,
+          /**
+           * 🔴 DECLARED EXPLICITLY ON EVERY UPLOAD, both of them. Imotara is
+           * not child-directed and its own minimum age is 18; and an omitted
+           * privacy value defaults to public only on SOME accounts, which is
+           * not a thing to leave to a default when the result is a video
+           * appearing on a live channel.
+           */
+          madeForKids: false,
+          privacyStatus: "public",
+        });
+      } else if (platform === "instagram") {
+        r = await publishReelToInstagram({
+          token: cred.token,
+          igUserId: cred.externalId,
+          caption: post.body as string,
+          videoUrl,
+        });
+      } else {
+        r = await publishVideoToFacebook({
+          token: cred.token,
+          pageId: cred.externalId,
+          message: post.body as string,
+          videoUrl,
+        });
+      }
 
       result = r.ok
-        ? { ok: true, postId: "mediaId" in r ? r.mediaId : r.postId, url: r.url }
+        ? {
+            ok: true,
+            postId: ("mediaId" in r && r.mediaId) || ("videoId" in r && r.videoId) || r.postId || "",
+            url: r.url,
+          }
         : { ok: false, kind: r.kind, message: r.message };
     } else if (platform === "instagram") {
       /**

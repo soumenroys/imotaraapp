@@ -131,6 +131,37 @@ export function ConnectChannel({
           ) : null}
         </div>
 
+        {/*
+          🔴 YOUTUBE HAS NOTHING TO PASTE, and a form demanding a token is a
+          dead end rather than a hard step. Google issues no long-lived token:
+          the durable credential is a REFRESH token, and one only comes out of
+          a consent screen ⇒ youtubeAuth.ts.
+
+          ⚠️ Shown INSTEAD of the fields below rather than beside them, because
+          a visible token box next to this would read as a second way of doing
+          it, and there is no second way.
+        */}
+        {platform === "youtube" ? (
+          <div className="space-y-2 sm:col-span-2">
+            <p className="text-[11px] leading-relaxed text-zinc-400">
+              YouTube is connected by asking Google, not by pasting. There is no long-lived token to
+              copy — the credential arrives from the consent screen and is stored encrypted without
+              passing through this page.
+            </p>
+            <a
+              href="/api/admin/social/youtube/connect"
+              className="inline-block rounded-md bg-emerald-600/90 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-600"
+            >
+              Connect YouTube with Google
+            </a>
+            <p className="text-[11px] leading-relaxed text-zinc-500">
+              ⚠️ Sign in as the channel&rsquo;s own account, <span className="font-mono">imotara.imotara@gmail.com</span>
+              {" "}— not a personal one. Google will warn that the app is unverified; that is expected
+              and only you ever see it.
+            </p>
+          </div>
+        ) : null}
+
         <div className="space-y-2">
           <label htmlFor="cc-name" className={label}>What to call it here</label>
           <input id="cc-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
@@ -160,7 +191,7 @@ export function ConnectChannel({
         ) : null}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2" hidden={platform === "youtube"}>
         <label htmlFor="cc-token" className={label}>The token</label>
         <input id="cc-token" type="password" autoComplete="off" value={accessToken}
           onChange={(e) => setAccessToken(e.target.value)} className={`${field} font-mono`} />

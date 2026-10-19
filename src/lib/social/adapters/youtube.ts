@@ -15,6 +15,8 @@
 // where the reference is SILENT this file says so rather than inventing an
 // answer ⇒ trap_a_model_invents_specifics_it_cannot_have.
 
+import { headlineFor } from "@/lib/social/visualRecipe";
+
 const UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos";
 
 /**
@@ -190,4 +192,27 @@ export async function publishShortToYouTube(args: {
      */
     url: `https://www.youtube.com/shorts/${made.id}`,
   };
+}
+
+/**
+ * The title a Short should carry.
+ *
+ * 🔴 YOUTUBE REQUIRES A TITLE AND WE DO NOT HAVE ONE. Every other channel
+ * publishes a body and nothing else; a Short has a title field that is the
+ * first thing a stranger reads and the main thing search indexes.
+ *
+ * ⛔ SO IT IS TAKEN, NOT WRITTEN — `headlineFor`, the same function that picks
+ * the headline on a card: the approved `subject` when it fits, otherwise the
+ * body's own opening sentence. Both are words the safety gate has already read
+ * ⇒ a generated title would be text on a live channel that nobody approved and
+ * nothing checked ⇒ trap_a_model_invents_specifics_it_cannot_have.
+ *
+ * ⚠️ RETURNS NULL RATHER THAN TRUNCATING. A title cut mid-clause reads as a
+ * bug, and unlike a card there is no "publish it as text instead" to fall back
+ * on — so the honest outcome is to hold the post and say why. 100 characters
+ * is generous against a `subject` written to be under sixty, so this is a rare
+ * path, not a common one.
+ */
+export function youtubeTitleFrom(subject: string | null, body: string): string | null {
+  return headlineFor(subject ?? "", body, TITLE_MAX);
 }

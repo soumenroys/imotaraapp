@@ -300,12 +300,36 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     qr: true,
     tagsDriveDiscovery: false,
     requiresPicture: false,
-    canPublish: false,
-    blockedBy:
-      "Studio opens the wrong channel for this Google account, so nobody can authorise an upload yet. "
-      + "\u26a0\ufe0f NOT the COPPA setting, which was the recorded blocker and is not one: the audience is "
-      + "declared PER VIDEO at upload \u21d2 selfDeclaredMadeForKids, so a channel default cannot stop us. "
-      + "\u26d4 And NOT community posts, which the Data API cannot create at all \u2014 the format is Shorts.",
+    /**
+     * \ud83d\udfe2 TRUE SINCE 19 Oct 2026, when the upload path was actually built.
+     *
+     * \ud83d\udd34 THE THIRD RECORDED BLOCKER ON THIS CHANNEL THAT WAS NOT ONE. This
+     * field used to read "Studio opens the wrong channel for this Google
+     * account, so nobody can authorise an upload" \u2014 and Studio has nothing
+     * whatever to do with an API upload. That is a nuisance when EDITING a
+     * video by hand; `videos.insert` is authorised by an OAuth token and never
+     * opens Studio at all.
+     *
+     * \u26a0\ufe0f The two before it were equally untested: COPPA (declared per video at
+     * upload, so a channel default cannot stop anything) and community posts
+     * (which the Data API cannot create, so the channel had been sized for a
+     * format no code could ever reach)
+     * \u21d2 trap_a_blocker_is_a_claim_nobody_tested.
+     *
+     * \ud83d\udd11 THE REAL GATE WAS A CREDENTIAL, and it is now built: a Google OAuth
+     * client in its own Cloud project, consented once by the channel's account
+     * \u21d2 youtube_oauth_setup_2026_10_19.
+     *
+     * \u26d4 `canPublish: true` does NOT mean a token exists. When the channel is
+     * unconnected the publisher holds the post and says "No youtube channel is
+     * connected" \u2014 a true statement about today \u2014 rather than this field
+     * asserting a permanent obstacle that somebody then stops questioning.
+     */
+    canPublish: true,
+    // ⚠️ Empty, like Facebook's and Instagram's: nothing blocks the CODE.
+    // What may still be missing is a connected channel, which the publisher
+    // reports as the temporary fact it is.
+    blockedBy: "",
   },
 };
 

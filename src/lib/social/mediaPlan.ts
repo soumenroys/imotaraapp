@@ -51,7 +51,25 @@ export const PUBLISHABLE: Record<string, MediaKind[]> = {
   // ⚠️ Still held: no adapter calls either of these channels for video.
   linkedin: ["none", "graphic"],
   x: ["none", "graphic"],
-  youtube: [],
+  /**
+   * 🔴 ONE SHAPE, AND THE LIST WAS EMPTY UNTIL 19 Oct.
+   *
+   * ⛔ A Short IS a video — there is no still-image or text post on this
+   * channel, so "none", "graphic" and "carousel" are absent because YouTube
+   * cannot be handed them, not because we have not got round to it.
+   *
+   * ⚠️ `animated_gif` IS DELIBERATELY ABSENT TOO. The publisher's motion
+   * branch covers short_video AND animated_gif together, so listing it here
+   * would send a GIF to `videos.insert` and let Google refuse it at 19:30.
+   * Held early, with a reason, beats refused late.
+   *
+   * 🔑 AND WHY THIS LINE MATTERS MORE THAN IT LOOKS: `canPublish` was flipped
+   * to true in platforms.ts in the same change, and with this list still empty
+   * every YouTube post would have been written, approved, and then held here —
+   * one layer below where anybody would have gone looking
+   * ⇒ trap_a_constraint_nobody_told_the_writer.
+   */
+  youtube: ["short_video"],
 };
 
 /**

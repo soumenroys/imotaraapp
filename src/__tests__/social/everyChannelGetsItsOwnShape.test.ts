@@ -20,6 +20,7 @@ import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 import { PLATFORMS, PLATFORM_IDS, platformSpec, publishableToday, publishingSentence } from "@/lib/social/platforms";
+import { PUBLISHABLE } from "@/lib/social/mediaPlan";
 import { composePicture, wordsInPicture, imagesInPicture } from "@/lib/social/compose";
 import { recipeHash, LAYOUTS, PALETTE_NAMES, TYPE_TREATMENTS, MOTIFS, WASHES } from "@/lib/social/visualRecipe";
 import { qrTarget, qrContrastOk, LOGO_URL, QR_TARGETS } from "@/lib/social/brandMarks";
@@ -342,22 +343,89 @@ describe("what the admin is told about publishing", () => {
  */
 describe("⛔ nothing claims to publish without an adapter", () => {
   /**
-   * The channels `social-publish` actually dispatches to, by name.
+   * 🔴 READ OUT OF THE ROUTE, NOT LISTED HERE — and that change is the point.
    *
-   * ▶️ ADDING ONE HERE IS THE SECOND HALF OF WIRING IT. If this list and
-   * `canPublish` disagree, one of the two is a lie.
+   * ⛔ This used to be a hand-written `Set(["facebook", "instagram"])` whose own
+   * comment called adding a name "the second half of wiring it". That makes the
+   * test a MIRROR of the route: wiring YouTube and *forgetting* the branch fails
+   * identically to adding the name with no branch at all, and the fix for a red
+   * test is then to edit the list — which is the one edit that proves nothing
+   * ⇒ trap_a_mirror_test_cannot_catch_a_refactor.
+   *
+   * ⚠️ So the set is derived from the publisher's own source. It can still be
+   * fooled by a branch that dispatches some other way, but it can no longer be
+   * satisfied by editing this file, which is the failure mode that actually
+   * happened on 19 Oct while wiring YouTube.
    */
-  const HAS_ADAPTER = new Set(["facebook", "instagram"]);
+  const PUBLISHER = fs.readFileSync(
+    path.join(process.cwd(), "src/app/api/cron/social-publish/route.ts"),
+    "utf8",
+  );
+
+  const dispatchesTo = (id: string) =>
+    new RegExp(`platform\\s*===\\s*"${id}"`).test(PUBLISHER);
 
   it("every publishable channel has a branch in the publisher", () => {
     for (const id of PLATFORM_IDS) {
       if (!PLATFORMS[id].canPublish) continue;
       expect(
-        HAS_ADAPTER.has(id),
-        `${id} is marked canPublish, but social-publish has no branch for it — ` +
-          `an approved post for it would go nowhere. ▶️ Wire the adapter, then add it here.`,
+        dispatchesTo(id),
+        `${id} is marked canPublish, but social-publish never dispatches on it — ` +
+          `an approved post for it would go nowhere. ▶️ Wire the adapter in the route itself; ` +
+          `⛔ there is no list here to add it to.`,
       ).toBe(true);
     }
+  });
+
+  it("🔴 a channel that publishes can be handed at least one shape", () => {
+    /**
+     * ⛔ THE GAP THIS CLOSES, found by reading and not by any test, 19 Oct.
+     * `canPublish` was flipped true for YouTube while `PUBLISHABLE.youtube`
+     * was still `[]`. Both files were internally consistent and the suite was
+     * entirely green — and every YouTube post would have been written,
+     * approved and then held at `mediaPlan`, one layer below where the
+     * "can this channel publish?" question appears to be answered
+     * ⇒ trap_a_constraint_nobody_told_the_writer.
+     *
+     * 🔑 TWO PLACES ANSWER "CAN THIS PUBLISH?" and nothing made them agree.
+     * This is what makes them agree.
+     */
+    for (const id of PLATFORM_IDS) {
+      if (!PLATFORMS[id].canPublish) continue;
+      expect(
+        (PUBLISHABLE[id] ?? []).length,
+        `${id} is marked canPublish, but PUBLISHABLE.${id} is empty — every post for it would be ` +
+          `written, approved, and then held at mediaPlan with nobody looking there. ` +
+          `▶️ List the shapes the publisher actually handles.`,
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  /**
+   * ⛔ AND THE CONVERSE IS NOT TRUE, WHICH IS WORTH WRITING DOWN.
+   *
+   * I first wrote a second assertion here — "a channel that cannot publish is
+   * handed no shapes" — and LinkedIn failed it immediately: `canPublish` is
+   * false while `PUBLISHABLE.linkedin` is `["none", "graphic"]`. That pair is
+   * CORRECT. The adapter is written and tested; what is missing is Community
+   * Management API access, which is Google's… LinkedIn's to grant, not ours.
+   *
+   * 🔑 The two fields answer different questions — "is this channel live?" and
+   * "what can the code hand it?" — and a channel is normally ready before it is
+   * allowed. Pinning them together would have forced a false edit to make a
+   * green tick ⇒ trap_a_guard_satisfied_by_a_neighbouring_value.
+   */
+
+  it("⛔ and the derivation really looks at the route, not at a list in here", () => {
+    /**
+     * 🔑 THE CONTROL. A check that reads a file proves nothing until you show
+     * it answering NO for something absent — otherwise a typo'd path or an
+     * always-true regex passes every channel forever
+     * ⇒ trap_mutation_harness_can_report_false_caught.
+     */
+    expect(PUBLISHER.length, "the publisher source was not actually read").toBeGreaterThan(1000);
+    expect(dispatchesTo("facebook"), "a channel that IS dispatched read as absent").toBe(true);
+    expect(dispatchesTo("myspace"), "a channel that does not exist read as present").toBe(false);
   });
 
   it("⚠️ and a channel that cannot publish says why, so the queue can explain itself", () => {

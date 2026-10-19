@@ -282,113 +282,30 @@ export async function savePreparedPost(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Due schedules
+// Due schedules — REMOVED 19 Oct
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** How far ahead of its slot a post is written, so a draft is waiting with
- *  time to spare rather than appearing at the hour. */
-export const LEAD_MINUTES = 120;
-
-/**
- * Is this schedule due to be written now?
- *
- * ⚠️ PURE, AND SEPARATE FROM THE QUERY, so the timezone arithmetic can be
- * tested at a fixed instant. "Due at 09:30 Asia/Kolkata on weekdays" read off a
- * UTC clock is exactly the kind of thing that works for eleven months and then
- * posts at the wrong hour when a date boundary falls between the two.
- */
-export function isDue(
-  schedule: { post_at: string; timezone: string; days: number[]; active: boolean },
-  now: Date,
-  leadMinutes = LEAD_MINUTES,
-): boolean {
-  return isDueForPlatform({ ...schedule, platform_times: null }, null, now, leadMinutes);
-}
-
-/**
- * The time and days this ONE platform runs on, which may not be the
- * schedule's.
- *
- * ⚠️ A MISSING OR MALFORMED OVERRIDE FALLS BACK, it does not fail. The cost
- * of a bad json value should be "this channel posts at the schedule's normal
- * time", never "this channel silently stops" — the failure nobody sees.
- */
-export function timeForPlatform(
-  schedule: {
-    post_at: string;
-    days: number[];
-    platform_times?: Record<string, { post_at?: string; days?: number[] }> | null;
-  },
-  platform: string | null,
-): { post_at: string; days: number[]; overridden: boolean } {
-  const override = platform ? schedule.platform_times?.[platform] : undefined;
-  // ⛔ Shape-checked rather than trusted. This column is hand-editable.
-  const at = typeof override?.post_at === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(override.post_at)
-    ? override.post_at
-    : null;
-  const days = Array.isArray(override?.days) && override.days.every((d) => Number.isInteger(d))
-    ? override.days
-    : null;
-  return {
-    post_at: at ?? schedule.post_at,
-    days: days ?? schedule.days,
-    overridden: at !== null || days !== null,
-  };
-}
-
-/** Is this schedule due to be written now, FOR THIS PLATFORM? */
-export function isDueForPlatform(
-  schedule: {
-    post_at: string;
-    timezone: string;
-    days: number[];
-    active: boolean;
-    platform_times?: Record<string, { post_at?: string; days?: number[] }> | null;
-  },
-  platform: string | null,
-  now: Date,
-  leadMinutes = LEAD_MINUTES,
-): boolean {
-  if (!schedule.active) return false;
-  const when = timeForPlatform(schedule, platform);
-
-  const target = new Date(now.getTime() + leadMinutes * 60_000);
-
-  // The wall clock in the schedule's own zone at the moment we are aiming at.
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: schedule.timezone,
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(target);
-
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  const weekday = get("weekday");
-  const dayIndex = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(weekday);
-  if (dayIndex < 0 || !when.days.includes(dayIndex)) return false;
-
-  const [h, m] = when.post_at.split(":").map(Number);
-  return Number(get("hour")) === h && Number(get("minute")) === m;
-}
-
-/**
- * Every (schedule, platform) pair due to be written this minute.
- *
- * 🔴 IT RETURNS PAIRS, NOT SCHEDULES, and that is the whole change. A
- * schedule posting to two channels at two times is due for one of them and
- * not the other — returning the schedule alone would make the caller write
- * both, which is the bug this replaces.
- */
-export async function duePlatforms(
-  now: Date,
-): Promise<{ schedule: ScheduleRow; platforms: string[] }[]> {
-  const db = getSupabaseAdmin();
-  const { data } = await db.from("social_schedules").select("*").eq("active", true);
-  return ((data ?? []) as ScheduleRow[])
-    .map((s) => ({ schedule: s, platforms: (s.platforms ?? []).filter((p) => isDueForPlatform(s, p, now)) }))
-    .filter((x) => x.platforms.length > 0);
-}
+//
+// 🔴 `LEAD_MINUTES`, `isDue`, `isDueForPlatform`, `timeForPlatform`,
+// `duePlatforms` and `alreadyWrittenFor` lived here and are gone. They were
+// the lead-time model: "is a schedule due THIS MINUTE?", answered every
+// minute, writing one slot two hours out ⇒ replaced by a ten-day horizon in
+// src/lib/social/horizon.ts.
+//
+// ⛔ AND THEY WERE DEAD FOR HALF A DAY WITHOUT THE SUITE NOTICING. Nothing in
+// production called them; only tests did — so 3,600 tests passed while
+// proving careful things about code the running system could no longer reach,
+// and the rules they guarded were quietly unguarded. ⚠️ A green suite is not
+// evidence that what it tests is reachable ⇒ trap_text_assertions_cannot_see_reachability.
+//
+// ⇒ Those tests were not deleted. Their rules survived in a different shape,
+// so their SUBJECT moved to the live code: per-channel times in
+// eachChannelKeepsItsOwnHour.test.ts, zones and DST in
+// tenDaysOfReviewTime.test.ts.
+//
+// 🔑 `timeForPlatform` became `timesFor` in horizon.ts, with one real change:
+// it range-checks the hour and minute. The version deleted here accepted
+// "25:99" — four digits and a colon satisfied its regex — and Date.UTC rolled
+// it silently into the next day at 02:39.
 
 export async function postingIsPaused(): Promise<{ paused: boolean; note?: string }> {
   const db = getSupabaseAdmin();

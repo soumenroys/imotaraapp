@@ -8,120 +8,137 @@
  * mistake the content rules already forbid — one post pushed to five channels
  * — and channels differ in when their readers are there as much as in how
  * they read.
+ *
+ * ⛔ THIS FILE WAS KEEPING DEAD CODE ALIVE, which is why it has been rewritten
+ * rather than deleted. On 19 Oct the lead-time model was replaced by a ten-day
+ * horizon ⇒ src/lib/social/horizon.ts, and `isDue`, `isDueForPlatform`,
+ * `timeForPlatform` and `LEAD_MINUTES` stopped being called by anything in
+ * production. The tests still passed — so the suite looked healthy while
+ * proving things about code no longer reachable from the running system, and
+ * the RULE it was guarding was quietly unguarded.
+ *
+ * ⚠️ The rule did not change, so the test should not be deleted; only its
+ * subject should move to whatever implements the rule today.
  */
 
 import { describe, it, expect } from "vitest";
-import { isDue, isDueForPlatform, timeForPlatform, LEAD_MINUTES } from "@/lib/social/store";
-
-/** The instant the cron must fire, given it writes LEAD_MINUTES ahead. */
-const leadBefore = (iso: string) => new Date(new Date(iso).getTime() - LEAD_MINUTES * 60_000);
+import { timesFor, slotsInHorizon } from "@/lib/social/horizon";
 
 const base = {
+  id: "s1",
   post_at: "17:30:00",
   timezone: "Asia/Kolkata",
   days: [0, 1, 2, 3, 4, 5, 6],
   active: true,
+  platforms: ["facebook", "instagram"],
   platform_times: { instagram: { post_at: "17:00:00" } },
 };
 
-// 17:30 and 17:00 IST = 12:00 and 11:30 UTC.
-const FACEBOOK_SLOT = "2026-10-19T12:00:00Z";
-const INSTAGRAM_SLOT = "2026-10-19T11:30:00Z";
+/** 19 Oct 2026, 10:38 IST — well before either channel's hour. */
+const NOW = new Date("2026-10-19T05:08:00Z");
 
-describe("two channels, two hours, one schedule", () => {
-  it("Instagram is due at its own time and Facebook is not", () => {
-    expect(isDueForPlatform(base, "instagram", leadBefore(INSTAGRAM_SLOT))).toBe(true);
-    /**
-     * 🔴 THE BUG THIS REPLACES. The old code returned the schedule and the
-     * caller wrote every platform on it — so Facebook would have posted at
-     * Instagram's earlier hour, half an hour early, every day.
-     */
-    expect(isDueForPlatform(base, "facebook", leadBefore(INSTAGRAM_SLOT))).toBe(false);
+const hhmm = (iso: string) =>
+  new Date(iso).toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
   });
 
-  it("Facebook is due at the schedule's own time and Instagram is not", () => {
-    expect(isDueForPlatform(base, "facebook", leadBefore(FACEBOOK_SLOT))).toBe(true);
-    expect(isDueForPlatform(base, "instagram", leadBefore(FACEBOOK_SLOT))).toBe(false);
+const firstFor = (platform: string, schedule = base) =>
+  slotsInHorizon(schedule, NOW).find((s) => s.platform === platform)!;
+
+describe("two channels, two hours", () => {
+  it("Instagram posts at its own time and Facebook at the schedule's", () => {
+    expect(hhmm(firstFor("instagram").scheduledFor)).toBe("17:00");
+    expect(hhmm(firstFor("facebook").scheduledFor)).toBe("17:30");
   });
 
   it("is exactly thirty minutes earlier, which is what was asked for", () => {
-    const gap = new Date(FACEBOOK_SLOT).getTime() - new Date(INSTAGRAM_SLOT).getTime();
-    expect(gap).toBe(30 * 60_000);
+    const ig = new Date(firstFor("instagram").scheduledFor).getTime();
+    const fb = new Date(firstFor("facebook").scheduledFor).getTime();
+    expect(fb - ig).toBe(30 * 60_000);
+  });
+
+  it("⛔ and every day of the horizon keeps that gap, not just the first", () => {
+    // 🔴 The original bug was one `post_at` for every channel. A fix that
+    // only separated TODAY would look right in any single-day test.
+    const slots = slotsInHorizon(base, NOW);
+    const ig = slots.filter((s) => s.platform === "instagram").map((s) => hhmm(s.scheduledFor));
+    const fb = slots.filter((s) => s.platform === "facebook").map((s) => hhmm(s.scheduledFor));
+    expect(new Set(ig)).toEqual(new Set(["17:00"]));
+    expect(new Set(fb)).toEqual(new Set(["17:30"]));
+    expect(ig.length).toBe(fb.length);
   });
 });
 
 describe("an override is an override, not a replacement", () => {
   it("a platform with no entry keeps the schedule's own time and days", () => {
-    const when = timeForPlatform(base, "facebook");
-    expect(when.post_at).toBe("17:30:00");
-    expect(when.days).toEqual([0, 1, 2, 3, 4, 5, 6]);
-    expect(when.overridden).toBe(false);
+    const t = timesFor(base, "facebook");
+    expect(t.post_at).toBe("17:30:00");
+    expect(t.days).toEqual(base.days);
   });
 
   it("an entry with only a time keeps the schedule's days", () => {
-    // 🔑 "Same days, different hour" — this first case — must not have to
-    // restate the week.
-    const when = timeForPlatform(base, "instagram");
-    expect(when.post_at).toBe("17:00:00");
-    expect(when.days).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    const t = timesFor(base, "instagram");
+    expect(t.post_at).toBe("17:00:00");
+    expect(t.days).toEqual(base.days);
   });
 
   it("an entry may narrow the days as well", () => {
-    const weekdays = { ...base, platform_times: { instagram: { post_at: "17:00:00", days: [1, 2, 3, 4, 5] } } };
-    // 19 Oct 2026 is a Monday in IST at this slot.
-    expect(isDueForPlatform(weekdays, "instagram", leadBefore(INSTAGRAM_SLOT))).toBe(true);
-    const sunday = new Date(new Date(INSTAGRAM_SLOT).getTime() - 86_400_000).toISOString();
-    expect(isDueForPlatform(weekdays, "instagram", leadBefore(sunday))).toBe(false);
+    const t = timesFor(
+      { ...base, platform_times: { instagram: { post_at: "17:00", days: [1, 3] } } },
+      "instagram",
+    );
+    expect(t.post_at).toBe("17:00");
+    expect(t.days).toEqual([1, 3]);
+  });
+
+  it("accepts HH:MM as well as HH:MM:SS, because a person types the short one", () => {
+    expect(timesFor({ ...base, platform_times: { instagram: { post_at: "08:05" } } }, "instagram").post_at).toBe(
+      "08:05",
+    );
+  });
+
+  it("a null column behaves as no overrides at all", () => {
+    const t = timesFor({ ...base, platform_times: null }, "instagram");
+    expect(t.post_at).toBe("17:30:00");
+    expect(t.days).toEqual(base.days);
   });
 });
 
 describe("a bad value falls back rather than silencing a channel", () => {
   /**
-   * ⛔ THE FAILURE THIS FORBIDS. `platform_times` is hand-editable json. The
-   * cost of a bad value must be "this channel posts at the normal time",
-   * never "this channel silently stops" — the failure nobody sees
-   * ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+   * 🔴 The cost of a bad json value must be "this channel posts at the
+   * schedule's normal time", NEVER "this channel silently stops" — the
+   * failure nobody sees ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+   *
+   * ⚠️ "25:99" is in this list because it is not merely malformed, it is
+   * PLAUSIBLE: it satisfies /^\d{2}:\d{2}$/, and Date.UTC does not throw on
+   * it — it rolls silently into the next day at 02:39.
    */
-  const bad = (value: unknown) =>
-    ({ ...base, platform_times: { instagram: value } }) as unknown as typeof base;
+  const cases: [string, { post_at?: string; days?: number[] }][] = [
+    ["a malformed time", { post_at: "nonsense" }],
+    ["an out-of-range time", { post_at: "25:99" }],
+    ["malformed days", { days: [9, 9] }],
+    ["an empty entry", {}],
+  ];
+  for (const [what, bad] of cases) {
+    it(`ignores ${what} and uses the schedule's`, () => {
+      const t = timesFor({ ...base, platform_times: { instagram: bad } }, "instagram");
+      expect(t.post_at).toBe("17:30:00");
+      expect(t.days).toEqual(base.days);
+    });
+  }
 
-  it("ignores a malformed time and uses the schedule's", () => {
-    for (const value of [{ post_at: "5pm" }, { post_at: "17" }, { post_at: "" }, { post_at: 1700 }, {}]) {
-      const when = timeForPlatform(bad(value), "instagram");
-      expect(when.post_at, `${JSON.stringify(value)} should have fallen back`).toBe("17:30:00");
-    }
-  });
-
-  it("ignores malformed days and uses the schedule's", () => {
-    for (const value of [{ days: "mon" }, { days: [1.5] }, { days: null }]) {
-      expect(timeForPlatform(bad(value), "instagram").days).toEqual([0, 1, 2, 3, 4, 5, 6]);
-    }
-  });
-
-  it("accepts HH:MM as well as HH:MM:SS, because a person types the short one", () => {
-    expect(timeForPlatform(bad({ post_at: "17:00" }), "instagram").post_at).toBe("17:00");
-    expect(isDueForPlatform(bad({ post_at: "17:00" }), "instagram", leadBefore(INSTAGRAM_SLOT))).toBe(true);
-  });
-
-  it("a null column behaves as no overrides at all", () => {
-    const plain = { ...base, platform_times: null };
-    expect(timeForPlatform(plain, "instagram").post_at).toBe("17:30:00");
-    expect(isDueForPlatform(plain, "instagram", leadBefore(FACEBOOK_SLOT))).toBe(true);
+  it("⛔ and the channel still gets its posts, which is the point", () => {
+    const slots = slotsInHorizon({ ...base, platform_times: { instagram: { post_at: "25:99" } } }, NOW);
+    expect(slots.filter((s) => s.platform === "instagram").length).toBeGreaterThan(0);
   });
 });
 
-describe("the old entry point still answers the old question", () => {
-  it("isDue ignores overrides and reads the schedule's own time", () => {
-    // ⚠️ Kept so the timezone arithmetic stays testable on its own, and so a
-    // caller that has no platform in hand cannot accidentally get one
-    // channel's hour.
-    expect(isDue(base, leadBefore(FACEBOOK_SLOT))).toBe(true);
-    expect(isDue(base, leadBefore(INSTAGRAM_SLOT))).toBe(false);
-  });
-
-  it("an inactive schedule is due for nothing", () => {
-    const off = { ...base, active: false };
-    expect(isDueForPlatform(off, "instagram", leadBefore(INSTAGRAM_SLOT))).toBe(false);
-    expect(isDueForPlatform(off, "facebook", leadBefore(FACEBOOK_SLOT))).toBe(false);
+describe("an inactive schedule is due for nothing", () => {
+  it("writes no slots at all", () => {
+    expect(slotsInHorizon({ ...base, active: false }, NOW)).toEqual([]);
   });
 });

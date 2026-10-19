@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { isDue, LEAD_MINUTES } from "@/lib/social/store";
+import { slotsInHorizon } from "@/lib/social/horizon";
 import { parseWritten, buildPrompt } from "@/lib/social/writer";
 import { composePicture, wordsInPicture, imagesInPicture } from "@/lib/social/compose";
 import { PLATFORMS, PLATFORM_IDS } from "@/lib/social/platforms";
@@ -30,69 +30,64 @@ const weekdaysAt = (postAt: string, timezone = "Asia/Kolkata") => ({
   active: true,
 });
 
-/** The instant at which a 09:30 IST slot is exactly LEAD_MINUTES away. */
-const leadBefore = (iso: string) => new Date(new Date(iso).getTime() - LEAD_MINUTES * 60_000);
-
-describe("a schedule fires at the right hour in its own zone", () => {
-  it("fires two hours before the slot, not at it", () => {
-    // Monday 2026-10-19, 09:30 IST = 04:00 UTC. Two hours earlier = 02:00 UTC.
-    const s = weekdaysAt("09:30");
-    expect(isDue(s, leadBefore("2026-10-19T04:00:00Z"))).toBe(true);
-    // ⛔ And NOT at the slot itself, or the draft would appear with no time to
-    // read it — which is the whole reason for the lead.
-    expect(isDue(s, new Date("2026-10-19T04:00:00Z"))).toBe(false);
+/**
+ * 🔴 THIS BLOCK TESTED A MODEL THAT NO LONGER RUNS, and that is why it has
+ * been replaced rather than deleted.
+ *
+ * It proved things about `isDue` — "fires two hours before the slot", "does
+ * not fire a minute early or late", "fires exactly once a day". Every one was
+ * true, and on 19 Oct every one stopped mattering: the lead time was replaced
+ * by a ten-day horizon ⇒ src/lib/social/horizon.ts. Nothing in production
+ * calls `isDue` any more, so these tests passed while guarding nothing, and
+ * the suite looked healthy.
+ *
+ * ⚠️ THE RULES THEMSELVES SURVIVED, in a different shape — a slot's instant
+ * must be computed in the SCHEDULE'S zone and on the schedule's weekday, or a
+ * date boundary between the two puts a post out at the wrong hour. Those are
+ * pinned against the live code in tenDaysOfReviewTime.test.ts (zones, DST,
+ * day-walking) and eachChannelKeepsItsOwnHour.test.ts (per-channel times).
+ *
+ * ⛔ What CANNOT come back is "fires once a day on an exact minute" — the
+ * horizon has no firing minute at all, which is the point of it: a missed
+ * minute used to be a missed day forever.
+ */
+describe("the schedule's own zone decides the hour", () => {
+  it("a slot is the schedule's wall clock, in the schedule's zone", () => {
+    // 09:30 IST on 20 Oct is 04:00 UTC — the same arithmetic the old `isDue`
+    // did, now done once when the slot is created rather than every minute.
+    const slots = slotsInHorizon(
+      {
+        id: "s",
+        post_at: "09:30",
+        timezone: "Asia/Kolkata",
+        days: [1, 2, 3, 4, 5],
+        active: true,
+        platforms: ["facebook"],
+        platform_times: null,
+      },
+      new Date("2026-10-19T05:08:00Z"),
+    );
+    expect(slots[0].scheduledFor).toBe("2026-10-20T04:00:00.000Z");
   });
 
-  it("does not fire a minute early or a minute late", () => {
-    const s = weekdaysAt("09:30");
-    const at = leadBefore("2026-10-19T04:00:00Z");
-    expect(isDue(s, new Date(at.getTime() - 60_000))).toBe(false);
-    expect(isDue(s, new Date(at.getTime() + 60_000))).toBe(false);
-  });
-
-  it("uses the schedule's weekday, not the server's", () => {
-    /**
-     * 🔴 THE CASE THAT BREAKS A NAIVE IMPLEMENTATION. A Monday 00:30 IST slot
-     * is written two hours earlier — which is Sunday 22:30 IST, and Sunday
-     * 17:00 UTC. A check that read the UTC weekday would see Sunday and skip
-     * it; a check that read the IST weekday at the TARGET instant sees Monday
-     * and fires.
-     */
-    const s = { post_at: "00:30", timezone: "Asia/Kolkata", days: [1], active: true };
-    const target = new Date("2026-10-18T19:00:00Z"); // Mon 00:30 IST
-    expect(isDue(s, leadBefore(target.toISOString()))).toBe(true);
-
-    // The same wall-clock minute on a Sunday slot must NOT fire.
-    const sundayOnly = { ...s, days: [0] };
-    expect(isDue(sundayOnly, leadBefore(target.toISOString()))).toBe(false);
-  });
-
-  it("respects a different zone", () => {
-    const london = weekdaysAt("09:30", "Europe/London");
-    // 2026-10-19 is BST (+01:00), so 09:30 London = 08:30 UTC.
-    expect(isDue(london, leadBefore("2026-10-19T08:30:00Z"))).toBe(true);
-    expect(isDue(london, leadBefore("2026-10-19T09:30:00Z"))).toBe(false);
-  });
-
-  it("never fires for an inactive schedule", () => {
-    const s = { ...weekdaysAt("09:30"), active: false };
-    expect(isDue(s, leadBefore("2026-10-19T04:00:00Z"))).toBe(false);
-  });
-
-  it("never fires on a day it was not asked to", () => {
-    // Saturday 2026-10-24.
-    expect(isDue(weekdaysAt("09:30"), leadBefore("2026-10-24T04:00:00Z"))).toBe(false);
-  });
-
-  it("fires exactly once a day, not on every minute of the hour", () => {
-    const s = weekdaysAt("09:30");
-    let fired = 0;
-    // Walk a whole IST day a minute at a time.
-    const start = new Date("2026-10-18T18:30:00Z").getTime();
-    for (let i = 0; i < 24 * 60; i++) {
-      if (isDue(s, new Date(start + i * 60_000))) fired++;
-    }
-    expect(fired).toBe(1);
+  it("⛔ and never lands on a day the schedule did not ask for", () => {
+    const slots = slotsInHorizon(
+      {
+        id: "s",
+        post_at: "09:30",
+        timezone: "Asia/Kolkata",
+        days: [1, 2, 3, 4, 5],
+        active: true,
+        platforms: ["facebook"],
+        platform_times: null,
+      },
+      new Date("2026-10-19T05:08:00Z"),
+    );
+    const weekdays = slots.map((x) =>
+      new Date(x.scheduledFor).toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata", weekday: "short" }),
+    );
+    expect(weekdays).not.toContain("Sat");
+    expect(weekdays).not.toContain("Sun");
   });
 });
 

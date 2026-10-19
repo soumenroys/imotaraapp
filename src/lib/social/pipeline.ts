@@ -36,6 +36,7 @@ import {
 } from "@/lib/social/productMistakes";
 import { composePicture, type Picture } from "@/lib/social/compose";
 import { eyebrowFor } from "@/lib/social/topicPools";
+import { shapeFor } from "@/lib/social/contentMix";
 import type { Dials } from "@/lib/social/platformDials";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
@@ -50,6 +51,15 @@ export type ScheduleShape = {
   brief: string;
   platforms: string[];
   contentType: ContentType;
+  /**
+   * 🔑 SEVERAL SHAPES, ROTATED ONE PER POST ⇒ contentMix.ts. The owner, 19
+   * Oct: "randomly mix text+graphics and videos in content."
+   *
+   * ⛔ NULL MEANS `contentType` FOR EVERY POST, which is every schedule
+   * written before that. A new column must not change what existing
+   * schedules produce.
+   */
+  contentMix?: string[] | null;
   topicPool: string[];
   tone: string;
   lengthHint: string;
@@ -658,6 +668,18 @@ export async function prepareGenerated(
   const tuning = deps.dials ? await deps.dials() : null;
   const tuned = tuning?.dials[args.platform];
 
+  /**
+   * 🔑 THE SHAPE IS DECIDED ONCE, HERE, beside the angle — and for the same
+   * reason ⇒ contentMix.ts. Deciding it in three places (the prompt, the
+   * picture, the stored media_kind) is how a post gets WRITTEN as a video and
+   * SAVED as a graphic, which is the bug this ordering prevents.
+   *
+   * ⚠️ `shape` replaces `args.schedule.contentType` at every one of those
+   * three sites. If any of them still reads the schedule directly, a mixed
+   * schedule disagrees with itself.
+   */
+  const shape = shapeFor(args.schedule, args.postsSoFar);
+
   const available = usablePools(args.schedule.topicPool, await deps.poolUsage());
   const scores = angleScores(await deps.measuredPosts());
   const cycle = weightedCycle(available, turnsFor(available, scores, args.platform));
@@ -681,7 +703,7 @@ export async function prepareGenerated(
       topicPool: [pool],
       // ⚠️ The SHAPE, so a carousel asks the model for cards rather than one
       // body ⇒ responseShape in writer.ts.
-      contentType: args.schedule.contentType,
+      contentType: shape,
       word: word ?? undefined,
       mistake: mistake ?? undefined,
       avoid: exclusionList(recent),
@@ -776,7 +798,7 @@ export async function prepareGenerated(
     let picture: Picture | null = null;
     let recipe: Recipe | null = null;
 
-    if (wantsPicture(args.schedule.contentType)) {
+    if (wantsPicture(shape)) {
       const built = await buildPicture(deps, {
         language,
         // ⚠️ The subject is the card's headline ⇒ headlineFor. Omitting it
@@ -865,7 +887,7 @@ export async function prepareGenerated(
         body,
         support: written.support,
         status,
-        mediaKind: mediaKindFor(args.schedule.contentType, Boolean(picture)) as PreparedPost["mediaKind"],
+        mediaKind: mediaKindFor(shape, Boolean(picture)) as PreparedPost["mediaKind"],
         slides: written.slides,
         // 🔑 The angle this was actually written from ⇒ nextPool.
         topicPool: pool,

@@ -35,7 +35,7 @@ export type MediaPlan =
  * the platform's capabilities would let a post through to a path that does
  * not exist.
  */
-const PUBLISHABLE: Record<string, MediaKind[]> = {
+export const PUBLISHABLE: Record<string, MediaKind[]> = {
   /**
    * ⚠️ MOTION ADDED 19 Oct, once BOTH halves existed: the adapter that calls
    * the platform AND the stored bytes for it to fetch

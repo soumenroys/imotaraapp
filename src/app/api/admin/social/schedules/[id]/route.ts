@@ -6,11 +6,14 @@ import { requireSocialAdmin, requireSocialOwner } from "@/app/api/admin/social/_
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { cleanPlatformTimes } from "@/lib/social/platformTimes";
 import { isSupportedLanguage } from "@/lib/social/languages";
+import { mixProblems } from "@/lib/social/contentMix";
 
 type Body = {
   name?: string;
   brief?: string;
   platforms?: string[];
+  /** ⚠️ Null or [] clears the mix, which means `content_type` again. */
+  contentMix?: string[] | null;
   topicPool?: string[];
   tone?: string;
   lengthHint?: string;
@@ -91,6 +94,48 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const times = cleanPlatformTimes(body.platformTimes);
     if (!times.ok) return NextResponse.json({ error: times.error }, { status: 400 });
     patch.platform_times = times.value;
+  }
+  /**
+   * 🔑 THE SHAPES THIS SCHEDULE ROTATES THROUGH ⇒ contentMix.ts.
+   *
+   * ⛔ REFUSED, NOT SAVED, when a shape cannot publish on one of this
+   * schedule's channels. A carousel written for Facebook is saved, approved,
+   * and then held by the publisher on every run forever — and the only
+   * symptom is a channel that posts every other day
+   * ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+   *
+   * ⚠️ Checked against the platforms the schedule will have AFTER this patch,
+   * not the ones it has now. Changing the mix and the channels in one request
+   * must be judged on the result, or a valid pair is refused and an invalid
+   * pair accepted.
+   */
+  if (body.contentMix !== undefined) {
+    const mix = Array.isArray(body.contentMix) ? body.contentMix.map(String) : null;
+    if (mix && mix.length > 0) {
+      let platforms = (patch.platforms as string[] | undefined) ?? body.platforms;
+      if (!platforms) {
+        /**
+         * ⚠️ READ FROM THE ROW when this request does not carry the channels.
+         * ⛔ Defaulting to "no platforms" would make every mix valid, because
+         * there would be nothing to check it against — a guard that passes
+         * when it has no information is worse than no guard.
+         */
+        const { data: current } = await getSupabaseAdmin()
+          .from("social_schedules").select("platforms").eq("id", id).single();
+        platforms = (current?.platforms as string[] | undefined) ?? [];
+      }
+      const problems = mixProblems(mix, platforms);
+      if (problems.length > 0) {
+        return NextResponse.json(
+          { error: problems.map((pr) => pr.why).join(" "), problems },
+          { status: 400 },
+        );
+      }
+      patch.content_mix = mix;
+    } else {
+      // ⚠️ An empty array means "stop mixing", which is `content_type` again.
+      patch.content_mix = null;
+    }
   }
   if (body.topicPool !== undefined) patch.topic_pool = body.topicPool;
   if (body.tone !== undefined) patch.tone = body.tone;

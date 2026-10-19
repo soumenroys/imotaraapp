@@ -32,6 +32,7 @@ export type ScheduleRow = {
   brief: string;
   platforms: string[];
   content_type: ScheduleShape["contentType"];
+  content_mix: string[] | null;
   topic_pool: string[];
   tone: string;
   length_hint: string;
@@ -59,6 +60,7 @@ export function toScheduleShape(row: ScheduleRow): ScheduleShape {
     brief: row.brief,
     platforms: row.platforms,
     contentType: row.content_type,
+    contentMix: row.content_mix ?? null,
     topicPool: row.topic_pool ?? [],
     tone: row.tone,
     lengthHint: row.length_hint,

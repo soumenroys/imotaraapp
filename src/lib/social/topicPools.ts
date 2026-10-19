@@ -64,6 +64,20 @@ export const TOPIC_POOLS: TopicPool[] = [
       "FOUR OR FIVE ways one ordinary feeling actually shows up — each one a phrase somebody really says " +
       "out loud, or a small thing they really do. Name the feeling plainly in the first slide, then let " +
       "each item stand completely on its own. " +
+      "⛔ THIS POST IS NOT ABOUT THE PRODUCT. Do not name it, do not end on it, do not turn towards it. " +
+      /**
+       * 🔴 THE FIRST THREE DRAFTS THIS ANGLE PRODUCED WERE PRODUCT BLURBS.
+       * Given only this pool it still wrote "Imotara understands Hindi,
+       * Bengali, Tamil…" — an entirely different angle's subject.
+       *
+       * ⚠️ I blamed the schedule's brief and was wrong. `the-unsaid` writes
+       * non-product posts under that same brief every day, because it says
+       * "no turn towards the product at the end" and this one did not. The
+       * FACTS block puts the product in front of the writer on every call;
+       * an angle about ordinary life has to decline it explicitly, or the
+       * writer drifts back to the thing it has most to say about.
+       * ⇒ feedback_do_the_check_you_are_capable_of — test, then conclude.
+       */
       "⛔ NOT ADVICE. No steps, no 'how to', no 'try this', no fixing. Nobody is being taught anything — " +
       "they are being recognised, which is the only reason anyone saves a post like this. " +
       "⚠️ Each item is SHORT: a phrase, or one sentence. If an item needs explaining it is the wrong item. " +

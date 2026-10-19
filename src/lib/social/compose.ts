@@ -139,8 +139,19 @@ function motifLayer(motif: string, accent: string, w: number, h: number): Node |
         style: {
           ...base,
           right: 0,
-          top: `${Math.round(h * 0.12)}px`,
-          width: `${Math.round(w * 0.3)}px`,
+          /**
+           * 🔴 IT STARTED AT 12% AND RAN 30% WIDE — straight through the
+           * headline. Seen in a render: nine rules crossed the letterforms of
+           * "rewrote" and "did not" on a three-line headline. Faint at 0.13
+           * opacity, and still crossing a word somebody has to read.
+           *
+           * ⚠️ A motif cannot know where the text is, so it is kept out of
+           * the band where a headline can reach: narrower, and starting
+           * below the midline. ⛔ Texture must never cost legibility — the
+           * headline is the post.
+           */
+          top: `${Math.round(h * 0.56)}px`,
+          width: `${Math.round(w * 0.18)}px`,
           flexDirection: "column",
         },
         children: Array.from({ length: 9 }, () => ({

@@ -72,23 +72,48 @@ export function nodeToHtml(node: Node): string {
  * machine doing the drawing; a stylesheet that failed to load would produce a
  * card that is subtly wrong rather than one that fails.
  */
-export function cardHtml(root: Node, width: number, height: number, fontStack: string): string {
+export function cardHtml(
+  root: Node,
+  width: number,
+  height: number,
+  /**
+   * 🔴 THE FONTS THE PAGE DECLARES FOR ITSELF, NOT THE ONES THE MACHINE HAS.
+   *
+   * ⛔ A SERVERLESS CONTAINER HAS NO INDIC FONTS AT ALL. Left to a family
+   * name, a Bengali card would render as empty boxes in production while
+   * looking perfect on a developer's Mac — the exact "right in review, wrong
+   * in public" failure this whole area keeps producing, and the one my own
+   * test warned about before I had thought about where this runs.
+   *
+   * ⚠️ So every face is named AND fetched. The browser cannot silently
+   * substitute something that happens to be lying around.
+   */
+  fonts: { family: string; url: string }[],
+): string {
+  const faces = fonts
+    .map(
+      (f) =>
+        `@font-face{font-family:"${f.family}";src:url("${f.url}");font-weight:100 900;font-display:block}`,
+    )
+    .join("\n");
+
+  // ⚠️ The declared families first, in the order given, then a generic as the
+  // last resort only ⇒ a missing face should look wrong, not quietly different.
+  const stack = [...fonts.map((f) => `"${f.family}"`), "sans-serif"].join(",");
+
   return `<!doctype html><html><head><meta charset="utf-8"><style>
+${faces}
 *{box-sizing:border-box;margin:0;padding:0}
 div{display:flex}
 html,body{width:${width}px;height:${height}px;overflow:hidden}
-body{font-family:${fontStack}}
+body{font-family:${stack}}
 </style></head><body>${nodeToHtml(root)}</body></html>`;
 }
 
 /**
- * The families to ask for, in order.
- *
- * ⚠️ NAMED EXPLICITLY RATHER THAN LEFT TO `sans-serif`. A generic family
- * resolves to whatever the rendering machine happens to have, which is one
- * thing on a developer's Mac and another on a build server — and the
- * difference would show up as a card that looks right in review and wrong in
- * public.
+ * ⚠️ KEPT FOR THE LOCAL PREVIEW SCRIPT ONLY, where a Mac does have these
+ * installed. ⛔ Never used by anything that runs on a server: production
+ * declares its faces with `cardHtml`'s `fonts` argument and fetches them.
  */
 export const SCRIPT_FONT_STACK = [
   "Noto Sans",

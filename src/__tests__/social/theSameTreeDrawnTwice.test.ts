@@ -52,7 +52,7 @@ describe("the tree becomes HTML the browser lays out identically", () => {
   it("every div is flex, because the tree was built for Satori's model", () => {
     // ⛔ A browser defaults to block. Without this the same tree lays out
     // differently in the two renderers.
-    const page = cardHtml(node(), 1080, 1080, SCRIPT_FONT_STACK);
+    const page = cardHtml(node(), 1080, 1080, [{ family: "Noto Sans Bengali", url: "https://x.test/bn.ttf" }]);
     expect(page).toMatch(/div\s*\{\s*display:\s*flex/);
     expect(page).toContain("width:1080px");
   });

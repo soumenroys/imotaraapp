@@ -11,7 +11,8 @@
 import { writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 import { composePicture } from "@/lib/social/compose";
-import { cardHtml, SCRIPT_FONT_STACK } from "@/lib/social/toHtml";
+import { cardHtml } from "@/lib/social/toHtml";
+import { SCRIPT_FONTS, SCRIPT_OF_LANGUAGE } from "@/lib/social/fonts";
 import { allQrCodes } from "@/lib/social/brandMarks";
 import type { Recipe } from "@/lib/social/visualRecipe";
 
@@ -34,7 +35,11 @@ async function main() {
     qrCodes: await allQrCodes("instagram"),
   });
 
-  const html = cardHtml(picture.root, picture.width, picture.height, SCRIPT_FONT_STACK);
+  // ⚠️ The SAME faces production will declare — fetched, never assumed from
+  // the machine, so this preview answers the question production asks.
+  const script = SCRIPT_OF_LANGUAGE[language] ?? "latin";
+  const faces = [SCRIPT_FONTS.latin, SCRIPT_FONTS[script]].filter(Boolean).map((f) => ({ family: f.family, url: f.url }));
+  const html = cardHtml(picture.root, picture.width, picture.height, faces);
 
   const browser = await chromium.launch();
   const page = await browser.newPage({

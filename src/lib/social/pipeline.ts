@@ -35,8 +35,8 @@ import {
   type ProductMistake,
 } from "@/lib/social/productMistakes";
 import { composePicture, type Picture } from "@/lib/social/compose";
-import { eyebrowFor } from "@/lib/social/topicPools";
-import { shapeFor } from "@/lib/social/contentMix";
+import { eyebrowFor, TOPIC_POOLS } from "@/lib/social/topicPools";
+import { shapeFor, mixProblems } from "@/lib/social/contentMix";
 import type { Dials } from "@/lib/social/platformDials";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
@@ -329,6 +329,19 @@ export function usablePools(
     untranslatable: vettedWords().length,
     "built-wrong": vettedMistakes().length,
   },
+  /**
+   * 🔑 THE CHANNEL, so an angle whose SHAPE this channel cannot publish is
+   * dropped rather than posted in the wrong form.
+   *
+   * ⛔ `ways-of-saying` is a carousel or it is nothing — as a single card it
+   * is six lines of small type. Facebook takes multi-photo posts by a route
+   * nothing has been built for ⇒ mediaPlan.ts, so on Facebook this angle must
+   * stand down, not degrade.
+   *
+   * ⚠️ OPTIONAL, and omitting it drops nothing — every caller that does not
+   * care about shape behaves exactly as before.
+   */
+  platform?: string,
 ): string[] {
   /**
    * 🔑 ONE RULE, NOT TWO. "Nothing is confirmed" and "everything confirmed
@@ -347,6 +360,12 @@ export function usablePools(
    * place; one decides, the other explains.
    */
   return pools.filter((p) => {
+    // ⛔ Shape first: an angle this channel cannot carry is unavailable
+    // however much material it has left.
+    if (platform) {
+      const shape = TOPIC_POOLS.find((t) => t.id === p)?.shape;
+      if (shape && mixProblems([shape], [platform]).length > 0) return false;
+    }
     const limit = limits[p];
     if (limit === undefined) return true; // open-ended: a direction, not material
     return (used[p] ?? 0) < limit;
@@ -421,7 +440,22 @@ export function wantsPicture(contentType: ContentType): boolean {
     // 🔑 A moving card is the same card: the still is composed first, and the
     // frames are that picture with parts hidden. Nothing extra is written.
     contentType === "animated_gif" ||
-    contentType === "short_video"
+    contentType === "short_video" ||
+    /**
+     * 🔴 CAROUSEL WAS MISSING HERE, AND THAT MADE IT IMPOSSIBLE — found 19 Oct
+     * by running the pipeline rather than reading it.
+     *
+     * ⛔ Without a picture `mediaKindFor` returns "none", and Instagram has no
+     * text-only post, so every carousel draft was refused with "this draft
+     * made no card". The shape had been selectable on the schedule form since
+     * it was added and could never once have produced a post.
+     *
+     * ⚠️ AND THE AUTHOR KNEW: the comment on `mediaKindFor` says "a carousel
+     * still needs the picture machinery — every card is rendered the same
+     * way". The knowledge was one function away from the code that contradicts
+     * it ⇒ trap_a_constraint_nobody_told_the_writer, in its third costume.
+     */
+    contentType === "carousel"
   );
 }
 
@@ -678,19 +712,40 @@ export async function prepareGenerated(
    * three sites. If any of them still reads the schedule directly, a mixed
    * schedule disagrees with itself.
    */
-  const shape = shapeFor(args.schedule, args.postsSoFar);
 
-  const available = usablePools(args.schedule.topicPool, await deps.poolUsage());
+
+  const available = usablePools(args.schedule.topicPool, await deps.poolUsage(), undefined, args.platform);
   const scores = angleScores(await deps.measuredPosts());
   const cycle = weightedCycle(available, turnsFor(available, scores, args.platform));
   const pool = nextPool(cycle, args.postsSoFar);
+
+  /**
+   * 🔑 THE ANGLE MAY OVERRIDE BOTH THE BRIEF AND THE SHAPE ⇒ topicPools.ts.
+   *
+   * ⛔ MEASURED, which is the only reason this exists. Given the live brief —
+   * "take one capability of Imotara and say what it is for" — `ways-of-saying`
+   * produced 3/3 product-shaped posts and NO list. Given a neutral brief it
+   * produced 2/2 genuine five-item lists. The brief does not merely colour the
+   * angle; it overrides its SHAPE.
+   *
+   * ⚠️ The shape override beats the content mix, because for that angle the
+   * form IS the point: a list of five recognitions is a carousel or it is six
+   * lines of small type.
+   */
+  const angle = TOPIC_POOLS.find((t) => t.id === pool);
+  const brief = angle?.brief ?? args.schedule.brief;
+  const shape = angle?.shape ?? shapeFor(args.schedule, args.postsSoFar);
+
   const word = pool === "untranslatable" ? pickWord(args.postsSoFar) : null;
   const mistake = pool === "built-wrong" ? pickMistake(args.postsSoFar) : null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const written = await deps.write({
       dials: tuned,
-      brief: args.schedule.brief,
+      // 🔑 The ANGLE's brief where it has one ⇒ topicPools.ts. Passing the
+      // schedule's here regardless is what produced 3/3 product-shaped posts
+      // from an angle that is not about the product.
+      brief,
       tone: args.schedule.tone,
       lengthHint: args.schedule.lengthHint,
       language,

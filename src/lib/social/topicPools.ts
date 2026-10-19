@@ -13,6 +13,8 @@
 // it is a few hundred characters of text with no imports behind it, and the
 // alternative is two files that drift.
 
+import type { ContentType } from "@/lib/social/contentTypes";
+
 export type TopicPool = {
   id: string;
   label: string;
@@ -39,6 +41,37 @@ export type TopicPool = {
    * a translation written here ⇒ feedback_check_a_dictionary_before_writing.
    */
   eyebrow: string;
+  /**
+   * 🔴 A BRIEF THAT REPLACES THE SCHEDULE'S, for an angle the schedule's brief
+   * actively fights.
+   *
+   * ⛔ MEASURED, and the measurement is why this field exists. Four previews
+   * per combination:
+   *
+   *     ways-of-saying @ the live brief   → 3/3 product-shaped, NO list
+   *     ways-of-saying @ a neutral brief  → 2/2 genuine five-item lists
+   *
+   * ⚠️ The live brief asks for "one capability of Imotara and what it is
+   * for". Most pools are supposed to answer that. A list of five ways a
+   * feeling shows up cannot, and loses — every time, not sometimes. ⇒ The
+   * pool that needs a different instruction CARRIES it, rather than needing
+   * a whole schedule of its own.
+   *
+   * 🔑 THE ALTERNATIVE WAS A SECOND INSTAGRAM SCHEDULE, which would have
+   * meant two posts a day on a channel meant to post once.
+   */
+  brief?: string;
+  /**
+   * 🔑 THE SHAPE THIS ANGLE MUST TAKE, when the form IS the point.
+   *
+   * ⛔ Overrides the schedule's content mix. A list of five recognitions is a
+   * carousel or it is nothing: as a single card it is six lines of small type,
+   * and as a video it is a slideshow nobody can swipe back through.
+   *
+   * ⚠️ A pool whose shape a channel cannot publish is DROPPED for that
+   * channel ⇒ usablePools, rather than quietly posted in the wrong form.
+   */
+  shape?: ContentType;
 };
 
 /**
@@ -82,6 +115,18 @@ export const TOPIC_POOLS: TopicPool[] = [
     id: "ways-of-saying",
     label: "The ways one feeling actually shows up (carousel)",
     eyebrow: "How it shows up",
+    /**
+     * ⛔ NO MENTION OF THE PRODUCT, AND NO ASK FOR A CAPABILITY. That is the
+     * entire difference between the 3/3 failure and the 2/2 success above.
+     */
+    brief:
+      "Notice one ordinary feeling and the small, specific ways it actually shows up in a day — " +
+      "the things somebody really says out loud, or really does. " +
+      "⛔ This post is not about any product, and does not mention one. Nobody is being taught " +
+      "anything; they are being recognised, which is the only reason a person saves a post like " +
+      "this or sends it to someone. " +
+      "⚠️ Write it so that the person it describes feels seen, not diagnosed.",
+    shape: "carousel",
     angle:
       "FOUR OR FIVE ways one ordinary feeling actually shows up — each one a phrase somebody really says " +
       "out loud, or a small thing they really do. Name the feeling plainly in the first slide, then let " +

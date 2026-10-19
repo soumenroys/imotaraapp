@@ -37,6 +37,40 @@ export type TopicPool = {
  * wrong, none of which needs a statistic or a testimonial to be true.
  */
 export const TOPIC_POOLS: TopicPool[] = [
+  /**
+   * 🔑 THE FIRST POOL SHAPED FOR A CAROUSEL, added 19 Oct.
+   *
+   * ⚠️ WHY A NEW POOL AND NOT A NEW FORMAT FOR THE OLD ONES. Our posts run two
+   * or three sentences. Split across slides that is padding — a sentence per
+   * card, the "swipe for the obvious conclusion" shape readers recognise and
+   * resent. A carousel has to EARN the swipe, which means each slide has to be
+   * worth arriving at. That is a different kind of writing, not a different
+   * wrapper.
+   *
+   * 🔴 THE OBVIOUS IDEA IS BLOCKED. One feeling named in five languages, one
+   * per slide, would be uniquely this product's — and the renderer cannot draw
+   * those scripts ⇒ trap_a_card_cannot_draw_an_indic_script. ⛔ Do not design
+   * for it until a shaping-capable renderer exists.
+   *
+   * ⛔ AND THE LINE THIS POOL IS CLOSEST TO CROSSING: a list is one step from
+   * listicle advice. Nobody here is being taught anything. Each item is a
+   * recognition — "that is me" — never a tip, never a step, never a "try
+   * this". The moment it instructs, it is the wrong post.
+   */
+  {
+    id: "ways-of-saying",
+    label: "The ways one feeling actually shows up (carousel)",
+    angle:
+      "FOUR OR FIVE ways one ordinary feeling actually shows up — each one a phrase somebody really says " +
+      "out loud, or a small thing they really do. Name the feeling plainly in the first slide, then let " +
+      "each item stand completely on its own. " +
+      "⛔ NOT ADVICE. No steps, no 'how to', no 'try this', no fixing. Nobody is being taught anything — " +
+      "they are being recognised, which is the only reason anyone saves a post like this. " +
+      "⚠️ Each item is SHORT: a phrase, or one sentence. If an item needs explaining it is the wrong item. " +
+      "🔑 The last one is the quietest and the most true — that is the slide somebody screenshots. " +
+      "⛔ No number in the first slide if the count might change; say the feeling, not the arithmetic.",
+  },
+
   {
     id: "languages",
     label: "The 22 languages",

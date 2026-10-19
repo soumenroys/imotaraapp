@@ -88,12 +88,33 @@ export function cardHtml(
    * ⚠️ So every face is named AND fetched. The browser cannot silently
    * substitute something that happens to be lying around.
    */
-  fonts: { family: string; url: string }[],
+  fonts: { family: string; url?: string; dataUri?: string }[],
 ): string {
+  /**
+   * 🔴 MEASURED IN PRODUCTION, 19 Oct: A URL HERE LOADS NOTHING.
+   *
+   * The first Vercel render came back as a perfect card with every Bengali
+   * glyph drawn as Chromium's NO GLYPH box. The browser started, the layout
+   * was right, the motif and the logo were right — and not one face had
+   * loaded. ⚠️ "Imotara" looked fine only because Latin had a fallback the
+   * container already had; Bengali had none, so it showed the truth.
+   *
+   * ⛔ SO THE BYTES ARE HANDED OVER, NOT FETCHED. A `url()` makes the browser
+   * do the fetching, inside a sandboxed container, from an `about:blank`
+   * origin — network, DNS, CORS and origin policy all in the way, and every
+   * one of them fails as tofu rather than as an error. Node fetching the same
+   * file is already proven: it is exactly what Satori has always done
+   * ⇒ renderPicture.loadFont.
+   *
+   * ⚠️ A face passed with no bytes is OMITTED rather than falling back to its
+   * url — a silent fetch is the thing being removed, so leaving one in would
+   * defeat the point and hide it.
+   */
   const faces = fonts
+    .filter((f) => f.dataUri)
     .map(
       (f) =>
-        `@font-face{font-family:"${f.family}";src:url("${f.url}");font-weight:100 900;font-display:block}`,
+        `@font-face{font-family:"${f.family}";src:url(${f.dataUri});font-weight:100 900;font-display:block}`,
     )
     .join("\n");
 

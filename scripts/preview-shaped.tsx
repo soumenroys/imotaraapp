@@ -9,15 +9,15 @@
  *   npx tsx scripts/preview-shaped.tsx out.png bn "অভিমান" "মন খারাপ লাগছে"
  */
 import { writeFileSync } from "node:fs";
-import { chromium } from "playwright";
 import { composePicture } from "@/lib/social/compose";
-import { cardHtml } from "@/lib/social/toHtml";
+import { renderShapedCard } from "@/lib/social/shapedRenderer";
 import { SCRIPT_FONTS, SCRIPT_OF_LANGUAGE } from "@/lib/social/fonts";
 import { allQrCodes } from "@/lib/social/brandMarks";
 import type { Recipe } from "@/lib/social/visualRecipe";
 
 async function main() {
-  const [, , out = "shaped.png", language = "bn", headline = "অভিমান", support = "মন খারাপ লাগছে"] = process.argv;
+  const [, , out = "shaped.png", language = "bn", headline = "অভিমান", // ⚠️ আমার, not bare লাগছে — the owner has corrected exactly this.
+    support = "আমার মন খারাপ লাগছে"] = process.argv;
 
   const picture = composePicture({
     recipe: {
@@ -35,20 +35,27 @@ async function main() {
     qrCodes: await allQrCodes("instagram"),
   });
 
-  // ⚠️ The SAME faces production will declare — fetched, never assumed from
-  // the machine, so this preview answers the question production asks.
+  /**
+   * ⚠️ THROUGH renderShapedCard, the same function production calls — not a
+   * local copy of its steps. A preview that takes a different path answers a
+   * different question, and the question here is "what will publish?".
+   */
   const script = SCRIPT_OF_LANGUAGE[language] ?? "latin";
-  const faces = [SCRIPT_FONTS.latin, SCRIPT_FONTS[script]].filter(Boolean).map((f) => ({ family: f.family, url: f.url }));
-  const html = cardHtml(picture.root, picture.width, picture.height, faces);
+  const faces = [SCRIPT_FONTS.latin, SCRIPT_FONTS[script]]
+    .filter(Boolean)
+    .map((f) => ({ family: f.family, url: f.url }));
 
-  const browser = await chromium.launch();
-  const page = await browser.newPage({
-    viewport: { width: picture.width, height: picture.height },
-    deviceScaleFactor: 1,
+  const shaped = await renderShapedCard({
+    root: picture.root,
+    width: picture.width,
+    height: picture.height,
+    faces,
   });
-  await page.setContent(html, { waitUntil: "networkidle" });
-  writeFileSync(out, await page.screenshot({ type: "png" }));
-  await browser.close();
+  if (!shaped.ok) {
+    console.error(shaped.error);
+    process.exit(1);
+  }
+  writeFileSync(out, Buffer.from(shaped.bytes));
 
   console.log(`${out}  ${picture.width}×${picture.height}  ${language}`);
   if (picture.notes.length) console.log(picture.notes.map((n) => `  ⚠️ ${n}`).join("\n"));

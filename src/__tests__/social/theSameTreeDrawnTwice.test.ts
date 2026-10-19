@@ -52,7 +52,7 @@ describe("the tree becomes HTML the browser lays out identically", () => {
   it("every div is flex, because the tree was built for Satori's model", () => {
     // ⛔ A browser defaults to block. Without this the same tree lays out
     // differently in the two renderers.
-    const page = cardHtml(node(), 1080, 1080, [{ family: "Noto Sans Bengali", url: "https://x.test/bn.ttf" }]);
+    const page = cardHtml(node(), 1080, 1080, [{ family: "Noto Sans Bengali", dataUri: "data:font/ttf;base64,AAA" }]);
     expect(page).toMatch(/div\s*\{\s*display:\s*flex/);
     expect(page).toContain("width:1080px");
   });
@@ -79,6 +79,37 @@ describe("the tree becomes HTML the browser lays out identically", () => {
     const html = nodeToHtml(node({ tag: "img", src: `a.png" onerror="alert(1)` }));
     expect(html).not.toContain('onerror="alert(1)"');
     expect(html).toContain("&quot;");
+  });
+});
+
+describe("⛔ the page is handed the font BYTES, never a url", () => {
+  /**
+   * 🔴 MEASURED IN PRODUCTION. The first Vercel render came back as a perfect
+   * card with every Bengali glyph drawn as Chromium's NO GLYPH box: the
+   * browser started, the layout was right, and not one face had loaded.
+   * "Imotara" looked fine only because Latin had a fallback the container
+   * already had — Bengali had none, so it showed the truth.
+   *
+   * ⛔ A `url()` makes the BROWSER fetch, inside a sandboxed container, from
+   * an about:blank origin. Network, DNS, CORS and origin policy all sit in
+   * the way, and every one of them fails as tofu rather than as an error.
+   */
+  it("embeds a data: URI and never a remote url", () => {
+    const page = cardHtml(node({ text: "অভিমান" }), 1080, 1080, [
+      { family: "Noto Sans Bengali", url: "https://cdn.example/bn.ttf", dataUri: "data:font/ttf;base64,QUJD" },
+    ]);
+    expect(page).toContain("src:url(data:font/ttf;base64,QUJD)");
+    expect(page).not.toContain("https://cdn.example/bn.ttf");
+  });
+
+  it("⛔ a face with no bytes is DROPPED, not quietly fetched", () => {
+    // ⚠️ Silently falling back to the url would reinstate exactly the failure
+    // this removes, and hide it again.
+    const page = cardHtml(node(), 1080, 1080, [
+      { family: "Noto Sans Bengali", url: "https://cdn.example/bn.ttf" },
+    ]);
+    expect(page).not.toContain("https://cdn.example/bn.ttf");
+    expect(page).not.toContain("@font-face");
   });
 });
 

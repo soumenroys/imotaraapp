@@ -26,6 +26,36 @@ import { cardHtml } from "@/lib/social/toHtml";
 /** A face the page will declare for itself ⇒ cardHtml. */
 export type Face = { family: string; url: string };
 
+/**
+ * The font bytes, as a data URI the page can embed.
+ *
+ * 🔴 BECAUSE A URL LOADS NOTHING IN THERE. Measured: the first Vercel render
+ * drew every Bengali glyph as a NO GLYPH box while the layout, the motif and
+ * the logo were all correct — the browser simply never got a face. Fetching
+ * from inside a sandboxed container, from an about:blank origin, puts
+ * network, DNS, CORS and origin policy between us and the font, and each of
+ * them fails as tofu rather than as an error.
+ *
+ * ⛔ A FAILED FETCH IS A REFUSAL, not a render without the font — the same
+ * rule Satori's loader already follows, and for the same reason: a card
+ * missing its script is a card that publishes looking deliberate.
+ */
+export async function faceBytes(face: Face): Promise<{ ok: true; dataUri: string } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(face.url, { cache: "force-cache" });
+    if (!res.ok) {
+      return { ok: false, error: `${face.family}: the font at ${face.url} answered ${res.status}.` };
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    // ⚠️ The MIME follows the file, because Chromium rejects a face whose
+    // declared type does not match its bytes.
+    const mime = face.url.endsWith(".woff2") ? "font/woff2" : face.url.endsWith(".otf") ? "font/otf" : "font/ttf";
+    return { ok: true, dataUri: `data:${mime};base64,${buf.toString("base64")}` };
+  } catch (e) {
+    return { ok: false, error: `${face.family}: the font could not be fetched (${(e as Error).message}).` };
+  }
+}
+
 export type ShapedRender =
   | { ok: true; bytes: Uint8Array; ms: number }
   | { ok: false; error: string };
@@ -95,7 +125,19 @@ export async function renderShapedCard(args: {
       deviceScaleFactor: 1,
     });
 
-    const html = cardHtml(args.root, args.width, args.height, args.faces);
+    /**
+     * ⛔ EVERY FACE OR NONE. A card drawn with one of its two faces missing is
+     * the failure that looks deliberate — the Latin wordmark reads perfectly
+     * while the words of the post are boxes.
+     */
+    const embedded: { family: string; dataUri: string }[] = [];
+    for (const face of args.faces) {
+      const bytes = await faceBytes(face);
+      if (!bytes.ok) return { ok: false, error: bytes.error };
+      embedded.push({ family: face.family, dataUri: bytes.dataUri });
+    }
+
+    const html = cardHtml(args.root, args.width, args.height, embedded);
 
     /**
      * 🔴 `networkidle`, NOT `load`. The fonts and the logo are FETCHED by the

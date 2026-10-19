@@ -24,6 +24,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 🔴 THE SIBLING REPO, because one assertion here is a CROSS-REPO one.
+      # `usageGeoCollectsNoOneInParticular.test.ts` checks that the Play Data
+      # Safety doc in imotara-mobile names IMOTARA_USAGE_GEO_MOBILE — a flag
+      # flipped by a WEB deploy that changes what a live Play listing declares
+      # about location data. Without this checkout the test cannot see the file
+      # and FAILED EVERY RUN of 2026-10-19 while passing on every laptop.
+      #
+      # ⚠️ `path:` must stay inside $GITHUB_WORKSPACE, so it cannot be written
+      # as the `../imotara-mobile` the test defaults to. The env var below is
+      # what bridges that, rather than moving directories around afterwards.
+      # 🔑 soumenroys/imotara-mobile is PUBLIC ⇒ no token, no secret.
+      - name: Check out imotara-mobile (for the cross-repo Play Data Safety check)
+        uses: actions/checkout@v4
+        with:
+          repository: soumenroys/imotara-mobile
+          path: imotara-mobile
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -49,4 +66,8 @@ jobs:
         run: npm run check:kb-version
 
       - name: Unit tests
+        # 🔑 Points the cross-repo assertion at the checkout above. Its default
+        # (`../imotara-mobile`) is right on a laptop and wrong on a runner.
+        env:
+          IMOTARA_MOBILE_DIR: ${{ github.workspace }}/imotara-mobile
         run: npx vitest run

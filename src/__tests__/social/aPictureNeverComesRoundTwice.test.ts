@@ -47,6 +47,24 @@ const seeded = (seed: number) => {
 };
 
 describe("uniqueness is a guarantee", () => {
+    /**
+     * ⚠️ THE SLOW ONE, AND DELIBERATELY SO. `pickRecipe` enumerates the whole
+     * space — 11,520 candidates, each hashed — on EVERY call, because it builds
+     * the full unused pool to choose from and to report on honestly. That costs
+     * nothing in production, where it runs once a day, but this test calls it
+     * 300 times ⇒ ~3.5M hashes.
+     *
+     * 🔴 MEASURED 19 Oct 2026: **2,026 ms** on the author's machine against
+     * vitest's 5,000 ms default. A GitHub runner is roughly 2.5× slower, so it
+     * tipped over and **failed every CI run of the day** while passing locally
+     * every time ⇒ the figure is recorded here so the next person does not have
+     * to re-measure it.
+     *
+     * ⛔ The loop was NOT shortened to make it fit. 300 picks is most of a
+     * year of daily posting; trimming it would trade the guarantee for a
+     * stopwatch. The timeout is ~10× the measured cost — loose enough never to
+     * flake, tight enough that a genuinely slower `pickRecipe` still shows up.
+     */
     it("never returns a recipe already in the register", () => {
         const used = new Set<string>();
         for (let i = 0; i < 300; i++) {
@@ -57,7 +75,7 @@ describe("uniqueness is a guarantee", () => {
             used.add(r.recipe.hash);
         }
         expect(used.size).toBe(300);
-    });
+    }, 20_000);
 
     it("refuses rather than repeats when a language is exhausted", () => {
         // ⛔ The important half. The honest failure is "add a palette", not a

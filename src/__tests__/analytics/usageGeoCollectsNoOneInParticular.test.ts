@@ -229,10 +229,33 @@ describe("🔴 mobile is not recorded until the store declarations say so", () =
         // "next EAS build". It does not: it becomes true on the web deploy, for
         // apps already in people's hands. A gate that names the wrong trigger
         // is worse than none, because it buys false time.
-        const play = fs.readFileSync(
-            path.join(process.cwd(), "..", "imotara-mobile", "PLAY_DATA_SAFETY.md"),
-            "utf8",
-        );
+        //
+        // 🔴 THIS ASSERTION READS THE OTHER REPO, and that is the point: the
+        // invariant is a CROSS-REPO one — a flag here, a legal declaration on a
+        // live Play listing there. ⛔ It is NOT skipped when the sibling is
+        // missing. A cross-repo check that quietly passes on the one machine
+        // that cannot see the other repo is worse than no check, because the
+        // green tick then means "I did not look"
+        // ⇒ trap_a_mirror_test_cannot_catch_a_refactor.
+        //
+        // ⚠️ It failed every CI run of 19 Oct 2026 for exactly this reason —
+        // the runner checks out one repo. The fix is in `.github/workflows/ci.yml`,
+        // which now checks out `soumenroys/imotara-mobile` (public, no secret
+        // needed) and points this variable at it.
+        const mobileDir = process.env.IMOTARA_MOBILE_DIR
+            ?? path.join(process.cwd(), "..", "imotara-mobile");
+        const doc = path.join(mobileDir, "PLAY_DATA_SAFETY.md");
+
+        if (!fs.existsSync(doc)) {
+            throw new Error(
+                `This assertion needs the imotara-mobile repo and cannot find it at ${doc}. ` +
+                    `⛔ Do not delete or skip this test to make it pass — it guards a Play Data ` +
+                    `Safety declaration on a live listing. Clone soumenroys/imotara-mobile as a ` +
+                    `sibling of this repo, or set IMOTARA_MOBILE_DIR to wherever it is.`,
+            );
+        }
+
+        const play = fs.readFileSync(doc, "utf8");
         expect(play).toMatch(/IMOTARA_USAGE_GEO_MOBILE/);
     });
 });

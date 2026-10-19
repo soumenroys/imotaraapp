@@ -15,6 +15,7 @@ import { cardsForPost } from "@/lib/social/cards";
 import { allQrCodes, QR_COUNT } from "@/lib/social/brandMarks";
 import { headlineFor, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
 import { platformSpec } from "@/lib/social/platforms";
+import { eyebrowFor } from "@/lib/social/topicPools";
 
 export type EnsureResult =
   /** Nothing to do — Satori draws this one on demand, as always. */
@@ -35,7 +36,7 @@ export async function ensureCard(postId: string): Promise<EnsureResult> {
   const db = getSupabaseAdmin();
   const { data: post, error } = await db
     .from("social_posts")
-    .select("id, platform, language, subject, body, slides, media_kind, visual_recipe")
+    .select("id, platform, language, subject, body, slides, media_kind, visual_recipe, topic_pool")
     .eq("id", postId)
     .single();
 
@@ -61,6 +62,7 @@ export async function ensureCard(postId: string): Promise<EnsureResult> {
         body: post.body as string,
         media_kind: post.media_kind as string | null,
         visual_recipe: post.visual_recipe,
+        topic_pool: post.topic_pool as string | null,
       },
       format,
     );
@@ -120,6 +122,15 @@ export async function ensureCard(postId: string): Promise<EnsureResult> {
       platform: post.platform as string,
       qrCodes,
       counter: isCarousel ? { index: slide + 1, total: cards.length } : undefined,
+      /**
+       * ⚠️ THE COMPILER CANNOT CATCH THIS ONE, which is why it is spelled out.
+       * `ComposeInput.eyebrow` is optional — it has to be, because the
+       * shaping-check diagnostic composes a synthetic card with no post
+       * behind it. So omitting it here would compile, and the APPROVED card
+       * stored in the bucket would quietly differ from the one the review
+       * screen drew ⇒ pinned in aCardSaysOnlyWhatThePostIsAbout.
+       */
+      eyebrow: eyebrowFor(post.topic_pool as string | null, post.language as string),
     });
 
     const drawn = await renderShapedCard({

@@ -79,6 +79,15 @@ export type ComposeInput = {
    * ⛔ Absent on a single card, where it would be a count of one.
    */
   counter?: { index: number; total: number };
+  /**
+   * 🔑 THE SHORT LINE ABOVE THE HEADLINE, naming the post's own subject
+   * ⇒ eyebrowFor. Null is the normal answer and draws nothing.
+   *
+   * ⛔ NEVER WRITTEN HERE, and never defaulted to a brand claim. What used to
+   * stand in this slot was the literal string "22 languages", printed on a
+   * third of all single cards whatever they were about.
+   */
+  eyebrow?: string | null;
 };
 
 const MOTIF_OPACITY = 0.13;
@@ -895,11 +904,25 @@ export function composePicture(input: ComposeInput): Picture {
    * the one thing a reader on card three actually wants, and is drawn on EVERY
    * layout rather than only the two that happen to have an eyebrow: a reader
    * does not know which recipe was rolled.
+   *
+   * 🔴 AND ON A SINGLE CARD THE SAME CLAIM SURVIVED THAT FIX, for another day.
+   * A counter is meaningless on a card of one, so the `: null` branch below
+   * still reached the constant — one single card in three. ⇒ The eyebrow now
+   * comes from the post's own topic pool ⇒ eyebrowFor, and is null far more
+   * often than not.
    */
   const labelText = input.counter
     ? `${input.counter.index} / ${input.counter.total}`
-    : recipe.layout === "stacked-label" || recipe.typeTreatment === "caps-label"
-      ? "22 languages"
+    : /**
+       * ⚠️ THE LAYOUT GATE IS KEPT, and keeping it was a decision rather than
+       * an oversight. These two are the recipes DESIGNED around a label; the
+       * other six are not, and printing one on all of them would make every
+       * card structurally identical — which is the sameness this whole axis
+       * exists to avoid. ⛔ The defect was never WHERE the eyebrow appeared.
+       * It was the WORDS.
+       */
+      recipe.layout === "stacked-label" || recipe.typeTreatment === "caps-label"
+      ? (input.eyebrow ?? null)
       : null;
 
   const label: Node | null = labelText

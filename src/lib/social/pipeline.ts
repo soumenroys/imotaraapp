@@ -35,6 +35,7 @@ import {
   type ProductMistake,
 } from "@/lib/social/productMistakes";
 import { composePicture, type Picture } from "@/lib/social/compose";
+import { eyebrowFor } from "@/lib/social/topicPools";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
 
@@ -413,7 +414,19 @@ export function mediaKindFor(contentType: ContentType, hasPicture: boolean): str
 
 async function buildPicture(
   deps: PipelineDeps,
-  args: { language: string; subject: string; body: string; scheduleId: string | null; platform: string },
+  args: {
+    language: string;
+    subject: string;
+    body: string;
+    scheduleId: string | null;
+    platform: string;
+    /**
+     * 🔑 THE POOL THIS POST WAS WRITTEN FROM ⇒ nextPool, for the card's
+     * eyebrow ⇒ eyebrowFor. Null for a hand-written post, which has no pool
+     * and stores none either.
+     */
+    topicPool: string | null;
+  },
 ): Promise<{ picture: Picture | null; recipe: Recipe | null; notes: string[] }> {
   const notes: string[] = [];
 
@@ -510,6 +523,13 @@ async function buildPicture(
   const picture = composePicture({
     recipe: picked.recipe,
     headline,
+    /**
+     * ⚠️ FROM THE POOL, NOT FROM THE RENDERER'S IMAGINATION. This is the same
+     * agreement problem as the support line below: the recipe is chosen here
+     * and the card is redrawn later from the stored row, so both must reach
+     * the same eyebrow or the queued preview and the published card differ.
+     */
+    eyebrow: eyebrowFor(args.topicPool, args.language),
     /**
      * 🔴 FROM THE BODY, NOT FROM THE WRITER'S `support`.
      *
@@ -718,6 +738,9 @@ export async function prepareGenerated(
         body,
         scheduleId: args.schedule.id,
         platform: args.platform,
+        // 🔑 The angle this was actually written from ⇒ nextPool, and the same
+        // value stored on the row as `topic_pool`.
+        topicPool: pool,
       });
       picture = built.picture;
       recipe = built.recipe;
@@ -885,6 +908,9 @@ export async function prepareWritten(
       body,
       scheduleId: null,
       platform: args.platform,
+      // ⛔ A hand-written post has no pool, and stores none ⇒ store.ts. So it
+      // gets no eyebrow, rather than a borrowed one.
+      topicPool: null,
     });
     picture = built.picture;
     recipe = built.recipe;

@@ -23,7 +23,8 @@ import { writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { allQrCodes } from "@/lib/social/brandMarks";
-import { headlineFor, type Recipe } from "@/lib/social/visualRecipe";
+import { eyebrowFor } from "@/lib/social/topicPools";
+import { headlineFor, withoutHashtags, type Recipe } from "@/lib/social/visualRecipe";
 import { platformSpec } from "@/lib/social/platforms";
 
 export type AnimationFormat = "gif" | "mp4";
@@ -116,6 +117,16 @@ export type AnimationSource = {
   body: string;
   media_kind: string | null;
   visual_recipe: unknown;
+  /**
+   * 🔑 THE POST'S OWN SUBJECT, as a topic-pool id ⇒ eyebrowFor.
+   *
+   * ⛔ REQUIRED, NOT OPTIONAL, and that is the whole safety argument. Six
+   * paths draw a card for the same post, and an optional field is one a path
+   * can silently omit — which is exactly how `wash` went missing from a
+   * field-by-field rebuild here and would have rendered every card flat.
+   * Required means the compiler names any path that forgets.
+   */
+  topic_pool: string | null;
 };
 
 export type AnimationResult =
@@ -170,6 +181,7 @@ export async function renderAnimation(
     board = storyboard({
       recipe: post.visual_recipe as Recipe,
       headline,
+      eyebrow: eyebrowFor(post.topic_pool, post.language),
       /**
        * 🔑 THE WHOLE BODY, NOT ONE SENTENCE — changed 19 Oct.
        *
@@ -183,7 +195,21 @@ export async function renderAnimation(
        * A body it cannot split cleanly still yields one scene, which is
        * exactly the old behaviour.
        */
-      support: post.body,
+      /**
+       * 🔴 WITHOUT THE HASHTAGS, and that was a defect for a day.
+       *
+       * ⛔ Passing `post.body` raw — which is what "the whole body, not one
+       * sentence" first meant here — ends a four-scene video on a frame
+       * reading "#imfine #theunsaid #quietthoughts #feelings", in type, and
+       * then has the NARRATOR READ THEM OUT. Tags have no sentence-ending
+       * punctuation, so `sentencesOf` hands them back as a scene of their own.
+       *
+       * ⚠️ `supportFromBody` had always stripped them ⇒ the Instagram card
+       * that caught this the first time. Replacing that call with the raw body
+       * took the stripping away with it — a fix for one thing undoing another
+       * ⇒ trap_blunt_fix_trades_one_failure_for_its_opposite.
+       */
+      support: withoutHashtags(post.body),
       language: post.language,
       platform: post.platform,
       qrCodes,

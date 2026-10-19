@@ -127,8 +127,32 @@ describe("the happy path", () => {
      * This guard caught them the moment they appeared, which is the point: any
      * NEW text on a card has to be declared here deliberately, so nothing can
      * drift onto a picture without somebody deciding it should.
+     *
+     * 🔑 AND IT CAUGHT THE EYEBROWS ON 19 OCT, the same way. They are
+     * furniture by the same argument as the wordmark: authored here in code,
+     * never written by the model, so the gate's inability to read an image
+     * costs nothing. ⇒ eyebrowFor.
+     *
+     * ⛔ LISTED LITERALLY, NOT IMPORTED FROM `TOPIC_POOLS`. Deriving them from
+     * the source of the eyebrows would make this guard approve every future
+     * one automatically — a mirror that stays green through anything, which
+     * is the opposite of what the paragraph above asks for. A twelfth pool
+     * must fail this test until somebody has read its eyebrow.
      */
-    const allowed = ["22 languages", "imotara.com", "Imotara", "Website", "Android", "iPhone"];
+    const EYEBROWS = [
+      "How it shows up",
+      "22 languages",
+      "Where words go",
+      "Said aloud",
+      "Without signal",
+      "What it is not",
+      "For organisations",
+      "The quiet hours",
+      "No English word",
+      "Left unsaid",
+      "We got this wrong",
+    ];
+    const allowed = [...EYEBROWS, "imotara.com", "Imotara", "Website", "Android", "iPhone"];
 
     for (const text of wordsInPicture(result.post.picture)) {
       const fromPost = gated.includes(text);

@@ -18,6 +18,27 @@ export type TopicPool = {
   label: string;
   /** The angle handed to the writer. Not a subject — a direction to find one in. */
   angle: string;
+  /**
+   * 🔴 THE SHORT LINE PRINTED ABOVE THE HEADLINE, and the reason it is data
+   * here rather than a constant in the renderer.
+   *
+   * ⛔ IT USED TO BE THE STRING "22 languages", on whatever the post was
+   * about. A third of single cards — every `stacked-label` layout and every
+   * `caps-label` treatment — carried a brand claim above a sentence about
+   * restlessness or about a message typed and deleted. The carousel half of
+   * this was fixed on 19 Oct by making the eyebrow a counter; the single-card
+   * half survived, because a counter is meaningless on a card of one.
+   *
+   * ⚠️ NOT `label`. That is written for the admin picking a pool — "The ways
+   * one feeling actually shows up (carousel)" — and names the pool. This is
+   * written to be READ BY A STRANGER above a sentence, and names the subject.
+   *
+   * 🔑 ENGLISH, AND DRAWN ONLY ON ENGLISH CARDS ⇒ eyebrowFor. Printing it on
+   * a Spanish or Bengali card would be the same defect in a new costume: the
+   * wrong words, confidently set. The 21 other languages need a speaker, not
+   * a translation written here ⇒ feedback_check_a_dictionary_before_writing.
+   */
+  eyebrow: string;
 };
 
 /**
@@ -60,6 +81,7 @@ export const TOPIC_POOLS: TopicPool[] = [
   {
     id: "ways-of-saying",
     label: "The ways one feeling actually shows up (carousel)",
+    eyebrow: "How it shows up",
     angle:
       "FOUR OR FIVE ways one ordinary feeling actually shows up — each one a phrase somebody really says " +
       "out loud, or a small thing they really do. Name the feeling plainly in the first slide, then let " +
@@ -99,6 +121,7 @@ export const TOPIC_POOLS: TopicPool[] = [
   {
     id: "languages",
     label: "The 22 languages",
+    eyebrow: "22 languages",
     angle:
       "One language the product speaks, and what it means to think in it rather than translate into English. " +
       "Name the language. Say something true about speaking it that a speaker would recognise.",
@@ -106,6 +129,7 @@ export const TOPIC_POOLS: TopicPool[] = [
   {
     id: "privacy",
     label: "Privacy, and what stays on the device",
+    eyebrow: "Where words go",
     angle:
       "One specific thing about where a person's words go, or do not go. Concrete, checkable, no reassurance " +
       "that is not backed by a setting or a policy line somebody could read.",
@@ -113,16 +137,19 @@ export const TOPIC_POOLS: TopicPool[] = [
   {
     id: "voice",
     label: "Talking rather than typing",
+    eyebrow: "Said aloud",
     angle: "Why saying a thing out loud is different from writing it, and what the product does about that.",
   },
   {
     id: "offline",
     label: "Working without signal",
+    eyebrow: "Without signal",
     angle: "One thing that still works with no connection, and why that was worth building.",
   },
   {
     id: "limits",
     label: "What it is not",
+    eyebrow: "What it is not",
     angle:
       "Something the product deliberately does not do, and the reason. ⛔ Not framed as modesty or as a " +
       "humblebrag — as information a person deciding whether to use it would want.",
@@ -130,6 +157,7 @@ export const TOPIC_POOLS: TopicPool[] = [
   {
     id: "organisations",
     label: "For organisations",
+    eyebrow: "For organisations",
     angle:
       "How a team or an NGO uses it, stated plainly. ⛔ Never addressed to a job title — see the audience " +
       "rule; say the thing so that anybody reading it understands what it is.",
@@ -137,6 +165,7 @@ export const TOPIC_POOLS: TopicPool[] = [
   {
     id: "quiet-hours",
     label: "The hours nobody staffs",
+    eyebrow: "The quiet hours",
     angle: "Being available at a time when nothing else is, without dramatising it.",
   },
 
@@ -146,6 +175,7 @@ export const TOPIC_POOLS: TopicPool[] = [
   {
     id: "untranslatable",
     label: "A feeling English has no word for",
+    eyebrow: "No English word",
     angle:
       "ONE word from one of the languages this product speaks, naming a feeling — or a kind of closeness " +
       "between people — that English needs a whole sentence for. Give the word, the language, and what it " +
@@ -176,6 +206,7 @@ export const TOPIC_POOLS: TopicPool[] = [
   {
     id: "the-unsaid",
     label: "The thing nobody said",
+    eyebrow: "Left unsaid",
     angle:
       "One ordinary, specific, recognisable moment of not saying something — the 'I'm fine' at the door, " +
       "the message typed and deleted, the answer given because it was shorter. Describe the moment and " +
@@ -186,6 +217,7 @@ export const TOPIC_POOLS: TopicPool[] = [
   {
     id: "built-wrong",
     label: "Something we got wrong",
+    eyebrow: "We got this wrong",
     angle:
       "A real decision in building this that turned out to be wrong, and what it was changed to. Name the " +
       "wrong thing first and without softening it. " +
@@ -196,3 +228,27 @@ export const TOPIC_POOLS: TopicPool[] = [
 ];
 
 export const TOPIC_POOL_IDS = TOPIC_POOLS.map((p) => p.id);
+
+/**
+ * The eyebrow a post's card may print, or null if it may not print one.
+ *
+ * ⛔ NULL IS THE NORMAL ANSWER, in three cases, and each is a refusal rather
+ * than a gap:
+ *
+ *   • no pool — posts written before 18 Oct have no `topic_pool`, and a post
+ *     whose subject is unrecorded has nothing true to say above its headline.
+ *   • an unknown pool — a pool id that has since been renamed or removed. ⚠️
+ *     The same trap as a stored layout name ⇒ RETIRED_LAYOUTS: a value that is
+ *     persisted and later matched by name is a public identifier. Here the
+ *     honest answer is to draw no eyebrow, never to guess at one.
+ *   • any language but English — the eyebrows above are English prose.
+ *
+ * 🔑 CENTRAL ON PURPOSE. Six paths render a card for the same post, and they
+ * must agree: a stored card and an on-demand card that disagree is a defect
+ * this codebase has already had once ⇒ the support-line comment in pipeline.
+ */
+export function eyebrowFor(topicPool: string | null | undefined, language: string): string | null {
+  if (language !== "en") return null;
+  if (!topicPool) return null;
+  return TOPIC_POOLS.find((p) => p.id === topicPool)?.eyebrow ?? null;
+}

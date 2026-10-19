@@ -18,7 +18,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { headlineFromBody, supportFromBody, withoutHashtags } from "@/lib/social/visualRecipe";
+import { headlineFromBody, supportFromBody, withoutHashtags, recipeHash } from "@/lib/social/visualRecipe";
+import { storyboard } from "@/lib/social/frames";
 
 /**
  * ⚠️ THE STILL PICTURE'S RENDERER MOVED on 18 Oct, out of the admin route and
@@ -31,9 +32,18 @@ import { headlineFromBody, supportFromBody, withoutHashtags } from "@/lib/social
  * failing case, or loosening it to "somewhere in src/", would have thrown away
  * the one check that caught the original bug.
  */
-const ROUTES = [
+/**
+ * 🔴 AND IT MOVED AGAIN ON 19 OCT, for the same reason and with the same
+ * answer. The animation route had its own copy of the whole pipeline; it now
+ * calls `renderAnimation`, so the call site this guard looks for lives there.
+ *
+ * ⛔ THE TEST FOLLOWED THE CODE A SECOND TIME. Both failures were real: the
+ * file it was reading no longer composes anything, so a green result would
+ * have meant nothing at all.
+ */
+const COMPOSER_CALLERS = [
   "src/lib/social/renderPicture.ts",
-  "src/app/api/admin/social/animation/[id]/route.ts",
+  "src/lib/social/renderAnimation.ts",
 ];
 
 describe("what the second line says", () => {
@@ -91,10 +101,22 @@ describe("⛔ and something actually calls it", () => {
    * string. It would have caught the actual bug on the day it shipped, which
    * nothing else in 325 tests did.
    */
-  for (const route of ROUTES) {
+  for (const route of COMPOSER_CALLERS) {
     it(`${route.split("/").slice(-2)[0]} passes a support to the composer`, () => {
       const src = readFileSync(join(process.cwd(), route), "utf8");
-      expect(src, "the route does not import supportFromBody").toContain("supportFromBody");
+      /**
+       * ⚠️ "FROM THE BODY", NOT "FROM supportFromBody" — widened 19 Oct, and
+       * the distinction is the whole rule rather than a loosening of it.
+       *
+       * 🔑 The animation renderer passes the WHOLE body, because a video has
+       * room for every sentence and `supportFromBody` returns one. Both are
+       * the body, and the body is what the word check read ⇒ the gate runs on
+       * `${subject}\n${body}`. What is still forbidden is a support that
+       * comes from anywhere else.
+       */
+      expect(src, "nothing here derives a support from the body at all").toMatch(
+        /supportFromBody\(|withoutHashtags\(\s*post\.body|support:\s*post\.body\b/,
+      );
 
       /**
        * ⚠️ FOLLOWS ONE HOP, because the value no longer reaches the composer
@@ -106,17 +128,35 @@ describe("⛔ and something actually calls it", () => {
        * ⛔ Still bites on the bug it was written for — `support` not passed
        * at all, or passed a literal `undefined`.
        */
-      // ⚠️ `support: x`, `support: supportFromBody(...)` or the shorthand
-      // `support,` — the rule is about what reaches the composer, not style.
-      const passed = src.match(/support:\s*([A-Za-z_$][\w$]*|supportFromBody\()|^\s*support,\s*$/m);
+      /**
+       * ⚠️ `support: x`, `support: someCall(...)`, `support: post.body` or the
+       * shorthand `support,` — the rule is about what reaches the composer,
+       * not style.
+       *
+       * 🔴 THE CALL BRANCH IS DELIBERATELY ANONYMOUS, after naming the
+       * functions one at a time failed twice. It read `supportFromBody\(`,
+       * so when the value became `withoutHashtags(post.body)` the bare
+       * identifier branch matched instead and the test went looking for a
+       * `const withoutHashtags = …`. A pattern that has to be edited every
+       * time a legitimate helper is introduced will be edited carelessly once.
+       * ⇒ Any call is a call; WHAT it is given is checked below and in the
+       * next case.
+       */
+      const passed = src.match(
+        /support:\s*(post\.body\b|[A-Za-z_$][\w$]*\(|[A-Za-z_$][\w$]*)|^\s*support,\s*$/m,
+      );
       expect(passed, "nothing is passed as `support` to the composer").not.toBeNull();
       const value = passed![1] ?? "support";
       expect(value, "`support` is passed a literal undefined").not.toBe("undefined");
-      if (!value.startsWith("supportFromBody")) {
-        const assigned = new RegExp(`(const|let)\\s+${value}\\b[^;]*supportFromBody\\(`, "s");
+      // ⚠️ A direct call or `post.body` needs no hop; a bare name does.
+      if (!value.endsWith("(") && value !== "post.body") {
+        const assigned = new RegExp(
+          `(const|let)\\s+${value}\\b[^;]*(supportFromBody\\(|post\\.body)`,
+          "s",
+        );
         expect(
           assigned.test(src),
-          `\`support\` is passed ${value}, which is not derived from supportFromBody`,
+          `\`support\` is passed ${value}, which is not derived from the post's body`,
         ).toBe(true);
       }
     });
@@ -130,9 +170,12 @@ describe("⛔ and something actually calls it", () => {
       // `body` properly, the cast was gone and the assertion failed over
       // punctuation rather than over the thing it exists to check.
       const src = readFileSync(join(process.cwd(), route), "utf8");
-      expect(src).toMatch(/supportFromBody\(\s*post\.body\b/);
+      expect(src).toMatch(
+        /supportFromBody\(\s*post\.body\b|withoutHashtags\(\s*post\.body\b|support:\s*post\.body\b/,
+      );
       // ⛔ And still not from either of the two wrong sources.
       expect(src).not.toMatch(/supportFromBody\(\s*post\.subject\b/);
+      expect(src, "the support is taken from the subject").not.toMatch(/support:\s*post\.subject\b/);
     });
   }
 });
@@ -165,6 +208,40 @@ describe("a hashtag is caption syntax, and a card is not a caption", () => {
     // skip past a "sentence" made only of tags.
     expect(supportFromBody(body, 150, 1)).toBe("Nobody asks twice.");
     expect(supportFromBody(body, 150, 2)).toBeNull();
+  });
+
+  it("⛔ nor on a video frame, nor in the narrator's mouth", () => {
+    /**
+     * 🔴 THE SAME DEFECT, RE-OPENED FOR A DAY BY A FIX TO SOMETHING ELSE.
+     *
+     * On 19 Oct the animation renderer stopped passing `supportFromBody` and
+     * started passing the whole body — correctly, because a video has room
+     * for every sentence and that call returns one. ⛔ But the stripping
+     * lived INSIDE the call that was removed. Tags carry no sentence-ending
+     * punctuation, so `sentencesOf` handed them back as a scene of their own:
+     * a final frame reading "#imfine #theunsaid #quietthoughts #feelings",
+     * set in display type, and then SPOKEN ALOUD by the narrator.
+     *
+     * ⚠️ Measured, not reasoned: the storyboard was run and its scenes
+     * printed ⇒ trap_blunt_fix_trades_one_failure_for_its_opposite.
+     */
+    const base = { layout: "rule-over", palette: "ink", typeTreatment: "display", motif: "arcs", script: "en" };
+    const board = storyboard({
+      recipe: { ...base, hash: recipeHash(base as never) } as never,
+      headline: "The thing nobody said",
+      // ⇒ exactly what renderAnimation passes.
+      support: withoutHashtags(body),
+      language: "en",
+      platform: "facebook",
+    });
+
+    // 🔑 `sceneTexts` is BOTH what is drawn and what is spoken ⇒ speech.ts.
+    for (const scene of board.sceneTexts) {
+      expect(scene, `a scene reads "${scene}"`).not.toMatch(/#/);
+      expect(scene).not.toMatch(/imfine|theunsaid|quietthoughts|feelings/);
+    }
+    // ⚠️ And the words that matter are still all there.
+    expect(board.sceneTexts.join(" ")).toContain("Nobody asks twice.");
   });
 
   it("removes a tag in a script that uses combining marks, whole", () => {

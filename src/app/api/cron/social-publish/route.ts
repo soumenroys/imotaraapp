@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
 
   const { data: due, error } = await db
     .from("social_posts")
-    .select("id, platform, language, subject, body, slides, media_kind, visual_recipe, attempts, scheduled_for")
+    .select("id, platform, language, subject, body, slides, media_kind, visual_recipe, attempts, scheduled_for, topic_pool")
     .eq("status", "approved")
     // ⚠️ `scheduled_for` null means "as soon as it is approved" ⇒ the schema.
     .or(`scheduled_for.is.null,scheduled_for.lte.${now.toISOString()}`)
@@ -426,6 +426,7 @@ export async function GET(req: NextRequest) {
           body: post.body as string,
           media_kind: post.media_kind as string | null,
           visual_recipe: post.visual_recipe,
+          topic_pool: post.topic_pool as string | null,
         });
         if (!rendered.ok) {
           /**

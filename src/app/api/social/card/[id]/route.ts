@@ -51,7 +51,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const db = getSupabaseAdmin();
   const { data: post, error } = await db
     .from("social_posts")
-    .select("id, language, platform, subject, body, slides, media_kind, visual_recipe, status")
+    .select("id, language, platform, subject, body, slides, media_kind, visual_recipe, status, topic_pool")
     .eq("id", id)
     .maybeSingle();
 
@@ -104,6 +104,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     slide,
     media_kind: post.media_kind as string | null,
     visual_recipe: post.visual_recipe,
+    topic_pool: post.topic_pool as string | null,
   });
 
   if (!rendered.ok) {

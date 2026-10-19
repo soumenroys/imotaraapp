@@ -17,6 +17,7 @@ import { createElement, type ReactElement } from "react";
 import { composePicture, type Node } from "@/lib/social/compose";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
+import { eyebrowFor } from "@/lib/social/topicPools";
 import { headlineFor, supportFromBody, recipeHash, type Recipe } from "@/lib/social/visualRecipe";
 import { unshapableScripts, unshapableNote } from "@/lib/social/shaping";
 import { cardsForPost } from "@/lib/social/cardUrl";
@@ -76,6 +77,16 @@ export type PictureSource = {
   body: string;
   media_kind: string | null;
   visual_recipe: unknown;
+  /**
+   * 🔑 THE POST'S OWN SUBJECT, as a topic-pool id ⇒ eyebrowFor.
+   *
+   * ⛔ REQUIRED, NOT OPTIONAL, and that is the whole safety argument. Six
+   * paths draw a card for the same post, and an optional field is one a path
+   * can silently omit — which is exactly how `wash` went missing from a
+   * field-by-field rebuild here and would have rendered every card flat.
+   * Required means the compiler names any path that forgets.
+   */
+  topic_pool: string | null;
 };
 
 export type RenderFailure = {
@@ -296,6 +307,7 @@ export async function renderPostPicture(
       language: post.language,
       platform: post.platform,
       qrCodes,
+      eyebrow: eyebrowFor(post.topic_pool, post.language),
       /**
        * 🔑 "3 / 5" ON EVERY CARD OF A CAROUSEL, and on nothing else.
        *

@@ -28,6 +28,8 @@ export type FrameInput = {
   language: string;
   platform: string;
   qrCodes?: QrCode[];
+  /** ⚠️ Rides through to every frame's composePicture ⇒ ComposeInput.eyebrow. */
+  eyebrow?: string | null;
 };
 
 export type Storyboard = {

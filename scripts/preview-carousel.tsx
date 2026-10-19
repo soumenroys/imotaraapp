@@ -20,6 +20,10 @@ import { pickRecipe } from "@/lib/social/visualRecipe";
 
 const POST = {
   platform: "instagram",
+  // 🔑 THE POOL THIS POST ACTUALLY CAME FROM. ⛔ It is also the post the fixed
+  // eyebrow was measured on: five copies of "22 languages" down a carousel
+  // about restlessness ⇒ eyebrowFor.
+  topic_pool: "ways-of-saying",
   language: "en",
   media_kind: "carousel",
   subject: "The ways restlessness actually shows up",

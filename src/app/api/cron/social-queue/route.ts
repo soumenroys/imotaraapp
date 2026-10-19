@@ -25,6 +25,7 @@ import {
   clearSlotFailure,
 } from "@/lib/social/store";
 import { missingSlots, slotKey, HORIZON_DAYS, MAX_PER_RUN } from "@/lib/social/horizon";
+import { angleScores, angleReport } from "@/lib/social/learning";
 import { markCronFired } from "@/lib/cron/heartbeat";
 import { sendQueueAlert } from "@/lib/social/alert";
 import { pickRecipe, headlineFor } from "@/lib/social/visualRecipe";
@@ -249,6 +250,19 @@ export async function GET(req: NextRequest) {
     standDownReasons(row.topic_pool ?? [], usage).map((r) => ({ schedule: row.id, ...r })),
   );
 
+  /**
+   * 🔑 WHAT THE NUMBERS SAY, AND WHETHER THEY SAID ANYTHING ⇒ learning.ts.
+   *
+   * ⛔ A feedback loop quietly doing nothing because it has no data looks
+   * exactly like one that is broken, and the difference is what decides
+   * whether anybody trusts it. So it reports "not enough to rank" in as many
+   * words rather than returning an empty list.
+   */
+  const scores = angleScores(await deps.measuredPosts());
+  const learned = [...new Set(schedules.flatMap((r) => r.platforms ?? []))].map((p) =>
+    angleReport(scores, p),
+  );
+
   const approved = outcomes.filter((o) => o.result === "approved").length;
 
   /**
@@ -296,6 +310,7 @@ export async function GET(req: NextRequest) {
     // generation refused must not look the same from outside.
     filled: wanted.map((w) => `${w.platform}@${w.scheduledFor}`),
     standDown,
+    learned,
     outcomes,
     // ⛔ Said out loud on every run, so nobody mistakes a full queue for a
     // feature that is working end to end.

@@ -48,6 +48,8 @@ function deps(overrides: Partial<PipelineDeps> & { drafts?: Written[] } = {}): P
     recentSubjects: async () => [],
     // ⚠️ Nothing spent yet, so every hand-fed angle is still available.
     poolUsage: async () => ({}),
+    // ⚠️ Nothing measured, so the rotation is the plain round-robin.
+    measuredPosts: async () => [],
     usedRecipeHashes: async () => new Set<string>(),
     recentPalettes: async () => [],
     recentLayouts: async () => [],

@@ -26,6 +26,7 @@ import { judgeSubject, subjectHash, exclusionList } from "@/lib/social/subjects"
 import { pickRecipe, headlineFor, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
 import { unshapableScripts, unshapableNote } from "@/lib/social/shaping";
 import { pickWord, untranslatablePoolReady, vettedWords } from "@/lib/social/untranslatableWords";
+import { angleScores, turnsFor, weightedCycle, type PostOutcome } from "@/lib/social/learning";
 import {
   pickMistake,
   mistakesPoolReady,
@@ -117,6 +118,16 @@ export type PipelineDeps = {
    * word has been used, and the writer dutifully writes about it again.
    */
   poolUsage: () => Promise<Record<string, number>>;
+  /**
+   * 🔑 WHAT EACH PAST POST ACTUALLY EARNED, so the next one can be chosen with
+   * that in mind ⇒ src/lib/social/learning.ts. The owner: "actions are taken
+   * for the next post automatically."
+   *
+   * ⛔ Returns [] when there is nothing measured, and the rotation is then
+   * EXACTLY the round-robin it has always been. Doing nothing is the correct
+   * behaviour on no evidence, and it is the behaviour today.
+   */
+  measuredPosts: () => Promise<PostOutcome[]>;
   usedRecipeHashes: () => Promise<Set<string>>;
   recentPalettes: () => Promise<string[]>;
   recentLayouts: () => Promise<string[]>;
@@ -579,7 +590,22 @@ export async function prepareGenerated(
    * and deciding them inside the writer left nobody able to check the result
    * ⇒ the `word` field on WriteRequest.
    */
-  const pool = nextPool(usablePools(args.schedule.topicPool, await deps.poolUsage()), args.postsSoFar);
+  /**
+   * 🔴 THE ROTATION IS NOW TILTED BY WHAT WORKED, not replaced by it.
+   *
+   * ⛔ Every angle still gets a turn — "do more of what works" run to its
+   * conclusion picks one angle and never leaves, which is the monoculture the
+   * round-robin was built to prevent
+   * ⇒ trap_a_menu_handed_to_a_model_is_not_a_rotation.
+   *
+   * ⚠️ And it does nothing until an angle has MIN_POSTS_PER_ANGLE measured
+   * posts behind it on THIS channel ⇒ learning.ts. Today that is true of none
+   * of them, so this line behaves exactly as the plain round-robin did.
+   */
+  const available = usablePools(args.schedule.topicPool, await deps.poolUsage());
+  const scores = angleScores(await deps.measuredPosts());
+  const cycle = weightedCycle(available, turnsFor(available, scores, args.platform));
+  const pool = nextPool(cycle, args.postsSoFar);
   const word = pool === "untranslatable" ? pickWord(args.postsSoFar) : null;
   const mistake = pool === "built-wrong" ? pickMistake(args.postsSoFar) : null;
 

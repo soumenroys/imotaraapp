@@ -79,12 +79,22 @@ describe("exactly one angle reaches the writer", () => {
   it("hands over a single-element list, not the schedule's whole set", () => {
     // ⚠️ The angle is decided ONCE, above the retry loop, and passed as a
     // one-element list ⇒ the `pool` const.
-    // ⚠️ The anchor gained an argument — usablePools now also needs to know
-    // what each hand-fed angle has already SPENT, so an angle whose material
-    // is used up stands down ⇒ four posts about অভিমান in one ten-day queue.
-    expect(pipeline).toMatch(
-      /const pool = nextPool\(usablePools\(args\.schedule\.topicPool, await deps\.poolUsage\(\)\), args\.postsSoFar\)/,
-    );
+    /**
+     * ⛔ THIS ANCHOR HAS NOW BROKEN TWICE ON CHANGES THAT KEPT THE RULE —
+     * first when usablePools gained the spend counts, then when the rotation
+     * gained a weighted cycle. ⇒ So it pins the RULE instead of the line:
+     * whatever list is built, `nextPool` is called on THAT list, and exactly
+     * one angle comes back.
+     */
+    const at = pipeline.indexOf("const pool = nextPool(");
+    expect(at).toBeGreaterThan(-1);
+
+    // The list handed to nextPool is the one that was filtered and weighted
+    // just above it — not the schedule's raw set.
+    const before = pipeline.slice(Math.max(0, at - 600), at);
+    expect(before).toContain("usablePools(args.schedule.topicPool");
+    expect(before).toContain("weightedCycle(");
+    expect(pipeline.slice(at, at + 120)).not.toContain("args.schedule.topicPool");
     expect(pipeline).toMatch(/topicPool: \[pool\],/);
     expect(
       /topicPool: args\.schedule\.topicPool,/.test(pipeline),

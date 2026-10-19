@@ -19,6 +19,7 @@ import type { GateOverlay } from "@/lib/social/voiceGate";
 import type { PipelineDeps, PreparedPost, ScheduleShape } from "@/lib/social/pipeline";
 import { writeWithModel } from "@/lib/social/writer";
 import { slotKey, type ScheduleTimes } from "@/lib/social/horizon";
+import type { PostOutcome } from "@/lib/social/learning";
 
 /** How many past subjects the overlap check sees. ⚠️ Exact repeats at ANY
  *  distance are caught by the unique index regardless of this number. */
@@ -160,6 +161,7 @@ export async function liveDeps(): Promise<PipelineDeps> {
   return {
     recentSubjects: () => recentSubjects(),
     poolUsage: () => poolUsage(),
+    measuredPosts: () => measuredPosts(),
     usedRecipeHashes: () => usedRecipeHashes(),
     recentPalettes: async () => recent.palettes,
     recentLayouts: async () => recent.layouts,
@@ -623,4 +625,52 @@ export async function poolUsage(): Promise<Record<string, number>> {
     out[pool] = (out[pool] ?? 0) + 1;
   }
   return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// What the numbers say ⇒ src/lib/social/learning.ts
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Every measured post, flattened for the learner.
+ *
+ * ⛔ THE LATEST CAPTURE PER POST, not every capture. Stats are taken daily, so
+ * a post two weeks old has fourteen rows and would otherwise outvote a recent
+ * one fourteen to one — ranking angles by AGE while looking like performance.
+ *
+ * ⚠️ Joined to the post for `topic_pool` and `platform`: the stats row knows
+ * the numbers, only the post knows what it was about.
+ */
+export async function measuredPosts(limit = 500): Promise<PostOutcome[]> {
+  const db = getSupabaseAdmin();
+  const { data, error } = await db
+    .from("social_post_stats")
+    .select("post_id, captured_on, saves, shares, reactions, comments, reach, impressions, social_posts(platform, topic_pool)")
+    .order("captured_on", { ascending: false })
+    .limit(limit);
+
+  // ⛔ Fails OPEN: unreadable stats mean "no evidence", which leaves the
+  // rotation exactly as it was. ⚠️ A bookkeeping failure must never be able to
+  // change what gets published.
+  if (error || !data) return [];
+
+  const latest = new Map<string, PostOutcome>();
+  for (const r of data) {
+    const id = r.post_id as string;
+    // ⚠️ Ordered newest first, so the FIRST row seen for a post is its latest.
+    if (latest.has(id)) continue;
+    const post = r.social_posts as unknown as { platform?: string; topic_pool?: string } | null;
+    if (!post?.platform) continue;
+    latest.set(id, {
+      platform: post.platform,
+      pool: post.topic_pool ?? null,
+      saves: r.saves as number | null,
+      shares: r.shares as number | null,
+      reactions: r.reactions as number | null,
+      comments: r.comments as number | null,
+      reach: r.reach as number | null,
+      impressions: r.impressions as number | null,
+    });
+  }
+  return [...latest.values()];
 }

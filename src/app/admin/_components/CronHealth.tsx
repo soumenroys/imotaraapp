@@ -17,6 +17,8 @@ import { Card, Chip } from "@/app/admin/_components/ui";
 
 type Job = {
   job: string;
+  /** ⚠️ Null when nobody has written one ⇒ jobDescriptions.ts. */
+  description: string | null;
   schedule: string;
   intervalMinutes: number | null;
   lastFiredAt: string | null;
@@ -85,7 +87,7 @@ export function CronHealth() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-white/8 text-xs uppercase tracking-wide text-zinc-500">
                 <tr>
-                  <th className="py-2 pr-3 font-medium">Job</th>
+                  <th className="py-2 pr-3 font-medium">Job &amp; what it does</th>
                   <th className="py-2 pr-3 font-medium">Expected</th>
                   <th className="py-2 pr-3 font-medium">Last run</th>
                   <th className="py-2 pr-3 font-medium">Runs</th>
@@ -95,7 +97,19 @@ export function CronHealth() {
               <tbody>
                 {jobs.map((j) => (
                   <tr key={j.job} className="border-b border-white/5 last:border-0">
-                    <td className="py-2 pr-3 font-mono text-[11px] text-zinc-300">{j.job.replace("/api/", "")}</td>
+                    <td className="py-2 pr-3">
+                      <div className="font-mono text-[11px] text-zinc-300">{j.job.replace("/api/", "")}</div>
+                      {/* 🔑 WHAT IT DOES, under the path ⇒ jobDescriptions.ts. A list of
+                          names is not a list of jobs: "connect-orphans" showing LATE
+                          cannot be judged until a reader knows whether that is an outage
+                          or a tidy-up. ⛔ Blank when nobody has written one, rather than
+                          a restatement of the path dressed up as information. */}
+                      {j.description ? (
+                        <div className="mt-0.5 max-w-[34rem] text-[11px] leading-snug text-zinc-500">
+                          {j.description}
+                        </div>
+                      ) : null}
+                    </td>
                     <td className="py-2 pr-3 text-xs text-zinc-500">
                       {j.intervalMinutes === null
                         ? j.schedule

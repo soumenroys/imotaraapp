@@ -193,6 +193,24 @@ const BENIGN_HOSTS = new Set([
      * goes stale.
      */
     "www.googleapis.com",
+    /**
+     * X's API, called SERVER-SIDE by the scheduler ⇒ src/lib/social/adapters/x.ts.
+     *
+     * ✅ Benign on the same argument as graph.facebook.com, api.linkedin.com
+     * and www.googleapis.com: what travels is marketing copy we wrote, a card
+     * we rendered, and a token belonging to Imotara. No visitor IP, no
+     * reader's browser, nothing anybody typed into the product.
+     *
+     * ⚠️ 19 Oct: this is now the FOURTH host in that group, and they all stop
+     * being benign on the same day — the moment a post carries something a
+     * user wrote, every one of these entries is wrong and the hosts belong in
+     * PROCESSOR_HOSTS and in the policy. ⛔ The writer is forbidden from
+     * inventing a testimonial, which is what keeps the group true.
+     *
+     * 💰 One thing that is NOT a disclosure question but is worth knowing
+     * here: posting to this host COSTS MONEY per call under pay-per-use.
+     */
+    "api.x.com",
     "api.linkedin.com",
     /**
      * Microsoft Learn — LinkedIn's API DOCUMENTATION, cited in a comment and

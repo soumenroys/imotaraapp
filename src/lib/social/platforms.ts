@@ -244,7 +244,20 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     emoji: 1,
     // ⚠️ True here and nowhere else on this list: X does not punish an
     // outbound link the way Meta and LinkedIn do.
-    linksInBody: true,
+    /**
+     * 🔴 FALSE FOR A REASON THAT IS BOTH EDITORIAL AND FINANCIAL — changed
+     * 19 Oct when the owner chose pay-per-use.
+     *
+     * 💰 X's reported rate card charges **$0.015 to create a post and $0.200
+     * if the post contains a URL**. One field, a thirteenfold difference:
+     * ~45¢ a month against ~$6. ⚠️ Not from X — developer.x.com answers a
+     * fetch with 402 — but several independent sources agree.
+     *
+     * ⛔ AND IT COSTS CHARACTERS TOO. A URL is 23 of 280 here, on the one
+     * channel where the ceiling IS the format. The destination rides on the
+     * card's QR codes, exactly as on every other channel.
+     */
+    linksInBody: false,
     voice:
       "One thought, finished, inside 280 characters. ⛔ No thread, no 'a 🧵', no hook that promises " +
       "a payoff further down. If it needs a second post it is the wrong thought for this channel.",

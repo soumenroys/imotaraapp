@@ -13,6 +13,7 @@
 
 import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { describeJob } from "@/lib/cron/jobDescriptions";
 
 /**
  * Record that a job just ran.
@@ -80,6 +81,9 @@ export function lateAfterMinutes(intervalMinutes: number): number {
 
 export type JobHealth = {
   job: string;
+  /** 🔑 What it does, in one line ⇒ jobDescriptions.ts. Null if nobody has
+   *  written one — which the panel shows as blank rather than as a guess. */
+  description: string | null;
   schedule: string;
   intervalMinutes: number | null;
   lastFiredAt: string | null;
@@ -118,6 +122,7 @@ export function judgeJobs(
 
       return {
         job: d.path,
+        description: describeJob(d.path),
         schedule: d.schedule,
         intervalMinutes: interval,
         lastFiredAt: hit?.last_fired_at ?? null,

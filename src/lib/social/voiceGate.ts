@@ -813,10 +813,26 @@ export function checkHouseStyle(
   }
 
   if (!spec.linksInBody && links > 0) {
+    /**
+     * 🔑 THE REASON IS NOT THE SAME ON EVERY CHANNEL, and saying the wrong
+     * one teaches the wrong lesson.
+     *
+     * ⛔ This said "it costs the post most of its reach" everywhere. That is
+     * Facebook's and LinkedIn's reason. On Instagram the link is not even
+     * clickable, so it costs nothing and buys nothing. And on X, since the
+     * owner moved to pay-per-use on 19 Oct, a post containing a URL is
+     * charged at **$0.200 instead of $0.015** — thirteen times, in money.
+     * ⇒ Each channel is told its own reason ⇒ platforms.ts.
+     */
+    const because =
+      platform === "instagram"
+        ? "Instagram does not make it clickable, so it costs characters and buys nothing."
+        : platform === "x"
+          ? "X charges about thirteen times more for a post containing a URL, and it spends 23 of 280 characters."
+          : "It sends people off-platform, which costs the post most of its reach.";
     problems.push(
-      `${links} link${links === 1 ? "" : "s"} in the body — ⛔ none on ${spec.label}. ` +
-        `It sends people off-platform, which costs the post most of its reach` +
-        (platform === "instagram" ? ", and Instagram does not make it clickable anyway." : "."),
+      `${links} link${links === 1 ? "" : "s"} in the body — ⛔ none on ${spec.label}. ${because} ` +
+        `▶️ The destination is on the card's QR codes.`,
     );
   } else if (spec.linksInBody && links > 1) {
     problems.push(`${links} links — one, so the reader knows which one matters.`);

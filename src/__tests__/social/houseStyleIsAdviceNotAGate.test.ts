@@ -88,13 +88,30 @@ describe("what it counts", () => {
      * does not make a caption link clickable at all — so the old "one link is
      * fine" rule was quietly paying for nothing on three of the five channels.
      */
-    it("refuses a body link where the platform charges for it, and allows one where it does not", () => {
-        for (const p of ["facebook", "linkedin", "instagram"]) {
+    it("refuses a body link on four channels, and tells each one its OWN reason", () => {
+        /**
+         * 🔴 X JOINED THIS LIST ON 19 Oct, and for a reason the others do not
+         * share: the owner moved to pay-per-use, where a post containing a URL
+         * is charged **$0.200 instead of $0.015**. The cost is no longer reach
+         * — it is money.
+         *
+         * ⛔ AND THE MESSAGE USED TO SAY THE WRONG THING. It told every channel
+         * "it costs the post most of its reach", which is Facebook's reason;
+         * on Instagram the link is not even clickable. A gate that gives the
+         * wrong reason teaches the wrong lesson, however right its verdict.
+         */
+        for (const p of ["facebook", "linkedin", "instagram", "x"]) {
             const r = checkHouseStyle("Read https://www.imotara.com today", p);
             expect(r.links, p).toBe(1);
             expect(r.problems.join(" "), p).toMatch(/link/i);
+            // ⚠️ Every refusal points at where the destination actually lives.
+            expect(r.problems.join(" "), p).toMatch(/QR codes/);
         }
-        expect(checkHouseStyle("Read https://www.imotara.com today", "x").problems.join(" ")).not.toMatch(/link/i);
+        expect(checkHouseStyle("Read https://www.imotara.com", "instagram").problems.join(" ")).toMatch(/not make it clickable/);
+        expect(checkHouseStyle("Read https://www.imotara.com", "x").problems.join(" ")).toMatch(/thirteen times/);
+        expect(checkHouseStyle("Read https://www.imotara.com", "facebook").problems.join(" ")).toMatch(/most of its reach/);
+        // 🔑 YouTube is the one channel where a link is a service, not a leak.
+        expect(checkHouseStyle("Read https://www.imotara.com today", "youtube").problems.join(" ")).not.toMatch(/link/i);
 
         const two = checkHouseStyle("https://www.imotara.com and https://www.imotara.com/help", "x");
         expect(two.links).toBe(2);

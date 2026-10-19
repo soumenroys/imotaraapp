@@ -109,3 +109,53 @@ describe("what the alert actually says", () => {
     expect(fn).toContain("console.error");
   });
 });
+
+/**
+ * 🔴 THE REACTION BREAKDOWN HAD NEVER WORKED, AND TWO DEFECTS HID IT.
+ *
+ * Measured 19 Oct 2026 by pressing "Check it now" and reading what Facebook
+ * actually said:
+ *
+ *   • three posts → "(#10) This endpoint requires the 'pages_read_engagement'
+ *     permission" — the token can publish and cannot read engagement. ⇒ The
+ *     OWNER's, in Meta business settings.
+ *   • one post   → "(#100) Tried accessing nonexisting field (angry)" — OURS.
+ *
+ * ⛔ The request asked for a field called `angry`. There is no such field:
+ * Graph breaks reactions down by asking the SAME field repeatedly with
+ * different filters and NAMING each result — `reactions.type(ANGRY).as(angry)`.
+ *
+ * ⚠️ ONE DEFECT HID BEHIND ANOTHER. Every other post failed earlier, on the
+ * permission, and never reached this call. It took a post with a different id
+ * shape to get far enough to show it — which is why "the stats are broken"
+ * was one sentence and two separate problems.
+ */
+describe("⛔ a reaction breakdown is an ALIAS, not a field", () => {
+  const source = readFileSync(join(process.cwd(), "src/lib/social/adapters/facebook.ts"), "utf8");
+
+  it("🔴 asks for reactions.type(X).as(x), never a bare field named x", () => {
+    for (const type of ["ANGRY", "SAD", "LOVE"]) {
+      const alias = type.toLowerCase();
+      expect(
+        source,
+        `${alias} is requested without reactions.type(${type}).as(${alias})`,
+      ).toContain(`reactions.type(${type}).limit(0).summary(true).as(${alias})`);
+      // ⛔ The exact shape that produced "(#100) Tried accessing nonexisting field".
+      expect(source, `the bare-field form of ${alias} is back`).not.toContain(`,${alias}.type(${type})`);
+    }
+  });
+
+  it("⚠️ and the #100 message no longer names only ONE cause", () => {
+    /**
+     * 🔴 It said "Meta RETIRES these in waves… update the metric lists" — a
+     * confident remedy for a cause that was not the cause. A malformed field
+     * expression and a withdrawn metric produce the SAME error, and only one
+     * of them is Meta's doing ⇒ the 18 Oct lesson about a row shouting a
+     * generic remedy over a correct diagnosis.
+     */
+    const at = source.indexOf("nonexisting field/i.test(said)");
+    const near = source.slice(at, at + 1600);
+    expect(near).toMatch(/TWO THINGS LOOK LIKE THIS/);
+    expect(near, "it still asserts a withdrawn name as the only cause").toMatch(/field EXPRESSION first/);
+  });
+});

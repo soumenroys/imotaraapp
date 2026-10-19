@@ -131,12 +131,32 @@ export function classifyGraphError(err: GraphError): { kind: FacebookFailure; me
    * telling them to re-paste a working token.
    */
   if (code === 100 && /valid insights metric|nonexisting field/i.test(said)) {
+    /**
+     * 🔴 THIS MESSAGE GAVE THE WRONG REMEDY, CONFIDENTLY, FOR WEEKS.
+     *
+     * ⛔ It said "Meta RETIRES these in waves, so this is almost certainly a
+     * name that has been withdrawn" and sent the reader to update the metric
+     * lists. On 19 Oct the real cause was neither: the request asked for a
+     * FIELD CALLED `angry`, when Graph wants `reactions.type(ANGRY).as(angry)`.
+     * A malformed field expression and a withdrawn metric produce the SAME
+     * #100, and only one of them is Meta's doing.
+     *
+     * ⚠️ THE SAME SHAPE AS 18 OCT, when a row shouted "generate a new token"
+     * over a correct diagnosis, on the screen where obeying it costs a
+     * working credential. ⇒ A specific diagnosis must REPLACE a generic one,
+     * never be stated as though it were the only possibility.
+     */
+    const alias = /nonexisting field/i.test(said);
     return {
       kind: "unknown",
       message:
-        `Facebook does not recognise that insights metric: ${said} ⚠️ Meta RETIRES these in waves, ` +
-        `so this is almost certainly a name that has been withdrawn rather than anything wrong ` +
-        `with the Page or the token. ▶️ Update the metric lists in facebook.ts.`,
+        `Facebook does not recognise that field or metric: ${said} ` +
+        (alias
+          ? `⚠️ TWO THINGS LOOK LIKE THIS. Either the request asked for a field that does not exist — ` +
+            `a reaction breakdown must be written \`reactions.type(ANGRY).as(angry)\`, not \`angry.type(ANGRY)\` — ` +
+            `or Meta has withdrawn the name. ▶️ Check the field EXPRESSION first; it is the half we control.`
+          : `⚠️ Meta retires insights metrics in waves, so this is likely a withdrawn name rather than ` +
+            `anything wrong with the Page or the token. ▶️ Update the metric lists in facebook.ts.`),
     };
   }
 
@@ -572,10 +592,24 @@ export async function fetchPostStats(args: {
          * that breaks reactions down. `limit(0)` keeps them as counts rather
          * than pages of objects.
          */
+        /**
+         * 🔴 `.as(alias)`, AND IT WAS MISSING — so this has NEVER worked.
+         *
+         * ⛔ It asked for `angry.type(ANGRY)…`, which requests a FIELD CALLED
+         * `angry`. There is no such field. Graph breaks reactions down by
+         * asking the SAME field several times with different filters and
+         * naming each result: `reactions.type(ANGRY).as(angry)`.
+         *
+         * ⚠️ Facebook said so plainly — "(#100) Tried accessing nonexisting
+         * field (angry)" — and nobody saw it for weeks, because every other
+         * post failed EARLIER on a missing `pages_read_engagement` permission
+         * and never reached this call. One defect hid behind another, and it
+         * took a post with a different id shape to get far enough to show it.
+         */
         `?fields=reactions.summary(true).limit(0),comments.summary(true).limit(0),shares` +
-        `,angry.type(ANGRY).limit(0).summary(true)` +
-        `,sad.type(SAD).limit(0).summary(true)` +
-        `,love.type(LOVE).limit(0).summary(true)` +
+        `,reactions.type(ANGRY).limit(0).summary(true).as(angry)` +
+        `,reactions.type(SAD).limit(0).summary(true).as(sad)` +
+        `,reactions.type(LOVE).limit(0).summary(true).as(love)` +
         `&access_token=${encodeURIComponent(args.token)}`,
       { signal: AbortSignal.timeout(15_000), cache: "no-store" },
     );

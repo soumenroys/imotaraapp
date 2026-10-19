@@ -216,9 +216,43 @@ export async function qrDataUri(target: string, dark: string, light: string): Pr
 
 /** All three, ready for the composer. ⚠️ One failure loses one code, not the
  *  picture: a card with two codes is a card. */
+/**
+ * 🔑 HOW MANY CODES A CHANNEL CARRIES, and the honest reason.
+ *
+ * 🔴 THE FOLKLORE I CHECKED AND DID NOT FIND. The worry was that a repeated
+ * logo + QR pattern reads as marketing and gets down-ranked. ⛔ Nothing in
+ * Meta's own documentation supports that — the originality rules target
+ * REPOSTED MEDIA, not a reused design, and QR codes are not mentioned
+ * anywhere. The 20%-text rule people quote is an ADS delivery rule, not an
+ * organic one ⇒ feedback_social_platform_rules_are_reviewed.
+ *
+ * ⚠️ SO THIS IS A DESIGN JUDGEMENT, NOT AN ALGORITHM ONE, and it is labelled
+ * as such. Claiming a ranking reason I cannot evidence would be exactly the
+ * confident nonsense this file tries to avoid.
+ *
+ * The judgement: three codes with coloured rings and labels are the second
+ * loudest thing on the card after the headline, and on Instagram they are
+ * read on the very phone that would have to scan them — so they cost
+ * attention and return almost nothing. One quiet code keeps a way in.
+ *
+ * ⛔ Facebook keeps all three: it is far more often read on a desktop, where
+ * a phone camera pointed at the screen is exactly how somebody installs an
+ * app.
+ */
+export const QR_COUNT: Record<string, number> = {
+  facebook: 3,
+  instagram: 1,
+  linkedin: 3,
+  x: 1,
+  youtube: 3,
+};
+
 export async function allQrCodes(platform: string): Promise<QrCode[]> {
   const out: QrCode[] = [];
-  for (const t of QR_TARGETS) {
+  // ⚠️ `?? QR_TARGETS.length` — an unknown channel gets the full set rather
+  // than silently none. A missing code is a dead end; an extra one is clutter.
+  const want = QR_COUNT[platform] ?? QR_TARGETS.length;
+  for (const t of QR_TARGETS.slice(0, want)) {
     /**
      * 🔴 THE COLOUR IS CHECKED, NOT TRUSTED. A QR code is the one graphic on a
      * card that is read by a machine with none of a human eye's advantages: no

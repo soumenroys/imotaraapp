@@ -34,17 +34,41 @@ const publisher = readFileSync(join(process.cwd(), "src/app/api/cron/social-publ
   .replace(/^\s*\/\/.*$/gm, "");
 
 describe("a post is never published without what it was written around", () => {
-  it("⛔ a short video is HELD on Facebook, not sent as text", () => {
-    const r = mediaPlan("facebook", "short_video");
-    expect(r.ok).toBe(false);
-    if (r.ok) throw new Error("unreachable");
-    expect(r.why).toMatch(/nothing here can publish one yet/i);
-    // ⚠️ And it says what to DO, not just that it refused.
-    expect(r.why).toMatch(/▶️/);
+  /**
+   * ⚠️ THESE TWO ASSERTED THE OPPOSITE UNTIL 19 Oct, AND WERE RIGHT TO.
+   * Video was held on every channel because no adapter called any platform.
+   * Both halves now exist on Meta — the call AND the stored bytes for Meta to
+   * fetch ⇒ publishVideoToFacebook, publishReelToInstagram,
+   * /api/social/video/[id]. ⛔ The rule did not soften; the code caught up.
+   */
+  it("a short video can publish where BOTH halves exist", () => {
+    expect(mediaPlan("facebook", "short_video").ok).toBe(true);
+    expect(mediaPlan("instagram", "short_video").ok).toBe(true);
   });
 
-  it("⛔ an animated GIF likewise, on every channel", () => {
-    for (const platform of ["facebook", "instagram", "linkedin", "x"]) {
+  it("⛔ and is still HELD where no adapter calls the platform", () => {
+    /**
+     * 🔑 THE LIST MATCHES THE CODE, NOT THE PLATFORM. LinkedIn and X both
+     * take video perfectly well; nothing here has ever called them for it.
+     * A list that matched their capabilities would wave a post through to a
+     * path that does not exist — which is exactly how Facebook came to be
+     * able to publish a video post as bare text.
+     */
+    for (const platform of ["linkedin", "x"]) {
+      const r = mediaPlan(platform, "short_video");
+      expect(r.ok, platform).toBe(false);
+      if (r.ok) throw new Error("unreachable");
+      expect(r.why).toMatch(/nothing here can publish one yet/i);
+      // ⚠️ And it says what to DO, not just that it refused.
+      expect(r.why).toMatch(/▶️/);
+    }
+  });
+
+  it("an animated GIF follows the same split", () => {
+    for (const platform of ["facebook", "instagram"]) {
+      expect(mediaPlan(platform, "animated_gif").ok, platform).toBe(true);
+    }
+    for (const platform of ["linkedin", "x"]) {
       expect(mediaPlan(platform, "animated_gif").ok, platform).toBe(false);
     }
   });

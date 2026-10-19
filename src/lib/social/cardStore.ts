@@ -25,12 +25,53 @@ export function cardPath(postId: string, slide = 0): string {
 }
 
 /**
+ * Where a post's moving card lives.
+ *
+ * 🔑 ENCODED ONCE, AT APPROVAL, AND KEPT — for the same reason the shaped
+ * cards are. Meta FETCHES this URL itself before it publishes, and encoding
+ * five frames plus an MP4 on that request would put ffmpeg on the one call
+ * that must not be slow ⇒ docs/sql/social_card_store.sql.
+ *
+ * ⚠️ The extension follows the format, because the bucket and the browser
+ * both decide what they are looking at from it.
+ */
+export function videoPath(postId: string, format: "mp4" | "gif"): string {
+  return `${postId}/motion.${format}`;
+}
+
+/**
  * Put the bytes where the card route can find them.
  *
  * ⛔ `upsert: true`. A post can be edited and re-approved, and the second
  * render must REPLACE the first — otherwise the reviewer approves new words
  * and the old picture publishes.
  */
+/** Keep a post's moving card. ⚠️ Same upsert rule as a still: a re-approval
+ *  must REPLACE, or new words publish over an old picture. */
+export async function putVideo(
+  postId: string,
+  format: "mp4" | "gif",
+  bytes: Uint8Array,
+): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
+  const db = getSupabaseAdmin();
+  const path = videoPath(postId, format);
+  const { error } = await db.storage.from(CARD_BUCKET).upload(path, bytes, {
+    contentType: format === "mp4" ? "video/mp4" : "image/gif",
+    upsert: true,
+  });
+  if (error) return { ok: false, error: `The video could not be stored: ${error.message}` };
+  return { ok: true, path };
+}
+
+/** The stored video, or nothing. ⛔ Unlike a still, there is NO fallback to
+ *  rendering it on demand — that is the whole reason it is stored. */
+export async function getVideo(postId: string, format: "mp4" | "gif"): Promise<Uint8Array | null> {
+  const db = getSupabaseAdmin();
+  const { data, error } = await db.storage.from(CARD_BUCKET).download(videoPath(postId, format));
+  if (error || !data) return null;
+  return new Uint8Array(await data.arrayBuffer());
+}
+
 export async function putCard(
   postId: string,
   slide: number,
@@ -74,7 +115,15 @@ export async function getCard(postId: string, slide = 0): Promise<Uint8Array | n
 export async function dropCards(postId: string, upTo = 12): Promise<void> {
   const db = getSupabaseAdmin();
   try {
-    const paths = Array.from({ length: upTo }, (_, i) => cardPath(postId, i));
+    const paths = [
+      ...Array.from({ length: upTo }, (_, i) => cardPath(postId, i)),
+      // ⚠️ AND THE MOVING ONE. An edit that left the old video behind would
+      // publish the previous words set to the new approval — the same stale
+      // -bytes problem as a still, and harder to notice in six seconds of
+      // motion than in a glance at a picture.
+      videoPath(postId, "mp4"),
+      videoPath(postId, "gif"),
+    ];
     await db.storage.from(CARD_BUCKET).remove(paths);
   } catch {
     // Deliberately swallowed ⇒ see above.

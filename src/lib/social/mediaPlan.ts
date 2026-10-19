@@ -36,10 +36,19 @@ export type MediaPlan =
  * not exist.
  */
 const PUBLISHABLE: Record<string, MediaKind[]> = {
-  // Text, or a card rendered from the recipe ⇒ publishToFacebook takes bytes.
-  facebook: ["none", "graphic"],
+  /**
+   * ⚠️ MOTION ADDED 19 Oct, once BOTH halves existed: the adapter that calls
+   * the platform AND the stored bytes for it to fetch
+   * ⇒ publishVideoToFacebook, /api/social/video/[id], ensureCard.
+   *
+   * ⛔ This list has always matched THE CODE rather than the platform, and
+   * that is what kept a video post from going out as bare text for the weeks
+   * the shapes existed and the calls did not.
+   */
+  facebook: ["none", "graphic", "short_video", "animated_gif"],
   // ⛔ No text-only post exists here, so "none" is absent on purpose.
-  instagram: ["graphic", "carousel"],
+  instagram: ["graphic", "carousel", "short_video", "animated_gif"],
+  // ⚠️ Still held: no adapter calls either of these channels for video.
   linkedin: ["none", "graphic"],
   x: ["none", "graphic"],
   youtube: [],

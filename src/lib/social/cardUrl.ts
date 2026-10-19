@@ -120,6 +120,17 @@ export function cardUrlFor(id: string, origin: string = publicOrigin(), slide = 
   return `${origin}/api/social/card/${id}${q}`;
 }
 
+/**
+ * The absolute URL for a post's MOVING card.
+ *
+ * 🔑 SIGNED WITH THE SAME SCOPE AS THE STILL — slide 0, one post, one secret
+ * — because it authorises the same thing: this post's media, to a stranger.
+ * ⛔ A second signing scheme would be a second place to get HMAC wrong.
+ */
+export function videoUrlFor(id: string, origin = publicOrigin()): string {
+  return `${origin}/api/social/video/${id}?t=${signCardId(id)}`;
+}
+
 export const FETCHABLE_STATUSES = ["approved", "publishing", "published"] as const;
 
 export function cardIsFetchable(status: string | null | undefined): boolean {

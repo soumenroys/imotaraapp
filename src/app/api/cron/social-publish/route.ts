@@ -18,10 +18,10 @@ import { cronAuthorised } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { postingIsPaused } from "@/lib/social/store";
 import { loadChannelCredential } from "@/lib/social/channelCredentials";
-import { publishToFacebook } from "@/lib/social/adapters/facebook";
-import { publishToInstagram, publishCarouselToInstagram } from "@/lib/social/adapters/instagram";
+import { publishToFacebook, publishVideoToFacebook } from "@/lib/social/adapters/facebook";
+import { publishToInstagram, publishCarouselToInstagram, publishReelToInstagram } from "@/lib/social/adapters/instagram";
 import { renderPostPictureBytes } from "@/lib/social/renderPicture";
-import { publicOrigin } from "@/lib/social/cardUrl";
+import { publicOrigin, videoUrlFor } from "@/lib/social/cardUrl";
 import { instagramCardPlan } from "@/lib/social/instagramCardPlan";
 import { platformSpec } from "@/lib/social/platforms";
 import { mediaPlan } from "@/lib/social/mediaPlan";
@@ -71,7 +71,17 @@ type Outcome = {
  * an HTML error page would otherwise look healthy, and Instagram would fail
  * later with a message about the media.
  */
-async function cardReaches(url: string): Promise<{ ok: true } | { ok: false; why: string }> {
+async function cardReaches(
+  url: string,
+  /**
+   * ⚠️ WHAT THE ANSWER MUST BE, because the two media types have different
+   * requirements and getting it wrong fails at the platform rather than here.
+   * ⛔ Instagram accepts JPEG and nothing else for a picture; a video must be
+   * video/* (or image/gif for X). A check that accepted anything would pass a
+   * JSON error page as a card.
+   */
+  expect: RegExp = /^image\/jpeg/,
+): Promise<{ ok: true } | { ok: false; why: string }> {
   try {
     const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
     if (!res.ok) {
@@ -83,10 +93,10 @@ async function cardReaches(url: string): Promise<{ ok: true } | { ok: false; why
       };
     }
     const type = res.headers.get("content-type") ?? "";
-    if (!type.startsWith("image/jpeg")) {
+    if (!expect.test(type)) {
       return {
         ok: false,
-        why: `${url} answered ${res.status} but with "${type}". ⛔ Instagram accepts JPEG and nothing else.`,
+        why: `${url} answered ${res.status} but with "${type}", which is not what this post needs.`,
       };
     }
     return { ok: true };
@@ -264,7 +274,52 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    if (platform === "instagram") {
+    /**
+     * 🔴 MOTION TAKES A DIFFERENT CALL ON BOTH CHANNELS, and it is answered
+     * BEFORE the picture branches — because the picture branches would
+     * otherwise happily publish a video post's words with a still card, or
+     * with nothing at all.
+     *
+     * ⚠️ Meta fetches the file ITSELF, so the bytes must already be stored
+     * and reachable ⇒ /api/social/video/[id], written at approval.
+     */
+    if (post.media_kind === "short_video" || post.media_kind === "animated_gif") {
+      const videoUrl = videoUrlFor(post.id as string, publicOrigin());
+      const reachable = await cardReaches(videoUrl, /^video\/|^image\/gif/);
+      if (!reachable.ok) {
+        await db
+          .from("social_posts")
+          .update({ status: "approved", last_error: reachable.why, updated_at: new Date().toISOString() })
+          .eq("id", post.id);
+        outcomes.push({
+          id: post.id as string,
+          platform,
+          language: post.language as string,
+          result: "failed",
+          detail: `The video could not be fetched, so nothing was posted: ${reachable.why}`,
+        });
+        continue;
+      }
+
+      const r =
+        platform === "instagram"
+          ? await publishReelToInstagram({
+              token: cred.token,
+              igUserId: cred.externalId,
+              caption: post.body as string,
+              videoUrl,
+            })
+          : await publishVideoToFacebook({
+              token: cred.token,
+              pageId: cred.externalId,
+              message: post.body as string,
+              videoUrl,
+            });
+
+      result = r.ok
+        ? { ok: true, postId: "mediaId" in r ? r.mediaId : r.postId, url: r.url }
+        : { ok: false, kind: r.kind, message: r.message };
+    } else if (platform === "instagram") {
       /**
        * 🔑 THE DECISION IS MADE IN A FUNCTION THAT CAN BE TESTED, and this
        * route does the part that cannot be undone ⇒ instagramCardPlan.ts.

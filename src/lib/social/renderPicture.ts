@@ -46,7 +46,7 @@ export function toElement(node: Node, key = "root"): ReactElement {
  * be a coloured rectangle with the brand name missing — published, and looking
  * deliberate.
  */
-async function loadFont(url: string): Promise<ArrayBuffer> {
+export async function loadFont(url: string): Promise<ArrayBuffer> {
   const res = await fetch(url, { cache: "force-cache" });
   if (!res.ok) {
     throw new Error(

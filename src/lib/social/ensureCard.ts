@@ -8,8 +8,9 @@
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { composePicture } from "@/lib/social/compose";
 import { renderShapedCard } from "@/lib/social/shapedRenderer";
-import { putCard } from "@/lib/social/cardStore";
+import { putCard, putVideo } from "@/lib/social/cardStore";
 import { cardPlan, shapedFaces } from "@/lib/social/needsShaping";
+import { renderAnimation, formatForChannel } from "@/lib/social/renderAnimation";
 import { cardsForPost } from "@/lib/social/cards";
 import { allQrCodes, QR_COUNT } from "@/lib/social/brandMarks";
 import { headlineFor, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
@@ -39,6 +40,38 @@ export async function ensureCard(postId: string): Promise<EnsureResult> {
     .single();
 
   if (error || !post) return { ok: false, error: "That post could not be read." };
+
+  /**
+   * 🔑 A MOVING CARD IS ENCODED HERE TOO, and for the same reason the shaped
+   * stills are: Meta fetches the URL itself and ffmpeg must not be on that
+   * request ⇒ /api/social/video/[id].
+   *
+   * ⚠️ The FORMAT follows the channel, not the stored shape. An animated GIF
+   * animates on X and nowhere else — LinkedIn strips it and Facebook converts
+   * it, both silently ⇒ renderAnimation.formatForChannel.
+   */
+  if (post.media_kind === "animated_gif" || post.media_kind === "short_video") {
+    const format = formatForChannel(post.platform as string, post.media_kind as string);
+    const started = Date.now();
+    const made = await renderAnimation(
+      {
+        platform: post.platform as string,
+        language: post.language as string,
+        subject: post.subject as string | null,
+        body: post.body as string,
+        media_kind: post.media_kind as string | null,
+        visual_recipe: post.visual_recipe,
+      },
+      format,
+    );
+    if (!made.ok) return { ok: false, error: made.error };
+
+    const put = await putVideo(postId, format, made.bytes);
+    if (!put.ok) return { ok: false, error: put.error };
+
+    await db.from("social_posts").update({ media_path: put.path }).eq("id", postId);
+    return { ok: true, kind: "stored", paths: [put.path], ms: Date.now() - started };
+  }
 
   // A post with no picture has nothing to store either way.
   if (post.media_kind !== "graphic" && post.media_kind !== "carousel") return { ok: true, kind: "derived" };

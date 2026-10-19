@@ -263,16 +263,34 @@ export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
      * the voice losing confidence mid-sentence.
      */
     const narration = input.narration ?? [];
+    /**
+     * ⛔ THE VIDEO CHAIN MOVES INTO THE COMPLEX GRAPH WHEN THERE IS ONE.
+     *
+     * 🔴 THIS IS WHAT BROKE IN PRODUCTION. ffmpeg refuses `-vf` and
+     * `-filter_complex` for the SAME output stream: "Filtergraph ... was
+     * specified through the -vf/-af/-filter option for output stream 0:0,
+     * which is fed from a complex filtergraph." It exits 1, and the message
+     * arrives truncated through two layers, so what the owner saw was
+     * "ffmpeg exited 1: uration from bitrate, this may be inaccurate".
+     *
+     * ⚠️ AND IT COULD NOT FAIL LOCALLY, because narration needs Azure and
+     * every region in this machine's .env.local has an empty region value —
+     * so every local run took the silent path, which uses `-vf` and is fine.
+     * The one branch I could not exercise is the one that was wrong.
+     */
+    const VIDEO_CHAIN = "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=25,format=yuv420p";
+
     const spoken =
       narration.length > 0
         ? [
-            ...narration.flatMap((n, i) => ["-i", `${dir}/say${i}.mp3`]),
+            ...narration.flatMap((_, i) => ["-i", `${dir}/say${i}.mp3`]),
             "-filter_complex",
-            narration
-              .map((n, i) => `[${i + 1}:a]adelay=${n.startMs}|${n.startMs}[s${i}]`)
-              .join(";") +
+            `[0:v]${VIDEO_CHAIN}[v];` +
+              narration
+                .map((n, i) => `[${i + 1}:a]adelay=${n.startMs}|${n.startMs}[s${i}]`)
+                .join(";") +
               `;${narration.map((_, i) => `[s${i}]`).join("")}amix=inputs=${narration.length}:normalize=0:dropout_transition=0[a]`,
-            "-map", "0:v",
+            "-map", "[v]",
             "-map", "[a]",
             "-c:a", "aac",
             "-b:a", "128k",
@@ -288,8 +306,10 @@ export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
       ? [
           "-i", input.audioPath,
           "-filter_complex",
-          `[1:a]${input.audioFilter ? `${input.audioFilter},` : ""}afade=t=in:st=0:d=1.2,afade=t=out:st=${Math.max(0, seconds - 1.5).toFixed(2)}:d=1.5[a]`,
-          "-map", "0:v",
+          // ⛔ Same clash as above: with a complex graph the VIDEO must come
+          // through it too, never through -vf.
+          `[0:v]${VIDEO_CHAIN}[v];[1:a]${input.audioFilter ? `${input.audioFilter},` : ""}afade=t=in:st=0:d=1.2,afade=t=out:st=${Math.max(0, seconds - 1.5).toFixed(2)}:d=1.5[a]`,
+          "-map", "[v]",
           "-map", "[a]",
           "-c:a", "aac",
           "-b:a", "128k",
@@ -304,7 +324,8 @@ export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
       "-i", list,
       ...spoken,
       ...audio,
-      "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=25,format=yuv420p",
+      // ⚠️ ONLY when nothing else filters the video ⇒ see VIDEO_CHAIN above.
+      ...(spoken.length === 0 && audio.length === 0 ? ["-vf", VIDEO_CHAIN] : []),
       "-c:v", "libx264",
       "-preset", "veryfast",
       "-crf", "20",

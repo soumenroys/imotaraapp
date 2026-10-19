@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { storyboard, finalFrame, TOTAL_MS } from "@/lib/social/frames";
+import { storyboard, finalFrame, totalMs, MAX_HOLD_MS } from "@/lib/social/frames";
 import { composePicture, wordsInPicture, imagesInPicture, type Node } from "@/lib/social/compose";
 import { recipeHash, LAYOUTS, MOTIFS } from "@/lib/social/visualRecipe";
 import { animationWarning, ANIMATES_ON, MIME } from "@/lib/social/animationFacts";
@@ -131,14 +131,46 @@ describe("the build order", () => {
     expect(arrivedAt.support).toBeLessThanOrEqual(arrivedAt.footer);
   });
 
-  it("runs for a length somebody will actually watch", () => {
+  it("⛔ is long because it SAYS more, never because it waits", () => {
+    /**
+     * 🔴 THIS TEST USED TO PIN A 6.2s TOTAL, with the reasoning: "past seven
+     * seconds a silent card in a feed is a still somebody waited through."
+     * That reasoning was right about a clip showing ONE line in silence.
+     *
+     * ⚠️ On 19 Oct the clip became a scene per sentence with an ambient bed,
+     * so both halves of the premise changed — it is not silent and it is not
+     * one still. ⛔ But the CONCERN survives exactly, and is now asserted
+     * where it actually lives: per frame, not as a total. A long clip is
+     * fine; a frozen one is not.
+     */
     const board = storyboard(input());
-    const total = board.holdMs.reduce((a, b) => a + b, 0);
-    expect(total).toBe(TOTAL_MS);
-    // ⚠️ Under seven seconds: past that a silent card in a feed is a still
-    // somebody waited through.
-    expect(total).toBeLessThan(7_000);
+    for (const [i, hold] of board.holdMs.entries()) {
+      expect(hold, `frame ${i} is held ${hold}ms — long enough to read as a still`).toBeLessThanOrEqual(MAX_HOLD_MS);
+    }
     expect(board.frames.length).toBe(board.holdMs.length);
+
+    // ⚠️ And it is still a sane length for a feed, at both ends.
+    const total = totalMs(board.holdMs);
+    expect(total).toBeGreaterThan(3_000);
+    expect(total).toBeLessThan(40_000);
+  });
+
+  it("⛔ a four-sentence body produces four scenes, not one held longer", () => {
+    /**
+     * 🔑 THE OWNER'S POINT, PINNED. "If we can add more content" — the content
+     * was already written and thrown away: the renderer passed ONE sentence
+     * and the storyboard had nothing else to show. A longer video showing the
+     * same line is a slower post, not a fuller one.
+     */
+    const four = storyboard(
+      input({
+        support:
+          "There is a stretch of the night when nobody answers. Imotara is awake then. " +
+          "It will not call itself therapy. And it shows you where to find a person.",
+      }),
+    );
+    const one = storyboard(input({ support: "There is a stretch of the night when nobody answers." }));
+    expect(four.frames.length).toBeGreaterThan(one.frames.length);
   });
 
   it("works on every layout and motif, at every channel's size", () => {

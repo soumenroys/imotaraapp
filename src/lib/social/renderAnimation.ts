@@ -13,6 +13,8 @@
 // afterwards."
 
 import { ImageResponse } from "next/og";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { storyboard } from "@/lib/social/frames";
 import { toElement, loadFont } from "@/lib/social/renderPicture";
 import { encode } from "@/lib/social/animate";
@@ -21,6 +23,40 @@ import { headlineFor, supportFromBody, type Recipe } from "@/lib/social/visualRe
 import { platformSpec } from "@/lib/social/platforms";
 
 export type AnimationFormat = "gif" | "mp4";
+
+/**
+ * 🔑 THE AMBIENT BEDS THE PRODUCT ALREADY SHIPS ⇒ public/sounds.
+ *
+ * ⚠️ THESE ARE THE BREATHING SOUNDS, not a track chosen for a feed — which is
+ * most of why they are right: they are calm because they were made to be
+ * breathed to, and they are literally the sound of the thing being posted
+ * about.
+ *
+ * ⛔ PROVENANCE IS UNCONFIRMED AND THE OWNER WAS TOLD SO. "Licensed for
+ * in-app use" and "licensed for marketing" are different grants, and a stock
+ * licence that covers the first does not always cover the second. ▶️ If these
+ * turn out to be in-app only, set AMBIENT_BEDS to [] — every video then
+ * publishes silent and nothing else changes.
+ */
+// ⚠️ `string[]`, not `as const`: the whole point is that this can be
+// emptied if the licence turns out not to cover marketing, and a literal
+// tuple type makes `length === 0` a compile error rather than a setting.
+export const AMBIENT_BEDS: string[] = ["rain.mp3", "ocean.mp3", "bowl.mp3"];
+
+/**
+ * Which bed this post gets.
+ *
+ * ⚠️ CHOSEN FROM THE RECIPE HASH, not at random and not always the same one.
+ * Random would mean a post re-encoded after an edit could arrive with a
+ * different sound than the one somebody approved; always-the-same would make
+ * every video in the feed identical to hear.
+ */
+export function ambientBed(recipeHash: string | undefined): string | null {
+  if (AMBIENT_BEDS.length === 0 || !recipeHash) return null;
+  let n = 0;
+  for (const ch of recipeHash) n = (n + ch.charCodeAt(0)) % 997;
+  return AMBIENT_BEDS[n % AMBIENT_BEDS.length];
+}
 
 export type AnimationSource = {
   platform: string;
@@ -84,10 +120,19 @@ export async function renderAnimation(
       recipe: post.visual_recipe as Recipe,
       headline,
       /**
-       * ⚠️ DERIVED, exactly as the still card derives it. Omitting it gives
-       * six seconds of card with a silent gap where a line should arrive.
+       * 🔑 THE WHOLE BODY, NOT ONE SENTENCE — changed 19 Oct.
+       *
+       * ⛔ This used to pass `supportFromBody`, which returns ONE sentence.
+       * The storyboard then had nothing else to show, so a four-sentence post
+       * became a six-second video carrying one line. The owner asked for more
+       * content and was right: the content was already written and thrown
+       * away here.
+       *
+       * ⚠️ The storyboard splits it into scenes and caps them ⇒ sentencesOf.
+       * A body it cannot split cleanly still yields one scene, which is
+       * exactly the old behaviour.
        */
-      support: supportFromBody(post.body) ?? undefined,
+      support: post.body,
       language: post.language,
       platform: post.platform,
       qrCodes,
@@ -114,11 +159,20 @@ export async function renderAnimation(
   }
 
   try {
+    /**
+     * ⚠️ RESOLVED FROM THE FILESYSTEM, and absent is not an error. A missing
+     * sound file must mean a silent video, never a failed post — the words
+     * are the post and the bed is a courtesy.
+     */
+    const bed = format === "mp4" ? ambientBed((post.visual_recipe as Recipe | null)?.hash) : null;
+    const audioPath = bed ? join(process.cwd(), "public", "sounds", bed) : undefined;
+
     const out = await encode(format, {
       frames,
       holdMs: board.holdMs,
       width: board.width,
       height: board.height,
+      ...(audioPath && existsSync(audioPath) ? { audioPath } : {}),
     });
     return { ok: true, bytes: new Uint8Array(out), width: board.width, height: board.height, ms: Date.now() - started };
   } catch (e) {

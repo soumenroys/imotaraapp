@@ -25,6 +25,14 @@ export type EncodeInput = {
   holdMs: number[];
   width: number;
   height: number;
+  /**
+   * 🔑 AN AMBIENT BED, OPTIONAL ⇒ ambientBed.
+   *
+   * ⛔ MP4 ONLY. A GIF carries no audio at all, so passing this to encodeGif
+   * is not a smaller version of the same thing — it is silently ignored, and
+   * the caller should know that rather than wonder.
+   */
+  audioPath?: string;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,11 +143,52 @@ export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
     await writeFile(list, lines.join("\n"), "utf8");
 
     const out = path.join(dir, "out.mp4");
+
+    /**
+     * 🔑 AN AMBIENT BED, WHEN ONE IS GIVEN ⇒ input.audioPath.
+     *
+     * ⚠️ BOTH PLATFORMS AUTOPLAY MUTED, so most viewers will never hear this.
+     * It is here because its ABSENCE is noticeable: Instagram treats a reel
+     * with no audio track at all as a weaker candidate, and somebody who
+     * unmutes deliberately should not get silence.
+     *
+     * ⛔ NORMALISED, NOT ATTENUATED — and that was a correction. A flat
+     * -18dB sounded right in the abstract and measured -46dB mean, which is
+     * nearly inaudible to somebody who deliberately unmutes. These files are
+     * already quiet ambient recordings (-28 to -30dB), so shifting them down
+     * buries them. ⚠️ They also differ from each other by 2.3dB, so any fixed
+     * shift gives a different result depending on which one the recipe picks.
+     *
+     * ⇒ `loudnorm` targets a LEVEL instead: -26 LUFS is present-but-under,
+     * and it lands there whichever track is chosen.
+     *
+     * ⚠️ FADED AT BOTH ENDS regardless. A bed that arrives at full volume is
+     * a jump-scare on a post about a bad night, and one that stops dead is
+     * worse.
+     *
+     * ⚠️ `-shortest` so the track is cut to the video and never the other way
+     * round: the source files are five minutes long.
+     */
+    const seconds = input.holdMs.reduce((a, b) => a + b, 0) / 1000;
+    const audio = input.audioPath
+      ? [
+          "-i", input.audioPath,
+          "-filter_complex",
+          `[1:a]loudnorm=I=-26:TP=-2:LRA=7,afade=t=in:st=0:d=1.2,afade=t=out:st=${Math.max(0, seconds - 1.5).toFixed(2)}:d=1.5[a]`,
+          "-map", "0:v",
+          "-map", "[a]",
+          "-c:a", "aac",
+          "-b:a", "128k",
+          "-shortest",
+        ]
+      : [];
+
     await run(await ffmpegPath(), [
       "-y",
       "-f", "concat",
       "-safe", "0",
       "-i", list,
+      ...audio,
       "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=25,format=yuv420p",
       "-c:v", "libx264",
       "-preset", "veryfast",

@@ -257,8 +257,23 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
 
   youtube: {
     id: "youtube",
-    label: "YouTube community",
-    picture: { width: 1280, height: 720, note: "the community-post and thumbnail ratio" },
+    label: "YouTube Shorts",
+    /**
+     * 🔴 9:16, BECAUSE THE THING THIS WAS SIZED FOR CANNOT BE DONE.
+     *
+     * ⛔ This read 1280×720, "the community-post and thumbnail ratio" — and
+     * the YouTube Data API HAS NO ENDPOINT FOR CREATING COMMUNITY POSTS.
+     * Checked 19 Oct 2026: no official documentation describes one, and every
+     * third-party source agrees it cannot be done. So the channel was
+     * configured, and carried on the board, for a format no code could ever
+     * reach ⇒ a plan built on an assumption nobody tested.
+     *
+     * ⚠️ WHAT THE API CAN DO IS UPLOAD A VIDEO — and this product now makes
+     * narrated ones daily. ⇒ The YouTube path is SHORTS, which are vertical.
+     * 1080×1920 is the shape YouTube asks for; anything else is letterboxed
+     * or cropped, and a card cropped down its middle loses its headline.
+     */
+    picture: { width: 1080, height: 1920, note: "9:16 — the Shorts frame" },
     limits: { hard: 1500, soft: 300 },
     bodyTarget: { min: 180, max: 290 },
     hashtags: 0,

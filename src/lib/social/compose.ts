@@ -672,6 +672,24 @@ function layoutFor(
    */
   const squarish = w / h < 1.35;
 
+  /**
+   * 🔴 A 9:16 FRAME IS NOT A TALL SQUARE — SOMEBODY ELSE'S UI IS ON IT.
+   *
+   * ⛔ A Short is shown with YouTube's own chrome drawn OVER the video: the
+   * channel handle and the description sit along the bottom, and the like,
+   * comment and share buttons run up the right. A wordmark at the foot of the
+   * frame is not "at the foot of the frame" — it is underneath a row of
+   * buttons.
+   *
+   * ⚠️ Seen by rendering at 1080×1920 and looking at it, which is the only way
+   * this was ever going to be noticed: every check passed, and the card was
+   * correct and partly invisible.
+   */
+  const tall = w / h < 0.8;
+  /** Roughly what YouTube covers, as a fraction of the height. */
+  const SHORTS_BOTTOM_UI = 0.16;
+  const SHORTS_TOP_UI = 0.07;
+
   const spacer = (px?: number): Node =>
     px === undefined
       ? { tag: "div", style: { display: "flex", flex: "1" } }
@@ -719,6 +737,17 @@ function layoutFor(
       width: "100%",
       height: "100%",
       padding: `${pad}px`,
+      /**
+       * ⚠️ APPLIED AFTER `padding`, so it overrides only the two edges that
+       * another app draws on ⇒ `tall`. ⛔ On every other shape these are
+       * absent and nothing changes — the 1:1 and 16:9 cards are untouched.
+       */
+      ...(tall
+        ? {
+            paddingBottom: `${Math.round(h * SHORTS_BOTTOM_UI)}px`,
+            paddingTop: `${Math.round(h * SHORTS_TOP_UI)}px`,
+          }
+        : {}),
       ...style,
     },
     children,

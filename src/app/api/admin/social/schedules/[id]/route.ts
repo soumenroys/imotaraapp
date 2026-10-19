@@ -7,6 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { cleanPlatformTimes } from "@/lib/social/platformTimes";
 import { isSupportedLanguage } from "@/lib/social/languages";
 import { mixProblems } from "@/lib/social/contentMix";
+import { retimeFor, touchesTheClock } from "@/lib/social/retimeQueue";
 
 type Body = {
   name?: string;
@@ -158,7 +159,57 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   // it names the unqualified language and says how to qualify it.
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   if (!data) return NextResponse.json({ error: "no such schedule" }, { status: 404 });
-  return NextResponse.json({ schedule: data });
+
+  /**
+   * 🔴 MOVING THE CLOCK MUST MOVE THE POSTS ALREADY WRITTEN FOR IT.
+   *
+   * ⛔ Until 19 Oct this route updated the row and touched nothing else. But
+   * `slotKey` is `scheduleId|platform|EXACT TIMESTAMP` ⇒ horizon.ts, so the
+   * moment the time changes every queued day looks MISSING at the new hour
+   * and the horizon writes a second post for it — up to TWENTY duplicates
+   * across a ten-day horizon on two channels, each a model call and each one
+   * that would really publish ⇒ trap_a_frozen_decision_outlives_its_rule.
+   *
+   * ⚠️ RECOMPUTED, NOT SHIFTED. A schedule can change its timezone, its days
+   * or one channel's override, and an offset cannot express any of those.
+   */
+  let retimed: ReturnType<typeof retimeFor> = [];
+  if (touchesTheClock(patch)) {
+    const { data: queued } = await db
+      .from("social_posts")
+      .select("id, platform, status, scheduled_for")
+      .eq("schedule_id", id)
+      .in("status", ["needs_review", "approved"])
+      .not("scheduled_for", "is", null);
+
+    retimed = retimeFor(data as never, (queued ?? []) as never);
+    for (const r of retimed) {
+      if (r.kind !== "move") continue;
+      await db.from("social_posts")
+        .update({ scheduled_for: r.to, updated_at: new Date().toISOString() })
+        .eq("id", r.id);
+    }
+  }
+
+  return NextResponse.json({
+    schedule: data,
+    /**
+     * 🔑 SAID BACK, not done silently. Moving somebody's queue is a bigger
+     * consequence than editing a row, and an orphan — a post whose weekday
+     * the schedule no longer runs — is a decision for a person, so it is
+     * named rather than deleted.
+     */
+    retimed: retimed.length
+      ? {
+          moved: retimed.filter((r) => r.kind === "move").length,
+          orphaned: retimed.filter((r) => r.kind === "orphan").map((r) => r.id),
+          note:
+            `${retimed.filter((r) => r.kind === "move").length} queued post(s) moved with the schedule. ` +
+            `⛔ Without this they would stay at the old hour and the queue would write a SECOND post ` +
+            `for every day at the new one.`,
+        }
+      : null,
+  });
 }
 
 /**

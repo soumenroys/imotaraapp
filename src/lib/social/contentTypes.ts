@@ -32,6 +32,17 @@ export const CONTENT_TYPES = [
   "graphic",
   "short_video",
   "animated_gif",
+  /**
+   * 🔑 ADDED 19 Oct. Several cards, swiped. ⚠️ NOT "the same post split up":
+   * our posts run two or three sentences and splitting those is padding —
+   * the "swipe for the obvious conclusion" shape readers resent. A carousel
+   * needs writing that earns each swipe ⇒ the `ways-of-saying` pool, which is
+   * the only angle shaped for it.
+   *
+   * ⛔ INSTAGRAM ONLY for now. Facebook takes multi-photo posts by a
+   * different route, and nothing has been built for it.
+   */
+  "carousel",
 ] as const;
 
 export type ContentType = (typeof CONTENT_TYPES)[number];
@@ -49,4 +60,5 @@ export const SHAPE_LABELS: Record<ContentType, string> = {
   graphic: "Graphic",
   short_video: "Short video",
   animated_gif: "Animated GIF",
+  carousel: "Carousel",
 };

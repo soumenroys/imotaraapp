@@ -236,13 +236,13 @@ alter table social_schedules drop constraint if exists social_schedules_content_
 alter table social_schedules drop constraint if exists social_schedules_content_type_known;
 alter table social_schedules
   add constraint social_schedules_content_type_known
-  check (content_type in ('text', 'graphic', 'text_graphic', 'animated_gif', 'short_video'));
+  check (content_type in ('text', 'graphic', 'text_graphic', 'animated_gif', 'short_video', 'carousel'));
 
 alter table social_posts drop constraint if exists social_posts_media_kind_check;
 alter table social_posts drop constraint if exists social_posts_media_kind_known;
 alter table social_posts
   add constraint social_posts_media_kind_known
-  check (media_kind in ('none', 'graphic', 'animated_gif', 'short_video'));
+  check (media_kind in ('none', 'graphic', 'animated_gif', 'short_video', 'carousel'));
 
 
 -- ── 4a-bis. THE EMPTY-ARRAY TRAP ─────────────────────────────────────────────

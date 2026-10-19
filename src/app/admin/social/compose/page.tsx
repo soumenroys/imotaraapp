@@ -46,6 +46,7 @@ const SHAPE_HINTS: Record<ContentType, string> = {
   graphic: "The card carries it.",
   short_video: "The card assembling itself. Moves on LinkedIn, Facebook, Instagram and X.",
   animated_gif: "The same six seconds as a GIF. ⚠️ Only X plays it — the rest show frame one.",
+  carousel: "Several cards, swiped. ⛔ Instagram only, and it needs writing that earns each swipe.",
 };
 
 const SHAPES = CONTENT_TYPES.map((id) => ({ id, label: SHAPE_LABELS[id], hint: SHAPE_HINTS[id] }));

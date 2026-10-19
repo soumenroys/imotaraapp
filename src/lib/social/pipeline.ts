@@ -57,6 +57,11 @@ export type WriteRequest = {
    *  a LinkedIn post written to Facebook's shape reads as the wrong room. */
   platform?: string;
   topicPool: string[];
+  /**
+   * ⚠️ The SHAPE being written, because a carousel needs a different reply
+   * from the model — several cards, not one body ⇒ responseShape.
+   */
+  contentType?: ContentType;
   /** Subjects the writer must not use again. ⚠️ A help, never the guarantee. */
   avoid: string[];
   /** On a retry, what the gate objected to last time. */
@@ -83,7 +88,18 @@ export type WriteRequest = {
   mistake?: ProductMistake;
 };
 
-export type Written = { subject: string; body: string; support?: string };
+export type Written = {
+  subject: string;
+  body: string;
+  support?: string;
+  /**
+   * 🔑 The cards AFTER the subject, when the shape is a carousel.
+   * ⛔ Asked of the writer, never cut out of `body` — splitting on sentence
+   * ends changes how many cards publish the moment an abbreviation or a
+   * decimal appears ⇒ docs/sql/social_carousel.sql.
+   */
+  slides?: string[];
+};
 
 export type PipelineDeps = {
   recentSubjects: () => Promise<string[]>;
@@ -117,7 +133,12 @@ export type PreparedPost = {
   body: string;
   support?: string;
   status: "needs_review" | "approved";
-  mediaKind: "none" | "graphic" | "animated_gif" | "short_video";
+  mediaKind: "none" | "graphic" | "animated_gif" | "short_video" | "carousel";
+  /**
+   * 🔑 The cards AFTER the subject, for a carousel. ⛔ Written by the model,
+   * gated word by word like everything else, and NEVER cut out of `body`.
+   */
+  slides?: string[];
   /**
    * 🔑 WHICH ANGLE THIS CAME FROM, carried so it can be STORED.
    *
@@ -254,6 +275,13 @@ export function mediaKindFor(contentType: ContentType, hasPicture: boolean): str
   if (!hasPicture) return "none";
   if (contentType === "animated_gif") return "animated_gif";
   if (contentType === "short_video") return "short_video";
+  /**
+   * ⚠️ A carousel still needs the picture machinery — every card is rendered
+   * the same way — so it only becomes a carousel once there IS one.
+   * ⛔ Without this it would be stored as a plain graphic and publish as a
+   * single card, silently losing every slide the writer produced.
+   */
+  if (contentType === "carousel") return "carousel";
   return "graphic";
 }
 
@@ -453,6 +481,9 @@ export async function prepareGenerated(
        * happened.
        */
       topicPool: [pool],
+      // ⚠️ The SHAPE, so a carousel asks the model for cards rather than one
+      // body ⇒ responseShape in writer.ts.
+      contentType: args.schedule.contentType,
       word: word ?? undefined,
       mistake: mistake ?? undefined,
       avoid: exclusionList(recent),
@@ -510,10 +541,21 @@ export async function prepareGenerated(
       continue;
     }
 
-    // ⛔ The gate reads the subject AND the body, because the subject is
-    // published too — as the headline on the picture and often as the first
-    // line of the caption.
-    const gate = checkVoice(`${subject}\n${body}`, language, overlay);
+    /**
+     * ⛔ THE GATE READS EVERY PUBLISHED WORD, which now includes the slides.
+     *
+     * The subject is published as the headline on the picture and often as
+     * the first line of the caption. Each SLIDE is a card of its own — words
+     * a reader sees, on a permanent public post. ⛔ A slide that never went
+     * through the word check is a card nobody vetted, and it would be the
+     * easiest place in this whole system for a claim to get out.
+     */
+    const slideText = (written.slides ?? []).join("\n");
+    const gate = checkVoice(
+      `${subject}\n${body}${slideText ? `\n${slideText}` : ""}`,
+      language,
+      overlay,
+    );
     if (!gate.ok) {
       const why = `The gate rejected it: ${gate.findings.map((f) => `${f.matched} (${f.list})`).join(", ")}`;
       rejected.push({ attempt, subject, body, why, gate });
@@ -613,6 +655,7 @@ export async function prepareGenerated(
         support: written.support,
         status,
         mediaKind: mediaKindFor(args.schedule.contentType, Boolean(picture)) as PreparedPost["mediaKind"],
+        slides: written.slides,
         // 🔑 The angle this was actually written from ⇒ nextPool.
         topicPool: pool,
         picture,

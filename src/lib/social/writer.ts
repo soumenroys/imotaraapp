@@ -132,7 +132,35 @@ price you were not given, or a feature not listed above. If a post would need
 one, write a different post.
 `.trim();
 
-function responseShape(): string {
+function responseShape(carousel: boolean): string {
+  if (carousel) {
+    /**
+     * 🔑 SLIDES ARE ASKED FOR, NOT CUT OUT OF THE BODY. Splitting the body on
+     * sentence ends was the first design and it is fragile exactly where it
+     * matters: an abbreviation, a decimal or a quoted full stop silently
+     * changes how many cards publish.
+     *
+     * ⚠️ The subject is the FIRST card, so the slides are what follows it.
+     * Saying that here stops the first slide repeating the headline, which is
+     * the commonest way a carousel wastes its opening swipe.
+     */
+    return `
+Reply with nothing but JSON, in exactly this shape:
+
+{"subject": "...", "body": "...", "slides": ["...", "...", "..."]}
+
+- "subject" is the FIRST CARD: a short phrase, under sixty characters, naming
+  the feeling this post is about.
+- "slides" are the cards AFTER it: four or five of them, each one short enough
+  to read at a glance and complete on its own. Do not repeat the subject in
+  the first slide. The last slide is the quietest and the most true.
+- "body" is the caption that sits under the whole post — one or two sentences,
+  not a repeat of the slides.
+
+No markdown, no code fence, no commentary.
+`.trim();
+  }
+
   return `
 Reply with nothing but JSON, in exactly this shape:
 
@@ -316,7 +344,7 @@ export function buildPrompt(req: WriteRequest): string {
     );
   }
 
-  parts.push("", responseShape());
+  parts.push("", responseShape(req.contentType === "carousel"));
   return parts.join("\n");
 }
 
@@ -364,7 +392,31 @@ export function parseWritten(text: string): Written {
     );
   }
 
-  return { subject, body, support: support || undefined };
+  /**
+   * 🔑 SLIDES, WHEN THE REPLY CARRIES THEM.
+   *
+   * ⛔ Each one shape-checked and trimmed, and anything that is not a
+   * non-empty string is DROPPED rather than coerced. A slide rendered from
+   * `null` is a blank card published in the middle of a carousel — visible to
+   * everyone, explicable by nobody.
+   *
+   * ⚠️ Instagram takes 2–10 items in a carousel and the subject is the first
+   * card, so at most 9 may follow it. Over that, the extras are dropped here
+   * rather than failing at publish: the post is still good at nine.
+   */
+  const slides = Array.isArray(obj.slides)
+    ? (obj.slides as unknown[])
+        .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+        .map((x) => x.trim())
+        .slice(0, 9)
+    : undefined;
+
+  return {
+    subject,
+    body,
+    support: support || undefined,
+    slides: slides && slides.length > 0 ? slides : undefined,
+  };
 }
 
 /**

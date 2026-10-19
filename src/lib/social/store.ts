@@ -206,6 +206,9 @@ export async function savePreparedPost(
       subject: post.subject,
       body: post.body,
       media_kind: post.mediaKind,
+      // ⚠️ NULL for every shape but a carousel, which is the normal case
+      // ⇒ docs/sql/social_carousel.sql.
+      slides: post.slides ?? null,
       // ⚠️ NULL for a hand-written post, which has no angle — and that is the
       // truth rather than a default pool.
       topic_pool: post.topicPool ?? null,

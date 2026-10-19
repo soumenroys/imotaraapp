@@ -60,17 +60,78 @@ export type EncodeInput = {
  * panels and text. GIF is a bad format for photographs and a good one for
  * exactly this.
  */
+/** The minimum of gifenc's writer that this file uses. */
+type GifWriter = {
+  writeFrame: (indexed: Uint8Array, w: number, h: number, opts: Record<string, unknown>) => void;
+  finish: () => void;
+  bytes: () => Uint8Array;
+};
+
+/**
+ * 🔑 THE OBJECT THAT ACTUALLY CARRIES `probe`, whether that is the module or
+ * its `.default`.
+ *
+ * ⛔ WHY NOT `mod.default ?? mod`. That was the code. `??` falls back only on
+ * null and undefined, and `gifenc`'s `.default` EXISTS AND IS EMPTY — so it
+ * was always chosen, and every function came back undefined.
+ *
+ * ⚠️ MEASURED IN BOTH RUNTIMES, because the first measurement was misleading:
+ *
+ *   under tsx     gifenc .default = {} (0 keys)   upng-js .default = 8 keys
+ *   under vitest  gifenc .default = {} (0 keys)   upng-js .default = 8 keys
+ *
+ * ⇒ gifenc was broken EVERYWHERE, not in one runtime. ⚠️ And upng-js's
+ * top-level shape differs between the two, which is the deeper reason not to
+ * encode a shape here at all: it is a property of the resolver, not of the
+ * package.
+ *
+ * ⚠️ AND IT THROWS WITH THE MODULE'S NAME, at resolution rather than at use.
+ * "quantize is not a function", thrown deep inside an encode, sent three
+ * rounds of debugging at the encoder. "gifenc exports no `quantize`" names
+ * the dependency and the missing export.
+ */
+export function interopPick<T>(mod: unknown, probe: keyof T & string, name: string): T {
+  const top = mod as Record<string, unknown>;
+  if (typeof top?.[probe] !== "undefined") return top as T;
+  const inner = top?.default as Record<string, unknown> | undefined;
+  if (typeof inner?.[probe] !== "undefined") return inner as T;
+  throw new Error(
+    `${name} exports no \`${probe}\`, at the top level or on \`default\` — ` +
+      `its module shape has changed ⇒ interopPick.`,
+  );
+}
+
 export async function encodeGif(input: EncodeInput): Promise<Buffer> {
   /**
-   * ⚠️ INTEROP, not a style choice. `gifenc` is CommonJS: under ESM its named
-   * exports arrive on `.default`, and destructuring them directly gives
-   * `quantize is not a function` at the moment of encoding — not at import,
-   * which is what makes it confusing. The same is true of `upng-js`.
+   * 🔴 INTEROP, AND THE PREVIOUS VERSION OF THIS COMMENT WAS WRONG — which is
+   * worth saying plainly, because it was wrong in a confident, specific way
+   * and the code it justified did not work.
+   *
+   * ⛔ It read: "`gifenc` is CommonJS: under ESM its named exports arrive on
+   * `.default`", and the code was `gifencMod.default ?? gifencMod`. MEASURED
+   * 19 Oct, by printing the two modules:
+   *
+   *   gifenc   → named exports at the TOP LEVEL; `.default` exists and is EMPTY
+   *   upng-js  → named exports on `.default`; top level has nothing usable
+   *
+   * ⚠️ They are opposite shapes, so no single hardcoded rule can serve both.
+   * And `??` only falls back on null/undefined: an EMPTY `.default` object is
+   * not nullish, so it won, and every function came back `undefined` — hence
+   * `quantize is not a function` at the moment of encoding rather than at
+   * import, which is what made it look like an import problem.
+   *
+   * 🔑 ⇒ Do not assume a shape. Take whichever object actually HAS the thing,
+   * and say so loudly if neither does ⇒ interopPick.
    */
-  const gifencMod = await import("gifenc");
-  const { GIFEncoder, quantize, applyPalette } = gifencMod.default ?? gifencMod;
-  const upngMod = await import("upng-js");
-  const UPNG = upngMod.default ?? upngMod;
+  const { GIFEncoder, quantize, applyPalette } = interopPick<{
+    GIFEncoder: () => GifWriter;
+    quantize: (rgba: Uint8Array, n: number) => number[][];
+    applyPalette: (rgba: Uint8Array, palette: number[][]) => Uint8Array;
+  }>(await import("gifenc"), "quantize", "gifenc");
+  const UPNG = interopPick<{
+    decode: (png: Buffer) => unknown;
+    toRGBA8: (decoded: unknown) => ArrayBuffer[];
+  }>(await import("upng-js"), "decode", "upng-js");
 
   const rgba = input.frames.map((png) => {
     const decoded = UPNG.decode(png);

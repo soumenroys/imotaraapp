@@ -18,6 +18,7 @@ import type { ContentType } from "@/lib/social/contentTypes";
 import type { GateOverlay } from "@/lib/social/voiceGate";
 import type { PipelineDeps, PreparedPost, ScheduleShape } from "@/lib/social/pipeline";
 import { writeWithModel } from "@/lib/social/writer";
+import { slotKey, type ScheduleTimes } from "@/lib/social/horizon";
 
 /** How many past subjects the overlap check sees. ⚠️ Exact repeats at ANY
  *  distance are caught by the unique index regardless of this number. */
@@ -527,4 +528,158 @@ export async function attachCard(
     // a recipe that was just attached.
     .eq("media_kind", "none");
   return error ? { ok: false, reason: error.message } : { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The ten-day horizon
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * One schedule, in the shape the generator wants.
+ *
+ * ⚠️ READ PER SLOT rather than carried along from the horizon pass, because
+ * the horizon only needs times and the generator needs the brief, the pools,
+ * the languages and the tone. ⛔ Two differently-shaped copies of a schedule
+ * travelling together is how one of them goes stale.
+ */
+export async function scheduleById(id: string): Promise<ScheduleShape | null> {
+  const db = getSupabaseAdmin();
+  const { data } = await db.from("social_schedules").select("*").eq("id", id).maybeSingle();
+  return data ? toScheduleShape(data as ScheduleRow) : null;
+}
+
+/** Every active schedule, with the fields the horizon needs. */
+export async function activeSchedules(): Promise<ScheduleTimes[]> {
+  const db = getSupabaseAdmin();
+  const { data } = await db
+    .from("social_schedules")
+    .select("id, post_at, timezone, days, active, platforms, platform_times")
+    .eq("active", true);
+  return (data ?? []) as ScheduleTimes[];
+}
+
+/**
+ * The slots these schedules have ALREADY written a post for, as keys.
+ *
+ * 🔴 ONE QUERY, NOT ONE PER SLOT. The old code asked the database once per
+ * slot; across ten days and two channels that is twenty round trips every
+ * minute, forever, to learn almost always that there is nothing to do.
+ *
+ * ⛔ EVERY STATUS COUNTS, including `skipped` and `needs_review`. A post a
+ * human rejected is a DECISION about that slot — treating the slot as empty
+ * would write the same post again tomorrow, which is how a review queue
+ * becomes something people stop opening.
+ */
+export async function writtenSlotKeys(scheduleIds: string[], from: Date): Promise<Set<string>> {
+  if (scheduleIds.length === 0) return new Set();
+  const db = getSupabaseAdmin();
+  const { data } = await db
+    .from("social_posts")
+    .select("schedule_id, platform, scheduled_for")
+    .in("schedule_id", scheduleIds)
+    .gte("scheduled_for", from.toISOString());
+  const out = new Set<string>();
+  for (const r of data ?? []) {
+    if (!r.scheduled_for) continue;
+    out.add(
+      slotKey({
+        scheduleId: r.schedule_id as string,
+        platform: r.platform as string,
+        scheduledFor: r.scheduled_for as string,
+      }),
+    );
+  }
+  return out;
+}
+
+/**
+ * What the queue has already tried and failed to write, keyed by slot.
+ *
+ * ⛔ Only slots from NOW on. Yesterday's failures are history; carrying them
+ * would mean the table grows forever and every run reads all of it.
+ */
+export async function slotAttempts(
+  scheduleIds: string[],
+  from: Date,
+): Promise<Map<string, { attempts: number; last_attempt_at: string; last_error: string | null }>> {
+  const out = new Map<string, { attempts: number; last_attempt_at: string; last_error: string | null }>();
+  if (scheduleIds.length === 0) return out;
+  const db = getSupabaseAdmin();
+  const { data, error } = await db
+    .from("social_slot_attempts")
+    .select("schedule_id, platform, scheduled_for, attempts, last_attempt_at, last_error")
+    .in("schedule_id", scheduleIds)
+    .gte("scheduled_for", from.toISOString());
+
+  /**
+   * ⛔ FAILS OPEN, DELIBERATELY, AND THIS IS THE ONE PLACE IT SHOULD.
+   *
+   * A table we cannot read means "no slot is in back-off", so the queue keeps
+   * writing posts. The alternative — treating an unreadable table as "wait" —
+   * would stop the whole queue because of a bookkeeping table, which is a far
+   * worse outcome than some wasted retries. ⚠️ The opposite choice is right
+   * for the PAUSE switch, which fails closed ⇒ postingIsPaused.
+   */
+  if (error) return out;
+
+  for (const r of data ?? []) {
+    out.set(
+      slotKey({
+        scheduleId: r.schedule_id as string,
+        platform: r.platform as string,
+        scheduledFor: r.scheduled_for as string,
+      }),
+      {
+        attempts: Number(r.attempts ?? 0),
+        last_attempt_at: r.last_attempt_at as string,
+        last_error: (r.last_error as string) ?? null,
+      },
+    );
+  }
+  return out;
+}
+
+/** Record that a slot was tried and did not produce a post. */
+export async function recordSlotFailure(
+  slot: { scheduleId: string; platform: string; scheduledFor: string },
+  reason: string,
+  previous: number,
+): Promise<void> {
+  const db = getSupabaseAdmin();
+  // ⚠️ Never throws. A bookkeeping write that fails must not take down the run
+  // that was otherwise fine — the worst case is one extra retry.
+  try {
+    await db.from("social_slot_attempts").upsert(
+      {
+        schedule_id: slot.scheduleId,
+        platform: slot.platform,
+        scheduled_for: slot.scheduledFor,
+        attempts: previous + 1,
+        last_attempt_at: new Date().toISOString(),
+        last_error: reason.slice(0, 2000),
+      },
+      { onConflict: "schedule_id,platform,scheduled_for" },
+    );
+  } catch {
+    // Deliberately swallowed ⇒ see above.
+  }
+}
+
+/** Forget a slot's failures once it has a post. */
+export async function clearSlotFailure(slot: {
+  scheduleId: string;
+  platform: string;
+  scheduledFor: string;
+}): Promise<void> {
+  const db = getSupabaseAdmin();
+  try {
+    await db
+      .from("social_slot_attempts")
+      .delete()
+      .eq("schedule_id", slot.scheduleId)
+      .eq("platform", slot.platform)
+      .eq("scheduled_for", slot.scheduledFor);
+  } catch {
+    // Harmless: a stale row only delays a slot that is already filled.
+  }
 }

@@ -13,15 +13,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
 import { prepareGenerated, nextLanguage } from "@/lib/social/pipeline";
 import {
-  duePlatforms,
+  activeSchedules,
+  writtenSlotKeys,
+  scheduleById,
   liveDeps,
   postCountFor,
   postingIsPaused,
   savePreparedPost,
-  toScheduleShape,
-  alreadyWrittenFor,
-  LEAD_MINUTES,
+  slotAttempts,
+  recordSlotFailure,
+  clearSlotFailure,
 } from "@/lib/social/store";
+import { missingSlots, slotKey, HORIZON_DAYS, MAX_PER_RUN } from "@/lib/social/horizon";
 import { markCronFired } from "@/lib/cron/heartbeat";
 import { sendQueueAlert } from "@/lib/social/alert";
 import { pickRecipe, headlineFor } from "@/lib/social/visualRecipe";
@@ -126,75 +129,108 @@ export async function GET(req: NextRequest) {
   const upgrades = await giveMissingCards(deps);
 
   /**
-   * 🔑 PAIRS, NOT SCHEDULES. A schedule posting to Instagram at 17:00 and
-   * Facebook at 17:30 is due for one and not the other, and writing both at
-   * the earlier time is exactly the bug this replaces
-   * ⇒ docs/sql/social_platform_times.sql.
+   * 🔴 THE HORIZON, NOT A LEAD TIME ⇒ src/lib/social/horizon.ts.
+   *
+   * The question is no longer "is a schedule due this minute?" but "which of
+   * the next ten days' slots do not have a post yet?". ⛔ That is the whole
+   * difference: a gap from ANY cause — a missed minute, a deploy, a channel
+   * time added after that day's trigger had passed — is just a missing slot,
+   * and the next run fills it. The old shape could only ever write the one
+   * slot whose minute was happening right now.
+   *
+   * ⚠️ Ten days because the owner reviews these by hand and asked for the
+   * room to think, comment and correct. Two hours was a window that opened
+   * while you were at lunch.
    */
-  const due = await duePlatforms(now);
-  if (due.length === 0) {
-    return NextResponse.json({ ran: true, due: 0, cards: upgrades, at: now.toISOString() });
+  const schedules = await activeSchedules();
+  const written = await writtenSlotKeys(schedules.map((s) => s.id), now);
+  /**
+   * ⛔ A SLOT THAT JUST FAILED IS SKIPPED, NOT RETRIED ⇒ horizon.ts.
+   *
+   * Earliest-first plus a per-run bound plus a slot that cannot be written is
+   * head-of-line blocking: ten days of queue stay empty behind one bad day,
+   * burning about 2,880 model calls a day on a post nobody ever sees.
+   */
+  const tried = await slotAttempts(schedules.map((s) => s.id), now);
+  const wanted = missingSlots(schedules, written, now, {
+    horizonDays: HORIZON_DAYS,
+    max: MAX_PER_RUN,
+    attempts: tried,
+  });
+
+  if (wanted.length === 0) {
+    return NextResponse.json({
+      ran: true,
+      horizonDays: HORIZON_DAYS,
+      filled: 0,
+      cards: upgrades,
+      at: now.toISOString(),
+    });
   }
 
   const outcomes: Outcome[] = [];
-  const slot = new Date(now.getTime() + LEAD_MINUTES * 60_000).toISOString();
 
-  for (const { schedule: row, platforms } of due) {
-    const schedule = toScheduleShape(row);
+  for (const want of wanted) {
+    const row = schedules.find((s) => s.id === want.scheduleId);
+    if (!row) continue;
+    const full = await scheduleById(want.scheduleId);
+    if (!full) continue;
+    const schedule = full;
+    const platform = want.platform;
     const count = await postCountFor(schedule.id);
 
-    // ⚠️ The platforms DUE NOW, not every platform on the schedule.
-    for (const platform of platforms) {
-      // ⚠️ The cron runs every minute and a slot lasts a minute, but a retry, a
-      // clock skew or an overlapping invocation would otherwise write the same
-      // post twice. Checked per platform, because the slot is per platform.
-      if (await alreadyWrittenFor(schedule.id, platform, slot)) {
-        outcomes.push({ schedule: schedule.name, platform, result: "already-written" });
+    const soFar = tried.get(slotKey(want))?.attempts ?? 0;
+    const failed = async (reason: string) => {
+      await recordSlotFailure(want, reason, soFar);
+    };
+
+    let language: string;
+    try {
+      language = nextLanguage(schedule.languages, count);
+    } catch (e) {
+      await failed((e as Error).message);
+      outcomes.push({
+        schedule: schedule.name,
+        platform,
+        result: "refused",
+        detail: (e as Error).message,
+      });
+      continue;
+    }
+
+    try {
+      const prepared = await prepareGenerated(deps, { schedule, platform, language, postsSoFar: count });
+      if (!prepared.ok) {
+        await failed(prepared.reason);
+        outcomes.push({ schedule: schedule.name, platform, language, result: "refused", detail: prepared.reason });
         continue;
       }
-
-      let language: string;
-      try {
-        language = nextLanguage(schedule.languages, count);
-      } catch (e) {
-        outcomes.push({
-          schedule: schedule.name,
-          platform,
-          result: "refused",
-          detail: (e as Error).message,
-        });
+      const saved = await savePreparedPost(prepared.post, { scheduledFor: want.scheduledFor });
+      if (!saved.ok) {
+        await failed(saved.reason);
+        outcomes.push({ schedule: schedule.name, platform, language, result: "skipped", detail: saved.reason });
         continue;
       }
-
-      try {
-        const prepared = await prepareGenerated(deps, { schedule, platform, language, postsSoFar: count });
-        if (!prepared.ok) {
-          outcomes.push({ schedule: schedule.name, platform, language, result: "refused", detail: prepared.reason });
-          continue;
-        }
-        const saved = await savePreparedPost(prepared.post, { scheduledFor: slot });
-        if (!saved.ok) {
-          outcomes.push({ schedule: schedule.name, platform, language, result: "skipped", detail: saved.reason });
-          continue;
-        }
-        outcomes.push({
-          schedule: schedule.name,
-          platform,
-          language,
-          result: prepared.post.status === "approved" ? "approved" : "queued",
-          detail: prepared.post.notes.join(" "),
-        });
-      } catch (e) {
-        // ⛔ One schedule failing must not stop the others. A thrown model call
-        // on a Tuesday should not mean no posts anywhere for a week.
-        outcomes.push({
-          schedule: schedule.name,
-          platform,
-          language,
-          result: "refused",
-          detail: (e as Error).message,
-        });
-      }
+      // ⚠️ The slot has a post now, so its failures are history.
+      await clearSlotFailure(want);
+      outcomes.push({
+        schedule: schedule.name,
+        platform,
+        language,
+        result: prepared.post.status === "approved" ? "approved" : "queued",
+        detail: `for ${want.scheduledFor} · ${prepared.post.notes.join(" ")}`,
+      });
+    } catch (e) {
+      // ⛔ One slot failing must not stop the others. A thrown model call on a
+      // Tuesday should not mean no posts anywhere for ten days.
+      await failed((e as Error).message);
+      outcomes.push({
+        schedule: schedule.name,
+        platform,
+        language,
+        result: "refused",
+        detail: (e as Error).message,
+      });
     }
   }
 
@@ -239,8 +275,11 @@ export async function GET(req: NextRequest) {
     alerted,
     ran: true,
     at: now.toISOString(),
-    slot,
-    due: due.length,
+    horizonDays: HORIZON_DAYS,
+    // ⚠️ The slots this run TRIED to fill, named. A run that filled none
+    // because the horizon is full and a run that filled none because every
+    // generation refused must not look the same from outside.
+    filled: wanted.map((w) => `${w.platform}@${w.scheduledFor}`),
     outcomes,
     // ⛔ Said out loud on every run, so nobody mistakes a full queue for a
     // feature that is working end to end.

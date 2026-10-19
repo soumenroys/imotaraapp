@@ -49,17 +49,19 @@ describe("where the repair runs", () => {
      * that is gone, and -1 is less than any real index — so this assertion
      * passed happily with the repair deleted ⇒ the -1 trap, third time.
      *
-     * 🔑 The anchor moved (dueSchedules → duePlatforms, because a schedule is
-     * now due per CHANNEL) and the rule did not: the repair runs before the
-     * due computation, so it happens even when nothing is due.
+     * 🔑 THE ANCHOR HAS MOVED TWICE AND THE RULE HAS NOT:
+     *   dueSchedules → duePlatforms (a schedule became due per CHANNEL)
+     *   → missingSlots (a lead time became a ten-day horizon).
+     * The repair still runs before the work is decided, so it happens even on
+     * a day with nothing to write.
      */
     const repair = cron.indexOf("giveMissingCards(deps)");
-    const due = cron.indexOf("const due = await duePlatforms");
+    const decide = cron.indexOf("missingSlots(");
     expect(repair).toBeGreaterThan(-1);
-    expect(due).toBeGreaterThan(-1);
-    expect(repair).toBeLessThan(due);
+    expect(decide).toBeGreaterThan(-1);
+    expect(repair).toBeLessThan(decide);
     // And the early-return answer still reports what it did.
-    expect(cron).toMatch(/ran: true, due: 0, cards: upgrades/);
+    expect(cron).toMatch(/filled: 0,\s*cards: upgrades/);
   });
 
   it("respects the master switch, like everything else here", () => {

@@ -96,8 +96,12 @@ export const SCRIPT_STRESS_WORDS: Record<string, { word: string; why: string }> 
 export const SAMPLE_TESTS_REORDERING: Record<string, boolean> = {
   // আমি carries ি, and the stress word doubles it.
   bengali: true,
-  // ⛔ The sentence does NOT. The stress word above is what tests it.
-  devanagari: false,
+  /**
+   * ⚠️ The SENTENCE does not, but the stress word अभिमान does — and on
+   * 19 Oct it failed, rendering अभमिान. So this script IS now properly
+   * tested, and the answer is no.
+   */
+  devanagari: true,
   // ਸਤਿ carries ਿ, which is pre-base in Gurmukhi.
   gurmukhi: true,
   // Latin has no reordering to test.

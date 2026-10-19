@@ -85,6 +85,24 @@ export const SCRIPT_FONTS: Record<string, ScriptFont> = {
   devanagari: {
     family: "Noto Sans Devanagari",
     url: "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-devanagari@latest/devanagari-600-normal.ttf",
+    /**
+     * 🔴 MEASURED 19 Oct, and it settles the general question.
+     *
+     * The card drew `अभिमान` as **अभमिान** — the pre-base ि jumped past भ and
+     * sat before म, with the ा trailing. Not a word. The identical failure to
+     * Bengali's অভমিান.
+     *
+     * ⚠️ IT ALMOST PASSED ON A BAD TEST. The sample sentence
+     * "नमस्ते, मैं इमोतारा हूँ…" contains no ि at all, so it rendered
+     * perfectly and proved nothing. A pass on a sample that never exercises
+     * reordering is not a pass ⇒ SAMPLE_TESTS_REORDERING in scriptSamples.ts.
+     *
+     * 🔑 SO THE PER-SCRIPT HOPE IS DEAD. This was the best candidate — the
+     * largest audience, a different script family from Bengali — and it fails
+     * the same way. ⛔ Every Indic script here has a pre-base vowel; expect
+     * all of them to fail. The remaining question is not "which scripts are
+     * safe" but "what replaces the renderer".
+     */
     shapingVerified: false,
   },
   bengali: {

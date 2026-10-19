@@ -24,6 +24,7 @@ import { renderPostPictureBytes } from "@/lib/social/renderPicture";
 import { publicOrigin } from "@/lib/social/cardUrl";
 import { instagramCardPlan } from "@/lib/social/instagramCardPlan";
 import { platformSpec } from "@/lib/social/platforms";
+import { mediaPlan } from "@/lib/social/mediaPlan";
 import { markCronFired } from "@/lib/cron/heartbeat";
 
 export const maxDuration = 300;
@@ -230,6 +231,38 @@ export async function GET(req: NextRequest) {
       | { ok: true; postId: string; url: string }
       | { ok: false; kind: string; message: string };
     let result: PublishResult;
+
+    /**
+     * 🔴 CAN THIS CHANNEL PUBLISH WHAT THIS POST IS MADE OF? ASKED FIRST,
+     * FOR BOTH CHANNELS, BECAUSE ONE OF THEM WAS NOT ASKING ⇒ mediaPlan.ts.
+     *
+     * ⛔ THE HOLE: the Facebook branch rendered a picture only `if
+     * (media_kind === "graphic")` and then published whatever it had. Every
+     * other kind fell through with no media and no complaint — so a
+     * `short_video` post would have gone out as BARE TEXT, under the brand's
+     * name, with the video it was written around simply absent. Nothing would
+     * have logged, warned or failed.
+     *
+     * ⚠️ The shapes exist and the publish paths do not: animate.ts encodes
+     * MP4 and GIF, the admin previews them, the schedule form offers them,
+     * and no adapter has ever called Facebook's /videos or Instagram's Reels
+     * flow. A feature half-built is fine; one that FAILS OPEN is not.
+     */
+    const media = mediaPlan(platform, post.media_kind as string | null);
+    if (!media.ok) {
+      await db
+        .from("social_posts")
+        .update({ status: "approved", last_error: media.why, updated_at: new Date().toISOString() })
+        .eq("id", post.id);
+      outcomes.push({
+        id: post.id as string,
+        platform,
+        language: post.language as string,
+        result: "failed",
+        detail: media.why,
+      });
+      continue;
+    }
 
     if (platform === "instagram") {
       /**

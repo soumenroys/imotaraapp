@@ -23,6 +23,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { renderPostPictureJpeg } from "@/lib/social/renderPicture";
+import { getCard } from "@/lib/social/cardStore";
 import { cardSignatureValid, cardIsFetchable } from "@/lib/social/cardUrl";
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -60,6 +61,31 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     // ⛔ Again 404. A signed link to a post that was later un-approved stops
     // working, and says nothing about why.
     return new NextResponse("Not found", { status: 404 });
+  }
+
+  /**
+   * 🔑 A STORED CARD IS SERVED AS-IS, AND IT IS CHECKED FIRST.
+   *
+   * ⛔ A card for a script Satori cannot shape was drawn by a BROWSER when the
+   * post was approved ⇒ cardStore.ts. It must not be re-derived here: Satori
+   * would produce the jumbled version, cheerfully, for the one request that
+   * cannot be taken back — Instagram fetching the picture it is about to
+   * publish.
+   *
+   * ⚠️ Checked before the renderer rather than after it fails, because
+   * Satori does not fail on these. It succeeds, wrongly.
+   */
+  const stored = await getCard(id, slide);
+  if (stored) {
+    return new NextResponse(Buffer.from(stored), {
+      headers: {
+        "content-type": "image/jpeg",
+        // ⚠️ Same caching as a derived card: the post id changes when the
+        // words do, and an edit drops the stored file ⇒ dropCards.
+        "cache-control": "public, max-age=300",
+        "x-card-source": "stored",
+      },
+    });
   }
 
   /**

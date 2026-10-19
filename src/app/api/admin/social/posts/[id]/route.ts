@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { checkVoice, checkHouseStyle } from "@/lib/social/voiceGate";
+import { ensureCard } from "@/lib/social/ensureCard";
+import { dropCards } from "@/lib/social/cardStore";
 import { publishingSentence } from "@/lib/social/platforms";
 import { loadOverlay } from "@/lib/social/store";
 
@@ -69,6 +71,32 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         );
       }
 
+      /**
+       * 🔴 THE CARD IS DRAWN BEFORE THE ROW IS APPROVED, NOT AFTER.
+       *
+       * For a script Satori cannot shape, the picture has to come from a
+       * browser and be stored ⇒ ensureCard. ⛔ If that fails, the post must
+       * NOT become approved: on Instagram there is no text-only post, so an
+       * approved post with no card is one the publisher holds on every run
+       * forever, and the only symptom is a channel going quiet
+       * ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+       *
+       * ⚠️ Costs nothing on the normal path: a Latin post returns "derived"
+       * without starting anything.
+       */
+      const card = await ensureCard(id);
+      if (!card.ok) {
+        return NextResponse.json(
+          {
+            error: card.error,
+            hint:
+              "⛔ The post was NOT approved. A post that cannot produce a picture would be held by " +
+              "the publisher on every run, and the channel would simply go quiet.",
+          },
+          { status: 422 },
+        );
+      }
+
       const { data, error } = await db
         .from("social_posts")
         .update({ status: "approved", reviewed_by: guard.actor.id, reviewed_at: now, updated_at: now })
@@ -116,8 +144,16 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       }
       const houseStyle = checkHouseStyle(body, post.platform as string);
 
-      // 🔑 An edited post goes back to needs_review even if it was approved.
-      // Approval attaches to words, not to a row.
+      /**
+       * 🔑 An edited post goes back to needs_review even if it was approved.
+       * Approval attaches to words, not to a row.
+       *
+       * ⛔ AND ITS STORED PICTURES ARE THROWN AWAY. A stored card is a
+       * picture of the OLD words; leaving it would mean the reviewer approves
+       * new words and the old card publishes — and the card route prefers
+       * stored bytes, so it would win ⇒ cardStore.dropCards.
+       */
+      await dropCards(id);
       const stored = (post.gate_result ?? {}) as Record<string, unknown>;
       const { data, error } = await db
         .from("social_posts")

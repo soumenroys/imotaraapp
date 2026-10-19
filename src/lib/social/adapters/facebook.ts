@@ -221,6 +221,82 @@ export async function pageAccessToken(args: {
   }
 }
 
+/**
+ * 🔑 WHAT CAN THIS TOKEN ACTUALLY DO?
+ *
+ * 🔴 WRITTEN BECAUSE A WHOLE EVENING WENT ON INFERRING IT. Facebook refused
+ * every post's figures with "requires the 'pages_read_engagement' permission".
+ * The permission was ticked when the token was generated. The app holds it.
+ * The token's last four characters did not change when a new one was pasted.
+ * ⛔ Every one of those is EVIDENCE ABOUT something other than the token's
+ * actual scopes, and three pieces of indirect evidence do not add up to one
+ * direct answer ⇒ feedback_check_the_record_before_asserting.
+ *
+ * ⚠️ `/debug_token` says it outright: the scopes, the app, the expiry, whether
+ * it is still valid. One call, and the guessing stops.
+ *
+ * ⛔ IT RETURNS NO SECRET. The token goes in; a description comes back. The
+ * token itself is never echoed, and this function must never be changed to
+ * return it ⇒ the admin screen would then display a credential.
+ */
+export type TokenFacts =
+  | {
+      ok: true;
+      /** ⚠️ Empty on a system user token that carries none — which is the answer. */
+      scopes: string[];
+      appId: string | null;
+      /** ⚠️ Null means "never", which is what a system user token usually is. */
+      expiresAt: string | null;
+      valid: boolean;
+      type: string | null;
+    }
+  | { ok: false; kind: FacebookFailure; message: string };
+
+export async function describeToken(args: {
+  token: string;
+  fetchImpl?: typeof fetch;
+}): Promise<TokenFacts> {
+  const doFetch = args.fetchImpl ?? fetch;
+  try {
+    /**
+     * ⚠️ THE TOKEN INSPECTS ITSELF. `/debug_token` normally wants an app
+     * access token to ask about somebody else's; asking about your OWN with
+     * the same token is allowed and avoids putting an app secret in this path
+     * at all ⛔ — an app secret is a worse thing to hold than the token.
+     */
+    const res = await doFetch(
+      graph("debug_token") +
+        `?input_token=${encodeURIComponent(args.token)}&access_token=${encodeURIComponent(args.token)}`,
+      { signal: AbortSignal.timeout(15_000), cache: "no-store" },
+    );
+    const json = (await res.json()) as {
+      data?: {
+        scopes?: string[];
+        app_id?: string;
+        expires_at?: number;
+        is_valid?: boolean;
+        type?: string;
+      };
+      error?: GraphError;
+    };
+    if (json.error) return { ok: false, ...classifyGraphError(json.error) };
+    if (!json.data) {
+      return { ok: false, kind: "unknown", message: "Facebook answered without describing the token." };
+    }
+    return {
+      ok: true,
+      scopes: json.data.scopes ?? [],
+      appId: json.data.app_id ?? null,
+      // ⚠️ 0 means never, which is not the same as "unknown".
+      expiresAt: json.data.expires_at ? new Date(json.data.expires_at * 1000).toISOString() : null,
+      valid: json.data.is_valid === true,
+      type: json.data.type ?? null,
+    };
+  } catch (e) {
+    return { ok: false, kind: "network", message: `Could not reach Facebook (${(e as Error).message}).` };
+  }
+}
+
 export type FacebookPublish =
   | { ok: true; postId: string; url: string }
   | { ok: false; kind: FacebookFailure; message: string };
@@ -920,11 +996,50 @@ export async function publishVideoToFacebook(args: {
     }
 
     /**
-     * ⚠️ THE ID IS A VIDEO ID, NOT A POST ID, and they are not interchangeable.
-     * The permalink is built from it rather than guessed: `pageid_postid` —
-     * the shape used for photos — does not resolve for a video.
+     * 🔴 THE ID IS A VIDEO ID, NOT A POST ID — and storing it as the post id
+     * cost us every video's figures.
+     *
+     * ⛔ That sentence was already written here, two lines up, when the stats
+     * reader began asking `GET /{external_post_id}?fields=reactions…`. A VIDEO
+     * object has no `reactions` field, so Facebook answered "(#100) Tried
+     * accessing nonexisting field" — which is literally true and reads like a
+     * bug in the field list. It sent a whole afternoon at the wrong problem.
+     * ⚠️ Third time in one day that the knowledge sat one function away from
+     * the code contradicting it ⇒ trap_a_constraint_nobody_told_the_writer.
+     *
+     * 🔑 SO THE POST ID IS ASKED FOR, not derived. `pageid_postid` — the shape
+     * photos use — does not resolve for a video, so guessing is not available.
+     *
+     * ⚠️ AND IT FALLS BACK RATHER THAN FAILING. This field could not be
+     * verified against a live Page from here, so if it does not come back the
+     * video id is stored exactly as before and the post still publishes. ⛔ A
+     * missing statistic is worth less than a missing post.
      */
-    return { ok: true, postId: json.id, url: `https://www.facebook.com/${encodeURIComponent(json.id)}` };
+    let postId = json.id;
+    try {
+      const askPostId = await doFetch(
+        graph(`${encodeURIComponent(json.id)}`) + `?fields=post_id&access_token=${encodeURIComponent(page.token)}`,
+        { signal: AbortSignal.timeout(15_000), cache: "no-store" },
+      );
+      const resolved = (await askPostId.json()) as { post_id?: string; error?: GraphError };
+      if (resolved.post_id) postId = resolved.post_id;
+      else {
+        console.warn("[facebook] a video published with no post_id, so its figures will not be readable", {
+          videoId: json.id,
+          said: resolved.error?.message ?? "(no post_id field returned)",
+        });
+      }
+    } catch (e) {
+      console.warn("[facebook] could not resolve a video's post id", { videoId: json.id, why: (e as Error).message });
+    }
+
+    return {
+      ok: true,
+      postId,
+      // ⚠️ The PERMALINK still uses the video id: that is the address that
+      // resolves for a video, and it is what a reader would be sent.
+      url: `https://www.facebook.com/${encodeURIComponent(json.id)}`,
+    };
   } catch (e) {
     return { ok: false, kind: "network", message: `Could not reach Facebook (${(e as Error).message}).` };
   }

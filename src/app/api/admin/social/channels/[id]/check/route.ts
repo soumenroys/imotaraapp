@@ -15,6 +15,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { loadChannelCredential } from "@/lib/social/channelCredentials";
 import { checkChannel, channelCanBeChecked } from "@/lib/social/channelCheck";
 import { captureChannelStats, capturePostStats } from "@/lib/social/stats";
+import { describeToken } from "@/lib/social/adapters/facebook";
 
 export const maxDuration = 60;
 
@@ -124,6 +125,31 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       }
     } catch (e) {
       figures += ` ⚠️ Post figures could not be taken (${(e as Error).message}).`;
+    }
+
+    /**
+     * 🔑 AND WHAT THE TOKEN ACTUALLY CARRIES ⇒ describeToken.
+     *
+     * 🔴 ADDED 19 Oct after an evening of inferring it. Facebook refused every
+     * post's figures for want of `pages_read_engagement`; the permission was
+     * ticked when the token was generated, the app holds it, and the token's
+     * last four characters did not change when a new one was pasted. Three
+     * pieces of indirect evidence, no answer. ⇒ Ask.
+     *
+     * ⛔ SCOPES ONLY, NEVER THE TOKEN. This line is rendered on a screen.
+     */
+    try {
+      const facts = await describeToken({ token: cred.token });
+      if (facts.ok) {
+        figures +=
+          ` 🔑 The token carries: ${facts.scopes.length ? facts.scopes.join(", ") : "NO scopes at all"}.` +
+          ` Valid: ${facts.valid ? "yes" : "NO"}.` +
+          ` Expires: ${facts.expiresAt ?? "never"}.`;
+      } else {
+        figures += ` ⚠️ The token could not be described (${facts.message}).`;
+      }
+    } catch (e) {
+      figures += ` ⚠️ The token could not be described (${(e as Error).message}).`;
     }
   }
 

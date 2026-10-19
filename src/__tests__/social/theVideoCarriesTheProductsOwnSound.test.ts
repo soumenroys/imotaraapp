@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 process.env.SOCIAL_TOKEN_KEY ??= Buffer.alloc(32, 9).toString("base64");
 
@@ -32,14 +32,41 @@ describe("which sound a video carries", () => {
     }
   });
 
-  it("⛔ silence is IN the rotation, not the absence of one", () => {
+  it("⛔ silence is a CHOICE, not the absence of one", () => {
     /**
-     * 🔑 The owner, 19 Oct, having heard all three: "even silent. you can
-     * randomly use for all videos." ⚠️ So `file: null` is a decision, and the
-     * encoder must treat it as one rather than looking up "null.mp3".
+     * 🔑 `file: null` is a decision, and the encoder must treat it as one
+     * rather than looking up "null.mp3". ⚠️ That stays true whether silence
+     * is one option among four or — as it is today — the only one.
      */
     expect(AMBIENT_BEDS.some((b) => b.file === null)).toBe(true);
-    expect(AMBIENT_BEDS.some((b) => b.file !== null)).toBe(true);
+    expect(ambientBed("any-hash")?.file ?? null).toBeNull();
+  });
+
+  it("⛔ every video is silent today, and the reason is the LICENCE", () => {
+    /**
+     * 🔴 NOT BECAUSE THE SOUND WAS WRONG. The owner heard all four and liked
+     * all four. The three files ship with the app for its breathing exercise,
+     * and "licensed for in-app use" and "licensed for marketing" are
+     * different grants — nobody has confirmed which these carry, and a
+     * brand's video is not the place to find out.
+     *
+     * ⚠️ THIS TEST IS EXPECTED TO BE CHANGED, not worked around, on the day
+     * somebody confirms it. That is what makes bringing sound back a
+     * decision rather than a drift.
+     */
+    expect(AMBIENT_BEDS.every((b) => b.file === null)).toBe(true);
+  });
+
+  it("the tuned treatments are KEPT in the source, not deleted", () => {
+    /**
+     * ⛔ Each one cost a measurement — the 1.2kHz roll-off on the water
+     * especially, which is the difference between rain and hiss. Deleting
+     * them would mean redoing that work if the licence clears.
+     */
+    const src = readFileSync(join(process.cwd(), "src/lib/social/renderAnimation.ts"), "utf8");
+    expect(src).toContain("lowpass=f=1200");
+    expect(src).toContain("bowl.mp3");
+    expect(src).toMatch(/TO BRING SOUND BACK/i);
   });
 
   it("water is rolled off and the bowl is not", () => {
@@ -67,20 +94,33 @@ describe("which sound a video carries", () => {
     expect(a).toBe(ambientBed("5d73433dabc"));
   });
 
-  it("⛔ and VARIES, so the feed is not identical to hear", () => {
+  it("⛔ spreads across whatever is in the list, rather than favouring one", () => {
     /**
-     * 🔴 THE MUTATION THAT SURVIVED THE FIRST VERSION OF THIS WORK: returning
-     * AMBIENT_BEDS[0] every time. Stable and wrong — every video in the feed
-     * would carry the same track, which is the audio version of the
+     * 🔴 THE MUTATION THAT SURVIVED AN EARLIER VERSION: returning
+     * AMBIENT_BEDS[0] every time. Stable and wrong — with four entries every
+     * video would have carried the same track, the audio version of the
      * complaint that started all of this.
+     *
+     * ⚠️ With one entry the spread is trivially one, so the property is
+     * asserted against a LOCAL list instead: the selection must distribute,
+     * whatever it is given. ⛔ Asserting it on the real list would quietly
+     * stop testing anything the moment the list shrank — which is exactly
+     * what just happened.
      */
-    const seen = new Set(
-      Array.from({ length: 60 }, (_, i) => ambientBed(`hash-${i}-${i * 7}`)?.file ?? "silent"),
-    );
-    expect(seen.size).toBeGreaterThan(1);
-    // ⚠️ And silence genuinely comes up, rather than being in the list and
-    // never chosen.
-    expect(seen.has("silent")).toBe(true);
+    const saved = [...AMBIENT_BEDS];
+    try {
+      AMBIENT_BEDS.splice(0, AMBIENT_BEDS.length,
+        { file: "a.mp3", filter: "" }, { file: "b.mp3", filter: "" },
+        { file: "c.mp3", filter: "" }, { file: null, filter: "" });
+      const seen = new Set(
+        Array.from({ length: 80 }, (_, i) => ambientBed(`hash-${i}-${i * 7}`)?.file ?? "silent"),
+      );
+      expect(seen.size).toBeGreaterThan(2);
+      expect(seen.has("silent")).toBe(true);
+    } finally {
+      AMBIENT_BEDS.splice(0, AMBIENT_BEDS.length, ...saved);
+    }
+    expect(AMBIENT_BEDS.every((b) => b.file === null)).toBe(true);
   });
 
   it("a post with no recipe gets no bed, rather than a default one", () => {

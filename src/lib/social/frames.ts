@@ -37,6 +37,19 @@ export type Storyboard = {
   frames: Node[];
   /** How long each frame is held, in milliseconds. */
   holdMs: number[];
+  /**
+   * 🔑 THE TEXT OF EACH SCENE, IN ORDER — the headline first, then one per
+   * sentence. ⚠️ Carried out so narration can speak exactly what is on
+   * screen ⇒ speech.ts, rather than re-deriving it and risking a different
+   * split.
+   */
+  sceneTexts: string[];
+  /**
+   * ⚠️ WHICH FRAME each scene is, since the build-up frames come first and
+   * the indexes are not 0,1,2. ⛔ Without this the narration would be laid
+   * against the wrong frames — the voice arriving before the words.
+   */
+  sceneIndexes: number[];
   notes: string[];
   wordmark: Picture["wordmark"];
 };
@@ -199,6 +212,8 @@ export function storyboard(input: FrameInput): Storyboard {
 
   const frames: Node[] = [];
   const holdMs: number[] = [];
+  const sceneTexts: string[] = [];
+  const sceneIndexes: number[] = [];
 
   // ── The build: rule, then headline, before any sentence arrives ──────────
   const first = composePicture({ ...input, support: scenes[0] });
@@ -210,6 +225,9 @@ export function storyboard(input: FrameInput): Storyboard {
   // most viewers this IS the post ⇒ "the first line is the whole post".
   frames.push(withVisibility(first.root, { rule: true, headline: true, support: false, footer: false }));
   holdMs.push(1_300);
+  // ⚠️ The headline is a scene too — it is the first thing spoken.
+  sceneIndexes.push(frames.length - 1);
+  sceneTexts.push(input.headline);
 
   /**
    * ── One scene per sentence, and the LAST one carries the footer ─────────
@@ -228,6 +246,8 @@ export function storyboard(input: FrameInput): Storyboard {
     const isLast = i === scenes.length - 1;
     const picture = i === 0 ? first : composePicture({ ...input, support: sentence });
     frames.push(withVisibility(picture.root, { rule: true, headline: true, support: true, footer: isLast }));
+    sceneIndexes.push(frames.length - 1);
+    sceneTexts.push(sentence);
     // ⚠️ The closing line is held longer: it is the one most likely to be
     // seen as a still, and the only one sharing the frame with the codes.
     holdMs.push(sceneHold(sentence) + (isLast ? 1_600 : 0));
@@ -238,6 +258,8 @@ export function storyboard(input: FrameInput): Storyboard {
     height: first.height,
     frames,
     holdMs,
+    sceneTexts,
+    sceneIndexes,
     notes: [
       ...first.notes,
       // ⚠️ Said to the reviewer, because a moving post is harder to judge from

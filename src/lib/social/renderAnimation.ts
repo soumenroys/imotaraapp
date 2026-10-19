@@ -17,9 +17,13 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { storyboard } from "@/lib/social/frames";
 import { toElement, loadFont } from "@/lib/social/renderPicture";
-import { encode } from "@/lib/social/animate";
+import { encode, durationMs } from "@/lib/social/animate";
+import { speak } from "@/lib/social/speech";
+import { writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
 import { allQrCodes } from "@/lib/social/brandMarks";
-import { headlineFor, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
+import { headlineFor, type Recipe } from "@/lib/social/visualRecipe";
 import { platformSpec } from "@/lib/social/platforms";
 
 export type AnimationFormat = "gif" | "mp4";
@@ -59,13 +63,34 @@ export type Bed = {
   filter: string;
 };
 
+/**
+ * 🔴 SILENT, BY THE OWNER'S DECISION — 19 Oct 2026.
+ *
+ * They listened to all four and liked all four. The reason this is silent is
+ * NOT that the sound was wrong: it is that the three files ship with the app
+ * for its breathing exercise, and "licensed for in-app use" and "licensed for
+ * marketing" are different grants. Nobody has confirmed which one these
+ * carry, and a brand's video is not the place to find out.
+ *
+ * ⛔ SO THE TUNED TREATMENTS ARE KEPT, NOT DELETED. Each one cost a
+ * measurement, and throwing that away would mean redoing it if the licence
+ * clears:
+ *
+ *   { file: "bowl.mp3",  filter: "volume=-3dB" }
+ *   { file: "rain.mp3",  filter: "lowpass=f=1200,volume=+2dB" }
+ *   { file: "ocean.mp3", filter: "lowpass=f=1200,volume=+2dB" }
+ *
+ * ⚠️ THE ROLL-OFF ON THE WATER IS THE MEASUREMENT WORTH NOT LOSING. Rain and
+ * ocean are broadband noise, and quiet broadband noise with nothing else in
+ * the mix is physically hiss — which is exactly what the owner heard on the
+ * first attempt. The bowl needs none of it because it is tonal.
+ *
+ * ▶️ TO BRING SOUND BACK: confirm the licence, then paste those three lines
+ * back above the silent entry. Nothing else changes — the encoder, the fades
+ * and the per-post selection are all still here and still tested.
+ */
 export const AMBIENT_BEDS: Bed[] = [
-  // Tonal — cannot read as noise however quiet it is.
-  { file: "bowl.mp3", filter: "volume=-3dB" },
-  // Water, rolled off so it is a rumble rather than a fizz.
-  { file: "rain.mp3", filter: "lowpass=f=1200,volume=+2dB" },
-  { file: "ocean.mp3", filter: "lowpass=f=1200,volume=+2dB" },
-  // ⛔ Silent, deliberately in the rotation.
+  // ⛔ The only entry until the licence is confirmed.
   { file: null, filter: "" },
 ];
 
@@ -186,6 +211,68 @@ export async function renderAnimation(
 
   try {
     /**
+     * 🔑 THE POST, SPOKEN, AND THE SCENES RE-TIMED TO IT ⇒ speech.ts.
+     *
+     * ⛔ THE RE-TIMING IS THE POINT, not the sound. Scene length was my
+     * ESTIMATE of reading speed — 380ms a word, capped — which is a guess
+     * wearing a number's clothes. A spoken sentence has a real duration, and
+     * the scene can simply last that long.
+     *
+     * ⚠️ IT FAILS TO SILENT, NEVER TO A FAILED POST. If Azure is busy, not
+     * configured, or returns nothing, the video is made exactly as it was
+     * before with the estimated holds. The words are the post; the voice is
+     * a courtesy.
+     */
+    // ⚠️ Exactly what each scene shows ⇒ board.sceneTexts, never re-split here.
+    const lines = board.sceneTexts;
+    const narration: { mp3: Uint8Array; startMs: number }[] = [];
+    const spokenMs: (number | null)[] = [];
+
+    for (const line of lines) {
+      const said = await speak(line, post.language);
+      if (!said.ok) {
+        // ⛔ One failure stops the lot: a video narrating two sentences of
+        // four and falling silent is worse than one that never spoke.
+        narration.length = 0;
+        spokenMs.length = 0;
+        break;
+      }
+      const file = join(tmpdir(), `imotara-say-${randomUUID()}.mp3`);
+      await writeFile(file, Buffer.from(said.mp3));
+      const ms = await durationMs(file);
+      await rm(file, { force: true }).catch(() => {});
+      narration.push({ mp3: said.mp3, startMs: 0 });
+      spokenMs.push(ms);
+    }
+
+    /**
+     * ⚠️ A CLIP WE COULD NOT MEASURE KEEPS THE ESTIMATE, rather than being
+     * guessed at. ⛔ And a little room after each line: speech that ends the
+     * instant the scene changes reads as rushed, and the pause is where a
+     * sentence lands.
+     */
+    const PAUSE_MS = 700;
+    if (narration.length === lines.length && spokenMs.every((m) => m !== null)) {
+      const holds = board.holdMs.slice();
+      let at = 0;
+      for (const [i, ms] of (spokenMs as number[]).entries()) {
+        const index = board.sceneIndexes[i];
+        if (index === undefined) continue;
+        holds[index] = Math.max(board.holdMs[index], ms + PAUSE_MS);
+      }
+      // ⚠️ Starts are computed AFTER every hold is final, or a later line is
+      // delayed to a moment that moved.
+      for (const [i, h] of holds.entries()) {
+        const which = board.sceneIndexes.indexOf(i);
+        if (which >= 0 && narration[which]) narration[which].startMs = at;
+        at += h;
+      }
+      board.holdMs.splice(0, board.holdMs.length, ...holds);
+    } else {
+      narration.length = 0;
+    }
+
+    /**
      * ⚠️ RESOLVED FROM THE FILESYSTEM, and absent is not an error. A missing
      * sound file must mean a silent video, never a failed post — the words
      * are the post and the bed is a courtesy.
@@ -200,6 +287,7 @@ export async function renderAnimation(
       holdMs: board.holdMs,
       width: board.width,
       height: board.height,
+      ...(narration.length > 0 ? { narration } : {}),
       ...(audioPath && existsSync(audioPath) ? { audioPath, audioFilter: bed?.filter } : {}),
     });
     return { ok: true, bytes: new Uint8Array(out), width: board.width, height: board.height, ms: Date.now() - started };

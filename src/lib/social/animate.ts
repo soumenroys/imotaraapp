@@ -36,6 +36,12 @@ export type EncodeInput = {
   /** ⚠️ The chain applied before the fades — water is rolled off, a bowl is
    *  not ⇒ renderAnimation.AMBIENT_BEDS. */
   audioFilter?: string;
+  /**
+   * 🔑 THE POST, SPOKEN — one clip per scene, already aligned to the holds
+   * ⇒ speech.ts. ⛔ Takes precedence over `audioPath`: a bed UNDER narration
+   * is a mix, and mixing is a different job from laying a track.
+   */
+  narration?: { mp3: Uint8Array; startMs: number }[];
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -127,6 +133,61 @@ function run(bin: string, args: string[]): Promise<void> {
  * ⛔ Silent on purpose. A post that makes noise in somebody's feed, on this
  * product, is the worst possible first impression.
  */
+/**
+ * ⚠️ LIKE `run`, BUT KEEPS STDERR, which is where ffmpeg prints a file's
+ * header. `run` discards it because an encode's chatter is noise; here it is
+ * the entire answer.
+ */
+function captureErr(bin: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const p = spawn(bin, args, { stdio: ["ignore", "ignore", "pipe"] });
+    let err = "";
+    p.stderr.on("data", (d) => {
+      if (err.length < 8_000) err += String(d);
+    });
+    p.on("error", reject);
+    /**
+     * ⚠️ RESOLVES ON ANY EXIT CODE. `-f null -` decodes the whole file and
+     * can exit non-zero for reasons that have nothing to do with the header
+     * we are reading — and the Duration line is printed long before any of
+     * them. ⛔ Rejecting would turn a readable clip into an unmeasured one.
+     */
+    p.on("close", () => resolve(err));
+  });
+}
+
+/**
+ * How long a clip actually is, in milliseconds.
+ *
+ * 🔑 MEASURED, NOT ESTIMATED, which is the whole reason narration is worth
+ * having: scene length stops being my guess at reading speed and becomes the
+ * time the sentence takes to say.
+ *
+ * ⛔ VIA FFMPEG, NOT FFPROBE, AND THAT WAS A CORRECTION. The obvious
+ * implementation asks ffprobe, which normally ships beside ffmpeg — and
+ * `@ffmpeg-installer` DOES NOT INCLUDE IT. Checked: the binary is simply not
+ * there. ⚠️ It would have failed quietly, returning null and falling back to
+ * the reading-speed estimate, so the narration and the scenes would have
+ * drifted apart with nothing reporting it.
+ *
+ * ⇒ ffmpeg prints the duration to stderr when asked to decode to nothing.
+ *
+ * ⚠️ Returns null rather than throwing — an unmeasurable clip should fall
+ * back to the estimate, not fail the post.
+ */
+export async function durationMs(file: string): Promise<number | null> {
+  try {
+    const out = await captureErr(await ffmpegPath(), ["-i", file, "-f", "null", "-"]);
+    // "  Duration: 00:00:04.37, start: ..."
+    const m = /Duration:\s*(\d+):(\d\d):(\d\d(?:\.\d+)?)/.exec(out);
+    if (!m) return null;
+    const ms = (Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3])) * 1000;
+    return Number.isFinite(ms) && ms > 0 ? Math.round(ms) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
   const dir = await mkdtemp(path.join(tmpdir(), "imotara-anim-"));
   try {
@@ -186,7 +247,44 @@ export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
      * round: the source files are five minutes long.
      */
     const seconds = input.holdMs.reduce((a, b) => a + b, 0) / 1000;
-    const audio = input.audioPath
+
+    /**
+     * 🔑 NARRATION, LAID AT THE RIGHT MOMENTS ⇒ speech.ts.
+     *
+     * Each clip is delayed to the millisecond its scene begins and the lot
+     * are mixed onto one track. ⛔ `adelay` rather than concatenating with
+     * silence between: concatenation makes the audio define the timing, and
+     * the timing is already decided by the SCENES. If a clip ran a touch long
+     * every later line would slide, and the words in the ear would drift away
+     * from the words on screen.
+     *
+     * ⚠️ `dropout_transition=0` and `normalize=0` on the mix: amix otherwise
+     * ducks every input as others start and end, which on speech sounds like
+     * the voice losing confidence mid-sentence.
+     */
+    const narration = input.narration ?? [];
+    const spoken =
+      narration.length > 0
+        ? [
+            ...narration.flatMap((n, i) => ["-i", `${dir}/say${i}.mp3`]),
+            "-filter_complex",
+            narration
+              .map((n, i) => `[${i + 1}:a]adelay=${n.startMs}|${n.startMs}[s${i}]`)
+              .join(";") +
+              `;${narration.map((_, i) => `[s${i}]`).join("")}amix=inputs=${narration.length}:normalize=0:dropout_transition=0[a]`,
+            "-map", "0:v",
+            "-map", "[a]",
+            "-c:a", "aac",
+            "-b:a", "128k",
+            "-shortest",
+          ]
+        : [];
+
+    for (const [i, n] of narration.entries()) {
+      await writeFile(`${dir}/say${i}.mp3`, Buffer.from(n.mp3));
+    }
+
+    const audio = input.audioPath && narration.length === 0
       ? [
           "-i", input.audioPath,
           "-filter_complex",
@@ -204,6 +302,7 @@ export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
       "-f", "concat",
       "-safe", "0",
       "-i", list,
+      ...spoken,
       ...audio,
       "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=25,format=yuv420p",
       "-c:v", "libx264",

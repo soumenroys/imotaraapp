@@ -324,3 +324,61 @@ describe("what the admin is told about publishing", () => {
         ).toBe(11520);
     });
 });
+
+/**
+ * ⛔ A CHANNEL THAT SAYS IT CAN PUBLISH MUST HAVE SOMETHING THAT PUBLISHES IT.
+ *
+ * 🔴 THE ONE-WORD CHANGE THIS GUARDS. `canPublish` is a boolean in
+ * platforms.ts, and flipping it reads like paperwork — the day LinkedIn's
+ * Community Management API is approved, the obvious move is to set it true.
+ * ⛔ But the publisher dispatches by name, and a channel with no branch there
+ * publishes nothing. The symptom is a quiet feed with every screen green
+ * ⇒ trap_a_dead_cron_fails_where_nobody_is_watching.
+ *
+ * ⚠️ WHY A TEST AND NOT ONLY A FALLBACK BRANCH. The route does now refuse such
+ * a platform out loud rather than handing it to Facebook — which it used to do,
+ * because that branch was "Facebook" by POSITION rather than by name. But a
+ * refusal at 17:00 is still a missed slot. This fires at build time instead.
+ */
+describe("⛔ nothing claims to publish without an adapter", () => {
+  /**
+   * The channels `social-publish` actually dispatches to, by name.
+   *
+   * ▶️ ADDING ONE HERE IS THE SECOND HALF OF WIRING IT. If this list and
+   * `canPublish` disagree, one of the two is a lie.
+   */
+  const HAS_ADAPTER = new Set(["facebook", "instagram"]);
+
+  it("every publishable channel has a branch in the publisher", () => {
+    for (const id of PLATFORM_IDS) {
+      if (!PLATFORMS[id].canPublish) continue;
+      expect(
+        HAS_ADAPTER.has(id),
+        `${id} is marked canPublish, but social-publish has no branch for it — ` +
+          `an approved post for it would go nowhere. ▶️ Wire the adapter, then add it here.`,
+      ).toBe(true);
+    }
+  });
+
+  it("⚠️ and a channel that cannot publish says why, so the queue can explain itself", () => {
+    // 🔑 `blockedBy` is read straight into the "held" line the publisher
+    // writes onto the post. An empty one produces "(not enabled)", which
+    // tells a reader nothing they can act on.
+    for (const id of PLATFORM_IDS) {
+      if (PLATFORMS[id].canPublish) continue;
+      expect(PLATFORMS[id].blockedBy.trim().length, `${id} is blocked for no stated reason`).toBeGreaterThan(10);
+    }
+  });
+
+  it("🔑 LinkedIn is still blocked, and on the thing that actually blocks it", () => {
+    /**
+     * ⚠️ The adapter exists as of 19 Oct and is fully tested — but posting as
+     * an organisation needs `w_organization_social`, which belongs to the
+     * Community Management API and is NOT self-serve. ⛔ Code being ready is
+     * not access being granted, and this is the line that stops the two being
+     * confused ⇒ feedback_verify_env_var_before_shipped_claim.
+     */
+    expect(PLATFORMS.linkedin.canPublish).toBe(false);
+    expect(PLATFORMS.linkedin.blockedBy).toMatch(/community management/i);
+  });
+});

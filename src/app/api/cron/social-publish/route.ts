@@ -414,7 +414,7 @@ export async function GET(req: NextRequest) {
       result = r.ok
         ? { ok: true, postId: r.mediaId, url: r.url }
         : { ok: false, kind: r.kind, message: r.message };
-    } else {
+    } else if (platform === "facebook") {
       let picture: Uint8Array | undefined;
       if (post.media_kind === "graphic") {
         const rendered = await renderPostPictureBytes({
@@ -457,6 +457,34 @@ export async function GET(req: NextRequest) {
         message: post.body as string,
         picture,
       });
+    } else {
+      /**
+       * ⛔ A CHANNEL THAT SAYS IT CAN PUBLISH AND HAS NO BRANCH HERE.
+       *
+       * 🔴 THE DEFECT THIS REPLACES. Until 19 Oct the Facebook branch above
+       * had NO CONDITION — it was "Facebook" by position rather than by
+       * name. Any platform reaching it would have been handed to
+       * `publishToFacebook` WITH ITS OWN TOKEN, and the failure would have
+       * read as a Facebook problem on a post that was never for Facebook.
+       *
+       * 🔑 THE CASE THAT IS ACTUALLY REACHABLE is this one: somebody flips
+       * `canPublish` to true in platforms.ts — a one-word change that reads
+       * like paperwork — and the posts go nowhere. ⚠️ LinkedIn is the next
+       * channel to flip it, which is why this is here now rather than after.
+       *
+       * ⚠️ I first wrote a `!canPublish` branch here too. It was DEAD: this
+       * route already refuses such a post higher up, marking it `held` and
+       * leaving it approved, which is better than failing it
+       * ⇒ trap_code_after_an_early_return_is_dead_code. Found by reading the
+       * route rather than by testing the branch I had just written.
+       */
+      result = {
+        ok: false,
+        kind: "config",
+        message:
+          `${platformSpec(platform).label} is marked as able to publish, but this route has no ` +
+          `adapter branch for it. ⛔ Nothing was sent. ▶️ Wire it in social-publish, next to Facebook.`,
+      };
     }
 
     if (result.ok) {

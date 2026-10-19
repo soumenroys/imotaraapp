@@ -55,8 +55,20 @@ function subkey(): Buffer {
  * length: the whole protection here is that the tag cannot be guessed, and a
  * public route is something anybody may try as often as they like.
  */
-export function signCardId(id: string): string {
-  return createHmac("sha256", subkey()).update(`card:${id}`).digest("hex").slice(0, 32);
+export function signCardId(id: string, slide = 0): string {
+  /**
+   * 🔑 THE SLIDE IS PART OF WHAT IS SIGNED.
+   *
+   * ⛔ A signature over the post id alone would authorise every card in the
+   * carousel at once, so one leaked link would open all of them. More
+   * practically: it would let the slide number be edited freely on a URL the
+   * renderer trusts, which is the kind of loose end that becomes a bug later.
+   *
+   * ⚠️ Slide 0 signs exactly as before, so every link already issued for a
+   * single-card post keeps working.
+   */
+  const scope = slide > 0 ? `card:${id}:${slide}` : `card:${id}`;
+  return createHmac("sha256", subkey()).update(scope).digest("hex").slice(0, 32);
 }
 
 /**
@@ -65,9 +77,13 @@ export function signCardId(id: string): string {
  * patient attacker can walk. The length check first, because timingSafeEqual
  * throws on a length mismatch.
  */
-export function cardSignatureValid(id: string, given: string | null | undefined): boolean {
+export function cardSignatureValid(
+  id: string,
+  given: string | null | undefined,
+  slide = 0,
+): boolean {
   if (!given) return false;
-  const expected = signCardId(id);
+  const expected = signCardId(id, slide);
   if (given.length !== expected.length) return false;
   try {
     return timingSafeEqual(Buffer.from(given, "utf8"), Buffer.from(expected, "utf8"));
@@ -82,9 +98,32 @@ export function publicOrigin(): string {
   return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") || "https://www.imotara.com";
 }
 
-/** The absolute URL to hand a platform that fetches images for itself. */
-export function cardUrlFor(id: string, origin: string = publicOrigin()): string {
-  return `${origin}/api/social/card/${id}?t=${signCardId(id)}`;
+/**
+ * The absolute URL to hand a platform that fetches images for itself.
+ *
+ * ⚠️ `slide` 0 is the post's own card — and for a carousel it is the SUBJECT,
+ * the first thing swiped past ⇒ cardsForPost.
+ */
+export function cardUrlFor(id: string, origin: string = publicOrigin(), slide = 0): string {
+  // ⛔ Slide 0 keeps the original URL shape exactly: no stray `&s=0` on the
+  // millions of single-card posts, and no second format to support.
+  const q = slide > 0 ? `?t=${signCardId(id, slide)}&s=${slide}` : `?t=${signCardId(id)}`;
+  return `${origin}/api/social/card/${id}${q}`;
+}
+
+/**
+ * 🔑 HOW MANY CARDS A POST HAS, AND WHAT EACH ONE SAYS.
+ *
+ * The subject is card 0 — the frame — and the slides follow it. ⛔ Said here,
+ * once, because the renderer, the publisher and the admin preview must all
+ * agree about the order; three implementations of "which card is which" is
+ * how a carousel publishes its slides shuffled.
+ */
+export function cardsForPost(post: { subject?: string | null; slides?: string[] | null }): string[] {
+  const subject = (post.subject ?? "").trim();
+  const slides = (post.slides ?? []).map((s) => s.trim()).filter(Boolean);
+  if (slides.length === 0) return subject ? [subject] : [];
+  return [subject, ...slides].filter(Boolean);
 }
 
 /**

@@ -19,6 +19,7 @@ import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
 import { headlineFor, supportFromBody, recipeHash, type Recipe } from "@/lib/social/visualRecipe";
 import { unshapableScripts, unshapableNote } from "@/lib/social/shaping";
+import { cardsForPost } from "@/lib/social/cardUrl";
 
 /** The tree from compose.ts, as React elements. ⚠️ Keys, because Satori
  *  renders a real React tree and an unkeyed list warns on every render. */
@@ -61,6 +62,15 @@ async function loadFont(url: string): Promise<ArrayBuffer> {
 export type PictureSource = {
   platform: string;
   language: string;
+  /** 🔑 A carousel's cards after the subject ⇒ cardsForPost. */
+  slides?: string[] | null;
+  /**
+   * ⚠️ WHICH card to draw. 0 is the post's own — the subject for a carousel,
+   * the headline for everything else. ⛔ Out of range is an ERROR, never
+   * card 0: silently drawing the frame again would publish a carousel with
+   * the same picture twice and look deliberate.
+   */
+  slide?: number;
   /** ⚠️ Needed now: it is the card's headline ⇒ headlineFor. */
   subject?: string | null;
   body: string;
@@ -113,7 +123,32 @@ export async function renderPostPicture(
    * Using the body's opening sentence meant the card vanished precisely when
    * the opening was good and long.
    */
-  const headline = headlineFor(post.subject ?? "", post.body);
+  /**
+   * 🔑 A CAROUSEL SLIDE IS ITS OWN CARD, and its text is used as written.
+   *
+   * ⛔ NOT through `headlineFor`. That derives a headline from a subject and a
+   * body and refuses over 64 characters — right for a post, wrong for a slide,
+   * which was WRITTEN to be the card and is already short. Running it through
+   * that rule would silently drop slides for being eight characters long.
+   */
+  const cards = cardsForPost({ subject: post.subject, slides: post.slides });
+  const slide = post.slide ?? 0;
+  if (slide > 0) {
+    const text = cards[slide];
+    if (!text) {
+      return {
+        ok: false,
+        failure: {
+          status: 404,
+          error:
+            `This post has ${cards.length} card(s); card ${slide} was asked for. ⛔ Refused rather ` +
+            `than falling back to the first — a carousel showing its opening twice looks deliberate.`,
+        },
+      };
+    }
+  }
+
+  const headline = slide > 0 ? cards[slide] : headlineFor(post.subject ?? "", post.body);
   if (!headline) {
     return {
       ok: false,
@@ -147,9 +182,24 @@ export async function renderPostPicture(
   // ⚠️ The QR is regenerated here rather than stored: it encodes only the
   // channel and a campaign tag, so it is derivable, and a stored data URI would
   // be a second copy to keep in step with nothing.
+  /**
+   * 🔑 ON A CAROUSEL, THE CODE GOES ON THE LAST CARD ONLY.
+   *
+   * ⛔ Six cards each carrying a QR is six times the clutter for one route in,
+   * and it turns a sequence of recognitions into a sequence of adverts. The
+   * person who swipes to the end is the one who might act; the ones in the
+   * middle are reading.
+   *
+   * ⚠️ The WORDMARK stays on every card, deliberately. A single slide is the
+   * thing that gets screenshotted and sent on, and it should say whose it is
+   * when it travels alone.
+   */
+  const isCarousel = cards.length > 1;
+  const onLastCard = !isCarousel || slide === cards.length - 1;
+
   let qrCodes: QrCode[] = [];
   try {
-    if (platformSpec(post.platform).qr) qrCodes = await allQrCodes(post.platform);
+    if (platformSpec(post.platform).qr && onLastCard) qrCodes = await allQrCodes(post.platform);
   } catch {
     // ⛔ Missing codes must not lose the picture. A card without them is a
     // card; no card is a blank space where one was promised.
@@ -163,7 +213,12 @@ export async function renderPostPicture(
    * same thing twice.
    */
   const startAt = headline === (post.subject ?? "").trim() ? 0 : 1;
-  let support = supportFromBody(post.body, 150, startAt) ?? undefined;
+  /**
+   * ⛔ A SLIDE CARD HAS NO SUPPORT LINE. The recognition is the whole card;
+   * adding the caption's next sentence underneath would turn a clean swipe
+   * into two competing thoughts.
+   */
+  let support = slide > 0 ? undefined : (supportFromBody(post.body, 150, startAt) ?? undefined);
 
   /**
    * 🔑 A SENTENCE WE CANNOT SHAPE IS SKIPPED, NOT THE WHOLE SUPPORT LINE.

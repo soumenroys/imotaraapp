@@ -33,7 +33,15 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
    * this route answers "does a post with this id exist?" to anybody who asks,
    * which is a small leak that costs nothing to close.
    */
-  if (!cardSignatureValid(id, req.nextUrl.searchParams.get("t"))) {
+  /**
+   * ⚠️ THE SLIDE IS PART OF WHAT WAS SIGNED ⇒ cardUrl.ts, so a signature for
+   * card 2 does not open card 5. ⛔ A non-numeric or negative `s` resolves to
+   * 0 and will simply fail the signature, which is the right outcome: an
+   * unreadable request is not a request for card 0.
+   */
+  const slide = Math.max(0, Number.parseInt(req.nextUrl.searchParams.get("s") ?? "0", 10) || 0);
+
+  if (!cardSignatureValid(id, req.nextUrl.searchParams.get("t"), slide)) {
     // ⛔ 404, not 403. A wrong signature and a missing post must look
     // identical from outside; "forbidden" confirms the id was real.
     return new NextResponse("Not found", { status: 404 });
@@ -42,7 +50,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const db = getSupabaseAdmin();
   const { data: post, error } = await db
     .from("social_posts")
-    .select("id, language, platform, subject, body, media_kind, visual_recipe, status")
+    .select("id, language, platform, subject, body, slides, media_kind, visual_recipe, status")
     .eq("id", id)
     .maybeSingle();
 
@@ -66,6 +74,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     language: post.language as string,
     subject: post.subject as string | null,
     body: post.body as string,
+    slides: post.slides as string[] | null,
+    slide,
     media_kind: post.media_kind as string | null,
     visual_recipe: post.visual_recipe,
   });

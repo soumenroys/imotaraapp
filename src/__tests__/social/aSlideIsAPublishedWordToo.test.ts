@@ -14,9 +14,12 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+process.env.SOCIAL_TOKEN_KEY ??= Buffer.alloc(32, 9).toString("base64");
+
 import { parseWritten } from "@/lib/social/writer";
 import { mediaKindFor } from "@/lib/social/pipeline";
 import { CONTENT_TYPES, SHAPE_LABELS } from "@/lib/social/contentTypes";
+import { cardsForPost, cardSignatureValid, signCardId, cardUrlFor } from "@/lib/social/cardUrl";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 const strip = (s: string) =>
@@ -140,5 +143,54 @@ describe("the shape is known everywhere it has to be", () => {
     const sql = read("docs/sql/social_autopost_v1.sql");
     expect(sql).toMatch(/check \(content_type in \([^)]*'carousel'/);
     expect(sql).toMatch(/check \(media_kind in \([^)]*'carousel'/);
+  });
+});
+
+/**
+ * 🔑 WHICH CARD IS WHICH, and who signs for it.
+ *
+ * ⛔ The renderer, the publisher and the admin preview must all agree about
+ * the order. Three implementations of "which card is which" is how a carousel
+ * publishes its slides shuffled — and nobody notices, because each card is
+ * individually fine.
+ */
+describe("the cards of a post, in order", () => {
+  const post = { subject: "How restlessness shows up", slides: ["One.", "Two.", "Three."] };
+
+  it("puts the subject first and the slides after it", () => {
+    expect(cardsForPost(post)).toEqual(["How restlessness shows up", "One.", "Two.", "Three."]);
+  });
+
+  it("is a single card when there are no slides", () => {
+    expect(cardsForPost({ subject: "Just a post", slides: null })).toEqual(["Just a post"]);
+    expect(cardsForPost({ subject: "Just a post", slides: [] })).toEqual(["Just a post"]);
+  });
+
+  it("drops blank slides rather than publishing an empty card", () => {
+    expect(cardsForPost({ subject: "S", slides: ["One.", "   ", "", "Two."] })).toEqual([
+      "S",
+      "One.",
+      "Two.",
+    ]);
+  });
+});
+
+describe("a signature authorises one card, not the whole carousel", () => {
+  const ID = "b1b9f1f6-0000-4000-8000-000000000001";
+
+  it("a signature for one slide does not open another", () => {
+    // ⛔ Signing the post id alone would authorise every card at once, and
+    // would let the slide number be edited freely on a URL the renderer trusts.
+    expect(cardSignatureValid(ID, signCardId(ID, 2), 2)).toBe(true);
+    expect(cardSignatureValid(ID, signCardId(ID, 2), 3)).toBe(false);
+    expect(cardSignatureValid(ID, signCardId(ID, 2), 0)).toBe(false);
+  });
+
+  it("⛔ slide 0 signs exactly as before", () => {
+    // ⚠️ Every link already issued for a single-card post keeps working, and
+    // there is no stray "&s=0" on the normal case.
+    expect(signCardId(ID, 0)).toBe(signCardId(ID));
+    expect(cardUrlFor(ID, "https://example.test")).not.toContain("s=0");
+    expect(cardUrlFor(ID, "https://example.test", 2)).toContain("&s=2");
   });
 });

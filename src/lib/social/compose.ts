@@ -989,8 +989,41 @@ export function composePicture(input: ComposeInput): Picture {
    * room; a slide, which is one sentence alone in a square, is not. ⇒ The
    * emptiness this fixes is the emptiness that only a lone headline creates.
    */
+  /**
+   * ⚠️ PORTRAIT, BUT NOT A SHORT. `h > w` alone also catches 1080×1920, whose
+   * cards were checked by rendering and are already placed around YouTube's
+   * own chrome ⇒ the `tall` branch in layoutFor. Enlarging type there would
+   * move a card nobody complained about, to fix a frame it does not have
+   * ⇒ trap_blunt_fix_trades_one_failure_for_its_opposite.
+   *
+   * ⛔ 1:1 is excluded by `h > w` on its own, and must stay excluded: a feed
+   * renders to a fixed width, so Instagram's type already reads at the size
+   * it was tuned to.
+   */
+  const portrait = h > w && w / h >= 0.8;
   const fit = support?.trim()
-    ? 1
+    ? /**
+       * 🔴 A PORTRAIT CARD RUNS OUT OF WORDS BEFORE IT RUNS OUT OF FRAME.
+       *
+       * This was a flat `1` whenever a support line existed, and on 1.91:1 that
+       * was right — the card was already using its vertical room. At 1080×1350
+       * it is not: the width is unchanged, so a headline wraps exactly as it
+       * does on Instagram and the block is the same height, while the card is
+       * 270px taller. That 20% of the frame is empty by construction.
+       *
+       * ⛔ NOT A BLANKET MULTIPLIER FOR PORTRAIT. A feed renders a card at a
+       * fixed WIDTH, so type at 1080 across already appears the same size to a
+       * reader whatever the height — Facebook's 92px is bigger on screen than
+       * Instagram's 82px today. Scaling everything would not make the card
+       * more readable, only louder, and would crowd the long headlines.
+       *
+       * ⇒ Same self-limiting rule as the no-support case, with a lower
+       * ceiling: SHORT text grows to use the room it has, long text is left
+       * exactly as it is. A 64-character headline gets 1.0 either way.
+       */
+      portrait
+      ? Math.min(1.25, Math.max(1, HEADLINE_MAX / Math.max(headline.trim().length, 1)))
+      : 1
     : Math.min(1.42, Math.max(1, HEADLINE_MAX / Math.max(headline.trim().length, 1)));
 
   const headlineNode: Node = {

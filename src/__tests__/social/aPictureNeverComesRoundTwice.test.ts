@@ -293,3 +293,71 @@ describe("a picture stored yesterday still renders today", () => {
         expect(recipeHash(oldName as never)).not.toBe(recipeHash(newName as never));
     });
 });
+
+/**
+ * 🔴 A PORTRAIT CARD RUNS OUT OF WORDS BEFORE IT RUNS OUT OF FRAME.
+ *
+ * When Facebook moved to 1080×1350 — because 1200×630 was being cropped on
+ * both sides by the mobile feed — the card began to read sparse. The width
+ * did not change, so a headline wraps exactly as it does on Instagram and the
+ * text block is the same height, while the card is 270px taller. That 20% of
+ * the frame is empty by construction, not by accident.
+ *
+ * ⛔ THE FIX IS NOT A BLANKET MULTIPLIER, and the reason is worth keeping: a
+ * feed renders a card at a fixed WIDTH, so type at 1080 across already reads
+ * the same size to a person whatever the height. Scaling everything would
+ * make the card louder, not more readable, and would crowd long headlines.
+ *
+ * ⇒ The existing self-limiting `fit` rule now applies on 4:5 as well, with a
+ * lower ceiling: short text grows into the room it has, and a headline at the
+ * gate's 64-character limit is left exactly as it was.
+ */
+describe("⛔ a 4:5 card fills itself without crowding", () => {
+    const recipe = {
+        layout: "full-bleed-type", palette: "ink", typeTreatment: "display",
+        motif: "none", script: "en", wash: "flat",
+    };
+    const sized = (platform: string, headline: string) => {
+        const picture = composePicture({
+            recipe: { ...recipe, hash: recipeHash(recipe as never) } as never,
+            headline,
+            support: "A support line, so this is not the lone-headline case the old rule already covered.",
+            language: "en",
+            platform,
+        } as never);
+        type CNode = { role?: string; style?: Record<string, unknown>; children?: CNode[] };
+        const find = (n: CNode): number | null => {
+            if (n.role === "headline") return parseInt(String(n.style?.fontSize ?? "0"), 10);
+            for (const c of n.children ?? []) { const r = find(c); if (r) return r; }
+            return null;
+        };
+        // ⚠️ composePicture returns a Picture, not a Node — the tree is `.root`.
+        return find(picture.root as unknown as CNode)!;
+    };
+
+    const SHORT = "Here at any hour";
+    const LIMIT = "a".repeat(64);
+
+    it("🔑 a SHORT headline grows on 4:5, where there is room going spare", () => {
+        expect(sized("facebook", SHORT)).toBeGreaterThan(sized("facebook", LIMIT));
+    });
+
+    it("⛔ a headline at the gate's limit is NOT enlarged — no crowding", () => {
+        // 🔑 The self-limiting half. A blanket multiplier would have pushed this
+        // one further down a frame it already fills.
+        const atLimit = sized("facebook", LIMIT);
+        const unboosted = sized("x", LIMIT) / (Math.sqrt(1600 * 900) / Math.sqrt(1080 * 1350));
+        expect(Math.abs(atLimit - unboosted)).toBeLessThan(2);
+    });
+
+    it("⛔ and 1:1 and 9:16 are untouched, because nobody complained about them", () => {
+        /**
+         * ⚠️ My first version of this rule was `h > w`, which also catches
+         * YouTube's 1080×1920 — a frame whose card is already placed around
+         * YouTube's own chrome and was checked by rendering
+         * ⇒ trap_blunt_fix_trades_one_failure_for_its_opposite.
+         */
+        expect(sized("instagram", SHORT)).toBe(sized("instagram", LIMIT));
+        expect(sized("youtube", SHORT)).toBe(sized("youtube", LIMIT));
+    });
+});

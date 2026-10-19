@@ -90,17 +90,44 @@ describe("how big a lone sentence is set", () => {
     expect(px(byRole(short.root, "headline")[0])).toBeGreaterThan(px(byRole(plain.root, "headline")[0]));
   });
 
-  it("⛔ a headline WITH a support line is never enlarged", () => {
+  it("⛔ a headline WITH a support line is never enlarged — on the frames that are full", () => {
     /**
      * 🔴 THE REGRESSION THIS PINS. Scaling every short headline pushed the
      * support line through the bottom hairline on a 1200×630 Facebook card —
      * visible in one render, invisible in the code, and passing every test in
      * the suite at the time.
+     *
+     * ⚠️ AND WHY FACEBOOK IS NO LONGER IN THIS LIST. That 1200×630 frame is
+     * gone: the mobile feed was cropping it on both sides, so the card is now
+     * 1080×1350. The reason for the rule was a card with no vertical room to
+     * spare; a 4:5 card has 114% more height and ~20% of it empty by
+     * construction ⇒ trap_a_card_sized_for_a_format_we_never_post.
+     *
+     * ⛔ THE GUARANTEE IS NOT WEAKENED, ONLY SCOPED. 1:1 and 16:9 and 9:16 are
+     * all still pinned here, the portrait ceiling is LOWER (1.25, not 1.42),
+     * and a headline at the gate's limit is left alone on every frame — which
+     * is the case that could overflow. Checked by rendering the worst case at
+     * 1080×1350, not by reasoning about it.
      */
-    for (const platform of ["facebook", "instagram"]) {
+    for (const platform of ["instagram", "x", "youtube"]) {
       const plain = compose({ platform, headline: "x".repeat(HEADLINE_MAX), support: "A support line." });
       const short = compose({ platform, headline: SHORT, support: "A support line." });
       expect(px(byRole(short.root, "headline")[0]), platform).toBe(px(byRole(plain.root, "headline")[0]));
+    }
+  });
+
+  it("🔑 but a 4:5 card does enlarge a short headline, because it has the room", () => {
+    for (const platform of ["facebook", "linkedin"]) {
+      const plain = compose({ platform, headline: "x".repeat(HEADLINE_MAX), support: "A support line." });
+      const short = compose({ platform, headline: SHORT, support: "A support line." });
+      expect(px(byRole(short.root, "headline")[0]), platform).toBeGreaterThan(
+        px(byRole(plain.root, "headline")[0]),
+      );
+      // ⛔ And bounded well under the lone-headline ceiling, so the support
+      // line keeps its room.
+      expect(px(byRole(short.root, "headline")[0]), platform).toBeLessThanOrEqual(
+        Math.round(px(byRole(plain.root, "headline")[0]) * 1.26),
+      );
     }
   });
 

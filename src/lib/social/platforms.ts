@@ -113,7 +113,28 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
   facebook: {
     id: "facebook",
     label: "Facebook Page",
-    picture: { width: 1200, height: 630, note: "the link-card size Facebook renders" },
+    /**
+     * 🔴 WAS 1200×630, "the link-card size Facebook renders" — and that is the
+     * OPEN GRAPH LINK-PREVIEW size, for a shared URL. We upload a PHOTO, and
+     * `linksInBody` is false, so this card had always been sized for a format
+     * this product never posts.
+     *
+     * ⛔ WORSE THAN MERELY WRONG: 1200×630 is **1.91:1**, and Facebook's feed
+     * accepts roughly 9:16 to 16:9 (1.78:1). Ours was WIDER THAN THE WIDEST
+     * RATIO THE FEED TAKES, so the mobile feed cropped it — equal bites off
+     * the left and right, leaving the middle of every sentence readable and
+     * the start and end gone. The owner saw it on a phone; no screen here
+     * showed it, because a desktop permalink renders the image in full.
+     *
+     * ⚠️ Instagram's spec has carried the lesson since it was written —
+     * "square; the feed crops anything else" — and Facebook never got it
+     * ⇒ trap_a_sentence_that_states_the_world_goes_stale.
+     *
+     * 🔑 4:5 is the owner's choice over square: it is never cropped AND it
+     * occupies the most vertical space in a mobile feed, which is where this
+     * is actually read.
+     */
+    picture: { width: 1080, height: 1350, note: "4:5 — the tallest a feed photo may be, never cropped" },
     limits: { hard: 63206, soft: 500 },
     // ⚠️ Room for a small story before the fold. Facebook is read with more
     // patience than Instagram and shows ~500 characters before "see more".
@@ -138,7 +159,21 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
   linkedin: {
     id: "linkedin",
     label: "LinkedIn Page",
-    picture: { width: 1200, height: 627, note: "LinkedIn's own card ratio" },
+    /**
+     * 🔴 THE SAME DEFECT AS FACEBOOK'S, FOUND THE SAME MINUTE — and found only
+     * because the Facebook fix came with a test that checks every channel.
+     *
+     * ⛔ 1200×627 is **1.914:1**, LinkedIn's LINK-CARD ratio, for a shared URL.
+     * `publishToLinkedIn` uploads an IMAGE and `linksInBody` is false, so this
+     * was sized for a format this product never posts — and it is wider than
+     * the ~16:9 a feed will show without cropping.
+     *
+     * 🔑 FIXED BEFORE IT EVER PUBLISHED. LinkedIn is still waiting on
+     * Community Management API approval, so this one cost nothing; Facebook's
+     * identical mistake was found by the owner, on a phone, after weeks of
+     * posts went out with their first and last words cut off.
+     */
+    picture: { width: 1080, height: 1350, note: "4:5 — never cropped in a feed, tallest on mobile" },
     /**
      * 🔴 `soft` WAS 1300 AND THAT WAS SIMPLY WRONG — and it was handed to the
      * writer as a fact: "keep the body under 1300, that is where this channel

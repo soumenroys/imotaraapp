@@ -450,3 +450,50 @@ describe("⛔ nothing claims to publish without an adapter", () => {
     expect(PLATFORMS.linkedin.blockedBy).toMatch(/community management/i);
   });
 });
+
+/**
+ * 🔴 A CARD WIDER THAN THE FEED GETS CROPPED, AND THE CROP EATS THE WORDS.
+ *
+ * Facebook's card was 1200×630 — **1.91:1** — described in its own note as
+ * "the link-card size Facebook renders". That is the Open Graph LINK-PREVIEW
+ * size, for a shared URL. This product uploads a PHOTO and sets
+ * `linksInBody: false`, so the card had always been sized for a format it
+ * never posts.
+ *
+ * ⛔ And 1.91:1 is wider than the ~16:9 a feed will show intact, so the mobile
+ * feed cropped equal bites off BOTH SIDES: the middle of every sentence
+ * readable, the first and last words gone. No screen here showed it — a
+ * desktop permalink renders the image in full. The owner found it on a phone,
+ * after weeks of posts.
+ *
+ * 🔑 LinkedIn had the identical ratio and was caught by THIS test the minute it
+ * was written — before it had ever published once.
+ */
+describe("⛔ no card is wider than the feed that has to show it", () => {
+  /** ⚠️ 16:9 is the widest a feed renders without cropping; 9:16 the tallest. */
+  const WIDEST = 16 / 9;
+  const TALLEST = 9 / 16;
+
+  it("every channel's picture fits between 9:16 and 16:9", () => {
+    for (const id of PLATFORM_IDS) {
+      const { width, height, note } = PLATFORMS[id].picture;
+      const ratio = width / height;
+      expect(
+        ratio <= WIDEST + 0.001,
+        `${id} is ${width}×${height} (${ratio.toFixed(3)}:1), wider than 16:9 — a feed will crop ` +
+          `it and the crop takes the start and end of the words. note: "${note}"`,
+      ).toBe(true);
+      expect(
+        ratio >= TALLEST - 0.001,
+        `${id} is ${width}×${height} (${ratio.toFixed(3)}:1), taller than 9:16 — a feed will crop it.`,
+      ).toBe(true);
+    }
+  });
+
+  it("⛔ and the control: the old Facebook size really would fail this", () => {
+    // 🔑 Without a control, "every ratio is fine" passes just as happily when
+    // the bounds are wrong ⇒ trap_mutation_harness_can_report_false_caught.
+    expect(1200 / 630 <= WIDEST + 0.001, "1200×630 should be rejected by these bounds").toBe(false);
+    expect(1200 / 627 <= WIDEST + 0.001, "1200×627 should be rejected by these bounds").toBe(false);
+  });
+});

@@ -311,7 +311,32 @@ export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
               narration
                 .map((n, i) => `[${i + 1}:a]adelay=${n.startMs}|${n.startMs}[s${i}]`)
                 .join(";") +
-              `;${narration.map((_, i) => `[s${i}]`).join("")}amix=inputs=${narration.length}:normalize=0:dropout_transition=0[a]`,
+              /**
+               * ⛔ NO `normalize` OPTION, AND THE REASON IS VERSION SKEW.
+               *
+               * 🔴 `amix`'s `normalize` arrived in ffmpeg 4.4. This machine
+               * has 4.4; VERCEL RUNS A 2018 STATIC BUILD (libavfilter
+               * 7.46.101), which rejects the argument outright — "Error
+               * initializing filter 'amix'". It therefore worked perfectly
+               * locally and failed every time in production.
+               *
+               * ⚠️ AND NOTHING REPLACES IT, WHICH I GOT WRONG TWICE BY
+               * REASONING INSTEAD OF MEASURING. I argued that amix divides by
+               * the input count and added `volume=inputs` to compensate.
+               * Measured: three delayed copies of a clip whose peak is
+               * -18.5dB mix to -18.9dB — no attenuation at all. The
+               * compensation was a straight +9.5dB boost, which real speech
+               * (louder than a test tone) would have clipped.
+               *
+               * ⛔ Non-overlapping inputs need no gain correction: only one
+               * is ever audible, so the sum is just that one.
+               *
+               * 🔑 THE RULE THIS LEAVES: production's ffmpeg is OLDER than
+               * the one here. Anything newer than ~2018 has to be checked
+               * against it, not against this machine.
+               */
+              `;${narration.map((_, i) => `[s${i}]`).join("")}` +
+              `amix=inputs=${narration.length}:dropout_transition=0[a]`,
             "-map", "[v]",
             "-map", "[a]",
             "-c:a", "aac",

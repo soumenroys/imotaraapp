@@ -641,11 +641,23 @@ export async function poolUsage(): Promise<Record<string, number>> {
  * ⚠️ Joined to the post for `topic_pool` and `platform`: the stats row knows
  * the numbers, only the post knows what it was about.
  */
+export async function measuredPostsWithIds(limit = 500): Promise<(PostOutcome & { postId: string })[]> {
+  return measuredPostsInner(limit);
+}
+
+/**
+ * ⚠️ The same read, without the ids, for the learner — which must not be able
+ * to key anything on a post id by accident.
+ */
 export async function measuredPosts(limit = 500): Promise<PostOutcome[]> {
+  return measuredPostsInner(limit);
+}
+
+async function measuredPostsInner(limit: number): Promise<(PostOutcome & { postId: string })[]> {
   const db = getSupabaseAdmin();
   const { data, error } = await db
     .from("social_post_stats")
-    .select("post_id, captured_on, saves, shares, reactions, comments, reach, impressions, social_posts(platform, topic_pool)")
+    .select("post_id, captured_on, saves, shares, reactions, comments, reach, impressions, angry, sad, love, social_posts(platform, topic_pool)")
     .order("captured_on", { ascending: false })
     .limit(limit);
 
@@ -654,7 +666,7 @@ export async function measuredPosts(limit = 500): Promise<PostOutcome[]> {
   // change what gets published.
   if (error || !data) return [];
 
-  const latest = new Map<string, PostOutcome>();
+  const latest = new Map<string, PostOutcome & { postId: string }>();
   for (const r of data) {
     const id = r.post_id as string;
     // ⚠️ Ordered newest first, so the FIRST row seen for a post is its latest.
@@ -662,6 +674,7 @@ export async function measuredPosts(limit = 500): Promise<PostOutcome[]> {
     const post = r.social_posts as unknown as { platform?: string; topic_pool?: string } | null;
     if (!post?.platform) continue;
     latest.set(id, {
+      postId: id,
       platform: post.platform,
       pool: post.topic_pool ?? null,
       saves: r.saves as number | null,
@@ -670,6 +683,10 @@ export async function measuredPosts(limit = 500): Promise<PostOutcome[]> {
       comments: r.comments as number | null,
       reach: r.reach as number | null,
       impressions: r.impressions as number | null,
+      // ⚠️ The SIGN, carried through as nulls where it was not measured.
+      angry: r.angry as number | null,
+      sad: r.sad as number | null,
+      love: r.love as number | null,
     });
   }
   return [...latest.values()];

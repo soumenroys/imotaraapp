@@ -150,3 +150,72 @@ export async function sendQueueAlert(
   }
   return true;
 }
+
+/**
+ * 🔴 A POST PEOPLE ARE UPSET BY, RAISED TO A PERSON — TODAY, NOT IN A REPORT.
+ *
+ * This is the one alert in this feature where being slow to notice costs more
+ * than a quiet feed. Everything else here fails towards silence: a slot
+ * passes, a draft is refused, a chart is thin. This one means a post that is
+ * live under the brand's name has landed badly on a mental-health audience.
+ *
+ * ⛔ IT CARRIES NO SUGGESTED FIX, deliberately. The machinery's correct action
+ * is to stop using the post as evidence and to say so; deciding what to do
+ * about it means reading the comments, which is a person's job. A confident
+ * recommendation here would be the system's least-informed opinion delivered
+ * with the most authority.
+ */
+export async function sendUpsetAlert(
+  flagged: { postId?: string; platform: string; pool: string | null; why: string }[],
+): Promise<boolean> {
+  if (flagged.length === 0) return false;
+
+  if (!isResendConfigured()) {
+    console.error("[social-stats] a live post drew an upset reaction and email is not configured:", flagged);
+    return false;
+  }
+
+  const lines = flagged
+    .map(
+      (f) =>
+        `• ${f.platform}${f.pool ? ` — angle “${f.pool}”` : ""}\n` +
+        `  ${f.why}` +
+        (f.postId ? `\n  https://www.imotara.com/admin/social?post=${encodeURIComponent(f.postId)}` : ""),
+    )
+    .join("\n\n");
+
+  const text = [
+    flagged.length === 1
+      ? "A live post has drawn an angry reaction from a noticeable share of the people who saw it."
+      : `${flagged.length} live posts have drawn angry reactions from a noticeable share of the people who saw them.`,
+    "",
+    lines,
+    "",
+    "⚠️ WHAT HAS ALREADY HAPPENED AUTOMATICALLY: the post has been taken out of the learning",
+    "signal, so the angle behind it will NOT be promoted for performing well. Anger travels",
+    "further than agreement, and a loop that counted it would ask for more of whatever caused it.",
+    "",
+    "⛔ WHAT HAS NOT HAPPENED, and should not: nothing has been edited, deleted or rewritten, and",
+    "no rule has been changed. Deciding what to do means reading the comments.",
+    "",
+    "▶️ Read the post and its replies before changing anything. If the post is wrong, it can be",
+    "removed on the platform; if it is merely uncomfortable, it may be doing its job.",
+  ].join("\n");
+
+  const identity = envIdentities()[0];
+  const from = identity ? `${identity.name} <${identity.email}>` : `Imotara <social@${sendingDomain()}>`;
+
+  const outcome = await sendOne({
+    from,
+    to: TO,
+    subject:
+      flagged.length === 1
+        ? `A live ${flagged[0].platform} post is drawing anger — please read it`
+        : `${flagged.length} live posts are drawing anger — please read them`,
+    html: `<pre style="font:14px/1.6 ui-monospace,monospace;white-space:pre-wrap">${text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")}</pre>`,
+    text,
+  });
+  return outcome.ok;
+}

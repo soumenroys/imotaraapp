@@ -19,6 +19,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { captureChannelStats, capturePostStats } from "@/lib/social/stats";
+import { measuredPostsWithIds } from "@/lib/social/store";
+import { postsNeedingAPerson } from "@/lib/social/learning";
+import { sendUpsetAlert } from "@/lib/social/alert";
 import { markCronFired } from "@/lib/cron/heartbeat";
 
 export const maxDuration = 300;
@@ -54,10 +57,34 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  /**
+   * 🔴 THE ONE ALARM IN THIS FEATURE THAT CANNOT WAIT FOR SOMEBODY TO LOOK.
+   *
+   * Everything else here fails towards silence — a slot passes, a draft is
+   * refused, a chart stays thin. This means a post live under the brand's
+   * name has landed badly on a mental-health audience, and the machine has
+   * already done the only thing it should: stopped treating it as a success
+   * ⇒ src/lib/social/learning.ts.
+   *
+   * ⚠️ RUN AFTER THE CAPTURE, in the same job, because the numbers it reads
+   * are the ones just written. A separate cron would be a second thing to
+   * notice had stopped.
+   *
+   * ⛔ Never throws. A failed alert must not lose the capture that produced it.
+   */
+  let upset: { postId?: string; platform: string; pool: string | null; why: string }[] = [];
+  try {
+    upset = postsNeedingAPerson(await measuredPostsWithIds());
+    if (upset.length > 0) await sendUpsetAlert(upset);
+  } catch (e) {
+    console.error("[social-stats] the upset check threw:", (e as Error).message);
+  }
+
   return NextResponse.json({
     ran: true,
     at: new Date().toISOString(),
     channels,
+    upset,
     note:
       "⛔ Page reach and impressions are NOT included — they need the read_insights scope, and " +
       "this token carries pages_manage_posts, pages_read_engagement and pages_show_list. They are " +

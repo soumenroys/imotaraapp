@@ -531,6 +531,16 @@ export type PostStats = {
   shares: number | null;
   /** ⛔ NULL without `read_insights` ⇒ fetchPageStats. */
   impressions: number | null;
+  /**
+   * 🔴 THE SIGN OF THE REACTION, not just its size.
+   *
+   * ⚠️ NULL means the edge did not answer; 0 means nobody reacted that way.
+   * Collapsing the two would make a missing measurement read as "nobody was
+   * angry" — the reassuring answer, and the wrong one.
+   */
+  angry: number | null;
+  sad: number | null;
+  love: number | null;
   raw: Record<string, unknown>;
 };
 
@@ -548,14 +558,35 @@ export async function fetchPostStats(args: {
      */
     const res = await doFetch(
       graph(encodeURIComponent(args.postId)) +
+        /**
+         * 🔴 THE REACTION TYPES, NOT JUST THE TOTAL — and for this brand that
+         * is the measurement that matters most.
+         *
+         * A total of 40 reactions says a post did well. Forty ANGRY and SAD
+         * reactions on a mental-health post says something has gone wrong, and
+         * until now the two were the same number. ⛔ A feedback loop that
+         * rewards engagement without reading its SIGN would treat a post
+         * people are upset by as a success and ask for more like it.
+         *
+         * ⚠️ Each type needs its own summary edge — Graph has no single field
+         * that breaks reactions down. `limit(0)` keeps them as counts rather
+         * than pages of objects.
+         */
         `?fields=reactions.summary(true).limit(0),comments.summary(true).limit(0),shares` +
+        `,angry.type(ANGRY).limit(0).summary(true)` +
+        `,sad.type(SAD).limit(0).summary(true)` +
+        `,love.type(LOVE).limit(0).summary(true)` +
         `&access_token=${encodeURIComponent(args.token)}`,
       { signal: AbortSignal.timeout(15_000), cache: "no-store" },
     );
+    type Summary = { summary?: { total_count?: number } };
     const json = (await res.json()) as {
-      reactions?: { summary?: { total_count?: number } };
-      comments?: { summary?: { total_count?: number } };
+      reactions?: Summary;
+      comments?: Summary;
       shares?: { count?: number };
+      angry?: Summary;
+      sad?: Summary;
+      love?: Summary;
       error?: GraphError;
     };
     if (json.error) return { ok: false, ...classifyGraphError(json.error) };
@@ -574,6 +605,15 @@ export async function fetchPostStats(args: {
          */
         shares: typeof json.shares?.count === "number" ? json.shares.count : 0,
         impressions: null,
+        /**
+         * ⚠️ NULL WHEN THE EDGE DID NOT ANSWER, not 0. An older post, a
+         * permission change or a Graph version that drops the edge would
+         * otherwise read as "nobody was angry", which is the reassuring
+         * answer and the wrong one.
+         */
+        angry: num(json.angry?.summary?.total_count),
+        sad: num(json.sad?.summary?.total_count),
+        love: num(json.love?.summary?.total_count),
         raw: json as Record<string, unknown>,
       },
     };

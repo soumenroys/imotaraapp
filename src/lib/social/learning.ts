@@ -33,7 +33,72 @@ export type PostOutcome = {
   comments: number | null;
   reach: number | null;
   impressions: number | null;
+  /**
+   * 🔴 THE SIGN OF THE REACTION ⇒ docs/sql/social_reaction_sign.sql.
+   * ⚠️ NULL = not measured (Instagram never reports these; older rows have
+   * none), which is NOT the same as nobody having reacted that way.
+   */
+  angry?: number | null;
+  sad?: number | null;
+  love?: number | null;
 };
+
+/**
+ * 🔴 WHEN A POST'S REACTION IS A WARNING RATHER THAN A SCORE.
+ *
+ * ⛔ THE FAILURE THIS EXISTS TO PREVENT is the best-documented one in
+ * recommender systems: a loop that rewards ENGAGEMENT without reading its SIGN
+ * learns that posts people are upset by perform well, and asks for more of
+ * them. On a mental-health brand that is not a bad quarter, it is harm.
+ *
+ * ⚠️ `angry` is weighted and `sad` is NOT, and that is a judgement about this
+ * brand specifically. A sad reaction to a post about the hours nobody staffs
+ * is very often the post landing exactly as intended — somebody recognising
+ * themselves. Anger is not: on a post like ours it means the post misread
+ * someone, or claimed something it should not have.
+ *
+ * ⛔ AND IT NEVER AUTO-CORRECTS. It takes the post out of the learning signal
+ * and raises it to a person. A machine rewriting the brand's voice because
+ * eleven people were annoyed is exactly the wrong correction — the right one
+ * is somebody reading the comments.
+ */
+export const ANGRY_SHARE_ALARM = 0.2;
+export const ANGRY_MIN_COUNT = 3;
+
+export function upsetSignal(o: PostOutcome): { upset: boolean; checked: boolean; why?: string } {
+  const angry = o.angry ?? null;
+  /**
+   * 🔴 THREE STATES, NOT TWO — and I had this wrong first time.
+   *
+   * I wrote "not measured is not calm" and then returned `{upset: false}` for
+   * both, which makes the two IDENTICAL to every caller. A mutation replacing
+   * `o.angry ?? null` with `o.angry ?? 0` survived the tests, correctly: the
+   * rule I had written in the comment was not in the code.
+   *
+   * ⛔ AND THE DIFFERENCE IS NOT ACADEMIC. Instagram reports no reaction
+   * breakdown at all, so EVERY Instagram post is unmeasurable here. Collapsed
+   * into "not upset", a whole channel silently looks safe and nothing
+   * anywhere says that it was never examined.
+   */
+  if (angry === null) return { upset: false, checked: false };
+
+  const positive = (o.love ?? 0) + Math.max(0, (o.reactions ?? 0) - angry - (o.sad ?? 0));
+  const total = angry + positive;
+  if (total <= 0) return { upset: false, checked: false };
+
+  const share = angry / total;
+  if (angry < ANGRY_MIN_COUNT || share < ANGRY_SHARE_ALARM) return { upset: false, checked: true };
+
+  return {
+    upset: true,
+    checked: true,
+    why:
+      `${angry} angry reaction(s) out of ${total} — ${(share * 100).toFixed(0)}%. ` +
+      `⛔ This post is excluded from the learning signal and needs a person to read its comments. ` +
+      `⚠️ Nothing is auto-corrected: a machine changing the brand's voice because people were ` +
+      `annoyed is the wrong correction.`,
+  };
+}
 
 /**
  * 🔑 WHICH NUMBER A CHANNEL IS JUDGED ON, and why it differs.
@@ -117,6 +182,12 @@ export function angleScores(rows: PostOutcome[]): AngleScore[] {
 
   for (const row of rows) {
     if (!row.pool) continue;
+    /**
+     * ⛔ AN UPSET POST IS NOT A DATA POINT ⇒ upsetSignal. Its engagement may
+     * be high — anger travels — and feeding that back would teach the
+     * rotation to prefer whatever caused it.
+     */
+    if (upsetSignal(row).upset) continue;
     const rate = engagementRate(row);
     // ⛔ A post with no measurable audience is NOT a zero. It is excluded, and
     // it does not count towards the sample either — otherwise an angle could
@@ -221,4 +292,43 @@ export function angleReport(scores: AngleScore[], platform: string): string {
     .map((s) => `${s.pool} ${(s.rate * 100).toFixed(2)}% (n=${s.posts})`)
     .join(" · ");
   return `${platform}: ranked on ${metric} — ${line}`;
+}
+
+/**
+ * Every post that needs a person, with the reason.
+ *
+ * 🔑 RETURNED RATHER THAN LOGGED. A warning that only reaches a server log is
+ * a warning nobody receives ⇒ trap_a_dead_cron_fails_where_nobody_is_watching,
+ * and this is the one signal in the whole feature where being slow to notice
+ * has a cost beyond a quiet feed.
+ */
+export function postsNeedingAPerson(rows: (PostOutcome & { postId?: string })[]): {
+  postId?: string;
+  platform: string;
+  pool: string | null;
+  why: string;
+}[] {
+  return rows
+    .map((r) => ({ r, s: upsetSignal(r) }))
+    .filter((x) => x.s.upset)
+    .map((x) => ({ postId: x.r.postId, platform: x.r.platform, pool: x.r.pool, why: x.s.why! }));
+}
+
+/**
+ * How much of the measured record could be checked for upset at all.
+ *
+ * ⛔ SAID OUT LOUD BECAUSE IT IS MOSTLY "NONE". Instagram reports no reaction
+ * breakdown, so no Instagram post can ever be examined this way — and a
+ * safety check that silently covers one channel out of two is worse than one
+ * everybody knows is partial.
+ */
+export function upsetCoverage(rows: PostOutcome[]): { platform: string; checked: number; total: number }[] {
+  const by = new Map<string, { checked: number; total: number }>();
+  for (const r of rows) {
+    if (!by.has(r.platform)) by.set(r.platform, { checked: 0, total: 0 });
+    const b = by.get(r.platform)!;
+    b.total += 1;
+    if (upsetSignal(r).checked) b.checked += 1;
+  }
+  return [...by.entries()].map(([platform, b]) => ({ platform, ...b }));
 }

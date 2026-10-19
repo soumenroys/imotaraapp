@@ -288,6 +288,14 @@ export async function capturePostStats(
         // ⚠️ `seen.ok` false means every candidate name was retired, not that
         // nobody saw it ⇒ NULL, never 0.
         impressions: seen.ok ? seen.impressions : null,
+        /**
+         * 🔑 THE SIGN OF THE REACTION ⇒ docs/sql/social_reaction_sign.sql.
+         * ⛔ Passed through as-is, nulls included: a missing breakdown must
+         * never be stored as "nobody was angry".
+         */
+        angry: stats.stats.angry,
+        sad: stats.stats.sad,
+        love: stats.stats.love,
         raw: stats.stats.raw,
       },
       { onConflict: "post_id,captured_on" },

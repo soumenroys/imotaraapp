@@ -20,7 +20,21 @@ export type AnimationFormat = "gif" | "mp4";
  * It is the format people ask for and the one that works least.
  */
 export const ANIMATES_ON: Record<AnimationFormat, { yes: string[]; no: string[] }> = {
-  mp4: { yes: ["facebook", "linkedin", "instagram", "x"], no: ["youtube"] },
+  /**
+   * 🔴 YOUTUBE MOVED FROM `no` TO `yes` ON 19 Oct, and the old entry was absurd
+   * by then: YouTube is the one channel that is NOTHING BUT video.
+   *
+   * ⛔ It was written when "YouTube" here meant a COMMUNITY POST, which cannot
+   * carry a video — and which the Data API cannot create at all. The format
+   * became Shorts; this sentence did not follow, and so the schedule form
+   * warned "YouTube Shorts will not play this as video" on the only shape
+   * YouTube accepts ⇒ trap_a_sentence_that_states_the_world_goes_stale.
+   *
+   * ⚠️ The FOURTH stale YouTube fact found in one evening, all rooted in that
+   * same dead assumption — the others being the recorded blocker, the voice,
+   * and the 1280×720 card.
+   */
+  mp4: { yes: ["facebook", "linkedin", "instagram", "x", "youtube"], no: [] },
   gif: { yes: ["x"], no: ["facebook", "linkedin", "instagram", "youtube"] },
 };
 

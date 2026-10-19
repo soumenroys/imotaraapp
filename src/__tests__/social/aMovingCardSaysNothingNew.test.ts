@@ -19,6 +19,7 @@ import { composePicture, wordsInPicture, imagesInPicture, type Node } from "@/li
 import { recipeHash, LAYOUTS, MOTIFS } from "@/lib/social/visualRecipe";
 import { animationWarning, ANIMATES_ON, MIME } from "@/lib/social/animationFacts";
 import { PLATFORM_IDS } from "@/lib/social/platforms";
+import { PUBLISHABLE } from "@/lib/social/mediaPlan";
 
 const recipe = (over: Record<string, string> = {}) => {
   const base = { layout: "rule-over", palette: "ink", typeTreatment: "display", motif: "arcs", script: "en", ...over };
@@ -230,4 +231,48 @@ describe("what the admin is told before choosing", () => {
     expect(MIME.gif).toBe("image/gif");
     expect(MIME.mp4).toBe("video/mp4");
   });
+});
+
+/**
+ * 🔴 TWO FILES ANSWER "CAN THIS CHANNEL TAKE A VIDEO?" AND NOTHING MADE THEM
+ * AGREE.
+ *
+ * `PUBLISHABLE` (mediaPlan.ts) decides whether a short_video post may be
+ * written for a channel. `ANIMATES_ON.mp4` decides what the schedule form
+ * WARNS about. On 19 Oct they disagreed about YouTube — the channel that is
+ * nothing but video — and the form warned "YouTube Shorts will not play this
+ * as video" on the only shape YouTube accepts.
+ *
+ * ⛔ The warning was harmless to the data and corrosive to trust: a person
+ * reading it would reasonably not create the schedule at all.
+ */
+describe("⛔ the video warning agrees with what actually publishes", () => {
+    it("a channel that can be handed a short_video is LISTED as playing video", () => {
+        /**
+         * 🔑 ASSERTED POSITIVELY — "is in `yes`" — and not as "is absent from
+         * `no`". My first version checked absence from `no`, which became
+         * trivially true the moment `no` was emptied: it would have passed for
+         * a channel nobody had listed anywhere.
+         */
+        for (const id of PLATFORM_IDS) {
+            if (!(PUBLISHABLE[id] ?? []).includes("short_video")) continue;
+            expect(
+                ANIMATES_ON.mp4.yes.includes(id),
+                `${id} can publish a short_video, yet animationFacts does not list it as playing ` +
+                    `video — the schedule form would warn against the only shape it accepts.`,
+            ).toBe(true);
+        }
+    });
+
+    it("⛔ and the control: animationWarning can still say no", () => {
+        /**
+         * ⚠️ The control uses GIF, not mp4. `ANIMATES_ON.mp4.no` is now EMPTY —
+         * every channel we publish to plays video — so there is no mp4 case
+         * left that produces a warning, and a control built on one would be
+         * asserting something impossible.
+         */
+        expect(ANIMATES_ON.mp4.no, "if a channel stops playing video, rewrite this control").toEqual([]);
+        expect(animationWarning("gif", ["facebook"])).toMatch(/still image/);
+        expect(animationWarning("gif", ["x"])).toBeNull();
+    });
 });

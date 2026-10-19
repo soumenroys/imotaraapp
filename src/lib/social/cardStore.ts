@@ -11,6 +11,42 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 export const CARD_BUCKET = "social-cards";
 
 /**
+ * 🔴 EVERY CONTENT TYPE THIS MODULE MAY UPLOAD — DECLARED ONCE, HERE.
+ *
+ * ⛔ THE DEFECT THIS EXISTS FOR, live on 19 Oct. The bucket was created with
+ * `allowed_mime_types = array['image/jpeg']`, back when the only thing stored
+ * in it was a JPEG card. Video storage was added to the SAME bucket months
+ * later and nothing told the bucket. Approval then failed with
+ * "mime type video/mp4 is not supported" — after ffmpeg had done all its work.
+ *
+ * 🔑 AND THE CONSTRAINT WAS ALREADY WRITTEN DOWN IN THIS FILE, three
+ * functions below: "`.jpg` because the bucket only accepts image/jpeg". A
+ * limit recorded in a COMMENT cannot be consulted by the code that has to
+ * satisfy it ⇒ trap_a_constraint_nobody_told_the_writer. ⇒ It is a value now,
+ * and `aBucketAcceptsWhatTheCodeSends` holds it against the SQL that creates
+ * the bucket, so adding a fourth type here fails until the bucket is told.
+ *
+ * ⚠️ KEEP SORTED. The test compares it to the SQL as a set, but a stable
+ * order keeps the diff honest when one is added.
+ */
+export const STORED_MIME_TYPES = ["image/gif", "image/jpeg", "video/mp4"] as const;
+
+/**
+ * ⚠️ 50 MB, and the reasoning rather than a round number.
+ *
+ * Measured 19 Oct: the queued Facebook post — four sentences, seven frames,
+ * 18.9 seconds at 1200×630 — encodes to 106 KB silent, 150 KB at X's
+ * 1600×900. Narration re-times the scenes longer and adds AAC at 128 kbps,
+ * so a three-minute narrated video would still be a few MB.
+ *
+ * ⛔ The limit is here to stop a BUG filling the bucket, not because a card
+ * could legitimately be large — which is why it is generous and finite rather
+ * than absent. A GIF is the one format that could approach it, and GIFs only
+ * go to X, which does not publish yet.
+ */
+export const STORED_BYTES_MAX = 50 * 1024 * 1024;
+
+/**
  * Where one card lives.
  *
  * 🔑 THE SLIDE IS IN THE PATH. A carousel is several cards for one post, and

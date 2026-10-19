@@ -294,9 +294,22 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     // 🔑 These are people who already subscribed. A link is a service to them,
     // not a leak of reach.
     linksInBody: true,
+    /**
+     * 🔴 REWRITTEN 19 Oct. This said "a community post, to people who already
+     * chose to be there. It can assume they know what Imotara is."
+     *
+     * ⛔ Both halves were wrong, and they survived the format change that made
+     * them wrong. Community posts cannot be created by the Data API at all —
+     * the format is SHORTS — and a Short is served to STRANGERS in the Shorts
+     * feed, not to the channel's 22 subscribers. An instruction to assume
+     * recognition would have produced, on the one surface where almost nobody
+     * recognises us, posts written for people who already do
+     * ⇒ trap_a_sentence_that_states_the_world_goes_stale.
+     */
     voice:
-      "A community post, to people who already chose to be there. It can assume they know what " +
-      "Imotara is, so it says something new rather than reintroducing it.",
+      "A short vertical video, shown to strangers scrolling the Shorts feed who have never heard " +
+      "of Imotara and did not choose this. It has a few seconds to be worth staying for, so it " +
+      "opens with the feeling rather than the product, and never assumes recognition.",
     qr: true,
     tagsDriveDiscovery: false,
     requiresPicture: false,

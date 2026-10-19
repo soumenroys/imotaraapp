@@ -68,11 +68,22 @@ export async function GET(req: NextRequest) {
     { family: face.family, url: face.url },
   ];
 
+  /**
+   * ⚠️ `?debug=1` RETURNS WHAT THE BROWSER SAYS, not a picture.
+   *
+   * ⛔ Added after two deploys spent on two theories with no measurement
+   * between them: tofu, guess, deploy, tofu again. A render that looks wrong
+   * does not say WHICH step failed — the fetch, the @font-face, the family
+   * name, or the element's own style.
+   */
+  const debug = req.nextUrl.searchParams.get("debug") === "1";
+
   const out = await renderShapedCard({
     root: picture.root,
     width: picture.width,
     height: picture.height,
     faces,
+    diagnose: debug,
   });
 
   if (!out.ok) {
@@ -89,6 +100,28 @@ export async function GET(req: NextRequest) {
       },
       { status: 500 },
     );
+  }
+
+  if (debug) {
+    return NextResponse.json({
+      ok: true,
+      language,
+      script,
+      ms: out.ms,
+      asked: faces,
+      probe: out.probe,
+      /**
+       * 🔑 HOW TO READ THIS. `faces[].bytes` near zero means the fetch gave
+       * nothing. `loaded` missing a family means the @font-face never
+       * registered. `usable` false with the family present means the name or
+       * the weight does not match what the element asks for. And
+       * `headlineFamily` not naming the script's face means the stack never
+       * reached it.
+       */
+      hint:
+        "bytes≈0 → the fetch failed · family absent from `loaded` → @font-face did not register · " +
+        "`usable` false → name or weight mismatch · headlineFamily without the script face → the stack is wrong.",
+    });
   }
 
   /**

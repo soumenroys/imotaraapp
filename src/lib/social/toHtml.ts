@@ -122,13 +122,35 @@ export function cardHtml(
   // last resort only ⇒ a missing face should look wrong, not quietly different.
   const stack = [...fonts.map((f) => `"${f.family}"`), "sans-serif"].join(",");
 
+  /**
+   * 🔴 THE ROOT'S OWN font-family HAS TO BE OVERRIDDEN, AND THIS WAS THE BUG.
+   *
+   * composePicture sets `fontFamily` on the root node because SATORI has no
+   * system default and text in an unnamed family simply does not appear. For
+   * an unverified script the wordmark is substituted to Latin, so that family
+   * is "Inter" — and an inline style on the root beats anything on `body`.
+   *
+   * ⛔ So every glyph on the card was being asked for in Inter. Bengali in
+   * Inter is tofu, which is exactly what Vercel returned, twice.
+   *
+   * ⚠️ AND MY LOCAL TEST COULD NOT HAVE CAUGHT IT. A Mac has Noto Sans
+   * Bengali installed, so Chromium fell back to the system face and the card
+   * looked perfect. The serverless container has no Indic font at all, so it
+   * showed the truth. ⇒ A preview on a machine that owns the fonts cannot
+   * answer a question about a machine that does not.
+   */
+  const rooted: Node = {
+    ...root,
+    style: { ...(root.style as Record<string, string | number>), fontFamily: stack },
+  } as Node;
+
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 ${faces}
 *{box-sizing:border-box;margin:0;padding:0}
 div{display:flex}
 html,body{width:${width}px;height:${height}px;overflow:hidden}
 body{font-family:${stack}}
-</style></head><body>${nodeToHtml(root)}</body></html>`;
+</style></head><body>${nodeToHtml(rooted)}</body></html>`;
 }
 
 /**

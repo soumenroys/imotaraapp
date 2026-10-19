@@ -57,8 +57,32 @@ export async function faceBytes(face: Face): Promise<{ ok: true; dataUri: string
 }
 
 export type ShapedRender =
-  | { ok: true; bytes: Uint8Array; ms: number }
+  | { ok: true; bytes: Uint8Array; ms: number; probe?: FontProbe }
   | { ok: false; error: string };
+
+/**
+ * 🔑 WHAT THE BROWSER ITSELF SAYS ABOUT THE FONTS.
+ *
+ * ⛔ BUILT BECAUSE I WAS GUESSING. The first Vercel render came back as tofu,
+ * I decided the cause was a remote `url()`, embedded the bytes instead — and
+ * it came back as tofu again. Two theories, two deploys, no measurement.
+ *
+ * ⚠️ A render that LOOKS wrong says nothing about which step failed: the
+ * fetch, the @font-face, the family name, or the element's own style. This
+ * asks the page, where the answer actually is.
+ */
+export type FontProbe = {
+  /** What was embedded, and how big. */
+  faces: { family: string; bytes: number }[];
+  /** `document.fonts.status` — "loaded" or "loading". */
+  status: string;
+  /** The families the browser believes it has. */
+  loaded: string[];
+  /** `document.fonts.check(...)` per face, at the size actually used. */
+  usable: Record<string, boolean>;
+  /** The computed font-family of the element carrying the headline. */
+  headlineFamily: string;
+};
 
 /**
  * 🔑 THE BROWSER, FROM WHEREVER THIS IS RUNNING.
@@ -112,6 +136,8 @@ export async function renderShapedCard(args: {
   width: number;
   height: number;
   faces: Face[];
+  /** ⚠️ Ask the page what it thinks of its fonts ⇒ FontProbe. */
+  diagnose?: boolean;
   /** ⚠️ Injectable so a test can drive this without a browser. */
   launchImpl?: typeof launch;
 }): Promise<ShapedRender> {
@@ -156,8 +182,44 @@ export async function renderShapedCard(args: {
      */
     await page.evaluate("document.fonts.ready");
 
+    let probe: FontProbe | undefined;
+    if (args.diagnose) {
+      const families = embedded.map((f) => f.family);
+      const asked = (await page.evaluate(`(() => {
+        const want = ${JSON.stringify(families)};
+        const loaded = [];
+        document.fonts.forEach((f) => loaded.push(f.family));
+        const usable = {};
+        // ⚠️ WITH THE CARD'S OWN TEXT. document.fonts.check defaults to a
+        // LATIN sample, so a Bengali face reports false for lacking Latin
+        // glyphs — a false negative that sent me looking in the wrong place.
+        const sample = document.body.innerText.slice(0, 40) || 'A';
+        for (const f of want) usable[f] = document.fonts.check('600 59px "' + f + '"', sample);
+        // ⚠️ The LARGEST text on the card, which is the headline — not the
+        // first element that happens to carry a font-size.
+        const sized = [...document.querySelectorAll('[style*="font-size"]')];
+        const headline = sized.sort((a, b) =>
+          parseFloat(getComputedStyle(b).fontSize) - parseFloat(getComputedStyle(a).fontSize))[0];
+        return {
+          status: document.fonts.status,
+          loaded,
+          usable,
+          headlineFamily: headline ? getComputedStyle(headline).fontFamily : "(none found)",
+        };
+      })()`)) as Omit<FontProbe, "faces">;
+      probe = {
+        ...asked,
+        // ⚠️ The BYTE count, decoded — a data URI that is present but empty
+        // reads as a loaded face and draws nothing.
+        faces: embedded.map((f) => ({
+          family: f.family,
+          bytes: Math.floor(((f.dataUri.length - f.dataUri.indexOf(",") - 1) * 3) / 4),
+        })),
+      };
+    }
+
     const bytes = await page.screenshot({ type: "jpeg", quality: 90 });
-    return { ok: true, bytes: new Uint8Array(bytes), ms: Date.now() - started };
+    return { ok: true, bytes: new Uint8Array(bytes), ms: Date.now() - started, probe };
   } catch (e) {
     return { ok: false, error: `The shaped renderer failed: ${(e as Error).message}` };
   } finally {

@@ -27,6 +27,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
+import { allQrCodes, QR_COUNT } from "@/lib/social/brandMarks";
 import { BRAND_IN_SCRIPT, SOCIAL_LANGUAGE_CODES } from "@/lib/social/languages";
 
 const ROOT = process.cwd();
@@ -104,5 +105,58 @@ describe("the social wordmark agrees with the shipped copy", () => {
                 expect.fail(`${codes.join(" and ")} share the form "${form}" but not a script`);
             }
         }
+    });
+});
+
+/**
+ * 🔴 A WARNING THAT FIRES ON A CORRECT RUN.
+ *
+ * `prepareGenerated` compared the QR count against a hard-coded `3`, with the
+ * word "three" in the message — while `QR_COUNT` gives **instagram and x ONE
+ * code each, deliberately**. So on two of the five channels the note "Only 1
+ * of the three QR codes could be made" appeared on EVERY post, reporting a
+ * complete success as a partial failure.
+ *
+ * ⛔ Found on the first carousel ever generated, where it was the one thing
+ * that looked wrong — and was not ⇒ a false warning costs real attention, and
+ * teaches the next person to scroll past the day it is true.
+ */
+describe("⛔ the QR warning counts what the channel asked for", () => {
+    /**
+     * ⚠️ COMMENTS STRIPPED FIRST. The fix's own comment QUOTES the old
+     * `qrCodes.length < 3` to explain what went wrong, and the first version
+     * of this assertion matched that quotation and failed on correct code.
+     * ⇒ a source test must read the code, not the prose about the code
+     * ⇒ trap_text_assertions_cannot_see_reachability.
+     */
+    const PIPELINE = fs
+        .readFileSync(path.join(process.cwd(), "src/lib/social/pipeline.ts"), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, " ")
+        .replace(/\/\/[^\n]*/g, " ");
+
+    it("every channel that wants codes can actually make that many", async () => {
+        for (const [platform, wanted] of Object.entries(QR_COUNT)) {
+            const made = await allQrCodes(platform);
+            expect(
+                made.length,
+                `${platform} asks for ${wanted} QR code(s) and allQrCodes produced ${made.length} — ` +
+                    `either the target list is short or the count is wrong.`,
+            ).toBe(wanted);
+        }
+    });
+
+    it("🔑 instagram and x are ONE code on purpose, and that is not a failure", () => {
+        // ⚠️ Pinned as the specific values, because the bug was a literal 3
+        // meeting a configuration of 1 — a test on "some number" would miss it.
+        expect(QR_COUNT.instagram).toBe(1);
+        expect(QR_COUNT.x).toBe(1);
+    });
+
+    it("⛔ and the threshold is not a literal any more", () => {
+        // 🔑 The control: this is the exact shape that produced the false
+        // warning, so it is named rather than described.
+        expect(PIPELINE, "the QR threshold is hard-coded again").not.toMatch(/qrCodes\.length\s*<\s*3\b/);
+        expect(PIPELINE).toMatch(/QR_COUNT\[args\.platform\]/);
+        expect(PIPELINE.length, "pipeline.ts was not actually read").toBeGreaterThan(1000);
     });
 });

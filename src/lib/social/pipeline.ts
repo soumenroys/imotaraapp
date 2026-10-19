@@ -39,7 +39,7 @@ import { eyebrowFor, TOPIC_POOLS } from "@/lib/social/topicPools";
 import { shapeFor, mixProblems } from "@/lib/social/contentMix";
 import type { Dials } from "@/lib/social/platformDials";
 import { platformSpec } from "@/lib/social/platforms";
-import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
+import { allQrCodes, QR_COUNT, type QrCode } from "@/lib/social/brandMarks";
 
 // ⚠️ Re-exported, not declared. The list lives in contentTypes.ts so a client
 // component can read it without pulling `crypto` through visualRecipe.
@@ -580,9 +580,25 @@ async function buildPicture(
   let qrCodes: QrCode[] = [];
   if (spec.qr) {
     qrCodes = await allQrCodes(args.platform);
-    if (qrCodes.length < 3) {
+    /**
+     * 🔴 COMPARED AGAINST WHAT THIS CHANNEL ASKS FOR, NOT AGAINST THREE.
+     *
+     * ⛔ This read `qrCodes.length < 3` with the word "three" in the message —
+     * and `QR_COUNT` gives **instagram and x ONE code each**, deliberately. So
+     * on two of the five channels the warning fired on EVERY post, reporting a
+     * complete success as a partial failure.
+     *
+     * ⚠️ Found on the first carousel ever generated, where it read "Only 1 of
+     * the three QR codes could be made" — and 1 of 1 had been made.
+     *
+     * 🔑 A warning that cries wolf on a correct run is worse than no warning:
+     * the next person learns to scroll past it, including the day it is true
+     * ⇒ trap_a_sentence_that_states_the_world_goes_stale.
+     */
+    const wanted = QR_COUNT[args.platform] ?? qrCodes.length;
+    if (qrCodes.length < wanted) {
       notes.push(
-        `Only ${qrCodes.length} of the three QR codes could be made. The picture is otherwise unchanged.`,
+        `Only ${qrCodes.length} of the ${wanted} QR codes could be made. The picture is otherwise unchanged.`,
       );
     }
   }

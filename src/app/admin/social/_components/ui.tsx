@@ -102,6 +102,14 @@ const TABS = [
   // 🔑 Added 18 Oct. The daily capture was recording figures nothing displayed
   // — a database nobody reads is not analytics.
   { href: "/admin/social/stats", label: "Is it working?" },
+  /**
+   * 🔑 Added 19 Oct. `scriptsAwaitingVerification()` had been returned by the
+   * channels API since the renderer was built and rendered by nothing — the
+   * same shape as the stats capture above, and as the queue refusals that
+   * reached only an HTTP response. ⛔ A page that cannot be reached from the
+   * tab bar is a page nobody opens.
+   */
+  { href: "/admin/social/scripts", label: "Scripts" },
 ];
 
 /**

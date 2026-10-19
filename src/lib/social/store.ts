@@ -18,6 +18,7 @@ import type { ContentType } from "@/lib/social/contentTypes";
 import type { GateOverlay } from "@/lib/social/voiceGate";
 import type { PipelineDeps, PreparedPost, ScheduleShape } from "@/lib/social/pipeline";
 import { writeWithModel } from "@/lib/social/writer";
+import { loadDials } from "@/lib/social/platformDialsStore";
 import { slotKey, type ScheduleTimes } from "@/lib/social/horizon";
 import type { PostOutcome } from "@/lib/social/learning";
 
@@ -166,6 +167,14 @@ export async function liveDeps(): Promise<PipelineDeps> {
     recentPalettes: async () => recent.palettes,
     recentLayouts: async () => recent.layouts,
     overlay: () => loadOverlay(),
+    /**
+     * 🔑 THE ONLY PLACE THE TUNING TABLE IS ACTUALLY READ ⇒ loadDials.
+     *
+     * ⚠️ Wired HERE and nowhere else, so every test keeps running against the
+     * reviewed built-in numbers. ⛔ A test whose expectations a database row
+     * can change is not a test.
+     */
+    dials: () => loadDials(),
     write: writeWithModel,
   };
 }

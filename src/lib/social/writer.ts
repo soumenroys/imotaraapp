@@ -18,6 +18,7 @@ import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { languageName } from "@/lib/social/languages";
 import { TOPIC_POOLS } from "@/lib/social/subjects";
 import { platformSpec } from "@/lib/social/platforms";
+import { codeDials } from "@/lib/social/platformDials";
 import type { WriteRequest, Written } from "@/lib/social/pipeline";
 
 /**
@@ -221,6 +222,13 @@ export function buildPrompt(req: WriteRequest): string {
   const angles = word ? chosen : chosen.filter((p) => p.id !== "untranslatable");
 
   const spec = req.platform ? platformSpec(req.platform) : null;
+  /**
+   * ⚠️ THE TUNED DIALS WHERE THE CALLER HAS THEM, the code otherwise
+   * ⇒ platformDials.ts. ⛔ Only the EDITORIAL numbers: the hard ceiling and
+   * `requiresPicture` below still come from `spec`, because a tuning table
+   * must not be able to tell the writer that Instagram takes a text-only post.
+   */
+  const dials = spec ? (req.dials ?? codeDials(spec.id)) : null;
 
   const parts = [
     `You are writing one social media post for Imotara, in ${languageName(req.language)}.`,
@@ -295,16 +303,16 @@ export function buildPrompt(req: WriteRequest): string {
              * satisfy it ⇒ trap_a_constraint_nobody_told_the_writer. A limit
              * the writer cannot see is a hope, not a limit.
              */
-            `Aim for ${spec.bodyTarget.min}–${spec.bodyTarget.max} characters. ` +
+            `Aim for ${dials!.bodyTarget.min}–${dials!.bodyTarget.max} characters. ` +
             `⛔ Do NOT pad to reach that — if the post is done in two sentences it is done, and ` +
             `padding reads far worse than brevity. ⚠️ But if there is a second true thing worth ` +
             `saying, this is the room you have for it. ` +
-            (spec.hashtags === 0
+            (dials!.hashtags === 0
               ? "Use no hashtags at all on this channel — they do nothing here and read as advertising. "
-              : `At most ${spec.hashtags} hashtag${spec.hashtags === 1 ? "" : "s"}, specific ones a real person searches for, placed at the end. `) +
-            (spec.emoji === 0
+              : `At most ${dials!.hashtags} hashtag${dials!.hashtags === 1 ? "" : "s"}, specific ones a real person searches for, placed at the end. `) +
+            (dials!.emoji === 0
               ? "No emoji."
-              : `At most ${spec.emoji} emoji, and only one a person would genuinely type — never decoration, and never beside a sentence about someone feeling bad.`) +
+              : `At most ${dials!.emoji} emoji, and only one a person would genuinely type — never decoration, and never beside a sentence about someone feeling bad.`) +
             /**
              * 🔴 THE CONSTRAINT THAT DECIDES WHETHER A POST CAN EXIST AT ALL.
              *

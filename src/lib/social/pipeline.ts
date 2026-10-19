@@ -36,6 +36,7 @@ import {
 } from "@/lib/social/productMistakes";
 import { composePicture, type Picture } from "@/lib/social/compose";
 import { eyebrowFor } from "@/lib/social/topicPools";
+import type { Dials } from "@/lib/social/platformDials";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
 
@@ -72,6 +73,19 @@ export type WriteRequest = {
   contentType?: ContentType;
   /** Subjects the writer must not use again. ⚠️ A help, never the guarantee. */
   avoid: string[];
+  /**
+   * 🔑 THE TUNED EDITORIAL DIALS for this channel ⇒ platformDials.ts, so a
+   * measurement can change what the writer is TOLD without a deploy.
+   *
+   * ⛔ OPTIONAL, FALLING BACK TO THE CODE. The dials are a convenience; if
+   * the table cannot be read the post is still written, to the reviewed
+   * built-in numbers ⇒ loadDials never throws.
+   *
+   * ⚠️ AND THE WRITER MUST BE TOLD, not merely constrained. A limit the model
+   * cannot see is a hope ⇒ trap_a_constraint_nobody_told_the_writer — which
+   * is the whole reason these numbers are in the prompt at all.
+   */
+  dials?: Dials;
   /** On a retry, what the gate objected to last time. */
   previousObjections?: string[];
   /**
@@ -129,6 +143,15 @@ export type PipelineDeps = {
    * behaviour on no evidence, and it is the behaviour today.
    */
   measuredPosts: () => Promise<PostOutcome[]>;
+  /**
+   * 🔑 THE TUNED EDITORIAL DIALS, per channel ⇒ platformDialsStore.loadDials.
+   *
+   * ⚠️ A DEPENDENCY LIKE THE REST, so the tests that assert a post's length or
+   * its tag count keep running against the reviewed built-in numbers rather
+   * than against whatever is in the database today. ⛔ A test whose
+   * expectations can be changed by a row is not a test.
+   */
+  dials?: () => Promise<{ dials: Record<string, Dials>; notes: string[] }>;
   usedRecipeHashes: () => Promise<Set<string>>;
   recentPalettes: () => Promise<string[]>;
   recentLayouts: () => Promise<string[]>;
@@ -622,6 +645,19 @@ export async function prepareGenerated(
    * posts behind it on THIS channel ⇒ learning.ts. Today that is true of none
    * of them, so this line behaves exactly as the plain round-robin did.
    */
+  /**
+   * 🔑 THE TUNED DIALS, READ ONCE PER POST ⇒ platformDialsStore.loadDials. The
+   * writer is TOLD them and the house-style check MEASURES against them, so
+   * both halves must come from the same read — a prompt written to one set of
+   * numbers and judged against another would produce objections nothing could
+   * satisfy.
+   *
+   * ⚠️ Absent dependency means the built-in values, which is what every test
+   * and the hand-written path use.
+   */
+  const tuning = deps.dials ? await deps.dials() : null;
+  const tuned = tuning?.dials[args.platform];
+
   const available = usablePools(args.schedule.topicPool, await deps.poolUsage());
   const scores = angleScores(await deps.measuredPosts());
   const cycle = weightedCycle(available, turnsFor(available, scores, args.platform));
@@ -631,6 +667,7 @@ export async function prepareGenerated(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const written = await deps.write({
+      dials: tuned,
       brief: args.schedule.brief,
       tone: args.schedule.tone,
       lengthHint: args.schedule.lengthHint,
@@ -724,8 +761,18 @@ export async function prepareGenerated(
       continue;
     }
 
-    const houseStyle = checkHouseStyle(body, args.platform);
+    const houseStyle = checkHouseStyle(body, args.platform, tuned);
     const notes: string[] = [];
+    /**
+     * ⛔ A DROPPED ROW IS SAID OUT LOUD, on the post, where the reviewer is
+     * already looking.
+     *
+     * 🔑 A tuning value that lapses quietly is indistinguishable from a bug:
+     * the posts come out the wrong length and every check is green. The same
+     * argument as a relaxed visual preference, which is reported rather than
+     * silently honoured ⇒ aPictureNeverComesRoundTwice.
+     */
+    if (tuning?.notes.length) notes.push(...tuning.notes);
     let picture: Picture | null = null;
     let recipe: Recipe | null = null;
 
@@ -892,8 +939,16 @@ export async function prepareWritten(
     };
   }
 
-  const houseStyle = checkHouseStyle(body, args.platform);
+  /**
+   * ⚠️ THE SAME DIALS THE GENERATED PATH USES. A hand-written post gets no
+   * prompt, so there is nothing to tell — but the ADVICE must match, or an
+   * admin is told its post is short against one set of numbers while the
+   * writer is aiming at another.
+   */
+  const handTuning = deps.dials ? await deps.dials() : null;
+  const houseStyle = checkHouseStyle(body, args.platform, handTuning?.dials[args.platform]);
   const notes: string[] = [];
+  if (handTuning?.notes.length) notes.push(...handTuning.notes);
   let picture: Picture | null = null;
   let recipe: Recipe | null = null;
 

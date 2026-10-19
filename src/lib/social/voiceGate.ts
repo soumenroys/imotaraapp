@@ -21,6 +21,7 @@ import { REVIEWED_LANGUAGES, isSupportedLanguage } from "@/lib/social/languages"
 // ⚠️ `platforms` has no imports of its own, so the gate stays as light as it
 // was. It is the single source for every per-channel number below.
 import { PLATFORMS, PLATFORM_IDS, type PlatformId } from "@/lib/social/platforms";
+import { codeDials, type Dials } from "@/lib/social/platformDials";
 import { checkWordClaim } from "@/lib/social/untranslatableWords";
 
 /**
@@ -743,7 +744,24 @@ export const PLATFORM_LIMITS: Record<string, { hard: number; soft: number }> =
  * ⚠️ Still kept out of `checkVoice` because these are advice a person may
  * knowingly overrule, while the gate's lists are not.
  */
-export function checkHouseStyle(text: string, platform: string): HouseStyleResult {
+export function checkHouseStyle(
+  text: string,
+  platform: string,
+  /**
+   * 🔑 THE TUNED DIALS, WHEN THE CALLER HAS THEM ⇒ platformDials.ts.
+   *
+   * ⛔ OPTIONAL, AND THE DEFAULT IS THE CODE. This function has a great many
+   * tests and is called from a route, a cron and the pipeline; making it
+   * async so it could read a table itself would put a database inside a pure
+   * check. Omitting it behaves exactly as before.
+   *
+   * ⚠️ The dials are the EDITORIAL numbers only — length, tags, emoji. The
+   * hard limit, the fold, `linksInBody` and `requiresPicture` are platform
+   * facts and are still read from `spec`, because a tuning table must not be
+   * able to tell this function that Instagram accepts 10,000 characters.
+   */
+  tuned?: Dials,
+): HouseStyleResult {
   const problems: string[] = [];
   const emoji = countEmoji(text);
   /**
@@ -771,20 +789,26 @@ export function checkHouseStyle(text: string, platform: string): HouseStyleResul
     return { ok: false, problems, characters, emoji, hashtags, links, aiTells: [] };
   }
 
-  if (emoji > spec.emoji) {
+  /**
+   * ⚠️ AFTER the unknown-channel refusal, never before it. `codeDials` throws
+   * on a channel it does not know, and the refusal above is the better error.
+   */
+  const dials: Dials = tuned ?? codeDials(platform);
+
+  if (emoji > dials.emoji) {
     problems.push(
-      spec.emoji === 0
+      dials.emoji === 0
         ? `${emoji} emoji — none on ${spec.label}.`
-        : `${emoji} emoji — at most ${spec.emoji} on ${spec.label}, and it should be one a person ` +
+        : `${emoji} emoji — at most ${dials.emoji} on ${spec.label}, and it should be one a person ` +
           `would actually type, never decoration.`,
     );
   }
 
-  if (hashtags > spec.hashtags) {
+  if (hashtags > dials.hashtags) {
     problems.push(
-      spec.hashtags === 0
+      dials.hashtags === 0
         ? `${hashtags} hashtags — none on ${spec.label}; they do nothing here and read as advertising.`
-        : `${hashtags} hashtags — at most ${spec.hashtags} on ${spec.label}.`,
+        : `${hashtags} hashtags — at most ${dials.hashtags} on ${spec.label}.`,
     );
   }
 
@@ -805,7 +829,7 @@ export function checkHouseStyle(text: string, platform: string): HouseStyleResul
       `${characters} characters — ${spec.label} folds the post at about ${spec.limits.soft}, so the ` +
         `rest is behind "see more".`,
     );
-  } else if (characters < spec.bodyTarget.min) {
+  } else if (characters < dials.bodyTarget.min) {
     /**
      * 🔴 TOO SHORT IS A PROBLEM TOO, AND NOTHING COULD SEE IT UNTIL NOW.
      *
@@ -826,7 +850,7 @@ export function checkHouseStyle(text: string, platform: string): HouseStyleResul
      */
     problems.push(
       `${characters} characters — short for ${spec.label}, which shows about ${spec.limits.soft} ` +
-        `before "see more". ▶️ Around ${spec.bodyTarget.min}–${spec.bodyTarget.max} uses the room a ` +
+        `before "see more". ▶️ Around ${dials.bodyTarget.min}–${dials.bodyTarget.max} uses the room a ` +
         `reader already gave you. ⚠️ Only if there is more worth saying: padding is worse than brevity.`,
     );
   }
@@ -881,9 +905,9 @@ export function checkHouseStyle(text: string, platform: string): HouseStyleResul
   // whether tags DRIVE DISCOVERY here, and that is a per-channel fact
   // ⇒ platforms.ts. ⛔ On Facebook the right answer is zero, and saying "you
   // used none" would be advice to do the wrong thing.
-  if (spec.tagsDriveDiscovery && hashtags === 0) {
+  if (dials.tagsDriveDiscovery && hashtags === 0) {
     problems.push(
-      `No hashtags, where ${spec.label} allows ${spec.hashtags}. ▶️ Specific ones a real person ` +
+      `No hashtags, where ${spec.label} allows ${dials.hashtags}. ▶️ Specific ones a real person ` +
         `searches, at the end. ⛔ Never one naming a condition somebody might be living with.`,
     );
   }

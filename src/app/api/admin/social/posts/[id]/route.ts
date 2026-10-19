@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { checkVoice, checkHouseStyle } from "@/lib/social/voiceGate";
+import { loadDials } from "@/lib/social/platformDialsStore";
 import { ensureCard } from "@/lib/social/ensureCard";
 import { dropCards } from "@/lib/social/cardStore";
 import { publishingSentence } from "@/lib/social/platforms";
@@ -152,7 +153,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           { status: 400 },
         );
       }
-      const houseStyle = checkHouseStyle(body, post.platform as string);
+      /**
+       * ⚠️ AGAINST THE TUNED DIALS ⇒ platformDialsStore. An edited post must
+       * be judged by the same numbers the writer was given, or the advice on
+       * this screen contradicts the advice in the prompt.
+       */
+      const { dials: tunedDials } = await loadDials();
+      const houseStyle = checkHouseStyle(body, post.platform as string, tunedDials[post.platform as string]);
 
       /**
        * 🔑 An edited post goes back to needs_review even if it was approved.

@@ -20,14 +20,13 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 process.env.SOCIAL_TOKEN_KEY ??= Buffer.alloc(32, 9).toString("base64");
 
 import { checkHouseStyle } from "@/lib/social/voiceGate";
 import { PLATFORMS, platformSpec } from "@/lib/social/platforms";
+import { buildPrompt } from "@/lib/social/writer";
+import type { Dials } from "@/lib/social/platformDials";
 
-const writer = readFileSync(join(process.cwd(), "src/lib/social/writer.ts"), "utf8");
 
 /** A body of exactly n characters, in whole words. */
 const body = (n: number) => "word ".repeat(Math.ceil(n / 5)).slice(0, n).trim();
@@ -127,6 +126,28 @@ describe("the check notices a post that is too short", () => {
 });
 
 describe("⛔ and the writer is TOLD, which is where it actually gets fixed", () => {
+  /**
+   * 🔴 THESE TWO WERE SOURCE GREPS FOR `spec.bodyTarget.min`, AND BOTH BROKE
+   * ON A RENAME — the numbers now arrive as tunable `dials` ⇒ platformDials.
+   *
+   * ⛔ NOT REPAIRED BY UPDATING THE STRING, which is what a mirror test
+   * invites. `buildPrompt` is exported and pure, so the property can be
+   * asserted on the PROMPT ITSELF: does the text the model receives contain
+   * this channel's room? That survives any renaming and is the thing that was
+   * actually meant ⇒ trap_a_mirror_test_cannot_catch_a_refactor.
+   */
+  const promptFor = (platform: string, dials?: Dials) =>
+    buildPrompt({
+      brief: "Say one true thing about the hours nobody staffs.",
+      tone: "plain",
+      lengthHint: "short",
+      language: "en",
+      platform,
+      topicPool: ["quiet-hours"],
+      avoid: [],
+      dials,
+    });
+
   it("the channel's room reaches the prompt, not just the checker", () => {
     /**
      * 🔴 A CHECK THAT CATCHES WHAT THE WRITER WAS NEVER TOLD TO DO just
@@ -134,13 +155,48 @@ describe("⛔ and the writer is TOLD, which is where it actually gets fixed", ()
      * ⇒ trap_a_constraint_nobody_told_the_writer, where HEADLINE_MAX lived as
      * a default argument and the writer could never satisfy it.
      */
-    expect(writer).toMatch(/spec\.bodyTarget\.min/);
-    expect(writer).toMatch(/spec\.bodyTarget\.max/);
+    const fb = PLATFORMS.facebook;
+    const prompt = promptFor("facebook");
+    expect(prompt).toContain(String(fb.bodyTarget.min));
+    expect(prompt).toContain(String(fb.bodyTarget.max));
+  });
+
+  it("⛔ and each channel is told its OWN room, not one number for all", () => {
+    // 🔑 The whole reason this is per-channel: Facebook's fold is at 500 and
+    // Instagram's at 125. One target would be wrong on both.
+    const ig = promptFor("instagram");
+    expect(ig).toContain(String(PLATFORMS.instagram.bodyTarget.max));
+    expect(ig, "Facebook's room leaked into Instagram's prompt").not.toContain(
+      `${PLATFORMS.facebook.bodyTarget.min}–${PLATFORMS.facebook.bodyTarget.max}`,
+    );
   });
 
   it("and is told not to pad, because that is the obvious wrong reading", () => {
     // ⚠️ "Aim for 320–460" with nothing else is an instruction to waffle.
-    const at = writer.indexOf("spec.bodyTarget.min");
-    expect(writer.slice(at, at + 500)).toMatch(/do NOT pad/i);
+    const prompt = promptFor("facebook");
+    const at = prompt.indexOf(String(PLATFORMS.facebook.bodyTarget.min));
+    expect(at, "the target is not in the prompt at all").toBeGreaterThan(-1);
+    expect(prompt.slice(at, at + 400)).toMatch(/do NOT pad/i);
+  });
+
+  it("🔑 a TUNED target reaches the prompt in place of the built-in one", () => {
+    /**
+     * ⛔ THE HALF THAT MAKES THE TABLE WORTH HAVING. A dial that is read,
+     * stored and then not passed to the model is the original defect with an
+     * admin screen on top: the check would move and the writer would not.
+     */
+    const prompt = promptFor("facebook", {
+      bodyTarget: { min: 600, max: 700 },
+      hashtags: 2,
+      emoji: 0,
+      tagsDriveDiscovery: false,
+    });
+    expect(prompt).toContain("600");
+    expect(prompt).toContain("700");
+    expect(prompt, "the built-in target is still being sent").not.toContain(
+      `${PLATFORMS.facebook.bodyTarget.min}–${PLATFORMS.facebook.bodyTarget.max}`,
+    );
+    // ⚠️ And the tuned tag count too, not only the length.
+    expect(prompt).toMatch(/At most 2 hashtags/);
   });
 });

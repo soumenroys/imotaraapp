@@ -79,7 +79,12 @@ describe("exactly one angle reaches the writer", () => {
   it("hands over a single-element list, not the schedule's whole set", () => {
     // ⚠️ The angle is decided ONCE, above the retry loop, and passed as a
     // one-element list ⇒ the `pool` const.
-    expect(pipeline).toMatch(/const pool = nextPool\(usablePools\(args\.schedule\.topicPool\), args\.postsSoFar\)/);
+    // ⚠️ The anchor gained an argument — usablePools now also needs to know
+    // what each hand-fed angle has already SPENT, so an angle whose material
+    // is used up stands down ⇒ four posts about অভিমান in one ten-day queue.
+    expect(pipeline).toMatch(
+      /const pool = nextPool\(usablePools\(args\.schedule\.topicPool, await deps\.poolUsage\(\)\), args\.postsSoFar\)/,
+    );
     expect(pipeline).toMatch(/topicPool: \[pool\],/);
     expect(
       /topicPool: args\.schedule\.topicPool,/.test(pipeline),
@@ -119,11 +124,28 @@ describe("exactly one angle reaches the writer", () => {
    * rotation would land on it every fifth post and have nothing to write from.
    */
   it("drops an angle from the cycle when nothing is confirmed behind it", () => {
-    expect(pipeline).toMatch(/export function usablePools/);
-    // ⚠️ BOTH angles that depend on a confirmed table, not just the first one
-    // ⇒ untranslatableWords.ts and productMistakes.ts.
-    expect(pipeline).toMatch(/out\.filter\(\(p\) => p !== "untranslatable"\)/);
-    expect(pipeline).toMatch(/out\.filter\(\(p\) => p !== "built-wrong"\)/);
+    /**
+     * 🔴 THIS USED TO READ THE SOURCE for two specific `out.filter(...)`
+     * calls, and it broke the moment those two checks were correctly
+     * collapsed into one rule — while the behaviour was unchanged. ⛔ A test
+     * that pins the SHAPE of an implementation fails on a refactor and passes
+     * on a regression; the rule is what matters.
+     *
+     * ⚠️ `limits` is injected so both angles can be exercised. With nothing
+     * confirmed in either table the real counts are 0, which is the "never
+     * available" case — correct, but it cannot show the DIFFERENCE between
+     * never-available and all-used.
+     */
+    const pools = ["privacy", "untranslatable", "built-wrong"];
+    const nothingConfirmed = { untranslatable: 0, "built-wrong": 0 };
+    expect(usablePools(pools, {}, nothingConfirmed)).toEqual(["privacy"]);
+
+    // BOTH angles, not just the first — the one that was added second is the
+    // one that gets forgotten ⇒ untranslatableWords.ts and productMistakes.ts.
+    const oneEach = { untranslatable: 1, "built-wrong": 1 };
+    expect(usablePools(pools, {}, oneEach)).toEqual(pools);
+    expect(usablePools(pools, { untranslatable: 1 }, oneEach)).toEqual(["privacy", "built-wrong"]);
+    expect(usablePools(pools, { "built-wrong": 1 }, oneEach)).toEqual(["privacy", "untranslatable"]);
   });
 
   /**

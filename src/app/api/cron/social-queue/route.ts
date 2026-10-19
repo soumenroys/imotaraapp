@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
-import { prepareGenerated, nextLanguage } from "@/lib/social/pipeline";
+import { prepareGenerated, nextLanguage, standDownReasons } from "@/lib/social/pipeline";
 import {
   activeSchedules,
   writtenSlotKeys,
@@ -152,6 +152,9 @@ export async function GET(req: NextRequest) {
    * burning about 2,880 model calls a day on a post nobody ever sees.
    */
   const tried = await slotAttempts(schedules.map((s) => s.id), now);
+  // ⚠️ Read ONCE and shared with the stand-down explanation below, so what the
+  // run did and what it says about itself cannot disagree.
+  const usage = await deps.poolUsage();
   const wanted = missingSlots(schedules, written, now, {
     horizonDays: HORIZON_DAYS,
     max: MAX_PER_RUN,
@@ -234,6 +237,18 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  /**
+   * 🔑 WHY AN ANGLE NEVER APPEARS, said out loud ⇒ standDownReasons.
+   *
+   * ⛔ An angle that quietly stops being offered looks exactly like one that
+   * is simply unlucky in the rotation. `untranslatable` carried a careful
+   * explanation from the day it was written and nothing ever read it — which
+   * is how four posts about the same word reached one ten-day queue.
+   */
+  const standDown = schedules.flatMap((row) =>
+    standDownReasons(row.topic_pool ?? [], usage).map((r) => ({ schedule: row.id, ...r })),
+  );
+
   const approved = outcomes.filter((o) => o.result === "approved").length;
 
   /**
@@ -280,6 +295,7 @@ export async function GET(req: NextRequest) {
     // because the horizon is full and a run that filled none because every
     // generation refused must not look the same from outside.
     filled: wanted.map((w) => `${w.platform}@${w.scheduledFor}`),
+    standDown,
     outcomes,
     // ⛔ Said out loud on every run, so nobody mistakes a full queue for a
     // feature that is working end to end.

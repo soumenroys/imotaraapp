@@ -159,6 +159,7 @@ export async function liveDeps(): Promise<PipelineDeps> {
   const recent = await recentVisuals();
   return {
     recentSubjects: () => recentSubjects(),
+    poolUsage: () => poolUsage(),
     usedRecipeHashes: () => usedRecipeHashes(),
     recentPalettes: async () => recent.palettes,
     recentLayouts: async () => recent.layouts,
@@ -549,13 +550,17 @@ export async function scheduleById(id: string): Promise<ScheduleShape | null> {
 }
 
 /** Every active schedule, with the fields the horizon needs. */
-export async function activeSchedules(): Promise<ScheduleTimes[]> {
+export async function activeSchedules(): Promise<(ScheduleTimes & { topic_pool: string[] | null })[]> {
   const db = getSupabaseAdmin();
   const { data } = await db
     .from("social_schedules")
-    .select("id, post_at, timezone, days, active, platforms, platform_times")
+    // ⚠️ `topic_pool` rides along for the stand-down explanation, not for the
+    // horizon ⇒ standDownReasons. Without it that explanation is handed an
+    // empty list and reports nothing, which is worse than not having it:
+    // it looks like every angle is fine.
+    .select("id, post_at, timezone, days, active, platforms, platform_times, topic_pool")
     .eq("active", true);
-  return (data ?? []) as ScheduleTimes[];
+  return (data ?? []) as (ScheduleTimes & { topic_pool: string[] | null })[];
 }
 
 /**
@@ -682,4 +687,23 @@ export async function clearSlotFailure(slot: {
   } catch {
     // Harmless: a stale row only delays a slot that is already filled.
   }
+}
+
+/**
+ * How many posts each hand-fed angle has already spent.
+ *
+ * ⛔ COUNTS EVERY POST, including rejected and skipped ones. A word that was
+ * written about and thrown away has still been used — writing about it again
+ * would produce the same post that was already judged not good enough, and the
+ * reviewer would have to judge it twice.
+ */
+export async function poolUsage(): Promise<Record<string, number>> {
+  const db = getSupabaseAdmin();
+  const { data } = await db.from("social_posts").select("topic_pool").not("topic_pool", "is", null);
+  const out: Record<string, number> = {};
+  for (const r of data ?? []) {
+    const pool = r.topic_pool as string;
+    out[pool] = (out[pool] ?? 0) + 1;
+  }
+  return out;
 }

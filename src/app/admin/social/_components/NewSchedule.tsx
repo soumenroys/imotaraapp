@@ -111,6 +111,24 @@ export function NewSchedule({
       "Take one capability of Imotara and say what it is for, in plain words, as a person would. No slogans, and no claim to be therapy.",
   );
   const [platforms, setPlatforms] = useState<string[]>(editing?.platforms ?? ["facebook"]);
+
+  /**
+   * 🔴 A SCHEDULE IS ONE CHANNEL. The owner, 19 Oct: "Ensure Scheduler is
+   * working for every social media separately, not as one schedule for all
+   * social medias."
+   *
+   * ⚠️ AND THE REASON IS NOT TIDINESS. A shared schedule shares its BRIEF,
+   * its content type, its pools and its languages — only the clock could
+   * differ. So "a carousel on Instagram, drawing on an angle written for a
+   * list" was unaskable: picking it would have changed Facebook too
+   * ⇒ src/lib/social/topicPools.ts, where the measurement is recorded.
+   *
+   * ⛔ LEGACY ROWS ARE NOT SILENTLY HALVED. A schedule saved with two channels
+   * keeps its picker, with a notice — turning it into a radio would quietly
+   * drop a channel the moment somebody opened it to change the time, and the
+   * only symptom would be a feed that stopped.
+   */
+  const legacyMultiChannel = (editing?.platforms?.length ?? 0) > 1;
   const [contentType, setContentType] = useState(editing?.content_type ?? "text_graphic");
   const [topicPool, setTopicPool] = useState<string[]>(editing?.topic_pool ?? ["privacy", "quiet-hours"]);
   const [langs, setLangs] = useState<string[]>(editing?.languages ?? ["en"]);
@@ -276,18 +294,44 @@ export function NewSchedule({
       </div>
 
       <fieldset className="space-y-2">
-        <legend className={label}>Channels</legend>
+        <legend className={label}>{legacyMultiChannel ? "Channels" : "Channel"}</legend>
         <div className="flex flex-wrap gap-2">
           {PLATFORMS.map((p) => (
             <label key={p.id} title={p.blockedBy}
               className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${
                 platforms.includes(p.id) ? "border-indigo-600 bg-indigo-950/40" : "border-white/8"}`}>
-              <input type="checkbox" checked={platforms.includes(p.id)} className="h-4 w-4 accent-indigo-500"
-                onChange={() => toggle(platforms, p.id, setPlatforms)} />
+              <input
+                type={legacyMultiChannel ? "checkbox" : "radio"}
+                name={legacyMultiChannel ? undefined : "ns-channel"}
+                checked={platforms.includes(p.id)}
+                className="h-4 w-4 accent-indigo-500"
+                onChange={() =>
+                  legacyMultiChannel ? toggle(platforms, p.id, setPlatforms) : setPlatforms([p.id])
+                }
+              />
               {p.label}
             </label>
           ))}
         </div>
+
+        {!legacyMultiChannel && (
+          <p className="text-[11px] leading-relaxed text-zinc-500">
+            One channel per schedule. ⚠️ Not tidiness — a shared schedule shares its brief, its
+            shape and its angles, so a carousel on Instagram could not be asked for without
+            changing Facebook too. Give each channel its own and they can differ in what they say,
+            not only when.
+          </p>
+        )}
+
+        {legacyMultiChannel && (
+          <p className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-[11px] leading-relaxed text-amber-300/90">
+            ⚠️ <strong>This is the old shape:</strong> one schedule driving{" "}
+            {platforms.length} channels, which must therefore share a brief, a content type and a
+            set of angles. It still works and nothing here will change it behind your back. ▶️ To
+            let the channels differ in what they say, make one schedule per channel and switch this
+            one off.
+          </p>
+        )}
         {/* ⚠️ Only channels that actually cannot publish. This listed EVERY
             selected channel, so Facebook — live since this morning — was
             still being announced as blocked, with an empty reason. */}
@@ -313,7 +357,7 @@ export function NewSchedule({
           * so the common case (one time for everything) needs no decision and
           * reads as before.
           */}
-        {platforms.length > 1 && (
+        {legacyMultiChannel && (
           <div className="space-y-2 rounded-lg border border-white/8 bg-black/20 p-3">
             <p className="text-[11px] leading-relaxed text-zinc-400">
               <strong className="text-zinc-300">A different time for a channel?</strong> Leave a box

@@ -46,6 +46,8 @@ function deps(overrides: Partial<PipelineDeps> & { drafts?: Written[] } = {}): P
   let call = 0;
   return {
     recentSubjects: async () => [],
+    // ⚠️ Nothing spent yet, so every hand-fed angle is still available.
+    poolUsage: async () => ({}),
     usedRecipeHashes: async () => new Set<string>(),
     recentPalettes: async () => [],
     recentLayouts: async () => [],

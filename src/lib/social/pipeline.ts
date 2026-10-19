@@ -25,8 +25,14 @@ import {
 import { judgeSubject, subjectHash, exclusionList } from "@/lib/social/subjects";
 import { pickRecipe, headlineFor, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
 import { unshapableScripts, unshapableNote } from "@/lib/social/shaping";
-import { pickWord, untranslatablePoolReady } from "@/lib/social/untranslatableWords";
-import { pickMistake, mistakesPoolReady, mentionsMistake, type ProductMistake } from "@/lib/social/productMistakes";
+import { pickWord, untranslatablePoolReady, vettedWords } from "@/lib/social/untranslatableWords";
+import {
+  pickMistake,
+  mistakesPoolReady,
+  mentionsMistake,
+  vettedMistakes,
+  type ProductMistake,
+} from "@/lib/social/productMistakes";
 import { composePicture, type Picture } from "@/lib/social/compose";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
@@ -103,6 +109,14 @@ export type Written = {
 
 export type PipelineDeps = {
   recentSubjects: () => Promise<string[]>;
+  /**
+   * 🔑 HOW MANY POSTS EACH HAND-FED ANGLE HAS ALREADY SPENT.
+   *
+   * ⚠️ Needed because those angles have FINITE MATERIAL: a confirmed word, a
+   * real mistake. Without it the rotation keeps offering an angle whose only
+   * word has been used, and the writer dutifully writes about it again.
+   */
+  poolUsage: () => Promise<Record<string, number>>;
   usedRecipeHashes: () => Promise<Set<string>>;
   recentPalettes: () => Promise<string[]>;
   recentLayouts: () => Promise<string[]>;
@@ -230,12 +244,113 @@ export function bodyUsesWord(text: string, word: { word: string; roman: string }
   return text.includes(word.word) || text.toLowerCase().includes(word.roman.toLowerCase());
 }
 
-export function usablePools(pools: string[]): string[] {
-  let out = pools;
-  if (!untranslatablePoolReady().ok) out = out.filter((p) => p !== "untranslatable");
-  // ⛔ Same rule, same reason: the first post this angle wrote invented a
-  // history that never happened ⇒ src/lib/social/productMistakes.ts.
-  if (!mistakesPoolReady().ok) out = out.filter((p) => p !== "built-wrong");
+/**
+ * 🔴 AN ANGLE WITH FINITE MATERIAL RUNS OUT, AND MUST THEN STAND DOWN.
+ *
+ * `untranslatable` and `built-wrong` are not angles the model may invent
+ * within — each is handed a specific vetted thing, because the first time
+ * either chose for itself it was WRONG: an invented gloss for a Tamil word, an
+ * invented history that never happened.
+ *
+ * ⛔ SO THE MATERIAL IS THE LIMIT. One confirmed word is ONE POST.
+ * untranslatableWords.ts says exactly that and expected the subject register
+ * to enforce it — "the angle quietly stops being available rather than
+ * publishing the same thought twice".
+ *
+ * 🔴 IT DID NOT. With one confirmed word, ten days of queue came out carrying
+ * FOUR posts about অভিমান:
+ *     "Abhimaan: the hurt that waits to be noticed"
+ *     "Abhimaan: when pride feels tender"
+ *     "Abhimaan: the quiet sulk that waits to be met"
+ *     "Abhimaan: the sulk that asks to be seen"
+ * Four different subjects, so the overlap check passed every time — and the
+ * same post four times, which is what a reader actually sees.
+ *
+ * ⚠️ A CHECK ON WORDING CANNOT SEE SAMENESS OF SUBSTANCE. Counting what the
+ * angle has spent can, and it is not a judgement call.
+ */
+export function usablePools(
+  pools: string[],
+  used: Record<string, number> = {},
+  /**
+   * How much material each finite angle has. ⚠️ INJECTABLE ONLY SO THE RULE
+   * CAN BE TESTED. `built-wrong` has nothing confirmed today, so its
+   * exhaustion branch is unreachable through the real counts — a mutation
+   * deleting it survived, correctly, because `mistakesPoolReady()` already
+   * drops the angle. ⛔ A rule that cannot be exercised is a rule nobody will
+   * notice breaking on the day somebody confirms the first mistake.
+   */
+  limits: Record<string, number> = {
+    untranslatable: vettedWords().length,
+    "built-wrong": vettedMistakes().length,
+  },
+): string[] {
+  /**
+   * 🔑 ONE RULE, NOT TWO. "Nothing is confirmed" and "everything confirmed
+   * has been used" are the same question — IS THERE UNUSED MATERIAL LEFT? —
+   * and `used >= limit` answers both: with nothing confirmed the limit is 0,
+   * and 0 >= 0 drops the angle exactly as the readiness check did.
+   *
+   * ⛔ WRITTEN AS TWO CHECKS JOINED BY `||`, the readiness half short-circuited
+   * and the exhaustion half could never run while nothing was confirmed — so a
+   * mutation deleting it survived, and the rule would have failed silently on
+   * the day somebody confirmed the first mistake. ⚠️ Measured, not reasoned.
+   *
+   * ⚠️ The REASON an angle stood down is a separate question from whether it
+   * did ⇒ standDownReasons, below. Two places deciding the same thing is how
+   * the readiness check and the exhaustion check drifted apart in the first
+   * place; one decides, the other explains.
+   */
+  return pools.filter((p) => {
+    const limit = limits[p];
+    if (limit === undefined) return true; // open-ended: a direction, not material
+    return (used[p] ?? 0) < limit;
+  });
+}
+
+/**
+ * Why each angle the schedule asked for is not available, in words.
+ *
+ * 🔴 BECAUSE AN ANGLE THAT SILENTLY NEVER APPEARS IS INDISTINGUISHABLE FROM
+ * ONE THAT IS SIMPLY UNLUCKY. `untranslatablePoolReady()` and
+ * `mistakesPoolReady()` have carried a careful explanation since they were
+ * written, and until now NOTHING READ IT — I nearly left a comment in this
+ * file claiming the admin showed it, which it did not.
+ *
+ * ⚠️ Explains, never decides ⇒ usablePools is the gate.
+ */
+export function standDownReasons(
+  pools: string[],
+  used: Record<string, number> = {},
+  limits: Record<string, number> = {
+    untranslatable: vettedWords().length,
+    "built-wrong": vettedMistakes().length,
+  },
+): { pool: string; why: string }[] {
+  const left = new Set(usablePools(pools, used, limits));
+  const out: { pool: string; why: string }[] = [];
+
+  for (const pool of pools) {
+    if (left.has(pool)) continue;
+    const spent = used[pool] ?? 0;
+    const limit = limits[pool] ?? 0;
+
+    if (limit === 0) {
+      // Nothing was ever confirmed — the angle has never been available.
+      const reason =
+        pool === "untranslatable" ? untranslatablePoolReady().reason : mistakesPoolReady().reason;
+      out.push({ pool, why: reason ?? `${pool} has no confirmed material.` });
+      continue;
+    }
+
+    out.push({
+      pool,
+      why:
+        `“${pool}” has used all ${limit} of its confirmed entries (${spent} post(s) written), so it ` +
+        `stands down rather than writing about the same one again. ⚠️ Four posts about অভিমান reached ` +
+        `one ten-day queue before this rule existed. ▶️ Confirm another entry to give it legs.`,
+    });
+  }
   return out;
 }
 
@@ -464,7 +579,7 @@ export async function prepareGenerated(
    * and deciding them inside the writer left nobody able to check the result
    * ⇒ the `word` field on WriteRequest.
    */
-  const pool = nextPool(usablePools(args.schedule.topicPool), args.postsSoFar);
+  const pool = nextPool(usablePools(args.schedule.topicPool, await deps.poolUsage()), args.postsSoFar);
   const word = pool === "untranslatable" ? pickWord(args.postsSoFar) : null;
   const mistake = pool === "built-wrong" ? pickMistake(args.postsSoFar) : null;
 

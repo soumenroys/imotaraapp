@@ -64,7 +64,12 @@ export async function ensureCard(postId: string): Promise<EnsureResult> {
       },
       format,
     );
-    if (!made.ok) return { ok: false, error: made.error };
+    if (!made.ok) {
+      // ⚠️ Logged as well as returned. The 422 body reaches the admin's
+      // banner and is truncated there; nothing reached Vercel at all.
+      console.error("[ensureCard] the animation failed", { postId, format, error: made.error });
+      return { ok: false, error: made.error };
+    }
 
     const put = await putVideo(postId, format, made.bytes);
     if (!put.ok) return { ok: false, error: put.error };

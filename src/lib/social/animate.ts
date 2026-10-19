@@ -116,9 +116,31 @@ function run(bin: string, args: string[]): Promise<void> {
       if (stderr.length < 8_000) stderr += String(d);
     });
     p.on("error", reject);
-    p.on("close", (code) =>
-      code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-1200)}`)),
-    );
+    p.on("close", (code) => {
+      if (code === 0) return resolve();
+      /**
+       * 🔴 THE TAIL IS NOT THE ERROR, which cost three rounds to learn.
+       *
+       * ffmpeg prints a great deal while probing its inputs, and on failure
+       * the last 1,200 characters can be entirely that noise. What the owner
+       * saw was "ffmpeg exited 1: uration from bitrate, this may be
+       * inaccurate" — the MIDDLE of a routine warning emitted while reading
+       * input one, with the actual cause further down and cut off by the
+       * admin's banner.
+       *
+       * ⇒ The lines that look like a cause are pulled out and put FIRST, so
+       * a truncated message still carries the answer.
+       */
+      const lines = stderr.split("\n").map((l) => l.trim()).filter(Boolean);
+      const blamed = lines.filter((l) =>
+        /error|invalid|no such|unable|cannot|failed|filtergraph|not supported|conversion/i.test(l),
+      );
+      const summary = (blamed.length > 0 ? blamed : lines).slice(-6).join(" · ");
+      // ⚠️ The whole thing reaches the SERVER LOG even when the message does
+      // not reach the screen — Vercel logged nothing at all last time.
+      console.error("[animate] ffmpeg failed", { code, stderr: stderr.slice(-4000) });
+      reject(new Error(`ffmpeg exited ${code}: ${summary.slice(0, 900)}`));
+    });
   });
 }
 

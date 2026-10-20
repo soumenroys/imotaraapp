@@ -3565,33 +3565,44 @@ export default function AdminPage() {
       .catch(() => {});
   }, [token]);
 
-  const fetchComments = useCallback(async (status: CommentTab, tok: string) => {
+  /**
+   * 🔴 THE COUNTS AND THE LIST COME FROM THE SAME TWO REQUESTS.
+   *
+   * ⛔ This used to run alongside `fetchComments(tab)`, and the default tab is
+   * "pending" — so `?status=pending` was requested TWICE, concurrently, on
+   * every single load. Measured in the network panel, not guessed.
+   *
+   * 🔑 And `?status=all` is only pending + approved (the route applies no
+   * filter for it), so the "All" tab needs no third round trip either: it is
+   * the two lists concatenated, which is also instant.
+   */
+  const fetchCommentsAndCounts = useCallback(async (status: CommentTab, tok: string) => {
     setLoadingC(true);
     try {
-      const res = await fetch(`/api/admin/comments?status=${status}`, {
-        headers: { Authorization: `Bearer ${tok}` },
-      });
-      if (res.status === 401) { setToken(null); sessionStorage.removeItem(SESSION_KEY); return; }
-      setComments((await res.json()).comments ?? []);
-    } finally { setLoadingC(false); }
-  }, []);
-
-  const fetchCounts = useCallback(async (tok: string) => {
-    const [pRes, aRes] = await Promise.all([
-      fetch("/api/admin/comments?status=pending",  { headers: { Authorization: `Bearer ${tok}` } }),
-      fetch("/api/admin/comments?status=approved", { headers: { Authorization: `Bearer ${tok}` } }),
-    ]);
-    const [pData, aData] = await Promise.all([pRes.json(), aRes.json()]);
-    const p = (pData.comments ?? []).length;
-    const a = (aData.comments ?? []).length;
-    setCounts({ pending: p, approved: a, all: p + a });
+      const headers = { Authorization: `Bearer ${tok}` };
+      const [pRes, aRes] = await Promise.all([
+        fetch("/api/admin/comments?status=pending", { headers }),
+        fetch("/api/admin/comments?status=approved", { headers }),
+      ]);
+      if (pRes.status === 401 || aRes.status === 401) {
+        setToken(null);
+        sessionStorage.removeItem(SESSION_KEY);
+        return;
+      }
+      const [pData, aData] = await Promise.all([pRes.json(), aRes.json()]);
+      const pending = (pData.comments ?? []) as Comment[];
+      const approved = (aData.comments ?? []) as Comment[];
+      setCounts({ pending: pending.length, approved: approved.length, all: pending.length + approved.length });
+      setComments(status === "pending" ? pending : status === "approved" ? approved : [...pending, ...approved]);
+    } finally {
+      setLoadingC(false);
+    }
   }, []);
 
   useEffect(() => {
     if (!token || section !== "comments") return;
-    fetchComments(tab, token);
-    fetchCounts(token);
-  }, [token, section, tab, fetchComments, fetchCounts]);
+    void fetchCommentsAndCounts(tab, token);
+  }, [token, section, tab, fetchCommentsAndCounts]);
 
   if (checking) {
     return (

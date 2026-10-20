@@ -733,3 +733,99 @@ describe("the angle avoids what the other channels already said today", () => {
     expect(seen).toBeTruthy();
   });
 });
+
+/**
+ * 🔴 A SLOT LOST BECAUSE ONE ANGLE RAN OUT OF THINGS TO SAY — 20 Oct 2026.
+ *
+ * Four Instagram slots failed three drafts out of three and left the day
+ * empty. The recorded objections said why, and it was neither the gate nor
+ * the brief: *"Subject rejected: 67% of the meaningful words are shared with
+ * a subject already used"*, three attempts running. The angle's subject space
+ * was used up, and asking the same angle again asked for the same clash.
+ *
+ * ⚠️ And the cross-channel narrowing shipped hours earlier made it likelier:
+ * dropping the angles the other channels spent that day pushes the last
+ * channel onto whatever is left, crowded or not.
+ *
+ * ⛔ THE DISTINCTION IS THE WHOLE FIX. A subject clash is about the ANGLE, so
+ * it moves. A gate rejection is about the WORDS, and a different angle does
+ * not make bad words good — the source guard in aMenuIsNotARotation pins
+ * where the advance sits; this pins what it actually does.
+ */
+describe("an angle that has run out of subjects", () => {
+  const POOLED = { topicPool: ["privacy", "quiet-hours", "the-unsaid"] };
+
+  /** The angle each attempt was written from, in order. */
+  async function anglesTried(overrides: Partial<PipelineDeps>) {
+    const seen: string[] = [];
+    const result = await prepareGenerated(
+      deps({
+        ...overrides,
+        write: async (req) => {
+          seen.push(req.topicPool[0]);
+          return { subject: `Draft ${seen.length} about something`, body: CLEAN_BODY };
+        },
+      }),
+      { schedule: schedule(POOLED), platform: "facebook", language: "en", postsSoFar: 0 },
+    );
+    return { seen, result };
+  }
+
+  it("🔴 moves to another angle when the subject keeps clashing", async () => {
+    /**
+     * ⚠️ `recentSubjects` returns the drafts the fake writer will produce, so
+     * every subject clashes exactly as it did in production.
+     */
+    const { seen } = await anglesTried({
+      recentSubjects: async () => [
+        "Draft 1 about something",
+        "Draft 2 about something",
+        "Draft 3 about something",
+      ],
+    });
+    expect(seen.length, "it did not retry at all").toBeGreaterThan(1);
+    expect(new Set(seen).size, `it asked the same angle again: ${seen.join(", ")}`).toBeGreaterThan(1);
+  });
+
+  it("⛔ but a GATE rejection keeps the same angle", async () => {
+    /**
+     * 🔑 The half that stops this becoming "retry everything differently".
+     * The gate refuses WORDS. Changing the angle there would hide a copy
+     * problem behind a different subject and publish it.
+     */
+    const seen: string[] = [];
+    await prepareGenerated(
+      deps({
+        recentSubjects: async () => [],
+        // ⚠️ Copy the real gate refuses — the same draft the suite above uses,
+        // so this rejects for the reason it says it does rather than by luck.
+        write: async (req) => {
+          seen.push(req.topicPool[0]);
+          return { subject: "Our expert counselors", body: "Talk to our expert counselors today." };
+        },
+      }),
+      { schedule: schedule(POOLED), platform: "facebook", language: "en", postsSoFar: 0 },
+    );
+    expect(seen.length, "it did not retry at all").toBeGreaterThan(1);
+    expect(new Set(seen).size, `the gate moved the angle: ${seen.join(", ")}`).toBe(1);
+  });
+
+  it("⚠️ a schedule with ONE angle still refuses rather than looping", async () => {
+    // ⛔ Nowhere to fall back to is not a reason to try forever.
+    const { result } = await (async () => {
+      const seen: string[] = [];
+      const r = await prepareGenerated(
+        deps({
+          recentSubjects: async () => ["Draft 1 about something", "Draft 2 about something", "Draft 3 about something"],
+          write: async (req) => {
+            seen.push(req.topicPool[0]);
+            return { subject: `Draft ${seen.length} about something`, body: CLEAN_BODY };
+          },
+        }),
+        { schedule: schedule({ topicPool: ["privacy"] }), platform: "facebook", language: "en", postsSoFar: 0 },
+      );
+      return { seen, result: r };
+    })();
+    expect(result.ok).toBe(false);
+  });
+});

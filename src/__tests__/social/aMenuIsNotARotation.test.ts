@@ -93,7 +93,15 @@ describe("exactly one angle reaches the writer", () => {
      */
     const built = pipeline.indexOf("usablePools(args.schedule.topicPool");
     const weighted = pipeline.indexOf("weightedCycle(");
-    const at = pipeline.indexOf("const pool = nextPool(");
+    // ⚠️ 20 Oct: the draw moved from `nextPool(cycle, …)` to `angleOrder(cycle, …)`,
+    // which returns the SAME angle first and keeps the rest as fallbacks for a
+    // subject clash. The rule being pinned — build, weight, then draw — is
+    // unchanged; only the name of the draw is.
+    // ⛔ The CALL, not the definition. `angleOrder(cycle` also matches
+    // `export function angleOrder(cycle: string[]`, which sits earlier in the
+    // file than weightedCycle — so the first version of this anchor compared
+    // the definition's position and failed on correct code.
+    const at = pipeline.indexOf("angleOrder(cycle, args.postsSoFar)");
     expect(built, "the pool list is no longer built from the schedule").toBeGreaterThan(-1);
     expect(weighted, "the rotation is no longer weighted").toBeGreaterThan(-1);
     expect(at, "nothing draws a single angle any more").toBeGreaterThan(-1);
@@ -120,8 +128,8 @@ describe("exactly one angle reaches the writer", () => {
     expect(branch.slice(0, 600)).toContain("continue;");
   });
 
-  it("decides the word once, outside the retry loop", () => {
-    const decided = pipeline.indexOf('const word = pool === "untranslatable"');
+  it("decides the word before the retry loop, not per attempt", () => {
+    const decided = pipeline.indexOf("let { brief, shape, word, mistake } = contextFor(pool);");
     const loop = pipeline.indexOf("for (let attempt = 1;");
     /**
      * ⚠️ THE `> -1` IS THE WHOLE TEST. `indexOf` returns -1 when the line is
@@ -129,9 +137,37 @@ describe("exactly one angle reaches the writer", () => {
      * of this assertion passed with the word-picking DELETED. Found by
      * mutation ⇒ trap_mutation_harness_can_report_false_caught.
      */
-    expect(decided, "the word is never picked at all").toBeGreaterThan(-1);
+    expect(decided, "the angle's word and brief are never decided at all").toBeGreaterThan(-1);
     expect(loop).toBeGreaterThan(-1);
-    expect(decided, "the word is picked per attempt, so a retry changes the subject").toBeLessThan(loop);
+    expect(decided, "they are decided per attempt, so a retry changes the subject").toBeLessThan(loop);
+  });
+
+  /**
+   * 🔴 REFINED 20 Oct 2026, and the refinement is the point.
+   *
+   * The rule WAS "the angle is decided once, full stop". It is now "the angle
+   * is decided once PER ANGLE, and only a subject clash may advance it" —
+   * because four Instagram slots went empty with the recorded objection
+   * "67% of the meaningful words are shared with a subject already used",
+   * three attempts running. The angle's subject space was used up and asking
+   * it again asked for the same clash.
+   *
+   * ⛔ The original reasoning still holds everywhere else: a GATE rejection is
+   * about the WORDS, and a different angle does not make bad words good. The
+   * behavioural half of this lives in theWholeFlowFromScheduleToQueue.
+   */
+  it("⛔ only a subject clash may move the angle — never the gate", () => {
+    const clashBranch = pipeline.indexOf("Subject rejected:");
+    const gateBranch = pipeline.indexOf("The gate rejected it:");
+    const advance = pipeline.indexOf("angleIndex++");
+    expect(clashBranch, "the subject clash branch is gone").toBeGreaterThan(-1);
+    expect(gateBranch, "the gate branch is gone").toBeGreaterThan(-1);
+    expect(advance, "nothing advances the angle any more").toBeGreaterThan(-1);
+
+    // 🔑 The advance sits between the clash branch and the gate branch, i.e.
+    // inside the clash branch and not inside the gate's.
+    expect(advance).toBeGreaterThan(clashBranch);
+    expect(advance, "the angle is advanced from the gate branch too").toBeLessThan(gateBranch);
   });
 
   /**

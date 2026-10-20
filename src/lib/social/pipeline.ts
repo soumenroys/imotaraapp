@@ -503,6 +503,36 @@ export function poolsLeftForToday(available: string[], usedToday: string[]): str
   return left.length > 0 ? left : available;
 }
 
+/**
+ * 🔴 THE ANGLE THIS POST TAKES, THEN THE ONES IT CAN FALL BACK TO.
+ *
+ * ⛔ THE DEFECT, read out of production 20 Oct 2026. Four Instagram slots
+ * failed three drafts out of three and left the day empty. The recorded
+ * objections said why, and it was not the gate or the brief:
+ *   "Subject rejected: 67% of the meaningful words are shared with a subject
+ *    already used — clashes with 'How nervousness actually shows up'"
+ * — three times running. The angle's subject space was simply used up, and
+ * the writer kept landing inside it.
+ *
+ * ⚠️ AND THE CROSS-CHANNEL NARROWING MADE IT LIKELIER, which is worth owning:
+ * dropping the angles the other channels spent that day pushes the last
+ * channel onto whatever is left, including a crowded one.
+ *
+ * 🔑 DEDUPED, BECAUSE THE CYCLE IS WEIGHTED. `weightedCycle` repeats an angle
+ * to give it more turns, so a raw rotation would "fall back" from an angle to
+ * itself and clash again for exactly the same reason.
+ */
+export function angleOrder(cycle: string[], postsSoFar: number): string[] {
+  if (cycle.length === 0) {
+    throw new Error("social/pipeline: this schedule has no topic pool, so there is nothing to write about.");
+  }
+  if (!Number.isFinite(postsSoFar) || postsSoFar < 0) {
+    throw new Error(`social/pipeline: postsSoFar must be a non-negative number, got ${postsSoFar}`);
+  }
+  const start = postsSoFar % cycle.length;
+  return [...new Set([...cycle.slice(start), ...cycle.slice(0, start)])];
+}
+
 export function nextPool(pools: string[], postsSoFar: number): string {
   if (!pools || pools.length === 0) {
     throw new Error(
@@ -835,7 +865,13 @@ export async function prepareGenerated(
 
   const scores = angleScores(await deps.measuredPosts());
   const cycle = weightedCycle(fresh, turnsFor(fresh, scores, args.platform));
-  const pool = nextPool(cycle, args.postsSoFar);
+  /**
+   * ⚠️ `nextPool` still decides which angle this post TAKES — `order[0]` is
+   * exactly its answer. What is new is that the rest of the cycle is kept, so
+   * a subject clash has somewhere to go instead of losing the slot.
+   */
+  const order = angleOrder(cycle, args.postsSoFar);
+  let pool = order[0];
 
   /**
    * 🔑 THE ANGLE MAY OVERRIDE BOTH THE BRIEF AND THE SHAPE ⇒ topicPools.ts.
@@ -850,12 +886,22 @@ export async function prepareGenerated(
    * form IS the point: a list of five recognitions is a carousel or it is six
    * lines of small type.
    */
-  const angle = TOPIC_POOLS.find((t) => t.id === pool);
-  const brief = angle?.brief ?? args.schedule.brief;
-  const shape = angle?.shape ?? shapeFor(args.schedule, args.postsSoFar);
-
-  const word = pool === "untranslatable" ? pickWord(args.postsSoFar) : null;
-  const mistake = pool === "built-wrong" ? pickMistake(args.postsSoFar) : null;
+  /**
+   * ⚠️ EVERYTHING THE ANGLE DECIDES, IN ONE PLACE, so moving to another angle
+   * cannot leave half of it behind — a post written from one angle's brief and
+   * saved under another's id would be invisible in every figure we keep.
+   */
+  const contextFor = (p: string) => {
+    const a = TOPIC_POOLS.find((t) => t.id === p);
+    return {
+      brief: a?.brief ?? args.schedule.brief,
+      shape: a?.shape ?? shapeFor(args.schedule, args.postsSoFar),
+      word: p === "untranslatable" ? pickWord(args.postsSoFar) : null,
+      mistake: p === "built-wrong" ? pickMistake(args.postsSoFar) : null,
+    };
+  };
+  let { brief, shape, word, mistake } = contextFor(pool);
+  let angleIndex = 0;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const written = await deps.write({
@@ -931,6 +977,26 @@ export async function prepareGenerated(
       const why = `Subject rejected: ${verdict.reason}${verdict.clashesWith ? ` — clashes with “${verdict.clashesWith}”` : ""}`;
       rejected.push({ attempt, subject, body, why });
       objections.push(why);
+
+      /**
+       * 🔴 THE ONE REJECTION THAT MOVES THE ANGLE — added 20 Oct 2026.
+       *
+       * ⛔ THE COMMENT ABOVE SAYS THE ANGLE IS DECIDED ONCE, and its reason is
+       * right: changing it on a GATE retry would change the subject mid-flight
+       * and leave nobody able to check the result. ⚠️ A SUBJECT CLASH is the
+       * opposite case — the angle is the thing that exhausted itself, so
+       * asking the same angle again is asking for the same clash. Four
+       * Instagram slots went empty proving it.
+       *
+       * ⛔ Deliberately NOT done for the gate or the house style: those are
+       * about the WORDS, and a different angle does not make bad words good.
+       */
+      if (angleIndex + 1 < order.length) {
+        angleIndex++;
+        pool = order[angleIndex];
+        ({ brief, shape, word, mistake } = contextFor(pool));
+        objections.push(`Moving to the angle "${pool}" — the last one's subjects are used up.`);
+      }
       continue;
     }
 

@@ -26,7 +26,9 @@ import {
   generateIllustration,
 } from "@/lib/social/illustration";
 import { planBackground } from "@/lib/social/backgroundPlan";
-import { giveAPicture } from "@/lib/social/giveAPicture";
+import { giveAPicture, stylesUsedOn } from "@/lib/social/giveAPicture";
+import { istDayWindow } from "@/lib/social/pipeline";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 export const runtime = "nodejs";
 /** ⚠️ A drawing call is slow. The default would cut it off mid-request. */
@@ -79,11 +81,73 @@ export async function POST(req: NextRequest) {
      * post publishes with or without it.
      */
     postId?: string;
+    /**
+     * 🔑 GIVE PICTURES TO THE POSTS THAT HAVE NONE, by the NORMAL rotation.
+     *
+     * ⛔ NOT the forced-style path above. That one exists to check a named
+     * style against real words; a backfill must go through the same choosing
+     * the cron does — narrowed by what the day already spent and by what each
+     * post is about — or it proves nothing about how the feed will look.
+     *
+     * ⚠️ BOUNDED PER CALL. A drawing takes about five seconds and this route
+     * has 120, so twenty-five in one request would be cut off mid-way with
+     * some posts updated and no report of which.
+     */
+    backfill?: boolean;
+    limit?: number;
   };
   try {
     payload = await req.json();
   } catch {
     return NextResponse.json({ error: "Send a JSON body with a style id." }, { status: 400 });
+  }
+
+  /**
+   * ⛔ HANDLED BEFORE THE STYLE IS RESOLVED, because a backfill names no
+   * style — the rotation does.
+   */
+  if (payload.backfill) {
+    const model = (payload.model ?? "").trim();
+    if (!model) {
+      return NextResponse.json({ error: "Name a model. GET this route first." }, { status: 400 });
+    }
+    const db = getSupabaseAdmin();
+    const { data: posts, error } = await db
+      .from("social_posts")
+      .select("id, subject, topic_pool, scheduled_for")
+      .is("illustration", null)
+      .in("status", ["needs_review", "approved"])
+      .not("scheduled_for", "is", null)
+      .order("scheduled_for")
+      .limit(Math.min(Math.max(payload.limit ?? 6, 1), 8));
+    if (error) return NextResponse.json({ error: error.message }, { status: 502 });
+
+    const done: string[] = [];
+    for (const [i, post] of (posts ?? []).entries()) {
+      const day = istDayWindow(post.scheduled_for as string);
+      const given = await giveAPicture({
+        postId: post.id as string,
+        // ⚠️ The index within this run keeps the rotation moving; the day's
+        // own spend is what stops two channels sharing a style.
+        postsSoFar: i,
+        usedToday: await stylesUsedOn(day.from, day.to),
+        angle: post.topic_pool as string | null,
+        mood: post.subject as string | null,
+        model,
+      });
+      done.push(
+        given.ok
+          ? `✅ ${given.illustration.style} — ${post.subject}`
+          : `❌ ${post.subject}: ${given.reason.slice(0, 160)}`,
+      );
+    }
+    const { count } = await db
+      .from("social_posts")
+      .select("id", { count: "exact", head: true })
+      .is("illustration", null)
+      .in("status", ["needs_review", "approved"])
+      .not("scheduled_for", "is", null);
+    return NextResponse.json({ drawn: done.length, results: done, stillWithout: count ?? null });
   }
 
   const style = styleById((payload.style ?? "").trim());
